@@ -279,14 +279,8 @@ async def test_list_worktrees_failure(mock_subprocess):
 
 @pytest.mark.asyncio
 async def test_enter_worktree_unexpected_exception_propagates(mock_subprocess):
-    """worktree.py no longer catches unexpected exceptions itself (ADR-0057)
-    — as a registered tool, create_safe_wrapper's own error=True handling
-    takes over; as delegate.py's direct in-process call, asyncio.gather's
-    return_exceptions=True already handles it. Either way, this function
-    itself must let the exception through rather than swallow it into a
-    plain string, which would corrupt delegate.py's `AgentTaskResult.error:
-    str | None` contract if it were caught here and returned as a ToolReturn.
-    """
+    """Unexpected exceptions propagate; the tool wrapper or delegate.py's
+    gather handles them (ADR-0057)."""
     mock_subprocess.side_effect = OSError("no such file or directory")
 
     with pytest.raises(OSError):
@@ -294,7 +288,7 @@ async def test_enter_worktree_unexpected_exception_propagates(mock_subprocess):
 
 
 def _capture_live_context(ctx=None) -> str:
-    """Helper: render the live-context block (where worktree state now lives)."""
+    """Render the live-context block, which carries worktree state."""
     if ctx is None:
         ctx = MagicMock()
         ctx.input.session = "test-session"

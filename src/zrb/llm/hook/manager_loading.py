@@ -1,10 +1,4 @@
-"""Filesystem loading and config parsing for `HookManager`.
-
-This mixin holds everything that walks directories, reads JSON/YAML, and
-hydrates raw dicts into `HookConfig` objects. Splitting it out keeps the main
-`HookManager` focused on registration, execution, and the type-specific hook
-factories.
-"""
+"""Filesystem loading and config parsing for `HookManager`."""
 
 from __future__ import annotations
 
@@ -36,9 +30,7 @@ logger = logging.getLogger(__name__)
 class HookManagerLoading:
     """Filesystem + format-parsing for HookManager."""
 
-    # Host-class contract: state and methods owned by `HookManager`. Declared
-    # here so static type checkers can verify accesses; the block does not run
-    # at runtime.
+    # Host-class contract: state and methods owned by `HookManager`.
     if TYPE_CHECKING:
         _max_depth: int
         _ignore_dirs: list[str]
@@ -51,8 +43,6 @@ class HookManagerLoading:
             events: list[HookEvent] | None = None,
             config: HookConfig | None = None,
         ) -> None: ...
-
-    # --- Filesystem traversal --------------------------------------------
 
     def _load_from_path(self, path: str | Path) -> None:
         try:
@@ -89,8 +79,6 @@ class HookManagerLoading:
         except Exception as e:
             logger.error(f"Failed to load python hooks from {file_path}: {e}")
 
-    # --- JSON / YAML loading & format dispatch ---------------------------
-
     def _load_file(self, file_path: Path) -> None:
         logger.debug(f"Loading hooks from {file_path}")
         try:
@@ -98,8 +86,7 @@ class HookManagerLoading:
                 if file_path.suffix == ".json":
                     data = json.load(f)
                 else:
-                    # lazy: heavy third-party -- yaml costs ~20 ms at startup,
-                    # and only a project with a YAML hook file reads one
+                    # lazy: heavy third-party -- yaml costs ~20 ms at startup
                     import yaml
 
                     data = yaml.safe_load(f)
@@ -109,41 +96,31 @@ class HookManagerLoading:
                 and "hooks" in data
                 and isinstance(data["hooks"], dict)
             ):
-                # Claude Code Nested Format
+                # Claude Code nested format
                 self._parse_claude_format(data, str(file_path))
             elif isinstance(data, list):
-                # Zrb Flat Format (List)
+                # Zrb flat format
                 for item in data:
                     self._parse_and_register(item, str(file_path))
             elif isinstance(data, dict):
-                # Zrb Flat Format (Single Dict or unknown)
                 if "events" in data and "type" in data:
                     self._parse_and_register(data, str(file_path))
-                # else: silently ignore — dict without `events`+`type` is not a hook
 
         except Exception as e:
             logger.error(f"Failed to load hooks from {file_path}: {e}")
 
     def parse_claude_format(self, data: dict, source: str) -> None:
-        """Public: parse a Claude-nested hook config and register its hooks.
-
-        Used by external loaders (e.g. skill frontmatter) so they don't reach
-        into the private `_parse_claude_format`.
-        """
+        """Parse a Claude-nested hook config and register its hooks."""
         self._parse_claude_format(data, source)
 
     def parse_and_register(self, data: dict, source: str) -> None:
-        """Public: parse one flat (Zrb-format) hook entry and register it."""
+        """Parse one flat (Zrb-format) hook entry and register it."""
         self._parse_and_register(data, source)
 
     def build_hook_configs(self, data: object, source: str) -> list[HookConfig]:
-        """Public: parse hook declarations into `HookConfig`s, registering nothing.
+        """Parse hook declarations into `HookConfig`s without registering them.
 
-        Accepts the shapes the file loader does: a Claude-nested mapping under
-        `hooks`, a flat list of entries, or one flat entry. Nothing is
-        registered, so the caller decides where the parsed hooks go — skill
-        frontmatter hands the same configs to every manager (see
-        `zrb.llm.hook.skill_frontmatter`).
+        Accepts a Claude-nested mapping, a flat list of entries, or one flat entry.
         """
         if isinstance(data, dict):
             if isinstance(data.get("hooks"), dict):
@@ -156,7 +133,7 @@ class HookManagerLoading:
         return []
 
     def build_claude_format_configs(self, data: dict, source: str) -> list[HookConfig]:
-        """Public: the `HookConfig`s a Claude-nested hook block declares.
+        """The `HookConfig`s a Claude-nested hook block declares.
 
         Shape::
 
@@ -168,19 +145,14 @@ class HookManagerLoading:
               }
             }
 
-        An event zrb does not emit, or a hook entry that fails to parse, is
-        logged and skipped — the same tolerance the registering path has.
+        Unsupported events and unparsable entries are logged and skipped.
         """
         configs: list[HookConfig] = []
         for event_name, matcher_groups in data.get("hooks", {}).items():
             try:
                 event = HookEvent.from_claude_string(event_name)
             except ValueError:
-                # Claude Code configs (e.g. peon-ping's settings.json) legitimately
-                # register events zrb does not emit — SubagentStart/Stop, etc.
-                # Skip them quietly, the same way Claude Code ignores hook events
-                # it doesn't recognize. debug-level keeps this diagnosable without
-                # spamming a warning on every load.
+                # Claude configs legitimately name events zrb does not emit.
                 logger.debug(
                     f"Skipping unsupported event in Claude config: {event_name}"
                 )
@@ -219,16 +191,9 @@ class HookManagerLoading:
     def register_hook_config(
         self, config: "HookConfig", source: str = "python"
     ) -> "HookCallable | None":
-        """Hydrate and register an already-built `HookConfig` — the same last
-        step `_parse_and_register` takes after parsing JSON, exposed directly
-        for hook factories (`add_hook_factory`) that build a `HookConfig` in
-        Python rather than from a file. A no-op if `config.enabled` is False,
-        matching the JSON-loading path.
+        """Hydrate and register *config*, returning the callable.
 
-        Returns the hydrated hook callable, or `None` when the config was
-        disabled and nothing was registered. A caller that has to be able to
-        take a registration back later — a re-scan replacing a source's hooks —
-        needs the callable to hand to `remove_hook`.
+        Returns `None` (registering nothing) when `config.enabled` is False.
         """
         if not config.enabled:
             return None
@@ -238,7 +203,6 @@ class HookManagerLoading:
         return hook_callable
 
     def _create_hook_config(self, data: dict, source: str | None = None) -> HookConfig:
-        # Manual parsing because we are not using Pydantic BaseModel
         name = data["name"]
         events = [HookEvent(e) for e in data["events"]]
         hook_type = HookType(data["type"])
@@ -329,10 +293,7 @@ def _build_claude_group_configs(
 def _build_claude_hook_config(
     event: HookEvent, hook_def: dict, matchers: list[MatcherConfig], source: str
 ) -> HookConfig | None:
-    """The config one hook definition declares, or None for an unsupported type.
-
-    `command` is the only type this format carries so far.
-    """
+    """The config one hook definition declares, or None unless it is `command`."""
     if hook_def.get("type", "command") != "command":
         return None
     return HookConfig(

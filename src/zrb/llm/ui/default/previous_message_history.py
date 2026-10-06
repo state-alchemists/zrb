@@ -1,25 +1,7 @@
-"""Persistent previous-message history for the default TUI's input box.
+"""Persistent previous-message history for the default TUI input box.
 
-The input box's Up/Down recall walks two sources, newest first: the user
-messages of the conversation just loaded with `/load` (seeded on load), then
-the cross-session history of every message the user has submitted before,
-persisted under `CFG.LLM_PREVIOUS_MESSAGE_HISTORY_DIR`.
-
-`PreviousMessageHistory` is a prompt_toolkit `History`, so `append_string`
-keeps the input buffer's own bookkeeping in sync while `load_history_strings`
-feeds its Up/Down recall. Recording happens at the common submit boundary
-(`BaseUI.submit_user_message` → the default UI's `record_submitted_message`),
-and recall navigation lives in `UIMessageEditing`, which reads
-`recall_strings()`.
-
-Persistence is best-effort, non-blocking, and concurrency-safe: each write
-re-reads the file under an OS file lock, merges in the messages submitted this
-session, trims to the configured limit, and atomically replaces the file via a
-unique temporary name — so two concurrent sessions cannot clobber each other.
-Submission writes take the lock without waiting: a write that finds it held
-defers its messages to a later submission. Session teardown makes one short,
-bounded retry, and a missing or unwritable history directory never breaks a
-chat turn.
+Loaded-conversation messages precede cross-session history during recall.
+Writes are best-effort, locked, merged with disk, trimmed, and atomic.
 """
 
 from __future__ import annotations
@@ -42,14 +24,7 @@ _TEARDOWN_LOCK_TIMEOUT_SECONDS = 0.25
 
 
 class PreviousMessageHistory(History):
-    """A `History` that persists submitted messages and holds a seeded
-    conversation's user messages ahead of them.
-
-    ``recall_strings()`` returns the combined recall list, newest first: the
-    loaded conversation's user messages, then the cross-session history. The
-    prompt_toolkit side (`load_history_strings`/`store_string`) keeps the same
-    list visible to the input buffer's own history bookkeeping.
-    """
+    """History that places loaded-conversation messages before persistent ones."""
 
     def __init__(self, history_dir: str, max_entries: int = 0) -> None:
         super().__init__()
@@ -127,11 +102,7 @@ class PreviousMessageHistory(History):
             self._write_persistent(timeout=_TEARDOWN_LOCK_TIMEOUT_SECONDS)
 
     def _write_persistent(self, timeout: float = _LOCK_TIMEOUT_SECONDS) -> None:
-        """Persist the history, merging this session's new messages with disk.
-
-        Never raises. When another session holds the lock the write is
-        skipped and `_session_new` keeps the entries for the next write.
-        """
+        """Persist pending messages merged with disk; failures leave them queued."""
         try:
             os.makedirs(self._history_dir, exist_ok=True)
         except OSError:

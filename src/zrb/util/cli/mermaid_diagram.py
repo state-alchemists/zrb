@@ -31,12 +31,8 @@ def _max_line_width(art: str) -> int:
 
 
 def _render_fit(render, body: str, target_width: "int | None") -> str:
-    """Render `body`, shrinking gap/padding if it's wider than `target_width`.
-
-    Without this, a diagram wider than the terminal gets word-wrapped by
-    Rich's Syntax renderer mid-line, corrupting the box-drawing art -- most
-    visibly after a resize to a narrower terminal.
-    """
+    """Render `body`, shrinking gap/padding if it's wider than `target_width`
+    (Rich word-wrapping would corrupt the box-drawing art)."""
     art = render(body)
     if target_width is None or _max_line_width(art) <= target_width:
         return art
@@ -51,13 +47,9 @@ def _render_fit(render, body: str, target_width: "int | None") -> str:
 def convert_mermaid_to_art(text: str, width: "int | None" = None) -> str:
     """Render ```mermaid / ```mmd fenced blocks as Unicode diagram art.
 
-    `width` is the console width the caller will render at (see
-    `render_markdown`) -- passing it lets the diagram shrink to fit instead
-    of relying on Rich to word-wrap it, which corrupts box-drawing art. Each
-    fence converts independently. A fence termaid can't parse is left
-    exactly as written -- the pre-existing fallback (a plain, unhighlighted
-    code fence, since pygments has no `mermaid` lexer) -- without affecting
-    any other fence in the same document.
+    `width` is the console width the caller renders at, so the diagram can
+    shrink to fit. Each fence converts independently; one termaid can't parse
+    is left as written.
     """
     try:
         render = _get_renderer()

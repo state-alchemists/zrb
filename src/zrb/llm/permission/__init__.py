@@ -1,15 +1,7 @@
 """Permission model: capability tags, rulesets, and ambient mode/policy state.
 
-This package is a leaf (no ``zrb.llm.agent`` imports) so both the low-level tool
-wrappers in ``agent/common.py`` and the higher-level runner can consult it
-without circular imports.
-
-* ``capability`` — per-tool capability tags (read/edit/execute/network/delegate/meta)
-* ``policy``     — ``Rule`` / ``PermissionPolicy`` (allow|ask|deny) + ``PLAN_MODE_POLICY``
-* ``state``      — ambient ``current_permission_policy`` and ``current_agent_mode``
-
-Default-off invariant: with no policy set and mode ``BUILD``, no consumer
-constrains any tool call.
+Leaf package (no ``zrb.llm.agent`` imports). With no policy set and mode
+``BUILD``, nothing is constrained.
 """
 
 from __future__ import annotations

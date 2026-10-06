@@ -208,10 +208,7 @@ async def test_activity_start_and_finish_are_scoped_to_the_current_session(
 async def test_single_delegate_does_not_flush_routine_output_to_main(
     mock_sub_agent_manager,
 ):
-    """A sub-agent's routine buffered output (search queries, fetch status)
-    must not be dumped into the main transcript on completion -- only the
-    tool's own result reaches the main agent (as the tool-call return value,
-    a separate mechanism from the UI transcript)."""
+    """A sub-agent's routine buffered output is not flushed into the main transcript."""
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
     parent_ui = MagicMock()
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
@@ -353,16 +350,9 @@ def testpersist_subagent_history_layout_groups_by_agent_type(tmp_path, monkeypat
 
 
 def testpersist_subagent_history_never_prunes_legacy_flat_files(tmp_path, monkeypatch):
-    """Old-format delegated transcripts (flat in the history root, before the
-    subagent/<agent-type>/ layout) are no longer pruning candidates.
+    """Delegated-looking files flat in the history root are never pruned.
 
-    Pruning is scoped to subagent/<agent-type>/ only: the flat root also
-    holds ordinary (non-delegated) sessions, and a name that merely *looks*
-    delegated there (whether a genuine pre-layout legacy file or a user
-    session that happens to collide with the naming shape) must never be a
-    deletion candidate. Accepted cost: legacy flat files simply accumulate
-    forever now, same as before this feature existed — read/search still see
-    them (`subagent_history_directories`), only pruning stops.
+    The root also holds ordinary sessions; pruning is scoped to subagent/<agent-type>/.
     """
     from zrb.llm.tool.delegate import persist_subagent_history
     from zrb.llm.util.subagent_session_naming import format_delegated_session_name

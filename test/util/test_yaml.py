@@ -74,7 +74,6 @@ def test_edit_obj_parse_value():
 
 
 def test_yaml_dump_list():
-    """Test dumping a list."""
     obj = ["item1", "item2", "item3"]
     result = yaml_dump(obj)
     assert "- item1" in result
@@ -83,7 +82,6 @@ def test_yaml_dump_list():
 
 
 def test_yaml_dump_tuple():
-    """Test dumping a tuple (should be converted to list)."""
     obj = ("a", "b", "c")
     result = yaml_dump(obj)
     assert "- a" in result
@@ -92,7 +90,6 @@ def test_yaml_dump_tuple():
 
 
 def test_yaml_dump_set():
-    """Test dumping a set (should be converted to sorted list)."""
     obj = {"c", "a", "b"}
     result = yaml_dump(obj)
     assert "- a" in result
@@ -101,7 +98,6 @@ def test_yaml_dump_set():
 
 
 def test_yaml_dump_complex_obj_ignored():
-    """Test that complex objects are ignored."""
 
     class CustomClass:
         def __init__(self, val):
@@ -120,52 +116,44 @@ def test_yaml_dump_complex_obj_ignored():
 
 
 def test_yaml_dump_int():
-    """Test dumping an integer directly."""
     result = yaml_dump(42)
     assert result.strip() == "42"
 
 
 def test_yaml_dump_float():
-    """Test dumping a float directly."""
     result = yaml_dump(3.14)
     assert "3.14" in result
 
 
 def test_yaml_dump_bool():
-    """Test dumping a boolean directly."""
     result = yaml_dump(True)
     assert result.strip() == "true"
 
 
 def test_yaml_dump_string():
-    """Test dumping a string directly."""
     result = yaml_dump("hello world")
     assert "hello world" in result
 
 
 def test_yaml_dump_scalar_trailing_dots():
-    """Test that PyYAML document-end marker is removed for scalars."""
     # Some versions of PyYAML add '...\n' for scalars, our function should remove it
     result = yaml_dump("test")
     assert "..." not in result
 
 
 def test_edit_obj_empty_key_dict_merge():
-    """Test editing with empty key merges into existing dict."""
     obj = {"a": 1}
     result = edit_obj(obj, "", "b: 2")
     assert result == {"a": 1, "b": 2}
 
 
 def test_edit_obj_empty_key_replace():
-    """Test editing with empty key replaces non-dict object."""
     obj = "original"
     result = edit_obj(obj, "", "replacement")
     assert result == "replacement"
 
 
 def test_edit_obj_empty_key_string_value():
-    """Test editing with empty key and string value."""
     obj = {"a": 1}
     result = edit_obj(obj, "", "just a string")
     # When the parsed value isn't a dict and obj is dict, it's replaced
@@ -173,7 +161,6 @@ def test_edit_obj_empty_key_string_value():
 
 
 def test_edit_obj_yamLError_fallback():
-    """Test edit_obj treats invalid YAML as string."""
     obj = {"key": "value"}
     # Invalid YAML that should be treated as string
     result = edit_obj(obj, "key", "invalid: yaml: unclosed [")
@@ -182,21 +169,17 @@ def test_edit_obj_yamLError_fallback():
 
 
 def test_yaml_dump_nested_list_with_complex():
-    """Test that complex objects in lists are filtered out."""
 
     class CustomObj:
         pass
 
     obj = {"items": ["valid", CustomObj(), "also_valid"]}
     result = yaml_dump(obj)
-    # Complex objects should be filtered from list
-    lines = result.strip().split("\n")
-    # Should only have items without filter issues
+    # Unsupported objects are omitted.
     assert "valid" in result
 
 
 def test_yaml_dump_nested_dict_with_complex():
-    """Test that complex objects in dict values are filtered out."""
 
     class CustomObj:
         pass
@@ -210,13 +193,11 @@ def test_yaml_dump_nested_dict_with_complex():
 
 
 def test_yaml_dump_empty_string_value():
-    """Test dumping empty string."""
     result = yaml_dump("")
     assert "''" in result or result.strip() == "" or result.strip() == "null"
 
 
 def test_edit_obj_list_out_of_range():
-    """Test editing list with out of range index."""
     obj = {"items": ["a", "b"]}
     try:
         from zrb.util.yaml import edit_obj
@@ -228,7 +209,6 @@ def test_edit_obj_list_out_of_range():
 
 
 def test_edit_obj_list_invalid_key():
-    """Test editing list with non-integer key."""
     obj = {"items": ["a", "b"]}
     try:
         from zrb.util.yaml import edit_obj
@@ -240,7 +220,6 @@ def test_edit_obj_list_invalid_key():
 
 
 def test_load_yaml_empty_string():
-    """Test load_yaml with empty string."""
     from zrb.util.yaml import load_yaml
 
     result = load_yaml("")
@@ -248,7 +227,6 @@ def test_load_yaml_empty_string():
 
 
 def test_set_obj_value_empty_keys():
-    """Test set_obj_value with empty keys list."""
     from zrb.util.yaml import set_obj_value
 
     result = set_obj_value({"a": 1}, [], "new_value")

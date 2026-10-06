@@ -1,14 +1,3 @@
-"""The queued-message feature: what is waiting, and what Ctrl+X drops.
-
-Two halves of one feature group. The panel above the input lists the messages
-still waiting for the running turn (`UIOutput.get_queued_messages_text`), and
-Ctrl+X drops the one Up Arrow had recalled (`UIMessageEditing`).
-
-The `editing_ui` stand-in comes from `conftest.py`, so both halves drive the
-real `UIOutput` and `UIMessageEditing` over a real `MessageQueue` and a buffer
-that really stores text.
-"""
-
 from types import SimpleNamespace
 
 from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage

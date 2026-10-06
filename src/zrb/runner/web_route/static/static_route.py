@@ -5,7 +5,6 @@ from zrb.config.web_auth_config import WebAuthConfig
 from zrb.util.file import read_file
 
 if TYPE_CHECKING:
-    # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
 
 
@@ -17,18 +16,14 @@ def serve_static_resources(app: "FastAPI", web_auth_config: WebAuthConfig) -> No
     _STATIC_DIR = Path(__file__).parent / "resources"
     _NOOP_REFRESH_TOKEN_JS = "// Auth is disabled: nothing to refresh.\n"
 
-    # StaticFiles fully owns /static (with built-in path containment). A custom
-    # {file_path:path} handler here would be shadowed by the mount today and
-    # become a path-traversal hole the day route registration is reordered.
+    # StaticFiles owns /static and does its own path containment; do not add a
+    # custom {file_path:path} handler.
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
     @app.get("/refresh-token.js", include_in_schema=False)
     async def refresh_token_js():
-        # With auth off there is no token to refresh and no cookie to send, so
-        # the script's immediate POST could only 401. Every page load logged
-        # one, which reads as a real auth failure in the server log. Serve an
-        # inert script instead of dropping the <script> tag, so the URL keeps
-        # answering 200 for a cached page that still requests it.
+        # With auth off the refresh POST could only 401; serve an inert script
+        # so cached pages still get a 200.
         if not web_auth_config.enable_auth:
             return PlainTextResponse(
                 content=_NOOP_REFRESH_TOKEN_JS, media_type="application/javascript"

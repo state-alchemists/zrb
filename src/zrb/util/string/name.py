@@ -84,9 +84,7 @@ def get_random_name(
 
 def is_random_name(name: str) -> bool:
     """Whether *name* has the shape `get_random_name()` gives by default —
-    a prefix, a suffix and four digits — and so was most likely generated
-    rather than chosen. A user who types such a name by hand is
-    indistinguishable from it."""
+    a prefix, a suffix and four digits — and so was most likely generated."""
     return _RANDOM_NAME.fullmatch(name) is not None
 
 

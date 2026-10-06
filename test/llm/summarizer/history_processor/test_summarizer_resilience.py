@@ -24,12 +24,12 @@ class MockLimiter(LLMLimiter):
 
 @pytest.mark.asyncio
 async def test_summarize_history_resilience():
-    """Test that summarize_history handles None for all optional parameters."""
+    'Test that summarize_history handles None for all optional parameters.'
     limiter = MockLimiter()
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
-    # Test with all optional parameters as None, simulating a caller that
-    # hasn't configured summarization thresholds.
+
+
     try:
         result = await summarize_history(
             messages,
@@ -45,7 +45,7 @@ async def test_summarize_history_resilience():
 
 @pytest.mark.asyncio
 async def test_create_summarizer_history_processor_resilience():
-    """Test that the processor created handles None parameters gracefully."""
+    'Test that the processor created handles None parameters gracefully.'
     limiter = MockLimiter()
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
@@ -67,7 +67,7 @@ async def test_create_summarizer_history_processor_resilience():
 
 @pytest.mark.asyncio
 async def test_summarize_messages_resilience():
-    """Test that summarize_messages handles None parameters gracefully."""
+    'Test that summarize_messages handles None parameters gracefully.'
     limiter = MockLimiter()
     messages: list[ModelMessage] = [
         ModelRequest(
@@ -89,23 +89,16 @@ async def test_summarize_messages_resilience():
 
 
 def test_split_history_resilience():
-    """Test that split_history handles potential None values if called directly."""
+    'Test that split_history handles potential None values if called directly.'
     from zrb.llm.summarizer.history_splitter import split_history
 
     limiter = MockLimiter()
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
-    # Although summarize_history now provides defaults, we test split_history directly
-    # to ensure it's robust if its internal contract changes or it's used elsewhere.
     try:
-        # We pass 0 instead of None because split_history hints suggest int
-        # But let's see if None would crash it.
-        # Actually, split_history's current implementation WOULD crash on None
-        # because of `len(messages) - summary_window - 1`
-        # and `conversational_token_threshold * 0.7`.
-        # So it's good that summarize_history handles it.
 
-        # Testing with small values
+
+
         to_summarize, to_keep = split_history(
             messages,
             summary_window=0,
@@ -120,10 +113,7 @@ def test_split_history_resilience():
 
 @pytest.mark.asyncio
 async def test_processor_survives_unbuildable_summarizer(monkeypatch):
-    """A small model whose provider has no credentials must cost the history its
-    summarization, not the whole turn: `create_*_summarizer_agent` raising is a
-    construction failure outside the try/except each summarization stage
-    already has."""
+    'A small model whose provider has no credentials must cost the history its'
     import zrb.llm.summarizer.history_summarizer as hs
 
     def explode():

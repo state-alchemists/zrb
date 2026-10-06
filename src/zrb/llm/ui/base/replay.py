@@ -1,12 +1,5 @@
-"""History-replay rendering for `BaseUI`.
-
-Renders a loaded conversation history through the same visual paths a live
-turn uses, so a resumed session looks like a fresh one. Split out of `ui.py`
-to keep that file focused; composed into `BaseUI` as `self._base_replay`, keeping
-`BaseUI` in `self._base_ui` for the state/methods it needs
-(`_markdown_theme`, `append_to_output`, `append_markdown`,
-`_get_output_field_width`).
-"""
+"""History-replay rendering for `BaseUI`: a resumed session renders through
+the same paths as a live turn."""
 
 from __future__ import annotations
 
@@ -27,17 +20,7 @@ class BaseUIReplay:
         self._base_ui = base_ui
 
     def replay_history(self, messages: list) -> None:
-        """Public entry point for replaying loaded conversation history."""
-        return self._replay_history(messages)
-
-    def _replay_history(self, messages: list) -> None:
-        """Render loaded conversation history through live-message paths.
-
-        Replays each ModelMessage so loaded sessions visually match a fresh
-        conversation: user lines and assistant headers render normally,
-        assistant text goes through markdown rendering, and tool calls/returns
-        use the same faint style as while streaming.
-        """
+        """Render loaded `ModelMessage`s the way a live conversation renders."""
         if not messages:
             return
         pending_tool_calls: dict[str, str] = {}

@@ -157,7 +157,7 @@ detached
             "/repo/.zrb/worktree/feature-a-copy",
         ],
         "quoted-path": [
-            "/repo/.zrb/worktree/space quote\" slash\\ newline\n control\x01"
+            '/repo/.zrb/worktree/space quote" slash\\ newline\n control\x01'
         ],
         "non-ascii-path": ["/repo/.zrb/worktree/é/中"],
     }

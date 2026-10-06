@@ -1,13 +1,7 @@
 """Cycle detection in the upstream env/input walks.
 
-`BaseTask.inputs` and `.envs` resolve over the whole transitive upstream set,
-so a task reachable from itself would walk without bound. The CLI reads both
-while building a task's kwargs, which is before any `Session` exists — so
-`Session`'s own cyclic-graph guard is not on this path and cannot stand in for
-these.
-
-The detection lives in `_upstream_closure`'s on-path set, which also makes the
-diamond case below distinguishable from a real cycle.
+The CLI reads `inputs`/`envs` before any `Session` exists, so `Session`'s own
+cycle guard does not cover this path.
 """
 
 import pytest
@@ -75,11 +69,7 @@ def test_diamond_still_resolves():
     names = [task_input.name for task_input in end.inputs]
 
     assert names == ["k", "l", "r", "e"]
-    # The shared upstream is visited once, not once per branch, so it
-    # contributes its env once. It used to arrive twice — harmless on its own
-    # (`update_context` assigns, so a repeat is a no-op) but the mechanism
-    # behind it was not: the count doubled per level of diamond, reaching
-    # 131,070 entries for 32 distinct envs at 16 levels.
+    # The shared upstream is visited once, so it contributes its env once.
     assert end.envs == [shared_env]
 
 

@@ -1,10 +1,4 @@
-"""Readiness monitoring for `BaseTask`, kept alive after the task is ready.
-
-Composed into `BaseTask` as `self._base_monitoring`. Holds a direct reference
-to the sibling `BaseTaskExecution` part (constructed first, so it is
-available at `BaseTaskMonitoring.__init__` time) to re-run the action when
-readiness flips back to failing.
-"""
+"""`BaseTask`'s post-ready readiness monitoring (`self._base_monitoring`)."""
 
 import asyncio
 from typing import TYPE_CHECKING
@@ -29,11 +23,7 @@ class BaseTaskMonitoring:
     async def monitor_task_readiness(
         self, session: AnySession, action_coro: asyncio.Task
     ):
-        """
-        Monitors the readiness of a task after its initial execution.
-        If readiness checks fail beyond a threshold, it cancels the original action,
-        resets the task status, and re-executes the action.
-        """
+        """Re-check readiness periodically; restart the action past the threshold."""
         task = self._task
         ctx = task.get_ctx(session)
         readiness_checks, check_period, fail_threshold, timeout = (
@@ -119,8 +109,6 @@ class BaseTaskMonitoring:
             run_async(check.exec_chain(session)) for check in readiness_checks
         ]
         try:
-            # Fail-fast fan-out: a readiness check erroring should abort the wait
-            # immediately, not be masked by return_exceptions.
             gather_coro = gather_fail_fast(*readiness_check_coros)
             if readiness_timeout > 0:
                 await asyncio.wait_for(gather_coro, timeout=readiness_timeout)
@@ -149,7 +137,7 @@ class BaseTaskMonitoring:
         action_coro: asyncio.Task,
         ctx,
     ) -> asyncio.Task:
-        """Cancel the current action, reset task, and re-execute. Returns the new action coroutine."""
+        """Cancel the action, reset the task, and return the re-started action."""
         task = self._task
         if action_coro and not action_coro.done():
             ctx.log_info("Cancelling original task action...")
@@ -157,17 +145,12 @@ class BaseTaskMonitoring:
             try:
                 await action_coro
             except asyncio.CancelledError:
-                # The action's cancellation is expected — we just requested it.
-                # But if the MONITOR itself was cancelled while waiting, swallowing
-                # here would make it uncancellable and restart the action after
-                # shutdown. `cancelling()` distinguishes the two.
+                # Re-raise only if the monitor itself is being cancelled.
                 current = asyncio.current_task()
                 if current is not None and current.cancelling() > 0:
                     raise
             except Exception as e:
-                # The action we just cancelled may surface its own error while
-                # unwinding; it's already handled by the retry loop (logged and
-                # marked failed there) — just make the swallow itself debuggable.
+                # Already handled by the retry loop.
                 ctx.log_debug(f"Cancelled action's own error handling: {e}")
 
         ctx.log_info("Resetting task status.")
@@ -181,7 +164,7 @@ class BaseTaskMonitoring:
         return new_action_coro
 
     def get_readiness_config(self) -> tuple[list[AnyTask], float, int, float]:
-        """Extract readiness check parameters from task, falling back to defaults."""
+        """Return (checks, period, failure threshold, timeout)."""
         task = self._task
         checks = task.readiness_checks
         return (

@@ -1,9 +1,6 @@
 """Tests for LLMTaskHistory (conversation/history resolution + error recovery).
 
-Driven through ``LLMTask``, which composes LLMTaskHistory. These methods are
-part of that host's surface — it calls them by name and a subclass overrides
-them to change where history lives — so calling them directly is exercising the
-public API rather than reaching past it.
+Driven through ``LLMTask``, whose public surface exposes these methods.
 """
 
 from unittest.mock import MagicMock
@@ -34,9 +31,7 @@ class TestConversationAndHistoryLookup:
 
 
 class TestHistoryConfig:
-    """`LLMTask.history_config` groups the same knobs — see
-    `HistoryConfig`'s own docstring for why chat/execution.py's wrap boundary
-    forwards this as one unit."""
+    """`LLMTask.history_config` groups the history knobs."""
 
     def test_reflects_constructor_values(self):
         manager = MagicMock()
@@ -50,10 +45,7 @@ class TestHistoryConfig:
         assert config.conversation_name == "my-convo"
 
     def test_reflects_history_manager_setter_immediately(self):
-        """`history_manager` has a public setter — `history_config` must not
-        be a value cached at construction, or the setter's documented
-        "visible immediately" contract (see `history.py`'s module docstring)
-        would silently stop holding for this read path."""
+        """`history_config` reflects the `history_manager` setter."""
         task = LLMTask(name="t")
         new_manager = MagicMock()
         task.history_manager = new_manager

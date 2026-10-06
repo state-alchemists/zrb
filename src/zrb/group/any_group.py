@@ -13,10 +13,8 @@ class NodeNotFoundError(ValueError):
 class AnyGroup(ABC):
     """A CLI command group: a namespace holding tasks and nested subgroups.
 
-    Groups form the `zrb <group> <subgroup> <task>` command tree. Each entry is
-    registered under an *alias* — the word typed on the CLI — which defaults to
-    the task's or group's own name but can differ, so the same task can appear
-    in more than one place.
+    Each entry is registered under an *alias* (the CLI word), which defaults
+    to its own name.
     """
 
     @property

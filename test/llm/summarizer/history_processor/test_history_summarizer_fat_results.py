@@ -41,7 +41,7 @@ class MockLimiter:
                 for p in content.parts
                 if hasattr(p, "content")
             )
-        # For logic tests that expect 1000 for non-strings
+
         return 1000
 
     def truncate_text(self, text, limit):
@@ -56,13 +56,13 @@ async def test_summarize_fat_tool_results():
     mock_result.output = "Short summary"
     agent.run = AsyncMock(return_value=mock_result)
 
-    # Message with a fat tool result (100 chars)
+
     fat_content = "A" * 100
     msg = ModelRequest(
         parts=[ToolReturnPart(content=fat_content, tool_name="test", tool_call_id="1")]
     )
 
-    # Threshold 50
+
     new_messages = await summarize_messages(
         [msg],
         agent=agent,
@@ -100,9 +100,9 @@ def test_model_request_to_text_complex():
                 AudioUrl(url="http://audio"),
                 VideoUrl(url="http://video"),
                 DocumentUrl(url="http://doc"),
-                # A valid UserContent item the converter doesn't special-case,
-                # exercising format_multimodal_item's fallback (pydantic-ai >=2.54
-                # rejects a non-UserContent item like `123` at construction).
+
+
+
                 CachePoint(),
             ]
         ),
@@ -141,8 +141,8 @@ async def test_summarizer_early_exit():
     limiter = MockLimiter()
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
-    # Within limits
-    # Since limiter returns 1000 for list, we need higher threshold
+
+
     result = await summarize_history(
         messages,
         limiter=limiter,
@@ -154,20 +154,20 @@ async def test_summarizer_early_exit():
 
 @pytest.mark.asyncio
 async def test_summarizer_does_not_skip_when_to_summarize_tokens_exceed_threshold():
-    # Regression test: the early-return guard compared len(to_summarize) (message count)
-    # against 0.3 * conversational_token_threshold (a token count), which made it almost
-    # always True and silently skipped conversational summarization. It should compare
-    # the TOKEN COUNT of to_summarize instead.
-    #
-    # Setup:
-    #   conversational_token_threshold = 100  →  0.3 * 100 = 30
-    #   summary_window = 1 (keep 1 msg, summarize the rest)
-    #   5 messages × 8 chars each = 40 total tokens  →  is_within_tokens = True
-    #   to_summarize = first 4 messages = 32 tokens  >  30
-    #   Old bug: len(to_summarize)=4 < 30 → early return (wrong)
-    #   Fixed:   count_tokens(to_summarize)=32 > 30 → proceeds to summarize (correct)
+
+
+
+
+
+
+
+
+
+
+
+
     limiter = MockLimiter()
-    content = "x" * 8  # 8 tokens each per MockLimiter
+    content = "x" * 8
     messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content=content)]),
         ModelRequest(parts=[UserPromptPart(content=content)]),
@@ -189,7 +189,7 @@ async def test_summarizer_does_not_skip_when_to_summarize_tokens_exceed_threshol
         conversational_token_threshold=100,
     )
 
-    # Summarization must have run: result is compressed, not the original list
+
     assert result != messages
     assert agent.run.called
 
@@ -237,17 +237,17 @@ async def test_create_summarizer_history_processor_flow():
     ):
         new_history = await processor(messages)
 
-    # With summary_window=0 and token threshold exceeded, we should get a summary.
-    # Since no safe split is found (mock limiter returns high token count),
-    # it falls back to summarizing everything.
+
+
+
     assert len(new_history) == 1
     assert "Automated Context Restoration" in message_to_text(new_history[0])
-    # The active turn is summarized into "conv summary". With the artificially
-    # tiny threshold (10) and MockLimiter (1 char == 1 token), the consolidation
-    # step truncates that summary to the threshold using the SAME limiter that
-    # was threaded through summarize_history — so the surviving prefix is
-    # "conv summa". (Before consolidate_summaries accepted a limiter argument it
-    # silently used the lenient default singleton and left the text untruncated.)
+
+
+
+
+
+
     assert "conv summa" in message_to_text(new_history[0])
     assert msg_agent.run.called
     assert conv_agent.run.called
@@ -262,7 +262,7 @@ async def test_summarize_long_text_chunking():
     mock_result.output = "Chunk summary"
     agent.run = AsyncMock(return_value=mock_result)
 
-    # Text much longer than threshold
+
     long_text = "A" * 500
     summary = await summarize_long_text(long_text, agent, limiter, 100)
 
@@ -304,7 +304,7 @@ async def test_summarize_history_with_multiple_snapshots():
 
 @pytest.mark.asyncio
 async def test_summarize_history_bakes_journal_index_into_summary():
-    """When a journal index exists, summarization re-seeds it into the summary."""
+    'When a journal index exists, summarization re-seeds it into the summary.'
     limiter = MockLimiter()
     agent = MagicMock()
     mock_result = MagicMock()

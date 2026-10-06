@@ -27,12 +27,7 @@ def test_refresh_token_js_is_always_served(enable_auth: bool):
 
 
 def test_refresh_token_js_is_inert_when_auth_is_disabled():
-    """No token to refresh, so the script must not POST.
-
-    Regression: it fired one unconditional POST per page load, and with auth off
-    that could only ever 401 — every page view logged what reads as a real auth
-    failure.
-    """
+    """Without auth, the refresh script must not issue a POST."""
     body = _client(enable_auth=False).get("/refresh-token.js").text
 
     assert "/api/v1/refresh-token" not in body

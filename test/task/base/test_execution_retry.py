@@ -65,9 +65,7 @@ async def test_execute_action_with_retry_failure():
         assert status.mark_as_failed.called
         assert status.mark_as_permanently_failed.called
 
-        # The full traceback goes to log_debug (silent at default log level),
-        # never to log_error, so a permanently-failed task doesn't dump a raw
-        # traceback to the console by default.
+        # The traceback goes to log_debug, never log_error.
         assert any(
             "Traceback (most recent call last)" in call.args[0]
             for call in ctx.log_debug.call_args_list
@@ -78,14 +76,7 @@ async def test_execute_action_with_retry_failure():
 
 @pytest.mark.asyncio
 async def test_system_exit_is_not_retried_as_a_task_failure():
-    """`sys.exit()` in an action body stops the run, it is not a failed attempt.
-
-    Regression: `SystemExit` fell into the generic `except BaseException`, so a
-    deliberate exit was logged as `Attempt 1/N failed: 1` -- printing the exit
-    *code* where the error message goes -- retried up to `retries` times, and
-    then reported as permanently failed. It now passes through alongside the
-    other control-flow exceptions, like a refused insecure server bind does.
-    """
+    """`sys.exit()` in an action stops the run instead of counting as a failed attempt."""
     attempts = 0
 
     async def mock_action(ctx):
@@ -114,12 +105,7 @@ async def test_system_exit_is_not_retried_as_a_task_failure():
 
 @pytest.mark.asyncio
 async def test_failing_successor_neither_reruns_action_nor_is_swallowed():
-    """A successor's failure propagates without retrying the parent.
-
-    The parent's action already succeeded; re-running it (a deploy, a
-    migration) is the wrong response to a notification step failing, and the
-    parent's fallbacks answer the parent's own failure only.
-    """
+    """A successor's failure propagates without retrying the parent."""
     calls = {"parent": 0, "fallback": 0}
 
     def parent_action(ctx):

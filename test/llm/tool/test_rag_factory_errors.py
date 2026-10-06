@@ -405,9 +405,7 @@ class TestRAGFactoryErrors:
     async def test_retrieve_error_missing_key(self, tmp_path):
         retrieve = create_rag_from_directory(tool_name="MyRAG", tool_description="desc")
 
-        # We still need to mock modules even if they are not used yet,
-        # but in this case they ARE used if the check passes.
-        # Actually retrieve does 'from chromadb import ...' at the start.
+        # retrieve imports chromadb before any check, so mock it.
         mock_chroma = MagicMock()
         mock_chroma_config = MagicMock()
         mock_openai = MagicMock()

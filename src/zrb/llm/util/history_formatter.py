@@ -14,14 +14,8 @@ if TYPE_CHECKING:
 
 
 def extract_last_response_text(messages: "Sequence[ModelMessage]") -> str:
-    """Return the text of the most recent assistant response, or ``""``.
-
-    Scans messages newest-first and returns the joined ``TextPart`` contents
-    of the first ModelResponse that has any text (skipping tool-call-only
-    responses). Used to recover the "last AI response" for export when no
-    live response exists yet — e.g. a freshly loaded ``chat --session`` whose
-    history was replayed from disk rather than produced this run.
-    """
+    """Return the text of the most recent assistant response with any text,
+    or ``""``. Recovers the last response for export after a session load."""
     for msg in reversed(messages):
         if getattr(msg, "kind", None) != "response":
             continue
@@ -40,11 +34,8 @@ def extract_last_response_text(messages: "Sequence[ModelMessage]") -> str:
 def extract_user_message_texts(messages: "Sequence[ModelMessage]") -> list[str]:
     """Return the user-prompt texts of *messages*, newest first.
 
-    Recovers the user turns of a loaded conversation for the input box's
-    Up-arrow recall. Only ``user-prompt`` parts are included: tool returns,
-    retries and system prompts are the model's view of a turn, not a message
-    the user typed. Multimodal content renders through the same bracketed
-    labels ``format_history_as_text`` uses.
+    Feeds Up-arrow recall for a loaded conversation; only ``user-prompt``
+    parts count.
     """
     texts: list[str] = []
     for msg in messages:
@@ -65,11 +56,8 @@ def extract_user_message_texts(messages: "Sequence[ModelMessage]") -> list[str]:
 def _strip_live_context(content):
     """Strip a trailing ``<live-context>`` block off a user-prompt content value.
 
-    History persists the block inline — a string suffix on a text prompt, or a
-    trailing string item on a multimodal prompt — so recall must not present
-    volatile runtime state (time, git, todos) as text the user typed. The
-    string path uses ``split_live_context``, matching ``replay.py``; the
-    multimodal path drops a trailing item that is (or ends in) the block.
+    History persists the block inline (a string suffix, or a trailing string
+    item of a multimodal prompt); recall must not show it as typed text.
     """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.prompt.live_context import split_live_context
@@ -97,7 +85,7 @@ def format_history_as_text(
 ) -> str:
     """Format pydantic-ai conversation history as human-readable text.
 
-    This mimics the streaming style from ui.py:
+    Mimics the streaming style:
     - User messages: 💬 {time} >> {content}
     - Assistant text: 🤖 {time} >> {content}
     - Tool calls: 🧰 {tool_call_id} | {tool_name} {args}
@@ -108,22 +96,14 @@ def format_history_as_text(
         max_length: Maximum length of output text (truncated if exceeded).
                     Defaults to CFG.LLM_HISTORY_MAX_DISPLAY_CHARS. Ignored
                     when ``full`` is True.
-        full: When True, emit the complete transcript with no truncation —
-              neither the overall length cap nor the per-message/tool/arg
-              limits. Used for export (copy/save) rather than display.
-
-    Returns:
-        Human-readable string representation of the conversation
+        full: When True, apply no truncation at all (for export).
     """
-
     if max_length is None:
         max_length = CFG.LLM_HISTORY_MAX_DISPLAY_CHARS
     if not messages:
         return "📭 Empty conversation history."
 
     lines = []
-
-    # Track tool call IDs to tool names for matching returns
     pending_tool_calls: dict[str, str] = {}
 
     for msg in messages:
@@ -135,8 +115,6 @@ def format_history_as_text(
             lines.extend(_format_response(msg, pending_tool_calls, full))
 
     result = "\n".join(lines)
-
-    # Truncate if too long (skipped entirely for a full export)
     if not full and len(result) > max_length:
         truncate_msg = (
             f"\n... (truncated, showing {max_length} of {len(result)} characters)"
@@ -149,18 +127,10 @@ def format_history_as_text(
 def _format_request(
     msg, pending_tool_calls: dict[str, str], full: bool = False
 ) -> list[str]:
-    """Format a ModelRequest message.
-
-    ModelRequest can contain:
-    - UserPromptPart: User's input text
-    - ToolReturnPart: Results from tool executions
-    - RetryPromptPart: Retry prompt on tool failure
-    - SystemPromptPart: System instructions
-    """
+    """Format a ModelRequest message; tool returns render first."""
     lines = []
     timestamp = format_timestamp(getattr(msg, "timestamp", None))
 
-    # Collect parts by type
     user_prompt_parts = []
     tool_return_parts = []
     system_prompt_parts = []
@@ -178,7 +148,6 @@ def _format_request(
         elif part_kind == "retry-prompt":
             retry_parts.append(part)
 
-    # Show tool returns first (they're feedback from tool execution)
     for part in tool_return_parts:
         lines.extend(_format_tool_return(part, pending_tool_calls, full))
 
@@ -190,7 +159,6 @@ def _format_request(
 
     indent_max = None if full else 50
 
-    # System prompts (rarely in history)
     for part in system_prompt_parts:
         content = getattr(part, "content", "")
         dynamic_ref = getattr(part, "dynamic_ref", None)
@@ -225,8 +193,7 @@ def _render_user_content(content, full: bool = False) -> str:
 def format_multimodal_item(item) -> str:
     """Render one item of a multimodal ``UserPromptPart.content`` sequence.
 
-    Shared with ``llm/summarizer/message_converter.py`` so the two transcript
-    renderers describe attachments identically instead of drifting apart.
+    Shared with ``llm/summarizer/message_converter.py``.
     """
     if isinstance(item, str):
         return item
@@ -256,13 +223,7 @@ def format_multimodal_item(item) -> str:
 def _format_response(
     msg, pending_tool_calls: dict[str, str], full: bool = False
 ) -> list[str]:
-    """Format a ModelResponse message.
-
-    ModelResponse can contain:
-    - TextPart: Assistant's text response
-    - ToolCallPart: Tool calls made by assistant
-    - ThinkingPart: Internal reasoning
-    """
+    """Format a ModelResponse: thinking, then text, then tool calls."""
     lines = []
     timestamp = format_timestamp(getattr(msg, "timestamp", None))
     model_name = getattr(msg, "model_name", None)
@@ -272,7 +233,6 @@ def _format_response(
 
     parts = getattr(msg, "parts", [])
 
-    # First show thinking (if any)
     thinking_parts = [p for p in parts if getattr(p, "part_kind", None) == "thinking"]
     for part in thinking_parts:
         content = getattr(part, "content", "")
@@ -284,7 +244,6 @@ def _format_response(
         content = getattr(part, "content", "")
         lines.extend(indent_lines(str(content), 2, max_lines=None if full else 50))
 
-    # Then show tool calls (mimicking streaming style with 🧰)
     tool_call_parts = [p for p in parts if getattr(p, "part_kind", None) == "tool-call"]
     for part in tool_call_parts:
         lines.extend(_format_tool_call(part, pending_tool_calls, full))
@@ -298,17 +257,12 @@ def _format_response(
 def _format_tool_call(
     part, pending_tool_calls: dict[str, str], full: bool = False
 ) -> list[str]:
-    """Format a ToolCallPart.
-
-    Mimics the streaming style:
-    🧰 {tool_call_id} | {tool_name} {args}
-    """
+    """Format a ToolCallPart as ``🧰 {tool_call_id} | {tool_name} {args}``."""
     lines = []
     tool_name = getattr(part, "tool_name", None)
     tool_call_id = getattr(part, "tool_call_id", None)
     args = getattr(part, "args", None)
 
-    # Track for matching with return
     if tool_call_id and tool_name:
         pending_tool_calls[tool_call_id] = tool_name
 
@@ -323,11 +277,7 @@ def _format_tool_call(
 def _format_tool_return(
     part, pending_tool_calls: dict[str, str], full: bool = False
 ) -> list[str]:
-    """Format a ToolReturnPart.
-
-    Mimics the streaming style:
-    🔠 {tool_call_id} | Return {content}
-    """
+    """Format a ToolReturnPart as ``🔠 {tool_call_id} | {tool_name} {status}``."""
     lines = []
     tool_name = getattr(part, "tool_name", None)
     tool_call_id = getattr(part, "tool_call_id", None)
@@ -338,7 +288,6 @@ def _format_tool_return(
 
     id_display = tool_call_id or "?"
 
-    # Try to get tool name from pending calls
     if tool_name:
         name_display = tool_name
     elif tool_call_id and tool_call_id in pending_tool_calls:
@@ -357,16 +306,7 @@ def _format_tool_return(
 
 
 def indent_lines(text: str, indent: int = 2, max_lines: int | None = 50) -> list[str]:
-    """Indent each line of text with proper truncation.
-
-    Args:
-        text: Text to format
-        indent: Number of spaces for indentation
-        max_lines: Maximum number of lines to show, or None for no limit
-
-    Returns:
-        List of indented lines
-    """
+    """Indent each line of *text*, keeping at most *max_lines* (None: all)."""
     indent_str = " " * indent
     lines = []
     text_lines = text.split("\n")
@@ -384,19 +324,13 @@ def indent_lines(text: str, indent: int = 2, max_lines: int | None = 50) -> list
 
 def truncate(text: str, max_length: int | None = None) -> str:
     """Truncate text to max_length with ellipsis."""
-
     if max_length is None:
         max_length = CFG.LLM_HISTORY_TRUNCATE_LENGTH
     return truncate_display(text, max_length)
 
 
 def format_args(args, full: bool = False) -> str:
-    """Format tool call arguments for display.
-
-    When ``full`` is True, argument values are emitted in full (no per-value
-    truncation) for an export transcript.
-    """
-
+    """Format tool call arguments for display; ``full`` skips truncation."""
     if is_empty_tool_args(args):
         return "{}"
     if isinstance(args, dict):
@@ -413,7 +347,6 @@ def format_args(args, full: bool = False) -> str:
 
 def _dump_truncated(kwargs: dict, full: bool = False) -> str:
     """Truncate keyword arguments and render as JSON (no truncation when ``full``)."""
-
     truncated = truncate_tool_args_values(kwargs, full=full)
     try:
         return json.dumps(truncated, ensure_ascii=False)
@@ -422,14 +355,7 @@ def _dump_truncated(kwargs: dict, full: bool = False) -> str:
 
 
 def format_timestamp(timestamp) -> str:
-    """Format timestamp for display.
-
-    Args:
-        timestamp: datetime object or ISO string or None
-
-    Returns:
-        Formatted timestamp (HH:MM) or empty string
-    """
+    """Format a datetime or ISO string as ``HH:MM``, or ``""``."""
     if timestamp is None:
         return ""
 

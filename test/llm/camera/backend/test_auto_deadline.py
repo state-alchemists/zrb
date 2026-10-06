@@ -1,5 +1,4 @@
-"""`AutoCameraBackend` and its backends: one deadline for a whole capture, and
-no subprocess left running once a capture times out or is cancelled."""
+'`AutoCameraBackend` and its backends: one deadline for a whole capture, and'
 
 from __future__ import annotations
 
@@ -17,14 +16,14 @@ from zrb.llm.camera.backend import (
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    """Strip every camera-relevant env var before each test."""
+    'Strip every camera-relevant env var before each test.'
     for var in ("WSL_DISTRO_NAME", "WSLENV"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
 
 
 class _FakeProcess:
-    """Minimal async-process stand-in for `asyncio.create_subprocess_exec`."""
+    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
 
     def __init__(
         self,
@@ -35,7 +34,7 @@ class _FakeProcess:
     ):
         self._stdout = stdout
         self._stderr = stderr
-        # Like a real process: no return code until it exits.
+
         self._exit_code = returncode
         self.returncode: int | None = None
         self._hang_seconds = hang_seconds
@@ -56,7 +55,7 @@ class _FakeProcess:
 
 
 def _which_only(*names: str):
-    """Return a `shutil.which` stand-in that only "finds" the given names."""
+    'Return a `shutil.which` stand-in that only "finds" the given names.'
 
     def _which(name: str):
         return f"/usr/bin/{name}" if name in names else None
@@ -66,8 +65,7 @@ def _which_only(*names: str):
 
 @pytest.mark.asyncio
 async def test_capture_timeout_returns_none_with_hint(clean_env):
-    """A hung ffmpeg (open camera, no frame ever delivered) times out instead
-    of blocking forever -- this is the `_run` timeout backstop."""
+    'A hung ffmpeg (open camera, no frame ever delivered) times out instead'
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
@@ -83,7 +81,7 @@ async def test_capture_timeout_returns_none_with_hint(clean_env):
         backend = AutoCameraBackend(ffmpeg=FfmpegCameraBackend(timeout=0.05))
         result = await backend.capture(None)
 
-    # The inner backend's own timeout still holds under auto's longer one.
+
     assert result is None
     assert all(proc.killed for proc in hung_procs)
     assert "timed out" in backend.get_failure_hint()
@@ -114,8 +112,7 @@ async def test_a_hung_termux_capture_is_abandoned_after_the_timeout(
 async def test_an_mjpeg_attempt_that_times_out_leaves_no_time_for_the_raw_one(
     clean_env,
 ):
-    """Both ffmpeg attempts share one deadline: a 0.05 s timeout never
-    becomes 0.1 s."""
+    'Both ffmpeg attempts share one deadline: a 0.05 s timeout never'
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     started: list[_FakeProcess] = []
@@ -151,7 +148,7 @@ async def test_auto_shares_one_deadline_between_termux_and_ffmpeg(clean_env, tmp
         result = await backend.capture(None)
 
     assert result is None
-    assert len(started) == 1  # the termux attempt used up the time
+    assert len(started) == 1
 
 
 @pytest.mark.asyncio
@@ -171,7 +168,7 @@ async def test_windows_device_detection_stays_inside_the_deadline(clean_env):
         result = await FfmpegCameraBackend(timeout=0.05).capture(None)
 
     assert result is None
-    assert loop.time() - begin < 1  # not the 5 s device-listing timeout
+    assert loop.time() - begin < 1
     assert len(started) == 1
 
 

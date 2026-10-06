@@ -18,11 +18,7 @@ from zrb.util.file import matches_any_pattern
 
 
 async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
-    """Get LSP semantic context for a file (symbols + diagnostics).
-
-    Returns structured data about the file without reading its content.
-    More token-efficient than reading the whole file for structure queries.
-    """
+    """Return a file's LSP symbols and diagnostics, or None when LSP has neither."""
     try:
         full_path = os.path.join(abs_dir, file_path)
         symbols_result = await lsp_manager.get_document_symbols(full_path)
@@ -38,7 +34,7 @@ async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
         }
 
         if symbols_result.get("found"):
-            for sym in symbols_result.get("symbols", [])[:50]:  # Limit to 50 symbols
+            for sym in symbols_result.get("symbols", [])[:50]:
                 context["lsp_symbols"].append(
                     {
                         "name": sym.get("name"),
@@ -48,7 +44,7 @@ async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
                 )
 
         if diagnostics_result.get("found") and diagnostics_result.get("count", 0) > 0:
-            for diag in diagnostics_result.get("diagnostics", [])[:20]:  # Limit to 20
+            for diag in diagnostics_result.get("diagnostics", [])[:20]:
                 context["lsp_diagnostics"].append(
                     {
                         "severity": diag.get("severity"),
@@ -193,12 +189,8 @@ def _collect_matching_files(
     include_patterns: list[str] | None,
     exclude_patterns: list[str],
 ) -> list[tuple[str, str]]:
-    """Walk `dir_path` and return `(file_path, rel_path)` for every file passing
-    the extension/include/exclude filters, in the same walk-then-sort order
-    both `get_file_metadatas` and `_get_file_metadatas_with_lsp` need.
-
-    A filter-evaluation error is logged and the file skipped.
-    """
+    """Return `(file_path, rel_path)` for every file passing the
+    extension/include/exclude filters; filter errors are logged and skipped."""
     matches: list[tuple[str, str]] = []
     for root, dirs, files in os.walk(dir_path):
         dirs[:] = [
@@ -229,11 +221,7 @@ def get_file_metadatas(
     include_patterns: list[str] | None,
     exclude_patterns: list[str],
 ) -> list[dict[str, str]]:
-    """Get file metadata for analysis.
-
-    Returns:
-        List of file metadata dicts
-    """
+    """Return `{path, content}` for every matching file, sorted by path."""
     metadata_list = []
     for file_path, rel_path in _collect_matching_files(
         dir_path, extensions, include_patterns, exclude_patterns
@@ -253,12 +241,8 @@ async def _get_file_metadatas_with_lsp(
     include_patterns: list[str] | None,
     exclude_patterns: list[str],
 ) -> list[dict[str, str | dict]]:
-    """Get file metadata with LSP semantic context when available.
-
-    More token-efficient than full file content for structure queries. Falls
-    back to reading the file when LSP does not support its type, fails, or
-    returns no symbols.
-    """
+    """Like `get_file_metadatas`, but uses LSP symbols where available and
+    falls back to file content otherwise."""
     metadata_list = []
     lsp_tasks = []
     file_paths = []
@@ -334,9 +318,8 @@ async def extract_info(
         else:
             payload = {"path": path, "content": metadata.get("content", "")}
 
-        # A file larger than the batch budget would be sent whole as a solo
-        # batch; past the per-minute token budget the rate limiter could never
-        # admit it. Truncate it to fit.
+        # An oversized file could exceed the per-minute token budget, which the
+        # rate limiter would never admit, so truncate it to fit.
         content, file_tokens = _fit_file_payload(payload, token_limit - base_overhead)
 
         if current_token_count + file_tokens + base_overhead > token_limit:
@@ -360,9 +343,7 @@ async def extract_info(
 def _fit_file_payload(payload: dict, budget: int) -> tuple[str, int]:
     """Serialize a per-file payload to fit ``budget``; returns ``(json, tokens)``.
 
-    Truncates the dominant field and re-serializes, so the extractor always
-    receives valid JSON rather than a string cut mid-value. The token count is
-    returned because counting is the expensive part and already happens here.
+    Truncates the dominant field before serializing, so the JSON stays valid.
     """
     limiter = get_run_llm_limiter()
     content = json.dumps(payload)

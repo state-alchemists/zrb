@@ -260,9 +260,7 @@ class TestRAGFactory:
 
     @pytest.mark.asyncio
     async def test_retrieve_deletes_removed_files_and_updates_baseline(self, tmp_path):
-        # A previously indexed file that no longer exists on disk must be
-        # removed from the collection AND from file_hashes.json — otherwise
-        # deleted documents keep surfacing as semantic matches forever.
+        # Remove missing files from both the collection and file_hashes.json.
         doc_dir = tmp_path / "docs"
         doc_dir.mkdir()
         (doc_dir / "kept.txt").write_text("kept content")
@@ -322,7 +320,7 @@ class TestRAGFactory:
         assert "ids" in result
         # The deleted file's chunks were removed from the collection.
         mock_collection.delete.assert_called_with(where={"file_path": "gone.txt"})
-        # The baseline was updated: gone.txt no longer in file_hashes.json.
+        # The deleted file is absent from file_hashes.json.
         with open(hash_file) as f:
             saved_hashes = json_mod.load(f)
         assert saved_hashes == {"kept.txt": saved_hashes["kept.txt"]}
@@ -396,10 +394,7 @@ class TestRAGFactory:
 
     @pytest.mark.asyncio
     async def test_retrieve_offloads_blocking_calls_to_a_thread(self, tmp_path):
-        # ADR-0003 (async-first): ChromaDB/OpenAI calls must not run inline
-        # on the event loop — confirm retrieve() actually routes its
-        # blocking segments through asyncio.to_thread rather than calling
-        # them directly.
+        # ADR-0003: ChromaDB/OpenAI calls go through asyncio.to_thread.
         doc_dir = tmp_path / "docs"
         doc_dir.mkdir()
         (doc_dir / "test.txt").write_text("knowledge content")

@@ -190,9 +190,7 @@ class TestMonitorTaskReadinessThresholdReached:
 
 
 class TestMonitorThresholdReachedActionErrorsOnCancel:
-    """The action's own error while unwinding from cancellation must not
-    propagate (the retry loop already logged/handled it) but the swallow
-    itself must now be observable via ctx.log_debug."""
+    """The action's error while unwinding from cancellation is swallowed and logged at debug."""
 
     @pytest.mark.asyncio
     async def test_action_exception_during_cancel_is_logged_not_silenced(self):
@@ -218,14 +216,11 @@ class TestMonitorThresholdReachedActionErrorsOnCancel:
             try:
                 await asyncio.Event().wait()
             except asyncio.CancelledError:
-                # The action's own unwind fails with a real error instead of
-                # a clean CancelledError propagation.
                 raise RuntimeError("action's own cleanup failed")
 
         action_coro = asyncio.create_task(action_that_errors_on_cancel())
-        # Let the action actually reach its await point before the monitor
-        # cancels it — cancelling a not-yet-started task delivers a clean
-        # CancelledError without ever running its try/except.
+        # Let the action reach its await point; cancelling a not-yet-started
+        # task never runs its try/except.
         await asyncio.sleep(0)
 
         call_count = 0

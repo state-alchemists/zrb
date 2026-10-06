@@ -28,7 +28,7 @@ def test_detect_language_from_file():
 
 
 class TestLSPServerConfigRegistry:
-    """Test the user-extensible registry."""
+    'Test the user-extensible registry.'
 
     def setup_method(self):
         self.registry = LSPServerConfigRegistry()
@@ -75,8 +75,8 @@ class TestLSPServerConfigRegistry:
         )
         self.registry.register("custom-lsp", custom)
         all_configs = self.registry.all()
-        assert "pyright" in all_configs  # built-in
-        assert "custom-lsp" in all_configs  # user-registered
+        assert "pyright" in all_configs
+        assert "custom-lsp" in all_configs
         assert all_configs["custom-lsp"].name == "custom-lsp"
 
     def test_override_appears_in_all_list(self):
@@ -100,11 +100,11 @@ class TestLSPServerConfigRegistry:
         self.registry.register("my-lsp", custom)
         self.registry.clear()
         assert self.registry.get("my-lsp") is None
-        # Built-in unaffected
+
         assert self.registry.get("pyright") is not None
 
     def test_all_is_detached_copy(self):
-        """Mutating the returned dict must not affect the registry."""
+        'Mutating the returned dict must not affect the registry.'
         result = self.registry.all()
         result.clear()
         assert self.registry.get("pyright") is not None

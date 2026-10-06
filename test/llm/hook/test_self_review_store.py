@@ -1,6 +1,4 @@
-"""The self-review gate's own store: it only reads the turn's store, which
-the runner may delete mid-review, deletes the one it writes to, and a
-cancelled review stops its git work before it returns."""
+"The self-review gate's own store: it only reads the turn's store, which"
 
 import asyncio
 import os
@@ -30,9 +28,7 @@ def _temporary_stores() -> set[str]:
 
 @pytest.fixture
 def own_temp_dir(tmp_path_factory, monkeypatch):
-    """A temp directory only this test's stores land in — other tests running
-    in parallel create and delete stores of their own — outside the
-    directory the test snapshots."""
+    "A temp directory only this test's stores land in — other tests running"
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path_factory.mktemp("temp")))
 
 
@@ -40,9 +36,7 @@ def own_temp_dir(tmp_path_factory, monkeypatch):
 async def test_a_review_only_reads_the_turn_store_and_leaves_nothing_behind(
     tmp_path, monkeypatch, own_temp_dir, start_snapshot, gate, stop
 ):
-    """The runner deletes the turn-start store when the turn ends — also
-    while a cancelled review still runs — so the review must never write to
-    it, and must delete the store it does write to."""
+    'The runner deletes the turn-start store when the turn ends — also'
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / "a.py").write_text("x = 1\n")
     monkeypatch.chdir(tmp_path)
@@ -76,7 +70,7 @@ async def test_a_cancelled_review_stops_its_git_work_and_cleans_up(
     def git_held_once(args, *rest, **kwargs):
         if args[0] == "git" and not running.is_set():
             running.set()
-            release.wait(5)  # the review's first git command, still running
+            release.wait(5)
         elif args[0] == "git" and release.is_set():
             after_cancel.append(args)
         return real_run(args, *rest, **kwargs)
@@ -88,15 +82,15 @@ async def test_a_cancelled_review_stops_its_git_work_and_cleans_up(
     with gate():
         review = asyncio.ensure_future(stop(manager, turn_start_snapshot=before))
         assert await asyncio.to_thread(running.wait, 5)
-        review.cancel()  # the user cancels the turn
-        await asyncio.sleep(0.2)  # the cancellation reaches the hook
+        review.cancel()
+        await asyncio.sleep(0.2)
         release.set()
         with pytest.raises(asyncio.CancelledError):
             await review
-        for _ in range(50):  # the hook's thread finishes on its own
+        for _ in range(50):
             if _temporary_stores() == stores:
                 break
             await asyncio.sleep(0.1)
 
-    assert after_cancel == []  # no git command started once cancelled
+    assert after_cancel == []
     assert _temporary_stores() == stores

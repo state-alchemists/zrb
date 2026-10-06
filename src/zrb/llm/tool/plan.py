@@ -1,17 +1,5 @@
-"""
-Todo/Planning Tool for LLM Agents.
-
-Implements task planning and progress tracking similar to Deep Agents' write_todos.
-
-Storage:
-- Todos are stored per conversation session
-- Persisted to disk at ~/.zrb/todos/{session_name}.json
-- Survives application restarts
-
-Usage:
-- write_todos: Create/replace todo list for planning
-- get_todos: Get current todo list and progress
-"""
+"""Per-session todo tools (TodoWrite/TodoRead), persisted at
+``~/.zrb/todos/{session_name}.json``."""
 
 from __future__ import annotations
 
@@ -31,8 +19,7 @@ TodoStatus = Literal["pending", "in_progress", "completed", "cancelled"]
 
 
 class TodoManager:
-    """Singleton holding each conversation session's todo list, persisted
-    to disk."""
+    """Singleton holding each session's todo list, persisted to disk."""
 
     _instance: TodoManager | None = None
     _todos: dict[str, dict[str, Any]]  # session_name -> todo_data
@@ -70,12 +57,7 @@ class TodoManager:
         todos: list[dict[str, Any]],
         replace: bool = True,
     ) -> dict[str, Any]:
-        """
-        Write todos for a session.
-
-        Returns:
-            The updated todo list with metadata
-        """
+        """Write todos for a session and return the list with metadata."""
         now = datetime.now().isoformat()
 
         existing = self.get_todos(session_name) if not replace else None
@@ -87,10 +69,8 @@ class TodoManager:
         used_ids: set[str] = set()
         for i, todo in enumerate(todos):
             todo_id = todo.get("id") or ""
-            # A collision against `existing` is legitimate (an explicit id
-            # targets that todo for update, below) — but a collision against
-            # `used_ids` means this same call already claimed that id for an
-            # earlier item, which would otherwise silently duplicate it.
+            # Matching `existing` targets that todo for update; matching
+            # `used_ids` would duplicate an id claimed earlier in this call.
             if not todo_id or todo_id in used_ids:
                 todo_id = self._next_auto_id(i, existing_todos, used_ids)
             used_ids.add(todo_id)
@@ -119,12 +99,7 @@ class TodoManager:
         return result
 
     def get_todos(self, session_name: str) -> dict[str, Any] | None:
-        """
-        Get todos for a session, loading from disk if not cached.
-
-        Returns:
-            Todo list with metadata, or None if no todos exist
-        """
+        """Get a session's todos (loading from disk if uncached), or None."""
         if session_name in self._todos:
             return self._todos[session_name]
 
@@ -161,7 +136,6 @@ class TodoManager:
 
     @staticmethod
     def _compute_stats(new_todos: list[dict[str, Any]]) -> dict[str, int]:
-        """Compute todo summary counts."""
         return {
             "total": len(new_todos),
             "completed": sum(1 for t in new_todos if t["status"] == "completed"),
@@ -174,13 +148,7 @@ class TodoManager:
     def _next_auto_id(
         index: int, existing: dict[str, dict[str, Any]], used: set[str]
     ) -> str:
-        """Smallest id from `index + 1` upward that collides with neither
-        `existing` (the session's already-persisted todos) nor `used` (ids
-        already claimed earlier in this same call, whether auto-assigned or
-        explicit) — so a new item, labeled or not, never silently merges
-        into an unrelated existing one or duplicates an id this same call
-        already claimed.
-        """
+        """Smallest id from `index + 1` upward in neither `existing` nor `used`."""
         candidate = index + 1
         while str(candidate) in existing or str(candidate) in used:
             candidate += 1
@@ -253,12 +221,8 @@ def _render_todo_progress(
     todo_data: dict[str, Any],
     change_description: str = "",
 ) -> str:
-    """Render the full todo list for UI display.
-
-    Shows what changed (if anything), a progress summary, and every todo item
-    with its status icon.  Ends with a ``~DATA~`` line carrying structured JSON
-    for the web frontend.
-    """
+    """Render the todo list for the UI, ending with a ``~DATA~`` JSON line
+    for the web frontend."""
     total = todo_data["total"]
     done = todo_data["completed"]
     pct = f"{int((done / total) * 100)}%" if total > 0 else ""
@@ -303,17 +267,11 @@ def _broadcast_todo_progress(
     todo_data: dict[str, Any],
     change_description: str = "",
 ) -> None:
-    """Push the full todo list to the active UI (if any).
-
-    ``change_description`` is a one-liner about what just happened, shown
-    above the list (e.g. ``"✅ Completed: [1] Fix login bug"``).
-    """
+    """Push the todo list, headed by ``change_description``, to the active UI."""
     text = _render_todo_progress(todo_data, change_description)
     ui = get_current_ui()
     if ui is not None:
-        # Leading "\n  " matches every other mid-turn status line printed
-        # outside `StreamEventHandler` (see `web.py::_notify`) — without it
-        # this lands at column 0 with no separator from whatever came before.
+        # Leading "\n  " matches other mid-turn status lines (`web.py::_notify`).
         ui.append_to_output(f"\n  {text}", kind="todo_progress")
 
 
@@ -381,7 +339,7 @@ async def write_todos(
 
 
 def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
-    """Check every todo for unknown keys. Return an error string or None."""
+    """Return an error string if any todo has an unknown key, else None."""
     for i, todo in enumerate(todos):
         unknown = set(todo) - _VALID_TODO_KEYS
         if not unknown:
@@ -452,9 +410,5 @@ get_todos.__name__ = "TodoRead"
 
 
 def create_plan_tools() -> list:
-    """Create planning tools for registration with the LLM agent.
-
-    Only TodoWrite (replace-by-default) and TodoRead are exposed: TodoWrite
-    subsumes per-item status changes and clearing.
-    """
+    """Return the planning tools (TodoWrite subsumes status changes and clearing)."""
     return [write_todos, get_todos]

@@ -26,7 +26,10 @@ SRC = REPO_ROOT / "src" / "zrb"
 # (`_is_in_windows_dir`) counts as phrased correctly.
 _QUESTION = re.compile(r"^_?(is|has|should|can|needs)_|(_enabled|_active)$")
 
-BOOL_NAMES_NOT_PHRASED_AS_A_QUESTION = 188
+# -2 (188->186): the slop sweep deleted `_admits` in live_context (always True,
+# no caller) and `_handle_edit_response` in http_chat (a forwarder to the
+# public `handle_edit_response`).
+BOOL_NAMES_NOT_PHRASED_AS_A_QUESTION = 186
 
 
 def _offenders() -> list[str]:

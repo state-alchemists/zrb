@@ -104,13 +104,13 @@ def test_register_task_with_readiness_checks():
 
     session.register_task(main_task)
 
-    # Both main and check should be registered
+    # Both tasks must be registered.
     assert "main" in session.task_names
     assert "check" in session.task_names
 
 
 def test_get_root_tasks_with_visited_cycle():
-    """Test get_root_tasks handles already-visited tasks."""
+    """Shared upstreams appear once in the roots."""
     from zrb.context.shared_context import SharedContext
 
     shared_ctx = SharedContext()

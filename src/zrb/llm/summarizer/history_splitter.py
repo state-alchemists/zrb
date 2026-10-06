@@ -147,14 +147,8 @@ def _classify_split(
 ) -> tuple[bool, int]:
     """Classify a candidate split against every tool call/return pair.
 
-    Returns `(would_break_complete_pair, broken_incomplete_pairs)`:
-    - `would_break_complete_pair`: separating a complete call/return pair
-      across the split, or keeping an already-orphaned return — both
-      forbidden by Pydantic AI. A caller must reject the split outright when
-      this is True; the incomplete-pair count is meaningless in that case.
-    - `broken_incomplete_pairs`: how many incomplete pairs (a call with no
-      return yet, or an orphaned return being summarized away) this split
-      loses. Used only to score otherwise-valid splits against each other.
+    Returns `(would_break_complete_pair, broken_incomplete_pairs)`. When the
+    first is True the split must be rejected and the count is meaningless.
     """
     would_break_complete_pair = False
     broken_incomplete_pairs = 0
@@ -247,15 +241,8 @@ def is_split_safe(
 ) -> bool:
     """Check if splitting at the given index would break tool call/return pairs.
 
-    A split is unsafe when it would:
-    1. Separate a complete call/return pair across the split (either side).
-    2. Summarize away a call whose return is kept — the kept return would end
-       up orphaned, with no call to explain it.
-    3. Keep an already-orphaned return that has no call anywhere.
-
-    A call with no return yet that lands in the *kept* messages is safe: the
-    return may arrive in a later turn, so there's nothing lost by
-    keeping it as-is.
+    Unsafe: separating a complete pair, summarizing away a pending call, or
+    keeping an orphaned return. A pending call on the kept side is safe.
     """
     for indices in tool_pairs.values():
         call_idx = indices["call_idx"]

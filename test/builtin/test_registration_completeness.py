@@ -1,19 +1,4 @@
-"""Guards both halves of builtin/__init__.py's registration contract.
-
-A new builtin task must be BOTH imported here AND added to `__all__`, or it
-silently never appears in the CLI (see AGENTS.md's "Gotchas" note).
-
-- *Within the file* — an import and `__all__` that have drifted apart
-  (imported but not exported, or exported but not actually imported).
-- *Across the tree* — a task module on disk that `__init__.py` never imports
-  at all, which the within-file check cannot see.
-
-A builtin task can be intentionally internal — an `upstream=` dependency of
-another task, never a CLI entry point of its own — which the tree scan cannot
-tell from an oversight. `INTERNAL_TASKS` names those with their reason, so the
-distinction is recorded rather than guessed. It is empty: every task under
-`builtin/` is a CLI entry point.
-"""
+"""Tests that builtin tasks are imported and exported."""
 
 import ast
 import importlib
@@ -25,9 +10,8 @@ from zrb.task.any_task import AnyTask
 
 INIT_PATH = Path(__file__).parents[2] / "src" / "zrb" / "builtin" / "__init__.py"
 
-# "<module>:<name>" -> why this task is deliberately not a CLI entry point.
-# Add an entry only for a task that exists purely as another task's
-# dependency; anything else missing from `__all__` is the silent-failure bug.
+# "<module>:<name>" -> why this task is not a CLI entry point.
+# Add entries only for tasks used solely as dependencies.
 INTERNAL_TASKS: dict[str, str] = {}
 
 
@@ -74,13 +58,7 @@ def test_every_exported_name_is_imported():
 
 
 def test_every_task_module_on_disk_is_wired_into_the_cli():
-    """The half the two checks above are blind to: a task nobody imported.
-
-    The checks above compare `__init__.py` against itself, so a module never
-    referenced there passes both while its tasks never reach the CLI.
-    `pkgutil.walk_packages` walks the package path instead, which is what
-    makes an unimported module visible.
-    """
+    """Check task modules on disk that ``__init__.py`` does not import."""
     exported = _all_names()
     unwired = {}
     for module_info in pkgutil.walk_packages(

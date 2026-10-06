@@ -1,10 +1,5 @@
-"""HTTP-backed UI used by the FastAPI chat session runner.
-
-`HTTPUI` adapts `EventDrivenUI` so output is broadcast to SSE subscribers
-and tool-call confirmations are routed through the per-session
-`HTTPChatApprovalChannel`. The factory binds the session-specific
-collaborators that `LLMChatTask` cannot know about up-front.
-"""
+"""HTTP-backed UI for the chat session runner: output goes to SSE subscribers,
+confirmations through the per-session `HTTPChatApprovalChannel`."""
 
 from __future__ import annotations
 
@@ -47,24 +42,13 @@ def create_http_ui_factory(
                 )
 
         def append_markdown(self, markdown_text: str) -> None:
-            """Send the raw (unrendered) markdown for the browser to render.
-
-            Overrides `BaseUI.append_markdown`, which would otherwise run
-            `render_markdown` -- the CLI's ANSI/Unicode-art pipeline. The
-            browser has real renderers (a markdown parser, KaTeX, the
-            already-vendored `mermaid.min.js`), so the source is sent as-is
-            under its own kind rather than converted server-side.
-            """
+            """Send raw markdown for the browser to render, skipping the CLI renderer."""
             self.append_to_output(markdown_text, kind="markdown")
 
         def handle_incoming_message(
             self, text: str, source: InputProvenance | None = None
         ) -> None:
-            """Put an incoming answer into the input queue.
-
-            The HTTP chat route submits ordinary user turns through the shared
-            chat-session queue; this method is only the ask-user answer seam.
-            """
+            """Queue an ask-user answer; user turns use the session queue."""
             del source
             self._input_queue.put_nowait(text)
 

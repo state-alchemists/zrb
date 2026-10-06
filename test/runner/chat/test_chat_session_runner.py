@@ -33,8 +33,7 @@ def mock_deps():
 
 
 async def _wait_for(predicate, timeout=5):
-    """Poll for a runner-observable signal instead of sleeping a fixed amount,
-    so a slow first turn on a loaded CI can't race the assertion below it."""
+    """Poll for a runner-observable signal."""
 
     async def _poll():
         while not predicate():
@@ -60,13 +59,10 @@ async def test_run_chat_session_success(mock_deps):
     llm_chat_task.async_run.assert_called_once()
     session_manager.broadcast.assert_called_with("test-id", "[USER] hello")
 
-    # The web path must pin interactive off: falling back to the CLI default
-    # (True) replays full history to the SSE client and tears down LSP
-    # servers / fires SESSION_END hooks on every message.
+    # The web path must pin interactive off.
     run_session = llm_chat_task.async_run.call_args.kwargs["session"]
     assert run_session.shared_ctx.input["interactive"] == "false"
 
-    # Clean up
     task.cancel()
     try:
         await task
@@ -104,8 +100,7 @@ async def test_run_chat_session_sets_web_input_provenance(mock_deps):
 
 @pytest.mark.asyncio
 async def test_run_chat_session_forwards_attachments_as_attach_input(mock_deps):
-    """Attachment paths queued alongside a message reach `ctx.input.attach`,
-    matching the CLI's own `--attach` convention (comma-separated paths)."""
+    """Queued attachment paths reach `ctx.input.attach`."""
     session, llm_chat_task, session_manager = mock_deps
     session.input_queue.put_nowait(
         {"message": "look at this", "attachments": ["/tmp/a.png", "/tmp/b.pdf"]}
@@ -187,8 +182,7 @@ async def test_run_chat_session_error(mock_deps):
     assert len(error_msgs) == 1
     assert "API failure" in error_msgs[0]
 
-    # The loop must survive the failure: the next queued message is processed
-    # instead of sitting dead until the browser reopens the SSE stream.
+    # The loop survives the failure and processes the next queued message.
     session.input_queue.put_nowait({"message": "still alive?", "attachments": []})
     await _wait_for(lambda: llm_chat_task.async_run.await_count >= 2)
     assert llm_chat_task.async_run.call_count == 2
@@ -202,14 +196,7 @@ async def test_run_chat_session_error(mock_deps):
 
 @pytest.mark.asyncio
 async def test_run_chat_session_cancel_race_ends_as_cancellation(mock_deps):
-    """A cancel() eaten by wait_for's timeout must still cancel the session.
-
-    asyncio.wait_for can consume a CancelledError delivered in the same tick
-    as its timeout and raise TimeoutError instead. The loop detects this via
-    current_task.cancelling(), but must re-raise a real CancelledError — not
-    the TimeoutError, which would fall into the generic error handler and let
-    the task finish "successfully" while its canceller believes it cancelled.
-    """
+    """A cancel() swallowed by wait_for's timeout still cancels the session."""
     session, llm_chat_task, session_manager = mock_deps
 
     async def timeout_eating_cancel(coro, *args, **kwargs):
@@ -266,9 +253,7 @@ async def test_run_chat_session_input_timeout_loop(mock_deps):
 async def test_cancel_mid_run_cancels_inflight_llm_task_and_restores_config(
     mock_deps,
 ):
-    """Cancelling the session while an LLM run is in flight must explicitly
-    cancel (and reap) that run, restore the shared task's wiring, reset the
-    processing flag, and end as a real cancellation."""
+    """Cancellation reaps the LLM run and restores session state."""
     session, llm_chat_task, session_manager = mock_deps
 
     started = asyncio.Event()
@@ -299,9 +284,7 @@ async def test_cancel_mid_run_cancels_inflight_llm_task_and_restores_config(
 
 @pytest.mark.asyncio
 async def test_cancelled_llm_run_resets_processing_and_ends_as_cancellation(mock_deps):
-    """An LLM run that ends cancelled leaves the session in a clean state:
-    processing flag reset, wiring restored, and the session itself ends as a
-    cancellation rather than limping on."""
+    """A cancelled LLM run restores state and ends the session."""
     session, llm_chat_task, session_manager = mock_deps
 
     async def run_then_cancel(*args, **kwargs):
@@ -322,8 +305,7 @@ async def test_cancelled_llm_run_resets_processing_and_ends_as_cancellation(mock
 
 @pytest.mark.asyncio
 async def test_unexpected_setup_failure_broadcasts_and_ends_session(mock_deps):
-    """An exception outside the per-message machinery (e.g. the wiring itself
-    breaking) is broadcast to the client instead of vanishing."""
+    """Setup failures are broadcast to the client."""
     session, llm_chat_task, session_manager = mock_deps
     session_manager.set_processing = MagicMock(side_effect=RuntimeError("boom"))
 

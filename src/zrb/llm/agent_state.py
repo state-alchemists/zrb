@@ -1,28 +1,13 @@
 """Ambient state for an agent run — UI, tool confirmation, YOLO, approval channel.
 
-These are set once by `run_agent` (`agent/run/runner.py`) at the start of a
-turn and read by sub-agents, delegate tools, and UI callbacks that don't
-receive them as explicit arguments.
+Set by `run_agent` (`agent/run/runner.py`) at the start of a turn; read by
+sub-agents, delegate tools and UI callbacks that don't receive them as
+arguments.
 
-Deliberately NOT inside the `zrb.llm.agent` package, even though `run_agent`
-is this module's only writer: importing `zrb.llm.agent` (for `create_agent`/
-`run_agent`) eagerly loads the whole agent-construction and run-loop
-machinery, and a long list of otherwise-unrelated leaf modules — `tool/ask.py`,
-`tool/plan.py`, `tool/shell.py`, `tool/web.py`, `tool/delegate.py`,
-`tool/file_observation.py`, `ui/base/ui.py` — need nothing from that
-machinery, only a `ContextVar` getter. When this module lived at
-`agent/run/runtime_state.py`, importing any of those forced `zrb.llm.agent`'s
-package `__init__` to run first (Python imports parent packages before
-submodules), which is what made `live_context.py` and `agent/run/setup.py`
-genuinely circular: each needed one of those same leaf modules, which by then
-needed `zrb.llm.agent` back. Moving the state itself out of the `agent`
-package — rather than deferring more of the imports that reach it — removes
-that cycle at its source instead of routing around it again. See
-`test/architecture/test_circular_import_allowlist.py`'s allowlist comment for
-the closure-walk evidence.
-
-Callers outside `zrb.llm.agent.run` should use the typed getters below rather
-than the raw vars.
+Lives outside `zrb.llm.agent` so leaf modules (`tool/ask.py`, `tool/shell.py`,
+`ui/base/ui.py`, ...) can read it without loading that package's `__init__`,
+which would be circular (see `test/architecture/test_circular_import_allowlist.py`).
+Outside `zrb.llm.agent.run`, use the typed getters rather than the raw vars.
 """
 
 from __future__ import annotations
@@ -64,17 +49,14 @@ current_hook_manager: ContextVar["HookManager | None"] = ContextVar(
     "current_hook_manager", default=None
 )
 # Identifies "this agent run" to tools that keep per-conversation state
-# (file_observation.py's read-before-overwrite tracking). Stable across turns
-# of a top-level conversation (its session name). A delegated sub-agent takes
-# the fresh uuid4 default: it has not seen what its parent observed, and the
-# display-only agent_id is too short for a never-evicted map.
+# (file_observation.py). Stable across turns of a top-level conversation (its
+# session name); a delegated sub-agent gets a fresh uuid4, since it has not
+# seen what its parent observed.
 current_agent_run_scope: ContextVar[str] = ContextVar(
     "current_agent_run_scope", default=""
 )
-# The session's `/model small ...` / `/model multimodal ...` override, or
-# None. `run_agent` binds these from its UI; helpers fall back to
-# `resolve_configured_small_model()`/`resolve_configured_multimodal_model()`.
-# Being ContextVars, concurrent chat sessions never see each other's choice.
+# The session's `/model small ...` / `/model multimodal ...` override, or None;
+# helpers fall back to `resolve_configured_small_model()`/`..._multimodal_model()`.
 current_small_model: ContextVar["str | Model | None"] = ContextVar(
     "current_small_model", default=None
 )
@@ -124,26 +106,22 @@ def get_current_hook_manager() -> "HookManager | None":
 
 
 def get_current_agent_run_scope() -> str:
-    """Return the id identifying the current agent run (see
-    `current_agent_run_scope`'s docstring above)."""
+    """Return the id identifying the current agent run."""
     return current_agent_run_scope.get()
 
 
 def get_current_small_model() -> "str | Model | None":
-    """Return the current run's small-model override, or None if unset —
-    callers fall back to `resolve_configured_small_model()`."""
+    """Return the current run's small-model override, or None if unset."""
     return current_small_model.get()
 
 
 def get_current_model() -> "str | Model | None":
-    """Return the main model the current agent run is using, or None outside a
-    run — callers fall back to `CFG.LLM_MODEL`."""
+    """Return the main model of the current agent run, or None outside a run."""
     return current_model.get()
 
 
 def get_current_multimodal_model() -> "str | Model | None":
-    """Return the current run's multimodal-model override, or None if unset
-    — callers fall back to `resolve_configured_multimodal_model()`."""
+    """Return the current run's multimodal-model override, or None if unset."""
     return current_multimodal_model.get()
 
 

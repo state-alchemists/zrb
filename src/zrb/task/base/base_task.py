@@ -23,17 +23,8 @@ from zrb.util.string.conversion import to_snake_case
 
 
 class BaseTask(AnyTask):
-    """The concrete, directly-instantiable `AnyTask`: a plain action plus
-    dependency wiring (`upstream`/`fallback`/`successor`), retries, and an
-    optional readiness check. `CmdTask` and `LLMTask` subclass it and replace
-    `action` with their own execution.
-
-    Behavior lives in composed parts, one per concern:
-    `BaseTaskContext` (env/input aggregation), `BaseTaskExecution`
-    (run/retry/readiness state machine), `BaseTaskLifecycle` (`run`,
-    `async_run`, `exec_root_tasks`), `BaseTaskMonitoring` (readiness
-    monitoring after the task is ready), and `BaseTaskOperators` (`>>`/`<<`).
-    Each part's own module docstring covers its concern in detail.
+    """The concrete `AnyTask`: an action plus dependency wiring, retries and
+    an optional readiness check. `CmdTask` and `LLMTask` override the action.
     """
 
     def __init__(
@@ -64,9 +55,6 @@ class BaseTask(AnyTask):
     ):
         """Define a task.
 
-        Only `name` is required; every other parameter has a working default,
-        so `BaseTask(name="build")` is valid on its own.
-
         Args:
             name: Task name. Also the CLI sub-command name, so prefer
                 kebab-case (`build-image`).
@@ -92,30 +80,23 @@ class BaseTask(AnyTask):
             retries: Number of *additional* attempts after a failure. The
                 default of 2 means up to 3 total attempts.
             retry_period: Seconds to wait between retry attempts.
-            retry_if: Predicate deciding whether a given failure is worth
-                retrying at all, called with the exception. A falsy result
-                fails the task immediately instead of burning the remaining
-                attempts on an error that cannot succeed (bad credentials, an
-                unknown model). `None`, the default, retries every failure.
+            retry_if: Predicate called with the exception; a falsy result fails
+                the task without further retries. `None` retries every failure.
             readiness_check: Task(s) that must succeed before this task is
                 considered ready. Presence of any check turns this into a
                 long-running task: `run` returns once the checks pass, while
                 the action keeps running in the background.
             readiness_check_delay: Seconds to wait after starting the action
-                before the first readiness check. `None` (the default) uses
-                `CFG.TASK_READINESS_DELAY` (500ms), so the pause is tunable
-                without touching the task definition.
+                before the first readiness check. `None` uses
+                `CFG.TASK_READINESS_DELAY` (500ms).
             readiness_check_period: Seconds between readiness checks once
                 monitoring, i.e. when `monitor_readiness` is True.
             readiness_failure_threshold: Consecutive readiness-check failures
                 tolerated before the task is declared failed.
             readiness_timeout: Seconds the readiness checks may take before
-                the task is declared failed. Bounds both the initial wait
-                before the task is marked ready and each re-check round when
-                `monitor_readiness` is True. `None` (default) uses
-                `CFG.TASK_READINESS_TIMEOUT` (60s); an explicit `0` or negative
-                value removes the cap, so a check that never returns hangs the
-                run forever.
+                the task is declared failed, for the initial wait and each
+                monitoring round. `None` uses `CFG.TASK_READINESS_TIMEOUT`
+                (60s); `0` or negative removes the cap.
             monitor_readiness: When True, keep re-running readiness checks after
                 the task is ready and restart the action if they start failing.
             upstream: Task(s) that must complete before this one starts.
@@ -170,12 +151,10 @@ class BaseTask(AnyTask):
     def _ensure_task_list(
         self, tasks: AnyTask | Sequence[AnyTask] | None
     ) -> list[AnyTask]:
-        """Normalize a single task or a collection of them into a list.
+        """Normalize a task or a sequence of tasks into a list.
 
-        Tests for `Sequence` (so tuples work) rather than for `AnyTask` (so a
-        duck-typed task or `MagicMock` still counts as one task). `str`/`bytes`
-        are rejected: they satisfy `Sequence` and would spread into characters,
-        and a task *name* is not a task — see `_reject_task_names`.
+        Checks `Sequence` rather than `AnyTask` so duck-typed tasks count as one
+        task; `str`/`bytes` are rejected since they are sequences too.
         """
         if tasks is None:
             return []
@@ -187,13 +166,7 @@ class BaseTask(AnyTask):
         return [tasks]
 
     def _reject_task_names(self, tasks: Sequence[AnyTask]) -> None:
-        """Refuse a name string where a task belongs.
-
-        `upstream=["build"]` is the natural wrong guess. Left alone it survives
-        construction and fails much later, inside the dependency walk
-        (`AttributeError: 'str' object has no attribute 'upstreams'`), naming no
-        line of user code.
-        """
+        """Fail fast on `upstream=["build"]` instead of deep in the dependency walk."""
         for task in tasks:
             if isinstance(task, (str, bytes)):
                 raise TypeError(
@@ -246,11 +219,7 @@ class BaseTask(AnyTask):
 
     @property
     def execute_condition(self):
-        """The raw condition deciding whether this task runs.
-
-        Unevaluated: a bool, template string, or callable. Rendering it against
-        a context is the execution layer's job.
-        """
+        """The unevaluated run condition: a bool, template string, or callable."""
         return self._execute_condition
 
     @property
@@ -270,10 +239,7 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_check_delay(self) -> float:
-        """Seconds to wait after the action starts before checking readiness.
-
-        Unset falls back to `CFG.TASK_READINESS_DELAY` (500ms by default).
-        """
+        """Seconds to wait after the action starts before checking readiness."""
         if self._readiness_check_delay is not None:
             return self._readiness_check_delay
         return CFG.TASK_READINESS_DELAY / 1000
@@ -302,13 +268,7 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_timeout(self) -> float:
-        """Seconds the readiness checks may take before the task fails.
-
-        Bounds the initial readiness wait (:mod:`zrb.task.base.execution`) and
-        each monitoring re-check round (:mod:`zrb.task.base.monitoring`) alike.
-        Unset falls back to `CFG.TASK_READINESS_TIMEOUT` (60s by default); an
-        explicit non-positive value disables the cap.
-        """
+        """Seconds the readiness checks may take; non-positive disables the cap."""
         if self._readiness_timeout is not None:
             return self._readiness_timeout
         return CFG.TASK_READINESS_TIMEOUT / 1000
@@ -397,12 +357,7 @@ class BaseTask(AnyTask):
         self._append_unique_tasks(upstreams, self._upstreams)
 
     def get_ctx(self, session: AnySession) -> AnyContext:
-        """Build this task's execution context within `session`.
-
-        The context carries resolved inputs, envs, and the logging helpers the
-        action uses. Call this when you need the same view of a session that
-        the action receives.
-        """
+        """Build the context this task's action receives within `session`."""
         return self._base_context.build_context(session)
 
     def run(
@@ -435,9 +390,8 @@ class BaseTask(AnyTask):
                 )
             )
         except (asyncio.CancelledError, KeyboardInterrupt):
-            # The async layers re-raise cancellation so programmatic callers
-            # never see a cancelled run as success; at this process-entry
-            # boundary it means the user asked to stop, so exit quietly.
+            # At this process-entry boundary cancellation means the user
+            # asked to stop.
             return None
 
     async def async_run(
@@ -447,9 +401,6 @@ class BaseTask(AnyTask):
         kwargs: dict[str, Any] | None = None,
     ) -> Any:
         """Run the task and its dependencies from inside an async context.
-
-        The async counterpart of `run`, and the one to use when an event loop
-        is already running.
 
         Args:
             session: Session to run in. A new one is created when omitted.
@@ -488,11 +439,10 @@ class BaseTask(AnyTask):
         return await self._base_execution.execute_task_action(session)
 
     async def exec_action(self, ctx: AnyContext) -> Any:
-        """Public wrapper around `_exec_action` for cross-module callers.
+        """Run `_exec_action`, noting this task's declaration site on errors.
 
-        Adds this task's declaration site as a note on any raised exception.
-        It lives here rather than in `_exec_action` because subclasses override
-        that wholesale without calling `super()`.
+        Kept outside `_exec_action` because subclasses override that without
+        calling `super()`.
         """
         try:
             return await self._exec_action(ctx)
@@ -509,19 +459,14 @@ class BaseTask(AnyTask):
             raise e
 
     async def _exec_action(self, ctx: AnyContext) -> Any:
-        """Run the task's action; the method subclasses override.
-
-        The default runs `action` (a literal string or a callable).
-        """
+        """Run the task's action; subclasses override this."""
         return await self._base_execution.run_default_action(ctx)
 
     def to_function(self) -> Callable[..., Any]:
         """Wrap this task as a plain Python function.
 
-        The returned function takes one keyword argument per task input, named
-        in snake_case, and carries a generated `__name__`, `__doc__`, and
-        `__signature__`. That makes it introspectable by anything expecting an
-        ordinary callable — `help()`, IDEs, and LLM tool registration alike.
+        The function takes one snake_case keyword argument per task input and
+        carries a generated `__name__`, `__doc__`, and `__signature__`.
 
         Returns:
             A callable running this task in a fresh session and returning its
@@ -558,11 +503,7 @@ class BaseTask(AnyTask):
         return doc
 
     def _create_fn_signature(self) -> inspect.Signature:
-        # KEYWORD_ONLY because that is what the wrapper accepts:
-        # `task_runner_fn(**kwargs)` takes no positional argument at all.
-        # Advertising POSITIONAL_OR_KEYWORD told every consumer that reads
-        # `__signature__` — `help()`, an IDE, a CLI builder built on it — that
-        # `fn("value")` works, and it raises TypeError.
+        # KEYWORD_ONLY: `task_runner_fn(**kwargs)` takes no positional argument.
         return inspect.Signature(
             [
                 inspect.Parameter(

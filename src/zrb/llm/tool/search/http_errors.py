@@ -11,9 +11,7 @@ BROWSER_USER_AGENT = (
 
 
 class SearchToolError(RuntimeError):
-    """A search backend failed in a way the agent should report and route
-    around — a failed operation (bad credentials, rate limit, transient
-    network failure), not a bad argument, hence `RuntimeError` as the base."""
+    """A search backend operation failed (credentials, rate limit, network)."""
 
 
 def raise_http_error(
@@ -24,10 +22,8 @@ def raise_http_error(
 ) -> NoReturn:
     """Raise a `[SYSTEM SUGGESTION]`-annotated error for a non-200 search response.
 
-    `service_name` names the backend in prose (e.g. "Brave Search"); `key_label`
-    names its API key in prose (e.g. "Brave API key" — backends phrase this
-    differently, so it isn't derived from `service_name`); `docs_url` is where
-    the user can get/verify a key.
+    `key_label` is the key's prose name (e.g. "Brave API key"); `docs_url` is
+    where the user can get one.
     """
     error_body = response.text[:500] if response.text else "No error details provided"
     status_code = response.status_code

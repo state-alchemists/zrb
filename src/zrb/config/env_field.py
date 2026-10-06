@@ -1,20 +1,9 @@
 """`EnvField`: a data descriptor that maps a config attribute to an env var.
 
-Collapses the repetitive get_env/cast getter + os.environ setter pattern that
-every `CFG.*` knob otherwise hand-writes. Reads honor `aliases`, convert with
-`cast`, and fall back to `default_factory(host)`, an explicit `default`, or the
-host's `DEFAULT_<NAME>` attribute (in that order). Writes go to `os.environ`
-under `write_key` (defaults to the attribute name), serialized with `serialize`;
-writing ``None`` removes the var when `nullable` is set.
-
-Public access stays flat and unchanged: `CFG.LLM_MODEL` resolves through the
-descriptor exactly as a `@property` did, so no caller or test needs to change.
-
-`no_prefix=True` reads/writes the bare env name without the `ENV_PREFIX`,
-covering keys that live outside the namespace (`BRAVE_API_KEY`, `SERPAPI_KEY`)
-or use an internal name (`_ZRB_ENV_PREFIX`, `_ZRB_CUSTOM_VERSION`). Combined
-with `transform`/`default_factory`, this leaves only genuinely non-env values
-as hand-written properties (e.g. `LOGGER`, which is `logging.getLogger()`).
+Reads honor `aliases`, convert with `cast`, and fall back to
+`default_factory(host)`, an explicit `default`, or the host's `DEFAULT_<NAME>`
+attribute (in that order). Writes go to `os.environ` under `write_key`,
+serialized with `serialize`.
 """
 
 from __future__ import annotations
@@ -35,11 +24,7 @@ def on_off(value: Any) -> str:
 
 
 def path_list(raw: str) -> list[str]:
-    """Parse an `os.pathsep`-delimited path list (`;` on Windows, `:` elsewhere).
-
-    Splitting on `os.pathsep` rather than always `:` keeps Windows drive
-    letters (`C:\\foo`) intact.
-    """
+    """Parse an `os.pathsep`-delimited path list (`;` on Windows, `:` elsewhere)."""
     return [part.strip() for part in raw.split(os.pathsep) if part.strip() != ""]
 
 
@@ -55,8 +40,7 @@ def comma_list(raw: str) -> list[str]:
 
 def comma_or_colon_list(raw: str) -> list[str]:
     """Parse a ``,``- or ``:``-delimited string (e.g. module names, which never
-    contain either). Accepts both so a colon-separated value written before the
-    comma convention keeps working."""
+    contain either)."""
     return [part.strip() for part in raw.replace(":", ",").split(",") if part.strip()]
 
 
@@ -94,12 +78,10 @@ class EnvField(Generic[T]):
         Callable applied to the raw string on read (e.g. ``int``, ``float``,
         ``to_boolean``, ``path_list``). Defaults to ``str`` (identity).
     transform:
-        Optional ``callable(value, host) -> value`` applied after ``cast``.
-        Receives the already-cast value and the host config object, enabling
-        transformations that depend on sibling config (e.g. clamping a token
-        threshold against ``LLM_MAX_TOKEN_PER_MINUTE``). Both a read and
-        :meth:`convert` apply it, so a converted-then-assigned value is the
-        value the next read returns.
+        Optional ``callable(value, host) -> value`` applied after ``cast``, for
+        values that depend on sibling config (e.g. clamping a token threshold
+        against ``LLM_MAX_TOKEN_PER_MINUTE``). Applied by reads and
+        :meth:`convert`.
     serialize:
         Callable applied to the value on write before storing in os.environ
         (e.g. ``on_off``, ``path_list_join``). Defaults to ``str``.
@@ -129,10 +111,8 @@ class EnvField(Generic[T]):
         Pair with ``aliases``/``write_key`` for internal names such as
         ``_ZRB_CUSTOM_VERSION``.
     secret:
-        When ``True``, the value is sensitive (an API key, token, password, …)
-        and must not be displayed. Readers that surface config to users (e.g.
-        ``zrb config explain``) show ``[set]``/``[unset]`` instead of the value.
-        Does not affect how the value is read or written — only its display.
+        When ``True``, the value is sensitive and displayed only as
+        ``[set]``/``[unset]`` (e.g. by ``zrb config explain``).
     doc:
         Docstring surfaced as the descriptor's ``__doc__``.
     """
@@ -194,12 +174,10 @@ class EnvField(Generic[T]):
         ]
 
     def is_set(self, prefix: str) -> bool:
-        """Whether any env var this field *reads* is present.
+        """Whether any env var this field reads (aliases included) is present.
 
-        Aliases count: a renamed knob is still "set" when the environment
-        carries its old key. Distinct from a truthy read — a field falls back to
-        its default when unset, so the value alone cannot tell a caller whether
-        the user chose it. Reach it through ``CFG.is_env_set(name)``.
+        Unlike the value, this tells whether the user chose it rather than
+        the default. Reach it through ``CFG.is_env_set(name)``.
         """
         return any(key in os.environ for key in self.get_read_keys(prefix))
 
@@ -212,13 +190,8 @@ class EnvField(Generic[T]):
         return self._cast(raw)
 
     def convert(self, raw: str, host: object) -> T:
-        """Convert `raw` the way a read does: ``cast``, then ``transform``.
-
-        `cast` alone stops at the raw type, so a caller converting a string in
-        order to *assign* it (e.g. `/set`) would store and report a value the next
-        read silently changes — a token threshold is clamped against the rate
-        limits by its transform. `host` is the config object `transform` receives,
-        so the conversion sees the sibling settings a read sees.
+        """Convert `raw` the way a read does: ``cast``, then ``transform``
+        against *host*, so an assigned value matches what the next read returns.
         """
         value = self._cast(raw)
         if self._transform is not None:
@@ -232,11 +205,8 @@ class EnvField(Generic[T]):
 
     @property
     def is_boolean(self) -> bool:
-        """Whether this field accepts an on/off-style boolean string.
-
-        ``True`` when writes serialize through :func:`on_off`, which by
-        convention pairs with a cast that reads on/off back to a bool.
-        """
+        """Whether this field accepts an on/off-style boolean string (it
+        serializes through :func:`on_off`)."""
         return self._serialize is on_off
 
     def _read_raw(self, obj: Any) -> str:
@@ -300,13 +270,8 @@ class EnvField(Generic[T]):
                 f"CFG.{self._name} = {value!r} is not valid: it serializes to "
                 f"{raw!r}, which {self._cast.__name__}() rejects ({error})."
             ) from error
-        # Guard against a non-idempotent serialize/cast pair silently rewriting
-        # the value. Two cases to catch, one to allow:
-        #   - ok: a bare string assigned to any field (e.g. "INFO" -> 20 for a
-        #     log-level field, or "A,B" -> ["A","B"] for a list field) — a str is
-        #     always the canonical env form, so this is documented coercion.
-        #   - catch: a non-string value (a Model, a list, a bare int) that
-        #     serializes/parseaways into a different shape.
+        # A str is the canonical env form, so coercing it ("INFO" -> 20) is
+        # fine; a non-str value that reads back differently is rejected.
         if round_tripped != value and not isinstance(value, str):
             raise ValueError(
                 f"CFG.{self._name} = {value!r} is not a value this field can "

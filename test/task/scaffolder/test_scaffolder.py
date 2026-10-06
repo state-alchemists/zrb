@@ -122,8 +122,7 @@ def test_generate_with_content_transformer_object_and_list(tmp_path):
 
 
 def test_generate_survives_transformer_decoding_failure(tmp_path):
-    """A transformer blowing up on undecodable content doesn't crash the
-    scaffold — the failure is swallowed and scaffolding continues."""
+    """Undecodable content does not abort scaffolding."""
     src_dir = tmp_path / "template"
     src_dir.mkdir()
     (src_dir / "blob.bin").write_bytes(b"\x80\x81\xff\xfe")

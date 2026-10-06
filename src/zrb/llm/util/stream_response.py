@@ -27,9 +27,8 @@ class StreamedBlock:
     """One live-streamed, later-collapsed block: the model's thinking or its
     final-text reply. `StreamEventHandler` holds one of each.
 
-    `kind` is the `print_fn` kind every chunk is printed under — the UI's
-    `mark_*_block_start` registers the same kind to know which chunks belong
-    to the block. `label` heads the collapsed placeholder line.
+    `kind` is the `print_fn` kind of every chunk; `label` heads the collapsed
+    placeholder line.
     """
 
     def __init__(
@@ -66,13 +65,8 @@ class StreamedBlock:
     def stream(self, raw: str, preserve_leading_newline: bool) -> None:
         """Format, accumulate, and print one chunk of the block.
 
-        Accumulating here (not re-reading the buffer later) is deliberate:
-        `append_to_output`'s carriage-return handling can rewrite/erase part
-        of the *rendered* line whenever a chunk contains `\\r` — a mechanism
-        built for progress spinners, but it applies to any text. Re-deriving
-        the full text from the buffer after the fact would inherit that
-        erasure; keeping our own copy of exactly what was sent to print_fn
-        does not.
+        Accumulated here rather than re-read from the rendered buffer, where
+        `\\r` handling may have erased part of a line.
         """
         formatted = self._format_content(raw, preserve_leading_newline)
         if self._on_collapse is not None:
@@ -82,10 +76,8 @@ class StreamedBlock:
     def close(self) -> None:
         """Collapse the just-finished block, if one was open.
 
-        Called whenever a part starts that ends this block, and when the run
-        ends. For the final-text block, `BaseUI.stream_ai_response` appends a
-        markdown-rendered copy separately afterward; this only collapses the
-        raw streamed copy so the two don't both sit on screen at once.
+        For the final-text block this collapses only the raw streamed copy;
+        `BaseUI.stream_ai_response` appends the rendered one.
         """
         if not self._open:
             return
@@ -141,9 +133,8 @@ class StreamEventHandler:
         self._last_progress_time = 0.0
         self._was_tool_call_delta = False
         self._was_tool_call_start = False
-        # Same value `__call__` resets this to: a handler is rebuilt on every
-        # tool-approval round-trip, so it always starts mid-turn and its first
-        # line needs the separator too.
+        # A handler is rebuilt on every tool-approval round-trip, so it starts
+        # mid-turn and its first line needs the separator too.
         self._event_prefix = f"\n{self._indentation}"
         self._printed_tool_ids = set()
         self._thinking = StreamedBlock(
@@ -163,8 +154,7 @@ class StreamEventHandler:
             print_fn,
         )
         # Part `.index` -> `tool_call_id` (deltas carry only `.index`), and
-        # each tool call's `_event_prefix` when its placeholder opened. Used
-        # only by the `on_tool_prepare_update` offset path.
+        # each call's prefix when its placeholder opened.
         self._tool_prepare_index_map: dict[int, str] = {}
         self._tool_prepare_prefix: dict[str, str] = {}
 
@@ -244,12 +234,8 @@ class StreamEventHandler:
         preserve_leading_newline: bool = False,
         kind: PrintKind = "tool_call",
     ):
-        """Print a line that may later be expanded, when a recorder is wired.
-
-        Falls back to printing exactly `collapsed` via `fprint` when no
-        recorder is set (every UI backend other than the default TUI) or the
-        two variants are identical — byte-for-byte today's behavior.
-        """
+        """Print a line that may later be expanded, when a recorder is wired;
+        otherwise print `collapsed`."""
         if self._tool_block_recorder is not None and collapsed != full:
             formatted_collapsed = self._format_content(
                 collapsed, preserve_leading_newline
@@ -293,14 +279,8 @@ class StreamEventHandler:
     def _update_tool_prepare(self, tool_call_id: str, text: str) -> None:
         """Print/replace `tool_call_id`'s own "Prepare tool parameters" line.
 
-        Only called when `on_tool_prepare_update` is set. Reconstructs the
-        full line (this tool call's own `_event_prefix`, captured when its
-        placeholder first opened, plus `text`) and hands it to the UI's
-        offset-tracked replace, so a later call for the same `tool_call_id`
-        updates exactly that tool's own span — never "whichever line happens
-        to be last," which a naive `\\r`-based erase would assume, and which
-        breaks the instant two tool calls' argument streams interleave (each
-        one's spinner tick would erase the *other's* line).
+        Keyed per tool call so interleaved argument streams of parallel calls
+        never overwrite each other's line.
         """
         if self._on_tool_prepare_update is None:
             return
@@ -336,9 +316,7 @@ class StreamEventHandler:
                         tool_call_id, "🔄 Prepare tool parameters..."
                     )
                 else:
-                    # Fallback for a UI that hasn't opted in: unchanged from
-                    # before — a single `\r`-animated line, correct only when
-                    # tool calls don't overlap.
+                    # A `\r`-animated line; correct only for non-overlapping calls.
                     self.fprint(
                         f"{self._event_prefix}🔄 Prepare tool parameters...",
                         preserve_leading_newline=True,
@@ -349,9 +327,7 @@ class StreamEventHandler:
 
         if isinstance(event.part, TextPart):
             content = get_event_part_content(event)
-            # Mirrors the 🧠 lead-in below: marked once, on the block's first
-            # chunk, so the icon survives into `full` — an expanded response
-            # (Ctrl+O) keeps its 💬, not just the collapsed summary line.
+            # Marked on the first chunk so the icon survives into `full`.
             if not self._text.is_open:
                 self._text.open(self._event_prefix)
                 marker = "💬 "
@@ -364,9 +340,7 @@ class StreamEventHandler:
                 )
         else:
             content = get_event_part_content(event)
-            # Only mark and print the 🧠 lead-in for the FIRST part of a
-            # thinking streak — a later summary chunk (see the comment above)
-            # continues the same open block instead of restarting it.
+            # Only the first part of a thinking streak gets the 🧠 lead-in.
             if not self._thinking.is_open:
                 self._thinking.open(self._event_prefix)
                 marker = "🧠 "
@@ -388,18 +362,13 @@ class StreamEventHandler:
         )
 
         if isinstance(event.delta, TextPartDelta):
-            # content_delta or "" mirrors the ThinkingPartDelta guard below —
-            # not currently known to be None for text, but f"{None}" would
-            # print the literal word "None" if a provider ever did.
             self._text.stream(
                 event.delta.content_delta or "", preserve_leading_newline=False
             )
             self._was_tool_call_delta = False
             self._was_tool_call_start = False
         elif isinstance(event.delta, ThinkingPartDelta):
-            # content_delta can be None for providers that deliver thinking
-            # text out-of-band (via provider_details rather than the delta
-            # itself) — f"{None}" would print the literal word "None".
+            # None when a provider delivers thinking via provider_details.
             self._thinking.stream(
                 event.delta.content_delta or "", preserve_leading_newline=False
             )
@@ -416,9 +385,6 @@ class StreamEventHandler:
                     tool_call_id is not None
                     and self._on_tool_prepare_update is not None
                 ):
-                    # Offset-tracked path: throttled the same as the fallback
-                    # below, but replaces exactly *this* tool call's own
-                    # span — never "whichever line is currently last."
                     now = time.monotonic()
                     if now - self._last_progress_time < _PROGRESS_REPAINT_INTERVAL:
                         return
@@ -431,14 +397,10 @@ class StreamEventHandler:
                         tool_call_id, f"🔄 Prepare tool parameters {progress_char}"
                     )
                     return
-                # Fallback for a UI that hasn't opted in: unchanged from
-                # before — single-line `\r` animation, correct only when
-                # tool calls don't overlap.
                 if not self._was_tool_call_delta and not self._was_tool_call_start:
                     self.fprint("\n", kind="progress")
-                # Set state before the throttle check so the carriage-return
-                # cleanup in handle_tool_call still fires even on a throttled
-                # delta.
+                # Set before the throttle so handle_tool_call's `\r` cleanup
+                # still fires after a throttled delta.
                 self._was_tool_call_delta = True
                 self._was_tool_call_start = False
                 now = time.monotonic()
@@ -459,7 +421,6 @@ class StreamEventHandler:
         if self._on_tool_call_start is not None:
             self._on_tool_call_start(event.part.tool_name, tool_call_id)
         if self._on_tool_prepare_update is not None:
-            # Offset-based: erases only this tool call's span.
             self._update_tool_prepare(tool_call_id, "")
             self._tool_prepare_prefix.pop(tool_call_id, None)
         elif self._was_tool_call_delta and not self._show_tool_call_detail:
@@ -468,9 +429,8 @@ class StreamEventHandler:
         tool_name = event.part.tool_name
         if tool_call_id not in self._printed_tool_ids:
             self._printed_tool_ids.add(tool_call_id)
-            # AskUserQuestion's payload is rendered by the selection widget, so
-            # its args are not echoed. No trailing "\n": whoever prints next
-            # supplies exactly one leading newline.
+            # AskUserQuestion's args are rendered by the selection widget.
+            # No trailing "\n": whatever prints next supplies its own.
             if tool_name == "AskUserQuestion":
                 line = f"{self._event_prefix}🧰 {tool_call_id} | {tool_name}"
                 self.fprint(line, preserve_leading_newline=True, kind="tool_call")
@@ -489,7 +449,6 @@ class StreamEventHandler:
     def handle_tool_result(self, event: "ToolResultEvent"):
         if self._on_tool_call_end is not None:
             self._on_tool_call_end(event.tool_call_id)
-        # No trailing "\n" — see the note in `handle_tool_call`.
         if self._show_tool_result:
             self.fprint(
                 f"{self._event_prefix}🔠 {event.tool_call_id} | Return {event.part.content}",
@@ -506,15 +465,10 @@ class StreamEventHandler:
         self._was_tool_call_delta = False
 
     def handle_run_result(self, event: "AgentRunResultEvent"):
-        # The run is over, so no tool call can still be in flight; clear the
-        # timer here too (idempotent) so a tool that never got a result event
-        # cannot leave the status bar showing it. No specific call completed at
-        # run end, so pass None: "clear whatever is still running."
+        # Clear any tool that never got a result event.
         if self._on_tool_call_end is not None:
             self._on_tool_call_end(None)
         self._thinking.close()
-        # The normal case: a turn ends with the final text as the last
-        # streamed part, so this is where most text blocks actually collapse.
         self._text.close()
         usage = event.result.usage
         if self._usage_callback is not None:
@@ -534,7 +488,6 @@ class StreamEventHandler:
                 f"Details: {usage.details}",
             ]
         )
-        # No trailing "\n": the final answer that follows adds its own gap.
         self.fprint(
             f"{self._event_prefix}{usage_msg}",
             preserve_leading_newline=True,
@@ -567,52 +520,22 @@ def create_event_handler(
         show_tool_call_detail: Whether to show detailed tool call parameters.
         show_tool_result: Whether to show tool result content.
         usage_callback: Called with the run's `RunUsage` when the run completes.
-        tool_block_recorder: Called with (collapsed, full) instead of
-            printing a collapsed-by-default tool-call/result line directly,
-            so a UI that supports it can make the line expandable. Unset, the
-            collapsed line is printed as-is.
-        on_thinking_start: Called right before the first chunk of a thinking
-            block is printed, so a UI that supports it can note where the
-            block begins. Thinking always streams live either way.
-        on_thinking_collapse: Called with (collapsed, full) once a thinking
-            block ends (the model moved on to a tool call or its final
-            response) — `collapsed` is a pre-formatted placeholder line,
-            `full` is every chunk actually sent to print_fn for that block
-            (accumulated here, not re-read from the rendered buffer, since a
-            stray carriage return in a chunk can rewrite/erase part of the
-            live-rendered line — see `StreamedBlock.stream`). A UI that
-            supports it replaces the already-printed live text with
-            `collapsed` and keeps `full` for later expansion.
-        on_text_start: Called right before the first chunk of the final text
-            response is printed. Mirrors `on_thinking_start` for the
-            assistant's reply instead of its reasoning.
-        on_text_collapse: Called with (collapsed, full) once the final text
-            response is done streaming (a tool call or a new thinking part
-            started, or the run ended) — same contract as
-            `on_thinking_collapse`. The caller's own markdown-rendered copy
-            of the same text (e.g. `BaseUI.stream_ai_response`) is appended
-            separately afterward; this only collapses the raw streamed copy
-            so both don't sit on screen at once.
+        tool_block_recorder: Called with (collapsed, full) instead of printing
+            a tool-call/result line, so the UI can make it expandable.
+        on_thinking_start: Called before a thinking block's first chunk.
+        on_thinking_collapse: Called with (collapsed, full) when a thinking
+            block ends; `full` is every chunk sent to print_fn for it.
+        on_text_start: Called before the final text response's first chunk.
+        on_text_collapse: Called with (collapsed, full) when the final text
+            response ends; same contract as `on_thinking_collapse`.
         on_tool_prepare_update: Called with (tool_call_id, text) to print or
-            replace that tool call's own "Prepare tool parameters" line —
-            first call for a `tool_call_id` prints fresh, later calls (each
-            argument delta's spinner tick, and the empty-string erase once
-            the tool call resolves) replace exactly that line in place. Keyed
-            per tool call so concurrent (parallel) tool calls' argument
-            streams never corrupt each other's line — the previous `\\r`-
-            "erase whatever is currently the last line" approach did exactly
-            that under interleaving. A UI that doesn't support it keeps the
-            original single-line `\\r` animation, correct only when tool
-            calls don't overlap.
-        on_tool_call_start: Called with the tool's name and its tool-call id
-            once a tool call is about to execute (a `ToolCallEvent`), so a UI
-            can record the running tool for its status-bar timer.
-        on_tool_call_end: Called with the completed call's tool-call id once a
-            tool call finishes (a `ToolResultEvent`), and again with ``None``
-            when the run ends, so the UI can clear its running-tool timer only
-            for the call that actually finished. ``None`` clears whatever is
-            still running — a run-end clear after the last tool result is a
-            no-op, and one with a leftover timer always clears it.
+            replace that call's own "Prepare tool parameters" line (empty
+            text erases it). Without it, a single `\\r`-animated line is used,
+            correct only when tool calls don't overlap.
+        on_tool_call_start: Called with (tool_name, tool_call_id) when a tool
+            call is about to execute.
+        on_tool_call_end: Called with the finished call's id, and with
+            ``None`` (clear whatever is running) when the run ends.
     """
     return StreamEventHandler(
         print_fn=print_fn,
@@ -634,9 +557,7 @@ def create_event_handler(
 def _last_request_usage(result: Any) -> Any:
     """The last `ModelResponse`'s per-request usage = current context size.
 
-    `RunUsage` sums every request in the run, so it can't report window
-    occupancy. Only `ModelResponse` carries `.usage`; the last one is the most
-    recent prompt sent, which is what fills the context window.
+    `RunUsage` sums the whole run, so it cannot report window occupancy.
     """
     for message in reversed(result.all_messages()):
         usage = getattr(message, "usage", None)
@@ -648,11 +569,7 @@ def _last_request_usage(result: Any) -> Any:
 def get_event_part_args(
     event: "AgentStreamEvent | ToolCallEvent", full: bool = False
 ) -> Any:
-    """The event part's tool-call args, values truncated unless `full`.
-
-    `event.part.args` is never mutated by parsing/truncation, so both
-    variants can be read from the same event.
-    """
+    """The event part's tool-call args, values truncated unless `full`."""
     if not hasattr(event, "part"):
         return {}
     part = getattr(event, "part")

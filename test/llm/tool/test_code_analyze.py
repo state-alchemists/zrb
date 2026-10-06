@@ -91,10 +91,8 @@ async def test_analyze_code_with_lsp(temp_code_dir):
 
 @pytest.mark.asyncio
 async def test_analyze_code_does_not_shutdown_global_lsp_manager(temp_code_dir):
-    """analyze_code must not tear down every LSP server process-wide —
-    lsp_manager is a global singleton shared with post_write_check.py, and a
-    global shutdown forced that unrelated caller to cold-start a server.
-    """
+    """analyze_code must not shut down the global lsp_manager, which
+    post_write_check.py shares."""
     with (
         patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as mock_run,
         patch(

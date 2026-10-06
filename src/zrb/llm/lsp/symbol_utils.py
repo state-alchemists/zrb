@@ -13,9 +13,7 @@ def uri_to_path(uri: str) -> str:
     if not uri.startswith("file://"):
         return uri
     path = unquote(urlparse(uri).path)
-    # A Windows file URI carries the drive *after* the root slash
-    # ("file:///D:/dir/file.py" -> "/D:/dir/file.py"), which is not a path
-    # anything can open until that slash is dropped.
+    # Windows: "file:///D:/x.py" parses to "/D:/x.py"; drop the leading slash.
     if re.match(r"^/[A-Za-z]:", path):
         return path[1:]
     return path
@@ -24,23 +22,16 @@ def uri_to_path(uri: str) -> str:
 def format_document_symbols(symbols: list, depth: int = 0) -> list[dict]:
     """Flatten LSP document symbols into a list with hierarchy depth.
 
-    Handles both response shapes ``textDocument/documentSymbol`` may return:
-
-    * **DocumentSymbol** (hierarchical; pyright, gopls, …) — position in
-      ``range``/``selectionRange``, with nested ``children``.
-    * **SymbolInformation** (flat; pylsp, …) — position in ``location.range``,
-      no children.
+    Accepts both hierarchical DocumentSymbol and flat SymbolInformation shapes.
     """
     results: list[dict] = []
     for sym in symbols:
         if not isinstance(sym, dict):
             continue
         if "location" in sym:
-            # SymbolInformation: position lives under location.range.
             range_info = sym.get("location", {}).get("range", {})
             selection_range = range_info
         else:
-            # DocumentSymbol: full range + a selectionRange on the name.
             range_info = sym.get("range", {})
             selection_range = sym.get("selectionRange", range_info)
         results.append(

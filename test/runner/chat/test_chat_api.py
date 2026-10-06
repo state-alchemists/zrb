@@ -108,11 +108,7 @@ async def test_post_message_defaults_attachments_to_empty_list(client: AsyncClie
 @pytest.mark.asyncio
 @pytest.mark.parametrize("message", [None, 123, 1.5, ["a"], True])
 async def test_post_message_rejects_a_non_string_message(client: AsyncClient, message):
-    """A malformed `message` is a 400, not a 500.
-
-    The route slices it for logging and hands it to `send_input`; anything
-    that is neither a string nor a JSON object raises there.
-    """
+    """A malformed `message` returns 400."""
     response = await client.post(
         "/api/v1/chat/sessions/test/messages", json={"message": message}
     )
@@ -155,12 +151,7 @@ async def test_approval_action_waiting_edit_non_json_returns_400(client: AsyncCl
 async def test_unhandled_json_edit_is_never_retried_as_a_text_response(
     client: AsyncClient,
 ):
-    """A missed edit must not be re-sent down the is_json=False path.
-
-    handle_response cannot parse a dict, so retrying there denies the pending
-    tool call outright — a raced edit turning into a spurious denial. The route
-    must report the miss without a second, text-mode attempt.
-    """
+    """A missed edit must not be retried as text."""
     _mock_sm.get_session.return_value = MagicMock()
     _mock_sm.is_waiting_for_edit.return_value = True
     _mock_sm.has_pending_approvals.return_value = True
@@ -185,10 +176,7 @@ async def test_unhandled_json_edit_is_never_retried_as_a_text_response(
 async def test_approval_action_dict_without_pending_edit_falls_through_to_send(
     client: AsyncClient,
 ):
-    """No edit slot and nothing pending: the dict is still an ordinary message.
-
-    Skipping the text-mode retry must not swallow this pre-existing path.
-    """
+    """A dict without a pending edit remains an ordinary message."""
     _mock_sm.get_session.return_value = MagicMock()
     _mock_sm.is_waiting_for_edit.return_value = False
     _mock_sm.has_pending_approvals.return_value = False
@@ -270,12 +258,7 @@ async def test_post_message_dict_is_json_serialized(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_routes_forbid_user_without_task_access(client: AsyncClient):
-    """With a resolvable chat task, a user who can't access it gets 403.
-
-    The chat routes must pass the user to `can_access_task`; dropping it would
-    let an unauthorized client reach the `llm chat` agent (tool/shell
-    execution).
-    """
+    """Users without access receive 403 before task execution."""
     no_access_user = MagicMock()
     no_access_user.can_access_task.return_value = False
     mock_task = MagicMock()
@@ -344,13 +327,7 @@ async def testget_llm_chat_task_returns_none_when_missing():
 async def test_cleared_stale_edit_slot_is_not_reported_as_still_waiting(
     client: AsyncClient,
 ):
-    """Don't tell a client that just sent JSON args to "send JSON args".
-
-    An unhandled claim clears a stale edit slot, so the edit state captured
-    before handle_approval_response is out of date by the time the route builds
-    its error. Re-reading it lets the response describe what is actually
-    pending.
-    """
+    """A stale edit slot is not reported as pending."""
     _mock_sm.get_session.return_value = MagicMock()
     # True on the pre-call read, False afterwards: the stale slot was cleared.
     _mock_sm.is_waiting_for_edit.side_effect = [True, False]

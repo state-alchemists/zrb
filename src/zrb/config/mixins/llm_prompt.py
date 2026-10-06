@@ -24,10 +24,7 @@ class LLMPromptMixin:
         self.DEFAULT_LLM_BASE_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
         self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
-        # The seven prompt sections are deliberately fixed and ordered: the five
-        # file-backed rule sections, then the two runtime-fact sections
-        # (system_context renders the environment, project_context the project
-        # docs discovered near the working directory).
+        # Keep file-backed rule sections before runtime context sections.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,principle,workflow,example,profile,system_context,project_context"
         )

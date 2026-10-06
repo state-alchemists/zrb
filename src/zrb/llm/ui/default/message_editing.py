@@ -1,41 +1,8 @@
-"""Input recall and queued-message editing for the default `UI`.
+"""Queued-message recall, editing, deletion, and echo tracking for `UI`.
 
-While a turn is running, a freshly submitted message sits in the message
-queue (`QueuedMessage`) instead of being processed. `UIMessageEditing` lets
-the user recall one of those still-queued messages with the Up arrow, edit it
-in the input field, and press Enter to replace it in place — the shared entry
-is rewritten (so the turn, when it starts, streams the *edited* text) and the
-echoed line in the output buffer is spliced to match — or drop it outright with
-Ctrl+X, which takes both the queue entry and its echoed line away.
-
-Where each piece lives:
-
-* `handle_up_arrow` / `handle_down_arrow` are the buffer-level handlers the
-  input field's Up/Down keybindings consult first (see `create_input_field`).
-  They prefer a still-queued message; with none queued they walk the
-  previous-message history (`PreviousMessageHistory`) — the loaded
-  conversation, then the cross-session history, newest first — and only then
-  return ``False`` to fall through to prompt-toolkit history recall.
-* `handle_enter_queued_edit` is called from the Enter keybinding before the
-  plain-submit path; it turns a queued message in the buffer into an edit, or
-  consumes the first Enter with a note when the message is already started or
-  sent so the next Enter is an intentional new submission.
-* `handle_delete_queued` is called from the Ctrl+X keybinding: it drops the
-  recalled message through `delete_queued_message` (below) and splices its echo
-  away (`remove_echo`, the delete path's counterpart to `redraw_echo`).
-* `track_echo_span` records where a submitted echo landed in the output
-  buffer; `redraw_echo` splices the edited line back in. Both are called
-  through `UI`'s own `track_echo_span`/`redraw_echo` override hooks (the
-  `AnyUI` echo contract), which `BaseUI` invokes polymorphically and
-  broadcasts across every child UI of a MultiUI. `remove_echo` is the third
-  hook of that contract, broadcast the same way when a message is dropped.
-* `redraw_echo` is the one splice path behind both callers (an edit and a
-  paste merge) and re-decides the body from the entry's current text, so the
-  two can never draw the message differently.
-* Every tracked echo is also a re-renderable block (`RenderedEcho` +
-  `render_echo`), and the block — not the `EchoSpan` — holds the authoritative
-  offsets: `UIOutput` keeps `rendered_blocks` current through re-wraps and
-  in-place edits, and `_refresh_echo_span` reads the span back off it.
+`UIMessageEditing` handles Up/Down/Enter/Ctrl+X and maintains re-renderable
+output spans for queued-message echoes. Previous-message recall is delegated to
+`PreviousMessageHistory`.
 """
 
 from __future__ import annotations

@@ -1,10 +1,7 @@
-"""Execution machinery for `BaseTask`: the run/retry/readiness state machine.
+"""`BaseTask`'s run/retry/readiness state machine (`self._base_execution`).
 
-Composed into `BaseTask` as `self._base_execution`. Holds a direct reference
-to the sibling `BaseTaskMonitoring` part to kick off readiness monitoring,
-set via `set_monitoring` once `BaseTaskMonitoring` is constructed (it is
-built after `BaseTaskExecution` and itself takes a direct reference back, so
-the pair cannot both be wired through their constructors).
+`BaseTaskMonitoring` references this part, so it is wired back afterwards via
+`set_monitoring`.
 """
 
 import asyncio
@@ -36,9 +33,7 @@ class BaseTaskExecution:
         self._base_monitoring = base_monitoring
 
     async def execute_task_chain(self, session: AnySession):
-        """
-        Executes the task and its downstream successors if conditions are met.
-        """
+        """Execute the task, then its next tasks."""
         task = self._task
         if session.is_terminated or not session.is_allowed_to_run(task):
             return
@@ -51,9 +46,7 @@ class BaseTaskExecution:
         return result
 
     async def execute_task_action(self, session: AnySession):
-        """
-        Executes a single task's action, handling conditions and readiness checks.
-        """
+        """Execute the task's action, honoring run permission and condition."""
         task = self._task
         ctx = task.get_ctx(session)
         token = current_ctx.set(ctx)
@@ -70,9 +63,7 @@ class BaseTaskExecution:
             current_ctx.reset(token)
 
     def check_execute_condition(self, session: AnySession) -> bool:
-        """
-        Evaluates the task's execute_condition attribute.
-        """
+        """Evaluate the task's execute_condition."""
         task = self._task
         ctx = task.get_ctx(session)
         execute_condition_attr = (
@@ -81,13 +72,7 @@ class BaseTaskExecution:
         return get_bool_attr(ctx, execute_condition_attr, True)
 
     async def execute_action_until_ready(self, session: AnySession):
-        """
-        Manages the execution of the task's action, coordinating with readiness checks.
-
-        Dispatches to one of two independent strategies: a task with no
-        readiness checks just runs and waits; a task with readiness checks
-        runs concurrently with them and defers both for the caller.
-        """
+        """Run the action, concurrently with readiness checks when any exist."""
         task = self._task
         if not task.readiness_checks:
             return await self._execute_action_without_readiness_checks(session)
@@ -105,10 +90,7 @@ class BaseTaskExecution:
         return result
 
     async def _execute_action_with_readiness_checks(self, session: AnySession):
-        """Readiness checks configured: run the action concurrently with them,
-        gate `ready` on the checks passing, and defer both for the caller to
-        await/monitor.
-        """
+        """Run the action alongside its readiness checks and defer it."""
         task = self._task
         ctx = task.get_ctx(session)
         readiness_checks = task.readiness_checks
@@ -212,10 +194,8 @@ class BaseTaskExecution:
     ) -> None:
         """Cancel the action, fail the task, run fallbacks, and raise.
 
-        Called when readiness checks did not pass. Always raises: the action's
-        own crash (if any) takes priority as the root cause over the readiness
-        symptom, then the readiness error itself, then a generic error as a last
-        resort.
+        Raises the action's own error first, then the readiness error, then a
+        generic one.
         """
         task = self._task
         ctx = task.get_ctx(session)
@@ -231,9 +211,8 @@ class BaseTaskExecution:
             action_error = e
         task_status = session.get_task_status(task)
         if not task_status.is_permanently_failed and not task_status.is_completed:
-            # Same terminal bookkeeping as the retry loop's final attempt, unless
-            # the action already reached a terminal state (fallbacks or
-            # successors already ran). The error still propagates below.
+            # Skip if the action already reached a terminal state (its
+            # fallbacks or successors already ran).
             task_status.mark_as_permanently_failed()
             self.skip_successors(session)
             await run_async(self.execute_fallbacks(session))
@@ -244,10 +223,7 @@ class BaseTaskExecution:
         raise RuntimeError(f"Readiness checks for task '{task.name}' did not complete")
 
     async def execute_action_with_retry(self, session: AnySession) -> Any:
-        """
-        Executes the task's core action (`_exec_action`) with retry logic,
-        handling success (triggering successors) and failure (triggering fallbacks).
-        """
+        """Run the action with retries, then successors or fallbacks."""
         task = self._task
         ctx = task.get_ctx(session)
         retries = task.retries
@@ -281,12 +257,9 @@ class BaseTaskExecution:
                 GeneratorExit,
                 SystemExit,
             ):
-                # SystemExit is a deliberate "stop the process" request from the
-                # action body (a refused insecure bind, an explicit sys.exit), not
-                # a task failure to retry and report as `Attempt 1/N failed: 1`.
+                # SystemExit is a request to stop the process, not a failure.
                 ctx.log_warning("Task cancelled or interrupted")
                 session.get_task_status(task).mark_as_failed()
-                # Do not trigger fallbacks/successors on cancellation
                 raise
             except BaseException as e:
                 ctx.log_error(
@@ -296,8 +269,6 @@ class BaseTaskExecution:
                 session.get_task_status(task).mark_as_failed()
 
                 retry_if = task.retry_if
-                # A failure the task itself calls unretryable (bad credentials,
-                # an unknown model) will not succeed on attempt 2 either.
                 if attempt < max_attempt - 1 and retry_if is not None:
                     if not retry_if(e):
                         ctx.log_error("Not retryable, skipping remaining attempts")
@@ -338,7 +309,7 @@ class BaseTaskExecution:
         task_list: list,
         group_name: str,
     ) -> None:
-        """Executes a list of tasks concurrently, logging with the given group name."""
+        """Execute tasks concurrently."""
         ctx = self._task.get_ctx(session)
         if task_list:
             ctx.log_info(f"Executing {len(task_list)} {group_name}(s)")
@@ -353,7 +324,7 @@ class BaseTaskExecution:
         task_list: list,
         group_name: str,
     ) -> None:
-        """Marks a list of tasks as skipped, logging with the given group name."""
+        """Mark tasks as skipped."""
         ctx = self._task.get_ctx(session)
         if task_list:
             ctx.log_info(f"Skipping {len(task_list)} {group_name}(s)")

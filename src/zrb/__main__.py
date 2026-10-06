@@ -36,10 +36,8 @@ class FaintFormatter(logging.Formatter):
 def _install_sigterm_handler() -> list[int]:
     """Treat SIGTERM like Ctrl+C, and return the list of stop signals received.
 
-    `docker stop`, systemd and CI cancellation send SIGTERM, whose default
-    kills zrb outright and orphans running commands. Forwarding it to the
-    active SIGINT handler (asyncio's graceful cancel during a run) gives it
-    the same child cleanup Ctrl+C gets.
+    The default SIGTERM action (`docker stop`, systemd, CI) would orphan
+    running commands; the SIGINT handler cleans them up.
     """
     received: list[int] = []
 
@@ -60,19 +58,14 @@ def _load_or_warn(
     load: Callable[[], tuple[ModuleType | None, Exception | None]],
     loaded_sources: list[tuple[str, ModuleType]],
 ) -> bool:
-    """Load one init module/script, or report it precisely and move on.
+    """Load one init module/script, or report the failure and move on.
 
-    The error is never hidden — file, line, and exception type always print
-    to stderr — but it is not fatal: startup continues with the next source
-    and then the CLI itself. Whatever the broken source did before raising (a
-    `CFG` assignment, a task registration) stays in effect, so its module is
-    still appended to `loaded_sources` for the task diagnostics even when it
-    failed partway. `sys.modules` cannot serve that: every `zrb_init.py`
-    registers under the same name, so it holds only the last one.
+    A partially loaded module is still appended to `loaded_sources`, since its
+    side effects (task registrations) stay in effect. `sys.modules` cannot be
+    used: every `zrb_init.py` registers under the same name.
 
     Returns:
-        True when the source loaded cleanly. `serve_cli` collects these and,
-        under `CFG.INIT_STRICT`, exits non-zero instead of continuing.
+        True when the source loaded cleanly.
     """
     module, error = load()
     if error is not None:
@@ -100,7 +93,6 @@ def _report_load_failure(label: str, error: Exception) -> None:
 
 def serve_cli():
     CFG.LOGGER.setLevel(CFG.LOGGING_LEVEL)
-    # Remove existing handlers to avoid duplicates/default formatting
     for handler in CFG.LOGGER.handlers[:]:
         CFG.LOGGER.removeHandler(handler)
     handler = logging.StreamHandler()
@@ -110,12 +102,8 @@ def serve_cli():
     try:
         loaded_cleanly = True
         loaded_sources: list[tuple[str, ModuleType]] = []
-        # Frozen at import, before any run could register a project task on the
-        # process-wide `cli` tree, so a later run cannot mistake one for a
-        # built-in and stay silent about the collision it should report.
         builtin_task_ids = get_builtin_task_ids()
-        # `cli` outlives `serve_cli`, so this run clears the previous run's
-        # replacement log before init adds to it.
+        # `cli` outlives `serve_cli`.
         reset_task_replacements(cli)
         for init_module in CFG.INIT_MODULES:
             CFG.LOGGER.info(f"Loading {init_module}")
@@ -141,8 +129,7 @@ def serve_cli():
                 lambda p=zrb_init_path: load_file_with_result(p),
                 loaded_sources,
             )
-        # Every init source is attempted before this check, so one run
-        # reports every failure rather than only the first.
+        # Checked after every source so one run reports every failure.
         if not loaded_cleanly and CFG.INIT_STRICT:
             print(
                 stylize_error(
@@ -173,14 +160,7 @@ def serve_cli():
 def _warn_task_diagnostics(
     loaded_sources: list[tuple[str, ModuleType]], builtin_task_ids: frozenset[int]
 ) -> None:
-    """Name each declared task the CLI will not offer as the author expected.
-
-    Runs after every init source loaded and before dispatch, because that is
-    the only moment when both halves are known: the tasks the sources
-    declared, and the tree they built. A warning, never fatal — the tasks
-    that *are* registered still run, and an unreachable task is the author's
-    call to fix rather than a reason to refuse to start.
-    """
+    """Warn about each declared task the CLI will not offer as expected."""
     declared = collect_declared_tasks(loaded_sources)
     for diagnostic in find_task_diagnostics(declared, cli, builtin_task_ids):
         print(
@@ -190,10 +170,9 @@ def _warn_task_diagnostics(
 
 
 def _warn_mistyped_env_keys() -> None:
-    """Name each set variable that looks like a setting but is not one.
+    """Warn about each set variable that looks like a setting but is not one.
 
-    Runs after the init sources, which may set `ENV_PREFIX` or the variables
-    themselves. A warning, never fatal: the variable may be the project's own.
+    Runs after the init sources, which may set `ENV_PREFIX` or the variables.
     """
     for key, instead in CFG.get_retired_env_keys().items():
         if instead.startswith(f"{CFG.ENV_PREFIX}_"):
@@ -211,20 +190,11 @@ def _warn_mistyped_env_keys() -> None:
 
 
 def _handle_uncaught(error: Exception) -> None:
-    """Report an exception that escaped task-level handling, or re-raise it.
+    """Print a one-line summary of an escaped exception, or re-raise under DEBUG.
 
-    A permanently-failed task already logged its own clean summary (see
-    `BaseTaskExecution.execute_action_with_retry`); letting it propagate here
-    would just dump the same failure again as a raw traceback. Keep the full
-    traceback available on demand via DEBUG, same as execution.py.
-
-    The one-line summary carries no file or line, so it names the variable
-    that unlocks the rest: under DEBUG this re-raises, and the traceback
-    arrives with the `Task: <name> (<file>:<line>)` line attached.
-
-    That variable is read off the field rather than hardcoded, because a
-    white-labeled distribution sets its own `_ZRB_ENV_PREFIX` (see
-    `docs/advanced-topics/white-labeling.md`) and reads `ACME_LOGGING_LEVEL`.
+    A failed task already logged its own summary (see
+    `BaseTaskExecution.execute_action_with_retry`). The debug variable name is
+    derived from `ENV_PREFIX` to honour white-labeled distributions.
     """
     if CFG.LOGGER.isEnabledFor(logging.DEBUG):
         raise error
@@ -234,9 +204,6 @@ def _handle_uncaught(error: Exception) -> None:
         stylize_muted(f"For the full traceback: {debug_env_key}=DEBUG"),
         file=sys.stderr,
     )
-    # Read off the exception rather than importing `CmdTaskError`: any error
-    # that knows a meaningful process exit code can carry one, and `__main__`
-    # has no reason to know which task types do.
     sys.exit(getattr(error, "return_code", 1) or 1)
 
 

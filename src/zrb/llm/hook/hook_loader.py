@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def _zrb_dir_name() -> str:
-    """Return the Zrb config directory name (evaluated lazily to avoid CFG init ordering issues)."""
+    """The Zrb config directory name, read lazily from CFG."""
     return f".{CFG.ROOT_GROUP_NAME}"
 
 
@@ -30,12 +30,9 @@ def get_search_directories() -> list[str | Path]:
 
 
 def _dedup_paths(paths: list[str | Path]) -> list[str | Path]:
-    """Drop duplicate paths, keeping the first (highest-precedence) occurrence.
+    """Drop duplicate paths (by resolved path), keeping the first occurrence.
 
-    ``$HOME`` is searched by both the home tier and the project upward-walk
-    whenever cwd is under ``$HOME``, so without this every ``~/.claude`` hook
-    would be discovered — and registered, and fired — twice. Dedup by resolved
-    path so symlinked aliases collapse too.
+    ``$HOME`` is reached by both the home tier and the project upward-walk.
     """
     seen: set[str] = set()
     unique: list[str | Path] = []
@@ -43,8 +40,7 @@ def _dedup_paths(paths: list[str | Path]) -> list[str | Path]:
         try:
             key = str(Path(path).resolve())
         except Exception:
-            # Unresolvable path (broken symlink, permission): fall back to the
-            # literal string so it still dedups against an identical literal.
+            # Broken symlink or permission error: dedup on the literal.
             key = str(path)
         if key not in seen:
             seen.add(key)
@@ -64,11 +60,8 @@ def _collect_hook_paths(base_dir: Path) -> list[str | Path]:
     if claude_dir.exists() and claude_dir.is_dir():
         paths.append(claude_dir)
 
-    # Claude Code registers hooks inside settings.json / settings.local.json
-    # under a nested "hooks" block — NOT in hooks.json. Drop-in tools like
-    # peon-ping install themselves there, so we read those files too. The
-    # nested block is parsed by HookManagerLoading._parse_claude_format; any other
-    # settings keys (model, env, permissions, …) are ignored.
+    # Claude Code also registers hooks under a "hooks" key in settings*.json
+    # (where tools like peon-ping install themselves); other keys are ignored.
     for settings_name in ("settings.json", "settings.local.json"):
         settings_file = base_dir / ".claude" / settings_name
         if settings_file.exists() and settings_file.is_file():
@@ -89,7 +82,6 @@ def _get_plugin_hook_dirs() -> list[str | Path]:
     """Default plugin (llm_plugin) and user plugin hook directories."""
     paths: list[str | Path] = []
 
-    # Default Plugin
     default_plugin_path = BUILTIN_PLUGIN_DIR
     if default_plugin_path.exists() and default_plugin_path.is_dir():
         hooks_path = default_plugin_path / "hooks"
@@ -99,7 +91,6 @@ def _get_plugin_hook_dirs() -> list[str | Path]:
         if hooks_file.exists() and hooks_file.is_file():
             paths.append(hooks_file)
 
-    # User Plugins
     for plugin_path_str in CFG.LLM_PLUGIN_DIRS:
         plugin_path = Path(plugin_path_str)
         if plugin_path.exists() and plugin_path.is_dir():
@@ -118,9 +109,7 @@ def _get_home_hook_dirs() -> list[str | Path]:
     try:
         return _collect_hook_paths(Path.home())
     except Exception:
-        # Hook discovery must never abort startup. PermissionError/OSError on path
-        # ops and RuntimeError from Path.home() (HOME unset) are the expected cases,
-        # but we swallow everything to stay resilient to unusual filesystems.
+        # Hook discovery must never abort startup (e.g. HOME unset).
         logger.warning("Failed to search global hook directories", exc_info=True)
         return []
 
@@ -133,8 +122,6 @@ def _get_project_hook_dirs() -> list[str | Path]:
             paths.extend(_collect_hook_paths(project_dir))
         return paths
     except Exception:
-        # Same rationale as _get_home_hook_dirs: never let project discovery
-        # abort startup on unexpected filesystem state.
         logger.warning("Failed to search project hook directories", exc_info=True)
         return []
 
@@ -145,13 +132,9 @@ def _get_custom_hook_dirs() -> list[str | Path]:
 
 
 def get_plugin_root_for_path(path: str | Path) -> str | None:
-    """The plugin directory *path* was discovered under, if any.
+    """The plugin directory *path* was discovered under, or `None`.
 
-    Mirrors `_get_plugin_hook_dirs`'s two sources (the built-in plugin and each
-    `CFG.LLM_PLUGIN_DIRS` entry) so a hook loaded from either can report its
-    origin as `CLAUDE_PLUGIN_ROOT` (`hook/creator.py::_build_hook_env`).
-    Returns `None` for a hook loaded from any other tier (home/project/custom),
-    matching Claude Code's own behavior of only setting the var for plugin hooks.
+    Exported to plugin hooks as `CLAUDE_PLUGIN_ROOT`, as Claude Code does.
     """
     try:
         resolved = Path(path).resolve()

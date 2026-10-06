@@ -1,6 +1,4 @@
-"""Tests for SnapshotManager's `/save` copies: registered in memory when
-`copy_history` is called, and applied before anything else of this manager
-touches the store."""
+"Tests for SnapshotManager's `/save` copies: registered in memory when"
 
 import os
 import tempfile
@@ -44,7 +42,7 @@ async def test_a_snapshot_right_after_save_in_the_same_task_builds_on_the_copy(
     mgr = SnapshotManager(snapshot_dir, "draft", workdir)
     await mgr.take_snapshot("in draft", message_count=1)
 
-    copy = mgr.copy_history("draft", "final")  # `/save final`, not yet run
+    copy = mgr.copy_history("draft", "final")
     mgr.session_name = "final"
     _write(workdir, "turn")
     await mgr.take_snapshot("turn after save", message_count=2)
@@ -75,12 +73,12 @@ async def test_a_copy_the_store_was_busy_for_lands_at_the_next_operation(
     thread.start()
     held.wait(5)
     try:
-        await mgr.copy_history("draft", "final")  # the store is busy
+        await mgr.copy_history("draft", "final")
     finally:
         release.set()
         thread.join(5)
     mgr.session_name = "final"
-    assert _labels(mgr) == ["in draft"]  # shown while it waits
+    assert _labels(mgr) == ["in draft"]
 
     await mgr.take_snapshot("after", message_count=2)
 
@@ -100,8 +98,7 @@ async def test_a_copy_leaves_nothing_beside_the_store(snapshot_dir, workdir):
 
 @pytest.mark.asyncio
 async def test_copies_land_in_the_order_they_were_registered(snapshot_dir, workdir):
-    """`/save b` then `/save c` from b: c takes a's history even when its
-    coroutine runs first."""
+    "`/save b` then `/save c` from b: c takes a's history even when its"
     mgr = SnapshotManager(snapshot_dir, "a", workdir)
     await mgr.take_snapshot("in a", message_count=1)
 
@@ -119,8 +116,7 @@ async def test_copies_land_in_the_order_they_were_registered(snapshot_dir, workd
 async def test_saving_over_a_name_a_pending_copy_depends_on_keeps_that_copy(
     snapshot_dir, workdir
 ):
-    """`/save b`, `/save c` from b, then `/save b` again from x, before any
-    lands: c must still get a's history, not b's replaced state."""
+    '`/save b`, `/save c` from b, then `/save b` again from x, before any'
     first = SnapshotManager(snapshot_dir, "a", workdir)
     await first.take_snapshot("in a", message_count=1)
     _write(workdir, "x")

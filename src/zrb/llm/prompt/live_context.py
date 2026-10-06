@@ -1,35 +1,9 @@
 """Volatile per-turn runtime state rendered into ``<live-context>``.
 
-``render_live_context`` produces the session-internal lines (time, git, todos,
-worktree, mode, interactivity) that change every turn. It is injected into the
-latest user message (wrapped by ``PromptManager.create_live_context``) rather
-than the cached system prompt — this is what makes prompt caching work even
-though the live state changes every turn.
-
-``render_live_context`` also performs the per-turn auto-injections that bridge
-prompt assembly to ambient runtime state:
-
-1. **Session wiring** — reads ``ctx.input.session`` and calls
-   ``set_current_tool_session()``. The resulting ``ContextVar`` is what the todo
-   tools (``TodoWrite``, ``TodoRead``) read when called without an explicit
-   ``session=`` argument, so they always target the active conversation.
-
-2. **Active worktree** — if ``EnterWorktree`` was called, the path is rendered
-   as ``- Active worktree: <path>`` in the live-context block and reminds the
-   LLM to pass it as ``cwd`` to ``Shell``. Cleared automatically when
-   ``ExitWorktree`` is called. Read via ``get_active_worktree()`` from
-   ``zrb.llm.tool.ambient_state``. If the path no longer exists on disk, the
-   stale value is cleared on the spot.
-
-3. **Pending todos** — pending and in-progress todos from the current session
-   are rendered into the live-context block so the LLM sees them at the start
-   of every turn without needing to call ``TodoRead`` first. Completed and
-   cancelled items are omitted.
-
-4. **Interactive mode** — reads ``ctx.input.interactive`` and calls
-   ``set_interactive_mode()``. The resulting ``ContextVar`` is what
-   ``ask_user_question`` consults before blocking on stdin; in non-interactive
-   runs the tool short-circuits with a ``[SYSTEM SUGGESTION]`` instead.
+Injected into the latest user message rather than the cached system prompt.
+Rendering also binds the ambient session and interactive-mode ``ContextVar``s
+the todo tools and ``ask_user_question`` read, and clears a stale active
+worktree.
 """
 
 import asyncio
@@ -51,9 +25,7 @@ from zrb.llm.tool.ambient_state import (
     set_interactive_mode,
 )
 
-# Anchors the <live-context> contract in the cached system prompt (stable, so
-# it never invalidates the cache): what the block is, and that the latest one
-# wins. It names no individual line, since the block's contents vary.
+# Stable text for the cached system prompt explaining the <live-context> contract.
 LIVE_CONTEXT_ANCHOR = (
     "Each user turn ends with a <live-context> block describing current runtime "
     "state. It is injected automatically — not written by the user. Treat the "
@@ -73,13 +45,8 @@ _LIVE_CONTEXT_BLOCK_RE = re.compile(
 def append_live_context(prompt_content: Any, live_context: str) -> Any:
     """Append the ``<live-context>`` block to the end of the current user turn.
 
-    Handles all three ``prompt_content`` shapes produced by
-    ``get_prompt_content``: ``str`` (text-only), ``list[UserContent]``
-    (multimodal — a trailing text element is added, keeping the block last for
-    recency), and ``None`` (empty turn — the block becomes the content). A
-    falsy ``live_context`` is a no-op, so callers that pass nothing leave the
-    turn untouched. Counterpart to ``split_live_context``, which strips the
-    block back off for display.
+    Accepts a ``str``, a multimodal ``list`` or ``None``; a falsy
+    *live_context* is a no-op. Inverse of ``split_live_context``.
     """
     if not live_context:
         return prompt_content
@@ -93,40 +60,21 @@ def append_live_context(prompt_content: Any, live_context: str) -> Any:
 
 
 def split_live_context(content: str) -> tuple[str, str | None]:
-    """Split a trailing ``<live-context>`` block off a stored user message.
+    """Split a trailing ``<live-context>`` block off a stored user message for display.
 
-    History persists the live-context block inline, appended to the same
-    string the user actually typed (see module docstring) — there is no
-    structural tag for it. Replaying/redisplaying history should not present
-    it as if the user wrote it, so callers that render saved conversations
-    (CLI replay, the web chat API) use this to separate the two before
-    display.
-
-    Returns ``(message_text, live_context_block)`` — *live_context_block* is
-    ``None`` when *content* carries no live-context suffix, in which case
-    *message_text* is *content* unchanged.
+    Returns ``(message_text, live_context_block)``; the block is ``None`` (and
+    *content* unchanged) when there is none.
     """
     if not content or "<live-context>" not in content:
         return content, None
     match = _LIVE_CONTEXT_BLOCK_RE.search(content)
     if not match:
-        # No leading blank line (e.g. the block was the entire prompt) —
-        # a bare prefix match still isolates it correctly.
+        # No leading blank line (e.g. the block was the entire prompt).
         idx = content.find("<live-context>")
         if content[idx:].rstrip().endswith("</live-context>"):
             return content[:idx].rstrip(), content[idx:].rstrip()
         return content, None
     return content[: match.start()].rstrip(), match.group(1)
-
-
-def _admits(model: "Any", tool: str) -> bool:
-    """Whether a standard tool may be named in live context.
-
-    Always true: the prompt profile selects wording, not the tool surface, so
-    every registered tool is available whichever profile is active. The seam
-    stays so a profile-dependent surface has somewhere to go.
-    """
-    return True
 
 
 def _collect_worktree_lines(timeout: float) -> list[str]:
@@ -174,8 +122,7 @@ def _collect_git_info(
     Returns (git_lines, todos_data).  *todos_data* is ``None`` when outside a
     git directory and the todo call itself failed.
     """
-    # lazy: zrb internal (heavy via transitive) — not a cycle, verified
-    # empirically.
+    # lazy: zrb internal (heavy via transitive)
     from zrb.llm.util.git import is_inside_git_dir
 
     if not is_inside_git_dir():
@@ -250,13 +197,9 @@ def _format_todo_lines(todos_data: "dict[str, Any]") -> list[str]:
 
 
 def _todo_manager():
-    """The `TodoManager` singleton, resolved at render time rather than import.
-
-    `tool/plan.py` declares tool signatures with pydantic's `Field`, and this
-    module sits on the eager `import zrb` path via `prompt/manager.py`.
-    """
+    """The `TodoManager` singleton, resolved at render time rather than import."""
     # lazy: transitively heavy via internal — `tool/plan.py` imports pydantic
-    # for its tool signatures, worth ~50ms on every `import zrb`.
+    # (~50ms on every `import zrb`).
     from zrb.llm.tool.plan import todo_manager
 
     return todo_manager
@@ -270,11 +213,7 @@ def _safe_get_todos(todo_manager, session_name: str):
 
 
 def _format_mode_line() -> str | None:
-    """Render the agent-mode line, or None in the default mode.
-
-    Only emits when a non-default mode (e.g. PLAN) is active, so the section is
-    byte-identical to before unless plan mode is explicitly entered.
-    """
+    """Render the agent-mode line, or None outside PLAN mode."""
     if get_current_agent_mode() != AgentMode.PLAN:
         return None
     return (
@@ -286,31 +225,12 @@ def _format_mode_line() -> str | None:
 def render_journal_index(first_message: str | None = None) -> str | None:
     """Read and format the journal index snapshot for context injection.
 
-    Kept out of the cached system prompt on purpose: embedding the mutable index
-    in the cached prefix invalidated it every time the agent journaled
-    mid-session. It is injected into the conversation instead, at the
-    two — and only two — moments it can otherwise be absent: the first turn
-    (``render_live_context(inject_journal_index=True)``) and each summarization
-    (baked into the summary by ``summarize_history``). Returns ``None`` when the
-    index is missing or empty, and when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0.
-
-    ``first_message`` (first-turn only — callers at later checkpoints pass
-    nothing) runs one auto-search against the opening user message and, if
-    anything matches, folds it into a separate, clearly-unverified
-    ``## Possibly Related`` section — see ``_render_possibly_related``. Gated
-    independently by ``LLM_JOURNAL_AUTO_SEARCH_ENABLED``.
-
-    A missing block is therefore not proof of an empty journal. When the block
-    renders, its header names the three journal writers and says to search
-    for them when they are not visible, since their docstrings — where the
-    rules live — are deferred. When it does not, nothing says so: that
-    happens only when ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0 while the journal
-    tools stay registered, an unusual pairing not worth a caveat
-    on every request.
+    Injected on the first turn and at each summarization, never into the
+    cached system prompt (journaling would invalidate it). *first_message*
+    adds an auto-search ``## Possibly Related`` section. Returns ``None`` when
+    the journal is disabled, the index is missing or empty, or
+    ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0.
     """
-    # Callers pick the moment (first turn / summarization); this check is what
-    # LLM_JOURNAL_ENABLED clears — but summarize_history reaches this directly,
-    # so the switch is honoured here too rather than trusting every call path.
     if not CFG.LLM_JOURNAL_ENABLED:
         return None
     journal_dir = CFG.LLM_JOURNAL_DIR
@@ -339,8 +259,6 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         head = content[:limit]
         cut = head.rfind("\n")
         content = (head[:cut] if cut > 0 else head) + "\n (...more)"
-        # Mark the cut so the block does not read as the complete index; the
-        # absolute path in the header tells the model where to read the rest.
         hint = "Truncated at `(...more)`. "
     possibly_related = ""
     if first_message and CFG.LLM_JOURNAL_AUTO_SEARCH_ENABLED:
@@ -362,13 +280,9 @@ def render_journal_index(first_message: str | None = None) -> str | None:
 
 
 def _render_possibly_related(first_message: str) -> str:
-    """One auto-run ``SearchJournal`` against the opening message, folded into
-    a section kept visually and structurally separate from the curated HUD —
-    so the model cannot mistake an unverified fuzzy hit for a vetted fact.
-    Returns ``""`` on no hits (including an invalid-regex message, which
-    ``search_journal`` already reports as an error rather than raising)."""
-    # lazy: zrb internal (heavy via transitive — zrb.llm.tool's package
-    # __init__ eagerly imports several pydantic_ai-dependent tool modules)
+    """Auto-search the opening message into a section marked unverified; ``""`` on no hits."""
+    # lazy: zrb internal (heavy via transitive — zrb.llm.tool's __init__
+    # imports pydantic_ai-dependent modules)
     from zrb.llm.tool.journal import search_journal
 
     result = search_journal(first_message)
@@ -391,31 +305,11 @@ def render_live_context(
     inject_journal_index: bool = False,
     first_message: str | None = None,
 ) -> str:
-    """Render the volatile per-turn runtime state for ``<live-context>``.
+    """Render the per-turn runtime state for ``<live-context>``, wiring ambient state.
 
-    Performs the per-turn ambient-state wiring as a side effect — session
-    binding (so todo tools target the active conversation), interactive-mode
-    binding (consulted by ``ask_user_question``), and stale-worktree cleanup —
-    then returns the dynamic lines (time, git, worktree, mode, interactivity,
-    pending todos). ``PromptManager.create_live_context`` wraps the result and
-    the runner appends it to the latest user turn, keeping the system prompt
-    byte-stable so prompt caching survives across turns.
-
-    When ``inject_journal_index`` is true, the journal index snapshot is appended
-    so it enters history (instead of living in the cached system prompt, which it
-    would invalidate on every journal write). Callers set this on the first turn
-    only (empty history); summarization re-seeds the index separately, at its own
-    site (``summarize_history``). ``first_message`` is the opening user message,
-    passed through to ``render_journal_index`` for its auto-search addendum —
-    meaningless past the first turn, so later callers leave it unset.
-
-    The ``model`` argument is retained for the tool-admission seam
-    (``_admits``), which currently always admits — profiles do not alter the
-    tool surface. It is not rendered as text: the model identity line is a
-    stable fact and lives in ``system_context``.
-
-    On the async per-turn hot path, prefer ``render_live_context_async`` — this
-    sync form blocks its caller for the duration of the git subprocesses.
+    *inject_journal_index* (first turn only) appends the journal index;
+    *first_message* feeds its auto-search. *model* is accepted but unused.
+    Async callers should use ``render_live_context_async``.
     """
     session_name, interactive_bool = _wire_ambient_state(ctx)
     git_lines, todos_data = _collect_git_info(_todo_manager(), session_name)
@@ -435,12 +329,10 @@ async def render_live_context_async(
     inject_journal_index: bool = False,
     first_message: str | None = None,
 ) -> str:
-    """``render_live_context`` for async callers (the per-turn hot path).
+    """``render_live_context`` with git and todo fetch offloaded to a thread.
 
-    The ContextVar wiring runs on the event loop (writes must land in the
-    caller's context); only the git subprocesses + todo fetch are offloaded —
-    inline they freeze the TUI at the start of every turn for as long as
-    ``git status`` takes (routinely hundreds of ms on WSL2 / large repos).
+    ContextVar wiring stays on the event loop so its writes land in the
+    caller's context.
     """
     session_name, interactive_bool = _wire_ambient_state(ctx)
     git_lines, todos_data = await asyncio.to_thread(
@@ -457,10 +349,7 @@ async def render_live_context_async(
 
 
 def _wire_ambient_state(ctx: AnyContext) -> tuple[str, bool]:
-    """Per-turn ContextVar wiring (must run on the caller's thread/context).
-
-    Returns ``(session_name, interactive_bool)``.
-    """
+    """Bind session and interactive-mode ContextVars; returns ``(session_name, interactive_bool)``."""
     try:
         session_name = str(ctx.input.session) if hasattr(ctx, "input") else ""
     except Exception:
@@ -485,7 +374,6 @@ def _render_parts(
     first_message: str | None = None,
 ) -> str:
     """Assemble the live-context lines (ContextVar reads stay on the caller)."""
-    # --- Worktree (ContextVar — must run on caller's thread) ---
     active_wt = get_active_worktree()
     if active_wt and not os.path.isdir(active_wt):
         set_active_worktree("")
@@ -513,14 +401,7 @@ def _render_parts(
     if mode_line:
         parts.append(mode_line)
     if interactive_bool:
-        # AskUserQuestion exists only in interactive sessions, so only this
-        # branch names it. `_admits` is the retained gate — always open, since
-        # profiles do not alter the tool surface.
-        parts.append(
-            "- Interactive: yes (AskUserQuestion is available)"
-            if _admits(model, "AskUserQuestion")
-            else "- Interactive: yes"
-        )
+        parts.append("- Interactive: yes (AskUserQuestion is available)")
     else:
         # No tool names: the interactive-only tools are already absent here.
         parts.append(
@@ -534,10 +415,7 @@ def _render_parts(
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to format todo lines for live context: {e}")
 
-    # The index tells the model to "Use SearchJournal for full entries";
-    # SearchJournal is always registered, so the index is handed over whenever
-    # injection is on (`_admits` is the retained gate).
-    if inject_journal_index and _admits(model, "SearchJournal"):
+    if inject_journal_index:
         journal_block = render_journal_index(first_message)
         if journal_block:
             parts.append(journal_block)

@@ -254,10 +254,7 @@ async def test_delegate_fan_out_runs_all_and_combines(mock_sub_agent_manager):
 async def test_delegate_fan_out_respects_parallel_cap(
     mock_sub_agent_manager, monkeypatch
 ):
-    """LLM_MAX_PARALLEL_DELEGATIONS (ADR-0068) bounds how many sub-agent runs
-    are in flight at once — a model-requested `tasks` list has no other size
-    limit.
-    """
+    """LLM_MAX_PARALLEL_DELEGATIONS (ADR-0068) bounds sub-agent runs in flight."""
     monkeypatch.setenv("ZRB_LLM_MAX_PARALLEL_DELEGATIONS", "2")
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)

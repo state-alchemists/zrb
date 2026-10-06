@@ -1,4 +1,4 @@
-"""Tests for asdf_helper.py - Asdf installation helper functions."""
+"""Tests for asdf setup helpers."""
 
 import os
 import tempfile
@@ -13,7 +13,7 @@ from zrb.builtin.setup.asdf.asdf_helper import (
 
 
 def test_get_install_prerequisites_cmd_with_apt():
-    """Test prerequisites command with apt package manager."""
+    """Build the apt prerequisites command."""
     ctx = MagicMock()
     ctx.input = {"package-manager": "apt", "use-sudo": False}
     result = get_install_prerequisites_cmd(ctx)
@@ -21,7 +21,7 @@ def test_get_install_prerequisites_cmd_with_apt():
 
 
 def test_get_install_prerequisites_cmd_with_apt_sudo():
-    """Test prerequisites command with apt and sudo."""
+    """Build the sudo apt prerequisites command."""
     ctx = MagicMock()
     ctx.input = {"package-manager": "apt", "use-sudo": True}
     result = get_install_prerequisites_cmd(ctx)
@@ -29,7 +29,7 @@ def test_get_install_prerequisites_cmd_with_apt_sudo():
 
 
 def test_get_install_prerequisites_cmd_with_pacman():
-    """Test prerequisites command with pacman package manager."""
+    """Build the pacman prerequisites command."""
     ctx = MagicMock()
     ctx.input = {"package-manager": "pacman", "use-sudo": False}
     result = get_install_prerequisites_cmd(ctx)
@@ -37,7 +37,7 @@ def test_get_install_prerequisites_cmd_with_pacman():
 
 
 def test_get_install_prerequisites_cmd_with_pacman_sudo():
-    """Test prerequisites command with pacman and sudo."""
+    """Build the sudo pacman prerequisites command."""
     ctx = MagicMock()
     ctx.input = {"package-manager": "pacman", "use-sudo": True}
     result = get_install_prerequisites_cmd(ctx)
@@ -45,7 +45,7 @@ def test_get_install_prerequisites_cmd_with_pacman_sudo():
 
 
 def test_get_install_prerequisites_cmd_with_brew():
-    """Test prerequisites command with brew package manager."""
+    """Build the brew prerequisites command."""
     ctx = MagicMock()
     ctx.input = {"package-manager": "brew", "use-sudo": False}
     result = get_install_prerequisites_cmd(ctx)
@@ -53,7 +53,7 @@ def test_get_install_prerequisites_cmd_with_brew():
 
 
 def test_get_install_prerequisites_cmd_with_spack():
-    """Test prerequisites command with spack package manager."""
+    """Build the spack prerequisites command."""
     ctx = MagicMock()
     ctx.input = {"package-manager": "spack", "use-sudo": False}
     result = get_install_prerequisites_cmd(ctx)
@@ -61,7 +61,7 @@ def test_get_install_prerequisites_cmd_with_spack():
 
 
 def test_get_install_prerequisites_cmd_with_dnf():
-    """Test prerequisites command with dnf package manager."""
+    """Build the dnf prerequisites command."""
     ctx = MagicMock()
     ctx.input = {"package-manager": "dnf", "use-sudo": False}
     result = get_install_prerequisites_cmd(ctx)
@@ -69,7 +69,7 @@ def test_get_install_prerequisites_cmd_with_dnf():
 
 
 def test_check_inexist_asdf_dir_exists():
-    """Test check_inexist_asdf_dir when .asdf exists."""
+    """Return false when the asdf directory exists."""
     with patch.dict(os.environ, {"HOME": "/tmp"}):
         with patch("os.path.isdir", return_value=True):
             ctx = MagicMock()
@@ -78,7 +78,7 @@ def test_check_inexist_asdf_dir_exists():
 
 
 def test_check_inexist_asdf_dir_not_exists():
-    """Test check_inexist_asdf_dir when .asdf does not exist."""
+    """Return true when the asdf directory is absent."""
     with patch.dict(os.environ, {"HOME": "/tmp"}):
         with patch("os.path.isdir", return_value=False):
             ctx = MagicMock()
@@ -87,7 +87,7 @@ def test_check_inexist_asdf_dir_not_exists():
 
 
 def test_setup_asdf_sh_config_creates_file():
-    """Test setup_asdf_sh_config creates file if not exists."""
+    """Create the shell config file when absent."""
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = os.path.join(tmpdir, ".bashrc")
         setup_asdf_sh_config(file_path)
@@ -95,7 +95,7 @@ def test_setup_asdf_sh_config_creates_file():
 
 
 def test_setup_asdf_sh_config_adds_config():
-    """Test setup_asdf_sh_config adds asdf config to file."""
+    """Add the asdf shell config block."""
     with tempfile.TemporaryDirectory() as tmpdir:
         file_path = os.path.join(tmpdir, ".bashrc")
         setup_asdf_sh_config(file_path)

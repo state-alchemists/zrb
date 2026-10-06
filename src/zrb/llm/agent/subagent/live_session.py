@@ -1,25 +1,7 @@
-"""In-memory registry of live delegated sub-agent sessions — the "talk to a
-running sub-agent directly" feature.
+"""In-memory registry for live delegated sub-agent sessions.
 
-Distinct from `agent_activity_registry` (`zrb.llm.agent.activity`): that one
-is a plain, JSON-serializable snapshot the web polling API reads (`snapshot()`)
-and must stay that way. This registry holds live object references — a
-`BufferedUI`, the sub-agent's own accumulated pydantic-ai message history —
-scoped to the current process/session only, so a human can navigate into a
-currently running (or just-finished) sub-agent's own view and keep talking to
-it. Also distinct from the disk-persisted `/load` resume path,
-which survives a process restart; this one does not and isn't meant to.
-
-Two ways a message reaches the sub-agent, tried in order by `send_message`:
-- The sub-agent's turn is still in flight: `steer_into_live_run` injects the
-  message into the live pydantic-ai run via `RunContext.enqueue()`
-  — the exact mechanism the main agent already uses for mid-turn steering.
-  `_execution_loop` sets `active_run_context` on every sub-agent's
-  `BufferedUI` via a UI-agnostic `setattr`; this is the only reader.
-- The sub-agent's turn has already finished: the message queues, and (if the
-  session is idle) a continuation run starts immediately, continuing that
-  same persona's conversation from its accumulated history.
-"""
+Messages are injected into an active run when possible; otherwise they queue
+for a continuation using the session's accumulated history."""
 
 from __future__ import annotations
 

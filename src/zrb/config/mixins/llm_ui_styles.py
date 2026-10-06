@@ -1,9 +1,4 @@
-"""LLM UI style and assistant-identity settings.
-
-Style knobs take their defaults from the active theme (``CFG.THEME`` →
-``config/theme.py``); an explicitly set ``ZRB_LLM_UI_STYLE_*`` env overrides the
-theme. The three assistant-identity knobs are not themed.
-"""
+"""LLM UI style and assistant-identity settings."""
 
 from __future__ import annotations
 

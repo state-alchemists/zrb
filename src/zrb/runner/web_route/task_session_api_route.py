@@ -142,19 +142,14 @@ def read_task_session_state_log(
     try:
         return session_state_logger.read(session_name)
     except (OSError, ValueError):
-        # OSError: missing/unreadable file. ValueError covers JSON decode
-        # errors and pydantic's ValidationError.
+        # ValueError covers JSON decode errors and pydantic's ValidationError.
         return None
 
 
 def session_belongs_to_task(
     root_group: AnyGroup, task: AnyTask, session_state_log: "SessionStateLog"
 ) -> bool:
-    """Check that the log was recorded for the task named in the URL.
-
-    Without this check, anyone authorized for one task could read another
-    task's session by guessing its (random) session name.
-    """
+    """Check that the log was recorded for the task named in the URL."""
     return session_state_log.path == (root_group.get_node_path(task) or [])
 
 
@@ -174,20 +169,13 @@ def sanitize_session_state_log_list(
 def sanitize_session_state_log(
     task: AnyTask, session_state_log: "SessionStateLog"
 ) -> "SessionStateLog":
-    """
-    In session, we create snake_case aliases of inputs.
-    The purpose was to increase ergonomics, so that user can use `input.system_prompt`
-    instead of `input["system-prompt"]`
-    However, when we serve the session through HTTP API,
-    we only want to show the original input names.
-    """
+    """Drop the session's snake_case input aliases, keeping the original names."""
 
     enhanced_inputs = session_state_log.input
     real_inputs = {}
     for real_input in task.inputs:
         real_input_name = real_input.name
-        # A foreign/legacy log may lack some of this task's inputs; serve an
-        # empty value rather than raising KeyError.
+        # A foreign log may lack some of this task's inputs.
         real_inputs[real_input_name] = enhanced_inputs.get(real_input_name, "")
     return SessionStateLog(
         name=session_state_log.name,

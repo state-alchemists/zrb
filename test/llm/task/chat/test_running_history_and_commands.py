@@ -7,9 +7,7 @@ from zrb.llm.ui.ui_config import UIConfig
 
 
 class MockLLMChatTask:
-    """Stand-in for `LLMChatTask`: state `ChatRunning` reads plus the two
-    methods (`get_model`, `get_ui_conversation_name`) implemented by the
-    sibling `ChatExecution` collaborator on the real task facade."""
+    """Stand-in for `LLMChatTask` exposing what `ChatRunning` reads."""
 
     def __init__(self):
         self.uis = []

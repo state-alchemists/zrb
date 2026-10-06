@@ -101,10 +101,7 @@ def walk_files(
 ) -> list[str]:
     """Depth-limited, exclusion-filtered directory walk.
 
-    `abs_path` must already exist — callers own the existence check (and
-    whatever they want to do when it fails), since `list_files` here and
-    `zrb.llm.tool.file_list.list_files` report a missing path two different
-    ways (raise vs. an error dict).
+    `abs_path` must already exist; callers own the existence check.
     """
     if excluded_patterns is None:
         excluded_patterns = []
@@ -137,12 +134,7 @@ def walk_files(
 
 
 def matches_any_pattern(name: str, patterns: list[str]) -> bool:
-    """Whether `name`, or any single segment of it, fnmatches a pattern.
-
-    Named for the predicate, not for a caller's intent: the same test backs
-    both exclude lists and include lists (`llm/tool/code.py` uses it for both,
-    two lines apart).
-    """
+    """Whether `name`, or any single segment of it, fnmatches a pattern."""
     for pattern in patterns:
         if fnmatch.fnmatch(name, pattern):
             return True

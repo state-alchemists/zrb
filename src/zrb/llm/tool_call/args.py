@@ -8,13 +8,7 @@ if TYPE_CHECKING:
 
 
 def parse_tool_args_value(args: Any) -> dict[str, Any] | None:
-    """A tool-call `args` value as a dict, or `None` if it isn't one.
-
-    `args` is either already a dict or a JSON-encoded string (pydantic-ai
-    passes either shape depending on the model provider). Returns `None` for
-    anything that isn't — or doesn't parse to — a dict, so callers can treat
-    "unusable args" as one case regardless of *why* they're unusable.
-    """
+    """A tool-call `args` value (dict or JSON string) as a dict, else `None`."""
     if isinstance(args, str):
         try:
             args = json.loads(args)

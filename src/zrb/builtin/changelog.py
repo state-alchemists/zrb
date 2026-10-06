@@ -22,10 +22,7 @@ _DEFAULT_TEMPLATE_PATH = os.path.join(
 # (including `-c ...` config injection, which lands in args[0]) is refused.
 _ALLOWED_GIT = {"diff", "log", "show", "shortlog", "tag"}
 
-# SHA of git's permanent empty-tree object. Hard-coded in git's C source since
-# 2008 (commit 346245a1bb by Jeff King); returned synthetically by
-# find_cached_object() without ever being stored on disk. Valid in every repo.
-# Reproduce with: git hash-object -t tree /dev/null
+# Git's empty-tree object, valid in every repo (`git hash-object -t tree /dev/null`).
 _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 
 

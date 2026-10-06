@@ -59,7 +59,6 @@ async def test_tcp_check_retry_and_succeed(mock_session):
     tcp_check = TcpCheck(name="test_tcp_check")
     mock_session.register_task(tcp_check)
 
-    # Directly replace the functions to avoid AsyncMock
     original_open_connection = asyncio.open_connection
     original_sleep = asyncio.sleep
     asyncio.open_connection = mock_open_connection
@@ -98,7 +97,6 @@ async def test_tcp_check_exception(mock_session):
     tcp_check = TcpCheck(name="test_tcp_check")
     mock_session.register_task(tcp_check)
 
-    # Directly replace the functions to avoid AsyncMock
     original_open_connection = asyncio.open_connection
     original_sleep = asyncio.sleep
     asyncio.open_connection = mock_open_connection

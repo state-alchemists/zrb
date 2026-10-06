@@ -13,29 +13,14 @@ def build_skill_replacements(
     skill_manager: SkillManager,
     active_skills: list[str] | None = None,
 ) -> dict[str, str]:
-    """Compute the placeholder values mandate.md substitutes into its Skill
-    Activation section, so the skill catalogue lives there instead of a separate
-    ``claude_skills`` prompt section.
+    """Placeholder values for mandate.md's Skill Activation section.
 
-    Returns ``{CORE_SKILLS}``, ``{AVAILABLE_SKILLS}``, ``{PREACTIVATED_SKILLS}``:
-
-    - ``CORE_SKILLS`` — activatable core methodologies (built-in skills under
-      ``llm_plugin/core_skills/``), as a bullet list. They are named
-      methodologies in the prompt to distinguish their role from optional
-      domain-specific skills; both use ``ActivateSkill``.
-    - ``AVAILABLE_SKILLS`` — every other model-invocable skill (user, project,
-      plugin), as a bullet list **under its own heading**, or ``""`` when there
-      are none. The heading rides here rather than sitting literally in
-      ``workflow.md`` because a stock install has no such skills: every built-in
-      utility skill under ``llm_plugin/skills/`` is ``disable-model-invocation``
-      (it is a slash command, reached by the user). A literal heading would
-      render over ``_(none registered)_``, and paying for a heading that
-      introduces nothing teaches the model that catalogue entries are
-      decorative.
-    - ``PREACTIVATED_SKILLS`` — full content of any pre-activated instruction
-      bundles, loaded up front; empty when none. Active entries are dropped from
-      the two lists above so the model is not told to activate something already
-      loaded.
+    - ``CORE_SKILLS`` — bullets for built-ins under ``llm_plugin/core_skills/``.
+    - ``AVAILABLE_SKILLS`` — other model-invocable skills under their own
+      heading, or ``""`` when none (a stock install has none, and an empty
+      heading would waste tokens).
+    - ``PREACTIVATED_SKILLS`` — full content of pre-activated skills; those are
+      dropped from the two lists above.
     """
     active = set(active_skills or [])
     core: list[Skill] = []
@@ -44,9 +29,7 @@ def build_skill_replacements(
         if not skill.model_invocable or skill.name in active:
             continue
         (core if _is_core_skill(skill) else other).append(skill)
-    # Sort by name so the catalogue (and its truncation boundary) is
-    # deterministic: the scan is filesystem-ordered, and once the cap cuts the
-    # list the visible subset must not depend on readdir order.
+    # Sort so the truncation boundary does not depend on readdir order.
     core.sort(key=lambda s: s.name)
     other.sort(key=lambda s: s.name)
     available = _format_skill_list(other)
@@ -65,13 +48,7 @@ def _is_core_skill(skill: Skill) -> bool:
 
 
 def _format_skill_list(skills: list[Skill]) -> str:
-    """Bullet the *skills*, capped by ``LLM_MAX_SKILLS_IN_CATALOG``.
-
-    A catalogue that outgrows the cap is truncated with a pointer to
-    ``SearchSkill``: the overflow is reachable on demand, so the cap only
-    saves tokens, and the note keeps the truncated entries discoverable instead
-    of silently dropped.
-    """
+    """Bullet the *skills*, capped by ``LLM_MAX_SKILLS_IN_CATALOG`` with a ``SearchSkill`` pointer."""
     shown, hidden = cap_items(skills, CFG.LLM_MAX_SKILLS_IN_CATALOG)
     lines = "\n".join(f"- **{s.name}** — {s.description}" for s in shown)
     if hidden > 0:
@@ -115,10 +92,8 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
                 if file_path.exists() and file_path.is_file():
                     doc_files[filename].append(file_path)
 
-        # Collect all found file paths, ordered least to most specific, split by
-        # scope: a doc sitting in the home directory describes the user's
-        # cross-project habits, not this project's rules, so it must not be
-        # presented as a project override the mandate forces a full Read of.
+        # Ordered least to most specific. Home-level docs are the user's
+        # cross-project habits, so they are listed apart from project rules.
         listed_files: list[str] = []
         user_level_files: list[str] = []
         for filename in doc_files.keys():
@@ -162,15 +137,7 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
 
 
 def _is_user_level_dir(directory: Path) -> bool:
-    """True when *directory* holds user-level (not project-level) docs.
-
-    Only the home directory itself and ``~/.claude`` qualify: those are the two
-    the search path contributes regardless of where the user is working, so a doc
-    there is about the user, not the project. Every other entry comes from the
-    cwd's parent chain and is genuinely project scoped. Returns ``False`` when
-    home cannot be resolved — the mandatory-read bucket is the safe default,
-    since that is the pre-split behavior.
-    """
+    """True for home itself or ``~/.claude``; ``False`` when home cannot be resolved."""
     try:
         home = Path.home().resolve()
         resolved = directory.resolve()
@@ -193,19 +160,13 @@ def get_search_directories() -> list[Path]:
 
 @lru_cache(maxsize=8)
 def _get_search_directories_cached(home_str: str, cwd_str: str) -> tuple[str, ...]:
-    """Compute the project-doc search path once per (home, cwd) pair.
-
-    Returned as a tuple of strings so the cache key/value are hashable. The
-    walk is pure: walking the parent chain produces the same list every
-    invocation in a session, so caching has no correctness risk.
-    """
+    """Compute the project-doc search path once per (home, cwd) pair."""
     dirs: list[str] = []
     if home_str:
         dirs.append(str(Path(home_str) / ".claude"))
     if cwd_str:
         cwd = Path(cwd_str)
-        # Parents returns [parent, grandparent...]. We want reversed (Root first)
-        # so specific configs (closer to CWD) override general ones.
+        # Root first, so configs closer to cwd override general ones.
         for parent in reversed(list(cwd.parents)):
             dirs.append(str(parent))
         dirs.append(str(cwd))

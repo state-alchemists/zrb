@@ -51,7 +51,6 @@ class HookContext:
     permission_suggestions: list[dict[str, Any]] | None = None  # PermissionRequest
     last_assistant_message: str | None = None  # Stop
 
-    # Fields to include in JSON output when non-None
     _JSON_FIELDS: "ClassVar[list[str]]" = [
         "prompt",
         "command_name",
@@ -111,7 +110,6 @@ class HookResult:
     modifications: dict[str, Any] = field(default_factory=dict)
     should_stop: bool = False
 
-    # Claude Code compatibility helpers
     @classmethod
     def block(cls, reason: str, additional_context: str | None = None) -> "HookResult":
         """Create a blocking result (exit code 2 in Claude Code)."""
@@ -151,7 +149,6 @@ class HookResult:
 
         if not self.success and self.should_stop:
             result["decision"] = "block"
-            # Use reason from modifications if available, otherwise use output
             if "reason" not in result:
                 result["reason"] = self.output or "Blocked by hook"
             if "exit_code" not in result:

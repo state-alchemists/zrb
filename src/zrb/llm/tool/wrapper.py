@@ -1,9 +1,7 @@
-"""
-Tool wrapper utilities for consistent LLM tool behavior.
+"""Tool wrapper utilities.
 
-Tools registered via create_agent() are already wrapped by wrap_tool
-in zrb.llm.agent.common. Use tool_safe_async only when you want a custom
-error_hint appended to the error message.
+Tools registered via create_agent() are already wrapped by
+zrb.llm.agent.common; use tool_safe_async only to append a custom error_hint.
 """
 
 import functools
@@ -76,14 +74,10 @@ def tool_safe_async(
         @functools.wraps(fn)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> object:
             try:
-                # fn is an async tool; its return value (T) is the coroutine to
-                # await. The generic T isn't bound to Awaitable, so narrow it.
                 return await cast(Awaitable[object], fn(*args, **kwargs))
             except Exception as e:  # noqa: BLE001
                 hint = _get_hint(error_hint, args, kwargs, e)
                 formatted = _format_error(fn.__name__, args, kwargs, e, hint)
-                # error=True: matches create_safe_wrapper's convention, so a
-                # caught exception stays distinguishable from a success.
                 return tool_return(formatted, error=True)
 
         return wrapper  # pyright: ignore[reportReturnType]

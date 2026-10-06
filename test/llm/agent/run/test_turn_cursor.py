@@ -1,8 +1,4 @@
-"""Tests for `TurnCursor` — see its module docstring for why `commit_round`
-and `carry_forward` are the two invariant-protecting methods worth a
-dedicated test: a plausible "simplification" of either reintroduces a real,
-previously-shipped bug (dropped tool calls / a reapplied summarizer).
-"""
+"""Tests for the two history-transition methods on ``TurnCursor``."""
 
 from zrb.llm.agent.run.history_utils import TurnPruneFloor
 from zrb.llm.agent.run.turn_cursor import TurnCursor

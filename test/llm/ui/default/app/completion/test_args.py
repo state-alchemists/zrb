@@ -1,5 +1,3 @@
-"""Tests for llm/app/completion/args.py."""
-
 from unittest.mock import MagicMock, patch
 
 from zrb.llm.ui.default.app.completion.args import (

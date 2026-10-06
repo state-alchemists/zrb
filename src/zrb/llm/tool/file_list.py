@@ -33,8 +33,7 @@ DEFAULT_EXCLUDED_PATTERNS = [
 
 
 def _listing_result(abs_path: str, sorted_files: list[str]) -> dict[str, Any]:
-    """Cap the listing, record what was shown for RM's listed-path check,
-    and add a truncation notice when files were omitted."""
+    """Cap the listing and record what was shown for RM's listed-path check."""
     truncated, omitted = _truncate_file_list(sorted_files)
     record_listed(abs_path, [os.path.join(abs_path, p) for p in truncated])
     if omitted is None:
@@ -51,11 +50,7 @@ def _listing_result(abs_path: str, sorted_files: list[str]) -> dict[str, Any]:
 def _truncate_file_list(
     sorted_files: list[str],
 ) -> tuple[list[str], int | None]:
-    """
-    Keeps leading files within the output char budget (head-keep).
-
-    Returns (files, omitted_count). If no truncation needed, omitted_count is None.
-    """
+    """Head-keep within the output budget; ``(files, omitted_count or None)``."""
     kept, omitted = truncate_items(sorted_files, CFG.LLM_MAX_OUTPUT_CHARS)
     return kept, (omitted or None)
 

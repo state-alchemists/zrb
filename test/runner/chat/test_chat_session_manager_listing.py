@@ -104,10 +104,7 @@ class TestChatSessionManagerListing:
                 manager.set_history_manager(original_hm)
 
     def test_get_sessions_parses_delegated_subagent_session_name(self, tmp_path):
-        """A persisted sub-agent transcript (see `subagent_session_naming.py`:
-        `{parent}-sub-{agent_name}-{agent_id}`, stored under
-        `subagent/{agent_type}/`) must surface its parent session and agent
-        name in the listing, with zero new registry."""
+        """Persisted sub-agent transcripts expose parent and agent metadata."""
         from zrb.llm.history_manager.file_history_manager import FileHistoryManager
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
@@ -223,8 +220,7 @@ class TestChatSessionManagerListing:
 
     @pytest.mark.asyncio
     async def test_get_messages_splits_live_context_for_user_role(self):
-        """A user turn's trailing <live-context> block is separated out, not
-        shown as if the user typed it."""
+        """A user turn's trailing `<live-context>` block is separated."""
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = await ChatSessionManager.get_instance()

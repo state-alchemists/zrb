@@ -1,18 +1,4 @@
-"""Live registry of running sub-agents, surfaced as a status panel.
-
-Mirrors the state model opencode/Claude expose: the *what is running* is
-tracked separately from the text stream, so any UI backend can render it
-however it can.
-
-The parent UI's render loop and a sub-agent's run coroutine live in different
-asyncio tasks, so this is a process-global singleton rather than a ContextVar
-(which copies per task and would not be shared across them).
-
-Entries are keyed by ``session_id`` (defaulting to ``""``, the single-session
-CLI case) so a process hosting multiple independent chat sessions — the web
-runner, one process serving many browser tabs — doesn't bleed one session's
-running sub-agents into another's activity panel/listing.
-"""
+"""Process-global, per-session registry of running sub-agents."""
 
 from __future__ import annotations
 
@@ -22,12 +8,7 @@ from typing import Protocol, runtime_checkable
 
 @runtime_checkable
 class HasActivityTracking(Protocol):
-    """A UI implementation that can feed the sub-agent activity panel.
-
-    ``BufferedUI`` (see ``zrb.llm.tool.delegate``) is the canonical
-    implementation; the protocol enables ``isinstance`` checks in
-    ``run_agent_task`` without coupling to a concrete class.
-    """
+    """UI protocol for feeding the sub-agent activity panel."""
 
     def set_activity_id(self, agent_id: str) -> None: ...
     def set_label(self, prefix: str) -> None: ...
@@ -112,13 +93,7 @@ class AgentActivityRegistry:
             self._counters.pop(session_id, None)
 
     def tracked_session_count(self) -> int:
-        """How many distinct session_ids this registry currently holds a
-        bucket for (including sessions with no agent left running).
-
-        A finished session whose bucket was never `clear()`-ed still counts
-        here — this is the number a caller (or a test) checks to confirm a
-        session's teardown actually released it, since `active()` alone
-        cannot distinguish "no bucket" from "an empty bucket"."""
+        """Return the number of tracked session buckets."""
         return len(self._agents)
 
 

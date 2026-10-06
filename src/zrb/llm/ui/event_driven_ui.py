@@ -19,16 +19,9 @@ if TYPE_CHECKING:
 class EventDrivenUI(SimpleUI):
     """UI for event-driven backends (Telegram, Discord, WhatsApp).
 
-    This class handles the queue + waiting pattern that's common in
-    event-driven systems:
-    - Messages arrive via handlers/callbacks
-    - ask_user() blocks on an internal queue until user responds
-
-    You need to implement:
-    - print(text: str, kind: str) -> None   # Send to user
-    - start_event_loop()                    # Start listening for events
-
-    And call handle_incoming_message() when messages arrive.
+    Implement `print(text, kind)` and `start_event_loop()`, and call
+    `handle_incoming_message()` when messages arrive; `ask_user()` blocks on
+    an internal queue until the user responds.
 
     Example:
         class TelegramUI(EventDrivenUI):
@@ -102,15 +95,8 @@ class EventDrivenUI(SimpleUI):
 
     @abstractmethod
     async def start_event_loop(self):
-        """Start the event loop for this UI.
-
-        Override this to register handlers with your backend:
-        - Telegram: Add message handler
-        - Discord: Register on_message callback
-        - WhatsApp: Set up webhook handler
-
-        When a message arrives, call handle_incoming_message(text).
-        """
+        """Register handlers with your backend; each calls
+        `handle_incoming_message(text)`."""
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement start_event_loop()"
         )

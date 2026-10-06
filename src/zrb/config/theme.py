@@ -1,22 +1,9 @@
 """Named style-theme presets for the CLI and LLM UI.
 
-A *theme* is a named bundle of default style values. The ``ZRB_THEME`` knob
-(``CFG.THEME``) selects one; every themed style knob resolves its **default**
-from the active theme via :func:`theme_default` (wired as each field's
-``EnvField(default_factory=...)``). An explicitly set ``ZRB_*`` style env still
-wins, because ``EnvField`` reads the env first and only calls the factory when
-the knob is unset.
-
-This module is pure data plus helpers — it must **not** import config, to keep
-``zrb.config`` importable without a cycle. Keys are style-knob names (e.g.
-``LLM_UI_STYLE_TITLE_BAR``); values are whatever string that knob's consumer
-expects (prompt_toolkit style strings, Rich color names, or hex).
-
-Themes are user/plugin-extensible via :func:`register_theme`, mirroring
-prompt profiles (``llm/prompt/profile.py``). Registered themes are
-merged onto the ``dark`` palette, so a partial theme only lists what it changes.
-See :func:`register_theme` for the ``zrb_init.py`` recipe, and
-``examples/themes/`` for a full worked example (monokai).
+``ZRB_THEME`` (``CFG.THEME``) selects a theme; each themed style knob takes
+its default from it via :func:`theme_default`. An explicitly set style env
+still wins. Must not import config (cycle). See :func:`register_theme` and
+``examples/themes/``.
 """
 
 from __future__ import annotations
@@ -140,10 +127,8 @@ THEMES: dict[str, dict[str, str]] = {"dark": _DARK, "light": _LIGHT}
 def register_theme(name: str, values: dict[str, str]) -> None:
     """Register (or replace) a named theme preset.
 
-    *values* maps style-knob names to their default value under this theme. It
-    is layered **on top of the default (``dark``) palette**, so a partial theme
-    only needs to specify the knobs it changes — every unspecified knob keeps
-    its ``dark`` value instead of blanking. Intended for ``zrb_init.py``::
+    *values* maps style-knob names to defaults, layered on the ``dark``
+    palette, so a partial theme lists only what it changes. In ``zrb_init.py``::
 
         from zrb.config.theme import register_theme
 
@@ -154,20 +139,15 @@ def register_theme(name: str, values: dict[str, str]) -> None:
         })
         # then: export ZRB_THEME=solarized
 
-    Knob names are the ``LLM_UI_STYLE_*`` / ``CLI_COLOR_*`` / ``CLI_STYLE_*``
-    attribute names (see :data:`_DARK` for the full list). Values are whatever
-    the knob's consumer expects: prompt_toolkit style strings for the TUI, Rich
-    style strings for markdown/CLI colors.
+    Keys are ``LLM_UI_STYLE_*`` / ``CLI_COLOR_*`` / ``CLI_STYLE_*`` names;
+    values are prompt_toolkit (TUI) or Rich (markdown/CLI) style strings.
     """
     THEMES[name] = {**_DARK, **values}
 
 
 def get_theme(name: str) -> dict[str, str]:
-    """Return the palette for *name*, falling back to the default theme.
-
-    An unknown name logs a warning (so a misspelled ``ZRB_THEME`` is
-    diagnosable) and resolves to :data:`DEFAULT_THEME`.
-    """
+    """Return the palette for *name*; an unknown name warns and falls back
+    to :data:`DEFAULT_THEME`."""
     theme = THEMES.get(name)
     if theme is None:
         # Warn once per name, marking seen *before* logging: the root logger's
@@ -191,6 +171,5 @@ def theme_value(name: str, key: str) -> str:
 
 
 def theme_default(key: str):
-    """Return an ``EnvField`` ``default_factory`` that resolves *key* from the
-    host config's active :attr:`THEME`. Used to wire every themed style knob."""
+    """Return an ``EnvField`` factory for the active theme's *key*."""
     return lambda host: theme_value(host.THEME, key)

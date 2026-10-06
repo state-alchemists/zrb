@@ -1,18 +1,5 @@
-"""Session runners for `LLMChatTask`.
-
-Holds `run_non_interactive_session` and `run_interactive_session`, the two
-big orchestration methods that take a built `llm_task_core` plus all resolved
-inputs and either return a one-shot result or hand off to an interactive UI.
-
-Kept separate from `building.py` because:
-- builder is config-time API (mutators);
-- runner is execution-time orchestration (drives the inner LLMTask + UI loop).
-
-Composed into `LLMChatTask` as `self._running`: keeps `LLMChatTask` in
-`self._llm_chat_task` and reads its state through that reference. Two calls
-(`get_model`, `get_ui_conversation_name`) reach methods implemented by the
-sibling `ChatExecution` collaborator through `self._llm_chat_task`'s public
-facade, which delegates to both collaborators uniformly.
+"""`LLMChatTask` session runners: drive a built inner `LLMTask` either as a
+one-shot run or through an interactive UI.
 """
 
 from __future__ import annotations
@@ -79,7 +66,6 @@ class ChatRunning:
         )
         if effective_message is None:
             # An action command ran in place of the turn.
-            # No turn ran, so no session to report for resuming.
             if reply:
                 ctx.print(reply, plain=True)
             return reply
@@ -137,7 +123,7 @@ class ChatRunning:
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
     ) -> None:
-        """Resolve `_ui_factories` and attach the results to the core task."""
+        """Resolve the UI factories and attach the results to the core task."""
         for factory in self._llm_chat_task.ui_factories:
             factory_ui = factory(
                 ctx=ctx,
@@ -257,10 +243,7 @@ class ChatRunning:
         if resolved_custom_commands is None:
             resolved_custom_commands = self._resolve_custom_commands()
 
-        # Layer this run's resolved values (yolo state, session name) over the
-        # task's own ui_config, which already carries the identity texts and
-        # the command lists / yolo_xcom_key / show_*_models, each resolved on
-        # first access (task override, else CFG).
+        # Layer this run's yolo state and session name over the task's ui_config.
         ui_config = replace(
             self._llm_chat_task.ui_config,
             is_yolo=initial_yolo,
@@ -338,10 +321,7 @@ class ChatRunning:
     ) -> None:
         """Load and display session history if it exists.
 
-        Replays the loaded messages through the UI's live-message rendering
-        paths (markdown for assistant text, faint for tool calls, etc.) so
-        resuming a session feels like continuing the conversation. Falls back
-        to a plain text dump for UIs that don't implement `replay_history`.
+        Uses the UI's `replay_history` when it has one, else a plain text dump.
         """
         if not conversation_name:
             return
@@ -384,8 +364,7 @@ def _bound_session_ui(ui: "AnyUI | None") -> Iterator[None]:
 
 
 def _get_action_ui(ui: "AnyUI") -> "BaseUI":
-    """The UI an action command acts on: a combined UI's main one, which typed
-    commands run against too. Only `MultiUI` has a `main_ui`."""
+    """The UI an action command acts on: a `MultiUI`'s main UI, else *ui*."""
     return cast("BaseUI", getattr(ui, "main_ui", None) or ui)
 
 
@@ -401,11 +380,8 @@ def _expand_message(
 ) -> tuple[Any, str | None]:
     """Expand a slash command, else an @agent mention, in a string message.
 
-    Returns ``(message, reply)``. A command handled in-process (an
-    `ActionCommand`) returns ``(None, reply)``: there is no turn to run, and
-    *reply* is for the caller to show. The two syntaxes are mutually
-    exclusive, so a mention is only considered when the message is not a
-    slash command.
+    Returns ``(message, reply)``; an `ActionCommand` handled in-process
+    returns ``(None, reply)`` since there is no turn to run.
     """
     if not isinstance(message, str):
         return message, None

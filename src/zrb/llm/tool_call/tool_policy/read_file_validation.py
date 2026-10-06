@@ -13,10 +13,7 @@ async def read_file_validation_policy(
     call: "ToolCallPart",
     next_handler: Callable[["AnyAgentOutput", "ToolCallPart"], Awaitable[Any]],
 ) -> Any:
-    """
-    Validates 'Read' (read_file) tool calls.
-    Rejected if the file does not exist.
-    """
+    """Deny a `Read` call whose file does not exist."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ToolDenied
 

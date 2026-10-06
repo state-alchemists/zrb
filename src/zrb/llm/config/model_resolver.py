@@ -1,21 +1,4 @@
-"""Pure model-name resolution (R12, `framework-conventions.md`).
-
-Turns a `"provider:name"` string plus credentials into a `pydantic_ai`
-`Model`. Resolution only — it holds no configuration and is not part of
-`CFG`. The scalars it reads (`model`, `small_model`, `multimodal_model`,
-`api_key`, `base_url`, `provider`) are `CFG.LLM_*` knobs, and the two callable
-hooks (`model_getter`, `model_renderer`) are settable slots on `LLMTask` /
-`LLMChatTask`. `docs/changelog/v3/3.0.0.md` has the migration table for
-projects still passing an `LLMConfig`.
-
-`ModelResolver` also holds its own `model_getter`/`model_renderer` pair — a
-*global* fallback for the same two hooks, applied by every
-`resolve_configured_*` function. A task's own hooks only reach that one task;
-these reach every call site that resolves through `CFG.LLM_MODEL` et al.,
-including sub-agent delegation (`SubAgentBuilding.resolve_agent_build`), which
-has no task to hold a per-task hook. Set them once in `zrb_init.py` for a
-process-wide default.
-"""
+"""Resolve configured model names into pydantic-ai models."""
 
 import inspect
 from typing import TYPE_CHECKING, Callable
@@ -35,14 +18,7 @@ if TYPE_CHECKING:
 
 
 class ModelResolver:
-    """Turns a model name plus credentials into a pydantic-ai `Model`.
-
-    Its only state is a provider-support cache (pydantic-ai's provider
-    registry doesn't change at runtime) and the `model_getter` /
-    `model_renderer` pair below. It returns a `Model`, the name unchanged when
-    the provider is a plain string, or `model` itself when it isn't a string
-    (an already-resolved `Model`, or `None`).
-    """
+    """Resolve model names with optional provider credentials and hooks."""
 
     def __init__(self) -> None:
         self._native_provider_cache: dict[str, bool] = {}
@@ -53,8 +29,7 @@ class ModelResolver:
     def model_getter(
         self,
     ) -> "ModelHook | None":
-        """Global default `model_getter`, applied to every `resolve_configured_*`
-        result before `model_renderer`. See the module docstring for scope."""
+        """Global getter applied before the renderer."""
         return self._model_getter
 
     @model_getter.setter
@@ -70,8 +45,7 @@ class ModelResolver:
     def model_renderer(
         self,
     ) -> "ModelHook | None":
-        """Global default `model_renderer`, applied to every `resolve_configured_*`
-        result after `model_getter`. See the module docstring for scope."""
+        """Global renderer applied after the getter."""
         return self._model_renderer
 
     @model_renderer.setter
@@ -173,14 +147,7 @@ class ModelResolver:
         base_url: str | None,
         model_name: str,
     ) -> "str | Provider":
-        """*provider*, or an OpenAI-compatible one built from the credentials
-        when *provider* is only a name.
-
-        `_resolve_model` turns a **string** provider back into a bare
-        `"<provider>:<model>"` name, which would silently discard
-        `api_key`/`base_url`. A `Provider` instance is already configured and
-        passes straight through.
-        """
+        """Return *provider*, or build an OpenAI-compatible provider from credentials."""
         if not isinstance(provider, str):
             return provider
         return self._resolve_provider(None, api_key, base_url, model_name)
@@ -193,35 +160,7 @@ class ModelResolver:
         base_url: str | None,
         provider: "str | Provider",
     ) -> "str | Model":
-        """Build a natively-supported model, choosing whose credentials to use.
-
-        `infer_model`'s `provider_factory` seam is what makes the choice
-        possible: pydantic-ai still picks the `Model` subclass the prefix maps
-        to, but the provider it wraps is built here.
-
-        Credentials only reach here when they belong to this vendor —
-        `_configured_credentials` withholds a mismatched `LLM_API_KEY` at the
-        config layer — so nothing below second-guesses them.
-
-        Precedence, highest first:
-
-        1. a `Provider` **instance** the caller handed in *for this same
-           vendor* — fully configured already. The instance auto-built from
-           `LLM_API_KEY` upstream is an `OpenAIProvider`, whose `.name` never
-           matches a native non-openai prefix, so it correctly does not
-           qualify;
-        2. `api_key`/`base_url`, passed as whichever keyword arguments the
-           constructor actually declares (`AnthropicProvider` takes
-           `base_url`, `DeepSeekProvider` does not).
-
-        With neither available the bare name is returned unchanged, so
-        pydantic-ai builds the provider itself and reads that vendor's own
-        variable — which is the only credential that could be right when zrb
-        was given none. A `base_url` the native provider cannot accept falls
-        through to the OpenAI-compatible path instead of being dropped: a
-        a custom endpoint is why that knob is set, and every
-        provider zrb reaches this way speaks the OpenAI wire format.
-        """
+        """Build a native model with the supplied provider credentials."""
         # lazy: heavy third-party
         from pydantic_ai.models import infer_model
         from pydantic_ai.providers import infer_provider_class
@@ -300,21 +239,7 @@ def _provider_prefix(model: "str | Model | None") -> str:
 def _openai_compatible_key(
     api_key: str | None, model: "str | Model | None"
 ) -> "str | None":
-    """The key to hand an OpenAI-*compatible* provider.
-
-    Passing `None` is not "no key": `OpenAIProvider` forwards it to the OpenAI
-    SDK, which reads `OPENAI_API_KEY` out of the environment. That is right
-    when the target is OpenAI — which an unprefixed name denotes —
-    and wrong the moment it is not. A `deepseek:`-prefixed model whose
-    `LLM_BASE_URL` sends it down this compatibility path would otherwise
-    attach the user's OpenAI secret, as a bearer token, to requests aimed at
-    an unrelated host, for a vendor that key does not belong to.
-
-    The placeholder returned instead is pydantic-ai's own, and is what it
-    already substitutes when no key exists anywhere — so a keyless local
-    gateway keeps working, and a real endpoint rejects the request loudly
-    rather than quietly receiving the wrong credential.
-    """
+    """Return the compatible-provider key without leaking OpenAI credentials."""
     if api_key:
         return api_key
     if _provider_prefix(model) in ("", "openai", "openai-chat"):
@@ -323,25 +248,7 @@ def _openai_compatible_key(
 
 
 def _configured_credentials(model: "str | Model | None") -> tuple[str, str]:
-    """`(api_key, base_url)` from `CFG`, with `LLM_API_KEY` withheld when it
-    was configured for a different vendor than *model*'s.
-
-    `LLM_API_KEY` reads as provider-agnostic but never is: a user sets it for
-    the one provider they configured, named by `LLM_PROVIDER` or by
-    `LLM_MODEL`'s own prefix. Handing it to a differently prefixed model — the
-    shape `LLM_SMALL_MODEL=anthropic:…` beside `LLM_MODEL=openai:…` asks for —
-    401s on every summarization. Withholding it lets the bare name through, and
-    pydantic-ai then reads that vendor's own variable, which is the only
-    credential that could be right there.
-
-    This lives here, not in `ModelResolver`, because only this layer reads
-    `LLM_MODEL` and so knows which vendor `LLM_API_KEY` was meant for;
-    credentials handed to `resolve()` are always used.
-
-    An explicit `LLM_BASE_URL` disables the whole test. Pointing zrb at one
-    endpoint is a statement that this endpoint serves every tier — the
-    LiteLLM/OpenRouter-style gateway case — so its key travels with it.
-    """
+    """Read configured credentials, withholding mismatched vendor keys."""
     api_key, base_url = CFG.LLM_API_KEY, CFG.LLM_BASE_URL
     if base_url or not api_key:
         return api_key, base_url
@@ -360,22 +267,7 @@ def resolve_configured_model(model: "str | Model | None" = None) -> "str | Model
 
 
 def resolve_configured_small_model(model: "str | Model | None" = None) -> "str | Model":
-    """Resolve *model* (or `CFG.LLM_SMALL_MODEL`, or the main model) using the
-    configured credentials.
-
-    Precedence, highest first:
-
-    1. the explicit *model* argument,
-    2. `get_current_small_model()` — this run's `/model small <name>`,
-    3. `CFG.LLM_SMALL_MODEL`,
-    4. `get_current_model()` — the model this run is actually using, i.e. a
-       `/model <name>` switch or `--model`,
-    5. `CFG.LLM_MODEL`.
-
-    A live slash command outranks static config (2 before 3), and the run's
-    own model outranks `CFG.LLM_MODEL` (4 before 5) because the configured
-    default may be a provider whose credentials the user never set.
-    """
+    """Resolve the small model using run, small-model, then main-model settings."""
     target = (
         model
         or get_current_small_model()
@@ -391,16 +283,7 @@ def resolve_configured_small_model(model: "str | Model | None" = None) -> "str |
 def resolve_configured_multimodal_model(
     model: "str | Model | None" = None,
 ) -> "str | Model | None":
-    """Resolve *model* (or `CFG.LLM_MULTIMODAL_MODEL`) using the configured
-    credentials, or `None` when no multimodal model is configured — callers
-    fall back to dropping the attachment with a warning rather than silently
-    sending binary content a text-only model cannot interpret.
-
-    Precedence, highest first: the explicit *model* argument,
-    `get_current_multimodal_model()` (this run's `/model multimodal <name>`),
-    then `CFG.LLM_MULTIMODAL_MODEL`. There is no fall back to the main model:
-    a text-only model cannot read the attachment, which is why
-    this tier exists."""
+    """Resolve the configured multimodal model, or return `None` if unset."""
     target = model or get_current_multimodal_model() or CFG.LLM_MULTIMODAL_MODEL
     if not target:
         return None

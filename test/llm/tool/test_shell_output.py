@@ -67,10 +67,7 @@ class _InterleavingStreamReader:
 async def test_shell_output_collapse_swallows_a_broken_uis_exception(
     monkeypatch, caplog
 ):
-    """A UI whose hooks raise must never break the actual command — same
-    contract as `_notify`'s broken-UI test. The swallow is still debuggable:
-    both the live-push and the final-collapse failure reach the log instead
-    of vanishing silently."""
+    """Ignore UI hook failures while logging both live and final failures."""
     mock_ui = MagicMock()
     mock_ui.update_shell_output.side_effect = RuntimeError("ui exploded")
     mock_ui.finish_shell_output.side_effect = RuntimeError("ui exploded")
@@ -94,13 +91,7 @@ async def test_shell_output_collapse_swallows_a_broken_uis_exception(
 async def test_two_parallel_shell_calls_each_get_their_own_collapsible_block(
     monkeypatch,
 ):
-    """The actual bug reported: two Shell commands running in parallel had
-    their genuinely-interleaved live output collapse into ONE combined
-    block, silently swallowing one command's lines. Runs two REAL
-    `run_shell_command()` calls concurrently through a real `BufferedUI` —
-    not mocks — so this fails the same way the live TUI did if the
-    per-command isolation regresses.
-    """
+    """Keep interleaved output from parallel commands in separate blocks."""
     # lazy: only this test needs a real UI implementation
     from zrb.llm.ui.buffered_ui import BufferedUI
 
@@ -183,15 +174,7 @@ async def test_timeout_without_output_still_reads_as_a_possible_hang(monkeypatch
 
 
 def test_docstring_routes_file_work_to_the_file_tools():
-    """Shell must say it is for running things, not for touching files.
-
-    A model that reaches for `cat`/`sed -i`/`rm` gets none of what the file tools
-    carry — post-write diagnostics, path validation, per-path auto-approval — so
-    the routing rule belongs next to the schema it competes with, not only in the
-    prompt where it applies to no tool in particular. It must also say to call
-    Shell rather than Bash — Bash is no longer a tool, so the docstring is the
-    only place the model learns that sub-agents listing `Bash` map to Shell.
-    """
+    """The Shell schema routes file operations to the file tools."""
     doc = run_shell_command.__doc__ or ""
 
     for file_tool in ("Read", "Write", "Edit", "Grep", "Glob", "LS", "RM", "MV"):

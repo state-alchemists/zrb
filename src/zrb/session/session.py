@@ -143,9 +143,7 @@ class Session(AnySession):
         if self._main_task is None:
             return None
         xcom: Xcom = self.shared_ctx.xcom[self._main_task.name]
-        # Use get() (single-variable, latest value) rather than peek() (queue
-        # front, oldest): the final result is the main task's most recent run,
-        # not a stale first push from a readiness-monitored re-execution.
+        # Latest value: a readiness-monitored task may have re-run.
         return xcom.get()
 
     @property
@@ -167,11 +165,7 @@ class Session(AnySession):
     def _build_task_status_log(
         self,
     ) -> tuple[dict[str, "TaskStatusStateLog"], str]:
-        """Flatten every task's status history and find the earliest timestamp.
-
-        The start time falls out of the same pass since it's just the minimum
-        of each task's own flattened history, computed as we go.
-        """
+        """Flatten every task's status history and find the earliest timestamp."""
         task_status_log: dict[str, TaskStatusStateLog] = {}
         log_start_time = ""
         for task, task_status in self._task_status.items():
@@ -199,11 +193,7 @@ class Session(AnySession):
         return task_status_log, log_start_time
 
     def _sanitize_input(self) -> dict[str, Any]:
-        """Mask secret input values and stringify non-JSON-serializable ones.
-
-        Secrets are masked before the log reaches any persistence layer or
-        HTTP consumer; only the CLI prompt echoes them verbatim.
-        """
+        """Mask secret input values and stringify non-JSON-serializable ones."""
         secret_names = self._get_secret_input_names()
         sanitized_input: dict[str, Any] = {}
         for key, value in self.shared_ctx.input.items():
@@ -211,7 +201,6 @@ class Session(AnySession):
                 sanitized_input[key] = SECRET_MASK
                 continue
             try:
-                # Test if value is serializable
                 json.dumps(value)
                 sanitized_input[key] = value
             except (TypeError, OverflowError):
@@ -228,11 +217,7 @@ class Session(AnySession):
         }
 
     def as_state_log(self) -> "SessionStateLog":
-        """Snapshot this session as a serializable pydantic log.
-
-        Captures each task's status history and timings. This is what the web
-        UI polls and what the session-state logger persists.
-        """
+        """Snapshot this session as a serializable log (polled by the web UI, persisted by the state logger)."""
         task_status_log, log_start_time = self._build_task_status_log()
         sanitized_input = self._sanitize_input()
 
@@ -279,8 +264,7 @@ class Session(AnySession):
             return
         previous = self._action_coros.get(task)
         if previous is not None and previous is not scheduled and not previous.done():
-            # A re-defer would orphan the still-running action (never awaited
-            # by wait_deferred, invisible to terminate). Cancel it first.
+            # Otherwise the old action is orphaned: never awaited or terminated.
             previous.cancel()
         self._action_coros[task] = scheduled
 
@@ -297,10 +281,9 @@ class Session(AnySession):
         ]
 
     def _reap_finished_coro(self, coro: asyncio.Task[Any]) -> bool:
-        """Return True when *coro* is done, retrieving (and logging) its exception.
+        """Return True when *coro* is done, logging its exception if any.
 
-        Pruning a finished task without reading its exception silently discards
-        the failure ("Task exception was never retrieved").
+        Reading the exception avoids "Task exception was never retrieved".
         """
         if not coro.done():
             return False
@@ -313,27 +296,22 @@ class Session(AnySession):
     async def wait_deferred(self):
         await self._wait_deferred_monitoring()
         await self._wait_deferred_action()
-        # Drain: a trigger callback can defer NEW coros while this batch is
-        # awaited; a single gather over a snapshot would never await those.
+        # Loop: a trigger callback can defer new coros while a batch is awaited.
         while self._coros:
             batch = self._coros
             self._coros = []
             await gather_isolated(*batch)
 
     async def _wait_deferred_action(self):
-        # gather_fail_fast: these are the deferred bodies of long-running tasks,
-        # which never return on their own. Waiting for the siblings to settle
-        # would hang the run after one has already failed — two long-running
-        # tasks (a `frontend` + `backend` start) where one crashes must exit
-        # non-zero immediately, not block until the survivor is killed.
+        # Fail fast: long-running task bodies never return on their own, so
+        # waiting for siblings would hang the run after one has failed.
         if len(self._action_coros) == 0:
             return
         task_coros = self._action_coros.values()
         await gather_fail_fast(*task_coros)
 
     async def _wait_deferred_monitoring(self):
-        # Same as above: a monitoring loop (Scheduler/BaseTrigger) polls forever
-        # by design, so it must be cancelled on a sibling's failure, not awaited.
+        # Monitoring loops (Scheduler/BaseTrigger) poll forever; fail fast too.
         if len(self._monitoring_coros) == 0:
             return
         task_coros = self._monitoring_coros.values()
@@ -345,11 +323,9 @@ class Session(AnySession):
     def _register_task_graph(
         self, task: AnyTask, ancestors: set[int] | None = None
     ) -> None:
-        # Iterative to avoid stack overflow on deep graphs. `done` marks a
-        # fully registered subtree, so a shared upstream (a diamond) is walked
-        # once rather than once per path (O(2**depth)). `path` holds the
-        # current ancestor chain: a task reappearing on it is a cycle, while a
-        # task already in `done` is a legitimate diamond.
+        # Iterative to avoid recursion limits. `done` marks fully registered
+        # subtrees so diamonds are walked once; a task reappearing on `path`
+        # (the ancestor chain) is a cycle.
         done: set[int] = set()
         path: list[int] = list(ancestors) if ancestors else []
         path_set: set[int] = set(path)
@@ -380,10 +356,8 @@ class Session(AnySession):
             try:
                 child = next(children)
             except StopIteration:
-                # Fully explored. Register the parent's upstream edges
-                # post-order, so a repeated diamond branch can never link a
-                # downstream twice, and a cycle that aborted the walk never
-                # left a dangling edge behind.
+                # Link edges post-order so an aborted (cyclic) walk leaves no
+                # dangling edge.
                 for upstream in parent.upstreams:
                     if parent not in self._downstreams[upstream]:
                         self._downstreams[upstream].append(parent)
@@ -399,9 +373,7 @@ class Session(AnySession):
             stack.append((child, iter(_children(child))))
 
     def get_root_tasks(self, task: AnyTask) -> list[AnyTask]:
-        # Iterative pre-order walk, mirroring the recursive shape: upstreams are
-        # visited in declaration order and each shared upstream only once. A
-        # stack avoids the recursion-depth ceiling a >~950-task chain would hit.
+        # Iterative pre-order walk: upstreams in declaration order, each once.
         visited: set[int] = set()
         root_tasks: list[AnyTask] = []
         stack = [task]
@@ -468,9 +440,7 @@ class Session(AnySession):
 
 
 def _state_log_models():
-    # lazy: transitively heavy -- session_state_log declares pydantic models,
-    # so importing it eagerly pulled pydantic.main and the schema-construction
-    # machinery into every `import zrb`. Only as_state_log() needs them.
+    # lazy: transitively heavy -- session_state_log declares pydantic models.
     from zrb.session_state_log import session_state_log
 
     return session_state_log

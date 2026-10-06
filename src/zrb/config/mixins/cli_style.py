@@ -1,8 +1,4 @@
-"""CLI semantic color/style config.
-
-Defaults come from the active theme (``CFG.THEME`` → ``config/theme.py``); an
-explicitly set ``ZRB_CLI_*`` env overrides the theme.
-"""
+"""CLI semantic color/style config."""
 
 from __future__ import annotations
 
@@ -14,8 +10,7 @@ from zrb.config.theme import theme_default
 
 class CLIStyleMixin:
     if TYPE_CHECKING:
-        # Every field below defaults via theme_default(), whose returned
-        # factory reads this sibling-owned attribute at call time.
+        # Factories read the sibling-owned theme at call time.
         THEME: str  # ThemeMixin
 
     CLI_COLOR_WARNING = EnvField(

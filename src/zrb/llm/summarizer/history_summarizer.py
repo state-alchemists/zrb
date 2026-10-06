@@ -40,9 +40,7 @@ def create_summarizer_history_processor(
     message_token_threshold: int | None = None,
     summary_window: int | None = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
-    """
-    Creates a history processor that auto-summarizes history when it exceeds `token_threshold`.
-    """
+    """Create a history processor that auto-summarizes history past its thresholds."""
     llm_limiter = limiter or default_llm_limiter
     if conversational_token_threshold is None:
         conversational_token_threshold = (
@@ -194,9 +192,7 @@ async def summarize_messages(
     message_token_threshold: int | None = None,
     conversational_token_threshold: int | None = None,
 ) -> "list[ModelMessage]":
-    """
-    Summarizes individual tool call results (and other parts) if they exceed the threshold.
-    """
+    """Summarize individual tool results that exceed the threshold."""
     try:
         llm_limiter = limiter or default_llm_limiter
         if message_token_threshold is None:
@@ -231,16 +227,10 @@ async def summarize_history(
     conversational_token_threshold: int | None = None,
     force: bool = False,
 ) -> "list[ModelMessage]":
-    """
-    Summarizes the history, keeping the last `summary_window` messages intact.
-    Handles large histories by summarizing in chunks.
-    Returns a new list of messages where older messages are replaced by a summary.
+    """Replace older messages with a chunked summary, keeping the last `summary_window`.
 
-    When `force=True`, compression is performed even if the conversation is within
-    the normal token/window limits (e.g. triggered by an explicit /compress command).
-
-    The journal index is re-seeded into the summary;
-    ``render_journal_index`` returns nothing when journaling is off.
+    `force=True` compresses even within limits (``/compress``). The journal
+    index is re-seeded into the summary.
     """
     try:
         llm_limiter = limiter or default_llm_limiter
@@ -256,7 +246,6 @@ async def summarize_history(
         if not to_summarize:
             if not force:
                 return messages
-            # Force mode: compress everything regardless of limits
             to_summarize, to_keep = messages, []
         summary_text = await _build_summary_text(
             to_summarize,
@@ -301,9 +290,7 @@ async def _build_summary_text(
             has_multiple_snapshots,
             limiter=llm_limiter,
         )
-    # Re-seed the journal index so it survives compaction; baking it into the
-    # summary message adds no turn that could break role alternation or tool
-    # pairing. Empty when the journal is disabled.
+    # Baked into the summary so no extra turn breaks role alternation.
     journal_block = render_journal_index()
     if journal_block:
         return f"{summary_text}\n\n{journal_block}"
@@ -313,14 +300,7 @@ async def _build_summary_text(
 def _assemble_summarized_history(
     summary_message: Any, messages: list[Any], to_keep: list[Any]
 ) -> list[Any]:
-    """Join the summary, the preserved opening turn, and the kept tail.
-
-    The opening user turn is preserved verbatim: it carries the task's original
-    goal, which summarization would otherwise drop first. It is a pure user turn
-    (no tool parts), so re-adding it cannot break tool-call pairing;
-    `ensure_alternating_roles` folds it into the summary message when roles
-    would otherwise collide. (Harness `preserve_first_user_message`.)
-    """
+    """Join the summary, the opening user turn (verbatim, it holds the original goal), and the kept tail."""
     first_user_message = _find_first_user_message(messages)
     result: list[Any] = [summary_message]
     if first_user_message is not None and all(
@@ -333,14 +313,9 @@ def _assemble_summarized_history(
 
 
 def _without_orphaned_returns(to_keep: list[Any]) -> list[Any]:
-    """Drop tool RETURNS in `to_keep` whose matching call was summarised away.
+    """Drop tool returns in `to_keep` whose call was summarised away (Bedrock rejects them).
 
-    `split_history` never separates a *complete* call/return pair, so that is
-    the only orphan compression can introduce. Orphaned `ToolCallPart`s (a call
-    with no return) are left intact — they may be legitimately pending deferred
-    results — and the run loop's `sanitize_orphaned_tool_calls` is the backstop
-    for any that must not survive. Providers like Bedrock reject orphaned
-    returns with `ValidationException`.
+    Orphaned calls are kept: they may be pending deferred results.
     """
     is_valid, problems = validate_tool_pair_integrity(to_keep)
     if is_valid or not problems:
@@ -360,11 +335,7 @@ _SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"
 
 
 def _is_summary_part(part: Any) -> bool:
-    """Whether *part* is the synthetic content built by `_create_summary_model_request`.
-
-    Matched by its section header so a prior compaction round's own summary is
-    never mistaken for a real user turn by `_find_first_user_message`.
-    """
+    """Whether *part* is a prior round's synthetic summary, matched by its header."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import UserPromptPart
 
@@ -376,14 +347,10 @@ def _is_summary_part(part: Any) -> bool:
 
 
 def _drop_summary_parts(msg: Any) -> Any:
-    """*msg* with any synthetic summary parts removed, keeping the rest intact.
+    """*msg* without synthetic summary parts.
 
-    `ensure_alternating_roles` merges adjacent same-role ``ModelRequest``s by
-    concatenating their ``parts`` — so a message preserved across compaction
-    rounds can carry both a prior round's synthetic summary part and a
-    genuinely preserved user part together. Stripping just the synthetic
-    part(s) avoids re-preserving that summary text forward on every later
-    round while keeping the real content.
+    `ensure_alternating_roles` can merge a prior summary part with a real user
+    part into one message; this keeps the summary from carrying forward.
     """
     parts = [part for part in getattr(msg, "parts", []) if not _is_summary_part(part)]
     if len(parts) == len(msg.parts):
@@ -392,11 +359,7 @@ def _drop_summary_parts(msg: Any) -> Any:
 
 
 def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
-    """Return the first ModelRequest carrying a real (non-synthetic) user part.
-
-    Synthetic summary parts are stripped from the returned message — see
-    `_drop_summary_parts`.
-    """
+    """Return the first ModelRequest with a real user part, summary parts stripped."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 

@@ -1,8 +1,4 @@
-"""Search-directory discovery for ``SubAgentManager``.
-
-Builds the priority-ordered list of directories to scan for sub-agents:
-home → project traversal → plugins → base → extra → core builtin → optional builtin → root_dir.
-"""
+"""Search-directory discovery for ``SubAgentManager``."""
 
 from __future__ import annotations
 
@@ -13,12 +9,7 @@ from zrb.util.dir_search import BUILTIN_PLUGIN_DIR, get_upward_dirs, scan_plugin
 
 
 class SubAgentManagerSearch:
-    """Builds the search-directory list scanned by the loading collaborator.
-
-    Stateless: `root_dir` is owned by `SubAgentManager.scan_root` and passed in
-    per call rather than cached here, since it can change after construction
-    (e.g. a test retargeting `manager.scan_root`).
-    """
+    """Builds the search-directory list for the loading collaborator."""
 
     def get_search_directories(self, root_dir: str) -> list[str | Path]:
         """All agent search directories in priority order (high → low).

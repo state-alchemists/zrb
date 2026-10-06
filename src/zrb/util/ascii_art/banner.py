@@ -1,9 +1,5 @@
-"""Resolution of the ASCII art shown beside the TUI help panel.
-
-Composition lives in `zrb.util.cli.help_panel`, which lays the art out against
-the current terminal width; this module only answers "which art, and what is
-in it".
-"""
+"""Resolution of the ASCII art shown beside the TUI help panel (laid out by
+`zrb.util.cli.help_panel`)."""
 
 import os
 import random

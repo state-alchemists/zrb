@@ -42,12 +42,8 @@ def fstring_format(template: str, data: dict[str, Any]) -> str:
     (task definitions, input defaults) and never from end-user, LLM, or
     request-supplied strings.
 
-    Only safe builtins (type conversions, math utilities, iteration helpers) are
-    available, and dunder names are rejected before evaluation. Together those
-    block the usual sandbox escape, which reaches the real builtins by walking
-    the class hierarchy (``().__class__.__bases__[0].__subclasses__()``) — a
-    builtins whitelist alone cannot stop it, because plain attribute access is
-    not governed by the eval globals.
+    Only safe builtins are available, and dunder names are rejected, which
+    blocks the class-hierarchy escape (``().__class__.__bases__...``).
 
     Raises:
         ValueError: If an expression in the template fails to evaluate, uses a
@@ -73,10 +69,8 @@ def fstring_format(template: str, data: dict[str, Any]) -> str:
 def _compile_expression(expr: str) -> Any:
     """Parse and compile a template expression, rejecting dunder access.
 
-    Dunder attributes and names are the only route from the restricted builtins
-    back to the real ones, so refusing them keeps evaluation inside the
-    whitelist. Single-underscore names stay allowed — templates legitimately
-    touch private-ish attributes, and those cannot escape on their own.
+    Dunders are the only route back to the real builtins; single-underscore
+    names stay allowed.
     """
     tree = ast.parse(expr, mode="eval")
     for node in ast.walk(tree):

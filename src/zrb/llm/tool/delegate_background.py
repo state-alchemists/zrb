@@ -4,25 +4,12 @@
 immediately; ``GetDelegationResult`` polls that handle. The synchronous
 ``DelegateToAgent`` path lives in ``delegate.py``.
 
-Permissions and yolo are inherited: ``asyncio.ensure_future`` copies the current
-``contextvars`` context when the task is created (while the parent run's
-ContextVars are still set), so the background agent inherits the parent's UI,
-yolo, permission policy, approval channel, and agent mode. When ``yolo=None``
-(default, inherit), tool calls that need approval flow through the parent UI's
-confirmation queue — the same path a synchronous delegate uses.
+``asyncio.ensure_future`` copies the parent's ``contextvars``, so the
+background agent inherits its UI, yolo, permission policy and approval channel.
+The registry is process-scoped; results do not survive a restart.
 
-Caveat: the registry is process- and event-loop-scoped. Results are pollable for
-the life of the running loop/session; they do not persist across process
-restarts. A plan-mode parent cannot start a background agent — the tool is tagged
-``DELEGATE`` and the execution gate denies it.
-
-``background_delegation_live_context`` (registered via
-``PromptManager.add_live_context`` in ``builtin/llm/chat.py``) pushes a
-one-line completion notice into the parent's next turn instead of leaving it
-to remember to poll ``GetDelegationResult`` — session isolation for that
-notice comes from ``_own_background_handles``, a ``ContextVar`` rather than a
-field on the (process-global) registry, since each chat session already runs
-its own asyncio task.
+``background_delegation_live_context`` pushes a completion notice into the
+parent's next turn.
 """
 
 from __future__ import annotations
@@ -78,13 +65,8 @@ class _BackgroundRegistry:
         self._agent_names[handle] = agent_name
 
     def peek_done(self, handles: set[str]) -> list[tuple[str, str]]:
-        """Return (handle, agent_name) for handles that finished since the
-        last call, without consuming them.
-
-        Consumption for actual result retrieval still only happens through
-        ``poll``/``collect`` — this only tracks whether a completion notice
-        has already been surfaced once via the live-context hook.
-        """
+        """Return (handle, agent_name) for handles newly finished since the last
+        call. Does not consume them; only ``poll``/``collect`` do."""
         newly_done = []
         for handle in handles:
             if handle in self._notified:
@@ -96,12 +78,7 @@ class _BackgroundRegistry:
         return newly_done
 
     async def collect(self, handle: str, wait: float = 0.0) -> str:
-        """Poll a handle, optionally blocking up to ``wait`` seconds for it.
-
-        Returns the instant the agent finishes; on timeout falls through to the
-        synchronous ``poll`` (which reports "still running"). ``asyncio.wait``
-        does not cancel the task on timeout, so the work keeps running.
-        """
+        """Poll a handle, blocking up to ``wait`` seconds; timeout leaves the task running."""
         task = self._tasks.get(handle)
         if task is not None and not task.done() and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
@@ -142,8 +119,7 @@ class _BackgroundRegistry:
             )
 
         _, buffered = self._consume(handle)
-        # The buffer carries BufferedUI's terminal styling; this text becomes a
-        # tool result for the parent model, which does not render escape codes.
+        # The model doesn't render ANSI styling.
         output = (
             strip_ansi(buffered.get_buffered_output()) if buffered is not None else ""
         )
@@ -178,11 +154,7 @@ def get_background_registry() -> _BackgroundRegistry:
     return _registry
 
 
-# Handles this session's own DelegateToAgentBackground calls minted. A
-# ContextVar rather than registry state: each chat session runs its own asyncio
-# task, so this isolates sessions without a session-id key. The detached
-# background task inherits a copy but never registers handles (sub-agents
-# cannot delegate).
+# A ContextVar isolates sessions: each chat session runs its own asyncio task.
 _own_background_handles: contextvars.ContextVar[set[str] | None] = (
     contextvars.ContextVar("own_background_handles", default=None)
 )
@@ -205,11 +177,7 @@ def register_background_handle(handle: str) -> None:
 def background_delegation_live_context(ctx: "AnyContext") -> str | None:
     """Live-context provider: surface newly-finished background delegations.
 
-    Registered via ``PromptManager.add_live_context`` so the parent agent
-    learns a background delegation finished on its next turn, instead of
-    having to remember to poll ``GetDelegationResult``. Matches the
-    ``SimplePrompt`` signature (``Callable[[AnyContext], str | None]``), so
-    *ctx* is required but unused here.
+    *ctx* is unused; it matches the ``SimplePrompt`` signature.
     """
     done = _registry.peek_done(get_own_background_handles())
     if not done:
@@ -284,10 +252,7 @@ def create_background_delegate_tool(
         and prompts the user through the same UI (queued behind any current
         prompt), just like a synchronous delegate.
         """
-        # Validate the name before detaching; inside the coroutine an unknown
-        # agent would surface only when polled. get_agent_definition, not
-        # create_agent: it is the same lookup create_agent uses, without
-        # building the agent twice on the caller's turn.
+        # Validate before detaching, else an unknown agent surfaces only when polled.
         if not sub_agent_manager.get_agent_definition(agent_name):
             return agent_not_found_message(agent_name, sub_agent_manager)
         parent_ui = get_current_ui() or StdUI()
@@ -299,8 +264,6 @@ def create_background_delegate_tool(
             session_id=get_session_ownership_key(get_current_tool_session()),
         )
 
-        # Context inheritance (yolo, permissions, approval) is described in
-        # the module docstring.
         coro = run_agent_task(
             agent_name=agent_name,
             deliverable=deliverable,
@@ -309,7 +272,7 @@ def create_background_delegate_tool(
             additional_context=additional_context,
             sub_agent_manager=sub_agent_manager,
             ui=buffered_ui,
-            yolo=None,  # None = inherit parent's yolo
+            yolo=None,
         )
 
         _registry.start(handle, agent_name, coro, buffered_ui)
@@ -321,9 +284,7 @@ def create_background_delegate_tool(
 
     setattr(delegate_to_agent_background, "zrb_is_delegate_tool", True)
     delegate_to_agent_background.__name__ = "DelegateToAgentBackground"
-    # Carry the agent roster in this tool's own description. cleandoc first:
-    # an unindented roster appended under an 8-space docstring would pin that
-    # indent on the whole description.
+    # cleandoc first, or the unindented roster would pin the docstring's indent.
     delegate_to_agent_background.__doc__ = (
         f"{inspect.cleandoc(delegate_to_agent_background.__doc__ or '')}\n\n"
         f"AVAILABLE AGENTS:\n{agent_roster_doc(sub_agent_manager)}\n"

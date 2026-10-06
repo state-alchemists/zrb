@@ -28,14 +28,9 @@ async def chunk_and_summarize(
             )
             history_texts.append(str(m))
 
-    # Build chunks up-front so we know total count before launching tasks. The
-    # budget is *token_threshold* — the conversational one, derived from
-    # `LLM_MAX_TOKEN_PER_REQUEST`, which is a global request cap — reduced to
-    # the summarization model's own window when that is known, as
-    # `LLMLimiter.fit_context_window` does for the main model. Sizing a chunk by
-    # the global cap alone and sending it to a model with a smaller window is
-    # what made `/compress` fail with a provider `context_length_exceeded` on a
-    # single 422-message chunk.
+    # Cap the chunk budget at the summarization model's own window: the
+    # threshold derives from a global request cap, and a smaller-window model
+    # would otherwise reject a chunk with `context_length_exceeded`.
     window = model_capabilities.get(getattr(agent, "model", None)).context_window
     chunk_budget = token_threshold
     if window is not None and window > 0:
@@ -114,7 +109,6 @@ async def consolidate_summaries(
             plain=True,
         )
 
-    # Use summarize_text_plain to safely consolidate even a large block of summaries
     llm_limiter = limiter or default_llm_limiter
     prompt = (
         "Consolidate the following conversation state snapshots into a single, cohesive "

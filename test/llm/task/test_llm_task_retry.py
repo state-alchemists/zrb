@@ -17,11 +17,9 @@ from zrb.session.session import Session
 
 @pytest.mark.asyncio
 async def test_llm_task_retry_logic():
-    # Setup
     shared_ctx = SharedContext()
     session = Session(shared_ctx=shared_ctx, state_logger=MagicMock())
 
-    # Mock history manager to actually "store" history in memory
     mock_history_manager = MagicMock()
     stored_history = []
 
@@ -35,7 +33,6 @@ async def test_llm_task_retry_logic():
     mock_history_manager.load.side_effect = load_side_effect
     mock_history_manager.update.side_effect = update_side_effect
 
-    # Pass history_manager via constructor
     task = LLMTask(
         name="test-task",
         message="Hello",
@@ -43,9 +40,7 @@ async def test_llm_task_retry_logic():
         history_manager=mock_history_manager,
     )
 
-    # Mock run_agent to fail on first attempt and succeed on second
     with patch("zrb.llm.task.llm_task.run_agent") as mock_run_agent:
-        # First attempt fails with zrb_history
         failed_history = [
             ModelRequest(parts=[UserPromptPart(content="Hello")]),
             ModelResponse(
@@ -66,19 +61,16 @@ async def test_llm_task_retry_logic():
             ),
         ]
 
-        # Execute publicly
         await task.exec(session)
 
-        # Verify run_agent was called twice
         assert mock_run_agent.call_count == 2
 
-        # Verify run_agent was called with retry notice on second attempt
         second_call_kwargs = mock_run_agent.call_args_list[1].kwargs
         assert "[SYSTEM] This is retry attempt 2" in second_call_kwargs.get(
             "message", ""
         )
 
-        # Verify ToolReturnPart was added to history before second attempt
+        # The dangling tool call was closed before the retry.
         second_call_history = mock_run_agent.call_args_list[1].kwargs.get(
             "message_history", []
         )
@@ -97,17 +89,10 @@ async def test_llm_task_retry_logic():
 
 @pytest.mark.asyncio
 async def test_llm_task_retry_preserves_attachments_multimodal():
-    """Test that attachments are preserved on retry when user message has multimodal content.
-
-    This tests the fix for:
-    - Bug 1: Attachments being discarded on retry (returning None)
-    - Bug 2: String comparison failing for multimodal content (list vs string)
-    """
-    # Setup
+    """A retry keeps the attachments and detects the multimodal user turn."""
     shared_ctx = SharedContext()
     session = Session(shared_ctx=shared_ctx, state_logger=MagicMock())
 
-    # Mock history manager
     mock_history_manager = MagicMock()
     stored_history = []
 
@@ -121,22 +106,18 @@ async def test_llm_task_retry_preserves_attachments_multimodal():
     mock_history_manager.load.side_effect = load_side_effect
     mock_history_manager.update.side_effect = update_side_effect
 
-    # Create a mock BinaryContent attachment
     mock_attachment = BinaryContent(data=b"fake_image_data", media_type="image/png")
     attachments: list[UserContent] = [mock_attachment]
 
-    # IMPORTANT: Pass attachment via task's attachment parameter (like LLMChatTask does)
     task = LLMTask(
         name="test-task",
         message="What's in this image?",
         retries=1,
         history_manager=mock_history_manager,
-        attachment=attachments,  # Pass attachments via task parameter
+        attachment=attachments,
     )
 
     with patch("zrb.llm.task.llm_task.run_agent") as mock_run_agent:
-        # First attempt fails - history contains multimodal UserPromptPart
-        # (content is a list: [text, BinaryContent])
         failed_history = [
             ModelRequest(
                 parts=[
@@ -161,37 +142,25 @@ async def test_llm_task_retry_preserves_attachments_multimodal():
             ),
         ]
 
-        # Execute publicly
         await task.exec(session)
 
-        # Verify run_agent was called twice
         assert mock_run_agent.call_count == 2
 
-        # CRITICAL: Verify attachments are preserved on retry (Bug 1 fix)
         second_call_kwargs = mock_run_agent.call_args_list[1].kwargs
         retry_attachments = second_call_kwargs.get("attachments", None)
 
-        # Attachments should NOT be None on retry
-        assert (
-            retry_attachments is not None
-        ), "Attachments were discarded on retry - Bug 1 NOT FIXED"
+        assert retry_attachments is not None, "Attachments were discarded on retry"
         assert (
             retry_attachments == attachments
         ), f"Expected attachments {attachments}, got {retry_attachments}"
 
-        # Verify retry message is sent (not original message)
         retry_message = second_call_kwargs.get("message", "")
         assert "[SYSTEM] This is retry attempt 2" in retry_message
 
 
 @pytest.mark.asyncio
 async def test_llm_task_detects_multimodal_content_in_history():
-    """Test that multimodal content in history is properly detected for retry comparison.
-
-    This tests Bug 2: String comparison failing because part.content is a list,
-    not a string, when multimodal content is present.
-    """
-    # Setup
+    """A user turn whose content is a list (text + binary) still matches on retry."""
     shared_ctx = SharedContext()
     session = Session(shared_ctx=shared_ctx, state_logger=MagicMock())
 
@@ -220,7 +189,6 @@ async def test_llm_task_detects_multimodal_content_in_history():
     )
 
     with patch("zrb.llm.task.llm_task.run_agent") as mock_run_agent:
-        # History contains multimodal UserPromptPart (content is a LIST, not string)
         failed_history = [
             ModelRequest(
                 parts=[UserPromptPart(content=[user_message, mock_attachment])]
@@ -241,26 +209,17 @@ async def test_llm_task_detects_multimodal_content_in_history():
 
         await task.exec(session)
 
-        # Verify second call detected the user message in multimodal history
         second_call_kwargs = mock_run_agent.call_args_list[1].kwargs
         retry_message = second_call_kwargs.get("message", "")
 
-        # If Bug 2 is not fixed, it would send original message instead of retry notice
-        # because str(["Analyze this", BinaryContent]) != "Analyze this"
         assert (
             "[SYSTEM] This is retry attempt 2" in retry_message
-        ), "Multimodal content not detected in history - Bug 2 NOT FIXED"
+        ), "Multimodal content not detected in history"
 
 
 @pytest.mark.asyncio
 async def test_a_permanent_error_is_not_retried_even_with_retries_allowed():
-    """`LLMTask` defaults `retry_if` to `retry_unless_permanent`.
-
-    A missing API key or an unknown model cannot succeed on attempt two, so
-    burning the retry budget on it only delays the error. `retry_if` is a
-    parameter forwarded to `BaseTask`, and this default is applied on the way
-    in — the one place a forwarded keyword can be given a different default.
-    """
+    """`LLMTask` defaults `retry_if` to `retry_unless_permanent`."""
     # Arrange
     from unittest.mock import AsyncMock
 

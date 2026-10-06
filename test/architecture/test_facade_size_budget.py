@@ -61,7 +61,9 @@ FACADE_BUDGETS = {
     # at 1360 + 4 + 10 (PR #563 meeting PR #562 after #562 reached main).
     # +14 (1374->1388): current working-period timer state and transitions,
     # replacing the session-uptime timer for the status bar.
-    "llm/ui/base/ui.py": 1388,
+    # -178 (1388->1210): the slop sweep compressed docstrings/comments and
+    # dropped dead private helpers; no public surface was removed.
+    "llm/ui/base/ui.py": 1210,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

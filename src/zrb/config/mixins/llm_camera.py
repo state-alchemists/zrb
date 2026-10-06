@@ -1,8 +1,4 @@
-"""Camera config mixin: the `/photo` command of `enable_camera`.
-
-Read when a chat session starts, not at import, so `zrb_init.py` may change
-any of these after importing zrb.
-"""
+"""Camera config for the `/photo` command."""
 
 from __future__ import annotations
 

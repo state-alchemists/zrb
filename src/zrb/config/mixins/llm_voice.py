@@ -1,13 +1,4 @@
-"""Voice preset: one setting for the usual ways of talking with zrb.
-
-Speech and dictation have about eighty settings between them, and three of
-them decide how a session feels: whether replies are read aloud
-(`LLM_SPEECH_ENABLED`), whether the microphone stays open
-(`LLM_DICTATION_MODE`), and whether you may talk over zrb
-(`LLM_DICTATION_BARGE_IN_ENABLED`). `LLM_VOICE` sets those three together.
-It only moves their defaults: any of the three set on its own still wins, so
-a preset never overrides a choice the user made.
-"""
+"""Preset defaults for speech, dictation mode, and dictation barge-in."""
 
 from __future__ import annotations
 

@@ -1,17 +1,8 @@
 """The narrow UI contract that non-UI code is allowed to depend on.
 
-`BaseUI`'s public surface is large; `zrb.llm.tool_call` needs the three
-methods below. Typing a parameter as `AnyAgentOutput` instead of `AnyUI` is
-what keeps the dependency that narrow: pyright fails the build when a consumer
-reaches for a method this protocol does not name.
-
-Adding a member here is a design decision, not a convenience. The architecture
-ratchet in `test/architecture/test_agent_output_surface.py` caps the size.
-
-Mirrors the pattern in `zrb.llm.agent.activity.HasActivityTracking`, but named
-`Any<Thing>` rather than `Has<Thing>` since it is used as a parameter/slot
-type throughout `zrb.llm.tool_call` (R9), not just an `isinstance` capability
-probe.
+`zrb.llm.tool_call` types its UI parameters as this instead of `AnyUI`, so
+pyright rejects reaching past these three methods. Size capped by
+`test/architecture/test_agent_output_surface.py`.
 """
 
 from __future__ import annotations

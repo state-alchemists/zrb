@@ -20,8 +20,7 @@ from zrb.context.any_shared_context import AnySharedContext
 class Tpl:
     """A template string rendered against the context when resolved.
 
-    `Tpl` is callable, so it resolves through `get_attr`'s `callable(attr)`
-    branch like any other deferred attribute.
+    Callable, so `get_attr` resolves it like any other deferred attribute.
     """
 
     def __init__(self, template: str):

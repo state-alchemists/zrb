@@ -1,10 +1,6 @@
-"""LLM sandbox: filesystem containment for LLM-initiated tool calls.
+"""LLM tool sandbox configuration.
 
-The sandbox is **off by default** (see the default-off invariant in
-``zrb.llm.permission``). When enabled it constrains LLM tool calls in two
-layers: a Python-level filesystem gate for in-process file tools, and an
-OS-level wrapper (Seatbelt on macOS, bubblewrap on Linux) for shell commands.
-See ``zrb.llm.sandbox`` and docs/llm/sandbox.md.
+It gates in-process file tools and wraps shell commands when enabled.
 """
 
 from __future__ import annotations
@@ -12,10 +8,7 @@ from __future__ import annotations
 from zrb.config.env_field import EnvField, expanduser_path_list, on_off, path_list_join
 from zrb.util.string.conversion import to_boolean
 
-# Directories that commonly hold credentials. Defined here (config is a leaf
-# layer) so both the EnvField default and zrb.llm.sandbox can share one source
-# of truth. Entries that don't exist on a machine are silently skipped at
-# resolve time, so platform-specific paths are harmless cross-platform.
+# Shared by the config default and sandbox resolver; missing paths are skipped.
 DEFAULT_LLM_SANDBOX_DENY_READ_PATHS: tuple[str, ...] = (
     "~/.ssh",
     "~/.aws",

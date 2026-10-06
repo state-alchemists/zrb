@@ -246,10 +246,7 @@ def test_content_transformer_transform_file_keeps_bare_string_literal():
 
 
 def test_transform_file_resolves_every_replacement_shape():
-    """Each replacement resolves independently: bare string literal, `Tpl`
-    rendered, callable called. A callable returning `None` coerces to `""` —
-    it used to reach `str.replace` directly and raise `TypeError`.
-    """
+    """Each replacement shape resolves independently; `None` becomes `""`."""
     ctx = MagicMock(spec=AnyContext)
     ctx.render.side_effect = lambda t: "rendered" if t == "{ctx.input.x}" else t
 

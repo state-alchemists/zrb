@@ -1,10 +1,4 @@
-"""Singleton manager that owns running LSP server processes.
-
-Composition: lifecycle (start/stop, project-root detection) and queries
-(definition, references, diagnostics, …) live in composed collaborators,
-`self._lifecycle` and `self._query`. This class owns the singleton instance
-and re-exposes both collaborators' public methods.
-"""
+"""Singleton manager that owns running LSP server processes."""
 
 from __future__ import annotations
 
@@ -18,16 +12,7 @@ from zrb.llm.lsp.server import LSPServer, LSPServerConfig
 
 
 class LSPManager:
-    """
-    Singleton manager for LSP server instances.
-
-    Features:
-    - Lazy start (only start server when needed)
-    - Auto-detect available LSP servers
-    - One server instance per language per project root
-    - Symbol-based API (more LLM-friendly than position-based)
-    - ``register_lsp_server()`` for user-extensible configs
-    """
+    """Singleton manager for LSP servers: lazily started, one per language per project root."""
 
     _instance: "LSPManager | None" = None
     _lifecycle: LSPManagerLifecycle
@@ -44,12 +29,8 @@ class LSPManager:
 
     @classmethod
     def reset_singleton(cls) -> None:
-        """Drop the cached singleton so the next `LSPManager()` call builds a
-        fresh instance. Test-isolation seam — production code never needs
-        more than one manager for the process lifetime."""
+        """Drop the cached singleton so the next `LSPManager()` builds a fresh one (tests)."""
         cls._instance = None
-
-    # --- Lifecycle delegators ----------------------------------------------
 
     @property
     def lock(self) -> asyncio.Lock:
@@ -79,8 +60,6 @@ class LSPManager:
     def force_kill_all(self) -> None:
         """Synchronously SIGKILL any running LSP server processes (atexit backstop)."""
         self._lifecycle.force_kill_all()
-
-    # --- Query delegators ----------------------------------------------------
 
     async def find_definition(
         self, symbol_name: str, file_path: str, symbol_kind: str | None = None
@@ -139,34 +118,25 @@ class LSPManager:
         return await self._query.find_symbol_position(file_path, symbol_name)
 
     def register_lsp_server(self, name: str, config: LSPServerConfig) -> None:
-        """Register a user LSP server configuration.
+        """Register a user LSP server configuration, e.g. from ``zrb_init.py``::
 
-        Users call this from ``zrb_init.py`` to add support for languages
-        not in the built-in table::
+        from zrb.llm.lsp.configs import LSPServerConfig
+        from zrb.llm.lsp.manager import lsp_manager
 
-            from zrb.llm.lsp.configs import LSPServerConfig
-            from zrb.llm.lsp.manager import lsp_manager
-
-            lsp_manager.register_lsp_server(
-                "my-lang-lsp",
-                LSPServerConfig(
-                    name="my-lang-lsp",
-                    command=["my-lsp-server", "--stdio"],
-                    language_ids=["mylang"],
-                    file_extensions=[".my"],
-                ),
-            )
-
-        Args:
-            name: Unique key for this server (used for lookups / preferred lists)
-            config: The server configuration
+        lsp_manager.register_lsp_server(
+            "my-lang-lsp",
+            LSPServerConfig(
+                name="my-lang-lsp",
+                command=["my-lsp-server", "--stdio"],
+                language_ids=["mylang"],
+                file_extensions=[".my"],
+            ),
+        )
         """
         lsp_server_configs.register(name, config)
 
 
 lsp_manager = LSPManager()
 
-# Nothing else tears language-server subprocesses down at process exit, and by
-# then the owning event loop may be closed so the async ``shutdown_all`` cannot
-# run. Force-kill survivors synchronously so they are not orphaned.
+# The owning loop may be closed at exit, so async shutdown_all cannot run.
 atexit.register(lsp_manager.force_kill_all)

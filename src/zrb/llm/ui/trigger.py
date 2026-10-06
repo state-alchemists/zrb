@@ -7,10 +7,7 @@ with attachments, so an external source can hand the agent a photo, a PDF or a
 file path the way `/photo` and `/attach` do. Yielding a `TriggerReply` answers
 the tool approval or question the user is being asked, if there is one.
 
-`attachments` must be a sequence; `None` reads as none, matching the default
-below. A tuple of any other length, or a bare string where the sequence
-belongs, is reported against that item and the trigger carries on with the
-next one.
+A malformed item is reported and the trigger carries on with the next one.
 """
 
 from __future__ import annotations
@@ -27,11 +24,8 @@ if TYPE_CHECKING:
 class TriggerMessage(NamedTuple):
     """A trigger item carrying attachments alongside its text.
 
-    `attachments` accepts whatever `/attach` accepts: a file path — resolved,
-    size-checked, PDF-extracted and image-scaled when the turn is submitted —
-    or an already-built `BinaryContent`. An item with neither text nor
-    attachments is skipped, so a trigger can yield `TriggerMessage()` for
-    "nothing happened".
+    `attachments` accepts whatever `/attach` accepts: a file path or a
+    `BinaryContent`. An item with neither text nor attachments is skipped.
     """
 
     text: str = ""

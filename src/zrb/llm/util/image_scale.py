@@ -1,12 +1,8 @@
 """Downscale image bytes before they enter the multimodal payload.
 
-The default cap of 1568px on the longest edge matches Anthropic's
-no-extra-cost tier; OpenAI and Google bill by either tile or longest-edge,
-so the same cap is a sensible token-saver across providers. JPEG re-encode
-applies to opaque images only — anything with an alpha channel keeps PNG.
-
-Pillow is an optional dependency: if it is missing, callers receive the
-original bytes back so the rest of the attachment pipeline keeps working.
+The default 1568px longest-edge cap matches Anthropic's no-extra-cost tier.
+Opaque images re-encode as JPEG; alpha keeps PNG. Without Pillow the original
+bytes pass through.
 """
 
 from __future__ import annotations
@@ -38,17 +34,14 @@ def scale_image_bytes(
 ) -> ScaleResult:
     """Resize *data* to fit within `max_dimension` on its longest side.
 
-    Returns the original bytes unchanged when:
-    - Pillow is not installed,
-    - the image already fits the cap, or
-    - decoding fails (we never want a scaling error to drop the attachment).
+    Returns the original bytes when Pillow is missing, the image already fits,
+    or decoding fails.
     """
     original_size = len(data)
     cap, quality = _resolve_limits(max_dimension, jpeg_quality)
 
     try:
-        # lazy: Pillow is an optional extras-marked dep; absence must
-        # gracefully degrade to "no scaling" rather than fail import.
+        # lazy: heavy third-party — Pillow is optional; absence means no scaling.
         from PIL import Image
     except ImportError:
         return ScaleResult(
@@ -103,8 +96,7 @@ def scale_image_bytes(
     img.save(buf, format=target_format, **save_kwargs)
     new_data = buf.getvalue()
 
-    # Pathological case: the re-encode is bigger than the source (rare but
-    # possible for already-tiny PNGs). Keep whichever is smaller.
+    # A re-encode can grow an already-tiny PNG; keep the smaller.
     if len(new_data) >= original_size and not needs_resize:
         return ScaleResult(
             data=data,

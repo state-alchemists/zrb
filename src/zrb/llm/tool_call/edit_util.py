@@ -19,16 +19,7 @@ async def edit_content_via_editor(
     content: dict,
     text_editor: str | None = None,
 ) -> dict | None:
-    """Open content in a text editor and return edited content.
-
-    Args:
-        ui: The UI protocol for running interactive commands.
-        content: The content to edit (will be displayed as YAML).
-        text_editor: The editor to use (defaults to CFG.EDITOR).
-
-    Returns:
-        The edited content as a dict, or None if editing failed/cancelled.
-    """
+    """Edit *content* as YAML (JSON fallback) in an editor; `None` if the result is not a dict."""
     editor = text_editor or CFG.EDITOR
 
     is_yaml_edit = True
@@ -36,7 +27,6 @@ async def edit_content_via_editor(
         content_str = yaml_dump(content)
         extension = ".yaml"
     except Exception:
-        # Fallback to JSON
         content_str = json.dumps(content, indent=2)
         extension = ".json"
         is_yaml_edit = False
@@ -58,7 +48,7 @@ async def edit_content_via_editor(
             pass
 
     if new_content_str == content_str:
-        return content  # Return original content unchanged
+        return content
 
     try:
         if is_yaml_edit:

@@ -24,7 +24,7 @@ def session(mock_print):
 
 @pytest.fixture
 def mock_git_commit_upstream():
-    """Mocks the git operations performed by the upstream git-commit task."""
+    """Mock upstream git commit operations."""
     with (
         mock.patch(
             "zrb.builtin.git.add",

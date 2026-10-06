@@ -17,12 +17,7 @@ _PROCESS_STOP_POLL_SECONDS = 0.05
 
 
 def _background_sleep_command(pid_path: str) -> str:
-    """Start a long-lived child that records its own pid before sleeping.
-
-    The pid is written atomically — temp file then ``os.replace`` — so a
-    shutdown that kills the tree mid-write can never leave a truncated or
-    empty pid file behind for the assertion helper to misread.
-    """
+    'Start a long-lived child that records its own pid before sleeping.'
     script = (
         "import os, time, tempfile; "
         f"_d = os.path.dirname({pid_path!r}); "
@@ -34,7 +29,7 @@ def _background_sleep_command(pid_path: str) -> str:
 
 
 def _process_is_live(pid: int) -> bool:
-    """Whether *pid* exists and is not a zombie awaiting reaping."""
+    'Whether *pid* exists and is not a zombie awaiting reaping.'
     result = subprocess.run(
         ["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True
     )
@@ -42,16 +37,16 @@ def _process_is_live(pid: int) -> bool:
 
 
 async def _assert_recorded_process_stops(pid_path: str) -> None:
-    """A background child must not remain runnable after manager shutdown."""
+    'A background child must not remain runnable after manager shutdown.'
     attempts = int(_PROCESS_STOP_TIMEOUT_SECONDS / _PROCESS_STOP_POLL_SECONDS)
     pid: int | None = None
     for _ in range(attempts):
         if os.path.exists(pid_path):
             with open(pid_path) as file:
                 recorded = file.read().strip()
-            # The child writes its pid atomically (temp file + os.replace), so
-            # a present file holds the full pid; the empty-check is cheap
-            # defence-in-depth, not a substitute for that atomicity.
+
+
+
             if recorded:
                 pid = int(recorded)
                 if not _process_is_live(pid):
@@ -63,7 +58,7 @@ async def _assert_recorded_process_stops(pid_path: str) -> None:
 
 
 def test_get_plugin_root_for_path_matches_builtin_plugin(monkeypatch):
-    """A hook file under the built-in llm_plugin/ reports it as the plugin root."""
+    'A hook file under the built-in llm_plugin/ reports it as the plugin root.'
     from zrb.llm.hook import hook_loader
 
     monkeypatch.setattr(hook_loader.CFG, "LLM_PLUGIN_DIRS", [])
@@ -89,13 +84,7 @@ def test_get_plugin_root_for_path_returns_none_outside_any_plugin_dir(
 
 @pytest.mark.asyncio
 async def test_shutdown_cancels_background_hooks_and_kills_their_subprocesses():
-    """A detached async hook must not outlive the session that spawned it.
-
-    Its subprocess runs in its own session/process group (needed so a timeout can
-    kill the whole tree), which means the terminal's Ctrl+C SIGINT never reaches
-    it. shutdown() cancels the task so the command hook's cancellation handler
-    kills the tree; the sentinel proves nothing survived to do its work.
-    """
+    'A detached async hook must not outlive the session that spawned it.'
     import os
     import tempfile
 
@@ -108,8 +97,8 @@ async def test_shutdown_cancels_background_hooks_and_kills_their_subprocesses():
                 "events": ["Stop"],
                 "type": "command",
                 "async": True,
-                # The recorded child is a grandchild of the shell, so a
-                # parent-only kill would leave it runnable.
+
+
                 "config": {
                     "command": _background_sleep_command(pid_path),
                     "shell": True,
@@ -132,7 +121,7 @@ async def test_shutdown_is_a_noop_when_nothing_is_pending():
     manager = HookManager(search_dirs=[])
     await manager.shutdown()
     assert not manager.has_pending_background_hooks
-    await manager.shutdown()  # idempotent
+    await manager.shutdown()
 
 
 @pytest.mark.skipif(
@@ -141,12 +130,7 @@ async def test_shutdown_is_a_noop_when_nothing_is_pending():
 )
 @pytest.mark.asyncio
 async def test_shutdown_drain_lets_a_quick_hook_finish_first():
-    """`drain=True` is the per-run shape: finish, then cancel the stragglers.
-
-    A non-interactive run tears its manager down moments after dispatching a
-    Stop-event hook, so cancel-first would effectively disable async hooks for
-    every one-shot caller.
-    """
+    '`drain=True` is the per-run shape: finish, then cancel the stragglers.'
     import os
     import tempfile
 
@@ -203,11 +187,7 @@ async def test_shutdown_drain_still_cancels_a_hook_that_overruns_the_grace():
 
 @pytest.mark.asyncio
 async def test_shutdown_drain_extends_for_an_agent_hooks_own_timeout():
-    """An agent-type hook doing a real LLM round-trip legitimately needs
-    longer than the flat default grace period. Its own `timeout` (not the
-    caller's `grace_seconds`) should be what actually bounds the wait, so a
-    one-shot CLI process's teardown doesn't kill it moments after dispatch —
-    this is the exact bug behind a real judge hook never getting to run."""
+    'An agent-type hook doing a real LLM round-trip legitimately needs'
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -239,9 +219,9 @@ async def test_shutdown_drain_extends_for_an_agent_hooks_own_timeout():
     ):
         mock_resolve_model.return_value = "resolved"
         await manager.execute_hooks(HookEvent.STOP, {})
-        # A short caller-supplied grace_seconds would normally cut this off
-        # before the 0.4s sleep finishes — only the hook's own 5s `timeout`
-        # should let it run to completion.
+
+
+
         await manager.shutdown(grace_seconds=0.1, drain=True)
 
     assert completed, "agent hook was cancelled before its own timeout elapsed"
@@ -249,20 +229,7 @@ async def test_shutdown_drain_extends_for_an_agent_hooks_own_timeout():
 
 @pytest.mark.asyncio
 async def test_per_run_hook_managers_are_isolated_from_the_developers_real_hooks():
-    """Guard for the `_disable_real_filesystem_hooks` fixture in test/conftest.py.
-
-    `_create_llm_task_core` builds a bare `HookManager()` per chat run, and a
-    bare manager resolves its own search dirs — on a developer machine that
-    means `~/.claude/settings.json`, i.e. peon-ping. Those async hooks spawn
-    `peon.sh`; with no audio device (CI/WSL) the subprocesses linger and hang
-    asyncio's subprocess-transport teardown when the per-test loop closes,
-    making the suite crawl. The fixture used to pin only the module-level
-    singleton, which left every per-run manager loading them for real.
-
-    Asserted through `execute_hooks` rather than the search-dir list: dirs are
-    still computed, the fixture stops them being *scanned*, and "no hook fires"
-    is the property that actually matters.
-    """
+    'Guard for the `_disable_real_filesystem_hooks` fixture in test/conftest.py.'
     import zrb.llm.task.building as llm_task_building
     import zrb.llm.task.chat.execution as chat_execution
 

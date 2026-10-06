@@ -1,10 +1,4 @@
-"""Shell and platform detection: which shell `CFG.SHELL` resolves to on each
-platform, the Windows POSIX-shell lookup behind it, and the Termux/WSL probes.
-
-Split out of `test_config_foundation.py` (AGENTS.md -> Test Guidelines: split
-by feature group past 500 lines); the rest of that file covers the config
-object itself.
-"""
+"""Tests for shell selection and platform detection."""
 
 from unittest import mock
 
@@ -32,14 +26,7 @@ def _which(*present):
 
 
 def _no_posix_shell():
-    """Stand in for a Windows box with no POSIX shell installed.
-
-    `get_windows_posix_shell` probes the filesystem for the standard Git
-    install roots, so stubbing `shutil.which` alone does not isolate these --
-    on any Windows machine that actually has Git, the real bash won. It is
-    patched by name; the ordering it participates in is what these cover, and
-    the lookup itself is covered further down.
-    """
+    """Patch the POSIX-shell lookup to return no shell."""
     return mock.patch("zrb.config.helper.get_windows_posix_shell", return_value="")
 
 
@@ -69,14 +56,7 @@ def test_default_shell_windows_prefers_pwsh(mock_platform_system, monkeypatch):
 def test_default_shell_windows_prefers_bash_over_powershell(
     mock_platform_system, monkeypatch
 ):
-    """Git Bash (ships on GitHub's windows-latest runner, and a common dev
-    install) wins over PowerShell -- most zrb shell commands are POSIX syntax,
-    so a POSIX shell is the better default.
-
-    Its *absolute path* is what comes back, not the name: PATH's own first
-    `bash` on Windows is `System32\\bash.exe`, the WSL launcher, so the name
-    alone would not name this shell when it is handed to a subprocess.
-    """
+    """Prefer Git Bash's absolute path over PowerShell."""
     monkeypatch.delenv("ZRB_SHELL", raising=False)
     git_bash = "C:\\Program Files\\Git\\bin\\bash.exe"
     with (
@@ -96,8 +76,7 @@ def test_default_shell_windows_falls_back_to_cmd(mock_platform_system, monkeypat
 
 @mock.patch("platform.system", return_value="Windows")
 def test_windows_posix_shell_found_next_to_git(mock_platform_system):
-    """Git's own prefix is the first place to look -- it finds an install
-    wherever the user put it, not just under Program Files."""
+    """Find Git Bash beside the Git executable."""
     git_bash = "C:\\tools\\Git\\bin\\bash.exe"
     with (
         mock.patch(
@@ -110,9 +89,7 @@ def test_windows_posix_shell_found_next_to_git(mock_platform_system):
 
 @mock.patch("platform.system", return_value="Windows")
 def test_windows_posix_shell_rejects_the_wsl_launcher(mock_platform_system):
-    """`System32\\bash.exe` is the WSL launcher, not a shell: with no distro
-    installed every command through it fails while still printing output. A
-    PATH hit there is no hit at all."""
+    """Reject the WSL launcher as a POSIX shell."""
     with (
         mock.patch("os.path.isfile", return_value=False),
         mock.patch(
@@ -143,12 +120,7 @@ def test_windows_posix_shell_accepts_a_bash_outside_the_windows_dir(
 
 @mock.patch("platform.system", return_value="Linux")
 def test_windows_posix_shell_is_empty_off_windows(mock_platform_system):
-    """Nothing to disambiguate anywhere else: `bash` means bash.
-
-    The platform is stated rather than inherited from the host -- read from the
-    host, this asserted nothing on every machine but a Windows one, which is
-    the only machine the answer could be wrong on.
-    """
+    """Return no Windows-specific shell off Windows."""
     assert get_windows_posix_shell() == ""
 
 

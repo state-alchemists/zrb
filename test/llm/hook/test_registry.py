@@ -1,11 +1,4 @@
-"""Tests for the `HookRegistry` split-out (ADR-0090).
-
-A registry is the canonical hook collection: it stores event-keyed and global
-hooks plus their config bookkeeping, and answers queries. It does not scan the
-filesystem or run hooks — that is `HookManager`'s job. Tests drive the registry
-through a manager that shares it (the public boundary), mirroring how
-`zrb_init.py` and the module singleton wire up.
-"""
+'Tests for the `HookRegistry` split-out (ADR-0090).'
 
 import pytest
 
@@ -44,9 +37,9 @@ def _config(event: HookEvent, priority: int = 0) -> HookConfig:
     )
 
 
-# ---------------------------------------------------------------------------
-# Construction
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_registry_constructed_empty(registry):
@@ -65,9 +58,9 @@ def test_singleton_is_hook_registry():
     assert isinstance(hook_registry, HookRegistry)
 
 
-# ---------------------------------------------------------------------------
-# register / get_hooks / get_global_hooks
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_register_event_hook(manager, registry):
@@ -110,9 +103,9 @@ def test_record_config_for_debugging(registry):
     assert registry.get_configs()["cfg"] is config
 
 
-# ---------------------------------------------------------------------------
-# remove_hook / remove_event_hooks
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_remove_hook_drops_everywhere(manager, registry):
@@ -145,9 +138,9 @@ def test_remove_hook_unknown_is_noop(manager):
     manager.remove_hook(_hook())
 
 
-# ---------------------------------------------------------------------------
-# set_hooks (per-event replacement, ADR-0090 Part 4)
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_set_hooks_replaces_event(manager, registry):
@@ -183,22 +176,22 @@ def test_remove_event_hooks_prunes_stale_configs(manager, registry):
     assert registry.get_hook_config(hook) is None
 
 
-# ---------------------------------------------------------------------------
-# reload keeps a fresh registry view; manager reload clears then rescans
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_reload_clears_registered_hooks(manager, registry):
     hook = _hook()
     manager.add_hook(hook, events=[HookEvent.NOTIFICATION])
     manager.reload()
-    # reload rescans nothing (search_dirs=[]) so the registry is empty
+
     assert registry.get_hooks(HookEvent.NOTIFICATION) == []
 
 
-# ---------------------------------------------------------------------------
-# LLM_HOOKS twin
-# ---------------------------------------------------------------------------
+
+
+
 
 
 def test_llm_hooks_allowlist_filters_event_and_global(registry, monkeypatch):

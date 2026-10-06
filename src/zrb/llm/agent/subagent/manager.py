@@ -35,26 +35,15 @@ class SubAgentManager:
         registry: SubAgentRegistry | None = None,
     ):
         # Lightweight: just assign properties, no heavy operations
-        """Discover sub-agent definitions and build agents from them.
-
-        Decomposed: the manager owns discovery (`scan`, `search_dirs`) and
-        agent construction, and composes a `SubAgentRegistry` for the
-        canonical definition collection. All definition query and mutation
-        methods delegate to the registry, so a manual `add_agent`/`set_agents`
-        survives a later scan.
+        """Discover sub-agents and build agents from their definitions.
 
         Args:
-            tool_registry: Tools available to sub-agents, by name. Defaults to
-                the shared common-tool registry.
-            scan_root: Directory the project-level search starts from, and the
-                recursive scan target.
-            search_dirs: Explicit directories to scan, replacing the defaults
-                derived from `scan_root`.
-            max_depth: How many directory levels below each search directory to
-                descend.
-            ignore_dirs: Directory names skipped while scanning.
-            registry: The canonical `SubAgentRegistry` of definitions to read
-                and write. A fresh registry is created when `None`.
+            tool_registry: Tools available to sub-agents.
+            scan_root: Project-level scan root.
+            search_dirs: Explicit scan directories.
+            max_depth: Maximum scan depth.
+            ignore_dirs: Directory names to skip.
+            registry: Definition registry; created when omitted.
         """
         self._registry = registry if registry is not None else SubAgentRegistry()
         self._tool_registry = tool_registry if tool_registry is not None else {}

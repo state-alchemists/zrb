@@ -1,13 +1,8 @@
 """History sanitization applied before every model call.
 
-Several providers (DeepSeek, Bedrock, Ollama, …) reject histories that they
-themselves produced one turn earlier — `content: null`, missing
-`reasoning_content`, orphaned tool-call/return pairs after compression, etc.
-`sanitize_history()` is the four-step defensive layer Zrb applies before
-each `converse_stream` call to neutralise those provider-side inconsistencies.
-
-For the full failure catalogue and the rationale behind each step, see
-docs/technical-specs/llm-history-sanitization.md.
+Several providers reject histories they produced a turn earlier (`content:
+null`, missing `reasoning_content`, orphaned tool pairs). The failure
+catalogue is in docs/technical-specs/llm-history-sanitization.md.
 """
 
 from __future__ import annotations
@@ -39,13 +34,8 @@ _TOOL_RESULT_MAX_CHARS = 500
 class TurnPruneFloor(IntEnum):
     """How many oldest turns `drop_oldest_turn` refuses to remove.
 
-    `ANY_TURN_MAY_DROP` — no in-flight deferred tool call; free to prune down
-    to nothing if that's what it takes.
-
-    `KEEP_DEFERRED_TURN` — a deferred tool call is pending re-execution (see
-    `TurnCursor.prune_floor` in `turn_cursor.py`); dropping its turn would
-    make the retry re-run an already-approved, possibly side-effecting tool.
-    Never go below 1 while this holds.
+    `KEEP_DEFERRED_TURN` protects a turn holding an approved deferred tool
+    call: dropping it would make the retry re-run a side-effecting tool.
     """
 
     ANY_TURN_MAY_DROP = 0
@@ -56,11 +46,7 @@ def drop_oldest_turn(
     history: list[Any],
     min_turns: "TurnPruneFloor | int" = TurnPruneFloor.ANY_TURN_MAY_DROP,
 ) -> list[Any]:
-    """Removes the oldest conversation turn from history.
-
-    If `min_turns` is specified, it will not drop turns if it would result in
-    fewer than `min_turns` remaining.
-    """
+    """Remove the oldest turn, unless at most `min_turns` remain."""
     if not history:
         return history
 
@@ -83,10 +69,8 @@ def drop_oldest_turn(
 def strip_thinking_parts(messages: list[Any]) -> list[Any]:
     """Strip ThinkingParts from all ModelResponse messages.
 
-    Used when a provider rejects history because reasoning_content is present
-    in an assistant message that had tool calls but the content was dropped.
-    Stripping ThinkingParts prevents pydantic-ai from sending reasoning_content
-    at all, which is accepted by all providers.
+    For providers that reject a stray `reasoning_content`; without
+    ThinkingParts pydantic-ai sends none.
     """
     from pydantic_ai.messages import (  # lazy: heavy third-party
         ModelResponse,
@@ -113,28 +97,13 @@ def sanitize_history(
     messages: list[Any],
     allow_orphaned_tool_calls: bool = False,
 ) -> list[Any]:
-    """Comprehensive history sanitization applied before every model call.
+    """Apply `_SANITIZE_STEPS` in order before a model call.
 
-    Applies the steps in `_SANITIZE_STEPS` (defined below, next to
-    `filter_nil_content`) in order — each step's output must be valid input
-    for the next (see each step's own docstring for why). That fixed order
-    lives in the tuple, not in this function's statements, so reordering the
-    pipeline is a visible edit to a data structure rather than an invisible
-    statement reorder. `sanitize_orphaned_tool_calls` is skipped when
-    `allow_orphaned_tool_calls=True` (i.e. when `deferred_tool_results` is
-    set: `ToolCallPart`s in history legitimately have no matching return in
-    that path). Both remaining steps already drop messages left with no
-    parts, so there is no separate empty-message pass.
-
-    Violations found before fixing — and any that remain after, which means
-    the pipeline order or a step's contract is wrong — are logged at DEBUG
-    level so the root cause of provider 400 errors can be traced without any
-    production overhead.
+    `allow_orphaned_tool_calls=True` (set when resuming with
+    `deferred_tool_results`) skips `sanitize_orphaned_tool_calls`. Violations
+    before and after are logged at DEBUG only.
     """
     debug = CFG.LOGGER.isEnabledFor(logging.DEBUG)
-    # _detect_problems also calls validate_tool_pair_integrity (relational
-    # walk). Skip the audit entirely when DEBUG logging is off — the fix-up
-    # pipeline below is what actually mutates history.
     if debug:
         for p in _detect_problems(messages):
             CFG.LOGGER.debug(f"sanitize_history [pre-fix]: {p}")
@@ -155,24 +124,14 @@ def sanitize_history(
 
 
 def filter_nil_content(messages: list[Any]) -> list[Any]:
-    """Sanitize message history before sending to any provider.
+    """Replace nil content with placeholders and drop nameless tool calls.
 
-    Fixes applied in one pass:
     - None/empty/whitespace content → "(empty)" (or "null" for ToolReturnPart)
     - ToolCallPart with no tool_name → dropped
-    - ModelResponse with NEITHER text NOR tool calls → TextPart("(tool call)")
-      injected (a tool-call-only response is left text-less — see below)
+    - ModelResponse with neither text nor tool calls → TextPart("(tool call)")
 
-    Bedrock rejects blank text fields, OpenAI rejects null content.
-    The "(empty)" / "(tool call)" forms are self-describing so the model
-    can distinguish a missing payload from a real terse response and
-    avoid imitating a literal "." in its next turn.
-
-    A response that *has* tool calls is valid without any text part — every
-    provider accepts a tool-call-only assistant turn (openai_patch omits the
-    content field for it). We deliberately do NOT inject a placeholder there:
-    a visible "(tool call)" baked into history is something weaker models
-    learn to echo back as literal output text.
+    Bedrock rejects blank text, OpenAI rejects null content. A tool-call-only
+    response gets no placeholder: weaker models learn to echo it as output.
     """
 
     from pydantic_ai.messages import (  # lazy: heavy third-party
@@ -184,9 +143,7 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
     )
 
     def _sanitize(part: Any) -> Any:
-        """Replace bad content with provider-safe placeholder."""
-        # Skip non-dataclasses and dataclasses without a content field
-        # (e.g. NativeToolCallPart, which carries args instead of content).
+        # NativeToolCallPart carries args, not content.
         if not is_dataclass(part) or not hasattr(part, "content"):
             return part
         content = getattr(part, "content", None)
@@ -219,10 +176,6 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
                 if isinstance(part, TextPart):
                     has_text = True
 
-        # Providers reject an assistant turn with no text AND no tool calls.
-        # A tool-call-only turn is fine, so only patch the genuinely-empty case;
-        # injecting "(tool call)" when tool calls exist leaks the placeholder
-        # into history where weaker models imitate it as output.
         if (
             isinstance(msg, ModelResponse)
             and not has_text
@@ -237,10 +190,7 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
     return filtered
 
 
-# The fixed order `sanitize_history` applies its steps in — see that
-# function's docstring. `sanitize_orphaned_tool_calls` is conditionally
-# skipped by identity check, not removed from the tuple, so the order stays
-# a single source of truth regardless of `allow_orphaned_tool_calls`.
+# Each step's output must be valid input for the next.
 _SANITIZE_STEPS: tuple[Callable[[list[Any]], list[Any]], ...] = (
     filter_nil_content,
     sanitize_orphaned_tool_calls,
@@ -249,13 +199,7 @@ _SANITIZE_STEPS: tuple[Callable[[list[Any]], list[Any]], ...] = (
 
 
 def _detect_problems(messages: list[Any]) -> list[str]:
-    """Return a list of invariant violations found in message history.
-
-    Checks semantic invariants that providers enforce but that pydantic-ai's
-    TypeAdapter does not catch (e.g. content=None on a str-typed field, orphaned
-    tool pairs, consecutive same-role messages, text-less ModelResponses).
-    Intended for DEBUG-level logging before sanitize_history runs.
-    """
+    """Invariant violations providers enforce but pydantic-ai does not check."""
     from pydantic_ai.messages import (  # lazy: heavy third-party
         ModelResponse,
         TextPart,
@@ -299,16 +243,10 @@ def _detect_problems(messages: list[Any]) -> list[str]:
 def strip_to_text_only(history: list[Any]) -> list[Any]:
     """Sanitize history for last-resort retry.
 
-    Collapses all structured parts into the plain-text equivalent that is
-    *legal inside its parent message type*.  pydantic-ai's
-    ``_map_user_message`` (in ``models/openai.py``) hits ``assert_never``
-    on anything in a ``ModelRequest`` that isn't ``SystemPromptPart``,
-    ``UserPromptPart``, ``ToolReturnPart``, or ``RetryPromptPart`` — so we
-    can't drop a ``TextPart`` into a user-role message.
-
-    Conversions (all tool-shaped parts collapse to a ``(sanitized-history)``
-    prose label — deliberately not shaped like a callable syntax so the
-    model doesn't pattern-match the label as a way to invoke tools):
+    Collapses structured parts into plain text legal inside the parent
+    message type (pydantic-ai's openai mapper asserts on a ``TextPart`` in a
+    ``ModelRequest``). Tool parts become a ``(sanitized-history)`` prose label,
+    not call syntax, so the model does not imitate it:
 
     ``ModelResponse`` (assistant role):
         ``BaseToolCallPart``      → ``TextPart("(sanitized-history) previously attempted to call tool …")``
@@ -324,10 +262,8 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
         ``UserPromptPart`` / ``SystemPromptPart``/ tool-less ``RetryPromptPart``
                                                  → kept (empty content normalised to ``"(empty)"``)
 
-    Because both sides of every tool call/return pair are converted in
-    sympathy, no ``tool_call_id`` cross-reference survives the strip, so
-    there is nothing to orphan.  Large tool results are truncated to
-    ``_TOOL_RESULT_MAX_CHARS``.
+    Both sides of every tool pair are converted, so nothing is orphaned.
+    Large tool results are truncated to ``_TOOL_RESULT_MAX_CHARS``.
     """
     from pydantic_ai.messages import (  # lazy: heavy third-party
         ModelRequest,
@@ -395,8 +331,7 @@ def _normalize_for_request(part: Any) -> Any:
     if isinstance(part, ToolReturnPart):
         return UserPromptPart(content=_tool_return_to_text(part))
     if isinstance(part, RetryPromptPart) and getattr(part, "tool_name", None):
-        # tool-linked retry behaves like a tool-role message in the API —
-        # collapse it to a user-role text bucket so no tool_call_id survives.
+        # A tool-linked retry maps to a tool-role message; keep no tool_call_id.
         return UserPromptPart(content=_retry_prompt_to_text(part))
     if isinstance(part, (UserPromptPart, SystemPromptPart, RetryPromptPart)):
         return _sanitize_content(part)
@@ -404,13 +339,7 @@ def _normalize_for_request(part: Any) -> Any:
 
 
 def _tool_call_to_text(part: Any) -> str:
-    """Convert a ToolCallPart to a prose label for sanitized history.
-
-    The label is intentionally NOT shaped like a function-call syntax —
-    the model has been observed pattern-matching ``[Tool: name(args)]`` as
-    the "correct" way to invoke a tool after a fallback strip. Prose form
-    removes that crutch.
-    """
+    """Convert a ToolCallPart to a prose label (models imitated ``[Tool: name(args)]``)."""
     from pydantic_ai.messages import ToolCallPart  # lazy: heavy third-party
 
     if not isinstance(part, ToolCallPart):
@@ -425,11 +354,7 @@ def _tool_call_to_text(part: Any) -> str:
 
 
 def _tool_return_to_text(part: Any) -> str:
-    """Convert a BaseToolReturnPart to a prose label for sanitized history.
-
-    Truncates large results to ``_TOOL_RESULT_MAX_CHARS`` to avoid blowing
-    up the context window during a last-resort retry.
-    """
+    """Convert a BaseToolReturnPart to a truncated prose label."""
     from pydantic_ai.messages import BaseToolReturnPart  # lazy: heavy third-party
 
     if not isinstance(part, BaseToolReturnPart):
@@ -484,24 +409,14 @@ def merge_consecutive_messages(current_history, current_message):
     return current_message
 
 
-# Placeholder strings that signal a degenerate completion rather than a real
-# answer: the "(tool call)" history placeholder injected by filter_nil_content,
-# and the bare "(tool call" that weaker models emit when imitating it.
+# The "(tool call)" placeholder, and the "(tool call" weaker models echo.
 _EMPTY_COMPLETION_MARKERS = frozenset(
     {TOOL_CALL_PLACEHOLDER, TOOL_CALL_PLACEHOLDER.rstrip(")")}
 )
 
 
 def is_empty_completion(result_output: Any) -> bool:
-    """True when the model's final text output carries no real content.
-
-    Two degenerate cases seen in production with weak/overloaded models:
-    an empty/whitespace completion (provider returned nothing), and the
-    "(tool call)" placeholder leaking out as the answer (injected into history
-    by filter_nil_content, then echoed by the model). Structured (non-str)
-    outputs and DeferredToolRequests are never "empty" in this sense, so they
-    are excluded by the isinstance check.
-    """
+    """True when a str output is blank or just the "(tool call)" placeholder."""
     if not isinstance(result_output, str):
         return False
     stripped = result_output.strip()
@@ -509,14 +424,10 @@ def is_empty_completion(result_output: Any) -> bool:
 
 
 def close_dangling_tool_calls(history: list[Any], reason: str) -> list[Any]:
-    """Synthesize a `ToolReturnPart` for every unresolved `ToolCallPart`.
+    """Synthesize a `ToolReturnPart` for every unresolved trailing `ToolCallPart`.
 
-    A run interrupted (error, cancellation, hard crash) between a
-    `ModelResponse` carrying tool calls and the `ModelRequest` that would
-    normally carry their results leaves those calls dangling — most
-    providers reject history where a `ToolCallPart` has no matching
-    `ToolReturnPart`. No-op unless the history's last message is a
-    `ModelResponse` with at least one `ToolCallPart`.
+    An interrupted run leaves those calls dangling, which most providers
+    reject. No-op unless the last message is a `ModelResponse` with tool calls.
     """
     # lazy: heavy third-party
     from pydantic_ai.messages import (
@@ -571,14 +482,7 @@ def history_through_deferred_returns(
 
 
 def history_without_trailing_response(run_history: list[Any]) -> list[Any]:
-    """Drop the trailing assistant ModelResponse so it can be regenerated.
-
-    Used when retrying an empty completion: ``result.all_messages()`` ends with
-    the degenerate response, and re-requesting must not feed it back. Works for
-    both the simple-turn case (history then empty response) and the
-    deferred-resume case (history, tool returns, then empty response) — in both
-    the trailing response is dropped while the tool returns stay in history.
-    """
+    """Drop the trailing ModelResponse so an empty completion can be regenerated."""
     from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
 
     if run_history and isinstance(run_history[-1], ModelResponse):

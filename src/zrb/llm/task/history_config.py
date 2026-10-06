@@ -1,8 +1,5 @@
-"""The history knobs `LLMTask` and `LLMChatTask` both expose, grouped so they
-cross the wrap boundary in `chat/execution.py` together.
-
-That boundary builds the inner `LLMTask` with `dataclasses.replace()`, so a new
-field passed through unchanged needs no edit there.
+"""History knobs shared by `LLMTask` and `LLMChatTask`, passed as one unit to the
+inner task in `chat/execution.py` via `dataclasses.replace()`.
 """
 
 from __future__ import annotations

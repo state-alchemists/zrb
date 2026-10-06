@@ -97,8 +97,7 @@ async def test_gate_blocks_edit_outside_writable_roots(tmp_path):
 
     token = current_sandbox_policy.set(_enabled_policy(tmp_path))
     try:
-        # NOTE: tmp_path is inside the always-writable system temp dir, so the
-        # "outside" target must live elsewhere (no write actually happens).
+        # tmp_path is inside the always-writable temp dir; target elsewhere.
         result = await wrapped(path=_outside_path())
     finally:
         current_sandbox_policy.reset(token)
@@ -216,10 +215,7 @@ async def test_gate_blocks_escape_when_disallowed(tmp_path):
 
 @pytest.mark.asyncio
 async def test_gate_checks_exit_worktree_path(tmp_path):
-    """ExitWorktree's `worktree_path` arg is write-checked (ADR-0065): it
-    used to appear in neither the sandbox nor permission salient-key lists,
-    so a sandbox policy could never gate its deletion target.
-    """
+    """ExitWorktree's `worktree_path` arg is write-checked (ADR-0065)."""
     from zrb.llm.agent.common import create_safe_wrapper
 
     def exit_worktree(worktree_path: str = "", keep_branch: bool = False):
@@ -292,16 +288,10 @@ async def test_gate_move_checks_src_and_dst(tmp_path):
 
 
 def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path):
-    """`SafeToolsetWrapper.call_tool` passes `ctx.deps` (the policy `run_agent`
-    resolved once for this run) — it must win over whatever is ambient, not
-    just fall back to it, or the explicit path is dead code. Ambient here
-    would *allow* the path; `ctx.deps` (empty writable_paths) blocks it — the
-    only way `blocked` comes back is if `ctx.deps` was actually consulted.
+    """A `ctx.deps` policy wins over the ambient one.
+
+    Ambient allows the target; only `ctx.deps` blocks it.
     """
-    # tmp_path lives inside the always-writable system temp dir (see
-    # test_gate_blocks_edit_outside_writable_roots's note), so the
-    # discriminating target must be genuinely outside it: allowed only when
-    # the in-force policy's writable_paths names its directory.
     import os
 
     target = _outside_path()
@@ -319,13 +309,7 @@ def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path):
 
 
 def test_gate_falls_back_to_ambient_when_ctx_deps_is_not_a_policy(tmp_path):
-    """A `ctx.deps` that isn't a `SandboxPolicy` (e.g. a mock's auto-vivified
-    attribute, or an agent whose deps carry something unrelated) must not be
-    mistaken for one — the gate falls back to the ambient policy instead.
-    (Were the garbage `deps` used as-is, `policy.enabled` would raise
-    `AttributeError` rather than resolve — so this also fails loudly, not
-    just via a wrong assertion, if the isinstance guard is ever removed.)
-    """
+    """A `ctx.deps` that isn't a `SandboxPolicy` falls back to the ambient policy."""
     (tmp_path / "proj").mkdir()
     ambient = _enabled_policy(tmp_path)  # allows tmp_path/proj
 

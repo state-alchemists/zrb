@@ -88,10 +88,8 @@ async def test_llm_chat_task_forwards_permissions_to_run_agent():
 
 @pytest.mark.asyncio
 async def test_llm_chat_task_judges_an_arg_pattern_rule_with_the_calls_arguments():
-    """The chat path's dynamic yolo must hand the call's arguments to the
-    permission policy. Judged with none, an `arg_pattern` ASK looks like no
-    rule at all, and yolo then auto-approves the very call the rule was written
-    to stop."""
+    """The chat path's dynamic yolo hands the call's arguments to the policy,
+    so an `arg_pattern` ASK is not auto-approved under yolo."""
     from zrb.llm.permission import ASK, PermissionPolicy, Rule
     from zrb.llm.permission.state import permission_policy
 
@@ -122,13 +120,11 @@ async def test_llm_chat_task_judges_an_arg_pattern_rule_with_the_calls_arguments
     decide = captured["yolo"]
     tool_def = MagicMock()
     tool_def.name = "Bash"
-    # `run_agent` is what binds the in-force policy during a real run; it is
-    # patched here, so the policy is scoped explicitly instead.
+    # `run_agent` binds the policy in a real run; it is patched here.
     with permission_policy(policy):
-        # The rule matches this call: a hard ask, not auto-approved — even
-        # though YOLO is on.
+        # The rule matches: a hard ask, even under YOLO.
         assert decide(tool_def, {"command": "rm -rf /tmp/x"}) is False
-        # The pattern does not match, so YOLO covers it, as before.
+        # The pattern does not match, so YOLO covers it.
         assert decide(tool_def, {"command": "ls -la"}) is True
 
 
@@ -219,14 +215,7 @@ async def test_llm_chat_task_forwards_sandbox_to_run_agent():
 
 @pytest.mark.asyncio
 async def test_non_interactive_run_settles_its_background_hooks():
-    """A one-shot run must not leave detached hooks running after it returns.
-
-    Regression: only the interactive path had a teardown, so `zrb llm chat -m
-    "..."` and the web/SSE runner left their `async: true` hooks alive — they sit
-    in their own process group, so nothing else reaps them. Drained rather than
-    cancelled up front: this fires at *run* end, possibly moments after the hook
-    was dispatched.
-    """
+    """A one-shot run drains its detached hooks before returning."""
     from zrb.llm.hook.manager import HookManager
 
     with (
@@ -246,8 +235,7 @@ async def test_non_interactive_run_settles_its_background_hooks():
 
 @pytest.mark.asyncio
 async def test_chat_task_with_no_retries_calls_the_agent_once():
-    """The inner LLMTask used to default to 2 retries of its own, multiplying
-    against the outer chat task's -- so retries=0 still ran the agent 3 times."""
+    """The inner LLMTask does not add retries on top of the chat task's."""
     from pydantic_ai.exceptions import UserError
 
     task = LLMChatTask(name="test-task", interactive=False)
@@ -290,11 +278,7 @@ async def test_permanent_error_is_not_retried_even_when_retries_allowed():
 
 @pytest.mark.asyncio
 async def test_transient_error_still_burns_every_retry():
-    """A 429 is exactly what retries exist for -- the gate must not eat it.
-
-    3 attempts, not 9: the inner per-turn LLMTask no longer retries on top of
-    the outer chat task's own retry loop.
-    """
+    """A 429 is retried: 3 attempts for retries=2, with no inner-task retries."""
     task = LLMChatTask(name="test-task", interactive=False, retries=2)
     rate_limited = Exception("slow down")
     rate_limited.status_code = 429

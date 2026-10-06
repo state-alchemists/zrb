@@ -220,13 +220,7 @@ async def test_defer_action_and_wait(session):
 async def test_failing_deferred_action_does_not_wait_for_a_never_ending_sibling(
     session,
 ):
-    """A crashed long-running task must fail the run immediately.
-
-    Regression: deferred action bodies were gathered with settle-all semantics,
-    but a long-running task's body never returns on its own. Running `frontend`
-    + `backend` where one crashes then blocked until the survivor was killed
-    instead of exiting non-zero. The survivor must be cancelled.
-    """
+    """A crashed task fails the run and cancels its survivor."""
     cancelled = asyncio.Event()
 
     async def serves_forever():

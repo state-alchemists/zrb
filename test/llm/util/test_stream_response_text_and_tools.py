@@ -4,10 +4,7 @@ from zrb.llm.util.stream_response import StreamEventHandler
 
 
 class TestStreamEventHandlerTextCollapse:
-    """Mirrors TestStreamEventHandlerThinkingCollapse: the final text
-    response gets the same live-stream-then-collapse treatment as thinking,
-    so the "fainted" streamed copy doesn't sit on screen next to the
-    markdown-rendered final copy `BaseUI.stream_ai_response` appends."""
+    'Mirrors TestStreamEventHandlerThinkingCollapse: the final text'
 
     def test_text_part_opens_block_when_hook_set(self):
         print_fn = MagicMock()
@@ -20,11 +17,10 @@ class TestStreamEventHandlerTextCollapse:
         handler.handle_part_start(mock_event)
 
         on_start.assert_called_once_with()
-        print_fn.assert_called()  # text still streams live either way
+        print_fn.assert_called()
 
     def test_tool_call_after_text_closes_and_collapses_it(self):
-        """The realistic mid-turn case: text streamed, then a further tool
-        call starts (the response wasn't actually final yet)."""
+        'The realistic mid-turn case: text streamed, then a further tool'
         print_fn = MagicMock()
         on_start = MagicMock()
         on_collapse = MagicMock()
@@ -50,8 +46,7 @@ class TestStreamEventHandlerTextCollapse:
         assert "Let me check that for you" in full_text
 
     def test_carriage_return_in_a_delta_does_not_truncate_the_full_text(self):
-        """Same regression as thinking's: `full` must be accumulated at the
-        source, not re-read from a buffer a stray `\\r` may have mangled."""
+        "Same regression as thinking's: `full` must be accumulated at the"
         print_fn = MagicMock()
         on_collapse = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn, on_text_collapse=on_collapse)
@@ -109,8 +104,7 @@ class TestStreamEventHandlerTextCollapse:
         assert "Here's the final answer" in full_text
 
     def test_thinking_then_text_each_get_their_own_open_and_collapse(self):
-        """A turn with both: thinking closes on the text part start, text
-        closes on run result. Each hook pair fires exactly once."""
+        'A turn with both: thinking closes on the text part start, text'
         print_fn = MagicMock()
         on_thinking_start = MagicMock()
         on_thinking_collapse = MagicMock()
@@ -156,7 +150,7 @@ class TestStreamEventHandlerTextCollapse:
 
         tool_event = MagicMock()
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
-        handler.handle_part_start(tool_event)  # must not raise
+        handler.handle_part_start(tool_event)
 
 
 class TestStreamEventHandlerToolCall:
@@ -200,7 +194,7 @@ class TestStreamEventHandlerToolCall:
         print_fn.assert_called()
 
     def test_handle_tool_call_suppresses_ask_user_question_args(self):
-        """AskUserQuestion's large payload is shown in the widget, not dumped here."""
+        "AskUserQuestion's large payload is shown in the widget, not dumped here."
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart
@@ -216,7 +210,7 @@ class TestStreamEventHandlerToolCall:
         printed = "".join(str(c.args[0]) for c in print_fn.call_args_list if c.args)
         assert "AskUserQuestion" in printed
         assert "call_abc" in printed
-        # The questions/options payload must not be echoed.
+
         assert "options" not in printed
         assert "Pick?" not in printed
 
@@ -240,8 +234,7 @@ class TestStreamEventHandlerToolCall:
         assert long_value in full
 
     def test_handle_tool_call_falls_back_to_print_fn_without_recorder(self):
-        """Regression guard: a UI that doesn't opt in (std_ui, buffered_ui,
-        Telegram, SSE, ...) must see the same line as before this feature."""
+        'Without a recorder, the tool call is printed normally.'
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart
@@ -254,10 +247,7 @@ class TestStreamEventHandlerToolCall:
         print_fn.assert_called_once()
 
     def test_handle_tool_call_has_no_trailing_newline(self):
-        """Regression: a baked-in trailing "\\n" here doubled up with the next
-        printed line's own leading "\\n{indentation}", printing a blank line
-        after every tool call. Separation comes from the *next* thing printed
-        only — see the note in `handle_tool_call`."""
+        'Tool-call output has no trailing newline.'
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart

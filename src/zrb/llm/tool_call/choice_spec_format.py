@@ -1,12 +1,4 @@
-"""Numbered-text rendering of a `ChoiceSpec` — the fallback used by any UI
-that can't render an interactive picker (`BaseUI.ask_user_choice` in
-`ui/base/ui.py`) and by `AskUserQuestion`'s own duck-typed-UI fallback in
-`tool/ask.py`.
-
-Depends only on `ChoiceSpec`'s shape (`ui/any_ui.py`, which itself has zero
-`zrb.llm.*` imports), so both sides can import this at module scope without
-needing the other.
-"""
+"""Numbered-text rendering of a `ChoiceSpec`, for UIs without an interactive picker."""
 
 from __future__ import annotations
 
@@ -38,7 +30,6 @@ def format_choice_spec(spec: "ChoiceSpec | dict[str, Any]") -> str:
 
 
 def get_option_label(option: Any, index: int) -> str:
-    """*option*'s label, or ``Option N`` (1-based) when it has none: what every
-    UI shows for it, and what an answer choosing it resolves to."""
+    """*option*'s label, or ``Option N`` (1-based) when it has none."""
     label = option.get("label") if isinstance(option, dict) else None
     return str(label) if label else f"Option {index + 1}"

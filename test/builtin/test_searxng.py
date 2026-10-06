@@ -1,4 +1,3 @@
-import os
 from unittest.mock import MagicMock, mock_open, patch
 
 from zrb.builtin.searxng.start import copy_searxng_setting

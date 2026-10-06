@@ -46,7 +46,6 @@ class TestMultiplexApprovalChannel:
 
         result = await channel.request_approval(context)
 
-        # One channel should have been called
         assert (
             mock_channel.request_approval.called or deny_channel.request_approval.called
         )
@@ -265,7 +264,6 @@ class TestMultiplexApprovalChannel:
             tool_call_id="call_mux_007",
         )
 
-        # Should not raise
         await channel.notify("Test", context)
 
     @pytest.mark.asyncio
@@ -275,7 +273,6 @@ class TestMultiplexApprovalChannel:
 
         from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 
-        # Mock shutdown requested
         original = getattr(sys, "zrb_shutdown_requested", False)
         try:
             setattr(sys, "zrb_shutdown_requested", True)
@@ -296,7 +293,6 @@ class TestMultiplexApprovalChannel:
 
             assert result.approved is False
             assert "Shutdown" in result.message
-            # Should not call the channel
             mock_channel.request_approval.assert_not_called()
         finally:
             setattr(sys, "zrb_shutdown_requested", original)
@@ -308,7 +304,6 @@ class TestMultiplexApprovalChannel:
 
         from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 
-        # Mock shutdown requested
         original = getattr(sys, "zrb_shutdown_requested", False)
         try:
             setattr(sys, "zrb_shutdown_requested", True)
@@ -325,7 +320,6 @@ class TestMultiplexApprovalChannel:
 
             await channel.notify("Test", context)
 
-            # Should not call notify on the channel
             mock_channel.notify.assert_not_called()
         finally:
             setattr(sys, "zrb_shutdown_requested", original)
@@ -388,19 +382,15 @@ class TestMultiplexApprovalChannel:
 
         from zrb.llm.approval.multiplex_approval_channel import is_shutdown_requested
 
-        # Default should be False
         original = getattr(sys, "zrb_shutdown_requested", False)
         try:
-            # Test default
             if hasattr(sys, "zrb_shutdown_requested"):
                 delattr(sys, "zrb_shutdown_requested")
             assert is_shutdown_requested() is False
 
-            # Test set to True
             setattr(sys, "zrb_shutdown_requested", True)
             assert is_shutdown_requested() is True
 
-            # Test set to False
             setattr(sys, "zrb_shutdown_requested", False)
             assert is_shutdown_requested() is False
         finally:

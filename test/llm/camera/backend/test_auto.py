@@ -1,8 +1,4 @@
-"""`AutoCameraBackend`: Termux:API first on Android, then ffmpeg per platform.
-
-Everything goes through the backends' public API. External dependencies
-(termux-camera-photo, ffmpeg, the live filesystem) are mocked.
-"""
+'`AutoCameraBackend`: Termux:API first on Android, then ffmpeg per platform.'
 
 from __future__ import annotations
 
@@ -21,14 +17,14 @@ from zrb.llm.camera.backend import (
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    """Strip every camera-relevant env var before each test."""
+    'Strip every camera-relevant env var before each test.'
     for var in ("WSL_DISTRO_NAME", "WSLENV"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
 
 
 class _FakeProcess:
-    """Minimal async-process stand-in for `asyncio.create_subprocess_exec`."""
+    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
 
     def __init__(
         self,
@@ -39,7 +35,7 @@ class _FakeProcess:
     ):
         self._stdout = stdout
         self._stderr = stderr
-        # Like a real process: no return code until it exits.
+
         self._exit_code = returncode
         self.returncode: int | None = None
         self._hang_seconds = hang_seconds
@@ -60,7 +56,7 @@ class _FakeProcess:
 
 
 def _which_only(*names: str):
-    """Return a `shutil.which` stand-in that only "finds" the given names."""
+    'Return a `shutil.which` stand-in that only "finds" the given names.'
 
     def _which(name: str):
         return f"/usr/bin/{name}" if name in names else None
@@ -70,17 +66,14 @@ def _which_only(*names: str):
 
 @pytest.mark.asyncio
 async def test_termux_camera_photo_returns_bytes(clean_env, tmp_path):
-    """The capture path is Termux's real home dir, not tempfile.gettempdir() --
-    a proot-distro guest's own `/tmp` isn't visible to the Termux:API app
-    process that actually writes the file. Point the backend at a writable
-    location for this test."""
+    "The capture path is Termux's real home dir, not tempfile.gettempdir() --"
     payload = b"\xff\xd8\xff-fake-jpeg"
     fake_path = str(tmp_path / "photo.jpg")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
 
     def _make_proc(*args, **kwargs):
-        # termux-camera-photo writes its output to the target path (last arg).
+
         path = args[-1]
         with open(path, "wb") as fh:
             fh.write(payload)
@@ -91,7 +84,7 @@ async def test_termux_camera_photo_returns_bytes(clean_env, tmp_path):
         result = await backend.capture(None)
 
     assert result == payload
-    # File is cleaned up after read.
+
     assert not os.path.exists(fake_path)
 
 
@@ -114,7 +107,7 @@ async def test_termux_camera_photo_uses_device_as_camera_id(clean_env):
 
 @pytest.mark.asyncio
 async def test_termux_falls_through_to_ffmpeg_when_no_file_written(clean_env):
-    """termux-camera-photo ran but wrote nothing; ffmpeg is also unavailable."""
+    'termux-camera-photo ran but wrote nothing; ffmpeg is also unavailable.'
     clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
 
@@ -128,7 +121,7 @@ async def test_termux_falls_through_to_ffmpeg_when_no_file_written(clean_env):
 
 @pytest.mark.asyncio
 async def test_termux_skips_camera_photo_when_binary_missing(clean_env):
-    """is_termux() is True, but termux-camera-photo isn't on PATH (e.g. proot)."""
+    "is_termux() is True, but termux-camera-photo isn't on PATH (e.g. proot)."
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only())
@@ -196,7 +189,7 @@ async def test_linux_ffmpeg_v4l2_default_device(clean_env):
 
 @pytest.mark.asyncio
 async def test_linux_ffmpeg_tries_mjpeg_before_raw_fallback(clean_env):
-    """v4l2 requests MJPEG@640x480 first -- see camera.py module docstring for why."""
+    'v4l2 requests MJPEG@640x480 first -- see camera.py module docstring for why.'
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
@@ -213,7 +206,7 @@ async def test_linux_ffmpeg_tries_mjpeg_before_raw_fallback(clean_env):
         result = await backend.capture(None)
 
     assert result == payload
-    # Only one call: the MJPEG attempt succeeded, no raw fallback needed.
+
     assert len(seen_cmds) == 1
     cmd = seen_cmds[0]
     assert cmd[cmd.index("-input_format") + 1] == "mjpeg"
@@ -280,7 +273,7 @@ async def test_windows_ffmpeg_uses_explicit_device_name(clean_env):
         result = await AutoCameraBackend().capture("USB2.0 Camera")
 
     assert result == b"jpeg"
-    # Only one call: explicit device skips the dshow enumeration probe.
+
     assert len(seen_cmds) == 1
     cmd = seen_cmds[0]
     assert cmd[cmd.index("-f") + 1] == "dshow"

@@ -33,8 +33,7 @@ async def _run_agent_with_retry(agent: Any, text: str) -> Any:
                 await asyncio.sleep(wait)
             else:
                 raise
-    # Only reachable if the loop never ran (max_retries < 0); last_error is then
-    # None, so raise a concrete error rather than `raise None`.
+    # Reached only when max_retries < 0, so last_error is None.
     raise last_error or RuntimeError("Summarization failed without an error")
 
 
@@ -126,9 +125,8 @@ async def _consolidate(
 ) -> str:
     """Fold the per-chunk summaries into one.
 
-    Recurses when the concatenated summaries would still overflow the
-    consolidation agent's own context — but only while they are shorter than
-    the original text, so the recursion always makes progress.
+    Recurses on overflow only while the summaries are shorter than *text*, so
+    the recursion always makes progress.
     """
     summaries_text = "\n".join(summaries)
     summaries_tokens = limiter.count_tokens(summaries_text)

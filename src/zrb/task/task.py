@@ -4,10 +4,7 @@ from zrb.task.base.base_task import BaseTask
 class Task(BaseTask):
     """The general-purpose task: run a Python callable, or return a literal.
 
-    The default task type and the one most `zrb_init.py` files reach for first.
-    It adds nothing to `BaseTask` — it exists so the common case has a short,
-    obvious name, and so `CmdTask`/`LLMTask` read as siblings of it rather than
-    as specialisations of an abstract-sounding base.
+    Adds nothing to `BaseTask`; it is the short name for the common case.
 
         from zrb import cli, Task, StrInput
 
@@ -19,7 +16,6 @@ class Task(BaseTask):
             )
         )
 
-    Only `name` may be passed positionally; everything else is keyword-only.
-    See `BaseTask.__init__` for every parameter. For the decorator form, which
-    builds and registers a task in one step, see `make_task`.
+    See `BaseTask.__init__` for parameters and `make_task` for the decorator
+    form.
     """

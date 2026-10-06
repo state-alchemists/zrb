@@ -41,18 +41,9 @@ logger = logging.getLogger(__name__)
 class MultiUI(UIStateDefaultsMixin, AnyUI):
     """UI wrapper that broadcasts output to multiple UIs and waits for first response.
 
-    This class implements AnyUI and delegates to multiple child UIs:
-    - Output is broadcast to ALL child UIs
-    - Input waits for FIRST response from ANY child UI
-    - All child UIs share a SINGLE message queue (shared state)
-    - Main UI (first by default) runs the main event loop
-
-    Architecture:
-        When any child UI receives user input, it should call MultiUI.submit_user_message()
-        which:
-        1. Broadcasts the user message to ALL UIs
-        2. Puts a job in the shared message queue
-        3. The shared queue processes jobs sequentially
+    Output goes to every child; input takes the first child's answer; all
+    children share one message queue; the main UI runs the main event loop.
+    Child UIs route `submit_user_message` through this wrapper.
 
     Usage:
         multi_ui = MultiUI([terminal_ui, telegram_ui])
@@ -82,11 +73,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             ui.multi_ui_parent = self
 
     def set_tool_call_handler(self, handler: Any):
-        """Set the tool call handler with formatters/policies.
-
-        This should be set to the same handler used by the default UI,
-        so CLI mode in MultiUI has the same formatters as standalone CLI.
-        """
+        """Set the tool call handler (normally the default UI's own)."""
         self._tool_call_handler = handler
 
     @property
@@ -136,11 +123,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def children(self) -> list[Any]:
-        """Public view of the wrapped child UIs.
-
-        Lets collaborators (e.g. the agent runner) pick a concrete child UI
-        without reaching into the private `_uis` list.
-        """
+        """The wrapped child UIs."""
         return list(self._uis)
 
     @property
@@ -249,11 +232,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def active_run_context(self) -> Any:
-        """Mirrors `BaseUI.active_run_context` — the live pydantic-ai
-        `RunContext` for the turn currently streaming through this MultiUI, or
-        None between turns / while a turn is suspended. Read by
-        `submit_user_message` to steer a new message into the live turn
-        instead of queuing it."""
+        """The live `RunContext` of the streaming turn, or None; lets
+        `submit_user_message` steer into it."""
         return self._active_run_context
 
     @active_run_context.setter
@@ -288,12 +268,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self._fanout("set_status_badge", key, text)
 
     def _fanout(self, method_name: str, /, *args, **kwargs) -> None:
-        """Call `method_name` on every child that implements it.
-
-        Children are best-effort: one child raising must not stop the others,
-        because a MultiUI fans one agent run out to independent channels (TUI,
-        SSE, Telegram) and a dead channel is not a dead run.
-        """
+        """Call `method_name` on every child that implements it, best-effort:
+        a dead channel is not a dead run."""
         for ui in self._uis:
             fn = getattr(ui, method_name, None)
             if not callable(fn):
@@ -306,22 +282,14 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def accumulate_usage(
         self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
     ) -> None:
-        """Forward one run's usage totals to every child UI.
-
-        Mirrors `append_to_output`: the agent runner wires its usage callback
-        to the effective UI, which is a MultiUI in dual/multi-UI mode. Without
-        forwarding, session token totals never accumulate on child UIs and the
-        terminal status-bar meter stays empty.
-        """
+        """Forward one run's usage totals to every child UI."""
         self._fanout("accumulate_usage", usage, context_usage)
 
     def append_markdown(self, markdown_text: str) -> None:
-        """Render `markdown_text` on every child that supports it.
+        """Render `markdown_text` on every child.
 
-        Children with their own `append_markdown` (the default TUI's themed,
-        re-wrappable markdown path) get the source text; children without one
-        (e.g. Telegram) get the pre-rendered output. Best-effort like
-        `append_to_output`: one dead child channel must not kill the fan-out.
+        Children with their own `append_markdown` get the source; others get
+        pre-rendered output.
         """
         rendered = render_markdown(markdown_text, width=None)
         for ui in self._uis:
@@ -337,13 +305,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.
 
-        Tracks it as a toggle span on whichever children support that (the
-        default TUI, via their own `record_tool_call_block`), and falls back
-        to a plain `append_to_output` for children that don't (Telegram,
-        SSE) — so those channels keep receiving the line exactly as they did
-        before expand/collapse existed. `StreamEventHandler` calls either
-        this method or `append_to_output` for a given line, never both, so
-        every child must be reached from right here.
+        Children without `record_tool_call_block` get a plain
+        `append_to_output`: the caller sends the line through only one of the
+        two, so every child must be reached here.
         """
         for ui in self._uis:
             record = getattr(ui, "record_tool_call_block", None)
@@ -359,53 +323,43 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
 
     def mark_thinking_block_start(self) -> None:
-        """Let whichever children support toggling record where a live
-        thinking block begins.
+        """Mark a live thinking block's start on toggle-capable children.
 
-        Unlike `record_tool_call_block`, no fallback is needed here: the
-        thinking text itself already reached every child via the normal
-        `append_to_output` broadcast (StreamEventHandler never withholds
-        it) — this only lets toggle-capable children prepare to collapse
-        it later. A child that doesn't support it just keeps showing that
-        thinking text uncollapsed, which is a harmless default.
+        No fallback needed: the text itself reaches every child through
+        `append_to_output`.
         """
         self._fanout("mark_thinking_block_start")
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> None:
-        """Counterpart to `mark_thinking_block_start` — see its docstring."""
+        """Collapse the block opened by `mark_thinking_block_start`."""
         self._fanout("collapse_thinking_block", collapsed, full)
 
     def mark_text_block_start(self) -> None:
-        """Counterpart to `mark_thinking_block_start` for the assistant's
-        final-text reply instead of its reasoning — same fallback story."""
+        """Mark the final-text reply block's start on toggle-capable children."""
         self._fanout("mark_text_block_start")
 
     def collapse_text_block(self, collapsed: str, full: str) -> None:
-        """Counterpart to `mark_text_block_start` — see its docstring."""
+        """Collapse the block opened by `mark_text_block_start`."""
         self._fanout("collapse_text_block", collapsed, full)
 
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
-        """Forward a tool call's execution start to whichever children track
-        the running-tool timer for their status bar — same fallback story as
-        `mark_thinking_block_start`."""
+        """Forward a tool call's start to children tracking the running-tool timer."""
         self._fanout("start_tool_call", tool_name, tool_call_id)
 
     def end_tool_call(self, tool_call_id: str | None = None) -> None:
-        """Counterpart to `start_tool_call` — see its docstring."""
+        """Forward a tool call's end to children tracking the running-tool timer."""
         self._fanout("end_tool_call", tool_call_id)
 
     def update_tool_prepare(self, key: str, text: str) -> None:
-        """Forward a tool call's "Prepare tool parameters" update to whichever
-        children support it — same fallback story as `mark_thinking_block_start`."""
+        """Forward a "Prepare tool parameters" update to children that support it."""
         self._fanout("update_tool_prepare", key, text)
 
     def update_shell_output(self, key: str, text: str) -> None:
-        """Forward to whichever children support it — same fallback story
-        as `update_tool_prepare`."""
+        """Forward a live shell-output update to children that support it."""
         self._fanout("update_shell_output", key, text)
 
     def finish_shell_output(self, key: str, collapsed: str, full: str) -> None:
-        """Counterpart to `update_shell_output` — see its docstring."""
+        """Collapse `key`'s live shell-output line on children that support it."""
         self._fanout("finish_shell_output", key, collapsed, full)
 
     def replay_history(self, messages: list) -> None:
@@ -435,8 +389,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         # A fresh turn has no answer yet; a non-string result or an error must
         # not leave last_output carrying the previous turn's answer.
         self._last_result_data = None
-        # Clear any stale running-tool timer left by a cancelled turn before
-        # this one starts streaming (mirrors `BaseUI.stream_ai_response`).
+        # Clear a stale running-tool timer left by a cancelled turn.
         self.end_tool_call()
         self.set_thinking(True)
         try:
@@ -445,8 +398,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             self.append_to_output(f"\n🤖 {timestamp} >>\n")
             self.append_to_output(stylize_muted("\n  🔢 Streaming response..."))
 
-            # Sync plan mode to the shared mutable state before the LLM run
-            # so the agent inherits the mode set by /plan on the main UI.
+            # The agent inherits the mode /plan set on the main UI.
             set_current_agent_mode(
                 AgentMode.PLAN
                 if self.main_ui is not None and self.main_ui.plan_mode_active
@@ -471,9 +423,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
             self._running_llm_task = None
 
-            # Sync plan mode after LLM response (tools like EnterPlanMode set
-            # the ContextVar which is visible here in the same Task context), so
-            # the main UI's /plan badge follows in-run mode changes.
+            # Tools like EnterPlanMode change the mode in-run; keep the badge in step.
             if self.main_ui is not None:
                 self.main_ui.plan_mode_active = (
                     get_current_agent_mode() == AgentMode.PLAN
@@ -505,10 +455,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def set_thinking(self, value: bool, repaint: bool = True) -> None:
         """Mirror the thinking flag to every child UI, then repaint.
 
-        The status-bar animation ("⏳ working…") and the fast refresh loop
-        read each UI's own `is_thinking`, so the flag must live on the
-        children, not only on the MultiUI wrapper. `repaint=False` defers the
-        repaint so callers can refresh system info first.
+        Children's status bars read their own `is_thinking`. `repaint=False`
+        lets callers refresh system info first.
         """
         self._is_thinking = value
         for ui in self._uis:
@@ -529,13 +477,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         attachments: list[Any],
     ) -> Any:
-        """Create session for LLM task.
-
-        The run's session name, approval mode and model come from the *primary*
-        child -- the one `main_ui_index` names and whose event loop drives the
-        session -- not from `_uis[0]`, which is only the same child at the
-        default index.
-        """
+        """Create a session whose name, approval mode and model come from the
+        primary child (`main_ui_index`)."""
         main_ui = self.main_ui
         if main_ui is None:
             raise RuntimeError(
@@ -598,17 +541,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         source: InputProvenance | None = KEYBOARD_INPUT,
     ):
-        """Submit user message to shared queue.
+        """Broadcast a child's user input to every UI and queue the turn.
 
-        This is called by child UIs when they receive user input.
-        Broadcasts to ALL UIs and puts job in shared queue. Attachments and
-        the echo-span redraw fan out to every child (`self._uis`) — `MultiUI`
-        holds no attachments or echo buffer of its own, unlike a standalone
-        `BaseUI`, which submits on behalf of itself alone.
-        Records the message once, on the primary child: a direct
-        `submit_message`/`submit_user_message` on this `MultiUI` reaches no
-        child's own submit boundary, and every child shares one history file, so
-        recording per child would duplicate the entry.
+        Attachments and echoes fan out to every child. The message is recorded
+        once, on the primary child, since all children share one history file.
         """
         main_ui = self.main_ui
         recorder = getattr(main_ui, "record_submitted_message", None)
@@ -633,10 +569,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         source: InputProvenance | None = None,
     ) -> None:
-        """Queue *user_message* for the shared agent turn (steer into the live
-        run when one is in flight). Uses the shared queue's own task
-        — sub-agent continuation code calls this to hand the main agent a
-        synthesized report."""
+        """Queue *user_message* for the shared agent turn, or steer it into
+        the live run."""
         self.submit_user_message(self._llm_task, user_message, source)
 
     async def process_messages_loop(self):
@@ -668,9 +602,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                     try:
                         await task
                     except asyncio.CancelledError:
-                        # A cancel aimed at this loop (shutdown) must land;
-                        # one aimed only at the job must not stop the loop.
-                        # `cancelling()` tells them apart.
+                        # Re-raise only a cancel aimed at this loop, not the job.
                         current = asyncio.current_task()
                         if current is not None and current.cancelling() > 0:
                             raise
@@ -774,9 +706,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             ui.cancel_pending_confirmations(flush)
 
     def cancel_current_turn(self, reason: str) -> None:
-        """Release every child's pending confirmation, cancel the turn this
-        MultiUI runs (its children run none) and fire `Stop` with *reason*
-        once; `AnyUI.cancel_current_turn`."""
+        """Release children's confirmations, cancel this MultiUI's turn and
+        fire `Stop` with *reason* once."""
         self.cancel_pending_confirmations()
         running = self._running_llm_task
         if running is None or running.done():
@@ -828,8 +759,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
     async def _start_child_ui(self, ui: AnyUI) -> None:
         """Start a child UI's event loop if it has one."""
-        # `start_event_loop` is EventDrivenUI's alone, so it stays a capability
-        # probe. `run_async` is on the AnyUI contract, so it needs no probe.
+        # `start_event_loop` is EventDrivenUI-only, hence the probe.
         start_event_loop: Any = getattr(ui, "start_event_loop", None)
         if start_event_loop is not None:
             await start_event_loop()
@@ -861,9 +791,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             await main_task
         except asyncio.CancelledError:
             main_task.cancel()
-            # Guard the unwind: an error raised while the main UI tears down
-            # would propagate from here and mask the cancellation, so callers
-            # would see an ordinary failure instead of a cancelled run.
+            # A teardown error must not mask the cancellation.
             try:
                 await main_task
             except asyncio.CancelledError:

@@ -281,10 +281,6 @@ async def exit_worktree(
             f"then retry. Use ListWorktrees to check status.",
         )
 
-    # The worktree removal above already succeeded (rm_rc == 0): that result
-    # must survive from here on even if the branch-delete step below fails
-    # or hits SandboxUnavailableError — this function must never turn an
-    # already-true "Worktree removed" into an outright error.
     active_worktree.set("")
     lines = [f"Worktree removed: {worktree_path}"]
 
@@ -301,8 +297,7 @@ async def _delete_branch_line(
 ) -> str:
     """Delete the worktree's branch if asked, and report what happened.
 
-    Never raises: the worktree removal has already succeeded by the time this
-    runs, and that result must survive a failure here.
+    Never raises: the worktree removal has already succeeded.
     """
     if keep_branch:
         return f"Branch kept: {branch_name}"
@@ -347,13 +342,10 @@ async def list_worktrees() -> str:
 async def _run_git(
     argv: list[str], cwd: str
 ) -> tuple[int | None, bytes, bytes, str | None]:
-    """Run a git command through the same OS-level sandbox `Shell` uses.
+    """Run a git argv through the same OS-level sandbox `Shell` uses.
 
-    Discrete argv, not a shell string, so branch/path values never need
-    quoting. The writable boundary is the sandbox policy's, never `cwd`: the
-    model chooses `cwd`, so it must not choose what git may write. Raises
-    `SandboxUnavailableError` in fallback="deny" mode; callers turn it into a
-    `[SYSTEM SUGGESTION]`.
+    The writable boundary is the sandbox policy's, never the model-chosen
+    `cwd`. Raises `SandboxUnavailableError` in fallback="deny" mode.
     """
     sandboxed_argv, note = build_sandboxed_argv(argv, get_effective_sandbox_policy())
     proc = await start_process(sandboxed_argv, cwd)
@@ -362,11 +354,7 @@ async def _run_git(
 
 
 def _prepend_notes(notes: list[str | None], result: str) -> str:
-    """Prepend every collected note (in call order), not just the first —
-    an earlier git call's sandbox-fallback warning must still reach the
-    model even when a later call in the same tool invocation errors, or
-    also produces its own note.
-    """
+    """Prepend every collected sandbox note, in call order."""
     text = "\n".join(n for n in notes if n)
     return f"{text}\n{result}" if text else result
 

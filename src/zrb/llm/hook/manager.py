@@ -1,13 +1,4 @@
-"""`HookManager` — Claude-Code-compatible lifecycle hooks.
-
-Owns hook registration, matcher evaluation, and execution. The filesystem
-loading + JSON/YAML parsing lives in the sibling `manager_loading.py`; the
-type-specific factories (command/prompt/agent) live in `zrb.llm.hook.creator`;
-matcher operator semantics live in `zrb.llm.hook.matcher`.
-
-For the public hook authoring guide (formats, events, examples), see:
-  docs/llm/hooks.md
-"""
+"""Claude-Code-compatible lifecycle hook registration and execution."""
 
 import asyncio
 import logging
@@ -71,18 +62,11 @@ class HookManager(HookManagerLoading):
     ):
         """Discover, register, and run lifecycle hooks.
 
-        The manager owns discovery, hydration, execution, and factory seeding;
-        registration and every query delegate to the composed `HookRegistry`.
-
         Args:
-            search_dirs: Directories to scan for hook definitions. Defaults to
-                the standard project and user locations.
-            max_depth: How many directory levels below each search directory to
-                descend.
-            ignore_dirs: Directory names skipped while scanning, such as
-                `node_modules`.
-            registry: The canonical `HookRegistry` to read and write. A fresh
-                registry is created when `None`, giving an isolated view.
+            search_dirs: Hook definition directories.
+            max_depth: Directory levels to scan.
+            ignore_dirs: Directory names to skip.
+            registry: Registry to use; a new one is created when omitted.
         """
         self._registry = registry if registry is not None else HookRegistry()
         self._executor: ThreadPoolHookExecutor = get_hook_executor()
@@ -160,11 +144,7 @@ class HookManager(HookManagerLoading):
         events: list[HookEvent] | None = None,
         config: HookConfig | None = None,
     ):
-        """
-        Register a hook.
-        If events is None or empty, the hook is treated as a global hook (runs on all events).
-        Otherwise, it is registered for the specific events.
-        """
+        """Register a global hook or one restricted to *events*."""
         self._registry.add_hook(hook, events, config)
 
     def remove_hook(self, hook: HookCallable) -> None:
@@ -199,10 +179,7 @@ class HookManager(HookManagerLoading):
         permission_mode: str = "default",
         **kwargs,
     ) -> list[HookExecutionResult]:
-        """
-        Execute all hooks registered for the given event with thread safety.
-        Returns a list of HookExecutionResult objects with Claude Code compatibility.
-        """
+        """Execute hooks registered for *event* and return their results."""
         # Global kill-switch: no hook fires and the filesystem is never scanned.
         if not CFG.HOOKS_ENABLED:
             return []
@@ -265,13 +242,7 @@ class HookManager(HookManagerLoading):
         event: HookEvent,
         context: HookContext,
     ) -> tuple[HookExecutionResult | None, bool]:
-        """Run one hook. Returns `(result, stop)`.
-
-        `result` is `None` only when an async command hook was spawned
-        fire-and-forget (nothing to record). `stop` is True when
-        `execute_hooks` must return immediately after this result — a block
-        on a blockable event, or an explicit `continue=false`.
-        """
+        """Run one hook and return `(result, stop)`."""
         config = self._registry.get_hook_config(hook)
         timeout = config.timeout if config else None
 
@@ -326,14 +297,7 @@ class HookManager(HookManagerLoading):
         return result, False
 
     def _spawn_background_hook(self, hook: HookCallable, context: HookContext) -> bool:
-        """Fire an async command hook without awaiting it.
-
-        Returns False when there is no running loop (a rare synchronous caller),
-        signalling the caller to run the hook through the executor instead. When
-        the backlog is already at its ceiling the hook is dropped (the event is
-        advisory — a sound/notification — so shedding is safe) and True is still
-        returned so the caller does not also run it synchronously.
-        """
+        """Spawn an async command hook; return False without a running loop."""
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -352,15 +316,7 @@ class HookManager(HookManagerLoading):
         return True
 
     def _effective_grace_seconds(self, fallback: float) -> float:
-        """The grace period to actually wait during a drain — extended to the
-        largest `timeout` configured among currently-pending **agent-type**
-        hooks specifically, or *fallback* if there are none.
-
-        An agent hook makes an LLM round-trip, too slow for the flat default
-        that suits a cheap command hook. Command hooks are excluded because
-        their `timeout` (default 600s) is the synchronous executor's limit,
-        and waiting that long at teardown would defeat the bound.
-        """
+        """Return the drain grace period, extended for pending agent hooks."""
         configured = [
             cfg.timeout
             for task in self._background_tasks
@@ -385,21 +341,7 @@ class HookManager(HookManagerLoading):
     async def shutdown(
         self, grace_seconds: float = 2.0, *, drain: bool = False
     ) -> None:
-        """Cancel in-flight fire-and-forget hooks and wait for them to settle.
-
-        Async hook subprocesses run in their own process group, so Ctrl+C does
-        not reach them; cancelling the task makes the command hook's
-        cancellation handler kill its process tree. Cancelling up front keeps
-        exit snappy.
-
-        ``drain=True`` first gives pending hooks ``grace_seconds`` to finish on
-        their own — for a per-run teardown, where cancel-first would disable
-        async hooks dispatched moments earlier.
-
-        Waits at most ``grace_seconds`` per phase, so shutdown can never block on
-        a hook that refuses to unwind. Safe to call when nothing is pending, and
-        safe to call repeatedly.
-        """
+        """Drain or cancel pending background hooks within the grace period."""
         if drain:
             await self._settle_background_hooks(
                 self._effective_grace_seconds(grace_seconds)
@@ -461,16 +403,7 @@ class HookManager(HookManagerLoading):
         session_id: str | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> list[HookResult]:
-        """Run *event*'s hooks and flatten each result into a `HookResult`.
-
-        `execute_hooks` returns typed execution results; this collapses each
-        one's fields into the flat, Claude-format `modifications` mapping
-        (`decision`, `permissionDecision`, `additionalContext`, `updatedInput`,
-        …) that `HookResult` carries.
-
-        Nothing in zrb itself calls this — the runtime consumes the typed form
-        directly. It exists for callers that want the flat shape.
-        """
+        """Run hooks and flatten their typed results into `HookResult` objects."""
         exec_results = await self.execute_hooks(
             event=event,
             event_data=event_data,
@@ -523,11 +456,7 @@ class HookManager(HookManagerLoading):
         self._hook_factories.append(factory)
 
     def scan(self, search_dirs: list[str | Path] | None = None):
-        """
-        Scan for hooks in default locations and provided directories.
-        This method can be called manually to add filesystem hooks.
-        Does NOT clear manually registered hooks.
-        """
+        """Scan default or supplied directories without clearing manual hooks."""
         self._scan_and_load(search_dirs)
         self._loaded = True
 
@@ -540,10 +469,7 @@ class HookManager(HookManagerLoading):
         return _get_search_directories()
 
     def _hydrate_hook(self, config: HookConfig) -> HookCallable:
-        """
-        Convert HookConfig into a HookCallable using appropriate executor.
-        Wraps the actual hook with matcher evaluation.
-        """
+        """Convert a `HookConfig` into a matcher-aware callable."""
         inner_hook = self._select_inner_hook(config)
         self._registry.record_config(config.name, config)
         return self._wrap_with_matchers(inner_hook, config)
@@ -587,14 +513,7 @@ class HookManager(HookManagerLoading):
     def _wrap_with_matchers(
         self, inner_hook: HookCallable, config: HookConfig
     ) -> HookCallable:
-        """Wrap `inner_hook` so it only runs when `config.matchers` passes.
-
-        Async fire-and-forget is NOT handled here: this wrapper runs inside
-        the thread executor's short-lived `asyncio.run` loop, which would
-        cancel a task spawned here the moment it returns. `execute_hooks`
-        dispatches async command hooks on the persistent main loop instead
-        (see there).
-        """
+        """Wrap *inner_hook* with matcher evaluation."""
 
         async def hook_with_matchers(context: HookContext) -> HookResult:
             if not evaluate_matchers(config.matchers, context):
@@ -613,9 +532,5 @@ hook_manager = HookManager(registry=hook_registry)
 
 
 def get_run_hook_manager() -> HookManager:
-    """The current run's hook manager, else the process-wide one.
-
-    In-run events must use this: the singleton skips a task's own hooks,
-    PreToolUse denials included.
-    """
+    """Return the current run's hook manager, or the process-wide manager."""
     return get_current_hook_manager() or hook_manager

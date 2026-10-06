@@ -1,12 +1,5 @@
-"""The one RAII primitive every scoped `ContextVar` bind in zrb is built from.
-
-A bare `ContextVar.set(value)` with no matching `.reset(token)` leaks: the
-value persists past whatever the caller thought was "temporary," including
-across unrelated later work sharing the same context, and forever if an
-exception skips the (nonexistent) cleanup. `scoped()` is the single place
-that pairs set/reset correctly, on a `try`/`finally`, so nothing built on it
-can leak this way.
-"""
+"""`scoped()`: a `ContextVar` set/reset pair on `try`/`finally`, so a scoped
+bind cannot leak past its block."""
 
 from __future__ import annotations
 

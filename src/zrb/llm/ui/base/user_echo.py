@@ -1,9 +1,4 @@
-"""Echoing a user message into the output pane — live and on replay.
-
-`submit_user_message_via_queue` (live) and `BaseUIReplay` (history playback)
-render the same thing, so the markdown rule and the header/body layout live
-here rather than in either caller.
-"""
+"""Echoing a user message into the output pane, shared by live submit and replay."""
 
 from __future__ import annotations
 
@@ -13,8 +8,7 @@ from typing import Any, Protocol
 
 
 class AppendOutputFunc(Protocol):
-    """A `*values, end=...` output writer — `BaseUI.append_to_output` and
-    `MultiUI.append_to_output` both match."""
+    """A `*values, end=...` output writer like `BaseUI.append_to_output`."""
 
     def __call__(
         self,
@@ -27,8 +21,7 @@ class AppendOutputFunc(Protocol):
     ) -> Any: ...
 
 
-# `__` is deliberately absent: `__main__` and `__init__` appear in every
-# pasted Python traceback, and mangling a traceback is worse than losing bold.
+# No `__`: it would mangle `__main__`/`__init__` in pasted tracebacks.
 _MARKDOWN_RE = re.compile(
     r"""
       `{1,3}                       # inline code or fence
@@ -46,11 +39,9 @@ _MARKDOWN_RE = re.compile(
 
 
 def should_render_user_markdown(text: str) -> bool:
-    """Whether pasted ``text`` should render through the markdown pipeline.
+    """Whether ``text`` has an explicit markdown construct worth rendering.
 
-    Only an explicit construct qualifies. Line count is not a signal: pasted
-    tracebacks, logs and unfenced code are multi-line and plain, and rendering
-    them collapses their line breaks into one paragraph.
+    Line count is not a signal: rendering a pasted log collapses its lines.
     """
     return bool(_MARKDOWN_RE.search(text))
 
@@ -61,12 +52,9 @@ def echo_user_message(
     header: str,
     body: str,
 ) -> str:
-    """Write ``header`` + ``body`` to the output pane, rendering the body as
-    markdown when it carries a construct.
+    """Write ``header`` + ``body``, rendering the body as markdown if needed.
 
-    Returns the verbatim echo when one was written, or `""` when the body was
-    rendered — a rendered echo is header + rendered body rather than one
-    chunk, so a caller tracking echo spans must not claim one for it.
+    Returns the verbatim echo, or `""` when rendered (no single span to track).
     """
     if append_markdown is not None and should_render_user_markdown(body):
         append_to_output(header, end="")

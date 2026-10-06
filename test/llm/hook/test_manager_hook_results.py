@@ -8,7 +8,7 @@ from zrb.llm.hook.types import HookEvent
 
 
 def test_hook_result_modifications_mapping():
-    # HookResult stores these in modifications, it doesn't have direct attributes
+
     res = HookResult(
         modifications={"reason": "security breach", "decision": "block", "exit_code": 2}
     )
@@ -21,7 +21,7 @@ def test_hook_result_modifications_mapping():
 async def test_hook_manager_operators(tmp_path):
     manager = HookManager(search_dirs=[])
 
-    # Create a dummy hook file to test matcher via public scan method
+
     hook_dir = tmp_path / "hooks"
     hook_dir.mkdir()
     hook_file = hook_dir / "test.json"
@@ -39,7 +39,7 @@ async def test_hook_manager_operators(tmp_path):
 
     manager.scan(search_dirs=[str(hook_dir)])
 
-    # Match: should run and return a successful execution result
+
     results = await manager.execute_hooks(
         HookEvent.PRE_TOOL_USE, "some data", tool_name="test.sh"
     )
@@ -47,7 +47,7 @@ async def test_hook_manager_operators(tmp_path):
     assert results[0].success is True
     assert results[0].message != "Skipped due to matchers"
 
-    # Mismatch: should return "Skipped due to matchers"
+
     results_skipped = await manager.execute_hooks(
         HookEvent.PRE_TOOL_USE, "some data", tool_name="test.py"
     )
@@ -59,7 +59,7 @@ async def test_hook_manager_operators(tmp_path):
 async def test_hook_manager_nested_field_access(tmp_path):
     manager = HookManager(search_dirs=[])
 
-    # Create a dummy hook file to test nested field access via public scan method
+
     hook_dir = tmp_path / "hooks"
     hook_dir.mkdir(exist_ok=True)
     hook_file = hook_dir / "nested.json"

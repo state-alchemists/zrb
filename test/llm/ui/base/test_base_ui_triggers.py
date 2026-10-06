@@ -172,12 +172,7 @@ async def test_trigger_loop_does_not_leak_attachments_between_items(
 async def test_trigger_loop_unstages_attachments_when_submission_fails(
     base_ui, monkeypatch
 ):
-    """A failed submission must not leave its attachments for the next turn.
-
-    `submit_user_message` drains `pending_attachments` only after echoing the
-    message, so a raise before that point leaves them staged — and the next
-    message, typed or triggered, would carry a photo nobody asked it to.
-    """
+    """A failed submission must not leave its attachments for the next turn."""
     photo = object()
 
     def failing_submit(llm_task, user_message):
@@ -205,14 +200,7 @@ async def test_trigger_loop_unstages_attachments_when_submission_fails(
 async def test_trigger_loop_reports_malformed_attachments_and_keeps_going(
     base_ui, monkeypatch, item
 ):
-    """One bad item must not end the loop.
-
-    A trigger is a long-lived source — a button, a queue — so aborting on the
-    first malformed item silently stops every later one. A bare string in the
-    attachments slot must not become a list of its characters, a 3-tuple must
-    not lose its third element, and a non-sequence must receive a controlled
-    validation error.
-    """
+    """A malformed item is reported with a validation error; the loop goes on."""
     submitted = collect_submitted(base_ui, monkeypatch)
     reported: list[str] = []
     monkeypatch.setattr(

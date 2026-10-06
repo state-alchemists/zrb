@@ -1,5 +1,4 @@
-"""The built-in journal-compliance judge: registered only while journaling is
-on, and only through the actual lazy-loading path a real chat session uses."""
+'The built-in journal-compliance judge: registered only while journaling is'
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -14,7 +13,7 @@ from zrb.llm.hook.types import HookEvent, HookType
 
 
 def _mock_agent_cls(output: str = "skip"):
-    """A patchable pydantic_ai.Agent whose run() resolves immediately."""
+    'A patchable pydantic_ai.Agent whose run() resolves immediately.'
     agent_instance = MagicMock()
     agent_instance.run = AsyncMock(return_value=MagicMock(output=output))
     return MagicMock(return_value=agent_instance)
@@ -39,16 +38,7 @@ def test_hook_config_shape():
 
 @pytest.mark.asyncio
 async def test_registers_when_journal_enabled():
-    """A registered hook actually fires (as a backgrounded task, since it's
-    async) for a Stop event that wrote files — checked behaviorally, not by
-    reaching into HookManager's private registration dicts.
-
-    `HookManager()` seeds `register_journal_compliance_hook` as a default
-    factory, run by `_ensure_loaded()` on the `execute_hooks` call below — so
-    the CFG mock must still be active then, not just around a manual call
-    (the test suite's own ambient default is journal-disabled — see
-    conftest.py's `_TEST_ENV` — precisely so a manager built this way is
-    inert unless a test opts back in like this one does)."""
+    "A registered hook actually fires (as a backgrounded task, since it's"
     manager = HookManager(search_dirs=[])
     agent_cls = _mock_agent_cls()
     with (
@@ -62,18 +52,14 @@ async def test_registers_when_journal_enabled():
             HookEvent.STOP, {"wrote_files": True, "journal_worthy": True}
         )
 
-    assert results == []  # fire-and-forget contributes no result
+    assert results == []
     assert manager.has_pending_background_hooks is True
     await manager.shutdown()
 
 
 @pytest.mark.asyncio
 async def test_fires_on_a_stated_preference_with_no_file_write():
-    """The widened trigger: `journal_worthy` is `wrote_files OR
-    turn_states_preference`, computed at dispatch (runner.py) — so a turn
-    that only stated a preference, with `wrote_files` false, still fires the
-    judge. Closes the blind spot WriteJournalNote's own docstring calls
-    highest-value: a preference said once, with no file edit."""
+    'The widened trigger: `journal_worthy` is `wrote_files OR'
     manager = HookManager(search_dirs=[])
     agent_cls = _mock_agent_cls()
     with (
@@ -107,18 +93,14 @@ async def test_does_not_register_when_journal_disabled():
 
 @pytest.mark.asyncio
 async def test_factory_fires_via_the_normal_lazy_load_path():
-    """`add_hook_factory` used to only run through a manual `scan()`/
-    `reload()` call — the automatic lazy path (`execute_hooks` on first use,
-    which is what every real chat session actually takes) skipped factories
-    entirely, so a hook registered this way was silently never installed.
-    This exercises that real path, not the manual one."""
+    '`add_hook_factory` used to only run through a manual `scan()`/'
     manager = HookManager(search_dirs=[])
     with patch("zrb.llm.hook.journal_compliance.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_ENABLED = True
         manager.add_hook_factory(register_journal_compliance_hook)
 
-        # No manual scan()/reload() — this is the first hook access a real
-        # `LLMChatTask` run makes.
+
+
         await manager.execute_hooks(HookEvent.NOTIFICATION, {})
 
         agent_cls = _mock_agent_cls()
@@ -138,9 +120,7 @@ async def test_factory_fires_via_the_normal_lazy_load_path():
 
 
 def test_hook_config_keeps_a_resolved_model_object():
-    """The run's own model is a pydantic-ai `Model`, and `str()` of one is its
-    repr ("OpenAIResponsesModel()"), which used to go out as the model name and
-    come back a 404. The config must carry the object through untouched."""
+    "The run's own model is a pydantic-ai `Model`, and `str()` of one is its"
     resolved = MagicMock()
     with patch(
         "zrb.llm.hook.journal_compliance.resolve_configured_small_model",

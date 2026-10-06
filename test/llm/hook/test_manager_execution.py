@@ -31,10 +31,7 @@ async def test_python_hook_execution():
 
 @pytest.mark.asyncio
 async def test_hook_factory_fires_on_first_lazy_access_not_just_manual_scan():
-    """A factory added via `add_hook_factory` used to only run through a
-    manual `scan()`/`reload()` call. The lazy path taken by a real chat
-    session's first `execute_hooks()` skipped `_hook_factories` entirely, so
-    a factory-registered hook was silently never installed in normal use."""
+    'Lazy execution runs factories before the first hook access.'
     manager = HookManager(search_dirs=[])
     registered = []
 
@@ -48,9 +45,7 @@ async def test_hook_factory_fires_on_first_lazy_access_not_just_manual_scan():
 
 
 def test_reload_runs_each_factory_exactly_once():
-    """`reload()` used to loop over `_hook_factories` itself and then call
-    `_ensure_loaded()` — which, after fixing the lazy path above to also run
-    factories, would have made every factory fire twice per reload."""
+    'Reload runs each factory exactly once.'
     manager = HookManager(search_dirs=[])
     call_count = 0
 
@@ -66,7 +61,7 @@ def test_reload_runs_each_factory_exactly_once():
 
 @pytest.mark.asyncio
 async def test_hooks_globally_disabled_by_config(monkeypatch):
-    """ZRB_HOOKS_ENABLED=off is a global kill-switch: no registered hook fires."""
+    'ZRB_HOOKS_ENABLED=off is a global kill-switch: no registered hook fires.'
     monkeypatch.setenv("ZRB_HOOKS_ENABLED", "off")
     manager = HookManager(search_dirs=[])
     fired = []
@@ -81,7 +76,7 @@ async def test_hooks_globally_disabled_by_config(monkeypatch):
     assert results == []
     assert fired == []
 
-    # Flipping it back on (default) re-enables firing on the same manager.
+
     monkeypatch.setenv("ZRB_HOOKS_ENABLED", "on")
     results = await manager.execute_hooks(HookEvent.SESSION_START, {})
     assert len(results) == 1
@@ -90,7 +85,7 @@ async def test_hooks_globally_disabled_by_config(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_config_file_loading_and_hydration(tmp_path):
-    # Create a dummy hook config file
+
     hook_config = {
         "name": "test-file-hook",
         "description": "A test hook from file",
@@ -104,14 +99,14 @@ async def test_config_file_loading_and_hydration(tmp_path):
     with open(hooks_dir / "my_hook.json", "w") as f:
         json.dump(hook_config, f)
 
-    # Initialize manager pointing to this dir
-    # Hooks will be lazily loaded on first execute_hooks call
+
+
     manager = HookManager(search_dirs=[hooks_dir])
 
-    # Execute hooks using simple method for backward compatibility
+
     results = await manager.execute_hooks_simple(HookEvent.SESSION_START, {})
 
-    # We implemented real hydration for CommandHook
+
     assert len(results) >= 1
     found = False
     for res in results:
@@ -144,13 +139,7 @@ async def test_pre_tool_use_modification():
 
 @pytest.mark.asyncio
 async def test_command_hook_receives_claude_event_json_on_stdin():
-    """Command hooks get the Claude-shaped event payload on stdin.
-
-    peon-ping and other Claude-Code-compatible hooks read their event from
-    stdin (``json.load(sys.stdin)["hook_event_name"]``) and ignore env vars, so
-    the payload must be written to the subprocess' stdin. ``cat`` echoes stdin
-    back to stdout, which the executor surfaces as the result message.
-    """
+    'Command hooks get the Claude-shaped event payload on stdin.'
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -178,15 +167,11 @@ async def test_command_hook_receives_claude_event_json_on_stdin():
 
 @pytest.mark.asyncio
 async def test_claude_settings_json_hooks_are_loaded(tmp_path):
-    """Hooks registered in Claude Code's settings.json (nested format) load.
-
-    peon-ping installs itself into ``~/.claude/settings.json``, not hooks.json.
-    Non-hook keys (model, permissions, …) must be ignored.
-    """
+    "Hooks registered in Claude Code's settings.json (nested format) load."
     claude_dir = tmp_path / ".claude"
     claude_dir.mkdir()
     settings = {
-        "model": "opus",  # non-hook key — must be ignored, not error
+        "model": "opus",
         "hooks": {
             "SessionStart": [
                 {"hooks": [{"type": "command", "command": "echo 'from settings'"}]}
@@ -203,8 +188,7 @@ async def test_claude_settings_json_hooks_are_loaded(tmp_path):
 
 
 def _to_msys_path(path: str) -> str:
-    """`C:\\Users\\x` -> `/c/Users/x`, matching Git-for-Windows coreutils'
-    own path translation."""
+    "`C:\\Users\\x` -> `/c/Users/x`, matching Git-for-Windows coreutils'"
     drive, rest = os.path.splitdrive(path)
     if not drive:
         return path
@@ -213,12 +197,7 @@ def _to_msys_path(path: str) -> str:
 
 @pytest.mark.asyncio
 async def test_command_hook_tolerates_tilde_and_missing_cwd():
-    """A hook cwd with an unexpanded ``~`` (or a missing dir) must not crash.
-
-    The OS does not expand ``~`` the way a shell does, so a display-formatted
-    cwd like ``~/zrb`` used to fail with ``[Errno 2] No such file or directory``.
-    It is now expanded, and a non-existent dir falls back to the inherited cwd.
-    """
+    'Expand ``~`` and tolerate a missing hook working directory.'
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -235,11 +214,11 @@ async def test_command_hook_tolerates_tilde_and_missing_cwd():
     expected = os.path.expanduser("~")
     actual = (res[0].message or "").strip()
     if os.name == "nt":
-        # `shell=True` on Windows runs via cmd.exe, which resolves `pwd` to
-        # Git's coreutils `pwd.exe` when it's on PATH (as it is on GitHub's
-        # windows-latest runner) -- that binary prints its own MSYS-translated
-        # path (`/c/Users/x`) regardless of which shell invoked it. The point
-        # here is tilde expansion and cwd resolution, not which `pwd` answered.
+
+
+
+
+
         assert actual in (expected, _to_msys_path(expected))
     else:
         assert actual == expected
@@ -247,15 +226,12 @@ async def test_command_hook_tolerates_tilde_and_missing_cwd():
     res2 = await manager.execute_hooks(
         HookEvent.NOTIFICATION, {}, cwd="/no/such/dir/zzz"
     )
-    assert res2 and res2[0].success  # missing dir → inherited cwd, no crash
+    assert res2 and res2[0].success
 
 
 @pytest.mark.asyncio
 async def test_async_command_hook_is_non_blocking():
-    """Async command hooks are fire-and-forget: execute_hooks returns without
-    waiting for the subprocess. peon-ping marks its hooks ``async`` so a slow
-    audio hook never stalls the agent (previously each one blocked the executor
-    up to its timeout, producing the "Hook execution timed out" storm)."""
+    'Async command hooks return without waiting for the subprocess.'
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -273,20 +249,18 @@ async def test_async_command_hook_is_non_blocking():
     elapsed = time.monotonic() - start
 
     assert elapsed < 1.0, f"async hook blocked for {elapsed:.2f}s"
-    assert results == []  # fire-and-forget contributes no result
+    assert results == []
 
-    # Clean up: the background "sleep 5" subprocess must be killed before the
-    # test ends, otherwise it leaks across tests. shutdown() cancels the task —
-    # the hook's own CancelledError handler kills the process tree — and bounds
-    # the wait, so a hook that refuses to unwind cannot hang the run.
+
+
+
+
     await manager.shutdown()
 
 
 @pytest.mark.asyncio
 async def test_async_agent_hook_is_non_blocking():
-    """An async agent-type Stop hook is backgrounded the same way an async
-    command hook is — otherwise every matching turn pays the judge-agent's
-    full LLM round-trip inline, defeating the point of `is_async`."""
+    'An async agent-type Stop hook is backgrounded the same way an async'
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -318,16 +292,14 @@ async def test_async_agent_hook_is_non_blocking():
         elapsed = time.monotonic() - start
 
     assert elapsed < 1.0, f"async agent hook blocked for {elapsed:.2f}s"
-    assert results == []  # fire-and-forget contributes no result
+    assert results == []
 
     await manager.shutdown()
 
 
 @pytest.mark.asyncio
 async def test_sync_command_hook_is_killed_on_timeout():
-    """A synchronous command hook that exceeds its timeout is killed and
-    reported, instead of blocking the agent until the subprocess exits on its
-    own (the thread-pool executor's own wait_for cannot interrupt the worker)."""
+    'A synchronous command hook that exceeds its timeout is killed and'
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -356,11 +328,7 @@ async def test_sync_command_hook_is_killed_on_timeout():
 )
 @pytest.mark.asyncio
 async def test_command_hook_drops_oversized_env_value():
-    """Oversized event_data is dropped from the subprocess environment, not
-    passed to exec. event_data for SessionStart/Stop/SessionEnd can carry the
-    whole message history; serialized into the env it overflowed the OS
-    arg+env limit (``[Errno 7] Argument list too long``). The full payload is
-    still delivered on stdin, so dropping the env copy is safe."""
+    'Oversized event_data is dropped from the subprocess environment, not'
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -373,16 +341,16 @@ async def test_command_hook_drops_oversized_env_value():
         "test",
     )
 
-    # ~1 MB of event_data — far over the per-value env cap.
+
     big = {"history": ["x" * 1000] * 1000}
     results = await manager.execute_hooks(HookEvent.STOP, big)
 
-    assert results and results[0].success  # no E2BIG, hook ran
-    assert "len=0" in (results[0].message or "")  # CLAUDE_EVENT_DATA was dropped
+    assert results and results[0].success
+    assert "len=0" in (results[0].message or "")
 
 
 def test_get_search_directories_includes_claude_settings(tmp_path, monkeypatch):
-    """``~/.claude/settings.json`` and ``settings.local.json`` are discovered."""
+    '``~/.claude/settings.json`` and ``settings.local.json`` are discovered.'
     from pathlib import Path
 
     from zrb.llm.hook import hook_loader
@@ -392,7 +360,7 @@ def test_get_search_directories_includes_claude_settings(tmp_path, monkeypatch):
     (claude_dir / "settings.json").write_text("{}")
     (claude_dir / "settings.local.json").write_text("{}")
 
-    # Pin both the home and cwd anchors to tmp_path so discovery is hermetic.
+
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     monkeypatch.setattr(Path, "cwd", classmethod(lambda cls: tmp_path))
 
@@ -403,9 +371,7 @@ def test_get_search_directories_includes_claude_settings(tmp_path, monkeypatch):
 
 
 def test_get_search_directories_dedups_home_and_project(tmp_path, monkeypatch):
-    """When cwd is under $HOME, the home tier and the project upward-walk both
-    visit $HOME — the result must contain no duplicate paths, else every
-    ~/.claude hook would register and fire twice (e.g. two peon-ping toasts)."""
+    'When cwd is under $HOME, the home tier and the project upward-walk both'
     from pathlib import Path
 
     from zrb.llm.hook import hook_loader
@@ -417,7 +383,7 @@ def test_get_search_directories_dedups_home_and_project(tmp_path, monkeypatch):
     project.mkdir()
 
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
-    monkeypatch.setattr(Path, "cwd", classmethod(lambda cls: project))  # under home
+    monkeypatch.setattr(Path, "cwd", classmethod(lambda cls: project))
 
     resolved = [str(Path(d).resolve()) for d in hook_loader.get_search_directories()]
 
@@ -426,8 +392,7 @@ def test_get_search_directories_dedups_home_and_project(tmp_path, monkeypatch):
 
 
 def test_get_plugin_root_for_path_matches_configured_plugin_dir(tmp_path, monkeypatch):
-    """A hook file under a configured LLM_PLUGIN_DIRS entry reports that entry
-    as its plugin root (CLAUDE_PLUGIN_ROOT)."""
+    'A hook file under a configured LLM_PLUGIN_DIRS entry reports that entry'
     from zrb.llm.hook import hook_loader
 
     plugin_dir = tmp_path / "my-plugin"

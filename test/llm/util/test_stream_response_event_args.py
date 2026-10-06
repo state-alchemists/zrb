@@ -27,14 +27,14 @@ class TestGetEventPartArgsFull:
         assert get_event_part_args(event, full=True) == {}
 
     def test_returns_untruncated_values(self):
-        """The whole point: unlike the truncated variant, long values survive."""
+        'The whole point: unlike the truncated variant, long values survive.'
         long_value = "x" * 50
         event = MagicMock()
         event.part = MagicMock()
         event.part.args = {"long": long_value}
         result = get_event_part_args(event, full=True)
         assert result == {"long": long_value}
-        # Sanity: the truncated sibling really does clip the same input.
+
         assert get_event_part_args(event) != result
 
     def test_does_not_mutate_original_args(self):
@@ -67,9 +67,7 @@ class TestGetEventPartContent:
 
 
 class TestStreamEventHandlerSpinnerThrottle:
-    """The 'Prepare tool parameters' spinner must repaint at most ~10x/sec so a
-    slow model streaming thousands of tool-arg deltas can't flood stdout (the
-    observed 9k+ frames / 500KB) or add per-frame syscall latency."""
+    "The 'Prepare tool parameters' spinner must repaint at most ~10x/sec so a"
 
     def test_spinner_repaint_throttled_within_one_instant(self):
         print_fn = MagicMock()
@@ -83,9 +81,9 @@ class TestStreamEventHandlerSpinnerThrottle:
             for _ in range(50):
                 handler.handle_part_delta(event)
 
-        # 50 deltas at the same instant collapse to a single repaint.
+
         assert len(_spinner_calls(print_fn)) == 1
-        # State still flips so the carriage-return cleanup downstream fires.
+
         assert handler.was_tool_call_delta is True
 
     def test_spinner_repaints_after_interval(self):
@@ -96,7 +94,7 @@ class TestStreamEventHandlerSpinnerThrottle:
         event = MagicMock()
         event.delta = ToolCallPartDelta(args_delta="x")
 
-        # One monotonic() read per delta; the third is >interval after the first.
+
         times = [100.0, 100.05, 100.5, 100.55]
         with patch("zrb.llm.util.stream_response.time.monotonic", side_effect=times):
             for _ in range(4):

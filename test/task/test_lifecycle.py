@@ -148,11 +148,7 @@ async def test_run_and_cleanup_session_none():
 
 @pytest.mark.asyncio
 async def test_execute_root_tasks_index_error_propagates():
-    """IndexError from a task action propagates like any other failure.
-
-    Swallowing it into `return None` would make a failed pipeline look
-    successful (CLI exit 0).
-    """
+    """IndexError from a task action propagates like any other failure."""
     task = BaseTask(name="task")
     ctx_mock = MagicMock()
     task.get_ctx = MagicMock(return_value=ctx_mock)
@@ -287,8 +283,7 @@ async def test_log_session_state_cancelled():
 
 @pytest.mark.asyncio
 async def test_log_session_state_cancelled_logs_when_ctx_logging_fails(caplog):
-    """A broken diagnostic log (e.g. a stream closing mid-shutdown) must not
-    propagate, but the swallow itself must now be observable."""
+    """A failing diagnostic log is swallowed but logged at debug level."""
     task = BaseTask(name="task")
     ctx_mock = MagicMock()
     ctx_mock.log_debug.side_effect = RuntimeError("stream closed")
@@ -346,13 +341,7 @@ async def test_log_session_state_exception_logs_when_ctx_logging_fails(caplog):
 
 @pytest.mark.asyncio
 async def test_log_session_state_with_wakeup_does_not_wait_out_the_tick():
-    """A wakeup the caller supplies must be what ends the interval wait.
-
-    The interval is 100 ms and the caller awaits this loop, so unless the
-    wakeup ends the wait the run pays whatever is left of the tick. The
-    `asyncio.sleep` fallback is for a caller that passes no wakeup; reaching
-    it here would mean the run is waiting the tick out again.
-    """
+    """A supplied wakeup ends the interval wait."""
     task = BaseTask(name="task")
     task.get_ctx = MagicMock()
     lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
@@ -387,12 +376,7 @@ async def test_log_session_state_with_wakeup_does_not_wait_out_the_tick():
 
 @pytest.mark.asyncio
 async def test_execute_root_tasks_wakes_the_state_logger_on_termination():
-    """Terminating the session must wake the state logger, not be awaited.
-
-    The happy path ends the session and then awaits the logger. Without a
-    wakeup that await lasts until the logger's interval expires, which is the
-    whole reason a no-op `Task.run()` used to cost ~100 ms.
-    """
+    """Terminating the session wakes the state logger instead of waiting out its tick."""
     task = BaseTask(name="task")
     task.exec_chain = AsyncMock(return_value=None)
     task.get_ctx = MagicMock()

@@ -1,9 +1,7 @@
 """Running a chat UI's external triggers.
 
-A trigger is a callable returning an async iterable; each item it yields
-becomes a user turn on the owning UI. The item vocabulary — a plain string,
-a `TriggerMessage` carrying attachments, or a `TriggerReply` answering a
-pending prompt — lives in `zrb.llm.ui.trigger`.
+A trigger is a callable returning an async iterable; each yielded item (see
+`zrb.llm.ui.trigger`) becomes a user turn on the owning UI.
 """
 
 from __future__ import annotations
@@ -59,17 +57,13 @@ class BaseUITriggers:
                 try:
                     self._deliver(item)
                 except Exception as deliver_error:
-                    # Report and keep going: a trigger is a long-lived source
-                    # (a button, a queue, a microphone), so one bad item or
-                    # one failed submission must not stop every later one.
+                    # Triggers are long-lived; one bad item must not stop them.
                     owner.append_to_output(
                         stylize_error(
                             f"\n[Trigger Error: {exception_summary(deliver_error)}]\n"
                         )
                     )
         except asyncio.CancelledError:
-            # A trigger runs as a background task; swallowing this would make
-            # a cancelled loop look like one that finished.
             raise
         except Exception as e:
             owner.append_to_output(
@@ -93,11 +87,8 @@ class BaseUITriggers:
         text, attachments, source = self._split(item)
         if not text and not attachments:
             return
-        # Drained by the `submit_user_message` below (a `MultiUI` parent
-        # collects from its children) -- no await between, so this slice
-        # still holds exactly what this item staged. The drain happens after
-        # the submission's echo, so a submission that raises before it would
-        # otherwise leave these staged for whatever turn comes next.
+        # Drained by `submit_user_message` with no await between; unstaged if
+        # it raises, so they don't leak into the next turn.
         owner.pending_attachments.extend(attachments)
         try:
             if source is None:
@@ -175,11 +166,7 @@ def _validate_attachments(attachments: object) -> list[UserContent]:
 def _unstage(staged: "list[UserContent]", items: "list[UserContent]") -> None:
     """Remove exactly *items* from *staged*, by identity, last occurrence first.
 
-    Deleting the tail slice instead would assume nothing else touched the list
-    between staging and the failure. Nothing does today — `submit_user_message`
-    is synchronous and there is no await in between — but the list is shared
-    with `/attach`, `/photo` and every other trigger loop, so the assumption is
-    not the loop's to make.
+    The list is shared with `/attach` and other triggers, so no tail slice.
     """
     for item in reversed(items):
         for index in range(len(staged) - 1, -1, -1):

@@ -1,11 +1,6 @@
-"""Plan-mode tools: enter a read-only discovery phase, then present a plan.
+"""Tools for entering and leaving read-only plan mode.
 
-In PLAN mode the execution gate (``agent/common.py``) denies edit, execute, and
-delegate tools via ``PLAN_MODE_POLICY``, leaving reads, research, and harness
-controls available.
-
-The mode lives in a **mutable** ``AgentModeState`` (see ``state.py``) so that
-pydantic-ai's per-tool task snapshots all see the same value.
+The mutable mode state is shared by pydantic-ai's per-tool task snapshots.
 """
 
 from __future__ import annotations

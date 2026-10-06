@@ -6,10 +6,10 @@ from zrb.llm.tool.plan import TodoManager, get_todos, write_todos
 
 
 class TestTodoManager:
-    """Test TodoManager class."""
+
 
     def test_singleton_pattern(self):
-        """Test that TodoManager is a singleton."""
+
         manager1 = TodoManager()
         manager2 = TodoManager()
         assert manager1 is manager2
@@ -26,7 +26,7 @@ class TestTodoManager:
         assert "session" not in str(file_path) or "_" in str(file_path)
 
     def test_save_and_load_todos(self, tmp_path):
-        """Test saving and loading todos."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}  # Clear cache
@@ -51,7 +51,7 @@ class TestTodoManager:
         assert len(loaded["todos"]) == 2
 
     def test_load_todos_nonexistent_session(self, tmp_path):
-        """Test loading todos for non-existent session."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -60,7 +60,7 @@ class TestTodoManager:
         assert result is None
 
     def test_write_todos_basic(self, tmp_path):
-        """Test basic todo writing."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -84,7 +84,7 @@ class TestTodoManager:
         assert result["todos"][2]["id"] == "custom_id"
 
     def test_write_todos_replace_false_merge(self, tmp_path):
-        """Test merging todos when replace=False."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -111,7 +111,7 @@ class TestTodoManager:
         assert task1["status"] == "completed"
 
     def test_write_todos_counts(self, tmp_path):
-        """Test that status counts are correct."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -132,10 +132,7 @@ class TestTodoManager:
         assert result["cancelled"] == 1
 
     def test_merge_auto_id_does_not_collide_with_existing(self, tmp_path):
-        """An unlabeled new item must never silently merge into an unrelated,
-        already-completed item just because its auto-assigned index-based id
-        happens to match an existing one.
-        """
+        """An unlabeled new item never merges into an existing one via its auto id."""
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -158,11 +155,7 @@ class TestTodoManager:
         assert new_task["status"] == "pending"
 
     def test_explicit_id_does_not_collide_with_auto_id_in_same_call(self, tmp_path):
-        """A later item's explicit id must not duplicate an id an earlier,
-        unlabeled item in the *same* write_todos call already auto-claimed —
-        both would otherwise land in `todos` as two distinct entries sharing
-        one id.
-        """
+        """An explicit id never duplicates an id auto-claimed earlier in the same call."""
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -181,7 +174,7 @@ class TestTodoManager:
         assert first["id"] != second["id"]
 
     def test_sort_todos_numeric_ids(self, tmp_path):
-        """Test that todos are sorted correctly with numeric IDs."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -201,10 +194,10 @@ class TestTodoManager:
 
 
 class TestTodoManagerErrorHandling:
-    """Test error handling in TodoManager."""
+
 
     def test_load_todos_corrupted_file(self, tmp_path):
-        """Test loading corrupted JSON file."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -226,7 +219,7 @@ class TestTodoManagerErrorHandling:
             pass
 
     def test_save_todos_permission_error(self, tmp_path):
-        """Test handling permission errors when saving."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
 
@@ -235,7 +228,7 @@ class TestTodoManagerErrorHandling:
 
 
 class TestAsyncFunctions:
-    """Test async todo functions."""
+
 
     @pytest.mark.asyncio
     async def test_write_todos_unknown_keys(self, tmp_path):
@@ -287,7 +280,7 @@ class TestAsyncFunctions:
 
     @pytest.mark.asyncio
     async def test_write_todos_async(self, tmp_path):
-        """Test write_todos async function."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -305,7 +298,7 @@ class TestAsyncFunctions:
 
     @pytest.mark.asyncio
     async def test_write_todos_merge_mode(self, tmp_path):
-        """Test write_todos with merge mode."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -317,8 +310,7 @@ class TestAsyncFunctions:
             replace=True,
         )
 
-        # Now write with replace=False - need to use same IDs to merge
-        # Note: The singleton todo_manager has its own _todo_dir, so we need to clear that too
+        # Merging with replace=False needs the same IDs.
         import uuid
 
         unique_session = f"merge_{uuid.uuid4().hex[:8]}"
@@ -343,7 +335,7 @@ class TestAsyncFunctions:
 
     @pytest.mark.asyncio
     async def test_get_todos_empty(self, tmp_path):
-        """Test get_todos when no todos exist."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}
@@ -354,7 +346,7 @@ class TestAsyncFunctions:
 
     @pytest.mark.asyncio
     async def test_get_todos_with_data(self, tmp_path):
-        """Test get_todos with existing todos."""
+
         manager = TodoManager()
         manager.todo_dir = tmp_path
         manager.todos = {}

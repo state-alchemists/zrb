@@ -1,21 +1,14 @@
-"""Find the task mistakes that make a declared task unreachable from the CLI.
+"""Find declared tasks the CLI cannot reach.
 
-Two failures share a symptom — a user types a task name, or watches one
-vanish, and zrb has nothing to say about it:
+Reports two mistakes:
 
-- A task declared at the top level of a `zrb_init.py` and never registered
-  (or referenced as an edge of a task that is). It is a live object with a
-  name and no CLI word, so nothing ever runs it.
-- Two of the project's own tasks registered under the same alias in the same
-  group. `Group.add_task` replaces the earlier one silently, by design, so the
-  first is gone.
+- A task declared at the top level of a `zrb_init.py` that is neither
+  registered nor referenced as an edge of a task that is.
+- Two of the project's own tasks registered under the same alias in one group
+  (`Group.add_task` silently keeps the later one).
 
-Collisions are read from the replacement log `Group.add_task` keeps, not by
-grouping declared tasks by `name`: an alias is a per-group word, and the same
-task object may be exposed under several. Two tasks that share a name but sit
-under distinct aliases are a valid configuration, not a collision. Shadowing a
-*built-in* is likewise intended, so a replacement whose victim is a built-in
-object the pre-init tree already held is left quiet.
+Collisions come from `Group.replacements`, not from grouping tasks by `name`:
+aliases are per-group, and replacing a built-in is an intended shadow.
 """
 
 from __future__ import annotations
@@ -30,9 +23,7 @@ from zrb.task.any_task import AnyTask
 if TYPE_CHECKING:
     from zrb.callback.any_callback import AnyCallback
 
-# The edges through which one task pulls in another. A task referenced here is
-# reachable even with no CLI word of its own: that is how a readiness check or
-# a fallback stays alive without being registered.
+# Edges that make a task reachable without a CLI word of its own.
 _TASK_EDGES = ("upstreams", "fallbacks", "successors", "readiness_checks")
 
 
@@ -51,9 +42,7 @@ def collect_declared_tasks(
 ) -> list[tuple[str, str, AnyTask]]:
     """List the tasks each init source declares at module level.
 
-    Returns `(origin, symbol, task)` per task. Only module attributes count,
-    so a task built inside a function or a factory body is not reported — it
-    was never on track to become a CLI word.
+    Returns `(origin, symbol, task)` per task. Only module attributes count.
     """
     declared: list[tuple[str, str, AnyTask]] = []
     for origin, module in sources:
@@ -67,13 +56,11 @@ _builtin_task_ids: frozenset[int] = frozenset()
 
 
 def snapshot_builtin_task_ids(root: AnyGroup) -> None:
-    """Freeze the built-in task identities once, as the built-ins register.
+    """Freeze the built-in task identities.
 
-    Read once at `zrb` package import, when the built-ins have registered but
-    no init source has run, rather than on every `serve_cli`. `cli` is a
-    process-wide tree that keeps what each run registers on it, so reading it
-    later would count a previous run's project tasks as built-ins and silence
-    a collision that should warn.
+    Called once at `zrb` import, before any init source runs. `cli` is
+    process-wide, so a later snapshot would count a previous run's project
+    tasks as built-ins.
     """
     global _builtin_task_ids
     _builtin_task_ids = frozenset(id(task) for task in root.get_all_subtasks())
@@ -85,11 +72,7 @@ def get_builtin_task_ids() -> frozenset[int]:
 
 
 def reset_task_replacements(root: Group) -> None:
-    """Drop the replacement log a previous startup left on the tree.
-
-    `cli` is a process-wide singleton, so a second `serve_cli` in one process
-    (tests) would otherwise re-read and re-report the first run's collisions.
-    """
+    """Drop the replacement log a previous `serve_cli` left on the tree."""
     for _, group in _collect_groups(root):
         group.replacements = []
 
@@ -113,9 +96,7 @@ def find_task_diagnostics(
     collisions, replaced_ids = _collisions(root, builtin_ids, declared_by_id)
     diagnostics = list(collisions)
     for origin, symbol, task in declared:
-        # A collision's displaced task is gone from the tree too, but the
-        # collision line names it; a second "unreachable" line would only
-        # restate the replacement under a wrong cause.
+        # A displaced task is already named by its collision diagnostic.
         if id(task) in reachable or id(task) in replaced_ids:
             continue
         diagnostics.append(
@@ -141,11 +122,9 @@ def _collisions(
     builtin_ids: frozenset[int],
     declared_by_id: dict[int, tuple[str, str]],
 ) -> tuple[list[TaskDiagnostic], set[int]]:
-    """One diagnostic per `(group, alias)` the project's own tasks collided on.
+    """One diagnostic per `(group, alias)` where a non-built-in was replaced.
 
-    A replacement is a collision only when its victim is not a built-in. The
-    victim list and its id set come back together, since `find_task_diagnostics`
-    uses the ids to suppress a duplicate "unregistered" line.
+    Also returns the replaced task ids.
     """
     diagnostics: list[TaskDiagnostic] = []
     replaced_ids: set[int] = set()
@@ -212,11 +191,7 @@ def _describe_task(task: AnyTask, declared_by_id: dict[int, tuple[str, str]]) ->
 
 
 def _collect_groups(root: Group) -> Iterator[tuple[str, Group]]:
-    """Every `Group` below *root*, with a human-readable path for each.
-
-    Third-party `AnyGroup` implementations are skipped: the replacement log
-    lives on `Group`, and one without it never recorded a collision to report.
-    """
+    """Every `Group` below *root* with a readable path; other `AnyGroup`s are skipped."""
     yield from _walk_groups(root, [])
 
 
@@ -229,11 +204,7 @@ def _walk_groups(group: Group, path: list[str]) -> Iterator[tuple[str, Group]]:
 
 
 def _reachable_tasks(root: AnyGroup) -> set[int]:
-    """Ids of every task the CLI can run: registered, or an edge of one.
-
-    Walks the graph transitively, so a readiness check's own upstream counts
-    as reachable even when nothing else names it.
-    """
+    """Ids of every task the CLI can run: registered, or transitively an edge of one."""
     ids: set[int] = set()
     pending = list(root.get_all_subtasks())
     while pending:
@@ -248,15 +219,8 @@ def _reachable_tasks(root: AnyGroup) -> set[int]:
 
 
 def _callback_tasks(task: AnyTask) -> Iterator[AnyTask]:
-    """The tasks *task* runs through its callbacks.
-
-    A trigger fires its `Callback`s on every event, so a task reached only that
-    way runs without a CLI word or an edge of its own — it must not be
-    reported as unreachable.
-    """
-    # `callbacks` belongs to `BaseTrigger`, and `task` to `Callback`: neither is
-    # on `AnyTask`, so both are read off the object, as the edge walk does. A
-    # third-party callback with no `task` has nothing to follow.
+    """The tasks a trigger runs through its callbacks."""
+    # `callbacks` (BaseTrigger) and `task` (Callback) are not on the protocols.
     callbacks = cast("list[AnyCallback]", getattr(task, "callbacks", None) or [])
     for callback in callbacks:
         wrapped = cast("AnyTask | None", getattr(callback, "task", None))

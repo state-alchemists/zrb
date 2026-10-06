@@ -1,20 +1,7 @@
-"""Fitness functions for DAG *shape*, not DAG behavior.
+"""Fitness functions for DAG shape: env/input aggregation must stay linear.
 
-Every other ratchet in this repo measures static shape — parameter counts,
-file lines, cyclomatic complexity, private access. None of them measures what
-the engine does as a graph grows, and that gap hid a real defect: `.envs` and
-`.inputs` recursed through each other, re-deriving each node's whole closure
-once per incoming edge. Cost was O(n^3) on a chain and O(2**depth) on a
-diamond, and `runner/cli.py` reads `task.inputs` before a task even starts, so
-`zrb <task>` on a 41-task lattice never returned.
-
-It stayed hidden because zrb's own `zrb_init.py` tops out at 97 tasks and
-depth 6 — dogfooding does not reach the shapes users build.
-
-The time budgets here are deliberately loose (~100x the measured cost on a
-slow CI box). They exist to catch a return to super-linear growth, not to
-police milliseconds; a genuine slowdown will blow past them by orders of
-magnitude, which is exactly what the original defect did.
+Time budgets are ~100x the measured cost; they catch super-linear growth, not
+milliseconds.
 """
 
 import time
@@ -37,11 +24,7 @@ def _chain(depth: int) -> Task:
 
 
 def _lattice(levels: int) -> Task:
-    """Two tasks per level, each depending on *both* tasks of the level above.
-
-    The shape a monorepo produces when a shared stage fans out and back in.
-    It is what turns an un-memoized closure walk exponential.
-    """
+    """Two tasks per level, each depending on both tasks of the level above."""
     prev = [
         Task(name="a0", input=StrInput("a0", default="x"), env=Env("A0")),
         Task(name="b0", input=StrInput("b0", default="x"), env=Env("B0")),
@@ -72,11 +55,7 @@ def test_diamond_dag_input_aggregation_does_not_blow_up():
 
 
 def test_diamond_dag_env_aggregation_returns_one_entry_per_env():
-    """Visiting each node once means each env is contributed once.
-
-    The recursive form re-appended a shared ancestor's envs per branch, so
-    this list held 131,070 entries for 32 distinct envs.
-    """
+    """Visiting each node once means each env is contributed once."""
     sink = _lattice(16)
 
     envs = sink.envs
@@ -104,12 +83,7 @@ def test_a_chain_deeper_than_the_interpreter_stack_still_resolves():
 
 
 def test_a_task_overrides_an_env_its_transitive_upstream_declares():
-    """Upstream-first ordering, across a diamond.
-
-    `a` and `b` both depend on `shared`, and `sink` on both. `sink` declaring
-    `PORT` must beat `shared` declaring it — under the old recursive form the
-    second branch re-appended `shared`'s copy last, and `shared` won.
-    """
+    """Upstream-first ordering across a diamond: `sink`'s `PORT` beats `shared`'s."""
     shared = Task(name="shared", env=Env("PORT", default="1111", link_to_os=False))
     left = Task(name="left")
     right = Task(name="right")
@@ -126,11 +100,7 @@ def test_a_task_overrides_an_env_its_transitive_upstream_declares():
 
 
 def test_rewiring_after_a_read_is_reflected():
-    """Aggregation reads the graph every time, so nothing can go stale.
-
-    Reading first and wiring second is the order a cache would get wrong; it
-    stays pinned so reintroducing one has to face this test.
-    """
+    """Aggregation reads the graph every time, so nothing can go stale."""
     downstream = Task(name="downstream", input=StrInput("own", default="x"))
     upstream = Task(name="upstream", input=StrInput("added", default="x"))
     assert [i.name for i in downstream.inputs] == ["own"]

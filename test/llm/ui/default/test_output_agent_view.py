@@ -1,8 +1,4 @@
-"""`UIOutput` while a sub-agent's live view parks the main transcript.
-
-The pane then shows the sub-agent's buffer, and the main transcript waits in
-`saved_main_output` until Left restores it.
-"""
+"""Verify output switching while viewing a sub-agent."""
 
 from zrb.util.cli.style import stylize_muted
 

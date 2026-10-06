@@ -10,7 +10,7 @@ from zrb.llm.skill.manager import skill_manager as skill_manager_singleton
 
 @pytest.fixture
 def temp_skill_env(tmp_path):
-    # Setup global skills: ~/.claude/skills/global-skill/SKILL.md
+
     global_dir = tmp_path / "home" / ".claude" / "skills"
     global_dir.mkdir(parents=True)
     global_skill_dir = global_dir / "global-skill"
@@ -21,12 +21,11 @@ def temp_skill_env(tmp_path):
 name: global-skill
 description: A global skill
 ---
-# Global Skill Content
 """,
         encoding="utf-8",
     )
 
-    # Setup project skills: project/.claude/skills/project-skill/SKILL.md
+
     project_dir = tmp_path / "project"
     project_dir.mkdir()
     project_skill_dir = project_dir / ".claude" / "skills" / "project-skill"
@@ -37,12 +36,11 @@ description: A global skill
 name: project-skill
 description: A project skill
 ---
-# Project Skill Content
 """,
         encoding="utf-8",
     )
 
-    # Setup the `.skill.md` fallback format: project/fallback-skill.skill.md
+
     fallback_skill_file = project_dir / "fallback-skill.skill.md"
     fallback_skill_file.write_text(
         """# Fallback Skill
@@ -51,9 +49,9 @@ Fallback content
         encoding="utf-8",
     )
 
-    # Mock Path.home() for SkillManager. The `HOME` env var alone doesn't
-    # work here on Windows: `Path.home()`/`os.path.expanduser` consult
-    # `USERPROFILE`, not `HOME`, on that platform.
+
+
+
     with (
         patch.object(Path, "home", return_value=tmp_path / "home"),
         patch("zrb.llm.skill.manager.CFG") as mock_cfg,
@@ -75,8 +73,7 @@ def skill_manager(tmp_path):
 
 
 def _builtin_mock_cfg(mock_cfg, *, enable_builtin_skills, extra_skill_dirs=None):
-    """Configure a mocked CFG that disables home/project search so only the
-    builtin (and any extra) directories drive discovery."""
+    'Configure a mocked CFG that disables home/project search so only the'
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_SEARCH_HOME = False
     mock_cfg.LLM_SEARCH_PROJECT = False
@@ -101,7 +98,7 @@ def test_skill_manager_scan(temp_skill_env):
     assert "project-skill" in skill_names
     assert "Fallback Skill" in skill_names
 
-    # Check descriptions
+
     global_skill = next(s for s in skills if s.name == "global-skill")
     assert global_skill.description == "A global skill"
 
@@ -113,7 +110,7 @@ def test_skill_manager_scan(temp_skill_env):
 
 
 def test_skill_manager_precedence(temp_skill_env):
-    # Create a skill in project that overrides a global one
+
     override_dir = temp_skill_env / ".claude" / "skills" / "global-skill"
     override_dir.mkdir(parents=True, exist_ok=True)
     override_file = override_dir / "SKILL.md"
@@ -139,11 +136,11 @@ def test_skill_manager_reload(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     manager.scan()
 
-    # Add a new skill file
+
     new_skill_file = tmp_path / "new.skill.md"
     new_skill_file.write_text("# New Skill")
 
-    # Should not be found before reload (since it was already scanned)
+
     assert manager.get_skill("New Skill") is None
 
     manager.reload()
@@ -231,7 +228,6 @@ model: gpt-4
 context: fork
 agent: Architect
 ---
-# Ignored Header
 """)
 
     skills = skill_manager.scan(search_dirs=[tmp_path])
@@ -291,20 +287,20 @@ def test_skill_manager_max_depth(tmp_path):
     project_dir = tmp_path / "project_depth"
     project_dir.mkdir()
 
-    # Create skill at depth 1 (relative to project_dir)
+
     d1 = project_dir / "d1"
     d1.mkdir()
     (d1 / "SKILL.md").write_text("# Skill 1")
 
-    # Create skill at depth 6 (relative to project_dir)
-    # project_depth/dir1/dir2/dir3/dir4/dir5/dir6/SKILL.md
+
+
     curr = project_dir
     for i in range(1, 7):
         curr = curr / f"dir{i}"
         curr.mkdir()
     (curr / "SKILL.md").write_text("# Deep Skill")
 
-    # Test with max_depth=5
+
     manager = SkillManager(root_dir=str(project_dir), max_depth=5)
     skills = manager.scan()
     skill_names = [s.name for s in skills]
@@ -312,7 +308,7 @@ def test_skill_manager_max_depth(tmp_path):
     assert "Skill 1" in skill_names
     assert "Deep Skill" not in skill_names
 
-    # Test with max_depth=10
+
     manager = SkillManager(root_dir=str(project_dir), max_depth=10)
     skills = manager.scan()
     skill_names = [s.name for s in skills]
@@ -330,7 +326,7 @@ def test_skill_manager_ignore_dirs(skill_manager, tmp_path):
 
 
 def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
-    # Setup a nested directory structure
+
     root = tmp_path / "root"
     mid = root / "mid"
     leaf = mid / "leaf"
@@ -353,7 +349,7 @@ def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
 
 
 def test_skill_manager_get_search_directories_plugins(skill_manager, tmp_path):
-    # Test with direct skill directories (LLM_EXTRA_SKILL_DIRS)
+
     skill_dir = tmp_path / "my_skills"
     (skill_dir / "test-skill").mkdir(parents=True)
     (skill_dir / "test-skill" / "SKILL.md").write_text("# Test Skill")
@@ -369,7 +365,7 @@ def test_skill_manager_get_search_directories_plugins(skill_manager, tmp_path):
 
 
 def test_skill_manager_get_search_directories_with_plugins(skill_manager, tmp_path):
-    # Test with proper plugin structure (with manifest)
+
     plugin_root = tmp_path / "plugins"
     plugin_dir = plugin_root / "my-plugin"
     (plugin_dir / ".claude-plugin").mkdir(parents=True)
@@ -384,7 +380,7 @@ def test_skill_manager_get_search_directories_with_plugins(skill_manager, tmp_pa
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_root)]
         dirs = skill_manager.search_dirs
-        # Should find skills inside plugins
+
         assert any(os.path.join("my-plugin", "skills") in str(d) for d in dirs)
 
 
@@ -395,7 +391,7 @@ def test_skill_manager_scan_permission_error(skill_manager, tmp_path):
 
 
 def test_builtin_core_skills_dir_always_in_search_dirs(tmp_path):
-    """core_skills/ is searched even when builtin utility skills are disabled."""
+    'core_skills/ is searched even when builtin utility skills are disabled.'
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _builtin_mock_cfg(mock_cfg, enable_builtin_skills=False)
@@ -414,8 +410,7 @@ def test_builtin_skills_dir_present_when_enabled(tmp_path):
 
 
 def test_builtin_skills_toggle_off_keeps_core_drops_utility(tmp_path):
-    """Disabling builtin skills suppresses utility skills but never core skills,
-    and leaves user/extra-dir skills untouched (scope = builtin only)."""
+    'Disabling builtin skills suppresses utility skills but never core skills,'
     extra = tmp_path / "extra_skills"
     (extra / "my-extra").mkdir(parents=True)
     (extra / "my-extra" / "SKILL.md").write_text(
@@ -428,9 +423,9 @@ def test_builtin_skills_toggle_off_keeps_core_drops_utility(tmp_path):
             mock_cfg, enable_builtin_skills=False, extra_skill_dirs=[str(extra)]
         )
         names = [s.name for s in manager.scan()]
-    assert "core-coding" in names  # core skill always loads
-    assert "init" not in names  # utility skill suppressed
-    assert "my-extra" in names  # user/extra skill unaffected
+    assert "core-coding" in names
+    assert "init" not in names
+    assert "my-extra" in names
 
 
 def test_builtin_skills_toggle_on_loads_core_and_utility(tmp_path):

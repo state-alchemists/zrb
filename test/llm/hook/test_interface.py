@@ -1,14 +1,14 @@
-"""Tests for HookContext and HookResult from interface.py."""
+'Tests for HookContext and HookResult from interface.py.'
 
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
 
 
 class TestHookContext:
-    """Test HookContext dataclass."""
+    'Test HookContext dataclass.'
 
     def test_basic_creation(self):
-        """Test creating a basic HookContext."""
+        'Test creating a basic HookContext.'
         ctx = HookContext(event=HookEvent.SESSION_START, event_data={"key": "value"})
         assert ctx.event == HookEvent.SESSION_START
         assert ctx.event_data == {"key": "value"}
@@ -16,14 +16,14 @@ class TestHookContext:
         assert ctx.metadata == {}
 
     def test_command_fields_default_none(self):
-        """Command fields are present and default to None."""
+        'Command fields are present and default to None.'
         ctx = HookContext(event=HookEvent.PRE_COMMAND, event_data={})
         assert ctx.command_name is None
         assert ctx.command_args is None
         assert ctx.command_handled is None
 
     def test_command_fields_in_claude_json(self):
-        """Command fields serialize into the Claude JSON when set."""
+        'Command fields serialize into the Claude JSON when set.'
         ctx = HookContext(
             event=HookEvent.POST_COMMAND,
             event_data={},
@@ -38,7 +38,7 @@ class TestHookContext:
         assert payload["hook_event_name"] == "PostCommand"
 
     def test_creation_with_all_fields(self):
-        """Test creating HookContext with all fields."""
+        'Test creating HookContext with all fields.'
         ctx = HookContext(
             event=HookEvent.PRE_TOOL_USE,
             event_data={"input": "test"},
@@ -81,7 +81,7 @@ class TestHookContext:
         assert ctx.permission_suggestions == [{"role": "admin"}]
 
     def test_to_claude_json_basic(self):
-        """Test to_claude_json with minimal fields."""
+        'Test to_claude_json with minimal fields.'
         ctx = HookContext(event=HookEvent.SESSION_START, event_data={})
         result = ctx.to_claude_json()
         assert "session_id" in result
@@ -92,7 +92,7 @@ class TestHookContext:
         assert result["hook_event_name"] == "SessionStart"
 
     def test_to_claude_json_with_hook_event_name(self):
-        """Test to_claude_json uses hook_event_name if set."""
+        'Test to_claude_json uses hook_event_name if set.'
         ctx = HookContext(
             event=HookEvent.PRE_TOOL_USE,
             event_data={},
@@ -102,7 +102,7 @@ class TestHookContext:
         assert result["hook_event_name"] == "CustomHookName"
 
     def test_to_claude_json_with_tool_fields(self):
-        """Test to_claude_json includes tool-related fields."""
+        'Test to_claude_json includes tool-related fields.'
         ctx = HookContext(
             event=HookEvent.PRE_TOOL_USE,
             event_data={},
@@ -116,7 +116,7 @@ class TestHookContext:
         assert result["tool_use_id"] == "tool-123"
 
     def test_to_claude_json_with_prompt(self):
-        """Test to_claude_json includes prompt field."""
+        'Test to_claude_json includes prompt field.'
         ctx = HookContext(
             event=HookEvent.USER_PROMPT_SUBMIT, event_data={}, prompt="Hello world"
         )
@@ -124,7 +124,7 @@ class TestHookContext:
         assert result["prompt"] == "Hello world"
 
     def test_to_claude_json_with_error(self):
-        """Test to_claude_json includes error field."""
+        'Test to_claude_json includes error field.'
         ctx = HookContext(
             event=HookEvent.POST_TOOL_USE_FAILURE,
             event_data={},
@@ -134,7 +134,7 @@ class TestHookContext:
         assert result["error"] == "Something failed"
 
     def test_to_claude_json_with_notification_fields(self):
-        """Test to_claude_json includes notification fields."""
+        'Test to_claude_json includes notification fields.'
         ctx = HookContext(
             event=HookEvent.NOTIFICATION,
             event_data={},
@@ -148,7 +148,7 @@ class TestHookContext:
         assert result["notification_type"] == "warning"
 
     def test_to_claude_json_with_agent_fields(self):
-        """Test to_claude_json includes agent fields."""
+        'Test to_claude_json includes agent fields.'
         ctx = HookContext(
             event=HookEvent.NOTIFICATION,
             event_data={},
@@ -162,7 +162,7 @@ class TestHookContext:
         assert result["agent_transcript_path"] == "/transcripts/agent-123"
 
     def test_to_claude_json_with_task_fields(self):
-        """Test to_claude_json includes task fields."""
+        'Test to_claude_json includes task fields.'
         ctx = HookContext(
             event=HookEvent.SESSION_END,
             event_data={},
@@ -176,7 +176,7 @@ class TestHookContext:
         assert result["task_description"] == "Implement X"
 
     def test_to_claude_json_with_source(self):
-        """Test to_claude_json includes source field."""
+        'Test to_claude_json includes source field.'
         ctx = HookContext(
             event=HookEvent.SESSION_START, event_data={}, source="cli", model="claude-3"
         )
@@ -185,13 +185,13 @@ class TestHookContext:
         assert result["model"] == "claude-3"
 
     def test_to_claude_json_omits_none_values(self):
-        """Test that to_claude_json omits None values."""
+        'Test that to_claude_json omits None values.'
         ctx = HookContext(
             event=HookEvent.PRE_TOOL_USE,
             event_data={},
             tool_name="Read",
-            prompt=None,  # Should not be included
-            tool_input=None,  # Should not be included
+            prompt=None,
+            tool_input=None,
         )
         result = ctx.to_claude_json()
         assert "tool_name" in result
@@ -199,7 +199,7 @@ class TestHookContext:
         assert "tool_input" not in result
 
     def test_to_claude_json_with_tool_response_and_interrupt(self):
-        """Test to_claude_json includes tool_response and is_interrupt."""
+        'Test to_claude_json includes tool_response and is_interrupt.'
         ctx = HookContext(
             event=HookEvent.POST_TOOL_USE,
             event_data={},
@@ -211,7 +211,7 @@ class TestHookContext:
         assert result["is_interrupt"] is False
 
     def test_to_claude_json_with_stop_hook_and_team_fields(self):
-        """Test to_claude_json includes stop_hook_active, teammate_name, team_name."""
+        'Test to_claude_json includes stop_hook_active, teammate_name, team_name.'
         ctx = HookContext(
             event=HookEvent.STOP,
             event_data={},
@@ -225,7 +225,7 @@ class TestHookContext:
         assert result["team_name"] == "core-team"
 
     def test_to_claude_json_carries_last_assistant_message(self):
-        """Stop's response text reaches stdin, where event_data never does."""
+        "Stop's response text reaches stdin, where event_data never does."
         ctx = HookContext(
             event=HookEvent.STOP,
             event_data={"output": "done", "history": ["large"]},
@@ -236,7 +236,7 @@ class TestHookContext:
         assert "history" not in result
 
     def test_to_claude_json_with_trigger_and_instructions_and_reason(self):
-        """Test to_claude_json includes trigger, custom_instructions, reason."""
+        'Test to_claude_json includes trigger, custom_instructions, reason.'
         ctx = HookContext(
             event=HookEvent.PRE_COMPACT,
             event_data={},
@@ -250,7 +250,7 @@ class TestHookContext:
         assert result["reason"] == "context limit reached"
 
     def test_to_claude_json_with_permission_suggestions(self):
-        """Test to_claude_json includes permission_suggestions."""
+        'Test to_claude_json includes permission_suggestions.'
         ctx = HookContext(
             event=HookEvent.PRE_TOOL_USE,
             event_data={},
@@ -261,10 +261,10 @@ class TestHookContext:
 
 
 class TestHookResultBlock:
-    """Test HookResult.block() class method."""
+    'Test HookResult.block() class method.'
 
     def test_block_basic(self):
-        """Test block() with reason only."""
+        'Test block() with reason only.'
         result = HookResult.block("Access denied")
         assert result.success is False
         assert result.should_stop is True
@@ -273,16 +273,16 @@ class TestHookResultBlock:
         assert result.modifications["exit_code"] == 2
 
     def test_block_with_additional_context(self):
-        """Test block() with additional context."""
+        'Test block() with additional context.'
         result = HookResult.block("Forbidden", "See policy doc")
         assert result.modifications["additionalContext"] == "See policy doc"
 
 
 class TestHookResultToClaudeJson:
-    """Test HookResult.to_claude_json() method."""
+    'Test HookResult.to_claude_json() method.'
 
     def test_to_claude_json_basic(self):
-        """Test basic to_claude_json conversion."""
+        'Test basic to_claude_json conversion.'
         result = HookResult(success=True, output="test output")
         json_result = result.to_claude_json()
         assert json_result["success"] is True
@@ -290,13 +290,13 @@ class TestHookResultToClaudeJson:
         assert json_result["exit_code"] == 0
 
     def test_to_claude_json_with_data(self):
-        """Test to_claude_json with data."""
+        'Test to_claude_json with data.'
         result = HookResult(success=True, data={"key": "value"})
         json_result = result.to_claude_json()
         assert json_result["data"] == {"key": "value"}
 
     def test_to_claude_json_with_modifications(self):
-        """Test to_claude_json merges modifications."""
+        'Test to_claude_json merges modifications.'
         result = HookResult(
             success=True, modifications={"custom_field": "custom_value"}
         )
@@ -304,7 +304,7 @@ class TestHookResultToClaudeJson:
         assert json_result["custom_field"] == "custom_value"
 
     def test_to_claude_json_blocking_result(self):
-        """Test to_claude_json for blocking result."""
+        'Test to_claude_json for blocking result.'
         result = HookResult(success=False, should_stop=True, output="Blocked!")
         json_result = result.to_claude_json()
         assert json_result["decision"] == "block"
@@ -313,7 +313,7 @@ class TestHookResultToClaudeJson:
         assert json_result["success"] is False
 
     def test_to_claude_json_blocking_with_modifications(self):
-        """Test to_claude_json for blocking result with modifications."""
+        'Test to_claude_json for blocking result with modifications.'
         result = HookResult(
             success=False,
             should_stop=True,
@@ -324,7 +324,7 @@ class TestHookResultToClaudeJson:
         assert json_result["exit_code"] == 2
 
     def test_to_claude_json_permission_decision_to_hook_specific_output(self):
-        """Test that permissionDecision is moved to hookSpecificOutput."""
+        'Test that permissionDecision is moved to hookSpecificOutput.'
         result = HookResult(
             success=True,
             modifications={
@@ -342,33 +342,33 @@ class TestHookResultToClaudeJson:
         assert json_result["hookSpecificOutput"]["updatedInput"] == {"arg": "val"}
 
     def test_to_claude_json_exits_code_0_by_default(self):
-        """Test that exit_code defaults to 0 for successful results."""
+        'Test that exit_code defaults to 0 for successful results.'
         result = HookResult(success=True)
         json_result = result.to_claude_json()
         assert json_result["exit_code"] == 0
 
     def test_to_claude_json_no_output_when_none(self):
-        """Test that output is not included when None."""
+        'Test that output is not included when None.'
         result = HookResult(success=True, output=None)
         json_result = result.to_claude_json()
         assert "output" not in json_result or json_result.get("output") is None
 
     def test_to_claude_json_non_dict_hook_specific_output_is_preserved(self):
-        """Test that a non-dict hookSpecificOutput is left as-is (defensive pass)."""
+        'Test that a non-dict hookSpecificOutput is left as-is (defensive pass).'
         result = HookResult(
             success=True,
             modifications={"hookSpecificOutput": "already-serialized-string"},
         )
         json_result = result.to_claude_json()
-        # The pass branch leaves the value unchanged; permissionDecision check is skipped
+
         assert json_result["hookSpecificOutput"] == "already-serialized-string"
 
 
 class TestHookResultIntegration:
-    """Integration tests for HookResult."""
+    'Integration tests for HookResult.'
 
     def test_block_to_claude_json_integration(self):
-        """Test block() result converted to Claude JSON."""
+        'Test block() result converted to Claude JSON.'
         result = HookResult.block("Security violation", "See policy")
         json_result = result.to_claude_json()
         assert json_result["decision"] == "block"

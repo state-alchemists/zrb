@@ -59,13 +59,9 @@ class MultiplexApprovalChannel(AnyApprovalChannel):
                     f"Exception: {type(e).__name__}: {e}"
                 )
                 traceback.print_exc()
-                # A broken channel must NOT win the race: resolving the future
-                # here would deny before the humans on the remaining channels
-                # (e.g. the terminal) get a chance to answer. Denial happens
-                # only in the watchdog, once EVERY channel has finished
-                # without producing a result.
+                # A broken channel must not win the race; the watchdog denies
+                # only once every channel has finished without a result.
 
-        # Race all channels; the first real response resolves the future.
         tasks = [
             asyncio.create_task(request_from_channel(channel))
             for channel in self._channels
@@ -89,8 +85,7 @@ class MultiplexApprovalChannel(AnyApprovalChannel):
             )
             return result
         finally:
-            # Cancel the losers (and the watchdog) and reap them so nothing
-            # outlives this request — no per-call state is retained.
+            # Cancel and reap the losers so nothing outlives this request.
             watchdog.cancel()
             for task in tasks:
                 task.cancel()

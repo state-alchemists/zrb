@@ -20,7 +20,6 @@ async def test_cmd_task_exec_success(mock_session):
     """Test successful command execution via exec."""
     mock_cmd_result = CmdResult(output="output", error="", display="output")
 
-    # Create a simple function that returns a coroutine instead of an async function
     def mock_run_command(*args, **kwargs):
         async def _coro():
             return (mock_cmd_result, 0)
@@ -49,7 +48,6 @@ async def test_cmd_task_exec_failure(mock_session):
     """Test command execution failure via exec."""
     mock_cmd_result = CmdResult(output="", error="error", display="")
 
-    # Create a simple function that returns a coroutine instead of an async function
     def mock_run_command(*args, **kwargs):
         async def _coro():
             return (mock_cmd_result, 1)
@@ -72,8 +70,7 @@ async def test_cmd_task_exec_failure(mock_session):
 
 @pytest.mark.asyncio
 async def test_cmd_task_exec_failure_carries_task_context_note(mock_session):
-    """Regression: CmdTask overrides `_exec_action` wholesale, so it used to
-    lose BaseTask's "Task: name (file:line)" exception-enrichment note."""
+    """CmdTask errors carry BaseTask's "Task: name (file:line)" note."""
     mock_cmd_result = CmdResult(output="", error="error", display="")
 
     def mock_run_command(*args, **kwargs):
@@ -131,10 +128,8 @@ async def test_cmd_task_exec_plain_print(mock_session):
     """Test plain_print=True via exec."""
     mock_cmd_result = CmdResult(output="output", error="", display="output")
 
-    # Track call arguments
     call_args_list = []
 
-    # Create a simple function that returns a coroutine instead of an async function
     def mock_run_command(*args, **kwargs):
         async def _coro():
             call_args_list.append((args, kwargs))
@@ -152,7 +147,6 @@ async def test_cmd_task_exec_plain_print(mock_session):
 
         await task.exec(mock_session)
 
-        # Check that run_command was called
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         print_method = call_kwargs["print_method"]
@@ -168,10 +162,8 @@ async def test_cmd_task_exec_cwd(mock_session):
     mock_cmd_result = CmdResult(output="output", error="", display="output")
     custom_cwd = "/tmp/custom_dir"
 
-    # Track call arguments
     call_args_list = []
 
-    # Create a simple function that returns a coroutine instead of an async function
     def mock_run_command(*args, **kwargs):
         async def _coro():
             call_args_list.append((args, kwargs))
@@ -193,7 +185,6 @@ async def test_cmd_task_exec_cwd(mock_session):
 
         await task.exec(mock_session)
 
-        # Check that run_command was called
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         assert call_kwargs["cwd"] == custom_cwd
@@ -207,7 +198,6 @@ async def test_cmd_task_exec_env(mock_session):
     """Test custom environment variables via exec."""
     mock_cmd_result = CmdResult(output="output", error="", display="output")
 
-    # Track call arguments
     call_args_list = []
 
     # Create a simple function that returns a coroutine instead of an async function
@@ -229,7 +219,6 @@ async def test_cmd_task_exec_env(mock_session):
 
         await task.exec(mock_session)
 
-        # Check that run_command was called
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         env_map = call_kwargs["env_map"]
@@ -356,10 +345,7 @@ async def test_cmd_task_exec_remote(mock_session):
     [
         ("bash", True),
         ("/bin/bash", True),
-        # The Windows default since `get_current_shell` started preferring Git
-        # Bash. A raw `shell.endswith("bash")` answers False here, which
-        # silently disabled the POSIX lint on the one platform whose default
-        # shell is a `.exe` path.
+        # The Windows default (Git Bash) is a `.exe` path.
         ("C:\\Program Files\\Git\\bin\\bash.exe", True),
         ("/usr/bin/zsh", True),
         ("cmd", False),

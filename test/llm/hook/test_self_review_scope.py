@@ -1,6 +1,4 @@
-"""What the self-review gate reviews: the working directory's diff since the
-turn-start snapshot, every repository under it included, plus the file tools'
-paths the diff does not cover."""
+"What the self-review gate reviews: the working directory's diff since the"
 
 import os
 import subprocess
@@ -33,8 +31,8 @@ async def test_without_a_turn_start_snapshot_only_the_paths_are_reviewed(
     with gate() as (seen, _):
         await stop(manager, changed_paths=("a.py", "new.py"))
 
-    # The reviewer gets a request, not the transcript — and no diff against
-    # HEAD, which would carry the user's uncommitted work from before the turn.
+
+
     request = seen[0].event_data
     assert isinstance(request, str)
     assert "- a.py" in request and "- new.py" in request
@@ -60,9 +58,9 @@ async def test_turn_start_snapshot_scopes_the_review_to_this_turn(
     (tmp_path / "a.py").write_text("x = 1\nuser_wip = True\n")
     monkeypatch.chdir(tmp_path)
     before = start_snapshot(tmp_path)
-    # A shell command's edit: no file tool names it.
+
     (tmp_path / "gen.py").write_text("y = 2\n")
-    # A file tool's edit git ignores.
+
     (tmp_path / "ignored.txt").write_text("z\n")
     manager = HookManager(search_dirs=[])
 
@@ -104,8 +102,8 @@ async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
     timeouts: list[float] = []
 
     def hanging_git(args, *rest, timeout=None, **kwargs):
-        # Every git command hangs until its own timeout. Patched in-process:
-        # a fake `git` script in a temp dir cannot run where it is noexec.
+
+
         if args[0] != "git":
             return real_run(args, *rest, timeout=timeout, **kwargs)
         timeouts.append(timeout)
@@ -122,7 +120,7 @@ async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
         elapsed = time.monotonic() - started
 
     assert elapsed < 5
-    # Each command got only the time left before the deadline, not 30s.
+
     assert timeouts and max(timeouts) <= 1
     assert seen == []
     assert blocked(results) == []
@@ -152,15 +150,14 @@ async def test_a_tool_path_under_home_matches_its_tree_path(
 async def test_outside_git_the_review_still_gets_the_turns_diff(
     tmp_path, monkeypatch, start_snapshot, gate, stop
 ):
-    """The store's work tree is the directory itself when there is no
-    repository, so a shell command's edit is still diffed."""
+    "The store's work tree is the directory itself when there is no"
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     workdir = tmp_path / "project"
     workdir.mkdir()
     (workdir / "a.py").write_text("x = 1\n")
     monkeypatch.chdir(workdir)
     before = start_snapshot(workdir)
-    (workdir / "a.py").write_text("x = 2\n")  # through a shell command
+    (workdir / "a.py").write_text("x = 2\n")
     manager = HookManager(search_dirs=[])
 
     with gate() as (seen, _):
@@ -182,7 +179,7 @@ async def test_a_nested_repositorys_changes_are_reviewed(
         subprocess.run(["git", "init", "-q"], cwd=workspace / repo, check=True)
     monkeypatch.chdir(workspace)
     before = start_snapshot(workspace)
-    (workspace / "a" / "x.py").write_text("x = 1\n")  # e.g. `cd a && ...`
+    (workspace / "a" / "x.py").write_text("x = 1\n")
     (workspace / "b" / "y.py").write_text("y = 2\n")
     manager = HookManager(search_dirs=[])
 
@@ -199,8 +196,7 @@ async def test_a_nested_repositorys_changes_are_reviewed(
 async def test_a_worktree_created_mid_turn_shows_only_what_the_turn_changed(
     tmp_path, monkeypatch, start_snapshot, gate, stop, autocrlf
 ):
-    """With `core.autocrlf` on — the default on Windows — the checkout's bytes
-    differ from the commit's, and must still read as unchanged."""
+    "With `core.autocrlf` on — the default on Windows — the checkout's bytes"
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
 
     def git(cwd, *args):
@@ -222,11 +218,11 @@ async def test_a_worktree_created_mid_turn_shows_only_what_the_turn_changed(
     monkeypatch.chdir(repo)
     before = start_snapshot(repo)
     worktree = repo / ".zrb" / "worktree" / "wt"
-    git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))  # EnterWorktree
+    git(repo, "worktree", "add", "-q", "-b", "wt", str(worktree))
     (worktree / "app.py").write_bytes(b"x = 2\n")
     (worktree / "new.py").write_bytes(b"n = 1\n")
     git(worktree, "add", ".")
-    git(worktree, "commit", "-qm", "work")  # committed in the worktree
+    git(worktree, "commit", "-qm", "work")
     manager = HookManager(search_dirs=[])
 
     with gate() as (seen, _):
@@ -235,7 +231,7 @@ async def test_a_worktree_created_mid_turn_shows_only_what_the_turn_changed(
     request = seen[0].event_data
     assert "- .zrb/worktree/wt/app.py" in request
     assert "- .zrb/worktree/wt/new.py" in request
-    assert "- .zrb/worktree/wt/.gitignore" not in request  # checked out, unchanged
+    assert "- .zrb/worktree/wt/.gitignore" not in request
     assert "-x = 1" in request and "+x = 2" in request
 
 
@@ -255,7 +251,7 @@ async def test_a_repository_started_mid_turn_shows_all_its_files(
     child.mkdir(parents=True)
     subprocess.run(["git", "init", "-q"], cwd=child, check=True)
     (child / "main.py").write_text("m = 1\n")
-    if committed:  # its first commit is the turn's work too
+    if committed:
         subprocess.run(
             ["git", "-c", "user.email=t@t", "-c", "user.name=t", "add", "."],
             cwd=child,
@@ -362,7 +358,7 @@ async def test_a_file_unreadable_since_before_the_turn_is_no_change(
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     locked = tmp_path / "locked.txt"
     locked.write_text("l\n")
-    locked.chmod(0)  # a root-owned volume's file, say
+    locked.chmod(0)
     monkeypatch.chdir(tmp_path)
     try:
         before = start_snapshot(tmp_path)
@@ -414,7 +410,7 @@ async def test_a_submodule_moved_to_another_commit_is_reviewed_by_its_files(
     _git(app / "lib", "checkout", "-q", "HEAD~1")
     monkeypatch.chdir(app)
     before = start_snapshot(app)
-    # The turn moves the submodule to v2 and commits the new pointer.
+
     _git(app / "lib", "checkout", "-q", "-")
     _git(app, "commit", "-qam", "bump lib")
     manager = HookManager(search_dirs=[])

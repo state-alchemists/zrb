@@ -1,23 +1,9 @@
 """The canonical tool registry.
 
-``tool_registry`` owns the ordered set of static tools, per-run tool
-factories, and toolset factories that zrb agents are built with. It is the
-*default*: ``apply_common_tools`` feeds a host from this registry, and a task
-or manager overrides it at construction or by an explicit ``set_tools``.
-
-Tools are an **ordered pipeline** — registry order *is* the agent's tool-list
-order — so the mutation verbs are ``append_tool`` / ``prepend_tool``, with
-``set_tools`` for wholesale replacement and ``remove_tool`` to drop by value
-or registered name. Every mutation is a concrete edit of the resolved list:
-appending to a registry that still carries its lazy default freezes that
-default first, so appends become part of the resolved set.
-
-The default itself is a *lazy seed*: a zero-argument callable returning the
-built-in tool/factory/toolset lists. It is stored, never called here — the
-built-ins transitively import ``pydantic_ai``, so ``_seed``'s heavy imports
-run only when the registry is first resolved (i.e. on the first agent build).
-``common_tools.apply_common_tools`` feeds hosts from this registry: for a task
-it appends a per-run provider that resolves on the host's next agent build.
+``tool_registry`` holds the ordered static tools, per-run tool factories and
+toolset factories zrb agents start from. Its default is a lazy seed (the
+built-ins import ``pydantic_ai``), resolved on first read; any mutation
+materializes the seed first.
 """
 
 from __future__ import annotations
@@ -37,39 +23,21 @@ ToolSeed: TypeAlias = tuple[list, list, list]
 
 
 def tool_name(tool: ToolLike | Any) -> str:
-    """Registered name of *tool*, whether it is a bare function or a ``Tool``.
-
-    A ``Tool`` wraps the function it was built from, and zrb's tools carry
-    their PascalCase name on ``__name__``, so both layers have to
-    be tried.
-    """
+    """Registered name of *tool*, whether it is a bare function or a ``Tool``."""
     fn = getattr(tool, "function", tool)
     return getattr(fn, "__name__", "") or getattr(tool, "name", "") or ""
 
 
 class ToolRegistry:
-    """The ordered canonical set of tools + factories for zrb agents.
-
-    A bare ``ToolRegistry()`` is empty until mutated; the default registry
-    (``tool_registry``) carries a lazy *seed* of the built-in tools. Any
-    mutation materializes the current resolved set first, so appends layer on
-    the built-ins and ``set_tools`` replaces them wholesale.
-    """
+    """The ordered set of tools and factories for zrb agents."""
 
     def __init__(self, default: Callable[[], ToolSeed] | None = None) -> None:
-        """Create an empty registry.
-
-        default: an optional lazy seed callable returning the
-        ``(tools, tool_factories, toolset_factories)`` triple, resolved (and
-        materialized) on the first read instead of at construction.
-        """
+        """default: optional lazy seed returning ``(tools, tool_factories, toolset_factories)``."""
         self._seed = default
         self._tools: list[ToolLike] = []
         self._tool_factories: list[ToolFactory] = []
         self._toolset_factories: list[ToolsetFactory] = []
         self._materialized = False
-
-    # ---- resolution ----------------------------------------------------
 
     def _resolved(self) -> ToolSeed:
         """Materialize the lazy seed once, returning the three lists."""
@@ -87,20 +55,11 @@ class ToolRegistry:
         )
 
     def _configured_names(self) -> list[str]:
-        """The ``LLM_TOOLS`` name allowlist, or ``[]`` meaning "all".
-
-        The env twin of this registry: when non-empty, only
-        the named static tools survive resolution. Read lazily so env changes
-        and later ``CFG`` edits are honored at resolve time.
-        """
+        """The ``LLM_TOOLS`` name allowlist, or ``[]`` meaning "all"."""
         return list(CFG.LLM_TOOLS or [])
 
     def get_tools(self) -> list[ToolLike]:
-        """The resolved static tools, in order.
-
-        When ``CFG.LLM_TOOLS`` names a non-empty allowlist, only those tools
-        are returned (factory/toolset tools are not name-known statically and
-        are unaffected)."""
+        """The resolved static tools, in order, filtered by ``CFG.LLM_TOOLS``."""
         tools, _, _ = self._resolved()
         allowed = self._configured_names()
         if allowed:
@@ -116,8 +75,6 @@ class ToolRegistry:
         """The resolved per-run toolset factories, in order."""
         _, _, toolsets = self._resolved()
         return list(toolsets)
-
-    # ---- ordered mutations ------------------------------------------------
 
     def append_tool(self, *tool: ToolLike) -> None:
         """Append *tool* after everything currently registered (runs last)."""
@@ -135,12 +92,7 @@ class ToolRegistry:
         self._tools = list(tools)
 
     def remove_tool(self, tool: ToolLike | str) -> None:
-        """Drop a static tool by value or by registered name.
-
-        Every matching entry (identity first, then ``tool_name``) is removed,
-        so ``remove_tool("EnterWorktree")`` and
-        ``remove_tool(enter_worktree)`` behave alike.
-        """
+        """Drop every static tool matching *tool* by identity or registered name."""
         tools, _, _ = self._resolved()
         name = tool if isinstance(tool, str) else tool_name(tool)
         self._tools = [t for t in tools if not (t is tool or tool_name(t) == name)]
@@ -187,31 +139,17 @@ class ToolRegistry:
             f for f in self._toolset_factories if f is not factory
         ]
 
-    # ---- application ----------------------------------------------------
-
     def set_seed(self, seed: Callable[[], ToolSeed]) -> None:
-        """Install *seed* as the lazy default, unless already materialized.
-
-        Used by ``zrb.llm.common_tools`` to hand the registry the built-in
-        tool content without triggering its ``pydantic_ai`` imports (the seed
-        is stored, not called, until first resolution). A registry that
-        already resolved (or was explicitly set) keeps its content.
-        """
+        """Install *seed* as the lazy default, unless already materialized."""
         if not self._materialized:
             self._seed = seed
 
     def apply_to(self, host) -> None:
-        """Register every tool, factory, and toolset factory on *host*.
-
-        *host* conforms to the ``CommonToolHost`` protocol
-        (``append_tool``/``append_tool_factory``/``append_toolset_factory``).
-        Called once per host; calling twice registers everything twice.
-        """
+        """Append every tool, factory and toolset factory to a ``CommonToolHost``."""
         host.append_tool(*self.get_tools())
         host.append_tool_factory(*self.get_tool_factories())
         host.append_toolset_factory(*self.get_toolset_factories())
 
 
-#: The shared tool registry every zrb agent starts from. Its built-in seed is
-#: wired (lazily) in ``zrb.llm.common_tools``.
+#: The shared registry; its seed is wired in ``zrb.llm.common_tools``.
 tool_registry = ToolRegistry()

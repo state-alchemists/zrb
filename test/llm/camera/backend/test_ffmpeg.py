@@ -1,8 +1,4 @@
-"""`FfmpegCameraBackend` device listing and the failure hints.
-
-Everything goes through the backends' public API. External dependencies
-(termux-camera-photo, ffmpeg, the live filesystem) are mocked.
-"""
+'`FfmpegCameraBackend` device listing and the failure hints.'
 
 from __future__ import annotations
 
@@ -17,14 +13,14 @@ from zrb.llm.camera.backend import AutoCameraBackend, FfmpegCameraBackend
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    """Strip every camera-relevant env var before each test."""
+    'Strip every camera-relevant env var before each test.'
     for var in ("WSL_DISTRO_NAME", "WSLENV"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
 
 
 class _FakeProcess:
-    """Minimal async-process stand-in for `asyncio.create_subprocess_exec`."""
+    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
 
     def __init__(
         self,
@@ -35,7 +31,7 @@ class _FakeProcess:
     ):
         self._stdout = stdout
         self._stderr = stderr
-        # Like a real process: no return code until it exits.
+
         self._exit_code = returncode
         self.returncode: int | None = None
         self._hang_seconds = hang_seconds
@@ -56,7 +52,7 @@ class _FakeProcess:
 
 
 def _which_only(*names: str):
-    """Return a `shutil.which` stand-in that only "finds" the given names."""
+    'Return a `shutil.which` stand-in that only "finds" the given names.'
 
     def _which(name: str):
         return f"/usr/bin/{name}" if name in names else None
@@ -175,8 +171,7 @@ def test_failure_hint_windows(clean_env):
 
 
 def test_failure_hint_wsl_no_device(clean_env):
-    """No /dev/video* at all -- usbipd attached the USB device, but the stock
-    WSL2 kernel has no camera driver, so no device node ever appears."""
+    'No /dev/video* at all -- usbipd attached the USB device, but the stock'
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
@@ -189,7 +184,7 @@ def test_failure_hint_wsl_no_device(clean_env):
 
 
 def test_failure_hint_wsl_device_exists(clean_env):
-    """/dev/video0 exists -- driver is fine, the USB/IP tunnel is the problem."""
+    '/dev/video0 exists -- driver is fine, the USB/IP tunnel is the problem.'
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
@@ -225,14 +220,12 @@ def test_list_devices_linux_globs_video_nodes(clean_env):
         lambda pattern: ["/dev/video1", "/dev/video0"],
     )
 
-    # Sorted, so device order is stable in the completion dropdown.
+
     assert AutoCameraBackend().list_devices() == ["/dev/video0", "/dev/video1"]
 
 
 def test_list_devices_windows_sync_never_blocks(clean_env):
-    """Windows dshow names need the ffmpeg subprocess probe; the sync path
-    must return immediately (empty) and leave population to the async
-    refresh, so completion never blocks a keystroke."""
+    'Windows dshow names need the ffmpeg subprocess probe; the sync path'
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("sys.platform", "win32")
 
@@ -256,14 +249,13 @@ async def test_refresh_devices_parses_dshow_names_on_windows(clean_env):
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
         devices = await FfmpegCameraBackend().refresh_devices()
 
-    # Audio devices are excluded; only video entries survive.
+
     assert devices == ["Integrated Webcam", "USB Camera"]
 
 
 @pytest.mark.asyncio
 async def test_schedule_device_refresh_schedules_probe_when_stale(clean_env):
-    """Stale cache + a running loop → a background refresh is scheduled and
-    the cache is repopulated without blocking the caller."""
+    'Stale cache + a running loop → a background refresh is scheduled and'
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("sys.platform", "win32")
     backend = FfmpegCameraBackend()
@@ -274,12 +266,12 @@ async def test_schedule_device_refresh_schedules_probe_when_stale(clean_env):
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
         task = backend.schedule_device_refresh()
         assert task is not None
-        # Deterministic: await the scheduled refresh instead of hoping a
-        # couple of loop ticks are enough (they weren't on CI).
+
+
         await task
 
     assert backend.list_devices() == ["USB Camera"]
-    # Fresh cache → no new refresh scheduled.
+
     assert backend.schedule_device_refresh() is None
 
 
@@ -290,7 +282,7 @@ def test_list_devices_serves_the_cache_until_it_is_stale(clean_env):
     backend = FfmpegCameraBackend()
 
     assert backend.list_devices() == ["/dev/video0"]
-    # A second call within the TTL reads the cache, not the filesystem.
+
     assert backend.list_devices() == ["/dev/video0"]
 
 
@@ -298,9 +290,7 @@ def test_list_devices_serves_the_cache_until_it_is_stale(clean_env):
 async def test_a_scheduled_probe_runs_to_completion_and_is_not_scheduled_twice(
     clean_env,
 ):
-    """The dshow listing is slow, so `list_devices` starts it in the background
-    and returns what it has. The probe still has to land, and while it is in
-    flight no second one is started."""
+    'The dshow listing is slow, so `list_devices` starts it in the background'
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("sys.platform", "win32")
     backend = FfmpegCameraBackend()
@@ -316,7 +306,7 @@ async def test_a_scheduled_probe_runs_to_completion_and_is_not_scheduled_twice(
     with patch.object(FfmpegCameraBackend, "refresh_devices", new=slow_probe):
         assert backend.list_devices() == []
         await asyncio.wait_for(started.wait(), 5)
-        # In flight, so a second probe is refused.
+
         assert backend.schedule_device_refresh() is None
         release.set()
         for _ in range(100):
@@ -325,5 +315,5 @@ async def test_a_scheduled_probe_runs_to_completion_and_is_not_scheduled_twice(
             await asyncio.sleep(0)
 
     assert backend.list_devices() == ["USB Camera"]
-    # Fresh cache → no new probe.
+
     assert backend.schedule_device_refresh() is None

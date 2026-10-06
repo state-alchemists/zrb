@@ -1,4 +1,4 @@
-"""Tests for HookManager class using Public API."""
+'Tests for HookManager class using Public API.'
 
 import asyncio
 import json
@@ -12,17 +12,12 @@ from zrb.llm.hook.types import HookEvent
 
 
 def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
-    """A Popen stand-in backed by real pipes already holding *stdout*/*stderr*.
-
-    The hook reader drains file descriptors and stops at the child's exit, so a
-    bare MagicMock whose ``communicate`` returns a tuple is not enough — it needs
-    fds that can be selected on and an exit status that ``poll`` reports.
-    """
+    'A Popen stand-in backed by real pipes already holding *stdout*/*stderr*.'
 
     def _loaded(data: bytes):
         read_fd, write_fd = os.pipe()
-        os.write(write_fd, data)  # test payloads sit far under the 64 KiB buffer
-        os.close(write_fd)  # so the reader sees EOF straight after the data
+        os.write(write_fd, data)
+        os.close(write_fd)
         return os.fdopen(read_fd, "rb")
 
     process = MagicMock()
@@ -32,9 +27,9 @@ def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
     process.stderr = _loaded(stderr)
     process.poll.return_value = returncode
     process.wait.return_value = returncode
-    # `read_hook_output` calls communicate() on Windows, where the selector
-    # cannot poll pipes. Drain the same fds the POSIX path reads chunk by chunk,
-    # so one fake serves both readers.
+
+
+
     process.communicate.side_effect = lambda input=None: (
         process.stdout.read(),
         process.stderr.read(),
@@ -44,7 +39,7 @@ def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
 
 @pytest.fixture
 def manager():
-    """Create HookManager for tests."""
+    'Create HookManager for tests.'
     mock_cfg = MagicMock()
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
@@ -54,7 +49,7 @@ def manager():
 
 
 class TestHookManagerHookTypes:
-    """Test behavior of different hook types (Command, Prompt, Agent)."""
+    'Test behavior of different hook types (Command, Prompt, Agent).'
 
     @pytest.mark.asyncio
     async def test_command_hook_exit_codes(self, manager, tmp_path):
@@ -105,8 +100,8 @@ class TestHookManagerHookTypes:
 
     @pytest.mark.asyncio
     async def test_command_hook_receives_command_env(self, manager, tmp_path):
-        # PreCommand/PostCommand command hooks must see the parsed command via
-        # CLAUDE_COMMAND_NAME / CLAUDE_COMMAND_ARGS.
+
+
         f = tmp_path / "h.json"
         f.write_text(
             json.dumps(
@@ -159,12 +154,12 @@ class TestHookManagerHookTypes:
         with patch("subprocess.Popen"):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-            # Async command hooks are dispatched fire-and-forget on the running
-            # loop: a task is spawned and no result is collected (they cannot
-            # block or contribute context).
+
+
+
             assert len(manager.background_tasks) == 1
             assert results == []
-            # Clean up: cancel the background task so it doesn't leak
+
             for task in manager.background_tasks:
                 task.cancel()
             if manager.background_tasks:
@@ -227,7 +222,7 @@ class TestHookManagerHookTypes:
 
 
 class TestHookManagerMatchers:
-    """Test matcher evaluation via Public API."""
+    'Test matcher evaluation via Public API.'
 
     @pytest.mark.asyncio
     async def test_matcher_operators(self, manager, tmp_path):
@@ -259,20 +254,20 @@ class TestHookManagerMatchers:
 
         manager.scan(search_dirs=[str(tmp_path)])
 
-        # Test Equals
+
         results = await manager.execute_hooks(HookEvent.SESSION_START, "hello")
-        # Check that h_not_equals is skipped and h_equals is not
+
         skipped_names = [
             r.data.get("name")
             for r in results
             if r.message == "Skipped due to matchers"
         ]
-        # Since HookManager doesn't put "name" in HookExecutionResult by default unless the hook returns it,
-        # we have to rely on the fact that we registered 7 hooks and some should be skipped.
-        # Let's check the number of skipped hooks.
-        # "hello" matches: equals, contains, starts_with, ends_with, regex, glob.
-        # "hello" does NOT match: not_equals.
-        # So 1 should be skipped.
+
+
+
+
+
+
         assert sum(1 for r in results if r.message == "Skipped due to matchers") == 1
 
     @pytest.mark.asyncio
@@ -348,12 +343,12 @@ class TestHookManagerMatchers:
                                 "field": "event_data",
                                 "operator": "contains",
                                 "value": "1",
-                            },  # Should fail for int 123
+                            },
                             {
                                 "field": "event_data.boom",
                                 "operator": "equals",
                                 "value": 1,
-                            },  # Attribute error
+                            },
                         ],
                     }
                 ]

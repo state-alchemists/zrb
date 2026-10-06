@@ -1,19 +1,13 @@
 """macOS Seatbelt (SBPL) profile generation for sandboxed shell commands.
 
-``sandbox-exec -p <profile>`` is deprecated-but-functional — Chrome, Bazel and
-OpenAI Codex all still ship on it, and Apple keeps the underlying
-``sandbox_init`` API working. ``sandbox-exec`` **execs** the target after
-initializing the sandbox, so the spawned PID is still the shell: process-group
-handling, timeout kill, and PID tracking in the shell tool are unaffected.
+``sandbox-exec`` is deprecated but functional, and execs the target in place,
+so the spawned PID is still the shell's.
 
-SBPL evaluation is last-match-wins, so rules are ordered broad → specific:
-allow everything (network/exec/read stay open in v1), deny all writes, re-allow
-writes under the policy's writable roots, then deny reads of credential dirs.
+SBPL is last-match-wins, so rules go broad → specific: allow all, deny writes,
+re-allow writable roots, deny reads of credential dirs.
 
-Known limitation: a sandboxed process cannot exec set[ug]id binaries — the
-kernel refuses regardless of the profile. On macOS that includes ``/bin/ps``
-(setuid root) and ``sudo``. ``pgrep``/``pkill`` are not setuid and keep
-working; the shell tool's PID-tracking wrapper falls back accordingly.
+A sandboxed process cannot exec set[ug]id binaries (``/bin/ps``, ``sudo``);
+the shell tool's PID tracking falls back to ``pgrep``.
 """
 
 from __future__ import annotations

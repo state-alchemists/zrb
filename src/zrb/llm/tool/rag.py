@@ -193,11 +193,7 @@ def _load_or_reindex(
     overlap_val: int,
     readers: list[RAGFileReader],
 ) -> dict[str, Any] | None:
-    """Re-embed any new/changed file under `document_dir_path` into `collection`.
-
-    Files that were previously indexed but no longer exist on disk have their
-    chunks removed from `collection` and their entries dropped from the hash
-    baseline.
+    """Re-embed new/changed files and drop deleted ones from `collection`.
 
     Returns an error dict if `document_dir_path` doesn't exist, else `None`.
     """
@@ -276,10 +272,9 @@ def _remove_deleted_files(
     previous_hashes: dict[str, Any],
     current_hashes: dict[str, Any],
 ) -> list[str]:
-    """Drop chunks for files that were indexed before and are gone from disk.
+    """Drop chunks for previously indexed files now gone from disk.
 
-    Guarded by existence so a transient hash failure (file present but
-    unreadable this round) never drops live index data.
+    Checks existence so a transient hash failure never drops live index data.
     """
     removed_files = [
         relative_path

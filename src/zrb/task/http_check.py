@@ -36,11 +36,8 @@ class HttpCheck(BaseTask):
             interval: Seconds between polls. Defaults to
                 `CFG.HTTP_CHECK_INTERVAL`.
 
-        Every parameter `BaseTask` accepts is also accepted here **except the
-        retry and readiness settings** (`retries`, `retry_period`, `retry_if`,
-        `readiness_*`, `monitor_readiness`): a check polls on its own
-        `interval` and is itself what a task waits on, so those would nest a
-        check inside itself. Set them on the task being checked.
+        Every other parameter is `BaseTask`'s, except the retry and readiness
+        settings, which belong on the task being checked.
         """
         reject_non_check_params("HttpCheck", dict(kwargs))
         super().__init__(
@@ -50,7 +47,7 @@ class HttpCheck(BaseTask):
         )
         self._url = url
         self._http_method = http_method
-        # None resolves CFG at run time, so a later env change takes effect.
+        # None resolves CFG at run time.
         self._interval = interval
 
     def _get_interval(self) -> float:
@@ -72,9 +69,8 @@ class HttpCheck(BaseTask):
         interval = self._get_interval()
         while True:
             try:
-                # to_thread cannot cancel a blocking request, so bound each probe
-                # by the interval; a timeout is retried like any other error.
-                # requests rejects a timeout <= 0, so the bound has a floor.
+                # to_thread cannot cancel a blocking request, so bound each
+                # probe; requests rejects a timeout <= 0, hence the floor.
                 response = await asyncio.to_thread(
                     requests.request,
                     http_method,

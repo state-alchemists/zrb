@@ -1,17 +1,7 @@
-"""Cover the mutation ratchet's own operators.
+"""Test mutation operators, sampling, and subprocess handling.
 
-The script under test is what decides whether the suite asserts or only
-executes, so a silent bug in it reports a healthy kill rate over mutants that
-were never applied. These tests pin the three operators and the sampling
-contract; the subprocess/pytest half is exercised by running the script, not
-from here.
-
-``scripts/`` is not on ``pythonpath`` (pyproject pins it to ``src``), so the
-module is loaded by path rather than imported by name — cheaper than widening
-the path for one consumer. It is registered in ``sys.modules`` before being
-executed because the script uses ``from __future__ import annotations``, which
-makes every annotation a string: ``@dataclass`` then resolves them through
-``sys.modules[cls.__module__]``, and an unregistered module fails there.
+The script is loaded by path because ``scripts/`` is outside the project
+Python path; registration in ``sys.modules`` is required by its dataclasses.
 """
 
 import importlib.util
@@ -141,8 +131,7 @@ def test_every_floor_names_a_real_package_with_mirrored_tests():
 
 
 def test_a_chained_comparison_keeps_the_rest_of_the_chain():
-    """Replacing the whole ``ops`` list drops the trailing comparators, turning
-    ``a < b < c`` into ``a <= b`` -- a mutant that no longer tests one site."""
+    """Mutation keeps trailing comparators in chained comparisons."""
     mutated, _ = mutation_ratchet.apply_mutation(
         "def f(a, b, c):\n    return a < b < c\n", 0
     )

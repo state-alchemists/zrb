@@ -1,10 +1,4 @@
-"""Public-API tests for clipboard image reading.
-
-All paths exercise `get_clipboard_image()` and `missing_tool_hint()`.
-Per AGENTS.md, no underscore-prefixed helpers are touched directly.
-External dependencies (Pillow, osascript, powershell.exe, wl-paste,
-xclip, the live filesystem) are mocked.
-"""
+'Public-API tests for clipboard image reading.'
 
 from __future__ import annotations
 
@@ -20,7 +14,7 @@ from zrb.llm.util.clipboard import get_clipboard_image
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    """Strip every clipboard-relevant env var before each test."""
+    'Strip every clipboard-relevant env var before each test.'
     for var in ("WSL_DISTRO_NAME", "WSLENV", "WAYLAND_DISPLAY", "DISPLAY"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
@@ -43,7 +37,7 @@ def _bmp_bytes() -> bytes:
 
 
 class _FakeProcess:
-    """Minimal async-process stand-in for `asyncio.create_subprocess_exec`."""
+    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
 
     def __init__(self, stdout: bytes = b"", returncode: int = 0):
         self._stdout = stdout
@@ -54,7 +48,7 @@ class _FakeProcess:
 
 
 def _block_pil_import(monkeypatch):
-    """Make `from PIL import ...` raise ImportError for the test scope."""
+    'Make `from PIL import ...` raise ImportError for the test scope.'
     real_import = builtins.__import__
 
     def fail_pil(name, *args, **kwargs):
@@ -76,7 +70,7 @@ async def test_macos_returns_png_when_pillow_finds_image(clean_env):
         result = await get_clipboard_image()
 
     assert isinstance(result, bytes)
-    assert result.startswith(b"\x89PNG\r\n\x1a\n")  # PNG magic header
+    assert result.startswith(b"\x89PNG\r\n\x1a\n")
 
 
 @pytest.mark.asyncio
@@ -91,7 +85,7 @@ async def test_macos_returns_none_when_clipboard_empty(clean_env):
 
 @pytest.mark.asyncio
 async def test_macos_falls_back_to_osascript_when_pillow_missing(clean_env, tmp_path):
-    """When Pillow is unavailable, osascript writes a tempfile we read back."""
+    'When Pillow is unavailable, osascript writes a tempfile we read back.'
     clean_env.setattr("sys.platform", "darwin")
     _block_pil_import(clean_env)
 
@@ -99,10 +93,10 @@ async def test_macos_falls_back_to_osascript_when_pillow_missing(clean_env, tmp_
     written: dict = {}
 
     def _make_proc(*args, **kwargs):
-        # The osascript invocation embeds the destination path inside the script
-        # body; pull it out and write the payload there to mimic AppleScript.
+
+
         script = args[2] if len(args) > 2 else ""
-        # crude but sufficient: the path lives between `POSIX file "` and `"`.
+
         marker = 'POSIX file "'
         start = script.find(marker) + len(marker)
         end = script.find('"', start)
@@ -116,7 +110,7 @@ async def test_macos_falls_back_to_osascript_when_pillow_missing(clean_env, tmp_
         result = await get_clipboard_image()
 
     assert result == payload
-    # Tempfile is cleaned up after read.
+
     assert not os.path.exists(written["path"])
 
 
@@ -184,7 +178,7 @@ async def test_wsl_powershell_returns_png_bytes(clean_env):
 
 @pytest.mark.asyncio
 async def test_wslenv_alone_also_triggers_powershell_path(clean_env):
-    """`WSLENV` set without `WSL_DISTRO_NAME` should still pick the WSL branch."""
+    '`WSLENV` set without `WSL_DISTRO_NAME` should still pick the WSL branch.'
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WSLENV", "TERM/u")
     payload = _png_bytes()
@@ -203,8 +197,8 @@ async def test_wsl_falls_through_when_powershell_yields_no_image(clean_env):
     """No image in PowerShell → does not return the empty stdout."""
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
-    # No WAYLAND_DISPLAY / DISPLAY set, so wl-paste/xclip subprocesses also
-    # produce empty output. The whole chain should resolve to None.
+
+
     with patch(
         "asyncio.create_subprocess_exec",
         new=AsyncMock(return_value=_FakeProcess(stdout=b"")),
@@ -231,16 +225,16 @@ async def test_wayland_png_path_returns_image(clean_env):
 
 @pytest.mark.asyncio
 async def test_wayland_bmp_is_reencoded_to_png(clean_env):
-    """When wl-paste returns BMP, output should still be valid PNG bytes."""
+    'When wl-paste returns BMP, output should still be valid PNG bytes.'
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WAYLAND_DISPLAY", "wayland-0")
     bmp = _bmp_bytes()
 
-    # All four wl-paste MIME-type queries hit the same FakeProcess; since we
-    # return *the same* BMP for every type, the first attempt (image/png) hits
-    # and the result enters the re-encode branch only when mime_type != PNG.
-    # To force the re-encode branch deterministically, fail the PNG attempt
-    # (returncode 1 → _run returns None) and succeed only on image/bmp.
+
+
+
+
+
     call_log: list[str] = []
 
     def _per_mime(*args, **kwargs):
@@ -258,13 +252,13 @@ async def test_wayland_bmp_is_reencoded_to_png(clean_env):
 
     assert isinstance(result, bytes)
     assert result.startswith(b"\x89PNG\r\n\x1a\n")
-    assert "image/png" in call_log  # first attempt
-    assert "image/bmp" in call_log  # second attempt that succeeded
+    assert "image/png" in call_log
+    assert "image/bmp" in call_log
 
 
 @pytest.mark.asyncio
 async def test_wayland_corrupt_non_png_returns_none(clean_env):
-    """If the BMP bytes can't be decoded by Pillow, fall through to xclip."""
+    "If the BMP bytes can't be decoded by Pillow, fall through to xclip."
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WAYLAND_DISPLAY", "wayland-0")
     garbage = b"\x00\x01not-an-image"
@@ -281,13 +275,13 @@ async def test_wayland_corrupt_non_png_returns_none(clean_env):
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_per_mime)):
         result = await get_clipboard_image()
 
-    # Wayland branch yielded undecodable bytes; xclip fallback also has nothing.
+
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_macos_osascript_unlink_failure_does_not_propagate(clean_env, tmp_path):
-    """If the post-read `os.unlink` fails, the data is still returned."""
+    'If the post-read `os.unlink` fails, the data is still returned.'
     clean_env.setattr("sys.platform", "darwin")
     _block_pil_import(clean_env)
 
@@ -319,7 +313,7 @@ async def test_macos_osascript_unlink_failure_does_not_propagate(clean_env, tmp_
 
 @pytest.mark.asyncio
 async def test_macos_osascript_returns_none_when_binary_is_missing(clean_env, tmp_path):
-    """No osascript on PATH: no image, and no tempfile left behind."""
+    'No osascript on PATH: no image, and no tempfile left behind.'
     clean_env.setattr("sys.platform", "darwin")
     clean_env.setattr("tempfile.tempdir", str(tmp_path))
     _block_pil_import(clean_env)
@@ -338,7 +332,7 @@ async def test_macos_osascript_returns_none_when_binary_is_missing(clean_env, tm
 async def test_macos_osascript_removes_tempfile_when_subprocess_raises(
     clean_env, tmp_path
 ):
-    """Cleanup also runs for failures the read path does not catch."""
+    'Cleanup also runs for failures the read path does not catch.'
     clean_env.setattr("sys.platform", "darwin")
     clean_env.setattr("tempfile.tempdir", str(tmp_path))
     _block_pil_import(clean_env)

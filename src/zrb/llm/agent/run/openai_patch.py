@@ -1,25 +1,7 @@
-"""Monkey-patch pydantic-ai's OpenAI model for DeepSeek/OpenAI-compatible API compatibility.
+"""Omit ``content: null`` from tool-call-only OpenAI-compatible messages.
 
-When a model response contains only tool calls (no text content), pydantic-ai sets
-``message_param['content'] = None``, which serialises to ``"content": null`` in the JSON
-request body. OpenAI accepts this, but DeepSeek (and some other OpenAI-compatible APIs)
-reject it with ``"invalid message content type: <nil>"``.
-
-This module applies the fix once at import time by overriding
-``_MapModelResponseContext._into_message_param`` to omit ``content`` entirely
-when ``tool_calls`` are present, which is valid per the OpenAI API spec.
-
-Verified still necessary against pydantic-ai 2.54.0: the upstream method sets
-``content = None`` whenever there is no text, tool calls or not, and no model
-profile flag turns that off. Upstream documents the method as an override hook,
-so the shape of the patch is supported even though the class it hangs off is
-private.
-
-This is the *serialization-layer* fix; `history_utils.filter_nil_content` is
-the complementary *object-layer* fix that runs before every model call. See
-docs/technical-specs/llm-history-sanitization.md#the-openai-serializer-patch
-for the full picture (and why both layers exist).
-"""
+The patch runs at import time against pydantic-ai's private serializer; history
+sanitization remains the complementary object-layer safeguard."""
 
 from typing import Any
 

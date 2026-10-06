@@ -28,20 +28,17 @@ def format_diff(
     )
 
     if not diff_lines:
-        return ""  # No changes
+        return ""
 
     formatted_lines = []
 
     old_lineno = 0
     new_lineno = 0
 
-    # Regex for hunk header: @@ -old_start,old_len +new_start,new_len @@
     hunk_re = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
-    # Width for line numbers (e.g. 4)
     ln_width = 4
-
-    # Marker (1) + Space (1) + LineNo (4) + Space (2) = 8 chars prefix
+    # Marker (1) + Space (1) + LineNo (4) + Space (2)
     prefix_len = 1 + 1 + ln_width + 2
 
     if term_width is not None:
@@ -55,11 +52,8 @@ def format_diff(
             term_width = get_terminal_size().columns
             calculated_width = term_width - prefix_len - 10
         except Exception:
-            # Default to 80 if terminal detection fails
             calculated_width = 80 - prefix_len - 10
 
-    # Ensure minimum width of 40 chars for readability on small terminals
-    # No maximum width - allow wide terminals to display long lines without wrapping
     min_content_width = 40
     content_width = max(min_content_width, calculated_width)
 
@@ -78,8 +72,7 @@ def format_diff(
                 formatted_lines.append(f"@@ -{old_start} +{new_start} @@")
             continue
 
-        # Content lines
-        raw_line = line[1:].rstrip("\n")  # Remove +/-/space and newline
+        raw_line = line[1:].rstrip("\n")
 
         marker = ""
         lineno_str = ""
@@ -100,15 +93,10 @@ def format_diff(
             marker = "+"
             lineno_str = str(new_lineno)
 
-        # Format the prefix: "M LLLL  "
-        # M = marker, LLLL = line number
         lineno_field = lineno_str.rjust(ln_width)
         prefix = f"{marker} {lineno_field}  "
 
-        # Calculate continuation prefix to preserve color and alignment
-        # Continuation must start with the same marker to be colored correctly
-        # by syntax highlighters. The rest is padding to match the length of
-        # the original prefix.
+        # Continuation lines keep the marker so the highlighter colors them.
         continuation_prefix = marker + " " * (len(prefix) - 1)
 
         wrapped_lines = textwrap.wrap(
@@ -119,12 +107,9 @@ def format_diff(
         )
 
         if not wrapped_lines:
-            # Empty line
             formatted_lines.append(prefix.rstrip())
         else:
-            # First line has the prefix with line number
             formatted_lines.append(f"{prefix}{wrapped_lines[0]}")
-            # Subsequent lines use continuation_prefix (marker + spaces)
             for wrapped_line in wrapped_lines[1:]:
                 formatted_lines.append(f"{continuation_prefix}{wrapped_line}")
 

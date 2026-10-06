@@ -18,14 +18,8 @@ async def run_async(value: Any) -> Any:
 async def gather_isolated(*coros: Any) -> list[Any]:
     """Gather coros, letting every sibling settle before surfacing an error.
 
-    Plain ``asyncio.gather`` propagates the first exception immediately, leaving
-    the other coroutines running orphaned. Here every coroutine runs to
-    completion, then the first exception is re-raised — same fail-fast contract
-    for callers (cancellation included, matching plain gather), no orphaned
-    siblings.
-
-    This is the right shape for peer work that must not be cut short because a
-    peer failed: successors, fallbacks, task chains, root tasks. Use
+    Unlike plain ``asyncio.gather``, no sibling is left running orphaned:
+    every coroutine completes, then the first exception is re-raised. Use
     ``gather_fail_fast`` where a sibling may never return on its own.
     """
     results = await asyncio.gather(*coros, return_exceptions=True)
@@ -38,27 +32,11 @@ async def gather_isolated(*coros: Any) -> list[Any]:
 async def gather_fail_fast(*coros: Any) -> list[Any]:
     """Gather coros, cancelling the siblings when one of them fails.
 
-    ``gather_isolated`` waits for every sibling to settle, which deadlocks when a
-    sibling never returns on its own — a readiness check that polls until it
-    succeeds (``HttpCheck``/``TcpCheck``), a deferred long-running task body, a
-    ``Scheduler``/``BaseTrigger`` monitoring loop. Waiting for one of those after
-    a peer has already failed hangs the caller forever. Here the first failure
-    cancels the siblings instead.
-
-    Cancellation of *this* coroutine is propagated the same way, so callers see
-    plain-gather semantics with no orphans left behind — and, unlike plain
-    gather, the unwind is bounded in *both* directions (see below).
-
-    ``asyncio.wait``, not ``asyncio.gather``, for the primary await: a gather
-    being cancelled cancels its children and then waits for them, so a child
-    that shields its cleanup keeps the cancellation pending indefinitely and an
-    enclosing ``wait_for`` overshoots its timeout by however long that child
-    takes. ``asyncio.wait`` hands the cancellation straight back, which lets the
-    settle below actually apply its cap. This is what makes
-    ``CFG.TASK_READINESS_TIMEOUT`` a real ceiling on the readiness fan-out.
-
-    Prefer ``gather_isolated`` — cancelling peers is a real behavior difference,
-    only correct when a peer's own completion is not something to wait for.
+    For siblings that may never return on their own (readiness checks,
+    monitoring loops), where ``gather_isolated`` would hang. The unwind is
+    capped at ``CANCEL_SETTLE_TIMEOUT``: ``asyncio.wait`` (unlike ``gather``)
+    hands a cancellation straight back even when a child shields its cleanup,
+    which keeps ``CFG.TASK_READINESS_TIMEOUT`` a real ceiling.
     """
     if not coros:
         return []
@@ -73,12 +51,9 @@ async def gather_fail_fast(*coros: Any) -> list[Any]:
             # Cancellation aimed at us. Settle the children before unwinding.
             await _cancel_and_settle(tasks)
             raise
-        # FIRST_COMPLETED, not FIRST_EXCEPTION: the latter treats a *cancelled*
-        # child as an ordinary completion and keeps waiting for the rest, so a
-        # session teardown that cancels one deferred task would block on its
-        # siblings — the hang this helper exists to prevent. Scanned in argument
-        # order (`done` is an unordered set) so the reported failure is the same
-        # one plain gather would have raised.
+        # FIRST_COMPLETED: FIRST_EXCEPTION treats a cancelled child as a normal
+        # completion and keeps waiting. Scanned in argument order so the
+        # failure raised is the one plain gather would raise.
         failed = next(
             (t for t in tasks if t in done and (t.cancelled() or t.exception())),
             None,
@@ -90,12 +65,8 @@ async def gather_fail_fast(*coros: Any) -> list[Any]:
 
 
 async def _cancel_and_settle(tasks: "list[asyncio.Task[Any]]") -> None:
-    """Cancel *tasks* and wait, briefly, for them to unwind.
-
-    A still-cancelling task outliving the caller's frame is the orphan this
-    exists to avoid. Capped: a sibling that shields its cleanup must not turn
-    the settle into the hang the cancellation exists to prevent.
-    """
+    """Cancel *tasks* and wait, up to ``CANCEL_SETTLE_TIMEOUT``, for them to
+    unwind."""
     for task in tasks:
         task.cancel()
     try:

@@ -1,13 +1,8 @@
 """Sandbox policy: what LLM-initiated tool calls may touch on the filesystem.
 
-A ``SandboxPolicy`` is the single value both enforcement layers consume:
-
-* the Python-level FS gate in ``zrb.llm.agent.common`` (in-process file tools),
-* the OS-level shell wrapper in ``zrb.llm.sandbox.os_sandbox`` (subprocesses).
-
-This package is a leaf (no ``zrb.llm.agent`` imports), mirroring
-``zrb.llm.permission``. Default-off invariant: with ``enabled=False`` (the
-default) every consumer reproduces today's behavior exactly.
+Consumed by both the in-process FS gate (``zrb.llm.agent.common``) and the
+OS shell wrapper (``os_sandbox``). With ``enabled=False`` (the default) every
+consumer is a no-op.
 """
 
 from __future__ import annotations
@@ -54,9 +49,7 @@ def resolve_sandbox_policy_from_config() -> SandboxPolicy:
     )
 
 
-# The shapes ``coerce_sandbox`` (and therefore the ``sandbox=`` task argument)
-# accepts: an already-built policy, a bool (config-derived policy with
-# ``enabled`` forced), or ``None`` (use ambient/CFG resolution).
+# What the ``sandbox=`` task argument accepts; see ``coerce_sandbox``.
 SandboxInput = SandboxPolicy | bool | None
 
 
@@ -90,19 +83,11 @@ def resolve_real(path: str) -> str:
 def resolved_writable_roots(policy: SandboxPolicy) -> tuple[str, ...]:
     """Realpath'd roots a tool call may write under.
 
-    The automatic root is the process working directory, never a directory a
-    tool call names: a per-call ``cwd`` would let the model pick its own
-    boundary (``cwd="/"``).
-
-    Roots are realpath'd because both enforcement layers compare against real
-    paths (Seatbelt matches real paths; the FS gate realpaths the target).
-
-    The system temp dir is always writable — even with explicit
-    ``writable_paths`` — because the shell tool's PID-tracking wrapper writes
-    a temp file from *inside* the sandbox, and temp dirs are world-writable by
-    design anyway. On POSIX ``/tmp`` is added via realpath, which also covers
-    Darwin's symlinks (``/tmp`` → ``/private/tmp``, ``$TMPDIR`` →
-    ``/private/var/folders/...``).
+    The automatic root is the process cwd, never a per-call ``cwd`` (that
+    would let the model pick its own boundary, e.g. ``cwd="/"``). The temp
+    dir is always included because the shell tool's PID-tracking wrapper
+    writes a temp file from inside the sandbox; realpath covers Darwin's
+    ``/tmp`` → ``/private/tmp`` symlink.
     """
     if policy.writable_paths:
         roots = [resolve_real(p) for p in policy.writable_paths]
@@ -115,11 +100,7 @@ def resolved_writable_roots(policy: SandboxPolicy) -> tuple[str, ...]:
 
 
 def resolved_deny_read_roots(policy: SandboxPolicy) -> tuple[str, ...]:
-    """Realpath'd deny-read roots, dropping entries absent on this machine.
-
-    Non-existent entries are skipped: they can't be read anyway, and dropping
-    them keeps generated OS profiles (SBPL/bwrap args) clean.
-    """
+    """Realpath'd deny-read roots, skipping entries absent on this machine."""
     roots = []
     for p in policy.deny_read_paths:
         rp = resolve_real(p)

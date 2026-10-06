@@ -17,21 +17,14 @@ FREE_TEXT = "__zrb_free_text__"
 
 
 def option_text(opt: "ChoiceOption", index: int) -> str:
-    """*opt*'s row text, labelled by its *index* in the option list. Required,
-    since an option carrying only a ``description`` is named "Option N" and a
-    defaulted index would name every one of them "Option 1"."""
+    """*opt*'s row text, labelled by its *index* in the option list."""
     label = get_option_label(opt, index)
     desc = opt.get("description", "")
     return f"{label} — {desc}" if desc else label
 
 
 def resolve_choice_selection(spec: "ChoiceSpec", selection: Any) -> str:
-    """Map a widget selection back to a label string (public, pure helper).
-
-    `selection` is either a single option index, a list of indices
-    (multi-select), or the `FREE_TEXT` sentinel. Returns the joined label(s);
-    free-text is handled by the caller before this point.
-    """
+    """Map a widget selection (an index or a list of indices) to joined labels."""
     options = spec.get("options", [])
     indices = selection if isinstance(selection, list) else [selection]
     labels = [
@@ -64,8 +57,7 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         output = create_output(stdout=sys.stderr)
         session = PromptSession(output=output)
 
-        # Show a waiting indicator when no explicit prompt is provided
-        # (the typical case for tool-confirmation requests).
+        # No prompt is the tool-confirmation case.
         if not prompt:
             sys.stderr.write(
                 f"\n👋 {self._assistant_name} is waiting for confirmation\n"
@@ -136,10 +128,8 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
     ):
         """Print output to stderr."""
         content = sep.join(str(v) for v in values) + end
-        # The stream event handler opens each line with "\n" and never closes
-        # the last one, the usage line. StdUI has no turn-closing step of its
-        # own, so it terminates that line here; otherwise the caller's next
-        # write (the result on stdout) lands on the same terminal line.
+        # The usage line is the turn's last and is never newline-terminated
+        # upstream; without this the stdout result lands on the same line.
         if kind == "usage" and not content.endswith("\n"):
             content += "\n"
         if kind not in ("text", "todo_progress"):
@@ -169,12 +159,7 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         return await asyncio.to_thread(subprocess.run, cmd, shell=shell)
 
     async def run_async(self) -> Any:
-        """No-op event loop for `AnyUI` conformance.
-
-        `StdUI` is a non-interactive, stateless stdout/stderr adapter: it has no
-        persistent loop to run (unlike the full-screen interactive UIs). It is
-        used as a wrapped/fallback UI, so this is never the driving loop.
-        """
+        """No-op: StdUI is a non-interactive adapter with no loop of its own."""
         return None
 
 

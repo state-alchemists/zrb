@@ -227,13 +227,7 @@ async def test_callback_failure_surfaces_from_fanout():
 
 
 def test_a_trigger_gets_its_own_color_and_icon_by_default():
-    """A trigger reads as distinct from an ordinary task in the log prefix.
-
-    `BaseTask` derives a color from the name and has no icon; `BaseTrigger`
-    substitutes cyan and ✨ when the caller supplies neither. The substitution
-    happens on the way into `BaseTask`, which is the one place a forwarded
-    keyword can be given a different default.
-    """
+    """`BaseTrigger` defaults to cyan and ✨ when neither is supplied."""
     # Arrange / Act
     trigger = BaseTrigger(name="watch")
     # Assert

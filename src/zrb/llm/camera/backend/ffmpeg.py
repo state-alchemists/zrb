@@ -1,34 +1,10 @@
 """Camera capture through ffmpeg: avfoundation on macOS, dshow on Windows
 (auto-detecting the first video device), v4l2 on Linux and WSL.
 
-No Python dependency: capture shells out to ffmpeg.
-
-WSL2 camera capture has two separate, layered failure modes -- see
-`docs/llm/voice-photo-troubleshooting.md` for
-the full write-up, this is the short version for future maintainers:
-
-1. The stock `microsoft-standard-WSL2` kernel ships with *no* camera driver
-   at all -- no `uvcvideo`, no v4l2 core, not even as a loadable module.
-   `usbipd-win` (https://github.com/dorssel/usbipd-win) only does USB-level
-   passthrough: it can get the webcam enumerated on the USB bus inside WSL2
-   (visible in `lsusb`/`dmesg`) while `/dev/video0` still never appears,
-   because turning a USB device into a `/dev/video*` node is the kernel
-   driver's job and this kernel doesn't have one. Fixed only by building a
-   custom WSL2 kernel with USB Video Class support and pointing `.wslconfig`
-   at it (`kernel=`). `wsl --shutdown` force-powers-off the VM without
-   flushing disk cache first -- a `make modules_install` that hasn't been
-   `sync`ed to disk yet is silently lost on the next boot, so always `sync`
-   (or reboot only after an idle moment) right after installing modules.
-2. Even with the driver working, ffmpeg's default v4l2 negotiation asks for
-   raw YUYV at the camera's max resolution (often 1080p, ~165 Mbps
-   uncompressed) -- usbipd-win's USB/IP tunnel can't sustain that and the
-   capture hangs indefinitely with the camera light stuck on, no frame ever
-   delivered. `FfmpegCameraBackend` works around this by requesting MJPEG
-   (compressed on-camera) at 640x480 first -- tested as the largest size
-   that lands reliably over USB/IP; 720p MJPEG still hangs, since this is an
-   isochronous-transfer reliability ceiling, not merely a bandwidth budget.
-   The capture timeout is the backstop for cameras/setups where even that
-   still hangs.
+On WSL2 the stock kernel has no UVC driver (usbipd-win alone never yields a
+`/dev/video*`), and usbipd-win's USB/IP tunnel cannot sustain raw YUYV, so
+capture asks for 640x480 MJPEG first. See
+`docs/llm/voice-photo-troubleshooting.md`.
 """
 
 from __future__ import annotations

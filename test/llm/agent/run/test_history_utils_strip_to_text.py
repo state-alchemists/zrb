@@ -24,11 +24,7 @@ class UnknownMessage:
 
 
 def test_strip_to_text_only_parallel_tool_calls():
-    """N parallel tool calls in one ModelResponse paired with N returns in
-    one ModelRequest: every call/return becomes plain text and no
-    tool_call_id survives on either side. Pairing-by-id (already done in
-    sanitize_orphaned_tool_calls) is therefore moot for this output.
-    """
+    """Parallel calls and returns become plain text without IDs."""
     history = [
         ModelRequest(parts=[UserPromptPart(content="run three things")]),
         ModelResponse(
@@ -71,9 +67,7 @@ def test_strip_to_text_only_parallel_tool_calls():
 
 
 def test_sanitize_history_chains_all_steps():
-    """The orchestrator runs before EVERY model call; verify the three steps
-    compose: nil content is patched, orphaned returns are stripped, complete
-    tool pairs survive, and consecutive same-role messages are merged."""
+    """The history sanitization steps compose in order."""
     messages = [
         ModelResponse(
             parts=[
@@ -117,8 +111,7 @@ def test_sanitize_history_chains_all_steps():
 
 
 def test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call():
-    """With allow_orphaned_tool_calls=True (deferred-results path) a tool call
-    with no return is legitimately pending and must be preserved."""
+    """Deferred calls remain when orphaned calls are allowed."""
     messages = [
         ModelResponse(
             parts=[
@@ -205,10 +198,7 @@ def test_strip_thinking_parts_injects_placeholder_when_only_tool_calls_remain():
 
 
 def test_sanitize_history_debug_logging_detects_problems():
-    """With DEBUG logging enabled, sanitize_history runs _detect_problems over
-    the pre-fix history: messages with no parts, nil-content parts, text-less
-    ModelResponses, and consecutive same-role messages are all detected and
-    logged, then the fix pipeline still returns a valid list."""
+    """Debug logging reports malformed history before repair."""
     import logging as _logging
 
     from zrb.config.config import CFG
@@ -272,9 +262,7 @@ def test_strip_to_text_only_unknown_request_part_passes_through():
 
 
 def test_strip_to_text_only_native_tool_call_yields_placeholder():
-    """A NativeToolCallPart (BaseToolCallPart but not ToolCallPart) converts to
-    an empty text label, leaving the ModelResponse text-less, so a leading
-    '(tool call)' placeholder is injected."""
+    """Native tool calls receive the text placeholder."""
     history = [
         ModelResponse(parts=[NativeToolCallPart(tool_name="web_search", args="{}")])
     ]
@@ -328,8 +316,7 @@ def test_strip_to_text_only_truncates_long_tool_return():
 
 
 def test_close_dangling_tool_calls_synthesizes_returns():
-    """A trailing ModelResponse with unresolved tool calls gets a matching
-    ModelRequest of synthetic ToolReturnParts appended, one per call."""
+    """Dangling calls receive synthetic returns."""
     history = [
         ModelRequest(parts=[UserPromptPart(content="do two things")]),
         ModelResponse(
@@ -378,8 +365,7 @@ def test_close_dangling_tool_calls_noop_when_response_has_no_tool_calls():
 
 
 def test_strip_to_text_only_truncates_long_retry_prompt():
-    """A tool-linked RetryPromptPart with an oversized content is collapsed to a
-    UserPromptPart and truncated with an ellipsis."""
+    """Oversized retry prompts are converted and truncated."""
     from pydantic_ai.messages import RetryPromptPart
 
     long_content = "E" * 700

@@ -20,22 +20,7 @@ from zrb.util.markdown import get_first_heading
 
 
 class Skill:
-    """
-    Represents a skill loaded from a SKILL.md or SKILL.py file.
-
-    Skills can be invoked by users via /slash-commands or automatically by the model.
-
-    Frontmatter fields (Claude Code spec):
-        name: Display name (max 64 chars), becomes /slash-command
-        description: Helps Claude decide when to use
-        argument-hint: Shown in autocomplete (e.g., "[filename]")
-        disable-model-invocation: Prevent auto-loading (true/false)
-        user-invocable: Hide from / menu (true/false, default: true)
-        allowed-tools: Tools usable without permission during skill (e.g., "Read, Grep")
-        model: Model override for this skill
-        context: Run in subagent (e.g., "fork")
-        agent: Agent type for forked context (e.g., "Explore")
-    """
+    """A skill loaded from a SKILL.md or SKILL.py file (Claude Code frontmatter spec)."""
 
     def __init__(
         self,
@@ -53,11 +38,7 @@ class Skill:
         content_factory: Callable[[], str] | None = None,
         companion_files: list[str] | None = None,
     ):
-        """Define a skill programmatically, without a `SKILL.md` on disk.
-
-        The filesystem loader builds these from frontmatter; construct one
-        directly to register a skill from code:
-        `skill_manager.add_skill(Skill(...))`.
+        """Define a skill programmatically: `skill_manager.add_skill(Skill(...))`.
 
         Args:
             name: Display name, and the `/slash-command` that invokes it.
@@ -101,10 +82,7 @@ class Skill:
 class SkillManager:
     """Discover and resolve skills against a `SkillRegistry`.
 
-    The manager owns discovery (`scan`, `reload`, `search_dirs`)
-    and content resolution, and composes a `SkillRegistry` for the canonical
-    collection. All query and mutation methods delegate to the registry, so a
-    manual `add_skill`/`set_skills` survives a later scan.
+    Manual `add_skill`/`set_skills` registrations survive a later scan.
     """
 
     def __init__(
@@ -141,11 +119,7 @@ class SkillManager:
 
     @property
     def search_dirs(self) -> list[str | Path]:
-        """Directories scanned for skills, in priority order.
-
-        The explicit override passed at construction (or set here), or the
-        computed defaults when none was given.
-        """
+        """Directories scanned for skills, in priority order (override or defaults)."""
         if self._search_dirs is not None:
             return list(self._search_dirs)
         return self._default_search_dirs()
@@ -181,9 +155,7 @@ class SkillManager:
         target_search_dirs = (
             search_dirs if search_dirs is not None else self.search_dirs
         )
-        # Bound the pass, so a skill frontmatter hook whose file this scan did
-        # not find is dropped rather than left firing (see
-        # `zrb.llm.hook.skill_frontmatter`).
+        # Bound the pass so hooks of skills this scan did not find are dropped.
         start_skill_scan()
         # Later directories override earlier ones on a name collision.
         for search_dir in target_search_dirs:
@@ -218,9 +190,7 @@ class SkillManager:
         return search_dirs
 
     def add_skill(self, skill: Skill):
-        """
-        Manually register a skill. Survives a later scan/reload.
-        """
+        """Manually register a skill. Survives a later scan/reload."""
         self._registry.add_skill(skill)
 
     def remove_skill(self, name: str) -> None:
@@ -242,19 +212,12 @@ class SkillManager:
         return self._registry.get_skills()
 
     def get_skill(self, name: str) -> Skill | None:
-        """Look up one skill, scanning first if that has not happened yet.
-
-        Matches the registry key, then falls back to matching a skill's own
-        name or path. Returns None when nothing matches.
-        """
+        """Look up one skill by registry key, own name, or path; None if absent."""
         self._ensure_scanned()
         return self._registry.get_skill(name)
 
     def get_skill_content(self, name: str) -> str | None:
-        """Return a skill's instruction text, or None if the skill is unknown.
-
-        Resolves the name the same way `get_skill` does.
-        """
+        """Return a skill's instruction text, or None if the skill is unknown."""
         self._ensure_scanned()
         skill = self.get_skill(name)
         if not skill:
@@ -350,14 +313,8 @@ class SkillManager:
         return dirs
 
     def _get_builtin_dirs(self) -> list[Path]:
-        """Builtin skill directories (always lowest priority).
-
-        ``core_skills/`` is always included — core skills are the agent's
-        methodology baseline that the utility skills delegate into, so they have
-        no disable toggle. ``skills/`` (utility skills) is gated by
-        ``CFG.LLM_ENABLE_BUILTIN_SKILLS``. Missing paths (broken install / unusual
-        layout) are skipped rather than yielding a spurious default.
-        """
+        """Builtin skill directories: ``core_skills/`` always, ``skills/`` when
+        ``CFG.LLM_ENABLE_BUILTIN_SKILLS``; missing paths are skipped."""
         base = BUILTIN_PLUGIN_DIR
         dirs: list[Path] = [base / "core_skills"]
         if CFG.LLM_ENABLE_BUILTIN_SKILLS:
@@ -424,7 +381,7 @@ class SkillManager:
             self._scan_results[name] = Skill(
                 name=name,
                 path=full_path,
-                content=content,  # Persist content to avoid re-reading
+                content=content,
                 companion_files=discover_companion_files(full_path),
                 **fields,
             )
@@ -438,10 +395,8 @@ skill_manager = SkillManager(registry=skill_registry)
 def _parse_skill_frontmatter(content: str, full_path: str) -> dict:
     """The `Skill` fields a markdown skill's YAML frontmatter declares.
 
-    Returns defaults for a file without frontmatter, or one whose frontmatter
-    does not parse — a malformed header downgrades the skill rather than
-    dropping it. `name` is present only when the frontmatter set it, so the
-    caller can fall back to the H1 or the directory name.
+    Malformed frontmatter yields defaults rather than dropping the skill; `name`
+    is present only when the frontmatter set it.
     """
     fields: dict = {
         "description": "No description",

@@ -35,26 +35,13 @@ _SECTION_NAMES = frozenset({"persona", "principle", "workflow", "example", "prof
 
 
 class PromptManager:
-    """Assembles the LLM system prompt from ordered, MECE sections.
+    """Assembles the LLM system prompt from ordered sections.
 
-    Sections are emitted in the order given by ``include_sections`` (default in
-    ``config/mixins/llm_prompt.py``: persona → principle → workflow → example →
-    profile → system_context → project_context), followed by any user-added
-    prompts. The first five are file-backed rule sections; the last two are
-    runtime-fact sections built in Python — ``system_context`` renders the
-    session-invariant environment (OS, CWD, tools, model), ``project_context``
-    the project documentation discovered near the working directory. There is
-    no prompt-side tool catalogue — what a tool does and which tool to reach
-    for instead lives in the tool's own docstring, which pydantic-ai ships
-    with the schema on every request.
-
-    The skill catalogue is folded into the ``workflow`` section via
-    ``{CORE_SKILLS}``/``{AVAILABLE_SKILLS}``/``{PREACTIVATED_SKILLS}``
-    placeholders rather than a standalone section. A section name that is not one
-    of the built-ins is ignored with a logged warning — a typo in a pinned
-    config is visible rather than silently dropped. ``model`` and
-    ``assistant_name`` may be callables resolved against the active context.
-    See AGENTS.md ("LLM Prompt System").
+    Sections follow ``include_sections`` (default in
+    ``config/mixins/llm_prompt.py``), then any user-added prompts. Five are
+    file-backed; ``system_context`` and ``project_context`` are built in Python.
+    An unknown section name is ignored with a warning. See AGENTS.md
+    ("LLM Prompt System").
     """
 
     def __init__(
@@ -68,13 +55,7 @@ class PromptManager:
     ):
         """Build a prompt manager.
 
-        Every parameter is optional; `PromptManager()` composes the default
-        section list against the shipped prompt files.
-
         Args:
-            prompt_registry: Source of the default appended prompts when
-                *prompts* is ``None``. Defaults to the global
-                `prompt_registry`.
             prompts: Extra content emitted *after* every built-in section.
                 Each entry is a string, a `Callable[[AnyContext], str]`, or a
                 full middleware
@@ -97,20 +78,13 @@ class PromptManager:
         """
         self._prompt_registry = prompt_registry or default_prompt_registry
         self._middlewares: PromptSetValue = prompts
-        # Ordered append/prepend/remove ops layered over the resolved base
-        # (own value, else the registry's) at query time.
         self._deltas = PromptDelta()
         self._assistant_name = assistant_name
         self._include_sections = include_sections  # None means "use CFG default"
         self._skill_manager = skill_manager or default_skill_manager
         self._active_skills = active_skills
-        # Live context providers: per-turn dynamic state injected into the
-        # <live-context> block after built-in rendering.
         self._live_context_providers = LiveContextProviders()
-        # Resolved current model — used by the system_context section to
-        # surface model-specific capabilities (e.g. parallel tool call
-        # support). Set by the task runner before each compose_prompt(),
-        # so /model switches mid-session are reflected automatically.
+        # Set by the runner before each compose_prompt(), so /model is reflected.
         self._model: Any = None
 
     @property
@@ -125,8 +99,7 @@ class PromptManager:
 
     @prompts.setter
     def prompts(self, value: PromptSetValue):
-        """Replace the appended prompts wholesale. ``None`` re-defers to the
-        default registry. Clears all pending instance delta ops."""
+        """Replace the appended prompts wholesale (``None`` defers to the registry)."""
         self._middlewares = value
         self._deltas.clear()
 
@@ -155,20 +128,7 @@ class PromptManager:
 
     @property
     def active_sections(self) -> list[str]:
-        """The resolved prompt sections, in precedence order.
-
-        Single source of truth for *which* sections are active:
-
-        1. the instance ``include_sections`` override,
-        2. ``CFG.LLM_INCLUDE_SECTIONS`` (an explicitly-set
-           ``ZRB_LLM_INCLUDE_SECTIONS`` env var outranks
-           ``DEFAULT_LLM_INCLUDE_SECTIONS`` inside the config).
-
-        Journaling is not one of them: there is no prompt section to
-        suppress, so ``LLM_JOURNAL_ENABLED`` gates the journal *tools* at
-        registration instead (see ``apply_common_tools``), and the index
-        injection checks the flag directly (``render_journal_index``).
-        """
+        """The resolved sections: ``include_sections``, else ``CFG.LLM_INCLUDE_SECTIONS``."""
         if self._include_sections is not None:
             return list(self._include_sections)
         return list(CFG.LLM_INCLUDE_SECTIONS)
@@ -184,15 +144,12 @@ class PromptManager:
         self._model = value
 
     def reset(self):
-        """Drop every instance-appended prompt, returning to the default
-        registry's prompt list."""
+        """Drop every instance-appended prompt, deferring to the registry again."""
         self._middlewares = None
         self._deltas.clear()
 
     def _effective_prompts(self) -> PromptList:
-        """The instance's resolved prompt list: its own explicit set (when
-        set), or — when deferring — the default registry's *current* prompts,
-        layered with this instance's ``append``/``prepend``/``remove`` ops."""
+        """Own prompts (else the registry's current ones) with delta ops applied."""
         if self._middlewares is None:
             base = self._prompt_registry.get_prompts()
         else:
@@ -200,7 +157,6 @@ class PromptManager:
         return self._deltas.apply(base)
 
     def _resolve_own_prompts(self, value: PromptSetValue) -> PromptList:
-        """Resolve this instance's own prompt value to a concrete list."""
         if callable(value):
             value = value()
         return [] if value is None else list(value)
@@ -208,10 +164,8 @@ class PromptManager:
     def append_prompt(self, *middleware: PromptMiddleware | str):
         """Append content emitted after all built-in sections.
 
-        Accepts a static string, a `Callable[[AnyContext], str]`, or a full
-        middleware `Callable[[ctx, current, next], str]`. The op is stored
-        and layered over the resolved base each time the prompts are read,
-        so a deferring manager keeps following its registry live.
+        Accepts a string, a `Callable[[AnyContext], str]`, or a full
+        middleware `Callable[[ctx, current, next], str]`.
         """
         self._deltas.append(*middleware)
 
@@ -220,23 +174,18 @@ class PromptManager:
         self._deltas.prepend(*middleware)
 
     def remove_prompt(self, middleware: PromptMiddleware | str) -> None:
-        """Drop the first occurrence of the exact *middleware* from this
-        instance's prompts, layered over the resolved base."""
+        """Drop the first occurrence of the exact *middleware*."""
         self._deltas.remove(middleware)
 
     def add_live_context(self, name: str, provider: SimplePrompt) -> None:
-        """Register a dynamic per-turn live context provider.
+        """Register a per-turn live-context provider, replacing any under *name*.
 
-        Called every turn inside ``create_live_context``, after built-in
-        rendering. *provider* receives the active context and returns a string
-        (or ``None`` / ``""`` to emit nothing). Re-registering the same *name*
-        overwrites the previous provider.
+        *provider* returns a string, or ``None``/``""`` to emit nothing.
         """
         self._live_context_providers.add_provider(name, provider)
 
     def remove_live_context(self, name: str) -> None:
-        """Drop the live-context provider registered under *name*. No-op if
-        absent."""
+        """Drop the live-context provider under *name*. No-op if absent."""
         self._live_context_providers.remove_provider(name)
 
     def set_live_contexts(self, providers: "list[tuple[str, SimplePrompt]]") -> None:
@@ -253,24 +202,11 @@ class PromptManager:
         inject_journal_index: bool = False,
         first_message: str | None = None,
     ) -> str:
-        """Render the per-turn volatile runtime state as a ``<live-context>``
-        block for injection into the latest user message.
+        """Render per-turn state as a ``<live-context>`` block for the latest user message.
 
-        Kept out of the system prompt on purpose: the block changes every turn
-        (time, git, todos, …), so embedding it in the cached prefix would defeat
-        prompt caching. Injecting it into the user turn instead keeps the system
-        prompt byte-stable while still surfacing live state, and freezes a
-        snapshot into history (older turns show what state *was*; the most
-        recent block is authoritative — anchored in the system prompt). Returns
-        ``""`` when there is nothing to report.
-
-        Custom providers registered via ``add_live_context`` are called after
-        the built-in rendering, in registration order.
-
-        The journal index snapshot rides here rather than the cached system
-        prompt. *inject_journal_index* picks the moment (first turn);
-        ``render_journal_index`` itself checks ``LLM_JOURNAL_ENABLED``, so a
-        disabled journal emits nothing regardless of what callers ask for.
+        Kept out of the system prompt so its cacheable prefix stays byte-stable.
+        Registered providers follow the built-in rendering. Returns ``""`` when
+        there is nothing to report.
         """
         body = render_live_context(
             ctx,
@@ -286,9 +222,7 @@ class PromptManager:
         inject_journal_index: bool = False,
         first_message: str | None = None,
     ) -> str:
-        """``create_live_context`` for async callers (the per-turn hot path):
-        the git subprocesses run off-loop instead of blocking the event loop.
-        """
+        """``create_live_context`` with git subprocesses run off the event loop."""
         body = await render_live_context_async(
             ctx,
             self._model,
@@ -306,11 +240,7 @@ class PromptManager:
         return f"<live-context>\n{body}\n</live-context>"
 
     def _create_system_context_middleware(self) -> FullMiddleware:
-        """Build the ``system_context`` data section middleware.
-
-        Renders the session-invariant system facts (OS, CWD, tools, model,
-        sandbox, parallel-call support) via :func:`system_context`.
-        """
+        """Build the ``system_context`` section middleware."""
         _builtin = partial(system_context, model=self._model)
 
         def system_context_middleware(
@@ -323,11 +253,7 @@ class PromptManager:
         return system_context_middleware
 
     def _create_project_context_middleware(self) -> FullMiddleware:
-        """Build the ``project_context`` data section middleware.
-
-        Renders the project documentation files (AGENTS.md, CLAUDE.md, …)
-        discovered near the working directory via ``create_project_context_prompt``.
-        """
+        """Build the ``project_context`` section middleware."""
         _builtin = create_project_context_prompt()
 
         def project_context_middleware(
@@ -340,32 +266,22 @@ class PromptManager:
         return project_context_middleware
 
     def compose_prompt(self) -> Callable[[AnyContext], str]:
-        """
-        Composes a list of prompt middlewares into a single prompt factory function.
+        """Compose the sections and middlewares into one ``ctx -> prompt`` factory.
 
-        Supports both:
-        - Simple prompts: Callable[[AnyContext], str] - just returns content
-        - Full middlewares: Callable[[AnyContext, str, Callable], str] - controls chain
-        - Strings: str - static content (with optional rendering)
-
-        The resulting function takes an AnyContext and returns the final prompt string.
+        Entries may be strings, ``Callable[[AnyContext], str]``, or full
+        middlewares ``Callable[[AnyContext, str, Callable], str]``.
         """
 
         def composed_prompt_factory(ctx: AnyContext) -> str:
             raw_middlewares = self._get_composed_middlewares(ctx)
 
-            # Normalize middlewares: strings and simple callables get wrapped
             middlewares: list[FullMiddleware] = []
             for m in raw_middlewares:
                 if isinstance(m, str):
-                    # Wrap string with rendering support
                     middlewares.append(self._wrap_simple_prompt(m))
                 elif self._is_full_middleware(m):
-                    # It's already a full middleware (narrowed by the TypeGuard)
                     middlewares.append(m)
                 else:
-                    # It's a simple callable (ctx -> str), wrap it. The branches
-                    # above already ruled out str and the full-middleware shape.
                     middlewares.append(self._wrap_simple_prompt(cast(SimplePrompt, m)))
 
             def dispatch(index: int, current_prompt: str) -> str:
@@ -388,10 +304,6 @@ class PromptManager:
     ) -> list[PromptMiddleware | str]:
         sections = self.active_sections
 
-        # The profile axis: the `profile` section resolves
-        # ``profile.{profile}.md`` with fallback to the base ``profile.md``;
-        # the other sections are shared. ``active_profile`` resolves ``auto``
-        # from the bound model.
         variant = active_profile(self._model)
 
         assistant_name = (
@@ -405,8 +317,6 @@ class PromptManager:
             if effective
             else {}
         )
-        # Skill catalogue lives in workflow.md via {CORE_SKILLS}/{AVAILABLE_SKILLS}
-        # /{PREACTIVATED_SKILLS} placeholders.
         if self._skill_manager:
             active_skills = get_str_list_attr(ctx, self._active_skills)
             _extra.update(build_skill_replacements(self._skill_manager, active_skills))
@@ -429,7 +339,6 @@ class PromptManager:
                     )
                 )
 
-        # User custom prompts always last
         middlewares.extend(self._effective_prompts())
         return middlewares
 
@@ -439,17 +348,9 @@ class PromptManager:
         profile: str | None = None,
         extra_replacements: dict[str, str] | None = None,
     ) -> FullMiddleware:
-        """Middleware for one or more file-backed sections emitted as a unit.
+        """Middleware resolving *name* (preferring its *profile* variant) at compose time.
 
-        Resolves *name* via ``get_prompt`` at compose time,
-        preferring the *profile* variant (``{name}.{profile}.md``) with fallback
-        to the base file. When nothing resolves (no registered
-        provider, no markdown file), the section is empty — a warning
-        is logged so a misspelled name in ``include_sections`` /
-        ``ZRB_LLM_INCLUDE_SECTIONS`` is diagnosable instead of silently dropped.
-
-        *extra_replacements* are forwarded to ``get_prompt`` as
-        ``**extra_replacements`` for ``{PLACEHOLDER}`` substitution.
+        Warns when nothing resolves, so a misspelled section is visible.
         """
 
         def file_section_middleware(
@@ -480,19 +381,13 @@ class PromptManager:
     def _is_full_middleware(
         self, prompt: PromptMiddleware | str
     ) -> TypeGuard[FullMiddleware]:
-        """Check if prompt is a full middleware (accepts next param) or simple callable.
-
-        Typed as a `TypeGuard` so callers narrow on the positive branch instead
-        of suppressing the resulting argument-type error.
-        """
+        """True when *prompt* is a full middleware (3+ params) rather than a simple callable."""
         if isinstance(prompt, str):
             return False
         if not callable(prompt):
             return False
         sig = inspect.signature(prompt)
         params = list(sig.parameters.values())
-        # Full middleware has 3+ params: ctx, current_prompt, next, (optional *args, **kwargs)
-        # Simple prompt has 1 param: ctx
         return len(params) >= 3
 
     def _wrap_simple_prompt(self, prompt: str | SimplePrompt) -> FullMiddleware:

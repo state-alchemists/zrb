@@ -141,7 +141,6 @@ def test_show_help_for_task_with_description():
             action="echo 'detail'",
         )
     )
-    # Just running it to trigger print statements (captured by capsys if needed, but we just need coverage)
     cli.run(str_args=["detailed-task", "-h"])
 
 

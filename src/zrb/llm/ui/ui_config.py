@@ -5,12 +5,9 @@ from zrb.config.config import CFG
 
 
 def _commands(knob: str) -> Callable[[], list[str]]:
-    """Default factory reading a `CFG.LLM_UI_COMMAND_*` twin at instantiation.
+    """Default factory reading a `CFG.LLM_UI_COMMAND_*` knob at instantiation.
 
-    Deferred on purpose: `zrb_init.py` may change the knob after this module
-    is imported (R3). `CFG`'s `EnvField` already parses the
-    comma-separated env value into a list, so this just reads it — `list(...)`
-    hands back a fresh copy rather than a reference into `CFG`'s own list.
+    Deferred because `zrb_init.py` may change the knob after import (R3).
     """
     return lambda: list(getattr(CFG, knob))
 
@@ -19,10 +16,7 @@ def _commands(knob: str) -> Callable[[], list[str]]:
 class UIConfig:
     """Configuration for UI backends.
 
-    This dataclass replaces 25+ individual parameters in `BaseUI.__init__`.
-    Every command-list field defaults from its `CFG.LLM_UI_COMMAND_*` twin
-    (`src/zrb/config/mixins/llm_ui_commands.py`), so every UI backend agrees
-    on the shipped command aliases without each one re-deriving them.
+    Every command-list field defaults from its `CFG.LLM_UI_COMMAND_*` twin.
 
     Example:
         config = UIConfig(
@@ -75,9 +69,7 @@ class UIConfig:
     is_yolo: bool | frozenset = (
         False  # True=full yolo, frozenset=selective yolo, False=off
     )
-    # A stable default (not per-instance) so a task's own xcom write of the
-    # initial yolo state and a UI built from this same config agree on the
-    # key without either having to see the other's resolved value.
+    # Stable so the task's xcom write and the UI agree on the key.
     yolo_xcom_key: str = "yolo"
     show_ollama_models: bool = field(default_factory=lambda: CFG.LLM_SHOW_OLLAMA_MODELS)
     show_pydantic_ai_models: bool = field(
@@ -97,13 +89,8 @@ class UIConfig:
 
         Keys are the bare command names `LLMChatTask` stores them under
         (`"exit"`, `"set_model"`, ...); each maps to the `<key>_commands`
-        field, except `"redirect"`, whose field carries an `_output` infix.
-        An unknown key is ignored rather than raising: the mapping is fed by
-        task configuration, and a stale alias should not break a session.
-
-        `replace` rather than a hand-written field list, so a field added to
-        this dataclass is carried over automatically instead of being silently
-        dropped until someone remembers to extend the list here.
+        field, except `"redirect"`. An unknown key is ignored so a stale
+        alias does not break a session.
         """
         overrides = {}
         for key, value in ui_commands.items():
@@ -121,9 +108,7 @@ _COMMAND_FIELDS = frozenset(
     f.name for f in fields(UIConfig) if f.name.endswith("_commands")
 )
 
-# The `CFG.LLM_UI_COMMAND_*` setting that feeds each command-list field, for
-# keeping a running session in sync after `/set` changes one. Two fields are not
-# the mechanical `<SLUG>_commands` spelling, so they are named explicitly.
+# Command-list fields whose `CFG.LLM_UI_COMMAND_*` name is not mechanical.
 _COMMAND_FIELD_ENV_NAMES = {
     "redirect_output_commands": "LLM_UI_COMMAND_REDIRECT_OUTPUT",
     "plan_commands": "LLM_UI_COMMAND_PLAN_TOGGLE",
@@ -141,9 +126,7 @@ def command_env_name(field_name: str) -> str:
 def command_alias_field(env_name: str) -> str | None:
     """The `UIConfig` command-list field fed by `env_name`, or None.
 
-    None means `env_name` is not a command-alias setting. `UIConfig` snapshots
-    every `LLM_UI_COMMAND_*` list when it is built, so a `/set` that changes one
-    uses this to re-point the running session's copy.
+    Lets `/set` re-point the running session's snapshot of that list.
     """
     for field_name in _COMMAND_FIELDS:
         if command_env_name(field_name) == env_name:
@@ -151,8 +134,7 @@ def command_alias_field(env_name: str) -> str | None:
     return None
 
 
-# `UIConfig` fields that mirror a plain `CFG` boolean instead of a command list.
-# The two spellings do not follow from the field name, so they are named here.
+# `UIConfig` fields that mirror a plain `CFG` boolean.
 _MODEL_VISIBILITY_FIELDS = {
     "LLM_SHOW_OLLAMA_MODELS": "show_ollama_models",
     "LLM_SHOW_PYDANTIC_AI_MODELS": "show_pydantic_ai_models",
@@ -160,10 +142,5 @@ _MODEL_VISIBILITY_FIELDS = {
 
 
 def model_visibility_field(env_name: str) -> str | None:
-    """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None.
-
-    None means `env_name` is not a model-visibility setting. `UIConfig` reads
-    both once, when the session is built, so a `/set` that changes one uses
-    this to re-point the running session.
-    """
+    """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None."""
     return _MODEL_VISIBILITY_FIELDS.get(env_name)

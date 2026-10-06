@@ -167,8 +167,7 @@ class TestCallbackBehavior:
 
 @pytest.mark.asyncio
 async def test_async_run_logs_error_without_error_queue(mock_session):
-    """A callback failure must be visible in the log even when the user did
-    not configure an error_queue (it used to vanish silently)."""
+    """A callback failure is logged when no error queue is configured."""
     failing_task = MagicMock()
     failing_task.name = "failing"
     failing_task.async_run = AsyncMock(side_effect=ValueError("boom"))

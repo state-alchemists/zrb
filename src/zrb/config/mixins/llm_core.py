@@ -21,9 +21,7 @@ class LLMCoreMixin:
     ENV_PREFIX: str
 
     def __init__(self):
-        # The one place this default lives — every resolution path (the
-        # model picker, ModelResolver's resolve_configured_model(), …) reads
-        # it from here rather than carrying a second hardcoded fallback.
+        # Shared by all model-resolution paths.
         self.DEFAULT_LLM_MODEL: str = "openai:gpt-5.6-luna"
         self.DEFAULT_LLM_SMALL_MODEL: str = ""
         self.DEFAULT_LLM_MULTIMODAL_MODEL: str = ""

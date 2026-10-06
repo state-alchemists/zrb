@@ -8,11 +8,7 @@ from zrb.llm.approval.any_approval_channel import (
 
 
 class NullApprovalChannel(AnyApprovalChannel):
-    """Approval channel that auto-approves everything.
-
-    Useful for YOLO mode or when running in non-interactive environments
-    where approval should be automatic.
-    """
+    """Approval channel that auto-approves everything (YOLO / non-interactive)."""
 
     async def request_approval(
         self,

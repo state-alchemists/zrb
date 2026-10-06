@@ -17,10 +17,8 @@ from zrb.llm.tool.search.http_errors import BROWSER_USER_AGENT
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 
-# Slack added to every off-loop call's own timeout (DNS resolution, PDF
-# parsing, HTML conversion). Some primitives underneath (C-level getaddrinfo)
-# have no timeout and cannot be interrupted; with `run_blocking`'s daemon
-# thread the *coroutine* still gives up on schedule.
+# Slack added to every off-loop call's own timeout. Some primitives (C-level
+# getaddrinfo) cannot be interrupted; `run_blocking` still gives up on schedule.
 TIMEOUT_MARGIN_SECONDS = 10
 _LOCAL_PROCESSING_TIMEOUT_SECONDS = 30
 
@@ -28,13 +26,8 @@ _LOCAL_PROCESSING_TIMEOUT_SECONDS = 30
 def run_blocking(func, *args, timeout: float):
     """Run `func(*args)` in a fresh daemon thread, awaited with a hard timeout.
 
-    `asyncio.to_thread` schedules onto the loop's default executor, whose
-    worker threads are NOT daemons: if the blocking call ignores its own
-    timeout (DNS resolution has none) or the call never returns, that
-    thread outlives everything awaiting it, and process exit then hangs
-    forever in `concurrent.futures.thread._python_exit` joining it -- the
-    "several Ctrl+C, still won't die" hang. A daemon thread lets the process
-    exit regardless; the orphaned thread is torn down by the OS.
+    Not `asyncio.to_thread`: its executor threads are non-daemon, so a call
+    that never returns makes process exit hang joining it.
     """
     future: "concurrent.futures.Future" = concurrent.futures.Future()
 
@@ -51,24 +44,16 @@ def run_blocking(func, *args, timeout: float):
 
 
 def notify(message: str) -> None:
-    """Best-effort interim status line for a slow-but-bounded operation.
+    """Best-effort interim status line for a slow fetch/search; never raises.
 
-    A fetch/search can take up to ~60s (Playwright + HTTP-fallback timeouts
-    stacked); without this it is indistinguishable from a hang. Uses
-    ``stream_to_parent`` (part of ``AnyUI``, including ``BufferedUI`` for
-    sub-agents) so it reaches the activity panel too. A missing UI, or any
-    failure here, never breaks the fetch.
-
-    The two-space indent matches ``StreamEventHandler``'s ``indent_level=1``;
-    this prints outside that handler, so it supplies its own leading ``\\n``
-    separator (see `_close_thinking_block` in stream_response.py).
+    Uses ``stream_to_parent`` so sub-agent activity panels see it too. The
+    leading ``\\n`` and two-space indent match ``StreamEventHandler`` output.
     """
     ui = get_current_ui()
     if ui is None:
         return
     try:
-        # end="": append_to_output defaults end="\n", which would add a
-        # second trailing newline on top of this call's own leading one.
+        # end="": the message already carries its own leading newline.
         ui.stream_to_parent(f"\n  {message}", end="", kind="text")
     except Exception:  # noqa: BLE001
         pass
@@ -278,18 +263,12 @@ def _search_payload(
 
 
 async def _fetch_page_content(url: str) -> tuple:
-    """Fetch a URL. Returns ``(content, links, is_pdf)``.
-
-    Sync HTTP (requests) and PDF parsing (pdfplumber) run via
-    ``run_blocking`` — inline they freeze the TUI's event loop for the whole
-    download + parse.
-    """
+    """Fetch a URL. Returns ``(content, links, is_pdf)``; blocking work runs
+    via ``run_blocking``."""
     user_agent = BROWSER_USER_AGENT
     fetch_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS
-    # A known .pdf extension lets us skip launching a browser entirely — but
-    # only as a shortcut: plain HTTP can be refused (Cloudflare, cookie/JS wall)
-    # where the browser path succeeds, so a failure here falls through to it
-    # instead of failing the fetch.
+    # .pdf shortcut skips the browser; plain HTTP can be refused (Cloudflare,
+    # JS wall) where the browser succeeds, so failure falls through to it.
     if url.split("?")[0].lower().endswith(".pdf"):
         try:
             return await run_blocking(

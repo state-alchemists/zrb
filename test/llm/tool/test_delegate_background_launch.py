@@ -111,13 +111,7 @@ async def test_unknown_agent_is_rejected_before_detaching(manager):
 
 @pytest.mark.asyncio
 async def test_name_check_does_not_build_the_agent(manager):
-    """Validation uses the definition lookup, not a full agent build.
-
-    ``create_agent`` runs every tool factory, resolves the model, and composes
-    the system prompt — and ``run_agent_task`` calls it again in the
-    coroutine. Validating with it would build twice and put the first build on
-    the caller's turn, which is the wait this tool exists to avoid.
-    """
+    """Validation uses the definition lookup, not a full agent build on the caller's turn."""
     delegate = create_background_delegate_tool(manager)
 
     with patch(
@@ -302,10 +296,7 @@ async def test_get_result_wait_returns_on_completion(manager):
 
 @pytest.mark.asyncio
 async def test_get_result_strips_ansi_from_buffered_transcript(manager):
-    """The buffered sub-agent transcript BufferedUI feeds into the poll result
-    carries muted-styling ANSI codes (for its own live-viewer pane) — those
-    must not leak into the parent model's context, which doesn't render
-    escape codes."""
+    """ANSI styling from the buffered transcript must not reach the parent model."""
 
     async def with_styled_output(*args, **kwargs):
         kwargs["ui"].append_to_output("🧰 call_1 | SomeTool", kind="tool_call")

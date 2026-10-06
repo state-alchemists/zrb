@@ -47,8 +47,7 @@ class AutoCameraBackend(AnyCameraBackend):
 
 
 def _is_termux() -> bool:
-    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind the
-    # name at this module's load time and bypass the mock.
+    # lazy: tests patch zrb.config.helper.is_termux; hoisting bypasses the mock
     from zrb.config.helper import is_termux
 
     return is_termux()

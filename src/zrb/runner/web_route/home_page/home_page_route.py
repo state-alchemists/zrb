@@ -12,7 +12,6 @@ from zrb.runner.web_util.html import (
 from zrb.runner.web_util.user import get_user_from_request
 
 if TYPE_CHECKING:
-    # We want fastapi to only be loaded when necessary to decrease footprint
     from fastapi import FastAPI
 
 

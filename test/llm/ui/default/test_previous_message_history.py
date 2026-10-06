@@ -1,12 +1,3 @@
-"""Cross-session previous-message history and its recall navigation.
-
-`PreviousMessageHistory` is a prompt_toolkit `History` that persists submitted
-messages under `CFG.LLM_PREVIOUS_MESSAGE_HISTORY_DIR` and holds the loaded
-conversation's user messages ahead of them. `UIMessageEditing` walks that list
-with Up/Down once no still-queued message is left to recall, and `UI` seeds the
-list from `/load` (via `replay_history`).
-"""
-
 import json
 import threading
 import time
@@ -217,9 +208,9 @@ class TestPreviousMessageHistory:
 
         history.close()
 
-        assert json.loads(
-            (tmp_path / "previous-messages.json").read_text()
-        ) == ["held while session ends"]
+        assert json.loads((tmp_path / "previous-messages.json").read_text()) == [
+            "held while session ends"
+        ]
 
 
 # --- recall navigation through UIMessageEditing ------------------------------

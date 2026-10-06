@@ -1,12 +1,5 @@
-"""Execution + resource methods for `LLMChatTask`.
-
-Holds the runtime entrypoint (`exec_action`), system-prompt composition, the
-inner `LLMTask` construction, tool/toolset/UI-command resolution,
-conversation-name and model helpers, and the session-end teardown.
-
-Composed into `LLMChatTask` as `self._execution`; reads and writes the owner's
-state through `self._llm_chat_task`. The session runners live in the sibling
-`ChatRunning` part and are reached through the owner's delegators.
+"""`LLMChatTask` execution part: `exec_action`, inner `LLMTask` construction,
+tool/model resolution and session-end teardown.
 """
 
 from __future__ import annotations
@@ -88,11 +81,7 @@ def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
 
 @dataclass(frozen=True)
 class _InnerTaskResolution:
-    """Values `_create_llm_task_core` needs, computed by `_resolve_inner_task_config`.
-
-    Separates resolution (reading owner state, coercing sandbox/approval/hook
-    values, building the approval predicate) from the `LLMTask(...)` call.
-    """
+    """Values `_create_llm_task_core` needs, computed by `_resolve_inner_task_config`."""
 
     tool_confirmation: "AnyToolConfirmation"
     ui: "AnyUI | None"
@@ -195,21 +184,10 @@ class ChatExecution:
     async def teardown_interactive_resources(self) -> None:
         """Release process-global resources when an interactive chat ends.
 
-        Runs on normal exit, ``/exit``, EOF, or Ctrl+C (the ``finally`` fires on
-        ``KeyboardInterrupt``). Stops LSP language-server subprocesses gracefully
-        while the event loop is still alive — the ``atexit`` backstops only run
-        once the loop is gone, when graceful async shutdown is no longer possible.
-
-        Gated to the interactive session on purpose: the non-interactive path is
-        reused per-message by the web/SSE runner, where tearing servers down
-        would restart them on every message. Each step is guarded so teardown
-        never raises a step's own failure.
-
-        A cancellation (``asyncio.run``'s answer to a first Ctrl+C) cannot cut
-        teardown short: it runs to the end, then the cancellation is re-raised.
-        A second Ctrl+C is a ``KeyboardInterrupt`` that still propagates;
-        ``asyncio.run`` then cancels what is left and the ``atexit`` backstops
-        reap the rest.
+        Runs while the loop is alive, so LSP servers and subprocesses shut down
+        gracefully (``atexit`` backstops run too late for that). Interactive
+        only: the web/SSE runner reuses the non-interactive path per message.
+        A cancellation is held until teardown finishes, then re-raised.
         """
         release = asyncio.ensure_future(self._release_interactive_resources())
         cancellation: asyncio.CancelledError | None = None
@@ -223,9 +201,8 @@ class ChatExecution:
             raise cancellation
 
     async def _release_interactive_resources(self) -> None:
-        # SESSION_END fires once per session, like Claude Code's SessionEnd
-        # (run_agent fires only STOP per turn). Every exit cause funnels through
-        # one `finally`, so `source` is Claude's catch-all "other".
+        # SESSION_END fires once per session (run_agent fires only STOP per
+        # turn). Every exit cause funnels through here, so `source` is "other".
         if self._llm_chat_task.active_hook_manager is not None:
             try:
                 await self._llm_chat_task.active_hook_manager.execute_hooks(
@@ -278,17 +255,10 @@ class ChatExecution:
     async def teardown_background_hooks(self) -> None:
         """Settle this run's detached (``async: true``) hooks.
 
-        Runs on both paths; the non-interactive path skips the rest of the
-        teardown because the web/SSE runner reuses it per message. Detached
-        hooks sit in their own process group, so nothing else reaps them.
-
-        ``drain=True`` gives just-dispatched hooks (e.g. a Stop notifier) their
-        grace period before cancelling stragglers; cancel-first would
-        effectively disable async hooks for non-interactive callers.
-
-        Shuts down this run's ``HookManager`` (built fresh per execution),
-        falling back to the module singleton only when none was created —
-        matching ``run_agent``'s ``hook_manager or default`` resolution.
+        Detached hooks sit in their own process group, so nothing else reaps
+        them. ``drain=True`` lets just-dispatched hooks finish before stragglers
+        are cancelled. Falls back to the module singleton when no per-run
+        manager was created, matching ``run_agent``.
         """
         try:
             if self._llm_chat_task.active_hook_manager is not None:
@@ -315,8 +285,7 @@ class ChatExecution:
         )
 
     def _get_ui_commands(self) -> dict[str, list[str]]:
-        """The task's UI slash-command aliases keyed by command name, the shape
-        `UIConfig.merge_commands` expects. Each field is already resolved."""
+        """The UI slash-command aliases keyed by command name."""
         ui_config = self._llm_chat_task.ui_config
         return {
             field.name.removesuffix("_commands"): list(getattr(ui_config, field.name))
@@ -392,10 +361,8 @@ class ChatExecution:
         interactive: bool,
         resolved_tools: list[Tool | ToolFuncEither],
     ) -> "_InnerTaskResolution":
-        """Resolve every value `_create_llm_task_core` needs but does not itself
-        compute: tool-confirmation/UI mode, the approval channel, the per-run
-        hook manager, sandbox coercion, and the wrap-boundary history override.
-        """
+        """Resolve confirmation/UI mode, approval channel, per-run hook manager,
+        sandbox and history override for the inner task."""
         llm_chat_task = self._llm_chat_task
         tool_confirmation = llm_chat_task.tool_confirmation
         ui = llm_chat_task.uis if llm_chat_task.uis else None
@@ -481,22 +448,15 @@ class ChatExecution:
         return ui.conversation_session_name or initial_conversation_name
 
     def get_model(self, ctx: AnyContext) -> str | Model:
-        """Resolve the model to use for this run.
-
-        A `Tpl` or callable model attribute is resolved against `ctx`. An empty
-        result falls back to `CFG.LLM_MODEL`.
-        """
+        """Resolve the model for this run, falling back to `CFG.LLM_MODEL`."""
         return resolve_model(ctx, self._llm_chat_task.model)
 
 
 def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
-    """Build the predicate that decides whether a tool call skips approval.
+    """Build the predicate deciding whether a tool call skips approval.
 
-    Approval precedence chain:
-      perm_policy: allow→auto-approve, deny→auto-approve (gate blocks),
-                   ask→defer to tool_policy cascade
-      tool_policy: handled in _resolve_approval (deferred_calls.py)
-      yolo:        handled in _resolve_approval (deferred_calls.py)
+    The permission policy decides first (see `get_policy_skip_decision`);
+    otherwise yolo does. Tool policies run later, in deferred_calls.py.
     """
 
     def _should_skip_approval(tool_def=None, args=None):
@@ -509,11 +469,7 @@ def _make_should_skip_approval(ctx, llm_chat_task, cap_by_name):
 
 
 def _yolo_skip_decision(ctx, llm_chat_task, tool_def) -> bool:
-    """Whether YOLO mode covers this tool call.
-
-    The xcom value is either a bool (all tools) or a frozenset of the tool
-    names YOLO was granted for.
-    """
+    """Whether YOLO covers this call; the xcom holds a bool or a frozenset of tool names."""
     yolo_xcom_key = llm_chat_task.ui_config.yolo_xcom_key
     if yolo_xcom_key not in ctx.xcom:
         return False
