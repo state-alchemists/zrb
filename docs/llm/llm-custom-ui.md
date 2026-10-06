@@ -254,7 +254,7 @@ class TelegramUI(EventDrivenUI):
             text = text[len(chunk):]
         return chunks
 
-# Register - ONE line!
+# Register: one line
 llm_chat.ui_factories = [
     create_ui_factory(TelegramUI, bot_token=BOT_TOKEN, chat_id=CHAT_ID)
 ]

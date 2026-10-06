@@ -2,7 +2,7 @@
 
 # Permission Policy System
 
-Zrb includes a robust, first-match-wins permission system designed to provide fine-grained control over which tools an LLM agent can call. This system acts as a security gate, ensuring that agents operate within safe boundaries even when YOLO mode is enabled.
+Zrb includes a first-match-wins permission system that decides which tools an LLM agent may call. It is a security gate: an agent stays inside the boundaries you set even when YOLO mode is on.
 
 > **Permission vs. sandbox.** The permission policy controls *intent* — which tool calls the user agrees to. The opt-in [sandbox](sandbox.md) controls *blast radius* — what an approved call can actually touch on the filesystem. At execution time the two gates (defined in `agent/gates.py`) run back-to-back in the tool wrappers in `agent/common.py`: `permission_gate` first, then `sandbox_gate`.
 

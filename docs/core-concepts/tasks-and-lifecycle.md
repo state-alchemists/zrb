@@ -19,7 +19,7 @@ A `Task` is the fundamental unit of work in Zrb. It represents a discrete action
 
 ## The `zrb_init.py` File
 
-This is your magic file. When you run `zrb`, it searches for `zrb_init.py` in the current directory and then recursively in all parent directories up to the filesystem root. This creates a powerful inheritance system where tasks defined in a parent directory are available to all its subdirectories.
+This is the file zrb reads first. When you run `zrb`, it searches for `zrb_init.py` in the current directory and then recursively in all parent directories up to the filesystem root. Tasks defined in a parent directory are therefore available to every subdirectory.
 
 ```mermaid
 flowchart LR

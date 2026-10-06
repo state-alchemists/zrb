@@ -16,7 +16,7 @@ Zrb provides specialized tasks for manipulating and synchronizing the filesystem
 
 ## 1. `Scaffolder`
 
-The `Scaffolder` task is a powerful templating engine. It copies an entire directory structure from a source to a destination, performing find-and-replace text transformations on the file contents (`transform_content`) **and even the file and directory names themselves** (`transform_path`).
+The `Scaffolder` task is a templating engine. It copies an entire directory structure from a source to a destination, performing find-and-replace text transformations on the file contents (`transform_content`) **and even the file and directory names themselves** (`transform_path`).
 
 ### When to Use
 

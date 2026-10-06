@@ -52,7 +52,7 @@ deploy_prod = cli.add_task(
 
 ## 3. Create the Custom Entry Point (`__main__.py`)
 
-This is the magic file. You will override Zrb's default environment configurations to re-brand the CLI, load your tasks, and then invoke the Zrb runner.
+This file overrides Zrb's default environment configurations to re-brand the CLI, load your tasks, and then invoke the Zrb runner.
 
 ```python
 # acme_cli/__main__.py
@@ -63,7 +63,7 @@ from zrb.runner.cli import cli
 import acme_cli.tasks 
 
 def run_acme_cli():
-    # 2. White-label configuration overrides!
+    # 2. White-label configuration overrides
     
     # Change the env prefix: ZRB_LOGGING_LEVEL becomes ACME_LOGGING_LEVEL
     os.environ["_ZRB_ENV_PREFIX"] = "ACME" 
@@ -83,7 +83,7 @@ def run_acme_cli():
     Acme Corp Automation v1.0
     """
 
-    # 3. Invoke the main Zrb engine!
+    # 3. Invoke the main Zrb engine
     from zrb.__main__ import serve_cli
     serve_cli()
 
@@ -112,7 +112,7 @@ Install your package locally:
 poetry install
 ```
 
-Now, instead of `zrb`, you have a fully branded CLI!
+Now, instead of `zrb`, you have a fully branded CLI.
 
 ```bash
 acme deploy-prod

@@ -6,7 +6,7 @@ A critical feature of Zrb is the ability to handle asynchronous, long-running pr
 
 If Task A starts a database server, it never "finishes." Task B (run migrations) cannot simply wait for Task A to complete. Instead, Task B must wait for Task A to become **Ready**.
 
-Zrb handles this via the `readiness_check` parameter. A readiness check is a sub-task that runs concurrently alongside the main task. When the check succeeds, Zrb marks the main task as "ready" and immediately unblocks downstream successors!
+Zrb handles this via the `readiness_check` parameter. A readiness check is a sub-task that runs concurrently alongside the main task. When the check succeeds, Zrb marks the main task as "ready" and immediately unblocks downstream successors.
 
 > 💡 **Key Insight:** Readiness checks solve the "service startup" problem—waiting for services to be ready before proceeding.
 

@@ -47,7 +47,7 @@ Instead of threading `session`, `logger`, or `env` through every single function
 Zrb uses a custom dictionary subclass called `DotDict` for `ctx.env`, `ctx.input`, and `ctx.xcom`.
 * **Why:** `ctx.env.MY_VAR` is more readable and Pythonic to write than `ctx.env.get("MY_VAR")` or `ctx.env["MY_VAR"]`. It bridges the gap between structured objects and dynamic dictionaries.
 
-### Robust LLM Integration
+### LLM Integration
 Zrb treats Large Language Models not just as APIs, but as sophisticated, recursive agents using `pydantic-ai`.
 * **Hooks and Tools:** Tools are passed as Python callables. Agents can recursively invoke sub-agents.
 * **Inherited Context:** LLM constraints (like `yolo` mode, active UI, or approval channels) are inherited dynamically from parent agents through `ContextVars` to ensure security policies bypass strict argument passing boundaries.
