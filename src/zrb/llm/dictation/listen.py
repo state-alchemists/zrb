@@ -18,9 +18,9 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.config.config import CFG
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.util.teardown import close_quietly
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
+from zrb.llm.util.teardown import close_quietly
 
 if TYPE_CHECKING:
     # Only ever named in an annotation here, so this is a type dependency and

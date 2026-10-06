@@ -11,6 +11,7 @@ The factory imports Pipecat inside its body, so a spec can be written in
 
 from __future__ import annotations
 
+import importlib.util
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -40,17 +41,14 @@ class SpeechServiceSpec:
 
     @property
     def is_available(self) -> bool:
-        """Whether the package this service runs on is installed.
-
-        Named from the spec rather than imported: a vendor SDK that is not
-        installed is exactly the case this answers, and an import probe would
-        pay for the ones that are.
-        """
-        import importlib.util
-
+        """Whether the package this service runs on is installed."""
         if not self.provider:
             return True
-        return importlib.util.find_spec(self.provider) is not None
+        try:
+            return importlib.util.find_spec(self.provider) is not None
+        except ModuleNotFoundError:
+            # A dotted provider whose parent package is missing raises.
+            return False
 
 
 @dataclass(frozen=True)

@@ -21,7 +21,6 @@ from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
-from zrb.llm.util.teardown import close_quietly
 from zrb.llm.dictation.words import (
     count_words,
     is_answer,
@@ -40,6 +39,7 @@ from zrb.llm.util.feature_config import (
     replace_feature_sessions,
     replace_registration,
 )
+from zrb.llm.util.teardown import close_quietly
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:

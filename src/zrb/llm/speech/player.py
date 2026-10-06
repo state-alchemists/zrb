@@ -103,9 +103,9 @@ class Speaker:
         self._lock_file_held = bool(self._lock_file)
         if self._lock_file_held:
             _register_lock_file(self._lock_file)
-        self._queue: "queue.Queue[tuple[str | Callable[[], str], IsStale, int] | None]" = (
-            queue.Queue()
-        )
+        self._queue: (
+            "queue.Queue[tuple[str | Callable[[], str], IsStale, int] | None]"
+        ) = queue.Queue()
         # Made but not yet played: what the player thread takes next.
         self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
             maxsize=1
@@ -406,9 +406,16 @@ class Speaker:
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
                 continue
-            if utterance is not None:
-                self._ready.put((utterance, is_stale, generation))
+            if utterance is None:
+                continue
+            if self._is_cut_off:
+                utterance.cleanup()
+                continue
+            self._ready.put((utterance, is_stale, generation))
         self._ready.put(None)
+        # This thread may still be synthesizing when `close` returns, so it,
+        # not `_stop`, lets the backends go once it is done with them.
+        self._close_backends()
 
     def _play_ready(self) -> None:
         while (entry := self._ready.get()) is not None:
@@ -472,27 +479,14 @@ class Speaker:
             if player is not None:
                 remaining = None if deadline is None else deadline - time.monotonic()
                 player.join(None if remaining is None else max(remaining, 0))
-        # Closed with or without a thread: `speak` plays on the calling thread and
-        # never starts one, and the backends it made hold a model and a pipeline
-        # all the same.
-        self._close_backends()
+        else:
+            # `speak` never starts a worker, yet builds backends all the same.
+            self._close_backends()
 
     def _close_backends(self) -> None:
-        """Let the backends go, releasing whatever they were holding.
-
-        The last thing a finished speaker does: a session whose speech is over must
-        not leave a model loaded, or a pipeline running, for the next one. Closing
-        one that is still synthesizing a sentence the worker thread had already
-        dropped is a race the worker reports and moves on from.
-
-        Not wrapped in a handler of its own, because `close` is a backend's contract
-        to let go without raising (`AnySpeechBackend.close`) and the Pipecat backend
-        keeps it by catching, and reporting, the two ways its teardown can fail. A
-        backend that breaks that contract is a bug, and one that surfaces where a
-        session is being closed — which is where a feature session teardown already
-        reports failures — is a bug that gets fixed.
-        """
-        backends, self._backends = self._backends, None
+        """Let the backends go for good; a closed speaker builds no more."""
+        with self._lock:
+            backends, self._backends = self._backends, []
         for backend in backends or []:
             backend.close()
 

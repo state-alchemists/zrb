@@ -11,6 +11,7 @@ go. What the pipeline does with an utterance is
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import pytest
 
@@ -123,7 +124,9 @@ async def test_a_service_that_will_not_build_is_reported_to_whoever_asked(monkey
     """
 
     def create_service(name: str, config: DictationConfig) -> FakeService:
-        raise RuntimeError(f"speech service {name!r} needs the 'moonshine_voice' package")
+        raise RuntimeError(
+            f"speech service {name!r} needs the 'moonshine_voice' package"
+        )
 
     monkeypatch.setattr(f"{MODULE}.stt_manager.create_service", create_service)
     backend = PipecatDictationBackend("moonshine", _config())
@@ -148,6 +151,50 @@ async def test_closing_the_backend_stops_its_pipeline_once(monkeypatch):
     await backend.aclose()
 
     assert pipeline.closes == 1
+
+
+@pytest.mark.asyncio
+async def test_a_teardown_while_the_model_loads_leaves_no_pipeline(monkeypatch):
+    """A session that ends while its service is still loading lets go of what that
+    load starts.
+
+    `prepare` loads the model and the teardown lets the backend go; the two can
+    overlap, because the load is off the loop and the teardown is not. Run that
+    way, the teardown finds no pipeline to close — so the one the load starts
+    afterwards is the only thing holding a worker and a resident model, and it
+    has to be the load that lets it go.
+    """
+    pipeline = FakePipeline()
+    loading = threading.Event()
+    reached = threading.Event()
+
+    def create_service(name: str, config: DictationConfig) -> FakeService:
+        reached.set()
+        assert loading.wait(5)  # the model load the teardown interrupts
+        return FakeService()
+
+    async def start(service: FakeService, sample_rate: int = SAMPLE_RATE):
+        return pipeline
+
+    monkeypatch.setattr(f"{MODULE}.stt_manager.create_service", create_service)
+    monkeypatch.setattr(f"{MODULE}.STTPipeline.start", start)
+
+    backend = PipecatDictationBackend("moonshine", _config())
+    preparing = asyncio.create_task(backend.prepare(lambda _message: None))
+    # The load runs in its own thread, so yielding is what lets it reach the gate.
+    deadline = asyncio.get_running_loop().time() + 5
+    while not reached.is_set() and asyncio.get_running_loop().time() < deadline:
+        await asyncio.sleep(0.01)
+
+    assert reached.is_set(), "the model was never loaded"
+    await backend.aclose()
+    loading.set()
+
+    with pytest.raises(RuntimeError, match="was let go"):
+        await preparing
+
+    assert pipeline.closes == 1
+    assert backend.owner_loop is None  # nothing left to close on a loop
 
 
 @pytest.mark.asyncio

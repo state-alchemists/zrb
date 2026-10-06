@@ -21,6 +21,7 @@ utterance.
 from __future__ import annotations
 
 import asyncio
+import threading
 from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
@@ -29,6 +30,7 @@ from zrb.llm.voice.manager import stt_manager
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import NoReturn
 
     from pipecat.services.stt_service import STTService
 
@@ -61,6 +63,11 @@ class PipecatDictationBackend(AnyDictationBackend):
         # the look-then-build has to be one step: two callers that both found no
         # pipeline would build two models.
         self._preparing = asyncio.Lock()
+        # A teardown runs on a thread of its own when there is no loop to hand the
+        # close to, so it can land while a model is loading. Settling the flag and
+        # adopting the pipeline together is what decides who lets the pipeline go:
+        # the teardown, which finds one, or `prepare`, which finds the flag.
+        self._handoff = threading.Lock()
 
     @property
     def name(self) -> str:
@@ -80,17 +87,29 @@ class PipecatDictationBackend(AnyDictationBackend):
         """
         async with self._preparing:
             if self._is_closed:
-                raise RuntimeError(
-                    f"the {self._service_name} speech service was let go, and is "
-                    "not started again for a session that is over"
-                )
+                self._refuse_a_closed_service()
             if self._pipeline is not None:
                 return
             report(f"Loading the {self._service_name} speech service…")
             service = await asyncio.to_thread(self._create_service)
             loop = asyncio.get_running_loop()
             pipeline = await STTPipeline.start(service)
-            self._loop, self._pipeline = loop, pipeline
+            with self._handoff:
+                abandoned = pipeline if self._is_closed else None
+                if abandoned is None:
+                    self._loop, self._pipeline = loop, pipeline
+            if abandoned is not None:
+                # The session ended while its model was loading, and the teardown
+                # found no pipeline to close: this is the one it would have closed.
+                await abandoned.close()
+                self._refuse_a_closed_service()
+
+    def _refuse_a_closed_service(self) -> "NoReturn":
+        """Refuse a service for a session that has already let this backend go."""
+        raise RuntimeError(
+            f"the {self._service_name} speech service was let go, and is "
+            "not started again for a session that is over"
+        )
 
     def _create_service(self) -> "STTService":
         """The service this backend is named after.
@@ -125,9 +144,12 @@ class PipecatDictationBackend(AnyDictationBackend):
 
         Once let go, this backend stays let go: the session that owned it is over,
         and starting a pipeline again for it would be starting one nothing closes.
+        A `prepare` already loading a model is not waited for; what it starts after
+        this returns hands the pipeline back here rather than adopting it.
         """
-        self._is_closed = True
-        pipeline, self._pipeline = self._pipeline, None
-        self._loop = None
+        with self._handoff:
+            self._is_closed = True
+            pipeline, self._pipeline = self._pipeline, None
+            self._loop = None
         if pipeline is not None:
             await pipeline.close()

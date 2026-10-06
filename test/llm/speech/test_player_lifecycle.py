@@ -159,3 +159,29 @@ def test_a_backend_is_let_go_when_speech_never_started_a_thread(lock_file):
     assert drained.played == ["two"]
     assert spoken.closed
     assert drained.closed
+
+
+def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(lock_file):
+    created = threading.Event()
+    release = threading.Event()
+    closed_while_synthesizing = []
+
+    class SlowClosingBackend(ClosingBackend):
+        def create_utterance(self, text):
+            created.set()
+            release.wait(5)
+            closed_while_synthesizing.append(self.closed)
+            return super().create_utterance(text)
+
+    backend = SlowClosingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.say("slow")
+    assert created.wait(1)
+
+    speaker.close()
+    release.set()
+    time.sleep(0.1)
+
+    assert closed_while_synthesizing == [False]
+    assert backend.closed
+    assert backend.utterances[0].cleaned

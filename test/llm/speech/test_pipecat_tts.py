@@ -201,7 +201,9 @@ def test_a_sentence_is_said_one_at_a_time():
             is_said.set()
 
         threading.Thread(target=say_second, daemon=True).start()
-        assert not is_said.wait(0.3), "the second sentence started before the first ended"
+        assert not is_said.wait(
+            0.3
+        ), "the second sentence started before the first ended"
         # Reading the first sentence to its end is what frees the second.
         assert list(first.chunks) == [CHUNK]
         assert is_said.wait(5)
@@ -321,4 +323,22 @@ def test_closing_a_pipeline_leaves_no_thread_running():
     pipeline.close()
     pipeline.close()
 
+    assert _tts_threads() == []
+
+
+def test_closing_a_pipeline_cancels_what_is_still_running_on_its_loop():
+    class LingeringSpeechService(FakeSpeechService):
+        lingering: "asyncio.Task[None] | None" = None
+
+        async def run_tts(self, text: str, context_id: str):
+            LingeringSpeechService.lingering = asyncio.create_task(asyncio.sleep(600))
+            async for frame in super().run_tts(text, context_id):
+                yield frame
+
+    pipeline = TTSPipeline.start(LingeringSpeechService())
+    list(pipeline.speak(SENTENCE, timeout=5).chunks)
+    pipeline.close()
+
+    lingering = LingeringSpeechService.lingering
+    assert lingering is not None and lingering.cancelled()
     assert _tts_threads() == []

@@ -93,9 +93,7 @@ def test_openai_built_from_config():
     )
     with patch(f"{MODULE}.OpenAIDictationBackend") as openai:
         get_dictation_backend("openai", config)
-    openai.assert_called_once_with(
-        "gpt-4o-transcribe", base_url=None, language="en"
-    )
+    openai.assert_called_once_with("gpt-4o-transcribe", base_url=None, language="en")
 
 
 def test_google_built_from_config():

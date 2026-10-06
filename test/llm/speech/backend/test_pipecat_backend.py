@@ -164,3 +164,14 @@ def test_closing_a_backend_that_never_spoke_closes_nothing(factory):
 
     assert factory.services == []
     assert _tts_threads() == []
+
+
+def test_a_closed_backend_starts_no_second_pipeline(factory):
+    backend = PipecatSpeechBackend("kokoro", SpeechConfig().resolve())
+    backend.close()
+
+    with pytest.raises(RuntimeError, match="closed"):
+        backend.create_audio(SENTENCE)
+
+    assert factory.services == []
+    assert _tts_threads() == []

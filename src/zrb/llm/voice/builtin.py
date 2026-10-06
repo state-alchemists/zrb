@@ -115,9 +115,7 @@ def _create_kokoro(config: "SpeechConfig") -> "TTSService":
     # lazy: heavy third-party — the voice extra's Pipecat and its model stack
     from pipecat.services.kokoro.tts import KokoroTTSService
 
-    settings = _tts_settings(
-        KokoroTTSService.Settings(), config, _KOKORO_DEFAULT_VOICE
-    )
+    settings = _tts_settings(KokoroTTSService.Settings(), config, _KOKORO_DEFAULT_VOICE)
     if settings is None:
         return KokoroTTSService()
     return KokoroTTSService(settings=settings)

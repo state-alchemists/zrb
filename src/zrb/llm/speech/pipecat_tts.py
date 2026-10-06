@@ -564,7 +564,12 @@ def _call(
 def _stop_loop(loop: asyncio.AbstractEventLoop, thread: threading.Thread) -> None:
     """Stop *loop*, and wait, briefly, for its thread to end."""
     loop.call_soon_threadsafe(loop.stop)
-    thread.join(_TIMEOUT_SECONDS)
+    # `_run_loop` cancels what is left for up to `_TIMEOUT_SECONDS` before it ends.
+    thread.join(_TIMEOUT_SECONDS * 2)
+    if thread.is_alive():
+        logger.warning(
+            f"The Pipecat speech loop on {thread.name} did not stop; it is left running"
+        )
 
 
 def _run_loop(loop: asyncio.AbstractEventLoop) -> None:
@@ -576,5 +581,19 @@ def _run_loop(loop: asyncio.AbstractEventLoop) -> None:
     asyncio.set_event_loop(loop)
     try:
         loop.run_forever()
+        _cancel_pending(loop)
     finally:
         loop.close()
+
+
+def _cancel_pending(loop: asyncio.AbstractEventLoop) -> None:
+    """Cancel every task still on *loop*, waiting a bounded time for them to end."""
+    tasks = asyncio.all_tasks(loop)
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        loop.run_until_complete(asyncio.wait(tasks, timeout=_TIMEOUT_SECONDS))
+        for task in tasks:
+            if task.done() and not task.cancelled():
+                task.exception()
+    loop.run_until_complete(loop.shutdown_asyncgens())

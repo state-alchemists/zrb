@@ -168,3 +168,7 @@ def test_a_registration_needs_a_name():
 def test_a_spec_without_a_provider_is_available_but_a_named_one_is_checked():
     assert STTServiceSpec(name="mine", provider="").is_available
     assert not STTServiceSpec(name="mine", provider="no_such_package_here").is_available
+
+
+def test_a_dotted_provider_whose_parent_is_missing_is_unavailable():
+    assert not STTServiceSpec(name="mine", provider="no_such_parent.child").is_available

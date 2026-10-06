@@ -45,6 +45,7 @@ class PipecatSpeechBackend(AnySpeechBackend):
         # callers can arrive together: the look-then-build has to be one step, or
         # both would build a pipeline and load the model twice.
         self._starting = threading.Lock()
+        self._is_closed = False
 
     @property
     def name(self) -> str:
@@ -83,8 +84,10 @@ class PipecatSpeechBackend(AnySpeechBackend):
         return self._get_pipeline().speak(text)
 
     def close(self) -> None:
-        """Stop the pipeline, releasing the service's model."""
-        pipeline, self._pipeline = self._pipeline, None
+        """Stop the pipeline, releasing the service's model; none is started after."""
+        with self._starting:
+            self._is_closed = True
+            pipeline, self._pipeline = self._pipeline, None
         if pipeline is not None:
             pipeline.close()
 
@@ -97,6 +100,10 @@ class PipecatSpeechBackend(AnySpeechBackend):
         from zrb.llm.speech.pipecat_tts import TTSPipeline
 
         with self._starting:
+            if self._is_closed:
+                raise RuntimeError(
+                    f"the {self._service_name} speech service was closed"
+                )
             if self._pipeline is None:
                 service = tts_manager.create_service(self._service_name, self._config)
                 self._pipeline = TTSPipeline.start(service)
