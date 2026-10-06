@@ -9,6 +9,7 @@ for the metrics a session reports. The transport and the teardown it shares are
 from __future__ import annotations
 
 import asyncio
+import time
 
 import pytest
 
@@ -32,6 +33,15 @@ CHUNK = b"\x00\x01" * (CHUNK_BYTES // 2)
 BLOCK_SECONDS = (CHUNK_BYTES // 2) / SAMPLE_RATE
 SPEECH_BLOCKS = 31
 
+#: How many blocks the detector's defaults confirm a verdict over: 0.2s of speech
+#: to start a segment, 0.2s of silence to end one, at 32ms a block.
+VERDICT_BLOCKS = 6
+
+#: How long one stalled analysis takes — long enough that the block it was
+#: decided from has been counted at the far end well before its verdict is
+#: pushed, which is what puts a verdict in flight at a teardown.
+STALL_SECONDS = 0.5
+
 
 class _ScriptedAnalyzer(VADAnalyzer):
     """Speech for the first *speech_frames* analysed frames, silence after.
@@ -40,11 +50,17 @@ class _ScriptedAnalyzer(VADAnalyzer):
     verdicts land. The volume bar is lifted: what is under test is the order
     pipecat hands frames over in, not its loudness gate. One block is one
     analysis at 16 kHz, which is what the pipeline runs at here.
+
+    *stall_at* holds one analysis — the one that has analysed *stall_at* frames —
+    for `STALL_SECONDS`. The model runs off the event loop, so a stalled analysis
+    lets the pipeline carry the block it is working on all the way to the far end
+    while the verdict is still being decided.
     """
 
-    def __init__(self, speech_frames: int) -> None:
+    def __init__(self, speech_frames: int, stall_at: int | None = None) -> None:
         super().__init__(params=VADParams(min_volume=0.0))
         self._speech_frames = speech_frames
+        self._stall_at = stall_at
         self._analysed = 0
 
     def num_frames_required(self) -> int:
@@ -52,6 +68,8 @@ class _ScriptedAnalyzer(VADAnalyzer):
 
     def voice_confidence(self, buffer: bytes) -> float:
         self._analysed += 1
+        if self._stall_at is not None and self._analysed >= self._stall_at:
+            time.sleep(STALL_SECONDS)
         return 0.9 if self._analysed <= self._speech_frames else 0.0
 
 
@@ -332,3 +350,55 @@ async def test_the_block_that_ends_a_segment_is_counted_with_it(monkeypatch):
     assert pipeline.get_speech_metrics().speech_seconds == pytest.approx(
         SPEECH_BLOCKS * BLOCK_SECONDS
     )
+
+
+@pytest.mark.asyncio
+async def test_a_verdict_still_being_decided_is_not_lost_to_the_teardown(monkeypatch):
+    """The drain waits on the bytes, and the verdict decided from the last of
+    them still arrives (PR #584 review).
+
+    The far end is downstream of the stage that reads the verdicts, so the last
+    block handed over is counted before the detector has finished with it — and
+    the detector runs its model off the event loop, so this is the ordinary case
+    for a model slower than the capture rather than a corner. A teardown that
+    stops at the count therefore hands the worker to its cancel with a verdict
+    still in flight, and the segment that last block began would be reported as
+    no segment at all.
+
+    It is not lost. The verdict is pushed while the block it was decided from is
+    still being processed, and a cancel is a system frame that queues behind that
+    block, so the verdict is read before the worker stops. The feed ends before
+    it — read here off the recorder's own call, so the race this is about is
+    entered rather than assumed — and the segment is still reported after it.
+    """
+    from pipecat.processors.audio.vad_processor import VADProcessor
+
+    monkeypatch.setattr(
+        "zrb.llm.dictation.pipecat_input.create_voice_activity_detector",
+        lambda: VADProcessor(
+            vad_analyzer=_ScriptedAnalyzer(VERDICT_BLOCKS, stall_at=VERDICT_BLOCKS)
+        ),
+    )
+
+    pipeline = await AudioPipeline.start()
+    segments_at_feed_end: list[int] = []
+    read_feed_ended = pipeline.recorder.record_feed_ended
+
+    def note_feed_ended() -> None:
+        segments_at_feed_end.append(pipeline.get_speech_metrics().speech_segments)
+        read_feed_ended()
+
+    monkeypatch.setattr(pipeline.recorder, "record_feed_ended", note_feed_ended)
+    try:
+        # Exactly the blocks the start verdict is confirmed over, so the block
+        # that begins the segment is the last one handed over.
+        for _ in range(VERDICT_BLOCKS):
+            await pipeline.push(CHUNK)
+    finally:
+        await pipeline.close()
+
+    assert segments_at_feed_end == [0], (
+        "the verdict reached the metrics stage before the feed ended, so this "
+        "test is not exercising the teardown it is about"
+    )
+    assert pipeline.get_speech_metrics().speech_segments == 1

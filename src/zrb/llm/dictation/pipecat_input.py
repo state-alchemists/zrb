@@ -468,6 +468,15 @@ class AudioPipeline:
         ends with it instead of standing the whole timeout; a pipeline that is
         still up and still empty-handed is given up on at the deadline, and what
         did not arrive is named, once, rather than raising.
+
+        A verdict the detector has not pushed yet is not waited for as well. The
+        block one is decided from is forwarded before the model runs on it, so
+        the count can catch up with a verdict still coming — and the verdict
+        arrives anyway: it is a system frame pushed while that block is still
+        being processed, and a cancel is a system frame behind it, of the tier
+        that keeps its arrival order. Waiting would buy no number this does not
+        give, since a start read after the feed ended opens a segment whose audio
+        was recorded before it, and a stop lands on a segment already closed.
         """
         loop = asyncio.get_running_loop()
         deadline = loop.time() + _DRAIN_TIMEOUT_SECONDS
