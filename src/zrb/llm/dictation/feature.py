@@ -21,7 +21,6 @@ from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
-from zrb.llm.dictation.pipecat_input import AudioPipeline, is_pipecat_available
 from zrb.llm.util.teardown import close_quietly
 from zrb.llm.dictation.words import (
     count_words,
@@ -131,10 +130,6 @@ class DictationSession:
         self._badge_before_pause = self._resting_badge
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
-        # The Pipecat pipeline the capture is handed to, and whether it failed
-        # and was given up on for this session.
-        self._tap: AudioPipeline | None = None
-        self._is_pipecat_given_up = False
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
@@ -335,92 +330,24 @@ class DictationSession:
                     yield self._to_reply(command, utterance)
 
     async def _listen(self) -> AsyncGenerator[Utterance, None]:
-        """`listen` while hands-free holds, with the Pipecat pipeline fed from
-        the same capture when it is on.
+        """`listen` while hands-free holds.
 
-        The pipeline lives exactly as long as the listening, and feeding it is
-        best-effort (`_feed_pipecat`), so a pipeline that fails never ends the
-        listening.
+        The microphone closes when hands-free stops; the caller must close the
+        generator (or the microphone stays open until it is finalized).
         """
-        try:
-            async with aclosing(
-                listen(
-                    self._config,
-                    lambda: self.is_hands_free,
-                    on_state=self._show_mic_state,
-                    on_barge_in=self._handle_barge_in,
-                    create_stream=self.backend.create_stream,
-                    on_partial=self._show_partial,
-                    on_barge_in_dropped=self._release_barge_in,
-                    on_captured=(
-                        self._feed_pipecat if self._config.is_pipecat_enabled else None
-                    ),
-                )
-            ) as mic:
-                async for utterance in mic:
-                    yield utterance
-        finally:
-            await self._close_audio_pipeline()
-
-    async def _feed_pipecat(self, pcm: bytes) -> None:
-        """Hand one captured block to the Pipecat pipeline, if it has one.
-
-        The pipeline decides nothing, so one that cannot
-        start or fails on a block is reported, closed at once, and given up on
-        for the session instead of ending hands-free. Closing it here cannot
-        deadlock the hand-over: it closes the Pipecat pipeline, never the tap
-        this delivery runs on.
-        """
-        if self._is_pipecat_given_up:
-            return
-        try:
-            if self._tap is None:
-                self._tap = await self._open_audio_pipeline()
-            if self._tap is None:
-                # No pipeline to build: said once, and never asked again.
-                self._is_pipecat_given_up = True
-                return
-            await self._tap.push(pcm)
-        except Exception as exc:
-            self._is_pipecat_given_up = True
-            self._report(f"Pipecat input pipeline stopped: {exc}")
-            await self._close_audio_pipeline()
-
-    async def _open_audio_pipeline(self) -> AudioPipeline | None:
-        """A Pipecat pipeline to hand the capture to, or ``None`` when Pipecat
-        is not installed.
-
-        Not installed is reported once and the listening goes on.
-        """
-        if not is_pipecat_available():
-            self._report(
-                "Pipecat is not installed, so the input pipeline stays off "
-                "(pip install 'zrb[voice]')"
+        async with aclosing(
+            listen(
+                self._config,
+                lambda: self.is_hands_free,
+                on_state=self._show_mic_state,
+                on_barge_in=self._handle_barge_in,
+                create_stream=self.backend.create_stream,
+                on_partial=self._show_partial,
+                on_barge_in_dropped=self._release_barge_in,
             )
-            return None
-        return await AudioPipeline.start()
-
-    async def _close_audio_pipeline(self) -> None:
-        """Stop the pipeline this listening was feeding, if it started one, and
-        say what it heard.
-
-        Never raises: the pipeline decides nothing, so no
-        failure in its teardown may end the listening.
-        """
-        tap, self._tap = self._tap, None
-        if tap is not None:
-            await close_quietly(tap.close, "the Pipecat pipeline")
-            self._report_speech_metrics(tap)
-
-    def _report_speech_metrics(self, tap: AudioPipeline) -> None:
-        """Say what the pipeline heard, once the listening that fed it ended.
-
-        Read against the utterances zrb itself cut: speech segments the
-        detector reported and no turn to show for them is a detector that never
-        fired — a muted microphone, or a device zrb and the pipeline read
-        differently — which is the failure this line exists to make visible.
-        """
-        self._report(f"Pipecat input pipeline: {tap.get_speech_metrics().summary()}")
+        ) as mic:
+            async for utterance in mic:
+                yield utterance
 
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``

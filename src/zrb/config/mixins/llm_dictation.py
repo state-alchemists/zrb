@@ -71,7 +71,6 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
         self.DEFAULT_LLM_DICTATION_DEVICE: str = ""
-        self.DEFAULT_LLM_DICTATION_PIPECAT_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
             "Transcribe exactly what is spoken. Do not translate or paraphrase. "
             "Return only the transcription."
@@ -390,20 +389,6 @@ class LLMDictationMixin:
             "where which of them is opened is the usual difference between a "
             "microphone that starts and one that times out. Empty uses "
             "PortAudio's own default (`sd.default.device`). Default: empty."
-        ),
-    )
-
-    LLM_DICTATION_PIPECAT_ENABLED = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "'on' also feeds every microphone block to a Pipecat pipeline, "
-            "which tells speech from silence with its own detector and says "
-            "what it heard when the listening ends: nothing zrb hears or says "
-            "changes, and turning it on cannot break the voice. Experimental, "
-            "and it needs the zrb[voice] extra; without it the setting says so "
-            "and listening goes on. 'off' (default): the capture goes nowhere "
-            "else."
         ),
     )
 

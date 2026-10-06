@@ -1,9 +1,7 @@
 """A Pipecat pipeline that transcribes the utterances zrb has already cut.
 
-Stage 1 (`zrb.llm.dictation.pipecat_input`) proved zrb can hand its captured
-audio to a Pipecat pipeline without giving up the microphone. This is the stage
-that puts a *speech-to-text service* behind dictation, so the service a config
-names (`zrb.llm.voice`) is what zrb listens through.
+This is the stage that puts a *speech-to-text service* behind dictation, so the
+service a config names (`zrb.llm.voice`) is what zrb listens through.
 
 What crosses the boundary is a segment and its transcript, and nothing else.
 zrb still decides where an utterance begins and ends — `listen.UtteranceCutter`
@@ -78,10 +76,9 @@ class TranscriptRecorder:
     """What the service reported about one segment, and nothing else.
 
     Plain Python, so the accounting is testable without a pipeline and readable
-    from outside the sink that writes it — the same split as
-    `pipecat_input.AudioTally` and `SpeechMetricsRecorder`. A sink cannot report
-    anything the recorder has no method for, which is what keeps the pipeline's
-    frame vocabulary from leaking into the session that waits on it.
+    from outside the sink that writes it: a sink cannot report anything the
+    recorder has no method for, which is what keeps the pipeline's frame
+    vocabulary from leaking into the session that waits on it.
 
     One segment is answered by one transcript, so `expect_segment` is called
     before the audio goes in and the outcome read after the stop: a transcript
@@ -303,7 +300,7 @@ class STTPipeline:
         once-only cost: a manager's `create_service` is what loads the model,
         and this is where the result is put to work. A worker does not start
         itself — `run` is the coroutine that drives it — so the pipeline owns
-        that task, as `AudioPipeline` owns its own.
+        that task.
         """
         # lazy: heavy third-party — pipecat is the `voice` extra.
         from pipecat.pipeline.pipeline import Pipeline

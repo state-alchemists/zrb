@@ -6,12 +6,27 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.15.0](#upgrading-to-3150)
 - [Upgrading to 3.14.0](#upgrading-to-3140)
 - [Upgrading to 3.10.0](#upgrading-to-3100)
 - [Upgrading to 3.3.0](#upgrading-to-330)
 - [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+
+---
+
+## Upgrading to 3.15.0
+
+3.15.0 removes the Pipecat input tap that 3.14.0 added behind a flag. It fed every block the microphone captured to a Pipecat pipeline that decided nothing, so that the detector in it could be measured against the boundaries `UtteranceCutter` draws — and that comparison was never the thing that shipped. What shipped is a Pipecat service *behind* the cutter, named by `ZRB_LLM_DICTATION_BACKEND` and `ZRB_LLM_SPEECH_BACKEND`, which does not need the tap.
+
+The setting is reported at startup when it is still set; setting it has no other effect.
+
+| Retired | What to do instead |
+|---|---|
+| `ZRB_LLM_DICTATION_PIPECAT_ENABLED` | Nothing. Drop it from your environment, `zrb_init.py` and launch scripts. If you wanted a local model, name one: `ZRB_LLM_DICTATION_BACKEND=whisper`, `moonshine` or `funasr`, or `ZRB_LLM_SPEECH_BACKEND=piper` to speak through. Nothing you heard or said changes either way. |
+
+If you were reading the tap's line (`Pipecat input pipeline: 2 speech segment(s), 1.5s of detected speech`) to check a microphone, there is no replacement: `zrb voice mic-test` in `examples/voice-interaction` measures the device against the same threshold dictation uses.
 
 ---
 
