@@ -18,7 +18,7 @@ import pytest
 
 pytest.importorskip("pipecat", reason="pipecat ships with the `voice` extra")
 
-from pipecat.frames.frames import Frame, TranscriptionFrame  # noqa: E402
+from pipecat.frames.frames import Frame, MetricsFrame, TranscriptionFrame  # noqa: E402
 from pipecat.services.settings import STTSettings  # noqa: E402
 from pipecat.services.stt_service import SegmentedSTTService  # noqa: E402
 from pipecat.utils.time import time_now_iso8601  # noqa: E402
@@ -101,6 +101,32 @@ class SilentSegmentedService(FakeSegmentedService):
         self.segments.append(audio)
         if self.ANSWERS:
             yield TranscriptionFrame(ANSWER, "", time_now_iso8601())
+
+
+class MetricsFirstSegmentedService(FakeSegmentedService):
+    """A service that reports a metric for its window, then its words.
+
+    Pipecat pushes a `MetricsFrame` from inside the transcription, one step
+    *before* the transcript, and a system frame outranks the data frame behind
+    it. A reader that took any frame for the answer would drop the words.
+    """
+
+    async def run_stt(self, audio: bytes) -> AsyncGenerator[Frame, None]:
+        self.segments.append(audio)
+        yield MetricsFrame([])
+        yield TranscriptionFrame(ANSWER, "", time_now_iso8601())
+
+
+class MetricsOnlySegmentedService(FakeSegmentedService):
+    """A service that reports a metric for its window and no words at all.
+
+    The same frame a real service pushes before a transcript, from a segment
+    that had none — a cough, a door, a language the model does not know.
+    """
+
+    async def run_stt(self, audio: bytes) -> AsyncGenerator[Frame, None]:
+        self.segments.append(audio)
+        yield MetricsFrame([])
 
 
 @pytest.mark.asyncio
@@ -217,6 +243,39 @@ async def test_a_segment_with_no_words_in_it_is_answered_at_once():
 
     assert text == ""
     assert service.segments == [UTTERANCE + bytes(TRAILING_SILENCE_BYTES)]
+
+
+@pytest.mark.asyncio
+async def test_a_metric_with_no_words_behind_it_is_answered_at_once():
+    """A metric is not an answer: a segment it is all there is of is empty.
+
+    The frame Pipecat pushes before a transcript is pushed for a segment with
+    none just as readily. Reading it as the answer leaves the caller waiting for
+    a transcript that is never coming, which is the same frozen listening the
+    empty answer exists to prevent.
+    """
+    service = MetricsOnlySegmentedService()
+    pipeline = await STTPipeline.start(service)
+    try:
+        text = await asyncio.wait_for(pipeline.transcribe(UTTERANCE), timeout=5)
+    finally:
+        await pipeline.close()
+
+    assert text == ""
+    assert service.segments == [UTTERANCE + bytes(TRAILING_SILENCE_BYTES)]
+
+
+@pytest.mark.asyncio
+async def test_a_metric_before_a_transcript_does_not_swallow_its_words():
+    """The words behind the metric are still the segment's answer."""
+    service = MetricsFirstSegmentedService()
+    pipeline = await STTPipeline.start(service)
+    try:
+        text = await asyncio.wait_for(pipeline.transcribe(UTTERANCE), timeout=5)
+    finally:
+        await pipeline.close()
+
+    assert text == ANSWER
 
 
 @pytest.mark.asyncio

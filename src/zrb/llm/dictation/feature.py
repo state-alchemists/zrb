@@ -181,12 +181,20 @@ class DictationSession:
         if backend is None:
             return
         try:
-            self._backend_close = asyncio.ensure_future(
-                close_quietly(backend.aclose, "the dictation backend")
-            )
+            loop = asyncio.get_running_loop()
         except RuntimeError:
-            # No loop is running, so there is nothing left to close against.
-            pass
+            # Nothing here can await the close, and a coroutine left unscheduled
+            # would only warn once it was collected — with the backend, and
+            # whatever model or pipeline it was holding, still alive. It is run
+            # to completion on a loop of its own instead: one whose close does
+            # not reach back into the loop it was built on is released, and one
+            # that does fails at once, bounded, and says so through
+            # `close_quietly` rather than going quiet.
+            asyncio.run(close_quietly(backend.aclose, "the dictation backend"))
+            return
+        self._backend_close = loop.create_task(
+            close_quietly(backend.aclose, "the dictation backend")
+        )
 
     def create_commands(self) -> "list[AnyCustomCommand]":
         push_to_talk: "list[AnyCustomCommand]" = [

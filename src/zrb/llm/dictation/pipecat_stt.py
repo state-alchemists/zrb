@@ -197,9 +197,15 @@ def answer_every_segment(service: "STTService") -> None:
     original = service.run_stt
 
     async def run_stt(audio: bytes) -> "AsyncGenerator[Frame | None, None]":
+        # A `TranscriptionFrame` is the answer; no other frame is. The metrics
+        # frame pushed one step before the transcript, and the system frame that
+        # outranks it, both arrive in a segment that *was* transcribed, so
+        # reading either as the answer would swallow the words behind it and
+        # answer "no words" for a segment that has some.
         answered = False
         async for frame in original(audio):
-            answered = True
+            if isinstance(frame, TranscriptionFrame):
+                answered = True
             yield frame
         if not answered:
             yield TranscriptionFrame("", "", time_now_iso8601())
