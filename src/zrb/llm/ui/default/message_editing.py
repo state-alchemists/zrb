@@ -260,19 +260,18 @@ class UIMessageEditing:
         )
 
     def handle_enter_queued_edit(self, event: Any) -> bool:
-        """Handle Enter after recalling a queued or previous message.
+        """Handle Enter after recalling a still-queued message.
 
         Replaces a still-queued message's text in place. An empty edit cancels
-        back to the saved draft. If the recalled message already started or was
-        already sent, the first Enter explains that it is no longer waiting and
-        is consumed; the next Enter follows the plain-submit path.
+        back to the saved draft. If the recalled message's turn already started
+        (so the queue no longer holds it), the first Enter explains that it is
+        no longer waiting and is consumed; the next Enter follows the
+        plain-submit path. An ordinary previous-message recall recalls no queued
+        entry at all, so Enter submits it directly — no stale-queue warning.
         """
         entry = self._queued_edit_entry
         if entry is None:
-            if self._previous_recall_index is None:
-                return False
-            self._note_uneditable_recall()
-            return True
+            return False
         self._queued_edit_entry = None
         text = event.current_buffer.text
         if not text.strip():
