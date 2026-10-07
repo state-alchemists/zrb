@@ -248,3 +248,44 @@ async def test_a_session_ended_mid_recording_builds_no_second_backend(monkeypatc
     assert backend.transcribed == []
     assert built == ["moonshine"]  # the one the command made, and no other
     assert ui.inserted == []
+
+
+@pytest.mark.asyncio
+async def test_a_session_that_ends_lets_its_backend_go():
+    """A backend holding a model is released when the session is over.
+
+    The scheduling is the part worth pinning. `DictationSession.close` is
+    synchronous and a backend's close is not, so the teardown has to reach the
+    loop without the session that is already over waiting for it — here with the
+    loop of the caller still running, which is the branch a synchronous close
+    takes whenever it is called from inside one.
+    """
+    backend = ClosingBackend()
+    session = DictationSession(DictationConfig().resolve())
+    session.backend = backend
+
+    session.close()
+    await asyncio.sleep(0)
+
+    assert backend.closed
+
+
+@pytest.mark.asyncio
+async def test_closing_a_session_that_never_dictated_builds_nothing(monkeypatch):
+    """A session that never opened a microphone does not build a backend to close.
+
+    The backend is built on first use, so a session that only ever typed must not
+    be the reason a model is created — which is the point of closing one that was
+    never made being free.
+    """
+    built: list[str] = []
+    monkeypatch.setattr(
+        "zrb.llm.dictation.feature.get_dictation_backend",
+        lambda name, config: built.append(name),
+    )
+    session = DictationSession(DictationConfig().resolve())
+
+    session.close()
+    await asyncio.sleep(0)
+
+    assert built == []

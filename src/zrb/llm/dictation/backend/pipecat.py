@@ -115,7 +115,7 @@ class PipecatDictationBackend(AnyDictationBackend):
                 on_orphan=self._let_the_service_go,
             )
             loop = asyncio.get_running_loop()
-            pipeline = await STTPipeline.start(service)
+            pipeline = await self._start_the_pipeline(service)
             with self._handoff:
                 abandoned = pipeline if self._is_closed else None
                 if abandoned is None:
@@ -125,6 +125,24 @@ class PipecatDictationBackend(AnyDictationBackend):
                 # found no pipeline to close: this is the one it would have closed.
                 await abandoned.close()
                 self._refuse_a_closed_service()
+
+    async def _start_the_pipeline(self, service: "STTService") -> STTPipeline:
+        """Put *service* to work, and let it go if that cannot be done.
+
+        `prepare` owns the service from the moment its load returns until a
+        pipeline has adopted it, which is what starting one does. A start that
+        fails would otherwise drop a loaded model with the session still running
+        and nothing left holding it: the load ran off the loop, so nothing else
+        in the session has a reference to what it built. The close is quiet
+        because the start's own failure is the thing worth reporting.
+        """
+        try:
+            return await STTPipeline.start(service)
+        except BaseException:
+            await close_quietly(
+                service.cleanup, f"the {self._service_name} speech service"
+            )
+            raise
 
     def _refuse_a_closed_service(self) -> "NoReturn":
         """Refuse a service for a session that has already let this backend go."""
@@ -143,16 +161,23 @@ class PipecatDictationBackend(AnyDictationBackend):
         which is also what a service a project registered gets to release whatever
         its own constructor took.
 
-        There is no loop left to clean up on when this is the interpreter going
-        down, and letting go is then all that is left.
+        Where the loop that was waiting is still running, the close is a task of
+        its own on it. Where it is not — this runs on the load's own thread when
+        the loop is already gone — the close gets a loop of its own and is run to
+        completion here. That thread is a daemon's, so a close that hangs cannot
+        hold exit, and letting the service go unclosed would keep its model for as
+        long as the process has left: the loop this landed after is the session's,
+        not necessarily the process's.
         """
+        closing = close_quietly(
+            service.cleanup, f"the {self._service_name} speech service"
+        )
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
+            asyncio.run(closing)
             return
-        loop.create_task(
-            close_quietly(service.cleanup, f"the {self._service_name} speech service")
-        )
+        loop.create_task(closing)
 
     def _create_service(self) -> "STTService":
         """The service this backend is named after.
