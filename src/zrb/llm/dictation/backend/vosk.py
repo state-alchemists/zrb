@@ -282,8 +282,10 @@ async def download_vosk_model(
     extracted into a private staging directory, checked against *limits*
     before anything is written, and the model moved into place with one
     rename, so another session never loads a half-extracted model; when two
-    download at once, the first rename wins. Both the download file and the
-    staging directory are removed on every path out, including cancellation.
+    download at once, the first rename wins. The staging directory is removed
+    on every path out, and so is the archive — by the extractor itself, once it
+    is done reading it, rather than only by the caller, which a cancellation
+    returns past while the extractor is still using the file.
 
     An uncapped transfer is still a bounded connection: the socket waits at
     most ``_CONNECT_TIMEOUT_SECONDS`` for the server whatever *timeout* says,
@@ -370,6 +372,11 @@ async def download_vosk_model(
             name="zrb-vosk-model-extractor",
         )
     finally:
+        # The extractor removes the archive itself once it is done with it, and
+        # this is the backstop for the paths where no worker ever got the file.
+        # It cannot be the only removal: cancelling returns while the extractor
+        # is still reading the archive, and an open file cannot be deleted on
+        # every platform, where this one then fails silently.
         _remove_quietly(zip_path)
 
     if not os.path.isdir(target_dir):
@@ -406,6 +413,12 @@ def _extract_model(
                 pass
     finally:
         shutil.rmtree(staging, ignore_errors=True)
+        # Removing the archive is this worker's to do, rather than something the
+        # caller does once it stops waiting. A cancelled download returns while
+        # this is still reading the zip, and an open file cannot be deleted on
+        # every platform: the caller's removal is the one that fails there, and
+        # nothing else would ever come back for the file.
+        _remove_quietly(zip_path)
 
 
 def _check_archive(

@@ -57,21 +57,31 @@ async def run_in_daemon(
         if not result.done():
             setter(value)
 
-    def post(setter: Callable[..., None], value: object) -> None:
+    def succeed(value: object) -> None:
         try:
-            loop.call_soon_threadsafe(settle, setter, value)
+            loop.call_soon_threadsafe(settle, result.set_result, value)
         except RuntimeError:
             # The loop closed while the daemon call was still unwinding, so
-            # nobody will read this result: let it go where it landed.
+            # nobody will read this: let the result go where it landed.
             _let_go(on_orphan, value)
+
+    def fail(error: BaseException) -> None:
+        try:
+            loop.call_soon_threadsafe(settle, result.set_exception, error)
+        except RuntimeError:
+            # Nobody is left to report this to, and *on_orphan* is owed the
+            # call's result rather than the failure that stopped one existing —
+            # a disposer handed an exception would fault in a thread nobody is
+            # watching. The failure is let go of unread.
+            return
 
     def run() -> None:
         try:
             value = func(*args)
         except BaseException as error:
-            post(result.set_exception, error)
+            fail(error)
         else:
-            post(result.set_result, value)
+            succeed(value)
 
     threading.Thread(target=run, name=name, daemon=True).start()
     try:

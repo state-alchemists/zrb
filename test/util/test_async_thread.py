@@ -111,3 +111,71 @@ async def test_a_result_its_caller_read_is_not_let_go():
     await asyncio.sleep(0)
 
     assert let_go == []
+
+
+async def _until_event(event: threading.Event, timeout: float = _TIMEOUT) -> None:
+    """Yield to the loop until *event* is set, or fail saying it never was."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while not event.is_set() and loop.time() < deadline:
+        await asyncio.sleep(0.01)
+    assert event.is_set(), "the event was never set"
+
+
+def _land_with_no_loop_left(func, on_orphan) -> None:
+    """Run *func* through the runner, cancel the wait, then close the loop.
+
+    That is the shape of a shutdown: the loop is gone before the worker is
+    released, so the call lands with nowhere to deliver to. The worker is joined
+    before this returns, so what it did with its result has already happened by
+    the time a test looks at it.
+    """
+    entered = threading.Event()
+    release = threading.Event()
+    threads: list[threading.Thread] = []
+
+    def held() -> object:
+        threads.append(threading.current_thread())
+        entered.set()
+        assert release.wait(_TIMEOUT), "the worker was never released"
+        return func()
+
+    loop = asyncio.new_event_loop()
+    try:
+        running = loop.create_task(run_in_daemon(held, on_orphan=on_orphan))
+        loop.run_until_complete(_until_event(entered))
+        running.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            loop.run_until_complete(running)
+    finally:
+        loop.close()
+
+    release.set()
+    worker = threads[0]
+    worker.join(_TIMEOUT)
+    assert not worker.is_alive(), "the worker never landed"
+
+
+def test_a_result_that_lands_after_the_loop_closed_is_let_go():
+    """Nowhere to deliver to, so the result is let go where it landed."""
+    let_go: list[object] = []
+
+    _land_with_no_loop_left(lambda: "a loaded model", let_go.append)
+
+    assert let_go == ["a loaded model"]
+
+
+def test_a_failure_that_lands_after_the_loop_closed_is_not_let_go():
+    """*on_orphan* is owed the call's result, and a failure is not one.
+
+    A disposer closes what the call produced; handed the exception that stopped
+    it producing anything, it would fault in a thread nobody is watching.
+    """
+    let_go: list[object] = []
+
+    def no_model() -> object:
+        raise ValueError("no model at that path")
+
+    _land_with_no_loop_left(no_model, let_go.append)
+
+    assert let_go == []
