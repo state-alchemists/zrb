@@ -46,7 +46,14 @@ class FakePipeline:
 
 
 class FakeService:
-    """A service, as far as this file is concerned: something to build."""
+    """A service, as far as this file is concerned: something to build, and
+    something Pipecat's own `cleanup` can be called on to let go of."""
+
+    def __init__(self) -> None:
+        self.cleanups = 0
+
+    async def cleanup(self) -> None:
+        self.cleanups += 1
 
 
 def _config(**kwargs) -> DictationConfig:
@@ -69,6 +76,15 @@ def _stub(monkeypatch, built: list[str], pipeline: FakePipeline) -> None:
 
     monkeypatch.setattr(f"{MODULE}.stt_manager.create_service", create_service)
     monkeypatch.setattr(f"{MODULE}.STTPipeline.start", start)
+
+
+async def _until(predicate, timeout: float = 5.0) -> None:
+    """Yield to the loop until *predicate* holds, or fail saying it never did."""
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + timeout
+    while not predicate() and loop.time() < deadline:
+        await asyncio.sleep(0.01)
+    assert predicate(), "the condition never held"
 
 
 @pytest.mark.asyncio
@@ -270,6 +286,46 @@ async def test_cancelled_service_loading_uses_a_daemon_thread(monkeypatch):
         assert daemon_flags == [True]
     finally:
         loading.set()
+
+
+@pytest.mark.asyncio
+async def test_a_load_that_outlives_a_cancelled_prepare_is_let_go(monkeypatch):
+    """A model that finished loading for nobody is cleaned up, not dropped.
+
+    The constructor is in a thread of its own, so cancelling `prepare` stops the
+    wait and nothing else: the model still finishes loading. Nobody will start a
+    pipeline around that service, so the service is what has to be let go of —
+    and a registered one may hold more in its own constructor than the model the
+    collector gets to whenever it gets to it.
+    """
+    reached = threading.Event()
+    release = threading.Event()
+    built: list[FakeService] = []
+
+    def create_service(name: str, config: DictationConfig) -> FakeService:
+        reached.set()
+        release.wait(5)  # the model load a cancelled prepare walks away from
+        service = FakeService()
+        built.append(service)
+        return service
+
+    monkeypatch.setattr(f"{MODULE}.stt_manager.create_service", create_service)
+    backend = PipecatDictationBackend("moonshine", _config())
+    preparing = asyncio.create_task(backend.prepare(lambda _message: None))
+
+    try:
+        await _until(reached.is_set)
+
+        preparing.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await preparing
+
+        release.set()
+        await _until(lambda: bool(built) and built[0].cleanups == 1)
+
+        assert built[0].cleanups == 1
+    finally:
+        release.set()
 
 
 @pytest.mark.asyncio

@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.pipecat_stt import STTPipeline
+from zrb.llm.util.teardown import close_quietly
 from zrb.llm.voice.manager import stt_manager
 from zrb.util.async_thread import run_in_daemon
 
@@ -109,7 +110,9 @@ class PipecatDictationBackend(AnyDictationBackend):
                     self._pipeline, self._loop = None, None
             report(f"Loading the {self._service_name} speech service…")
             service = await run_in_daemon(
-                self._create_service, name="zrb-pipecat-stt-loader"
+                self._create_service,
+                name="zrb-pipecat-stt-loader",
+                on_orphan=self._let_the_service_go,
             )
             loop = asyncio.get_running_loop()
             pipeline = await STTPipeline.start(service)
@@ -128,6 +131,27 @@ class PipecatDictationBackend(AnyDictationBackend):
         raise RuntimeError(
             f"the {self._service_name} speech service was let go, and is "
             "not started again for a session that is over"
+        )
+
+    def _let_the_service_go(self, service: "STTService") -> None:
+        """Let go of a service whose load outlived the session that asked for it.
+
+        A cancelled load cannot be stopped: the constructor is in a thread of its
+        own reading a model, and that model is the part worth waiting for. What it
+        returns is a loaded service with no pipeline and no session left to start
+        one around it, so it is cleaned up where it lands rather than dropped —
+        which is also what a service a project registered gets to release whatever
+        its own constructor took.
+
+        There is no loop left to clean up on when this is the interpreter going
+        down, and letting go is then all that is left.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return
+        loop.create_task(
+            close_quietly(service.cleanup, f"the {self._service_name} speech service")
         )
 
     def _create_service(self) -> "STTService":

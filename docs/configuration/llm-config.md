@@ -937,7 +937,7 @@ Each backend uses only its own variables:
 | `google`, `multimodal` | `ZRB_LLM_DICTATION_TRANSCRIBE_PROMPT` | Instruction sent with the audio; the default preserves the spoken language and does not translate | `Transcribe exactly what is spoken. Do not translate or paraphrase. Return only the transcription.` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_NAME` | Model directory name (without `.zip`), downloaded from `<VOSK_MODEL_URL>/<name>.zip` | `vosk-model-small-en-us-0.15` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_URL` | Base URL for the model zip (extracted to `~/.cache/vosk/`) | `https://alphacephei.com/vosk/models` |
-| `vosk` | `ZRB_LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT` | Seconds to wait for the model server to answer; `0` means no limit | `120` |
+| `vosk` | `ZRB_LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT` | Seconds to wait for the model server to answer; `0` means the transfer is not capped, though a stalled connection still gives up after 30 s | `120` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_DOWNLOAD_MB` | Megabytes of model zip accepted; `0` means no limit | `4096` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_UNCOMPRESSED_MB` | Megabytes the model may take once extracted, every file summed (bounds a decompression bomb); `0` means no limit | `8192` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MAX_FILE_MB` | Megabytes for any one file in the archive; `0` means no limit | `4096` |
