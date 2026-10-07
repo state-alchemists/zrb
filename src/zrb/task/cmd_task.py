@@ -53,17 +53,27 @@ def _warn_on_unrendered_placeholder(task_name: str, cmd: CmdVal) -> None:
     point rather than a mistake — as is a plain string with no placeholder,
     which is how shell braces (`${VAR}`, `awk '{print}'`) are written.
 
+    The message names the offending entry and never quotes it. A `cmd` can carry
+    a credential, and this warning is written at construction — before anything
+    has decided to run the task — to stderr by default and to whatever collects
+    stderr. `redact_env_map` cannot be used here: it redacts by environment
+    *name*, and a command string offers it no names to go by. Locating the entry
+    is what the message is for, so it says `cmd` or `cmd[<index>]` and leaves the
+    text out; `stacklevel` already points at the caller's `CmdTask(...)` line, so
+    quoting the command adds nothing a reader needs.
+
     `warnings` keeps a per-location registry, so a task defined inside a loop
     reports once instead of once per iteration.
     """
     values = cmd if isinstance(cmd, list) else [cmd]
-    for value in values:
+    for index, value in enumerate(values):
         if isinstance(value, str) and _PLACEHOLDER.search(value):
+            where = f"cmd[{index}]" if isinstance(cmd, list) else "cmd"
             warnings.warn(
-                f"CmdTask({task_name!r}) has a `{{ctx.` placeholder in a plain "
-                "string `cmd`. A bare string is a literal and is never rendered, "
-                "so the shell receives those characters as written. "
-                f"Wrap it in `Tpl(...)` to render it: Tpl({value!r})",
+                f"CmdTask({task_name!r}) has a `{{ctx.` placeholder in the plain "
+                f"string `{where}`. A bare string is a literal and is never "
+                "rendered, so the shell receives those characters as written. "
+                "Wrap it in `Tpl(...)` to render it against the task context.",
                 UntemplatedCmdWarning,
                 stacklevel=3,
             )

@@ -405,7 +405,26 @@ def test_a_plain_string_cmd_with_a_placeholder_warns_and_names_the_fix():
     assert len(found) == 1
     message = str(found[0].message)
     assert "Tpl(" in message
-    assert "echo {ctx.input.name}" in message
+    assert "`cmd`" in message
+
+
+def test_the_warning_names_the_offending_entry_without_quoting_it():
+    """A `cmd` can carry a credential, and this warning reaches stderr.
+
+    It is raised at construction, before anything has decided to run the task,
+    so it is not a command log a reader opted into. `redact_env_map` cannot be
+    used here — it redacts by environment *name*, and a command string has no
+    names to go by — so the command text has to stay out of the message, and the
+    entry is identified by position instead.
+    """
+    secret = "sk-live-0123456789abcdef"
+    found = _placeholder_warnings(f"curl -H 'Authorization: Bearer {secret}' {{ctx.input.url}}")
+    assert len(found) == 1
+    message = str(found[0].message)
+    assert secret not in message
+    assert "curl" not in message
+    assert "Tpl(" in message
+    assert "`cmd`" in message
 
 
 def test_a_tpl_cmd_does_not_warn():
@@ -432,8 +451,13 @@ def test_a_plain_string_of_shell_braces_does_not_warn():
     assert _placeholder_warnings("awk '{print $1}' && echo ${HOME}") == []
 
 
-def test_a_placeholder_inside_a_list_of_commands_warns():
-    assert len(_placeholder_warnings(["echo hi", "echo {ctx.input.name}"])) == 1
+def test_a_placeholder_inside_a_list_of_commands_names_its_position():
+    """The entry is identified by index, since its text is not quoted."""
+    found = _placeholder_warnings(["echo hi", "echo {ctx.input.name}"])
+    assert len(found) == 1
+    message = str(found[0].message)
+    assert "`cmd[1]`" in message
+    assert "echo {ctx.input.name}" not in message
 
 
 def test_a_list_of_tpls_does_not_warn():
