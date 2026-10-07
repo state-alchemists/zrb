@@ -1,11 +1,11 @@
 """Pipe and thread plumbing for a command hook's subprocess."""
 
-import asyncio
 import os
 import selectors
 import subprocess
-import threading
 from typing import Any, Callable
+
+from zrb.util.async_thread import run_in_daemon
 
 # One selector poll; one quiet interval after the child exits ends the read.
 _HOOK_DRAIN_INTERVAL = 0.05
@@ -130,38 +130,6 @@ def _close_pipe(pipe: Any) -> None:
         pass
 
 
-async def run_detached(
-    func: Callable[[], Any], name: str
-) -> (
-    Any
-):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
-    """Await *func* running on a daemon thread.
-
-    Not ``run_in_executor``: a hook pinned in a blocking read would starve the
-    shared pool and, being a non-daemon worker, hang interpreter exit.
-    """
-    loop = asyncio.get_running_loop()
-    future = loop.create_future()
-
-    def _settle(setter: Callable[[Any], None], value: Any) -> None:
-        # wait_for may have cancelled the future on timeout.
-        if not future.done():
-            setter(value)
-
-    def _post(setter: Callable[[Any], None], value: Any) -> None:
-        try:
-            loop.call_soon_threadsafe(_settle, setter, value)
-        except RuntimeError:
-            # Loop already closed — nobody is waiting on this result.
-            pass
-
-    def _runner() -> None:
-        try:
-            result = func()
-        except BaseException as e:
-            _post(future.set_exception, e)
-        else:
-            _post(future.set_result, result)
-
-    threading.Thread(target=_runner, name=name, daemon=True).start()
-    return await future
+async def run_detached(func: Callable[[], Any], name: str) -> Any:
+    """Await *func* on a daemon thread without holding interpreter shutdown."""
+    return await run_in_daemon(func, name=name)

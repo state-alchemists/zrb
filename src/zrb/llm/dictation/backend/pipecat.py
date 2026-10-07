@@ -26,7 +26,9 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.pipecat_stt import STTPipeline
+from zrb.llm.util.teardown import close_quietly
 from zrb.llm.voice.manager import stt_manager
+from zrb.util.async_thread import run_in_daemon
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -107,9 +109,13 @@ class PipecatDictationBackend(AnyDictationBackend):
                 with self._handoff:
                     self._pipeline, self._loop = None, None
             report(f"Loading the {self._service_name} speech service…")
-            service = await asyncio.to_thread(self._create_service)
+            service = await run_in_daemon(
+                self._create_service,
+                name="zrb-pipecat-stt-loader",
+                on_orphan=self._let_the_service_go,
+            )
             loop = asyncio.get_running_loop()
-            pipeline = await STTPipeline.start(service)
+            pipeline = await self._start_the_pipeline(service)
             with self._handoff:
                 abandoned = pipeline if self._is_closed else None
                 if abandoned is None:
@@ -120,12 +126,58 @@ class PipecatDictationBackend(AnyDictationBackend):
                 await abandoned.close()
                 self._refuse_a_closed_service()
 
+    async def _start_the_pipeline(self, service: "STTService") -> STTPipeline:
+        """Put *service* to work, and let it go if that cannot be done.
+
+        `prepare` owns the service from the moment its load returns until a
+        pipeline has adopted it, which is what starting one does. A start that
+        fails would otherwise drop a loaded model with the session still running
+        and nothing left holding it: the load ran off the loop, so nothing else
+        in the session has a reference to what it built. The close is quiet
+        because the start's own failure is the thing worth reporting.
+        """
+        try:
+            return await STTPipeline.start(service)
+        except BaseException:
+            await close_quietly(
+                service.cleanup, f"the {self._service_name} speech service"
+            )
+            raise
+
     def _refuse_a_closed_service(self) -> "NoReturn":
         """Refuse a service for a session that has already let this backend go."""
         raise RuntimeError(
             f"the {self._service_name} speech service was let go, and is "
             "not started again for a session that is over"
         )
+
+    def _let_the_service_go(self, service: "STTService") -> None:
+        """Let go of a service whose load outlived the session that asked for it.
+
+        A cancelled load cannot be stopped: the constructor is in a thread of its
+        own reading a model, and that model is the part worth waiting for. What it
+        returns is a loaded service with no pipeline and no session left to start
+        one around it, so it is cleaned up where it lands rather than dropped —
+        which is also what a service a project registered gets to release whatever
+        its own constructor took.
+
+        Where the loop that was waiting is still running, the close is a task of
+        its own on it. Where it is not — this runs on the load's own thread when
+        the loop is already gone — the close gets a loop of its own and is run to
+        completion here. That thread is a daemon's, so a close that hangs cannot
+        hold exit, and letting the service go unclosed would keep its model for as
+        long as the process has left: the loop this landed after is the session's,
+        not necessarily the process's.
+        """
+        closing = close_quietly(
+            service.cleanup, f"the {self._service_name} speech service"
+        )
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(closing)
+            return
+        loop.create_task(closing)
 
     def _create_service(self) -> "STTService":
         """The service this backend is named after.

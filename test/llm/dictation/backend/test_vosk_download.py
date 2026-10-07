@@ -34,6 +34,11 @@ def _zip_of(files: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
+def _archives(cache_dir: str) -> list[str]:
+    """The temporary model archives still sitting in *cache_dir*."""
+    return sorted(name for name in os.listdir(cache_dir) if name.endswith(".zip"))
+
+
 class _Response:
     """A response that serves a real body, so nothing stands in for the file
     the download writes and then hands to `zipfile`."""
@@ -168,9 +173,130 @@ async def test_download_moves_a_complete_model_into_place(tmp_home, monkeypatch)
     cache = tmp_path / ".cache" / "vosk"
     assert path == str(cache / "m")
     assert (cache / "m" / "conf" / "model.conf").read_bytes() == b"ok"
-    # Nothing is left of the staging directory, and 0 means no limit.
+    # Nothing is left of the staging directory.
     assert [p.name for p in cache.iterdir()] == ["m"]
-    assert seen_timeouts == [None]
+    # `0` leaves the transfer uncapped, not the socket: a server that stalls
+    # still gives up, so the open is never the thread that outlives the process.
+    assert seen_timeouts == [30.0]
+
+
+@pytest.mark.asyncio
+async def test_a_configured_timeout_is_the_one_the_open_waits_with(
+    tmp_home, monkeypatch
+):
+    """The knob reaches the socket; the built-in bound is only a floor under it."""
+    body = _zip_of({"m/conf/model.conf": b"ok"})
+    seen_timeouts = []
+
+    def urlopen(url, timeout=None):
+        seen_timeouts.append(timeout)
+        return _Response(body)
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+
+    await download_vosk_model("m", "http://host", timeout=7.0)
+
+    assert seen_timeouts == [7.0]
+
+
+@pytest.mark.asyncio
+async def test_a_connection_opened_after_cancellation_is_closed(tmp_home, monkeypatch):
+    """The socket of an open nobody waited for is given back, not left to the GC.
+
+    Cancelling the download cannot stop `urlopen` already in a thread of its
+    own, so the connection is still opened — a socket held against a caller that
+    is gone, and nothing left in the coroutine that would close it.
+    """
+    reached = threading.Event()
+    release = threading.Event()
+    resp = MagicMock()
+
+    def urlopen(url, timeout=None):
+        reached.set()
+        release.wait(5)
+        return resp
+
+    monkeypatch.setattr("urllib.request.urlopen", urlopen)
+    task = asyncio.create_task(download_vosk_model("m", "http://host"))
+
+    try:
+        deadline = asyncio.get_running_loop().time() + 5
+        while not reached.is_set() and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(0.01)
+        assert reached.is_set(), "the connection was never opened"
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        resp.close.assert_not_called()
+
+        release.set()
+        deadline = asyncio.get_running_loop().time() + 5
+        while not resp.close.called and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(0.01)
+
+        resp.close.assert_called_once()
+    finally:
+        release.set()
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_extraction_still_removes_the_archive(
+    tmp_home, cache_dir, monkeypatch
+):
+    """The archive is the extractor's to remove, not the caller's.
+
+    Cancelling returns while the extractor is still reading the zip, so the
+    caller's removal races it — and on a platform where an open file cannot be
+    deleted (Windows) that removal is the one that fails, silently. Nothing else
+    would ever come back for the file, so the worker has to remove it itself.
+    """
+    body = _zip_of({"m/conf/model.conf": b"ok"})
+    extracting = threading.Event()
+    release = threading.Event()
+    real_zipfile = zipfile.ZipFile
+    real_remove = os.remove
+
+    def slow_zipfile(path, *args, **kwargs):
+        extracting.set()
+        release.wait(5)  # the extraction a cancelled download walks away from
+        return real_zipfile(path, *args, **kwargs)
+
+    def windows_remove(path):
+        """Refuse to delete an open file, as Windows does."""
+        if not release.is_set() and str(path).endswith(".zip"):
+            raise PermissionError(13, "The process cannot access the file")
+        real_remove(path)
+
+    monkeypatch.setattr(
+        "urllib.request.urlopen", lambda url, timeout=None: _Response(body)
+    )
+    monkeypatch.setattr("zipfile.ZipFile", slow_zipfile)
+    monkeypatch.setattr("os.remove", windows_remove)
+
+    task = asyncio.create_task(download_vosk_model("m", "http://host"))
+    try:
+        deadline = asyncio.get_running_loop().time() + 5
+        while not extracting.is_set() and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(0.01)
+        assert extracting.is_set(), "the extraction was never reached"
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+        # The caller is gone and its removal was refused: what is left is the
+        # extractor's own path out, which it has not reached yet.
+        assert _archives(cache_dir), "the extractor has not finished with it yet"
+
+        release.set()
+        deadline = asyncio.get_running_loop().time() + 5
+        while _archives(cache_dir) and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(0.01)
+
+        assert _archives(cache_dir) == []
+    finally:
+        release.set()
 
 
 @pytest.mark.asyncio

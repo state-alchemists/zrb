@@ -451,8 +451,9 @@ class LLMDictationMixin:
         float,
         fallback=120.0,
         doc=(
-            "Seconds to wait for the Vosk model server to answer; 0 means no "
-            "limit. Default: 120."
+            "Seconds to wait for the Vosk model server to answer; 0 means the "
+            "transfer is not capped, though a stalled connection still gives "
+            "up after 30 s. Default: 120."
         ),
     )
 

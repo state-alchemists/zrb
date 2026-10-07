@@ -3,23 +3,22 @@
 No model is installed here and none is needed. The pipeline is stubbed, because
 what is under test is the wiring around it: that the service is built once and
 the same pipeline answers every utterance, that a pipeline which has stopped is
-replaced rather than kept, that a model which will not load is reported to
-whoever asked for it, and that a session which ends lets the service go. What
-the pipeline does with an utterance is
+replaced rather than kept, and that a backend which is let go of stops what it
+started and refuses to start another. A load that does not go through is
+`test_pipecat_backend_load.py`; what the pipeline does with an utterance is
 `test/llm/dictation/test_pipecat_stt.py`.
 """
 
 from __future__ import annotations
 
 import asyncio
-import threading
+
 
 import pytest
 
-from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
+
 from zrb.llm.dictation.backend.pipecat import PipecatDictationBackend
 from zrb.llm.dictation.config import DictationConfig
-from zrb.llm.dictation.feature import DictationSession
 
 MODULE = "zrb.llm.dictation.backend.pipecat"
 
@@ -46,7 +45,14 @@ class FakePipeline:
 
 
 class FakeService:
-    """A service, as far as this file is concerned: something to build."""
+    """A service, as far as this file is concerned: something to build, and
+    something Pipecat's own `cleanup` can be called on to let go of."""
+
+    def __init__(self) -> None:
+        self.cleanups = 0
+
+    async def cleanup(self) -> None:
+        self.cleanups += 1
 
 
 def _config(**kwargs) -> DictationConfig:
@@ -158,27 +164,6 @@ async def test_transcribing_without_preparing_still_transcribes(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_a_service_that_will_not_build_is_reported_to_whoever_asked(monkeypatch):
-    """A missing package fails the preparation, naming the setting that named it.
-
-    The message is the manager's, and it is the difference between "the voice did
-    not start" and "the voice did not start because the package that transcribes
-    is not installed".
-    """
-
-    def create_service(name: str, config: DictationConfig) -> FakeService:
-        raise RuntimeError(
-            f"speech service {name!r} needs the 'moonshine_voice' package"
-        )
-
-    monkeypatch.setattr(f"{MODULE}.stt_manager.create_service", create_service)
-    backend = PipecatDictationBackend("moonshine", _config())
-
-    with pytest.raises(RuntimeError, match="moonshine_voice"):
-        await backend.prepare(lambda _message: None)
-
-
-@pytest.mark.asyncio
 async def test_closing_the_backend_stops_its_pipeline_once(monkeypatch):
     """Letting the backend go stops the worker, and saying it twice is harmless.
 
@@ -194,50 +179,6 @@ async def test_closing_the_backend_stops_its_pipeline_once(monkeypatch):
     await backend.aclose()
 
     assert pipeline.closes == 1
-
-
-@pytest.mark.asyncio
-async def test_a_teardown_while_the_model_loads_leaves_no_pipeline(monkeypatch):
-    """A session that ends while its service is still loading lets go of what that
-    load starts.
-
-    `prepare` loads the model and the teardown lets the backend go; the two can
-    overlap, because the load is off the loop and the teardown is not. Run that
-    way, the teardown finds no pipeline to close — so the one the load starts
-    afterwards is the only thing holding a worker and a resident model, and it
-    has to be the load that lets it go.
-    """
-    pipeline = FakePipeline()
-    loading = threading.Event()
-    reached = threading.Event()
-
-    def create_service(name: str, config: DictationConfig) -> FakeService:
-        reached.set()
-        assert loading.wait(5)  # the model load the teardown interrupts
-        return FakeService()
-
-    async def start(service: FakeService, sample_rate: int = SAMPLE_RATE):
-        return pipeline
-
-    monkeypatch.setattr(f"{MODULE}.stt_manager.create_service", create_service)
-    monkeypatch.setattr(f"{MODULE}.STTPipeline.start", start)
-
-    backend = PipecatDictationBackend("moonshine", _config())
-    preparing = asyncio.create_task(backend.prepare(lambda _message: None))
-    # The load runs in its own thread, so yielding is what lets it reach the gate.
-    deadline = asyncio.get_running_loop().time() + 5
-    while not reached.is_set() and asyncio.get_running_loop().time() < deadline:
-        await asyncio.sleep(0.01)
-
-    assert reached.is_set(), "the model was never loaded"
-    await backend.aclose()
-    loading.set()
-
-    with pytest.raises(RuntimeError, match="was let go"):
-        await preparing
-
-    assert pipeline.closes == 1
-    assert backend.owner_loop is None  # nothing left to close on a loop
 
 
 @pytest.mark.asyncio
@@ -306,48 +247,3 @@ async def test_a_released_backend_lets_its_pipeline_go_for_good(monkeypatch):
     with pytest.raises(RuntimeError, match="let go"):
         await backend.transcribe(b"one")
     assert pipeline.segments == []
-
-
-@pytest.mark.asyncio
-async def test_a_session_that_ends_lets_its_backend_go():
-    """A backend holding a model is released when the session is over.
-
-    The scheduling is the part worth pinning. `DictationSession.close` is
-    synchronous and a backend's close is not, so the teardown has to reach the
-    loop without the session that is already over waiting for it.
-    """
-    closed: list[bool] = []
-
-    class FakeCloser(AnyDictationBackend):
-        async def transcribe(self, audio: bytes) -> str:
-            return ""
-
-        async def aclose(self) -> None:
-            closed.append(True)
-
-    session = DictationSession(_config())
-    session.backend = FakeCloser()
-    session.close()
-    await asyncio.sleep(0)
-
-    assert closed == [True]
-
-
-@pytest.mark.asyncio
-async def test_closing_a_session_that_never_dictated_builds_nothing(monkeypatch):
-    """A session that never opened a microphone does not build a backend to close.
-
-    The backend is built on first use, so a session that only ever typed must not
-    be the reason a model is created — which is the point of closing one that was
-    never made being free.
-    """
-    built: list[str] = []
-    monkeypatch.setattr(
-        "zrb.llm.dictation.feature.get_dictation_backend",
-        lambda name, config: built.append(name),
-    )
-    session = DictationSession(_config())
-    session.close()
-    await asyncio.sleep(0)
-
-    assert built == []
