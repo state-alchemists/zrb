@@ -37,7 +37,6 @@ class DictationConfig:
     max_backlog: float | None = None
     pre_roll: float | None = None
     barge_in_enabled: bool | None = None
-    barge_in_hold: bool | None = None
     barge_in_min_speech: float | None = None
     barge_in_margin: float | None = None
     barge_in_min_words: int | None = None
@@ -63,6 +62,7 @@ class DictationConfig:
     vosk_max_file_mb: float | None = None
     vosk_max_files: float | None = None
     vosk_confidence: float | None = None
+    barge_in_hold: bool | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:
