@@ -240,8 +240,7 @@ pdoc = ">=15"
 # Pin the suite to `src/`. Without it `import zrb` resolves by whatever is on
 # sys.path, so a venv out of step with poetry.lock serves a stale
 # `site-packages/zrb` and the run reports green against code that is not in
-# the diff. `.coveragerc` omits `src/zrb/__main__.py` by the path this
-# guarantees.
+# the diff.
 pythonpath = ["src"]
 asyncio_default_fixture_loop_scope = "function"
 # A deadlock detector, not a performance budget: the slowest honest tests wait

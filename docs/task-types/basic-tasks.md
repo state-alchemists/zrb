@@ -122,7 +122,9 @@ A multi-line `cmd` (or a list of commands) runs as one shell script, so, as in a
 
 You can inject context variables into the command by wrapping it in `Tpl`, which
 renders `{ }` expressions against the task context. A bare string is a literal, so
-braces meant for the shell (`${VAR}`, `awk '{print}'`) need no escaping.
+braces meant for the shell (`${VAR}`, `awk '{print}'`) need no escaping — and a
+plain-string `cmd` carrying a `{ctx.` placeholder warns when the task is built,
+since it would reach the shell as those characters instead of being rendered.
 
 ```python
 from zrb import CmdTask, StrInput, Tpl, cli

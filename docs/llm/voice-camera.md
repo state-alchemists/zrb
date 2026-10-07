@@ -128,18 +128,16 @@ For the quickest replies, use vosk for dictation (it transcribes while you speak
 
 ## Configuring in code
 
-Each feature has a config dataclass whose fields mirror its environment variables; a field left `None` reads the variable when a session starts. To change the built-in chat from a `zrb_init.py`, set the variables:
+Each feature has a config dataclass whose fields mirror its environment variables; a field left `None` reads the variable when a session starts. To change the built-in chat from a `zrb_init.py`, assign directly to `CFG`:
 
 ```python
-import os
-
 from zrb import CFG
 
-os.environ.setdefault(f"{CFG.ENV_PREFIX}_LLM_SPEECH_ENABLED", "on")
-os.environ.setdefault(f"{CFG.ENV_PREFIX}_LLM_DICTATION_WAKE_WORDS", "hey zed")
+CFG.LLM_SPEECH_ENABLED = True
+CFG.LLM_DICTATION_WAKE_WORDS = ["hey zed"]
 ```
 
-`setdefault` leaves a value the user exported alone. The settings are read when the session starts, so setting them after `import zrb` still applies. `CFG` attributes can also be assigned directly (`CFG.LLM_DICTATION_STOP_WORDS = ["berhenti", "stop"]`).
+You can also set environment variables (`os.environ`), but direct assignment to `CFG` is cleaner and ensures the values are serialized correctly. Settings are read when the session starts, so changes after `import zrb` still apply.
 
 **Everything is a setting.** Every word zrb listens for and every phrase it says, apart from the status-bar badges, is a variable in [LLM configuration § Voice and Camera](../configuration/llm-config.md#23-voice-and-camera):
 

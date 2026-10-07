@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from zrb.config.config import Config
@@ -80,3 +82,27 @@ def test_convert_setting_value_applies_the_transform_a_read_would():
     )
     assert threshold <= cfg.LLM_MAX_TOKEN_PER_MINUTE
     assert threshold <= cfg.LLM_MAX_TOKEN_PER_REQUEST
+
+
+@pytest.mark.parametrize(
+    "name", ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKEN_PER_REQUEST"]
+)
+def test_a_setting_whose_write_key_differs_from_its_name_reads_back(name, monkeypatch):
+    """An assignment has to survive the read that follows it, aliases included.
+
+    These two settings read either the singular or the plural form and write the
+    plural one, so an assignment only lands if the write key is inside the read
+    list. When it is not, `CFG.<name> = value` — the write `/set` performs —
+    stores the value under a key the read never reaches, the command confirms a
+    change, and the next read returns the default. `LLM_MAX_TOKEN_PER_MINUTE` is
+    also advertised as the singular name in `llm-config.md`, so the mismatch
+    would be invisible in the docs as well.
+    """
+    cfg = Config()
+    field = getattr(type(cfg), name)
+    write_key = field.env_key(cfg.ENV_PREFIX)
+    # Restores whatever the developer's own environment had, at teardown.
+    monkeypatch.delenv(write_key, raising=False)
+    setattr(cfg, name, 4321)
+    assert os.environ[write_key] == "4321"
+    assert getattr(cfg, name) == 4321
