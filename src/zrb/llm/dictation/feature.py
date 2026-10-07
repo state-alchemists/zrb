@@ -120,6 +120,8 @@ class DictationSession:
         self._session_key = current_session_key()
         # A barge-in reported for the utterance in progress; its words settle it.
         self._is_heard_over_zrb = False
+        # Set after an early partial already stopped this utterance.
+        self._partial_barge_in_settled = False
         # Set while the hold actually paused zrb's voice for that utterance.
         self._is_holding_speech = False
         # Badge restored when zrb resumes after a barge-in.
@@ -522,6 +524,8 @@ class DictationSession:
         through the whole sentence that interrupted it. With ``barge_in_hold``
         off there is no hold: zrb speaks on until the words say it should not,
         so a room loud enough to keep crossing the bar cannot make it stutter."""
+        if self._partial_barge_in_settled:
+            return
         is_first_report = not self._is_heard_over_zrb
         self._is_heard_over_zrb = True
         if not self._config.is_barge_in_hold_enabled:
@@ -540,11 +544,16 @@ class DictationSession:
         is shorter than ``barge_in_min_speech``) stop it too, unless they
         already did: a stop clears the report it settled."""
         if not utterance.is_over_speech:
+            self._partial_barge_in_settled = False
+            return
+        if self._partial_barge_in_settled:
+            self._partial_barge_in_settled = False
             return
         if not is_meant_for_zrb:
             self._release_barge_in()
         elif self._is_heard_over_zrb or not utterance.is_barge_in:
             self._stop_speech()
+        self._partial_barge_in_settled = False
 
     def _confirm_barge_in(self) -> None:
         """A wake word heard while zrb is still speaking: what it is hearing
@@ -554,6 +563,7 @@ class DictationSession:
 
     def _stop_speech(self) -> None:
         self._is_heard_over_zrb = False
+        self._partial_barge_in_settled = True
         self._is_holding_speech = False
         interrupt_speech(self._session_key)
         self._rest(_INTERRUPTED)
@@ -561,6 +571,7 @@ class DictationSession:
     def _release_barge_in(self) -> None:
         """zrb carries on: give the report back, and the voice it held."""
         self._is_heard_over_zrb = False
+        self._partial_barge_in_settled = False
         if not self._is_holding_speech:
             return
         self._is_holding_speech = False
@@ -616,7 +627,8 @@ class DictationSession:
 
     def _set_partial_over_zrb(self, is_over_speech: bool) -> None:
         """Remember whether the live partial belongs to speech over zrb."""
-        self._is_heard_over_zrb = is_over_speech
+        if not self._partial_barge_in_settled:
+            self._is_heard_over_zrb = is_over_speech
 
     def _show_partial(self, partial: str) -> None:
         """Show the end of what is being heard, while it is said. With wake

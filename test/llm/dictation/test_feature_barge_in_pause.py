@@ -382,12 +382,19 @@ async def test_with_the_hold_off_a_stop_word_over_zrb_stops_it_as_soon_as_it_is_
     """The live transcript is what is left to decide on. A stop word said over
     zrb is acted on as it is heard, not when the utterance ends, and the turn
     is cancelled from the finished utterance as it would be either way."""
-    _listen(monkeypatch, "stop", "go on", partials=["stop"])
+    async def listen(config, should_listen, **kwargs):
+        kwargs["on_barge_in"]()
+        kwargs["on_partial"]("stop")
+        kwargs["on_partial"]("stop")
+        yield Utterance(b"stop", 0, 0.3, is_over_speech=True)
+        yield Utterance(b"go on", 1, 1.5)
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
     ui = FakeUI()
     set_session_ui(ui)
 
     assert await _replies(_session(barge_in_hold=False), 1) == ["go on"]
-    assert speech == ["interrupt", "interrupt"]
+    assert speech == ["interrupt"]
     assert ui.cancelled == ["barge_in"]
 
 
@@ -397,7 +404,7 @@ async def test_with_the_hold_off_a_wake_word_over_zrb_still_stops_it_early(
 ):
     """Without a hold, a wake word in the live transcript is still the user
     saying they want zrb to stop: the hold is not what makes that work."""
-    _listen(monkeypatch, "hey zed wait there", partials=["hey zed"])
+    _listen(monkeypatch, "hey zed wait there", partials=["hey zed", "hey zed"])
 
     session = _session(barge_in_hold=False, wake_words=["hey zed"])
     assert await _replies(session, 1) == ["wait there"]
