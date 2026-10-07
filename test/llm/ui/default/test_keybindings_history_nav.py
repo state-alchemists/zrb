@@ -410,7 +410,9 @@ def test_turn_started_recall_requires_confirmation(mock_ui, setup_bindings):
     mock_ui.submit_user_message.assert_called_once()
 
 
-def test_previous_recall_requires_confirmation(mock_ui, setup_bindings):
+def test_previous_recall_submits_without_confirmation(mock_ui, setup_bindings):
+    """An ordinary previous-message recall recalls no queued entry, so Enter
+    submits it directly — no stale-queue warning, no second press."""
     history = MagicMock(recall_strings=MagicMock(return_value=["sent message"]))
     mock_ui.previous_messages = history
     event = create_mock_event("draft")
@@ -418,10 +420,8 @@ def test_previous_recall_requires_confirmation(mock_ui, setup_bindings):
     event.current_buffer.text = "sent message edited"
     event.current_buffer.cursor_position = len(event.current_buffer.text)
     trigger_binding(setup_bindings, "c-m", event)
-    mock_ui.submit_user_message.assert_not_called()
-    assert any("already started or sent" in output for output in mock_ui.outputs)
-    trigger_binding(setup_bindings, "c-m", event)
     mock_ui.submit_user_message.assert_called_once()
+    assert not any("already started or sent" in output for output in mock_ui.outputs)
 
 
 def test_enter_submit_message(mock_ui, setup_bindings):
