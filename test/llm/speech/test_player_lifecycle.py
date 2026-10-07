@@ -185,3 +185,65 @@ def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(lock_file):
     assert closed_while_synthesizing == [False]
     assert backend.closed
     assert backend.utterances[0].cleaned
+
+
+def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(lock_file):
+    """The player, not the queue running out, is what says a backend can go.
+
+    Synthesis runs ahead of playback, so a closing speaker reaches the end of its
+    queue with the final sentence already in the player's hands — and a Pipecat
+    pipeline renders a sentence's audio as the player reads it, so a backend let go
+    there stops that sentence's audio where it stopped arriving. It goes once
+    nothing will read from it again.
+    """
+    let_go_while_playing: "list[bool]" = []
+    let_go = threading.Event()
+
+    class PlayingUtterance(RecordingUtterance):
+        """An utterance the player holds in its hands until it is released."""
+
+        def __init__(self, text, played, done, playing, release):
+            super().__init__(text, played, done)
+            self._playing = playing
+            self._release = release
+
+        def play(self, timeout):
+            self._playing.set()
+            self._release.wait(5)
+            super().play(timeout)
+
+    class WatchedBackend(ClosingBackend):
+        """A backend that says whether it was let go while it was still read."""
+
+        def __init__(self):
+            super().__init__()
+            self.playing = threading.Event()
+            self.release = threading.Event()
+
+        def create_utterance(self, text):
+            return PlayingUtterance(
+                text, self.played, self.done, self.playing, self.release
+            )
+
+        def close(self):
+            let_go_while_playing.append(
+                self.playing.is_set() and not self.release.is_set()
+            )
+            super().close()
+            let_go.set()
+
+    backend = WatchedBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaker.say("the last sentence")
+    assert backend.playing.wait(5)  # the sentence is in the player's hands
+
+    speaker.close()
+    # Long enough for a worker that let the backends go the moment its queue ran
+    # out to have done it, with the player still reading.
+    time.sleep(0.3)
+    assert let_go_while_playing == []
+
+    backend.release.set()
+    assert let_go.wait(5)
+    assert let_go_while_playing == [False]
+    assert backend.closed

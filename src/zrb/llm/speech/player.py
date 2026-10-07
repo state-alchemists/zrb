@@ -110,6 +110,11 @@ class Speaker:
         self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
             maxsize=1
         )
+        # Set by the player thread once it has played everything it was handed.
+        # The backends are the worker's to let go, and letting them go while the
+        # player is still reading one is what cuts the last sentence off: a
+        # Pipecat pipeline renders a sentence's audio as the player reads it.
+        self._player_finished = threading.Event()
         self._worker: threading.Thread | None = None
         self._player: threading.Thread | None = None
         # Hooks call `say` from worker threads, so starting the worker, and
@@ -414,15 +419,25 @@ class Speaker:
             self._ready.put((utterance, is_stale, generation))
         self._ready.put(None)
         # This thread may still be synthesizing when `close` returns, so it,
-        # not `_stop`, lets the backends go once it is done with them.
+        # not `_stop`, lets the backends go once it is done with them — and being
+        # done means the player is too. The last sentence is in the player's hands
+        # by the time this queue runs out, and a Pipecat pipeline renders a
+        # sentence's audio as the player reads it, so letting the backends go here
+        # would stop that sentence where its audio stopped arriving.
+        self._player_finished.wait()
         self._close_backends()
 
     def _play_ready(self) -> None:
-        while (entry := self._ready.get()) is not None:
-            try:
-                self._play_prepared(*entry)
-            except Exception as exc:
-                logger.warning(f"Speech failed: {exc}")
+        try:
+            while (entry := self._ready.get()) is not None:
+                try:
+                    self._play_prepared(*entry)
+                except Exception as exc:
+                    logger.warning(f"Speech failed: {exc}")
+        finally:
+            # Nothing reads a backend after this, which is what the worker waits
+            # for before it lets them go.
+            self._player_finished.set()
 
     def close(self) -> None:
         """Drop queued speech, cut off what is playing, stop the thread and
