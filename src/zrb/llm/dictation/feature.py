@@ -188,7 +188,10 @@ class DictationSession:
         pipeline's worker is a task on the loop that started it, and awaiting it
         from another loop raises the cross-loop error `close_quietly` swallows —
         a teardown reporting a closed backend while the worker, the model and the
-        pipeline keep running.
+        pipeline keep running. A loop that has stopped altogether is the one case
+        with no close left in it: the backend is asked to release what it holds
+        instead, so the model behind its pipeline can be collected rather than
+        stay alive behind the reference this teardown is about to drop.
         """
         backend, self._backend = self._backend, None
         if backend is None:
@@ -200,9 +203,11 @@ class DictationSession:
         owner = backend.owner_loop
         if owner is not None and owner is not here:
             if not owner.is_running():
+                backend.release()
                 logger.warning(
-                    "Could not let the dictation backend go: the loop it was built "
-                    "on is not running, so its pipeline is left as it is"
+                    "Could not stop the dictation backend: the loop it was built "
+                    "on is not running, so its worker cannot be cancelled; the "
+                    "backend released what it held"
                 )
                 return
             owner.call_soon_threadsafe(lambda: self._close_backend_on(owner, backend))

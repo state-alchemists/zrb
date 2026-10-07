@@ -118,17 +118,20 @@ def test_a_backend_bound_to_a_loop_is_closed_on_that_loop():
         loop.close()
 
 
-def test_a_backend_whose_loop_is_gone_is_left_where_it_is(caplog):
-    """A teardown with nowhere to close says so instead of closing anyway.
+def test_a_backend_whose_loop_is_gone_is_released_and_reported(caplog):
+    """A teardown with nowhere to close lets the backend go anyway.
 
     The loop that owns a pipeline can be gone by the time the session ends. A
     close run on a loop of the teardown's own cannot stop a worker that belongs
-    to another one, so a teardown that tried would report a stopped pipeline
-    while it runs: it is named in the log, and left.
+    to another one, so the backend is not closed from here — but leaving it where
+    it stands, holding a model behind a reference this teardown is about to drop,
+    is what a leak looks like. It is asked to release what it holds, and the
+    teardown says the worker could not be stopped.
     """
     loop = asyncio.new_event_loop()
     loop.close()
     closed: "list[object]" = []
+    released: "list[object]" = []
 
     class Abandoned(AnyDictationBackend):
         @property
@@ -137,6 +140,9 @@ def test_a_backend_whose_loop_is_gone_is_left_where_it_is(caplog):
 
         async def transcribe(self, audio: bytes) -> str:
             return ""
+
+        def release(self) -> None:
+            released.append(True)
 
         async def aclose(self) -> None:
             closed.append(True)
@@ -148,6 +154,7 @@ def test_a_backend_whose_loop_is_gone_is_left_where_it_is(caplog):
         session.close()
 
     assert closed == []
+    assert released == [True]
     assert "not running" in caplog.text
 
 

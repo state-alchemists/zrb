@@ -147,9 +147,26 @@ class PipecatDictationBackend(AnyDictationBackend):
         A `prepare` already loading a model is not waited for; what it starts after
         this returns hands the pipeline back here rather than adopting it.
         """
+        pipeline = self._detach_pipeline()
+        if pipeline is not None:
+            await pipeline.close()
+
+    def release(self) -> None:
+        """Drop the pipeline where no loop is left to stop its worker on.
+
+        `aclose` cannot run here. The worker is a task of the loop this pipeline
+        was started on, and awaiting it from another loop raises the cross-loop
+        error `close_quietly` swallows, so the pipeline this backend still holds
+        would be the one thing a session that has already ended keeps alive: a
+        loaded model, and a worker nothing can reach. Letting go is what is left,
+        and it is what makes both collectable.
+        """
+        self._detach_pipeline()
+
+    def _detach_pipeline(self) -> "STTPipeline | None":
+        """Take the pipeline off this backend, and mark it let go for good."""
         with self._handoff:
             self._is_closed = True
             pipeline, self._pipeline = self._pipeline, None
             self._loop = None
-        if pipeline is not None:
-            await pipeline.close()
+        return pipeline

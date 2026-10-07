@@ -58,3 +58,15 @@ class AnyDictationBackend(ABC):
         running pipeline is what this exists for, and it is asynchronous where
         the session's own teardown is not, so it is named apart from `close`
         rather than overloading it."""
+
+    def release(self) -> None:
+        """Let go of what this backend holds, where no loop can run its close.
+
+        The synchronous half of `aclose`, for a session whose teardown lands
+        after the loop a pipeline was started on has stopped. The worker is a
+        task of that loop, so no other loop can cancel it, and asking one to only
+        reports a pipeline stopped that is still there. Letting go of what the
+        backend holds is what is left, and it is what lets a model behind a
+        pipeline be collected rather than stay resident behind a reference
+        nothing can reach. Nothing to do by default.
+        """

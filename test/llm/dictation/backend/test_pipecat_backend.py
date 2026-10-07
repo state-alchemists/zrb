@@ -242,6 +242,30 @@ async def test_a_backend_that_was_let_go_is_not_started_again(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_a_released_backend_lets_its_pipeline_go_for_good(monkeypatch):
+    """A backend whose loop is gone still lets its pipeline go.
+
+    `aclose` cannot run once the loop a pipeline was started on has stopped, and
+    a session that ends after that has no other way to reach the worker. Holding
+    the pipeline anyway is what keeps the service's model — a gigabyte of it, for
+    Whisper — resident behind a reference the session has already dropped, so the
+    backend lets go of it, and refuses to start a second one for a session over.
+    """
+    pipeline = FakePipeline()
+    _stub(monkeypatch, [], pipeline)
+    backend = PipecatDictationBackend("moonshine", _config())
+    await backend.prepare(lambda _message: None)
+
+    backend.release()
+
+    assert backend.owner_loop is None
+    assert pipeline.closes == 0  # the worker cannot be reached to stop it
+    with pytest.raises(RuntimeError, match="let go"):
+        await backend.transcribe(b"one")
+    assert pipeline.segments == []
+
+
+@pytest.mark.asyncio
 async def test_a_session_that_ends_lets_its_backend_go():
     """A backend holding a model is released when the session is over.
 
