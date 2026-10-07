@@ -62,9 +62,7 @@ def _session(**config) -> DictationSession:
 
 
 def _fake_listen(monkeypatch, *said: tuple[str, float, float]):
-    """Make the microphone hear *said*: (text, started_at, ended_at) each. Also
-    make the audio extra look installed, since a machine without PortAudio is
-    not what these tests are about."""
+    """Make the microphone hear each `(text, started_at, ended_at)` tuple."""
     heard = []
 
     async def listen(
@@ -122,9 +120,7 @@ async def test_push_to_talk_puts_the_transcript_in_the_input_box(monkeypatch):
 @pytest.mark.parametrize("said", ["Thank you.", "test test test", "you"])
 @pytest.mark.asyncio
 async def test_push_to_talk_keeps_what_hands_free_takes_for_noise(monkeypatch, said):
-    """Push-to-talk transcribes in full (`transcribe`, not
-    `transcribe_speech`) and skips the hands-free guards: the user chose to
-    speak, and edits the text before sending it."""
+    """Push-to-talk uses full `transcribe`, bypassing hands-free noise guards."""
 
     class ScoringBackend(FakeBackend):
         async def transcribe_speech(self, audio: bytes) -> str:
@@ -163,20 +159,13 @@ async def test_hands_free_transcribes_without_what_the_backend_scores_as_noise(
 
 @pytest.mark.asyncio
 async def test_the_badge_names_the_service_a_session_listens_through(monkeypatch):
-    """Which service a session listens through is visible while it listens.
-
-    `prepare` announces the service into the transcript, and that announcement
-    is written before the UI paints, so a user never sees it. The badge is state,
-    painted whenever the app draws, so that is where the choice shows — and only
-    for a service that was named: vosk reads as it always did.
-    """
+    """The listening badge names configured services but omits the default."""
 
     _fake_listen(monkeypatch, ("run the tests", 0.0, 1.0))
     named = DictationSession(
         DictationConfig(backend="moonshine", mode="hands_free").resolve()
     )
-    # The name under test comes from the config, so the backend itself is a
-    # stand-in: building the real one would load a model inside a unit test.
+    # Stub the backend because building the configured one loads a model.
     named.backend = FakeBackend()
     plain = _session(mode="hands_free")
 
@@ -300,8 +289,7 @@ async def test_two_sessions_hands_free_state_is_their_own(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_enabling_dictation_again_uses_the_new_config(monkeypatch):
-    """Same as speech: the second `enable_*` call is the one that has to reach
-    the sessions started after it."""
+    """The second enable call supplies configuration to later sessions."""
     _fake_listen(monkeypatch, ("run the tests", 0.0, 1.0))
     chat = MagicMock()
 

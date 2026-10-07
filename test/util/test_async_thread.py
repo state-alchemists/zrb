@@ -1,5 +1,4 @@
-"""Blocking work on a daemon thread: what it returns, and what becomes of a
-result that arrives after nobody is waiting for it any more."""
+"""Daemon-thread results and orphan handling."""
 
 import asyncio
 import threading
@@ -9,7 +8,7 @@ import pytest
 
 from zrb.util.async_thread import run_in_daemon
 
-#: Nothing here waits on a real model, so anything approaching this is a hang.
+#: Test operations must finish well before this timeout.
 _TIMEOUT = 5.0
 
 
@@ -29,7 +28,7 @@ async def test_the_call_runs_off_the_loop_and_returns_its_value():
 
 @pytest.mark.asyncio
 async def test_the_call_runs_on_a_daemon_thread():
-    """A non-daemon thread that outlives its cancelled caller would block exit."""
+    """Cancellation must not leave a worker blocking process exit."""
     daemon_flags: list[bool] = []
 
     def record() -> None:
@@ -51,7 +50,7 @@ async def test_a_failure_reaches_the_caller():
 
 @pytest.mark.asyncio
 async def test_a_cancelled_wait_does_not_wait_out_a_blocked_call():
-    """The whole point: cancellation is not held hostage by native code."""
+    """Cancellation is not held hostage by blocked native code."""
     release = threading.Event()
     try:
         running = asyncio.create_task(run_in_daemon(release.wait))
@@ -69,18 +68,14 @@ async def test_a_cancelled_wait_does_not_wait_out_a_blocked_call():
 
 @pytest.mark.asyncio
 async def test_a_result_that_lands_after_the_cancellation_is_let_go():
-    """A call cannot be stopped, so what it produces has to be disposed of.
-
-    A loaded model or an open socket outlives the wait that was cancelled. The
-    caller names what becomes of it, and gets it where it lands.
-    """
+    """An unstoppable call sends its late result to the orphan disposer."""
     reached = threading.Event()
     release = threading.Event()
     let_go: list[str] = []
 
     def load() -> str:
         reached.set()
-        release.wait(_TIMEOUT)  # the load a cancelled wait walks away from
+        release.wait(_TIMEOUT)
         return "a loaded model"
 
     try:
@@ -104,7 +99,7 @@ async def test_a_result_that_lands_after_the_cancellation_is_let_go():
 
 @pytest.mark.asyncio
 async def test_a_result_its_caller_read_is_not_let_go():
-    """A value somebody waited for is theirs; only orphans go to the disposer."""
+    """Only orphaned values go to the disposer."""
     let_go: list[int] = []
 
     assert await run_in_daemon(lambda: 3, on_orphan=let_go.append) == 3
@@ -114,7 +109,7 @@ async def test_a_result_its_caller_read_is_not_let_go():
 
 
 async def _until_event(event: threading.Event, timeout: float = _TIMEOUT) -> None:
-    """Yield to the loop until *event* is set, or fail saying it never was."""
+    """Yield until *event* is set or the timeout expires."""
     loop = asyncio.get_running_loop()
     deadline = loop.time() + timeout
     while not event.is_set() and loop.time() < deadline:
@@ -123,13 +118,7 @@ async def _until_event(event: threading.Event, timeout: float = _TIMEOUT) -> Non
 
 
 def _land_with_no_loop_left(func, on_orphan) -> None:
-    """Run *func* through the runner, cancel the wait, then close the loop.
-
-    That is the shape of a shutdown: the loop is gone before the worker is
-    released, so the call lands with nowhere to deliver to. The worker is joined
-    before this returns, so what it did with its result has already happened by
-    the time a test looks at it.
-    """
+    """Cancel *func*, close its loop, then join the worker before returning."""
     entered = threading.Event()
     release = threading.Event()
     threads: list[threading.Thread] = []
@@ -166,11 +155,7 @@ def test_a_result_that_lands_after_the_loop_closed_is_let_go():
 
 
 def test_a_failure_that_lands_after_the_loop_closed_is_not_let_go():
-    """*on_orphan* is owed the call's result, and a failure is not one.
-
-    A disposer closes what the call produced; handed the exception that stopped
-    it producing anything, it would fault in a thread nobody is watching.
-    """
+    """Failures are not orphan results, so *on_orphan* must not receive them."""
     let_go: list[object] = []
 
     def no_model() -> object:

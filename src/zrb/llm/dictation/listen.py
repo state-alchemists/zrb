@@ -23,11 +23,8 @@ from zrb.llm.speech.player import is_speaking
 from zrb.llm.util.teardown import close_quietly
 
 if TYPE_CHECKING:
-    # Only ever named in an annotation here, so this is a type dependency and
-    # not a runtime one. That matters beyond tidiness: `zrb.llm.dictation.backend`
-    # re-exports every backend from its `__init__`, so importing this leaf at
-    # runtime would drag the whole backend package — and the audio it does not
-    # need — into the module that owns the capture, and back into itself.
+    # Annotation-only to avoid importing the backend barrel and its audio
+    # dependencies into the capture module.
     from zrb.llm.dictation.backend.any_transcription_stream import (
         AnyTranscriptionStream,
     )
@@ -35,19 +32,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000  # what the transcribers expect
-# How much of zrb's recent speech the bar over its voice is measured from,
-# and how much of it there must be before the measure is trusted.
+# Window and minimum sample count for measuring zrb's voice level.
 _ZRB_LEVEL_SECONDS = 3.0
 _ZRB_LEVEL_MIN_SECONDS = 0.5
-# How much of the room's background the bar under ordinary speech is measured
-# from, and how much of it there must be before the measure is trusted.
+# Window and minimum sample count for measuring the room's noise floor.
 _NOISE_FLOOR_SECONDS = 3.0
 _NOISE_FLOOR_MIN_SECONDS = 0.5
 # How often a push-to-talk recording checks whether to stop.
 _RECORD_POLL_SECONDS = 0.1
-# How many times the microphone is opened before it is given up on, and how
-# long to wait between tries: PortAudio gives the ALSA thread it starts one
-# second to come up, and a machine that stalls misses that deadline.
+# Retry count and delay for PortAudio's one-second ALSA startup deadline.
 _OPEN_ATTEMPTS = 3
 _OPEN_RETRY_SECONDS = 0.5
 
@@ -171,12 +164,8 @@ class UtteranceCutter:
         # measured as zrb's while they talk over it, must not cut them off.
         bar = self._utterance_bar if self._speech else self._get_bar(is_over_zrb)
         loud = level >= bar
-        # What the two bars are measured from, each fed by what it describes:
-        # zrb's voice by blocks heard over it, the room by the ones heard while
-        # it was silent — the loud ones included, since a room that never drops
-        # below the threshold is why there is a floor. Once the
-        # utterance is a barge-in, zrb is paused, so what follows is the user,
-        # not zrb's level. A block never measures itself.
+        # Measure zrb's level only over it and the room's level only while silent;
+        # after a barge-in, zrb is paused, so later blocks are the user's voice.
         if is_over_zrb and not self.is_barge_in:
             self._zrb_levels.append(level)
         if not is_over_zrb:
@@ -354,8 +343,7 @@ async def listen(
     backlog = _Backlog(to_blocks(config.max_backlog, block_seconds))
 
     def on_audio(indata: Any, frames: int, time_info: Any, status: Any) -> None:
-        # Checked at capture: blocks queue up during transcription, so
-        # checking later would let zrb's own voice through.
+        # Check at capture; queued blocks may be processed after zrb starts speaking.
         captured = _CapturedBlock(indata.copy(), is_speaking(), time.monotonic())
         loop.call_soon_threadsafe(backlog.append, captured)
 
@@ -388,7 +376,6 @@ async def listen(
         await blocks.close()
 
 
-# Makes a stream for one utterance, or None when the backend has none.
 CreateStream = Callable[[], Awaitable["AnyTranscriptionStream | None"]]
 
 
@@ -426,8 +413,7 @@ class _BlockHandler:
         if captured.follows_gap:
             cutter.reset()
         block = captured.block
-        # Deaf over zrb's voice with barge-in off; heard, against a higher
-        # bar, with it on.
+        # Ignore zrb's voice when barge-in is off; use a higher bar when it is on.
         is_deaf = captured.is_echo and not cutter.is_barge_in_enabled
         level = float(self._np.sqrt(self._np.mean(block**2)))
         finished = cutter.feed(block, level, captured.captured_at, captured.is_echo)
@@ -449,7 +435,7 @@ class _BlockHandler:
             return None
         finished = cutter.flush(captured_at)
         if finished is None:
-            # Too short to keep: a barge-in it reported is dropped.
+            # A reported barge-in is dropped with an utterance too short to keep.
             self._reports.update(cutter, is_deaf)
         return finished
 
@@ -574,7 +560,7 @@ class _UtteranceStreamer:
         if self._stream is None:
             self._stream = await self._create_stream()
             if self._stream is None:
-                # A batch-only backend: stop asking.
+                # Batch-only backend; do not request another stream.
                 self._create_stream = None
                 return
         await self._feed(blocks)

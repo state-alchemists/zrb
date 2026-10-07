@@ -1,16 +1,7 @@
-"""Swallowed broad exceptions, as a number that only goes down.
+"""Ratchet swallowed broad exceptions downward.
 
-An `except Exception:` (or a bare `except:`) that does not re-raise turns
-every failure below it, a typo included, into whatever the handler chose to
-do instead. Some are right: a UI must keep running when one renderer fails,
-and a best-effort cleanup must not mask the error that triggered it. Many
-are not, and they are what make a bug look like "nothing happened".
-
-A rule against them would fail on day one, so this pins the count, the shape
-of `test_bool_naming_ratchet.py`. A handler that ends by re-raising does not
-count: it only adds context. Prefer catching the exceptions the code can
-actually recover from; lower `SWALLOWED_BROAD_EXCEPTS` in the same diff that
-narrows one, and never raise it to make new code pass.
+Some broad handlers are justified for UI continuity or cleanup; lower the
+baseline when narrowing one, and never raise it to admit new code.
 """
 
 import ast

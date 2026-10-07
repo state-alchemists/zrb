@@ -1,9 +1,4 @@
-"""Tests for `zrb.llm.dictation.listen`.
-
-The microphone is a fake `sounddevice` whose `InputStream` hands its callback
-to the test, which then plays blocks into it. Opening that microphone, and
-recording from it, are `test_listen_microphone.py`'s.
-"""
+"""Tests for dictation listening and utterance cutting."""
 
 import asyncio
 from unittest.mock import MagicMock, patch
@@ -17,8 +12,7 @@ np = pytest.importorskip("numpy")
 
 
 class FakeStream:
-    """A `sounddevice.InputStream`: started by `_open_microphone`, closed when
-    the listening stops."""
+    """Fake stream lifecycle used by `listen`."""
 
     def __init__(self):
         self.is_started = False
@@ -66,11 +60,7 @@ async def _play(captured, blocks):
         captured["callback"](block, len(block), None, None)
 
 
-# --- listen -----------------------------------------------------------------
-
-
 def _listen_config():
-    # 0.1 s blocks: speech starts at a loud block and ends after 2 quiet ones.
     return DictationConfig(
         threshold=0.1,
         silence=0.2,
@@ -109,7 +99,6 @@ async def test_listen_yields_an_utterance_ended_by_silence():
     utterances, captured = await _collect(blocks)
 
     assert len(utterances) == 1
-    # pre_roll=0.1 keeps the one quiet block before speech started.
     assert utterances[0].audio == _pcm(*[0.0] * 2, *[0.5] * 4, *[0.0] * 4)
     assert utterances[0].started_at <= utterances[0].ended_at
     assert captured["blocksize"] == 1600
@@ -136,9 +125,6 @@ async def test_listen_ignores_blocks_captured_while_zrb_speaks():
     utterances, _ = await _collect(blocks, keep_partial=True, speaking=True)
 
     assert utterances == []
-
-
-# --- UtteranceCutter --------------------------------------------------------
 
 
 @pytest.mark.asyncio
@@ -174,9 +160,7 @@ def _cutter(**config):
 
 
 def _feed(cutter, levels, echo_at=()):
-    """Feed one block per level (block i captured at i/10 s, so its speech
-    began at (i-1)/10 s); the finished utterances as (blocks, started_at,
-    ended_at), times rounded."""
+    """Feed levels and return rounded `(blocks, started_at, ended_at)` utterances."""
     finished = []
     for index, level in enumerate(levels):
         done = cutter.feed(index, level, index / 10, index in echo_at)
@@ -187,7 +171,6 @@ def _feed(cutter, levels, echo_at=()):
 
 
 def test_speech_ends_after_the_silence_and_keeps_its_pre_roll():
-    # pre_roll=0.2 keeps the two quiet blocks before the first loud one.
     finished = _feed(_cutter(), [0, 0, 0, 1, 1, 1, 0, 0, 0])
 
     assert finished == [([1, 2, 3, 4, 5, 6, 7], 0.2, 0.7)]
@@ -237,12 +220,7 @@ def test_speech_is_cut_at_max_utterance():
 
 def test_blocks_while_zrb_speaks_are_ignored():
     levels = [1, 1, 1, 1, 0, 0, 0]
-    # Echo on block 1 discards the speech so far; what follows is heard at
-    # once, since nothing is held back after zrb stops any more.
     assert _feed(_cutter(), levels, echo_at={1}) == [([2, 3, 4, 5], 0.1, 0.5)]
-
-
-# --- the bar under ordinary speech --------------------------------------------
 
 
 def _heard(levels, **config):
@@ -285,9 +263,7 @@ def test_a_quiet_room_leaves_the_bar_at_the_threshold():
 
 
 def test_a_room_with_no_quiet_moment_is_measured_at_its_own_level():
-    """Babble that never drops below the threshold: the first utterance is
-    heard against the threshold, and the room it taught is what everything
-    after it has to clear."""
+    """Babble teaches the room level that later speech must clear."""
     finished = _feed(_cutter(pre_roll=0, max_utterance=1.0), [0.15] * 13 + [0.0] * 3)
 
     assert len(finished) == 1
@@ -295,8 +271,7 @@ def test_a_room_with_no_quiet_moment_is_measured_at_its_own_level():
 
 
 def test_a_room_with_no_quiet_moment_is_babble_without_the_margin():
-    """The same levels with the room counted not at all: every burst that
-    reaches the threshold is heard."""
+    """Without the room margin, every threshold-reaching burst is heard."""
     finished = _feed(
         _cutter(pre_roll=0, max_utterance=1.0, noise_margin=0),
         [0.15] * 13 + [0.0] * 3,
@@ -320,12 +295,8 @@ def test_flush_drops_too_little_speech():
     assert cutter.flush(1.0) is None
 
 
-# --- listen: the backlog ----------------------------------------------------
-
-
 async def _collect_with(config, blocks):
-    """Feed every block before the listener reads any, as happens while the
-    caller is busy transcribing."""
+    """Feed blocks before the listener reads them, simulating transcription backlog."""
     captured = {}
 
     async def consume():
@@ -369,7 +340,6 @@ async def test_audio_beyond_the_backlog_is_dropped_oldest_first():
 
     utterances = await _collect_with(_backlog_config(0.3), blocks)
 
-    # Only the newest three blocks were kept: the 0.25 one and the silence.
     assert [u.audio for u in utterances] == [_pcm(0.25, 0.25, 0.0, 0.0, 0.0, 0.0)]
 
 
@@ -397,7 +367,6 @@ async def test_a_one_block_backlog_still_marks_the_gap():
 
     utterances = await _collect_with(_backlog_config(0.1), blocks)
 
-    # Only the last, quiet block survives: no speech, no utterance.
     assert utterances == []
 
 

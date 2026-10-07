@@ -1,28 +1,17 @@
-"""Settings zrb no longer reads, and what took their place.
+"""Settings zrb no longer reads and what took their place.
 
-A release that renames or removes a setting without an alias leaves every
-environment that still sets the old name silently running on the default.
-Listing it here makes zrb say so when it starts (`Config.get_retired_env_keys`),
-naming what to set instead. Keys and replacement settings are written without
-the env prefix; a value that is not a setting name says why nothing replaces
-it. Add an entry in the same diff that retires a setting; the
-upgrading guide (docs/advanced-topics/upgrading-guide.md) says the same in
-prose.
+`Config.get_retired_env_keys` reports these settings at startup; keys and
+replacement settings omit the environment prefix.
 """
 
 RETIRED_SETTINGS: dict[str, str] = {
-    # 3.15.0: the stage-1 input tap was removed. It fed every captured block to
-    # a Pipecat pipeline that decided nothing, and the detector that was to
-    # take over the utterance boundaries was abandoned, so the setting had
-    # nothing left to turn on.
+    # 3.15.0: the stage-1 input tap and its unused Pipecat pipeline were removed.
     "LLM_DICTATION_PIPECAT_ENABLED": (
         "nothing: the Pipecat input tap is gone; the service a session listens "
         "and speaks through is named by LLM_DICTATION_BACKEND and "
         "LLM_SPEECH_BACKEND"
     ),
-    # 3.14.0: what a stop asks is answered from the word lists and a small
-    # model, which made the transcript-level echo guards and the
-    # end-of-turn word list redundant.
+    # 3.14.0: stop handling moved to word lists and a small model.
     "LLM_DICTATION_BARGE_IN_ACTION": (
         "nothing: anything said over zrb steers the turn, and a stop cancels it"
     ),
@@ -44,9 +33,7 @@ RETIRED_SETTINGS: dict[str, str] = {
         "nothing: an utterance now ends after LLM_DICTATION_MIN_SILENCE "
         "once it has words"
     ),
-    # 3.14.0: speech reads the whole reply, so the cut that shortened a long
-    # one, the summary that stood in for it, and the note that pointed at the
-    # screen are all gone.
+    # 3.14.0: speech reads the whole reply.
     "LLM_SPEECH_MAX_CHARS": "nothing: the whole reply is read",
     "LLM_SPEECH_SUMMARIZE": "nothing: the whole reply is read",
     "LLM_SPEECH_SUMMARY_MODEL": "nothing: the whole reply is read",

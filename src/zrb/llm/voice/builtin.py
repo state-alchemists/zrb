@@ -1,14 +1,10 @@
 """The speech services zrb ships with.
 
-Every one of these is a Pipecat service, built by a factory that imports Pipecat
-inside its body: naming a built-in — in the config, in a message, or by listing
-this registry — must not cost the voice stack's import, and neither must an
-install that never turns voice on.
+Factories import Pipecat inside their bodies: naming a built-in must not cost the
+voice stack's import.
 
-Only services that run the model here are built in. A cloud service is a
-Pipecat service too, and a project that wants one registers it (`registry.py`),
-because what it needs — a key, a region, a model it bills per character — is not
-something zrb can default.
+A project registers cloud services (`registry.py`) because their configuration is
+not something zrb can default.
 """
 
 from __future__ import annotations
@@ -45,10 +41,8 @@ def _stt_settings(
 ) -> "STTSettingsT | None":
     """*settings* with what *config* configures, or ``None`` when it configures none.
 
-    ``None`` is the honest answer when nothing is configured: the service then
-    keeps the model and language it was tested with, rather than zrb's guess at
-    them. The settings a caller passes in are its own class's, so a service that
-    publishes extra fields keeps its own type here.
+    When nothing is configured, the service keeps its tested model and language.
+    The settings retain the service's concrete type.
     """
     model = (config.stt_model or "").strip()
     language = (config.language or "").strip()
@@ -66,9 +60,8 @@ def _tts_settings(
 ) -> "TTSSettingsT | None":
     """*settings* with what *config* configures, or ``None`` when it configures none.
 
-    *default_voice* is what the service is built with when no voice is
-    configured. Empty for a service that has a default of its own, which then
-    keeps it, so ``None`` still means "zrb configured nothing here".
+    *default_voice* is used when no voice is configured; empty preserves the
+    service's own default.
     """
     voice = (config.voice or "").strip() or default_voice
     if not voice:

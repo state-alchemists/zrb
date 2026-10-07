@@ -1,4 +1,4 @@
-"""`Speaker`: playing in process when it can, and pausing."""
+"""Pin in-process playback selection, fallback, pause, and recall behavior."""
 
 import threading
 import time
@@ -30,7 +30,7 @@ class FakeBackend(AnySpeechBackend):
 
 
 class HangingUtterance(Utterance):
-    """Plays until stopped."""
+    """An utterance that plays until stopped."""
 
     def __init__(self, started):
         super().__init__([])
@@ -70,7 +70,7 @@ def _config(backend, lock_file, **fields):
 
 
 class AudioBackend(FakeBackend):
-    """Renders audio when *renders*, else only plays."""
+    """A backend that optionally renders audio."""
 
     def __init__(self, renders=True):
         super().__init__()
@@ -199,13 +199,13 @@ def test_pause_stops_only_the_sentence_that_cannot_pause(lock_file):
             return RecordingUtterance(text, played, release)
 
     speaker = Speaker(_config(Backend(), lock_file))
-    speaker.resume()  # nothing playing: nothing to do
+    speaker.resume()
     speaker.say("first")
     speaker.say("second")
     assert started.wait(1)
 
     speaker.pause()
-    assert not release.wait(0.3)  # held while paused
+    assert not release.wait(0.3)
 
     speaker.resume()
     assert release.wait(1)
@@ -225,8 +225,7 @@ def _slow_backend(created, release):
 
 @pytest.mark.parametrize("switch_off", [True, False])
 def test_speech_being_made_when_cleared_is_never_played(lock_file, switch_off):
-    """/speech off (or clearing the queue) while a sentence is still being
-    synthesized drops that sentence once it is made."""
+    """Clearing or disabling speech drops a sentence still being synthesized."""
     created, release = threading.Event(), threading.Event()
     backend = _slow_backend(created, release)
     speaker = Speaker(_config(backend, lock_file))
@@ -273,7 +272,7 @@ class SignallingBackend(FakeBackend):
 def test_speech_made_while_paused_waits_for_resume(lock_file):
     backend = SignallingBackend()
     speaker = Speaker(_config(backend, lock_file))
-    speaker.pause()  # a barge-in before anything is playing
+    speaker.pause()
 
     speaker.say("queued")
     assert not backend.done.wait(0.3)
@@ -317,19 +316,12 @@ def test_in_process_speech_falls_back_to_the_backends_own_utterance(
     backend = AudioBackend()
     Speaker(_config(backend, lock_file, player="auto")).speak("hello")
 
-    # What plays if the device cannot open: the backend's own way.
     fallbacks[0]().play(None)
     assert backend.played == ["hello"]
 
 
 class RendersOnlyBackend(AudioBackend):
-    """A backend that renders audio and has no program of its own to play it.
-
-    What a Pipecat speech service is: `create_utterance` can only refuse, because
-    the service makes audio for zrb to play and plays nothing itself. Named
-    something other than `AudioBackend` for the reason the real one is: the
-    speaker builds a local voice beside it, and tells them apart by name.
-    """
+    """A renders-only backend with no player program."""
 
     @property
     def name(self):
@@ -353,13 +345,7 @@ def _with_local_voice(monkeypatch, service, local):
 def test_a_device_that_fails_hands_a_service_s_sentence_to_the_local_voice(
     lock_file, monkeypatch
 ):
-    """A sentence a service rendered is not lost when the device will not open.
-
-    The fallback is a player program's way of saying the sentence, and the backend
-    that rendered the audio has none: asking it there raises where the failure is
-    already being handled, and the sentence goes unsaid — even though the speaker
-    is holding the local voice it would have used anyway.
-    """
+    """Device failure sends rendered speech to the local voice."""
     fallbacks = []
     _in_process(monkeypatch, fallbacks=fallbacks)
     service, local = RendersOnlyBackend(), AudioBackend()
@@ -375,12 +361,7 @@ def test_a_device_that_fails_hands_a_service_s_sentence_to_the_local_voice(
 def test_a_service_is_not_asked_to_play_when_zrb_cannot_play_it(
     lock_file, monkeypatch, caplog
 ):
-    """With a player program configured, the local voice is asked straight away.
-
-    There is nowhere to play what a renders-only backend makes, so asking it
-    anyway produces a failure that only says so — a warning naming Pipecat for a
-    choice the user made when they set the player program.
-    """
+    """A configured player program bypasses the renders-only service."""
     _in_process(monkeypatch)
     service, local = RendersOnlyBackend(), AudioBackend()
     _with_local_voice(monkeypatch, service, local)
@@ -414,8 +395,7 @@ def test_drain_does_not_wait_for_speech_a_pause_holds(lock_file):
 def test_an_output_device_that_cannot_open_is_not_tried_again(
     lock_file, monkeypatch, caplog
 ):
-    """Each try would ask a cloud backend for the sentence twice: once for
-    zrb to play, once for the player program."""
+    """An unavailable output device is not retried for the same sentence."""
     rendered: list[str] = []
 
     class FailingPcm(Utterance):

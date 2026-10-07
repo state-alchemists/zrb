@@ -32,12 +32,9 @@ class CmdTaskError(RuntimeError):
         self.return_code = return_code
 
 
-# The placeholder syntax `Tpl` renders. A plain string never reaches a renderer,
-# so a `{ctx.` in one is handed to the shell as those literal characters: the
-# command runs, exits 0, and is simply wrong — nothing raises. The static guard
-# `test/architecture/test_doc_tpl_placeholders.py` covers the docs and examples;
-# `_warn_on_unrendered_placeholder` below is the runtime half, for a `cmd` a user
-# writes into their own task.
+# A `{ctx.` in a plain string reaches the shell literally and may exit 0; the
+# static guard covers docs and examples, while `_warn_on_unrendered_placeholder`
+# handles user-defined commands.
 _PLACEHOLDER = re.compile(r"\{ctx\.")
 
 
@@ -48,22 +45,10 @@ class UntemplatedCmdWarning(UserWarning):
 def _warn_on_unrendered_placeholder(task_name: str, cmd: CmdVal) -> None:
     """Warn when a plain-string command carries a `{ctx.` placeholder.
 
-    Only a bare `str` is a footgun. `Tpl(...)`, `Cmd(...)`/`CmdPath(...)` and a
-    callable all resolve against the context, so a placeholder in those is the
-    point rather than a mistake — as is a plain string with no placeholder,
-    which is how shell braces (`${VAR}`, `awk '{print}'`) are written.
-
-    The message names the offending entry and never quotes it. A `cmd` can carry
-    a credential, and this warning is written at construction — before anything
-    has decided to run the task — to stderr by default and to whatever collects
-    stderr. `redact_env_map` cannot be used here: it redacts by environment
-    *name*, and a command string offers it no names to go by. Locating the entry
-    is what the message is for, so it says `cmd` or `cmd[<index>]` and leaves the
-    text out; `stacklevel` already points at the caller's `CmdTask(...)` line, so
-    quoting the command adds nothing a reader needs.
-
-    `warnings` keeps a per-location registry, so a task defined inside a loop
-    reports once instead of once per iteration.
+    `Tpl`, `Cmd`/`CmdPath` and callables resolve against context; plain strings
+    also allow shell braces such as `${VAR}` and `awk '{print}'`. The warning
+    names `cmd` or `cmd[<index>]` without quoting possible credentials, and
+    `warnings` reports once per source location.
     """
     values = cmd if isinstance(cmd, list) else [cmd]
     for index, value in enumerate(values):
@@ -103,9 +88,6 @@ class CmdTask(BaseTask):
         **kwargs: Unpack[BaseTaskParams],
     ):
         """Define a task that runs a shell command, locally or over SSH.
-
-        Every value below is a literal unless it is a `Tpl` or a callable, in
-        which case it is resolved against the task context at run time.
 
         Args:
             cmd: The command to run. A string, a `Tpl`, a callable taking the

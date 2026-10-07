@@ -1,12 +1,11 @@
-"""Closing a resource that is already on its way out.
+"""Closing a resource the voice features are done with, best-effort.
 
-Used for a microphone stream that would not start, a transcription stream given
-up on, and the Pipecat pipelines zrb pushes a capture into and reads speech out
-of. None has anyone left to report its failure to, and a failure must not reach
-the listening or the speaking around it, so closing is best-effort.
+Covers a microphone stream that would not start, a transcription stream given up
+on, and the Pipecat pipelines zrb pushes a capture into and reads speech out of.
+A failure has no one left to report to, and must not reach the listening or the
+speaking around it.
 
-Both voice features use these, which is why they live here rather than in either
-of them: dictation must not import speech, or speech dictation.
+Shared by both voice features, so neither imports the other.
 """
 
 from __future__ import annotations

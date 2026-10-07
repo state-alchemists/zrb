@@ -46,13 +46,7 @@ def test_passes_a_backend_instance_through():
 
 
 def test_a_pipecat_backend_is_named_after_the_service_it_was_given():
-    """The name a config gives is the service the pipeline is built from.
-
-    The backend resolves nothing itself: `zrb.llm.voice`'s manager does, so a
-    service registered in `zrb_init.py` is reachable by the same setting as the
-    built-in models, and a name neither is fails there with the package to
-    install rather than here.
-    """
+    """Pipecat backend names the configured service resolved by the manager."""
     backend = get_dictation_backend("moonshine", _config())
     assert isinstance(backend, PipecatDictationBackend)
     assert backend.name == "Pipecat (moonshine)"
