@@ -40,6 +40,7 @@ __all__ = [
     "SEGMENT_BLOCK_BYTES",
     "STTPipeline",
     "TranscriptRecorder",
+    "TranscriptionTimeout",
     "answer_every_segment",
     "create_transcript_sink",
 ]
@@ -70,6 +71,16 @@ def _iter_blocks(audio: bytes) -> Iterator[bytes]:
     """
     for start in range(0, len(audio), SEGMENT_BLOCK_BYTES):
         yield audio[start : start + SEGMENT_BLOCK_BYTES]
+
+
+class TranscriptionTimeout(RuntimeError):
+    """A segment the service did not answer within the transcription timeout.
+
+    Its own type rather than a plain `RuntimeError`, because the pipeline does
+    more with it than report it: a segment given up on this way is still being
+    transcribed, and the answer it is still owed would otherwise be read as the
+    answer to whatever segment is asked for next (`STTPipeline.transcribe`).
+    """
 
 
 class TranscriptRecorder:
@@ -139,7 +150,9 @@ class TranscriptRecorder:
         the answer is known to have stopped, or at *timeout*. Raises rather than
         returning a placeholder: a transcription that never came is not a
         transcript of an empty utterance, and the words a session acts on are
-        not something to invent.
+        not something to invent. A *timeout* is a type of its own
+        (`TranscriptionTimeout`), because giving up on a segment is not the end
+        of the matter for the pipeline that was handed it (`_retire`).
 
         A worker that has stopped is asked about before the wait and not after
         it: `expect_segment` has just cleared the arrival, so a pipeline known to
@@ -149,7 +162,7 @@ class TranscriptRecorder:
             try:
                 await asyncio.wait_for(self._arrived.wait(), timeout=timeout)
             except asyncio.TimeoutError:
-                raise RuntimeError(
+                raise TranscriptionTimeout(
                     f"the Pipecat service did not transcribe the segment within "
                     f"{timeout:g}s"
                 ) from None
@@ -284,11 +297,24 @@ class STTPipeline:
         # transcript, so a second segment pushed while the first is still being
         # transcribed would take the answer meant for it.
         self._segment_lock = asyncio.Lock()
+        # Set once this pipeline has been stopped: it transcribes nothing more,
+        # and whoever holds it starts another rather than hand it a segment.
+        self._is_closed = False
 
     @property
     def service(self) -> "STTService":
         """The service this pipeline transcribes through."""
         return self._service
+
+    @property
+    def is_closed(self) -> bool:
+        """Whether this pipeline has been stopped, and transcribes nothing more.
+
+        Asked by whoever holds one before handing over a segment: a pipeline that
+        retired itself — a segment it gave up on, whose answer names no segment —
+        is not one a session can be answered through (`_retire`).
+        """
+        return self._is_closed
 
     @classmethod
     async def start(
@@ -374,7 +400,10 @@ class STTPipeline:
         Raises rather than guessing when the service does not answer. An empty
         segment is refused outright: there is no audio to transcribe, and a
         service handed only silence answers with what it hears in silence,
-        which is not a transcript of anything the user said.
+        which is not a transcript of anything the user said. A segment the
+        service leaves unanswered past the timeout retires the pipeline: the
+        service is still transcribing it, and its answer would be taken for the
+        next segment's (`_retire`).
         """
         if not audio:
             raise ValueError("a Pipecat segment needs audio to transcribe")
@@ -388,7 +417,32 @@ class STTPipeline:
                 )
             self._recorder.expect_segment()
             await self._push_segment(audio)
-            return await self._recorder.wait(_TRANSCRIBE_TIMEOUT_SECONDS)
+            try:
+                return await self._recorder.wait(_TRANSCRIBE_TIMEOUT_SECONDS)
+            except TranscriptionTimeout:
+                await self._retire()
+                raise
+
+    async def _retire(self) -> None:
+        """Stop a pipeline that has a segment it can no longer account for.
+
+        The segment the wait just gave up on is still being transcribed, and a
+        `TranscriptionFrame` names no segment: the recorder can tell one answer
+        from another only by the order they arrive in, so that answer would be
+        read as the answer to whatever segment is asked for next — a user's
+        previous words taken for their current ones.
+
+        Pipecat offers no per-segment fix for that. An `InterruptionFrame` only
+        resets the service's own TTFB state, and cancelling the service's segment
+        task would leave it with nothing to transcribe with for the rest of the
+        session. What does stop a transcription in flight is the pipeline's own
+        cancel, so the pipeline is what goes; the backend that holds it starts
+        another one for the segment after
+        (`PipecatDictationBackend.prepare`), because a session that is still
+        listening is better served by a working pipeline than by a pipeline that
+        would fail every segment to come.
+        """
+        await self.close()
 
     async def _push_segment(self, audio: bytes) -> None:
         """Push one segment: its boundaries, and its audio between them.
@@ -426,7 +480,11 @@ class STTPipeline:
         already failed is not raised a second time here — whoever pushed its
         last frame has seen it — and its exception is read off so the loop does
         not log it as never retrieved.
+
+        The pipeline counts as stopped from here on, whether or not the worker
+        went quietly: nothing more is handed to it (`is_closed`).
         """
+        self._is_closed = True
         await close_quietly(self._worker.cancel, "the Pipecat worker")
         done, _ = await asyncio.wait({self._runner}, timeout=_CLOSE_TIMEOUT_SECONDS)
         if not done:

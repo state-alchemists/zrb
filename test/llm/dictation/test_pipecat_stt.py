@@ -23,6 +23,7 @@ from pipecat.services.settings import STTSettings  # noqa: E402
 from pipecat.services.stt_service import SegmentedSTTService  # noqa: E402
 from pipecat.utils.time import time_now_iso8601  # noqa: E402
 
+from zrb.llm.dictation import pipecat_stt  # noqa: E402
 from zrb.llm.dictation.listen import SAMPLE_RATE  # noqa: E402
 from zrb.llm.dictation.pipecat_stt import (  # noqa: E402
     STTPipeline,
@@ -127,6 +128,25 @@ class MetricsOnlySegmentedService(FakeSegmentedService):
     async def run_stt(self, audio: bytes) -> AsyncGenerator[Frame, None]:
         self.segments.append(audio)
         yield MetricsFrame([])
+
+
+class HeldSegmentedService(FakeSegmentedService):
+    """A service still transcribing its first segment when the next one arrives.
+
+    A large model on a slow machine is the case the transcription timeout exists
+    for. This one is held until the test lets it go, so its answer arrives after
+    the segment it belongs to has been given up on.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.hold = asyncio.Event()
+
+    async def run_stt(self, audio: bytes) -> AsyncGenerator[Frame, None]:
+        self.segments.append(audio)
+        if len(self.segments) == 1:
+            await self.hold.wait()
+        yield TranscriptionFrame(f"words {len(self.segments)}", "", time_now_iso8601())
 
 
 @pytest.mark.asyncio
@@ -276,6 +296,36 @@ async def test_a_metric_before_a_transcript_does_not_swallow_its_words():
         await pipeline.close()
 
     assert text == ANSWER
+
+
+@pytest.mark.asyncio
+async def test_a_timed_out_segment_is_not_answered_by_the_one_after_it(monkeypatch):
+    """A late transcript belongs to the segment it was made for, and no other.
+
+    A segment given up on is still being transcribed, and a `TranscriptionFrame`
+    names no segment: the recorder can tell one answer from another only by the
+    order they arrive in, so the late answer would be read as the next segment's
+    — the user's previous words taken for their current ones. The pipeline is
+    retired instead, which is the one thing that cancels a transcription still in
+    flight.
+    """
+    monkeypatch.setattr(pipecat_stt, "_TRANSCRIBE_TIMEOUT_SECONDS", 0.05)
+    service = HeldSegmentedService()
+    pipeline = await STTPipeline.start(service)
+    try:
+        with pytest.raises(pipecat_stt.TranscriptionTimeout):
+            await pipeline.transcribe(UTTERANCE)
+
+        assert pipeline.is_closed
+        # The held segment is answered all the same; nothing is waiting for it,
+        # and the segment asked for next is not answered with it.
+        service.hold.set()
+        with pytest.raises(RuntimeError, match="Pipecat worker stopped"):
+            await pipeline.transcribe(UTTERANCE)
+    finally:
+        await pipeline.close()
+
+    assert service.segments == [UTTERANCE + bytes(TRAILING_SILENCE_BYTES)]
 
 
 @pytest.mark.asyncio

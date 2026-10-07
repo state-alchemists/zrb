@@ -2,9 +2,10 @@
 
 No model is installed here and none is needed. The pipeline is stubbed, because
 what is under test is the wiring around it: that the service is built once and
-the same pipeline answers every utterance, that a model which will not load is
-reported to whoever asked for it, and that a session which ends lets the service
-go. What the pipeline does with an utterance is
+the same pipeline answers every utterance, that a pipeline which has stopped is
+replaced rather than kept, that a model which will not load is reported to
+whoever asked for it, and that a session which ends lets the service go. What
+the pipeline does with an utterance is
 `test/llm/dictation/test_pipecat_stt.py`.
 """
 
@@ -32,6 +33,9 @@ class FakePipeline:
     def __init__(self) -> None:
         self.segments: list[bytes] = []
         self.closes = 0
+        # Set by a test to stand in for a pipeline that retired itself: one that
+        # gave up on a segment whose answer names no segment, and stopped.
+        self.is_closed = False
 
     async def transcribe(self, audio: bytes) -> str:
         self.segments.append(audio)
@@ -90,6 +94,45 @@ async def test_the_service_is_built_once_and_answers_every_utterance(monkeypatch
     assert reports == ["Loading the moonshine speech service…"]
     assert (first, second) == ("hello there", "hello there")
     assert pipeline.segments == [b"one", b"two"]
+
+
+@pytest.mark.asyncio
+async def test_a_pipeline_that_has_stopped_is_replaced_for_the_next_segment(
+    monkeypatch,
+):
+    """A session that is still listening is not left with a stopped pipeline.
+
+    A pipeline retires itself when a segment it timed out on is still in the
+    service's hands and its answer would be taken for the next segment's. The
+    session keeps listening after a failed transcription, so keeping the retired
+    pipeline would fail every segment after it — and would keep the model loaded
+    behind a pipeline nothing asks anything of.
+    """
+    pipelines = [FakePipeline(), FakePipeline()]
+    started: list[FakePipeline] = []
+    built: list[str] = []
+
+    def create_service(name: str, config: DictationConfig) -> FakeService:
+        built.append(name)
+        return FakeService()
+
+    async def start(service: FakeService, sample_rate: int = SAMPLE_RATE):
+        pipeline = pipelines[len(started)]
+        started.append(pipeline)
+        return pipeline
+
+    monkeypatch.setattr(f"{MODULE}.stt_manager.create_service", create_service)
+    monkeypatch.setattr(f"{MODULE}.STTPipeline.start", start)
+    backend = PipecatDictationBackend("moonshine", _config())
+    await backend.prepare(lambda _message: None)
+    assert await backend.transcribe(b"one") == "hello there"
+
+    pipelines[0].is_closed = True  # it retired itself on a segment that timed out
+    assert await backend.transcribe(b"two") == "hello there"
+
+    assert built == ["moonshine", "moonshine"]
+    assert started == pipelines
+    assert pipelines[1].segments == [b"two"]
 
 
 @pytest.mark.asyncio

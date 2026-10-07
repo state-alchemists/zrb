@@ -84,12 +84,26 @@ class PipecatDictationBackend(AnyDictationBackend):
 
         `report` hears about it first: a model is downloaded or read from disk
         here, which on a first run is the longest wait in the session.
+
+        A pipeline that has stopped counts as no pipeline, and is not one to hand
+        a segment to either: `STTPipeline.transcribe` retires one whose segment
+        timed out, because that segment is still in the service's hands and its
+        answer would be taken for the next segment's. A session that is still
+        listening gets a new one, and pays for the model again — the price of a
+        service that had stopped answering.
         """
         async with self._preparing:
             if self._is_closed:
                 self._refuse_a_closed_service()
-            if self._pipeline is not None:
+            pipeline = self._pipeline
+            if pipeline is not None and not pipeline.is_closed:
                 return
+            if pipeline is not None:
+                # A retired pipeline is stopped, and it stopped with a segment it
+                # could no longer account for. Letting go of it here is what lets
+                # the next segment start the one it is answered through.
+                with self._handoff:
+                    self._pipeline, self._loop = None, None
             report(f"Loading the {self._service_name} speech service…")
             service = await asyncio.to_thread(self._create_service)
             loop = asyncio.get_running_loop()
