@@ -312,8 +312,8 @@ async def listen(
     on_barge_in: Callable[[], None] | None = None,
     create_stream: "CreateStream | None" = None,
     on_partial: Callable[[str], None] | None = None,
-    on_partial_over_zrb: Callable[[bool], None] | None = None,
     on_barge_in_dropped: Callable[[], None] | None = None,
+    on_partial_over_zrb: Callable[[bool], None] | None = None,
 ) -> AsyncGenerator[Utterance, None]:
     """Yield utterances from the default microphone while *should_listen*
     holds; the microphone closes once it stops holding. With *keep_partial*,

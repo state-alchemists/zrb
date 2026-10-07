@@ -68,7 +68,14 @@ def _config(**fields):
 
 
 async def _collect(
-    blocks, streams, config=None, partials=None, over_speech=None, speaking=False
+    blocks,
+    streams,
+    config=None,
+    partials=None,
+    over_speech=None,
+    speaking=False,
+    dropped=None,
+    legacy_positional=False,
 ):
     captured = {}
     made = list(streams)
@@ -89,13 +96,31 @@ async def _collect(
         return remaining[0] >= 0
 
     async def consume():
-        stream = listen(
-            config or _config(),
-            should_listen,
-            create_stream=create_stream,
-            on_partial=None if partials is None else partials.append,
-            on_partial_over_zrb=None if over_speech is None else over_speech.append,
-        )
+        resolved_config = config or _config()
+        partial = None if partials is None else partials.append
+        over = None if over_speech is None else over_speech.append
+        dropped_callback = None if dropped is None else lambda: dropped.append(True)
+        if legacy_positional:
+            stream = listen(
+                resolved_config,
+                should_listen,
+                False,
+                None,
+                None,
+                create_stream,
+                partial,
+                dropped_callback,
+                over,
+            )
+        else:
+            stream = listen(
+                resolved_config,
+                should_listen,
+                create_stream=create_stream,
+                on_partial=partial,
+                on_barge_in_dropped=dropped_callback,
+                on_partial_over_zrb=over,
+            )
         return [utterance async for utterance in stream]
 
     with (
@@ -136,6 +161,23 @@ async def test_live_partial_reports_speech_over_zrb_before_barge_in_minimum():
     )
 
     assert over_speech[:2] == [True, True]
+
+
+@pytest.mark.asyncio
+async def test_legacy_positional_callbacks_keep_barge_in_dropped_registered():
+    dropped = []
+    blocks = [_block(0.5)] * 3
+
+    await _collect(
+        blocks,
+        [RecordingStream([])],
+        config=_config(barge_in_enabled=True, barge_in_min_speech=0.1),
+        speaking=True,
+        dropped=dropped,
+        legacy_positional=True,
+    )
+
+    assert dropped == [True]
 
 
 @pytest.mark.asyncio
