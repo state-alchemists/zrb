@@ -62,12 +62,22 @@ class DictationConfig:
     vosk_max_file_mb: float | None = None
     vosk_max_files: float | None = None
     vosk_confidence: float | None = None
+    barge_in_hold: bool | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:
         """Whether *barge_in_enabled* is set: hands-free hears the user
         while zrb speaks, and a stop word cancels a running turn."""
         return bool(self.barge_in_enabled)
+
+    @property
+    def is_barge_in_hold_enabled(self) -> bool:
+        """Whether speech heard over zrb holds its voice at once, before
+        anything about it is known. Unset counts as set: the hold is what a
+        session does until it is turned off."""
+        if self.barge_in_hold is None:
+            return True
+        return bool(self.barge_in_hold)
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""

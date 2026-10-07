@@ -41,6 +41,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_MAX_BACKLOG: str = "30.0"
         self.DEFAULT_LLM_DICTATION_PRE_ROLL: str = "0.3"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_ENABLED: str = "off"
+        self.DEFAULT_LLM_DICTATION_BARGE_IN_HOLD: str = "on"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_SPEECH: str = "0.3"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MARGIN: str = "3.0"
         self.DEFAULT_LLM_DICTATION_BARGE_IN_MIN_WORDS: str = "2"
@@ -262,6 +263,24 @@ class LLMDictationMixin:
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_MIN_WORDS words. 'off' "
             "keeps the microphone deaf while zrb speaks: zrb and you take "
             "turns. Default: off, or as {ENV_PREFIX}_LLM_VOICE sets it."
+        ),
+    )
+
+    LLM_DICTATION_BARGE_IN_HOLD = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "With barge-in on, whether speech heard over zrb holds its voice "
+            "at once, before anything about it is known. 'on' (the default) "
+            "pauses zrb as soon as the microphone hears loud speech over it, "
+            "and the words then stop it or give the pause back — on speakers, "
+            "zrb's own voice crossing the bar is heard as a brief stutter. "
+            "'off' never pauses on loudness: a stop word or a wake word seen "
+            "in the live transcript of a backend that transcribes while you "
+            "speak stops zrb as soon as it is heard, and anything else stops "
+            "it once the utterance is transcribed. A room loud enough to keep "
+            "crossing the bar can no longer make zrb stutter, at the cost of "
+            "speaking until the words arrive. Default: on."
         ),
     )
 

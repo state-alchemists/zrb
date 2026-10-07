@@ -118,8 +118,12 @@ class DictationSession:
         self._resting_badge = self._listening_badge()
         # Chat session whose speech a barge-in silences.
         self._session_key = current_session_key()
-        # Hold zrb's voice until the overlaid audio is identified as speech or noise.
-        self._is_paused_by_barge_in = False
+        # A barge-in reported for the utterance in progress; its words settle it.
+        self._is_heard_over_zrb = False
+        # Set after an early partial already stopped this utterance.
+        self._partial_barge_in_settled = False
+        # Set while the hold actually paused zrb's voice for that utterance.
+        self._is_holding_speech = False
         # Badge restored when zrb resumes after a barge-in.
         self._badge_before_pause = self._resting_badge
         # A wake word said alone arms the utterances started before this.
@@ -382,6 +386,7 @@ class DictationSession:
                 on_barge_in=self._handle_barge_in,
                 create_stream=backend.create_stream,
                 on_partial=self._show_partial,
+                on_partial_over_zrb=self._set_partial_over_zrb,
                 on_barge_in_dropped=self._release_barge_in,
             )
         ) as mic:
@@ -509,17 +514,25 @@ class DictationSession:
         return reply
 
     def _handle_barge_in(self) -> None:
-        """The user may be talking over zrb: hold its voice at once, and let
-        the words decide whether it stays held.
+        """The user may be talking over zrb: with the hold on, hold its voice
+        at once, and let the words decide whether it stays held.
 
         Held on loudness, before anything is known: the microphone has heard
         speech over zrb, and being talked over is worse than a pause that
         turns out to be zrb's own voice — `_release_barge_in` gives that back
         a moment later. Waiting for the words instead would leave zrb talking
-        through the whole sentence that interrupted it."""
-        if not self._is_paused_by_barge_in:
+        through the whole sentence that interrupted it. With ``barge_in_hold``
+        off there is no hold: zrb speaks on until the words say it should not,
+        so a room loud enough to keep crossing the bar cannot make it stutter."""
+        if self._partial_barge_in_settled:
+            return
+        is_first_report = not self._is_heard_over_zrb
+        self._is_heard_over_zrb = True
+        if not self._config.is_barge_in_hold_enabled:
+            return
+        if is_first_report:
             self._badge_before_pause = self._resting_badge
-        self._is_paused_by_barge_in = True
+        self._is_holding_speech = True
         pause_speech(self._session_key)
         self._rest(_PAUSED)
 
@@ -528,31 +541,42 @@ class DictationSession:
         (with wake words: starting with one); carry on after anything else
         (a cough, leftover echo) — which is where a hold taken on loudness
         alone is given back. Words too brief to have held zrb (a crisp "stop"
-        is shorter than ``barge_in_min_speech``) stop it too."""
+        is shorter than ``barge_in_min_speech``) stop it too, unless they
+        already did: a stop clears the report it settled."""
         if not utterance.is_over_speech:
+            self._partial_barge_in_settled = False
+            return
+        if self._partial_barge_in_settled:
+            self._partial_barge_in_settled = False
             return
         if not is_meant_for_zrb:
             self._release_barge_in()
-        elif self._is_paused_by_barge_in or not utterance.is_barge_in:
+        elif self._is_heard_over_zrb or not utterance.is_barge_in:
             self._stop_speech()
+        self._partial_barge_in_settled = False
 
     def _confirm_barge_in(self) -> None:
-        """A wake word heard while zrb is still speaking: the hold taken on
-        loudness was the user's, so it becomes a stop."""
-        if self._is_paused_by_barge_in:
+        """A wake word heard while zrb is still speaking: what it is hearing
+        over its voice is the user's, so the hold becomes a stop."""
+        if self._is_heard_over_zrb:
             self._stop_speech()
 
     def _stop_speech(self) -> None:
-        self._is_paused_by_barge_in = False
+        self._is_heard_over_zrb = False
+        self._partial_barge_in_settled = True
+        self._is_holding_speech = False
         interrupt_speech(self._session_key)
         self._rest(_INTERRUPTED)
 
     def _release_barge_in(self) -> None:
-        """zrb carries on: resume its voice and the badge it paused."""
-        if self._is_paused_by_barge_in:
-            self._is_paused_by_barge_in = False
-            resume_speech(self._session_key)
-            self._rest(self._badge_before_pause)
+        """zrb carries on: give the report back, and the voice it held."""
+        self._is_heard_over_zrb = False
+        self._partial_barge_in_settled = False
+        if not self._is_holding_speech:
+            return
+        self._is_holding_speech = False
+        resume_speech(self._session_key)
+        self._rest(self._badge_before_pause)
 
     def _is_interrupting(self, utterance: Utterance) -> bool:
         """Whether *utterance* talks over zrb: over its voice, or, with
@@ -601,18 +625,32 @@ class DictationSession:
         )
         return verdict.intent if verdict is not None else "ask"
 
+    def _set_partial_over_zrb(self, is_over_speech: bool) -> None:
+        """Remember whether the live partial belongs to speech over zrb."""
+        if not self._partial_barge_in_settled:
+            self._is_heard_over_zrb = is_over_speech
+
     def _show_partial(self, partial: str) -> None:
         """Show the end of what is being heard, while it is said. With wake
         words, words heard over zrb that start with one stop it without
-        waiting for the utterance to end. Without, the transcript decides:
-        a streaming recognizer guesses a word ("the") for a cough, and zrb
-        is already paused, so waiting costs nothing."""
+        waiting for the utterance to end. Without, and with the hold off, a
+        stop word said alone stops it the same way, so a "stop" makes zrb
+        quiet as soon as it is heard rather than when the utterance ends.
+        With the hold on the transcript decides, which costs nothing: zrb is
+        already paused while a streaming recognizer guesses a word ("the") for
+        a cough."""
         if not partial:
             return
         self._show(f"👂 …{partial[-_MAX_QUOTED_CHARS:]}")
-        if self._wake_words and self._is_paused_by_barge_in:
+        if not self._is_heard_over_zrb:
+            return
+        if self._wake_words:
             if strip_wake_word(partial, self._wake_words) is not None:
                 self._confirm_barge_in()
+            return
+        if not self._config.is_barge_in_hold_enabled:
+            if is_said_alone(partial, self._stop_words):
+                self._stop_speech()
 
     def _show_mic_state(self, state: MicState) -> None:
         self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))

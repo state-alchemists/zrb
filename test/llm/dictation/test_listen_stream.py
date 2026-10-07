@@ -67,7 +67,16 @@ def _config(**fields):
     return DictationConfig(**{**base, **fields}).resolve()
 
 
-async def _collect(blocks, streams, config=None, partials=None):
+async def _collect(
+    blocks,
+    streams,
+    config=None,
+    partials=None,
+    over_speech=None,
+    speaking=False,
+    dropped=None,
+    legacy_positional=False,
+):
     captured = {}
     made = list(streams)
 
@@ -87,17 +96,36 @@ async def _collect(blocks, streams, config=None, partials=None):
         return remaining[0] >= 0
 
     async def consume():
-        stream = listen(
-            config or _config(),
-            should_listen,
-            create_stream=create_stream,
-            on_partial=None if partials is None else partials.append,
-        )
+        resolved_config = config or _config()
+        partial = None if partials is None else partials.append
+        over = None if over_speech is None else over_speech.append
+        dropped_callback = None if dropped is None else lambda: dropped.append(True)
+        if legacy_positional:
+            stream = listen(
+                resolved_config,
+                should_listen,
+                False,
+                None,
+                None,
+                create_stream,
+                partial,
+                dropped_callback,
+                over,
+            )
+        else:
+            stream = listen(
+                resolved_config,
+                should_listen,
+                create_stream=create_stream,
+                on_partial=partial,
+                on_barge_in_dropped=dropped_callback,
+                on_partial_over_zrb=over,
+            )
         return [utterance async for utterance in stream]
 
     with (
         patch.dict("sys.modules", {"sounddevice": fake_sd}),
-        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=speaking),
     ):
         task = asyncio.create_task(consume())
         await asyncio.sleep(0)
@@ -117,6 +145,39 @@ async def test_an_utterance_is_fed_to_its_stream_as_it_is_spoken():
     assert utterance.stream is stream
     assert b"".join(stream.fed) == utterance.audio
     assert partials[:3] == ["run", "run the", "run the tests"]
+
+
+@pytest.mark.asyncio
+async def test_live_partial_reports_speech_over_zrb_before_barge_in_minimum():
+    over_speech = []
+    blocks = [_block(0.5)] * 2 + [_block(0.0)] * 5
+
+    await _collect(
+        blocks,
+        [RecordingStream(["stop", "stop"])],
+        config=_config(barge_in_enabled=True, barge_in_min_speech=1.0),
+        over_speech=over_speech,
+        speaking=True,
+    )
+
+    assert over_speech[:2] == [True, True]
+
+
+@pytest.mark.asyncio
+async def test_legacy_positional_callbacks_keep_barge_in_dropped_registered():
+    dropped = []
+    blocks = [_block(0.5)] * 3
+
+    await _collect(
+        blocks,
+        [RecordingStream([])],
+        config=_config(barge_in_enabled=True, barge_in_min_speech=0.1),
+        speaking=True,
+        dropped=dropped,
+        legacy_positional=True,
+    )
+
+    assert dropped == [True]
 
 
 @pytest.mark.asyncio

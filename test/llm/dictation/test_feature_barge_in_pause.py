@@ -1,5 +1,6 @@
 """Talking over zrb: its voice pauses at once, then stops for words or
-carries on for anything else."""
+carries on for anything else — unless the hold is off, when only the words
+decide and a loud room cannot make it stutter."""
 
 import asyncio
 import contextlib
@@ -355,3 +356,80 @@ async def test_a_broken_microphone_mid_barge_in_resumes_speech(monkeypatch, spee
 
     assert speech[:2] == ["pause", "resume"]
     assert not session.is_hands_free
+
+
+@pytest.mark.asyncio
+async def test_with_the_hold_off_noise_over_zrb_never_touches_its_voice(
+    monkeypatch, speech
+):
+    """What the hold costs, paid in a loud room: zrb is paused before anything
+    is known, so noise over the bar is heard as a pause and a resume. Without
+    the hold there is no stutter — and the words still stop it."""
+    _listen(monkeypatch, "and this and this", "go on")
+    ui = FakeUI()
+    set_session_ui(ui)
+
+    assert await _replies(_session(barge_in_hold=False), 1) == ["go on"]
+    # The noise was heard over zrb and never held it: no pause, no resume.
+    assert speech == ["interrupt"]
+    assert "✋ paused · listening…" not in ui.badges
+
+
+@pytest.mark.asyncio
+async def test_with_the_hold_off_a_stop_word_over_zrb_stops_it_as_soon_as_it_is_heard(
+    monkeypatch, speech
+):
+    """The live transcript is what is left to decide on. A stop word said over
+    zrb is acted on as it is heard, not when the utterance ends, and the turn
+    is cancelled from the finished utterance as it would be either way."""
+    async def listen(config, should_listen, **kwargs):
+        kwargs["on_barge_in"]()
+        kwargs["on_partial"]("stop")
+        kwargs["on_partial"]("stop")
+        yield Utterance(b"stop", 0, 0.3, is_over_speech=True)
+        yield Utterance(b"go on", 1, 1.5)
+
+    monkeypatch.setattr("zrb.llm.dictation.feature.listen", listen)
+    ui = FakeUI()
+    set_session_ui(ui)
+
+    assert await _replies(_session(barge_in_hold=False), 1) == ["go on"]
+    assert speech == ["interrupt"]
+    assert ui.cancelled == ["barge_in"]
+
+
+@pytest.mark.asyncio
+async def test_with_the_hold_off_a_wake_word_over_zrb_still_stops_it_early(
+    monkeypatch, speech
+):
+    """Without a hold, a wake word in the live transcript is still the user
+    saying they want zrb to stop: the hold is not what makes that work."""
+    _listen(monkeypatch, "hey zed wait there", partials=["hey zed", "hey zed"])
+
+    session = _session(barge_in_hold=False, wake_words=["hey zed"])
+    assert await _replies(session, 1) == ["wait there"]
+    assert speech == ["interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_with_the_hold_on_a_partial_stop_word_waits_for_the_transcript(
+    monkeypatch, speech
+):
+    """The default is unchanged. With the hold on the live transcript is shown
+    and nothing else: a stop word said alone is read from the finished
+    utterance, with zrb already paused while it is guessed at."""
+    _listen(monkeypatch, "stop", "go on", partials=["stop"])
+
+    assert await _replies(_session(), 1) == ["go on"]
+    assert speech == ["pause", "interrupt", "pause", "interrupt"]
+
+
+@pytest.mark.asyncio
+async def test_the_hold_off_reaches_a_session_from_the_setting(monkeypatch, speech):
+    """`ZRB_LLM_DICTATION_BARGE_IN_HOLD=off` is what a session reads, so a
+    noisy room is answered without a code change."""
+    monkeypatch.setenv("ZRB_LLM_DICTATION_BARGE_IN_HOLD", "off")
+    _listen(monkeypatch, "and this and this", "go on")
+
+    assert await _replies(_session(), 1) == ["go on"]
+    assert speech == ["interrupt"]

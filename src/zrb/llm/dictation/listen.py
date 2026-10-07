@@ -149,6 +149,11 @@ class UtteranceCutter:
         over zrb's voice at all, even too briefly to be a barge-in."""
         return self._is_finished_over_speech
 
+    @property
+    def is_over_speech(self) -> bool:
+        """Whether the utterance in progress is loud over zrb's voice."""
+        return self._loud_echo_blocks > 0
+
     def feed(
         self, block: Any, level: float, captured_at: float, is_echo: bool
     ) -> "tuple[list[Any], float, float] | None":
@@ -308,6 +313,7 @@ async def listen(
     create_stream: "CreateStream | None" = None,
     on_partial: Callable[[str], None] | None = None,
     on_barge_in_dropped: Callable[[], None] | None = None,
+    on_partial_over_zrb: Callable[[bool], None] | None = None,
 ) -> AsyncGenerator[Utterance, None]:
     """Yield utterances from the default microphone while *should_listen*
     holds; the microphone closes once it stops holding. With *keep_partial*,
@@ -315,7 +321,9 @@ async def listen(
     `MicState` whenever it changes, starting with the first block.
     *on_barge_in* is called once per utterance, as soon as it has talked over
     zrb long enough to count as an interruption (`UtteranceCutter`), before
-    the utterance ends.
+    the utterance ends. *on_partial_over_zrb* receives whether the current
+    streamed partial belongs to speech loud over zrb, even when it is too short
+    to count as a barge-in.
 
     With *create_stream* returning a stream (`AnyTranscriptionStream`), each
     utterance is fed to one while it is spoken, handed over on its
@@ -351,7 +359,7 @@ async def listen(
         np,
         config,
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
-        _UtteranceStreamer(np, create_stream, on_partial),
+        _UtteranceStreamer(np, create_stream, on_partial, on_partial_over_zrb),
     )
     stream = await _open_microphone(
         sd,
@@ -531,10 +539,12 @@ class _UtteranceStreamer:
         np: Any,
         create_stream: "CreateStream | None",
         on_partial: Callable[[str], None] | None,
+        on_partial_over_zrb: Callable[[bool], None] | None,
     ) -> None:
         self._np = np
         self._create_stream = create_stream
         self._on_partial = on_partial
+        self._on_partial_over_zrb = on_partial_over_zrb
         self._stream: "AnyTranscriptionStream | None" = None
         self._fed = 0
         # `UtteranceCutter.utterance_count` of the utterance being fed.
@@ -550,11 +560,11 @@ class _UtteranceStreamer:
             return
         self._utterance = cutter.utterance_count
         try:
-            await self._stream_blocks(blocks)
+            await self._stream_blocks(blocks, cutter.is_over_speech)
         except Exception as exc:
             await self._give_up(exc)
 
-    async def _stream_blocks(self, blocks: list[Any]) -> None:
+    async def _stream_blocks(self, blocks: list[Any], is_over_speech: bool) -> None:
         if self._create_stream is None:
             return
         if self._stream is None:
@@ -564,6 +574,8 @@ class _UtteranceStreamer:
                 self._create_stream = None
                 return
         await self._feed(blocks)
+        if self._on_partial_over_zrb is not None:
+            self._on_partial_over_zrb(is_over_speech)
         if self._on_partial is not None:
             self._on_partial(self._stream.partial)
 
