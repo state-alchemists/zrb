@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.pipecat_stt import STTPipeline
 from zrb.llm.voice.manager import stt_manager
+from zrb.util.async_thread import run_in_daemon
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -107,7 +108,9 @@ class PipecatDictationBackend(AnyDictationBackend):
                 with self._handoff:
                     self._pipeline, self._loop = None, None
             report(f"Loading the {self._service_name} speech service…")
-            service = await asyncio.to_thread(self._create_service)
+            service = await run_in_daemon(
+                self._create_service, name="zrb-pipecat-stt-loader"
+            )
             loop = asyncio.get_running_loop()
             pipeline = await STTPipeline.start(service)
             with self._handoff:

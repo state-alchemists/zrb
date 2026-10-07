@@ -241,6 +241,38 @@ async def test_a_teardown_while_the_model_loads_leaves_no_pipeline(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_cancelled_service_loading_uses_a_daemon_thread(monkeypatch):
+    """A blocked model constructor must not keep interpreter shutdown alive."""
+    loading = threading.Event()
+    reached = threading.Event()
+    daemon_flags: list[bool] = []
+
+    def create_service(name: str, config: DictationConfig) -> FakeService:
+        daemon_flags.append(threading.current_thread().daemon)
+        reached.set()
+        loading.wait(5)
+        return FakeService()
+
+    monkeypatch.setattr(f"{MODULE}.stt_manager.create_service", create_service)
+    backend = PipecatDictationBackend("moonshine", _config())
+    preparing = asyncio.create_task(backend.prepare(lambda _message: None))
+
+    try:
+        deadline = asyncio.get_running_loop().time() + 5
+        while not reached.is_set() and asyncio.get_running_loop().time() < deadline:
+            await asyncio.sleep(0.01)
+        assert reached.is_set(), "the model was never loaded"
+
+        preparing.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await preparing
+
+        assert daemon_flags == [True]
+    finally:
+        loading.set()
+
+
+@pytest.mark.asyncio
 async def test_the_backend_names_the_loop_its_pipeline_runs_on(monkeypatch):
     """The loop a session can be closed from is the one that owns the pipeline.
 

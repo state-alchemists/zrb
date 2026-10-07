@@ -15,6 +15,7 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
+from zrb.util.async_thread import run_in_daemon
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,7 @@ class VoskDictationBackend(AnyDictationBackend):
             return json.loads(recognizer.FinalResult())
 
         # Decoding takes long enough to freeze the chat UI on the event loop.
-        return await asyncio.to_thread(recognize)
+        return await run_in_daemon(recognize, name="zrb-vosk-recognizer")
 
     async def create_stream(self) -> AnyTranscriptionStream:
         model = await self._get_model()
@@ -151,7 +152,9 @@ class VoskDictationBackend(AnyDictationBackend):
             raise RuntimeError(_missing_vosk_message()) from None
         model_path = get_vosk_model_dir(self._model_name) or await self._download()
         try:
-            self._model = await asyncio.to_thread(Model, model_path)
+            self._model = await run_in_daemon(
+                Model, model_path, name="zrb-vosk-model-loader"
+            )
         except Exception as e:
             prefix = CFG.ENV_PREFIX
             raise RuntimeError(
@@ -304,7 +307,10 @@ async def download_vosk_model(
         )
 
     try:
-        resp = await asyncio.to_thread(_urllib.urlopen, url, timeout=timeout or None)
+        resp = await run_in_daemon(
+            lambda: _urllib.urlopen(url, timeout=timeout or None),
+            name="zrb-vosk-download",
+        )
     except Exception as exc:
         raise _download_error(exc) from exc
 
@@ -319,7 +325,9 @@ async def download_vosk_model(
                     # CancelledError (BaseException) skips `except Exception`
                     # below and propagates, running `finally` to close the
                     # socket — the abort path.
-                    chunk = await asyncio.to_thread(resp.read, 1 << 16)
+                    chunk = await run_in_daemon(
+                        resp.read, 1 << 16, name="zrb-vosk-download-read"
+                    )
                     if not chunk:
                         break
                     downloaded += len(chunk)
@@ -338,7 +346,14 @@ async def download_vosk_model(
         finally:
             resp.close()
 
-        await asyncio.to_thread(_extract_model, zip_path, cache, model_name, limits)
+        await run_in_daemon(
+            _extract_model,
+            zip_path,
+            cache,
+            model_name,
+            limits,
+            name="zrb-vosk-model-extractor",
+        )
     finally:
         _remove_quietly(zip_path)
 
