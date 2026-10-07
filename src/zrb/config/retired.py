@@ -11,6 +11,15 @@ prose.
 """
 
 RETIRED_SETTINGS: dict[str, str] = {
+    # 3.15.0: the stage-1 input tap was removed. It fed every captured block to
+    # a Pipecat pipeline that decided nothing, and the detector that was to
+    # take over the utterance boundaries was abandoned, so the setting had
+    # nothing left to turn on.
+    "LLM_DICTATION_PIPECAT_ENABLED": (
+        "nothing: the Pipecat input tap is gone; the service a session listens "
+        "and speaks through is named by LLM_DICTATION_BACKEND and "
+        "LLM_SPEECH_BACKEND"
+    ),
     # 3.14.0: what a stop asks is answered from the word lists and a small
     # model, which made the transcript-level echo guards and the
     # end-of-turn word list redundant.

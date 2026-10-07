@@ -194,17 +194,6 @@ def test_two_speakers_playing_at_once_keep_speaking_true(tmp_path):
     assert not is_speaking()
 
 
-def test_a_closed_speaker_stops_being_probed_for_its_lock_file(lock_file):
-    """`is_speaking` probes every lock file a live speaker configured, once
-    per captured audio block. A speaker that has gone away must stop being
-    one, or a long-lived process keeps re-checking a dead session's path and
-    stays muted whenever anything else holds it."""
-    Speaker(_config(FakeBackend(), lock_file)).close()
-
-    with hold_file_lock(lock_file):
-        assert not is_speaking()
-
-
 def test_a_lock_file_is_only_forgotten_once_every_speaker_using_it_is(lock_file):
     first = Speaker(_config(FakeBackend(), lock_file))
     second = Speaker(_config(FakeBackend(), lock_file))
@@ -305,41 +294,6 @@ def test_ctrl_c_during_the_exit_drain_cuts_off_without_a_traceback(
     assert backend.utterances[0].stopped.is_set()
 
 
-def test_a_closed_speaker_says_nothing(lock_file):
-    backend = FakeBackend()
-    speaker = Speaker(_config(backend, lock_file))
-    speaker.close()
-
-    speaker.say("too late")
-    speaker.drain()
-
-    assert backend.played == []
-
-
-def test_speech_created_after_close_is_never_played(lock_file):
-    """A backend still synthesizing when the session closes."""
-    created = threading.Event()
-    release = threading.Event()
-
-    class SlowBackend(FakeBackend):
-        def create_utterance(self, text):
-            created.set()
-            release.wait(5)
-            return super().create_utterance(text)
-
-    backend = SlowBackend()
-    speaker = Speaker(_config(backend, lock_file))
-    speaker.say("slow")
-    assert created.wait(1)
-
-    speaker.close()
-    release.set()
-    time.sleep(0.1)
-
-    assert backend.played == []
-    assert backend.utterances[0].cleaned
-
-
 def test_text_said_later_keeps_its_place_and_is_waited_for_at_exit(lock_file):
     """A summary queued at the end of `zrb chat --message` must be spoken
     before the process exits, and before what was queued after it."""
@@ -351,26 +305,6 @@ def test_text_said_later_keeps_its_place_and_is_waited_for_at_exit(lock_file):
     speaker.drain()
 
     assert backend.played == ["the summary", "the approval"]
-
-
-def test_text_said_later_is_dropped_when_the_speaker_closes(lock_file):
-    backend = FakeBackend()
-    speaker = Speaker(_config(backend, lock_file))
-    producing = threading.Event()
-    release = threading.Event()
-
-    def produce():
-        producing.set()
-        release.wait(5)
-        return "too late"
-
-    speaker.say_later(produce)
-    assert producing.wait(1)
-    speaker.close()
-    release.set()
-    time.sleep(0.1)
-
-    assert backend.played == []
 
 
 def test_stale_text_is_skipped(lock_file):

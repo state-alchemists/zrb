@@ -52,6 +52,9 @@
     "PromptRegistry",
     "RsyncTask",
     "Rule",
+    "STTServiceManager",
+    "STTServiceRegistry",
+    "STTServiceSpec",
     "Scaffolder",
     "Scheduler",
     "Session",
@@ -66,6 +69,9 @@
     "SubAgentDefinition",
     "SubAgentManager",
     "SubAgentRegistry",
+    "TTSServiceManager",
+    "TTSServiceRegistry",
+    "TTSServiceSpec",
     "Task",
     "TcpCheck",
     "TextInput",
@@ -90,10 +96,14 @@
     "register_theme",
     "skill_manager",
     "skill_registry",
+    "stt_manager",
+    "stt_registry",
     "sub_agent_manager",
     "sub_agent_registry",
     "to_infinite_stream",
     "tool_registry",
+    "tts_manager",
+    "tts_registry",
     "web_auth_config"
   ],
   "classes": {
@@ -1358,6 +1368,45 @@
       ],
       "members": []
     },
+    "STTServiceManager": {
+      "init": [
+        "registry:POSITIONAL_OR_KEYWORD:0"
+      ],
+      "members": [
+        "create_service",
+        "describe",
+        "get_spec",
+        "list_lines",
+        "names",
+        "register",
+        "registry"
+      ]
+    },
+    "STTServiceRegistry": {
+      "init": [
+        "builtins:POSITIONAL_OR_KEYWORD:0"
+      ],
+      "members": [
+        "all",
+        "clear",
+        "get",
+        "names",
+        "register"
+      ]
+    },
+    "STTServiceSpec": {
+      "init": [
+        "name:POSITIONAL_OR_KEYWORD:0",
+        "provider:POSITIONAL_OR_KEYWORD:1",
+        "is_local:POSITIONAL_OR_KEYWORD:1",
+        "languages:POSITIONAL_OR_KEYWORD:1",
+        "doc:POSITIONAL_OR_KEYWORD:1",
+        "factory:POSITIONAL_OR_KEYWORD:1"
+      ],
+      "members": [
+        "is_available"
+      ]
+    },
     "Scaffolder": {
       "init": [
         "name:POSITIONAL_OR_KEYWORD:0",
@@ -1650,6 +1699,45 @@
         "remove_agent",
         "set_agents",
         "set_discovered"
+      ]
+    },
+    "TTSServiceManager": {
+      "init": [
+        "registry:POSITIONAL_OR_KEYWORD:0"
+      ],
+      "members": [
+        "create_service",
+        "describe",
+        "get_spec",
+        "list_lines",
+        "names",
+        "register",
+        "registry"
+      ]
+    },
+    "TTSServiceRegistry": {
+      "init": [
+        "builtins:POSITIONAL_OR_KEYWORD:0"
+      ],
+      "members": [
+        "all",
+        "clear",
+        "get",
+        "names",
+        "register"
+      ]
+    },
+    "TTSServiceSpec": {
+      "init": [
+        "name:POSITIONAL_OR_KEYWORD:0",
+        "provider:POSITIONAL_OR_KEYWORD:1",
+        "is_local:POSITIONAL_OR_KEYWORD:1",
+        "languages:POSITIONAL_OR_KEYWORD:1",
+        "doc:POSITIONAL_OR_KEYWORD:1",
+        "factory:POSITIONAL_OR_KEYWORD:1"
+      ],
+      "members": [
+        "is_available"
       ]
     },
     "Task": {

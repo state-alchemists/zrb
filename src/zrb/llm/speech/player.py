@@ -103,19 +103,28 @@ class Speaker:
         self._lock_file_held = bool(self._lock_file)
         if self._lock_file_held:
             _register_lock_file(self._lock_file)
-        self._queue: "queue.Queue[tuple[str | Callable[[], str], IsStale, int] | None]" = (
-            queue.Queue()
-        )
+        self._queue: (
+            "queue.Queue[tuple[str | Callable[[], str], IsStale, int] | None]"
+        ) = queue.Queue()
         # Made but not yet played: what the player thread takes next.
         self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
             maxsize=1
         )
+        # Set by the player thread once it has played everything it was handed.
+        # The backends are the worker's to let go, and letting them go while the
+        # player is still reading one is what cuts the last sentence off: a
+        # Pipecat pipeline renders a sentence's audio as the player reads it.
+        self._player_finished = threading.Event()
         self._worker: threading.Thread | None = None
         self._player: threading.Thread | None = None
         # Hooks call `say` from worker threads, so starting the worker, and
         # tracking what it is playing, is guarded.
         self._lock = threading.Lock()
         self._playing: Utterance | None = None
+        # The backends this speaker speaks through, built once and kept: a
+        # backend may hold a model or a running pipeline — a Pipecat service is
+        # both — and the speaker asks for one per sentence.
+        self._backends: list[AnySpeechBackend] | None = None
         # Set by `pause`, cleared by `resume` and `interrupt`: while set, the
         # next utterance waits to start, even one still being synthesized
         # when the pause came. Waiters are woken through `_unpaused`.
@@ -286,14 +295,32 @@ class Speaker:
             utterance.cleanup()
 
     def _create_with_fallback(self, text: str) -> Utterance | None:
-        for backend in self._get_backends():
+        """Make *text* to play, trying each backend this speaker holds.
+
+        In process first, where zrb plays it itself, and the next backend after
+        that one when this one has nothing else to offer: a Pipecat service
+        renders audio and plays nothing, so an output device that will not open
+        would leave the sentence to silence.
+        """
+        backends = self._get_backends()
+        for index, backend in enumerate(backends):
+            if backend.needs_zrb_playback and not self._is_in_process_wanted():
+                # Asked anyway, this one can only fail: it has audio and nowhere
+                # to put it. The warning would name Pipecat for a device that is
+                # the thing at fault.
+                continue
             try:
-                return self._create_utterance(backend, text)
+                return self._create_utterance(backend, text, backends[index + 1 :])
             except Exception as exc:
                 logger.warning(f"Speech backend {backend.name} failed: {exc}")
         return None
 
-    def _create_utterance(self, backend: AnySpeechBackend, text: str) -> Utterance:
+    def _create_utterance(
+        self,
+        backend: AnySpeechBackend,
+        text: str,
+        later: "list[AnySpeechBackend]",
+    ) -> Utterance:
         """Played by zrb itself when it can be, else by a player program:
         audio *backend* fails to render is still spoken its usual way."""
         if self._is_in_process_wanted():
@@ -310,10 +337,34 @@ class Speaker:
                     audio,
                     block_frames=self._config.player_block_frames,
                     read_ahead=self._config.player_read_ahead,
-                    fallback=lambda: backend.create_utterance(text),
+                    fallback=self._program_fallback(backend, later, text),
                     on_device_error=self._handle_device_error,
                 )
         return backend.create_utterance(text)
+
+    def _program_fallback(
+        self,
+        backend: AnySpeechBackend,
+        later: "list[AnySpeechBackend]",
+        text: str,
+    ) -> Callable[[], Utterance] | None:
+        """How a player program says *text*, for a device that will not play it.
+
+        *backend* is asked first, because its own program is the voice the
+        sentence was already going to be said in. One with no program of its own
+        has none to give, so the sentence moves on to the next backend this
+        speaker holds — the local voice it would have fallen back to anyway,
+        rather than a fallback that raises where nobody can catch it. ``None``
+        when neither exists, which leaves the device error raised and reported
+        instead of the sentence disappearing.
+        """
+        if not backend.needs_zrb_playback:
+            return lambda: backend.create_utterance(text)
+        alternatives = [other for other in later if not other.needs_zrb_playback]
+        if not alternatives:
+            return None
+        spoken_by = alternatives[0]
+        return lambda: spoken_by.create_utterance(text)
 
     def _is_in_process_wanted(self) -> bool:
         return (
@@ -333,13 +384,22 @@ class Speaker:
             )
 
     def _get_backends(self) -> list[AnySpeechBackend]:
-        config = self._config
-        requested = get_speech_backend(config.backend or "auto", config)
-        # The configured voice names one of the requested backend's voices.
-        local = get_speech_backend("auto", replace(config, voice=""))
-        if local.name == requested.name:
-            return [requested]
-        return [requested, local]
+        """The backends this speaker speaks through, built once and kept.
+
+        Kept, because a backend may hold a model or a running pipeline — a Pipecat
+        service is both — and this is asked for the next sentence, not for the
+        session: rebuilding one per sentence would load the model per sentence.
+        """
+        if self._backends is None:
+            config = self._config
+            requested = get_speech_backend(config.backend or "auto", config)
+            # The configured voice names one of the requested backend's voices.
+            local = get_speech_backend("auto", replace(config, voice=""))
+            if local.name == requested.name:
+                self._backends = [requested]
+            else:
+                self._backends = [requested, local]
+        return self._backends
 
     def _prepare_queue(self) -> None:
         """Make each queued text's audio, handing it to the player thread."""
@@ -351,16 +411,33 @@ class Speaker:
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
                 continue
-            if utterance is not None:
-                self._ready.put((utterance, is_stale, generation))
+            if utterance is None:
+                continue
+            if self._is_cut_off:
+                utterance.cleanup()
+                continue
+            self._ready.put((utterance, is_stale, generation))
         self._ready.put(None)
+        # This thread may still be synthesizing when `close` returns, so it,
+        # not `_stop`, lets the backends go once it is done with them — and being
+        # done means the player is too. The last sentence is in the player's hands
+        # by the time this queue runs out, and a Pipecat pipeline renders a
+        # sentence's audio as the player reads it, so letting the backends go here
+        # would stop that sentence where its audio stopped arriving.
+        self._player_finished.wait()
+        self._close_backends()
 
     def _play_ready(self) -> None:
-        while (entry := self._ready.get()) is not None:
-            try:
-                self._play_prepared(*entry)
-            except Exception as exc:
-                logger.warning(f"Speech failed: {exc}")
+        try:
+            while (entry := self._ready.get()) is not None:
+                try:
+                    self._play_prepared(*entry)
+                except Exception as exc:
+                    logger.warning(f"Speech failed: {exc}")
+        finally:
+            # Nothing reads a backend after this, which is what the worker waits
+            # for before it lets them go.
+            self._player_finished.set()
 
     def close(self) -> None:
         """Drop queued speech, cut off what is playing, stop the thread and
@@ -409,15 +486,24 @@ class Speaker:
         with self._lock:
             worker, self._worker = self._worker, None
             player, self._player = self._player, None
-        if worker is None:
-            return
-        atexit.unregister(self._drain_at_exit)
-        self._queue.put(None)
-        deadline = None if join_timeout is None else time.monotonic() + join_timeout
-        worker.join(join_timeout)
-        if player is not None:
-            remaining = None if deadline is None else deadline - time.monotonic()
-            player.join(None if remaining is None else max(remaining, 0))
+        if worker is not None:
+            atexit.unregister(self._drain_at_exit)
+            self._queue.put(None)
+            deadline = None if join_timeout is None else time.monotonic() + join_timeout
+            worker.join(join_timeout)
+            if player is not None:
+                remaining = None if deadline is None else deadline - time.monotonic()
+                player.join(None if remaining is None else max(remaining, 0))
+        else:
+            # `speak` never starts a worker, yet builds backends all the same.
+            self._close_backends()
+
+    def _close_backends(self) -> None:
+        """Let the backends go for good; a closed speaker builds no more."""
+        with self._lock:
+            backends, self._backends = self._backends, []
+        for backend in backends or []:
+            backend.close()
 
 
 def _resolve_player(player: str | None) -> str:

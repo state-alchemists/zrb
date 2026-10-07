@@ -104,6 +104,19 @@ from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
 from zrb.llm.util.capabilities import model_capabilities
+from zrb.llm.voice.manager import (
+    STTServiceManager,
+    TTSServiceManager,
+    stt_manager,
+    tts_manager,
+)
+from zrb.llm.voice.registry import (
+    STTServiceRegistry,
+    TTSServiceRegistry,
+    stt_registry,
+    tts_registry,
+)
+from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
 from zrb.runner.cli import Cli, cli
 
 # --- Session --------------------------------------------------------------
@@ -141,6 +154,10 @@ hook_manager: HookManager = hook_manager
 hook_registry: HookRegistry = hook_registry
 skill_manager: SkillManager = skill_manager
 skill_registry: SkillRegistry = skill_registry
+stt_manager: STTServiceManager = stt_manager
+stt_registry: STTServiceRegistry = stt_registry
+tts_manager: TTSServiceManager = tts_manager
+tts_registry: TTSServiceRegistry = tts_registry
 
 # The built-ins have all registered by now, and no init source could have run
 # yet (that happens in `serve_cli`). Freeze their identities once, so a later
@@ -231,6 +248,16 @@ __all__ = [
     "PromptManager",
     "PromptRegistry",
     "prompt_registry",
+    "STTServiceManager",
+    "STTServiceRegistry",
+    "STTServiceSpec",
+    "stt_manager",
+    "stt_registry",
+    "TTSServiceManager",
+    "TTSServiceRegistry",
+    "TTSServiceSpec",
+    "tts_manager",
+    "tts_registry",
     "ToolRegistry",
     "tool_registry",
     "AnyUI",

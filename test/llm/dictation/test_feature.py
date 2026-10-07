@@ -10,6 +10,7 @@ from zrb.llm.dictation import AnyDictationBackend, DictationConfig, enable_dicta
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import MicState, Utterance
 from zrb.llm.ui.trigger import TriggerReply
+from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
 
 class FakeBackend(AnyDictationBackend):
@@ -161,6 +162,39 @@ async def test_hands_free_transcribes_without_what_the_backend_scores_as_noise(
 
 
 @pytest.mark.asyncio
+async def test_the_badge_names_the_service_a_session_listens_through(monkeypatch):
+    """Which service a session listens through is visible while it listens.
+
+    `prepare` announces the service into the transcript, and that announcement
+    is written before the UI paints, so a user never sees it. The badge is state,
+    painted whenever the app draws, so that is where the choice shows — and only
+    for a service that was named: vosk reads as it always did.
+    """
+
+    _fake_listen(monkeypatch, ("run the tests", 0.0, 1.0))
+    named = DictationSession(
+        DictationConfig(backend="moonshine", mode="hands_free").resolve()
+    )
+    # The name under test comes from the config, so the backend itself is a
+    # stand-in: building the real one would load a model inside a unit test.
+    named.backend = FakeBackend()
+    plain = _session(mode="hands_free")
+
+    badges: dict[str, list[str | None]] = {}
+    for label, session in (("named", named), ("plain", plain)):
+        ui = FakeUI()
+        set_session_ui(ui)
+        try:
+            await _trigger_replies(session, 1)
+        finally:
+            reset_session_ui()
+        badges[label] = [text for _, text in ui.badges]
+
+    assert "🎤 listening · moonshine" in badges["named"]
+    assert "🎤 listening" in badges["plain"]
+
+
+@pytest.mark.asyncio
 async def test_push_to_talk_says_so_when_nothing_was_heard(monkeypatch):
     _fake_listen(monkeypatch)
     session = _session(commands=["/voice"])
@@ -203,15 +237,6 @@ async def test_the_command_again_stops_the_recording(monkeypatch):
 
     assert stopped.is_set()
     assert ui.inserted == ["half a sentence"]
-
-
-def test_push_to_talk_needs_a_ui_and_hands_free_off():
-    session = _session(commands=["/voice"])
-    assert "interactive" in session.toggle_recording({}, None)
-
-    session.is_hands_free = True
-    assert "Hands-free is on" in session.toggle_recording({}, FakeUI())
-    assert not session.is_recording
 
 
 @pytest.mark.asyncio
@@ -303,7 +328,7 @@ def test_an_unknown_backend_does_not_break_a_session_that_never_uses_it(monkeypa
     monkeypatch.setattr("zrb.llm.dictation.feature.import_audio", lambda: (None, None))
     session = DictationSession(
         DictationConfig(
-            backend="whisper", commands=["/voice"], hands_free_commands=["/handsfree"]
+            backend="nonesuch", commands=["/voice"], hands_free_commands=["/handsfree"]
         ).resolve()
     )
     voice, hands_free = session.create_commands()

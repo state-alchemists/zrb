@@ -8,6 +8,7 @@ import pytest
 
 from zrb.llm.speech import SpeechConfig
 from zrb.llm.speech.backend import AnySpeechBackend, get_speech_backend
+from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend
 
 
 class _Response(io.BytesIO):
@@ -75,6 +76,28 @@ def test_a_backend_object_is_used_as_is():
 
 def test_an_unknown_name_is_refused():
     with pytest.raises(ValueError, match="unknown speech backend"):
+        get_speech_backend("parrot", SpeechConfig().resolve())
+
+
+@pytest.mark.parametrize("name", ["kokoro", "piper", "pocket"])
+def test_a_registered_service_is_a_backend_that_renders_audio(name):
+    """A service `zrb.llm.voice` registers is named like any other backend.
+
+    Nothing is built here: the service, its model and its pipeline wait for the
+    first sentence, which is what lets a session name a voice it will not use
+    without paying for it.
+    """
+    backend = get_speech_backend(name, SpeechConfig().resolve())
+
+    assert isinstance(backend, PipecatSpeechBackend)
+    assert backend.name == f"Pipecat ({name})"
+    with pytest.raises(RuntimeError, match="renders audio"):
+        backend.create_utterance("hi")
+
+
+def test_an_unknown_name_lists_the_registered_services():
+    """The message names what a user could have meant instead."""
+    with pytest.raises(ValueError, match="gemini, kokoro, piper, pocket"):
         get_speech_backend("parrot", SpeechConfig().resolve())
 
 

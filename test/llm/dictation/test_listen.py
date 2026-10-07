@@ -80,9 +80,7 @@ def _listen_config():
     )
 
 
-async def _collect(
-    blocks, keep_partial=False, speaking=False, on_state=None, on_captured=None
-):
+async def _collect(blocks, keep_partial=False, speaking=False, on_state=None):
     captured = {}
 
     async def consume():
@@ -92,7 +90,6 @@ async def _collect(
             should_listen,
             keep_partial=keep_partial,
             on_state=on_state,
-            on_captured=on_captured,
         )
         return [utterance async for utterance in stream]
 
@@ -130,26 +127,6 @@ async def test_listen_keep_partial_yields_speech_cut_off_by_stop():
     utterances, _ = await _collect([_block(0.5), _block(0.5)], keep_partial=True)
 
     assert [u.audio for u in utterances] == [_pcm(*[0.5] * 4)]
-
-
-@pytest.mark.asyncio
-async def test_listen_hands_every_captured_block_to_on_captured():
-    """The capture is handed over as it is captured, before it is cut.
-
-    This is the hand-off the Pipecat pipeline is fed from (ADR-0107, stage 1):
-    every block, the pre-roll and the trailing silence included, as 16 kHz mono
-    16-bit PCM — what `push_audio` takes.
-    """
-    blocks = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
-    seen: list[bytes] = []
-
-    async def on_captured(pcm: bytes) -> None:
-        seen.append(pcm)
-
-    utterances, _ = await _collect(blocks, on_captured=on_captured)
-
-    assert len(utterances) == 1
-    assert seen == [_pcm(*[value] * 2) for value in (0.0, 0.5, 0.5, 0.0, 0.0)]
 
 
 @pytest.mark.asyncio
@@ -346,7 +323,7 @@ def test_flush_drops_too_little_speech():
 # --- listen: the backlog ----------------------------------------------------
 
 
-async def _collect_with(config, blocks, on_captured=None):
+async def _collect_with(config, blocks):
     """Feed every block before the listener reads any, as happens while the
     caller is busy transcribing."""
     captured = {}
@@ -356,7 +333,6 @@ async def _collect_with(config, blocks, on_captured=None):
             config,
             _holds_for(len(blocks)),
             keep_partial=True,
-            on_captured=on_captured,
         )
         return [utterance async for utterance in stream]
 

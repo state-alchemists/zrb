@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
+
+if TYPE_CHECKING:
+    import asyncio
 
 
 class AnyDictationBackend(ABC):
@@ -34,3 +38,35 @@ class AnyDictationBackend(ABC):
         default). Hands-free uses a stream when it gets one: the transcript is
         ready sooner, and the utterance can end sooner once it sounds done."""
         return None
+
+    @property
+    def owner_loop(self) -> "asyncio.AbstractEventLoop | None":
+        """The loop this backend is bound to, or ``None`` when it holds nothing
+        a loop owns.
+
+        A backend that started a pipeline holds a worker task only the loop that
+        started it can await or cancel, and a session's teardown is synchronous,
+        so it may not be running there. `DictationSession.close` is what asks, to
+        let the backend go where letting go works rather than on a loop of its
+        own, where awaiting that task fails and the pipeline runs on."""
+        return None
+
+    async def aclose(self) -> None:
+        """Release what this backend holds, for a session that is over.
+
+        Nothing to do by default. A backend that holds a model, a device or a
+        running pipeline is what this exists for, and it is asynchronous where
+        the session's own teardown is not, so it is named apart from `close`
+        rather than overloading it."""
+
+    def release(self) -> None:
+        """Let go of what this backend holds, where no loop can run its close.
+
+        The synchronous half of `aclose`, for a session whose teardown lands
+        after the loop a pipeline was started on has stopped. The worker is a
+        task of that loop, so no other loop can cancel it, and asking one to only
+        reports a pipeline stopped that is still there. Letting go of what the
+        backend holds is what is left, and it is what lets a model behind a
+        pipeline be collected rather than stay resident behind a reference
+        nothing can reach. Nothing to do by default.
+        """

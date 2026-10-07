@@ -322,6 +322,75 @@ def test_in_process_speech_falls_back_to_the_backends_own_utterance(
     assert backend.played == ["hello"]
 
 
+class RendersOnlyBackend(AudioBackend):
+    """A backend that renders audio and has no program of its own to play it.
+
+    What a Pipecat speech service is: `create_utterance` can only refuse, because
+    the service makes audio for zrb to play and plays nothing itself. Named
+    something other than `AudioBackend` for the reason the real one is: the
+    speaker builds a local voice beside it, and tells them apart by name.
+    """
+
+    @property
+    def name(self):
+        return "Pipecat (test)"
+
+    @property
+    def needs_zrb_playback(self):
+        return True
+
+    def create_utterance(self, text):
+        raise RuntimeError("renders audio for zrb to play in process")
+
+
+def _with_local_voice(monkeypatch, service, local):
+    monkeypatch.setattr(
+        "zrb.llm.speech.player.get_speech_backend",
+        lambda name, config: local if name == "auto" else service,
+    )
+
+
+def test_a_device_that_fails_hands_a_service_s_sentence_to_the_local_voice(
+    lock_file, monkeypatch
+):
+    """A sentence a service rendered is not lost when the device will not open.
+
+    The fallback is a player program's way of saying the sentence, and the backend
+    that rendered the audio has none: asking it there raises where the failure is
+    already being handled, and the sentence goes unsaid — even though the speaker
+    is holding the local voice it would have used anyway.
+    """
+    fallbacks = []
+    _in_process(monkeypatch, fallbacks=fallbacks)
+    service, local = RendersOnlyBackend(), AudioBackend()
+    _with_local_voice(monkeypatch, service, local)
+    Speaker(_config(service, lock_file, player="auto")).speak("hello")
+
+    fallbacks[0]().play(None)
+
+    assert local.played == ["hello"]
+    assert service.played == []
+
+
+def test_a_service_is_not_asked_to_play_when_zrb_cannot_play_it(
+    lock_file, monkeypatch, caplog
+):
+    """With a player program configured, the local voice is asked straight away.
+
+    There is nowhere to play what a renders-only backend makes, so asking it
+    anyway produces a failure that only says so — a warning naming Pipecat for a
+    choice the user made when they set the player program.
+    """
+    _in_process(monkeypatch)
+    service, local = RendersOnlyBackend(), AudioBackend()
+    _with_local_voice(monkeypatch, service, local)
+
+    Speaker(_config(service, lock_file, player="command")).speak("hello")
+
+    assert local.played == ["hello"]
+    assert "failed" not in caplog.text
+
+
 def test_drain_does_not_wait_for_speech_a_pause_holds(lock_file):
     backend = SignallingBackend()
     config = SpeechConfig(

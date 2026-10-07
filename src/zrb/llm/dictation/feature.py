@@ -21,8 +21,6 @@ from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
-from zrb.llm.dictation.pipecat_input import AudioPipeline, is_pipecat_available
-from zrb.llm.dictation.teardown import close_quietly
 from zrb.llm.dictation.words import (
     count_words,
     is_answer,
@@ -41,6 +39,7 @@ from zrb.llm.util.feature_config import (
     replace_feature_sessions,
     replace_registration,
 )
+from zrb.llm.util.teardown import close_quietly
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
@@ -103,6 +102,12 @@ class DictationSession:
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
         self._backend: AnyDictationBackend | None = None
+        # Set by `close`, which is the session's own end: nothing new is built into
+        # it after that, and nothing is transcribed for it.
+        self._is_closed = False
+        # Letting a backend go is asynchronous, so `close` schedules it rather
+        # than awaiting it; this is the task, kept so nothing collects it early.
+        self._backend_close: asyncio.Task[None] | None = None
         self._stop_recording: asyncio.Event | None = None
         # Set when hands-free is switched off, so a transcription already under
         # way can be dropped instead of submitted after the user said stop.
@@ -116,21 +121,18 @@ class DictationSession:
         # to the session.
         self._ui: "AnyUI | None" = None
         # The badge shown while the mic is listening, which says what the last
-        # utterance came to.
-        self._resting_badge = _LISTENING
+        # utterance came to and, when it is not the default, whose ears it went
+        # through.
+        self._resting_badge = self._listening_badge()
         # The chat session this belongs to, whose speech a barge-in silences.
         self._session_key = current_session_key()
         # zrb's voice is held because the user may be talking over it, until
         # what they said is known to be words (stop) or not (resume).
         self._is_paused_by_barge_in = False
         # The resting badge a barge-in replaced, back once zrb resumes.
-        self._badge_before_pause = _LISTENING
+        self._badge_before_pause = self._resting_badge
         # A wake word said alone arms the utterances started before this.
         self._armed_until = 0.0
-        # The Pipecat pipeline the capture is handed to, and whether it failed
-        # and was given up on for this session.
-        self._tap: AudioPipeline | None = None
-        self._is_pipecat_given_up = False
         self.is_hands_free = (config.mode or "").strip().lower() == HANDS_FREE
 
     @property
@@ -145,6 +147,14 @@ class DictationSession:
 
     def _get_backend(self) -> AnyDictationBackend:
         if self._backend is None:
+            if self._is_closed:
+                # A recording or a transcription that outlived the session it was
+                # started for: building a backend here would build one nothing
+                # will ever let go.
+                raise RuntimeError(
+                    "this dictation session has ended, so it builds no backend and "
+                    "transcribes nothing more"
+                )
             self._backend = get_dictation_backend(
                 self._config.backend or "vosk", self._config
             )
@@ -155,13 +165,89 @@ class DictationSession:
         return self._stop_recording is not None
 
     def close(self) -> None:
-        """Switch hands-free off and release a recording in progress."""
+        """Switch hands-free off, release a recording in progress, and let the
+        backend go."""
+        self._is_closed = True
         self._release_barge_in()
         self.is_hands_free = False
         self._hands_free_off.set()
         if self._stop_recording is not None:
             self._stop_recording.set()
+        self._close_backend()
         self._show(None)
+
+    def _close_backend(self) -> None:
+        """Let the backend go, without this teardown waiting for it.
+
+        A backend may hold a model or a running pipeline — a Pipecat service is
+        both — and letting one go is asynchronous where this teardown is not. A
+        failure is reported by nobody, which is what `close_quietly` is for, and
+        the task is kept so it is not collected before it has run.
+
+        Where it runs is the backend's answer, not this teardown's. A Pipecat
+        pipeline's worker is a task on the loop that started it, and awaiting it
+        from another loop raises the cross-loop error `close_quietly` swallows —
+        a teardown reporting a closed backend while the worker, the model and the
+        pipeline keep running. A loop that has stopped altogether is the one case
+        with no close left in it: the backend is asked to release what it holds
+        instead, so the model behind its pipeline can be collected rather than
+        stay alive behind the reference this teardown is about to drop. A loop can
+        stop in the window between being asked whether it is running and being
+        handed the close, which is the same case arriving one line later.
+        """
+        backend, self._backend = self._backend, None
+        if backend is None:
+            return
+        try:
+            here = asyncio.get_running_loop()
+        except RuntimeError:
+            here = None
+        owner = backend.owner_loop
+        if owner is not None and owner is not here:
+            if not owner.is_running():
+                self._release_backend(backend)
+                return
+            try:
+                owner.call_soon_threadsafe(
+                    lambda: self._close_backend_on(owner, backend)
+                )
+            except RuntimeError:
+                # The loop stopped between the question above and this call, so it
+                # takes no callback now — the case that question was asked about,
+                # one line later.
+                self._release_backend(backend)
+            return
+        if here is not None:
+            self._close_backend_on(here, backend)
+            return
+        # Nothing this backend holds is bound to a loop, so its close runs to
+        # completion on one of its own: a coroutine left unscheduled would only
+        # warn once it was collected — with the backend, and whatever model or
+        # pipeline it was holding, still alive.
+        asyncio.run(close_quietly(backend.aclose, "the dictation backend"))
+
+    def _release_backend(self, backend: AnyDictationBackend) -> None:
+        """Let a backend go where no loop is left that will run its close.
+
+        A loop that has stopped takes no callback, so the close has nowhere to run
+        and the backend keeps what it was built with — for a Pipecat service, a
+        model behind a pipeline and a worker. Dropping that is what lets them be
+        collected, and the teardown names the part it could not do.
+        """
+        backend.release()
+        logger.warning(
+            "Could not stop the dictation backend: the loop it was built on is not "
+            "running, so its worker cannot be cancelled; the backend released what "
+            "it held"
+        )
+
+    def _close_backend_on(
+        self, loop: asyncio.AbstractEventLoop, backend: AnyDictationBackend
+    ) -> None:
+        """Close *backend* as a task on *loop*, kept so nothing collects it early."""
+        self._backend_close = loop.create_task(
+            close_quietly(backend.aclose, "the dictation backend")
+        )
 
     def create_commands(self) -> "list[AnyCustomCommand]":
         push_to_talk: "list[AnyCustomCommand]" = [
@@ -231,19 +317,36 @@ class DictationSession:
         return f"🎤 Hands-free {'on' if self.is_hands_free else 'off'}"
 
     async def _record_into(self, ui: "BaseUI", stop: asyncio.Event) -> str:
-        await self.backend.prepare(_to_output(ui))
+        # Taken once, and this one backend is what records and what transcribes:
+        # a session that ends in the middle of a recording must be the end of the
+        # backend that was started for it, not the start of another.
+        backend = self.backend
+        await backend.prepare(_to_output(ui))
         commands = ", ".join(self._config.commands or [])
         try:
             self._show(f"🔴 recording… ({commands} or a pause to stop)", ui)
             audio = await self._record_one(stop)
             self._show(_TRANSCRIBING, ui)
-            text = (await self.backend.transcribe(audio)).strip() if audio else ""
+            text = await self._transcribe_recording(backend, audio)
         finally:
             self._show(None, ui)
         if not text:
             return "🎤 Heard nothing."
         ui.insert_input_text(text)
         return "🎤 Transcribed: edit it or press Enter to send."
+
+    async def _transcribe_recording(
+        self, backend: AnyDictationBackend, audio: bytes
+    ) -> str:
+        """What *audio* came to, or ``""`` when there is nothing to transcribe.
+
+        Nothing is waiting for a transcript once the session is over — the input
+        box it would be edited in is gone — and the backend the teardown let go
+        must not be asked to start itself up again for one.
+        """
+        if not audio or self._is_closed:
+            return ""
+        return (await backend.transcribe(audio)).strip()
 
     async def _record_one(self, stop: asyncio.Event) -> bytes:
         def should_listen() -> bool:
@@ -268,7 +371,7 @@ class DictationSession:
             try:
                 await self.backend.prepare(self._report)
                 self._warn_without_wake_words()
-                self._rest(_LISTENING)
+                self._rest(self._listening_badge())
                 async with aclosing(self._replies()) as replies:
                     async for reply in replies:
                         yield reply
@@ -302,92 +405,28 @@ class DictationSession:
                     yield self._to_reply(command, utterance)
 
     async def _listen(self) -> AsyncGenerator[Utterance, None]:
-        """`listen` while hands-free holds, with the Pipecat pipeline fed from
-        the same capture when it is on.
+        """`listen` while hands-free holds.
 
-        The pipeline lives exactly as long as the listening, and feeding it is
-        best-effort (`_feed_pipecat`), so a pipeline that fails never ends the
-        listening.
+        The microphone closes when hands-free stops; the caller must close the
+        generator (or the microphone stays open until it is finalized).
         """
-        try:
-            async with aclosing(
-                listen(
-                    self._config,
-                    lambda: self.is_hands_free,
-                    on_state=self._show_mic_state,
-                    on_barge_in=self._handle_barge_in,
-                    create_stream=self.backend.create_stream,
-                    on_partial=self._show_partial,
-                    on_barge_in_dropped=self._release_barge_in,
-                    on_captured=(
-                        self._feed_pipecat if self._config.is_pipecat_enabled else None
-                    ),
-                )
-            ) as mic:
-                async for utterance in mic:
-                    yield utterance
-        finally:
-            await self._close_audio_pipeline()
-
-    async def _feed_pipecat(self, pcm: bytes) -> None:
-        """Hand one captured block to the Pipecat pipeline, if it has one.
-
-        The pipeline decides nothing, so one that cannot
-        start or fails on a block is reported, closed at once, and given up on
-        for the session instead of ending hands-free. Closing it here cannot
-        deadlock the hand-over: it closes the Pipecat pipeline, never the tap
-        this delivery runs on.
-        """
-        if self._is_pipecat_given_up:
-            return
-        try:
-            if self._tap is None:
-                self._tap = await self._open_audio_pipeline()
-            if self._tap is None:
-                # No pipeline to build: said once, and never asked again.
-                self._is_pipecat_given_up = True
-                return
-            await self._tap.push(pcm)
-        except Exception as exc:
-            self._is_pipecat_given_up = True
-            self._report(f"Pipecat input pipeline stopped: {exc}")
-            await self._close_audio_pipeline()
-
-    async def _open_audio_pipeline(self) -> AudioPipeline | None:
-        """A Pipecat pipeline to hand the capture to, or ``None`` when Pipecat
-        is not installed.
-
-        Not installed is reported once and the listening goes on.
-        """
-        if not is_pipecat_available():
-            self._report(
-                "Pipecat is not installed, so the input pipeline stays off "
-                "(pip install 'zrb[voice]')"
+        # Taken once, for the same reason a recording takes one: a stream is made
+        # per utterance, and a session that ends mid-utterance must not have a new
+        # backend built for the microphone it still has.
+        backend = self.backend
+        async with aclosing(
+            listen(
+                self._config,
+                lambda: self.is_hands_free,
+                on_state=self._show_mic_state,
+                on_barge_in=self._handle_barge_in,
+                create_stream=backend.create_stream,
+                on_partial=self._show_partial,
+                on_barge_in_dropped=self._release_barge_in,
             )
-            return None
-        return await AudioPipeline.start()
-
-    async def _close_audio_pipeline(self) -> None:
-        """Stop the pipeline this listening was feeding, if it started one, and
-        say what it heard.
-
-        Never raises: the pipeline decides nothing, so no
-        failure in its teardown may end the listening.
-        """
-        tap, self._tap = self._tap, None
-        if tap is not None:
-            await close_quietly(tap.close, "the Pipecat pipeline")
-            self._report_speech_metrics(tap)
-
-    def _report_speech_metrics(self, tap: AudioPipeline) -> None:
-        """Say what the pipeline heard, once the listening that fed it ended.
-
-        Read against the utterances zrb itself cut: speech segments the
-        detector reported and no turn to show for them is a detector that never
-        fired — a muted microphone, or a device zrb and the pipeline read
-        differently — which is the failure this line exists to make visible.
-        """
-        self._report(f"Pipecat input pipeline: {tap.get_speech_metrics().summary()}")
+        ) as mic:
+            async for utterance in mic:
+                yield utterance
 
     async def _to_command(self, utterance: Utterance, text: str) -> str | None:
         """What *utterance*, transcribed as *text*, asks zrb, or ``None``
@@ -621,6 +660,30 @@ class DictationSession:
     def _show_mic_state(self, state: MicState) -> None:
         self._show(_MIC_STATE_BADGES.get(state, self._resting_badge))
 
+    def _listening_badge(self) -> str:
+        """What the badge says while the microphone is open.
+
+        A service the user named is shown; the default one is not, so a session
+        on vosk reads exactly as it did before there was a choice. This is where
+        that choice becomes visible: `prepare` announces the load into the
+        transcript before the UI paints, and that line is not what a user can
+        rely on to know whether naming a service took effect.
+        """
+        service = self._named_service()
+        if not service:
+            return _LISTENING
+        return f"{_LISTENING} · {service}"
+
+    def _named_service(self) -> str:
+        """The service `LLM_DICTATION_BACKEND` names, or ``""`` when it is the
+        default one — including when a session was handed a backend object
+        built in code, which has no name of its own to show."""
+        backend = self._config.backend
+        if not isinstance(backend, str):
+            return ""
+        name = backend.strip().lower()
+        return "" if name in ("", "vosk") else name
+
     def _rest(self, badge: str) -> None:
         """Show *badge*, and come back to it whenever the mic is listening."""
         self._resting_badge = badge
@@ -657,10 +720,16 @@ class DictationSession:
         or ``None`` when hands-free was switched off while it was being
         transcribed — the user said stop, so that utterance is theirs, not the
         model's."""
+        if self._is_closed:
+            # The session is over, so the utterance goes the way of one that was
+            # dropped, and the backend the teardown let go is left alone.
+            return None
+        # Taken once, for the same reason the other operations take one.
+        backend = self.backend
         if utterance.stream is not None:
             coroutine = utterance.stream.finish()
         else:
-            coroutine = self.backend.transcribe_speech(utterance.audio)
+            coroutine = backend.transcribe_speech(utterance.audio)
         transcribing = asyncio.ensure_future(coroutine)
         switched_off = asyncio.ensure_future(self._hands_free_off.wait())
         is_finished = False

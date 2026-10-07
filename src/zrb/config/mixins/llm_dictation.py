@@ -28,6 +28,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_COMMANDS: str = "/voice, /v"
         self.DEFAULT_LLM_DICTATION_HANDS_FREE_COMMANDS: str = "/handsfree"
         self.DEFAULT_LLM_DICTATION_BACKEND: str = "vosk"
+        self.DEFAULT_LLM_DICTATION_STT_MODEL: str = ""
         self.DEFAULT_LLM_DICTATION_WAKE_WORDS: str = ""
         self.DEFAULT_LLM_DICTATION_THRESHOLD: str = "0.01"
         self.DEFAULT_LLM_DICTATION_NOISE_MARGIN: str = "2.0"
@@ -70,7 +71,6 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
         self.DEFAULT_LLM_DICTATION_DEVICE: str = ""
-        self.DEFAULT_LLM_DICTATION_PIPECAT_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
             "Transcribe exactly what is spoken. Do not translate or paraphrase. "
             "Return only the transcription."
@@ -106,12 +106,30 @@ class LLMDictationMixin:
     LLM_DICTATION_BACKEND = EnvField(
         str,
         doc=(
-            "Speech-to-text backend. One of:\n"
-            "- 'vosk' (default): offline, cross-platform.\n"
+            "Speech-to-text service. One of:\n"
+            "- 'vosk' (default): offline, cross-platform, and the only one that "
+            "transcribes while you speak.\n"
+            "- 'whisper': Faster-Whisper, local.\n"
+            "- 'moonshine': Moonshine, local and CPU-only.\n"
+            "- 'funasr': FunASR's SenseVoice, local.\n"
             "- 'openai': OpenAI transcription API.\n"
             "- 'google': Google Gemini.\n"
             "- 'multimodal': uses {ENV_PREFIX}_LLM_MULTIMODAL_MODEL "
-            "(slower / more expensive)."
+            "(slower / more expensive).\n"
+            "A project may register its own under a name of its choosing "
+            "(zrb.llm.voice); {ENV_PREFIX}_LLM_DICTATION_STT_MODEL picks the "
+            "model of whichever local one is named here."
+        ),
+    )
+
+    LLM_DICTATION_STT_MODEL = EnvField(
+        str,
+        doc=(
+            "Which model of the named local speech-to-text service to run "
+            "(e.g. 'small' for whisper, 'medium-streaming' for moonshine). Empty "
+            "(default) uses the service's own default, which is the one it was "
+            "tested with. Ignored by the 'vosk', 'openai', 'google' and "
+            "'multimodal' backends, which name their model elsewhere."
         ),
     )
 
@@ -371,20 +389,6 @@ class LLMDictationMixin:
             "where which of them is opened is the usual difference between a "
             "microphone that starts and one that times out. Empty uses "
             "PortAudio's own default (`sd.default.device`). Default: empty."
-        ),
-    )
-
-    LLM_DICTATION_PIPECAT_ENABLED = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "'on' also feeds every microphone block to a Pipecat pipeline, "
-            "which tells speech from silence with its own detector and says "
-            "what it heard when the listening ends: nothing zrb hears or says "
-            "changes, and turning it on cannot break the voice. Experimental, "
-            "and it needs the zrb[voice] extra; without it the setting says so "
-            "and listening goes on. 'off' (default): the capture goes nowhere "
-            "else."
         ),
     )
 

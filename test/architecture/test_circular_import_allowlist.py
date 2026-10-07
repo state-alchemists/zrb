@@ -27,7 +27,14 @@ SRC = REPO_ROOT / "src" / "zrb"
 # Path relative to src/zrb -> number of "# lazy: circular" occurrences
 # expected in that file. Add an entry in the same diff that introduces a
 # genuine circular-import workaround, with a reason in the comment itself.
-CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {}
+CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
+    # The speech backend package re-exports every backend, so the Pipecat backend
+    # and the Pipecat speech pipeline import each other through it: the package
+    # reaches the backend from its `__init__`, the backend reaches the pipeline for
+    # the first sentence, and the pipeline reaches the package for `SpeechAudio`.
+    # The backend's half is deferred, which is where the pipeline is built anyway.
+    "llm/speech/backend/pipecat.py": 1,
+}
 
 
 def _circular_import_counts() -> dict[str, int]:

@@ -26,13 +26,15 @@ List every spelling the transcriber may produce. With an Indonesian-accented "Hi
 
 ### Recommended transcription
 
-zrb defaults to offline vosk, which mangles technical speech. With `OPENAI_API_KEY` set, use this instead:
+zrb defaults to offline vosk, which mangles technical speech. vosk is also the only backend that transcribes while you speak. With `OPENAI_API_KEY` set, use this instead:
 
 ```bash
 export ZRB_LLM_DICTATION_BACKEND=openai
 export ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe
 export ZRB_LLM_DICTATION_WAKE_WORDS="hi,hai,hey,嗨"
 ```
+
+Without a key, `whisper`, `moonshine` and `funasr` transcribe locally through Pipecat, each needing its own install (`pip install 'pipecat-ai[whisper]'`) — see [Voice and camera § Your own backend](../../docs/llm/voice-camera.md#your-own-backend). The table below was measured before they were added, so it does not cover them: set `ZRB_LLM_DICTATION_BACKEND` and run your own clip through them.
 
 One clip, generated with macOS `say`: *"Refactor the hook manager in zrb so pydantic AI streams the last assistant message, then run pytest and push to GitHub."*
 
@@ -55,7 +57,7 @@ A single run on synthetic speech: expect different timings and errors with a rea
 | `openai` | `OPENAI_API_KEY` | `alloy` | ~2 s |
 | `gemini` | `GEMINI_API_KEY` or `GOOGLE_API_KEY` | `Sulafat` | ~3.5 s |
 
-`auto` (default) picks `say`, else `espeak-ng`. If a cloud backend fails, the local engine speaks instead. `/speech` switches speech off and on during a session, dropping anything not yet said.
+`auto` (default) picks `say`, else `espeak-ng`. If a cloud backend fails, the local engine speaks instead. `/speech` switches speech off and on during a session, dropping anything not yet said. `kokoro`, `piper` and `pocket` are local voices too, each needing its own install (`pip install 'pipecat-ai[piper]'`) — see [Voice and camera § Your own backend](../../docs/llm/voice-camera.md#your-own-backend) for what each is. They are not in the table above because it was measured before they were added.
 
 A reply is read whole, however long it is; code, tables and links are skipped.
 

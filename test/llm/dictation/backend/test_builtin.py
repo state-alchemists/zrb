@@ -7,6 +7,7 @@ from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.backend.google import GoogleDictationBackend
 from zrb.llm.dictation.backend.multimodal import MultimodalDictationBackend
 from zrb.llm.dictation.backend.openai import OpenAIDictationBackend
+from zrb.llm.dictation.backend.pipecat import PipecatDictationBackend
 from zrb.llm.dictation.backend.vosk import VoskDictationBackend
 from zrb.llm.dictation.config import DictationConfig
 
@@ -30,6 +31,9 @@ def _config(**kwargs):
         (" OpenAI ", OpenAIDictationBackend),
         ("google", GoogleDictationBackend),
         ("multimodal", MultimodalDictationBackend),
+        ("whisper", PipecatDictationBackend),
+        (" Moonshine ", PipecatDictationBackend),
+        ("funasr", PipecatDictationBackend),
     ],
 )
 def test_dispatches_by_name(name, expected):
@@ -41,9 +45,30 @@ def test_passes_a_backend_instance_through():
     assert get_dictation_backend(backend, _config()) is backend
 
 
+def test_a_pipecat_backend_is_named_after_the_service_it_was_given():
+    """The name a config gives is the service the pipeline is built from.
+
+    The backend resolves nothing itself: `zrb.llm.voice`'s manager does, so a
+    service registered in `zrb_init.py` is reachable by the same setting as the
+    built-in models, and a name neither is fails there with the package to
+    install rather than here.
+    """
+    backend = get_dictation_backend("moonshine", _config())
+    assert isinstance(backend, PipecatDictationBackend)
+    assert backend.name == "Pipecat (moonshine)"
+
+
 def test_unknown_name_raises():
-    with pytest.raises(ValueError, match="unknown dictation backend 'whisper'"):
-        get_dictation_backend("whisper", _config())
+    with pytest.raises(ValueError, match="unknown dictation backend 'nonesuch'"):
+        get_dictation_backend("nonesuch", _config())
+
+
+def test_an_unknown_name_is_told_what_the_choices_are():
+    """The names a config may carry include the registered speech services."""
+    with pytest.raises(ValueError) as raised:
+        get_dictation_backend("nonesuch", _config())
+    for name in ("vosk", "openai", "google", "multimodal", "whisper", "moonshine"):
+        assert name in str(raised.value)
 
 
 def test_vosk_built_from_config():
@@ -68,9 +93,7 @@ def test_openai_built_from_config():
     )
     with patch(f"{MODULE}.OpenAIDictationBackend") as openai:
         get_dictation_backend("openai", config)
-    openai.assert_called_once_with(
-        "gpt-4o-transcribe", base_url=None, language="en"
-    )
+    openai.assert_called_once_with("gpt-4o-transcribe", base_url=None, language="en")
 
 
 def test_google_built_from_config():

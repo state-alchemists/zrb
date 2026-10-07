@@ -16,7 +16,9 @@ class DictationConfig:
     session starts.
 
     *backend* names a built-in backend (``vosk``, ``openai``, ``google``,
-    ``multimodal``) or is an `AnyDictationBackend` of your own.
+    ``multimodal``), a speech service registered with ``stt_manager``
+    (``whisper``, ``moonshine``, ``funasr``), or is an `AnyDictationBackend` of
+    your own. *stt_model* picks the model of whichever service is named.
     """
 
     mode: str | None = None
@@ -46,9 +48,9 @@ class DictationConfig:
     polite_words: list[str] | None = None
     device: str | None = None
     block_duration: float | None = None
-    pipecat_enabled: bool | None = None
     transcribe_prompt: str | None = None
     language: str | None = None
+    stt_model: str | None = None
     openai_model: str | None = None
     openai_base_url: str | None = None
     google_model: str | None = None
@@ -66,12 +68,6 @@ class DictationConfig:
         """Whether *barge_in_enabled* is set: hands-free hears the user
         while zrb speaks, and a stop word cancels a running turn."""
         return bool(self.barge_in_enabled)
-
-    @property
-    def is_pipecat_enabled(self) -> bool:
-        """Whether *pipecat_enabled* is set: the captured blocks are handed to
-        a Pipecat pipeline as well, which decides nothing yet."""
-        return bool(self.pipecat_enabled)
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""
