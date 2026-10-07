@@ -57,3 +57,32 @@ def test_the_rewrite_restates_the_sentence_from_the_measurement():
     measured = doc_counts.measure()
     rewritten = doc_counts.rewrite(doc_counts.AGENTS.read_text(encoding="utf-8"), measured)
     assert doc_counts.documented(rewritten) == measured
+
+
+def test_write_restates_the_sentence_in_place(tmp_path, monkeypatch):
+    """The positive control for the refusal below, and for the command's exit code."""
+    target = tmp_path / "AGENTS.md"
+    target.write_text(
+        "It answers to 5,000 functions, which currently answer to 596 distinct "
+        "leading tokens, 43% of them used once.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(doc_counts, "AGENTS", target)
+    assert doc_counts.main(["--write"]) == 0
+    assert doc_counts.documented(target.read_text(encoding="utf-8")) == doc_counts.measure()
+
+
+def test_write_refuses_to_claim_success_with_nothing_to_restate(tmp_path, monkeypatch):
+    """`--write` is the fix the failure message names, so it cannot no-op silently.
+
+    `rewrite` leaves a text without the sentence unchanged. Writing that result
+    anyway reports success for a file the script cannot fix, while the sentence it
+    failed to find is the one the failing test is pointing at. The recovery
+    command has to fail loudly instead, and leave the file as it found it.
+    """
+    target = tmp_path / "AGENTS.md"
+    untouched = "# No counts sentence lives here.\n"
+    target.write_text(untouched, encoding="utf-8")
+    monkeypatch.setattr(doc_counts, "AGENTS", target)
+    assert doc_counts.main(["--write"]) == 1
+    assert target.read_text(encoding="utf-8") == untouched

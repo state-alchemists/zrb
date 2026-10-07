@@ -96,15 +96,35 @@ def _report(counts: dict[str, int | float], stated: dict[str, int | float] | Non
     return 1
 
 
+def _write(counts: dict[str, int | float]) -> int:
+    """Restate the counts sentence in place, or report that there is none.
+
+    `rewrite` leaves a text without the sentence unchanged, so writing its result
+    unconditionally reports success for a file this script cannot fix — and the
+    sentence it failed to find is the very one the failing test is pointing at.
+    The rewrite is verified before it is written instead, and a file that does not
+    carry the sentence afterwards is not written at all.
+    """
+    source = AGENTS.read_text(encoding="utf-8")
+    updated = rewrite(source, counts)
+    if documented(updated) != counts:
+        print(
+            f"no counts sentence found in {AGENTS.name}, so there is nothing to "
+            f"restate. Restore it, or update `_SENTENCE` in {SCRIPT_PATH} to match "
+            "the wording it was changed to."
+        )
+        return 1
+    AGENTS.write_text(updated, encoding="utf-8")
+    print(f"rewrote the counts sentence in {AGENTS.name}: {counts}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     counts = measure()
     stated = documented()
     if "--write" in args:
-        updated = rewrite(AGENTS.read_text(encoding="utf-8"), counts)
-        AGENTS.write_text(updated, encoding="utf-8")
-        print(f"rewrote the counts sentence in {AGENTS.name}: {counts}")
-        return 0
+        return _write(counts)
     return _report(counts, stated)
 
 
