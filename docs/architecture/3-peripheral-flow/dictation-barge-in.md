@@ -35,7 +35,7 @@ Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. B
 
 2. **One feature reaches another only by chat session.** Dictation never holds a speaker. It calls speech's pause, resume and interrupt functions with the chat session's key, which act on whatever speech that session has, including none. → [ADR-0102](../../adr/adr-0102.md)
 
-3. **Hold first, decide on the words.** As soon as the microphone hears loud speech over zrb, zrb's voice is paused, before anything about it is known. The words then decide: those meant for zrb stop it, anything else resumes it — a hold taken for zrb's own voice included. Every way the listener can end releases a pause it made. → [ADR-0076](../../adr/adr-0076.md), [ADR-0103](../../adr/adr-0103.md)
+3. **Hold first, decide on the words.** As soon as the microphone hears loud speech over zrb, zrb's voice is paused, before anything about it is known. The words then decide: those meant for zrb stop it, anything else resumes it — a hold taken for zrb's own voice included. Every way the listener can end releases a pause it made. The hold is what `barge_in_hold` turns off, for a room that keeps crossing the bar: with it off nothing is held on loudness, and the words alone decide, as early as the live transcript provides them. → [ADR-0076](../../adr/adr-0076.md), [ADR-0103](../../adr/adr-0103.md), [ADR-0105](../../adr/adr-0105.md)
 
 4. **Guard against zrb's own voice instead of cancelling it.** zrb does not subtract its voice from the microphone. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, and a minimum word count to interrupt. → [ADR-0105](../../adr/adr-0105.md)
 
@@ -49,7 +49,9 @@ Each one fails quietly: the chat keeps working, but zrb talks over the user, sta
 | --- | --- | --- |
 | Words over zrb pause its voice, then stop it | zrb keeps talking over the user, or never stops | `test/llm/dictation/test_feature_barge_in_pause.py::test_words_over_zrb_pause_it_then_stop_it` |
 | A stop the word lists cannot read still stops zrb | "please fucking stop" reaches the model as a message, and zrb answers the very words that asked it to be quiet | `test/llm/dictation/test_feature_barge_in_pause.py::test_words_a_word_list_cannot_read_as_a_stop_stop_zrb_anyway` |
-| Talk over zrb holds its voice before it is transcribed | zrb talks through the whole interruption, and a stop lands seconds after it was said | `test/llm/dictation/test_feature_barge_in_pause.py::test_with_wake_words_talk_not_meant_for_zrb_is_held_and_given_back` |
+| Talk over zrb holds its voice before it is transcribed, with `barge_in_hold` on | zrb talks through the whole interruption, and a stop lands seconds after it was said | `test/llm/dictation/test_feature_barge_in_pause.py::test_with_wake_words_talk_not_meant_for_zrb_is_held_and_given_back` |
+| With `barge_in_hold` off, speech over zrb is neither held nor given back, and its words still stop it | a room loud enough to keep crossing the bar makes zrb stutter, or turning the hold off costs the stop itself | `test/llm/dictation/test_feature_barge_in_pause.py::test_with_the_hold_off_noise_over_zrb_never_touches_its_voice` |
+| With `barge_in_hold` off, a stop word seen in the live transcript stops zrb as soon as it is heard | "stop" said over zrb is answered only once the utterance ends, which a batch backend makes seconds | `test/llm/dictation/test_feature_barge_in_pause.py::test_with_the_hold_off_a_stop_word_over_zrb_stops_it_as_soon_as_it_is_heard` |
 | A barge-in is reported once, before the utterance ends | zrb only pauses after the user has finished speaking | `test/llm/dictation/test_listen_barge_in.py::test_listen_reports_a_barge_in_once_before_the_utterance_ends` |
 | Closing the listener mid-pause resumes speech | zrb's voice stays held forever after hands-free stops | `test/llm/dictation/test_feature_barge_in_pause.py::test_closing_mid_pause_resumes` |
 | zrb's own voice is kept out by the loudness bar and the minimum word count, not by a transcript match | zrb answers its own reply as a user turn | **unpinned** — the self-echo guard was retired in 3.14.0 (ADR-0105); nothing pins what it leaves behind |
@@ -106,9 +108,9 @@ sequenceDiagram
     D-->>T: TriggerReply, if words were meant for zrb
 ```
 
-What holds zrb's voice is the speech itself, before anything is known about it: `pause_speech` runs first, and `interrupt_speech` follows only when the words were meant for zrb. Anything else — a cough, the room, zrb's own voice — reaches `resume_speech`, which is the price of not waiting to be sure.
+What holds zrb's voice is the speech itself, before anything is known about it: `pause_speech` runs first, and `interrupt_speech` follows only when the words were meant for zrb. Anything else — a cough, the room, zrb's own voice — reaches `resume_speech`, which is the price of not waiting to be sure. With `barge_in_hold` off the pause and the resume are gone: the words are what stops zrb, from the live partial where the backend streams one and from the finished transcript otherwise.
 
-The guards run in `DictationSession` in this order. Empty text, or a known transcriber guess, is not the user. A command with fewer than `barge_in_min_words` words (default 2) is too short to interrupt, unless it is a stop word or an answer to a waiting prompt; an utterance that interrupts nothing is held to `min_words` (default 1) instead, so a public place can be made to need more than a single stray word. Anything rejected resumes speech and shows why on the status badge.
+The guards run in `DictationSession` in this order. Empty text, or a known transcriber guess, is not the user. A command with fewer than `barge_in_min_words` words (default 2) is too short to interrupt, unless it is a stop word or an answer to a waiting prompt; an utterance that interrupts nothing is held to `min_words` (default 1) instead, so a public place can be made to need more than a single stray word. Anything rejected releases the hold and shows why on the status badge.
 
 Independent of any utterance, `UtteranceCutter` measures the room: speech heard while zrb is silent must be `noise_margin` (default 2) times the quietest the room was heard at over the last few seconds, so the room's own conversation does not open a turn of its own — a room that never falls quiet is measured at its own level, which is what lifts the bar over it. With the `vosk` backend, a hands-free transcript whose words were heard too faintly on average (`vosk_confidence`) is dropped as well; push-to-talk keeps every word. Neither tells a stranger's request from the user's, which only a wake word does.
 
@@ -135,6 +137,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
 | Barge-in off (the default) | `DictationConfig.barge_in_enabled` | The microphone is deaf while zrb speaks, so there is nothing to pause |
+| The hold off | `DictationConfig.barge_in_hold` | Nothing is held on loudness; a stop word or a wake word seen in the live partial stops zrb at once, and anything else stops it once the utterance is transcribed |
 | `barge_in_action=cancel` (retired) | — | Removed in 3.14.0: anything said over zrb steers the turn, or cancels it when it reads as a stop |
 | Wake words set | `DictationConfig.wake_words` | Only words starting with a wake word count; one heard in the live partial transcript stops zrb early |
 | The interrupt judge | `DictationConfig.interrupt_judge_enabled` | What an interrupting utterance asks of zrb is put to the small model when the word lists cannot read it; a stop word said alone never reaches the model, and the word lists decide when the judge is off, slow or unsure |
