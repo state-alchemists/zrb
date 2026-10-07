@@ -6,6 +6,15 @@
 
 This page is the map. Each capability links to its dedicated guide; the two that have no other home — **dynamic prompts** and **history processors** — are documented in full below.
 
+## Table of Contents
+
+- [When do you actually need this?](#when-do-you-actually-need-this)
+- [The capabilities at a glance](#the-capabilities-at-a-glance)
+- [Programming the prompt](#programming-the-prompt)
+- [History processors](#history-processors)
+- [The agent as a pipeline node](#the-agent-as-a-pipeline-node)
+- [See also](#see-also)
+
 ## When do you actually need this?
 
 For "chat with my codebase," you never touch any of it. You reach for Python when behavior must depend on **runtime state**, integrate **in-process with your own code**, or live **inside a larger program**:
@@ -30,6 +39,7 @@ For "chat with my codebase," you never touch any of it. You reach for Python whe
 | Prompt (string → template → callable → sections) | `message=`, `system_prompt=`, `prompt_manager=` | [Programming the Prompt](programming-the-prompt.md) |
 | History processors | `history_processors=[fn]` — prune / redact / summarize | ↓ below |
 | Custom UI | `ui=...` / `ui_factory=...` — TUI, web/SSE, chat bot | [Custom UI](llm-custom-ui.md) |
+| Voice interaction | `enable_dictation(...)` / `enable_speech(...)` — input, spoken events, and TTS backends | [Programming the Voice](programming-the-voice.md) |
 
 A custom tool is just a typed function — its signature and docstring are the spec the model sees:
 
@@ -141,6 +151,7 @@ For an **interactive** variant, swap `LLMTask` for `LLMChatTask` and seed the co
 ## See also
 
 - [Programming the Prompt](programming-the-prompt.md) — string → template → callable → `PromptManager`, and how to feed a `CmdTask`'s output into the model
+- [Programming the Voice](programming-the-voice.md) — practical voice recipes, dictation input, spoken responses, and TTS backends
 - [LLM Assistant & AI Tasks](llm-integration.md) — TUI, `LLMTask`/`LLMChatTask` usage, troubleshooting
 - [Extending the LLM](extending-the-llm.md) — tools, sub-agents, context management
 - [LLMChatTask API Reference](../task-types/llmchat-task.md) — the full builder API
