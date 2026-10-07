@@ -1,7 +1,16 @@
 [run]
 omit =
+    # Every entry must be cwd-independent (`**/`-prefixed or absolute). The gate
+    # runs under xdist, and `pytest-cov.pth` starts coverage again inside any
+    # subprocess a test spawns, with a cwd that is not the repo root
+    # (`test/test_main_process.py` runs `python -m zrb` from a tmp dir). Coverage
+    # resolves a *relative* pattern against the reading process's cwd, so the
+    # repo-relative `src/zrb/__main__.py` this list used to carry matched nothing
+    # there, the file was measured, and it reappeared in the report at 74% while
+    # `**/__init__.py` omitted every package init cleanly. Enforced by
+    # `test/architecture/test_coverage_omit_patterns.py`.
     **/zrb_init.py
-    src/zrb/__main__.py
+    **/__main__.py
     **/any_*.py
     **/__init__.py
     # Skill tool scripts are shipped agent-runtime content (run via the skill's
