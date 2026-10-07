@@ -7,6 +7,14 @@ fixture existed the suite only passed when the developer happened to have
 in a clean environment (e.g. CI) ~30 tests failed at agent/client construction
 or in the search tools.
 
+The `ZRB_*` namespace is a second leak of the same shape, and enumerating keys
+cannot close it: every `CFG` knob is a variable a developer may export, so each
+new knob reopens the hole. The whole namespace is removed before collection
+instead — `_scrub_config_namespace` from `pytest_configure` below — so a test
+asserting a *default* asserts the default whatever the shell carries. CI
+exports none of these keys, so a green CI run is by definition the state the
+suite is put into, which is what makes doing this unconditionally safe.
+
 The autouse fixture below:
   1. Provides deterministic, non-secret defaults so eager client construction
      and "is a key/model configured?" guards succeed. The actual model and
@@ -22,8 +30,58 @@ restored.
 
 import os
 import tempfile
+from collections.abc import MutableMapping
 
 import pytest
+
+# The environment namespace `Config` reads: `<prefix>_<KNOB>`, with the prefix
+# itself a field — `_ZRB_ENV_PREFIX` renames it — so the scrub asks for the
+# prefix rather than assuming `ZRB`. `DEFAULT_PREFIX` is public because
+# `test/architecture/test_hermetic_environment.py` asserts it against the config
+# it is a copy of; the field name is private, since nothing outside this file
+# names it.
+_PREFIX_FIELD = "_ZRB_ENV_PREFIX"
+DEFAULT_PREFIX = "ZRB"
+
+
+def _scrub_config_namespace(environ: MutableMapping[str, str]) -> dict[str, str]:
+    """Remove every config-namespace key, returning what was removed.
+
+    `Config` is a singleton whose `EnvField` descriptors read the environment on
+    access, so a value exported for a single `zrb` run — or sourced from a `.env`
+    — reaches every later read in this process. The motivating failure is
+    `test/config/test_config_voice_preset.py`: three of its tests assert the
+    preset a *default* shell implies and fail on a machine with
+    `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on` exported, which CI cannot reproduce
+    because CI exports nothing.
+
+    `_ZRB_ENV_PREFIX` goes too, not only the keys it renames. That is what forces
+    the second namespace below: removing the field makes the *default* prefix the
+    live one again, so a developer who had renamed their namespace would hand the
+    suite every `ZRB_*` key they had set for the rename to shadow.
+    """
+    prefix = environ.get(_PREFIX_FIELD, DEFAULT_PREFIX)
+    names = [
+        name
+        for name in environ
+        if name == _PREFIX_FIELD
+        or name.startswith(f"{prefix}_")
+        or name.startswith(f"{DEFAULT_PREFIX}_")
+    ]
+    return {name: environ.pop(name) for name in names}
+
+
+def pytest_configure() -> None:
+    """Take the developer's config out of the environment before collection.
+
+    Runs before any test module is imported, and in every pytest-xdist worker,
+    each of which is its own process and calls this itself. One-way on purpose:
+    the values are not restored at teardown, since a process running this suite
+    is not the developer's shell, and a second in-process run should be as
+    scrubbed as the first.
+    """
+    _scrub_config_namespace(os.environ)
+
 
 # Non-secret placeholders. The "openai-chat:" prefix is explicit on purpose:
 # a bare "gpt-4o" makes pydantic-ai emit a "no provider prefix" deprecation and
