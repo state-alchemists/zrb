@@ -313,8 +313,15 @@ class STTPipeline:
         Asked by whoever holds one before handing over a segment: a pipeline that
         retired itself — a segment it gave up on, whose answer names no segment —
         is not one a session can be answered through (`_retire`).
+
+        Nor is one whose worker stopped with nobody asking it to. Pipecat ends one
+        on a frame a processor pushes upstream, or on a failure its run task does
+        not survive, and neither goes through `close` — the run task *is* the
+        worker, so its end is read here rather than waited for. A holder that kept
+        such a pipeline would hand it every segment to come and be told "the
+        Pipecat worker stopped" for the rest of the session.
         """
-        return self._is_closed
+        return self._is_closed or self._runner.done()
 
     @classmethod
     async def start(

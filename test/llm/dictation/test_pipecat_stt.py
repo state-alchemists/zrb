@@ -18,7 +18,13 @@ import pytest
 
 pytest.importorskip("pipecat", reason="pipecat ships with the `voice` extra")
 
-from pipecat.frames.frames import Frame, MetricsFrame, TranscriptionFrame  # noqa: E402
+from pipecat.frames.frames import (  # noqa: E402
+    EndWorkerFrame,
+    Frame,
+    MetricsFrame,
+    TranscriptionFrame,
+)
+from pipecat.processors.frame_processor import FrameDirection  # noqa: E402
 from pipecat.services.settings import STTSettings  # noqa: E402
 from pipecat.services.stt_service import SegmentedSTTService  # noqa: E402
 from pipecat.utils.time import time_now_iso8601  # noqa: E402
@@ -224,6 +230,37 @@ async def test_a_pipeline_that_has_stopped_is_reported_rather_than_waited_on():
 
     with pytest.raises(RuntimeError, match="Pipecat worker stopped"):
         await pipeline.transcribe(UTTERANCE)
+
+
+@pytest.mark.asyncio
+async def test_a_worker_that_stopped_on_its_own_leaves_the_pipeline_closed():
+    """A pipeline whose worker is gone says so, rather than answering that it is open.
+
+    Pipecat ends a worker without going through `close`: a processor pushing an
+    `EndWorkerFrame` upstream takes the pipeline down from the source, and so
+    does any failure the worker's run task does not survive. Whoever holds the
+    pipeline has only `is_closed` to ask before handing it a segment, and a
+    session keeps listening after a failed transcription — so a pipeline that
+    went on saying it was open would be handed every segment to come, and every
+    one of them would fail with "the Pipecat worker stopped" for the rest of the
+    session.
+    """
+    service = FakeSegmentedService()
+    pipeline = await STTPipeline.start(service)
+    try:
+        assert not pipeline.is_closed
+
+        await service.push_frame(EndWorkerFrame(), FrameDirection.UPSTREAM)
+
+        # The worker unwinds over a few turns of the loop, and its own answer is
+        # the only thing this pipeline offers to wait for.
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + 5
+        while not pipeline.is_closed and loop.time() < deadline:
+            await asyncio.sleep(0.01)
+        assert pipeline.is_closed
+    finally:
+        await pipeline.close()
 
 
 @pytest.mark.asyncio

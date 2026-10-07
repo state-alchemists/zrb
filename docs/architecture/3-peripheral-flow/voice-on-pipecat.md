@@ -124,6 +124,8 @@ What landed is therefore the services and not the stages, and stage 1 was retire
 
 One rule the plan did not have to state, because it only appears once a pipeline outlives an utterance: **a pipeline's lifetime is zrb's, and idle is its normal state.** A service loads its model in its constructor, so one pipeline is built per backend and kept for the session; between utterances it receives nothing, and only a transcript or a spoken frame tells Pipecat's worker the pipeline is still wanted. Left idle for five minutes it cancels itself, which took both pipelines down mid-session and failed every later utterance with "the Pipecat worker stopped". Every worker zrb builds therefore passes `idle_timeout_secs=None`, so the monitor is never started rather than merely muted, and zrb closes the pipeline at the session's teardown — on the loop that owns it, because a worker is a task of that loop and only that loop can await it (ADR-0107).
 
+A worker that ends without that close is not kept either. `STTPipeline.is_closed` reads the worker's own run task beside the flag `close` sets, so a stopped pipeline counts as none and the backend starts the next one before the next utterance, rather than failing every one after it.
+
 ### Regression gates
 
 No stage may replace the old path until these pass on both paths:
