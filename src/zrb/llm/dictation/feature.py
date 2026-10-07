@@ -384,6 +384,7 @@ class DictationSession:
                 on_barge_in=self._handle_barge_in,
                 create_stream=backend.create_stream,
                 on_partial=self._show_partial,
+                on_partial_over_zrb=self._set_partial_over_zrb,
                 on_barge_in_dropped=self._release_barge_in,
             )
         ) as mic:
@@ -612,6 +613,10 @@ class DictationSession:
             command, self._config.interrupt_judge_model or None
         )
         return verdict.intent if verdict is not None else "ask"
+
+    def _set_partial_over_zrb(self, is_over_speech: bool) -> None:
+        """Remember whether the live partial belongs to speech over zrb."""
+        self._is_heard_over_zrb = is_over_speech
 
     def _show_partial(self, partial: str) -> None:
         """Show the end of what is being heard, while it is said. With wake

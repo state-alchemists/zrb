@@ -67,7 +67,9 @@ def _config(**fields):
     return DictationConfig(**{**base, **fields}).resolve()
 
 
-async def _collect(blocks, streams, config=None, partials=None):
+async def _collect(
+    blocks, streams, config=None, partials=None, over_speech=None, speaking=False
+):
     captured = {}
     made = list(streams)
 
@@ -92,12 +94,13 @@ async def _collect(blocks, streams, config=None, partials=None):
             should_listen,
             create_stream=create_stream,
             on_partial=None if partials is None else partials.append,
+            on_partial_over_zrb=None if over_speech is None else over_speech.append,
         )
         return [utterance async for utterance in stream]
 
     with (
         patch.dict("sys.modules", {"sounddevice": fake_sd}),
-        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=speaking),
     ):
         task = asyncio.create_task(consume())
         await asyncio.sleep(0)
@@ -117,6 +120,22 @@ async def test_an_utterance_is_fed_to_its_stream_as_it_is_spoken():
     assert utterance.stream is stream
     assert b"".join(stream.fed) == utterance.audio
     assert partials[:3] == ["run", "run the", "run the tests"]
+
+
+@pytest.mark.asyncio
+async def test_live_partial_reports_speech_over_zrb_before_barge_in_minimum():
+    over_speech = []
+    blocks = [_block(0.5)] * 2 + [_block(0.0)] * 5
+
+    await _collect(
+        blocks,
+        [RecordingStream(["stop", "stop"])],
+        config=_config(barge_in_enabled=True, barge_in_min_speech=1.0),
+        over_speech=over_speech,
+        speaking=True,
+    )
+
+    assert over_speech[:2] == [True, True]
 
 
 @pytest.mark.asyncio
