@@ -1,10 +1,4 @@
-"""`Speaker`: what its end leaves behind, and what it must not.
-
-Queueing, ordering and interruption are `test_player.py`; what an ended speaker
-still owes — releasing the backends it made, speaking nothing more, and being
-forgotten by the lock-file registry — is here. Like its siblings, it carries its
-own copy of the fixtures: a test file is a feature group, not a library.
-"""
+"""Pin Speaker cleanup, silence after close, and lock-file deregistration."""
 
 import threading
 import time
@@ -61,8 +55,6 @@ def lock_file(tmp_path):
 
 
 def _config(backend, lock_file, **fields):
-    # Played by a program unless a test says otherwise: these tests are about
-    # what an ended speaker does, not where the audio goes.
     fields.setdefault("player", "command")
     return SpeechConfig(
         backend=backend, lock_file=lock_file, lock_timeout=0.05, **fields
@@ -70,10 +62,7 @@ def _config(backend, lock_file, **fields):
 
 
 def test_a_closed_speaker_stops_being_probed_for_its_lock_file(lock_file):
-    """`is_speaking` probes every lock file a live speaker configured, once
-    per captured audio block. A speaker that has gone away must stop being
-    one, or a long-lived process keeps re-checking a dead session's path and
-    stays muted whenever anything else holds it."""
+    """A closed speaker is no longer reported by its lock file."""
     Speaker(_config(FakeBackend(), lock_file)).close()
 
     with hold_file_lock(lock_file):
@@ -92,7 +81,7 @@ def test_a_closed_speaker_says_nothing(lock_file):
 
 
 def test_speech_created_after_close_is_never_played(lock_file):
-    """A backend still synthesizing when the session closes."""
+    """Speech created after close is cleaned up without playback."""
     created = threading.Event()
     release = threading.Event()
 
@@ -136,15 +125,7 @@ def test_text_said_later_is_dropped_when_the_speaker_closes(lock_file):
 
 
 def test_a_backend_is_let_go_when_speech_never_started_a_thread(lock_file):
-    """Both ways a speaker ends release the backends, thread or no thread.
-
-    `speak` plays on the calling thread and never starts the worker and player
-    threads, but it makes the same backends `say` does — a Pipecat service is a
-    model and a pipeline whoever asked for it. Stopping on the thread's absence
-    left all of that, and the loop and thread under it, for the life of the
-    process: `close` for a session that is over, `drain` for the exit of one that
-    never called it.
-    """
+    """Close and drain release backends even without worker threads."""
     spoken = ClosingBackend()
     speaker = Speaker(_config(spoken, lock_file))
     drained = ClosingBackend()
@@ -188,19 +169,12 @@ def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(lock_file):
 
 
 def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(lock_file):
-    """The player, not the queue running out, is what says a backend can go.
-
-    Synthesis runs ahead of playback, so a closing speaker reaches the end of its
-    queue with the final sentence already in the player's hands — and a Pipecat
-    pipeline renders a sentence's audio as the player reads it, so a backend let go
-    there stops that sentence's audio where it stopped arriving. It goes once
-    nothing will read from it again.
-    """
+    """A backend remains until the player finishes its final sentence."""
     let_go_while_playing: "list[bool]" = []
     let_go = threading.Event()
 
     class PlayingUtterance(RecordingUtterance):
-        """An utterance the player holds in its hands until it is released."""
+        """An utterance held until released."""
 
         def __init__(self, text, played, done, playing, release):
             super().__init__(text, played, done)
@@ -213,7 +187,7 @@ def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(lock_f
             super().play(timeout)
 
     class WatchedBackend(ClosingBackend):
-        """A backend that says whether it was let go while it was still read."""
+        """A backend that records whether it closed during playback."""
 
         def __init__(self):
             super().__init__()
@@ -235,11 +209,9 @@ def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(lock_f
     backend = WatchedBackend()
     speaker = Speaker(_config(backend, lock_file))
     speaker.say("the last sentence")
-    assert backend.playing.wait(5)  # the sentence is in the player's hands
+    assert backend.playing.wait(5)
 
     speaker.close()
-    # Long enough for a worker that let the backends go the moment its queue ran
-    # out to have done it, with the player still reading.
     time.sleep(0.3)
     assert let_go_while_playing == []
 

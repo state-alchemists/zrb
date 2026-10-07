@@ -1,5 +1,4 @@
-"""Downloading and unpacking a Vosk model: what it costs, and what it leaves
-behind."""
+"""Tests Vosk model download, extraction, cleanup, and limits."""
 
 import asyncio
 import io
@@ -40,8 +39,7 @@ def _archives(cache_dir: str) -> list[str]:
 
 
 class _Response:
-    """A response that serves a real body, so nothing stands in for the file
-    the download writes and then hands to `zipfile`."""
+    """Response serving bytes for download and extraction tests."""
 
     def __init__(self, body: bytes):
         self._body = io.BytesIO(body)
@@ -54,9 +52,7 @@ class _Response:
 
 
 def _zip_lying_about_its_size(path: str, declared: int, real: int) -> str:
-    """A zip file whose directory says *declared* bytes about a member that
-    actually holds *real* bytes of zeros — the shape of a decompression bomb,
-    and of any archive whose headers are simply not to be trusted."""
+    """Creates an archive whose declared member size differs from its real size."""
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("model/bomb", b"\0" * real)
@@ -173,10 +169,9 @@ async def test_download_moves_a_complete_model_into_place(tmp_home, monkeypatch)
     cache = tmp_path / ".cache" / "vosk"
     assert path == str(cache / "m")
     assert (cache / "m" / "conf" / "model.conf").read_bytes() == b"ok"
-    # Nothing is left of the staging directory.
+    # Extraction removes the staging directory.
     assert [p.name for p in cache.iterdir()] == ["m"]
-    # `0` leaves the transfer uncapped, not the socket: a server that stalls
-    # still gives up, so the open is never the thread that outlives the process.
+    # Zero caps no bytes but keeps the socket timeout at 30 seconds.
     assert seen_timeouts == [30.0]
 
 
@@ -201,12 +196,7 @@ async def test_a_configured_timeout_is_the_one_the_open_waits_with(
 
 @pytest.mark.asyncio
 async def test_a_connection_opened_after_cancellation_is_closed(tmp_home, monkeypatch):
-    """The socket of an open nobody waited for is given back, not left to the GC.
-
-    Cancelling the download cannot stop `urlopen` already in a thread of its
-    own, so the connection is still opened — a socket held against a caller that
-    is gone, and nothing left in the coroutine that would close it.
-    """
+    """A response opened after cancellation is closed when the worker finishes."""
     reached = threading.Event()
     release = threading.Event()
     resp = MagicMock()
@@ -244,13 +234,7 @@ async def test_a_connection_opened_after_cancellation_is_closed(tmp_home, monkey
 async def test_a_cancelled_extraction_still_removes_the_archive(
     tmp_home, cache_dir, monkeypatch
 ):
-    """The archive is the extractor's to remove, not the caller's.
-
-    Cancelling returns while the extractor is still reading the zip, so the
-    caller's removal races it — and on a platform where an open file cannot be
-    deleted (Windows) that removal is the one that fails, silently. Nothing else
-    would ever come back for the file, so the worker has to remove it itself.
-    """
+    """The extractor removes an archive after cancellation, including on Windows."""
     body = _zip_of({"m/conf/model.conf": b"ok"})
     extracting = threading.Event()
     release = threading.Event()
@@ -285,8 +269,7 @@ async def test_a_cancelled_extraction_still_removes_the_archive(
         with pytest.raises(asyncio.CancelledError):
             await task
 
-        # The caller is gone and its removal was refused: what is left is the
-        # extractor's own path out, which it has not reached yet.
+        # The worker still owns the archive after the caller's removal fails.
         assert _archives(cache_dir), "the extractor has not finished with it yet"
 
         release.set()
@@ -400,8 +383,7 @@ class TestVoskDownloadLimits:
 
     @pytest.mark.asyncio
     async def test_no_limit_is_no_limit(self, fake_response, fake_zip):
-        """A real acoustic model is one large file, and a 0 limit is how an
-        operator says they accept that."""
+        """Zero means no archive-size limit."""
         archive = fake_zip(["m/huge"], sizes={"m/huge": 64 * MB})
         with (
             patch("urllib.request.urlopen", return_value=fake_response(b"d", b"")),
@@ -434,8 +416,7 @@ class TestVoskDownloadLimits:
     async def test_a_backend_applies_the_limits_it_was_given(
         self, fake_response, tmp_home
     ):
-        """The backend turns its keywords into a `VoskDownloadLimits`; an
-        operator who builds their own should not get the defaults instead."""
+        """Backend keyword limits override the defaults."""
         backend = VoskDictationBackend("m", "http://host", max_download_mb=1)
         with patch(
             "urllib.request.urlopen",
@@ -466,11 +447,7 @@ class TestUntrustedArchiveHeaders:
     async def test_a_member_that_under_declares_its_size_writes_nothing(
         self, tmp_path, fake_response, cache_dir
     ):
-        """The size limits read the archive's own directory, so they are worth
-        anything only if a member cannot then write more than it declared. This
-        one declares 16 bytes and holds 32 MB, and gets past every limit on the
-        declared numbers — `zipfile` reads to the declared size, fails the CRC
-        and writes nothing, so the backstop is the format, not the check."""
+        """A lying size header fails CRC before writing data."""
         path = _zip_lying_about_its_size(
             str(tmp_path / "liar.zip"), declared=16, real=32 * MB
         )

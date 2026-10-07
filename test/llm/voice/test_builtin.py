@@ -1,15 +1,4 @@
-"""What the built-in services are built with.
-
-Kokoro and Piper make the voice mandatory — Pipecat's `require_given` raises
-from their constructors — so an empty `ZRB_LLM_SPEECH_VOICE` is not a service
-keeping its own choice there, it is a backend that cannot start. These pin the
-wiring that makes naming one of them work, and that leaves a service which does
-have a default of its own (Pocket) alone.
-
-Neither model runtime is installed to test this: the service class is stubbed,
-and what is asserted is the settings zrb hands it. A test leaning on the real
-package would pass or fail by what is on the machine.
-"""
+"""Pin built-in TTS voice defaults and configured voice wiring."""
 
 import sys
 import types
@@ -20,7 +9,7 @@ from zrb.llm.voice.builtin import TTS_SERVICE_SPECS
 
 
 class _StubSettings:
-    """Stands in for a service's own `Settings`: the voice is what zrb writes."""
+    """Stub service settings receiving zrb's voice."""
 
     def __init__(self) -> None:
         self.voice: str | None = None
@@ -33,12 +22,7 @@ def _build(
     module_path: str,
     service_name: str,
 ) -> "list[Any]":
-    """Build the built-in *name* with its service stubbed, and return what it got.
-
-    The service is stubbed where the factory imports it, so no model runtime has
-    to be installed, and the spec's own factory is used, so what is pinned is the
-    wiring that naming *name* really goes through.
-    """
+    """Build a named service with its runtime stubbed."""
     module = types.ModuleType(module_path)
     built: "list[Any]" = []
 
@@ -90,11 +74,7 @@ def test_a_configured_voice_wins_over_the_default(monkeypatch):
 
 
 def test_a_service_with_a_default_of_its_own_is_left_to_it(monkeypatch):
-    """Pocket's own `Settings` defaults the voice to ``alba``, so zrb passes none.
-
-    ``None`` is what "zrb configured nothing here" means: a voice of zrb's own
-    would override the default the service was tested with.
-    """
+    """Pocket keeps its own default when zrb has no voice."""
     built = _build(
         "pocket",
         SpeechConfig(voice=""),

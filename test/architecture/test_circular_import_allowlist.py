@@ -1,16 +1,7 @@
-"""Import-cycle guards: a declared allowlist, and a per-module import check.
+"""Guard circular imports with an allowlist and isolated module imports.
 
-`CIRCULAR_IMPORT_ALLOWLIST` maps a file to the number of `# lazy: circular`
-workarounds it carries. It is empty: every cycle found so far was either a
-mislabeled comment, or a package `__init__` re-export dragging in a sibling
-nothing outside the package needed, and both are fixable at the source. A new
-entry is allowed, but must land in the same diff as the cycle, with a reason
-in the comment itself.
-
-`test_every_module_imports_with_its_parents_stubbed` is the behavioural half:
-the count above is blind to a cycle that carries no workaround because import
-order masks it. Stubbing a module's parents strips that masking, leaving its
-own import closure and nothing else.
+The allowlist records each `# lazy: circular` count; isolated imports expose
+cycles hidden by package initialization.
 """
 
 import re
@@ -24,15 +15,10 @@ import pytest
 REPO_ROOT = Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
-# Path relative to src/zrb -> number of "# lazy: circular" occurrences
-# expected in that file. Add an entry in the same diff that introduces a
-# genuine circular-import workaround, with a reason in the comment itself.
+# Relative path -> expected `# lazy: circular` count; additions need reasons.
 CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
-    # The speech backend package re-exports every backend, so the Pipecat backend
-    # and the Pipecat speech pipeline import each other through it: the package
-    # reaches the backend from its `__init__`, the backend reaches the pipeline for
-    # the first sentence, and the pipeline reaches the package for `SpeechAudio`.
-    # The backend's half is deferred, which is where the pipeline is built anyway.
+    # Pipecat and its re-exporting backend package form a genuine cycle; defer the
+    # backend half where the pipeline is built.
     "llm/speech/backend/pipecat.py": 1,
 }
 
@@ -57,19 +43,7 @@ def test_circular_import_workarounds_match_the_allowlist():
     )
 
 
-# --- The behavioural half: does each module actually import on its own? -----
-#
-# The check above counts *workarounds*, so it is blind to a cycle carrying no
-# workaround because import order happens to mask it. `zrb/__init__.py` masks
-# exactly that: whichever subpackage it names first is fully loaded before the
-# later lines reach the same modules by another route, so a loop between two of
-# them never gets the chance to fail.
-#
-# A plain `import zrb.llm.ui` cannot expose it either — parent packages load
-# before submodules, so `zrb/__init__.py` runs first and pre-warms
-# `sys.modules` with the very modules under test. Stubbing the parents leaves
-# the module's own import closure and nothing else, which is the thing whose
-# self-sufficiency this asserts.
+# Isolated imports catch cycles hidden by parent-package preloading.
 
 
 _ISOLATED_IMPORT = textwrap.dedent("""
@@ -94,18 +68,7 @@ _ISOLATED_IMPORT = textwrap.dedent("""
 
 
 def _all_modules() -> list[str]:
-    """Every target an ordinary `import zrb...` statement can name.
-
-    Packages as well as plain modules: a package name imports its
-    `__init__.py`, which a plain-module target never does — the subprocess
-    stubs every parent, so importing `zrb.llm.agent.common` leaves
-    `zrb/llm/agent/__init__.py` unexecuted. A barrel whose `__getattr__` or
-    re-exports break is only caught by naming the package itself.
-
-    The identifier-legal filter excludes the shipped skill tool scripts under
-    `llm_plugin/*_skills/<skill>/tools/` — standalone CLI programs in
-    hyphenated directories, which import nothing from `zrb`.
-    """
+    """Return importable package and module targets under `zrb`."""
     targets = set()
     for path in SRC.rglob("*.py"):
         relative = path.parent if path.name == "__init__.py" else path.with_suffix("")

@@ -1,11 +1,4 @@
-"""`PipecatSpeechBackend`: a service renders the audio, zrb plays it.
-
-No model is installed here and none is needed: the service is faked at the seam
-the backend uses to build one, which is also the seam a project's own service
-comes through. What is under test is what zrb does with it — build it once, hand
-it a sentence, play its audio, and let it go — and what it refuses to do, which is
-let a service play the audio itself.
-"""
+"""Pin Pipecat backend construction, rendering, refusal, and cleanup."""
 
 from __future__ import annotations
 
@@ -93,12 +86,7 @@ def test_a_sentence_is_rendered_by_the_service_the_config_names(factory):
 
 
 def test_the_service_is_built_once_for_the_backend(factory):
-    """A second sentence reuses the service, and the model it loaded.
-
-    The speaker prepares the next sentence while the current one plays, so this
-    is asked for twice in a session; a service built twice would load the model
-    twice.
-    """
+    """A second sentence reuses the service and its loaded model."""
     backend = PipecatSpeechBackend("piper", SpeechConfig().resolve())
     try:
         list(backend.create_audio(SENTENCE).chunks)
@@ -111,11 +99,7 @@ def test_the_service_is_built_once_for_the_backend(factory):
 
 
 def test_a_service_that_cannot_be_built_is_reported_to_the_speaker(monkeypatch):
-    """A missing package is raised where the speaker can fall back on a local voice.
-
-    The alternative is a session that says nothing at all, which is what a
-    swallowed failure looks like from the other side of the microphone.
-    """
+    """A missing package is raised for the speaker's local fallback."""
 
     def create_service(name: str, config: SpeechConfig) -> TTSService:
         raise RuntimeError(f"speech service {name!r} needs 'kokoro_onnx'")
@@ -130,11 +114,7 @@ def test_a_service_that_cannot_be_built_is_reported_to_the_speaker(monkeypatch):
 
 
 def test_the_backend_refuses_to_play_the_audio_itself(factory):
-    """A service that renders audio has no player program, and says so.
-
-    This is what tells the speaker to say the sentence through the local voice
-    instead of dropping it.
-    """
+    """A renders-only service refuses direct utterance playback."""
     backend = PipecatSpeechBackend("kokoro", SpeechConfig().resolve())
 
     with pytest.raises(RuntimeError, match="kokoro.*renders audio"):

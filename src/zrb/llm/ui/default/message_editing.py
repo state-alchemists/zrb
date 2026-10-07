@@ -183,9 +183,8 @@ class UIMessageEditing:
     def _recall_latest(self, buffer: Any, save_draft: bool = False) -> bool:
         """Load the newest queued message into the input field.
 
-        On the first recall (`save_draft=True`) the in-progress text is saved
-        so Down can restore it; later recalls from a stale edit mode leave the
-        saved draft untouched.
+        On the first recall (`save_draft=True`), save the in-progress text for
+        Down; later stale-edit recalls leave the saved draft untouched.
         """
         newest = self._ui.effective_message_queue.latest_editable()
         if newest is None:
@@ -304,11 +303,8 @@ class UIMessageEditing:
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
         """Record where `echo` landed so an edit can rewrite it in place.
 
-        Spans are keyed by this UI, so each `MultiUI` child keeps its own.
-
-        Recorded only when the line reached the buffer verbatim (a pending
-        confirmation buffers it instead). The writer appends a separator
-        newline, so the buffer ends with `echo` or `echo + "\\n"`.
+        Spans are keyed by this UI and recorded only when the line reached the
+        buffer verbatim; the writer may append a separator newline.
         """
         text = self._ui.output_text
         if not (text.endswith(echo) or text.endswith(echo + "\n")):
@@ -370,12 +366,8 @@ class UIMessageEditing:
     def _refresh_echo_span(self, entry: QueuedMessage, text: str) -> EchoSpan | None:
         """This UI's recorded span for `entry`, re-read off its tracked block.
 
-        `text` is the buffer the offsets index — this UI's output, or the main
-        transcript parked behind a sub-agent view (see `_parked_main_text`). The
-        block's offsets survive resizes and in-place edits above it, but the
-        region is checked against the text the block last drew before being
-        adopted. Falls back to the stored span when there is no block; ``None``
-        when this UI recorded no span.
+        `text` is this UI's output or the main transcript parked behind a
+        sub-agent view. Falls back to the stored span when there is no block.
         """
         span = entry.echo_spans.get(self._ui)
         if span is None:
@@ -422,13 +414,8 @@ class UIMessageEditing:
     def redraw_echo(self, entry: QueuedMessage) -> str | None:
         """Splice `entry`'s echo back into the output buffer at its current text.
 
-        The one splice path behind a queued-message edit and a paste merge.
-        Markdown vs. plain is re-decided from `entry.text` each time.
-
-        Returns the rewritten echo, or ``None`` when nothing was redrawn (no
-        valid span for this UI, or a sub-agent view is on screen); the caller
-        may then fall back to emitting an ordinary echo. Spans are keyed by
-        this UI, so one `MultiUI` child never touches another's.
+        Markdown vs. plain is re-decided from `entry.text` each time. Returns
+        the rewritten echo, or ``None`` when no valid span can be redrawn.
         """
         span = self._validated_echo_span(entry)
         if span is None:
@@ -451,17 +438,9 @@ class UIMessageEditing:
     def remove_echo(self, entry: QueuedMessage) -> None:
         """Take `entry`'s echoed line out of this UI's output buffer.
 
-        The delete path's counterpart to `redraw_echo`: the same validated span,
-        spliced empty, and the tracked block dropped so a later re-wrap cannot
-        draw the line back. Nothing happens when there is no valid span for this
-        UI — the queue still loses the message, since a stale line in the
-        transcript is a better failure than a corrupted one.
-
-        A sub-agent view is the one case where leaving the line behind is not
-        acceptable: the pane shows that agent's transcript, so
-        `_validated_echo_span` declines, but the echo also sits in the main
-        transcript parked behind the view — the text restored, stale line
-        and all, when the view closes. `_parked_echo_span` covers it.
+        A stale span is left alone rather than risking transcript corruption. A
+        sub-agent view uses `_parked_echo_span` because the main transcript is
+        behind the view.
         """
         span = self._validated_echo_span(entry)
         if span is None:

@@ -1,21 +1,7 @@
 """Dictation transcribed by a Pipecat speech-to-text service.
 
-The service is the one `zrb.llm.voice` builds from the name the config gives
-(`ZRB_LLM_DICTATION_BACKEND`) — `whisper`, `moonshine`, `funasr`, or a service a
-project registered in `zrb_init.py` — so what dictation listens through is a
-setting, and the models are Pipecat's rather than zrb's.
-
-What crosses back is text, and only text. `AnyDictationBackend` is the seam that
-keeps the session ignorant of where the words came from, so the guards that read
-a transcript — wake words, stop words, approvals, minimum words, a transcriber's
-guess — are untouched and cannot tell a Pipecat service from vosk. That is the
-point of the seam: swapping the service must not change what a user's words
-mean.
-
-The pipeline is built once per backend and kept, because the expensive part is
-the service's own model: Whisper and Moonshine both load it inside the
-constructor, so rebuilding one per utterance would pay for the model per
-utterance.
+The service is selected by `ZRB_LLM_DICTATION_BACKEND` and registered through
+`zrb.llm.voice`; `AnyDictationBackend` returns only its transcript to the session.
 """
 
 from __future__ import annotations
@@ -42,10 +28,8 @@ if TYPE_CHECKING:
 class PipecatDictationBackend(AnyDictationBackend):
     """A dictation backend whose transcription is a Pipecat STT service.
 
-    It transcribes a finished utterance, which is the shape zrb already has:
-    `listen` cuts the utterance, and this answers with what was said in it. The
-    speech-to-text services zrb registers are all segmented that way, so none of
-    them streams partials — see `create_stream`, which is `None` for this reason.
+    Pipecat services transcribe finished utterances; `create_stream` returns
+    `None` because they do not stream partials.
     """
 
     def __init__(self, service_name: str, config: "DictationConfig") -> None:
@@ -84,16 +68,8 @@ class PipecatDictationBackend(AnyDictationBackend):
     async def prepare(self, report: "Callable[[str], None]") -> None:
         """Load the service and start its pipeline, at most once.
 
-        `report` hears about it first: a model is downloaded or read from disk
-        here, which on a first run is the longest wait in the session.
-
-        A pipeline that has stopped counts as no pipeline, and is not one to hand
-        a segment to either. It is stopped whether zrb retired it — `transcribe`
-        does that for a segment that timed out while still in the service's hands,
-        whose answer would be taken for the next segment's — or Pipecat ended its
-        worker without `close`. A session that is still listening gets a new one,
-        and pays for the model again — the price of a service that had stopped
-        answering.
+        A stopped pipeline is discarded and replaced; `report` receives progress
+        while the service model is loaded.
         """
         async with self._preparing:
             if self._is_closed:
@@ -127,14 +103,10 @@ class PipecatDictationBackend(AnyDictationBackend):
                 self._refuse_a_closed_service()
 
     async def _start_the_pipeline(self, service: "STTService") -> STTPipeline:
-        """Put *service* to work, and let it go if that cannot be done.
+        """Start a pipeline for *service*; clean up the service if startup fails.
 
-        `prepare` owns the service from the moment its load returns until a
-        pipeline has adopted it, which is what starting one does. A start that
-        fails would otherwise drop a loaded model with the session still running
-        and nothing left holding it: the load ran off the loop, so nothing else
-        in the session has a reference to what it built. The close is quiet
-        because the start's own failure is the thing worth reporting.
+        The service was loaded off the event loop and has no other owner until
+        the pipeline adopts it.
         """
         try:
             return await STTPipeline.start(service)
@@ -152,22 +124,10 @@ class PipecatDictationBackend(AnyDictationBackend):
         )
 
     def _let_the_service_go(self, service: "STTService") -> None:
-        """Let go of a service whose load outlived the session that asked for it.
+        """Clean up a service whose load outlived its session.
 
-        A cancelled load cannot be stopped: the constructor is in a thread of its
-        own reading a model, and that model is the part worth waiting for. What it
-        returns is a loaded service with no pipeline and no session left to start
-        one around it, so it is cleaned up where it lands rather than dropped —
-        which is also what a service a project registered gets to release whatever
-        its own constructor took.
-
-        Where the loop that was waiting is still running, the close is a task of
-        its own on it. Where it is not — this runs on the load's own thread when
-        the loop is already gone — the close gets a loop of its own and is run to
-        completion here. That thread is a daemon's, so a close that hangs cannot
-        hold exit, and letting the service go unclosed would keep its model for as
-        long as the process has left: the loop this landed after is the session's,
-        not necessarily the process's.
+        A cancelled load may return a loaded service without a pipeline; close it
+        on the waiting loop when available, or run the close on a temporary loop.
         """
         closing = close_quietly(
             service.cleanup, f"the {self._service_name} speech service"
@@ -180,13 +140,8 @@ class PipecatDictationBackend(AnyDictationBackend):
         loop.create_task(closing)
 
     def _create_service(self) -> "STTService":
-        """The service this backend is named after.
-
-        Called off the event loop, which is why it is a method of its own: a
-        service loads its model in its constructor, and a download or a large
-        model must not be seconds the chat spends frozen. Pipecat's processors
-        keep no loop-bound state until a worker sets them up, which is what makes
-        building one off the loop safe.
+        """Create the service off the event loop because its constructor loads
+        the model; Pipecat processors acquire loop-bound state when workers start.
         """
         return stt_manager.create_service(self._service_name, self._config)
 
@@ -206,28 +161,18 @@ class PipecatDictationBackend(AnyDictationBackend):
     async def aclose(self) -> None:
         """Stop the pipeline and release the service's model.
 
-        Named apart from `close` rather than overloading it, because this is a
-        coroutine and its caller is not: `DictationSession.close` is synchronous,
-        and a `close` it had to remember to schedule would be a trap.
-
-        Once let go, this backend stays let go: the session that owned it is over,
-        and starting a pipeline again for it would be starting one nothing closes.
-        A `prepare` already loading a model is not waited for; what it starts after
-        this returns hands the pipeline back here rather than adopting it.
+        `DictationSession.close` is synchronous; a concurrent `prepare` returns
+        its newly started pipeline here instead of adopting it.
         """
         pipeline = self._detach_pipeline()
         if pipeline is not None:
             await pipeline.close()
 
     def release(self) -> None:
-        """Drop the pipeline where no loop is left to stop its worker on.
+        """Drop the pipeline when no loop remains to stop its worker on.
 
-        `aclose` cannot run here. The worker is a task of the loop this pipeline
-        was started on, and awaiting it from another loop raises the cross-loop
-        error `close_quietly` swallows, so the pipeline this backend still holds
-        would be the one thing a session that has already ended keeps alive: a
-        loaded model, and a worker nothing can reach. Letting go is what is left,
-        and it is what makes both collectable.
+        `aclose` cannot await a worker from another loop, so dropping the
+        reference lets the model and worker become collectable.
         """
         self._detach_pipeline()
 

@@ -12,18 +12,8 @@ from zrb.llm.ui.default.message_editing import UIMessageEditing
 
 
 class MockUI:
-    """Stand-in UI composing the real `UIKeybindings`, `UIMessageEditing`
-    and `UIAgentPicker`. Each part reaches this object's state via
-    `self._ui`, using only public names — matching the real default `UI`.
-    State that lives inside the composed parts themselves (`queued_edit_entry`/
-    `queued_edit_draft` on `UIMessageEditing`, `viewing_agent_id`/
-    `saved_main_output` on `UIAgentPicker`) is reached the same way tests reach
-    it: through the part's own public property, via `__getattr__` below.
-    """
+    """Stand-in UI composing the real keybinding, editing, and picker parts."""
 
-    # The real fan-out (drop from the queue, take the echo out of every target),
-    # which the default `UI` inherits from `BaseUI` unchanged — Ctrl+X's own
-    # behavior is what the tests here cover, so it must not be stubbed out.
     delete_queued_message = BaseUI.delete_queued_message
 
     def __init__(self):
@@ -45,12 +35,9 @@ class MockUI:
 
         self._keybindings = UIKeybindings(self)
         self._message_editing = UIMessageEditing(self)
-        # Sub-agent picker + live view (see UIAgentPicker). Mirrors the real
-        # default `UI` composition so Down Arrow's picker trigger works.
         self._agent_picker = UIAgentPicker(self)
         self._agent_picker.init_agent_picker_state()
 
-        # Mocks for BaseUI methods
         self.cancel_pending_confirmations = MagicMock()
         self.execute_hook = MagicMock()
         self.append_to_output = MagicMock(side_effect=lambda x: self.outputs.append(x))
@@ -62,7 +49,6 @@ class MockUI:
         self.schedule_command = MagicMock()
         self.classify_input = MagicMock(return_value="message")
 
-        # Mocks for BaseUICommands methods
         self._handle_btw_command = MagicMock(return_value=False)
         self._handle_toggle_yolo = MagicMock(return_value=False)
         self._handle_exit_command = MagicMock(return_value=False)
@@ -76,7 +62,6 @@ class MockUI:
         self._handle_exec_command = MagicMock(return_value=False)
         self._handle_custom_command = MagicMock(return_value=False)
 
-        # Mock for confirmation handling
         self.handle_confirmation = MagicMock(return_value=False)
 
     @property
@@ -92,11 +77,6 @@ class MockUI:
 
     def setup_app_keybindings(self, app_keybindings, llm_task):
         return self._keybindings.setup_app_keybindings(app_keybindings, llm_task)
-
-    # `__getattr__` below handles reads of state that lives on a composed
-    # part, but not writes (Python's default `__setattr__` would just shadow
-    # it with a same-named instance attribute on this mock instead). These
-    # forward both directions, through the part's own public property.
 
     @property
     def queued_edit_entry(self):
@@ -411,8 +391,7 @@ def test_turn_started_recall_requires_confirmation(mock_ui, setup_bindings):
 
 
 def test_previous_recall_submits_without_confirmation(mock_ui, setup_bindings):
-    """An ordinary previous-message recall recalls no queued entry, so Enter
-    submits it directly — no stale-queue warning, no second press."""
+    """Previous-message recall submits directly without a stale-queue warning."""
     history = MagicMock(recall_strings=MagicMock(return_value=["sent message"]))
     mock_ui.previous_messages = history
     event = create_mock_event("draft")
@@ -436,9 +415,7 @@ def test_enter_submit_message(mock_ui, setup_bindings):
 
 
 def test_enter_submit_clears_previous_recall(mock_ui, setup_bindings):
-    """A submitted recall must not leave the recall index set over an empty
-    buffer, or the next Up falls through to prompt-toolkit history instead of
-    starting a fresh previous-message recall (PR #562 round-3)."""
+    """Submitted recall resets its index before the next history navigation."""
     mock_ui.classify_input.return_value = "message"
     reset = MagicMock()
     mock_ui.reset_previous_recall = reset

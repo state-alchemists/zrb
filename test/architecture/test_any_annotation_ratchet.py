@@ -1,14 +1,7 @@
-"""`Any` in annotations, as a number that only goes down.
+"""Ratchet `Any` annotations downward.
 
-An `Any` switches pyright off for everything that flows through it, so a
-wrong attribute or a wrong argument type there is found by a user, not by
-`./zrb-test.sh`. Some are honest (a value from `json.loads`, a user callback
-whose return zrb never reads); many stand in for a type nobody wrote down.
-
-This counts `Any` used in a parameter, return or variable annotation, the
-shape of `test_bool_naming_ratchet.py`. Lower `ANY_ANNOTATIONS` in the same
-diff that replaces one with a real type (a protocol, a `TypeVar`, `object`
-for a value only passed along); never raise it to make new code pass.
+Some `Any` values are honest, but others disable pyright; lower the baseline
+when replacing one with a real type, never raise it to admit new code.
 """
 
 import ast
@@ -17,10 +10,7 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
-# -2: message-queue provenance forwarding now uses object/Awaitable types.
-# -1: the slop sweep dropped `_admits` in live_context, whose `model: "Any"`
-# was never read (it always returned True).
-# -4: the shared daemon-thread runner replaced untyped hook plumbing.
+# Baseline history: -2 queue types, -1 dead `_admits`, -4 daemon-thread hooks.
 ANY_ANNOTATIONS = 1089
 
 

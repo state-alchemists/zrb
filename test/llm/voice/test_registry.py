@@ -1,11 +1,4 @@
-"""The speech service registries and the managers that read them.
-
-What these pin: a built-in is named and listed without the voice stack being
-imported, a registration wins over a built-in of the same name, an unknown name
-is reported with the choices, and a service whose package is missing is reported
-by the package zrb can tell the user to install rather than by a raw import
-error.
-"""
+"""Pin voice service listing, registration, lookup, and missing-package errors."""
 
 import subprocess
 import sys
@@ -37,11 +30,7 @@ def test_the_built_ins_are_the_local_services_pipecat_ships():
 
 
 def test_naming_a_built_in_does_not_import_the_voice_stack():
-    """A registry is read at startup and inside messages, so listing stays cheap.
-
-    Run in a fresh interpreter: another test in this session may already have
-    imported pipecat, which would make the assertion here vacuous.
-    """
+    """Listing services stays cheap without importing Pipecat."""
     code = (
         "import sys; import zrb.llm.voice as voice;"
         "print('pipecat' in sys.modules, voice.stt_manager.names(),"
@@ -104,12 +93,7 @@ def test_an_unknown_name_is_reported_with_the_choices():
 
 
 def test_a_service_whose_package_is_missing_names_the_package():
-    """The failure a user can act on, not the `ModuleNotFoundError` underneath it.
-
-    The spec is registered here rather than read off the built-ins: whether
-    `moonshine_voice` or `piper` is installed is a fact about the machine, so a
-    test that leaned on it would pass or fail by accident.
-    """
+    """A missing package is reported as an actionable service error."""
     manager = STTServiceManager(
         STTServiceRegistry(
             {
@@ -125,12 +109,12 @@ def test_a_service_whose_package_is_missing_names_the_package():
 
 
 def _unbuildable(config: "DictationConfig") -> Any:
-    """A factory that must never run: the missing package is reported first."""
+    """A factory that must not run before package validation."""
     raise AssertionError("the factory ran for a service that cannot be built")
 
 
 def test_a_service_whose_package_is_missing_is_said_so_when_described():
-    """What a listing says a service needs, and where it runs."""
+    """Descriptions identify locality and missing dependencies."""
     manager = TTSServiceManager(
         TTSServiceRegistry(
             {

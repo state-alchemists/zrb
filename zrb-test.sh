@@ -30,7 +30,12 @@ COVERAGE_DIR="$(mktemp -d)"
 trap 'rm -rf "${COVERAGE_DIR}"' EXIT
 export COVERAGE_FILE="${COVERAGE_DIR}/.coverage"
 
-ZRB_INIT_SCRIPTS="" pytest \
+# Environment hygiene is the suite's business, not the shell's: `pytest_configure`
+# in test/conftest.py removes the whole config namespace before collection, so no
+# variable a developer exported — `ZRB_INIT_SCRIPTS` included — can reach a test.
+# That holds for every entry point (this script, a bare `pytest`, and each xdist
+# worker), which is why nothing is neutralized here.
+pytest \
     -n auto \
     --ignore-glob="**/template/**" \
     --ignore-glob="**/fastapp_template/**" \

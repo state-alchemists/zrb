@@ -20,7 +20,7 @@ def mock_session():
 
 @pytest.mark.asyncio
 async def test_cmd_task_exec_success(mock_session):
-    """Test successful command execution via exec."""
+    """Successful command execution returns its result."""
     mock_cmd_result = CmdResult(output="output", error="", display="output")
 
     def mock_run_command(*args, **kwargs):
@@ -39,8 +39,6 @@ async def test_cmd_task_exec_success(mock_session):
 
         result = await task.exec(mock_session)
 
-        # We can't use assert_called_once() with side_effect
-        # but the test will fail if run_command isn't called
         assert result == mock_cmd_result
     finally:
         zrb.task.cmd_task.run_command = original_run_command
@@ -48,7 +46,7 @@ async def test_cmd_task_exec_success(mock_session):
 
 @pytest.mark.asyncio
 async def test_cmd_task_exec_failure(mock_session):
-    """Test command execution failure via exec."""
+    """Failed commands raise."""
     mock_cmd_result = CmdResult(output="", error="error", display="")
 
     def mock_run_command(*args, **kwargs):
@@ -128,7 +126,7 @@ async def test_cmd_task_exec_signal_killed(mock_session):
 
 @pytest.mark.asyncio
 async def test_cmd_task_exec_plain_print(mock_session):
-    """Test plain_print=True via exec."""
+    """`plain_print=True` reaches command execution."""
     mock_cmd_result = CmdResult(output="output", error="", display="output")
 
     call_args_list = []
@@ -161,7 +159,7 @@ async def test_cmd_task_exec_plain_print(mock_session):
 
 @pytest.mark.asyncio
 async def test_cmd_task_exec_cwd(mock_session):
-    """Test custom cwd via exec."""
+    """A custom working directory reaches execution."""
     mock_cmd_result = CmdResult(output="output", error="", display="output")
     custom_cwd = "/tmp/custom_dir"
 
@@ -198,12 +196,11 @@ async def test_cmd_task_exec_cwd(mock_session):
 
 @pytest.mark.asyncio
 async def test_cmd_task_exec_env(mock_session):
-    """Test custom environment variables via exec."""
+    """Custom environment variables reach execution."""
     mock_cmd_result = CmdResult(output="output", error="", display="output")
 
     call_args_list = []
 
-    # Create a simple function that returns a coroutine instead of an async function
     def mock_run_command(*args, **kwargs):
         async def _coro():
             call_args_list.append((args, kwargs))
@@ -303,12 +300,11 @@ async def test_cmd_task_remote_with_password_exports_sshpass(mock_session):
 
 @pytest.mark.asyncio
 async def test_cmd_task_exec_remote(mock_session):
-    """Test remote command execution via exec."""
+    """Remote command execution builds the remote invocation."""
     mock_cmd_result = CmdResult(
         output="remote output", error="", display="remote output"
     )
 
-    # Track call arguments
     call_args_list = []
 
     def mock_run_command(*args, **kwargs):
@@ -348,7 +344,7 @@ async def test_cmd_task_exec_remote(mock_session):
     [
         ("bash", True),
         ("/bin/bash", True),
-        # The Windows default (Git Bash) is a `.exe` path.
+        # Windows supplies Git Bash as an `.exe` path.
         ("C:\\Program Files\\Git\\bin\\bash.exe", True),
         ("/usr/bin/zsh", True),
         ("cmd", False),

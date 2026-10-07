@@ -1,17 +1,7 @@
-"""The counts AGENTS.md quotes are measured, not remembered.
+"""Keep AGENTS.md's measured function counts synchronized.
 
-`AGENTS.md`'s verb rule states how many functions the tree holds, how many
-distinct leading tokens they answer to, and what share of those tokens appears
-once. Those numbers go stale silently: a rename or a new helper moves them
-without touching the sentence, and the file was already wrong — it claimed
-"5,000 functions … 596 distinct leading tokens, 43% of them used once" while the
-tree measured 4,466 / 488 / 39.5%. A guide whose argument is "verify against
-data" should not carry a number nobody re-measures, so `scripts/doc_counts.py`
-computes the three and this holds the sentence to them.
-
-The fix when this fails is one command:
-
-    python scripts/doc_counts.py --write
+The prior sentence claimed 5,000 / 596 / 43%, while the tree measured
+4,466 / 488 / 39.5%; `scripts/doc_counts.py --write` is the fix.
 """
 
 import importlib.util
@@ -29,11 +19,7 @@ _SPEC.loader.exec_module(doc_counts)
 
 
 def test_the_counts_sentence_is_still_found():
-    """A reworded sentence would leave every check below guarding nothing.
-
-    The numbers only mean something while the test can find the sentence that
-    carries them, so losing it has to fail here rather than quietly pass.
-    """
+    """Fail if the counts sentence disappears or is reworded."""
     assert doc_counts.documented() is not None, (
         f"{doc_counts.AGENTS.name} no longer contains the counts sentence this "
         "test reads (the `N functions, which currently answer to M distinct "
@@ -53,14 +39,14 @@ def test_the_documented_counts_match_the_tree():
 
 
 def test_the_rewrite_restates_the_sentence_from_the_measurement():
-    """The one command the failure above names has to actually fix it."""
+    """The named rewrite command must actually fix the sentence."""
     measured = doc_counts.measure()
     rewritten = doc_counts.rewrite(doc_counts.AGENTS.read_text(encoding="utf-8"), measured)
     assert doc_counts.documented(rewritten) == measured
 
 
 def test_write_restates_the_sentence_in_place(tmp_path, monkeypatch):
-    """The positive control for the refusal below, and for the command's exit code."""
+    """The write path must restate the measured counts."""
     target = tmp_path / "AGENTS.md"
     target.write_text(
         "It answers to 5,000 functions, which currently answer to 596 distinct "
@@ -73,13 +59,7 @@ def test_write_restates_the_sentence_in_place(tmp_path, monkeypatch):
 
 
 def test_write_refuses_to_claim_success_with_nothing_to_restate(tmp_path, monkeypatch):
-    """`--write` is the fix the failure message names, so it cannot no-op silently.
-
-    `rewrite` leaves a text without the sentence unchanged. Writing that result
-    anyway reports success for a file the script cannot fix, while the sentence it
-    failed to find is the one the failing test is pointing at. The recovery
-    command has to fail loudly instead, and leave the file as it found it.
-    """
+    """`--write` must fail loudly when no counts sentence can be restated."""
     target = tmp_path / "AGENTS.md"
     untouched = "# No counts sentence lives here.\n"
     target.write_text(untouched, encoding="utf-8")

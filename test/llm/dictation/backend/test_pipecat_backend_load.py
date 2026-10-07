@@ -1,16 +1,4 @@
-"""The service a load built, and who lets go of it.
-
-`prepare` loads a model off the loop and hands it to a pipeline, and there are
-three ways that ends with a service and no pipeline around it: the load is
-cancelled, the start around it fails, or the load lands after the loop that was
-waiting for it is gone. Each leaves a loaded service nobody answers through, and
-a service holds its model — a gigabyte of it, for Whisper — so each is a leak
-unless the service is closed.
-
-What a load that works does — one service, one pipeline, every utterance
-answered through them — is `test_pipecat_backend.py`. Like it, this file carries
-its own copy of the doubles: a test file is a feature group, not a library.
-"""
+"""Tests cleanup when Pipecat service loading cannot produce a pipeline."""
 
 from __future__ import annotations
 
@@ -24,7 +12,7 @@ from zrb.llm.dictation.config import DictationConfig
 
 MODULE = "zrb.llm.dictation.backend.pipecat"
 
-# A sample rate to start a stubbed pipeline at; the real one is Pipecat's own.
+# Pipecat's sample rate for the stubbed pipeline.
 SAMPLE_RATE = 16000
 
 
@@ -34,8 +22,7 @@ class FakePipeline:
     def __init__(self) -> None:
         self.segments: list[bytes] = []
         self.closes = 0
-        # Set by a test to stand in for a pipeline that retired itself: one that
-        # gave up on a segment whose answer names no segment, and stopped.
+        # Simulates a pipeline retired after a timed-out segment.
         self.is_closed = False
 
     async def transcribe(self, audio: bytes) -> str:
@@ -72,12 +59,7 @@ async def _until(predicate, timeout: float = 5.0) -> None:
 
 @pytest.mark.asyncio
 async def test_a_service_that_will_not_build_is_reported_to_whoever_asked(monkeypatch):
-    """A missing package fails the preparation, naming the setting that named it.
-
-    The message is the manager's, and it is the difference between "the voice did
-    not start" and "the voice did not start because the package that transcribes
-    is not installed".
-    """
+    """A missing service package names the configured dependency."""
 
     def create_service(name: str, config: DictationConfig) -> FakeService:
         raise RuntimeError(
@@ -93,15 +75,7 @@ async def test_a_service_that_will_not_build_is_reported_to_whoever_asked(monkey
 
 @pytest.mark.asyncio
 async def test_a_teardown_while_the_model_loads_leaves_no_pipeline(monkeypatch):
-    """A session that ends while its service is still loading lets go of what that
-    load starts.
-
-    `prepare` loads the model and the teardown lets the backend go; the two can
-    overlap, because the load is off the loop and the teardown is not. Run that
-    way, the teardown finds no pipeline to close — so the one the load starts
-    afterwards is the only thing holding a worker and a resident model, and it
-    has to be the load that lets it go.
-    """
+    """Teardown during loading closes the pipeline created after teardown starts."""
     pipeline = FakePipeline()
     loading = threading.Event()
     reached = threading.Event()
@@ -169,14 +143,7 @@ async def test_cancelled_service_loading_uses_a_daemon_thread(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_load_that_outlives_a_cancelled_prepare_is_let_go(monkeypatch):
-    """A model that finished loading for nobody is cleaned up, not dropped.
-
-    The constructor is in a thread of its own, so cancelling `prepare` stops the
-    wait and nothing else: the model still finishes loading. Nobody will start a
-    pipeline around that service, so the service is what has to be let go of —
-    and a registered one may hold more in its own constructor than the model the
-    collector gets to whenever it gets to it.
-    """
+    """A service finishing after cancellation is cleaned up without a pipeline."""
     reached = threading.Event()
     release = threading.Event()
     built: list[FakeService] = []
@@ -208,17 +175,7 @@ async def test_a_load_that_outlives_a_cancelled_prepare_is_let_go(monkeypatch):
 
 
 def test_a_load_that_lands_after_its_loop_closed_is_still_let_go(monkeypatch):
-    """A service whose loop is gone is closed, not left to the collector.
-
-    Cancelling stops the wait and nothing else, so the model can arrive after the
-    loop it was being waited on is already closed. Letting the service go is still
-    the whole point of the orphan path there: the loop that closed is the
-    session's, not necessarily the process's, so its model would stay resident for
-    however long the process has left.
-
-    Runs on a loop of its own rather than pytest's, because this case *is* a loop
-    closed before the load lands, and pytest's is still running.
-    """
+    """A service arriving after its loop closes is still cleaned up."""
     reached = threading.Event()
     release = threading.Event()
     threads: list[threading.Thread] = []
@@ -258,13 +215,7 @@ def test_a_load_that_lands_after_its_loop_closed_is_still_let_go(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_a_pipeline_that_cannot_be_started_lets_the_service_go(monkeypatch):
-    """A service built for a pipeline that then fails is closed, not dropped.
-
-    `prepare` owns the service from the moment its load returns until a pipeline
-    has adopted it. A start that raises would otherwise drop a loaded model with
-    the session still running: the load ran on a thread of its own, so no other
-    part of the session holds a reference to what it built.
-    """
+    """A failed pipeline start closes the service still owned by `prepare`."""
     built: list[FakeService] = []
 
     def create_service(name: str, config: DictationConfig) -> FakeService:
@@ -288,12 +239,7 @@ async def test_a_pipeline_that_cannot_be_started_lets_the_service_go(monkeypatch
 
 @pytest.mark.asyncio
 async def test_a_service_a_started_pipeline_adopted_is_not_closed(monkeypatch):
-    """Ownership passes to the pipeline, so a start that works closes nothing.
-
-    The service belongs to the pipeline from the moment one has it, and a
-    `prepare` that closed it anyway would take the model out from under the
-    pipeline about to be handed every segment of the session.
-    """
+    """A started pipeline owns its service, so `prepare` does not close it."""
     pipeline = FakePipeline()
     built: list[FakeService] = []
 
