@@ -2,7 +2,7 @@
 
 # Voice and Camera
 
-`zrb llm chat` can take a photo, take dictation, and read its replies aloud. Each is an optional feature added to the chat task with one call; the built-in `llm_chat` makes all three calls, so they work out of the box.
+`zrb llm chat` can take a photo, take dictation, and read its replies aloud. Each is an optional feature added to the chat task with one call; the built-in `llm_chat` makes all three calls, so they work out of the box. For copy-pasteable setups and the Python extension points behind voice input, spoken responses, and TTS, see [Programming the Voice](programming-the-voice.md).
 
 | Feature | Commands | Needs |
 |---|---|---|
@@ -19,6 +19,7 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 - [Speech](#speech)
 - [Talking with zrb](#talking-with-zrb)
 - [Configuring in code](#configuring-in-code)
+- [Programming the Voice](programming-the-voice.md)
 - [Your own backend](#your-own-backend)
 - [On your own chat task](#on-your-own-chat-task)
 

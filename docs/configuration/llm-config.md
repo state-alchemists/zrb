@@ -874,7 +874,7 @@ ANSI colors for plain terminal output (outside the TUI). Each `_COLOR_*` value i
 
 ## 23. Voice and Camera
 
-Three optional features of `zrb llm chat`, each added with one call and read from these variables **when a session starts**, so `zrb_init.py` may change them after importing zrb. A setting passed to `CameraConfig`, `DictationConfig` or `SpeechConfig` in code wins over its variable; see [Voice and camera](../llm/voice-camera.md) for that, and for plugging in your own backend. Audio dependencies (sounddevice, numpy, vosk) load only when the microphone first opens, costing nothing at startup.
+Three optional features of `zrb llm chat`, each added with one call and read from these variables **when a session starts**, so `zrb_init.py` may change them after importing zrb. A setting passed to `CameraConfig`, `DictationConfig` or `SpeechConfig` in code wins over its variable; see [Voice and camera](../llm/voice-camera.md) for that, [Programming the Voice](../llm/programming-the-voice.md) for recipes and Python extension points, and [Voice & Photo Troubleshooting](../llm/voice-photo-troubleshooting.md) for platform setup. Audio dependencies (sounddevice, numpy, vosk) load only when the microphone first opens, costing nothing at startup.
 
 ### Voice preset
 
