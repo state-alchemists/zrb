@@ -69,9 +69,8 @@ class _TooLarge(RuntimeError):
 
 
 class VoskDictationBackend(AnyDictationBackend):
-    """vosk, offline; *model_name* is downloaded from *model_url* when missing.
-    *confidence* is the average word confidence hands-free requires (0-1), 0
-    taking every word vosk heard."""
+    """Offline vosk backend; downloads *model_name* from *model_url* when missing.
+    Hands-free drops transcripts below the average word *confidence* (0-1)."""
 
     def __init__(
         self,
@@ -275,27 +274,14 @@ async def download_vosk_model(
     str
 ):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Download and extract a Vosk model, waiting at most *timeout* seconds
-    (``0`` or ``None``: the transfer is not capped) for the server to answer.
+    (``0`` or ``None``: uncapped) for the server to answer.
 
-    The response is streamed to a file in the cache directory rather than
-    accumulated in memory, and stopped at ``limits.max_download``. The zip is
-    extracted into a private staging directory, checked against *limits*
-    before anything is written, and the model moved into place with one
-    rename, so another session never loads a half-extracted model; when two
-    download at once, the first rename wins. The staging directory is removed
-    on every path out, and so is the archive — by the extractor itself, once it
-    is done reading it, rather than only by the caller, which a cancellation
-    returns past while the extractor is still using the file.
-
-    An uncapped transfer is still a bounded connection: the socket waits at
-    most ``_CONNECT_TIMEOUT_SECONDS`` for the server whatever *timeout* says,
-    because a thread blocked on a socket with no timeout cannot be freed and
-    would outlive the session that asked for the download.
-
-    The response body is read in 64 KiB chunks with an ``await`` between each,
-    so the coroutine is cancellable (``/q`` or Ctrl+C) at chunk boundaries
-    instead of blocking on one uninterruptible read. On cancellation the socket
-    is closed in ``finally``, releasing the in-flight worker thread.
+    The response is streamed in 64 KiB chunks and limited by
+    ``limits.max_download``. Extraction validates *limits* before writing to a
+    private staging directory, then atomically renames the model into place;
+    cancellation closes the socket and worker-owned archive cleanup handles
+    files still open during extraction. The connection still has a
+    ``_CONNECT_TIMEOUT_SECONDS`` bound when *timeout* is uncapped.
 
     Returns the model path on success.
     Raises RuntimeError if the download or extraction fails.
@@ -477,16 +463,9 @@ def _remove_quietly(path: str) -> None:
 
 
 def _close_response_quietly(response: object) -> None:
-    """Close a response that arrived after the wait for it was given up.
+    """Close a response left by a cancelled ``urlopen`` worker.
 
-    Cancelling the download cannot stop ``urlopen`` already running in a thread
-    of its own, so a connection it opens is still opened — a socket held against
-    a caller that is gone. Closing it here is what gives that socket back; the
-    alternative is the collector, which gets to it whenever it gets to it.
-
-    Nothing is reported, and nothing is raised: the download this belonged to
-    failed with the caller's own cancellation, and a socket that cannot be
-    closed at that point is not news the caller can act on.
+    Suppress errors because the download already failed with cancellation.
     """
     close = getattr(response, "close", None)
     if close is None:

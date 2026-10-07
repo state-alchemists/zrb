@@ -19,11 +19,7 @@ if TYPE_CHECKING:
 def get_speech_backend(
     backend: "str | AnySpeechBackend", config: "SpeechConfig"
 ) -> AnySpeechBackend:
-    """*backend* itself, or the one it names, built from the resolved *config*:
-    ``auto`` (``termux`` on Termux, ``say`` on macOS, else ``espeak-ng``),
-    ``termux``, ``say``, ``espeak-ng``, ``openai``, ``gemini``, or a
-    text-to-speech service registered with ``tts_manager`` (``kokoro``,
-    ``piper``, ``pocket``, or one a project registered)."""
+    """Return *backend* or construct the named backend from *config*."""
     if isinstance(backend, AnySpeechBackend):
         return backend
     name = backend.strip().lower() or "auto"
@@ -32,9 +28,7 @@ def get_speech_backend(
     create = _BUILTIN_BACKENDS.get(name)
     if create is not None:
         return create(config)
-    # A Pipecat text-to-speech service, built-in or registered in code. It
-    # renders audio for zrb to play rather than playing it through a program, so
-    # it is a backend here only where zrb can play it itself.
+    # Pipecat services render audio for zrb's in-process playback.
     if tts_registry.get(name) is not None:
         return PipecatSpeechBackend(name, config)
     raise ValueError(
@@ -44,8 +38,7 @@ def get_speech_backend(
 
 
 def _get_local_backend_name() -> str:
-    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind the
-    # name at this module's load time and bypass the mock.
+    # lazy: tests patch `is_termux` after module import.
     from zrb.config.helper import is_termux
 
     if is_termux() and shutil.which("termux-tts-speak"):

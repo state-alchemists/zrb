@@ -11,7 +11,7 @@ def test_assigning_an_unknown_uppercase_knob_raises_and_suggests():
         cfg.LLM_MODELL = "oops"
     message = str(excinfo.value)
     assert "LLM_MODELL" in message
-    assert "LLM_MODEL" in message  # the suggestion
+    assert "LLM_MODEL" in message
 
 
 def test_assigning_a_known_knob_still_works():
@@ -67,14 +67,7 @@ def test_convert_setting_value_uncastable_raises_naming_setting_and_value():
 
 
 def test_convert_setting_value_applies_the_transform_a_read_would():
-    """Converting must follow the same cast-then-transform path a read does.
-
-    `BANNER`'s transform expands `{VERSION}`, and each token threshold is clamped
-    against the rate limits by its transform. Converting with `cast` alone would
-    hand `/set` a value the next read silently changes, so the command would
-    store and confirm something other than the effective setting (round-5
-    review).
-    """
+    """Conversion must use the same cast-then-transform path as a read."""
     cfg = Config()
     assert cfg.convert_setting_value("BANNER", "hi {VERSION}") == f"hi {cfg.VERSION}"
     threshold = cfg.convert_setting_value(
@@ -88,20 +81,10 @@ def test_convert_setting_value_applies_the_transform_a_read_would():
     "name", ["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKEN_PER_REQUEST"]
 )
 def test_a_setting_whose_write_key_differs_from_its_name_reads_back(name, monkeypatch):
-    """An assignment has to survive the read that follows it, aliases included.
-
-    These two settings read either the singular or the plural form and write the
-    plural one, so an assignment only lands if the write key is inside the read
-    list. When it is not, `CFG.<name> = value` — the write `/set` performs —
-    stores the value under a key the read never reaches, the command confirms a
-    change, and the next read returns the default. `LLM_MAX_TOKEN_PER_MINUTE` is
-    also advertised as the singular name in `llm-config.md`, so the mismatch
-    would be invisible in the docs as well.
-    """
+    """Assignments must survive the next read, including alias resolution."""
     cfg = Config()
     field = getattr(type(cfg), name)
     write_key = field.env_key(cfg.ENV_PREFIX)
-    # Restores whatever the developer's own environment had, at teardown.
     monkeypatch.delenv(write_key, raising=False)
     setattr(cfg, name, 4321)
     assert os.environ[write_key] == "4321"

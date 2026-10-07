@@ -1,23 +1,7 @@
-"""The registries of speech-to-text and text-to-speech services.
+"""Registries of speech-to-text and text-to-speech services.
 
-A registry is the *source of defaults*: the built-ins it is seeded with, plus
-everything registered in code, keyed by the name a config value quotes. It does
-not build anything — that is the owning manager's job.
-
-A user registration wins over a built-in of the same name, so a project may
-replace ``whisper`` with its own service without giving up the built-ins beside
-it. `zrb_init.py`::
-
-    from zrb import tts_manager
-    from zrb.llm.voice.spec import TTSServiceSpec
-
-    tts_manager.register("my-voice", TTSServiceSpec(
-        name="my-voice",
-        provider="my_voice_sdk",
-        factory=lambda config: MyTTSService(api_key="...", voice=config.voice),
-    ))
-
-then ``ZRB_LLM_SPEECH_BACKEND=my-voice``.
+A registry holds built-ins and code registrations; it does not build services.
+A project registration replaces a built-in of the same name.
 """
 
 from __future__ import annotations
@@ -31,11 +15,10 @@ T = TypeVar("T", STTServiceSpec, TTSServiceSpec)
 
 
 class SpeechServiceRegistry(Generic[T]):
-    """Named speech services: built-in defaults plus registrations in code.
+    """Named speech services: built-in defaults plus code registrations.
 
-    A single instance per kind is exposed at module level as
-    :data:`stt_registry` and :data:`tts_registry` — import those, not the class.
-    Construct a fresh instance only in tests that need full isolation.
+    Module-level instances are the canonical registries; fresh instances are for
+    isolated tests.
     """
 
     def __init__(self, builtins: "dict[str, T]") -> None:
@@ -45,8 +28,7 @@ class SpeechServiceRegistry(Generic[T]):
     def register(self, name: str, spec: T) -> None:
         """Register *spec* under *name*, replacing any built-in or earlier one.
 
-        The name is normalized the way a lookup normalizes it, so a
-        registration and a config value meet whatever their case and spacing.
+        Names are normalized for registration and lookup.
         """
         key = _normalize(name)
         if not key:

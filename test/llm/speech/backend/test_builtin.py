@@ -1,4 +1,4 @@
-"""`get_speech_backend`: names to built-in backends."""
+"""Pin built-in speech backend selection and configuration."""
 
 import base64
 import io
@@ -81,12 +81,7 @@ def test_an_unknown_name_is_refused():
 
 @pytest.mark.parametrize("name", ["kokoro", "piper", "pocket"])
 def test_a_registered_service_is_a_backend_that_renders_audio(name):
-    """A service `zrb.llm.voice` registers is named like any other backend.
-
-    Nothing is built here: the service, its model and its pipeline wait for the
-    first sentence, which is what lets a session name a voice it will not use
-    without paying for it.
-    """
+    """Registered services are lazy renders-only backends."""
     backend = get_speech_backend(name, SpeechConfig().resolve())
 
     assert isinstance(backend, PipecatSpeechBackend)

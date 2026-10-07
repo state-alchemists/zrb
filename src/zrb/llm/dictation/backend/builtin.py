@@ -42,12 +42,8 @@ def get_dictation_backend(
 def _get_builtin_backend(
     name: str, config: "DictationConfig"
 ) -> AnyDictationBackend | None:
-    """The hand-rolled backend *name* builds, or ``None`` when *name* is not one.
-
-    ``None`` rather than a raise, because a name that is not a built-in is not
-    an error yet: it may be a speech service registered in code, which is what
-    the caller asks next.
-    """
+    """Build the built-in backend named by *name*, or return ``None`` for a
+    name that may identify a registered speech service."""
     if name == "vosk":
         return VoskDictationBackend(
             config.vosk_model_name or "",

@@ -1,20 +1,10 @@
-"""Regenerate the measured counts AGENTS.md quotes.
+"""Measure and optionally rewrite AGENTS.md's function-count sentence.
 
-AGENTS.md's verb rule cites how many functions the tree holds and how varied
-their leading tokens are. Those numbers were written once by hand and drifted:
-the file said "5,000 functions … 596 distinct leading tokens, 43% of them used
-once" while the tree measured 4,466 / 488 / 39.5%. A guide whose whole thesis is
-"verify against data" should not carry a number nobody re-checks, so the counts
-live here and `test/architecture/test_documented_counts.py` holds AGENTS.md to
-them.
+The old sentence claimed 5,000 / 596 / 43%, while the tree measured
+4,466 / 488 / 39.5%; the test keeps the documented counts synchronized.
 
-    python scripts/doc_counts.py           # measured, documented, and any drift
-    python scripts/doc_counts.py --check    # exit 1 on drift (what the test runs)
-    python scripts/doc_counts.py --write    # rewrite the numbers in AGENTS.md
-
-The basis is every function definition in `src/zrb`, public and private alike:
-the sentence the numbers sit in says "functions", and the leading-token variety
-is a property of the tree rather than of the exported surface.
+Usage: run normally to report drift, `--check` for exit status, or `--write` to
+rewrite the sentence. Counts include every function in `src/zrb`.
 """
 
 from __future__ import annotations
@@ -28,12 +18,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SRC = REPO_ROOT / "src" / "zrb"
 AGENTS = REPO_ROOT / "AGENTS.md"
-# How the failure message names this script to the reader, whatever the cwd.
+# Use a cwd-independent path in failure messages.
 SCRIPT_PATH = Path(__file__).resolve().relative_to(REPO_ROOT).as_posix()
 
-# The sentence in AGENTS.md that carries the counts. Anchored on its wording so
-# a reworded sentence fails the test that reads it rather than silently
-# unchecking the numbers.
+# Anchor on the wording so rephrasing fails the guarding test.
 _SENTENCE = re.compile(
     r"(?P<functions>[\d,]+) functions, which currently answer to "
     r"(?P<distinct_tokens>\d+) distinct leading tokens, "
@@ -42,7 +30,7 @@ _SENTENCE = re.compile(
 
 
 def measure() -> dict[str, int | float]:
-    """The counts as the tree stands: function total, token variety, once-only %."""
+    """Return current function, token-variety, and once-only counts."""
     verbs: Counter[str] = Counter()
     for path in SRC.rglob("*.py"):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
@@ -73,7 +61,7 @@ def documented(text: str | None = None) -> dict[str, int | float] | None:
 
 
 def rewrite(text: str, counts: dict[str, int | float]) -> str:
-    """`text` with the counts sentence restated from `counts`."""
+    """Restate the counts sentence in `text`."""
     replacement = (
         f"{counts['functions']:,} functions, which currently answer to "
         f"{counts['distinct_tokens']} distinct leading tokens, "
@@ -83,7 +71,7 @@ def rewrite(text: str, counts: dict[str, int | float]) -> str:
 
 
 def _report(counts: dict[str, int | float], stated: dict[str, int | float] | None) -> int:
-    """Print measured against documented; return a shell exit code."""
+    """Report measured versus documented counts and return an exit code."""
     print(f"measured:   {counts}")
     if stated is None:
         print(f"documented: sentence not found in {AGENTS.name}")
@@ -97,14 +85,7 @@ def _report(counts: dict[str, int | float], stated: dict[str, int | float] | Non
 
 
 def _write(counts: dict[str, int | float]) -> int:
-    """Restate the counts sentence in place, or report that there is none.
-
-    `rewrite` leaves a text without the sentence unchanged, so writing its result
-    unconditionally reports success for a file this script cannot fix — and the
-    sentence it failed to find is the very one the failing test is pointing at.
-    The rewrite is verified before it is written instead, and a file that does not
-    carry the sentence afterwards is not written at all.
-    """
+    """Rewrite the counts sentence only after verifying it can be found."""
     source = AGENTS.read_text(encoding="utf-8")
     updated = rewrite(source, counts)
     if documented(updated) != counts:

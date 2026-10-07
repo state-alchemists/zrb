@@ -1,14 +1,4 @@
-"""What a dictation session's end leaves behind.
-
-Closing a session is synchronous and runs wherever the session was being served,
-while letting a backend go is neither: a Pipecat pipeline's worker belongs to the
-loop that started it, and a recording the teardown interrupted reaches its
-transcription afterwards. This file is that end — where the backend is closed,
-and what is refused once the session is over — while recording, listening,
-barge-in and the commands stay in the sibling `test_feature*` files. Like them,
-it carries its own copy of the fixtures: a test file is a feature group, not a
-library.
-"""
+"""Dictation session teardown closes backends on their owning loops."""
 
 import asyncio
 import logging
@@ -60,14 +50,7 @@ class FakeUI:
 
 
 def test_closing_a_session_where_no_loop_runs_still_closes_the_backend():
-    """A synchronous teardown must not drop a backend on the floor.
-
-    `close` is registered as a feature teardown, and it is synchronous where a
-    backend's own close is not. Scheduling that close when no loop is running
-    fails, and the coroutine left behind only warns once it is collected —
-    with whatever model or pipeline the backend was holding still alive. The
-    close is run to completion instead.
-    """
+    """Synchronous teardown runs an async close to completion without a loop."""
     backend = ClosingBackend()
     session = DictationSession(DictationConfig(backend=backend).resolve())
     assert session.backend is backend  # built, and now the session's to let go
@@ -78,15 +61,7 @@ def test_closing_a_session_where_no_loop_runs_still_closes_the_backend():
 
 
 def test_a_backend_bound_to_a_loop_is_closed_on_that_loop():
-    """A synchronous teardown closes the backend where closing works.
-
-    A Pipecat pipeline's worker is a task on the loop that started it. Closing
-    from a loop of the teardown's own — what a synchronous close does when there
-    is no loop to schedule on — makes that close await a task belonging to
-    another loop, which raises the error `close_quietly` swallows: the session
-    reports the backend let go while the worker, the pipeline and the model run
-    on.
-    """
+    """Teardown closes a loop-bound backend on its owning loop."""
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
@@ -119,15 +94,7 @@ def test_a_backend_bound_to_a_loop_is_closed_on_that_loop():
 
 
 def test_a_backend_whose_loop_is_gone_is_released_and_reported(caplog):
-    """A teardown with nowhere to close lets the backend go anyway.
-
-    The loop that owns a pipeline can be gone by the time the session ends. A
-    close run on a loop of the teardown's own cannot stop a worker that belongs
-    to another one, so the backend is not closed from here — but leaving it where
-    it stands, holding a model behind a reference this teardown is about to drop,
-    is what a leak looks like. It is asked to release what it holds, and the
-    teardown says the worker could not be stopped.
-    """
+    """A backend on a gone loop is released and reported as uncloseable."""
     loop = asyncio.new_event_loop()
     loop.close()
     closed: "list[object]" = []
@@ -161,19 +128,10 @@ def test_a_backend_whose_loop_is_gone_is_released_and_reported(caplog):
 def test_a_loop_that_stops_during_the_handoff_still_lets_the_backend_go(
     monkeypatch, caplog
 ):
-    """The loop can go away between the question and the call.
-
-    `close` asks whether the owning loop is running before handing it the
-    backend's close, and that answer is stale the moment it is given: a loop that
-    shuts down between the two takes no callback, and `call_soon_threadsafe`
-    raises for it. The backend is off the session by then, so the failure would
-    leave a model and a pipeline running with nothing left to reach them — and
-    end the session's own teardown on the way out.
-    """
+    """A loop stopping during handoff still releases the backend."""
     loop = asyncio.new_event_loop()
     loop.close()
-    # Running when it is asked, closed when the close is handed to it: the window a
-    # question asked before the call cannot see past.
+    # Simulate a loop closing between the running check and callback handoff.
     monkeypatch.setattr(loop, "is_running", lambda: True)
     released: "list[object]" = []
 
@@ -203,14 +161,7 @@ def test_a_loop_that_stops_during_the_handoff_still_lets_the_backend_go(
 
 @pytest.mark.asyncio
 async def test_a_session_ended_mid_recording_builds_no_second_backend(monkeypatch):
-    """The recording carries on into the teardown, and stops at it.
-
-    A session ends while the microphone is open — the user leaves, a web socket
-    drops. Stopping the recording releases the audio it had, which reaches the
-    transcription after the backend has already been let go: a session that
-    transcribes it anyway is asking for a backend the closing never saw, and one
-    holding a model and a pipeline nobody will close.
-    """
+    """Ending mid-recording does not build a second backend for released audio."""
     stopped = asyncio.Event()
     built: list[object] = []
     backend = FakeBackend()
@@ -252,14 +203,7 @@ async def test_a_session_ended_mid_recording_builds_no_second_backend(monkeypatc
 
 @pytest.mark.asyncio
 async def test_a_session_that_ends_lets_its_backend_go():
-    """A backend holding a model is released when the session is over.
-
-    The scheduling is the part worth pinning. `DictationSession.close` is
-    synchronous and a backend's close is not, so the teardown has to reach the
-    loop without the session that is already over waiting for it — here with the
-    loop of the caller still running, which is the branch a synchronous close
-    takes whenever it is called from inside one.
-    """
+    """Synchronous close schedules async backend release on the running loop."""
     backend = ClosingBackend()
     session = DictationSession(DictationConfig().resolve())
     session.backend = backend
@@ -272,12 +216,7 @@ async def test_a_session_that_ends_lets_its_backend_go():
 
 @pytest.mark.asyncio
 async def test_closing_a_session_that_never_dictated_builds_nothing(monkeypatch):
-    """A session that never opened a microphone does not build a backend to close.
-
-    The backend is built on first use, so a session that only ever typed must not
-    be the reason a model is created — which is the point of closing one that was
-    never made being free.
-    """
+    """A session that never dictates builds no backend to close."""
     built: list[str] = []
     monkeypatch.setattr(
         "zrb.llm.dictation.feature.get_dictation_backend",

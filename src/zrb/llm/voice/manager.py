@@ -1,15 +1,7 @@
-"""Building the speech service a config names.
+"""Builds the speech service a config names.
 
-Nothing is discovered here: a speech service is either built into zrb or
-registered by a project, so a manager's work is building one and saying what
-went wrong — not scanning. It composes a registry (`registry.py`) and delegates
-every name lookup to it, so a `register` from `zrb_init.py` is what the next
-build reads.
-
-The manager is what a feature talks to: `stt_manager.create_service(name, config)`
-returns a Pipecat `STTService`, or raises saying which package is missing, which
-is the difference between "the voice did not start" and "the voice did not start
-because faster-whisper is not installed".
+A service is built in or registered by a project. Missing packages are reported
+by name before the factory runs.
 """
 
 from __future__ import annotations
@@ -49,11 +41,7 @@ class SpeechServiceManager(Generic[T]):
     """Builds the speech service a name resolves to, and reports the choices."""
 
     def __init__(self, registry: AnyServiceRegistry) -> None:
-        # The registry's kind is what `T` says it is, and this is where the two
-        # are tied together once: a manager built with the other kind would
-        # answer with the wrong spec. The cast is unchecked because a caller
-        # passing the wrong registry is a mistake no runtime check would catch
-        # sooner than the first `create_service`.
+        # The cast ties the registry's kind to `T`; a wrong registry is a caller error.
         self._registry: "SpeechServiceRegistry[T]" = cast(
             "SpeechServiceRegistry[T]", registry
         )
@@ -70,9 +58,7 @@ class SpeechServiceManager(Generic[T]):
     def get_spec(self, name: str) -> "T | None":
         """The spec *name* resolves to, or ``None`` when nothing is registered.
 
-        ``None`` is a real answer: a name that is neither built in nor
-        registered is a config value that names nothing, and the caller decides
-        whether that is a fallback (dictation) or an error (speech).
+        The caller decides whether an unknown name is a fallback or an error.
         """
         return self._registry.get(name)
 
@@ -96,11 +82,9 @@ class SpeechServiceManager(Generic[T]):
     def create_service(
         self, name: str, config: ServiceConfig
     ) -> "STTService | TTSService":
-        """The Pipecat service *name* builds with *config*, or a raise saying why not.
+        """The Pipecat service *name* builds with *config*, or raises why not.
 
-        A service whose package is not installed is reported before the factory
-        runs: its import would fail with a `ModuleNotFoundError` naming a module
-        zrb never asked for, where this names the setting and what to install.
+        A missing package is reported before the factory runs.
         """
         spec = self._registry.get(name)
         if spec is None:
@@ -116,8 +100,7 @@ class SpeechServiceManager(Generic[T]):
                 f"speech service {spec.name!r} needs the {spec.provider!r} "
                 "package, which is not installed"
             )
-        # The factory is the union of both sides': only the spec that resolved
-        # knows which config its own factory takes, and that is the one it gets.
+        # The resolved spec determines which config its factory receives.
         factory = cast(
             "Callable[[ServiceConfig], STTService | TTSService]", spec.factory
         )

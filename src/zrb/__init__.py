@@ -1,22 +1,13 @@
-"""Public API surface for the Zrb framework.
-
-Imports below are grouped by concern (Config, Context, Tasks, LLM, ...) so a
-new contributor can scan this file and understand what `from zrb import X`
-exposes. Module-level singletons are typed so IDEs reveal what each one is.
-"""
+"""Public API surface for the Zrb framework."""
 
 import importlib
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    # Resolved lazily at runtime by __getattr__ below; declared here so
-    # type checkers, IDEs and __all__ still see `zrb.User`.
     from zrb.runner.web_schema.user import User
 
-# --- Builtin tasks (registered as side-effect of import) ------------------
 from zrb import builtin
 
-# --- Attribute descriptors (deferred-eval property types) -----------------
 from zrb.attr.tpl import Tpl
 from zrb.attr.type import (
     BoolAttr,
@@ -27,45 +18,36 @@ from zrb.attr.type import (
     StrListAttr,
 )
 
-# --- Callbacks ------------------------------------------------------------
 from zrb.callback.any_callback import AnyCallback
 from zrb.callback.callback import Callback
 
-# --- Command results / values --------------------------------------------
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import Cmd, CmdPath
 
-# --- Config singleton -----------------------------------------------------
 from zrb.config.config import CFG, Config
 from zrb.config.theme import register_theme
 from zrb.config.web_auth_config import web_auth_config
 
-# --- Content transformers -------------------------------------------------
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.content_transformer.content_transformer import ContentTransformer
 
-# --- Context (per-task and shared) ---------------------------------------
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 
-# --- Environment variables -----------------------------------------------
 from zrb.env.any_env import AnyEnv
 from zrb.env.env import Env
 from zrb.env.env_file import EnvFile
 from zrb.env.env_map import EnvMap
 
-# --- Group (CLI command grouping) ----------------------------------------
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
 
-# --- Runner (CLI + web schemas) ------------------------------------------
 from zrb.group.task_diagnostics import (
     snapshot_builtin_task_ids as _snapshot_builtin_task_ids,
 )
 
-# --- Inputs ---------------------------------------------------------------
 from zrb.input.any_input import AnyInput
 from zrb.input.base_input import BaseInput
 from zrb.input.bool_input import BoolInput
@@ -76,10 +58,6 @@ from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
 
-# --- LLM agent / chat / config / managers --------------------------------
-# Each manager is exported with the type you must construct to call it. A
-# manager alone is not a usable API: `hook_manager` without `HookResult` gives
-# you the registry and no way to return from a hook.
 from zrb.llm.agent.subagent.manager import (
     SubAgentDefinition,
     SubAgentManager,
@@ -119,10 +97,8 @@ from zrb.llm.voice.registry import (
 from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
 from zrb.runner.cli import Cli, cli
 
-# --- Session --------------------------------------------------------------
 from zrb.session.session import Session
 
-# --- Tasks ---------------------------------------------------------------
 from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
@@ -135,7 +111,6 @@ from zrb.task.scheduler import Scheduler
 from zrb.task.task import Task
 from zrb.task.tcp_check import TcpCheck
 
-# --- Util & XCom ---------------------------------------------------------
 from zrb.util.load import load_file, load_module
 from zrb.util.stream import to_infinite_stream
 from zrb.xcom.xcom import Xcom
@@ -299,11 +274,8 @@ _RETIRED_EXPORTS = {
 def __getattr__(name: str):
     """Resolve heavy public exports on first access (PEP 562).
 
-    `User` stays a pydantic model, but importing its module eagerly dragged
-    `pydantic.main` and the schema-construction machinery into every
-    `import zrb`. Deferring the *export* keeps `from zrb import User` and
-    `zrb.User` working unchanged, while leaving that cost unpaid for the vast
-    majority of runs that never touch the web UI's auth.
+    Deferring `User` avoids importing pydantic during `import zrb` while keeping
+    `from zrb import User` and `zrb.User` unchanged.
     """
     if name in _LAZY_EXPORTS:
         module = importlib.import_module(_LAZY_EXPORTS[name])
@@ -320,10 +292,5 @@ def __getattr__(name: str):
 
 
 def __dir__() -> list[str]:
-    """Keep lazily-exported names visible to `dir()` (PEP 562).
-
-    Without this, a name resolved only through `__getattr__` disappears from
-    `dir(zrb)` — and with it REPL and IDE tab-completion — even though the
-    import still works.
-    """
+    """Keep lazily-exported names visible to `dir()` (PEP 562)."""
     return sorted(set(globals()) | set(_LAZY_EXPORTS))
