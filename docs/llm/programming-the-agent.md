@@ -6,6 +6,15 @@
 
 This page is the map. Each capability links to its dedicated guide; the two that have no other home — **dynamic prompts** and **history processors** — are documented in full below.
 
+## Table of Contents
+
+- [When do you actually need this?](#when-do-you-actually-need-this)
+- [The capabilities at a glance](#the-capabilities-at-a-glance)
+- [Programming the prompt](#programming-the-prompt)
+- [History processors](#history-processors)
+- [The agent as a pipeline node](#the-agent-as-a-pipeline-node)
+- [See also](#see-also)
+
 ## When do you actually need this?
 
 For "chat with my codebase," you never touch any of it. You reach for Python when behavior must depend on **runtime state**, integrate **in-process with your own code**, or live **inside a larger program**:

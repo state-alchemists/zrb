@@ -15,7 +15,7 @@ and Camera](../configuration/llm-config.md#23-voice-and-camera).
 
 ## Table of contents
 
-- [A local streaming conversation](#a-local-streaming-conversation)
+- [A local conversation](#a-local-conversation)
 - [Voice recipes](#voice-recipes)
 - [The three programming layers](#the-three-programming-layers)
 - [Program voice input](#program-voice-input)
@@ -24,11 +24,11 @@ and Camera](../configuration/llm-config.md#23-voice-and-camera).
 - [Attach voice to your own chat task](#attach-voice-to-your-own-chat-task)
 - [Choosing the right extension point](#choosing-the-right-extension-point)
 
-## A local streaming conversation
+## A local conversation
 
 This is a practical starting point for a hands-free conversation on a noisy
-room microphone: Moonshine transcribes while you speak, Piper speaks locally,
-and barge-in remains possible without pausing on every loud sound.
+room microphone: Moonshine transcribes each finished utterance, Piper speaks
+locally, and barge-in stays possible without pausing speech on every loud sound.
 
 ```bash
 pip install 'zrb[voice]'
@@ -49,12 +49,19 @@ What each important setting does:
 | Setting | Why it is here |
 |---|---|
 | `ZRB_LLM_VOICE=conversation` | Enables speech, hands-free dictation, and barge-in as a preset. |
-| `ZRB_LLM_DICTATION_BARGE_IN_HOLD=off` | Keeps barge-in possible without pausing speech whenever loud audio crosses the bar. A live stop word or wake word can still interrupt immediately when the backend streams partials. |
-| `ZRB_LLM_DICTATION_BACKEND=moonshine` | Uses a local Pipecat speech-to-text service. |
-| `ZRB_LLM_DICTATION_STT_MODEL=medium-streaming` | Selects Moonshine's streaming model variant. |
+| `ZRB_LLM_DICTATION_BARGE_IN_HOLD=off` | Keeps barge-in without pausing speech whenever loud audio crosses the bar. A stop word or wake word stops zrb once the utterance is transcribed; it lands while you are still speaking only with `vosk`. |
+| `ZRB_LLM_DICTATION_BACKEND=moonshine` | Uses a local Pipecat speech-to-text service, which transcribes a finished utterance. |
+| `ZRB_LLM_DICTATION_STT_MODEL=medium-streaming` | Selects the Moonshine model variant to run. |
 | `ZRB_LLM_SPEECH_BACKEND=piper` | Uses local text-to-speech instead of a cloud voice. |
 | `ZRB_LLM_SPEECH_VOICE=en_US-kristin-medium` | Selects the Piper voice. |
 | `ZRB_LLM_DICTATION_WAKE_WORDS=...` | Limits hands-free turns to utterances beginning with one of the configured spellings. |
+
+**Live interruption needs `vosk`.** Moonshine, like the other Pipecat services
+and the cloud backends, transcribes the utterance after you stop speaking, so a
+stop word or a wake word takes effect only then — the barge-in it triggers still
+works, just a beat later. `vosk` is the only built-in backend that transcribes
+while you speak, so switch `ZRB_LLM_DICTATION_BACKEND` to `vosk` when a stop word
+must land the moment it is said.
 
 `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on` is not needed in this recipe because
 `conversation` already enables it. You may include it when you want the command
@@ -186,9 +193,12 @@ short, exact interruptions that should not reach the model. `barge_in_hold`
 controls whether loudness pauses speech before the transcript is known; it does
 not disable barge-in itself. The hold is on by default.
 
-The dictation backend may also provide a streaming transcription interface.
-Streaming backends can act on a live stop word or wake word before the utterance
-ends; batch backends decide after the complete utterance is transcribed.
+`vosk` is the only built-in backend that transcribes while you speak: it
+exposes a streaming transcription interface, so a stop word or wake word can be
+acted on before the utterance ends. Every other backend — the Pipecat services
+(`whisper`, `moonshine`, `funasr`) and the cloud backends (`openai`, `google`,
+`multimodal`) — transcribes the finished utterance, so those words take effect
+only after it ends.
 
 ## Program spoken responses
 
@@ -209,6 +219,7 @@ speech = SpeechConfig(
         "Shell": "run a command",
         "*": "use {tool}",
     },
+    # Read only when a question carries no text of its own.
     question_message="I need your answer.",
     progress_phrases={
         "Lsp*": "Checking the code.",
@@ -225,7 +236,8 @@ The available speech events are:
 - `reply` — the main agent's final response, streamed sentence by sentence when
   `stream` is enabled;
 - `approval` — a tool approval request;
-- `question` — a question raised by the agent or UI;
+- `question` — a question raised by the agent or UI; its own text is read, and
+  `question_message` is used only when it has none;
 - `progress` — a tool call announced after the configured silence interval.
 
 `approval_message` supports `{action}` and `{target}`. The action and progress
@@ -234,8 +246,12 @@ pattern wins. These are templates for fixed UI events, not additional model
 calls, so they are predictable and inexpensive.
 
 For a response's general tone and structure, use the agent's `system_prompt`
-or the `speech_live` prompt. For the exact approval, question, or progress
-wording, use the `SpeechConfig` fields above.
+or the `speech_live` prompt. `approval_message`, `approval_actions`,
+`progress_phrases` and `question_message` control words zrb composes itself, so
+they take effect exactly as written. They do not rewrite an existing question: a
+question that carries text is read as the agent or UI wrote it, and only an empty
+one falls back to `question_message`. To change those words, change the message
+where it is produced, or intercept it with a hook.
 
 ## Program audio rendering
 
@@ -331,6 +347,8 @@ application; they do not require the built-in `llm_chat` task.
 | Make the microphone transcribe with another service | A dictation backend or `DictationConfig(backend=...)` |
 | Turn replies, approvals, questions, or progress into speech | `SpeechConfig(events=...)` |
 | Change approval or progress wording | `SpeechConfig` message and phrase mappings |
+| Change a question's wording | The agent or UI that produced it; `SpeechConfig(question_message=...)` covers only a question with no text |
+| Make a stop word act while you are still speaking | `vosk`; every other backend transcribes the finished utterance first |
 | Change the voice, rate, style, or playback behavior | `SpeechConfig` |
 | Send text to a different TTS service | `AnySpeechBackend` |
 | Add a new spoken command or a voice-specific action | A custom command or trigger on `LLMChatTask` |
