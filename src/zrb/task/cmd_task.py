@@ -1,4 +1,6 @@
 import os
+import re
+import warnings
 from functools import partial
 from typing import Unpack
 
@@ -28,6 +30,44 @@ class CmdTaskError(RuntimeError):
     def __init__(self, task_name: str, return_code: int) -> None:
         super().__init__(f"Process {task_name} exited ({return_code})")
         self.return_code = return_code
+
+
+# The placeholder syntax `Tpl` renders. A plain string never reaches a renderer,
+# so a `{ctx.` in one is handed to the shell as those literal characters: the
+# command runs, exits 0, and is simply wrong — nothing raises. The static guard
+# `test/architecture/test_doc_tpl_placeholders.py` covers the docs and examples;
+# `_warn_on_unrendered_placeholder` below is the runtime half, for a `cmd` a user
+# writes into their own task.
+_PLACEHOLDER = re.compile(r"\{ctx\.")
+
+
+class UntemplatedCmdWarning(UserWarning):
+    """A `cmd` holds a `{ctx.` placeholder that nothing will render."""
+
+
+def _warn_on_unrendered_placeholder(task_name: str, cmd: CmdVal) -> None:
+    """Warn when a plain-string command carries a `{ctx.` placeholder.
+
+    Only a bare `str` is a footgun. `Tpl(...)`, `Cmd(...)`/`CmdPath(...)` and a
+    callable all resolve against the context, so a placeholder in those is the
+    point rather than a mistake — as is a plain string with no placeholder,
+    which is how shell braces (`${VAR}`, `awk '{print}'`) are written.
+
+    `warnings` keeps a per-location registry, so a task defined inside a loop
+    reports once instead of once per iteration.
+    """
+    values = cmd if isinstance(cmd, list) else [cmd]
+    for value in values:
+        if isinstance(value, str) and _PLACEHOLDER.search(value):
+            warnings.warn(
+                f"CmdTask({task_name!r}) has a `{{ctx.` placeholder in a plain "
+                "string `cmd`. A bare string is a literal and is never rendered, "
+                "so the shell receives those characters as written. "
+                f"Wrap it in `Tpl(...)` to render it: Tpl({value!r})",
+                UntemplatedCmdWarning,
+                stacklevel=3,
+            )
+            return
 
 
 class CmdTask(BaseTask):
@@ -60,7 +100,10 @@ class CmdTask(BaseTask):
         Args:
             cmd: The command to run. A string, a `Tpl`, a callable taking the
                 context, a `Cmd`/`CmdPath`, or a list of any of these joined as
-                separate lines.
+                separate lines. A plain string is a literal and is never
+                rendered, so a `{ctx.` placeholder in one reaches the shell as
+                written; that warns (`UntemplatedCmdWarning`) — wrap the command
+                in `Tpl` to have it rendered against the context.
             cwd: Working directory for the command. Defaults to the process's
                 current working directory, i.e. where `zrb` was invoked.
             shell: Shell binary to run under. Defaults to `CFG.SHELL`.
@@ -104,6 +147,7 @@ class CmdTask(BaseTask):
         self._should_plain_print = plain_print
         self._should_warn_unrecommended_command = warn_unrecommended_command
         self._is_interactive = is_interactive
+        _warn_on_unrendered_placeholder(name, cmd)
 
     async def _exec_action(self, ctx: AnyContext) -> CmdResult:
         """Run the command as a subprocess and return its captured output."""
