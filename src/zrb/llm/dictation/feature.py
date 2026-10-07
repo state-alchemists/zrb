@@ -191,7 +191,9 @@ class DictationSession:
         pipeline keep running. A loop that has stopped altogether is the one case
         with no close left in it: the backend is asked to release what it holds
         instead, so the model behind its pipeline can be collected rather than
-        stay alive behind the reference this teardown is about to drop.
+        stay alive behind the reference this teardown is about to drop. A loop can
+        stop in the window between being asked whether it is running and being
+        handed the close, which is the same case arriving one line later.
         """
         backend, self._backend = self._backend, None
         if backend is None:
@@ -203,14 +205,17 @@ class DictationSession:
         owner = backend.owner_loop
         if owner is not None and owner is not here:
             if not owner.is_running():
-                backend.release()
-                logger.warning(
-                    "Could not stop the dictation backend: the loop it was built "
-                    "on is not running, so its worker cannot be cancelled; the "
-                    "backend released what it held"
-                )
+                self._release_backend(backend)
                 return
-            owner.call_soon_threadsafe(lambda: self._close_backend_on(owner, backend))
+            try:
+                owner.call_soon_threadsafe(
+                    lambda: self._close_backend_on(owner, backend)
+                )
+            except RuntimeError:
+                # The loop stopped between the question above and this call, so it
+                # takes no callback now — the case that question was asked about,
+                # one line later.
+                self._release_backend(backend)
             return
         if here is not None:
             self._close_backend_on(here, backend)
@@ -220,6 +225,21 @@ class DictationSession:
         # warn once it was collected — with the backend, and whatever model or
         # pipeline it was holding, still alive.
         asyncio.run(close_quietly(backend.aclose, "the dictation backend"))
+
+    def _release_backend(self, backend: AnyDictationBackend) -> None:
+        """Let a backend go where no loop is left that will run its close.
+
+        A loop that has stopped takes no callback, so the close has nowhere to run
+        and the backend keeps what it was built with — for a Pipecat service, a
+        model behind a pipeline and a worker. Dropping that is what lets them be
+        collected, and the teardown names the part it could not do.
+        """
+        backend.release()
+        logger.warning(
+            "Could not stop the dictation backend: the loop it was built on is not "
+            "running, so its worker cannot be cancelled; the backend released what "
+            "it held"
+        )
 
     def _close_backend_on(
         self, loop: asyncio.AbstractEventLoop, backend: AnyDictationBackend

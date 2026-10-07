@@ -30,6 +30,7 @@ from pipecat.services.settings import TTSSettings  # noqa: E402
 from pipecat.services.tts_service import TTSService  # noqa: E402
 
 from zrb.config.config import CFG  # noqa: E402
+from zrb.llm.speech import pipecat_tts  # noqa: E402
 from zrb.llm.speech.pipecat_tts import TTSPipeline  # noqa: E402
 
 #: A rate none of the fixtures of this file use elsewhere, so a chunk read at
@@ -241,6 +242,60 @@ def test_dropping_a_sentence_ends_the_read_at_once_and_the_synthesis_with_it():
         pipeline.close()
 
     assert after == [CHUNK] * 5
+
+
+def test_a_service_that_refuses_the_interruption_does_not_hold_the_next_sentence(
+    monkeypatch,
+):
+    """A failure telling the service to stop does not take the next sentence with it.
+
+    A sentence holds the lock from the moment it is asked for until its audio is
+    read or dropped, which is what makes one service one voice at a time. `_drop`
+    gave that lock back after the interruption, so a failure outside the two types
+    its handler names escaped with the lock still held — and every later `speak`
+    waited for a sentence that had already been dropped, leaving the pipeline
+    unusable for the rest of the session. The interruption only says the audio
+    nobody will hear can stop being made; the drop happens either way.
+    """
+    service = FakeSpeechService()
+    pipeline = TTSPipeline.start(service)
+
+    def refused(loop, coroutine, timeout=None):
+        coroutine.close()  # never run: the interruption never reached the service
+        raise ValueError("the service refused the interruption")
+
+    try:
+        audio = pipeline.speak(SENTENCE, timeout=5)
+        assert next(iter(audio.chunks)) == CHUNK  # read, but not to its end
+
+        # The interruption is made to fail with a type the drop does not name, and
+        # the pipeline gets its own call back as soon as it has: the audio is dropped
+        # either way, so the sentence after it is what says whether the lock came
+        # back with the drop.
+        with monkeypatch.context() as failing:
+            failing.setattr(pipecat_tts, "_call", refused)
+            try:
+                audio.close()
+            except ValueError:
+                # Reported to whoever dropped the audio, which logs it and goes on.
+                pass
+
+        said: "list[list[bytes]]" = []
+        is_said = threading.Event()
+
+        def say_next() -> None:
+            said.append(list(pipeline.speak(SENTENCE, timeout=5).chunks))
+            is_said.set()
+
+        threading.Thread(target=say_next, daemon=True).start()
+        assert is_said.wait(
+            5
+        ), "the sentence after a failed interruption never started"
+    finally:
+        pipeline.close()
+
+    assert said == [[CHUNK]]
+    assert service.said == [SENTENCE, SENTENCE]
 
 
 def test_a_service_that_cannot_say_the_sentence_is_reported_before_it_is_played():

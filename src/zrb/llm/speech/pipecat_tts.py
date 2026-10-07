@@ -416,7 +416,13 @@ class TTSPipeline:
             # The audio is dropped either way, which is what the caller asked for:
             # this is only about whether the service can be told to stop.
             logger.warning(f"Could not stop the Pipecat speech service: {exc}")
-        self._sentence_lock.release()
+        finally:
+            # Given back whatever happened above. The lock is the one-sentence rule,
+            # so a sentence dropped while it stayed held would have every later
+            # `speak` waiting for a sentence that is already over. `finally` and not
+            # the end of the handler, because a failure outside the two types named
+            # there, a future the loop cancelled included, leaves just as readily.
+            self._sentence_lock.release()
 
     async def _interrupt(self) -> None:
         """Tell the service to stop saying what it is saying."""

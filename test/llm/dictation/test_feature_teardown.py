@@ -158,6 +158,49 @@ def test_a_backend_whose_loop_is_gone_is_released_and_reported(caplog):
     assert "not running" in caplog.text
 
 
+def test_a_loop_that_stops_during_the_handoff_still_lets_the_backend_go(
+    monkeypatch, caplog
+):
+    """The loop can go away between the question and the call.
+
+    `close` asks whether the owning loop is running before handing it the
+    backend's close, and that answer is stale the moment it is given: a loop that
+    shuts down between the two takes no callback, and `call_soon_threadsafe`
+    raises for it. The backend is off the session by then, so the failure would
+    leave a model and a pipeline running with nothing left to reach them — and
+    end the session's own teardown on the way out.
+    """
+    loop = asyncio.new_event_loop()
+    loop.close()
+    # Running when it is asked, closed when the close is handed to it: the window a
+    # question asked before the call cannot see past.
+    monkeypatch.setattr(loop, "is_running", lambda: True)
+    released: "list[object]" = []
+
+    class Abandoned(AnyDictationBackend):
+        @property
+        def owner_loop(self):
+            return loop
+
+        async def transcribe(self, audio: bytes) -> str:
+            return ""
+
+        def release(self) -> None:
+            released.append(True)
+
+        async def aclose(self) -> None:
+            raise AssertionError("a loop that takes no callback cannot run this")
+
+    session = DictationSession(DictationConfig().resolve())
+    session.backend = Abandoned()
+
+    with caplog.at_level(logging.WARNING, logger="zrb.llm.dictation.feature"):
+        session.close()
+
+    assert released == [True]
+    assert "not running" in caplog.text
+
+
 @pytest.mark.asyncio
 async def test_a_session_ended_mid_recording_builds_no_second_backend(monkeypatch):
     """The recording carries on into the teardown, and stops at it.
