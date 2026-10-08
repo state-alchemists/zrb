@@ -86,9 +86,7 @@ def section(text: str, heading: str) -> str:
 def rows_in(body: str) -> list[list[str]]:
     """The data rows of a markdown table body, header and separator dropped."""
     lines = [line for line in body.splitlines() if line.startswith("|")]
-    return [
-        [cell.strip() for cell in line.strip("|").split("|")] for line in lines[2:]
-    ]
+    return [[cell.strip() for cell in line.strip("|").split("|")] for line in lines[2:]]
 
 
 def blocks(path: Path) -> list[tuple[int, str]]:

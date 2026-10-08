@@ -186,9 +186,7 @@ def _link_targets(doc: Path) -> list[str]:
 def _link_targets_in(text: str) -> list[str]:
     """Every link target in a block of markdown that claims to be a repo path."""
     return [
-        target
-        for target in _link_destinations(text)
-        if not _NOT_A_PATH.search(target)
+        target for target in _link_destinations(text) if not _NOT_A_PATH.search(target)
     ]
 
 

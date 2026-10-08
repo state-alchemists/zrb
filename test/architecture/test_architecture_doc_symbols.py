@@ -182,9 +182,7 @@ def test_every_lifeline_names_a_real_symbol():
                 if "." in label:
                     if all(part in words for part in label.split(".")):
                         continue
-                    offenders.append(
-                        f"{name_of(path)}:{line} {label!r}"
-                    )
+                    offenders.append(f"{name_of(path)}:{line} {label!r}")
                     continue
                 # The label leads with the symbol; a trailing qualifier names
                 # which instance it is (`BaseTask root`). Leading with a role

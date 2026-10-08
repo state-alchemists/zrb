@@ -19,7 +19,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 A mistyped *environment variable* is caught too, as a warning when zrb starts: `ZRB_LLM_MODELL is not a setting and is ignored. Did you mean ZRB_LLM_MODEL?`. Only a near miss of a real setting is reported, since a project's own `ZRB_*` variables read by its `zrb_init.py` are not typos.
 
-A variable of your own can be a near miss of a setting without being a typo — a white-labeled build reads `BANKAI_LLM_PROXY_BASE_URL` right beside zrb's `BANKAI_LLM_BASE_URL`. Name those in `PROJECT_ENV_KEYS` and the warning leaves them alone: comma-separated, without the prefix, exact (`LLM_PLUGIN_DIR`) or with a `*` glob (`LLM_PROXY_*`). The same list covers the retired-setting report below, and it is silence only — nothing named there ever becomes a suggestion for any other variable.
+A variable of your own can be a near miss of a setting without being a typo — a white-labeled build reads `ARASAKA_LLM_PROXY_BASE_URL` right beside zrb's `ARASAKA_LLM_BASE_URL`. Name those in `PROJECT_ENV_KEYS` and the warning leaves them alone: comma-separated, without the prefix, exact (`LLM_PLUGIN_DIR`) or with a `*` glob (`LLM_PROXY_*`). The same list covers the retired-setting report below, and it is silence only — nothing named there ever becomes a suggestion for any other variable.
 
 A *retired* setting still in your environment is named at startup too, with what replaces it: `ZRB_LLM_VOICE_MODE is no longer read and is ignored. Set ZRB_LLM_DICTATION_BACKEND instead.` The full list is in `src/zrb/config/retired.py`; the [Upgrading Guide](../advanced-topics/upgrading-guide.md) explains each change.
 

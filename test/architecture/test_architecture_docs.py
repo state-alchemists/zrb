@@ -45,8 +45,6 @@ exempt from the shape rules here but not from the truth check, which lives in
 
 import re
 
-from termaid import render
-
 from architecture_docs import (
     INDEX,
     NAVIGATION,
@@ -63,6 +61,7 @@ from architecture_docs import (
     section,
     ticks_in,
 )
+from termaid import render
 
 # How much depth each tier may carry. Measured, not estimated: past 120 columns
 # zrb's own renderer compacts a diagram and then word-wraps it, which corrupts
