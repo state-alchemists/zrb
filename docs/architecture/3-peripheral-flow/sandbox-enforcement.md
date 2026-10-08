@@ -4,7 +4,7 @@
 
 > **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/sandbox/` · Read first: [Tool Call & Approval](tool-call-approval.md)
 
-The sandbox limits which files a tool call can touch, even after the call was approved. It is off by default. When it is on, an approved but prompt-injected command still cannot write outside the project or read `~/.ssh`-style secrets. The idea to take away: approval controls *intent*, the sandbox controls *reach*, and one policy drives two different enforcement layers.
+The sandbox limits which files a tool call can touch, even after the call was approved. It is off by default. When it is on, an approved but prompt-injected command still cannot write outside the project or read `~/.ssh`-style secrets. The one idea to take away: approval controls *intent*, the sandbox controls *reach*, and one policy drives two different enforcement layers.
 
 ## Table of Contents
 

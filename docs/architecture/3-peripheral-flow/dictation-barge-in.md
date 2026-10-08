@@ -4,7 +4,7 @@
 
 > **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/dictation/` · Read first: [UI](../2-extension-surface/ui.md)
 
-Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. Barge-in is where the two meet: the user starts talking while zrb is still speaking. This page covers what happens between the microphone hearing that and zrb either stopping or carrying on. The idea to take away: zrb holds its voice first and decides on the words, because a cough, an echo of its own voice and a real "stop" all sound alike until they are transcribed. The hold is taken on loudness, before anything is known, and the words decide whether it stays held: being talked over is worse than a hold that is given back.
+Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. Barge-in is where the two meet: the user starts talking while zrb is still speaking. This page covers what happens between the microphone hearing that and zrb either stopping or carrying on. The one idea to take away: zrb holds its voice first and decides on the words, because a cough, an echo of its own voice and a real "stop" all sound alike until they are transcribed. The hold is taken on loudness, before anything is known, and the words decide whether it stays held: being talked over is worse than a hold that is given back.
 
 ## Table of Contents
 

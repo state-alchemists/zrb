@@ -71,7 +71,7 @@ The architecture tests are ordinary pytest files; each one's docstring states th
 | `test_test_file_size_ratchet.py` | No test file exceeds 500 lines | Split the file by feature group (see `AGENTS.md` → Test Guidelines) |
 | `test_sys_modules_patch_allowlist.py` | Every module shadowed by `patch.dict("sys.modules", ...)` is on a reviewed allowlist | `patch.dict` restores `sys.modules` by clear-and-update, which *deletes* anything first imported inside the block — unrecoverably for a C extension. Warm the module in `test/conftest.py`, then list it (see the test's docstring) |
 | `test_mutation_surface.py`, `test_boundaries.py`, `test_deferred_config_reads.py` | The enforced framework rules | See [Framework Conventions (R1–R12)](framework-conventions.md) |
-| `test_doc_code_references.py`, `test_architecture_docs.py`, `test_documented_counts.py`, `test_doc_density.py` | Docs name real code, and stay readable | Fix the doc; for the counts in `AGENTS.md`, run `python scripts/doc_counts.py --write` |
+| `test_doc_code_references.py`, `test_doc_density.py`, `test_architecture_docs.py`, `test_architecture_doc_symbols.py`, `test_documented_counts.py` | Docs name real code and real files, and stay readable | Fix the doc; for the counts in `AGENTS.md`, run `python scripts/doc_counts.py --write` |
 
 **Not a gate, but bites often:** a new test file sharing a basename with another (e.g. two `test_manager.py`) fails pytest *collection*. Add an empty `__init__.py` to the new test directory (see `AGENTS.md` → Test Guidelines).
 
