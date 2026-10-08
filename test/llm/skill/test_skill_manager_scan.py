@@ -452,3 +452,20 @@ def test_skill_defaults():
     assert skill.content is None
     assert skill.content_factory is None
     assert skill.companion_files == []
+
+
+def test_project_skill_overrides_builtin_skill_of_same_name(temp_skill_env):
+    skill_dir = temp_skill_env / ".claude" / "skills" / "core-coding"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: core-coding\ndescription: Project coding\n---\nProject body\n",
+        encoding="utf-8",
+    )
+
+    manager = SkillManager(root_dir=str(temp_skill_env))
+    manager.scan()
+
+    skill = manager.get_skill("core-coding")
+    assert skill is not None
+    assert skill.description == "Project coding"
+    assert "Project body" in manager.get_skill_content("core-coding")

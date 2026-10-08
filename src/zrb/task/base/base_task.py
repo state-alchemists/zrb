@@ -91,12 +91,14 @@ class BaseTask(AnyTask):
                 `CFG.TASK_READINESS_DELAY` (500ms).
             readiness_check_period: Seconds between readiness checks once
                 monitoring, i.e. when `monitor_readiness` is True.
-            readiness_failure_threshold: Consecutive readiness-check failures
-                tolerated before the task is declared failed.
-            readiness_timeout: Seconds the readiness checks may take before
-                the task is declared failed, for the initial wait and each
-                monitoring round. `None` uses `CFG.TASK_READINESS_TIMEOUT`
-                (60s); `0` or negative removes the cap.
+            readiness_failure_threshold: Consecutive failed monitoring checks
+                after which the action is cancelled and restarted. Read only
+                while `monitor_readiness` is True.
+            readiness_timeout: Seconds the readiness checks may take. Past it,
+                the initial wait fails the task, and a monitoring round counts
+                as one failure toward `readiness_failure_threshold`. `None`
+                uses `CFG.TASK_READINESS_TIMEOUT` (60s); `0` or negative
+                removes the cap.
             monitor_readiness: When True, keep re-running readiness checks after
                 the task is ready and restart the action if they start failing.
             upstream: Task(s) that must complete before this one starts.
@@ -255,7 +257,7 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_failure_threshold(self) -> int:
-        """Consecutive readiness failures tolerated before failing (default 1)."""
+        """Failed monitoring checks in a row before the action restarts (default 1)."""
         return (
             self._readiness_failure_threshold
             if self._readiness_failure_threshold is not None

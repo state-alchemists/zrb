@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_QUESTION_NOTIFICATIONS = ("elicitation_dialog", "permission_prompt")
+_QUESTION_NOTIFICATIONS = ("elicitation_dialog",)
 # The names the `LLM_HOOKS` allowlist knows speech's hooks by.
 _HOOK_NAMES = ("handle_stop", "handle_permission_request", "handle_notification")
 

@@ -12,7 +12,7 @@ class MockBufferedUI(BufferedOutputMixin):
         self.sent = []
         self._send_mock = AsyncMock()
 
-    async def _send_buffered(self, text: str):
+    async def send_buffered(self, text: str):
         self.sent.append(text)
         await self._send_mock(text)
 

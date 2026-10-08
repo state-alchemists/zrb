@@ -477,15 +477,17 @@ Where Zrb looks for skills and agents, and whether built-in ones load.
 
 ### Search Priority
 
-Zrb searches for skills/agents in this order (highest to lowest priority):
+Zrb scans these sources in order, and when two define a skill or agent with the same name, the later one wins (lowest to highest priority):
 
-1. **User Home** - `~/.claude/`, `~/.zrb/` + plugins within
-2. **Project Traversal** - Filesystem root → cwd for each config dir name + plugins within
-3. **Configured Plugins** - Directories in `ZRB_LLM_PLUGIN_DIRS`
-4. **Base Search Dirs** - Directories in `ZRB_LLM_BASE_SEARCH_DIRS` + plugins within
-5. **Extra Direct Dirs** - `ZRB_LLM_EXTRA_SKILL_DIRS`, `ZRB_LLM_EXTRA_AGENT_DIRS`
-6. **Core Builtins** - `core_skills/` and `core_agents/` (always included)
-7. **Optional Builtins** - `skills/` and `agents/` (controlled by their built-in toggles)
+1. **Core Builtins** - `core_skills/` and `core_agents/` (always included)
+2. **Optional Builtins** - `skills/` and `agents/` (controlled by their built-in toggles)
+3. **User Home** - `~/.claude/`, `~/.zrb/` + plugins within
+4. **Project Traversal** - Filesystem root → cwd for each config dir name + plugins within, so the directory nearest cwd wins
+5. **Configured Plugins** - Directories in `ZRB_LLM_PLUGIN_DIRS`
+6. **Base Search Dirs** - Directories in `ZRB_LLM_BASE_SEARCH_DIRS` + plugins within
+7. **Extra Direct Dirs** - `ZRB_LLM_EXTRA_SKILL_DIRS`, `ZRB_LLM_EXTRA_AGENT_DIRS`
+
+A project or home skill named like a built-in one (`core-coding`, say) replaces it.
 
 ### Directory Structure
 

@@ -34,6 +34,10 @@ The setting is reported at startup when it is still set; setting it has no other
 
 If you were reading the tap's line (`Pipecat input pipeline: 2 speech segment(s), 1.5s of detected speech`) to check a microphone, there is no replacement: `zrb voice mic-test` in `examples/voice-interaction` measures the device against the same threshold dictation uses.
 
+A custom UI built on `BufferedOutputMixin` overrides `send_buffered` (it was `_send_buffered`); rename the method, since there is no alias.
+
+A project or home skill or agent now replaces a built-in one of the same name, as documented — before, the built-in silently won. If you kept a same-named copy only as a stale fork of a built-in, delete it to get the built-in back.
+
 ---
 
 ## Upgrading to 3.14.0

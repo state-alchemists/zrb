@@ -470,7 +470,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         # 2. Buffer output instead of sending it at once
         self.buffer_output(text)
 
-    async def _send_buffered(self, text: str) -> None:
+    async def send_buffered(self, text: str) -> None:
         # 3. The mixin calls this hook with each flushed batch
         if self._app:
             await self._app.bot.send_message(self.chat_id, text)

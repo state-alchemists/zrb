@@ -18,7 +18,7 @@ class BufferedOutputMixin:
                 super().__init__(*args, **kwargs)
                 BufferedOutputMixin.__init__(self)
 
-            async def send_text(self, text: str):
+            async def send_buffered(self, text: str):
                 await self.bot.send_message(self.chat_id, text)
 
     The print(text, kind) method will buffer output and flush periodically.
@@ -121,11 +121,11 @@ class BufferedOutputMixin:
             self._buffer = []
 
             if content:
-                await self._send_buffered(content)
+                await self.send_buffered(content)
 
-    async def _send_buffered(self, text: str):
+    async def send_buffered(self, text: str):
         """Override this to send buffered content."""
-        raise NotImplementedError("BufferedOutputMixin requires _send_buffered()")
+        raise NotImplementedError("BufferedOutputMixin requires send_buffered()")
 
     async def _flush_loop(self):
         """Periodically flush buffer."""

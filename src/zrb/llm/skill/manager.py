@@ -171,21 +171,23 @@ class SkillManager:
     def _default_search_dirs(self) -> list[str | Path]:
         """Compute the default skill search directories in priority order.
 
-        Priority (high → low):
-        1. User home (~/.claude/, ~/.zrb/)
-        2. Project traversal (filesystem root → cwd for each config dir name)
-        3. Plugins from configured plugin dirs
-        4. Base search directories
-        5. Extra direct skill directories
-        6. Builtin (always included, lowest priority)
+        `scan` lets a later directory override an earlier one, so the list
+        runs low → high:
+        1. Builtin (always included, lowest priority)
+        2. User home (~/.claude/, ~/.zrb/)
+        3. Project traversal (filesystem root → cwd for each config dir name)
+        4. Plugins from configured plugin dirs
+        5. Base search directories
+        6. Extra direct skill directories
+        7. The root directory itself
         """
         search_dirs: list[str | Path] = []
+        search_dirs.extend(self._get_builtin_dirs())
         search_dirs.extend(self._get_home_search_dirs())
         search_dirs.extend(self._get_project_search_dirs())
         search_dirs.extend(self._get_plugin_search_dirs())
         search_dirs.extend(self._get_base_search_dirs())
         search_dirs.extend(self._get_extra_skill_dirs())
-        search_dirs.extend(self._get_builtin_dirs())
         search_dirs.append(Path(self._root_dir))
         return search_dirs
 

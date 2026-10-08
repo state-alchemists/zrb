@@ -137,7 +137,7 @@ class TelegramUI(EventDrivenUI, BufferedOutputMixin):
         """Set the approval channel for edit routing."""
         self._approval_channel = approval
 
-    async def _send_buffered(self, text: str) -> None:
+    async def send_buffered(self, text: str) -> None:
         # Send pre-formatted HTML content directly (no ANSI stripping needed)
         await self.bot.send(self.chat_id, text, raw=True, parse_mode="HTML")
 

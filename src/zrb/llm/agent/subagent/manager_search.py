@@ -12,19 +12,25 @@ class SubAgentManagerSearch:
     """Builds the search-directory list for the loading collaborator."""
 
     def get_search_directories(self, root_dir: str) -> list[str | Path]:
-        """All agent search directories in priority order (high → low).
+        """All agent search directories in priority order (low → high): a
+        later directory overrides an earlier one on a name collision.
 
-        1. User home (``~/.claude/``, ``~/.zrb/``, …)
-        2. Project traversal (filesystem root → cwd)
-        3. Plugins from ``LLM_PLUGIN_DIRS``
-        4. ``LLM_BASE_SEARCH_DIRS``
-        5. ``LLM_EXTRA_AGENT_DIRS``
-        6. Core builtin agents (always included, lowest priority)
-        7. Optional builtin agents (gated by ``LLM_ENABLE_BUILTIN_AGENTS``)
+        1. Core builtin agents (always included, lowest priority)
+        2. Optional builtin agents (gated by ``LLM_ENABLE_BUILTIN_AGENTS``)
+        3. User home (``~/.claude/``, ``~/.zrb/``, …)
+        4. Project traversal (filesystem root → cwd)
+        5. Plugins from ``LLM_PLUGIN_DIRS``
+        6. ``LLM_BASE_SEARCH_DIRS``
+        7. ``LLM_EXTRA_AGENT_DIRS``
         8. ``root_dir`` (recursive scan target)
         """
         search_dirs: list[str | Path] = []
         home = Path.home()
+
+        _append_if_dir(BUILTIN_PLUGIN_DIR / "core_agents", search_dirs)
+
+        if CFG.LLM_ENABLE_BUILTIN_AGENTS:
+            _append_if_dir(BUILTIN_PLUGIN_DIR / "agents", search_dirs)
 
         if CFG.LLM_SEARCH_HOME:
             for pattern in CFG.LLM_CONFIG_DIR_NAMES:
@@ -46,11 +52,6 @@ class SubAgentManagerSearch:
 
         for dir_str in CFG.LLM_EXTRA_AGENT_DIRS:
             _append_if_dir(Path(dir_str), search_dirs)
-
-        _append_if_dir(BUILTIN_PLUGIN_DIR / "core_agents", search_dirs)
-
-        if CFG.LLM_ENABLE_BUILTIN_AGENTS:
-            _append_if_dir(BUILTIN_PLUGIN_DIR / "agents", search_dirs)
 
         search_dirs.append(Path(root_dir))
         return search_dirs
