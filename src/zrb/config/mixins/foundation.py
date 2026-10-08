@@ -125,9 +125,8 @@ class FoundationMixin:
         serialize=comma_join,
         doc=(
             "Env var names in your namespace that belong to your project "
-            "rather than to a zrb setting (e.g. 'LLM_PLUGIN_DIR,LLM_PROXY_*' "
-            'as an env var, or `["LLM_PLUGIN_DIR", "LLM_PROXY_*"]` in '
-            "code — a list field takes a list). "
+            "rather than to a zrb setting (e.g. 'LLM_PLUGIN_DIR,LLM_PROXY_*', "
+            'or `["LLM_PLUGIN_DIR", "LLM_PROXY_*"]`, in code). '
             "zrb reads nothing from them; naming them here only keeps the "
             "startup warning from calling them typos of a setting. Each entry "
             "is the name without ENV_PREFIX, either exact ('LLM_PLUGIN_DIR') "

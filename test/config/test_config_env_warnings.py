@@ -112,10 +112,12 @@ def test_the_exemption_is_prefix_relative(monkeypatch):
     assert Config().get_mistyped_env_keys() == {}
 
 
-def test_the_exemption_assigns_as_a_list_in_code(monkeypatch):
-    """The code form is a list: `__set__` always serializes, so a comma
-    string would be joined character by character."""
+def test_the_exemption_is_settable_in_code(monkeypatch):
+    """Either code form reaches the same env var: a list of names, or the
+    comma string an env var would carry."""
     monkeypatch.delenv("ZRB_PROJECT_ENV_KEYS", raising=False)
     cfg = Config()
     cfg.PROJECT_ENV_KEYS = ["LLM_PLUGIN_DIR", "LLM_PROXY_*"]
+    assert cfg.PROJECT_ENV_KEYS == ["LLM_PLUGIN_DIR", "LLM_PROXY_*"]
+    cfg.PROJECT_ENV_KEYS = "LLM_PLUGIN_DIR,LLM_PROXY_*"
     assert cfg.PROJECT_ENV_KEYS == ["LLM_PLUGIN_DIR", "LLM_PROXY_*"]
