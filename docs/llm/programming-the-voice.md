@@ -371,13 +371,23 @@ def create_floe_stt(config):
 
 tts_manager.register(
     "floe",
-    TTSServiceSpec(name="floe", provider="pipecat_floe", is_local=False,
-                   doc="Floe, OpenAI-compatible voices", factory=create_floe_tts),
+    TTSServiceSpec(
+        name="floe",
+        provider="pipecat_floe",
+        is_local=False,
+        doc="Floe, OpenAI-compatible voices",
+        factory=create_floe_tts,
+    ),
 )
 stt_manager.register(
     "floe",
-    STTServiceSpec(name="floe", provider="pipecat_floe", is_local=False,
-                   doc="Floe, streaming transcription", factory=create_floe_stt),
+    STTServiceSpec(
+        name="floe",
+        provider="pipecat_floe",
+        is_local=False,
+        doc="Floe, streaming transcription",
+        factory=create_floe_stt,
+    ),
 )
 ```
 
@@ -412,9 +422,13 @@ def create_groq_stt(config):
 
 stt_manager.register(
     "groq",
-    STTServiceSpec(name="groq", provider="openai",  # the client it imports
-                   is_local=False,
-                   doc="Groq's hosted Whisper", factory=create_groq_stt),
+    STTServiceSpec(
+        name="groq",
+        provider="openai",  # the client it imports
+        is_local=False,
+        doc="Groq's hosted Whisper",
+        factory=create_groq_stt,
+    ),
 )
 ```
 

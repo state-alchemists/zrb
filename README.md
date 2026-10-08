@@ -129,10 +129,12 @@ from zrb.llm.tool.code import analyze_code
 from zrb.llm.tool.file import write_file
 
 # Create a group for Mermaid-related tasks
-mermaid_group = cli.add_group(Group(
-    name="mermaid",
-    description="🧜 Mermaid diagram related tasks"
-))
+mermaid_group = cli.add_group(
+    Group(
+        name="mermaid",
+        description="🧜 Mermaid diagram related tasks",
+    )
+)
 
 # Task 1: Generate a Mermaid script from your source code using an LLM
 make_mermaid_script = mermaid_group.add_task(

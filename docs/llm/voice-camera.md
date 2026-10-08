@@ -205,11 +205,14 @@ Each model downloads once on first use and runs offline afterwards. `piper` carr
 from zrb import tts_manager
 from zrb.llm.voice.spec import TTSServiceSpec
 
-tts_manager.register("my-voice", TTSServiceSpec(
-    name="my-voice",
-    provider="my_voice_sdk",
-    factory=lambda config: MyTTSService(api_key="...", voice=config.voice),
-))
+tts_manager.register(
+    "my-voice",
+    TTSServiceSpec(
+        name="my-voice",
+        provider="my_voice_sdk",
+        factory=lambda config: MyTTSService(api_key="...", voice=config.voice),
+    ),
+)
 ```
 
 then `ZRB_LLM_SPEECH_BACKEND=my-voice`. `provider` is the package the service imports, and is what tells zrb whether it can be built here. `stt_manager` and the two registries behind the managers come from `zrb.llm.voice`. [Programming the Voice → Use any Pipecat STT or TTS service](programming-the-voice.md#use-any-pipecat-stt-or-tts-service) has a worked cloud example and what a service must do to work here.

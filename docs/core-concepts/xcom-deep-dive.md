@@ -190,11 +190,13 @@ def transform(ctx):
     processed = str(raw).upper()
     return processed  # Pass to next stage
 
-stage_3 = cli.add_task(CmdTask(
-    name="save",
-    upstream=[transform],
-    cmd=Tpl("echo '{ctx.xcom[\"transform\"].pop()}' > output.txt")
-))
+stage_3 = cli.add_task(
+    CmdTask(
+        name="save",
+        upstream=[transform],
+        cmd=Tpl("echo '{ctx.xcom[\"transform\"].pop()}' > output.txt"),
+    )
+)
 ```
 
 ### Broadcasting: One Producer, Many Consumers

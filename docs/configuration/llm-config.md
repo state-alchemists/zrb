@@ -711,10 +711,13 @@ Register your own in `zrb_init.py`; it layers over `dark`, so list only the knob
 ```python
 from zrb.config.theme import register_theme
 
-register_theme("solarized", {
-    "CLI_COLOR_INFO": "#268bd2",
-    "LLM_UI_STYLE_TEXT": "#657b83",
-})
+register_theme(
+    "solarized",
+    {
+        "CLI_COLOR_INFO": "#268bd2",
+        "LLM_UI_STYLE_TEXT": "#657b83",
+    },
+)
 # then: export ZRB_THEME=solarized
 ```
 
