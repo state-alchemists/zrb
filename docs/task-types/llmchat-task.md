@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > LLMChatTask API
+🔖 [Documentation Home](../README.md) > [Task Types](./) > LLMChatTask API
 
 # LLMChatTask API Reference
 
@@ -117,26 +117,7 @@ Both `message` and `system_prompt` accept a `Tpl` or a callable, so you can hand
 - **`message`** — the *opening user turn*. Set it to send a first prompt automatically; leave it empty to drop the user straight into the TUI.
 - **`system_prompt`** — *standing background* the user then converses against. This is where you put an upstream command's output when the whole point is to let the user ask questions about it.
 
-```python
-from zrb import cli, CmdTask, LLMChatTask
-from zrb.llm.ui import UIConfig
-
-status = cli.add_task(CmdTask(name="git-status", cmd="git status && git log --oneline -20"))
-
-chat = cli.add_task(
-    LLMChatTask(
-        name="ask-repo",
-        upstream=[status],
-        system_prompt=lambda ctx: (
-            "You are a git assistant. Here is the current repository state; "
-            "answer the user's questions about it.\n\n"
-            f"{ctx.xcom['git-status'].pop()}"
-        ),
-        ui_config=UIConfig(greeting="Ask me anything about the current repo state."),
-        # No `message` → the TUI opens and waits for the user.
-    )
-)
-```
+A worked example — a `CmdTask`'s `git status` output handed to a chat as standing background — is in [Programming the Prompt → Seeding a chat with context](../llm/programming-the-prompt.md#seeding-a-chat-with-context).
 
 > **Note:** a plain string is a literal for both `system_prompt` and `message` — `{ ... }` stays untouched. To substitute, pass a callable (as above) or wrap the string in `Tpl`.
 
@@ -381,4 +362,4 @@ Same property, same fields, on both `LLMTask` and `LLMChatTask`.
 
 > **Tip:** Use `LLMTask` for automated pipelines where you need the LLM as a processing step. Use `LLMChatTask` when you want an interactive assistant that users can converse with.
 
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > LLMChatTask API
+🔖 [Documentation Home](../README.md) > [Task Types](./) > LLMChatTask API

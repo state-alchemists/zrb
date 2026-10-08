@@ -157,7 +157,7 @@ def _singularize(plural: str) -> str:
 
 # TODO(follow-up): web_auth_config is a genuine hybrid — real user-list
 # storage plus auth callbacks, not a thin CFG.WEB_AUTH_* wrapper — so folding
-# it into CFG is out of scope here (R12, ADR-0090/0091). Exempted
+# it into CFG is out of scope here (R12, ADR-0090). Exempted
 # until that follow-up lands.
 _R12_EXEMPT = {"web_auth_config"}
 

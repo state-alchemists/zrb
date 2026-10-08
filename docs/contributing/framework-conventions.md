@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Contributing](./) > Framework Conventions
+🔖 [Documentation Home](../README.md) > [Contributing](./) > Framework Conventions
 
 # Framework Conventions (R1–R12)
 
@@ -15,9 +15,9 @@ These are the rules a zrb component must follow to be predictable. Each is enfor
 | **R7** | A concept is reachable by exactly one name. No `set_history_manager()` *and* a settable `history_manager` property. No `search_dirs` property *and* `get_search_directories()`. | `architecture/test_mutation_surface.py::test_no_concept_is_reachable_by_two_names` |
 | **R8** | Every component a user may replace is a settable property on its host, typed as the component's `Any*` ABC or concrete class. | `architecture/test_mutation_surface.py::test_every_declared_slot_is_settable_and_typed` |
 | **R9** | Every abstract extension point is named `Any<Thing>` and lives in `any_<thing>.py` in the package that owns the concept. | `architecture/test_boundaries.py::test_every_extension_point_is_named_any_thing_in_any_thing_py` |
-| **R10** | An error the *LLM* must recover from carries `[SYSTEM SUGGESTION]` (ADR-0057). An error the *user* must fix names the setting, the bad value and the accepted values. Never bare `Exception`. | `architecture/test_boundaries.py::test_no_bare_exception_is_raised`, `::test_no_error_message_is_shorter_than_forty_characters` |
-| **R11** | Sibling classes in one package use one naming convention. Two conventions for the same role is a bug. | `architecture/test_boundaries.py::test_config_mixins_share_one_naming_convention` |
-| **R12** | Every registry has exactly one canonical instance, module-level, exported from `zrb/__init__.py`. No private second registry for the same family. | `architecture/test_mutation_surface.py::test_there_is_exactly_one_configuration_object`, `::test_managers_expose_the_same_roster_api` |
+| **R10** | An error the *LLM* must recover from carries `[SYSTEM SUGGESTION]` (ADR-0057). An error the *user* must fix names the setting, the bad value and the accepted values. Never bare `Exception`. *Test scope:* no bare `Exception` is raised, and no constant-string error message is under 40 characters; f-string and variable messages are left to review. | `architecture/test_boundaries.py::test_no_bare_exception_is_raised`, `::test_no_error_message_is_shorter_than_forty_characters` |
+| **R11** | Sibling classes in one package use one naming convention. Two conventions for the same role is a bug. *Test scope:* `config/mixins/` only (every class ends in `Mixin`); other packages are left to review. | `architecture/test_boundaries.py::test_config_mixins_share_one_naming_convention` |
+| **R12** | Every registry has exactly one canonical instance, module-level, exported from `zrb/__init__.py`. No private second registry for the same family. `CFG` is the only exported `*_config` object, except `web_auth_config`. | `architecture/test_mutation_surface.py::test_there_is_exactly_one_configuration_object`, `::test_managers_expose_the_same_roster_api` |
 
 See also: [Which pattern do I reach for?](which-pattern.md) — a lookup table for picking the right rule/pattern when adding new code.
 
@@ -28,4 +28,4 @@ See also: [Which pattern do I reach for?](which-pattern.md) — a lookup table f
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Contributing](./) > Framework Conventions
+🔖 [Documentation Home](../README.md) > [Contributing](./) > Framework Conventions

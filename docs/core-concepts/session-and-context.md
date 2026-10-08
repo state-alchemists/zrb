@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > Session & Context
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > Session & Context
 
 # Session, Context, and XCom
 
@@ -100,7 +100,7 @@ captures the *variable* and hands every task the last value.
 
 ## XCom (Cross-Communication)
 
-`XCom` is the system that allows tasks to pass state to each other. It works by creating a specialized `deque` queue for every task in the session.
+`XCom` is how tasks pass values to each other: each task in a session has a FIFO queue, `ctx.xcom['task-name']`.
 
 ### Automatic Data Flow
 
@@ -130,43 +130,13 @@ show_magic_number = cli.add_task(
 )
 ```
 
-### Manual XCom Manipulation
-
-You can manually interact with XCom queues within a Python task:
-
-| Method | Description |
-|--------|-------------|
-| `ctx.xcom['task-name'].push(val)` | Add to the queue |
-| `ctx.xcom['task-name'].pop()` | Remove and return oldest item |
-| `ctx.xcom['task-name'].peek()` | Look at oldest item without removing |
-| `ctx.xcom['task-name'].get()` | Read latest value without removing; returns `None` if empty |
-
-### Example: Manual Transfer
-
-```python
-from zrb import cli, make_task
-
-@make_task(name="task1", group=cli)
-def task1(ctx):
-    # Manual push (bypassing the return mechanism)
-    ctx.xcom["task1"].push("Manual Data")
-
-@make_task(name="task2", upstream=[task1], group=cli)
-def task2(ctx):
-    # Manual pop
-    data = ctx.xcom["task1"].pop()
-    ctx.print(f"Received: {data}")
-```
-
-> 📖 **Deep Dive:** For advanced XCom patterns — fan-in, broadcasting, pipeline stages, and edge cases — see the [XCom Deep Dive](./xcom-deep-dive.md).
+> 📖 The queue methods (`push`, `pop`, `peek`, `get`), manual pushes, and patterns such as fan-in, broadcasting and pipeline stages are in the [XCom Deep Dive](./xcom-deep-dive.md).
 
 ---
 
 ## Ambient Context
 
-Inside a task action, `ctx` is passed as an argument. But some helpers — like `zrb_print()` and `get_current_ctx()` — can access the active context without you passing it explicitly. This works via Python's `contextvars.ContextVar`.
-
-When Zrb starts executing a task, it stores the task's `ctx` in a module-level `ContextVar` called `current_ctx`. Any code that runs within that task (including helper functions and nested calls) can retrieve it:
+Inside a task action, `ctx` is passed as an argument. Helper code called from that action can reach the same `ctx` without it being passed down, through `get_current_ctx()` and `zrb_print()`:
 
 ```python
 from zrb.context.any_context import get_current_ctx, zrb_print
@@ -198,4 +168,4 @@ def my_helper():
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > Session & Context
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > Session & Context

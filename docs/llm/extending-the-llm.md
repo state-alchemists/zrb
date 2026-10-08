@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Extending the LLM
+🔖 [Documentation Home](../README.md) > [LLM](./) > Extending the LLM
 
 # Extending the LLM (Tools, Sub-agents, Capabilities)
 
@@ -329,4 +329,4 @@ Long-term memory is a directory of Markdown notes (default `~/.zrb/llm-notes/`) 
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Extending the LLM
+🔖 [Documentation Home](../README.md) > [LLM](./) > Extending the LLM

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > Basic Tasks
+🔖 [Documentation Home](../README.md) > [Task Types](./) > Basic Tasks
 
 # Basic Task Types
 
@@ -48,18 +48,7 @@ def calculate_perimeter(ctx):
 
 > 📖 **Full Reference:** See the [`@make_task` Decorator Guide](../core-concepts/make-task.md) for all parameters, advanced patterns, and comparison with direct instantiation.
 
-### Using Direct Instantiation with Lambda
-
-```python
-from zrb import Task, cli
-
-calculate = cli.add_task(
-    Task(
-        name="simple-calc",
-        action=lambda ctx: ctx.print("Calculating...")
-    )
-)
-```
+`Task(name=..., action=...)` is the same thing without the decorator; [Tasks & Execution Lifecycle → Task Creation](../core-concepts/tasks-and-lifecycle.md#task-creation) compares the three ways to define a task.
 
 ### Blocking Code Stalls Sibling Tasks
 
@@ -184,4 +173,4 @@ start_server = CmdTask(
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > Basic Tasks
+🔖 [Documentation Home](../README.md) > [Task Types](./) > Basic Tasks

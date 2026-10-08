@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > History & Compaction
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > History & Compaction
 
 # History & Compaction
 
@@ -101,7 +101,7 @@ sequenceDiagram
 
 **Loading.** `load` serves the cache while the file's modification time is unchanged, or while the entry has unsaved updates. Otherwise it reads the file, cleans broken parts, and validates it. A missing, empty or invalid file gives an empty list with a warning, so a bad file never blocks a turn.
 
-**Compacting.** The processor runs inside `run_agent`, between the `PreCompact` and `PostCompact` hooks, and counts the system prompt against the threshold. Tier one runs on every turn. Tier two runs only when the list is over the message window or the token threshold. When only the message count is over, it is skipped if summarizing would free less than 30% of the token budget. `summarize_history` then:
+**Compacting.** The processor runs inside `run_agent`, between the `PreCompact` and `PostCompact` hooks, and counts the system prompt against the threshold. Tier one runs on every turn. Tier two runs only when the list is over the message window or the token threshold. When only the message count is over, it is skipped if summarizing would free too small a share of the token budget to be worth a model call. `summarize_history` then:
 
 1. splits the list with `split_history` into an old part and a kept tail;
 2. summarizes the old part in chunks, consolidating the snapshots if there are many;
@@ -141,4 +141,4 @@ sequenceDiagram
 - [LLM Context](../../technical-specs/llm-context.md) — how the context window is budgeted
 - [Sub-agents](../2-extension-surface/sub-agents.md) — where delegated transcripts go
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > History & Compaction
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > History & Compaction

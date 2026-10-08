@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Sandbox
+🔖 [Documentation Home](../README.md) > [LLM](./) > Sandbox
 
 # Sandbox: Filesystem Containment for LLM Tool Calls
 
@@ -67,4 +67,4 @@ The sandbox contains LLM-initiated filesystem damage: prompt injection, model mi
 - **Setuid binaries on macOS** — a Seatbelt-sandboxed process cannot exec set[ug]id binaries regardless of profile. Notably `/bin/ps` (setuid root) and `sudo` fail with `Operation not permitted`; `pgrep`/`pkill` keep working.
 - **zrb-internal writes** (session logs, journal, snapshots) bypass the gate — only LLM-initiated tool calls are constrained.
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Sandbox
+🔖 [Documentation Home](../README.md) > [LLM](./) > Sandbox

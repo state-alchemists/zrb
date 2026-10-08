@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md) > LLM History Sanitization
+🔖 [Documentation Home](../README.md) > [Technical Specs](./llm-context.md) > LLM History Sanitization
 
 # LLM History Sanitization (Technical Specification)
 
@@ -189,4 +189,4 @@ Two upstream changes were adopted: `ModelHTTPError` now carries `headers` and a 
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md) > LLM History Sanitization
+🔖 [Documentation Home](../README.md) > [Technical Specs](./llm-context.md) > LLM History Sanitization

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Installation](./installation.md)
+🔖 [Documentation Home](../README.md) > [Installation](./installation.md)
 
 # Installation & Setup
 
@@ -144,26 +144,13 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/state-alchemists/zrb/mai
 
 `--pre` becomes `--pip-args='--pre'`, which pipx stores in its metadata, so a later `pipx upgrade zrb` keeps tracking pre-releases.
 
-<details>
-<summary>📜 Script Functions Reference</summary>
+What the script does, asking before each change:
 
-| Function | Purpose |
-|----------|---------|
-| `command_exists` | Check if a command is available |
-| `log_info` | Format and display info messages |
-| `confirm` | Prompt for `y/N` confirmation before changes |
-| `try_sudo` | Execute commands with `sudo` if available |
-| `register_pyenv` | Add `pyenv` init lines to shell rc file |
-| `install_pyenv` | Install pyenv via `curl https://pyenv.run \| bash` |
-| `install_python_on_pyenv` | Install Python 3.13.0 and set as global |
-| `install_pyenv_dependencies` | Install pyenv build dependencies |
-| `ensure_python` | Find Python 3.13, or offer to install it via pyenv |
-| `confirm_extras` | Ask whether to install every optional extra |
-| `pipx_install_zrb` | Install Zrb via `pipx install --python ... zrb` (adds `--pip-args='--pre'` when `--pre` is given) |
-| `register_autocomplete` | Register shell autocomplete |
-| `install_lsps` | Install LSP servers for the toolchains found |
-
-</details>
+1. Finds Python 3.13, or offers to install it through pyenv (with pyenv's build dependencies).
+2. Asks whether to install every optional extra.
+3. Installs zrb with `pipx` (tracking pre-releases when you pass `--pre`).
+4. Registers shell autocompletion.
+5. Installs language servers for the toolchains it finds.
 
 ### Using the Installation Script - PowerShell (Windows)
 
@@ -245,7 +232,7 @@ docker run \
 | `--rm` | Remove container on exit |
 | `-v /var/run/docker.sock:...` | Enable Docker-in-Docker functionality |
 
-> 💡 **Tip:** Always pin to a specific version (e.g., `3.0.0`) for reproducibility.
+> 💡 **Tip:** Always pin to a specific release (`stalchmst/zrb:<version>`, tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags)) for reproducibility.
 
 </details>
 
@@ -326,6 +313,17 @@ Hello from Zrb!
 ```
 
 The first line is the task's log on stderr: timestamp, attempt number (tasks retry twice by default, so `1/3`), and the command's output. The last line is the result on stdout, the only line a pipe or `$(zrb hello)` receives.
+
+### First LLM Chat
+
+The core install already includes `zrb llm chat` for OpenAI and OpenAI-compatible providers. Give it a key and start a session:
+
+```bash
+export OPENAI_API_KEY=sk-...
+zrb llm chat
+```
+
+For another provider, a local model (Ollama), or a gateway, set `ZRB_LLM_MODEL` (and `ZRB_LLM_API_KEY` / `ZRB_LLM_BASE_URL` if needed) — see [Core LLM Routing](../configuration/llm-config.md#1-core-llm-routing).
 
 ---
 

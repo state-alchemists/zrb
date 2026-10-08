@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md) > Context Propagation
+🔖 [Documentation Home](../README.md) > [Technical Specs](./llm-context.md) > Context Propagation
 
 # Context Propagation (Technical Specification)
 
-Zrb threads execution state through async coroutines with `contextvars.ContextVar` instead of explicit parameters. Nineteen `ContextVar`s are indexed in `src/zrb/contextvars.py`, split into five layers. Update this page whenever you add, remove, or rename one.
+Zrb threads execution state through async coroutines with `contextvars.ContextVar` instead of explicit parameters. Every ambient `ContextVar` is indexed in `src/zrb/contextvars.py`, split into five layers. Update this page whenever you add, remove, or rename one.
 
 For the design rationale in brief, see [Implicit State via ContextVars](../contributing/architecture.md#implicit-state-via-contextvars); for where the agent-run variables are bound during a chat request, see [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md).
 
@@ -153,4 +153,4 @@ Copy what is safe to use from the other thread, not everything. The hook executo
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md) > Context Propagation
+🔖 [Documentation Home](../README.md) > [Technical Specs](./llm-context.md) > Context Propagation

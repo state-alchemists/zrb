@@ -54,7 +54,7 @@ from zrb.task.tcp_check import TcpCheck
 # below exist to keep exactly those in sync. The number worth driving down is
 # the rest.
 #
-# ADR-0090/0091 (R12) records the `llm_config` split these numbers reflect.
+# ADR-0090 (R12) records the `llm_config` split these numbers reflect.
 PARAM_BUDGETS = {
     LLMChatTask: 40,
     LLMTask: 30,

@@ -1,162 +1,121 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Voice on Pipecat
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Voice on Pipecat
 
 # Voice on Pipecat
 
-> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/dictation/`, `src/zrb/llm/speech/` · Read first: [Dictation & Barge-in](dictation-barge-in.md)
+> **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/voice/`, `src/zrb/llm/dictation/`, `src/zrb/llm/speech/` · Read first: [Dictation & Barge-in](dictation-barge-in.md)
 
-zrb's voice runs its models on Pipecat: the speech-to-text a session listens through and the text-to-speech it speaks through are Pipecat services ([ADR-0107](../../adr/adr-0107.md)). This page is the boundary that may not be crossed. The idea to take away: **Pipecat runs the models, zrb decides the meaning.** Pipecat answers "what audio event is happening"; zrb answers "what does that mean for this chat session".
+zrb's local speech models run as Pipecat services ([ADR-0107](../../adr/adr-0107.md)): the speech-to-text and text-to-speech backends that load a model on this machine are Pipecat services behind a name, beside zrb's own backends for cloud APIs, `vosk` and system commands. Every backend sits behind the same `AnyDictationBackend` or `AnySpeechBackend` interface, so the rest of voice does not know which kind it has. This page is the boundary between Pipecat and zrb. The one idea to take away: **Pipecat runs the models, zrb decides the meaning.** Pipecat answers "what did this audio say" and "what does this sentence sound like"; zrb answers "what does that mean for this chat session".
 
 ## Table of Contents
 
 - [Design](#design)
-  - [The boundary](#the-boundary)
+  - [The problem](#the-problem)
   - [Principles](#principles)
   - [Invariants](#invariants)
 - [Realization](#realization)
   - [The parts](#the-parts)
+  - [How it runs](#how-it-runs)
   - [What zrb keeps, and why](#what-zrb-keeps-and-why)
-  - [The stages](#the-stages)
-  - [Regression gates](#regression-gates)
   - [Change it here](#change-it-here)
 - [See Also](#see-also)
 
 ## Design
 
-### The boundary
+### The problem
 
-| Pipecat runs | zrb decides |
-| --- | --- |
-| The speech-to-text service a session listens through, and the text-to-speech service it speaks through | The microphone device, and the only code that opens it |
-| A service's model: loading it, running it, releasing it | Where an utterance begins and ends, and the bar under the user's speech |
-| The frames inside a service, and the order they travel in | Whether a transcript is meant for zrb at all: wake words, stop words, approvals, minimum-word guards |
-| A worker and its pipeline, once zrb has built one | How long a pipeline lives, and pause, resume or stop, per chat session |
-| Interruption inside one synthesis, when zrb asks for one | The pydantic-ai agent, the UI, and the prompt |
-
-A conversation is one pass through both columns: the user speaks, zrb cuts the utterance and hands it to the service, the service answers with a transcript, and zrb decides whether those words are a turn, an answer to a prompt, a stop, or noise.
+- **Every model is a different integration.** Each speech model has its own loading, threading and audio format. Hand-rolling a backend per model is code zrb does not want to own.
+- **A generic voice pipeline knows nothing about a chat session.** It cannot tell a stop word from a question, an approval from a new turn, or zrb's own voice from the user's.
+- **Playback must stay controllable.** Speech is paused and stopped from the microphone, mid-sentence, so whatever plays it must stay in zrb's hands.
+- **Models are slow to load and pipelines idle between utterances.** A pipeline that shuts itself down while the user is thinking fails every later utterance.
 
 ### Principles
 
-1. **zrb keeps the microphone.** The pipeline never opens the device. zrb captures as it does today and pushes frames in, so `listen` stays the only thing that touches the sound card. → [ADR-0107](../../adr/adr-0107.md)
-2. **Pipecat owns the media, zrb owns the meaning.** A media stage replaces audio work; it never absorbs a decision about what the user meant. → [ADR-0107](../../adr/adr-0107.md)
-3. **A stage lands only when the tree is green with both paths.** Each stage is behind a flag until its replacement is proven, so a half-migrated voice is never the only voice. → [ADR-0107](../../adr/adr-0107.md)
-4. **What the user hears is decided by the words, not by the transport.** The hold-first, decide-on-the-words shape survives the move. → [ADR-0105](../../adr/adr-0105.md)
-5. **Playback stays in-process and pausable.** Speech is played by zrb so it can be paused and stopped out of the microphone; a transport may not take that away. → [ADR-0103](../../adr/adr-0103.md)
-6. **Features stay unknown to the UI.** The pipeline is installed through the same extension points as today, and config is still read when a session starts. → [ADR-0102](../../adr/adr-0102.md)
+1. **Pipecat owns the media, zrb owns the meaning.** A Pipecat service turns a finished segment into a transcript, or a sentence into audio. Where an utterance starts and ends, whether a transcript is a stop, an approval, a wake word or a turn, and the agent itself all stay zrb's. → [ADR-0107](../../adr/adr-0107.md)
+
+2. **zrb keeps the microphone and the speaker.** Pipecat never opens a device: zrb captures, cuts the utterance and hands the segment over, and plays the audio a service returns through its own pausable player. → [ADR-0107](../../adr/adr-0107.md), [ADR-0103](../../adr/adr-0103.md)
+
+3. **Services are chosen by name from a registry.** Built-in and code-registered services share one registry per direction; a project registration replaces a built-in of the same name, and the backend setting picks one. → [ADR-0090](../../adr/adr-0090.md)
+
+4. **A pipeline's lifetime is zrb's, and idle is its normal state.** One pipeline is built per backend and kept for the session; it never times itself out, and zrb closes it at teardown on the loop that owns it. → [ADR-0107](../../adr/adr-0107.md)
+
+5. **Features stay unknown to the UI.** Dictation and speech are installed through `LLMChatTask`'s extension points and configured when a session starts. → [ADR-0102](../../adr/adr-0102.md)
 
 ### Invariants
 
 Each one fails quietly: the chat keeps working, but zrb answers itself, talks over the user, or stops hearing anyone.
 
-| Invariant | Pinned by |
-| --- | --- |
-| The microphone is opened by zrb and by nothing else | `test/llm/dictation/test_listen.py` |
-| A stop said over zrb still cancels the turn, and is still sent nowhere | `test/llm/dictation/test_feature_barge_in.py` |
-| A hold taken over zrb's voice is still given back when the words are not meant for it | `test/llm/dictation/test_feature_barge_in_pause.py` |
-| A spoken yes or no still answers a pending approval rather than steering the turn | `test/llm/dictation/test_feature_barge_in.py` |
-| Speech can still be paused and stopped mid-utterance | `test/llm/speech/test_player_in_process.py` |
-| A streamed reply is still spoken sentence by sentence as it is written | `test/llm/speech/test_feature_stream.py` |
-| A turn ends when the user is done, and a slow transcript does not stall it | **unpinned** — the semantic turn end has no test yet |
+| Must stay true | If it breaks | Pinned by |
+| --- | --- | --- |
+| A stop said over zrb cancels the turn and is sent nowhere | The user cannot interrupt, or the word "stop" becomes a message | `test/llm/dictation/test_feature_barge_in.py::test_a_lone_stop_word_cancels_the_turn_and_is_sent_nowhere` |
+| Speech can be paused and resumed mid-utterance | Barge-in has to cut speech off instead of holding it | `test/llm/speech/test_player_in_process.py::test_pause_holds_a_pausable_utterance_and_resume_carries_on` |
+| A streamed reply is spoken a sentence at a time | The user waits for the whole reply before hearing anything | `test/llm/speech/test_feature_stream.py::test_a_streamed_reply_is_spoken_a_sentence_at_a_time` |
+| A project registration replaces a built-in service of the same name | A custom model is silently ignored | `test/llm/voice/test_registry.py::test_a_registration_replaces_a_built_in_of_the_same_name` |
+| A worker that stopped on its own leaves the pipeline closed, so the next utterance builds a new one | Every utterance after the first failure fails too | `test/llm/dictation/test_pipecat_stt.py::test_a_worker_that_stopped_on_its_own_leaves_the_pipeline_closed` |
+| A turn ends when the user is done, and a slow transcript does not stall it | Long pauses split one thought into two turns, or a turn never ends | **unpinned** |
 
 ## Realization
 
 ### The parts
 
 ```mermaid
-sequenceDiagram
-    participant C as UtteranceCutter
-    participant S as DictationSession
-    participant A as Agent
-    participant P as Speaker
-    C->>S: audio
-    S->>A: command
-    A-->>P: reply
+flowchart TD
+    Cut[UtteranceCutter] -->|segment| STT[STTPipeline, Pipecat]
+    STT -->|transcript| Session[DictationSession]
+    Session -->|turn| Agent[LLMChatTask]
+    Agent -->|sentence| TTS[TTSPipeline, Pipecat]
+    TTS -->|audio| Speaker[Speaker]
 ```
 
-The framework names below are Pipecat's, not zrb's. The two services shipped; the rest is what the plan named, kept here with what became of it, so a reader can tell a decision from a hope.
-
-| Part | What it does | Replaces |
+| Part | Where | What it is responsible for |
 | --- | --- | --- |
-| zrb capture | Keeps the microphone, cuts the utterance, and hands that over | nothing — stays zrb's |
-| STT service — **shipped** | The Pipecat service `ZRB_LLM_DICTATION_BACKEND` names (`whisper`, `moonshine`, `funasr`), handed a finished segment and answering with a `TranscriptionFrame` | the hand-rolled transcript backends |
-| TTS service — **shipped** | The Pipecat service ZRB_LLM_SPEECH_BACKEND names (`kokoro`, `piper`, `pocket`), asked for a sentence's audio (`TTSSpeakFrame` → `TTSAudioRawFrame`), which zrb plays | the hand-rolled speech backends |
-| Registry and managers — **shipped** | `stt_registry`/`tts_registry` and the managers that build a named service (ADR-0090) | the fixed name-to-backend lookup |
-| Input transport | Takes audio pushed in rather than from a device, through the readiness call Pipecat's own base input transport omits; without it the pushed frames are never drained. **Built for stage 1 and gone with it** — the shipped path uses no transport | nothing |
-| Voice-activity detection | Tells speech from silence per 32 ms frame, from a model that ships inside Pipecat and runs offline. **Built for stage 1 and gone with it** — it was never in the decision path, and `UtteranceCutter` still cuts | nothing |
-| Turn strategies | VAD-triggered and minimum-word turn starts, the second applying its threshold only while zrb speaks. **Not built** | nothing yet |
-| vosk STT | A custom STT service: Pipecat ships none, and this keeps the wake-word gate and per-word confidence. **Not built** — vosk is still zrb's own backend | nothing |
-| zrb agent | pydantic-ai, unchanged | nothing |
-| Output transport | A Pipecat output-transport subclass overriding its audio write to play through `PcmUtterance`. **Not built** — zrb asks the TTS service for audio and plays it itself, so no transport is involved | nothing |
+| `stt_registry`, `tts_registry` | `src/zrb/llm/voice/registry.py` | The named services in each direction, built-in and registered |
+| `stt_manager`, `tts_manager` | `src/zrb/llm/voice/manager.py` | Building the service a name refers to, with its config |
+| `STT_SERVICE_SPECS`, `TTS_SERVICE_SPECS` | `src/zrb/llm/voice/builtin.py` | The built-in service specs and the extras each needs |
+| `AnyDictationBackend`, `AnySpeechBackend` | `src/zrb/llm/dictation/backend/`, `src/zrb/llm/speech/backend/` | The interface every backend implements, Pipecat-backed or zrb's own; each package's `builtin.py` maps a backend name to one |
+| `UtteranceCutter` | `src/zrb/llm/dictation/listen.py` | Where an utterance begins and ends, and the loudness bars under ordinary speech and under zrb's voice |
+| `STTPipeline` | `src/zrb/llm/dictation/pipecat_stt.py` | One long-lived Pipecat pipeline per STT backend: segment in, transcript out |
+| `DictationSession` | `src/zrb/llm/dictation/feature.py` | The guards: stop, approval, denial, wake word, minimum word count |
+| `TTSPipeline` | `src/zrb/llm/speech/pipecat_tts.py` | One long-lived Pipecat pipeline per TTS backend: sentence in, audio out |
+| `Speaker`, `PcmUtterance` | `src/zrb/llm/speech/player.py`, `src/zrb/llm/speech/pcm_player.py` | In-process playback that can pause, resume and stop |
 
-Stage 1 was built, ran for one release behind a flag, and was removed. It fed every captured block to a pipeline of zrb's own — `[transport, detector, metrics stage, counter]`, with a readiness call the shipped path never learned to make — and decided nothing; its whole output was one line per listening, `Pipecat input pipeline: 2 speech segment(s), 1.5s of detected speech`.
+### How it runs
 
-It went because nothing took it up. The detector's turn — replacing the cutter's loudness bars, then replacing the silence-based turn end with a semantic one — was the reason the tap existed, and it was never built; with the cutter staying zrb's, the tap measured a path no session took. What it measured left with it, so those two stages would begin by rebuilding the instrument. The line it printed has a replacement for the one thing it was actually useful for: `zrb voice mic-test` in `examples/voice-interaction` measures a device against the same threshold dictation uses.
+**Listening.** `listen` reads the microphone and `UtteranceCutter` decides when an utterance has ended. When `CFG.LLM_DICTATION_BACKEND` names a Pipecat service, the finished segment goes to that backend's `STTPipeline`, which pushes it through the service and waits for a `TranscriptionFrame`; the `vosk` backend transcribes in zrb itself. `DictationSession` then reads the words and decides what they are: a stop, an answer to a pending prompt, a wake word, too short to count, or a turn for the agent.
 
-The services that did ship are held up by `test/llm/dictation/test_pipecat_stt.py`, `test/llm/dictation/backend/test_pipecat_backend.py`, `test/llm/speech/test_pipecat_tts.py` and `test/llm/speech/backend/test_pipecat_backend.py`, and the registry they resolve through by `test/llm/voice/`.
+**Speaking.** The speech feature splits a streamed reply into sentences. When `CFG.LLM_SPEECH_BACKEND` selects a Pipecat service, each sentence goes to its `TTSPipeline` as a `TTSSpeakFrame`, and the service answers with `TTSAudioRawFrame`s; the other backends produce audio their own way. Either way zrb plays it through `Speaker`, so a barge-in can pause or stop it out of the microphone.
+
+**Lifetime.** A service loads its model when it is built, so each pipeline is built once per backend and kept for the session. Between utterances it receives nothing, which is normal. Every worker zrb builds passes `idle_timeout_secs=None`, so Pipecat's idle monitor never cancels it, and zrb closes each pipeline at session teardown. A pipeline whose worker stopped anyway reports itself closed, and the backend builds a fresh one before the next utterance.
 
 ### What zrb keeps, and why
 
-These are the parts a "full" adoption must not remove, because each carries behavior Pipecat has no notion of. Dropping one is a product change, not a refactor.
+Each of these carries behaviour Pipecat has no notion of. Moving one into Pipecat is a product change, not a refactor.
 
-| Kept | The behavior it carries |
+| Kept | The behaviour it carries |
 | --- | --- |
-| `DictationSession`'s guards | A stop, an approval, a denial, a wake word, a minimum word count, a transcriber's guess |
+| `UtteranceCutter` | The echo-aware bar: the room under ordinary speech and zrb's own voice are measured separately, and speech is held on loudness before the words are known |
+| `DictationSession`'s guards | A stop, an approval, a denial, a wake word, a minimum word count |
 | `TriggerReply` and the trigger adapter | A transcript that answers the pending prompt instead of steering the turn |
-| Push-to-talk's input path | A transcript that lands in the editable box, unsent |
-| The wake-word gate | Stripping the wake word, arming the next utterance, and reading it beside the stop and approval rules |
-| vosk as a custom STT service | Offline transcription, partials, and per-word confidence, which Pipecat's transcription frames do not carry |
-| `Speaker` and `PcmUtterance` | Pause, resume, interrupt, external-player fallback, and per-session isolation |
-| The pydantic-ai agent and the stream observer | Tools, history, permissions, hooks, and muting the rest of a reply that was talked over |
-| The bounded capture backlog | Continuing to capture while a turn is answered, and dropping the oldest rather than splicing across a gap |
-
-The echo-aware bar is the sharpest of these. zrb measures the room under ordinary speech and zrb's own voice over it separately, and holds speech on loudness before it knows the words. A generic detector supplies confidence and state transitions, not that distinction, so the bar stays zrb's.
-
-### The stages
-
-| Stage | What comes out | Order |
-| --- | --- | --- |
-| 1 | Input only, behind a flag. **Built and removed**: the flag fed the capture to a pipeline of zrb's own, from a task beside `listen`'s reading loop, and that pipeline owned a transport, a detector and a metrics stage for as long as a listening lasted. Nothing after it was built, so it was removed in 3.15.0 | First, because it can run beside what exists |
-| 2 | `UtteranceCutter` and its loudness bars, once the detector's boundaries are shown to match the cutter's on recorded audio. **Abandoned** — there is no detector to show anything with, and the cutter is still zrb's | Second, because it needs stage 1 |
-| 3 | The silence-based end of a turn, replaced by a semantic turn analyzer. **Abandoned**, and it followed stage 2: there was never a detector driving turn starts to build it on | Third, because it needs the detector driving turn starts |
-| 4 | The STT backends behind STT services, vosk first. **Partly taken, and out of this order**: `whisper`, `moonshine` and `funasr` are Pipecat services behind a name, while vosk is still zrb's own backend. The services landed *before* stages 2 and 3 rather than after them | Fourth, because it is what the guards read |
-| 5 | Output, through a Pipecat output-transport subclass over `PcmUtterance`. **Not taken**: zrb asks a TTS service for a sentence's audio and plays it itself, so there is no transport to interrupt | Last, because it is the least measured, and the one that must not break a pause |
-
-What landed is therefore the services and not the stages, and stage 1 was retired with the stages it was to enable. The order changed because the driven path needs nothing from the detector: zrb already knows where the utterance ended, because it cut it, so a service can be put behind that boundary without waiting for the detector to reproduce it. The detector's turn — stages 2 and 3 — is what would let zrb stop cutting, and it is unbuilt and abandoned.
-
-One rule the plan did not have to state, because it only appears once a pipeline outlives an utterance: **a pipeline's lifetime is zrb's, and idle is its normal state.** A service loads its model in its constructor, so one pipeline is built per backend and kept for the session; between utterances it receives nothing, and only a transcript or a spoken frame tells Pipecat's worker the pipeline is still wanted. Left idle for five minutes it cancels itself, which took both pipelines down mid-session and failed every later utterance with "the Pipecat worker stopped". Every worker zrb builds therefore passes `idle_timeout_secs=None`, so the monitor is never started rather than merely muted, and zrb closes the pipeline at the session's teardown — on the loop that owns it, because a worker is a task of that loop and only that loop can await it (ADR-0107).
-
-A worker that ends without that close is not kept either. `STTPipeline.is_closed` reads the worker's own run task beside the flag `close` sets, so a stopped pipeline counts as none and the backend starts the next one before the next utterance, rather than failing every one after it.
-
-### Regression gates
-
-No stage may replace the old path until these pass on both paths:
-
-1. A stop over speech pauses immediately, cancels the turn, and is sent nowhere.
-2. A cough, room conversation, or zrb echo pauses and then resumes speech.
-3. A spoken approval or denial answers the pending prompt.
-4. A wake word said alone arms the next utterance for its window.
-5. A slow or failed transcription does not stop capture or leave speech paused.
-6. vosk confidence drops hands-free noise but never push-to-talk text.
-7. An interrupted reply is not spoken again when the turn ends.
-8. Speech control in one chat session cannot reach another.
-9. Push-to-talk inserts editable text rather than submitting a turn.
-10. A failure while starting, feeding or tearing the pipeline down leaves the chat usable.
+| Push-to-talk's input path | A transcript that lands in the editable input box, unsent |
+| vosk | Offline transcription with partials and per-word confidence; it stays zrb's own backend because Pipecat ships no vosk service |
+| `Speaker` and `PcmUtterance` | Pause, resume, interrupt, an external-player fallback, and per-session isolation |
 
 ### Change it here
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change which service a session listens or speaks through, or what an unset voice falls back to | `src/zrb/llm/voice/builtin.py`, `src/zrb/llm/voice/registry.py` | `test/llm/voice/test_registry.py`, `test/llm/voice/test_builtin.py` |
-| Change how a segment reaches an STT service, or what ends its transcription | `src/zrb/llm/dictation/pipecat_stt.py` | `test/llm/dictation/test_pipecat_stt.py` |
-| Change how a sentence's audio is made, read or dropped | `src/zrb/llm/speech/pipecat_tts.py` | `test/llm/speech/test_pipecat_tts.py` |
-| Change utterance cutting, the bar over zrb's voice, or the bar under ordinary speech | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen_barge_in.py`, `test/llm/dictation/test_listen.py` |
-| Change the transcript guards or command routing | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py` |
+| Add a Pipecat service, or change what an unset backend falls back to | `src/zrb/llm/voice/builtin.py`, `src/zrb/llm/voice/registry.py` | `test/llm/voice/` |
+| Add a non-Pipecat backend | `src/zrb/llm/dictation/backend/builtin.py`, `src/zrb/llm/speech/backend/builtin.py` | `test/llm/dictation/backend/`, `test/llm/speech/backend/` |
+| Change how a segment reaches an STT service | `src/zrb/llm/dictation/pipecat_stt.py` | `test/llm/dictation/test_pipecat_stt.py` |
+| Change how a sentence's audio is made | `src/zrb/llm/speech/pipecat_tts.py` | `test/llm/speech/test_pipecat_tts.py` |
+| Change utterance cutting or the loudness bars | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen.py`, `test/llm/dictation/test_listen_barge_in.py` |
+| Change the transcript guards | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py` |
 | Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py` |
 
 ## See Also
 
-- [Dictation & Barge-in](dictation-barge-in.md) — the flow this pipeline replaces and must keep
-- [ADR-0107](../../adr/adr-0107.md) — the decision to build on Pipecat, and the boundary
-- [ADR-0102](../../adr/adr-0102.md), [ADR-0103](../../adr/adr-0103.md), [ADR-0105](../../adr/adr-0105.md) — the clauses that survive and the ones that die
-- [UI](../2-extension-surface/ui.md) — the extension points the pipeline installs through
+- [Dictation & Barge-in](dictation-barge-in.md) — what the guards decide, and how talking over zrb works
+- [Voice & Camera](../../llm/voice-camera.md) — setting voice up, from the user's side
+- [Programming the Voice](../../llm/programming-the-voice.md) — registering a custom service
+- [UI](../2-extension-surface/ui.md) — the extension points voice installs through
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Voice on Pipecat
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Voice on Pipecat

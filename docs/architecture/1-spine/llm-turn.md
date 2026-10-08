@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > The LLM Turn
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > The LLM Turn
 
 # The LLM Turn
 
@@ -52,7 +52,6 @@ Each one fails silently if broken: the turn still finishes, but history or side 
 | History processors run once per turn, never between tool-approval rounds | Summarization drops the approved call and the loop fails or repeats it | `test/llm/agent/run/test_runner_deferred.py::test_run_agent_deferred_never_reapplies_processors` |
 | A retry after an approved tool ran does not run that tool again | A deploy, write or delete happens twice | `test/llm/agent/run/test_runner_deferred_approval.py::test_retry_after_approved_tool_ran_does_not_run_it_again` |
 | Every round of a multi-round turn reaches the Stop payload | A hook that reviews written files misses a write the user approved | `test/llm/agent/run/test_runner_deferred.py::test_stop_event_wrote_files_true_after_deferred_tool_approval` |
-| Live context goes into the user turn, not the system prompt | The prompt cache never hits, and every turn costs full price | `test/llm/agent/run/test_runner_history.py::test_run_agent_appends_live_context_to_user_turn` |
 | Run-scoped context is reset when the run returns | The next run, or a sibling sub-agent, sees this run's scope and policies | `test/llm/agent/run/test_runner_lifecycle.py::test_run_agent_resets_run_scope_after_returning` |
 | Mid-turn checkpoint saves finish before the run returns | A late checkpoint overwrites the final save with older history | `test/llm/agent/run/test_runner_limits.py::test_run_agent_checkpoint_awaited_before_run_agent_returns` |
 | `SessionEnd` fires once at teardown, not every turn | Hook consumers get a false "session over" signal after each reply | `test/llm/task/chat/test_llm_chat_task_teardown.py::test_interactive_teardown_fires_terminal_session_end` |
@@ -84,6 +83,8 @@ flowchart TD
 | `handle_stream_error` | `src/zrb/llm/agent/run/retry_loop.py` | Classifies a failed round and decides the one-shot fix |
 | `process_deferred_requests` | `src/zrb/llm/agent/run/deferred_calls.py` | Asks for approval of the tool calls the model made, and returns their results |
 | `setup_print_and_events` | `src/zrb/llm/agent/run/setup.py` | Resolves the UI and other dependencies; builds the handler that renders streamed events |
+| `ModelResolver`, `resolve_configured_model` | `src/zrb/llm/config/model_resolver.py` | Turning a configured model name, API key and base URL into a pydantic-ai model; the small and multimodal models resolve the same way |
+| `LLMLimiter` | `src/zrb/llm/config/limiter.py` | Request and token rate limits, token counting, and fitting history into `max_token_per_request` before each request |
 
 ### How it runs
 
@@ -111,7 +112,7 @@ Inside `run_agent`, each round of the loop does the same steps:
 
 1. `sanitize_history` repairs the history, and `TurnCursor.begin_round` installs it.
 2. `agent.run` streams the round. The event handler sends each event to the UI and any stream observers. It also saves a checkpoint in the background each time a tool round trip completes.
-3. The round ends one of four ways. A stream error goes to `handle_stream_error`. Tool calls that need approval go to `process_deferred_requests`, and the loop goes round again with their results. An empty answer is regenerated, at most twice. A real answer goes to the `Stop` hook.
+3. The round ends one of four ways. A stream error goes to `handle_stream_error`. Tool calls that need approval go to `process_deferred_requests`, and the loop goes round again with their results. An empty answer is regenerated, up to `max_empty_completion_retries` times. A real answer goes to the `Stop` hook.
 4. `Stop` either ends the turn or, when a hook blocks it, starts one more round with the hook's reason as the message.
 
 When the run returns, `LLMTask` saves the new history. On an error or a cancel, it saves what actually happened instead (see [History & Compaction](../3-peripheral-flow/history-and-compaction.md)).
@@ -124,7 +125,7 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 | `/compress` | `LLMTask` (before any agent is built) | Calls `summarize_history(force=True)`, saves, and returns without a model turn |
 | A `UserPromptSubmit` hook blocks | `run_agent` startup hooks | The turn ends before the model runs; the block reason is the output |
 | Approval arrives later through a channel | `process_deferred_requests` returns nothing | The turn suspends: the pending requests and history return, and `Stop` does not fire |
-| A `Stop` hook blocks | `apply_turn_end_extension` in `src/zrb/llm/agent/run/session_extension.py` | Another round runs with the reason injected, up to `STOP_HOOK_BLOCK_CAP` (8) times in a row |
+| A `Stop` hook blocks | `apply_turn_end_extension` in `src/zrb/llm/agent/run/session_extension.py` | Another round runs with the reason injected, up to `STOP_HOOK_BLOCK_CAP` times in a row |
 | A sub-agent's run | `run_agent(nested=...)` | No turn snapshot is taken, and the `Stop` payload marks `nested_run` — see [Sub-agents](../2-extension-surface/sub-agents.md) |
 | A message typed mid-turn | `steer_into_live_run` | Steers into the live run instead of queuing ([ADR-0078](../../adr/adr-0078.md)) |
 
@@ -139,6 +140,8 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 | Change the state carried between rounds | `src/zrb/llm/agent/run/turn_cursor.py` | `test/llm/agent/run/test_turn_cursor.py` |
 | Change how a failed round is retried | `src/zrb/llm/agent/run/retry_loop.py` | `test/llm/agent/run/test_retry_loop.py` |
 | Change how agents are constructed | `src/zrb/llm/agent/common.py` | `test/llm/agent/test_common_agent_creation.py` |
+| Change how a model name becomes a model | `src/zrb/llm/config/model_resolver.py` | `test/llm/config/` |
+| Change rate limiting or token counting | `src/zrb/llm/config/limiter.py` | `test/llm/config/` |
 
 ## See Also
 
@@ -148,4 +151,4 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 - [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) — what `process_deferred_requests` decides
 - [Hooks](../../llm/hooks.md) — `Stop`, `PreCompact` and the other lifecycle events
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > The LLM Turn
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > The LLM Turn

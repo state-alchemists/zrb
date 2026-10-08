@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Logging
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > Logging
 
 # Logging in Zrb
 
@@ -120,7 +120,7 @@ The level gate is controlled by `CFG.LOGGING_LEVEL` (or an override on the `Shar
 
 ## Session Log Directory
 
-Zrb persists session state (task execution records, LLM chat history) to disk:
+Zrb persists session state (task execution records) to disk. LLM chat history is stored separately, under `ZRB_LLM_HISTORY_DIR` (default `~/.zrb/llm-history/`; see [LLM configuration](../configuration/llm-config.md)).
 
 | Variable | Default | Description |
 |---|---|---|
@@ -147,4 +147,4 @@ zrb llm chat
 export ZRB_SESSION_LOG_DIR=/var/log/zrb-sessions
 ```
 
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Logging
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > Logging

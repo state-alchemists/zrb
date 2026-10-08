@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Tool Call & Approval
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Tool Call & Approval
 
 # Tool Call & Approval
 
@@ -33,7 +33,7 @@ Before the model's tool call runs, zrb decides whether it may run: allow it quie
 
 1. **Permission is an ordered list of rules, and the first match wins.** A rule names a tool, a capability or `*`, can narrow itself with a glob on an argument, and says `allow`, `ask` or `deny`. One ordered list is easy to read top to bottom and easy to test. → [ADR-0061](../../adr/adr-0061.md)
 2. **One cascade decides every call that needs approval, on every route.** Each level either decides or passes the call to the next, in a fixed order. The main agent, sub-agents and the web runner all call the same function, so a rule cannot hold on one route and leak on another. → [ADR-0062](../../adr/adr-0062.md)
-3. **A rule that says `ask` is a hard ask.** Nothing lower in the cascade (a tool policy's auto-approve, yolo) may approve it on the user's behalf. If no one can answer, the call is refused rather than left waiting or quietly run. → [ADR-0062](../../adr/adr-0062.md)
+3. **A rule that says `ask` is a hard ask.** Yolo, which sits below the ruleset, may not approve it on the user's behalf; only the levels above it — always-auto-approve tools, a tool policy, a PreToolUse hook — decide before the rule is reached. If no one can answer, the call is refused rather than left waiting or quietly run (`ExitPlanMode` alone is approved, since its gate exists only to show a human the plan). → [ADR-0062](../../adr/adr-0062.md)
 4. **A deny never prompts, and it is enforced again at the tool.** A call the rules deny skips the approval step entirely and is blocked at the execution checkpoint. So a deny holds whatever an earlier level decided. → [ADR-0061](../../adr/adr-0061.md)
 5. **An edited call tells the model what ran.** When a person changes the arguments before approving, the result the model gets back carries a note listing the changed keys. Otherwise the model would read its own request next to a result made from different arguments. → [ADR-0085](../../adr/adr-0085.md)
 
@@ -142,4 +142,4 @@ An approved call then goes through `SafeToolsetWrapper.call_tool` like any other
 - [Plan Mode](../../llm/plan-mode.md) — the read-only preset
 - [Hooks](../../llm/hooks.md) — `PreToolUse` and `PermissionRequest`
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Tool Call & Approval
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Tool Call & Approval

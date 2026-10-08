@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md)
+🔖 [Documentation Home](../README.md) > [Technical Specs](./llm-context.md)
 
 # LLM Journal System (Technical Specification)
 
@@ -146,4 +146,4 @@ The journal system uses configuration placeholders that are automatically replac
 
 > 💡 **Best Practice:** Use `AGENTS.md` for rules the LLM must follow. Use the journal for information the LLM should remember.
 
-🔖 [Documentation Home](../../README.md) > [Technical Specs](./llm-context.md)
+🔖 [Documentation Home](../README.md) > [Technical Specs](./llm-context.md)

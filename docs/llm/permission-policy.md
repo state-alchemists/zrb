@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Permission Policy
+🔖 [Documentation Home](../README.md) > [LLM](./) > Permission Policy
 
 # Permission Policy System
 
@@ -189,4 +189,4 @@ with permission_policy(my_dynamic_policy):
 The explicit `permissions=` argument, when given, takes precedence over a value set this way.
 
 ---
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Permission Policy
+🔖 [Documentation Home](../README.md) > [LLM](./) > Permission Policy

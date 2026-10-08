@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > Environments
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > Environments
 
 # Environment Variables (Env)
 
@@ -132,4 +132,4 @@ task = cli.add_task(
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > Environments
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > Environments

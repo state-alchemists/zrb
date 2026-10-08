@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > MCP Support
+🔖 [Documentation Home](../README.md) > [LLM](./) > MCP Support
 
 # MCP Support (Model Context Protocol)
 
@@ -148,4 +148,4 @@ CFG.MCP_CONFIG_FILE = ".mcp.json"
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > MCP Support
+🔖 [Documentation Home](../README.md) > [LLM](./) > MCP Support

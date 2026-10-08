@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Contributing](./) > Maintainer Guide
+🔖 [Documentation Home](../README.md) > [Contributing](./) > Maintainer Guide
 
 # Maintainer Guide
 
@@ -40,8 +40,10 @@ python -m venv .venv
 Every session:
 
 ```bash
-source .venv/bin/activate && poetry lock && poetry install
+source .venv/bin/activate && poetry install
 ```
+
+Run `poetry lock` only after editing dependencies in `pyproject.toml`; it re-resolves and rewrites `poetry.lock`.
 
 ### Running Tests
 
@@ -49,21 +51,27 @@ source .venv/bin/activate && poetry lock && poetry install
 ./zrb-test.sh [path]
 ```
 
-Pass nothing for the full suite, or a file / directory / `file::test_function` path to scope a run. CI runs the same script (`poetry run bash zrb-test.sh`), so a green local run means a green CI run.
+Pass nothing for the full suite, or a file / directory / `file::test_function` path to scope a run. CI runs the same script (`poetry run bash zrb-test.sh`), but more widely than one local run: Ubuntu on Python 3.11, 3.12, 3.13 and 3.14, plus Windows and macOS on 3.13 (`.github/workflows/test.yml`). The Windows and macOS jobs pass `test` as the path, so they skip pyright and the coverage gate. A green local run on one Python version does not guarantee a green CI run; version- and OS-specific failures only show up there.
 
-`zrb-test.sh` gates in this order (some only on a full run):
+`zrb-test.sh` runs three steps, in this order:
 
-| Gate | What it checks | If it fails |
+| Step | What it checks | If it fails |
 |------|-----------------|-------------|
 | `flake8 src/zrb --select=F` | Unused imports/vars, redefinitions (`src/` only) | Remove the dead import/var, or add the required `# lazy: <reason>` comment (see `AGENTS.md` → Imports) |
-| `test/architecture/test_complexity_ratchet.py` (mccabe, via flake8) | A per-function complexity ratchet | Your function raised the *worst-in-repo* score — simplify it, or, if it's a registration/keybinding table (an accepted exception per `AGENTS.md`), mark it `# noqa: C901` with a one-line reason |
-| `test/architecture/test_complexity_ratchet.py` (radon) | Same, scored per-function instead of summed into the enclosing function | Same fix |
-| `test/architecture/test_private_test_access_ratchet.py` | Counts `test/` references into another object's private (`_foo`) attributes | Expose a public accessor instead (see `AGENTS.md` → Test Guidelines); rare accepted exceptions are listed in the test file's docstring |
-| `test/architecture/test_sys_modules_patch_allowlist.py` | Every module shadowed by `patch.dict("sys.modules", ...)` is on a reviewed allowlist | `patch.dict` restores `sys.modules` by clear-and-update, which *deletes* anything first imported inside the block — unrecoverably for a C extension. If the guarded code can trigger a real first-time import, warm that module in `test/conftest.py`, then list the name (see the test file's docstring) |
-| `pyright src/zrb` (full run only) | Static type check | Fix the reported type error |
-| `pytest ... --cov-fail-under=95` (full run only) | ≥95% coverage | Add a test for the uncovered branch |
+| `pyright src/zrb` (full run only) | Static types: `standard` for the tree, `strict` for the packages listed in `pyrightconfig.json` | Fix the reported type error |
+| `pytest -n auto ...` (`--cov-fail-under=95` on a full run only) | The suite, including every architecture fitness test under `test/architecture/`, and ≥95% coverage | Fix the test, or add a test for the uncovered branch |
 
-`zrb-test.sh` runs only the `flake8 --select=F` step directly; the four ratchets are ordinary pytest tests under `test/architecture/`. Each file's docstring documents its exact numbers and rationale.
+The architecture tests are ordinary pytest files; each one's docstring states the rule, the current numbers and the fix. The ones that fail most often on new code:
+
+| Test (under `test/architecture/`) | What it checks | Usual fix |
+|------|-----------------|-------------|
+| `test_complexity_ratchet.py` | Per-function complexity (mccabe and radon) may not exceed the worst in the repo | Simplify the function. A registration or keybinding table inflated only by nested handlers may take `# noqa: C901` with a one-line reason (the test checks it has a nested `def` and a low radon score) |
+| `test_private_test_access_ratchet.py` | References from `test/` into another object's `_private` attributes may only go down | Expose a public accessor (see `AGENTS.md` → Test Guidelines) |
+| `test_bool_naming_ratchet.py`, `test_broad_except_ratchet.py`, `test_any_annotation_ratchet.py` | Non-question `-> bool` names, non-re-raising `except Exception:`, and `Any` in annotations may only go down | Rename as a question, catch the specific exception, or give the annotation a real type (see `AGENTS.md` → Code Style) |
+| `test_test_file_size_ratchet.py` | No test file exceeds 500 lines | Split the file by feature group (see `AGENTS.md` → Test Guidelines) |
+| `test_sys_modules_patch_allowlist.py` | Every module shadowed by `patch.dict("sys.modules", ...)` is on a reviewed allowlist | `patch.dict` restores `sys.modules` by clear-and-update, which *deletes* anything first imported inside the block — unrecoverably for a C extension. Warm the module in `test/conftest.py`, then list it (see the test's docstring) |
+| `test_mutation_surface.py`, `test_boundaries.py`, `test_deferred_config_reads.py` | The enforced framework rules | See [Framework Conventions (R1–R12)](framework-conventions.md) |
+| `test_doc_code_references.py`, `test_architecture_docs.py`, `test_documented_counts.py`, `test_doc_density.py` | Docs name real code, and stay readable | Fix the doc; for the counts in `AGENTS.md`, run `python scripts/doc_counts.py --write` |
 
 **Not a gate, but bites often:** a new test file sharing a basename with another (e.g. two `test_manager.py`) fails pytest *collection*. Add an empty `__init__.py` to the new test directory (see `AGENTS.md` → Test Guidelines).
 
@@ -73,7 +81,7 @@ Pass nothing for the full suite, or a file / directory / `file::test_function` p
 - **Commits:** imperative subject (`Add X`, `Fix Y`), one logical change per commit. Don't bump `pyproject.toml`'s version — that's a maintainer-only commit tied to [publishing](#publishing-zrb).
 - **Changelog:** most changes need an entry — see [Changelog](#changelog).
 - **ADRs:** a non-trivial, consequential, and persistent design decision needs an Architecture Decision Record — see [`docs/adr/README.md`](../adr/README.md).
-- **Code conventions** (naming, testing, imports, error handling) live in [`AGENTS.md`](../../AGENTS.md). It is written for AI coding agents, but every rule applies to humans too.
+- **Code conventions** (naming, testing, imports, error handling) are summarized in [`AGENTS.md`](../../AGENTS.md) — written for AI coding agents, but every rule applies to humans too. The test-enforced rules are [Framework Conventions (R1–R12)](framework-conventions.md).
 
 ---
 
@@ -257,7 +265,7 @@ zrb chat "What is your honest analysis about your current system prompt/instruct
 
 ## Architecture & Philosophy
 
-Core design decisions (strict `asyncio`, the `Any*` decoupled interface pattern, data flow) are in **[Architecture, Philosophy, & Conventions](./architecture.md)**.
+Core philosophy (strict `asyncio`, the `Any*` decoupled interface pattern, data flow) is in **[Architecture, Philosophy, & Conventions](./architecture.md)**; the part-by-part design, with principles linked to ADRs and invariants linked to tests, is in **[Architecture: The Design of Zrb](../architecture/README.md)**.
 
 ---
 
@@ -287,4 +295,4 @@ Moved to [LLM History Sanitization (Technical Specification)](../technical-specs
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Contributing](./) > Maintainer Guide
+🔖 [Documentation Home](../README.md) > [Contributing](./) > Maintainer Guide

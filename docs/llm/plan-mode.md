@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Plan Mode
+🔖 [Documentation Home](../README.md) > [LLM](./) > Plan Mode
 
 # Plan Mode
 
@@ -17,7 +17,7 @@ Plan Mode is a read-only discovery state that allows LLM agents to safely explor
 
 ## Overview
 
-When an agent is in Plan Mode, it is restricted by the `PLAN_MODE_POLICY`. This policy permits all `READ`, `NETWORK`, and `META` (harness control, e.g. `TodoWrite`) operations but strictly denies `EDIT`, `EXECUTE`, and `DELEGATE` capabilities — and any untagged (`UNKNOWN`) tool, such as an MCP tool.
+When an agent is in Plan Mode, it is restricted by the `PLAN_MODE_POLICY`. This policy permits all `READ`, `NETWORK`, and `META` (harness control, e.g. `TodoWrite`) operations — except `ExitPlanMode`, which always asks (see [The Strict ASK Gate](#security-the-strict-ask-gate)) — but strictly denies `EDIT`, `EXECUTE`, and `DELEGATE` capabilities — and any untagged (`UNKNOWN`) tool, such as an MCP tool.
 
 This ensures that the agent can read files, search the internet, and analyze code, but cannot:
 -   Write or Edit files
@@ -61,4 +61,4 @@ The one exception is a non-interactive run (`--interactive false`), where there 
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Plan Mode
+🔖 [Documentation Home](../README.md) > [LLM](./) > Plan Mode

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > LSP Support
+🔖 [Documentation Home](../README.md) > [LLM](./) > LSP Support
 
 # LSP (Language Server Protocol) Support
 
@@ -297,4 +297,4 @@ server = await lsp_manager.get_server(
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > LSP Support
+🔖 [Documentation Home](../README.md) > [LLM](./) > LSP Support

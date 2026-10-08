@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Tools
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Tools
 
 # Tools
 
@@ -49,11 +49,8 @@ Each one fails silently if broken: the code keeps running and does the wrong thi
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
 | Every built-in tool is registered with a known capability | It becomes `UNKNOWN`: denied in plan mode and over-restricted everywhere else, with no error | `test/llm/test_common_tools.py::test_every_registered_tool_carries_a_known_capability` |
-| A denied call never reaches the tool, whatever route it came by | A tool runs against the user's policy | `test/llm/permission/test_state_and_gate.py::test_gate_blocks_denied_tool` |
-| The sandbox checks a tool even if it has no tag | An MCP tool writes outside the writable roots | `test/llm/sandbox/test_gate.py::test_gate_write_checks_untagged_tools` |
 | Collecting tools does not resolve them | Per-run gates are frozen when the task is built | `test/llm/test_common_tools.py::test_apply_stores_providers_without_resolving_anything` |
 | Tool order is preserved | The model sees a different tool list from one run to the next, and the prompt cache stops hitting | `test/llm/tool/test_registry.py::test_append_prepend_preserve_order` |
-| A sub-agent cannot pick up a delegate tool | Sub-agents delegate recursively | `test/llm/agent/subagent/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
 
 ## Realization
 
@@ -145,4 +142,4 @@ Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-appro
 - [Sub-agents](sub-agents.md) — delegation and the tools a child gets
 - [Permission Policy](../../llm/permission-policy.md) — the user-facing guide
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Tools
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Tools

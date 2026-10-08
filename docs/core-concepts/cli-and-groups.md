@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > CLI & Groups
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > CLI & Groups
 
 # CLI Integration & Grouping
 
@@ -136,4 +136,4 @@ cli.remove_group("old-tools")
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > CLI & Groups
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > CLI & Groups

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > UI
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > UI
 
 # UI
 
@@ -93,7 +93,7 @@ flowchart TD
 
 A non-interactive run (the web chat posts each message this way) attaches factory UIs to the task instead, and the run falls back to `StdUI` when there is none.
 
-**Running a turn.** The user's message goes through the UI's queue, so turns run one at a time. A message submitted while a turn runs waits there instead of interrupting it; the terminal lists what is waiting in a panel above the input, recalls one with Up/Down for editing (Enter replaces it in place, Ctrl+X drops it from the queue and from every child UI's transcript), and merges a multi-line paste into a single message.
+**Running a turn.** The user's message goes through the UI's queue, so turns run one at a time. A message submitted while a turn runs is steered into the live run by `steer_into_live_run` when a run context exists ([ADR-0078](../../adr/adr-0078.md)); otherwise it waits in the queue, where the terminal shows it above the input and lets the user edit or drop it before it is sent ([ADR-0077](../../adr/adr-0077.md)).
 
 ```mermaid
 sequenceDiagram
@@ -148,4 +148,4 @@ sequenceDiagram
 - [Dictation & Barge-in](../3-peripheral-flow/dictation-barge-in.md) — an optional feature that reaches the UI only through generic hooks
 - [Custom UI](../../llm/llm-custom-ui.md) — how to build and register a backend
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > UI
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > UI
