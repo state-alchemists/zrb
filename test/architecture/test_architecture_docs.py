@@ -13,11 +13,13 @@ in it declares its tier in a header line:
 
 Within a tier, a page earns its place by how often its code changes.
 
-The header is the page's own map, so all three of its fields are required: the
-tier says how deep the page goes, `Code:` says what it covers, and `Read first:`
-says what to read when the page assumes too much. A page missing the last two
-strands the reader who arrived from the change map holding a file and no page
-that explains it.
+The header is the page's own map, so all three of its fields are required *and
+their values are checked*: the tier says how deep the page goes, `Code:` names at
+least one backticked path the page covers, and `Read first:` names a relative
+link — except on the entry page, which says there is no page before it. A header
+reading `Code: nothing · Read first: unknown` has both labels and neither answer,
+and a page missing the last two strands the reader who arrived from the change
+map holding a file and no page that explains it.
 
 Every page then opens with one line naming the single idea to take away — the
 sentence a reader keeps if they read nothing else. It sits directly under the
@@ -30,10 +32,11 @@ private symbol is free to change. `## Realization` is the volatile half, and it
 is pinned at both ends rather than throughout: it opens with `### The parts` and
 closes with `### Change it here`. A page may put one section of its own between
 them — [Voice on Pipecat](../3-peripheral-flow/voice-on-pipecat.md) closes its
-flow with *What zrb keeps, and why* — but nothing may follow `### Change it
-here`, so the reader can always count on where a page ends. `### Change it here`
-rows all name a test, because a row that names only a file sends the reader to
-the code with no way to check their change.
+flow with *What zrb keeps, and why* — but nothing may follow `### Change it here`
+inside the half. The page then closes with `## See Also`, the one section allowed
+after Realization, so the reader can count on where a page ends. `### Change it
+here` rows all name a test, because a row that names only a file sends the reader
+to the code with no way to check their change.
 
 `README.md` and `change-map.md` sit at the section root. They are navigation,
 exempt from the shape rules here but not from the truth check, which lives in
@@ -74,14 +77,24 @@ TAKEAWAY = "The one idea to take away:"
 HEADER_FIELDS = ("Code:", "Read first:")
 ADR_LINK = re.compile(r"\(\.\./\.\./adr/adr-\d{4}\.md\)")
 
+# The two header values, checked as well as the labels: `Code:` takes at least one
+# backticked path, and `Read first:` a relative link — or, on the entry page, the
+# sentence saying there is nothing before it. Which file each names is the other
+# guards' business; this one asks only that the field answers its question.
+CODE_PATH = re.compile(r"`[^`]+/[^`]+`")
+READ_FIRST_LINK = re.compile(r"\[[^\]]+\]\((?!https?://)[^)]+\)")
+FIRST_PAGE = "this is the first page"
+
 # The headings every page carries, in this order. `### Variations` is absent on
 # purpose: a page whose content does not split into variations closes the flow
 # with a section of its own instead. That freedom is bounded by the two ends —
 # Realization's first child heading is `OPENING_SECTION`, its last is
 # `FINAL_SECTION` — so a section of the page's own may sit between them and
-# nowhere else.
+# nowhere else. `### Change it here` also ends Realization itself: the only
+# section a page may carry after the half is `AFTER_SECTION`, which closes it.
 OPENING_SECTION = "### The parts"
 FINAL_SECTION = "### Change it here"
+AFTER_SECTION = "## See Also"
 REQUIRED_SECTIONS = (
     "## Design",
     "### The problem",
@@ -99,6 +112,16 @@ TEST_PATH = re.compile(r"`test/")
 def _header(path) -> re.Match | None:
     """The page's tier header line, or None when it has none."""
     return TIER_HEADER.search(path.read_text(encoding="utf-8"))
+
+
+def _header_field(body: str, field: str) -> str | None:
+    """A header field's value, up to the next ` · `; None when the field is absent.
+
+    The tier name holds a ` · ` of its own (`**Tier 2 · Extension surface**`), so
+    the fields are read by their labels rather than by splitting the line.
+    """
+    match = re.search(rf"{re.escape(field)}\s*(.*?)(?=\s+·\s+|$)", body)
+    return match.group(1).strip() if match else None
 
 
 def test_every_architecture_page_is_linked_from_the_index():
@@ -139,20 +162,43 @@ def test_every_page_declares_the_tier_of_its_directory():
 
 
 def test_every_page_header_names_its_code_and_its_prerequisite():
-    """The header is the page's map: the tier, the code, what to read first."""
+    """The header is the page's map: the code it covers, and what to read first.
+
+    Checking only that the labels appear would pass a header whose values answer
+    nothing — `Code: nothing · Read first: unknown`, or an empty field — so the
+    values are checked too. What they point at is the other guards' business: the
+    path and link checks resolve the destinations here required to be a backticked
+    path and a relative link.
+    """
     offenders = []
     for path in pages():
         match = _header(path)
         if not match:
             offenders.append(f"{name_of(path)} (no tier header)")
             continue
-        missing = [field for field in HEADER_FIELDS if field not in match.group(2)]
+        header = match.group(2)
+        code = _header_field(header, "Code:")
+        read_first = _header_field(header, "Read first:")
+        missing = [
+            field
+            for field, value in zip(HEADER_FIELDS, (code, read_first))
+            if value is None
+        ]
         if missing:
             offenders.append(f"{name_of(path)} header missing {missing}")
+            continue
+        if not CODE_PATH.search(code or ""):
+            offenders.append(f"{name_of(path)} `Code:` names no path: {code!r}")
+        elif read_first != FIRST_PAGE and not READ_FIRST_LINK.search(read_first or ""):
+            offenders.append(
+                f"{name_of(path)} `Read first:` is no relative link: {read_first!r}"
+            )
     assert not offenders, (
-        "Page(s) whose tier header omits a field. The header reads "
-        "`> **Tier N · <tier name>** · Code: `<paths>` · Read first: <link>`, so "
-        f"a reader knows the page's subject and its prerequisite: {offenders}"
+        "Page(s) whose tier header does not say what the page covers and what to "
+        "read first. The header reads `> **Tier N · <tier name>** · Code: "
+        "`<paths>` · Read first: <link>`, so `Code:` takes at least one backticked "
+        f"repository path and `Read first:` a relative link — the entry page says "
+        f"`{FIRST_PAGE}` instead: {offenders}"
     )
 
 
@@ -211,6 +257,35 @@ def test_every_page_has_a_design_and_a_realization():
         "`### The parts` and closes with `### Change it here`. A section of the "
         "page's own may sit between those two ends and nowhere else: "
         f"{offenders}"
+    )
+
+
+def _top_level_headings(text: str) -> list[str]:
+    """Every `##` heading's own name, in order (`## See Also` reads `See Also`)."""
+    return re.findall(r"^## (.+)$", text, re.MULTILINE)
+
+
+def test_see_also_is_the_only_section_after_realization():
+    """Where a page ends: `## See Also`, and nothing else after the half.
+
+    `section(text, "## Realization")` stops at the next `##`, so the checks above
+    see only the headings inside the half and would let a whole new `##` section
+    follow `### Change it here` — which the README says cannot happen. Realization
+    is the last half of a page, and the section that closes the page is
+    `## See Also`, the pages to read next.
+    """
+    offenders = []
+    for path in pages():
+        headings = _top_level_headings(path.read_text(encoding="utf-8"))
+        if "Realization" not in headings:
+            continue  # reported by the shape check
+        trailing = headings[headings.index("Realization") + 1 :]
+        if trailing != [_heading(AFTER_SECTION)]:
+            offenders.append(f"{name_of(path)} closes with {trailing}")
+    assert not offenders, (
+        "Page(s) that do not end with `## See Also`. `## Realization` is the last "
+        "half of a page and `## See Also` the only section allowed after it, so a "
+        f"reader can count on where a page ends: {offenders}"
     )
 
 

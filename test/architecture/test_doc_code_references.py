@@ -63,11 +63,15 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
     },
 }
 
-# A markdown inline link, captured by its target.
-_MD_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+# A markdown inline link's opening, `](`. What follows is scanned rather than
+# matched by one regex: a destination may carry an optional title
+# (`[Architecture](README.md "The overview")`) and may be written `<a page.md>`,
+# and neither a `[^)]+` nor a `[^ ]+` reads those correctly — the first swallows
+# the title into the path, the second cannot hold a space.
+_MD_LINK_OPEN = re.compile(r"\]\(")
 # A target that is not a path in this repository: an external URL, a jump within
 # the page, or a placeholder a reader is meant to fill in.
-_NOT_A_PATH = re.compile(r"^(?:https?://|mailto:|#)|[{*<>]")
+_NOT_A_PATH = re.compile(r"^(?:https?://|mailto:|#)|[{*]")
 
 # (doc, link target) -> why this dead target is correct as written.
 LINK_EXCEPTIONS: dict[str, set[str]] = {
@@ -156,11 +160,73 @@ def _outside_fences(text: str) -> str:
 
 def _link_targets(doc: Path) -> list[str]:
     """Every link target in the doc that claims to be a path in this repository."""
+    return _link_targets_in(_outside_fences(doc.read_text(encoding="utf-8")))
+
+
+def _link_targets_in(text: str) -> list[str]:
+    """Every link target in a block of markdown that claims to be a repo path."""
     return [
         target
-        for target in _MD_LINK.findall(_outside_fences(doc.read_text(encoding="utf-8")))
+        for target in _link_destinations(text)
         if not _NOT_A_PATH.search(target)
     ]
+
+
+def _link_destinations(text: str) -> list[str]:
+    """Every inline link destination in `text`, its title dropped.
+
+    `[Architecture](README.md "The overview")` points at `README.md`; taking the
+    parenthesized text whole would look for a file named `README.md "The
+    overview"`, and report a live link as a dead one.
+    """
+    destinations = []
+    for opening in _MD_LINK_OPEN.finditer(text):
+        inner = _parenthesized(text, opening.end())
+        if inner is None:
+            continue
+        destination = _destination(inner)
+        if destination:
+            destinations.append(destination)
+    return destinations
+
+
+def _parenthesized(text: str, start: int) -> str | None:
+    """The text inside the parentheses opening at `start`, or None if unclosed.
+
+    Destinations may nest balanced parentheses, and neither an angle-bracket
+    destination nor a quoted title may confuse the count — a title is free to
+    contain a `)` of its own.
+    """
+    depth = 0
+    in_angle = False
+    quote = ""
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_angle:
+            in_angle = char != ">"
+        elif quote:
+            quote = "" if char == quote else quote
+        elif char in "\"'" and index > start and text[index - 1].isspace():
+            quote = char
+        elif char == "<":
+            in_angle = True
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            if depth == 0:
+                return text[start:index]
+            depth -= 1
+    return None
+
+
+def _destination(inner: str) -> str:
+    """A link's destination, with its optional title and angle brackets removed."""
+    inner = inner.strip()
+    if inner.startswith("<"):
+        end = inner.find(">")
+        if end != -1:
+            return inner[1:end]
+    return inner.split(maxsplit=1)[0] if inner.split() else ""
 
 
 def _target_path(doc: Path, target: str) -> Path:
@@ -221,3 +287,25 @@ def test_a_link_that_leaves_the_checkout_is_drift(tmp_path):
     assert not _inside_repo(_target_path(doc, str(outside)))
     # And an ordinary relative link still resolves inside the checkout.
     assert _inside_repo(_target_path(doc, "../adr/adr-0041.md"))
+
+
+def test_a_link_title_is_not_read_as_part_of_the_path():
+    """A destination is read up to its optional title.
+
+    `[Architecture](README.md "The overview")` points at `README.md`. Taking the
+    parenthesized text whole looks for a file named `README.md "The overview"`,
+    which never exists, so a valid link would be reported as a dead one — a false
+    positive that costs more than the miss.
+    """
+    assert _link_targets_in('[Architecture](README.md "The overview")') == ["README.md"]
+    assert _link_targets_in("[Architecture](README.md 'The overview')") == ["README.md"]
+
+
+def test_a_link_written_in_angle_brackets_is_still_checked():
+    """`[x](<a page.md>)` is a repository path spelled to hold a space.
+
+    Angle brackets used to exempt the target from the check, so a dead link
+    written this way was not resolved at all and passed silently.
+    """
+    assert _link_targets_in("[x](<missing page.md>)") == ["missing page.md"]
+    assert _link_targets_in("[x](<../adr/adr-0041.md>)") == ["../adr/adr-0041.md"]
