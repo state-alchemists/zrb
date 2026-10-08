@@ -199,7 +199,7 @@ If your backend fails, the local engine (`termux`, `say` or `espeak-ng`) speaks 
 
 Each model downloads once on first use and runs offline afterwards. `piper` carries wheels for Linux on glibc 2.17 and newer, both macOS architectures, and Windows; `moonshine` has no x86-64 macOS wheel; and none of the six ships a native-Termux wheel, so Termux keeps `vosk` for dictation and `termux`/`say`/`espeak-ng` for speech. `kokoro` cannot be installed on Python 3.14 at all — `kokoro-onnx`, the package it runs on, declares `requires_python <3.14` — so name `piper` or `pocket` there.
 
-**A service of your own.** A name can also resolve to a service you register, which is how a vendor SDK goes in without zrb choosing anything for you. A registration replaces a built-in of the same name without giving up the built-ins beside it, from `zrb_init.py`:
+**A service of your own.** A name can also resolve to a service you register, which is how a vendor SDK goes in without zrb choosing anything for you. A registration replaces a Pipecat built-in of the same name without giving up the built-ins beside it (names zrb implements itself, such as `openai` or `vosk`, cannot be replaced this way), from `zrb_init.py`:
 
 ```python
 from zrb import tts_manager
@@ -212,7 +212,7 @@ tts_manager.register("my-voice", TTSServiceSpec(
 ))
 ```
 
-then `ZRB_LLM_SPEECH_BACKEND=my-voice`. `provider` is the package the service imports, and is what tells zrb whether it can be built here. `stt_manager` and the two registries behind the managers come from `zrb.llm.voice`.
+then `ZRB_LLM_SPEECH_BACKEND=my-voice`. `provider` is the package the service imports, and is what tells zrb whether it can be built here. `stt_manager` and the two registries behind the managers come from `zrb.llm.voice`. [Programming the Voice → Use any Pipecat STT or TTS service](programming-the-voice.md#use-any-pipecat-stt-or-tts-service) has a worked cloud example and what a service must do to work here.
 
 ## On your own chat task
 

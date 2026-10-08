@@ -22,6 +22,7 @@ and Camera](../configuration/llm-config.md#21-voice-and-camera).
 - [Program spoken responses](#program-spoken-responses)
 - [Program audio rendering](#program-audio-rendering)
 - [Attach voice to your own chat task](#attach-voice-to-your-own-chat-task)
+- [Use any Pipecat STT or TTS service](#use-any-pipecat-stt-or-tts-service)
 - [Choosing the right extension point](#choosing-the-right-extension-point)
 
 ## A local conversation
@@ -339,19 +340,138 @@ enable_speech(
 context. Both functions can also be used on task objects built by an
 application; they do not require the built-in `llm_chat` task.
 
+## Use any Pipecat STT or TTS service
+
+zrb's speech and dictation run on [Pipecat](https://docs.pipecat.ai) services, so any provider Pipecat supports can be used: see Pipecat's lists of [speech-to-text](https://docs.pipecat.ai/api-reference/server/services/supported-services#speech-to-text) and [text-to-speech](https://docs.pipecat.ai/api-reference/server/services/supported-services#text-to-speech) services, plus community packages such as Floe. Three steps:
+
+1. Install `zrb[voice]` (it brings `pipecat-ai`), then the provider's extra or package — the provider's Pipecat page names it (`pip install "pipecat-ai[elevenlabs]"`, `pip install pipecat-floe`) — and set the API key it reads.
+2. In `zrb_init.py`, register a factory that builds the service, under a name of your choosing: `tts_manager` for text-to-speech, `stt_manager` for speech-to-text.
+3. Select it by that name with `ZRB_LLM_SPEECH_BACKEND` or `ZRB_LLM_DICTATION_BACKEND` (or `SpeechConfig(backend=...)` / `DictationConfig(backend=...)` in code).
+
+This registers OpenAI's hosted voices and transcription (`OPENAI_API_KEY` must be set). Both services take Pipecat's `Settings` object; set only what zrb's config names, so an unset voice, model or language keeps the service's own default:
+
+```python
+from zrb import stt_manager, tts_manager
+from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
+
+
+def create_openai_tts(config):
+    from pipecat.services.openai.tts import OpenAITTSService  # imported only when selected
+
+    settings = OpenAITTSService.Settings()
+    if config.voice:
+        settings.voice = config.voice
+    return OpenAITTSService(settings=settings)
+
+
+def create_openai_stt(config):
+    from pipecat.services.openai.stt import OpenAISTTService
+
+    settings = OpenAISTTService.Settings()
+    if config.stt_model:
+        settings.model = config.stt_model
+    if config.language:
+        settings.language = config.language
+    return OpenAISTTService(settings=settings)
+
+
+tts_manager.register(
+    "openai-tts",
+    TTSServiceSpec(name="openai-tts", provider="openai", is_local=False,
+                   doc="OpenAI's hosted voices", factory=create_openai_tts),
+)
+stt_manager.register(
+    "openai-stt",
+    STTServiceSpec(name="openai-stt", provider="openai", is_local=False,
+                   doc="OpenAI's hosted transcription", factory=create_openai_stt),
+)
+```
+
+```bash
+export ZRB_LLM_SPEECH_BACKEND=openai-tts     # text-to-speech
+export ZRB_LLM_DICTATION_BACKEND=openai-stt  # speech-to-text
+export ZRB_LLM_SPEECH_VOICE=nova             # reaches the factory as config.voice
+zrb llm chat
+```
+
+A service from its own package registers the same way. This is Floe for both directions (`pip install pipecat-floe`, and `FLOE_API_KEY` set):
+
+```python
+from zrb import stt_manager, tts_manager
+from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
+
+
+def create_floe_tts(config):
+    from pipecat_floe import FloeTTSService
+
+    return FloeTTSService(model="openai/tts-1", voice=config.voice or "alloy")
+
+
+def create_floe_stt(config):
+    from pipecat_floe import FloeSTTService
+
+    return FloeSTTService(model="deepgram/nova-3", language=config.language or "en")
+
+
+tts_manager.register(
+    "floe",
+    TTSServiceSpec(name="floe", provider="pipecat_floe", is_local=False,
+                   doc="Floe, OpenAI-compatible voices", factory=create_floe_tts),
+)
+stt_manager.register(
+    "floe",
+    STTServiceSpec(name="floe", provider="pipecat_floe", is_local=False,
+                   doc="Floe, streaming transcription", factory=create_floe_stt),
+)
+```
+
+The two registries are separate, so one name can mean a TTS and an STT service at once, and you can mix providers — Floe for speech, a local `whisper` for dictation. Any other provider follows the same shape: import its class from `pipecat.services.<provider>.tts` or `.stt` (or its own package) inside the factory and return an instance.
+
+| Spec field | Meaning |
+|---|---|
+| `name` | The name the env var or `backend=` selects |
+| `factory` | Called with the resolved `SpeechConfig` or `DictationConfig` when the service is first needed; returns the Pipecat service. Read `config.voice`, `config.language` or `config.stt_model` from it so the usual settings keep working |
+| `provider` | The importable module the service needs. If it is missing, zrb names it instead of failing inside the factory |
+| `is_local`, `doc` | How the service is labelled when zrb lists the choices |
+
+Pick a name zrb does not already handle itself. A registration replaces a Pipecat built-in of the same name (`kokoro`, `piper`, `pocket`; `whisper`, `moonshine`, `funasr`), but the backends zrb implements directly are matched first, so a service registered as `auto`, `termux`, `say`, `espeak-ng`, `openai` or `gemini` for speech, or `vosk`, `openai`, `google` or `multimodal` for dictation, is never used — hence `openai-tts` and `openai-stt` above.
+
+Import the provider inside the factory, as above: `zrb_init.py` loads on every `zrb` command, and Pipecat takes seconds to import.
+
+### Which services fit
+
+zrb drives a service in its own small pipeline rather than a Pipecat transport.
+
+**Text-to-speech: every Pipecat TTS service fits.** zrb sends one sentence at a time, plays the returned audio at its own sample rate, and ends the sentence at `TTSStoppedFrame`. Pipecat's TTS services all emit it (or set `push_stop_frames=True`); a service you write yourself must do the same, or each sentence waits 60 seconds before it is cut off.
+
+**Speech-to-text: segmented services fit as they are.** zrb cuts the microphone audio into finished utterances itself, sends one at a time framed by `VADUserStartedSpeakingFrame` and `VADUserStoppedSpeakingFrame`, and takes the first final `TranscriptionFrame` as the whole utterance. In Pipecat 1.12 these are segmented (`SegmentedSTTService`):
+
+| Provider | Class |
+|---|---|
+| OpenAI | `pipecat.services.openai.stt.OpenAISTTService` |
+| Groq (Whisper) | `pipecat.services.groq.stt.GroqSTTService` |
+| ElevenLabs | `pipecat.services.elevenlabs.stt.ElevenLabsSTTService` |
+| AssemblyAI | `pipecat.services.assemblyai.stt.AssemblyAISyncSTTService` |
+| Fal (Wizper) | `pipecat.services.fal.stt.FalSTTService` |
+| Moonshine, Whisper, FunASR | built in: `moonshine`, `whisper`, `funasr` |
+
+A streaming service — Deepgram, AssemblyAI's and ElevenLabs' realtime ones, Cartesia, Gladia, Soniox, Floe and most WebSocket services — fits only if it finalizes its transcript when it sees the stop frame. One that waits for its server's own end-of-speech detection may answer late or with only the first phrase of the utterance. Test a streaming service on your own audio before relying on it, and switch to a segmented one if transcripts arrive late or cut short. Live interruption while you are still speaking needs `vosk` either way.
+
+A service that is not built on Pipecat at all is a different extension point: implement [`AnySpeechBackend`](#program-audio-rendering) for speech or `AnyDictationBackend` for dictation.
+
 ## Choosing the right extension point
 
 | If you want to… | Use… |
 |---|---|
 | Change who the agent is or how it reasons | `system_prompt`, `PromptManager`, or a prompt file |
 | Add a wake word or change interruption words | `DictationConfig` |
-| Make the microphone transcribe with another service | A dictation backend or `DictationConfig(backend=...)` |
+| Make the microphone transcribe with another service | A [registered Pipecat STT service](#use-any-pipecat-stt-or-tts-service), or an `AnyDictationBackend` for one outside Pipecat |
 | Turn replies, approvals, questions, or progress into speech | `SpeechConfig(events=...)` |
 | Change approval or progress wording | `SpeechConfig` message and phrase mappings |
 | Change a question's wording | The agent or UI that produced it; `SpeechConfig(question_message=...)` covers only a question with no text |
 | Make a stop word act while you are still speaking | `vosk`; every other backend transcribes the finished utterance first |
 | Change the voice, rate, style, or playback behavior | `SpeechConfig` |
-| Send text to a different TTS service | `AnySpeechBackend` |
+| Send text to a different TTS service | A [registered Pipecat TTS service](#use-any-pipecat-stt-or-tts-service), or `AnySpeechBackend` for one outside Pipecat |
 | Add a new spoken command or a voice-specific action | A custom command or trigger on `LLMChatTask` |
 | Rewrite every final response immediately before TTS | Currently use the prompt/backend boundaries; there is no general public speech-text transformation hook |
 
