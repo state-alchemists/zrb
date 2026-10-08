@@ -83,8 +83,9 @@ class EnvField(Generic[T]):
         against ``LLM_MAX_TOKEN_PER_MINUTE``). Applied by reads and
         :meth:`convert`.
     serialize:
-        Callable applied to the value on write before storing in os.environ
-        (e.g. ``on_off``, ``path_list_join``). Defaults to ``str``.
+        Callable applied to a non-``str`` value on write before storing in
+        os.environ (e.g. ``on_off``, ``path_list_join``). Defaults to ``str``.
+        A ``str`` value is the env text itself, so it is stored as written.
     aliases:
         Env-var names (without prefix) to try in order on read. Defaults to
         ``[attribute_name]``.
@@ -262,12 +263,14 @@ class EnvField(Generic[T]):
                 f"CFG.{self._name} cannot be None — this setting has no null form. "
                 f"Assign a {self._cast.__name__} value instead."
             )
-        raw = self._serialize(value)
+        # A str is the env text, so it is stored as written: a value serializer
+        # would walk its characters instead (`",".join`), not its value.
+        raw = value if isinstance(value, str) else self._serialize(value)
         try:
             round_tripped = self._cast(raw)
         except (ValueError, TypeError) as error:
             raise ValueError(
-                f"CFG.{self._name} = {value!r} is not valid: it serializes to "
+                f"CFG.{self._name} = {value!r} is not valid: it stores "
                 f"{raw!r}, which {self._cast.__name__}() rejects ({error})."
             ) from error
         # A str is the canonical env form, so coercing it ("INFO" -> 20) is

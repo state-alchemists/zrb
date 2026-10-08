@@ -153,6 +153,45 @@ def test_comma_list_round_trip(host, monkeypatch):
     assert os.environ["TESTCFG_CMDS"] == "/x,/y"
 
 
+def test_a_string_is_stored_as_the_env_text_on_a_list_field(host):
+    """A str assigned in code is the env text, so it reaches the field
+    unjoined."""
+    host.CMDS = "/x, /y"
+    assert os.environ["TESTCFG_CMDS"] == "/x, /y"
+    assert host.CMDS == ["/x", "/y"]
+
+
+def test_a_string_is_stored_as_the_env_text_on_a_path_list_field(host):
+    sep = os.pathsep
+    host.ITEMS = f"a{sep}b"
+    assert os.environ["TESTCFG_ITEMS"] == f"a{sep}b"
+    assert host.ITEMS == ["a", "b"]
+
+
+def test_a_string_is_stored_as_the_env_text_on_a_bool_field(host):
+    """A non-empty str is truthy, so serializing one through ``on_off`` would
+    write "on" and turn "off" into True."""
+    host.FLAG = "off"
+    assert os.environ["TESTCFG_FLAG"] == "off"
+    assert host.FLAG is False
+
+
+def test_a_string_the_cast_rejects_is_refused(host):
+    """The string is still validated, so a bad one fails loudly instead of
+    being written and read back as something else."""
+    with pytest.raises(ValueError, match="is not valid"):
+        host.PLAIN = "not-a-number"
+    assert "TESTCFG_PLAIN" not in os.environ
+
+
+def test_a_non_string_that_reads_back_differently_is_refused(host):
+    """The round-trip guard still covers every non-str value: a tuple
+    serializes to the field's env form but does not read back as itself."""
+    with pytest.raises(ValueError, match="round-trip"):
+        host.CMDS = ("/x", "/y")
+    assert "TESTCFG_CMDS" not in os.environ
+
+
 def test_expanduser_path_list_expands_home():
     result = expanduser_path_list(f"~/a {os.pathsep} ~/b")
     assert result == [os.path.expanduser("~/a"), os.path.expanduser("~/b")]

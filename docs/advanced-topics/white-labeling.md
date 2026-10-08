@@ -83,6 +83,12 @@ def run_acme_cli():
     Acme Corp Automation v1.0
     """
 
+    # 2b. Your own ACME_* variables that sit close to a real setting's name
+    # (ACME_LLM_PROXY_BASE_URL beside ACME_LLM_BASE_URL). Comma-separated,
+    # without the prefix, exact or with a '*' glob: this keeps the startup
+    # mistyped-variable warning from calling them typos of a setting.
+    os.environ["ACME_PROJECT_ENV_KEYS"] = "LLM_PROXY_*,LLM_PLUGIN_DIR"
+
     # 3. Invoke the main Zrb engine
     from zrb.__main__ import serve_cli
     serve_cli()
@@ -131,6 +137,7 @@ This runs your custom task directly. Your custom "Acme" banner is displayed when
 | `<PREFIX>_ROOT_GROUP_DESCRIPTION` | CLI description |
 | `<PREFIX>_BANNER` | ASCII art banner |
 | `<PREFIX>_ENABLE_BUILTIN_TASKS` | `on` by default, so the branded CLI still lists every zrb builtin group (`llm`, `git`, `util`, …). Set it to `off` to show only your own tasks |
+| `<PREFIX>_PROJECT_ENV_KEYS` | Your own variables that sit close to a real setting's name, so the startup mistyped-variable warning leaves them alone. Comma-separated, without the prefix: exact (`LLM_PLUGIN_DIR`) or a `*` glob (`LLM_PROXY_*`). Silence only — a name listed here never becomes a suggestion for another variable |
 
 ---
 

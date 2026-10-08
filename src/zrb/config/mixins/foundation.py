@@ -61,6 +61,7 @@ def _strict_init(raw: str) -> bool:
 class FoundationMixin:
     def __init__(self):
         self.DEFAULT_ENV_PREFIX: str = "ZRB"
+        self.DEFAULT_PROJECT_ENV_KEYS: str = ""
         self.DEFAULT_SHELL: str = ""
         self.DEFAULT_EDITOR: str = "nano"
         self.DEFAULT_DIFF_EDIT_COMMAND_TPL: str = ""
@@ -114,6 +115,25 @@ class FoundationMixin:
         aliases=["_ZRB_ENV_PREFIX"],
         write_key="_ZRB_ENV_PREFIX",
         doc="Prefix for all Zrb env vars (used for white-labeling a custom CLI).",
+    )
+
+    # A project's own variables are invisible to the typo report, so a white
+    # label reusing its ENV_PREFIX names them here.
+    PROJECT_ENV_KEYS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Env var names in your namespace that belong to your project "
+            "rather than to a zrb setting (e.g. 'LLM_PLUGIN_DIR,LLM_PROXY_*', "
+            'or `["LLM_PLUGIN_DIR", "LLM_PROXY_*"]`, in code). '
+            "zrb reads nothing from them; naming them here only keeps the "
+            "startup warning from calling them typos of a setting. Each entry "
+            "is the name without ENV_PREFIX, either exact ('LLM_PLUGIN_DIR') "
+            "or a '*' glob covering every name it matches ('LLM_PROXY_*'). "
+            "The retired-setting report honors the same list. Most useful to a "
+            "white-label distribution that reuses its ENV_PREFIX for its own "
+            "variables; see docs/advanced-topics/white-labeling.md."
+        ),
     )
 
     @property
