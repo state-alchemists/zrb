@@ -15,6 +15,12 @@ architecture principle ends with, which the shape guard can only recognize by
 their spelling: `(../../adr/adr-0041.md)` is the right shape whether or not
 `adr-0041.md` exists, and this is what tells the two apart.
 
+A target must also stay inside the checkout. A link that climbs out of it —
+`../../../../etc/passwd`, or a path that leaves only through a symlink — names a
+file this repository does not keep current, and a reader who cloned only this
+repository cannot follow it, however the filesystem the check happens to run on
+is laid out.
+
 Links inside a fenced block are exempt: a fence shows what zrb or a user writes
 — the generated journal index, a sample task file — so its links belong to the
 example, not to this repository.
@@ -28,6 +34,9 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parents[2]
+# Both sides of the containment check are resolved, so the comparison is between
+# real paths and a link cannot slip outside through a symlink in the checkout.
+_RESOLVED_ROOT = REPO_ROOT.resolve()
 
 # A backticked token containing a "/" and ending in ".py" — the shape both
 # AGENTS.md's tables and the ADRs' "Where it lives" lines use.
@@ -154,6 +163,20 @@ def _link_targets(doc: Path) -> list[str]:
     ]
 
 
+def _target_path(doc: Path, target: str) -> Path:
+    """The absolute path a target names, with any `#fragment` dropped.
+
+    Resolved, so a target that only leaves the checkout through a symlink is
+    seen for what it is rather than followed.
+    """
+    return (doc.parent / target.split("#")[0]).resolve()
+
+
+def _inside_repo(path: Path) -> bool:
+    """Whether a path is the checkout itself or lives within it."""
+    return path == _RESOLVED_ROOT or path.is_relative_to(_RESOLVED_ROOT)
+
+
 def test_live_docs_do_not_link_to_a_file_that_is_gone():
     """A dead link costs the reader a round trip to nowhere.
 
@@ -168,9 +191,33 @@ def test_live_docs_do_not_link_to_a_file_that_is_gone():
         for target in _link_targets(doc):
             if target in exempt:
                 continue
-            if not (doc.parent / target.split("#")[0]).exists():
+            candidate = _target_path(doc, target)
+            if not _inside_repo(candidate):
+                offenders.append(f"{rel}: {target} (outside the repository)")
+            elif not candidate.exists():
                 offenders.append(f"{rel}: {target}")
     assert not offenders, (
         "Live doc(s) link to a file that does not exist — a moved or renamed "
-        f"page, swept in the code but not in the prose pointing at it: {offenders}"
+        "page, swept in the code but not in the prose pointing at it — or to a "
+        "path outside the repository, which a reader who cloned it cannot "
+        f"follow: {offenders}"
     )
+
+
+def test_a_link_that_leaves_the_checkout_is_drift(tmp_path):
+    """A target outside the repo is drift, not a destination.
+
+    The check resolves the target and requires it to stay inside the checkout, so
+    an escaping link is caught even on a machine where that target happens to
+    exist — otherwise `../../../../etc/passwd`, or a path through a symlink out
+    of the tree, would pass wherever the filesystem could resolve it.
+    """
+    doc = REPO_ROOT / "docs" / "architecture" / "README.md"
+    # A relative climb out of the checkout.
+    assert not _inside_repo(_target_path(doc, "../../../../etc/passwd"))
+    # An existing file outside the checkout is still not a repo link.
+    outside = tmp_path / "outside.md"
+    outside.write_text("not ours\n", encoding="utf-8")
+    assert not _inside_repo(_target_path(doc, str(outside)))
+    # And an ordinary relative link still resolves inside the checkout.
+    assert _inside_repo(_target_path(doc, "../adr/adr-0041.md"))
