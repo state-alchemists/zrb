@@ -93,7 +93,7 @@ ui_arg = ui if ui is not None else current_ui.get()
 effective_yolo = yolo if yolo is not None else current_yolo.get()
 ```
 
-A delayed live-sub-agent continuation starts *after* the original run's scope has ended. `AuthoritySnapshot` captures the original run's effective permission and sandbox authority while the scope is still active, and the continuation explicitly rebinds it, so a later, unrelated ambient context cannot broaden the continuation's authority.
+A delayed live-sub-agent continuation starts *after* the original run's scope has ended. `AuthoritySnapshot` captures the original run's effective permission, sandbox, YOLO and hook authority, and its approval handler and channel, while the scope is still active, and the continuation explicitly rebinds it, so a later, unrelated ambient context cannot broaden the continuation's authority.
 
 ## Resource Ownership and Cleanup
 

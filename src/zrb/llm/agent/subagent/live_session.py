@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import asyncio
 import uuid
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -17,8 +19,10 @@ from zrb.llm.agent.run.authority_snapshot import (
     capture_current_authority,
 )
 from zrb.llm.agent.run.runner import run_agent
+from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.ui.base.message_queue import steer_into_live_run
+from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
     from zrb.llm.agent.subagent.manager import SubAgentManager
@@ -226,25 +230,36 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
             try:
                 # The human watches the reply stream via `entry.buffered_ui`;
                 # no tool call awaits it. The captured authority is passed
-                # explicitly, and run_agent binds it itself.
+                # explicitly; its approval half is also bound, since run_agent
+                # reads a None argument as "inherit".
                 authority = entry.authority
-                _result, history = await run_agent(
-                    agent=agent,
-                    message=text,
-                    message_history=entry.history,
-                    limiter=llm_limiter,
-                    ui=entry.buffered_ui,
-                    run_scope=entry.run_scope,
-                    # Started from a key handler, where no run is bound, but
-                    # still a sub-agent's turn: the parent's review covers it.
-                    nested=True,
-                    permission_policy=(
-                        authority.permission_policy if authority else None
-                    ),
-                    yolo=authority.yolo if authority else None,
-                    sandbox_policy=authority.sandbox_policy if authority else None,
-                    hook_manager=authority.hook_manager if authority else None,
-                )
+                with _bind_captured_approval(authority):
+                    _result, history = await run_agent(
+                        agent=agent,
+                        message=text,
+                        message_history=entry.history,
+                        limiter=llm_limiter,
+                        ui=entry.buffered_ui,
+                        run_scope=entry.run_scope,
+                        # Started from a key handler, where no run is bound,
+                        # but still a sub-agent's turn: the parent's review
+                        # covers it.
+                        nested=True,
+                        permission_policy=(
+                            authority.permission_policy if authority else None
+                        ),
+                        yolo=authority.yolo if authority else None,
+                        sandbox_policy=(
+                            authority.sandbox_policy if authority else None
+                        ),
+                        hook_manager=authority.hook_manager if authority else None,
+                        tool_confirmation=(
+                            authority.tool_confirmation if authority else None
+                        ),
+                        approval_channel=(
+                            authority.approval_channel if authority else None
+                        ),
+                    )
                 entry.history = history
             except Exception as e:  # noqa: BLE001
                 CFG.LOGGER.debug(
@@ -295,3 +310,21 @@ def _report_latest_response_to_parent(entry: LiveSubAgentSession) -> None:
         CFG.LOGGER.debug(
             f"Failed to report '{entry.agent_name}' continuation to main agent: {e}"
         )
+
+
+@contextmanager
+def _bind_captured_approval(authority: AuthoritySnapshot | None) -> Generator[None]:
+    """Bind the captured approval handler and channel for one continuation.
+
+    Passing them is not enough: `run_agent` reads a `None` argument as
+    "inherit the ambient value", so a delegation captured with no handler
+    would otherwise pick up whatever is bound when the continuation runs.
+    """
+    if authority is None:
+        yield
+        return
+    with (
+        scoped(current_tool_confirmation, authority.tool_confirmation),
+        scoped(current_approval_channel, authority.approval_channel),
+    ):
+        yield

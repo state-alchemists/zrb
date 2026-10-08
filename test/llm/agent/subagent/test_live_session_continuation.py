@@ -396,3 +396,81 @@ async def test_a_continuation_carries_the_parent_runs_hook_manager(
         await entry.active_task
 
     assert seen[0]["hook_manager"] is parent_manager
+
+
+@pytest.mark.asyncio
+async def test_a_continuation_carries_the_parent_runs_approval_handler(
+    registry, buffered_ui, sub_agent_manager
+):
+    """A continuation runs outside the parent's run, so the tool policies and
+    approval channel its first turn inherited must travel with the captured
+    authority — otherwise its tool calls skip the parent's policies."""
+    from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
+    from zrb.llm.tool_call import ToolCallHandler
+    from zrb.util.contextvar_scope import scoped
+
+    handler = ToolCallHandler()
+    channel = object()
+    with (
+        scoped(current_tool_confirmation, handler),
+        scoped(current_approval_channel, channel),
+    ):
+        entry = registry.add_session(
+            "sess1", "a", "researcher", sub_agent_manager, buffered_ui
+        )
+    seen: list = []
+
+    async def fake_run_agent(**kwargs):
+        seen.append(kwargs)
+        return "ok", []
+
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+        ),
+    ):
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task
+
+    assert seen[0]["tool_confirmation"] is handler
+    assert seen[0]["approval_channel"] is channel
+
+
+@pytest.mark.asyncio
+async def test_a_continuation_does_not_pick_up_an_ambient_approval_handler(
+    registry, buffered_ui, sub_agent_manager
+):
+    """A delegation captured with no approval handler keeps none: `run_agent`
+    reads a `None` argument as "inherit", so the captured value is bound."""
+    from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
+    from zrb.llm.tool_call import ToolCallHandler
+    from zrb.util.contextvar_scope import scoped
+
+    entry = registry.add_session(
+        "sess1", "a", "researcher", sub_agent_manager, buffered_ui
+    )
+    seen: list = []
+
+    async def fake_run_agent(**kwargs):
+        seen.append((current_tool_confirmation.get(), current_approval_channel.get()))
+        return "ok", []
+
+    with (
+        scoped(current_tool_confirmation, ToolCallHandler()),
+        scoped(current_approval_channel, object()),
+        patch(
+            "zrb.llm.agent.subagent.live_session.steer_into_live_run",
+            return_value=False,
+        ),
+        patch(
+            "zrb.llm.agent.subagent.live_session.run_agent", side_effect=fake_run_agent
+        ),
+    ):
+        await registry.send_message("sess1", "a", "hello")
+        await entry.active_task
+
+    assert seen == [(None, None)]
