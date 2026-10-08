@@ -78,10 +78,12 @@ HEADER_FIELDS = ("Code:", "Read first:")
 ADR_LINK = re.compile(r"\(\.\./\.\./adr/adr-\d{4}\.md\)")
 
 # The two header values, checked as well as the labels: `Code:` takes at least one
-# backticked path, and `Read first:` a relative link — or, on the entry page, the
-# sentence saying there is nothing before it. Which file each names is the other
-# guards' business; this one asks only that the field answers its question.
-CODE_PATH = re.compile(r"`[^`]+/[^`]+`")
+# backticked path *that resolves*, and `Read first:` a relative link — or, on the
+# entry page, the sentence saying there is nothing before it. `Code:` is resolved
+# here rather than left to the symbol guard, which only recognizes the
+# `src/zrb|zrb|llm` prefixes it knows: a page could name `does/not-exist/` and pass
+# both guards.
+TICKED_PATH = re.compile(r"`([^`]+)`")
 READ_FIRST_LINK = re.compile(r"\[[^\]]+\]\((?!https?://)[^)]+\)")
 FIRST_PAGE = "this is the first page"
 
@@ -91,10 +93,12 @@ FIRST_PAGE = "this is the first page"
 # Realization's first child heading is `OPENING_SECTION`, its last is
 # `FINAL_SECTION` — so a section of the page's own may sit between them and
 # nowhere else. `### Change it here` also ends Realization itself: the only
-# section a page may carry after the half is `AFTER_SECTION`, which closes it.
+# section a page may carry after the half is `AFTER_SECTION`, whose list of links
+# — and then the breadcrumb that closes the file — is the last thing on the page.
 OPENING_SECTION = "### The parts"
 FINAL_SECTION = "### Change it here"
 AFTER_SECTION = "## See Also"
+BREADCRUMB = "🔖"
 REQUIRED_SECTIONS = (
     "## Design",
     "### The problem",
@@ -165,10 +169,10 @@ def test_every_page_header_names_its_code_and_its_prerequisite():
     """The header is the page's map: the code it covers, and what to read first.
 
     Checking only that the labels appear would pass a header whose values answer
-    nothing — `Code: nothing · Read first: unknown`, or an empty field — so the
-    values are checked too. What they point at is the other guards' business: the
-    path and link checks resolve the destinations here required to be a backticked
-    path and a relative link.
+    nothing — `Code: nothing · Read first: unknown`, or an empty field. The values
+    are checked, and so is what `Code:` names: a path-shaped value with no file
+    behind it (`Code: does/not-exist/`) answers no better than an empty one, and
+    the reader it strands is the one who arrived from the Change Map holding a file.
     """
     offenders = []
     for path in pages():
@@ -187,8 +191,15 @@ def test_every_page_header_names_its_code_and_its_prerequisite():
         if missing:
             offenders.append(f"{name_of(path)} header missing {missing}")
             continue
-        if not CODE_PATH.search(code or ""):
+        unknown = [
+            token
+            for token in TICKED_PATH.findall(code or "")
+            if not _names_a_repository_path(token)
+        ]
+        if not TICKED_PATH.search(code or ""):
             offenders.append(f"{name_of(path)} `Code:` names no path: {code!r}")
+        elif unknown:
+            offenders.append(f"{name_of(path)} `Code:` names {unknown}, which is gone")
         elif read_first != FIRST_PAGE and not READ_FIRST_LINK.search(read_first or ""):
             offenders.append(
                 f"{name_of(path)} `Read first:` is no relative link: {read_first!r}"
@@ -197,9 +208,21 @@ def test_every_page_header_names_its_code_and_its_prerequisite():
         "Page(s) whose tier header does not say what the page covers and what to "
         "read first. The header reads `> **Tier N · <tier name>** · Code: "
         "`<paths>` · Read first: <link>`, so `Code:` takes at least one backticked "
-        f"repository path and `Read first:` a relative link — the entry page says "
-        f"`{FIRST_PAGE}` instead: {offenders}"
+        "repository path, each one resolving to a real file or directory, and "
+        f"`Read first:` a relative link — the entry page says `{FIRST_PAGE}` "
+        f"instead: {offenders}"
     )
+
+
+def _names_a_repository_path(token: str) -> bool:
+    """Whether a `Code:` token resolves to a file or directory inside the checkout.
+
+    `does/not-exist/` has the shape of a path and nothing else, and the symbol guard
+    cannot catch it: that guard resolves only the `src/zrb|zrb|llm` prefixes it
+    recognizes, so a page naming an arbitrary directory passed both guards.
+    """
+    candidate = (REPO_ROOT / token).resolve()
+    return candidate.is_relative_to(REPO_ROOT.resolve()) and candidate.exists()
 
 
 def test_every_page_opens_with_its_single_idea():
@@ -266,26 +289,42 @@ def _top_level_headings(text: str) -> list[str]:
 
 
 def test_see_also_is_the_only_section_after_realization():
-    """Where a page ends: `## See Also`, and nothing else after the half.
+    """Where a page ends: `## See Also`, then its list, then nothing.
 
     `section(text, "## Realization")` stops at the next `##`, so the checks above
     see only the headings inside the half and would let a whole new `##` section
     follow `### Change it here` — which the README says cannot happen. Realization
-    is the last half of a page, and the section that closes the page is
-    `## See Also`, the pages to read next.
+    is the last half of a page, and `## See Also` the only section after it.
+
+    Comparing heading names alone would still let a page keep writing after that
+    heading — a paragraph, a table, a `###` section — while claiming See Also
+    closes it. What follows is the list of pages to read next and, at most, the
+    breadcrumb line that ends the file, so "where a page ends" is true as written.
     """
     offenders = []
     for path in pages():
-        headings = _top_level_headings(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
+        headings = _top_level_headings(text)
         if "Realization" not in headings:
             continue  # reported by the shape check
         trailing = headings[headings.index("Realization") + 1 :]
         if trailing != [_heading(AFTER_SECTION)]:
             offenders.append(f"{name_of(path)} closes with {trailing}")
+            continue
+        stray = [
+            line.strip()
+            for line in section(text, AFTER_SECTION).splitlines()
+            if line.strip()
+            and not line.startswith("- ")
+            and not line.startswith(BREADCRUMB)
+        ]
+        if stray:
+            offenders.append(f"{name_of(path)} writes on after See Also: {stray[:2]}")
     assert not offenders, (
-        "Page(s) that do not end with `## See Also`. `## Realization` is the last "
-        "half of a page and `## See Also` the only section allowed after it, so a "
-        f"reader can count on where a page ends: {offenders}"
+        "Page(s) that do not end with `## See Also`, or that keep writing after it. "
+        "`## Realization` is the last half of a page, `## See Also` the only section "
+        "allowed after it, and its list of links the last thing before the closing "
+        f"breadcrumb, so a reader can count on where a page ends: {offenders}"
     )
 
 

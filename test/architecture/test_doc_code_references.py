@@ -69,9 +69,12 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
 # and neither a `[^)]+` nor a `[^ ]+` reads those correctly — the first swallows
 # the title into the path, the second cannot hold a space.
 _MD_LINK_OPEN = re.compile(r"\]\(")
-# A target that is not a path in this repository: an external URL, a jump within
-# the page, or a placeholder a reader is meant to fill in.
-_NOT_A_PATH = re.compile(r"^(?:https?://|mailto:|#)|[{*]")
+# A target that is not a path in this repository: an external URL under any
+# scheme, a jump within the page, or a placeholder a reader is meant to fill in.
+# The scheme is read generally rather than as `https?://` — `ftp://`, `ssh://` and
+# `file://` are no more this repository's to resolve — and the length floor after
+# the first letter keeps a Windows drive (`C:\page.md`) looking like the path it is.
+_NOT_A_PATH = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+:|^#|[{*]")
 
 # (doc, link target) -> why this dead target is correct as written.
 LINK_EXCEPTIONS: dict[str, set[str]] = {
@@ -145,16 +148,31 @@ def test_live_docs_do_not_cite_a_package_that_no_longer_exists():
     assert not dead, f"Live doc(s) cite a package directory that does not exist: {dead}"
 
 
+# A fence opens with three or more backticks or tildes; the run that opens it sets
+# the marker a matching run has to repeat. Toggling on `startswith("```")` reads a
+# four-backtick fence that contains a three-backtick example as two fences, so the
+# rest of the document counts as fenced and its links are never checked.
+_FENCE_OPEN = re.compile(r"^\s*(`{3,}|~{3,})")
+# A closing fence is its marker alone on the line, with no info string.
+_FENCE_CLOSE = re.compile(r"^\s*(`{3,}|~{3,})\s*$")
+
+
 def _outside_fences(text: str) -> str:
     """The doc with every fenced block dropped — see the module docstring."""
     kept: list[str] = []
-    in_fence = False
+    opening = ""
     for line in text.splitlines():
-        if line.strip().startswith("```"):
-            in_fence = not in_fence
+        if opening:
+            closing = _FENCE_CLOSE.match(line)
+            if closing and closing.group(1)[0] == opening[0]:
+                if len(closing.group(1)) >= len(opening):
+                    opening = ""
             continue
-        if not in_fence:
-            kept.append(line)
+        fence = _FENCE_OPEN.match(line)
+        if fence:
+            opening = fence.group(1)
+            continue
+        kept.append(line)
     return "\n".join(kept)
 
 
@@ -309,3 +327,36 @@ def test_a_link_written_in_angle_brackets_is_still_checked():
     """
     assert _link_targets_in("[x](<missing page.md>)") == ["missing page.md"]
     assert _link_targets_in("[x](<../adr/adr-0041.md>)") == ["../adr/adr-0041.md"]
+
+
+def test_a_link_under_any_scheme_is_not_read_as_a_repository_path():
+    """`ftp://`, `ssh://` and `file://` are no more ours to resolve than `https://`.
+
+    Exempting only `https?://` and `mailto:` left every other scheme to be treated
+    as a path relative to the document, so an external link was reported as a
+    missing repository file — a false positive on a link this guard has no business
+    resolving. A relative path is still a path, and a Windows drive is a path too.
+    """
+    for target in ("ftp://example.com/x.md", "ssh://host/x.md", "file:///x.md"):
+        assert _link_targets_in(f"[x]({target})") == []
+    assert _link_targets_in("[x](../adr/adr-0041.md)") == ["../adr/adr-0041.md"]
+    assert _link_targets_in(r"[x](C:\page.md)") == [r"C:\page.md"]
+
+
+def test_a_fence_is_closed_by_its_own_marker_only():
+    """A fence ends at its own marker, not at any line that starts with ```.
+
+    Counting every ``` line as a toggle loses the thread as soon as the content
+    uses another fence character, or an odd number of ``` lines — the rest of the
+    document then reads as fenced and its links are never checked, which is how a
+    dead link after an example passes silently.
+    """
+    tildes = "~~~\n```\n~~~\n[dead](missing.md)\n"
+    assert "[dead](missing.md)" in _outside_fences(tildes)
+    odd = "````text\n```bash\necho hi\n````\n[dead](missing.md)\n"
+    assert "[dead](missing.md)" in _outside_fences(odd)
+    # A four-backtick fence still drops its own content, inner example and all.
+    nested = _outside_fences("````text\n```\ninside\n```\n````\n[dead](missing.md)\n")
+    assert "inside" not in nested and "[dead](missing.md)" in nested
+    # And the ordinary case is still dropped.
+    assert "[dead](missing.md)" not in _outside_fences("```\n[dead](missing.md)\n```\n")

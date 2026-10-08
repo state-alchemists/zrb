@@ -36,7 +36,7 @@ Every page opens with one line naming the single idea to take away, then has the
 - *Variations*: the cases that take a different route. A page with more to say may add one section of its own here, and only here — before *Change it here*, never after it.
 - *Change it here*: what you want to do, which file to open, and which test to run. Always the last subsection of Realization, and every row names a test.
 
-Read Design to understand a part. Read Realization when you're about to change it. Every page then closes with *See Also* — the two or three pages to read next, and the only section allowed after Realization, so you always know where a page ends.
+Read Design to understand a part. Read Realization when you're about to change it. Every page then closes with *See Also*, the two or three pages to read next — the only section allowed after Realization. Its list of links, and then the breadcrumb, are the last things on the page, so you always know where a page ends.
 
 ## The four tiers
 
@@ -67,7 +67,7 @@ Tier 2 holds the parts that change most often. If you have one hour, spend it th
 
 A new page goes in the directory of its tier and gets a row in the table above. It then follows a fixed skeleton, which the shape guard checks: the header line, one line naming the single idea, the two halves, and the `See Also` section that closes the page.
 
-- **The header line** repeats the tier and adds what the page covers (`Code:` — one or more backticked repository paths) and what to read first (`Read first:` — a relative link, or the sentence saying there is nothing before it, on the first page), separated by `·`. Without them, a reader who arrived from the Change Map holds a file and no page that explains it.
+- **The header line** repeats the tier and adds what the page covers (`Code:` — one or more backticked repository paths, each checked to resolve) and what to read first (`Read first:` — a relative link, or the sentence saying there is nothing before it, on the first page), separated by `·`. Without them, a reader who arrived from the Change Map holds a file and no page that explains it.
 - **Design** uses words that would survive a refactor. It names no private symbols. Every principle links its ADR, and every invariant names its test or is marked **unpinned**.
 - **Realization** names real symbols, so it changes along with the code. Every backticked path and identifier is checked against `src/` and `test/`. If you rename something a page mentions, the build fails until you update the page.
 - **Change it here** closes Realization, and every row names the test to run. Nothing follows it inside the half, and only `See Also` follows the half, which is what lets a page add a section of its own earlier without the reader losing the end.
