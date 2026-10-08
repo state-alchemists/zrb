@@ -392,11 +392,14 @@ stt_manager.register(
 ```
 
 ```bash
+export ZRB_LLM_VOICE=conversation       # turn speech and dictation on
 export ZRB_LLM_SPEECH_BACKEND=floe      # text-to-speech
 export ZRB_LLM_DICTATION_BACKEND=floe   # speech-to-text
 export ZRB_LLM_SPEECH_VOICE=nova        # reaches the factory as config.voice
 zrb llm chat
 ```
+
+A backend name only chooses the service; it does not switch the feature on. `ZRB_LLM_VOICE` does (`speak` for spoken replies only, `turns` or `conversation` to listen as well), or switch them on in the session with `/speech` and `/voice`.
 
 The two registries are separate, so one name can mean a TTS and an STT service at once, and you can mix providers — Floe for speech, a local `whisper` for dictation. Any other provider follows the same shape: import its class from `pipecat.services.<provider>.tts` or `.stt` (or its own package) inside the factory and return an instance.
 
