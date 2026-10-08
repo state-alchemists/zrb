@@ -291,7 +291,11 @@ class BaseUICommands:
             "Ask a side question without saving to history (usage: {cmd} <question>)",
         )
         add_cmd_help(base_ui.plan_commands, "Toggle PLAN mode (read-only) on/off")
+        seen_descriptions: set[str] = set()
         for custom_cmd in base_ui.custom_commands:
+            if custom_cmd.description in seen_descriptions:
+                continue
+            seen_descriptions.add(custom_cmd.description)
             raw_lines.append((custom_cmd.command, custom_cmd.description))
 
         return raw_lines

@@ -18,6 +18,32 @@ def test_handle_info_command(ui):
     assert any("Available Commands" in o for o in ui.outputs)
 
 
+def test_help_panel_lists_one_row_per_alias_group(ui):
+    """A feature registers one command per alias (`/voice` + `/v`) under one
+    shared description; the panel shows the first alias only, and still shows
+    a command whose description stands for itself."""
+    from zrb.llm.custom_command import ActionCommand
+
+    def alias(command: str, description: str):
+        return ActionCommand(command, lambda kwargs, ui: None, description=description)
+
+    ui.custom_commands = [
+        alias("/voice", "Start or stop a voice recording"),
+        alias("/v", "Start or stop a voice recording"),
+        alias("/photo", "Capture a photo from the camera and attach it"),
+        alias("/p", "Capture a photo from the camera and attach it"),
+        alias("/mine", "My own thing"),
+    ]
+
+    commands = [command for command, _ in ui.get_help_panel().commands]
+
+    assert "/voice" in commands
+    assert "/photo" in commands
+    assert "/mine" in commands
+    assert "/v" not in commands
+    assert "/p" not in commands
+
+
 @pytest.mark.asyncio
 async def test_handle_save_command(ui):
     ui.history_manager.load.return_value = ["msg1"]
