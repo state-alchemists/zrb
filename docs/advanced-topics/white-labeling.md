@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > White-labeling
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > White-labeling
 
 # White-labeling: Creating a Custom CLI
 
@@ -118,7 +118,7 @@ Now, instead of `zrb`, you have a fully branded CLI.
 acme deploy-prod
 ```
 
-This runs your custom task directly. Your custom "Acme" banner is displayed when `acme` is invoked bare (no task name), i.e. running just `acme` shows the group info screen with the banner (`Cli._show_group_info` in `src/zrb/runner/cli.py`); running a specific task like `acme deploy-prod` goes straight to task execution and does not print the banner. Either way, the help menus reference `acme` instead of `zrb`, and your custom tasks are ready to go.
+This runs your custom task directly. Your custom "Acme" banner is displayed when `acme` is invoked bare (no task name), i.e. running just `acme` shows the group info screen with the banner; running a specific task like `acme deploy-prod` goes straight to task execution and does not print the banner. Either way, the help menus reference `acme` instead of `zrb`, and your custom tasks are ready to go.
 
 ---
 
@@ -130,7 +130,8 @@ This runs your custom task directly. Your custom "Acme" banner is displayed when
 | `<PREFIX>_ROOT_GROUP_NAME` | CLI command name |
 | `<PREFIX>_ROOT_GROUP_DESCRIPTION` | CLI description |
 | `<PREFIX>_BANNER` | ASCII art banner |
+| `<PREFIX>_ENABLE_BUILTIN_TASKS` | `on` by default, so the branded CLI still lists every zrb builtin group (`llm`, `git`, `util`, …). Set it to `off` to show only your own tasks |
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > White-labeling
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > White-labeling

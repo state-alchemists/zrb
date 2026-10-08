@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Web Requests
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Web Requests
 
 # Web Requests
 
@@ -82,7 +82,7 @@ flowchart TD
 
 ### How it runs
 
-**Starting the server.** `start_server` imports Uvicorn and `create_web_app` lazily, then checks the bind. A loopback address or `localhost` passes at once. Anything else needs auth on, and a password and secret key that are not empty, not the shipped defaults, and long enough (12 and 32 characters). Failing that, it prints every problem at once and exits with code 1 before the app is built. The check reads the `WebAuthConfig` it was given, so a programmatic override is checked too.
+**Starting the server.** `start_server` imports Uvicorn and `create_web_app` lazily, then checks the bind. A loopback address or `localhost` passes at once. Anything else needs auth on, and a password and secret key that are not empty, not the shipped defaults, and at least the minimum lengths `src/zrb/runner/cli.py` sets for each. Failing that, it prints every problem at once and exits with code 1 before the app is built. The check reads the `WebAuthConfig` it was given, so a programmatic override is checked too.
 
 **Pages.** `/ui/...` resolves the path with `extract_node` on the root group, checks access, and renders a Jinja template for the group or task. Rendering a task page builds a context to show its inputs; it does not run the task.
 
@@ -153,4 +153,4 @@ The browser reads replies from the output queue through the open SSE stream. A P
 - [Custom LLM UI](../../llm/llm-custom-ui.md) — writing a UI like `HTTPUI`
 - [LLM Chat Lifecycle](../../llm/llm-chat-lifecycle.md) — what one chat message does inside the task
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Web Requests
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Web Requests

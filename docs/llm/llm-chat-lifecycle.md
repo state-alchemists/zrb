@@ -1,4 +1,6 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > LLM Chat Request Lifecycle
+🔖 [Documentation Home](../README.md) > [LLM](./) > LLM Chat Request Lifecycle
+
+> **Contributor page.** This is a code tour for people changing zrb itself: it names source files and internal classes, which change between releases. To *use* or *program* the agent, start at [the LLM docs index](./README.md). For the design behind each stage, see [Architecture](../architecture/README.md).
 
 # Anatomy of a `zrb llm chat` Request
 
@@ -67,7 +69,7 @@ UIs/triggers/commands. Since 2.65.3 these are **composed attributes**
 
 Three things happen here:
 
-1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.prompt.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
+1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
 2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
@@ -141,7 +143,7 @@ Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_
 
 ### Tracing an AGENT-type hook (journal-compliance)
 
-The built-in journal-compliance judge (`llm/hook/journal_compliance.py`, see [hooks.md](./hooks.md#built-in-example-the-journal-compliance-judge)) is the one hook type whose builder can't live in `hook/creator.py` next to the command/prompt builders — building an agent means importing the agent subsystem, which already depends on `hook.manager` to fire `PreToolUse`/`PostToolUse`, so a direct import back would recreate that cycle. If it misbehaves, the real call path crosses that seam:
+The built-in journal-compliance judge (`llm/hook/journal_compliance.py`, see [hooks.md](./hooks.md#the-journal-compliance-judge)) is the one hook type whose builder can't live in `hook/creator.py` next to the command/prompt builders — building an agent means importing the agent subsystem, which already depends on `hook.manager` to fire `PreToolUse`/`PostToolUse`, so a direct import back would recreate that cycle. If it misbehaves, the real call path crosses that seam:
 
 1. `journal_compliance.py::register_journal_compliance_hook` — a hook factory, seeded into every fresh `HookManager`'s `_hook_factories` (`hook/manager.py.__init__`). Builds the `HookConfig`: system prompt, `LogActivity`/`WriteJournalNote`/`SearchJournal` tools, and the `event_data.journal_worthy` matcher.
 2. `agent/run/runner.py` fires `HookEvent.STOP`, computing `wrote_files` and `journal_worthy` (wrote files, or the turn states a preference) via `hook/turn_evidence.py`.
@@ -209,4 +211,4 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 - [Tasks & Execution Lifecycle](../core-concepts/tasks-and-lifecycle.md) — the generic task lifecycle this doc layers on top of
 - [Hooks](./hooks.md), [LLM Custom UI](./llm-custom-ui.md), [LSP Support](./lsp-support.md), [MCP Support](./mcp-support.md) — extension points
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > LLM Chat Request Lifecycle
+🔖 [Documentation Home](../README.md) > [LLM](./) > LLM Chat Request Lifecycle

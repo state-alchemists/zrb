@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md)
+🔖 [Documentation Home](../README.md)
 
 # Architecture Decision Records
 
@@ -35,7 +35,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0002** — [Program against `Any*` interfaces, not concrete types](adr-0002.md)
 - **ADR-0003** — [Async-first execution engine](adr-0003.md)
 - **ADR-0004** — [Ambient state travels in `ContextVar`s](adr-0004.md)
-- **ADR-0005** — [String properties render at execution time](adr-0005.md)
+- **ADR-0005** — [Deferred attributes: rendering is opt-in through `Tpl`](adr-0005.md)
 
 ### Task model
 
@@ -43,7 +43,6 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0007** — [Specialized task classes over one generic type](adr-0007.md)
 - **ADR-0008** — [`@make_task` alongside direct instantiation](adr-0008.md)
 - **ADR-0009** — [Inputs and Envs are first-class objects](adr-0009.md)
-- **ADR-0092** — [Env/input inheritance is one stateless walk, upstream-first](adr-0092.md)
 - **ADR-0010** — [Hierarchical `zrb_init.py` discovery, explicit registration](adr-0010.md)
 - **ADR-0011** — [Retry, fallback and successor are tasks](adr-0011.md)
 - **ADR-0012** — [Readiness checks are concurrent, task-based probes](adr-0012.md)
@@ -52,6 +51,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0015** — [An explicit task lifecycle state machine](adr-0015.md)
 - **ADR-0016** — [Capture the declaration site for error attribution](adr-0016.md)
 - **ADR-0017** — [Cancellation is re-raised after cleanup](adr-0017.md)
+- **ADR-0092** — [Env/input inheritance is one stateless walk, upstream-first](adr-0092.md)
 
 ### State and data flow
 
@@ -68,39 +68,48 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0025** — [White-labeling through `_ZRB_ENV_PREFIX` and `ROOT_GROUP_NAME`](adr-0025.md)
 - **ADR-0026** — [Boolean config naming: verb-first vs `_ENABLED`](adr-0026.md)
 - **ADR-0027** — [Semantic style names and one `ZRB_THEME`](adr-0027.md)
-- **ADR-0095** — [On Windows, a real POSIX shell is preferred, and shells are compared by name](adr-0095.md)
 
-### Runners, packaging and code conventions
+### Runners and platform
 
 - **ADR-0028** — [One task definition, multiple runners](adr-0028.md)
 - **ADR-0029** — [FastAPI and Uvicorn for the web runner](adr-0029.md)
 - **ADR-0030** — [Nested CLI groups](adr-0030.md)
 - **ADR-0031** — [Batteries-included builtin tasks, behind one toggle](adr-0031.md)
 - **ADR-0032** — [`Scaffolder` for template-based generation](adr-0032.md)
+- **ADR-0087** — [Web server binds to loopback by default; a non-loopback bind must be secured or the server refuses to start](adr-0087.md)
+- **ADR-0095** — [On Windows, a real POSIX shell is preferred, and shells are compared by name](adr-0095.md)
+
+### Code structure and imports
+
 - **ADR-0033** — [One distribution with disciplined lazy imports](adr-0033.md)
+- **ADR-0035** — [Compose large classes from parts via explicit collaborators, not multiple inheritance](adr-0035.md)
+- **ADR-0086** — [The agent-type hook builder is installed through a registry, not imported directly](adr-0086.md)
+- **ADR-0088** — [A shared leaf module lives outside the package that happens to write it, not nested inside it](adr-0088.md)
+- **ADR-0096** — [The agent barrel resolves lazily, and import safety is asserted per module](adr-0096.md)
+- **ADR-0098** — [A fixed action vocabulary, and boolean names that read as questions](adr-0098.md)
+
+### Testing
+
 - **ADR-0034** — [Test discipline: ≥95%, public API only, F-only lint](adr-0034.md)
 - **ADR-0097** — [Test integrity is ratcheted on kill rate, not coverage](adr-0097.md)
-- **ADR-0098** — [A fixed action vocabulary, and boolean names that read as questions](adr-0098.md)
-- **ADR-0035** — [Compose large classes from parts via explicit collaborators, not multiple inheritance](adr-0035.md)
-- **ADR-0088** — [A shared leaf module lives outside the package that happens to write it, not nested inside it](adr-0088.md)
-- **ADR-0087** — [Web server binds to loopback by default; a non-loopback bind must be secured or the server refuses to start](adr-0087.md)
 
-### LLM runtime
+### LLM runtime and history
 
 - **ADR-0036** — [pydantic-ai as the agent framework](adr-0036.md)
 - **ADR-0037** — [Provider-agnostic, multi-vendor LLM support](adr-0037.md)
-- **ADR-0094** — [`LLM_API_KEY` reaches only the provider it was configured for](adr-0094.md)
 - **ADR-0038** — [Model capabilities are a deny-list; the prompt states the default](adr-0038.md)
 - **ADR-0039** — [Stream errors are classified; each class gets a one-shot fix](adr-0039.md)
 - **ADR-0040** — [Run-loop guards for corrupted history and degenerate output](adr-0040.md)
 - **ADR-0041** — [zrb owns history, with two-tier summarization](adr-0041.md)
 - **ADR-0042** — [Keep the cached prefix byte-stable](adr-0042.md)
 - **ADR-0043** — [A tool result reaches the model once, via `return_value`](adr-0043.md)
+- **ADR-0094** — [`LLM_API_KEY` reaches only the provider it was configured for](adr-0094.md)
+- **ADR-0101** — [Working-directory snapshots are git trees in a private store, listed repository by repository](adr-0101.md)
 
 ### Prompt
 
 - **ADR-0044** — [Seven fixed prompt sections](adr-0044.md)
-- **ADR-0045** — [A rule lives where it is enforced](adr-0045.md)
+- **ADR-0045** — [Put each instruction at the layer that can enforce it](adr-0045.md)
 - **ADR-0046** — [Prompt files are plain markdown](adr-0046.md)
 - **ADR-0047** — [Home-level docs are user guidance, not project rules](adr-0047.md)
 - **ADR-0048** — [Untrusted-data framing travels with the tool result](adr-0048.md)
@@ -115,69 +124,62 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0054** — [Built-in plugin split into core-skills, skills, agents](adr-0054.md)
 - **ADR-0055** — [The journal is a markdown graph that only tools write](adr-0055.md)
 
-### Tools and safety
+### Tools
 
 - **ADR-0056** — [Tools are plain functions with PascalCase names](adr-0056.md)
 - **ADR-0057** — [A tool exception becomes text with `[SYSTEM SUGGESTION]`](adr-0057.md)
 - **ADR-0058** — [Tool-definition weight is managed by count, not prose](adr-0058.md)
 - **ADR-0059** — [Tool output is capped at the source; global overflow is separate](adr-0059.md)
 - **ADR-0060** — [Tools carry a capability tag](adr-0060.md)
-- **ADR-0061** — [Permissions are an ordered ruleset, first match wins](adr-0061.md)
-- **ADR-0062** — [One approval chain: permission policy, tool policy, yolo](adr-0062.md)
-- **ADR-0063** — [Plan mode is a permission preset](adr-0063.md)
-- **ADR-0064** — [Advertised tool options are permission-filtered](adr-0064.md)
-- **ADR-0065** — [Opt-in two-layer filesystem sandbox](adr-0065.md)
 - **ADR-0066** — [`Shell` is the only shell tool; background is a flag](adr-0066.md)
 - **ADR-0067** — [MCP servers are first-class tool sources](adr-0067.md)
 - **ADR-0084** — [`write_file(mode="w")` refuses to overwrite a file this run hasn't observed](adr-0084.md)
 - **ADR-0089** — [Oversized tool results spill to a queryable store instead of being truncated](adr-0089.md)
+
+### Permissions and approval
+
+- **ADR-0061** — [Permissions are an ordered ruleset, first match wins](adr-0061.md)
+- **ADR-0062** — [One approval chain: tool policy, permission policy, yolo](adr-0062.md)
+- **ADR-0063** — [Plan mode is a permission preset](adr-0063.md)
+- **ADR-0064** — [Advertised tool options are permission-filtered](adr-0064.md)
+- **ADR-0065** — [Opt-in two-layer filesystem sandbox](adr-0065.md)
+- **ADR-0085** — [An edited tool call tells the model what actually ran](adr-0085.md)
 
 ### Delegation and concurrency
 
 - **ADR-0068** — [Delegation: envelope, context-shaped criteria, fan-out, opt-in worktree isolation](adr-0068.md)
 - **ADR-0069** — [Background work inherits permissions and can be waited on](adr-0069.md)
 - **ADR-0070** — [`BufferedUI` and a confirmation queue](adr-0070.md)
+- **ADR-0083** — [Delegated sub-agent sessions: persisted, listed, resumable, and swappable in place](adr-0083.md)
 
-### Hooks and the task API
+### Extending the chat
 
 - **ADR-0071** — [Lifecycle hooks, Claude-compatible, control protocol included](adr-0071.md)
 - **ADR-0072** — [`LLMTask` and `LLMChatTask` expose the same knobs](adr-0072.md)
+- **ADR-0090** — [Registries, managers, layered resolution, three configuration channels](adr-0090.md)
 - **ADR-0100** — [An opt-in Stop hook reviews each file-changing turn before it ends](adr-0100.md)
+- **ADR-0102** — [Optional chat features install through `LLMChatTask`'s extension points, configured when a session starts](adr-0102.md)
 - **ADR-0104** — [Stream observers see an agent run's events beside the UI](adr-0104.md)
 
-### Interactive UI
+### Chat UI and rendering
 
 - **ADR-0073** — [Todo progress reaches the user through a side channel](adr-0073.md)
 - **ADR-0074** — [`ask_user_choice` with a text fallback](adr-0074.md)
 - **ADR-0075** — [Shift+Tab cycles the mode, with a Termux fallback](adr-0075.md)
-- **ADR-0076** — [Dictation is push-to-talk by command, plus a hands-free mode that answers approvals and can be talked over](adr-0076.md)
 - **ADR-0077** — [Queued messages are editable entries, edited in place from the input field](adr-0077.md)
 - **ADR-0078** — [Mid-turn messages steer the live run via pydantic-ai's `enqueue`, falling back to the queue](adr-0078.md)
 - **ADR-0079** — [LaTeX math renders as Unicode via masked pre-parse, not a Rich `Markdown` subclass](adr-0079.md)
 - **ADR-0080** — [Mermaid renders as Unicode diagram art via `termaid`; PlantUML stays deferred](adr-0080.md)
 - **ADR-0081** — [Web chat renders markdown/math/diagrams client-side; the non-interactive loop finalizes its output](adr-0081.md)
-- **ADR-0082** — [Photo capture is a one-shot command with a pluggable backend, and carries no enable gate](adr-0082.md)
 - **ADR-0093** — [A slash command is always offered; an unavailable one explains itself](adr-0093.md)
-- **ADR-0101** — [Working-directory snapshots are git trees in a private store, listed repository by repository](adr-0101.md)
-- **ADR-0102** — [Optional chat features install through `LLMChatTask`'s extension points, configured when a session starts](adr-0102.md)
+- **ADR-0106** — [A side question runs without tools, and its prompt says so](adr-0106.md)
+
+### Voice and media
+
+- **ADR-0076** — [Dictation is push-to-talk by command, plus a hands-free mode that answers approvals and can be talked over](adr-0076.md)
+- **ADR-0082** — [Photo capture is a one-shot command with a pluggable backend, and carries no enable gate](adr-0082.md)
 - **ADR-0103** — [Speech reads a reply aloud as it streams or at the end, whole, and stops when talked over](adr-0103.md)
 - **ADR-0105** — [Barge-in guards against zrb's own voice instead of cancelling it](adr-0105.md)
-- **ADR-0106** — [A side question runs without tools, and its prompt says so](adr-0106.md)
 - **ADR-0107** — [Voice runs on Pipecat's pipeline, and the meaning stays zrb's](adr-0107.md)
 
-### Sub-agent sessions
-
-- **ADR-0083** — [Delegated sub-agent sessions: persisted, listed, resumable, and swappable in place](adr-0083.md)
-
-### Approval and execution
-
-- **ADR-0085** — [An edited tool call tells the model what actually ran](adr-0085.md)
-- **ADR-0086** — [The agent-type hook builder is installed through a registry, not imported directly](adr-0086.md)
-- **ADR-0096** — [The agent barrel resolves lazily, and import safety is asserted per module](adr-0096.md)
-
-### Configuration and component model
-
-- **ADR-0090** — [Registries, managers, and a single resolution order for configurable components](adr-0090.md)
-- **ADR-0091** — [Three configuration channels, five component families, one mental model](adr-0091.md)
-
-🔖 [Documentation Home](../../README.md)
+🔖 [Documentation Home](../README.md)

@@ -1,10 +1,10 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Hooks
+🔖 [Documentation Home](../README.md) > [LLM](./) > Hooks
 
 # Zrb Hook System (Claude Code Compatible)
 
 Hooks intercept and modify an LLM agent's run: at key lifecycle events they execute a shell command, an LLM prompt, or a tool-using agent.
 
-The system is **modeled on Claude Code hooks**: the same files, stdin payload, `CLAUDE_*` env vars, and matcher/decision JSON, so most single-hook Claude configurations work unchanged. It is **not** a full reimplementation — the multi-hook execution model in particular differs. Read [Differences from Claude Code](#differences-from-claude-code) (at the end of this page) before porting a non-trivial hook.
+The system is **modeled on Claude Code hooks**: the same files, stdin payload, `CLAUDE_*` env vars, and matcher/decision JSON, so most single-hook Claude configurations work unchanged. It is **not** a full reimplementation — the multi-hook execution model in particular differs. Read [Differences from Claude Code](./claude-compatibility.md#differences-from-claude-code) before porting a non-trivial hook.
 
 ---
 
@@ -24,7 +24,7 @@ The system is **modeled on Claude Code hooks**: the same files, stdin payload, `
 - [Defining Hooks Programmatically](#defining-hooks-programmatically-python)
 - [Examples](#examples)
 - [HookResult Reference](#hookresult-reference)
-- [Differences from Claude Code](#differences-from-claude-code)
+- [Differences from Claude Code](./claude-compatibility.md#differences-from-claude-code)
 
 ---
 
@@ -152,7 +152,7 @@ Hooks are defined in JSON or YAML:
 | `matchers` | array | No | Conditions to filter when hook runs |
 | `async` | boolean | No | Fire-and-forget in the background without blocking the event (default: false). `command` and `agent` hooks honor it — a background hook cannot block or return modifications; `prompt` hooks always run synchronously |
 | `enabled` | boolean | No | Hook is active (default: true) |
-| `timeout` | number | No | Seconds; a synchronous hook past it is cancelled (a `command` hook's process killed) and waited for up to 5 seconds. A hook still running when the chat exits — a Stop fired by Ctrl+C — gets up to `ZRB_HOOKS_EXIT_TIMEOUT` (10000 ms) more before it is cancelled. Default: `command` 600s, `prompt` 30s, `agent` 60s |
+| `timeout` | number | No | Seconds; a synchronous hook past it is cancelled (a `command` hook's process killed) and waited for up to 5 seconds. A hook still running when the chat exits — a Stop fired by Ctrl+C — gets up to `ZRB_HOOKS_EXIT_TIMEOUT` (10000 ms) more before it is cancelled. Default: `command` 600s, `prompt` 30s, `agent` 60s in zrb's own hook files; a hook loaded from a Claude-format `settings.json` without a `timeout` gets `ZRB_HOOKS_TIMEOUT` (30000 ms) instead |
 | `env` | object | No | Environment variables to inject |
 | `priority` | number | No | Execution priority (higher = earlier; default 0) — see [Priority System](#priority-system) |
 
@@ -282,60 +282,33 @@ A runnable version of this snippet is `security-review-agent-example` in `exampl
 
 ## Built-in Hooks
 
-Two hooks ship with zrb. Both are Python hooks seeded as factories onto **every** `HookManager` — not JSON files, so they appear in no `hooks.json`. A skill's frontmatter `hooks:` block is registered the same way, which is why it reaches a fresh per-session manager too.
+Two hooks ship with zrb. Both are registered in Python on every chat session, so they appear in no `hooks.json`. Their prompts are ordinary prompt files (`journal_compliance`, `self_review`), overridable like any other — a file under `ZRB_LLM_PROMPT_DIR`, or a variable such as `ZRB_LLM_PROMPT_JOURNAL_COMPLIANCE`.
 
-### Built-in example: the journal-compliance judge
+### The journal-compliance judge
 
-A small sub-agent that reviews a completed turn, decides — using `LogActivity`/`WriteJournalNote`'s own documented criteria — whether it needs a journal entry, and writes one if so. The `event_data.journal_worthy` matcher (computed in plain Python at the `Stop` call site: the turn changed a file, or looks like it stated a preference) limits the LLM call to turns where an entry is plausible, and `async: true` keeps it from blocking the response.
+After a turn that changed a file or seemed to state a preference, a small sub-agent decides whether the turn deserves a journal entry and writes one if so. It runs asynchronously, so it never delays the response.
 
-- **Built-in and active** (`llm/hook/journal_compliance.py`, seeded as a hook factory on every `HookManager`), with no `enabled` flag of its own: it follows `LLM_JOURNAL_ENABLED` (default on). With journaling off, `tools` resolves to nothing and the hook is a no-op.
-- **Model:** the small model — a `/model small ...` override in the current session, else `CFG.LLM_SMALL_MODEL` (via `resolve_configured_small_model()`). Set `ZRB_LLM_SMALL_MODEL` — an unset small model falls back to your main one, which defeats the point of a cheap judge.
-- **Prompt:** `llm/prompt/markdown/journal_compliance.md`, overridable through the normal chain — a `journal_compliance.md` under your project's `LLM_PROMPT_DIR`, or `ZRB_LLM_PROMPT_JOURNAL_COMPLIANCE`.
+- **On** whenever the journal is on (`ZRB_LLM_JOURNAL_ENABLED`, default on); it has no switch of its own (its hook name is `journal-compliance-judge`).
+- **Model:** the small model (`ZRB_LLM_SMALL_MODEL`, or a `/model small …` override). Set one — an unset small model falls back to your main model, which defeats the point of a cheap judge.
+- **Tools:** `LogActivity`, `WriteJournalNote`, `SearchJournal`; timeout 60 seconds.
 
-Its `HookConfig`, for reference (built in Python by `build_journal_compliance_hook_config()`, not JSON):
+How an agent-type hook like this one is wired internally is traced in [LLM Chat Request Lifecycle](./llm-chat-lifecycle.md#tracing-an-agent-type-hook-journal-compliance) (a contributor page).
 
-```json
-{
-  "name": "journal-compliance-judge",
-  "events": ["Stop"],
-  "type": "agent",
-  "config": {
-    "system_prompt": "<contents of llm/prompt/markdown/journal_compliance.md>",
-    "tools": ["LogActivity", "WriteJournalNote", "SearchJournal"],
-    "model": "<ZRB_LLM_SMALL_MODEL, or your main model if unset>"
-  },
-  "matchers": [
-    { "field": "event_data.journal_worthy", "operator": "equals", "value": true }
-  ],
-  "async": true,
-  "timeout": 60
-}
-```
+### The self-review gate
 
-For how it is wired end-to-end (the registration seam, the `HookType.AGENT` builder, where the LLM call happens), see [llm-chat-lifecycle.md](./llm-chat-lifecycle.md#tracing-an-agent-type-hook-journal-compliance).
+Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=on` turns it on. On a turn that changed files, a reviewer agent with a fresh context reads exactly what the turn changed and the code around it (read-only), then ends its report with `Request changes` or `LGTM`.
 
-### Built-in: the self-review gate
-
-Off by default; `ZRB_LLM_SELF_REVIEW_ENABLED=on` turns it on. At the start of each turn it snapshots your working directory into a private temporary git store, and at Stop it snapshots it again and diffs the two. A snapshot holds every git repository under the directory, each by its own `.gitignore` — nested clones, submodules, and repositories the parent ignores, such as the worktrees `EnterWorktree` creates, included — and the files outside any repository. So the review covers exactly what the turn changed — edits made through `Shell` and changes committed mid-turn included, your own earlier uncommitted work excluded — and a reviewer agent with a fresh context reads that diff, using read-only `Read`/`Grep`/`Glob` to check the code around it. It ends its report with `Request changes` or `LGTM`.
-
-A repository that appears during the turn — a worktree, a clone — is diffed against the commit it started from, so the review shows what the turn changed in it rather than its whole checkout.
-
-Paths the file tools named that the diff does not cover — ignored, or outside the working directory — are listed for the reviewer to read. Without a snapshot — it failed, or the directory holds more than 5,000 files or 200 MB outside any repository (`ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES` / `ZRB_LLM_SNAPSHOT_LOOSE_MAX_MB`), which is reported once per session — the reviewer gets those paths with no diff, never `git diff HEAD`, which would include your earlier uncommitted work. A file git cannot read at Stop is listed as unreadable instead of showing as deleted.
-
-A delegated sub-agent's turn is not reviewed on its own: its changes land in your working directory, or in a worktree under it, so they are part of the parent turn's diff, which is. A live sub-agent continuation you message after the parent turn has ended is the exception — no parent review covers it, so it is reviewed on its own.
-
-Snapshots write their index and objects into a private, owner-only temporary store deleted when the turn ends — never into any repository's `.git/objects`, so untracked secrets such as a `.env` are not copied there.
-
-`Request changes` blocks the Stop: the findings become the agent's next prompt, with the instruction to check each against the code, fix the real ones, say why any is not a defect, and restate the final answer. Anything else — `LGTM`, an unclear verdict, a failed review — lets the turn end.
+- **What it reviews:** the difference between a snapshot taken when the turn started and one taken at Stop. That covers edits made through `Shell`, changes committed mid-turn, and every git repository under the working directory (nested clones, submodules and worktrees included), but not your own earlier uncommitted work. A sub-agent's changes are part of its parent turn's review.
+- **What happens on `Request changes`:** the Stop is blocked, and the findings become the agent's next prompt: check each against the code, fix the real ones, say why any is not a defect, and restate the final answer. Anything else (`LGTM`, an unclear verdict, a failed review) lets the turn end.
+- **Privacy:** snapshots go to a private, owner-only temporary store deleted when the turn ends — never into your `.git/objects` — so untracked secrets such as `.env` are not copied into a repository. The reviewer's model does receive the turn's diff.
+- **Limits:** a directory holding more than `ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES` files or `ZRB_LLM_SNAPSHOT_LOOSE_MAX_MB` MB outside any repository cannot be snapshotted; the reviewer then gets the list of paths the turn touched, without a diff, and zrb says so once per session.
 
 | Env var | Default | Effect |
 |---------|---------|--------|
 | `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` | `2` | Caps consecutive blocking reviews; a review that lets the turn end resets the count |
 | `ZRB_LLM_SELF_REVIEW_TIMEOUT` | `240` (seconds) | Bounds each review; on expiry the reviewer is cancelled, model request included, and the turn ends unreviewed |
 | `ZRB_LLM_SELF_REVIEW_MAX_TRACKED_TURNS` | `64` | Turns whose round count is kept at once; the oldest past it are dropped |
-| `ZRB_LLM_SELF_REVIEW_MODEL` | empty | The reviewer's model (empty uses the run's own). This model receives the turn's diff |
-
-It is a Python hook (`llm/hook/self_review.py`), not a JSON one, because it needs things a JSON agent hook cannot express: a turn-start snapshot (the Stop payload's `turn_start_snapshot`, taken only while the gate is on and only for a top-level run — `nested_run` in the payload marks a sub-agent's) and `changed_paths` as its scope, a round counter per turn (`turn_id` — unique, unlike `run_scope`, which is the conversation's name), and the diff instead of the transcript as its input. The reviewer's instructions live in `llm/prompt/markdown/self_review.md`; override them through `LLM_PROMPT_DIR` like the other internal prompts.
+| `ZRB_LLM_SELF_REVIEW_MODEL` | empty | The reviewer's model (empty uses the run's own). A different model shares fewer blind spots |
 
 ---
 
@@ -472,7 +445,7 @@ On `UserPromptSubmit` the turn ends before the model runs; on `Stop` it ends the
 | `ask` | Force the interactive approval prompt, overriding any tool-policy/permission ALLOW or YOLO auto-approve (an explicit DENY still wins) |
 | `defer` | No opinion — let the normal approval flow decide |
 
-`ask` only forces a prompt for tools that go through the approval cascade; elsewhere it degrades to proceed (see [Differences](#differences-from-claude-code), row 5).
+`ask` only forces a prompt for tools that go through the approval cascade; elsewhere it degrades to proceed (see [Differences from Claude Code](./claude-compatibility.md#differences-from-claude-code), row 5).
 
 ### Permission / Approval Hook Example
 
@@ -762,48 +735,4 @@ Commands run under `/bin/sh`, which is often not bash, so stick to POSIX syntax 
 
 ---
 
-## Differences from Claude Code
-
-The runtime is a separate implementation; the differences below **change outcomes**, so adjust a ported hook that relies on any of them.
-
-### Behavioral differences
-
-| # | Area | Claude Code | Zrb |
-|---|------|-------------|-----|
-| 1 | **Multi-hook execution** | All matching hooks run **in parallel**; identical commands are deduplicated | Hooks run **sequentially**, ordered by the zrb-only `priority` field |
-| 2 | **Conflict resolution** | **Most-restrictive wins** (`deny` > `defer` > `ask` > `allow`) regardless of order | **First decisive result wins** (highest priority first) |
-| 3 | **`additionalContext` from multiple hooks** | Merged from **all** hooks | Only the **first** non-empty value is used; the rest are dropped |
-| 4 | **`PostToolUse` block** | Tool already ran; block halts the turn and feeds the reason back — **the tool result stays** in context | Block **discards** the tool result and replaces it with a "Tool result blocked…" message |
-| 5 | **`PreToolUse` `permissionDecision: "ask"`** | Always shows the approval prompt | Forces the prompt **only on the approval path** (tools that require approval). For auto-approved tools it degrades to "proceed" — there is no prompt to show |
-| 6 | **`SubagentStop` blocking** | Supports `decision: "block"` to force the subagent to continue | **Observe-only** — a block is ignored |
-| 7 | **`Notification` firing** | Fires for permission prompts, 60s idle, auth, elicitation, etc. | Fires only for elicitation (`notification_type='elicitation_dialog'`, from the ask/question tool). No permission-prompt or idle notifications — permission prompts route to the `PermissionRequest` event instead, and there is no idle timer |
-| 8 | **Legacy `decision: "approve"`** | Auto-approves a `PreToolUse` call (deprecated form) | Ignored — auto-approve only via `permissionDecision: "allow"` |
-
-> The `exit 2` reason channel (stderr), `PostToolUse` `additionalContext`, and the `Notification` matcher field (`notification_type`) **were** divergences and are now Claude-compatible — see the [changelog](../changelog/README.md).
-
-### Matcher value coverage (matchers fire on a subset of Claude's values)
-
-| Event | Claude values | Zrb values |
-|-------|---------------|------------|
-| `SessionStart` (`source`) | `startup`, `resume`, `clear`, `compact` | `startup`, `resume` only |
-| `PreCompact` / `PostCompact` (`trigger`) | `manual`, `auto` | `auto` only |
-| `StopFailure` (`error_type`) | includes `max_output_tokens`, `oauth_org_not_allowed`, `billing_error` | uses `context_length` (not `max_output_tokens`); lacks `oauth_org_not_allowed` / `billing_error` |
-
-A matcher keyed on a value zrb never emits simply never fires.
-
-### Events and types zrb does not implement
-
-- **Claude-only events** (no zrb counterpart): `Setup`, `UserPromptExpansion`, `PostToolBatch`, `PermissionDenied`, `TeammateIdle`, `Elicitation` / `ElicitationResult`, `FileChanged`, `CwdChanged`, `ConfigChange`, `InstructionsLoaded`, `TaskCreated` / `TaskCompleted`, `WorktreeCreate` / `WorktreeRemove`, `MessageDisplay`.
-- **Claude-only hook types / options**: `http` and `mcp_tool` hook types, the `if` argument-level filter (e.g. `Bash(git *)`), `async` / `asyncRewake` / `once`, command exec-form `args`, and `disableAllHooks`. Zrb supports the `command`, `prompt`, and `agent` types only.
-
-### Zrb-only events (no Claude counterpart)
-
-- `PreCommand` / `PostCommand` — bracket a UI command in the chat TUI (Claude's nearest analogue is `UserPromptExpansion`, with a different contract).
-
-### What ports cleanly
-
-Single-hook configurations using the common contract behave the same in both: `PreToolUse` deny / allow / `updatedInput` / `permissionDecisionReason`, `UserPromptSubmit` block + `continue: false` + `additionalContext`, `SessionStart` `additionalContext` (including plain-stdout-as-context), `Stop` block-to-continue (8-block cap, `stop_hook_active`) and `systemMessage` extension (its own separate 8-message cap), `PermissionRequest` `decision.behavior`, `PreCompact` block, and tool-name matchers (including the `Bash` / `Task` aliases).
-
----
-
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Hooks
+🔖 [Documentation Home](../README.md) > [LLM](./) > Hooks

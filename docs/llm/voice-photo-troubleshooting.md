@@ -1,8 +1,8 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Voice & Photo Troubleshooting
+🔖 [Documentation Home](../README.md) > [LLM](./) > Voice & Photo Troubleshooting
 
 # Voice & Photo Troubleshooting
 
-`/voice` and `/photo` depend on OS-level microphone/camera access, so failures are usually platform setup, not a zrb bug. Configuration knobs for both features are in [LLM Configuration → Voice and Camera](../configuration/llm-config.md#23-voice-and-camera); the commands themselves are listed under [TUI Commands](llm-integration.md#tui-commands).
+`/voice` and `/photo` depend on OS-level microphone/camera access, so failures are usually platform setup, not a zrb bug. Configuration knobs for both features are in [LLM Configuration → Voice and Camera](../configuration/llm-config.md#21-voice-and-camera); the commands themselves are listed under [TUI Commands](llm-integration.md#tui-commands).
 
 ---
 
@@ -94,4 +94,4 @@
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Voice & Photo Troubleshooting
+🔖 [Documentation Home](../README.md) > [LLM](./) > Voice & Photo Troubleshooting

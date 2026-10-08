@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > Triggers & Schedulers
+🔖 [Documentation Home](../README.md) > [Task Types](./) > Triggers & Schedulers
 
 # Triggers and Schedulers
 
@@ -304,4 +304,4 @@ Both `BaseTrigger` and `Scheduler` run as foreground daemon processes. To stop t
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > Triggers & Schedulers
+🔖 [Documentation Home](../README.md) > [Task Types](./) > Triggers & Schedulers

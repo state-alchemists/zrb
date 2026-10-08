@@ -1,4 +1,4 @@
-"""Public ToolRegistry behavior (ADR-0090/ADR-0091 split)."""
+"""Public ToolRegistry behavior (ADR-0090)."""
 
 from zrb.context.shared_context import SharedContext
 from zrb.llm.tool.registry import ToolRegistry, tool_name, tool_registry

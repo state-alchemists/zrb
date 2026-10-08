@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > MCP & LSP Servers
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > MCP & LSP Servers
 
 # MCP & LSP Servers
 
@@ -73,7 +73,7 @@ flowchart TD
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Registers the per-run MCP toolset factory and, when a server is detected, the LSP tools |
 | `LLMTask` | `src/zrb/llm/task/llm_task.py` | Resolves toolsets once per run, enters them, runs the turn, exits them |
 | `LSPServerConfigRegistry` | `src/zrb/llm/lsp/configs.py` | Built-in and user-registered language-server configs; `detect_available_lsp_servers` caches the `PATH` scan |
-| `create_lsp_tools` | `src/zrb/llm/lsp/tools.py` | The eight `Lsp*` wrapper functions, each a thin call into `lsp_manager` |
+| `create_lsp_tools` | `src/zrb/llm/lsp/tools.py` | The `Lsp*` wrapper functions, each a thin call into `lsp_manager` |
 | `LSPManager`, `lsp_manager` | `src/zrb/llm/lsp/manager.py` | Process-wide singleton; the query surface the wrappers call; registers the `atexit` kill |
 | `LSPManagerLifecycle` | `src/zrb/llm/lsp/manager_lifecycle.py` | Finds the project root, starts or reuses a server per language and root, shuts them all down |
 | `LSPManagerQuery`, `LSPServerOperations` | `src/zrb/llm/lsp/manager_query.py`, `src/zrb/llm/lsp/server_operations.py` | Turn a symbol-based question into LSP requests and shape the answer |
@@ -146,4 +146,4 @@ The chat task calls `lsp_manager.shutdown_all` when its session ends. The `atexi
 - [MCP Support](../../llm/mcp-support.md) — setting up MCP servers
 - [LSP Support](../../llm/lsp-support.md) — installing and choosing language servers
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > MCP & LSP Servers
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > MCP & LSP Servers

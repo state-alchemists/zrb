@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > XCom Deep Dive
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > XCom Deep Dive
 
 # XCom: Cross-Task Communication
 
@@ -20,7 +20,7 @@ XCom (Cross-Communication) is Zrb's built-in mechanism for passing data between 
 
 ## How XCom Works
 
-When a session starts, Zrb creates an `XCom` object containing one `deque` per task. The `XCom` is accessible via `ctx.xcom`:
+Each session holds an `XCom` object that maps a task name to a `deque`; a task's queue is created on first use. The `XCom` is accessible via `ctx.xcom`:
 
 ```python
 # Access another task's queue
@@ -57,7 +57,7 @@ def produce(ctx):
     return {"status": "ok", "data": [1, 2, 3]}  # Auto-pushed to ctx.xcom["producer"]
 ```
 
-For `CmdTask`, the action returns a `CmdResult` object (capturing stdout, stderr, and exit code), and that object is pushed as-is:
+For `CmdTask`, the action returns a `CmdResult` object (capturing stdout as `output`, stderr as `error`, and the shown text as `display`; it does not hold an exit code), and that object is pushed as-is:
 
 ```python
 from zrb import CmdTask, cli
@@ -149,13 +149,13 @@ scaffold = cli.add_task(
         source_path="./templates/app",
         destination_path=Tpl("./projects/{ctx.xcom['creator'].peek()}"),
         transform_content={
-            "APP_NAME": Tpl("{ctx.xcom['creator'].pop()}")
+            "APP_NAME": Tpl("{ctx.xcom['creator'].peek()}")
         }
     )
 )
 ```
 
-> **Note:** `creator` only pushes one value, but the template reads it twice. Since `.pop()` removes the item, the second read here uses `.peek()` (non-destructive) for `destination_path` and `.pop()` (destructive) for `transform_content`, so both placeholders resolve to the same value without raising `IndexError`.
+> **Note:** `creator` pushes one value, but the template is read more than once: by `destination_path`, and by the content transformer once **per file** it rewrites. Use `.peek()` (non-destructive) everywhere here — a `.pop()` in `transform_content` would empty the queue on the first file and raise on the second.
 
 ---
 
@@ -281,4 +281,4 @@ def my_task(ctx):
 # {ctx.xcom["my-task"].pop()}
 ```
 
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > XCom Deep Dive
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > XCom Deep Dive

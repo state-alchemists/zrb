@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Configuration](./) > LLM & Rate Limiter
+🔖 [Documentation Home](../README.md) > [Configuration](./) > LLM & Rate Limiter
 
 # LLM & Rate Limiter Configuration
 
@@ -27,13 +27,10 @@ Zrb talks to LLMs through `pydantic-ai`, so OpenAI, Anthropic, Google Vertex, Ol
 - [Size & Limit Configuration](#15-size--limit-configuration)
 - [Retry Configuration](#16-retry-configuration)
 - [Slash Command Aliases](#17-slash-command-aliases)
-- [Pagination Configuration](#18-pagination-configuration)
-- [LSP Server Selection](#19-lsp-server-selection)
-- [TUI Color Styles](#20-tui-color-styles)
-- [Sandbox Configuration](#21-sandbox-configuration)
-- [CLI Semantic Colors](#22-cli-semantic-colors)
-- [Voice and Camera](#23-voice-and-camera)
-
+- [LSP Server Selection](#18-lsp-server-selection)
+- [TUI Color Styles](#19-tui-color-styles)
+- [Sandbox Configuration](#20-sandbox-configuration)
+- [Voice and Camera](#21-voice-and-camera)
 ---
 
 ## 1. Core LLM Routing
@@ -53,65 +50,17 @@ Every agent also defaults to `openai_reasoning_summary="auto"` and `openai_promp
 
 ### Which API Key Gets Used
 
-- `ZRB_LLM_API_KEY` is a key **for one provider**: the one `ZRB_LLM_PROVIDER` names, else the `provider:` prefix on `ZRB_LLM_MODEL`. A model with a different prefix does not get it, so `ZRB_LLM_SMALL_MODEL=anthropic:…` beside `ZRB_LLM_MODEL=openai:…` falls back to `ANTHROPIC_API_KEY` instead of 401-ing on an OpenAI key.
-- `ZRB_LLM_BASE_URL` overrides that scoping: one endpoint serves every tier (the LiteLLM / OpenRouter gateway case), so the key travels with the URL regardless of prefix.
-- A **bare model name takes its vendor from `ZRB_LLM_PROVIDER`** and is then treated exactly like the prefixed form: `ZRB_LLM_PROVIDER=anthropic` + `ZRB_LLM_MODEL=claude-sonnet-4-5` behaves like `anthropic:claude-sonnet-4-5`. The tables below leave `ZRB_LLM_PROVIDER` unset, so the vendor comes from the prefix.
+zrb resolves credentials for every model tier (main, small, multimodal) in this order:
 
-```mermaid
-flowchart TD
-    Start(["resolve a model for any tier<br />(main, small, multimodal)"]) --> URL{"ZRB_LLM_BASE_URL set?"}
-    URL -->|yes| Gateway["use ZRB_LLM_API_KEY<br />+ that URL, every tier"]
-    URL -->|no| HasKey{"ZRB_LLM_API_KEY set?"}
-    HasKey -->|no| Nothing["send no credentials"]
-    HasKey -->|yes| Match{"model prefix matches<br />ZRB_LLM_PROVIDER, else<br />ZRB_LLM_MODEL's prefix?"}
-    Match -->|"matches, or no prefix"| UseKey["use ZRB_LLM_API_KEY"]
-    Match -->|"a different vendor"| Nothing
-    Nothing --> Bare["bare provider:model goes to pydantic-ai,<br />which reads that vendor's own variable<br />(DEEPSEEK_API_KEY, ANTHROPIC_API_KEY, …)<br />or raises UserError"]
-    UseKey --> Native["native provider, built with that key"]
-    Gateway --> Accepts{"does the native provider<br />accept base_url?"}
-    Accepts -->|yes| Native
-    Accepts -->|"no (DeepSeek, Mistral)"| Compat["OpenAI-compatible provider.<br />OPENAI_API_KEY is not inherited<br />for a non-openai prefix"]
-```
+1. **`ZRB_LLM_BASE_URL` is set** → `ZRB_LLM_API_KEY` and that URL serve every tier, whatever the model's prefix (the LiteLLM / OpenRouter gateway case). A native provider that does not accept a base URL (DeepSeek, Mistral) is reached through an OpenAI-compatible client instead.
+2. **`ZRB_LLM_API_KEY` is set and the model's vendor matches** the one `ZRB_LLM_PROVIDER` names (else the `provider:` prefix of `ZRB_LLM_MODEL`) → that key is used. A bare model name takes its vendor from `ZRB_LLM_PROVIDER`, and with no provider set it counts as a match.
+3. **Otherwise** no key is passed, and pydantic-ai reads the vendor's own variable (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, …), or raises `UserError: set <VENDOR>_API_KEY`.
 
-In the tables below, ✅ means set, — means unset, and *any* means the variable makes no difference to that row.
-
-**`ZRB_LLM_MODEL` unset or `openai:`-prefixed.** No other vendor variable participates.
-
-| `ZRB_LLM_API_KEY` | `ZRB_LLM_BASE_URL` | `OPENAI_API_KEY` | Endpoint | Key sent |
-|---|---|---|---|---|
-| — | — | — | — | ❌ `UserError: set OPENAI_API_KEY` |
-| — | — | ✅ | `api.openai.com` | `OPENAI_API_KEY` |
-| — | ✅ | — | your URL | `api-key-not-set` ⚠️ |
-| — | ✅ | ✅ | your URL | `OPENAI_API_KEY` |
-| ✅ | — | *any* | `api.openai.com` | `ZRB_LLM_API_KEY` |
-| ✅ | ✅ | *any* | your URL | `ZRB_LLM_API_KEY` |
-
-**`ZRB_LLM_MODEL=deepseek:deepseek-chat`**, standing in for any natively-supported non-OpenAI vendor.
-
-| `ZRB_LLM_API_KEY` | `ZRB_LLM_BASE_URL` | `DEEPSEEK_API_KEY` | `OPENAI_API_KEY` | Endpoint | Key sent |
-|---|---|---|---|---|---|
-| — | — | — | *any* | — | ❌ `UserError: set DEEPSEEK_API_KEY` |
-| — | — | ✅ | *any* | `api.deepseek.com` | `DEEPSEEK_API_KEY` |
-| — | ✅ | *any* | *any* | your URL | `api-key-not-set` ⚠️ |
-| ✅ | — | *any* | *any* | `api.deepseek.com` | `ZRB_LLM_API_KEY` |
-| ✅ | ✅ | *any* | *any* | your URL | `ZRB_LLM_API_KEY` |
-
-**Mixed vendors** — `ZRB_LLM_MODEL=openai:gpt-5` with `ZRB_LLM_SMALL_MODEL=deepseek:deepseek-chat`, resolving the *small* model. `ZRB_LLM_MULTIMODAL_MODEL` behaves identically.
-
-| `ZRB_LLM_API_KEY` | `ZRB_LLM_BASE_URL` | `DEEPSEEK_API_KEY` | Endpoint | Key sent | Why |
-|---|---|---|---|---|---|
-| — | — | — | — | ❌ `UserError: set DEEPSEEK_API_KEY` | nothing to use |
-| — | — | ✅ | `api.deepseek.com` | `DEEPSEEK_API_KEY` | vendor variable |
-| — | ✅ | *any* | your URL | `api-key-not-set` ⚠️ | gateway, no key configured |
-| ✅ | — | — | — | ❌ `UserError: set DEEPSEEK_API_KEY` | key withheld — it is an OpenAI key |
-| ✅ | — | ✅ | `api.deepseek.com` | `DEEPSEEK_API_KEY` | key withheld, vendor variable fills in |
-| ✅ | ✅ | *any* | your URL | `ZRB_LLM_API_KEY` | base URL disables withholding |
+So `ZRB_LLM_SMALL_MODEL=deepseek:…` beside `ZRB_LLM_MODEL=openai:…` never sends the OpenAI key to DeepSeek; it falls back to `DEEPSEEK_API_KEY`.
 
 > ⚠️ **A base URL with no key anywhere sends an unauthenticated request** carrying the placeholder `api-key-not-set`. That is deliberate (local Ollama or LiteLLM often needs no key), but an endpoint that checks answers with a 401, not a configuration error.
 
-> ⚠️ **A withheld key is not mentioned in the error.** Rows 4 and 5 above say "set `DEEPSEEK_API_KEY`" without noting `ZRB_LLM_API_KEY` was skipped as another provider's key. Set the second vendor's own variable, or set `ZRB_LLM_BASE_URL` if one endpoint serves both.
-
-A key is scoped to the provider it was configured for rather than injected into every request, so one vendor's key is never sent to another.
+> ⚠️ **A withheld key is not mentioned in the error.** When `ZRB_LLM_API_KEY` is skipped as another vendor's key, the error only says "set `DEEPSEEK_API_KEY`". Set the second vendor's own variable, or set `ZRB_LLM_BASE_URL` if one endpoint serves both.
 
 ### Supported Providers
 
@@ -213,8 +162,8 @@ Rate limits and token budgets guard against runaway loops, cost, and provider li
 |----------|-------------|---------|
 | `ZRB_LLM_MAX_REQUEST_PER_MINUTE` | Max API requests per minute | `60` |
 | `ZRB_LLM_MAX_REQUEST_PER_RUN` | Max model requests in one agent run before it halts — the backstop for a run that stops converging. `0` disables. | `300` |
-| `ZRB_LLM_MAX_TOKEN_PER_MINUTE` | Max tokens processed per minute | `128000` |
-| `ZRB_LLM_MAX_TOKEN_PER_REQUEST` | Hard context window limit. The effective per-request budget is the **lower** of this and the model's known context window (`gpt-4o` 128k, `gpt-4.1` 1M, Claude 3/4 200k, Gemini 1.5/2/3 1M); models zrb doesn't recognise keep this cap. | `128000` |
+| `ZRB_LLM_MAX_TOKENS_PER_MINUTE` | Max tokens processed per minute (`ZRB_LLM_MAX_TOKEN_PER_MINUTE` is still read) | `128000` |
+| `ZRB_LLM_MAX_TOKENS_PER_REQUEST` | Hard context window limit (`ZRB_LLM_MAX_TOKEN_PER_REQUEST` is still read). The effective per-request budget is the **lower** of this and the model's known context window (`gpt-4o` 128k, `gpt-4.1` 1M, Claude 3/4 200k, Gemini 1.5/2/3 1M); models zrb doesn't recognise keep this cap. | `128000` |
 | `ZRB_LLM_THROTTLE_SLEEP` | Seconds to pause when rate-limited | `1.0` |
 | `ZRB_ENABLE_TIKTOKEN` | Use tiktoken for accurate counting | `off` (false) |
 | `ZRB_TIKTOKEN_ENCODING_NAME` | Tiktoken encoding scheme (`ZRB_TIKTOKEN_ENCODING` is still read) | `cl100k_base` |
@@ -306,10 +255,6 @@ What each profile changes and how `auto` reads a model id: [Programming the Prom
 
 Each task exposes its `PromptManager` as `task.prompt_manager`; `prompt_registry` in `zrb_init.py` sets the default every task starts from. Appending content, per-turn live context, and overriding a built-in prompt file are covered in [Programming the Prompt](../llm/programming-the-prompt.md) (rungs 5–7); the lookup chain a file override follows is the [hierarchy above](#prompt-customization-hierarchy).
 
-### Telling the LLM about a custom tool
-
-A tool's usage guidance belongs in its **docstring**, which pydantic-ai ships with its schema on every request. Cross-cutting policy goes through `append_prompt()`. Rarely-needed tools can use `Tool(fn, defer_loading=True)` so their schema loads only once the model searches for them. Worked example: [Telling the LLM how to use a tool](../llm/extending-the-llm.md#telling-the-llm-how-to-use-a-tool).
-
 ### Restricting the toolbox (`ZRB_LLM_TOOLS`)
 
 `ZRB_LLM_TOOLS` is the env twin of `tool_registry`: a **name allowlist** of static tools. Empty (default) means all built-in + registered tools.
@@ -354,12 +299,7 @@ How the journal works (storage layout, when the index is injected, how truncatio
 
 Before each AI turn, Zrb snapshots your working directory so `/rewind` can restore any earlier state mid-session.
 
-**How it works:**
-
-1. Each snapshot is a commit in a private git repository (`<ZRB_LLM_SNAPSHOT_DIR>/<directory-name>-<hash>.git`) whose work tree is your directory. Nothing is copied; no repository's own history, index or objects are touched. The first snapshot of a session runs in the background.
-2. Each git repository under the directory lists its files by its own `.gitignore` — nested clones, submodules, every repository in a folder of repositories, and a repository its parent ignores included. Files outside any repository (and a working directory its repository ignores, such as a scratch folder) are taken as they are, except common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …).
-3. Conversations in a directory share its repository, so unchanged files are stored once; each keeps its own history (`refs/zrb/<conversation-name>-<hash>`). `/load` switches rewind to the loaded conversation's history; `/save` copies the current history to the new name along with the chat.
-4. `/rewind` lists the current conversation's snapshots; `/rewind <n>` or `/rewind <sha>` restores both the filesystem and conversation history.
+**How it works:** each snapshot is a commit in a private git store under `ZRB_LLM_SNAPSHOT_DIR` whose work tree is your directory, so nothing is copied and your own repositories' history, index and objects are never touched. Every repository under the directory is snapshotted by its own `.gitignore` (nested clones and submodules included); files outside any repository are taken as they are, minus common cache directories (`node_modules/`, `.venv/`, `__pycache__/`, …). Each conversation keeps its own rewind history: `/load` switches to the loaded conversation's history, and `/save` copies the current one to the new name.
 
 **Limits and guarantees:**
 
@@ -405,15 +345,6 @@ task = LLMChatTask(
 | `/rewind <sha>` | Restore by full or partial SHA |
 
 Restoring rewinds **both** files and conversation history, so the AI's context matches the restored files.
-
-### Snapshot store layout
-
-```mermaid
-flowchart LR
-    Root["~/.zrb/llm-snapshots/"] --> Store["&lt;directory-name&gt;-&lt;hash&gt;.git/ — bare repo, work tree = your working directory"]
-    Store --> Refs["refs/zrb/&lt;session-name&gt;-&lt;hash&gt; — one history per conversation"]
-    Store --> Index["index — the directory's stat cache, shared by its conversations"]
-```
 
 ---
 
@@ -579,12 +510,13 @@ flowchart LR
 
 ## 13. Timeout Configuration
 
+Task-runtime timings that are not LLM-specific (readiness checks, the scheduler tick, process cleanup, web shutdown) are in [General Environment Variables → Task Runtime](./env-vars.md#task-runtime).
+
 Values are in **milliseconds** unless the row says otherwise.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_SSE_KEEPALIVE_TIMEOUT` | How long to wait before sending an SSE keepalive ping (ms) | `60000` |
-| `ZRB_WEB_SHUTDOWN_TIMEOUT` | Graceful web server shutdown timeout (ms) | `10000` |
 | `ZRB_LLM_REQUEST_TIMEOUT` | Deadline for one model request, for every agent (main, sub-agent, programmatic). Catches a provider that accepts the connection then stops sending, which no retry detects. `0` disables. (ms) | `300000` |
 | `ZRB_LLM_INPUT_QUEUE_TIMEOUT` | Polling interval for the chat input queue (ms) | `500` |
 | `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
@@ -592,8 +524,6 @@ Values are in **milliseconds** unless the row says otherwise.
 | `ZRB_LLM_WEB_PAGE_TIMEOUT` | Playwright page load timeout (ms) | `30000` |
 | `ZRB_LLM_WEB_HTTP_TIMEOUT` | HTTP request timeout for web tools and search (ms) | `30000` |
 | `ZRB_LLM_MODEL_FETCH_TIMEOUT` | Timeout for fetching Ollama model list (ms) | `5000` |
-| `ZRB_CMD_CLEANUP_TIMEOUT` | Time to wait for a process to exit after interrupt before killing (ms) | `2000` |
-| `ZRB_TASK_READINESS_TIMEOUT` | Default readiness-wait timeout for any task that does not set `readiness_timeout` itself; bounds the initial wait and each monitoring re-check round. `0` disables the cap, so a check that never returns hangs the run (ms) | `60000` |
 | `ZRB_LLM_GIT_CMD_TIMEOUT` | Timeout for the git commands that build live/system context — branch, status, log, and the is-a-git-dir probe (ms). Does not apply to agent-invoked git work (snapshots, worktrees). | `5000` |
 
 ---
@@ -609,10 +539,6 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_UI_REFRESH_INTERVAL` | Prompt-toolkit application refresh rate (ms) | `500` |
 | `ZRB_LLM_UI_FLUSH_INTERVAL` | How often buffered output is flushed to event-driven UIs (ms) | `500` |
 | `ZRB_LLM_UI_PASTE_MERGE_WINDOW` | Merge messages submitted within this many ms of the previous one into one — so a multi-line paste in a terminal without bracketed paste does not become one LLM turn per line. `0` disables. | `100` |
-| `ZRB_SCHEDULER_TICK_INTERVAL` | How often the Scheduler task checks its cron pattern (ms) | `60000` |
-| `ZRB_HTTP_CHECK_INTERVAL` | Default polling interval for `HttpCheck` tasks (ms) | `5000` |
-| `ZRB_TCP_CHECK_INTERVAL` | Default polling interval for `TcpCheck` tasks (ms) | `5000` |
-| `ZRB_TASK_READINESS_DELAY` | Initial delay before starting readiness checks (ms) | `500` |
 
 ---
 
@@ -630,13 +556,12 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |
 | `ZRB_LLM_IMAGE_JPEG_QUALITY` | JPEG quality (1-95) for re-encoding photos; PNGs are unaffected | `85` |
 | `ZRB_LLM_MAX_ATTACHMENT_BYTES` | Maximum file size (bytes) accepted by `/attach` and the other attachment paths (web chat upload, chat-telegram example) — checked before the file is read. `0` or negative disables the cap. | `20000000` |
-| `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
 | `ZRB_LLM_UI_MAX_BUFFER_SIZE` | Maximum buffered output chars before a forced flush (event-driven UIs) | `2000` |
 | `ZRB_LLM_MAX_SKILLS_IN_CATALOG` | Skills listed in the prompt's skill catalogue before truncating with a pointer to `SearchSkill` (which always reaches the rest) — a token-economy cap. `0` or negative lists all. | `10` |
 | `ZRB_LLM_MAX_AGENTS_IN_ROSTER` | Sub-agents listed in the delegation tools' AVAILABLE AGENTS roster before truncating with a pointer to `SearchAgent` (which always reaches the rest) — a token-economy cap. `0` or negative lists all. | `10` |
 | `ZRB_LLM_MAX_PARALLEL_DELEGATIONS` | Max sub-agent tasks one `DelegateToAgent` fan-out (`tasks=[...]`) runs at once. Each is its own LLM run on the shared rate limiter (and, with `isolate_worktree`, its own git worktree). Paces concurrency, not total: a 50-task call still runs all 50, at most N in flight. `0` or negative disables. | `10` |
 
-> 💡 `ZRB_LLM_MAX_IMAGE_DIMENSION` and `ZRB_LLM_IMAGE_JPEG_QUALITY` also apply to `/photo` captures (see § 23), which are downscaled and re-encoded like pasted or attached images.
+> 💡 `ZRB_LLM_MAX_IMAGE_DIMENSION` and `ZRB_LLM_IMAGE_JPEG_QUALITY` also apply to `/photo` captures (see [§ 21](#camera)), which are downscaled and re-encoded like pasted or attached images.
 
 ---
 
@@ -676,21 +601,11 @@ Customize the tokens that trigger built-in UI commands. Each value is a **comma-
 
 > ⚠️ **Don't guess the variable from the command.** Several differ: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`, `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`. A wrong name is ignored; zrb warns about it at startup, but the "did you mean" it suggests can be the wrong knob (`ZRB_LLM_UI_COMMAND_YOLO` suggests `..._LOAD`).
 >
-> `/photo`, `/voice`, `/handsfree` and `/speech` belong to the camera, dictation and speech features; their aliases are `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS`, `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` (§ 23).
+> `/photo`, `/voice`, `/handsfree` and `/speech` belong to the camera, dictation and speech features; their aliases are `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS`, `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` ([§ 21](#21-voice-and-camera)).
 
 ---
 
-## 18. Pagination Configuration
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ZRB_WEB_SESSION_PAGE_SIZE` | Default page size for chat session listings | `20` |
-| `ZRB_WEB_API_PAGE_SIZE` | Default page size for generic API list endpoints | `20` |
-| `ZRB_WEB_TASK_SESSION_PAGE_SIZE` | Default page size for task session listings | `10` |
-
----
-
-## 19. LSP Server Selection
+## 18. LSP Server Selection
 
 LSP-backed tools (`AnalyzeCode`, the `Lsp*` tools) pick a server per file: your preference first, then the first *installed* server (command on `PATH`) matching the file's extension.
 
@@ -711,7 +626,7 @@ Empty (default) uses installation/registry order. See [LSP Support](../llm/lsp-s
 
 ---
 
-## 20. TUI Color Styles
+## 19. TUI Color Styles
 
 Colors for the `zrb llm chat` terminal UI. Each value is a [prompt_toolkit style string](https://python-prompt-toolkit.readthedocs.io/en/master/pages/advanced_topics/styling.html) — a hex color (`#ffcc00`), an ANSI name (`ansigreen`, `ansiyellow`), and/or attributes like `bold`. The special value `noinherit` resets to terminal defaults.
 
@@ -785,7 +700,7 @@ These two toggle content conversion rather than color:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_THEME` | Named palette supplying the defaults for every `LLM_UI_STYLE_*` / `CLI_COLOR_*` / `CLI_STYLE_*` knob | `dark` |
+| `ZRB_THEME` | Named palette supplying the defaults for every `LLM_UI_STYLE_*` knob here and the `CLI_COLOR_*` / `CLI_STYLE_*` knobs in [CLI Semantic Colors](./env-vars.md#cli-semantic-colors) | `dark` |
 
 Built-ins: `dark` (the historical defaults) and `light` (dark-on-light). An unknown name logs a warning and falls back to `dark`.
 
@@ -831,48 +746,13 @@ To make your own, copy one and adjust the `ZRB_LLM_UI_STYLE_*` values; they appl
 
 ---
 
-## 21. Sandbox Configuration
+## 20. Sandbox Configuration
 
-Opt-in filesystem containment for LLM tool calls — see [Sandbox](../llm/sandbox.md) for the full model (two enforcement layers, platform matrix, escape hatch).
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ZRB_LLM_SANDBOX_ENABLED` | Master switch for the sandbox (Python FS gate + OS shell wrapper). | `off` |
-| `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` wraps shell commands with `sandbox-exec` (macOS) / `bwrap` (Linux); `off` keeps only the Python FS gate. | `auto` |
-| `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | Colon-separated (semicolon on Windows) writable roots. Empty = automatic (cwd + system temp dir). | (empty) |
-| `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | Colon-separated (semicolon on Windows) never-read paths (credential stores). Setting it replaces the built-in default list. | built-in list |
-| `ZRB_LLM_SANDBOX_FALLBACK` | `warn` runs unsandboxed with a visible warning when no OS mechanism exists (Windows, Linux without bwrap); `deny` refuses. | `warn` |
-| `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | Whether the `dangerously_skip_sandbox` tool argument is honored. Set `false` for CI / non-interactive deployments. | `on` |
+Opt-in filesystem containment for LLM tool calls, off by default. Its six knobs — `ZRB_LLM_SANDBOX_ENABLED`, `ZRB_LLM_SANDBOX_OS_SHELL`, `ZRB_LLM_SANDBOX_WRITABLE_PATHS`, `ZRB_LLM_SANDBOX_DENY_READ_PATHS`, `ZRB_LLM_SANDBOX_FALLBACK`, `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` — are documented with the model they configure in [Sandbox](../llm/sandbox.md#configuration).
 
 ---
 
-## 22. CLI Semantic Colors
-
-ANSI colors for plain terminal output (outside the TUI). Each `_COLOR_*` value is a color name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or their `bright_*` variants). Each `_STYLE_*` value is a style name (`bold`, `faint`, `italic`, `underline`, `blink_slow`, `blink_fast`, `reversed`, `hide`, `crossed_out`). Leave a variable unset (or set to `""`) to suppress that attribute.
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ZRB_CLI_COLOR_MUTED` | Foreground color for de-emphasized output | _(none)_ |
-| `ZRB_CLI_STYLE_MUTED` | Style for de-emphasized output | `faint` |
-| `ZRB_CLI_COLOR_WARNING` | Foreground color for warning messages | `yellow` |
-| `ZRB_CLI_STYLE_WARNING` | Style for warning messages | `bold` |
-| `ZRB_CLI_COLOR_ERROR` | Foreground color for error messages | `red` |
-| `ZRB_CLI_STYLE_ERROR` | Style for error messages | `bold` |
-| `ZRB_CLI_COLOR_SUCCESS` | Foreground color for success messages | `green` |
-| `ZRB_CLI_STYLE_SUCCESS` | Style for success messages | _(none)_ |
-| `ZRB_CLI_COLOR_HIGHLIGHT` | Foreground color for highlighted text (session names, commands) | `yellow` |
-| `ZRB_CLI_STYLE_HIGHLIGHT` | Style for highlighted text | `bold` |
-| `ZRB_CLI_COLOR_INFO` | Foreground color for informational messages | `cyan` |
-| `ZRB_CLI_STYLE_INFO` | Style for informational messages | _(none)_ |
-| `ZRB_CLI_COLOR_TODO_PROJECT` | Color for todo project tags (`+project`) | `yellow` |
-| `ZRB_CLI_COLOR_TODO_CONTEXT` | Color for todo context tags (`@context`) | `cyan` |
-| `ZRB_CLI_COLOR_TODO_KEYVAL` | Color for todo key:value pairs | `magenta` |
-
-> These affect `stylize_warning`, `stylize_error`, `stylize_muted` (alias: `stylize_faint`/`stylize_log`), `stylize_highlight`, `stylize_info`, `stylize_success`, and the `stylize_todo_*` helpers. Physical helpers (`stylize_yellow`, `stylize_red`, etc.) are unaffected — they always produce their named color.
-
----
-
-## 23. Voice and Camera
+## 21. Voice and Camera
 
 Three optional features of `zrb llm chat`, each added with one call and read from these variables **when a session starts**, so `zrb_init.py` may change them after importing zrb. A setting passed to `CameraConfig`, `DictationConfig` or `SpeechConfig` in code wins over its variable; see [Voice and camera](../llm/voice-camera.md) for that, [Programming the Voice](../llm/programming-the-voice.md) for recipes and Python extension points, and [Voice & Photo Troubleshooting](../llm/voice-photo-troubleshooting.md) for platform setup. Audio dependencies (sounddevice, numpy, vosk) load only when the microphone first opens, costing nothing at startup.
 
@@ -1035,5 +915,3 @@ From a shell, the two phrase tables are JSON:
 ```bash
 export ZRB_LLM_SPEECH_PROGRESS_PHRASES='{"Read": "Membaca berkas.", "Shell": "Menjalankan perintah.", "*": "Memakai {tool}."}'
 ```
-
----

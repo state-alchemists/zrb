@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > Architecture > Change Map
+🔖 [Documentation Home](../README.md) > Architecture > Change Map
 
 # Change Map
 
@@ -15,10 +15,12 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 
 | I want to… | Open | Then read |
 | --- | --- | --- |
-| Add a task type | `src/zrb/task/base/` | [Task Execution](1-spine/task-execution.md) |
+| Add a task type | `src/zrb/task/`, subclassing `BaseTask` | [The Task Model](1-spine/task-model.md) |
+| Change how inputs, envs or templated values resolve | `src/zrb/input/`, `src/zrb/env/`, `src/zrb/util/attr.py` | [The Task Model](1-spine/task-model.md) |
+| Change how a command line finds a task | `src/zrb/group/group.py`, `src/zrb/runner/cli.py` | [The Task Model](1-spine/task-model.md) |
 | Change retries, timeout or readiness | `src/zrb/task/base/execution.py` | [Task Execution](1-spine/task-execution.md) |
 | Add or rename a tool | `src/zrb/llm/tool/` | [Tools](2-extension-surface/tools.md) |
-| Change what the terminal shows | `src/zrb/llm/ui/base/ui.py` | [UI](2-extension-surface/ui.md) |
+| Change what the terminal shows | `src/zrb/llm/ui/default/` | [UI](2-extension-surface/ui.md) |
 | Change the system prompt or a mandate | `src/zrb/llm/prompt/manager.py` | [Prompts](2-extension-surface/prompts.md) |
 | Add a hook point, or change matching | `src/zrb/llm/hook/manager.py` | [Hooks](2-extension-surface/hooks.md) |
 | Add a config knob | `src/zrb/config/mixins/` | [Config](2-extension-surface/config.md) |
@@ -27,6 +29,9 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Change what the model may touch | `src/zrb/llm/permission/`, `src/zrb/llm/sandbox/` | [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md) |
 | Change the agent loop itself | `src/zrb/llm/agent/run/runner.py` | [The LLM Turn](1-spine/llm-turn.md) |
 | Change history persistence or summarization | `src/zrb/llm/history_manager/` | [History & Compaction](3-peripheral-flow/history-and-compaction.md) |
+| Change how skills are found or activated, or add a slash command | `src/zrb/llm/skill/`, `src/zrb/llm/custom_command/` | [Skills & Commands](2-extension-surface/skills-and-commands.md) |
+| Change how a model name becomes a model, or the rate limits | `src/zrb/llm/config/model_resolver.py`, `src/zrb/llm/config/limiter.py` | [The LLM Turn](1-spine/llm-turn.md) |
+| Add a speech or dictation backend | `src/zrb/llm/voice/`, `src/zrb/llm/dictation/backend/`, `src/zrb/llm/speech/backend/` | [Voice on Pipecat](3-peripheral-flow/voice-on-pipecat.md) |
 
 ## By symptom
 
@@ -42,6 +47,9 @@ These are the ones whose cause is not where the symptom appears.
 | The model cannot see a file it should | `sandbox_gate` blocked it at the execution chokepoint, which is a separate check from approval | [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md) |
 | A tool the model called is not in the tool list | The name resolved differently: check `canonical_tool_name` and `resolve_tools_by_name`, and whether the tool loads eagerly or by name | [Tools](2-extension-surface/tools.md) |
 | Nothing appears in the terminal | The run has no UI, or a child run inherited one that buffers instead of printing | [UI](2-extension-surface/ui.md) |
+| A `{...}` in a command runs verbatim instead of being filled in | A plain string is a literal; only a `Tpl` is rendered | [The Task Model](1-spine/task-model.md) |
+| A task in `zrb_init.py` does not show up as a command | It was declared but never registered, or another task took its alias; zrb prints a diagnostic at startup | [The Task Model](1-spine/task-model.md) |
+| A project skill is ignored | Check whether a skill of the same name is found elsewhere, and the `CFG.LLM_SKILLS` allowlist | [Skills & Commands](2-extension-surface/skills-and-commands.md) |
 | A hook never fires | The event type did not match, or the hook came from a skill whose frontmatter was not picked up | [Hooks](2-extension-surface/hooks.md) |
 | An edited mandate has no effect | The prompt was resolved from a different layer — local prompt dir before packaged files | [Prompts](2-extension-surface/prompts.md) |
 | A config value is ignored | The value was read before it was set, or the resolution order picked a different layer | [Config](2-extension-surface/config.md) |
@@ -82,4 +90,4 @@ Read the test before changing an area; it is the precise statement of what the c
 - [Framework Conventions](../contributing/framework-conventions.md) — the enforced code rules
 - [Where the code lives](../../AGENTS.md) — the repository map
 
-🔖 [Documentation Home](../../README.md) > Architecture > Change Map
+🔖 [Documentation Home](../README.md) > Architecture > Change Map

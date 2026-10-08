@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Harness Comparison
+🔖 [Documentation Home](../README.md) > [LLM](./) > Harness Comparison
 
 # Choosing Between Agent Harnesses
 

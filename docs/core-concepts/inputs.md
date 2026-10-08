@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > Inputs
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > Inputs
 
 # User Inputs (Input)
 
@@ -152,4 +152,4 @@ An input name with dashes is also readable in snake_case: `is-admin` is `ctx.inp
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > Inputs
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > Inputs

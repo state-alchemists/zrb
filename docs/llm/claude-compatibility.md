@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Claude Code Compatibility
+🔖 [Documentation Home](../README.md) > [LLM](./) > Claude Code Compatibility
 
 # Claude Code Compatibility
 
@@ -135,7 +135,49 @@ Tool names are zrb's tool names (`Read`, `Write`, `Edit`, `Grep`, `Glob`, `Shell
 
 ## 4. Hooks (hooks.json)
 
-Zrb supports Claude-compatible lifecycle hooks, read from `hooks.json` and `hooks/` under `~/.zrb/`, `~/.claude/`, and the `.zrb/`/`.claude/` directories from the filesystem root down to the current directory, plus the `hooks` block of Claude's `settings.json`/`settings.local.json`. See the [Hooks Guide](./hooks.md) for the full [discovery order](./hooks.md#hook-locations), configuration, and [differences from Claude Code](./hooks.md#differences-from-claude-code).
+Zrb supports Claude-compatible lifecycle hooks, read from `hooks.json` and `hooks/` under `~/.zrb/`, `~/.claude/`, and the `.zrb/`/`.claude/` directories from the filesystem root down to the current directory, plus the `hooks` block of Claude's `settings.json`/`settings.local.json`. See the [Hooks Guide](./hooks.md) for the full [discovery order](./hooks.md#hook-locations) and configuration.
+
+### Differences from Claude Code
+
+The runtime is a separate implementation; the differences below **change outcomes**, so adjust a ported hook that relies on any of them.
+
+#### Behavioral differences
+
+| # | Area | Claude Code | Zrb |
+|---|------|-------------|-----|
+| 1 | **Multi-hook execution** | All matching hooks run **in parallel**; identical commands are deduplicated | Hooks run **sequentially**, ordered by the zrb-only `priority` field |
+| 2 | **Conflict resolution** | **Most-restrictive wins** (`deny` > `defer` > `ask` > `allow`) regardless of order | **First decisive result wins** (highest priority first) |
+| 3 | **`additionalContext` from multiple hooks** | Merged from **all** hooks | Only the **first** non-empty value is used; the rest are dropped |
+| 4 | **`PostToolUse` block** | Tool already ran; block halts the turn and feeds the reason back — **the tool result stays** in context | Block **discards** the tool result and replaces it with a "Tool result blocked…" message |
+| 5 | **`PreToolUse` `permissionDecision: "ask"`** | Always shows the approval prompt | Forces the prompt **only on the approval path** (tools that require approval). For auto-approved tools it degrades to "proceed" — there is no prompt to show |
+| 6 | **`SubagentStop` blocking** | Supports `decision: "block"` to force the subagent to continue | **Observe-only** — a block is ignored |
+| 7 | **`Notification` firing** | Fires for permission prompts, 60s idle, auth, elicitation, etc. | Fires only for elicitation (`notification_type='elicitation_dialog'`, from the ask/question tool). No permission-prompt or idle notifications — permission prompts route to the `PermissionRequest` event instead, and there is no idle timer |
+| 8 | **Legacy `decision: "approve"`** | Auto-approves a `PreToolUse` call (deprecated form) | Ignored — auto-approve only via `permissionDecision: "allow"` |
+
+> The `exit 2` reason channel (stderr), `PostToolUse` `additionalContext`, and the `Notification` matcher field (`notification_type`) **were** divergences and are now Claude-compatible — see the [changelog](../changelog/README.md).
+
+#### Matcher value coverage (matchers fire on a subset of Claude's values)
+
+| Event | Claude values | Zrb values |
+|-------|---------------|------------|
+| `SessionStart` (`source`) | `startup`, `resume`, `clear`, `compact` | `startup`, `resume` only |
+| `PreCompact` / `PostCompact` (`trigger`) | `manual`, `auto` | `auto` only |
+| `StopFailure` (`error_type`) | includes `max_output_tokens`, `oauth_org_not_allowed`, `billing_error` | uses `context_length` (not `max_output_tokens`); lacks `oauth_org_not_allowed` / `billing_error` |
+
+A matcher keyed on a value zrb never emits simply never fires.
+
+#### Events and types zrb does not implement
+
+- **Claude-only events** (no zrb counterpart): `Setup`, `UserPromptExpansion`, `PostToolBatch`, `PermissionDenied`, `TeammateIdle`, `Elicitation` / `ElicitationResult`, `FileChanged`, `CwdChanged`, `ConfigChange`, `InstructionsLoaded`, `TaskCreated` / `TaskCompleted`, `WorktreeCreate` / `WorktreeRemove`, `MessageDisplay`.
+- **Claude-only hook types / options**: `http` and `mcp_tool` hook types, the `if` argument-level filter (e.g. `Bash(git *)`), `asyncRewake` / `once`, command exec-form `args`, and `disableAllHooks`. (`async` is honored.) From a Claude-format `settings.json`, zrb loads `command` hooks only — any other type is skipped; `prompt` and `agent` hooks exist only in zrb's own hook files. A Claude-format hook without a `timeout` gets `ZRB_HOOKS_TIMEOUT` (30s), not Claude Code's 600s.
+
+#### Zrb-only events (no Claude counterpart)
+
+- `PreCommand` / `PostCommand` — bracket a UI command in the chat TUI (Claude's nearest analogue is `UserPromptExpansion`, with a different contract).
+
+#### What ports cleanly
+
+Single-hook configurations using the common contract behave the same in both: `PreToolUse` deny / allow / `updatedInput` / `permissionDecisionReason`, `UserPromptSubmit` block + `continue: false` + `additionalContext`, `SessionStart` `additionalContext` (including plain-stdout-as-context), `Stop` block-to-continue (8-block cap, `stop_hook_active`) and `systemMessage` extension (its own separate 8-message cap), `PermissionRequest` `decision.behavior`, `PreCompact` block, and tool-name matchers (including the `Bash` / `Task` aliases).
 
 ---
 
@@ -172,4 +214,4 @@ Hooks are the exception: they are read from `hooks.json` and `hooks/` directly u
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Claude Code Compatibility
+🔖 [Documentation Home](../README.md) > [LLM](./) > Claude Code Compatibility

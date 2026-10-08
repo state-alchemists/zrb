@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Configuration](./) > Environment Variables
+🔖 [Documentation Home](../README.md) > [Configuration](./) > Environment Variables
 
 # General Environment Variables
 
@@ -6,7 +6,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 > This page is about Zrb's *own* config knobs (read via the `CFG` singleton). Looking for how to define environment variables for *your own tasks* instead? See [Core Concepts: Environments (Envs)](../core-concepts/environments.md).
 
-> This page covers the general knobs; the LLM, TUI, voice and task-runtime ones are in [LLM & Rate Limiter Configuration](./llm-config.md). `zrb config explain` (optionally `--keyword <text>`) prints every setting with its current value and description.
+> This page covers the general knobs; the LLM, chat TUI and voice ones are in [LLM & Rate Limiter Configuration](./llm-config.md). `zrb config explain` (optionally `--keyword <text>`) prints every setting with its current value and description.
 
 > **Note on White-labeling:** If you have customized `_ZRB_ENV_PREFIX` (e.g., in `__main__.py` for a custom CLI), remember to replace `ZRB_` with your custom prefix (e.g., `ACME_LOGGING_LEVEL`).
 
@@ -28,6 +28,8 @@ A *retired* setting still in your environment is named at startup too, with what
 - [Core Configuration](#core-configuration)
 - [File Discovery & Loading](#file-discovery--loading)
 - [Directories and Files](#directories-and-files)
+- [Task Runtime](#task-runtime)
+- [CLI Semantic Colors](#cli-semantic-colors)
 - [Web UI Configuration](#web-ui-configuration-experimental)
 - [Interactive Editing](#interactive-editing-diff-tools)
 
@@ -99,6 +101,51 @@ A *retired* setting still in your environment is named at startup too, with what
 
 ---
 
+## Task Runtime
+
+Timings for the task engine itself. Values are in **milliseconds** unless the row says otherwise.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_WEB_SHUTDOWN_TIMEOUT` | Graceful web server shutdown timeout (ms) | `10000` |
+| `ZRB_CMD_CLEANUP_TIMEOUT` | Time to wait for a process to exit after interrupt before killing (ms) | `2000` |
+| `ZRB_TASK_READINESS_TIMEOUT` | Default readiness-wait timeout for any task that does not set `readiness_timeout` itself; bounds the initial wait and each monitoring re-check round. `0` disables the cap, so a check that never returns hangs the run (ms) | `60000` |
+| `ZRB_SCHEDULER_TICK_INTERVAL` | How often the Scheduler task checks its cron pattern (ms) | `60000` |
+| `ZRB_HTTP_CHECK_INTERVAL` | Default polling interval for `HttpCheck` tasks (ms) | `5000` |
+| `ZRB_TCP_CHECK_INTERVAL` | Default polling interval for `TcpCheck` tasks (ms) | `5000` |
+| `ZRB_TASK_READINESS_DELAY` | Initial delay before starting readiness checks (ms) | `500` |
+| `ZRB_CMD_BUFFER_LIMIT` | Asyncio subprocess read-buffer limit in bytes | `102400` |
+
+---
+
+## CLI Semantic Colors
+
+ANSI colors for plain terminal output (outside the TUI). Each `_COLOR_*` value is a color name (`black`, `red`, `green`, `yellow`, `blue`, `magenta`, `cyan`, `white`, or their `bright_*` variants). Each `_STYLE_*` value is a style name (`bold`, `faint`, `italic`, `underline`, `blink_slow`, `blink_fast`, `reversed`, `hide`, `crossed_out`). Leave a variable unset (or set to `""`) to suppress that attribute.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_CLI_COLOR_MUTED` | Foreground color for de-emphasized output | _(none)_ |
+| `ZRB_CLI_STYLE_MUTED` | Style for de-emphasized output | `faint` |
+| `ZRB_CLI_COLOR_WARNING` | Foreground color for warning messages | `yellow` |
+| `ZRB_CLI_STYLE_WARNING` | Style for warning messages | `bold` |
+| `ZRB_CLI_COLOR_ERROR` | Foreground color for error messages | `red` |
+| `ZRB_CLI_STYLE_ERROR` | Style for error messages | `bold` |
+| `ZRB_CLI_COLOR_SUCCESS` | Foreground color for success messages | `green` |
+| `ZRB_CLI_STYLE_SUCCESS` | Style for success messages | _(none)_ |
+| `ZRB_CLI_COLOR_HIGHLIGHT` | Foreground color for highlighted text (session names, commands) | `yellow` |
+| `ZRB_CLI_STYLE_HIGHLIGHT` | Style for highlighted text | `bold` |
+| `ZRB_CLI_COLOR_INFO` | Foreground color for informational messages | `cyan` |
+| `ZRB_CLI_STYLE_INFO` | Style for informational messages | _(none)_ |
+| `ZRB_CLI_COLOR_TODO_PROJECT` | Color for todo project tags (`+project`) | `yellow` |
+| `ZRB_CLI_COLOR_TODO_CONTEXT` | Color for todo context tags (`@context`) | `cyan` |
+| `ZRB_CLI_COLOR_TODO_KEYVAL` | Color for todo key:value pairs | `magenta` |
+
+> These affect `stylize_warning`, `stylize_error`, `stylize_muted` (alias: `stylize_faint`/`stylize_log`), `stylize_highlight`, `stylize_info`, `stylize_success`, and the `stylize_todo_*` helpers. Physical helpers (`stylize_yellow`, `stylize_red`, etc.) are unaffected — they always produce their named color.
+
+`ZRB_THEME` (see [LLM Configuration → Themes](./llm-config.md#themes-zrb_theme)) supplies the defaults for these knobs; an individual export still wins.
+
+---
+
 ## Web UI Configuration (Experimental)
 
 Zrb's experimental Web UI has dedicated configuration options.
@@ -131,6 +178,14 @@ Zrb's experimental Web UI has dedicated configuration options.
 | `ZRB_WEB_SUPER_ADMIN_PASSWORD` | Super admin password | `admin` |
 
 > ⚠️ **Security Warning:** Change default credentials before deploying to production!
+
+### Pagination
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_WEB_SESSION_PAGE_SIZE` | Default page size for chat session listings | `20` |
+| `ZRB_WEB_API_PAGE_SIZE` | Default page size for generic API list endpoints | `20` |
+| `ZRB_WEB_TASK_SESSION_PAGE_SIZE` | Default page size for task session listings | `10` |
 
 ### Appearance
 

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Configuration](./) > LLM Component Collections
+🔖 [Documentation Home](../README.md) > [Configuration](./) > LLM Component Collections
 
 # LLM Component Collections: Registries, Managers & the Three Channels
 
@@ -163,7 +163,7 @@ Components resolve by *layering*, not winner-take-all precedence. Each layer fal
 
 ```
 manager deltas — append/prepend/remove ops        layered over ↓
-manager's own value — constructor arg, prompts=, set_*  (falls through ↓ when unset/None)
+manager's own value — constructor arg, prompts= / .prompts = (falls through ↓ when unset/None)
         ↓
 registry contents — discovered + manual           (including everything zrb_init.py added)
         ↓
@@ -172,7 +172,7 @@ CFG twin (ZRB_LLM_* env var)                     (restricts the default/discover
 code default                                     (lowest)
 ```
 
-Concretely: `PromptManager(prompts=None)` reads `prompt_registry` *live* on every query; unless the registry was mutated in `zrb_init.py`, the registry's own default resolves `CFG.LLM_PROMPT`; the empty list is the code backstop. A manager's `append_prompt`/`remove_prompt` deltas are replayed over that live value, so registry or env changes *after* the append stay visible. `set_prompts` (or `prompts=`) replaces that layer's own value wholesale and clears its deltas — the layer below is then ignored. Same shape for skills (`SkillManager(registry=None)`), sub-agents, hooks, and tools.
+Concretely: `PromptManager(prompts=None)` reads `prompt_registry` *live* on every query; unless the registry was mutated in `zrb_init.py`, the registry's own default resolves `CFG.LLM_PROMPT`; the empty list is the code backstop. A manager's `append_prompt`/`remove_prompt` deltas are replayed over that live value, so registry or env changes *after* the append stay visible. Assigning `manager.prompts = [...]` (or passing `prompts=`) replaces that layer's own value wholesale and clears its deltas; on the registry the same operation is `prompt_registry.set_prompts(...)` — the layer below is then ignored. Same shape for skills (`SkillManager(registry=None)`), sub-agents, hooks, and tools.
 
 ## Deferred defaults: seeds, deltas, and lazy reads
 
@@ -222,4 +222,4 @@ Two lookalikes with one letter of difference, resolved differently:
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Configuration](./) > LLM Component Collections
+🔖 [Documentation Home](../README.md) > [Configuration](./) > LLM Component Collections

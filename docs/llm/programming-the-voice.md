@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Programming the Voice
+🔖 [Documentation Home](../README.md) > [LLM](./) > Programming the Voice
 
 # Programming the Voice
 
@@ -11,7 +11,7 @@ text-to-speech itself.
 This page is the practical companion to [Voice and Camera](voice-camera.md):
 it starts with working configurations, then shows the Python extension points.
 The exhaustive environment-variable reference is [LLM Configuration → Voice
-and Camera](../configuration/llm-config.md#23-voice-and-camera).
+and Camera](../configuration/llm-config.md#21-voice-and-camera).
 
 ## Table of contents
 
@@ -276,6 +276,7 @@ player command can only stop the sentence currently being played.
 When the built-in backends are not enough, implement `AnySpeechBackend`:
 
 ```python
+import json
 import urllib.request
 
 from zrb.llm.speech import AnySpeechBackend, SpeechConfig, enable_speech
@@ -286,8 +287,8 @@ class LocalTTS(AnySpeechBackend):
     def create_utterance(self, text: str):
         request = urllib.request.Request(
             "http://localhost:5002/api/tts",
-            data=text.encode(),
-            headers={"Content-Type": "text/plain"},
+            data=json.dumps({"text": text}).encode(),
+            headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(request, timeout=10) as response:
             return create_wav_utterance(response.read())
@@ -357,4 +358,4 @@ application; they do not require the built-in `llm_chat` task.
 For microphone setup, device permissions, and platform-specific failures, see
 [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Programming the Voice
+🔖 [Documentation Home](../README.md) > [LLM](./) > Programming the Voice

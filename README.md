@@ -266,84 +266,17 @@ See the [CI/CD Integration Guide](docs/advanced-topics/ci-cd.md) for examples wi
 
 ## 🗺️ Documentation Directory
 
-Zrb scales from a one-line `zrb please` to a hundred-node pipeline with an agent in the middle.
+**[📚 The full documentation index](docs/README.md)** lists every page, grouped by what you came to do.
 
-> **Here for the agent?** [Programming the Agent](docs/llm/programming-the-agent.md) → [Extending the LLM](docs/llm/extending-the-llm.md) → [Permission Policy](docs/llm/permission-policy.md).
->
-> **Here to write pipelines?** [Tasks & Execution Lifecycle](docs/core-concepts/tasks-and-lifecycle.md) → [CLI and Groups](docs/core-concepts/cli-and-groups.md) → [Inputs](docs/core-concepts/inputs.md).
->
-> Prefer copy-pasting a working example? See [`examples/`](examples/README.md).
->
-> `docs/adr/` and `docs/technical-specs/` are maintainer-facing design history, not part of the reading path below.
+| You are… | Start with |
+|---|---|
+| New to zrb | [Installation](docs/installation/installation.md) → [your first task](docs/installation/installation.md#3-verify-installation) → [your first LLM chat](docs/installation/installation.md#first-llm-chat) |
+| Here for the agent | [LLM docs index](docs/llm/README.md) → [Programming the Agent](docs/llm/programming-the-agent.md) → [Permission Policy](docs/llm/permission-policy.md) |
+| Writing pipelines | [Tasks & Execution Lifecycle](docs/core-concepts/tasks-and-lifecycle.md) → [CLI and Groups](docs/core-concepts/cli-and-groups.md) → [Inputs](docs/core-concepts/inputs.md) |
+| Configuring zrb | [Environment Variables](docs/configuration/env-vars.md), [LLM Configuration](docs/configuration/llm-config.md) |
+| Contributing | [Contributing](docs/contributing/README.md) → [Architecture](docs/architecture/README.md) → [ADRs](docs/adr/README.md) |
 
-### I. The Agent
-Shaping `zrb llm chat` and the LLM task types.
-- [Choosing Between Agent Harnesses](docs/llm/harness-comparison.md) — zrb `llm chat` vs Claude Code, opencode, DeepSeek Harness, and Pi: when each is the right tool
-- [Programming the Agent](docs/llm/programming-the-agent.md) — the overview: every way to shape agent behavior in Python (tools, hooks, dynamic prompts, history processors, agent-as-pipeline-node)
-- [Programming the Prompt](docs/llm/programming-the-prompt.md) — the ladder from a plain-string `message` up to a composed `PromptManager`; feeding a `CmdTask`'s output into `LLMTask`/`LLMChatTask`
-- [Programming the Voice](docs/llm/programming-the-voice.md) — voice recipes, dictation input, spoken responses, and TTS backends
-- [LLM Assistant & AI Tasks](docs/llm/llm-integration.md) — interactive chat, `LLMTask`/`LLMChatTask` usage
-- [Voice and Camera](docs/llm/voice-camera.md) — `/photo`, push-to-talk and hands-free dictation, replies read aloud, and plugging in your own backend
-- [Voice & Photo Troubleshooting](docs/llm/voice-photo-troubleshooting.md) — microphone/camera setup per platform, including WSL2 camera passthrough
-- [Extending the LLM](docs/llm/extending-the-llm.md) — built-in tools, custom tools, sub-agents, model capabilities, context management
-- [Custom UI](docs/llm/llm-custom-ui.md) — build a TUI, web/SSE, or chat-bot front end for `LLMChatTask`
-- [Permission Policy System](docs/llm/permission-policy.md) — fine-grained tool control & security gates
-- [Sandbox](docs/llm/sandbox.md) — filesystem containment for LLM tool calls
-- [Plan Mode](docs/llm/plan-mode.md) — read-only discovery & strategy phase
-- [LLMChatTask API Reference](docs/task-types/llmchat-task.md) — builder API, TUI configuration
-- [LLM Chat Request Lifecycle](docs/llm/llm-chat-lifecycle.md) — end-to-end tour: CLI → agent run → UI → history persistence
-- [Hook System (Claude Code Compatible)](docs/llm/hooks.md)
-- [MCP Support (Model Context Protocol)](docs/llm/mcp-support.md)
-- [LSP Support (Language Server Protocol)](docs/llm/lsp-support.md)
-- [Technical Spec: LLM Journal System](docs/technical-specs/llm-context.md)
-- [Claude Code Compatibility](docs/llm/claude-compatibility.md)
-
-### II. Core Concepts
-The foundational pillars of the framework.
-- [Tasks & Execution Lifecycle](docs/core-concepts/tasks-and-lifecycle.md)
-- [CLI and Groups](docs/core-concepts/cli-and-groups.md)
-- [Inputs](docs/core-concepts/inputs.md)
-- [Environments (Envs)](docs/core-concepts/environments.md)
-- [Session, Context & XCom](docs/core-concepts/session-and-context.md)
-- [The `@make_task` Decorator](docs/core-concepts/make-task.md) — (advanced) full parameter reference
-- [XCom Deep Dive](docs/core-concepts/xcom-deep-dive.md) — (advanced) patterns & pitfalls
-
-### III. Task Types
-All task types available in Zrb, from basic to advanced.
-- [Task & CmdTask](docs/task-types/basic-tasks.md) — Python actions and shell commands
-- [Custom Tasks](docs/task-types/custom-tasks.md) — subclassing `BaseTask` with async patterns
-- [Readiness: HttpCheck & TcpCheck](docs/task-types/readiness-checks.md)
-- [Automation: Triggers & Schedulers](docs/task-types/triggers-and-schedulers.md)
-- [File Ops: Scaffolder & RsyncTask](docs/task-types/file-ops.md)
-- [Built-in Helper Tasks](docs/task-types/builtin-helpers.md) (Git, Base64, UUID, HTTP, etc.)
-
-### IV. Advanced Topics
-- [Web UI Guide](docs/advanced-topics/web-ui.md)
-- [White-labeling: Create a Custom CLI](docs/advanced-topics/white-labeling.md)
-- [CI/CD Integration](docs/advanced-topics/ci-cd.md)
-- [Logging](docs/advanced-topics/logging.md) — Python logging vs. task-level context logging
-- [Testing Zrb Tasks](docs/advanced-topics/testing-tasks.md) — mocking context, testing pipelines
-- [Upgrading Guide](docs/advanced-topics/upgrading-guide.md)
-
-### V. Contributing
-- [Which pattern do I reach for?](docs/contributing/which-pattern.md) — lookup table for the pattern zrb expects when adding new code
-- [Architecture & Conventions](docs/contributing/architecture.md) — for maintainers and contributors
-- [Architecture: The Design of Zrb](docs/architecture/README.md) — each part's problem, principles and invariants, then where they live in the code
-- [Framework Conventions](docs/contributing/framework-conventions.md) — the enforced R1–R12 rules
-- [Maintainer Guide](docs/contributing/maintainer-guide.md) — start here to contribute code
-- [Technical Spec: Context Propagation](docs/technical-specs/context-propagation.md) — the `ContextVar` layers and their scoping rules
-- [Technical Spec: LLM History Sanitization](docs/technical-specs/llm-history-sanitization.md) — provider quirks and the history-repair pipeline
-
-### VI. Configuration
-- [Environment Variables & Overrides](docs/configuration/env-vars.md)
-- [LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)
-- [LLM Component Collections](docs/configuration/llm-collections.md) — registries, managers, and the three configuration channels for skills, agents, hooks, prompts, and tools
-
-### VII. Examples
-- [`examples/`](examples/README.md) — runnable `zrb_init.py` for every topic above, grouped by category
-
-### VIII. Changelog
-- [Changelog](docs/changelog/README.md) — full release history
+Prefer copy-pasting a working example? See [`examples/`](examples/README.md). Release history is in the [Changelog](docs/changelog/README.md).
 
 ---
 

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md)
+🔖 [Documentation Home](../README.md)
 
 # Changelog
 
@@ -90,4 +90,4 @@
 - [2.0.0-2.0.19](v2/2.0.0-2.0.19.md)
 - [Changelog v1](v1.md)
 
-🔖 [Documentation Home](../../README.md)
+🔖 [Documentation Home](../README.md)

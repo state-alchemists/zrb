@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Sandbox Enforcement
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Sandbox Enforcement
 
 # Sandbox Enforcement
 
@@ -144,4 +144,4 @@ Neither wrapper unshares the network or the process IDs, so the command runs in 
 - [Sandbox](../../llm/sandbox.md) — configuring it, the user-facing guide
 - [ADR-0101](../../adr/adr-0101.md) — snapshots and rewind, the way to undo what an allowed call changed
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Sandbox Enforcement
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Sandbox Enforcement

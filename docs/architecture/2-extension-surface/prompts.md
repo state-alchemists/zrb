@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Prompts
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Prompts
 
 # Prompts
 
@@ -83,19 +83,19 @@ flowchart TD
 
 ### How it runs
 
-Each run composes the prompt fresh. The chat task first binds the current model to the manager, so a `/model` switch picks the right profile on the next turn.
+`LLMTask` composes the prompt fresh on every turn. The manager's model is bound when the chat session starts and again by the `/model` command, so a switch picks the right profile on the next turn.
 
 ```mermaid
 sequenceDiagram
-    participant C as ChatExecution
+    participant T as LLMTask
     participant P as PromptManager
     participant G as get_prompt
     participant A as create_agent
-    C->>P: bind model, compose
+    T->>P: compose
     P->>G: load each file section
     G-->>P: section text
-    P-->>C: system prompt
-    C->>A: build agent with prompt
+    P-->>T: system prompt
+    T->>A: build agent with prompt
 ```
 
 Inside `compose_prompt`, the manager:
@@ -143,4 +143,4 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 - [Programming the Prompt](../../llm/programming-the-prompt.md) — the user-facing guide to overriding and extending
 - [LLM Configuration](../../configuration/llm-config.md) — section, directory and profile settings
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Prompts
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Prompts

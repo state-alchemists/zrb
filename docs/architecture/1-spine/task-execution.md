@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Task Execution
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Task Execution
 
 # Task Execution
 
@@ -158,4 +158,4 @@ sequenceDiagram
 - [Session, Context & XCom](../../core-concepts/session-and-context.md) — the three state objects
 - [Web Requests](../3-peripheral-flow/web-requests.md) — the other way a task gets started
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Task Execution
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Task Execution

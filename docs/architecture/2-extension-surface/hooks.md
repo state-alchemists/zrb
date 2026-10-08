@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Hooks
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Hooks
 
 # Hooks
 
@@ -137,4 +137,4 @@ sequenceDiagram
 - [Hook System](../../llm/hooks.md) — how to write and configure a hook
 - [Claude Compatibility](../../llm/claude-compatibility.md) — the external format in detail
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Hooks
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Hooks

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > File Operations
+🔖 [Documentation Home](../README.md) > [Task Types](./) > File Operations
 
 # File Operations
 
@@ -167,4 +167,4 @@ deploy_remote = cli.add_task(
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > File Operations
+🔖 [Documentation Home](../README.md) > [Task Types](./) > File Operations

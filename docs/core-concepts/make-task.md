@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > The @make_task Decorator
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > The @make_task Decorator
 
 # The `@make_task` Decorator
 
@@ -98,16 +98,7 @@ def my_function(ctx):
 
 ### Readiness Checks
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `readiness_check` | `None` | Task(s) that probe readiness (e.g., HTTP check) |
-| `readiness_check_delay` | `None` → 0.5s | Seconds to wait after starting the action before the first check. Unset, it comes from `ZRB_TASK_READINESS_DELAY` (milliseconds, default `500`) |
-| `readiness_check_period` | `5` | Seconds between checks while monitoring (`monitor_readiness=True`) |
-| `readiness_failure_threshold` | `1` | Consecutive check failures tolerated before the task is declared failed |
-| `readiness_timeout` | `None` → 60s | Seconds the readiness checks may take before the task fails. Caps the initial wait **and** each re-check round — see note below |
-| `monitor_readiness` | `False` | Keep checking periodically *after* ready, and restart the action if the checks start failing |
-
-> **`readiness_timeout` caps both waits.** Left unset (`None`), it takes its value from the `ZRB_TASK_READINESS_TIMEOUT` environment variable (milliseconds), which defaults to `60000` — so a readiness check that never completes fails the task after 60s instead of hanging the run. Set the parameter per task, or the environment variable to change the default for every task. An explicit `0` (or a negative value) removes the cap, and a check that never returns then waits forever.
+`readiness_check`, `readiness_check_delay`, `readiness_check_period`, `readiness_failure_threshold`, `readiness_timeout` and `monitor_readiness` work the same on every task type; they are documented in [Readiness Checks → Parameters](../task-types/readiness-checks.md#readiness-parameters).
 
 ### Dependencies & Flow Control
 
@@ -219,4 +210,4 @@ def compute_value(ctx):
 
 > **Tip:** Use `@make_task` for 90% of your tasks. Reserve direct `Task()` instantiation for in-line lambda tasks and subclassing for reusable task types.
 
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > The @make_task Decorator
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > The @make_task Decorator

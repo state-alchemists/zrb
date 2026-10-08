@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Web UI
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > Web UI
 
 # Web UI (Graphical Interface)
 
@@ -159,4 +159,4 @@ You can customize the visual styling of the Web UI using environment variables.
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Web UI
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > Web UI

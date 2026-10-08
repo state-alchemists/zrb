@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Contributing](./) > Architecture, Philosophy, & Conventions
+🔖 [Documentation Home](../README.md) > [Contributing](./) > Architecture, Philosophy, & Conventions
 
 # Zrb Architecture, Philosophy, & Conventions
 
@@ -41,7 +41,7 @@ For the design behind this flow and a diagram of it, see [Architecture → Task 
 Instead of threading `session`, `logger`, or `env` through every single function signature, Zrb relies on `contextvars` (specifically `current_ctx`).
 * **Why:** In deeply nested task execution, passing context variables explicitly clutters the API and developer experience.
 * **How it works:** When a task begins execution, it binds its specific `AnyContext` to the `current_ctx`. `asyncio` natively propagates context variables to child coroutines. Functions deeper in the stack can retrieve the active context via `get_current_ctx()`.
-* **Discoverability:** `src/zrb/contextvars.py` is a re-export index of the codebase's ambient `ContextVar`s (currently nineteen, across task / agent / permission / sandbox / tool layers). Open that file when you need to know "what ambient state is in scope here?" — [Context Propagation](../technical-specs/context-propagation.md) has the per-layer tables, the scoping and inheritance patterns (including how a delayed sub-agent continuation keeps its original authority via `AuthoritySnapshot`), and the thread/task gotchas.
+* **Discoverability:** `src/zrb/contextvars.py` is a re-export index of the codebase's ambient `ContextVar`s, across the task, agent, permission, sandbox and tool layers. Open that file when you need to know "what ambient state is in scope here?" — [Context Propagation](../technical-specs/context-propagation.md) has the per-layer tables, the scoping and inheritance patterns (including how a delayed sub-agent continuation keeps its original authority via `AuthoritySnapshot`), and the thread/task gotchas.
 
 ### Ergonomic Data Access (`DotDict`)
 Zrb uses a custom dictionary subclass called `DotDict` for `ctx.env`, `ctx.input`, and `ctx.xcom`.
@@ -87,4 +87,4 @@ When an exception occurs deep within `asyncio.gather`, standard tracebacks are o
 We defer execution of dynamic parameters. Every `*Attr` alias accepts `Tpl` — a wrapper around a string containing single-brace `{ctx.x}` expressions, rendered by `ctx.render()`. This is Python f-string syntax, not Jinja2 (Jinja2 is used only for the web UI's HTML page templates, `src/zrb/runner/web_route/jinja_env.py`).
 * **Convention:** Rendering is opt-in — a bare `str` attribute is a **literal** and must never be rendered, so braces meant for the shell survive untouched. Resolve an attribute by passing it through the `zrb.util.attr.get_*_attr` helpers immediately before execution; they call a `Tpl`/callable with the live context, so the most up-to-date Environment Variables or XCom data is picked up.
 
-🔖 [Documentation Home](../../README.md) > [Contributing](./) > Architecture, Philosophy, & Conventions
+🔖 [Documentation Home](../README.md) > [Contributing](./) > Architecture, Philosophy, & Conventions

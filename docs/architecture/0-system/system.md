@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > The System
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > The System
 
 # The System
 
@@ -43,17 +43,13 @@ Zrb runs tasks you write in Python, from a terminal or from a browser, and one o
 
 ### Invariants
 
-Each one fails silently if broken: the code keeps running and does the wrong thing.
+These hold across the whole system. Each subsystem's own invariants live on its page — the diamond rule on [Task Execution](../1-spine/task-execution.md), the deny rule on [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md), the capability tags on [Tools](../2-extension-surface/tools.md), the bind check on [Web Requests](../3-peripheral-flow/web-requests.md). Each one below fails silently if broken: the code keeps running and does the wrong thing.
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| A task reached by two paths at once runs once | A deploy or migration runs twice, concurrently | `test/task/base/test_execution_readiness.py::test_diamond_upstreams_run_readiness_task_once` |
 | `import zrb` declares no pydantic model | Every command, even `--help`, pays for pydantic's schema machinery | `test/architecture/test_eager_pydantic_models.py::test_importing_zrb_declares_no_pydantic_model` |
 | Every built-in task module is wired into the CLI | A shipped task never appears in `zrb` | `test/builtin/test_registration_completeness.py::test_every_task_module_on_disk_is_wired_into_the_cli` |
-| Every built-in tool carries a known capability | It is treated as unknown: denied in plan mode, with no error | `test/llm/test_common_tools.py::test_every_registered_tool_carries_a_known_capability` |
-| A denied tool call never reaches the tool | The agent acts against the user's policy | `test/llm/permission/test_state_and_gate.py::test_gate_blocks_denied_tool` |
-| A network-exposed web server never starts without real credentials | Anyone on the network can run tasks and shell commands | `test/runner/test_cli_server_bind.py::test_start_server_refuses_insecure_bind` |
-| `pydantic_ai.Agent` is built only by `create_agent` | A second agent path skips the tool wrapper, and with it the permission and sandbox checks | **unpinned** |
+| Every `pydantic_ai.Agent` zrb builds goes through `create_agent`; an `Agent` or `agent_factory` the user supplies is used as given | A second agent path skips the tool wrapper, and with it the permission and sandbox checks | **unpinned** |
 
 ## Realization
 
@@ -76,12 +72,13 @@ flowchart TD
 | `serve_cli` | `src/zrb/__main__.py` | The `zrb` console script: loads every `zrb_init.py`, then hands `argv` to the CLI |
 | `Cli` | `src/zrb/runner/cli.py` | The root group: resolves `argv` to a task or group and runs it |
 | `create_web_app` | `src/zrb/runner/web_app.py` | The web runner: pages, the task-run API and the chat API |
-| `BaseTask` | `src/zrb/task/base/` | The engine: graph walk, readiness, retries, fallbacks — see [Task Execution](../1-spine/task-execution.md) |
+| `BaseTask` | `src/zrb/task/base/` | The engine: graph walk, readiness, retries, fallbacks — see [The Task Model](../1-spine/task-model.md) and [Task Execution](../1-spine/task-execution.md) |
 | `SharedContext`, `Session`, `Context` | `src/zrb/context/`, `src/zrb/session/` | The three tiers of state for one run |
 | `LLMTask`, `LLMChatTask` | `src/zrb/llm/task/` | Tasks that build and drive an agent |
 | `run_agent` | `src/zrb/llm/agent/run/runner.py` | One agent turn: model, tool calls, history — see [The LLM Turn](../1-spine/llm-turn.md) |
-| `create_agent` | `src/zrb/llm/agent/common.py` | The only place a `pydantic_ai.Agent` is built, wrapping every tool call in the safety checks |
+| `create_agent` | `src/zrb/llm/agent/common.py` | Where zrb builds every `pydantic_ai.Agent`, wrapping every tool call in the safety checks |
 | `CFG` | `src/zrb/config/` | Every setting, read from the environment when used |
+| `src/zrb/contextvars.py` | `src/zrb/contextvars.py` | The index of every ambient `ContextVar`, its owning module and its typed wrapper — see [Context Propagation](../../technical-specs/context-propagation.md) |
 
 ### How it runs
 
@@ -90,6 +87,15 @@ flowchart TD
 **Inside the engine.** `run` starts an event loop, finds the root tasks the target depends on, and runs each chain. A task runs when every upstream is ready or skipped; its result goes into XCom under its name; then its downstreams get their turn. [Task Execution](../1-spine/task-execution.md) walks through it.
 
 **When the task is the agent.** `zrb llm chat` is an `LLMChatTask`. For each message it runs an inner `LLMTask`, which builds an agent through `create_agent` and calls `run_agent`. The agent reaches the world only through tools, every tool call passes the permission and sandbox checks, and the UI, prompt and hooks are extension points around that loop. [The LLM Turn](../1-spine/llm-turn.md) walks through it.
+
+**The gates on a tool call.** Every tool call the model makes passes the same gates, in this order. Each has its own page:
+
+| Gate | When it runs | Where it is explained |
+| --- | --- | --- |
+| Approval: `PreToolUse` hook, tool policies, permission rules, yolo, then a person | Only for a call the rules or yolo hold for approval | [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) |
+| `PreToolUse` hook | At the execution checkpoint, on every call | [Hooks](../2-extension-surface/hooks.md) |
+| `permission_gate` | At the checkpoint: a denied call never runs, whatever approved it | [Tools](../2-extension-surface/tools.md) |
+| `sandbox_gate` and the OS sandbox | At the checkpoint, when the sandbox is on | [Sandbox Enforcement](../3-peripheral-flow/sandbox-enforcement.md) |
 
 **From the browser.** `zrb server start` is itself a task. It serves `create_web_app`, whose routes resolve a URL in the same group tree and call `async_run` on the task — see [Web Requests](../3-peripheral-flow/web-requests.md).
 
@@ -127,4 +133,4 @@ For anything else — the engine, the web, history, the sandbox — or when you 
 - [Architecture, Philosophy & Conventions](../../contributing/architecture.md) — the why behind the shape
 - [Framework Conventions](../../contributing/framework-conventions.md) — the enforced code rules (R1–R12)
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > The System
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > The System

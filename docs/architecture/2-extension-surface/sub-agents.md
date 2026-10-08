@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Sub-agents
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Sub-agents
 
 # Sub-agents
 
@@ -157,4 +157,4 @@ sequenceDiagram
 - [Context Propagation](../../technical-specs/context-propagation.md) — `ContextVar` scoping and `AuthoritySnapshot`
 - [Programming the Agent](../../llm/programming-the-agent.md) — how to write an agent definition
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Sub-agents
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Sub-agents

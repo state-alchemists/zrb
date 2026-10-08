@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Programming the Agent
+🔖 [Documentation Home](../README.md) > [LLM](./) > Programming the Agent
 
 # Programming the Agent
 
@@ -158,4 +158,4 @@ For an **interactive** variant, swap `LLMTask` for `LLMChatTask` and seed the co
 - [LLM Chat Request Lifecycle](llm-chat-lifecycle.md) — how a turn flows end to end
 - [Hook System](hooks.md) · [Permission Policy](permission-policy.md) · [Custom UI](llm-custom-ui.md)
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Programming the Agent
+🔖 [Documentation Home](../README.md) > [LLM](./) > Programming the Agent

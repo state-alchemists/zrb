@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > LLM Integration
+🔖 [Documentation Home](../README.md) > [LLM](./) > LLM Integration
 
 # LLM Integration (AI Assistant)
 
@@ -189,4 +189,4 @@ custom_chat = cli.add_task(
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > LLM Integration
+🔖 [Documentation Home](../README.md) > [LLM](./) > LLM Integration

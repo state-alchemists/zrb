@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Testing Zrb Tasks
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > Testing Zrb Tasks
 
 # Testing Zrb Tasks
 
@@ -19,19 +19,7 @@ Zrb tasks are Python code, so they can be tested with standard Python testing to
 
 ## Test File Organization
 
-Tests live in the `test/` directory, mirroring the `src/` structure:
-
-```mermaid
-flowchart LR
-    T["test/"] --> Conf["conftest.py — shared fixtures"]
-    T --> B["builtin/"]
-    T --> L["llm/"]
-    T --> K["task/"]
-    B --> BG["test_git_commands.py"]
-    L --> LP["prompt/"]
-    LP --> LPM["test_manager.py"]
-    K --> KB["base/test_base_task.py"]
-```
+Keep task tests next to your project's other tests (for example a `test_my_tasks.py`), and put shared fixtures in a `conftest.py`. Import the module that defines your tasks, then exercise each task as shown below.
 
 ### Basic Fixture (`conftest.py`)
 
@@ -230,35 +218,14 @@ def test_task_dependencies():
 
 ## Running Tests
 
-The recommended way to run tests in this repo is the project's `zrb-test.sh` script from the project root. It runs the full suite through `pytest` and additionally runs `flake8 src/zrb --select=F` (which fails on unused or duplicate imports). A full run (no path arguments) also type-checks with `pyright src/zrb` and enforces a minimum coverage gate of 95%; a scoped run skips those two:
-
 ```bash
-# Activate virtual environment first
-source .venv/bin/activate
-
-# Run all tests (pytest + flake8 F-checks + pyright + coverage gate)
-./zrb-test.sh
-
-# Scope to a file, directory, or a single test function
-./zrb-test.sh test/task/base/test_base_task.py
-./zrb-test.sh test/task/base/test_base_task.py::test_some_function
+pytest                       # everything
+pytest -k my_tasks            # only matching tests
+pytest -v                    # verbose
+pytest --cov=my_project      # with coverage (needs pytest-cov)
 ```
 
-For a quicker, narrower check without the flake8/pyright/coverage gates, you can invoke `pytest` directly:
-
-```bash
-# Run all tests
-poetry run pytest
-
-# Run specific test file
-poetry run pytest test/task/base/test_base_task.py
-
-# Run with verbose output
-poetry run pytest -v
-
-# Run with coverage
-poetry run pytest --cov=src/zrb
-```
+> Working on zrb itself? Its test runner (`./zrb-test.sh`) and gates are described in the [Maintainer Guide](../contributing/maintainer-guide.md).
 
 ---
 
@@ -275,7 +242,7 @@ def test_pipeline():
     assert upstream_task in downstream_task.upstreams
 
 # Run tests
-poetry run pytest test/
+pytest
 ```
 
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Testing Zrb Tasks
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > Testing Zrb Tasks

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > Tasks & Execution Lifecycle
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > Tasks & Execution Lifecycle
 
 # Tasks & Execution Lifecycle
 
@@ -254,4 +254,4 @@ flowchart TB
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Core Concepts](./) > Tasks & Execution Lifecycle
+🔖 [Documentation Home](../README.md) > [Core Concepts](./) > Tasks & Execution Lifecycle

@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > CI/CD Integration
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > CI/CD Integration
 
 # CI/CD Integration for Zrb Projects
 
@@ -23,7 +23,7 @@ The key principle is to leverage the official Zrb Docker image (`stalchmst/zrb`)
 
 The recommended way to run Zrb commands in a CI/CD environment is by using the official Docker image: `stalchmst/zrb`.
 
-> ⚠️ **Important:** Always specify a version tag (e.g., `stalchmst/zrb:3.0.0`) for reproducible builds, rather than using `latest`.
+> ⚠️ **Important:** Always specify a version tag (e.g., `stalchmst/zrb:<version>`, where `<version>` is the release you tested against) for reproducible builds, rather than using `latest`.
 
 Find available tags on [Docker Hub](https://hub.docker.com/r/stalchmst/zrb/tags).
 
@@ -38,7 +38,7 @@ cli.add_task(CmdTask(name="test", cmd="pytest"))
 cli.add_task(CmdTask(name="lint", cmd="flake8 ."))
 ```
 
-Swap `pytest` / `flake8 .` for whatever your project actually uses. Skip this file and both `zrb test` and `zrb lint` fail with an unknown-subcommand error and exit non-zero, so the CI step goes red instead of silently passing.
+Swap `pytest` / `flake8 .` for whatever your project actually uses. The image installs zrb without any development tools, so `pytest` and `flake8` are **not** in it: install your project's test dependencies in the pipeline first (for example `pip install -r requirements-dev.txt`), or have the task do it (`cmd="pip install pytest && pytest"`). Skip this file and both `zrb test` and `zrb lint` fail with an unknown-subcommand error and exit non-zero, so the CI step goes red instead of silently passing.
 
 ### `ZRB_INIT_STRICT` Already Covers You Here
 
@@ -92,7 +92,7 @@ jobs:
   run-zrb-tasks:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:3.0.0
+      image: stalchmst/zrb:<version>
 
     steps:
       - name: Check out repository code
@@ -133,7 +133,7 @@ GitLab CI/CD uses a `.gitlab-ci.yml` file in the root of your repository.
 ### Example Pipeline
 
 ```yaml
-image: stalchmst/zrb:3.0.0
+image: stalchmst/zrb:<version>
 
 stages:
   - setup
@@ -181,7 +181,7 @@ Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file.
 ### Example Pipeline
 
 ```yaml
-image: stalchmst/zrb:3.0.0
+image: stalchmst/zrb:<version>
 
 pipelines:
   default:
@@ -222,7 +222,7 @@ pipelines:
 
 | Approach | Pros | Cons |
 |----------|------|------|
-| `stalchmst/zrb:3.0.0` | Reproducible builds | Manual updates needed |
+| `stalchmst/zrb:<version>` | Reproducible builds | Manual updates needed |
 | `stalchmst/zrb:latest` | Always newest | May break unexpectedly |
 
 Update the version tag deliberately when ready to adopt newer features or fixes.
@@ -241,4 +241,4 @@ Update the version tag deliberately when ready to adopt newer features or fixes.
 
 ---
 
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > CI/CD Integration
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > CI/CD Integration

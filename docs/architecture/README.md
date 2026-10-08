@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > Architecture
+🔖 [Documentation Home](../README.md) > Architecture
 
 # Architecture
 
@@ -17,7 +17,7 @@ The design is the source. The [ADRs](../adr/README.md) record each decision in d
 
 ## Where to start
 
-Read [The System](0-system/system.md) first. It's one page with one map and the rules that hold everywhere. Then read [Task Execution](1-spine/task-execution.md) and [The LLM Turn](1-spine/llm-turn.md). That's about thirty minutes, and everything else in this section builds on it.
+Read [The System](0-system/system.md) first. It's one page with one map and the rules that hold everywhere. Then read the spine: [The Task Model](1-spine/task-model.md), [Task Execution](1-spine/task-execution.md) and [The LLM Turn](1-spine/llm-turn.md). That's under an hour, and everything else in this section builds on it.
 
 ## How each page reads
 
@@ -45,8 +45,8 @@ The pages go from general to specific. Each tier is useful on its own, and each 
 | Tier | The question it answers | Pages |
 | --- | --- | --- |
 | **0 · System** `0-system/` | What are the parts, and what must never break? | [The System](0-system/system.md) |
-| **1 · Spine** `1-spine/` | How does work flow, end to end? | [Task Execution](1-spine/task-execution.md), [The LLM Turn](1-spine/llm-turn.md) |
-| **2 · Extension surface** `2-extension-surface/` | How do I add or change behaviour? | [Tools](2-extension-surface/tools.md), [UI](2-extension-surface/ui.md), [Prompts](2-extension-surface/prompts.md), [Hooks](2-extension-surface/hooks.md), [Config](2-extension-surface/config.md), [Sub-agents](2-extension-surface/sub-agents.md) |
+| **1 · Spine** `1-spine/` | How does work flow, end to end? | [The Task Model](1-spine/task-model.md), [Task Execution](1-spine/task-execution.md), [The LLM Turn](1-spine/llm-turn.md) |
+| **2 · Extension surface** `2-extension-surface/` | How do I add or change behaviour? | [Tools](2-extension-surface/tools.md), [UI](2-extension-surface/ui.md), [Prompts](2-extension-surface/prompts.md), [Hooks](2-extension-surface/hooks.md), [Config](2-extension-surface/config.md), [Sub-agents](2-extension-surface/sub-agents.md), [Skills & Commands](2-extension-surface/skills-and-commands.md) |
 | **3 · Peripheral flow** `3-peripheral-flow/` | How does this one feature work? | [Web Requests](3-peripheral-flow/web-requests.md), [Tool Call & Approval](3-peripheral-flow/tool-call-approval.md), [Sandbox Enforcement](3-peripheral-flow/sandbox-enforcement.md), [History & Compaction](3-peripheral-flow/history-and-compaction.md), [MCP & LSP Servers](3-peripheral-flow/mcp-and-lsp.md), [Dictation & Barge-in](3-peripheral-flow/dictation-barge-in.md), [Voice on Pipecat](3-peripheral-flow/voice-on-pipecat.md) |
 
 Tier 2 holds the parts that change most often. If you have one hour, spend it there.
@@ -55,11 +55,12 @@ Tier 2 holds the parts that change most often. If you have one hour, spend it th
 
 | If you are… | Read |
 | --- | --- |
-| New, with half an hour | [The System](0-system/system.md) → [Task Execution](1-spine/task-execution.md) → [The LLM Turn](1-spine/llm-turn.md) |
+| New, with an hour | [The System](0-system/system.md) → [The Task Model](1-spine/task-model.md) → [Task Execution](1-spine/task-execution.md) → [The LLM Turn](1-spine/llm-turn.md) |
+| Following one `zrb llm chat` message through the code | [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md), a code tour that complements [The LLM Turn](1-spine/llm-turn.md)'s design |
 | Chasing a bug | [Change Map](change-map.md), which goes from a symptom to the file that causes it |
 | About to own an area | that area's page: Design first, then the code its Realization names |
 | Reviewing a design change | the page's Principles, then the ADRs they link |
-| Writing a task or a tool, not changing zrb | the user guides instead: start at [Documentation Home](../../README.md) |
+| Writing a task or a tool, not changing zrb | the user guides instead: start at [Documentation Home](../README.md) |
 
 ## Editing these pages
 
@@ -82,5 +83,6 @@ When a principle changes, update its ADR first, then the page.
 | What are the exact tables and edge cases? | `docs/technical-specs/` |
 | Where does the code live? | `AGENTS.md`, under "Where the code lives" |
 | How do I use this feature? | the guides in `docs/llm/`, `docs/core-concepts/` and `docs/task-types/` |
+| What happens, call by call, when one chat message runs? | [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md) — a code tour; these pages are the design it follows |
 
-🔖 [Documentation Home](../../README.md) > Architecture
+🔖 [Documentation Home](../README.md) > Architecture

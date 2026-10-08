@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Custom UI
+🔖 [Documentation Home](../README.md) > [LLM](./) > Custom UI
 
 # LLM Custom UI and Approval Channels
 
@@ -54,8 +54,6 @@ flowchart TB
 | **3** | `BaseUI` | `__init__`, `append_to_output()`, `ask_user()`, `run_interactive_command()`, `run_async()` | Message loop, command handling, LLM interaction, `UIConfig`-based settings | Custom event loops, multiplexers |
 
 **Start with `SimpleUI`**; move up only when your backend requires it. Add [`BufferedOutputMixin`](#bufferedoutputmixin-rate-limited-backends) for rate-limited backends (Telegram, Discord).
-
-`test/llm/ui/test_extension_levels.py` builds a minimal subclass at each level implementing exactly the "You implement" column and registering it via `create_ui_factory`, so this table cannot silently go stale.
 
 ### How SimpleUI maps onto BaseUI
 
@@ -215,9 +213,9 @@ class TelegramUI(EventDrivenUI):
     async def print(self, text: str, kind: str = "text") -> None:
         """Send AI response to Telegram."""
         if self._app:
-            # Telegram has 4096 char limit per message
-            for chunk in self._split_message(text, 4000):
-                await self._app.bot.send_message(self.chat_id, chunk)
+            # Telegram caps a message at 4096 characters
+            for start in range(0, len(text), 4000):
+                await self._app.bot.send_message(self.chat_id, text[start:start + 4000])
 
     async def start_event_loop(self) -> None:
         """Start Telegram bot and register handlers."""
@@ -239,21 +237,6 @@ class TelegramUI(EventDrivenUI):
         while True:
             await asyncio.sleep(1)
 
-    def _split_message(self, text: str, max_len: int) -> list[str]:
-        """Split long messages while preserving word boundaries."""
-        if len(text) <= max_len:
-            return [text]
-        # Simple split - you may want smarter logic for code blocks
-        chunks = []
-        while text:
-            chunk = text[:max_len]
-            last_newline = chunk.rfind('\n')
-            if last_newline > max_len // 2:
-                chunk = text[:last_newline + 1]
-            chunks.append(chunk)
-            text = text[len(chunk):]
-        return chunks
-
 # Register: one line
 llm_chat.ui_factories = [
     create_ui_factory(TelegramUI, bot_token=BOT_TOKEN, chat_id=CHAT_ID)
@@ -263,15 +246,14 @@ llm_chat.include_default_ui = False  # Telegram only; omit to keep the terminal 
 
 ### Example: Discord Bot
 
+Discord has the same shape as Telegram; only the two backend methods change. Its client runs its own loop, and remote channels cannot render terminal colours, so strip them:
+
 ```python
-import asyncio
 import discord
-from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.ui import EventDrivenUI, create_ui_factory
+from zrb.llm.ui import EventDrivenUI
+from zrb.util.cli.style import remove_style
 
 class DiscordUI(EventDrivenUI):
-    """Discord bot using EventDrivenUI."""
-
     def __init__(self, token: str, channel_id: int, **kwargs):
         self.token = token
         self.channel_id = channel_id
@@ -279,38 +261,26 @@ class DiscordUI(EventDrivenUI):
         super().__init__(**kwargs)
 
     async def print(self, text: str, kind: str = "text") -> None:
-        """Send AI response to Discord."""
-        if self._client:
-            channel = self._client.get_channel(self.channel_id)
-            if channel:
-                # Discord has 2000 char limit
-                for chunk in [text[i:i+1900] for i in range(0, len(text), 1900)]:
-                    # Strip ANSI codes for Discord
-                    from zrb.util.cli.style import remove_style
-                    await channel.send(remove_style(chunk))
+        channel = self._client.get_channel(self.channel_id) if self._client else None
+        if channel:
+            text = remove_style(text)
+            for start in range(0, len(text), 1900):  # Discord caps a message at 2000
+                await channel.send(text[start:start + 1900])
 
     async def start_event_loop(self) -> None:
-        """Start Discord bot and register handlers."""
         intents = discord.Intents.default()
         intents.message_content = True
         self._client = discord.Client(intents=intents)
 
         @self._client.event
         async def on_message(message):
-            if message.author.bot:
-                return
-            if message.channel.id != self.channel_id:
-                return
-            self.handle_incoming_message(message.content)
+            if not message.author.bot and message.channel.id == self.channel_id:
+                self.handle_incoming_message(message.content)
 
         await self._client.start(self.token)
-
-# Register
-llm_chat.ui_factories = [
-    create_ui_factory(DiscordUI, token=DISCORD_TOKEN, channel_id=CHANNEL_ID)
-]
-llm_chat.include_default_ui = False  # Discord only; omit to keep the terminal UI too
 ```
+
+Register it exactly like the Telegram UI, with `create_ui_factory(DiscordUI, token=..., channel_id=...)`.
 
 ### HTTP API / WebSocket
 
@@ -347,7 +317,7 @@ flowchart TB
 | Item | Purpose | Complexity |
 |------|---------|------------|
 | `__init__()` | Initialize with `ctx`, `llm_task`, `history_manager`, a `ui_config`, and a handful of others | Medium (boilerplate) |
-| `append_to_output(*values, sep, end, file, flush)` | Display output | Low |
+| `append_to_output(*values, sep, end, file, flush, kind)` | Display output (`kind` defaults to `"text"`) | Low |
 | `ask_user(prompt: str)` | Block for user input | Medium |
 | `run_interactive_command(cmd, shell)` | Execute shell commands | Low (or return error) |
 | `run_async()` | Start and run the event loop | **High** — must manage lifecycle |
@@ -379,7 +349,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `is_turn_running` | `True` while `running_llm_task` runs, or while the `MultiUI` parent runs a turn for this child | Whether `cancel_current_turn` has a turn to stop; Esc checks it. A class implementing `AnyUI` directly must define it |
 | `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason`; with no turn of its own, a `MultiUI` child asks its parent to cancel the one it runs. With no turn at all, only the confirmation is released | Stop the running turn, as Esc does; a feature may call it too (hands-free dictation does, on a spoken "stop"). A class implementing `AnyUI` directly must define it |
 | `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. A class implementing `AnyUI` directly must define both |
-| `on_exit()` | No-op | Cleanup on shutdown |
+| `on_exit()` | No-op | Cleanup on shutdown. Called synchronously — schedule async cleanup with `asyncio.ensure_future(...)` |
 | `record_submitted_message(text)` | No-op | Called from `submit_user_message` with every message the user submits; the default TUI appends it to the history `↑` recalls across sessions |
 | `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
@@ -481,53 +451,39 @@ async def main():
 
 Streaming sends one API call per token chunk, which trips message-rate limits (Telegram: ~30 messages/sec, Discord: ~5 messages/sec). `BufferedOutputMixin` batches output and flushes it periodically — "H", "e", "l", "l", "o" become one `send 'Hello'` call. It also drops spinner/progress fragments that would otherwise repeat in a chat channel.
 
+Starting from the [Telegram example](#example-telegram-bot), four changes add buffering:
+
 ```python
+import asyncio
 from zrb.llm.ui import EventDrivenUI, BufferedOutputMixin
 
 class TelegramUI(EventDrivenUI, BufferedOutputMixin):
-    """Telegram UI with output buffering to avoid rate limits."""
-
     def __init__(self, bot_token: str, chat_id: int, **kwargs):
-        # Initialize EventDrivenUI
-        EventDrivenUI.__init__(self, **kwargs)
-        # Initialize buffering (0.3s interval, 3000 char max)
-        BufferedOutputMixin.__init__(self, flush_interval=0.3, max_buffer_size=3000)
-
         self.bot_token = bot_token
         self.chat_id = chat_id
         self._app = None
+        EventDrivenUI.__init__(self, **kwargs)
+        # 1. Initialize buffering (0.3s interval, 3000 char max)
+        BufferedOutputMixin.__init__(self, flush_interval=0.3, max_buffer_size=3000)
 
     async def print(self, text: str, kind: str = "text") -> None:
-        """Buffer output instead of sending immediately."""
+        # 2. Buffer output instead of sending it at once
         self.buffer_output(text)
 
     async def _send_buffered(self, text: str) -> None:
-        """Called automatically when buffer flushes."""
+        # 3. The mixin calls this hook with each flushed batch
         if self._app:
             await self._app.bot.send_message(self.chat_id, text)
 
     async def start_event_loop(self) -> None:
-        # Start bot
-        self._app = Application.builder().token(self.bot_token).build()
-
-        async def handle(update, context):
-            self.handle_incoming_message(update.message.text)
-
-        self._app.add_handler(MessageHandler(filters.TEXT, handle))
-        await self._app.initialize()
-        await self._app.start()
-        await self._app.updater.start_polling()
-
-        # Start periodic flush
-        await self.start_flush_loop()
-
-        # Keep running
+        ...  # build and start the bot as before, then:
+        await self.start_flush_loop()  # 4. Flush periodically
         while True:
             await asyncio.sleep(1)
 
-    async def on_exit(self):
-        """Clean shutdown - flush remaining buffer."""
-        await self.stop_flush_loop()
+    def on_exit(self):
+        # on_exit is called synchronously; schedule the final flush
+        asyncio.ensure_future(self.stop_flush_loop())
 ```
 
 | Parameter | Default | Description |
@@ -671,7 +627,7 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 
 ### Optional enrichment hooks
 
-`MultiUI` forwards fifteen richer output events to children that implement them, and skips children that don't — which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`. All but `set_status_badge` are left out of `AnyUI` for the same reason. Implement one only when your channel renders it better than a plain line:
+`MultiUI` forwards these richer output events to children that implement them, and skips children that don't — which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`. All but `set_status_badge` are left out of `AnyUI` for the same reason. Implement one only when your channel renders it better than a plain line:
 
 | Hook | Fired when |
 | --- | --- |
@@ -690,8 +646,6 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 | `replay_history(messages)` | A conversation is replayed on resume |
 | `set_status_badge(key, text)` | A feature sets or clears its one-line status badge |
 | `update_system_info()` | A turn ended and the child should refresh its system/git status line |
-
-The canonical list is `test/architecture/test_multi_ui_fanout_surface.py`, which fails if `MultiUI` fans out a name not on it.
 
 ---
 
@@ -853,4 +807,4 @@ async def on_message(update, context):
 | Telegram + CLI | `examples/chat-telegram/` | 2+ | Multi-UI (dual mode) |
 | HTTP API (SSE) | `examples/chat-sse/` | 2 | EventDrivenUI, CLI + SSE dual mode |
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Custom UI
+🔖 [Documentation Home](../README.md) > [LLM](./) > Custom UI

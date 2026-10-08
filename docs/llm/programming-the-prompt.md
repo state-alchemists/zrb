@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Programming the Prompt
+🔖 [Documentation Home](../README.md) > [LLM](./) > Programming the Prompt
 
 # Programming the Prompt
 
@@ -172,8 +172,6 @@ chat = cli.add_task(
         # No `message` → the TUI opens and waits for the user.
     )
 )
-
-status >> chat
 ```
 
 Now `zrb ask-repo` runs the command, hands the output to the model as background, and drops the user into a conversation about it.
@@ -312,4 +310,4 @@ See `AGENTS.md` → *LLM Prompt System*.
 - [Extending the LLM](extending-the-llm.md) — tools, sub-agents, context management
 - `AGENTS.md` → *LLM Prompt System* — section resolution, profiles and the auto ladder
 
-🔖 [Documentation Home](../../README.md) > [LLM](./) > Programming the Prompt
+🔖 [Documentation Home](../README.md) > [LLM](./) > Programming the Prompt

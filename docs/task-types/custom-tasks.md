@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > Custom Tasks
+🔖 [Documentation Home](../README.md) > [Task Types](./) > Custom Tasks
 
 # Custom Task Types (Subclassing `BaseTask`)
 
@@ -247,4 +247,4 @@ class MyCustomTask(BaseTask):
 cli.add_task(MyTask(name="my-task"))
 ```
 
-🔖 [Documentation Home](../../README.md) > [Task Types](./) > Custom Tasks
+🔖 [Documentation Home](../README.md) > [Task Types](./) > Custom Tasks

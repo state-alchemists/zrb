@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Config
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Config
 
 # Config
 
@@ -23,7 +23,7 @@ Config is every setting zrb reads that is not part of a task: the model, the web
 
 ### The problem
 
-- **There are well over a hundred settings**, across LLM, web, RAG, hooks, search, theme and limits. One class that holds them all is unreadable, and nested groups (`CFG.llm.model`) break every caller when a setting moves.
+- **There are hundreds of settings**, across LLM, web, RAG, hooks, search, theme and limits. One class that holds them all is unreadable, and nested groups (`CFG.llm.model`) break every caller when a setting moves.
 - **Values arrive two ways.** A user exports an environment variable, or a `zrb_init.py` assigns `CFG.X = ...` after zrb has already started. A reader must see the same answer either way.
 - **Some defaults depend on other settings.** A directory sits under the root group's name; a colour follows the active theme. Computing them once at import would freeze the wrong value.
 - **Released names live in users' shells and CI files.** Renaming or dropping one must not quietly turn a user's setting into a no-op.
@@ -138,4 +138,4 @@ Callers read `CFG` where the value is used, not at import. The tool-result cap i
 - [Sub-agents](sub-agents.md) — what a child run inherits besides config
 - [Dictation & Barge-in](../3-peripheral-flow/dictation-barge-in.md) — an optional feature that reads config at session start
 
-🔖 [Documentation Home](../../../README.md) > [Architecture](../README.md) > Config
+🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Config

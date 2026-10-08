@@ -1,4 +1,4 @@
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Upgrading Guide
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > Upgrading Guide
 
 # Upgrading Guide
 
@@ -8,8 +8,14 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 - [Upgrading to 3.15.0](#upgrading-to-3150)
 - [Upgrading to 3.14.0](#upgrading-to-3140)
+- [Upgrading to 3.12.0](#upgrading-to-3120)
+- [Upgrading to 3.11.0](#upgrading-to-3110)
 - [Upgrading to 3.10.0](#upgrading-to-3100)
+- [Upgrading to 3.8.0](#upgrading-to-380)
+- [Upgrading to 3.6.0](#upgrading-to-360)
 - [Upgrading to 3.3.0](#upgrading-to-330)
+- [Upgrading to 3.2.0](#upgrading-to-320)
+- [Upgrading to 3.1.0](#upgrading-to-310)
 - [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
@@ -51,6 +57,18 @@ If you were reading the tap's line (`Pipecat input pipeline: 2 speech segment(s)
 
 ---
 
+## Upgrading to 3.12.0
+
+`AnyUI` declares `cancel_current_turn(reason)`, `is_turn_running`, `is_waiting_for_answer` and `is_prompt_answered_since(asked_at)`. A UI built on `BaseUI` or `UIStateDefaultsMixin` already has them. A class that implements `AnyUI` directly must add them, or it fails to instantiate.
+
+---
+
+## Upgrading to 3.11.0
+
+`AnyUI` declares `set_status_badge(key, text)`. `BaseUI`, `MultiUI` and `UIStateDefaultsMixin` implement it; a class that implements `AnyUI` directly must add it.
+
+---
+
 ## Upgrading to 3.10.0
 
 3.10.0 moves `/photo` and `/voice` out of the UI into three optional features — camera, dictation and speech — that `zrb llm chat` enables through its public extension points ([Voice and camera](../llm/voice-camera.md)). The commands work as before; configuration, and code that reached into the UI for them, changes.
@@ -69,7 +87,7 @@ If you were reading the tap's line (`Pipecat input pipeline: 2 speech segment(s)
 | `ZRB_LLM_UI_COMMAND_VOICE` | `ZRB_LLM_DICTATION_COMMANDS` |
 | `ZRB_LLM_UI_COMMAND_PHOTO` | `ZRB_LLM_CAMERA_COMMANDS` |
 
-There are no aliases: an old variable is ignored, and from 3.12.0 zrb says so when it starts, naming what to set instead. Each command in `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` must start with `/` and is matched case-sensitively: `photo` or `/Photo` never matches `/photo`. New settings are listed in [LLM configuration § 23](../configuration/llm-config.md#23-voice-and-camera).
+There are no aliases: an old variable is ignored, and from 3.12.0 zrb says so when it starts, naming what to set instead. Each command in `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` must start with `/` and is matched case-sensitively: `photo` or `/Photo` never matches `/photo`. New settings are listed in [LLM configuration § 21](../configuration/llm-config.md#21-voice-and-camera).
 
 ### Code
 
@@ -85,6 +103,27 @@ There are no aliases: an old variable is ignored, and from 3.12.0 zrb says so wh
 | `UIConfig(voice_commands=..., photo_commands=...)` | `DictationConfig(commands=...)`, `CameraConfig(commands=...)` passed to `enable_dictation`/`enable_camera` |
 
 A custom `LLMChatTask` gets the features with `enable_camera(task)`, `enable_dictation(task)` and `enable_speech(task)`.
+
+---
+
+## Upgrading to 3.8.0
+
+Only code that reads snapshot progress or restores snapshots directly is affected.
+
+| Before | After |
+|---|---|
+| `SnapshotProgress.copied` | (removed — nothing is copied any more). Read `event.stage`, `event.skipped`, `event.reason` by name; unpacking the event by position fails |
+| `await manager.restore_snapshot(sha)` returns `bool` | returns `RestoreOutcome(restored, left_behind)`, truthy exactly when the restore ran, so `if await manager.restore_snapshot(sha):` still works |
+
+---
+
+## Upgrading to 3.6.0
+
+| Before | After |
+|---|---|
+| `task.cli_only` | `task.is_cli_only` (the `cli_only=` constructor keyword is unchanged) |
+
+`AnyUI` gained seven members, and `last_output`, `snapshot_manager` and `history_manager` are read-only in the contract. A UI built on `BaseUI` or the mixin is unaffected; a class that implements `AnyUI` directly must add them, and one that assigns `self.last_output = ...` must declare its own setter.
 
 ---
 
@@ -126,6 +165,25 @@ A UI that tolerates hosts other than `BaseUI` should reach the part, not the
 field: `getattr(ui, "usage", None)` in place of
 `getattr(ui, "session_token_usage", 0)`. `StdUI` and `MultiUI` keep none of
 this state, exactly as before.
+
+---
+
+## Upgrading to 3.2.0
+
+The fourteen stateless data utilities moved under one `util` group. Only the CLI path changes; the `from zrb.builtin import ...` names are the same.
+
+| Before | After |
+|---|---|
+| `zrb base64 encode`, `zrb md5 hash`, `zrb uuid ...`, … | `zrb util base64 encode`, `zrb util md5 hash`, `zrb util uuid ...`, … |
+
+The moved groups are `base64`, `case`, `cron`, `hash`, `hex`, `json`, `jwt`, `md5`, `number`, `random`, `time`, `ulid`, `url` and `uuid`. Update scripts and CI steps that call them.
+
+---
+
+## Upgrading to 3.1.0
+
+- **Readiness checks are capped.** A readiness check that never succeeds now fails its task after `ZRB_TASK_READINESS_TIMEOUT` (default `60000` ms) instead of hanging. Set it to `0`, or pass `readiness_timeout=0`, to restore the unbounded wait.
+- **`zrb server start` refuses an unsecured public bind.** Binding beyond loopback exits with an error when web auth is off or `ZRB_WEB_SUPER_ADMIN_PASSWORD` / `ZRB_WEB_SECRET_KEY` still hold their defaults. Enable auth with your own credentials, or bind to `127.0.0.1`. There is no override flag.
 
 ---
 
@@ -239,7 +297,7 @@ If you only use the built-in `llm_chat` task and never subclassed these directly
 
 These changes first shipped in 2.58.0; skip to [Rendering is opt-in](#rendering-is-opt-in-300b5) if you are already on 2.58.0 or later. Three changes need action. All fail loudly — `AttributeError`, `TypeError`, or `ImportError` — rather than silently doing the wrong thing, so a green test run means you are done. Env vars and prompt files are unaffected.
 
-### `add_X` on ordered collections is `append_X` or `prepend_X`
+#### `add_X` on ordered collections is `append_X` or `prepend_X`
 
 The 22 one-line aliases are gone. `add_` had stopped meaning one thing — it forwarded to `append_` nineteen times and to `prepend_` three times — so the name no longer told you where your handler landed. Position is now in the name.
 
@@ -262,7 +320,7 @@ The three bold rows are the reason for the change: they always inserted at the f
 
 `add_X` on **unordered registries** is unchanged: `skill_manager.add_skill`, `sub_agent_manager.add_agent`, `Group.add_task`, `Group.add_group`, `PromptManager.add_live_context`.
 
-### Task constructors are keyword-only after `name`
+#### Task constructors are keyword-only after `name`
 
 ```python
 Task("build")                 # still fine
@@ -272,7 +330,7 @@ Task("build", 5)              # TypeError
 
 Applies to `Task`, `CmdTask`, `LLMTask`, `LLMChatTask`, `RsyncTask`, `Scaffolder`, `Scheduler`, `HttpCheck`, `TcpCheck`, `BaseTrigger`, `BaseTask` and `make_task`. `LLMChatTask` had 73 positionally-passable parameters, so any future insertion would otherwise have been a silent breaking change.
 
-### Two renames
+#### Two renames
 
 | Before | After |
 |---|---|
@@ -281,7 +339,7 @@ Applies to `Task`, `CmdTask`, `LLMTask`, `LLMChatTask`, `RsyncTask`, `Scaffolder
 
 `AnyAttr` was defined as `Any \| fstring \| Callable[..., Any]`, which collapses to plain `Any` — it constrained nothing while looking like it did.
 
-### Rendering is opt-in (3.0.0b5)
+#### Rendering is opt-in (3.0.0b5)
 
 A bare `str` attribute is now a **literal**. Wrap a template in `Tpl` to have it rendered against the context:
 
@@ -292,7 +350,7 @@ CmdTask(cmd=Tpl("echo {ctx.input.name}"))     # rendered
 
 Every `render_*` / `auto_render` parameter is gone — they existed only to opt *out* of the old implicit rendering, which no longer happens. Drop `render_x=False` from a call that wanted a literal; wrap the string in `Tpl` where you wanted a template. `fstring` (which was `= str`) is removed from `zrb.__all__`; `Tpl` replaces it.
 
-### Worth knowing (no action needed)
+#### Worth knowing (no action needed, from 2.58.0)
 
 - **`py.typed` ships**, so `mypy`/`pyright` now actually check your zrb usage. Expect to see real errors the first time — they were always there, just invisible.
 - **Collections accept any `Sequence`.** `upstream=(a, b)` and `a >> (b, c)` used to store the tuple as if it were a task and fail later with `'tuple' object has no attribute 'name'`. Both work now.
@@ -397,4 +455,4 @@ Update your environment variable if you had set a custom timeout.
 
 The 2.x line also added features that need no migration (multiple UIs, approval channels, rewind, MCP, worktrees, …); they are listed per release in the [changelog](../changelog/README.md).
 
-🔖 [Documentation Home](../../README.md) > [Advanced Topics](./) > Upgrading Guide
+🔖 [Documentation Home](../README.md) > [Advanced Topics](./) > Upgrading Guide
