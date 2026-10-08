@@ -308,7 +308,32 @@ and returning a string handles the command in-process and shows that string.
 Its `can_run_while_thinking` and `get_arg_completions(prefix)` default to
 `False` and no completions.
 
-A trigger's items become turns. A trigger that speaks for the user (such as
+A trigger yields items, and each item becomes a user turn. An item may be:
+
+| Item | Sends |
+|---|---|
+| `str` | Text alone |
+| `TriggerMessage(text, attachments)`, or any `(text, attachments)` two-tuple | Text with attachments. `attachments` takes what `/attach` takes: file paths or `BinaryContent` |
+| `TriggerInput(text, attachments, source)` | The same, plus the turn's [input provenance](../llm/llm-custom-ui.md#input-provenance), shown to the model in its live context |
+| `TriggerReply(...)` | An answer to the pending prompt (below) |
+
+`TriggerMessage` and `TriggerReply` are exported from `zrb`; all four come from `zrb.llm.ui`. An item with neither text nor attachments is skipped, and a malformed item is reported while the trigger carries on.
+
+```python
+import asyncio
+from zrb import TriggerMessage
+
+
+async def inbox():
+    while True:
+        await asyncio.sleep(60)
+        yield TriggerMessage("Summarize the new report.", ["./reports/latest.pdf"])
+
+
+chat.append_trigger(inbox)
+```
+
+A trigger that speaks for the user (such as
 hands-free dictation) can yield `TriggerReply(text, approval=None,
 started_at=None)` instead, which answers the tool approval or question being
 asked, if there is one: a question gets `text`, an approval gets `approval`
@@ -336,6 +361,27 @@ chat.history_config.conversation_name
 ```
 
 Same property, same fields, on both `LLMTask` and `LLMChatTask`.
+
+To store history somewhere else (a database, an object store), subclass `AnyHistoryManager` from `zrb.llm.history_manager.any_history_manager`. The setter rejects anything else with a `TypeError`. It has four methods:
+
+| Method | Called to |
+|---|---|
+| `load(conversation_name)` | Return the conversation's messages, or `[]` when there are none |
+| `update(conversation_name, messages)` | Replace the conversation's messages in memory. Called during and after a turn |
+| `save(conversation_name, write_backup=True)` | Persist what `update` staged. `write_backup` asks for a backup copy of the previous version |
+| `search(keyword)` | Return conversation names matching `keyword`, for `/load` completion |
+
+### Other public members
+
+| Member | What it is for |
+|---|---|
+| `prepend_ui_factory` / `remove_ui_factory` | Add a UI factory ahead of the others, or drop one |
+| `prepend_approval_channel` / `remove_approval_channel` | Add an approval channel ahead of the others, or drop one |
+| `uis` | The UIs attached directly (not through factories) |
+| `active_hook_manager` | The `HookManager` of the run in flight, or `None` between runs |
+| `run_interactive_session` / `run_non_interactive_session` | Run the chat with a UI, or one-shot. The task's action calls these; call them only from a subclass that replaces the action |
+| `teardown_interactive_resources` / `teardown_background_hooks` | Release process-wide resources when an interactive chat ends; settle a run's detached (`async: true`) hooks |
+| `get_ui_conversation_name(ui, initial_name)` | The conversation a UI is on now (it changes on `/load`), falling back to `initial_name` |
 
 ---
 

@@ -14,6 +14,7 @@ Skills, sub-agents, hooks, extra prompts, and tools are all **component families
 - [Resolution order](#resolution-order)
 - [Deferred defaults: seeds, deltas, and lazy reads](#deferred-defaults-seeds-deltas-and-lazy-reads)
 - [Worked examples](#worked-examples)
+- [Manager and registry methods](#manager-and-registry-methods)
 - [`get_prompt(name)` vs `get_prompts()`](#get_promptname-vs-get_prompts)
 
 ---
@@ -212,6 +213,35 @@ export ZRB_LLM_HOOKS="journal-compliance-judge"
 ```bash
 export ZRB_LLM_PROMPT="Never quote stock without a warehouse."
 ```
+
+## Manager and registry methods
+
+All of these are exported from `zrb`: the classes `SkillManager`, `SubAgentManager`, `HookManager`, `SkillRegistry`, `SubAgentRegistry`, `HookRegistry`, `ToolRegistry`, and the shared instances `skill_manager`, `sub_agent_manager`, `hook_manager`, `skill_registry`, `sub_agent_registry`, `hook_registry`, `tool_registry`. Besides the mutation verbs in [the families table](#the-five-component-families), the managers have these:
+
+| Method | `SkillManager` | `SubAgentManager` | `HookManager` |
+|---|---|---|---|
+| `search_dirs` (read/write property) | Directories scanned, in priority order. Setting it replaces the defaults | same | same |
+| `scan(search_dirs=None)` | Discover from disk now. Manual registrations are kept | same; a manual definition wins a name clash | Runs the hook factories, then loads from disk. Manual hooks are kept |
+| `reload()` | Re-scan after config or file changes. Manual registrations survive | same | Clears **every** hook, then re-runs factories and re-loads from disk. A hook added with `add_hook` is lost; register it from `add_hook_factory` to survive |
+| Lookup | `get_skill(name)`, `get_skill_content(name)` (the instruction text, or `None`) | `get_agent_definition(name)` | — |
+
+Scanning is lazy: nothing is read from disk until the first lookup, so `scan()` is only needed to force it.
+
+`SubAgentManager` can also build what a definition describes:
+
+- `create_agent(name, ctx=None, yolo=None)` returns a ready-to-run pydantic-ai `Agent`, or `None` for an unknown name.
+- `create_llm_chat_task(name, ctx=None)` returns an `LLMChatTask` using that sub-agent's persona, or `None`.
+
+`HookManager` runs hooks outside a chat too:
+
+- `await execute_hooks(event, event_data, session_id=None, metadata=None, ...)` returns each hook's raw execution result.
+- `await execute_hooks_simple(event, event_data, session_id=None, metadata=None)` returns them flattened into `HookResult` objects.
+- `await shutdown(grace_seconds=2.0, drain=False)` cancels pending background hooks and waits up to `grace_seconds` for them to stop. With `drain=True` it first lets them run to completion within the grace period, and cancels only what is left.
+
+`ToolRegistry` has two methods beyond its verbs:
+
+- `apply_to(host)` appends every tool, tool factory and toolset factory to a host (`LLMChatTask`, `LLMTask`, `SubAgentManager`).
+- `set_seed(seed)` installs the lazy default list, the one `ZRB_LLM_TOOLS` filters. It is ignored once the registry has been read or changed; zrb sets it in `llm/common_tools.py`.
 
 ## `get_prompt(name)` vs `get_prompts()`
 

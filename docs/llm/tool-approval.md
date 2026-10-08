@@ -95,7 +95,7 @@ chat.prepend_tool_policy(
 
 Policies form a chain: the first to return a verdict decides, and if every policy passes the call on, the prompt is shown. The denial reason reaches the model as the tool result, so make it actionable.
 
-`auto_approve(tool_name, kwargs_patterns)` builds the common case. `kwargs_patterns` maps argument names to regexes that must all match, or is a predicate over the argument dict; omit it to approve every call to that tool. It never approves a call that asks for `dangerously_skip_sandbox`.
+`auto_approve(tool_name, kwargs_patterns)` builds the common case. `kwargs_patterns` maps argument names to regexes, or is a predicate over the argument dict. With a mapping, every named argument must be present in the call and match its regex — a call that omits one is handed on, not approved — while arguments the mapping does not name are ignored; omit it to approve every call to that tool. It never approves a call that asks for `dangerously_skip_sandbox`.
 
 Two limits apply. A [permission-policy](permission-policy.md) `ASK` is a hard ask: a policy's `ToolApproved` is ignored for that call, while its `ToolDenied` still holds. And a permission-policy `DENY` is re-checked at execution time, so a policy cannot approve its way past it.
 

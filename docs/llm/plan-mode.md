@@ -46,6 +46,19 @@ The status bar shows the current mode as a badge (`normal`, `accept-edits`, `pla
 
 The LLM can also toggle Plan Mode via the `EnterPlanMode` and `ExitPlanMode` tools. These set the mode programmatically (non-toggling). Both tools are registered only in interactive sessions.
 
+### From Python
+
+A tool or hook can read or switch the mode itself, the way `EnterPlanMode` does:
+
+```python
+from zrb.llm.permission import AgentMode, get_current_agent_mode, set_current_agent_mode
+
+if get_current_agent_mode() == AgentMode.BUILD:
+    set_current_agent_mode(AgentMode.PLAN)
+```
+
+Call it from code running inside a turn. The change applies to that run and carries over to the session's next turns. Called outside any run, it changes the process-wide default.
+
 ---
 
 ## Security: The Strict ASK Gate

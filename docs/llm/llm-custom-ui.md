@@ -18,6 +18,7 @@ Zrb's LLM tasks accept custom UIs and approval channels, so the agent can run ov
 - [create_ui_factory()](#create_ui_factory)
 - [Multiple Channels (CLI + External)](#multiple-channels-cli--external)
 - [Approval Channels](#approval-channels)
+- [Input Provenance](#input-provenance)
 - [Implementation Tips](#implementation-tips)
 - [Working Examples](#working-examples)
 
@@ -351,7 +352,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. A class implementing `AnyUI` directly must define both |
 | `on_exit()` | No-op | Cleanup on shutdown. Called synchronously — schedule async cleanup with `asyncio.ensure_future(...)` |
 | `record_submitted_message(text)` | No-op | Called from `submit_user_message` with every message the user submits; the default TUI appends it to the history `↑` recalls across sessions |
-| `ask_user_choice(spec)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget |
+| `ask_user_choice(spec, agent_id=None)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget. `spec` is a `ChoiceSpec` (`question`, `options` as `ChoiceOption`s with `label` and `description`, `multi_select`, `header`, and `index`/`total` for "Question 2 of 3"); both `TypedDict`s come from `zrb.llm.ui.any_ui`. Return the chosen label, comma-joined labels for multi-select, or free text |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
 | `track_echo_span(entry, echo)` / `redraw_echo(entry)` / `remove_echo(entry)` | No-ops (the default TUI splices its own output buffer) | Keep a queued message's echoed line in step with the message: record where it landed on submit, rewrite it after an edit, take it out when `Ctrl+X` drops the message. `BaseUI` fans all three out to every child of a `MultiUI`, since each child holds its own echo. A class implementing `AnyUI` directly must define all three |
 | `_get_output_field_width()` | None | Custom text width for formatting (read by the diff/markdown formatters through the public `output_field_width` property) |
@@ -359,7 +360,24 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `mark_thinking_block_start()` | No-op | Record where a live thinking block begins, so it can be collapsed once it ends |
 | `collapse_thinking_block(collapsed, full)` | No-op | Collapse the block opened by `mark_thinking_block_start()`; the thinking text still reaches the UI via the normal `append_to_output` stream |
 
+| `submit_message(text, source=None)` / `submit_user_message(task, text, source=KEYBOARD_INPUT)` | Steer the text into the live turn, or queue it for the next | Feed a message in from your backend. `source` is the turn's [input provenance](#input-provenance) |
+| `submit_answer(text)` | Submits `text` as a message (`EventDrivenUI` and the default TUI answer the pending prompt instead) | Answer the pending approval or question; `TriggerReply` uses it |
+| `is_waiting_for_choice` / `pending_answer_since` | `False` / `None` | Whether the pending prompt is a multiple-choice question rather than an approval, and the `time.monotonic()` time it appeared. A UI that returns `None` gets no timed `TriggerReply` answers |
+
 The last three are looked up with `getattr(ui, name, None)` — implement them only for collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`).
+
+### State every `AnyUI` must define
+
+`BaseUI` implements these. A class implementing `AnyUI` directly must define them too, or mix in `UIStateDefaultsMixin` (from `zrb.llm.ui.state_defaults`) for inert defaults:
+
+| Member | What it is |
+|---|---|
+| `is_thinking` (read/write) | Whether the assistant is producing a response. Mid-turn messages are queued with a ⏳ marker |
+| `multi_ui_parent` (read/write) | The `MultiUI` this UI is a child of, or `None`. A child hands submitted messages to its parent |
+| `tool_call_handler` | The `ToolCallHandler` holding this UI's tool policies, argument formatters and response handlers, or `None`. See [Customizing Tool Approval](tool-approval.md) |
+| `background_tasks` | A set keeping fire-and-forget tasks referenced. Return the same set every time; callers `.add` and `.discard` on it |
+| `cancel_pending_confirmations(flush=True)` | Release an `ask_user` blocked on a tool confirmation. `flush=False` skips writing buffered output, on the exit path |
+| `flush_to_parent()` | Write anything buffered to the delegating parent UI. A no-op for a UI that streams directly |
 
 ### Example: WebSocket Backend
 
@@ -717,6 +735,10 @@ llm_chat.approval_channels = [TelegramApprovalChannel(bot, CHAT_ID)]
 | `message` | Reason shown with the decision (optional) |
 | `override_args` | Replacement tool arguments, for an "edit then approve" flow (optional) |
 
+`ApprovalResult.to_pydantic_result()` converts a result to pydantic-ai's `ToolApproved` / `ToolDenied`, for code that drives an agent run directly. `resolve_approval_channel(channels)` from `zrb.llm.approval` turns a list into one channel the way the task does: `None` for an empty list, the channel itself for one, a `MultiplexApprovalChannel` for more.
+
+When a result carries `override_args`, the call runs with them, and the model sees a note appended to the tool result: `[SYSTEM NOTE] The user edited this tool call's arguments before it ran.`, followed by the changed arguments. The call in history still shows what the model wrote, so without the note the result would not match its request.
+
 Built-in channels: `TerminalApprovalChannel` (terminal confirmation through a UI instance) and `NullApprovalChannel` (auto-approves everything — YOLO mode):
 
 ```python
@@ -727,6 +749,22 @@ llm_chat.approval_channels = [NullApprovalChannel()]
 ```
 
 Or turn YOLO on for one run: `zrb llm chat --yolo true` (or a comma-separated tool list, e.g. `--yolo Write,Edit`).
+
+---
+
+## Input Provenance
+
+Every user turn can carry where it came from. The model sees it in its live context as `Input: user via <channel>`; for a transcription, it also gets a warning to verify names, paths and commands before acting on them.
+
+`InputProvenance(channel, modality="text", transcription=False)` comes from `zrb.llm.input_source`, with three ready-made values:
+
+| Value | Used by |
+|---|---|
+| `KEYBOARD_INPUT` | The terminal, and `submit_user_message`'s default |
+| `WEB_INPUT` | The web chat |
+| `DICTATION_INPUT` | Dictation (`microphone/dictation`, a transcription) |
+
+Pass your own to label a backend: `ui.submit_message(text, source=InputProvenance("telegram"))`, or `handle_incoming_message(text, source)` in an `EventDrivenUI`. A trigger labels a turn by yielding a `TriggerInput(text, attachments, source)`. Without a source, `submit_message` and `handle_incoming_message` send no provenance line, while a trigger's turn is labeled `keyboard`.
 
 ---
 

@@ -134,7 +134,7 @@ You can also integrate the LLM directly into your automated workflows using two 
 
 ### `LLMTask` (Single-Shot)
 
-Use `LLMTask` for single-shot requests where you need the LLM to process input and return a result without conversational history.
+Use `LLMTask` for single-shot requests where you need the LLM to process input and return a result. Each run is one turn; give it a fixed `conversation_name` and later runs continue that conversation.
 
 ```python
 from zrb import LLMTask, StrInput, Tpl, cli
@@ -171,7 +171,7 @@ custom_chat = cli.add_task(
 
 ### Comparison
 
-`LLMTask` is single-shot with no history and no TUI; `LLMChatTask` is an interactive chat with a persistent session. Both take custom tools. Full feature matrix: [LLMChatTask API Reference → Comparison with LLMTask](../task-types/llmchat-task.md#comparison-with-llmtask).
+`LLMTask` is single-shot (one turn per run, history kept under its `conversation_name`) with no TUI; `LLMChatTask` is an interactive chat with a persistent session. Both take custom tools. Full feature matrix: [LLMChatTask API Reference → Comparison with LLMTask](../task-types/llmchat-task.md#comparison-with-llmtask).
 
 ---
 

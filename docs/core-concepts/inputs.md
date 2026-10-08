@@ -55,6 +55,18 @@ zrb hello --name Edward --prefix Mr.
 # Output: Hello Mr. Edward
 ```
 
+How the arguments are read:
+
+| Form | Meaning |
+|---|---|
+| `--name Edward` | `name` = `Edward` |
+| `--name=Edward` | Same; use it when the value starts with `-` |
+| `--verbose` (followed by another flag or nothing) | `verbose` = `"true"` |
+| `-v` | `v` = `"true"`. A single dash never takes a value, so `-name Edward` sets `name` to `"true"` and leaves `Edward` positional |
+| `-h` / `--help` | Print the task's description and inputs instead of running it |
+
+A double-dash flag takes the next argument as its value whenever that argument does not start with `-`. So a `BoolInput` flag followed by a positional value consumes it: `zrb hello --verbose Edward` tries to parse `Edward` as a boolean and fails. Put positional values first (`zrb hello Edward --verbose`), or give the flag an explicit value (`--verbose true Edward`).
+
 ### 2. Positional Arguments
 
 By default (`allow_positional_parsing=True`, the default on every input), you can also supply values positionally, in the order the inputs were declared — no flag names needed.
@@ -149,6 +161,41 @@ Every input takes `name` (required) plus `description`, `prompt`, `default`, `al
 | `TextInput` | `editor`, `extension`, `comment_start`, `comment_end` |
 
 An input name with dashes is also readable in snake_case: `is-admin` is `ctx.input.is_admin`.
+
+### `TextInput` in Your Editor
+
+`TextInput` opens a temporary file in `editor` (default `ZRB_EDITOR`; when neither is set it prompts inline). `extension` names the temporary file, which drives syntax highlighting. The prompt is written at the top of the file as a comment, using `comment_start` and `comment_end`, which are inferred from `extension` (`# ` for `.py`/`.rb`/`.sh`, `<!-- ... -->` for `.md`/`.html`, `//` otherwise) unless given. The prompt line is removed from the value you save.
+
+```python
+from zrb import CmdTask, TextInput, Tpl, cli
+
+cli.add_task(
+    CmdTask(
+        name="commit",
+        input=TextInput("message", prompt="Commit message", extension=".md"),
+        cmd=Tpl("git commit -m '{ctx.input.message}'"),
+    )
+)
+```
+
+### Custom Input Types
+
+Subclass `BaseInput` (`from zrb import BaseInput`). Every value arrives as a string; override `_parse_str_value(str_value)` to convert it (raise `ValueError` to reject it) and `_expected_value_description()` to name what is accepted in the error message:
+
+```python
+from zrb import BaseInput
+
+
+class PortInput(BaseInput):
+    def _parse_str_value(self, str_value: str) -> int:
+        port = int(str_value)
+        if not 0 < port < 65536:
+            raise ValueError(str_value)
+        return port
+
+    def _expected_value_description(self) -> str:
+        return "a port number between 1 and 65535"
+```
 
 ---
 

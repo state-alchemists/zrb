@@ -98,29 +98,34 @@ async def test_complex_logic():
 
 ## Testing `CmdTask` Commands
 
-For `CmdTask`, you can run the task programmatically and verify the command execution:
+Run a `CmdTask` for real with `async_run`; it returns a `CmdResult` whose `output` and `error` hold stdout and stderr. A non-zero exit raises `CmdTaskError`:
 
 ```python
 import pytest
-from unittest.mock import MagicMock
-from zrb import CmdTask, Group
-from zrb.context.any_context import AnyContext
+from zrb import CmdTask, StrInput, Tpl
+from zrb.task.cmd_task import CmdTaskError
+
 
 @pytest.mark.asyncio
-async def test_cmd_task_execution():
-    group = Group(name="test")
-    task = group.add_task(CmdTask(
-        name="echo-test",
-        cmd="echo 'Hello, Test!'",
-    ))
-    
-    # Build a minimal mock context to drive the task
-    ctx = MagicMock(spec=AnyContext)
-    
-    # Execute the task
-    result = await task.exec_action(ctx)
-    assert result is not None
+async def test_cmd_task_output():
+    task = CmdTask(
+        name="greet",
+        input=StrInput("name", default="world"),
+        cmd=Tpl("echo 'Hello, {ctx.input.name}!'"),
+    )
+    result = await task.async_run(kwargs={"name": "Test"})
+    assert result.output.strip() == "Hello, Test!"
+
+
+@pytest.mark.asyncio
+async def test_cmd_task_failure():
+    task = CmdTask(name="fail", cmd="exit 3")
+    with pytest.raises(CmdTaskError) as exc_info:
+        await task.async_run()
+    assert exc_info.value.return_code == 3
 ```
+
+Avoid `exec_action` with a mocked context here: `CmdTask` builds the subprocess environment from `ctx.env`, so a mock hands the command an empty environment with no `PATH`.
 
 ---
 
@@ -236,6 +241,10 @@ pytest --cov=my_project      # with coverage (needs pytest-cov)
 ctx = MagicMock()
 ctx.input.foo = "bar"
 result = await task.exec_action(ctx)
+
+# Run a CmdTask for real
+result = await cmd_task.async_run(kwargs={"name": "Test"})
+assert result.output.strip() == "Hello, Test!"
 
 # Test task dependencies
 def test_pipeline(): 

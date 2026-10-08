@@ -153,6 +153,27 @@ deploy_remote = cli.add_task(
 )
 ```
 
+### Remote to Local Sync (Pull via SSH)
+
+Pair `remote_source_path` with `local_destination_path` to download. Only one side may be remote. `remote_ssh_key` selects the private key:
+
+```python
+from zrb import RsyncTask, cli
+
+fetch_logs = cli.add_task(
+    RsyncTask(
+        name="fetch-logs",
+        remote_host="prod.example.com",
+        remote_user="deploy_user",
+        remote_ssh_key="~/.ssh/id_ed25519",
+        remote_source_path="/var/log/myapp/",
+        local_destination_path="./logs/",
+    )
+)
+```
+
+`RsyncTask` generates its own command (`rsync --mkpath -avz ...`), so it accepts every `CmdTask` parameter except `cmd` and `warn_unrecommended_command`; passing either raises `TypeError`.
+
 ---
 
 ## Quick Comparison

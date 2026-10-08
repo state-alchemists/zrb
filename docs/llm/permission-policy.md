@@ -206,5 +206,11 @@ with permission_policy(my_dynamic_policy):
 
 The explicit `permissions=` argument, when given, takes precedence over a value set this way.
 
+To build a policy from the same shapes `permissions=` and `ZRB_LLM_PERMISSIONS` accept, call `resolve_policy` from `zrb.llm.permission`. It takes a `PermissionPolicy`, a shorthand (`"ask"`), a `"key:action"` list string (`"edit:deny,Shell:ask,*:allow"`), or a list of `Rule`s or `{"key", "action", "arg_pattern"}` dicts. `None` or `""` returns `None`, meaning nothing is constrained.
+
+### Debugging decisions
+
+With `ZRB_LOGGING_LEVEL=DEBUG`, the permission-policy layer logs one JSON `policy_decision` event per tool call (its decision and the tool name), and the [sandbox](sandbox.md) logs one per shell command it wraps. Tool arguments are never logged. Code of your own that decides approvals, such as a custom approval channel, can emit the same event with `record_policy_decision(layer=..., decision=..., tool_name=..., reason=...)` from `zrb.llm.permission`.
+
 ---
 🔖 [Documentation Home](../README.md) > [LLM](./) > Permission Policy

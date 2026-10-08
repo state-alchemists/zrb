@@ -113,6 +113,48 @@ web_auth_config.add_user(
 web_auth_config.guest_accessible_tasks = ["throw-dice"]
 ```
 
+A `User` has `username`, `password`, `accessible_tasks` (task objects or names), and two flags: `is_super_admin` (access to every task) and `is_guest` (marks the not-logged-in user). `add_user` raises `ValueError` for a username already taken.
+
+### Looking Users Up Elsewhere
+
+To check users against your own store (a database, LDAP) instead of registering them up front, set `find_user_by_username_callback`. It receives a username and returns a `User` or `None`. Zrb asks it first and falls back to the registered users when it returns `None`.
+
+A plain `User` compares its `password` with the typed one as plain text, so never return a stored password that way. Return a `User` subclass whose `is_password_match` verifies your stored hash instead — login calls that method:
+
+```python
+import hashlib
+import hmac
+
+from zrb import User, web_auth_config
+
+
+class HashedUser(User):
+    salt: bytes = b""
+
+    def is_password_match(self, password: str) -> bool:
+        digest = hashlib.pbkdf2_hmac("sha256", password.encode(), self.salt, 600_000)
+        return hmac.compare_digest(self.password, digest.hex())
+
+
+def find_user(username: str) -> User | None:
+    row = my_db.get_user(username)  # your own lookup
+    if row is None:
+        return None
+    return HashedUser(
+        username=row.name,
+        password=row.password_hash,  # hex PBKDF2 digest, never the password
+        salt=row.salt,
+        accessible_tasks=row.tasks,
+    )
+
+
+web_auth_config.find_user_by_username_callback = find_user
+```
+
+### Settings in Code
+
+Every authentication setting is also a read/write property on `web_auth_config`, which wins over the matching environment variable: `enable_auth`, `secret_key`, `secure_cookies`, `access_token_expire_minutes`, `refresh_token_expire_minutes`, `access_token_cookie_name`, `refresh_token_cookie_name`, `super_admin_username`, `super_admin_password`, `guest_username`, and `guest_accessible_tasks`. The startup check that refuses an insecure non-loopback bind reads these effective values.
+
 ### Authentication Environment Variables
 
 | Variable | Description |
