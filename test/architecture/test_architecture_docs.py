@@ -299,7 +299,9 @@ def test_see_also_is_the_only_section_after_realization():
     Comparing heading names alone would still let a page keep writing after that
     heading — a paragraph, a table, a `###` section — while claiming See Also
     closes it. What follows is the list of pages to read next and, at most, the
-    breadcrumb line that ends the file, so "where a page ends" is true as written.
+    breadcrumb line that ends the file: the breadcrumb counts only when it is last,
+    so a page cannot name it as the end and then keep writing, and See Also has to
+    name at least one page.
     """
     offenders = []
     for path in pages():
@@ -311,15 +313,17 @@ def test_see_also_is_the_only_section_after_realization():
         if trailing != [_heading(AFTER_SECTION)]:
             offenders.append(f"{name_of(path)} closes with {trailing}")
             continue
-        stray = [
-            line.strip()
-            for line in section(text, AFTER_SECTION).splitlines()
-            if line.strip()
-            and not line.startswith("- ")
-            and not line.startswith(BREADCRUMB)
-        ]
+        body = [line.strip() for line in section(text, AFTER_SECTION).splitlines()]
+        body = [line for line in body if line]
+        # The breadcrumb ends the file, so it is stripped only when it is last:
+        # one sitting anywhere else is content, and content is what is not allowed.
+        if body and body[-1].startswith(BREADCRUMB):
+            body = body[:-1]
+        stray = [line for line in body if not line.startswith("- ")]
         if stray:
             offenders.append(f"{name_of(path)} writes on after See Also: {stray[:2]}")
+        elif not body:
+            offenders.append(f"{name_of(path)} `## See Also` names no page")
     assert not offenders, (
         "Page(s) that do not end with `## See Also`, or that keep writing after it. "
         "`## Realization` is the last half of a page, `## See Also` the only section "

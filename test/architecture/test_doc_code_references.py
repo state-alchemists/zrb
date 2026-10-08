@@ -72,9 +72,11 @@ _MD_LINK_OPEN = re.compile(r"\]\(")
 # A target that is not a path in this repository: an external URL under any
 # scheme, a jump within the page, or a placeholder a reader is meant to fill in.
 # The scheme is read generally rather than as `https?://` — `ftp://`, `ssh://` and
-# `file://` are no more this repository's to resolve — and the length floor after
-# the first letter keeps a Windows drive (`C:\page.md`) looking like the path it is.
-_NOT_A_PATH = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+:|^#|[{*]")
+# `file://` are no more this repository's to resolve — and case-insensitively,
+# since `FTP://` is the same scheme. The length floor after the first letter is
+# what keeps a Windows drive (`C:\page.md`) looking like the path it is; it is not
+# `re.IGNORECASE`'s business.
+_NOT_A_PATH = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+:|^#|[{*]", re.IGNORECASE)
 
 # (doc, link target) -> why this dead target is correct as written.
 LINK_EXCEPTIONS: dict[str, set[str]] = {
@@ -335,9 +337,17 @@ def test_a_link_under_any_scheme_is_not_read_as_a_repository_path():
     Exempting only `https?://` and `mailto:` left every other scheme to be treated
     as a path relative to the document, so an external link was reported as a
     missing repository file — a false positive on a link this guard has no business
-    resolving. A relative path is still a path, and a Windows drive is a path too.
+    resolving. `FTP://` is the same scheme as `ftp://`, so case does not decide it
+    either, while a relative path and a Windows drive are still paths.
     """
-    for target in ("ftp://example.com/x.md", "ssh://host/x.md", "file:///x.md"):
+    for target in (
+        "ftp://example.com/x.md",
+        "FTP://example.com/x.md",
+        "SSH://host/x.md",
+        "File:///x.md",
+        "HTTPS://example.com/x.md",
+        "MAILTO:a@b.c",
+    ):
         assert _link_targets_in(f"[x]({target})") == []
     assert _link_targets_in("[x](../adr/adr-0041.md)") == ["../adr/adr-0041.md"]
     assert _link_targets_in(r"[x](C:\page.md)") == [r"C:\page.md"]
