@@ -49,6 +49,54 @@ def test_the_traceback_hint_honors_a_white_labeled_env_prefix(
     assert "ZRB_LOGGING_LEVEL" not in captured.err
 
 
+CLAIM_INIT = """
+from zrb import cli, Task
+from zrb.config.config import CFG
+
+CFG.PROJECT_ENV_KEYS = ["LLM_PLUGIN_DIR"]
+
+
+def claim_ok(ctx):
+    return None
+
+
+cli.add_task(Task(name="claimcheck", action=claim_ok))
+"""
+
+
+def test_a_typo_warning_names_a_projects_unclaimed_variable(
+    tmp_path, capsys, monkeypatch
+):
+    """The warning is real and reachable — without this, the claim test below
+    would pass for the wrong reason."""
+    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIR", "/opt/zrb-plugins")
+    init = tmp_path / "zrb_init.py"
+    init.write_text("from zrb import cli\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["zrb"])
+    serve_cli()
+    captured = capsys.readouterr()
+    assert "ZRB_LLM_PLUGIN_DIR" in captured.err
+    assert "is not a setting" in captured.err
+
+
+def test_a_claim_from_an_init_source_silences_the_typo_warning(
+    tmp_path, capsys, monkeypatch
+):
+    """`_warn_mistyped_env_keys` runs after the init sources load, which is
+    what lets a distribution claim its own variables from `zrb_init.py`. The
+    ordering is the feature, so it is pinned here: moving the warning ahead
+    of the sources would break every white label that uses it."""
+    monkeypatch.setenv("ZRB_LLM_PLUGIN_DIR", "/opt/zrb-plugins")
+    monkeypatch.delenv("ZRB_PROJECT_ENV_KEYS", raising=False)
+    init = tmp_path / "zrb_init.py"
+    init.write_text(CLAIM_INIT)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["zrb"])
+    serve_cli()
+    assert "ZRB_LLM_PLUGIN_DIR" not in capsys.readouterr().err
+
+
 def test_a_broken_init_script_reports_file_line_and_type_but_still_runs(
     tmp_path, capsys, monkeypatch
 ):

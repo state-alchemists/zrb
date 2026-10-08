@@ -26,6 +26,7 @@ To find a setting:
 """
 
 import os
+from fnmatch import fnmatchcase
 from typing import Any
 
 from zrb.config.env_field import EnvField
@@ -57,6 +58,16 @@ from zrb.util.string.suggestion import suggest_name
 # `LLM_MAX_TOKEN_PER_MINUTE` 0.92, while a project's own `ZRB_USE_BORG_*`
 # scores 0.6 against its nearest setting.
 _TYPO_CUTOFF = 0.85
+
+
+def _is_project_env_key(name: str, patterns: list[str]) -> bool:
+    """Whether prefix-relative ``name`` is one a project claims as its own.
+
+    A pattern is either the exact name or an `fnmatch` glob (`LLM_PROXY_*`),
+    so a project holding a whole sub-namespace names it once instead of once
+    per variable.
+    """
+    return any(fnmatchcase(name, pattern) for pattern in patterns)
 
 
 def _is_assignable_field(cls: type, name: str) -> bool:
@@ -174,7 +185,9 @@ class Config(
         setting it most likely meant.
 
         Only a close match is reported: the prefix is shared with a project's
-        own variables (`ZRB_DEPLOY_TARGET`).
+        own variables (`ZRB_DEPLOY_TARGET`), which `CFG.PROJECT_ENV_KEYS` rules
+        out of the report entirely — naming one there only silences it, and
+        never makes it a suggestion target.
         """
         known = sorted(
             key
@@ -183,9 +196,13 @@ class Config(
             for key in field.get_read_keys(self.ENV_PREFIX)
         )
         skipped = set(known) | set(self.get_retired_env_keys())
+        project_keys = self.PROJECT_ENV_KEYS or []
+        prefix = f"{self.ENV_PREFIX}_"
         mistyped: dict[str, str] = {}
         for key in sorted(os.environ):
-            if not key.startswith(f"{self.ENV_PREFIX}_") or key in skipped:
+            if not key.startswith(prefix) or key in skipped:
+                continue
+            if _is_project_env_key(key[len(prefix) :], project_keys):
                 continue
             matches = suggest_name(key, known, limit=1, cutoff=_TYPO_CUTOFF)
             if matches:
@@ -194,9 +211,16 @@ class Config(
 
     def get_retired_env_keys(self) -> dict[str, str]:
         """Each set variable of a setting zrb no longer reads, mapped to what
-        to set instead (or why there is nothing to set)."""
+        to set instead (or why there is nothing to set).
+
+        `CFG.PROJECT_ENV_KEYS` exempts a project's own variables here too: a
+        project may legitimately reuse a name zrb has retired.
+        """
+        project_keys = self.PROJECT_ENV_KEYS or []
         retired: dict[str, str] = {}
         for name, instead in RETIRED_SETTINGS.items():
+            if _is_project_env_key(name, project_keys):
+                continue
             key = f"{self.ENV_PREFIX}_{name}"
             if key in os.environ:
                 is_setting = instead.isupper() and " " not in instead
