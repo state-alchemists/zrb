@@ -4,7 +4,7 @@
 
 > **Tier 2 · Extension surface** · Code: `src/zrb/llm/ui/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
-The UI is whatever shows the agent's output and brings back the user's answers: the full-screen terminal, plain stdin/stdout, the web chat, a chat bot, or several of them at once. This page covers how one agent run talks to any of them through the same small contract. The idea to take away: the agent never knows which screen it is on.
+The UI is whatever shows the agent's output and brings back the user's answers: the full-screen terminal, plain stdin/stdout, the web chat, a chat bot, or several of them at once. This page covers how one agent run talks to any of them through the same small contract. The one idea to take away: the agent never knows which screen it is on.
 
 ## Table of Contents
 

@@ -79,11 +79,13 @@ flowchart TD
 | `BaseInput` and its subclasses | `src/zrb/input/` | One typed input: prompt, parse, default, HTML field, closed-stdin behaviour |
 | `Env`, `EnvMap`, `EnvFile` | `src/zrb/env/` | Envs from a value, a mapping, or a `.env` file, optionally linked to `os.environ` |
 | `BaseTaskContext` | `src/zrb/task/base/context.py` | Combining inputs and envs over the upstream closure, and filling them into the shared context once per run |
+| `DotDict` | `src/zrb/dot_dict/dot_dict.py` | The mapping behind `ctx.input`, `ctx.env` and `ctx.xcom`, so a resolved value reads as an attribute instead of a key lookup |
 | `Group`, `Cli` | `src/zrb/group/group.py`, `src/zrb/runner/cli.py` | The command tree; `extract_node` turns words into a task or group for both the CLI and the web |
 | `serve_cli`, `get_init_path_list` | `src/zrb/__main__.py`, `src/zrb/util/init_path.py` | Finding and loading every `zrb_init.py`, then reporting unreachable tasks |
 | `find_task_diagnostics` | `src/zrb/group/task_diagnostics.py` | Unregistered tasks and alias collisions between the project's own tasks |
 | `Callback` | `src/zrb/callback/callback.py` | Running a task for one trigger event, mapping inputs in and results back |
 | `FileSessionStateLogger` | `src/zrb/session_state_logger/file_session_state_logger.py` | Writing each run's `SessionStateLog` to disk, and pruning old ones |
+| `AnyContentTransformer`, `ContentTransformer` | `src/zrb/content_transformer/` | How `Scaffolder` rewrites a file it copied: `match` decides whether the file is one of its own, and `transform_file` rewrites it in place |
 
 The task types share `BaseTask` and differ only in their action:
 
@@ -140,6 +142,8 @@ sequenceDiagram
 | Add or change an input type | `src/zrb/input/` | `test/input/` |
 | Change env sources or precedence | `src/zrb/env/`, `src/zrb/task/base/context.py` | `test/env/`, `test/task/test_dag_shape.py` |
 | Add a task type | `src/zrb/task/`, subclassing `BaseTask` | `test/task/` |
+| Change how a scaffolded file is rewritten | `src/zrb/content_transformer/`, `src/zrb/task/scaffolder.py` | `test/content_transformer/` |
+| Change how `ctx.input`, `ctx.env` or `ctx.xcom` is read | `src/zrb/dot_dict/dot_dict.py` | `test/util/test_dot_dict.py` |
 | Change command resolution | `src/zrb/group/group.py`, `src/zrb/runner/cli.py` | `test/group/test_group.py` |
 | Change `zrb_init.py` discovery or diagnostics | `src/zrb/__main__.py`, `src/zrb/group/task_diagnostics.py` | `test/group/test_task_diagnostics.py` |
 | Change triggers or callbacks | `src/zrb/task/base_trigger.py`, `src/zrb/callback/callback.py` | `test/task/test_base_trigger.py`, `test/callback/` |

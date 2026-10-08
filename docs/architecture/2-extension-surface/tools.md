@@ -4,7 +4,7 @@
 
 > **Tier 2 · Extension surface** · Code: `src/zrb/llm/tool/` · Read first: [The LLM Turn](../1-spine/llm-turn.md)
 
-A tool is how the model acts on the world: reading a file, running a command, asking a sub-agent for help. This page covers how a Python function becomes something the model can call, and why every one of those calls ends up passing through the same checkpoint.
+A tool is how the model acts on the world: reading a file, running a command, asking a sub-agent for help. This page covers how a Python function becomes something the model can call, and why every one of those calls ends up passing through the same checkpoint. The one idea to take away: a tool declares what it does with a capability tag, and the checks that matter run at the checkpoint where the call executes — not where it was approved.
 
 ## Table of Contents
 

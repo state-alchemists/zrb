@@ -21,7 +21,7 @@ Read [The System](0-system/system.md) first. It's one page with one map and the 
 
 ## How each page reads
 
-Every page has the same two halves, so you can stop after the first.
+Every page opens with one line naming the single idea to take away, then has the same two halves, so you can stop after the first. The shape is checked, so you can rely on it.
 
 **Design: why it is shaped this way.** This half changes rarely.
 
@@ -33,8 +33,8 @@ Every page has the same two halves, so you can stop after the first.
 
 - *The parts*: a map, then a table of the classes and functions involved.
 - *How it runs*: the common path, with a diagram or two.
-- *Variations*: the cases that take a different route.
-- *Change it here*: what you want to do, which file to open, and which test to run.
+- *Variations*: the cases that take a different route. A page with more to say may add one section of its own here, and only here — before *Change it here*, never after it.
+- *Change it here*: what you want to do, which file to open, and which test to run. Always the last section of the page, and every row names a test.
 
 Read Design to understand a part. Read Realization when you're about to change it.
 
@@ -55,6 +55,7 @@ Tier 2 holds the parts that change most often. If you have one hour, spend it th
 
 | If you are… | Read |
 | --- | --- |
+| New, with ten minutes | [The System](0-system/system.md), then the one Tier 2 page for the thing you are touching |
 | New, with an hour | [The System](0-system/system.md) → [The Task Model](1-spine/task-model.md) → [Task Execution](1-spine/task-execution.md) → [The LLM Turn](1-spine/llm-turn.md) |
 | Following one `zrb llm chat` message through the code | [LLM Chat Request Lifecycle](../llm/llm-chat-lifecycle.md), a code tour that complements [The LLM Turn](1-spine/llm-turn.md)'s design |
 | Chasing a bug | [Change Map](change-map.md), which goes from a symptom to the file that causes it |
@@ -64,14 +65,16 @@ Tier 2 holds the parts that change most often. If you have one hour, spend it th
 
 ## Editing these pages
 
-A new page goes in the directory of its tier and gets a row in the table above. The two halves follow different rules.
+A new page goes in the directory of its tier and gets a row in the table above. It then follows a fixed skeleton, which the shape guard checks: the header line, one line naming the single idea, then the two halves.
 
+- **The header line** repeats the tier and adds what the page covers (`Code:`) and what to read first (`Read first:`), separated by `·`. Without them, a reader who arrived from the Change Map holds a file and no page that explains it.
 - **Design** uses words that would survive a refactor. It names no private symbols. Every principle links its ADR, and every invariant names its test or is marked **unpinned**.
 - **Realization** names real symbols, so it changes along with the code. Every backticked path and identifier is checked against `src/` and `test/`. If you rename something a page mentions, the build fails until you update the page.
+- **Change it here** closes the page, and every row names the test to run. Nothing follows it, which is what lets a page add a section of its own earlier without the reader losing the end.
 
 When a principle changes, update its ADR first, then the page.
 
-`test/architecture/test_architecture_docs.py` enforces the shape, the diagram limits (at most 120 columns, at most four participants, real class or function names only) and the truth check. Its docstring explains why each rule exists.
+Three guards keep this section honest, each with a docstring explaining why its rules exist: `test/architecture/test_architecture_docs.py` holds the shape and the diagram limits (at most 120 columns, at most four participants); `test/architecture/test_architecture_doc_symbols.py` holds the truth check (every path, identifier and lifeline a page names still exists under `src/` or `test/`); `test/architecture/test_doc_code_references.py` holds the paths and links every live doc cites.
 
 ## Where the rest lives
 

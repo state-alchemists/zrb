@@ -4,7 +4,7 @@
 
 > **Tier 3 · Peripheral flow** · Code: `src/zrb/llm/agent/run/deferred_calls.py` · Read first: [Tools](../2-extension-surface/tools.md)
 
-Before the model's tool call runs, zrb decides whether it may run: allow it quietly, ask a person, or refuse. This page covers how that decision is made and who gets asked. The idea to take away: approval only lets a call *reach* the execution checkpoint. It is never the last check.
+Before the model's tool call runs, zrb decides whether it may run: allow it quietly, ask a person, or refuse. This page covers how that decision is made and who gets asked. The one idea to take away: approval only lets a call *reach* the execution checkpoint. It is never the last check.
 
 ## Table of Contents
 

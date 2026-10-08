@@ -14,7 +14,7 @@ Zrb explicitly rejects YAML, JSON, or custom Domain Specific Languages (DSLs) fo
 * **Implication:** The framework must be expressive and ergonomic. We use `__rshift__` (`>>`) and `__lshift__` (`<<`) operator overloading to make task dependency chaining visually intuitive.
 
 ### Interfaces Everywhere (The `Any*` Pattern)
-If you browse `src/zrb`, you will immediately notice files like `any_task.py`, `any_session.py`, and `any_context.py`. Zrb relies heavily on Abstract Base Classes (ABCs).
+Zrb relies heavily on Abstract Base Classes (ABCs). Each `Any<Thing>` interface lives in an `any_<thing>.py` file in the package that owns the concept — `src/zrb/task/any_task.py`, `src/zrb/session/any_session.py`, `src/zrb/context/any_context.py` ([R9](framework-conventions.md)) — so there is no single flat layer of interfaces at the top of `src/zrb`; the interfaces sit beside the implementations that satisfy them.
 * **Why:** Total decoupling. It allows the core execution engine to run without caring about the concrete implementation of a task. It makes mocking in tests straightforward and allows power users to inject entirely custom task logic.
 * **Convention:** Always program against the `Any` interface, not the concrete implementation (e.g., expect `AnySession` in method signatures, not `Session`).
 

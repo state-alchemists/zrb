@@ -16,7 +16,8 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | I want to… | Open | Then read |
 | --- | --- | --- |
 | Add a task type | `src/zrb/task/`, subclassing `BaseTask` | [The Task Model](1-spine/task-model.md) |
-| Change how inputs, envs or templated values resolve | `src/zrb/input/`, `src/zrb/env/`, `src/zrb/util/attr.py` | [The Task Model](1-spine/task-model.md) |
+| Change how inputs, envs or templated values resolve | `src/zrb/input/`, `src/zrb/env/`, `src/zrb/util/attr.py`, `src/zrb/dot_dict/` | [The Task Model](1-spine/task-model.md) |
+| Change how a scaffolded project's files are rewritten | `src/zrb/content_transformer/` | [The Task Model](1-spine/task-model.md) |
 | Change how a command line finds a task | `src/zrb/group/group.py`, `src/zrb/runner/cli.py` | [The Task Model](1-spine/task-model.md) |
 | Change retries, timeout or readiness | `src/zrb/task/base/execution.py` | [Task Execution](1-spine/task-execution.md) |
 | Add or rename a tool | `src/zrb/llm/tool/` | [Tools](2-extension-surface/tools.md) |
@@ -78,7 +79,7 @@ Read the test before changing an area; it is the precise statement of what the c
 
 | Command | What it guards |
 | --- | --- |
-| `python3 -m pytest test/architecture/test_architecture_docs.py -q` | This section: its shape, its diagrams, and that every path and name it mentions still exists |
+| `python3 -m pytest test/architecture/ -q` | Every architecture and doc guard: this section's shape, its diagrams, and that every path, name and link it mentions still exists |
 | `python3 -m pytest test -q` | Everything; the gate before a commit |
 | `./zrb-test.sh` | The repository's full gate, including lint and typing |
 
