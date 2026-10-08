@@ -153,7 +153,7 @@ llm_chat.prepend_tool_policy(no_force_push, allow_remembered)
 llm_chat.prepend_response_handler(always_for_session)
 ```
 
-Sub-agents the chat delegates to inherit its tool policies.
+Sub-agents run under the chat's approval handler — its tool policies, argument formatters and response handlers — when they run inside the chat's turn: a `DelegateToAgent` call, and the first turn of a background delegation. A message you send afterwards to a background sub-agent that is still live runs outside any chat turn, so its tool calls skip the chat's tool policies; use a [permission policy](permission-policy.md) for a rule that must bind every sub-agent turn, since that one is carried over.
 
 ## Built-ins you can reuse
 
