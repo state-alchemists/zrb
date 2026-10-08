@@ -98,7 +98,7 @@ def my_function(ctx):
 
 ### Readiness Checks
 
-`readiness_check`, `readiness_check_delay`, `readiness_check_period`, `readiness_failure_threshold`, `readiness_timeout` and `monitor_readiness` work the same on every task type; they are documented in [Readiness Checks → Parameters](../task-types/readiness-checks.md#readiness-parameters).
+`readiness_check`, `readiness_check_delay`, `readiness_check_period`, `readiness_failure_threshold`, `readiness_timeout` and `monitor_readiness` work the same on every task type except `HttpCheck` and `TcpCheck`, which reject them; they are documented in [Readiness Checks → Parameters](../task-types/readiness-checks.md#readiness-parameters).
 
 ### Dependencies & Flow Control
 

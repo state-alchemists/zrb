@@ -59,8 +59,8 @@ flowchart TB
 
 | BaseUI method | SimpleUI method | What SimpleUI does |
 |---------------|-----------------|--------------------|
-| `append_to_output(*values, sep, end)` | `print(text: str)` | Joins values with sep/end, calls async `print()` |
-| `ask_user(prompt: str)` | `get_input(prompt: str)` | Direct pass-through |
+| `append_to_output(*values, sep, end)` | `print(text: str, kind: str)` | Joins values with sep/end, calls async `print()` |
+| `ask_user(prompt, output_to_parent="", agent_id=None)` | `get_input(prompt: str)` | Direct pass-through |
 | `run_interactive_command(cmd, shell)` | *(default)* | Shows a "not supported" message |
 | `run_async()` | *(default)* | Starts `process_messages_loop()`, handles lifecycle |
 
@@ -99,7 +99,7 @@ llm_chat.include_default_ui = False
 
 For backends where you **control the event loop** and can **block on input**.
 
-- **`async print(text: str)`** — called for AI responses, system messages and errors. Receives pre-formatted text (emojis, formatting included).
+- **`async print(text: str, kind: str)`** — called for AI responses, system messages and errors. Receives pre-formatted text (emojis, formatting included).
 - **`async get_input(prompt: str)`** — called when waiting for chat input or approvals. Blocks until input arrives; `prompt` may be empty for approvals.
 
 Both must be `async` — see [Implementation Tips](#1-async-methods). The [Quick Start](#quick-start) is the minimal CLI.
@@ -170,7 +170,7 @@ llm_chat.include_default_ui = False
 
 ## Level 2: EventDrivenUI (Callbacks)
 
-For backends where **messages arrive via callbacks/handlers**. You implement `print(text)` (send output to your backend) and `start_event_loop()` (register handlers and start listening), both async.
+For backends where **messages arrive via callbacks/handlers**. You implement `print(text, kind)` (send output to your backend) and `start_event_loop()` (register handlers and start listening), both async.
 
 Your handler passes each incoming message to **`handle_incoming_message(text)`**, which routes it:
 
@@ -318,7 +318,7 @@ flowchart TB
 |------|---------|------------|
 | `__init__()` | Initialize with `ctx`, `llm_task`, `history_manager`, a `ui_config`, and a handful of others | Medium (boilerplate) |
 | `append_to_output(*values, sep, end, file, flush, kind)` | Display output (`kind` defaults to `"text"`) | Low |
-| `ask_user(prompt: str)` | Block for user input | Medium |
+| `ask_user(prompt, output_to_parent="", agent_id=None)` | Block for user input; zrb passes the two keywords, so accept them | Medium |
 | `run_interactive_command(cmd, shell)` | Execute shell commands | Low (or return error) |
 | `run_async()` | Start and run the event loop | **High** — must manage lifecycle |
 
@@ -384,7 +384,9 @@ class WebSocketUI(BaseUI):
         # Schedule async send
         asyncio.create_task(self.ws.send(text))
 
-    async def ask_user(self, prompt: str) -> str:
+    async def ask_user(
+        self, prompt: str, output_to_parent: str = "", agent_id: str | None = None
+    ) -> str:
         """Wait for user input via WebSocket."""
         if prompt:
             await self.ws.send(f"❓ {prompt}")

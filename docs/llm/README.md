@@ -36,6 +36,7 @@ Everything about zrb's coding agent: using it, configuring it, and programming i
 | [Extending the LLM](extending-the-llm.md) | Add tools and sub-agents, and tune model capabilities and context |
 | [LLMChatTask API Reference](../task-types/llmchat-task.md) | Look up `LLMChatTask`'s constructor and builder methods |
 | [Programming the Voice](programming-the-voice.md) | Script voice input and output, or plug in your own speech backend |
+| [Customizing Tool Approval](tool-approval.md) | Change what the approval prompt shows, auto-approve or deny calls in code, and add your own answers |
 | [Custom UI and Approval Channels](llm-custom-ui.md) | Put the agent behind Telegram, Discord, HTTP or your own UI |
 
 ## For contributors

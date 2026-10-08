@@ -151,7 +151,7 @@ from zrb.llm.ui import UIConfig
 
 llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
 llm_chat.hook_manager = my_hook_manager      # or None to go back to "fresh per run"
-llm_chat.llm_limiter = my_llm_limiter        # or None to remove the limit
+llm_chat.llm_limiter = my_llm_limiter        # or None for the shared default limiter
 llm_chat.markdown_theme = my_rich_theme      # or None for the default
 llm_chat.ui_config = UIConfig(assistant_name="Ada", exit_commands=["/bye"])
 llm_chat.model_getter = my_model_getter      # or None to remove the hook
@@ -228,7 +228,7 @@ chat.permissions = my_permission_policy  # read/write property; also a construct
 chat.sandbox = my_sandbox_policy         # read/write property; also a constructor arg
 ```
 
-See [Permission Policy](../llm/permission-policy.md) and [Sandbox](../llm/sandbox.md) for the accepted policy shapes.
+See [Permission Policy](../llm/permission-policy.md) and [Sandbox](../llm/sandbox.md) for the accepted policy shapes, and [Customizing Tool Approval](../llm/tool-approval.md) for writing tool policies, argument formatters (how the approval prompt shows a call) and response handlers (what an answer means). Each list also has `append_*`, `set_*` and `remove_*`.
 
 ### Triggers & Custom Commands
 
