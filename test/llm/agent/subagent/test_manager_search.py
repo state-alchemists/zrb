@@ -131,3 +131,26 @@ def test_get_search_directories_excludes_builtin_agents_when_disabled(manager):
         dirs = _posix(manager.search_dirs)
     assert any(d.endswith("llm_plugin/core_agents") for d in dirs)
     assert not any(d.endswith("llm_plugin/agents") for d in dirs)
+
+
+def test_project_agent_overrides_builtin_agent_of_same_name(tmp_path):
+    project = tmp_path / "project"
+    agents_dir = project / ".zrb" / "agents"
+    agents_dir.mkdir(parents=True)
+    (agents_dir / "generalist.agent.md").write_text(
+        "---\nname: generalist\ndescription: Project generalist\n---\nProject body\n",
+        encoding="utf-8",
+    )
+    with patch("zrb.llm.agent.subagent.manager_search.CFG") as cfg:
+        cfg.LLM_SEARCH_HOME = False
+        cfg.LLM_SEARCH_PROJECT = True
+        cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
+        cfg.LLM_PLUGIN_DIRS = []
+        cfg.LLM_BASE_SEARCH_DIRS = []
+        cfg.LLM_EXTRA_AGENT_DIRS = []
+        cfg.LLM_ENABLE_BUILTIN_AGENTS = True
+        manager = SubAgentManager(scan_root=str(project))
+        manager.scan()
+        definition = manager.get_agent_definition("generalist")
+    assert definition is not None
+    assert definition.description == "Project generalist"

@@ -91,8 +91,9 @@ class BaseTask(AnyTask):
                 `CFG.TASK_READINESS_DELAY` (500ms).
             readiness_check_period: Seconds between readiness checks once
                 monitoring, i.e. when `monitor_readiness` is True.
-            readiness_failure_threshold: Consecutive readiness-check failures
-                tolerated before the task is declared failed.
+            readiness_failure_threshold: Consecutive failed monitoring checks
+                after which the action is cancelled and restarted. Read only
+                while `monitor_readiness` is True.
             readiness_timeout: Seconds the readiness checks may take before
                 the task is declared failed, for the initial wait and each
                 monitoring round. `None` uses `CFG.TASK_READINESS_TIMEOUT`

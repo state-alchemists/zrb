@@ -242,7 +242,7 @@ class TestBufferedOutputMixin:
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
-            async def _send_buffered(self, text: str):
+            async def send_buffered(self, text: str):
                 pass
 
         buffered = TestBuffered(flush_interval=0.1)
@@ -256,7 +256,7 @@ class TestBufferedOutputMixin:
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
-            async def _send_buffered(self, text: str):
+            async def send_buffered(self, text: str):
                 pass
 
         buffered = TestBuffered()
@@ -272,7 +272,7 @@ class TestBufferedOutputMixin:
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
-            async def _send_buffered(self, text: str):
+            async def send_buffered(self, text: str):
                 pass
 
         buffered = TestBuffered()
@@ -290,7 +290,7 @@ class TestBufferedOutputMixin:
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
-            async def _send_buffered(self, text: str):
+            async def send_buffered(self, text: str):
                 pass
 
         buffered = TestBuffered()
@@ -305,7 +305,7 @@ class TestBufferedOutputMixin:
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
-            async def _send_buffered(self, text: str):
+            async def send_buffered(self, text: str):
                 pass
 
         buffered = TestBuffered()
@@ -321,7 +321,7 @@ class TestBufferedOutputMixin:
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
-            async def _send_buffered(self, text: str):
+            async def send_buffered(self, text: str):
                 pass
 
         buffered = TestBuffered()
@@ -337,7 +337,7 @@ class TestBufferedOutputMixin:
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
-            async def _send_buffered(self, text: str):
+            async def send_buffered(self, text: str):
                 pass
 
         buffered = TestBuffered()
@@ -354,7 +354,7 @@ class TestBufferedOutputMixin:
         from zrb.llm.ui import BufferedOutputMixin
 
         class TestBuffered(BufferedOutputMixin):
-            async def _send_buffered(self, text: str):
+            async def send_buffered(self, text: str):
                 pass
 
         buffered = TestBuffered()
