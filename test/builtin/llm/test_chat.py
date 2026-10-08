@@ -97,3 +97,8 @@ async def test_background_delegation_notice_reaches_the_chat_live_context():
         assert "GetDelegationResult" in live_context
     finally:
         get_background_registry().cancel_all()
+
+
+def test_each_argument_formatter_is_registered_once():
+    formatters = llm_chat.argument_formatters
+    assert len(formatters) == len(set(formatters))

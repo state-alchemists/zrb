@@ -235,16 +235,46 @@ class TestAutoApproveDictPatterns:
         next_handler.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_args_without_pattern_key_approved(self):
-        """Args without keys defined in patterns are auto-approved."""
+    async def test_missing_pattern_key_passes_through(self):
+        """A call lacking an arg named in the patterns delegates to next handler."""
+        policy = auto_approve("Read", kwargs_patterns={"path": r".*\.txt$"})
+        ui = MagicMock()
+        call = MagicMock()
+        call.tool_name = "Read"
+        call.args = {"other_key": "anything"}
+        next_handler = AsyncMock(return_value="next_result")
+
+        result = await policy(ui, call, next_handler)
+
+        assert result == "next_result"
+        next_handler.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_every_pattern_must_match(self):
+        """One matching and one missing pattern key still delegates."""
+        policy = auto_approve(
+            "Bash", kwargs_patterns={"command": r"^ls\b", "cwd": r"^/tmp"}
+        )
+        ui = MagicMock()
+        call = MagicMock()
+        call.tool_name = "Bash"
+        call.args = {"command": "ls -la"}
+        next_handler = AsyncMock(return_value="next_result")
+
+        result = await policy(ui, call, next_handler)
+
+        assert result == "next_result"
+
+    @pytest.mark.asyncio
+    async def test_extra_args_outside_patterns_are_ignored(self):
+        """Args not named in the patterns do not block approval."""
         from pydantic_ai import ToolApproved
 
         policy = auto_approve("Read", kwargs_patterns={"path": r".*\.txt$"})
         ui = MagicMock()
         call = MagicMock()
         call.tool_name = "Read"
-        # 'other_key' is not in kwargs_patterns, so all args pass
-        call.args = {"other_key": "anything"}
+        call.args = {"path": "readme.txt", "limit": 10}
         next_handler = AsyncMock()
 
         result = await policy(ui, call, next_handler)

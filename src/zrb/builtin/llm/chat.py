@@ -33,9 +33,7 @@ from zrb.llm.tool.delegate_background import (
 from zrb.llm.tool_call import (
     auto_approve,
     read_file_validation_policy,
-    replace_in_file_formatter,
     replace_in_file_response_handler,
-    write_file_formatter,
 )
 from zrb.llm.tool_call.tool_policy.replace_in_file_validation import (
     replace_in_file_validation_policy,
@@ -136,8 +134,6 @@ llm_chat.append_tool_factory(_delegate_tool_factory)
 llm_chat.prompt_manager.add_live_context(
     "background_delegations", background_delegation_live_context
 )
-
-llm_chat.prepend_argument_formatter(replace_in_file_formatter, write_file_formatter)
 
 llm_chat.prepend_response_handler(replace_in_file_response_handler)
 

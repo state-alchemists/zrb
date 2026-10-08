@@ -93,7 +93,7 @@ class LLMTaskHistory:
         new_history = getattr(error, "zrb_history", None)
         if new_history is None:
             return
-        if self.is_context_length_error(error):
+        if self._llm_task.is_context_length_error(error):
             ctx.log_warning(
                 "Context-length error detected; not growing history for retry."
             )
