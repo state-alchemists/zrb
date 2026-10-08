@@ -51,10 +51,9 @@ def test_every_replacement_is_a_setting_and_no_retired_name_is_read_again():
 
 
 def test_a_project_can_name_its_own_variable_as_exempt(monkeypatch):
-    """A white label's own variable is a 0.977 near-miss of a real setting
+    """A project's own variable is a 0.977 near-miss of a real setting
     (`ZRB_LLM_PLUGIN_DIR` for `ZRB_LLM_PLUGIN_DIRS`), and no cutoff can tell
-    that from a typo — only the project knowing which names are its own can.
-    The same variable unclaimed is still reported, which keeps this opt-in."""
+    that from a typo — only the project knows which names are its own."""
     monkeypatch.setenv("ZRB_LLM_PLUGIN_DIR", "/opt/plugins")
     cfg = Config()
     assert cfg.get_mistyped_env_keys()["ZRB_LLM_PLUGIN_DIR"] == "ZRB_LLM_PLUGIN_DIRS"
@@ -103,9 +102,7 @@ def test_a_project_may_reuse_a_name_zrb_retired(monkeypatch):
 
 
 def test_the_exemption_is_prefix_relative(monkeypatch):
-    """Entries carry no prefix, so one list serves any prefix — and the
-    custom prefix is exactly the case that needs it. The setting's own name
-    follows the prefix too."""
+    """Entries carry no prefix, so one list serves any prefix."""
     monkeypatch.setenv("_ZRB_ENV_PREFIX", "BANKAI")
     monkeypatch.setenv("BANKAI_PROJECT_ENV_KEYS", "LLM_PROXY_*")
     monkeypatch.setenv("BANKAI_LLM_PROXY_BASE_URL", "https://proxy.example/v1")

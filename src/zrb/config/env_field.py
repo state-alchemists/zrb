@@ -85,8 +85,7 @@ class EnvField(Generic[T]):
     serialize:
         Callable applied to a non-``str`` value on write before storing in
         os.environ (e.g. ``on_off``, ``path_list_join``). Defaults to ``str``.
-        A ``str`` value is the env text itself and is stored as written, so
-        ``CFG.LLM_TOOLS = "Shell,Read"`` reads back as ``["Shell", "Read"]``.
+        A ``str`` value is the env text itself, so it is stored as written.
     aliases:
         Env-var names (without prefix) to try in order on read. Defaults to
         ``[attribute_name]``.
@@ -264,11 +263,8 @@ class EnvField(Generic[T]):
                 f"CFG.{self._name} cannot be None — this setting has no null form. "
                 f"Assign a {self._cast.__name__} value instead."
             )
-        # A str IS the env text, so it is stored as written. Serializing it
-        # first would put a string through a serializer meant for the field's
-        # own type — `",".join` on a str iterates its characters — which is how
-        # `CFG.LLM_TOOLS = "Shell,Read"` used to become `['S', 'h', ...]`.
-        # Only a non-str value is serialized.
+        # A str is the env text, so it is stored as written: a value serializer
+        # would walk its characters instead (`",".join`), not its value.
         raw = value if isinstance(value, str) else self._serialize(value)
         try:
             round_tripped = self._cast(raw)
@@ -277,8 +273,8 @@ class EnvField(Generic[T]):
                 f"CFG.{self._name} = {value!r} is not valid: it stores "
                 f"{raw!r}, which {self._cast.__name__}() rejects ({error})."
             ) from error
-        # Coercion is the point of a str ("INFO" -> 20, "8080" -> 8080); a
-        # non-str value that reads back differently is rejected.
+        # A str is the canonical env form, so coercing it ("INFO" -> 20) is
+        # fine; a non-str value that reads back differently is rejected.
         if round_tripped != value and not isinstance(value, str):
             raise ValueError(
                 f"CFG.{self._name} = {value!r} is not a value this field can "

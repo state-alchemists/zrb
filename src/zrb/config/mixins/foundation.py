@@ -117,9 +117,8 @@ class FoundationMixin:
         doc="Prefix for all Zrb env vars (used for white-labeling a custom CLI).",
     )
 
-    # A project's own variables are invisible to the typo report, so a
-    # white-label distribution reusing its ENV_PREFIX has to be able to name
-    # them. Declarative, and not a suggestion source: see `get_mistyped_env_keys`.
+    # A project's own variables are invisible to the typo report, so a white
+    # label reusing its ENV_PREFIX names them here.
     PROJECT_ENV_KEYS = EnvField(
         comma_list,
         serialize=comma_join,

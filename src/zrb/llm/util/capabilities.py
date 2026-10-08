@@ -228,7 +228,7 @@ _DOCUMENT_DENY = _IMAGE_DENY
 # Only that failure mode belongs here. Models that 400 on the
 # `parallel_tool_calls` parameter itself (OpenAI o-series, kimi-k2.5 via NIM)
 # must NOT be listed: `_apply_capability_constraints` would send the parameter.
-# Models that simply never emit more than one call need nothing.
+# Models that never emit more than one call need nothing.
 _NO_PARALLEL_TOOL_CALLS = (
     r"minimax-m2\.7",
     r"glm-4\.7",

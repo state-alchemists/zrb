@@ -63,9 +63,7 @@ _TYPO_CUTOFF = 0.85
 def _is_project_env_key(name: str, patterns: list[str]) -> bool:
     """Whether prefix-relative ``name`` is one a project claims as its own.
 
-    A pattern is either the exact name or an `fnmatch` glob (`LLM_PROXY_*`),
-    so a project holding a whole sub-namespace names it once instead of once
-    per variable.
+    A pattern is either the exact name or an `fnmatch` glob (`LLM_PROXY_*`).
     """
     return any(fnmatchcase(name, pattern) for pattern in patterns)
 

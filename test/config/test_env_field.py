@@ -154,8 +154,8 @@ def test_comma_list_round_trip(host, monkeypatch):
 
 
 def test_a_string_is_stored_as_the_env_text_on_a_list_field(host):
-    """A str assigned in code is the env text, so it must reach the field
-    unjoined — `",".join` on a str iterates its characters."""
+    """A str assigned in code is the env text, so it reaches the field
+    unjoined."""
     host.CMDS = "/x, /y"
     assert os.environ["TESTCFG_CMDS"] == "/x, /y"
     assert host.CMDS == ["/x", "/y"]
