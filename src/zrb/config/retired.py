@@ -48,4 +48,6 @@ RETIRED_SETTINGS: dict[str, str] = {
     "LLM_VOICE_VOSK_MODEL_URL": "LLM_DICTATION_VOSK_MODEL_URL",
     "LLM_UI_COMMAND_VOICE": "LLM_DICTATION_COMMANDS",
     "LLM_UI_COMMAND_PHOTO": "LLM_CAMERA_COMMANDS",
+    # 2.54.0: the journal tools made the reminder and its Stop hook unnecessary.
+    "LLM_INCLUDE_JOURNAL_REMINDER": "nothing: the journal tools replace the reminder",
 }

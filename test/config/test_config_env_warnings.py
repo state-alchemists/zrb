@@ -42,6 +42,11 @@ def test_a_retired_setting_with_no_replacement_says_why(monkeypatch):
     assert "/voice" in Config().get_retired_env_keys()["ZRB_LLM_VOICE_ENABLED"]
 
 
+def test_the_removed_journal_reminder_is_reported(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_INCLUDE_JOURNAL_REMINDER", "on")
+    assert "ZRB_LLM_INCLUDE_JOURNAL_REMINDER" in Config().get_retired_env_keys()
+
+
 def test_every_replacement_is_a_setting_and_no_retired_name_is_read_again():
     cfg = Config()
     for name, instead in RETIRED_SETTINGS.items():

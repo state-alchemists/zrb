@@ -78,7 +78,7 @@ class CmdTask(BaseTask):
         remote_password: StrAttr | None = None,
         remote_ssh_key: StrAttr | None = None,
         cmd: CmdVal = "",
-        cwd: str | None = None,
+        cwd: StrAttr | None = None,
         plain_print: bool = False,
         warn_unrecommended_command: bool | None = None,
         max_output_line: int = 1000,
@@ -96,7 +96,8 @@ class CmdTask(BaseTask):
                 rendered, so a `{ctx.` placeholder in one reaches the shell as
                 written; that warns (`UntemplatedCmdWarning`) — wrap the command
                 in `Tpl` to have it rendered against the context.
-            cwd: Working directory for the command. Defaults to the process's
+            cwd: Working directory for the command; a `Tpl` or callable is
+                resolved against the context. Defaults to the process's
                 current working directory, i.e. where `zrb` was invoked.
             shell: Shell binary to run under. Defaults to `CFG.SHELL`.
             shell_flag: Flag making the shell read the command, such as `-c`.

@@ -166,9 +166,10 @@ class LLMChatTask(BaseTask):
             attachment: Images or files to send with the initial message. A
                 single item, a list, or a callable taking the context.
             system_prompt: System prompt text, or a callable taking the context.
-                Overrides whatever `prompt_manager` would compose.
+                Ignored when `prompt_manager` is given.
             prompt_manager: `PromptManager` composing the system prompt from
-                sections. Defaults to the shared one.
+                sections. Defaults to one holding only `system_prompt`, with
+                no built-in sections.
             active_skills: Names of skills to pre-activate for the session.
             model: The model to use, as a name or a pydantic-ai `Model`. Defaults
                 to `CFG.LLM_MODEL`.

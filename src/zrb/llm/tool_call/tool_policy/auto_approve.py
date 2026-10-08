@@ -16,6 +16,7 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
     """ToolPolicy approving `tool_name` calls whose args match `kwargs_patterns`.
 
     `kwargs_patterns` maps arg names to regexes, or is a predicate over the args.
+    With a mapping, every named arg must be present and match its regex.
     """
     if kwargs_patterns is None:
         kwargs_patterns = {}
@@ -42,16 +43,15 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
         if not isinstance(args, dict):
             return await next_handler(ui, call)
 
-        # Every call arg named in kwargs_patterns must match its pattern.
         if callable(kwargs_patterns):
             if kwargs_patterns(args):
                 return ToolApproved()
         else:
-            for arg_name, arg_value in args.items():
-                if arg_name in kwargs_patterns:
-                    pattern = kwargs_patterns[arg_name]
-                    if not re.search(pattern, str(arg_value)):
-                        return await next_handler(ui, call)
+            for arg_name, pattern in kwargs_patterns.items():
+                if arg_name not in args or not re.search(
+                    pattern, str(args[arg_name])
+                ):
+                    return await next_handler(ui, call)
 
             return ToolApproved()
         return await next_handler(ui, call)
