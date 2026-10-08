@@ -76,17 +76,24 @@ ADR_LINK = re.compile(r"\(\.\./\.\./adr/adr-\d{4}\.md\)")
 
 # The headings every page carries, in this order. `### Variations` is absent on
 # purpose: a page whose content does not split into variations closes the flow
-# with a section of its own instead, so only the two ends are pinned.
+# with a section of its own instead. That freedom is bounded by the two ends —
+# Realization's first child heading is `OPENING_SECTION`, its last is
+# `FINAL_SECTION` — so a section of the page's own may sit between them and
+# nowhere else.
+OPENING_SECTION = "### The parts"
+FINAL_SECTION = "### Change it here"
 REQUIRED_SECTIONS = (
     "## Design",
     "### The problem",
     "### Principles",
     "### Invariants",
     "## Realization",
-    "### The parts",
+    OPENING_SECTION,
     "### How it runs",
 )
-FINAL_SECTION = "### Change it here"
+# A runnable test target in a table cell: a backticked `test/...` path, naming
+# either a directory (`test/llm/ui/`) or one test (`test/x.py::test_y`).
+TEST_PATH = re.compile(r"`test/")
 
 
 def _header(path) -> re.Match | None:
@@ -172,10 +179,11 @@ def test_every_page_opens_with_its_single_idea():
 def test_every_page_has_a_design_and_a_realization():
     """Design is the stable half, Realization the volatile one; both must be there.
 
-    Realization is pinned at both ends, not throughout: `### The parts` opens it
-    and `### Change it here` closes it, and nothing may follow the close. That is
-    what lets a page own a section the format did not anticipate while keeping
-    the reader's map of where a page ends.
+    Realization is pinned at both ends, not throughout: its first child heading is
+    `### The parts` and its last is `### Change it here`. Pinning the ends is what
+    lets a page own a section the format did not anticipate while keeping the
+    reader's map of where a page starts and stops — an extra section is allowed
+    between the two and nowhere else.
     """
     offenders = []
     for path in pages():
@@ -188,22 +196,20 @@ def test_every_page_has_a_design_and_a_realization():
         if where != sorted(where):
             offenders.append(f"{name_of(path)} puts its sections out of order")
             continue
-        realization = section(text, "## Realization")
-        ends_at = position(realization, FINAL_SECTION)
-        if ends_at < 0:
-            offenders.append(f"{name_of(path)} has no `{FINAL_SECTION}`")
+        children = _subsections(section(text, "## Realization"))
+        opens_with = children[0] if children else "nothing"
+        if opens_with != _heading(OPENING_SECTION):
+            offenders.append(f"{name_of(path)} opens Realization with {opens_with!r}")
             continue
-        trailing = [
-            match.group(1)
-            for match in re.finditer(r"^### (.+)$", realization, re.MULTILINE)
-            if match.start() > ends_at
-        ]
-        if trailing:
-            offenders.append(f"{name_of(path)} has {trailing} after the close")
+        if children[-1] != _heading(FINAL_SECTION):
+            offenders.append(
+                f"{name_of(path)} closes Realization with {children[-1]!r}"
+            )
     assert not offenders, (
         "Page(s) without the required shape. `## Design` holds The problem, "
-        "Principles and Invariants; `## Realization` opens with `### The parts`, "
-        "runs the flow, and ends with `### Change it here` as the last section: "
+        "Principles and Invariants, in order; `## Realization` opens with "
+        "`### The parts` and closes with `### Change it here`. A section of the "
+        "page's own may sit between those two ends and nowhere else: "
         f"{offenders}"
     )
 
@@ -265,13 +271,23 @@ def test_every_change_row_names_a_test():
         if not rows:
             offenders.append(f"{name_of(path)}: no rows")
         for row in rows:
-            if "test" not in row[-1]:
+            if not TEST_PATH.search(row[-1]):
                 offenders.append(f"{name_of(path)}: {row[0][:50]}")
     assert not offenders, (
-        "`### Change it here` row(s) whose last column names no test. Every row "
-        "reads `To… | Open | Then run`, and the test is how the reader knows "
-        f"their change landed: {offenders}"
+        "`### Change it here` row(s) whose last column names no test path. Every "
+        "row reads `To… | Open | Then run`, and the test is how the reader knows "
+        f"their change landed — name a backticked `test/...` path: {offenders}"
     )
+
+
+def _heading(required: str) -> str:
+    """A required heading's own name, without its hashes (`### The parts`)."""
+    return required.split(" ", 1)[1]
+
+
+def _subsections(body: str) -> list[str]:
+    """The `###` headings inside a section body, in the order they appear."""
+    return re.findall(r"^### (.+)$", body, re.MULTILINE)
 
 
 def test_depth_follows_tier():
