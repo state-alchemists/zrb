@@ -28,7 +28,7 @@ def test_detect_language_from_file():
 
 
 class TestLSPServerConfigRegistry:
-    'Test the user-extensible registry.'
+    "Test the user-extensible registry."
 
     def setup_method(self):
         self.registry = LSPServerConfigRegistry()
@@ -104,7 +104,7 @@ class TestLSPServerConfigRegistry:
         assert self.registry.get("pyright") is not None
 
     def test_all_is_detached_copy(self):
-        'Mutating the returned dict must not affect the registry.'
+        "Mutating the returned dict must not affect the registry."
         result = self.registry.all()
         result.clear()
         assert self.registry.get("pyright") is not None

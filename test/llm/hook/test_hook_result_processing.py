@@ -1,4 +1,4 @@
-'Tests for hook result processing in run_agent.'
+"Tests for hook result processing in run_agent."
 
 import pytest
 
@@ -16,15 +16,15 @@ from zrb.llm.hook.types import HookEvent
 
 
 class TestExtractSystemMessage:
-    'Tests for _extract_system_message helper.'
+    "Tests for _extract_system_message helper."
 
     def test_returns_none_for_empty_results(self):
-        'Empty results list should return None.'
+        "Empty results list should return None."
         result = extract_system_message([])
         assert result is None
 
     def test_returns_none_when_no_system_message(self):
-        'Results without system_message should return None.'
+        "Results without system_message should return None."
         results = [
             HookExecutionResult(success=True, message="test"),
             HookExecutionResult(success=True, data={"foo": "bar"}),
@@ -32,7 +32,7 @@ class TestExtractSystemMessage:
         assert extract_system_message(results) is None
 
     def test_returns_first_system_message(self):
-        'Should return the first system_message found.'
+        "Should return the first system_message found."
         results = [
             HookExecutionResult(success=True, system_message="first"),
             HookExecutionResult(success=True, system_message="second"),
@@ -40,7 +40,7 @@ class TestExtractSystemMessage:
         assert extract_system_message(results) == "first"
 
     def test_finds_system_message_in_middle(self):
-        'Should find system_message even if not in first result.'
+        "Should find system_message even if not in first result."
         results = [
             HookExecutionResult(success=True, message="other"),
             HookExecutionResult(success=True, system_message="found it"),
@@ -50,15 +50,15 @@ class TestExtractSystemMessage:
 
 
 class TestExtractAdditionalContext:
-    'Tests for _extract_additional_context helper.'
+    "Tests for _extract_additional_context helper."
 
     def test_returns_none_for_empty_results(self):
-        'Empty results list should return None.'
+        "Empty results list should return None."
         result = extract_additional_context([])
         assert result is None
 
     def test_returns_none_when_no_additional_context(self):
-        'Results without additional_context should return None.'
+        "Results without additional_context should return None."
         results = [
             HookExecutionResult(success=True, message="test"),
             HookExecutionResult(success=True, data={"foo": "bar"}),
@@ -66,7 +66,7 @@ class TestExtractAdditionalContext:
         assert extract_additional_context(results) is None
 
     def test_returns_first_additional_context(self):
-        'Should return the first additional_context found.'
+        "Should return the first additional_context found."
         results = [
             HookExecutionResult(success=True, additional_context="first"),
             HookExecutionResult(success=True, additional_context="second"),
@@ -74,7 +74,7 @@ class TestExtractAdditionalContext:
         assert extract_additional_context(results) == "first"
 
     def test_finds_additional_context_in_middle(self):
-        'Should find additional_context even if not in first result.'
+        "Should find additional_context even if not in first result."
         results = [
             HookExecutionResult(success=True, message="other"),
             HookExecutionResult(success=True, additional_context="found it"),
@@ -84,7 +84,7 @@ class TestExtractAdditionalContext:
 
 
 class TestExtractBlockDecision:
-    'Tests for extract_block_decision (UserPromptSubmit / Stop).'
+    "Tests for extract_block_decision (UserPromptSubmit / Stop)."
 
     def test_no_block(self):
         decision = extract_block_decision([HookExecutionResult(success=True)])
@@ -108,7 +108,7 @@ class TestExtractBlockDecision:
 
 
 class TestExtractPreToolDecision:
-    'Tests for extract_pre_tool_decision (PreToolUse).'
+    "Tests for extract_pre_tool_decision (PreToolUse)."
 
     def test_deny_via_permission_decision(self):
         results = [
@@ -185,7 +185,7 @@ class TestExtractPreToolDecision:
         assert decision.force_prompt is False
 
     def test_deny_carries_earlier_updated_input(self):
-        'updatedInput captured before a later deny is still surfaced (harmless,'
+        "updatedInput captured before a later deny is still surfaced (harmless,"
         results = [
             HookExecutionResult(success=True, updated_input={"a": 1}),
             HookExecutionResult(success=True, permission_decision="deny"),
@@ -195,7 +195,7 @@ class TestExtractPreToolDecision:
         assert decision.updated_input == {"a": 1}
 
     def test_blocked_flag_denies(self):
-        'A bare exit-2 block (blocked=True, no permission_decision) denies.'
+        "A bare exit-2 block (blocked=True, no permission_decision) denies."
         results = [HookExecutionResult(success=False, blocked=True)]
         decision = extract_pre_tool_decision(results)
         assert decision.deny is True
@@ -203,7 +203,7 @@ class TestExtractPreToolDecision:
 
 
 class TestExtractContinueDecision:
-    'Tests for extract_continue_decision (continue=false halts the run).'
+    "Tests for extract_continue_decision (continue=false halts the run)."
 
     def test_no_halt_by_default(self):
         assert (
@@ -239,7 +239,7 @@ class TestExtractContinueDecision:
 
 
 class TestExtractPostToolDecision:
-    'Tests for extract_post_tool_decision (PostToolUse).'
+    "Tests for extract_post_tool_decision (PostToolUse)."
 
     def test_block(self):
         results = [HookExecutionResult(success=True, decision="block", reason="bad")]
@@ -256,7 +256,7 @@ class TestExtractPostToolDecision:
         assert extract_post_tool_decision(results).updated_output == "X"
 
     def test_block_via_blocked_flag(self):
-        'A bare exit-2 block (blocked=True) blocks with the default reason.'
+        "A bare exit-2 block (blocked=True) blocks with the default reason."
         results = [HookExecutionResult(success=False, blocked=True)]
         decision = extract_post_tool_decision(results)
         assert decision.block is True
@@ -271,7 +271,7 @@ class TestExtractPostToolDecision:
 
 
 class TestExtractPermissionDecision:
-    'Tests for extract_permission_decision (PermissionRequest).'
+    "Tests for extract_permission_decision (PermissionRequest)."
 
     def test_nested_behavior_allow(self):
         results = [
@@ -294,7 +294,7 @@ class TestExtractPermissionDecision:
         assert extract_permission_decision(results) == "deny"
 
     def test_first_decisive_wins_skipping_observe_only(self):
-        'An observe-only (None) result is skipped; the first allow/deny wins.'
+        "An observe-only (None) result is skipped; the first allow/deny wins."
         results = [
             HookExecutionResult(success=True),
             HookExecutionResult(success=True, permission_decision="allow"),
@@ -306,7 +306,7 @@ class TestExtractPermissionDecision:
 
 
 class TestExtractAdditionalContextNested:
-    'additionalContext is read from hookSpecificOutput too (Claude shape).'
+    "additionalContext is read from hookSpecificOutput too (Claude shape)."
 
     def test_nested_additional_context(self):
         results = [
@@ -319,21 +319,19 @@ class TestExtractAdditionalContextNested:
 
 
 class TestHookResultProcessing:
-    'Tests for hook result processing in run_agent flow.'
+    "Tests for hook result processing in run_agent flow."
 
     @pytest.mark.asyncio
     async def test_stop_with_system_message_continues_session(self):
-        'Verify that a STOP hook returning systemMessage continues the turn.'
+        "Verify that a STOP hook returning systemMessage continues the turn."
         from zrb.llm.hook.interface import HookResult
         from zrb.llm.hook.manager import HookManager
-
 
         call_count = 0
 
         async def tracking_hook(context):
             nonlocal call_count
             call_count += 1
-
 
             if context.event == HookEvent.STOP and call_count == 1:
                 return HookResult(
@@ -352,18 +350,16 @@ class TestHookResultProcessing:
             ],
         )
 
-
         results = await manager.execute_hooks(
             HookEvent.STOP, {"output": "test output", "history": []}
         )
-
 
         system_msg = extract_system_message(results)
         assert system_msg == "Test reminder message"
 
     @pytest.mark.asyncio
     async def test_session_start_additional_context(self):
-        'Verify that SESSION_START hook returning additionalContext is processed.'
+        "Verify that SESSION_START hook returning additionalContext is processed."
         from zrb.llm.hook.interface import HookResult
         from zrb.llm.hook.manager import HookManager
 
@@ -384,7 +380,7 @@ class TestHookResultProcessing:
 
     @pytest.mark.asyncio
     async def test_user_prompt_submit_additional_context(self):
-        'Verify that USER_PROMPT_SUBMIT hook returning additionalContext is processed.'
+        "Verify that USER_PROMPT_SUBMIT hook returning additionalContext is processed."
         from zrb.llm.hook.interface import HookResult
         from zrb.llm.hook.manager import HookManager
 

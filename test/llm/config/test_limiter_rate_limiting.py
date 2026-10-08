@@ -7,21 +7,20 @@ from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 
 
 class TestLLMLimiterRateLimiting:
-    'Test rate limiting behavior through public API.'
+    "Test rate limiting behavior through public API."
 
     def test_can_proceed_empty_logs(self):
-        'Test can_proceed returns True when logs are empty.'
+        "Test can_proceed returns True when logs are empty."
         limiter = LLMLimiter()
 
         result = limiter.can_proceed(100)
         assert result is True
 
     def test_can_proceed_under_limits(self):
-        'Test can_proceed returns True when under limits.'
+        "Test can_proceed returns True when under limits."
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 10
         limiter.max_token_per_minute = 1000
-
 
         limiter.request_log.append(time.time())
         limiter.token_log.append((time.time(), 50))
@@ -30,10 +29,9 @@ class TestLLMLimiterRateLimiting:
         assert result is True
 
     def test_can_proceed_over_request_limit(self):
-        'Test can_proceed returns False when request limit exceeded.'
+        "Test can_proceed returns False when request limit exceeded."
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 2
-
 
         limiter.request_log.append(time.time())
         limiter.request_log.append(time.time())
@@ -42,10 +40,9 @@ class TestLLMLimiterRateLimiting:
         assert result is False
 
     def test_can_proceed_over_token_limit(self):
-        'Test can_proceed returns False when token limit exceeded.'
+        "Test can_proceed returns False when token limit exceeded."
         limiter = LLMLimiter()
         limiter.max_token_per_minute = 100
-
 
         limiter.token_log.append((time.time(), 99))
 
@@ -53,10 +50,9 @@ class TestLLMLimiterRateLimiting:
         assert result is False
 
     def test_get_limit_reason_request_limit(self):
-        'Test get_limit_reason returns request limit message.'
+        "Test get_limit_reason returns request limit message."
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 5
-
 
         for _ in range(5):
             limiter.request_log.append(time.time())
@@ -66,7 +62,7 @@ class TestLLMLimiterRateLimiting:
         assert "5/min" in reason
 
     def test_get_limit_reason_token_limit(self):
-        'Test get_limit_reason returns token limit message.'
+        "Test get_limit_reason returns token limit message."
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 100
         limiter.max_token_per_minute = 50
@@ -76,10 +72,9 @@ class TestLLMLimiterRateLimiting:
         assert "50/min" in reason
 
     def test_calculate_wait_time_request_limit(self):
-        'Test calculate_wait_time for request limit.'
+        "Test calculate_wait_time for request limit."
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 2
-
 
         limiter.request_log.append(time.time())
         limiter.request_log.append(time.time())
@@ -88,10 +83,9 @@ class TestLLMLimiterRateLimiting:
         assert wait > 0
 
     def test_calculate_wait_time_token_limit(self):
-        'Test calculate_wait_time for token limit.'
+        "Test calculate_wait_time for token limit."
         limiter = LLMLimiter()
         limiter.max_token_per_minute = 50
-
 
         limiter.token_log.append((time.time(), 40))
 
@@ -99,14 +93,12 @@ class TestLLMLimiterRateLimiting:
         assert wait > 0
 
     def test_prune_logs_removes_old_entries(self):
-        'Test prune_logs removes entries older than 60 seconds.'
+        "Test prune_logs removes entries older than 60 seconds."
         limiter = LLMLimiter()
-
 
         old_time = time.time() - 65
         limiter.request_log.append(old_time)
         limiter.token_log.append((old_time, 100))
-
 
         limiter.request_log.append(time.time())
         limiter.token_log.append((time.time(), 50))
@@ -117,9 +109,8 @@ class TestLLMLimiterRateLimiting:
         assert len(limiter.token_log) == 1
 
     def test_prune_logs_keeps_recent_entries(self):
-        'Test prune_logs keeps entries within 60 seconds.'
+        "Test prune_logs keeps entries within 60 seconds."
         limiter = LLMLimiter()
-
 
         limiter.request_log.append(time.time())
         limiter.token_log.append((time.time(), 100))
@@ -131,7 +122,7 @@ class TestLLMLimiterRateLimiting:
 
 
 class TestLLMLimiterPropertyDefaults:
-    'Properties fall back to the built-in default when CFG is unset/falsy.'
+    "Properties fall back to the built-in default when CFG is unset/falsy."
 
     def test_max_token_per_request_default_when_cfg_falsy(self):
         limiter = LLMLimiter()
@@ -184,14 +175,13 @@ class TestLLMLimiterPropertyDefaults:
 
 
 class TestLLMLimiterPruningLoop:
-    'Exercise the real turn-based pruning loop (no is_turn_start patching).'
+    "Exercise the real turn-based pruning loop (no is_turn_start patching)."
 
     def test_prunes_oldest_turn_to_fit(self):
-        'A multi-turn history over budget drops whole leading turns until it fits.'
+        "A multi-turn history over budget drops whole leading turns until it fits."
         limiter = LLMLimiter()
 
         limiter.max_token_per_request = 30
-
 
         from datetime import datetime
 
@@ -212,21 +202,19 @@ class TestLLMLimiterPruningLoop:
 
         result = limiter.fit_context_window(history, "new question")
 
-
         assert len(result) < len(history)
         assert result[-1].parts[0].content == "third short"
 
         assert is_turn_start(result[0])
 
     def test_prunes_all_when_only_one_turn_and_over_budget(self):
-        'When no later turn boundary exists, the whole history is cleared.'
+        "When no later turn boundary exists, the whole history is cleared."
         limiter = LLMLimiter()
         limiter.max_token_per_request = 30
 
         from datetime import datetime
 
         from pydantic_ai.messages import ModelResponse, TextPart
-
 
         req = ModelRequest(parts=[UserPromptPart(content="x" * 200)])
         res = ModelResponse(
@@ -242,7 +230,7 @@ class TestLLMLimiterToStrListInstructions:
     "to_str over a list counts only the latest item's instructions (lines 279-282)."
 
     def test_count_tokens_list_includes_latest_instructions(self):
-        'A list whose latest item carries instructions costs more than one without.'
+        "A list whose latest item carries instructions costs more than one without."
         limiter = LLMLimiter()
 
         class MsgWithInstr:
@@ -258,16 +246,15 @@ class TestLLMLimiterToStrListInstructions:
 
 
 class TestLLMLimiterFitContextWindow:
-    'Test context window fitting through public API.'
+    "Test context window fitting through public API."
 
     def test_fit_context_window_clears_all_when_new_msg_too_large(self):
-        'Test fit_context_window clears history when new message exceeds limit.'
+        "Test fit_context_window clears history when new message exceeds limit."
         limiter = LLMLimiter()
         limiter.max_token_per_request = 5
 
         msg = ModelRequest(parts=[UserPromptPart(content="Hello")])
         history = [msg]
-
 
         large_msg = "x" * 1000
 
@@ -275,7 +262,7 @@ class TestLLMLimiterFitContextWindow:
         assert result == []
 
     def test_fit_context_window_prunes_by_turns(self):
-        'Test fit_context_window prunes history by conversation turns.'
+        "Test fit_context_window prunes history by conversation turns."
         limiter = LLMLimiter()
         limiter.max_token_per_request = 20
 
@@ -285,9 +272,7 @@ class TestLLMLimiterFitContextWindow:
 
         history = [msg1, msg2, msg3]
 
-
         new_msg = "A longer new message"
-
 
         with patch(
             "zrb.llm.config.limiter.is_turn_start", side_effect=[False, True, False]
@@ -297,13 +282,12 @@ class TestLLMLimiterFitContextWindow:
             assert len(result) <= len(history)
 
     def test_fit_context_window_no_turn_start_found(self):
-        'Test fit_context_window clears all when no turn start found.'
+        "Test fit_context_window clears all when no turn start found."
         limiter = LLMLimiter()
         limiter.max_token_per_request = 2
 
         msg = ModelRequest(parts=[UserPromptPart(content="Hello")])
         history = [msg]
-
 
         with patch("zrb.llm.config.limiter.is_turn_start", return_value=False):
             result = limiter.fit_context_window(history, "new message")
@@ -311,7 +295,7 @@ class TestLLMLimiterFitContextWindow:
 
 
 class TestLLMLimiterTokenCounting:
-    'Test token counting through public API.'
+    "Test token counting through public API."
 
     def test_count_tokens_with_none(self):
         "Test count_tokens with None content converts to 'None' string."
@@ -321,21 +305,21 @@ class TestLLMLimiterTokenCounting:
         assert result >= 0
 
     def test_count_tokens_with_numeric(self):
-        'Test count_tokens with numeric content.'
+        "Test count_tokens with numeric content."
         limiter = LLMLimiter()
         result = limiter.count_tokens(42)
 
         assert result >= 0
 
     def test_count_tokens_with_large_number(self):
-        'Test count_tokens with larger numeric content.'
+        "Test count_tokens with larger numeric content."
         limiter = LLMLimiter()
 
         result = limiter.count_tokens(12345)
         assert result > 0
 
     def test_to_str_with_nested_dict(self):
-        'Test to_str with nested dict content.'
+        "Test to_str with nested dict content."
         limiter = LLMLimiter()
 
         nested = {"outer": {"inner": "value"}}

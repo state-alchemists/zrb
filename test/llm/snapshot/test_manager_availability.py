@@ -1,4 +1,4 @@
-'When SnapshotManager turns rewind off for the session, and how it says'
+"When SnapshotManager turns rewind off for the session, and how it says"
 
 import os
 import subprocess
@@ -30,7 +30,7 @@ def manager(snapshot_dir, workdir):
 
 @pytest.mark.asyncio
 async def test_take_snapshot_returns_none_when_setup_fails(workdir):
-    'If the snapshot dir cannot be created, take_snapshot returns None.'
+    "If the snapshot dir cannot be created, take_snapshot returns None."
     with tempfile.NamedTemporaryFile() as f:
 
         mgr = SnapshotManager(f.name, "test-session", workdir)
@@ -41,7 +41,7 @@ async def test_take_snapshot_returns_none_when_setup_fails(workdir):
 
 
 def test_list_snapshots_returns_empty_when_setup_fails(workdir):
-    'If initialization fails, list_snapshots returns [] rather than raising.'
+    "If initialization fails, list_snapshots returns [] rather than raising."
     with tempfile.NamedTemporaryFile() as f:
         mgr = SnapshotManager(f.name, "test-session", workdir)
         result = mgr.list_snapshots()
@@ -102,7 +102,7 @@ async def test_a_snapshot_dir_equal_to_the_workdir_turns_rewind_off_with_a_reaso
 
 
 def _count_git_and_time_out(monkeypatch) -> list:
-    'Every git command runs past its time limit; returns the call log.'
+    "Every git command runs past its time limit; returns the call log."
     import subprocess
 
     calls: list = []
@@ -185,7 +185,7 @@ async def test_without_git_rewind_is_off_with_its_reason(tmp_path, monkeypatch):
 async def test_a_snapshot_cancelled_while_setting_the_store_up_leaves_rewind_on(
     tmp_path,
 ):
-    'Cancelling says nothing about the store: the setup is tried again by'
+    "Cancelling says nothing about the store: the setup is tried again by"
     import asyncio
     import threading
 

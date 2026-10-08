@@ -7,7 +7,6 @@ from zrb.llm.tool.plan import TodoManager, get_todos, write_todos
 
 class TestTodoManager:
 
-
     def test_singleton_pattern(self):
 
         manager1 = TodoManager()
@@ -195,7 +194,6 @@ class TestTodoManager:
 
 class TestTodoManagerErrorHandling:
 
-
     def test_load_todos_corrupted_file(self, tmp_path):
 
         manager = TodoManager()
@@ -228,7 +226,6 @@ class TestTodoManagerErrorHandling:
 
 
 class TestAsyncFunctions:
-
 
     @pytest.mark.asyncio
     async def test_write_todos_unknown_keys(self, tmp_path):

@@ -1,4 +1,4 @@
-'`AutoCameraBackend` and its backends: one deadline for a whole capture, and'
+"`AutoCameraBackend` and its backends: one deadline for a whole capture, and"
 
 from __future__ import annotations
 
@@ -16,14 +16,14 @@ from zrb.llm.camera.backend import (
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    'Strip every camera-relevant env var before each test.'
+    "Strip every camera-relevant env var before each test."
     for var in ("WSL_DISTRO_NAME", "WSLENV"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
 
 
 class _FakeProcess:
-    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
+    "Minimal async-process stand-in for `asyncio.create_subprocess_exec`."
 
     def __init__(
         self,
@@ -65,7 +65,7 @@ def _which_only(*names: str):
 
 @pytest.mark.asyncio
 async def test_capture_timeout_returns_none_with_hint(clean_env):
-    'A hung ffmpeg (open camera, no frame ever delivered) times out instead'
+    "A hung ffmpeg (open camera, no frame ever delivered) times out instead"
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
@@ -80,7 +80,6 @@ async def test_capture_timeout_returns_none_with_hint(clean_env):
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
         backend = AutoCameraBackend(ffmpeg=FfmpegCameraBackend(timeout=0.05))
         result = await backend.capture(None)
-
 
     assert result is None
     assert all(proc.killed for proc in hung_procs)
@@ -112,7 +111,7 @@ async def test_a_hung_termux_capture_is_abandoned_after_the_timeout(
 async def test_an_mjpeg_attempt_that_times_out_leaves_no_time_for_the_raw_one(
     clean_env,
 ):
-    'Both ffmpeg attempts share one deadline: a 0.05 s timeout never'
+    "Both ffmpeg attempts share one deadline: a 0.05 s timeout never"
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     started: list[_FakeProcess] = []

@@ -18,7 +18,6 @@ def workdir():
 @pytest.fixture
 def snapshot_dir():
 
-
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         yield d
 
@@ -32,7 +31,7 @@ _real_subprocess_run = subprocess.run
 
 
 def _run_records_timeout(*args, **kwargs):
-    'Delegate to the real (pre-patch) subprocess.run so git genuinely'
+    "Delegate to the real (pre-patch) subprocess.run so git genuinely"
     _run_records_timeout.calls.append(kwargs.get("timeout"))
     return _real_subprocess_run(*args, **kwargs)
 
@@ -111,7 +110,6 @@ async def test_take_snapshot_no_new_commit_when_files_unchanged(manager, workdir
         f.write("same")
     sha1 = await manager.take_snapshot("first")
 
-
     sha2 = await manager.take_snapshot("second — same files")
     assert sha1 == sha2
     assert len(manager.list_snapshots()) == 1
@@ -182,7 +180,7 @@ async def test_restore_snapshot_returns_false_when_no_snapshots_exist(manager):
 
 @pytest.mark.asyncio
 async def test_git_directory_in_workdir_is_preserved_after_restore(manager, workdir):
-    'Regression: empty dirs inside .git must not be deleted during sync.'
+    "Regression: empty dirs inside .git must not be deleted during sync."
     git_dir = os.path.join(workdir, ".git")
     heads_dir = os.path.join(git_dir, "refs", "heads")
     pack_dir = os.path.join(git_dir, "objects", "pack")
@@ -215,7 +213,6 @@ async def test_snapshot_does_not_include_workdir_git_contents(manager, workdir):
         f.write("real file")
     await manager.take_snapshot("should exclude .git")
 
-
     assert len(manager.list_snapshots()) == 1
     assert os.path.exists(os.path.join(git_dir, "secret"))
 
@@ -234,7 +231,7 @@ async def test_snapshot_of_empty_workdir_is_restorable(manager, workdir):
 
 @pytest.mark.asyncio
 async def test_restore_snapshot_with_files_in_subdirectories(manager, workdir):
-    'Subdirectories are recreated on restore when they were deleted.'
+    "Subdirectories are recreated on restore when they were deleted."
     import shutil
 
     subdir = os.path.join(workdir, "subdir")
@@ -254,7 +251,7 @@ async def test_restore_snapshot_with_files_in_subdirectories(manager, workdir):
 
 @pytest.mark.asyncio
 async def test_restore_removes_stale_subdirectory(manager, workdir):
-    'Restore removes directories that were added after the snapshot.'
+    "Restore removes directories that were added after the snapshot."
     with open(os.path.join(workdir, "f.txt"), "w") as f:
         f.write("original")
     sha = await manager.take_snapshot("clean")
@@ -273,7 +270,7 @@ async def test_restore_removes_stale_subdirectory(manager, workdir):
 async def test_take_init_snapshot_creates_commit_for_nonempty_workdir(
     snapshot_dir, workdir
 ):
-    'take_init_snapshot syncs workdir files and creates the init commit (lines 108-119).'
+    "take_init_snapshot syncs workdir files and creates the init commit (lines 108-119)."
     with open(os.path.join(workdir, "hello.txt"), "w") as f:
         f.write("hello")
 
@@ -364,7 +361,6 @@ async def test_restore_is_byte_exact_whatever_gitattributes_say(
     manager, workdir, monkeypatch
 ):
 
-
     monkeypatch.setenv("GIT_CONFIG_COUNT", "2")
     monkeypatch.setenv("GIT_CONFIG_KEY_0", "filter.spy.smudge")
     monkeypatch.setenv("GIT_CONFIG_VALUE_0", "echo SMUDGED")
@@ -389,7 +385,7 @@ async def test_restore_is_byte_exact_whatever_gitattributes_say(
 
 @pytest.mark.asyncio
 async def test_a_gitignore_outside_any_repository_has_no_effect(manager, workdir):
-    'As in git itself: only a repository reads its `.gitignore`.'
+    "As in git itself: only a repository reads its `.gitignore`."
     with open(os.path.join(workdir, ".gitignore"), "w") as f:
         f.write("*.log\n")
     log = os.path.join(workdir, "run.log")

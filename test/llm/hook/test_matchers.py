@@ -9,7 +9,7 @@ from zrb.llm.hook.types import HookEvent
 
 
 def _create_mock_cfg():
-    'Create mock config for tests.'
+    "Create mock config for tests."
     mock_cfg = MagicMock()
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
@@ -25,7 +25,7 @@ def hook_manager():
 
 
 async def check_match(tmp_path, matchers, context_data):
-    'Helper to verify if matchers work using public scan + execute_hooks.'
+    "Helper to verify if matchers work using public scan + execute_hooks."
     hook_dir = tmp_path / "hooks"
     if hook_dir.exists():
         import shutil
@@ -51,10 +51,8 @@ async def check_match(tmp_path, matchers, context_data):
         manager = HookManager(search_dirs=[])
         manager.scan(search_dirs=[str(hook_dir)])
 
-
         data_to_pass = context_data.copy()
         event_data = data_to_pass.pop("event_data", None)
-
 
         results = await manager.execute_hooks(
             HookEvent.SESSION_START, event_data, **data_to_pass
@@ -74,7 +72,6 @@ async def test_evaluate_matchers_equals(tmp_path):
         await check_match(tmp_path, matchers, {"event_data": {"tool": "bash"}}) is True
     )
 
-
     matchers = [{"field": "event_data.tool", "operator": "equals", "value": "python"}]
     assert (
         await check_match(tmp_path, matchers, {"event_data": {"tool": "bash"}}) is False
@@ -82,7 +79,7 @@ async def test_evaluate_matchers_equals(tmp_path):
 
 
 def test_session_end_matcher_field_is_source():
-    'SessionEnd gains Claude-compatible matcher support, filtering on `source`.'
+    "SessionEnd gains Claude-compatible matcher support, filtering on `source`."
     from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
     from zrb.llm.hook.types import HookEvent
 
@@ -90,7 +87,7 @@ def test_session_end_matcher_field_is_source():
 
 
 def test_notification_matcher_field_is_notification_type():
-    'Claude matches Notification hooks on `notification_type` (e.g.'
+    "Claude matches Notification hooks on `notification_type` (e.g."
     from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
     from zrb.llm.hook.types import HookEvent
 
@@ -99,7 +96,7 @@ def test_notification_matcher_field_is_notification_type():
 
 @pytest.mark.asyncio
 async def test_evaluate_matchers_source_field(tmp_path):
-    'A matcher on the `source` field (used by SessionStart/SessionEnd) selects'
+    "A matcher on the `source` field (used by SessionStart/SessionEnd) selects"
     matchers = [{"field": "source", "operator": "equals", "value": "other"}]
     assert await check_match(tmp_path, matchers, {"source": "other"}) is True
     assert await check_match(tmp_path, matchers, {"source": "logout"}) is False
@@ -115,7 +112,6 @@ async def test_evaluate_matchers_not_equals(tmp_path):
         await check_match(tmp_path, matchers, {"event_data": {"tool": "bash"}}) is True
     )
 
-
     matchers = [{"field": "event_data.tool", "operator": "not_equals", "value": "bash"}]
     assert (
         await check_match(tmp_path, matchers, {"event_data": {"tool": "bash"}}) is False
@@ -128,7 +124,6 @@ async def test_evaluate_matchers_contains(tmp_path):
     matchers = [{"field": "prompt", "operator": "contains", "value": "world"}]
     assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is True
 
-
     matchers = [{"field": "prompt", "operator": "contains", "value": "mars"}]
     assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is False
 
@@ -139,7 +134,6 @@ async def test_evaluate_matchers_starts_with(tmp_path):
     matchers = [{"field": "prompt", "operator": "starts_with", "value": "hello"}]
     assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is True
 
-
     matchers = [{"field": "prompt", "operator": "starts_with", "value": "world"}]
     assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is False
 
@@ -149,7 +143,6 @@ async def test_evaluate_matchers_ends_with(tmp_path):
 
     matchers = [{"field": "prompt", "operator": "ends_with", "value": "world"}]
     assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is True
-
 
     matchers = [{"field": "prompt", "operator": "ends_with", "value": "hello"}]
     assert await check_match(tmp_path, matchers, {"prompt": "hello world"}) is False
@@ -166,7 +159,6 @@ async def test_evaluate_matchers_regex(tmp_path):
         is True
     )
 
-
     matchers = [{"field": "prompt", "operator": "regex", "value": "^success"}]
     assert (
         await check_match(tmp_path, matchers, {"prompt": "error: file not found"})
@@ -179,7 +171,6 @@ async def test_evaluate_matchers_glob(tmp_path):
 
     matchers = [{"field": "tool_name", "operator": "glob", "value": "*.py"}]
     assert await check_match(tmp_path, matchers, {"tool_name": "script.py"}) is True
-
 
     matchers = [{"field": "tool_name", "operator": "glob", "value": "*.js"}]
     assert await check_match(tmp_path, matchers, {"tool_name": "script.py"}) is False
@@ -197,7 +188,6 @@ async def test_evaluate_matchers_case_sensitivity(tmp_path):
         }
     ]
     assert await check_match(tmp_path, matchers, {"prompt": "Hello World"}) is True
-
 
     matchers = [
         {
@@ -221,7 +211,7 @@ async def test_evaluate_matchers_nested_field_missing(tmp_path):
 
 @pytest.mark.asyncio
 async def test_tool_name_alias_claude_name_matches_zrb_tool(tmp_path):
-    'A Claude-style matcher keyed on the Claude tool name fires on the zrb tool'
+    "A Claude-style matcher keyed on the Claude tool name fires on the zrb tool"
     bash_matcher = [{"field": "tool_name", "operator": "equals", "value": "Bash"}]
     assert await check_match(tmp_path, bash_matcher, {"tool_name": "Shell"}) is True
 
@@ -240,7 +230,7 @@ async def test_tool_name_alias_claude_name_matches_zrb_tool(tmp_path):
 
 @pytest.mark.asyncio
 async def test_tool_name_alias_does_not_overmatch(tmp_path):
-    'The alias only adds the mapped Claude name(s); an unrelated tool name is'
+    "The alias only adds the mapped Claude name(s); an unrelated tool name is"
     bash_matcher = [{"field": "tool_name", "operator": "equals", "value": "Bash"}]
     assert await check_match(tmp_path, bash_matcher, {"tool_name": "Read"}) is False
 
@@ -249,9 +239,8 @@ async def test_tool_name_alias_does_not_overmatch(tmp_path):
 
 @pytest.mark.asyncio
 async def test_tool_name_alias_ignored_for_not_equals(tmp_path):
-    'NOT_EQUALS is an exclusion filter, so the alias is not expanded: excluding'
+    "NOT_EQUALS is an exclusion filter, so the alias is not expanded: excluding"
     matcher = [{"field": "tool_name", "operator": "not_equals", "value": "Bash"}]
-
 
     assert await check_match(tmp_path, matcher, {"tool_name": "Shell"}) is True
     assert await check_match(tmp_path, matcher, {"tool_name": "Bash"}) is False
@@ -269,7 +258,6 @@ async def test_evaluate_matchers_multiple(tmp_path):
         is True
     )
 
-
     matchers = [
         {"field": "tool_name", "operator": "equals", "value": "bash"},
         {"field": "prompt", "operator": "contains", "value": "safe_command"},
@@ -281,24 +269,24 @@ async def test_evaluate_matchers_multiple(tmp_path):
 
 
 class TestHookEventFromClaudeString:
-    'Tests for HookEvent.from_claude_string class method.'
+    "Tests for HookEvent.from_claude_string class method."
 
     def test_exact_match(self):
-        'Test direct enum value lookup.'
+        "Test direct enum value lookup."
         from zrb.llm.hook.types import HookEvent
 
         result = HookEvent.from_claude_string("SessionStart")
         assert result == HookEvent.SESSION_START
 
     def test_case_insensitive_fallback(self):
-        'Test case-insensitive fallback when exact match fails.'
+        "Test case-insensitive fallback when exact match fails."
         from zrb.llm.hook.types import HookEvent
 
         result = HookEvent.from_claude_string("SESSIONSTART")
         assert result == HookEvent.SESSION_START
 
     def test_unknown_value_raises(self):
-        'Test that unknown values raise ValueError.'
+        "Test that unknown values raise ValueError."
         from zrb.llm.hook.types import HookEvent
 
         with pytest.raises(ValueError, match="Unknown hook event"):
@@ -306,7 +294,7 @@ class TestHookEventFromClaudeString:
 
 
 class TestMatcherOperatorFromClaudePattern:
-    'Tests for MatcherOperator.from_claude_pattern class method.'
+    "Tests for MatcherOperator.from_claude_pattern class method."
 
     def test_wildcard_returns_glob(self):
         "Test that '*' returns GLOB."
@@ -315,20 +303,20 @@ class TestMatcherOperatorFromClaudePattern:
         assert MatcherOperator.from_claude_pattern("*") == MatcherOperator.GLOB
 
     def test_empty_string_returns_glob(self):
-        'Test that empty string returns GLOB.'
+        "Test that empty string returns GLOB."
         from zrb.llm.hook.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("") == MatcherOperator.GLOB
 
     def test_glob_pattern_returns_glob(self):
-        'Test that patterns with wildcards return GLOB.'
+        "Test that patterns with wildcards return GLOB."
         from zrb.llm.hook.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("*.py") == MatcherOperator.GLOB
         assert MatcherOperator.from_claude_pattern("file?.txt") == MatcherOperator.GLOB
 
     def test_regex_pattern_with_anchor_returns_regex(self):
-        'Test that anchored patterns return REGEX.'
+        "Test that anchored patterns return REGEX."
         from zrb.llm.hook.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("^start") == MatcherOperator.REGEX
@@ -338,11 +326,10 @@ class TestMatcherOperatorFromClaudePattern:
         "Test that patterns with '.*' return GLOB (star is checked first)."
         from zrb.llm.hook.types import MatcherOperator
 
-
         assert MatcherOperator.from_claude_pattern("foo.*bar") == MatcherOperator.GLOB
 
     def test_plain_string_returns_equals(self):
-        'Test that plain strings return EQUALS.'
+        "Test that plain strings return EQUALS."
         from zrb.llm.hook.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("bash") == MatcherOperator.EQUALS

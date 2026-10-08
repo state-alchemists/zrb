@@ -12,7 +12,7 @@ def skill_manager(tmp_path):
 
 
 def _builtin_mock_cfg(mock_cfg, *, enable_builtin_skills, extra_skill_dirs=None):
-    'Configure a mocked CFG that disables home/project search so only the'
+    "Configure a mocked CFG that disables home/project search so only the"
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_SEARCH_HOME = False
     mock_cfg.LLM_SEARCH_PROJECT = False
@@ -73,7 +73,7 @@ def test_builtin_core_skills_always_searched(tmp_path):
 
 
 def test_no_builtin_journaling_skill_ships(tmp_path):
-    'The journal is a pair of tools now, not a skill.'
+    "The journal is a pair of tools now, not a skill."
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _builtin_mock_cfg(mock_cfg, enable_builtin_skills=False)
@@ -83,7 +83,7 @@ def test_no_builtin_journaling_skill_ships(tmp_path):
 
 
 def test_a_user_journaling_skill_still_loads(tmp_path):
-    'Deleting the built-in must not blocklist the name (ADR-0054).'
+    "Deleting the built-in must not blocklist the name (ADR-0054)."
     user_dir = tmp_path / "skills" / "core-journaling"
     user_dir.mkdir(parents=True)
     (user_dir / "SKILL.md").write_text(

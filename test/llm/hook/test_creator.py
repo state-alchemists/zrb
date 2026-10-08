@@ -1,4 +1,4 @@
-'Command-hook behavior and exit-code semantics.'
+"Command-hook behavior and exit-code semantics."
 
 import logging
 import os
@@ -12,19 +12,16 @@ from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.schema import CommandHookConfig
 from zrb.llm.hook.types import HookEvent
 
-
 posix_shell_only = pytest.mark.skipif(
     os.name != "posix",
     reason="drives a POSIX shell script; cmd.exe does not share the syntax",
 )
 
 
-
-
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_killed_by_signal_is_quiet_non_failure(caplog):
-    'A signal-terminated hook is not logged as an error.'
+    "A signal-terminated hook is not logged as an error."
 
     previous_handler = signal.signal(signal.SIGINT, signal.SIG_DFL)
     try:
@@ -60,7 +57,6 @@ async def test_command_hook_unknown_signal_number_uses_generic_label():
             return -99
 
         def communicate(self, input=None):
-
 
             return b"", b""
 
@@ -110,7 +106,7 @@ async def test_command_hook_stdout_not_context_for_other_events():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_json_stdout_respected_over_raw_context():
-    'A SessionStart hook emitting a JSON control object keeps it verbatim; the'
+    "A SessionStart hook emitting a JSON control object keeps it verbatim; the"
     hook = create_command_hook(CommandHookConfig(command='echo \'{"foo": "bar"}\''))
     context = HookContext(event=HookEvent.SESSION_START, event_data={})
 
@@ -122,7 +118,7 @@ async def test_command_hook_json_stdout_respected_over_raw_context():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_exit0_json_modifications_respected():
-    'On exit 0 a JSON stdout object becomes the modifications dict.'
+    "On exit 0 a JSON stdout object becomes the modifications dict."
     hook = create_command_hook(
         CommandHookConfig(command='echo \'{"hookSpecificOutput": {"a": 1}}\'')
     )
@@ -137,7 +133,7 @@ async def test_command_hook_exit0_json_modifications_respected():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_exit2_reason_from_stderr():
-    'Claude-compatible: on exit 2 the block reason is read from stderr.'
+    "Claude-compatible: on exit 2 the block reason is read from stderr."
     hook = create_command_hook(
         CommandHookConfig(command='echo "denied by policy" >&2; exit 2')
     )
@@ -153,7 +149,7 @@ async def test_command_hook_exit2_reason_from_stderr():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_exit2_reason_from_stdout_plain_text():
-    'Legacy zrb behavior: a plain-stdout reason on exit 2 still works.'
+    "Legacy zrb behavior: a plain-stdout reason on exit 2 still works."
     hook = create_command_hook(
         CommandHookConfig(command='echo "stdout reason"; exit 2')
     )
@@ -167,7 +163,7 @@ async def test_command_hook_exit2_reason_from_stdout_plain_text():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_exit2_json_reason_wins_over_stderr():
-    'An explicit `reason` in a stdout JSON control object takes precedence.'
+    "An explicit `reason` in a stdout JSON control object takes precedence."
     hook = create_command_hook(
         CommandHookConfig(
             command='echo "stderr text" >&2; echo \'{"reason": "json wins"}\'; exit 2'
@@ -183,7 +179,7 @@ async def test_command_hook_exit2_json_reason_wins_over_stderr():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_exit2_json_without_reason_keeps_default():
-    'A JSON control object with no reason and no stderr keeps the default.'
+    "A JSON control object with no reason and no stderr keeps the default."
     hook = create_command_hook(
         CommandHookConfig(command='echo \'{"decision": "block"}\'; exit 2')
     )
@@ -197,7 +193,7 @@ async def test_command_hook_exit2_json_without_reason_keeps_default():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_generic_failure_logs_error(caplog):
-    'A non-zero, non-2, non-signal exit is an error with stderr appended.'
+    "A non-zero, non-2, non-signal exit is an error with stderr appended."
     hook = create_command_hook(CommandHookConfig(command='echo "boom" >&2; exit 3'))
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
@@ -213,7 +209,7 @@ async def test_command_hook_generic_failure_logs_error(caplog):
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_error_exit_with_stdout_only(caplog):
-    'A non-zero exit with stdout (no stderr) appends stdout to the error.'
+    "A non-zero exit with stdout (no stderr) appends stdout to the error."
     hook = create_command_hook(
         CommandHookConfig(command='echo "info on stdout"; exit 4')
     )
@@ -225,9 +221,6 @@ async def test_command_hook_error_exit_with_stdout_only(caplog):
     assert result.success is False
     assert "exit code 4" in (result.output or "")
     assert "info on stdout" in (result.output or "")
-
-
-
 
 
 @posix_shell_only
@@ -263,7 +256,7 @@ async def test_command_hook_injects_event_and_field_env_vars():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_gets_response_text_when_event_data_is_too_large():
-    'A Stop payload with real history overflows CLAUDE_EVENT_DATA and is'
+    "A Stop payload with real history overflows CLAUDE_EVENT_DATA and is"
     hook = create_command_hook(
         CommandHookConfig(
             command='echo "[$CLAUDE_EVENT_DATA]|$CLAUDE_LAST_ASSISTANT_MESSAGE"'
@@ -299,7 +292,7 @@ async def test_command_hook_remote_metadata_sets_env():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_sets_plugin_root_env_when_configured():
-    'A hook config carrying `plugin_root` exports it as CLAUDE_PLUGIN_ROOT.'
+    "A hook config carrying `plugin_root` exports it as CLAUDE_PLUGIN_ROOT."
     hook = create_command_hook(
         CommandHookConfig(
             command='echo "$CLAUDE_PLUGIN_ROOT"',
@@ -316,7 +309,7 @@ async def test_command_hook_sets_plugin_root_env_when_configured():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_plugin_root_defaults_to_empty():
-    'A hook with no recorded plugin origin gets an empty CLAUDE_PLUGIN_ROOT,'
+    "A hook with no recorded plugin origin gets an empty CLAUDE_PLUGIN_ROOT,"
     hook = create_command_hook(
         CommandHookConfig(command='echo "[$CLAUDE_PLUGIN_ROOT]"')
     )
@@ -341,12 +334,11 @@ async def test_command_hook_none_event_data_serializes_null():
 
 @pytest.mark.asyncio
 async def test_command_hook_non_serializable_event_data_falls_back_to_str():
-    'Non-JSON-serializable event_data falls back to its string repr in env,'
+    "Non-JSON-serializable event_data falls back to its string repr in env,"
     hook = create_command_hook(CommandHookConfig(command='echo "$CLAUDE_EVENT_DATA"'))
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={1, 2, 3})
 
     result = await hook(context)
-
 
     assert result.success is True
     assert (result.output or "").strip() != ""
@@ -356,15 +348,13 @@ async def test_command_hook_non_serializable_event_data_falls_back_to_str():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_non_serializable_stdin_falls_back_to_minimal():
-    'When to_claude_json() carries a non-serializable value (here a set in'
+    "When to_claude_json() carries a non-serializable value (here a set in"
     hook = create_command_hook(
         CommandHookConfig(
             command="python3 -c 'import sys,json; "
             'print(json.load(sys.stdin)["hook_event_name"])\''
         )
     )
-
-
 
     context = HookContext(
         event=HookEvent.PRE_TOOL_USE,
@@ -378,12 +368,9 @@ async def test_command_hook_non_serializable_stdin_falls_back_to_minimal():
     assert "PreToolUse" in (result.output or "")
 
 
-
-
-
 @pytest.mark.asyncio
 async def test_command_hook_expands_working_dir(tmp_path):
-    'config.working_dir is expanded and used as the subprocess cwd.'
+    "config.working_dir is expanded and used as the subprocess cwd."
     hook = create_command_hook(
         CommandHookConfig(command="pwd", working_dir=str(tmp_path))
     )
@@ -391,13 +378,12 @@ async def test_command_hook_expands_working_dir(tmp_path):
 
     result = await hook(context)
 
-
     assert os.path.basename((result.output or "").strip()) == tmp_path.name
 
 
 @pytest.mark.asyncio
 async def test_command_hook_missing_working_dir_is_ignored(tmp_path):
-    'A non-existent working_dir is dropped (hook inherits the parent cwd).'
+    "A non-existent working_dir is dropped (hook inherits the parent cwd)."
     missing = str(tmp_path / "does-not-exist")
     hook = create_command_hook(
         CommandHookConfig(command="echo ok", working_dir=missing)

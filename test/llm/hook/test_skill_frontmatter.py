@@ -1,4 +1,4 @@
-'Skill frontmatter hooks fire on per-run managers and survive rescans.'
+"Skill frontmatter hooks fire on per-run managers and survive rescans."
 
 import gc
 import weakref
@@ -17,9 +17,6 @@ from zrb.llm.hook.skill_frontmatter import (
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.skill.manager import SkillManager
 
-
-
-
 _SKILL_FLAT_SHAPE = """---
 name: hooked
 hooks:
@@ -30,7 +27,6 @@ hooks:
       command: echo fired >> {marker}
 ---
 """
-
 
 
 _SKILL_CLAUDE_SHAPE = """---
@@ -55,13 +51,13 @@ def _write_skill(skill_dir: Path, content: str) -> None:
 
 
 def _scan(skill_dir: Path, canonical: HookManager) -> None:
-    'Scan *skill_dir*, with the process-wide manager the scan registers into'
+    "Scan *skill_dir*, with the process-wide manager the scan registers into"
     with patch("zrb.llm.skill.manager.hook_manager", canonical):
         SkillManager(root_dir=str(skill_dir)).scan(search_dirs=[skill_dir])
 
 
 def _stop_hook_names(manager: HookManager) -> list[str]:
-    'The Stop hook config names on a manager, without triggering its load.'
+    "The Stop hook config names on a manager, without triggering its load."
     names = []
     for hook in manager.registry.get_hooks(HookEvent.STOP):
         config = manager.registry.get_hook_config(hook)
@@ -78,8 +74,6 @@ async def test_claude_shape_hook_fires_on_a_fresh_per_run_manager(tmp_path):
     _scan(tmp_path / "skill", canonical)
 
     assert _stop_hook_names(canonical), "scan did not register on its own manager"
-
-
 
     per_run = HookManager(search_dirs=[])
     await per_run.execute_hooks(HookEvent.STOP, {})
@@ -121,7 +115,7 @@ def test_reload_keeps_skill_frontmatter_hooks(tmp_path):
 
 
 def test_rescan_replaces_a_claude_shaped_sources_hooks(tmp_path):
-    'Every scan re-parses the file and mints fresh configs — a Claude-format'
+    "Every scan re-parses the file and mints fresh configs — a Claude-format"
     canonical = HookManager(search_dirs=[])
     skill_dir = tmp_path / "skill"
     _write_skill(skill_dir, _SKILL_CLAUDE_SHAPE.format(marker=tmp_path / "m"))
@@ -185,7 +179,7 @@ def test_scan_drops_hooks_of_a_skill_that_disappeared(tmp_path):
 
 
 def test_a_config_already_on_the_registry_is_not_registered_twice(tmp_path):
-    'The scan registers the canonical manager itself, and every manager also'
+    "The scan registers the canonical manager itself, and every manager also"
     canonical = HookManager(search_dirs=[])
     config = HookConfig(
         name="skill-hook-once",
@@ -201,7 +195,7 @@ def test_a_config_already_on_the_registry_is_not_registered_twice(tmp_path):
 
 
 def test_the_store_replays_onto_a_manager_over_its_own_registry(tmp_path):
-    'A manager that is not the canonical one still gets the hooks — the'
+    "A manager that is not the canonical one still gets the hooks — the"
     canonical = HookManager(search_dirs=[])
     _write_skill(
         tmp_path / "skill",
@@ -216,7 +210,7 @@ def test_the_store_replays_onto_a_manager_over_its_own_registry(tmp_path):
 
 
 def test_a_scan_on_another_manager_retires_the_first_managers_hooks(tmp_path):
-    'Registering is the job of the manager a scan targets, but retiring the'
+    "Registering is the job of the manager a scan targets, but retiring the"
     first, second = HookManager(search_dirs=[]), HookManager(search_dirs=[])
     skill_dir = tmp_path / "skill"
     _write_skill(
@@ -235,7 +229,7 @@ def test_a_scan_on_another_manager_retires_the_first_managers_hooks(tmp_path):
 
 
 def test_reload_replay_updates_the_recorded_callables(tmp_path):
-    '`reload()` clears the registry and the factory registers the stored'
+    "`reload()` clears the registry and the factory registers the stored"
     canonical = HookManager(search_dirs=[])
     skill_dir = tmp_path / "skill"
     _write_skill(
@@ -277,7 +271,7 @@ def test_a_manager_that_replayed_the_source_is_swept_too(tmp_path):
 
 
 def test_the_record_does_not_keep_a_scanned_manager_alive(tmp_path):
-    'A scan can target a manager the caller then releases — a per-run manager'
+    "A scan can target a manager the caller then releases — a per-run manager"
     skill_dir = tmp_path / "skill"
     _write_skill(
         skill_dir,

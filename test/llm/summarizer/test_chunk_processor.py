@@ -1,4 +1,4 @@
-'Tests for the rarely-hit branches in chunk_processor.'
+"Tests for the rarely-hit branches in chunk_processor."
 
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -28,7 +28,7 @@ async def test_empty_messages_returns_no_summaries_marker():
 
 @pytest.mark.asyncio
 async def test_message_to_text_failure_falls_back_to_str():
-    'If message_to_text raises, the converter falls back to str(m) and'
+    "If message_to_text raises, the converter falls back to str(m) and"
     with (
         patch(
             "zrb.llm.summarizer.chunk_processor.message_to_text",
@@ -48,23 +48,20 @@ async def test_message_to_text_failure_falls_back_to_str():
     assert "SUMMARY" in out
 
 
-
-
-
 _TINY_MODEL = "zrb-test-tiny-window"
 _TINY_WINDOW = 100
 
 
 @pytest.fixture
 def tiny_window_model():
-    'A registered model whose window forces more than one chunk.'
+    "A registered model whose window forces more than one chunk."
     model_capabilities.register(_TINY_MODEL, context_window=_TINY_WINDOW)
     yield f"fake:{_TINY_MODEL}"
     model_capabilities.clear()
 
 
 def _recording_summarizer(monkeypatch) -> list[str]:
-    'Patch the summarizer seam and collect the text of every chunk it saw.'
+    "Patch the summarizer seam and collect the text of every chunk it saw."
     sent: list[str] = []
 
     async def fake_summarize(text, agent, limiter, threshold):

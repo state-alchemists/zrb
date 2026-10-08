@@ -25,7 +25,7 @@ def lsp_server(mock_config):
 
 @pytest.mark.asyncio
 async def test_lsp_server_queries(lsp_server):
-    'Test public query methods by simulating server responses.'
+    "Test public query methods by simulating server responses."
     with patch("asyncio.create_subprocess_exec") as mock_exec:
         mock_proc = MagicMock()
         mock_proc.returncode = None
@@ -36,12 +36,10 @@ async def test_lsp_server_queries(lsp_server):
         mock_proc.wait_closed = AsyncMock()
         mock_exec.return_value = mock_proc
 
-
         init_res = json.dumps(
             {"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}
         )
         init_payload = f"Content-Length: {len(init_res)}\r\n\r\n{init_res}".encode()
-
 
         response_queue = asyncio.Queue()
         response_queue.put_nowait(init_payload)
@@ -51,7 +49,6 @@ async def test_lsp_server_queries(lsp_server):
 
         mock_proc.stdout.read.side_effect = mock_read
         await lsp_server.start()
-
 
         symbols_res = json.dumps(
             {"jsonrpc": "2.0", "id": 2, "result": [{"name": "test"}]}
@@ -64,7 +61,6 @@ async def test_lsp_server_queries(lsp_server):
         with patch("pathlib.Path.exists", return_value=True):
             res = await lsp_server.document_symbols("/test/file.py")
             assert res == [{"name": "test"}]
-
 
         diag_uri = lsp_server.path_to_uri("/test/file.py")
         diag_notif = json.dumps(
@@ -85,7 +81,7 @@ async def test_lsp_server_queries(lsp_server):
 
 @pytest.mark.asyncio
 async def test_read_loop_handles_nonascii_split_across_reads(lsp_server):
-    'Framing is by bytes, so a multi-byte char split across reads survives.'
+    "Framing is by bytes, so a multi-byte char split across reads survives."
     with patch("asyncio.create_subprocess_exec") as mock_exec:
         mock_proc = MagicMock()
         mock_proc.returncode = None
@@ -100,7 +96,6 @@ async def test_read_loop_handles_nonascii_split_across_reads(lsp_server):
             {"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}}
         )
         init_payload = f"Content-Length: {len(init_res)}\r\n\r\n{init_res}".encode()
-
 
         body = json.dumps(
             {"jsonrpc": "2.0", "id": 2, "result": [{"name": "foo—bar"}]},
@@ -119,8 +114,6 @@ async def test_read_loop_handles_nonascii_split_across_reads(lsp_server):
 
         mock_proc.stdout.read.side_effect = mock_read
         await lsp_server.start()
-
-
 
         lsp_server.open_files.add(lsp_server.path_to_uri("/test/file.py"))
         chunks.put_nowait(chunk1)
@@ -141,7 +134,6 @@ async def test_query_opens_document_first(lsp_server, tmp_path):
     lsp_server.initialized = True
     lsp_server.writer = MagicMock()
 
-
     lsp_server.diagnostics[lsp_server.path_to_uri(str(target))] = (None, [])
     sent: list = []
 
@@ -159,7 +151,7 @@ async def test_query_opens_document_first(lsp_server, tmp_path):
 
 
 def testpath_to_uri_encodes_special_characters(lsp_server):
-    'path_to_uri quotes #/?/%/non-ASCII, matching the protocol encoder.'
+    "path_to_uri quotes #/?/%/non-ASCII, matching the protocol encoder."
     from zrb.llm.lsp.protocol import LSPProtocol
     from zrb.llm.lsp.symbol_utils import uri_to_path
 
@@ -181,7 +173,7 @@ def testpath_to_uri_encodes_special_characters(lsp_server):
 
 @pytest.mark.asyncio
 async def test_rename_applies_workspace_edit_to_disk(lsp_server, tmp_path):
-    'B7 option (a): non-dry-run rename writes edits to disk and reports applied.'
+    "B7 option (a): non-dry-run rename writes edits to disk and reports applied."
     target = tmp_path / "mod.py"
     target.write_text("def old_name():\n    return old_name\n")
 
@@ -218,7 +210,7 @@ async def test_rename_applies_workspace_edit_to_disk(lsp_server, tmp_path):
 
 @pytest.mark.asyncio
 async def test_rename_dry_run_does_not_write(lsp_server, tmp_path):
-    'B7: dry-run returns the edit unchanged without touching disk.'
+    "B7: dry-run returns the edit unchanged without touching disk."
     target = tmp_path / "mod.py"
     original = "def old_name():\n    pass\n"
     target.write_text(original)
@@ -249,7 +241,7 @@ async def test_rename_dry_run_does_not_write(lsp_server, tmp_path):
 
 @pytest.mark.asyncio
 async def test_rename_apply_failure_reports_not_applied(lsp_server):
-    'B7: when no edits can be written, applied is False (never silently True).'
+    "B7: when no edits can be written, applied is False (never silently True)."
     workspace_edit = {
         "changes": {
             "file:///nonexistent/does_not_exist_xyz.py": [

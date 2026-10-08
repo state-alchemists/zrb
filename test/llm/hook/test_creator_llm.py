@@ -1,4 +1,4 @@
-'Prompt hook — one of the two LLM-backed hook types (the other, the agent'
+"Prompt hook — one of the two LLM-backed hook types (the other, the agent"
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,7 +11,7 @@ from zrb.llm.hook.types import HookEvent
 
 
 def _agent_returning(output):
-    'Build a patchable pydantic_ai.Agent whose run() returns `output`.'
+    "Build a patchable pydantic_ai.Agent whose run() returns `output`."
     agent_instance = MagicMock()
     agent_instance.run = AsyncMock(return_value=MagicMock(output=output))
     agent_cls = MagicMock(return_value=agent_instance)
@@ -19,19 +19,16 @@ def _agent_returning(output):
 
 
 def _patched_agent(agent_cls):
-    'Patch in *agent_cls* as pydantic_ai.Agent with a stub model resolver.'
+    "Patch in *agent_cls* as pydantic_ai.Agent with a stub model resolver."
     return (
         patch("zrb.llm.hook.creator.resolve_configured_model"),
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     )
 
 
-
-
-
 @pytest.mark.asyncio
 async def test_prompt_hook_no_model_configured():
-    'With no model on the config and CFG.LLM_MODEL empty, the hook fails fast.'
+    "With no model on the config and CFG.LLM_MODEL empty, the hook fails fast."
     config = PromptHookConfig(user_prompt_template="hi", model=None)
     hook = create_prompt_hook(config)
     context = HookContext(event=HookEvent.USER_PROMPT_SUBMIT, event_data={})
@@ -46,7 +43,7 @@ async def test_prompt_hook_no_model_configured():
 
 @pytest.mark.asyncio
 async def test_prompt_hook_plain_output_success():
-    'A plain (non-JSON) agent output is returned with empty modifications, and'
+    "A plain (non-JSON) agent output is returned with empty modifications, and"
     config = PromptHookConfig(
         user_prompt_template="Prompt was: {{prompt}}", model="fake-model"
     )
@@ -71,7 +68,7 @@ async def test_prompt_hook_plain_output_success():
 
 @pytest.mark.asyncio
 async def test_prompt_hook_json_output_becomes_modifications():
-    'A JSON-object agent output is parsed into modifications.'
+    "A JSON-object agent output is parsed into modifications."
     config = PromptHookConfig(user_prompt_template="x", model="fake-model")
     hook = create_prompt_hook(config)
     context = HookContext(event=HookEvent.USER_PROMPT_SUBMIT, event_data={})
@@ -103,7 +100,7 @@ async def test_prompt_hook_malformed_json_output_stays_plain():
 
 @pytest.mark.asyncio
 async def test_prompt_hook_exception_returns_failure():
-    'An error while running the agent is caught and returned as failure.'
+    "An error while running the agent is caught and returned as failure."
     config = PromptHookConfig(user_prompt_template="x", model="fake-model")
     hook = create_prompt_hook(config)
     context = HookContext(event=HookEvent.USER_PROMPT_SUBMIT, event_data={})

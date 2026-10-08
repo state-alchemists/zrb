@@ -27,7 +27,7 @@ def lsp_server(mock_config):
 
 @pytest.mark.asyncio
 async def test_start_when_alive_is_noop(lsp_server):
-    'A second start() while the process is alive short-circuits.'
+    "A second start() while the process is alive short-circuits."
     queue = asyncio.Queue()
     queue.put_nowait(
         _frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}})
@@ -126,7 +126,7 @@ async def test_initialize_sends_config_initialization_options(lsp_server):
 
 @pytest.mark.asyncio
 async def test_initialize_omits_initialization_options_when_unset(lsp_server):
-    'No options configured means no key at all: an explicit null is rejected'
+    "No options configured means no key at all: an explicit null is rejected"
     assert lsp_server.config.initialization_options is None
     queue = asyncio.Queue()
     queue.put_nowait(

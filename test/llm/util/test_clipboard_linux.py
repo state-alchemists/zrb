@@ -1,4 +1,4 @@
-'Public-API tests for clipboard image reading.'
+"Public-API tests for clipboard image reading."
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from zrb.llm.util.clipboard import copy_text, get_clipboard_image, missing_tool_
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    'Strip every clipboard-relevant env var before each test.'
+    "Strip every clipboard-relevant env var before each test."
     for var in ("WSL_DISTRO_NAME", "WSLENV", "WAYLAND_DISPLAY", "DISPLAY"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
@@ -27,7 +27,7 @@ def _png_bytes() -> bytes:
 
 
 class _FakeProcess:
-    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
+    "Minimal async-process stand-in for `asyncio.create_subprocess_exec`."
 
     def __init__(self, stdout: bytes = b"", returncode: int = 0):
         self._stdout = stdout
@@ -80,7 +80,7 @@ async def test_subprocess_filenotfound_returns_none(clean_env):
 
 @pytest.mark.asyncio
 async def test_unexpected_exception_is_swallowed(clean_env):
-    'Top-level handler catches anything and returns None.'
+    "Top-level handler catches anything and returns None."
     clean_env.setattr("sys.platform", "linux")
 
     with patch(
@@ -149,7 +149,7 @@ def test_missing_tool_hint_silent_when_xclip_present(clean_env):
 
 
 def test_copy_text_success(clean_env):
-    'copy_text returns True when pyperclip.copy succeeds.'
+    "copy_text returns True when pyperclip.copy succeeds."
     fake_pyperclip = MagicMock()
 
     with (
@@ -163,7 +163,7 @@ def test_copy_text_success(clean_env):
 
 
 def test_copy_text_falls_back_to_osc52(clean_env):
-    'copy_text uses OSC 52 when pyperclip.copy fails and stdout is a tty.'
+    "copy_text uses OSC 52 when pyperclip.copy fails and stdout is a tty."
     mock_stdout = MagicMock()
     mock_stdout.isatty.return_value = True
     clean_env.setattr("sys.stdout", mock_stdout)
@@ -186,7 +186,7 @@ def test_copy_text_falls_back_to_osc52(clean_env):
 
 
 def test_copy_text_osc52_tmux_passthrough(clean_env):
-    'OSC 52 is wrapped for tmux passthrough.'
+    "OSC 52 is wrapped for tmux passthrough."
     mock_stdout = MagicMock()
     mock_stdout.isatty.return_value = True
     clean_env.setattr("sys.stdout", mock_stdout)
@@ -206,7 +206,7 @@ def test_copy_text_osc52_tmux_passthrough(clean_env):
 
 
 def test_copy_text_fails_when_no_tty_and_no_pyperclip(clean_env):
-    'copy_text returns False when pyperclip fails and not a tty.'
+    "copy_text returns False when pyperclip fails and not a tty."
     mock_stdout = MagicMock()
     mock_stdout.isatty.return_value = False
     clean_env.setattr("sys.stdout", mock_stdout)
@@ -223,7 +223,7 @@ def test_copy_text_fails_when_no_tty_and_no_pyperclip(clean_env):
 
 
 def test_copy_text_termux_success(clean_env):
-    'copy_text uses termux-clipboard-set on Termux when available.'
+    "copy_text uses termux-clipboard-set on Termux when available."
     import subprocess
 
     mock_proc = MagicMock()
@@ -249,7 +249,7 @@ def test_copy_text_termux_success(clean_env):
 
 
 def test_copy_text_termux_fallback_to_pyperclip(clean_env):
-    'copy_text falls back to pyperclip when termux-clipboard-set fails.'
+    "copy_text falls back to pyperclip when termux-clipboard-set fails."
     mock_proc = MagicMock()
     mock_proc.returncode = 1
 

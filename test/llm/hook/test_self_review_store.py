@@ -36,7 +36,7 @@ def own_temp_dir(tmp_path_factory, monkeypatch):
 async def test_a_review_only_reads_the_turn_store_and_leaves_nothing_behind(
     tmp_path, monkeypatch, own_temp_dir, start_snapshot, gate, stop
 ):
-    'The runner deletes the turn-start store when the turn ends — also'
+    "The runner deletes the turn-start store when the turn ends — also"
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
     (tmp_path / "a.py").write_text("x = 1\n")
     monkeypatch.chdir(tmp_path)

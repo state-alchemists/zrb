@@ -56,12 +56,10 @@ async def test_summarize_fat_tool_results():
     mock_result.output = "Short summary"
     agent.run = AsyncMock(return_value=mock_result)
 
-
     fat_content = "A" * 100
     msg = ModelRequest(
         parts=[ToolReturnPart(content=fat_content, tool_name="test", tool_call_id="1")]
     )
-
 
     new_messages = await summarize_messages(
         [msg],
@@ -100,9 +98,6 @@ def test_model_request_to_text_complex():
                 AudioUrl(url="http://audio"),
                 VideoUrl(url="http://video"),
                 DocumentUrl(url="http://doc"),
-
-
-
                 CachePoint(),
             ]
         ),
@@ -141,8 +136,6 @@ async def test_summarizer_early_exit():
     limiter = MockLimiter()
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
-
-
     result = await summarize_history(
         messages,
         limiter=limiter,
@@ -154,17 +147,6 @@ async def test_summarizer_early_exit():
 
 @pytest.mark.asyncio
 async def test_summarizer_does_not_skip_when_to_summarize_tokens_exceed_threshold():
-
-
-
-
-
-
-
-
-
-
-
 
     limiter = MockLimiter()
     content = "x" * 8
@@ -188,7 +170,6 @@ async def test_summarizer_does_not_skip_when_to_summarize_tokens_exceed_threshol
         summary_window=1,
         conversational_token_threshold=100,
     )
-
 
     assert result != messages
     assert agent.run.called
@@ -237,16 +218,8 @@ async def test_create_summarizer_history_processor_flow():
     ):
         new_history = await processor(messages)
 
-
-
-
     assert len(new_history) == 1
     assert "Automated Context Restoration" in message_to_text(new_history[0])
-
-
-
-
-
 
     assert "conv summa" in message_to_text(new_history[0])
     assert msg_agent.run.called
@@ -261,7 +234,6 @@ async def test_summarize_long_text_chunking():
     mock_result = MagicMock()
     mock_result.output = "Chunk summary"
     agent.run = AsyncMock(return_value=mock_result)
-
 
     long_text = "A" * 500
     summary = await summarize_long_text(long_text, agent, limiter, 100)
@@ -304,7 +276,7 @@ async def test_summarize_history_with_multiple_snapshots():
 
 @pytest.mark.asyncio
 async def test_summarize_history_bakes_journal_index_into_summary():
-    'When a journal index exists, summarization re-seeds it into the summary.'
+    "When a journal index exists, summarization re-seeds it into the summary."
     limiter = MockLimiter()
     agent = MagicMock()
     mock_result = MagicMock()

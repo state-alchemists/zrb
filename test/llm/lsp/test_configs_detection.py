@@ -1,4 +1,4 @@
-'Which LSP servers detection finds, and where it looks for them.'
+"Which LSP servers detection finds, and where it looks for them."
 
 import os
 
@@ -13,12 +13,11 @@ from zrb.llm.lsp.configs import (
 
 
 def normcased(detected: dict[str, str]) -> dict[str, str]:
-    'Detection results normcase-d, as :func:`lsp_on_path` reports them.'
+    "Detection results normcase-d, as :func:`lsp_on_path` reports them."
     return {name: os.path.normcase(path) for name, path in detected.items()}
 
 
 def test_detect_available_lsp_servers(lsp_on_path):
-
 
     installed = lsp_on_path("pyright-langserver", "pylsp")
 
@@ -35,16 +34,13 @@ def test_detect_available_lsp_servers(lsp_on_path):
 def test_get_lsp_config_for_file(lsp_on_path):
     lsp_on_path("pyright-langserver", "gopls")
 
-
     config = get_lsp_config_for_file("script.py")
     assert config is not None
     assert config.name == "pyright"
 
-
     config = get_lsp_config_for_file("main.go")
     assert config is not None
     assert config.name == "gopls"
-
 
     config = get_lsp_config_for_file("style.css")
     assert config is None
@@ -53,11 +49,9 @@ def test_get_lsp_config_for_file(lsp_on_path):
 def test_get_lsp_config_for_file_with_preferred(lsp_on_path):
     lsp_on_path("pyright-langserver", "pylsp")
 
-
     config = get_lsp_config_for_file("script.py", preferred_servers=["pylsp"])
     assert config is not None
     assert config.name == "pylsp"
-
 
     config = get_lsp_config_for_file("script.py", preferred_servers=["not_exist"])
     assert config is not None
@@ -65,7 +59,7 @@ def test_get_lsp_config_for_file_with_preferred(lsp_on_path):
 
 
 def test_detect_caches_the_path_scan(lsp_on_path, probe_counter):
-    'The ``$PATH`` probe runs once, not on every call.'
+    "The ``$PATH`` probe runs once, not on every call."
     lsp_on_path("pyright-langserver")
     registry = LSPServerConfigRegistry()
 
@@ -79,7 +73,7 @@ def test_detect_caches_the_path_scan(lsp_on_path, probe_counter):
 
 
 def test_detect_cache_invalidated_by_register_and_clear(lsp_on_path, probe_counter):
-    'A newly registered server must be visible immediately.'
+    "A newly registered server must be visible immediately."
     installed = lsp_on_path("custom-lsp")
     registry = LSPServerConfigRegistry()
     assert registry.detect() == {}
@@ -105,7 +99,7 @@ def test_detect_cache_invalidated_by_register_and_clear(lsp_on_path, probe_count
 
 
 def test_invalidate_detection_forces_a_rescan(lsp_on_path, probe_counter):
-    'A server installed mid-session appears after ``invalidate_detection()``.'
+    "A server installed mid-session appears after ``invalidate_detection()``."
     lsp_on_path()
     registry = LSPServerConfigRegistry()
     assert registry.detect() == {}
@@ -131,7 +125,7 @@ def test_detect_result_is_not_shared_mutable_state(lsp_on_path):
 def test_an_empty_path_entry_means_the_working_directory(
     lsp_on_path, monkeypatch, tmp_path
 ):
-    'An empty ``$PATH`` entry (not an empty ``$PATH``) means the working directory.'
+    "An empty ``$PATH`` entry (not an empty ``$PATH``) means the working directory."
     lsp_on_path("custom-lsp")
     monkeypatch.chdir(tmp_path / "bin")
     monkeypatch.setenv("PATH", os.pathsep)
@@ -150,7 +144,7 @@ def test_an_empty_path_entry_means_the_working_directory(
 
 
 def test_a_path_qualified_command_bypasses_the_path_prefilter(tmp_path, monkeypatch):
-    'A command naming its own directory is resolved without the ``$PATH`` listing.'
+    "A command naming its own directory is resolved without the ``$PATH`` listing."
     elsewhere = tmp_path / "opt"
     elsewhere.mkdir()
     suffix = ".bat" if os.name == "nt" else ""
@@ -175,7 +169,7 @@ def test_a_path_qualified_command_bypasses_the_path_prefilter(tmp_path, monkeypa
 
 @pytest.mark.parametrize("through", ["confstr", "defpath"])
 def test_an_unset_path_falls_back_the_way_which_does(lsp_on_path, monkeypatch, through):
-    'An unset ``$PATH`` falls back to ``CS_PATH`` or ``os.defpath``; either alone suffices.'
+    "An unset ``$PATH`` falls back to ``CS_PATH`` or ``os.defpath``; either alone suffices."
     installed = lsp_on_path("custom-lsp")
     fallback = os.path.dirname(installed["custom-lsp"])
 
@@ -212,7 +206,7 @@ def test_an_unset_path_falls_back_the_way_which_does(lsp_on_path, monkeypatch, t
 def test_a_directory_that_cannot_be_listed_is_not_a_negative(
     lsp_on_path, monkeypatch, refusal
 ):
-    'A searchable but unlistable directory disables the prefilter instead of hiding servers.'
+    "A searchable but unlistable directory disables the prefilter instead of hiding servers."
     installed = lsp_on_path("custom-lsp")
 
     def refuse(path):
@@ -236,7 +230,7 @@ def test_a_directory_that_cannot_be_listed_is_not_a_negative(
 def test_a_missing_path_directory_does_not_disable_the_prefilter(
     lsp_on_path, monkeypatch, tmp_path, which_counter
 ):
-    'A missing ``$PATH`` directory is a plain negative, not a listing error.'
+    "A missing ``$PATH`` directory is a plain negative, not a listing error."
     installed = lsp_on_path("custom-lsp")
     monkeypatch.setenv(
         "PATH",
@@ -260,7 +254,7 @@ def test_a_missing_path_directory_does_not_disable_the_prefilter(
 
 
 class TestLSPServerConfigRegistryDetection:
-    'Detection through a registry carrying user-registered servers.'
+    "Detection through a registry carrying user-registered servers."
 
     def setup_method(self):
         self.registry = LSPServerConfigRegistry()

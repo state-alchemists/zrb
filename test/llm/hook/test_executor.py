@@ -281,7 +281,6 @@ def test_executor_singleton():
     shutdown_hook_executor()
 
 
-
 def test_a_cancelled_hook_cannot_hold_interpreter_exit():
     script = """
 import asyncio

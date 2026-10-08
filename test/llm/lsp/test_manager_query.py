@@ -1,4 +1,4 @@
-'Query-branch tests for ``LSPManagerQuery``.'
+"Query-branch tests for ``LSPManagerQuery``."
 
 from unittest.mock import AsyncMock, patch
 
@@ -24,7 +24,7 @@ def manager():
 
 @pytest.mark.asyncio
 async def test_queries_report_no_server_available(manager):
-    'Every query method returns the no-server error shape.'
+    "Every query method returns the no-server error shape."
     with patch.object(manager, "get_server", return_value=None):
         refs = await manager.find_references("sym", "file.py")
         diags = await manager.get_diagnostics("file.py")
@@ -41,7 +41,7 @@ async def test_queries_report_no_server_available(manager):
 
 @pytest.mark.asyncio
 async def test_find_definition_primary_path_error_falls_back(manager):
-    'A failing goto_definition falls back to workspace symbols.'
+    "A failing goto_definition falls back to workspace symbols."
     mock_server = AsyncMock()
     mock_server.goto_definition.side_effect = Exception("definition boom")
     mock_server.workspace_symbols.return_value = []
@@ -57,7 +57,7 @@ async def test_find_definition_primary_path_error_falls_back(manager):
 
 @pytest.mark.asyncio
 async def test_find_definition_skips_nonmatching_workspace_symbols(manager):
-    'Symbols whose name differs from the query are skipped.'
+    "Symbols whose name differs from the query are skipped."
     mock_server = AsyncMock()
     mock_server.workspace_symbols.return_value = [
         {"name": "Other", "kind": SymbolKind.CLASS.value, "location": {}},
@@ -78,7 +78,7 @@ async def test_find_definition_skips_nonmatching_workspace_symbols(manager):
 
 @pytest.mark.asyncio
 async def test_get_diagnostics_query_error(manager):
-    'A get_diagnostics failure yields the friendly empty result.'
+    "A get_diagnostics failure yields the friendly empty result."
     mock_server = AsyncMock()
     mock_server.get_diagnostics.side_effect = Exception("diag boom")
     with patch.object(manager, "get_server", return_value=mock_server):
@@ -118,7 +118,7 @@ async def test_hover_uses_dict_content(manager):
 
 @pytest.mark.asyncio
 async def test_find_symbol_position_prefers_candidate_line(manager, tmp_path):
-    'The line from document symbols wins, with the exact col from the text.'
+    "The line from document symbols wins, with the exact col from the text."
     target = tmp_path / "mod.py"
     target.write_text("class Foo:\n    pass\n")
     mock_symbols = {"found": True, "symbols": [{"name": "Foo", "line": 1}]}
@@ -131,7 +131,7 @@ async def test_find_symbol_position_prefers_candidate_line(manager, tmp_path):
 
 @pytest.mark.asyncio
 async def test_find_symbol_position_falls_back_to_file_scan(manager, tmp_path):
-    'When document symbols fail, the whole file is scanned for the name.'
+    "When document symbols fail, the whole file is scanned for the name."
     target = tmp_path / "mod.py"
     target.write_text("x = Foo()\n")
     with patch.object(
@@ -143,7 +143,7 @@ async def test_find_symbol_position_falls_back_to_file_scan(manager, tmp_path):
 
 @pytest.mark.asyncio
 async def test_rename_symbol_counts_document_changes(manager):
-    'documentChanges entries count toward total_edits.'
+    "documentChanges entries count toward total_edits."
     mock_server = AsyncMock()
     mock_server.rename.return_value = {
         "documentChanges": [

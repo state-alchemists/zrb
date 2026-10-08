@@ -1,4 +1,4 @@
-'Tests for stable and per-turn system context rendering.'
+"Tests for stable and per-turn system context rendering."
 
 import os
 from unittest.mock import MagicMock, patch
@@ -11,10 +11,10 @@ from zrb.llm.tool.ambient_state import get_current_context_session
 
 
 class TestSystemContext:
-    'Test the stable ``system_context`` middleware (cached system prompt).'
+    "Test the stable ``system_context`` middleware (cached system prompt)."
 
     def test_system_context_calls_next_handler(self):
-        'system_context should call next_handler with enriched prompt.'
+        "system_context should call next_handler with enriched prompt."
         ctx = MagicMock(spec=AnyContext)
         received_prompts = []
 
@@ -31,7 +31,7 @@ class TestSystemContext:
         assert "System Context" in enriched
 
     def test_system_context_includes_os_and_cwd(self):
-        'system_context enriched prompt should include OS and CWD info.'
+        "system_context enriched prompt should include OS and CWD info."
         ctx = MagicMock(spec=AnyContext)
         received = []
 
@@ -46,7 +46,7 @@ class TestSystemContext:
         assert "CWD:" in enriched
 
     def test_system_context_states_that_tool_calls_reach_the_real_machine(self):
-        'The unsandboxed default is stated explicitly.'
+        "The unsandboxed default is stated explicitly."
         ctx = MagicMock(spec=AnyContext)
         received = []
 
@@ -56,7 +56,7 @@ class TestSystemContext:
         assert "Sandbox: none" in received[0]
 
     def test_system_context_claims_no_containment_when_sandboxed(self):
-        'Sandboxed sessions omit containment claims.'
+        "Sandboxed sessions omit containment claims."
         ctx = MagicMock(spec=AnyContext)
         received = []
 
@@ -66,7 +66,7 @@ class TestSystemContext:
         assert "Sandbox" not in received[0]
 
     def test_system_context_excludes_volatile_state(self):
-        'Volatile per-turn state is excluded from the system prompt.'
+        "Volatile per-turn state is excluded from the system prompt."
         ctx = MagicMock(spec=AnyContext)
         received = []
         system_context(ctx, "test", lambda c, p: received.append(p) or "ok")
@@ -77,7 +77,7 @@ class TestSystemContext:
         assert "Interactive:" not in enriched
 
     def test_system_context_anchors_live_context_contract(self):
-        'The system prompt must explain the <live-context> block to the model.'
+        "The system prompt must explain the <live-context> block to the model."
         ctx = MagicMock(spec=AnyContext)
         received = []
         system_context(ctx, "test", lambda c, p: received.append(p) or "ok")
@@ -86,10 +86,9 @@ class TestSystemContext:
         assert "authoritative" in enriched
 
     def test_system_context_includes_tools(self, tmp_path, monkeypatch):
-        'Reports exactly the tools found on the test ``PATH``.'
+        "Reports exactly the tools found on the test ``PATH``."
         bin_dir = tmp_path / "bin"
         bin_dir.mkdir()
-
 
         docker = bin_dir / ("docker.exe" if os.name == "nt" else "docker")
         docker.write_text("#!/bin/sh\nexit 0\n")
@@ -113,7 +112,7 @@ class TestSystemContext:
         assert "Go" not in tools_line
 
     def test_system_context_includes_project_markers(self, tmp_path, monkeypatch):
-        'Reports project markers found in the CWD.'
+        "Reports project markers found in the CWD."
         (tmp_path / "Dockerfile").write_text("FROM scratch\n")
         monkeypatch.chdir(tmp_path)
 
@@ -171,7 +170,7 @@ class TestSystemContext:
         assert "`ReadReadRead`" not in rendered
 
     def test_deny_listed_model_gets_the_batching_override(self):
-        'Deny-listed models receive the batching override.'
+        "Deny-listed models receive the batching override."
         ctx = MagicMock(spec=AnyContext)
         received = []
         system_context(
@@ -185,7 +184,7 @@ class TestSystemContext:
         assert "one tool call per response" in rendered
 
     def test_the_override_outranks_the_tool_descriptions_too(self):
-        'The override takes precedence over other batching instructions.'
+        "The override takes precedence over other batching instructions."
         ctx = MagicMock(spec=AnyContext)
         received = []
         system_context(
@@ -199,7 +198,7 @@ class TestSystemContext:
         assert "tool description" in rendered
 
     def test_read_file_defers_to_the_system_context_override(self):
-        'The tool docstring defers to the system-context override.'
+        "The tool docstring defers to the system-context override."
         from zrb.llm.tool.file_read import read_file
 
         doc = " ".join((read_file.__doc__ or "").split())
@@ -208,7 +207,7 @@ class TestSystemContext:
         assert "unless System Context says this model cannot batch" in doc
 
     def test_no_model_is_told_that_batching_is_supported(self):
-        'No model is told that parallel calls are supported.'
+        "No model is told that parallel calls are supported."
         ctx = MagicMock(spec=AnyContext)
         for name in ("openai:gpt-4o-mini", "google:gemini-2.5-flash", None):
             received = []
@@ -216,7 +215,7 @@ class TestSystemContext:
             assert "Parallel tool calls: supported" not in received[0]
 
     def test_system_context_omits_model_line_when_model_unrecognisable(self):
-        'A MagicMock with no real ``model_name`` is treated as unknown.'
+        "A MagicMock with no real ``model_name`` is treated as unknown."
         ctx = MagicMock(spec=AnyContext)
         received = []
         opaque_model = MagicMock()
@@ -230,16 +229,16 @@ class TestSystemContext:
 
 
 class TestRenderLiveContext:
-    'Test the volatile ``render_live_context`` renderer (injected user turn).'
+    "Test the volatile ``render_live_context`` renderer (injected user turn)."
 
     def test_render_live_context_includes_time(self):
-        'The live block carries the per-turn timestamp.'
+        "The live block carries the per-turn timestamp."
         ctx = MagicMock(spec=AnyContext)
         rendered = render_live_context(ctx)
         assert "Time:" in rendered
 
     def test_render_live_context_excludes_stable_facts(self):
-        'Stable facts stay in the system prompt, not the per-turn block.'
+        "Stable facts stay in the system prompt, not the per-turn block."
         ctx = MagicMock(spec=AnyContext)
         rendered = render_live_context(ctx)
         assert "OS:" not in rendered
@@ -247,7 +246,7 @@ class TestRenderLiveContext:
         assert "Project:" not in rendered
 
     def test_render_live_context_includes_git_when_in_repo(self):
-        'render_live_context should include git info when inside a git repo.'
+        "render_live_context should include git info when inside a git repo."
         ctx = MagicMock(spec=AnyContext)
 
         with patch("zrb.llm.util.git.is_inside_git_dir", return_value=True):
@@ -267,7 +266,7 @@ class TestRenderLiveContext:
         assert "Git:" in rendered
 
     def test_live_context_git_calls_honour_the_configured_timeout(self, monkeypatch):
-        'Every live-context git call uses ``ZRB_LLM_GIT_CMD_TIMEOUT``.'
+        "Every live-context git call uses ``ZRB_LLM_GIT_CMD_TIMEOUT``."
         ctx = MagicMock(spec=AnyContext)
         monkeypatch.setenv("ZRB_LLM_GIT_CMD_TIMEOUT", "3000")
 
@@ -285,7 +284,7 @@ class TestRenderLiveContext:
         ]
 
     def test_render_live_context_wires_session_from_ctx(self):
-        'render_live_context should set the tool session from ctx.input.session.'
+        "render_live_context should set the tool session from ctx.input.session."
         ctx = MagicMock()
         ctx.input.session = "my-special-session"
 
@@ -294,7 +293,7 @@ class TestRenderLiveContext:
         assert get_current_context_session() == "my-special-session"
 
     def test_render_live_context_injects_pending_todos(self):
-        'render_live_context should include pending and in_progress todos.'
+        "render_live_context should include pending and in_progress todos."
         ctx = MagicMock()
         ctx.input.session = "todo-inject-session"
 
@@ -308,9 +307,6 @@ class TestRenderLiveContext:
             ],
         }
 
-
-
-
         with patch("zrb.llm.tool.plan.todo_manager") as mock_tm:
             mock_tm.get_todos.return_value = fake_todos
             rendered = render_live_context(ctx)
@@ -321,7 +317,7 @@ class TestRenderLiveContext:
         assert "Done task" not in rendered
 
     def test_render_live_context_omits_todos_when_all_complete(self):
-        'No Todos section when no pending/in_progress items exist.'
+        "No Todos section when no pending/in_progress items exist."
         ctx = MagicMock()
         ctx.input.session = "all-done-session"
 
@@ -341,7 +337,7 @@ class TestRenderLiveContext:
         assert "Todos" not in rendered
 
     def test_render_live_context_omits_todos_when_none_exist(self):
-        'No Todos section when get_todos returns None.'
+        "No Todos section when get_todos returns None."
         ctx = MagicMock()
         ctx.input.session = "no-todos-session"
 
@@ -352,7 +348,7 @@ class TestRenderLiveContext:
         assert "Todos" not in rendered
 
     def test_render_live_context_renders_interactive_yes_by_default(self):
-        'Without ctx.input.interactive set, default is interactive=True.'
+        "Without ctx.input.interactive set, default is interactive=True."
         ctx = MagicMock(spec=AnyContext)
         rendered = render_live_context(ctx)
         assert "Interactive: yes" in rendered
@@ -360,7 +356,7 @@ class TestRenderLiveContext:
         assert "do not call AskUserQuestion" not in rendered
 
     def test_render_live_context_renders_interactive_no_when_input_false(self):
-        'ctx.input.interactive=False renders the non-interactive guard line.'
+        "ctx.input.interactive=False renders the non-interactive guard line."
         ctx = MagicMock()
         ctx.input.session = "noninteractive-session"
         ctx.input.interactive = False
@@ -368,19 +364,17 @@ class TestRenderLiveContext:
         assert "Interactive: no" in rendered
         assert "do not wait on user input" in rendered
 
-
         guard = next(
             line for line in rendered.splitlines() if line.startswith("- Interactive:")
         )
         assert "AskUserQuestion" not in guard
 
     def test_render_live_context_sets_interactive_mode_contextvar(self):
-        'The ContextVar must be updated so the tool can read it later.'
+        "The ContextVar must be updated so the tool can read it later."
         from zrb.llm.tool.ambient_state import (
             get_interactive_mode,
             set_interactive_mode,
         )
-
 
         set_interactive_mode(True)
         try:
@@ -399,7 +393,7 @@ class TestRenderLiveContext:
         assert "Active mode" not in rendered
 
     def test_render_live_context_includes_plan_mode_line(self):
-        'Entering plan mode surfaces a read-only mode line in the block.'
+        "Entering plan mode surfaces a read-only mode line in the block."
         from zrb.llm.permission.state import (
             AgentMode,
             AgentModeState,

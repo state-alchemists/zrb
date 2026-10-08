@@ -36,9 +36,7 @@ def test_get_tool_pairs_complex():
         ModelRequest(
             parts=[ToolReturnPart(content="r2", tool_name="t2", tool_call_id="c2")]
         ),
-        ModelRequest(
-            parts=[ToolCallPart(tool_name="t3", args={}, tool_call_id="c3")]
-        ),
+        ModelRequest(parts=[ToolCallPart(tool_name="t3", args={}, tool_call_id="c3")]),
     ]
     pairs = get_tool_pairs(messages)
     assert pairs["c1"]["call_idx"] == 0
@@ -74,9 +72,6 @@ async def test_split_history_token_limit_trigger():
         ModelRequest(parts=[UserPromptPart(content="m4")]),
     ]
 
-
-
-
     with patch("zrb.llm.summarizer.history_splitter.is_turn_start", return_value=True):
         to_sum, to_keep = split_history(
             messages,
@@ -84,13 +79,6 @@ async def test_split_history_token_limit_trigger():
             limiter=limiter,
             conversational_token_threshold=100,
         )
-
-
-
-
-
-
-
 
     assert len(to_keep) < 4
 

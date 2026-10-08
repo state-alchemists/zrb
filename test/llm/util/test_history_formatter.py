@@ -1,4 +1,4 @@
-'Tests for the history_formatter module.'
+"Tests for the history_formatter module."
 
 from datetime import datetime
 
@@ -25,15 +25,15 @@ from zrb.llm.util.history_formatter import (
 
 
 class TestFormatHistoryAsText:
-    'Test ``format_history_as_text``.'
+    "Test ``format_history_as_text``."
 
     def test_empty_history(self):
-        'Formats an empty history.'
+        "Formats an empty history."
         result = format_history_as_text([])
         assert "Empty conversation history" in result
 
     def test_single_user_message(self):
-        'Formats a user message.'
+        "Formats a user message."
         messages = [
             ModelRequest(parts=[UserPromptPart(content="Hello, world!")]),
         ]
@@ -42,7 +42,7 @@ class TestFormatHistoryAsText:
         assert "Hello, world!" in result
 
     def test_single_assistant_response(self):
-        'Formats an assistant response.'
+        "Formats an assistant response."
         messages = [
             ModelResponse(parts=[TextPart(content="Hello! How can I help?")]),
         ]
@@ -51,7 +51,7 @@ class TestFormatHistoryAsText:
         assert "Hello! How can I help?" in result
 
     def test_conversation_flow(self):
-        'Test formatting a back-and-forth conversation.'
+        "Test formatting a back-and-forth conversation."
         messages = [
             ModelRequest(parts=[UserPromptPart(content="What is Python?")]),
             ModelResponse(
@@ -70,7 +70,7 @@ class TestFormatHistoryAsText:
         assert "You're welcome!" in result
 
     def test_tool_call_formatting(self):
-        'Test formatting tool calls.'
+        "Test formatting tool calls."
         messages = [
             ModelRequest(parts=[UserPromptPart(content="List files")]),
             ModelResponse(
@@ -83,7 +83,7 @@ class TestFormatHistoryAsText:
         assert "list_files" in result
 
     def test_tool_return_formatting(self):
-        'Test formatting tool returns.'
+        "Test formatting tool returns."
         messages = [
             ModelRequest(
                 parts=[
@@ -104,7 +104,7 @@ class TestFormatHistoryAsText:
         assert "file1.py" in result
 
     def test_system_prompt_formatting(self):
-        'Test formatting system prompts.'
+        "Test formatting system prompts."
         messages = [
             ModelRequest(
                 parts=[
@@ -119,7 +119,7 @@ class TestFormatHistoryAsText:
         assert "You are a helpful assistant." in result
 
     def test_thinking_part_formatting(self):
-        'Test formatting thinking parts.'
+        "Test formatting thinking parts."
         messages = [
             ModelResponse(
                 parts=[
@@ -134,7 +134,7 @@ class TestFormatHistoryAsText:
         assert "Let me think about this..." in result
 
     def test_max_length_truncation(self):
-        'Test that output is truncated at max_length.'
+        "Test that output is truncated at max_length."
         long_content = "x" * 1000
         messages = [
             ModelRequest(parts=[UserPromptPart(content=long_content)]),
@@ -145,7 +145,7 @@ class TestFormatHistoryAsText:
         assert "truncated" in result
 
     def test_full_disables_overall_truncation(self):
-        'full=True emits the whole transcript with no overall length cap.'
+        "full=True emits the whole transcript with no overall length cap."
         long_content = "x" * 1000
         messages = [
             ModelRequest(parts=[UserPromptPart(content=long_content)]),
@@ -156,7 +156,7 @@ class TestFormatHistoryAsText:
         assert long_content in result
 
     def test_full_disables_per_message_truncation(self):
-        'full=True keeps a >500-char user prompt intact (no per-part cap).'
+        "full=True keeps a >500-char user prompt intact (no per-part cap)."
         long_content = "y" * 800
         messages = [ModelRequest(parts=[UserPromptPart(content=long_content)])]
 
@@ -167,7 +167,7 @@ class TestFormatHistoryAsText:
         assert long_content in full
 
     def test_multiline_content(self):
-        'Test formatting multiline content.'
+        "Test formatting multiline content."
         messages = [
             ModelRequest(parts=[UserPromptPart(content="Line 1\nLine 2\nLine 3")]),
         ]
@@ -178,7 +178,7 @@ class TestFormatHistoryAsText:
         assert "Line 3" in result
 
     def test_model_name_display(self):
-        'Test that model name is displayed in response.'
+        "Test that model name is displayed in response."
         messages = [
             ModelResponse(parts=[TextPart(content="Hello!")], model_name="gpt-4"),
         ]
@@ -189,7 +189,7 @@ class TestFormatHistoryAsText:
 
 
 class TestExtractLastResponseText:
-    'Test ``extract_last_response_text``.'
+    "Test ``extract_last_response_text``."
 
     def test_empty(self):
         assert extract_last_response_text([]) == ""
@@ -203,7 +203,7 @@ class TestExtractLastResponseText:
         assert extract_last_response_text(messages) == "latest"
 
     def test_skips_tool_call_only_response(self):
-        'A trailing tool-call-only response is skipped for the last text.'
+        "A trailing tool-call-only response is skipped for the last text."
         messages = [
             ModelResponse(parts=[TextPart(content="answer")]),
             ModelResponse(
@@ -218,40 +218,40 @@ class TestExtractLastResponseText:
 
 
 class TestFormatTimestamp:
-    'Test ``format_timestamp``.'
+    "Test ``format_timestamp``."
 
     def test_none_timestamp(self):
-        'Test with None timestamp.'
+        "Test with None timestamp."
         assert format_timestamp(None) == ""
 
     def test_datetime_object(self):
-        'Test with datetime object.'
+        "Test with datetime object."
         dt = datetime(2024, 1, 15, 10, 30, 45)
         result = format_timestamp(dt)
         assert "10:30" in result
 
     def test_iso_string_timestamp(self):
-        'Test with ISO string timestamp.'
+        "Test with ISO string timestamp."
         iso_string = "2024-01-15T10:30:45Z"
         result = format_timestamp(iso_string)
         assert "10:30" in result
 
 
 class TestFormatArgs:
-    'Test ``format_args``.'
+    "Test ``format_args``."
 
     def test_none_args(self):
-        'Test with None args.'
+        "Test with None args."
         assert format_args(None) == "{}"
 
     def test_string_args(self):
-        'Test with string args.'
+        "Test with string args."
         result = format_args("raw string")
 
         assert "raw" in result
 
     def test_dict_args(self):
-        'Test with dict args.'
+        "Test with dict args."
         args = {"path": ".", "recursive": True}
         result = format_args(args)
         assert "path" in result
@@ -259,20 +259,20 @@ class TestFormatArgs:
 
 
 class TestIndentLines:
-    'Test ``indent_lines``.'
+    "Test ``indent_lines``."
 
     def test_single_line(self):
-        'Test indenting a single line.'
+        "Test indenting a single line."
         lines = indent_lines("Hello", indent=2)
         assert lines == ["  Hello"]
 
     def test_multiline(self):
-        'Test indenting multiple lines.'
+        "Test indenting multiple lines."
         lines = indent_lines("Line 1\nLine 2", indent=4)
         assert lines == ["    Line 1", "    Line 2"]
 
     def test_max_lines_truncation(self):
-        'Test that content is truncated at max_lines.'
+        "Test that content is truncated at max_lines."
         content = "\n".join([f"Line {i}" for i in range(100)])
         lines = indent_lines(content, indent=0, max_lines=10)
         assert len(lines) == 11
@@ -280,24 +280,21 @@ class TestIndentLines:
 
 
 class TestTruncate:
-    'Test ``truncate``.'
+    "Test ``truncate``."
 
     def test_short_text(self):
-        'Test with short text.'
+        "Test with short text."
         assert truncate("Hello", max_length=10) == "Hello"
 
     def test_long_text(self):
-        'Test with long text.'
+        "Test with long text."
         result = truncate("Hello World This is a Long Text", max_length=15)
         assert len(result) == 15
         assert result.endswith("...")
 
 
-
-
-
 def test_retry_prompt_part_with_tool_name():
-    'RetryPromptPart with tool_name set should show the tool name (lines 83-84, 107-112).'
+    "RetryPromptPart with tool_name set should show the tool name (lines 83-84, 107-112)."
     messages = [
         ModelRequest(
             parts=[
@@ -311,7 +308,7 @@ def test_retry_prompt_part_with_tool_name():
 
 
 def test_retry_prompt_part_without_tool_name():
-    'RetryPromptPart without tool_name should still format correctly.'
+    "RetryPromptPart without tool_name should still format correctly."
     messages = [
         ModelRequest(
             parts=[
@@ -325,7 +322,7 @@ def test_retry_prompt_part_without_tool_name():
 
 
 def test_system_prompt_part_with_dynamic_ref():
-    'SystemPromptPart with dynamic_ref attribute should show the ref (line 102).'
+    "SystemPromptPart with dynamic_ref attribute should show the ref (line 102)."
     part = SystemPromptPart(content="Injected system content")
 
     object.__setattr__(part, "dynamic_ref", "my-ref-func")
@@ -337,12 +334,10 @@ def test_system_prompt_part_with_dynamic_ref():
 
 
 def test_tool_return_resolved_from_pending_calls():
-    'ToolReturnPart with no tool_name but matching pending call_id (lines 201-202).'
+    "ToolReturnPart with no tool_name but matching pending call_id (lines 201-202)."
     from unittest.mock import MagicMock
 
-
     call_part = ToolCallPart(tool_name="search_tool", args={}, tool_call_id="tc-99")
-
 
     return_part = MagicMock()
     return_part.part_kind = "tool-return"
@@ -350,7 +345,6 @@ def test_tool_return_resolved_from_pending_calls():
     return_part.tool_call_id = "tc-99"
     return_part.content = "results here"
     return_part.outcome = "success"
-
 
     request_msg = MagicMock()
     request_msg.kind = "request"
@@ -362,7 +356,6 @@ def test_tool_return_resolved_from_pending_calls():
         request_msg,
     ]
     result = format_history_as_text(messages)
-
 
     assert "search_tool" in result
     assert "🔠" in result
@@ -389,9 +382,6 @@ def test_tool_return_unknown_when_no_name_and_no_matching_call():
     assert "🔠" in result
 
 
-
-
-
 def testformat_args_empty_string():
     "Empty string arg returns '{}' (line 256)."
     assert format_args("") == "{}"
@@ -403,7 +393,7 @@ def testformat_args_null_string():
 
 
 def testformat_args_valid_json_dict_string():
-    'Valid JSON dict string is parsed and returned (lines 259-260).'
+    "Valid JSON dict string is parsed and returned (lines 259-260)."
     result = format_args('{"key": "val"}')
     assert "key" in result
     assert "val" in result
@@ -417,15 +407,12 @@ def testformat_args_dict_with_dummy_key():
 
 
 def testformat_args_dict_with_long_string_value():
-    'Dict with a long string value gets the value truncated (line 277).'
+    "Dict with a long string value gets the value truncated (line 277)."
     long_val = "a" * 100
     result = format_args({"key": long_val})
     assert "key" in result
 
     assert "..." in result
-
-
-
 
 
 def testformat_timestamp_non_string_non_datetime():
@@ -438,11 +425,8 @@ def testformat_timestamp_invalid_iso_string():
     assert format_timestamp("not-a-date") == ""
 
 
-
-
-
 def test_user_prompt_with_image_url():
-    'A multimodal user turn renders the image as a bracketed label.'
+    "A multimodal user turn renders the image as a bracketed label."
     from pydantic_ai.messages import ImageUrl
 
     messages = [
@@ -458,7 +442,7 @@ def test_user_prompt_with_image_url():
 
 
 def test_user_prompt_with_binary_content():
-    'Binary content in a multimodal turn renders its media type, not a raw repr.'
+    "Binary content in a multimodal turn renders its media type, not a raw repr."
     from pydantic_ai.messages import BinaryContent
 
     messages = [

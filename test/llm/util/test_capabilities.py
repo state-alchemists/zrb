@@ -194,8 +194,6 @@ def test_is_known_model_truthiness():
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "document",
         ),
-
-
         ("text/plain", None),
         ("text/csv", None),
         ("", None),
@@ -233,7 +231,6 @@ def test_supports_modality_dispatches_document():
 
 def test_register_override_takes_priority_over_pattern_table():
 
-
     model_capabilities.register("gpt-4o", supports_image_input=False)
     assert model_capabilities.get("openai:gpt-4o").supports_image_input is False
 
@@ -267,7 +264,6 @@ def test_clear_drops_overrides_but_preserves_builtins():
 
 def test_override_can_force_parallel_tool_calls_back_on():
 
-
     model_capabilities.register("minimax-m2\\.7", supports_parallel_tool_calls=None)
     caps = model_capabilities.get("ollama:minimax-m2.7:cloud")
     assert caps.supports_parallel_tool_calls is None
@@ -279,7 +275,6 @@ def test_override_pattern_is_case_insensitive():
 
 
 def test_separate_registry_instances_have_independent_state():
-
 
     isolated = ModelCapabilityRegistry()
     isolated.register("gpt-4o", supports_image_input=False)

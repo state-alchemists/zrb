@@ -1,4 +1,4 @@
-'Tests for HookManager class using Public API.'
+"Tests for HookManager class using Public API."
 
 import json
 import os
@@ -16,7 +16,7 @@ from zrb.llm.hook.types import HookEvent, HookType
 
 @pytest.fixture
 def manager():
-    'Create HookManager for tests.'
+    "Create HookManager for tests."
     mock_cfg = MagicMock()
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
@@ -26,7 +26,7 @@ def manager():
 
 
 class TestHookManagerLifecycle:
-    'Test HookManager initialization, scanning, and reloading.'
+    "Test HookManager initialization, scanning, and reloading."
 
     @pytest.mark.asyncio
     async def test_scan_default_paths(self, manager):
@@ -42,11 +42,8 @@ class TestHookManagerLifecycle:
 
         manager.add_hook(my_hook, events=[HookEvent.SESSION_START])
 
-
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
         assert len(results) == 1
-
-
 
         manager.reload()
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})
@@ -79,7 +76,6 @@ class TestHookManagerLifecycle:
             patch("pathlib.Path.cwd", return_value=leaf),
             patch.dict(os.environ, {"ZRB_ROOT_GROUP_NAME": "zrb"}),
         ):
-
 
             dirs = [Path(str(d)).as_posix() for d in HookManager().search_dirs]
             assert any("root/.zrb/hooks" in d for d in dirs)
@@ -117,7 +113,6 @@ class TestHookManagerLifecycle:
             )
         )
 
-
         manager = HookManager(max_depth=1)
         manager.scan(search_dirs=[str(tmp_path)])
 
@@ -132,7 +127,7 @@ class TestHookManagerLifecycle:
 
 
 class TestHookManagerRegistration:
-    'Test manual hook registration behavior.'
+    "Test manual hook registration behavior."
 
     @pytest.mark.asyncio
     async def test_priority_sorting(self, manager):
@@ -184,7 +179,7 @@ class TestHookManagerRegistration:
 
 
 class TestHookManagerExecution:
-    'Test execution logic, error handling, and output formats.'
+    "Test execution logic, error handling, and output formats."
 
     @pytest.mark.asyncio
     async def test_blocking_hook_stops_execution(self, manager):
@@ -198,7 +193,6 @@ class TestHookManagerExecution:
             executed.append("subsequent")
             return HookResult(success=True)
 
-
         manager.add_hook(blocking_hook, events=[HookEvent.PRE_TOOL_USE])
         manager.add_hook(subsequent_hook, events=[HookEvent.PRE_TOOL_USE])
 
@@ -209,7 +203,7 @@ class TestHookManagerExecution:
 
     @pytest.mark.asyncio
     async def test_block_on_non_blocking_event_continues_chain(self, manager):
-        'exit-2 / decision=block is meaningless for a non-blocking event'
+        "exit-2 / decision=block is meaningless for a non-blocking event"
         executed = []
 
         async def blocking_hook(ctx):
@@ -299,7 +293,7 @@ class TestHookManagerExecution:
 
 
 class TestHookManagerFormats:
-    'Test loading hooks from various file formats.'
+    "Test loading hooks from various file formats."
 
     @pytest.mark.asyncio
     async def test_load_json_list(self, manager, tmp_path):

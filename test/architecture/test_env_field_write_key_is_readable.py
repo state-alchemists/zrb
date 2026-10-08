@@ -37,7 +37,9 @@ def test_every_field_writes_a_key_it_also_reads():
         write_key = field.env_key(prefix)
         read_keys = field.get_read_keys(prefix)
         if write_key not in read_keys:
-            unreadable.append(f"  {owner}.{name}: writes {write_key}, reads {read_keys}")
+            unreadable.append(
+                f"  {owner}.{name}: writes {write_key}, reads {read_keys}"
+            )
     assert not unreadable, (
         "These settings write to environment key(s) they never read, so "
         "assigning `CFG.<name>` (what `/set` does) stores the value where the "

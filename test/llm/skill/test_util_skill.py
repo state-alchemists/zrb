@@ -1,4 +1,4 @@
-'Tests for llm/skill/util.py - Shared skill utilities.'
+"Tests for llm/skill/util.py - Shared skill utilities."
 
 import tempfile
 from pathlib import Path
@@ -7,15 +7,15 @@ from zrb.llm.skill.util import discover_companion_files, format_companion_file_l
 
 
 class TestDiscoverCompanionFiles:
-    'Tests for discover_companion_files.'
+    "Tests for discover_companion_files."
 
     def test_returns_empty_for_flat_skill_file(self):
-        'Flat *.skill.md files have no dedicated directory.'
+        "Flat *.skill.md files have no dedicated directory."
         result = discover_companion_files("/some/path/my-skill.skill.md")
         assert result == []
 
     def test_returns_companions_for_skilL_md(self):
-        'SKILL.md in a dedicated directory discovers sibling files.'
+        "SKILL.md in a dedicated directory discovers sibling files."
         with tempfile.TemporaryDirectory() as tmp:
             skill_dir = Path(tmp)
             skill_file = skill_dir / "SKILL.md"
@@ -34,7 +34,7 @@ class TestDiscoverCompanionFiles:
             assert "SKILL.md" not in result
 
     def test_returns_companions_for_skilL_py(self):
-        'SKILL.py in a dedicated directory discovers sibling files.'
+        "SKILL.py in a dedicated directory discovers sibling files."
         with tempfile.TemporaryDirectory() as tmp:
             skill_dir = Path(tmp)
             skill_file = skill_dir / "SKILL.py"
@@ -47,20 +47,20 @@ class TestDiscoverCompanionFiles:
             assert "SKILL.py" not in result
 
     def test_returns_empty_when_directory_missing(self):
-        'Non-existent path returns empty list.'
+        "Non-existent path returns empty list."
         result = discover_companion_files("/nonexistent/SKILL.md")
         assert result == []
 
 
 class TestFormatCompanionFileLines:
-    'Tests for format_companion_file_lines.'
+    "Tests for format_companion_file_lines."
 
     def test_empty_list(self):
-        'Empty input returns empty list.'
+        "Empty input returns empty list."
         assert format_companion_file_lines([]) == []
 
     def test_standalone_files_only(self):
-        'Files without directory prefix are listed flat.'
+        "Files without directory prefix are listed flat."
         result = format_companion_file_lines(["README.md", "data.txt"])
         assert result[0] == ""
         assert "Companion files available in this directory:" in result[1]
@@ -68,7 +68,7 @@ class TestFormatCompanionFileLines:
         assert "  README.md" in result
 
     def test_grouped_files(self):
-        'Files with directory prefix are grouped under their top-level dir.'
+        "Files with directory prefix are grouped under their top-level dir."
         result = format_companion_file_lines(
             ["scripts/setup.sh", "scripts/run.sh", "config/app.yaml"]
         )
@@ -79,7 +79,7 @@ class TestFormatCompanionFileLines:
         assert "    app.yaml" in result
 
     def test_mixed_files(self):
-        'Standalone and grouped files are both rendered.'
+        "Standalone and grouped files are both rendered."
         result = format_companion_file_lines(
             ["README.md", "scripts/run.sh", "data.json"]
         )

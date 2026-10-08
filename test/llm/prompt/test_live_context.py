@@ -1,4 +1,4 @@
-'Tests for the journal index injected into ``<live-context>``.'
+"Tests for the journal index injected into ``<live-context>``."
 
 from unittest.mock import patch
 
@@ -36,7 +36,7 @@ def test_short_index_is_injected_whole(tmp_path):
 
 
 def test_overflow_is_cut_on_a_line_boundary(tmp_path):
-    'A raw slice lands mid-word, leaving a fact as an unreadable fragment.'
+    "A raw slice lands mid-word, leaving a fact as an unreadable fragment."
     lines = [f"- preference number {i} stated by the user" for i in range(200)]
     journal_dir = _write_index(tmp_path, "# Journal\n" + "\n".join(lines) + "\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
@@ -75,7 +75,7 @@ def test_head_survives_so_ordering_decides_what_is_kept(tmp_path):
 
 
 def test_zero_suppresses_the_injection(tmp_path):
-    'Zero suppresses injection rather than disabling the limit.'
+    "Zero suppresses injection rather than disabling the limit."
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = journal_dir
@@ -86,7 +86,7 @@ def test_zero_suppresses_the_injection(tmp_path):
 
 
 def test_journal_disabled_suppresses_the_injection(tmp_path, monkeypatch):
-    'The disabled setting suppresses injection.'
+    "The disabled setting suppresses injection."
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     monkeypatch.setenv("ZRB_LLM_JOURNAL_DIR", journal_dir)
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "false")
@@ -95,7 +95,7 @@ def test_journal_disabled_suppresses_the_injection(tmp_path, monkeypatch):
 
 
 def test_footer_points_at_the_uncapped_category_catalog(tmp_path):
-    'The footer points to the uncapped category index.'
+    "The footer points to the uncapped category index."
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = journal_dir
@@ -110,7 +110,7 @@ def test_footer_points_at_the_uncapped_category_catalog(tmp_path):
 
 
 def test_header_routes_journal_changes_through_the_writer_tools(tmp_path):
-    'The header directs journal changes through writer tools.'
+    "The header directs journal changes through writer tools."
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = journal_dir
@@ -197,11 +197,8 @@ def test_negative_injects_the_whole_index_uncapped(tmp_path):
     assert "(...more)" not in result
 
 
-
-
-
 def _ctx(interactive: bool) -> Context:
-    'A real task context carrying the interactivity flag the render reads.'
+    "A real task context carrying the interactivity flag the render reads."
     shared_ctx = SharedContext(input={"interactive": interactive, "session": "t"})
     return Context(shared_ctx, "test", 0, "")
 
@@ -214,12 +211,10 @@ def _live_context(model: str, *, interactive: bool = True) -> str:
 
 
 def test_the_non_interactive_line_forbids_no_tool_by_name():
-    'Those tools are unregistered in exactly this branch, so naming them is waste.'
+    "Those tools are unregistered in exactly this branch, so naming them is waste."
     text = _live_context("anthropic:claude-opus-4-8", interactive=False)
 
     assert "Interactive: no" in text
-
-
 
     guard = next(
         line for line in text.splitlines() if line.startswith("- Interactive:")

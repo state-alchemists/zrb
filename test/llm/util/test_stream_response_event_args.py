@@ -27,7 +27,7 @@ class TestGetEventPartArgsFull:
         assert get_event_part_args(event, full=True) == {}
 
     def test_returns_untruncated_values(self):
-        'The whole point: unlike the truncated variant, long values survive.'
+        "The whole point: unlike the truncated variant, long values survive."
         long_value = "x" * 50
         event = MagicMock()
         event.part = MagicMock()
@@ -81,7 +81,6 @@ class TestStreamEventHandlerSpinnerThrottle:
             for _ in range(50):
                 handler.handle_part_delta(event)
 
-
         assert len(_spinner_calls(print_fn)) == 1
 
         assert handler.was_tool_call_delta is True
@@ -93,7 +92,6 @@ class TestStreamEventHandlerSpinnerThrottle:
 
         event = MagicMock()
         event.delta = ToolCallPartDelta(args_delta="x")
-
 
         times = [100.0, 100.05, 100.5, 100.55]
         with patch("zrb.llm.util.stream_response.time.monotonic", side_effect=times):

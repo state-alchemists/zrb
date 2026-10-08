@@ -1,4 +1,4 @@
-'Tests for SnapshotManager housekeeping — what keeps a store from growing'
+"Tests for SnapshotManager housekeeping — what keeps a store from growing"
 
 import os
 import subprocess

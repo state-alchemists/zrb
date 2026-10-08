@@ -41,7 +41,9 @@ def test_the_documented_counts_match_the_tree():
 def test_the_rewrite_restates_the_sentence_from_the_measurement():
     """The named rewrite command must actually fix the sentence."""
     measured = doc_counts.measure()
-    rewritten = doc_counts.rewrite(doc_counts.AGENTS.read_text(encoding="utf-8"), measured)
+    rewritten = doc_counts.rewrite(
+        doc_counts.AGENTS.read_text(encoding="utf-8"), measured
+    )
     assert doc_counts.documented(rewritten) == measured
 
 
@@ -55,7 +57,10 @@ def test_write_restates_the_sentence_in_place(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(doc_counts, "AGENTS", target)
     assert doc_counts.main(["--write"]) == 0
-    assert doc_counts.documented(target.read_text(encoding="utf-8")) == doc_counts.measure()
+    assert (
+        doc_counts.documented(target.read_text(encoding="utf-8"))
+        == doc_counts.measure()
+    )
 
 
 def test_write_refuses_to_claim_success_with_nothing_to_restate(tmp_path, monkeypatch):

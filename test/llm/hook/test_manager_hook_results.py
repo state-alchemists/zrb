@@ -21,7 +21,6 @@ def test_hook_result_modifications_mapping():
 async def test_hook_manager_operators(tmp_path):
     manager = HookManager(search_dirs=[])
 
-
     hook_dir = tmp_path / "hooks"
     hook_dir.mkdir()
     hook_file = hook_dir / "test.json"
@@ -39,14 +38,12 @@ async def test_hook_manager_operators(tmp_path):
 
     manager.scan(search_dirs=[str(hook_dir)])
 
-
     results = await manager.execute_hooks(
         HookEvent.PRE_TOOL_USE, "some data", tool_name="test.sh"
     )
     assert len(results) == 1
     assert results[0].success is True
     assert results[0].message != "Skipped due to matchers"
-
 
     results_skipped = await manager.execute_hooks(
         HookEvent.PRE_TOOL_USE, "some data", tool_name="test.py"
@@ -58,7 +55,6 @@ async def test_hook_manager_operators(tmp_path):
 @pytest.mark.asyncio
 async def test_hook_manager_nested_field_access(tmp_path):
     manager = HookManager(search_dirs=[])
-
 
     hook_dir = tmp_path / "hooks"
     hook_dir.mkdir(exist_ok=True)

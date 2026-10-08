@@ -4,7 +4,6 @@ from zrb.util.markdown import (
 )
 
 
-
 def test_demote_markdown_headers_simple():
     content = "# Header 1\n## Header 2"
     expected = "## Header 1\n### Header 2"
@@ -49,7 +48,6 @@ def test_demote_markdown_headers_mixed_content():
         "### Another Real Header"
     )
     assert demote_markdown_headers(content) == expected
-
 
 
 def test_make_prompt_section_empty_content():

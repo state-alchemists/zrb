@@ -1,4 +1,4 @@
-'Public-API tests for clipboard image reading.'
+"Public-API tests for clipboard image reading."
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from zrb.llm.util.clipboard import get_clipboard_image
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    'Strip every clipboard-relevant env var before each test.'
+    "Strip every clipboard-relevant env var before each test."
     for var in ("WSL_DISTRO_NAME", "WSLENV", "WAYLAND_DISPLAY", "DISPLAY"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
@@ -37,7 +37,7 @@ def _bmp_bytes() -> bytes:
 
 
 class _FakeProcess:
-    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
+    "Minimal async-process stand-in for `asyncio.create_subprocess_exec`."
 
     def __init__(self, stdout: bytes = b"", returncode: int = 0):
         self._stdout = stdout
@@ -48,7 +48,7 @@ class _FakeProcess:
 
 
 def _block_pil_import(monkeypatch):
-    'Make `from PIL import ...` raise ImportError for the test scope.'
+    "Make `from PIL import ...` raise ImportError for the test scope."
     real_import = builtins.__import__
 
     def fail_pil(name, *args, **kwargs):
@@ -85,7 +85,7 @@ async def test_macos_returns_none_when_clipboard_empty(clean_env):
 
 @pytest.mark.asyncio
 async def test_macos_falls_back_to_osascript_when_pillow_missing(clean_env, tmp_path):
-    'When Pillow is unavailable, osascript writes a tempfile we read back.'
+    "When Pillow is unavailable, osascript writes a tempfile we read back."
     clean_env.setattr("sys.platform", "darwin")
     _block_pil_import(clean_env)
 
@@ -93,7 +93,6 @@ async def test_macos_falls_back_to_osascript_when_pillow_missing(clean_env, tmp_
     written: dict = {}
 
     def _make_proc(*args, **kwargs):
-
 
         script = args[2] if len(args) > 2 else ""
 
@@ -178,7 +177,7 @@ async def test_wsl_powershell_returns_png_bytes(clean_env):
 
 @pytest.mark.asyncio
 async def test_wslenv_alone_also_triggers_powershell_path(clean_env):
-    '`WSLENV` set without `WSL_DISTRO_NAME` should still pick the WSL branch.'
+    "`WSLENV` set without `WSL_DISTRO_NAME` should still pick the WSL branch."
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WSLENV", "TERM/u")
     payload = _png_bytes()
@@ -197,7 +196,6 @@ async def test_wsl_falls_through_when_powershell_yields_no_image(clean_env):
     """No image in PowerShell → does not return the empty stdout."""
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
-
 
     with patch(
         "asyncio.create_subprocess_exec",
@@ -225,15 +223,10 @@ async def test_wayland_png_path_returns_image(clean_env):
 
 @pytest.mark.asyncio
 async def test_wayland_bmp_is_reencoded_to_png(clean_env):
-    'When wl-paste returns BMP, output should still be valid PNG bytes.'
+    "When wl-paste returns BMP, output should still be valid PNG bytes."
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WAYLAND_DISPLAY", "wayland-0")
     bmp = _bmp_bytes()
-
-
-
-
-
 
     call_log: list[str] = []
 
@@ -275,13 +268,12 @@ async def test_wayland_corrupt_non_png_returns_none(clean_env):
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_per_mime)):
         result = await get_clipboard_image()
 
-
     assert result is None
 
 
 @pytest.mark.asyncio
 async def test_macos_osascript_unlink_failure_does_not_propagate(clean_env, tmp_path):
-    'If the post-read `os.unlink` fails, the data is still returned.'
+    "If the post-read `os.unlink` fails, the data is still returned."
     clean_env.setattr("sys.platform", "darwin")
     _block_pil_import(clean_env)
 
@@ -313,7 +305,7 @@ async def test_macos_osascript_unlink_failure_does_not_propagate(clean_env, tmp_
 
 @pytest.mark.asyncio
 async def test_macos_osascript_returns_none_when_binary_is_missing(clean_env, tmp_path):
-    'No osascript on PATH: no image, and no tempfile left behind.'
+    "No osascript on PATH: no image, and no tempfile left behind."
     clean_env.setattr("sys.platform", "darwin")
     clean_env.setattr("tempfile.tempdir", str(tmp_path))
     _block_pil_import(clean_env)
@@ -332,7 +324,7 @@ async def test_macos_osascript_returns_none_when_binary_is_missing(clean_env, tm
 async def test_macos_osascript_removes_tempfile_when_subprocess_raises(
     clean_env, tmp_path
 ):
-    'Cleanup also runs for failures the read path does not catch.'
+    "Cleanup also runs for failures the read path does not catch."
     clean_env.setattr("sys.platform", "darwin")
     clean_env.setattr("tempfile.tempdir", str(tmp_path))
     _block_pil_import(clean_env)

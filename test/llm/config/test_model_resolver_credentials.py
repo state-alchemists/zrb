@@ -1,4 +1,4 @@
-'Credential and endpoint selection for model resolution.'
+"Credential and endpoint selection for model resolution."
 
 from unittest.mock import patch
 
@@ -17,13 +17,10 @@ def resolver() -> ModelResolver:
     return ModelResolver()
 
 
-
-
-
 def test_resolve_native_provider_with_api_key_receives_the_key(
     resolver: ModelResolver,
 ):
-    'A prefixed model uses the explicit generic API key.'
+    "A prefixed model uses the explicit generic API key."
     resolved = resolver.resolve("deepseek:deepseek-chat", api_key="secret")
 
     from pydantic_ai.models import Model
@@ -33,7 +30,7 @@ def test_resolve_native_provider_with_api_key_receives_the_key(
 
 
 def test_resolve_native_provider_with_base_url_it_accepts(resolver: ModelResolver):
-    '`AnthropicProvider` takes `base_url`, so both credentials go straight to'
+    "`AnthropicProvider` takes `base_url`, so both credentials go straight to"
     from pydantic_ai.models.anthropic import AnthropicModel
 
     resolved = resolver.resolve(
@@ -49,7 +46,7 @@ def test_resolve_native_provider_with_base_url_it_accepts(resolver: ModelResolve
 def test_resolve_native_provider_with_base_url_it_rejects_falls_back_to_openai(
     resolver: ModelResolver,
 ):
-    '`DeepSeekProvider` has no `base_url` parameter. Dropping the knob would'
+    "`DeepSeekProvider` has no `base_url` parameter. Dropping the knob would"
     from pydantic_ai.models.openai import OpenAIChatModel
 
     resolved = resolver.resolve(
@@ -69,18 +66,8 @@ def test_resolve_native_provider_without_credentials_still_returned_as_is(
     assert resolver.resolve("deepseek:deepseek-chat") == "deepseek:deepseek-chat"
 
 
-
-
-
-
-
-
-
-
-
-
 def test_explicit_api_key_beats_an_ambient_vendor_variable(resolver, monkeypatch):
-    'The resolver never second-guesses a credential it was handed. An'
+    "The resolver never second-guesses a credential it was handed. An"
     monkeypatch.setenv("ANTHROPIC_API_KEY", "vendor-anthropic-key")
 
     model = resolver.resolve("anthropic:claude-sonnet-4-5", api_key="generic-key")
@@ -89,7 +76,7 @@ def test_explicit_api_key_beats_an_ambient_vendor_variable(resolver, monkeypatch
 
 
 def test_no_api_key_leaves_the_vendor_variable_to_pydantic_ai(resolver, monkeypatch):
-    'With nothing configured the bare name is right: pydantic-ai builds the'
+    "With nothing configured the bare name is right: pydantic-ai builds the"
     monkeypatch.setenv("ANTHROPIC_API_KEY", "vendor-anthropic-key")
 
     assert resolver.resolve("anthropic:claude-sonnet-4-5") == (
@@ -98,7 +85,7 @@ def test_no_api_key_leaves_the_vendor_variable_to_pydantic_ai(resolver, monkeypa
 
 
 def test_generic_api_key_is_used_when_the_vendor_has_no_variable(resolver, monkeypatch):
-    'The case the native branch exists for: an explicit `LLM_API_KEY` must'
+    "The case the native branch exists for: an explicit `LLM_API_KEY` must"
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
 
     model = resolver.resolve("deepseek:deepseek-chat", api_key="generic-key")
@@ -108,7 +95,7 @@ def test_generic_api_key_is_used_when_the_vendor_has_no_variable(resolver, monke
 
 
 def test_explicit_base_url_overrides_the_vendor_default(resolver, monkeypatch):
-    'A custom endpoint is a deliberate override, so it skips the vendor rung'
+    "A custom endpoint is a deliberate override, so it skips the vendor rung"
     monkeypatch.setenv("ANTHROPIC_API_KEY", "vendor-anthropic-key")
 
     model = resolver.resolve(
@@ -124,7 +111,7 @@ def test_explicit_base_url_overrides_the_vendor_default(resolver, monkeypatch):
 def test_base_url_a_native_provider_rejects_falls_back_to_openai_compatible(
     resolver, monkeypatch
 ):
-    '`DeepSeekProvider` takes no `base_url`, and dropping it would silently'
+    "`DeepSeekProvider` takes no `base_url`, and dropping it would silently"
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
 
     model = resolver.resolve(
@@ -138,7 +125,7 @@ def test_base_url_a_native_provider_rejects_falls_back_to_openai_compatible(
 def test_explicit_provider_instance_for_the_same_vendor_is_honored(
     resolver, monkeypatch
 ):
-    'A caller who hands over a configured `Provider` gets that object back,'
+    "A caller who hands over a configured `Provider` gets that object back,"
     # lazy: heavy third-party
     from pydantic_ai.providers.anthropic import AnthropicProvider
 
@@ -153,7 +140,7 @@ def test_explicit_provider_instance_for_the_same_vendor_is_honored(
 
 
 def test_unbuildable_native_provider_falls_back_to_the_bare_name(resolver, monkeypatch):
-    '`infer_provider_class` raising must not take the whole resolve with it.'
+    "`infer_provider_class` raising must not take the whole resolve with it."
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     resolver.resolve("anthropic:claude-sonnet-4-5", api_key="generic")
 
@@ -164,15 +151,6 @@ def test_unbuildable_native_provider_falls_back_to_the_bare_name(resolver, monke
         resolved = resolver.resolve("anthropic:claude-sonnet-4-5", api_key="generic")
 
     assert resolved == "anthropic:claude-sonnet-4-5"
-
-
-
-
-
-
-
-
-
 
 
 def test_generic_key_reaches_a_model_of_its_own_provider(monkeypatch):
@@ -188,7 +166,7 @@ def test_generic_key_reaches_a_model_of_its_own_provider(monkeypatch):
 
 
 def test_generic_key_is_withheld_from_a_differently_prefixed_model(monkeypatch):
-    '`LLM_SMALL_MODEL=anthropic:…` beside `LLM_MODEL=openai:…` is the shape'
+    "`LLM_SMALL_MODEL=anthropic:…` beside `LLM_MODEL=openai:…` is the shape"
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-5")
     monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", "anthropic:claude-haiku-4-5")
     monkeypatch.setattr(CFG, "LLM_API_KEY", "an-openai-key")
@@ -210,7 +188,7 @@ def test_llm_provider_names_the_vendor_the_key_belongs_to(monkeypatch):
 
 
 def test_a_base_url_makes_the_key_travel_to_every_tier(monkeypatch):
-    'One endpoint for every model is the gateway case (LiteLLM, OpenRouter).'
+    "One endpoint for every model is the gateway case (LiteLLM, OpenRouter)."
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-5")
     monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", "anthropic:claude-haiku-4-5")
     monkeypatch.setattr(CFG, "LLM_API_KEY", "gateway-key")
@@ -237,15 +215,10 @@ def test_a_bare_model_name_never_triggers_the_vendor_test(monkeypatch):
     assert model.provider.client.api_key == "an-openai-key"
 
 
-
-
-
-
-
 def test_openai_key_is_not_inherited_by_a_foreign_vendor_over_a_custom_url(
     resolver, monkeypatch
 ):
-    '`DeepSeekProvider` takes no `base_url`, so a gateway URL sends a'
+    "`DeepSeekProvider` takes no `base_url`, so a gateway URL sends a"
     monkeypatch.setenv("OPENAI_API_KEY", "sk-my-real-openai-secret")
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
 
@@ -256,7 +229,7 @@ def test_openai_key_is_not_inherited_by_a_foreign_vendor_over_a_custom_url(
 
 
 def test_openai_key_is_still_inherited_when_the_target_is_openai(resolver, monkeypatch):
-    'The other half of the rule: an openai-prefixed model over a custom'
+    "The other half of the rule: an openai-prefixed model over a custom"
     monkeypatch.setenv("OPENAI_API_KEY", "sk-my-real-openai-secret")
 
     model = resolver.resolve("openai:gpt-5", base_url="https://gw.example/v1")
@@ -267,23 +240,12 @@ def test_openai_key_is_still_inherited_when_the_target_is_openai(resolver, monke
 def test_a_bare_model_name_over_a_custom_url_still_inherits_openai_key(
     resolver, monkeypatch
 ):
-    'No prefix means the OpenAI backend by definition (ADR-0037), so the'
+    "No prefix means the OpenAI backend by definition (ADR-0037), so the"
     monkeypatch.setenv("OPENAI_API_KEY", "sk-my-real-openai-secret")
 
     model = resolver.resolve("some-local-model", base_url="https://gw.example/v1")
 
     assert model.provider.client.api_key == "sk-my-real-openai-secret"
-
-
-
-
-
-
-
-
-
-
-
 
 
 def test_bare_model_with_provider_openai_keeps_its_api_key(resolver):
@@ -306,7 +268,7 @@ def test_bare_model_with_provider_openai_keeps_its_base_url(resolver):
 
 
 def test_bare_model_with_provider_anthropic_routes_to_anthropic(resolver):
-    'Routing first: attaching credentials without fixing the route would'
+    "Routing first: attaching credentials without fixing the route would"
     from pydantic_ai.models.anthropic import AnthropicModel
 
     model = resolver.resolve("claude-x", api_key="zrb-key", provider="anthropic")
@@ -340,12 +302,12 @@ def test_bare_model_with_a_provider_instance_routes_by_its_name(resolver):
 
 
 def test_bare_model_with_provider_string_and_no_credentials_is_unchanged(resolver):
-    'Nothing to attach, so the prefixed name still goes to pydantic-ai --'
+    "Nothing to attach, so the prefixed name still goes to pydantic-ai --"
     assert resolver.resolve("claude-x", provider="anthropic") == "anthropic:claude-x"
 
 
 def test_configured_provider_and_bare_model_carry_credentials_end_to_end(monkeypatch):
-    'The whole reported shape, through the knobs a user actually sets.'
+    "The whole reported shape, through the knobs a user actually sets."
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.setattr(CFG, "LLM_PROVIDER", "anthropic")
     monkeypatch.setattr(CFG, "LLM_MODEL", "claude-sonnet-4-5")
@@ -361,7 +323,7 @@ def test_configured_provider_and_bare_model_carry_credentials_end_to_end(monkeyp
 def test_configured_provider_still_scopes_the_key_for_a_foreign_small_model(
     monkeypatch,
 ):
-    'Routing by `LLM_PROVIDER` must not undo the withholding rule: the key'
+    "Routing by `LLM_PROVIDER` must not undo the withholding rule: the key"
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.setattr(CFG, "LLM_PROVIDER", "anthropic")
     monkeypatch.setattr(CFG, "LLM_MODEL", "claude-sonnet-4-5")

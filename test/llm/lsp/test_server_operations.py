@@ -1,4 +1,4 @@
-'Response-shape and document-sync tests for ``LSPServerOperations``.'
+"Response-shape and document-sync tests for ``LSPServerOperations``."
 
 import asyncio
 import json

@@ -1,4 +1,4 @@
-'Tests for the shared tool-call args helpers used by stream_response.py and'
+"Tests for the shared tool-call args helpers used by stream_response.py and"
 
 from zrb.llm.util.tool_args import (
     is_empty_tool_args,

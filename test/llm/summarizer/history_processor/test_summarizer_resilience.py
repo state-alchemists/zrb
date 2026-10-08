@@ -24,11 +24,9 @@ class MockLimiter(LLMLimiter):
 
 @pytest.mark.asyncio
 async def test_summarize_history_resilience():
-    'Test that summarize_history handles None for all optional parameters.'
+    "Test that summarize_history handles None for all optional parameters."
     limiter = MockLimiter()
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
-
-
 
     try:
         result = await summarize_history(
@@ -45,7 +43,7 @@ async def test_summarize_history_resilience():
 
 @pytest.mark.asyncio
 async def test_create_summarizer_history_processor_resilience():
-    'Test that the processor created handles None parameters gracefully.'
+    "Test that the processor created handles None parameters gracefully."
     limiter = MockLimiter()
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
@@ -67,7 +65,7 @@ async def test_create_summarizer_history_processor_resilience():
 
 @pytest.mark.asyncio
 async def test_summarize_messages_resilience():
-    'Test that summarize_messages handles None parameters gracefully.'
+    "Test that summarize_messages handles None parameters gracefully."
     limiter = MockLimiter()
     messages: list[ModelMessage] = [
         ModelRequest(
@@ -89,15 +87,13 @@ async def test_summarize_messages_resilience():
 
 
 def test_split_history_resilience():
-    'Test that split_history handles potential None values if called directly.'
+    "Test that split_history handles potential None values if called directly."
     from zrb.llm.summarizer.history_splitter import split_history
 
     limiter = MockLimiter()
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
     try:
-
-
 
         to_summarize, to_keep = split_history(
             messages,
@@ -113,7 +109,7 @@ def test_split_history_resilience():
 
 @pytest.mark.asyncio
 async def test_processor_survives_unbuildable_summarizer(monkeypatch):
-    'A small model whose provider has no credentials must cost the history its'
+    "A small model whose provider has no credentials must cost the history its"
     import zrb.llm.summarizer.history_summarizer as hs
 
     def explode():

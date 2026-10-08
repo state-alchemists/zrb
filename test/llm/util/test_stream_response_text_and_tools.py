@@ -4,7 +4,7 @@ from zrb.llm.util.stream_response import StreamEventHandler
 
 
 class TestStreamEventHandlerTextCollapse:
-    'Mirrors TestStreamEventHandlerThinkingCollapse: the final text'
+    "Mirrors TestStreamEventHandlerThinkingCollapse: the final text"
 
     def test_text_part_opens_block_when_hook_set(self):
         print_fn = MagicMock()
@@ -20,7 +20,7 @@ class TestStreamEventHandlerTextCollapse:
         print_fn.assert_called()
 
     def test_tool_call_after_text_closes_and_collapses_it(self):
-        'The realistic mid-turn case: text streamed, then a further tool'
+        "The realistic mid-turn case: text streamed, then a further tool"
         print_fn = MagicMock()
         on_start = MagicMock()
         on_collapse = MagicMock()
@@ -104,7 +104,7 @@ class TestStreamEventHandlerTextCollapse:
         assert "Here's the final answer" in full_text
 
     def test_thinking_then_text_each_get_their_own_open_and_collapse(self):
-        'A turn with both: thinking closes on the text part start, text'
+        "A turn with both: thinking closes on the text part start, text"
         print_fn = MagicMock()
         on_thinking_start = MagicMock()
         on_thinking_collapse = MagicMock()
@@ -234,7 +234,7 @@ class TestStreamEventHandlerToolCall:
         assert long_value in full
 
     def test_handle_tool_call_falls_back_to_print_fn_without_recorder(self):
-        'Without a recorder, the tool call is printed normally.'
+        "Without a recorder, the tool call is printed normally."
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart
@@ -247,7 +247,7 @@ class TestStreamEventHandlerToolCall:
         print_fn.assert_called_once()
 
     def test_handle_tool_call_has_no_trailing_newline(self):
-        'Tool-call output has no trailing newline.'
+        "Tool-call output has no trailing newline."
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart

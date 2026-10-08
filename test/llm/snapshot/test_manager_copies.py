@@ -116,7 +116,7 @@ async def test_copies_land_in_the_order_they_were_registered(snapshot_dir, workd
 async def test_saving_over_a_name_a_pending_copy_depends_on_keeps_that_copy(
     snapshot_dir, workdir
 ):
-    '`/save b`, `/save c` from b, then `/save b` again from x, before any'
+    "`/save b`, `/save c` from b, then `/save b` again from x, before any"
     first = SnapshotManager(snapshot_dir, "a", workdir)
     await first.take_snapshot("in a", message_count=1)
     _write(workdir, "x")

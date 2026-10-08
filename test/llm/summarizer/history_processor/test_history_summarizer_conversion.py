@@ -26,7 +26,7 @@ class MockLimiter:
 
 
 def test_model_request_to_text_media_parts():
-    'Test model_request_to_text with various media parts.'
+    "Test model_request_to_text with various media parts."
     from pydantic_ai.messages import (
         AudioUrl,
         BinaryContent,
@@ -59,7 +59,7 @@ def test_model_request_to_text_media_parts():
 
 @pytest.mark.asyncio
 async def test_consolidate_summaries_public():
-    'Test consolidate_summaries public function.'
+    "Test consolidate_summaries public function."
     from zrb.llm.summarizer.chunk_processor import consolidate_summaries
 
     agent = MagicMock()
@@ -74,7 +74,7 @@ async def test_consolidate_summaries_public():
 
 @pytest.mark.asyncio
 async def test_summarize_text_with_snapshot():
-    'Test summarize_text handles state_snapshot tags correctly.'
+    "Test summarize_text handles state_snapshot tags correctly."
     from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 
     agent = MagicMock()
@@ -101,11 +101,9 @@ async def test_last_user_intent_instruction_injection():
         def truncate_text(self, text, limit):
             return text[:limit]
 
-
     limiter = MockInstructionLimiter()
     agent = MagicMock()
     agent.last_prompt = None
-
 
     mock_run = AsyncMock()
 
@@ -118,14 +116,11 @@ async def test_last_user_intent_instruction_injection():
     mock_run.side_effect = side_effect
     agent.run = mock_run
 
-
     messages = [
         ModelRequest(parts=[UserPromptPart(content="User message 1")]),
         ModelResponse(parts=[TextPart(content="AI message 1")]),
         ModelRequest(parts=[UserPromptPart(content="User message 2 - IMPORTANT")]),
     ]
-
-
 
     with patch("zrb.llm.config.limiter.is_turn_start", return_value=False):
         with patch(
@@ -139,7 +134,6 @@ async def test_last_user_intent_instruction_injection():
                 summary_window=0,
                 conversational_token_threshold=500,
             )
-
 
     found_instruction = False
     for call in agent.run.call_args_list:

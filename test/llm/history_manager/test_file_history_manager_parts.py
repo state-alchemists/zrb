@@ -15,7 +15,7 @@ def temp_history_dir(tmp_path):
 
 
 def test_load_tool_return_part_with_tool_call_id_and_timestamp(temp_history_dir):
-    'Lines 55-71: tool-return part with tool_call_id and timestamp fields.'
+    "Lines 55-71: tool-return part with tool_call_id and timestamp fields."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "tool_return_full.json")
     data = [
@@ -54,7 +54,7 @@ def test_load_tool_return_part_with_tool_call_id_and_timestamp(temp_history_dir)
 
 
 def test_load_tool_return_part_without_optional_fields(temp_history_dir):
-    'Lines 55-71: tool-return part without tool_call_id and timestamp (branches not taken).'
+    "Lines 55-71: tool-return part without tool_call_id and timestamp (branches not taken)."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "tool_return_minimal.json")
     data = [
@@ -77,7 +77,6 @@ def test_load_tool_return_part_without_optional_fields(temp_history_dir):
                     "part_kind": "tool-return",
                     "content": "tool result",
                     "tool_name": "my_tool",
-
                 }
             ],
             "timestamp": None,
@@ -91,7 +90,7 @@ def test_load_tool_return_part_without_optional_fields(temp_history_dir):
 
 
 def test_load_tool_call_part_with_tool_call_id(temp_history_dir):
-    'Lines 73-86: tool-call part that includes tool_call_id.'
+    "Lines 73-86: tool-call part that includes tool_call_id."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "tool_call_with_id.json")
     data = [
@@ -118,7 +117,7 @@ def test_load_tool_call_part_with_tool_call_id(temp_history_dir):
 
 
 def test_load_tool_call_part_with_none_tool_name_filtered(temp_history_dir):
-    'Lines 74-78 and 125-126: tool-call part with None tool_name is filtered out entirely.'
+    "Lines 74-78 and 125-126: tool-call part with None tool_name is filtered out entirely."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "tool_call_no_name.json")
     data = [
@@ -150,7 +149,7 @@ def test_load_tool_call_part_with_none_tool_name_filtered(temp_history_dir):
 
 
 def test_load_part_with_no_part_kind_and_none_content_filtered(temp_history_dir):
-    'Lines 133-136: part with no part_kind (and no content) is filtered from parts list.'
+    "Lines 133-136: part with no part_kind (and no content) is filtered from parts list."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "no_part_kind.json")
     data = [
@@ -163,7 +162,6 @@ def test_load_part_with_no_part_kind_and_none_content_filtered(temp_history_dir)
                     "timestamp": "2026-01-01T00:00:00Z",
                 },
                 {
-
                     "some_field": "some_value",
                 },
             ],
@@ -180,10 +178,8 @@ def test_load_part_with_no_part_kind_and_none_content_filtered(temp_history_dir)
 
 
 def test_filter_empty_responses_non_dict_items_in_list(temp_history_dir):
-    'Line 151: Non-dict, non-None items in a list are passed through the filter unchanged.'
+    "Line 151: Non-dict, non-None items in a list are passed through the filter unchanged."
     manager = FileHistoryManager(temp_history_dir)
-
-
 
     file_path = os.path.join(temp_history_dir, "scalar_in_list.json")
 
@@ -199,7 +195,6 @@ def test_filter_empty_responses_non_dict_items_in_list(temp_history_dir):
             ],
             "timestamp": None,
             "instructions": None,
-
             "extra": ["scalar_value", 123],
         }
     ]
@@ -230,7 +225,7 @@ def test_load_with_whitespace_only_conversation_name(temp_history_dir):
 
 
 def test_save_creates_backup_with_conflict_resolution(temp_history_dir):
-    'Lines 203-208: backup conflict resolution creates a numbered variant.'
+    "Lines 203-208: backup conflict resolution creates a numbered variant."
     from datetime import datetime
     from unittest.mock import patch
 
@@ -257,7 +252,7 @@ def test_save_creates_backup_with_conflict_resolution(temp_history_dir):
 
 
 def test_save_write_backup_false_skips_backup_file(temp_history_dir):
-    'A mid-turn checkpoint save (write_backup=False) writes the live file'
+    "A mid-turn checkpoint save (write_backup=False) writes the live file"
     from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 
     manager = FileHistoryManager(temp_history_dir)
@@ -271,7 +266,7 @@ def test_save_write_backup_false_skips_backup_file(temp_history_dir):
 
 
 def test_save_does_nothing_when_session_not_in_cache(temp_history_dir):
-    'Line 288: save() returns early if conversation_name is not in cache.'
+    "Line 288: save() returns early if conversation_name is not in cache."
     manager = FileHistoryManager(temp_history_dir)
 
     manager.save("nonexistent-session")
@@ -281,7 +276,7 @@ def test_save_does_nothing_when_session_not_in_cache(temp_history_dir):
 
 
 def test_save_handles_os_error(temp_history_dir):
-    'Lines 339-340: OSError during save is caught and does not propagate.'
+    "Lines 339-340: OSError during save is caught and does not propagate."
     from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
 
     manager = FileHistoryManager(temp_history_dir)
@@ -304,22 +299,17 @@ def test_save_handles_os_error(temp_history_dir):
 
         manager.save("os-error-session")
 
-
-
-
     assert manager.is_dirty("os-error-session")
     assert manager.cache_sync_mtime("os-error-session") == mtime_before
     assert not os.path.exists(os.path.join(temp_history_dir, "os-error-session.json"))
 
 
 def test_load_returns_empty_after_validation_error(temp_history_dir):
-    'Lines 263-269: ValidationError after cleaning returns empty list.'
+    "Lines 263-269: ValidationError after cleaning returns empty list."
     import json as _json
 
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "validation_fail.json")
-
-
 
     bad_data = [
         {
@@ -335,7 +325,7 @@ def test_load_returns_empty_after_validation_error(temp_history_dir):
 
 
 def test_save_validation_error_does_not_save_file(temp_history_dir):
-    'Lines 331-333: ValidationError during save prevents file creation.'
+    "Lines 331-333: ValidationError during save prevents file creation."
     from unittest.mock import patch
 
     from pydantic import ValidationError
@@ -346,11 +336,6 @@ def test_save_validation_error_does_not_save_file(temp_history_dir):
         ModelRequest(parts=[UserPromptPart(content="hello")])
     ]
     manager.update("val-error-session", messages)
-
-
-
-
-
 
     with patch("zrb.llm.agent.types.ModelMessagesTypeAdapter") as mock_adapter:
         from pydantic_core import InitErrorDetails
@@ -369,12 +354,11 @@ def test_save_validation_error_does_not_save_file(temp_history_dir):
         )
         manager.save("val-error-session")
 
-
     assert not os.path.exists(os.path.join(temp_history_dir, "val-error-session.json"))
 
 
 def test_load_user_prompt_with_all_non_string_list_items(temp_history_dir):
-    'Line 40: user-prompt with list content where ALL items are non-strings.'
+    "Line 40: user-prompt with list content where ALL items are non-strings."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "all_non_str.json")
     data = [
@@ -422,7 +406,6 @@ def test_load_tool_return_uses_default_tool_name(temp_history_dir):
                 {
                     "part_kind": "tool-return",
                     "content": "result data",
-
                 }
             ],
             "timestamp": None,

@@ -29,14 +29,12 @@ async def test_process_tool_return_part_dual_thresholds():
     limiter = MockLimiter()
     agent = MagicMock()
 
-
     part = ToolReturnPart(content="12345")
     res, modified = await process_tool_return_part(
         part, agent, limiter, message_threshold=10, insanity_threshold=20
     )
     assert not modified
     assert res.content == "12345"
-
 
     msg_threshold = 50
     insanity_threshold = 100
@@ -62,7 +60,6 @@ async def test_process_tool_return_part_dual_thresholds():
         assert len(called_content) == 75
         assert called_content == fat_content
 
-
     insane_content = "B" * 150
     part = ToolReturnPart(content=insane_content)
 
@@ -87,7 +84,7 @@ async def test_process_tool_return_part_dual_thresholds():
 
 @pytest.mark.asyncio
 async def test_process_tool_return_part_strips_ansi_before_summarize():
-    'ANSI escapes are removed from the text the summarizer receives.'
+    "ANSI escapes are removed from the text the summarizer receives."
     limiter = MockLimiter()
     agent = MagicMock()
 
@@ -114,10 +111,9 @@ async def test_process_tool_return_part_strips_ansi_before_summarize():
 
 @pytest.mark.asyncio
 async def test_process_tool_return_part_ansi_does_not_inflate_measurement():
-    'Measurement runs on stripped text: ANSI padding does not force a summary.'
+    "Measurement runs on stripped text: ANSI padding does not force a summary."
     limiter = MockLimiter()
     agent = MagicMock()
-
 
     styled = "\x1b[1;32m" + "hello" + "\x1b[0m"
     part = ToolReturnPart(content=styled)

@@ -8,16 +8,14 @@ from zrb.llm.config.limiter import LLMLimiter
 
 
 class TestLLMLimiterTruncate:
-    'Test text truncation through public API.'
+    "Test text truncation through public API."
 
     def test_truncate_text_no_tiktoken(self):
-        'Test truncate_text works correctly with or without tiktoken.'
+        "Test truncate_text works correctly with or without tiktoken."
         limiter = LLMLimiter()
         limiter.max_request_per_minute = None
 
         text = "A" * 100
-
-
 
         result = limiter.truncate_text(text, 10)
 
@@ -26,7 +24,7 @@ class TestLLMLimiterTruncate:
         assert isinstance(result, str)
 
     def test_truncate_text_returns_unchanged_if_short(self):
-        'Test truncate_text returns unchanged if text fits.'
+        "Test truncate_text returns unchanged if text fits."
         limiter = LLMLimiter()
 
         text = "Hello"
@@ -34,7 +32,7 @@ class TestLLMLimiterTruncate:
         assert result == text
 
     def test_truncate_text_tiktoken_fallback_on_exception(self):
-        'Test truncate_text falls back when tiktoken raises exception.'
+        "Test truncate_text falls back when tiktoken raises exception."
         import builtins
 
         limiter = LLMLimiter()
@@ -53,7 +51,7 @@ class TestLLMLimiterTruncate:
             assert len(result) <= 40
 
     def test_count_tokens_tiktoken_import_error(self):
-        'Test count_tokens falls back when tiktoken import fails.'
+        "Test count_tokens falls back when tiktoken import fails."
         import builtins
 
         limiter = LLMLimiter()
@@ -71,7 +69,7 @@ class TestLLMLimiterTruncate:
             assert result > 0
 
     def test_to_str_with_instructions_on_object(self):
-        'Test to_str counts instructions from object with instructions field.'
+        "Test to_str counts instructions from object with instructions field."
         limiter = LLMLimiter()
 
         class MockObj:
@@ -84,7 +82,7 @@ class TestLLMLimiterTruncate:
         assert "Some instructions" in result
 
     def test_to_str_with_instructions_skip_instructions_true(self):
-        'Test to_str skips instructions when skip_instructions=True.'
+        "Test to_str skips instructions when skip_instructions=True."
         limiter = LLMLimiter()
 
         class MockObj:
@@ -97,7 +95,7 @@ class TestLLMLimiterTruncate:
         assert "Some instructions" not in result
 
     def test_to_str_with_content_field(self):
-        'Test to_str extracts content field.'
+        "Test to_str extracts content field."
         limiter = LLMLimiter()
 
         class MockObj:
@@ -107,7 +105,7 @@ class TestLLMLimiterTruncate:
         assert "Hello content" in result
 
     def test_to_str_with_args_field(self):
-        'Test to_str extracts args field.'
+        "Test to_str extracts args field."
         limiter = LLMLimiter()
 
         class MockObj:
@@ -118,7 +116,7 @@ class TestLLMLimiterTruncate:
         assert "value" in result
 
     def test_to_str_fallback_str_exception(self):
-        'Test to_str returns empty string when str() raises.'
+        "Test to_str returns empty string when str() raises."
         limiter = LLMLimiter()
 
         class BadObj:
@@ -132,7 +130,7 @@ class TestLLMLimiterTruncate:
 class TestLLMLimiterAcquireWithNotifier:
     @pytest.mark.asyncio
     async def test_acquire_with_notifier_when_rate_limited(self):
-        'Test acquire calls notifier when rate limited.'
+        "Test acquire calls notifier when rate limited."
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 1
         limiter.max_token_per_minute = 10
@@ -175,7 +173,6 @@ class TestLLMLimiterAcquireWithNotifier:
             lift_limit_soon(),
         )
 
-
         assert notifier.called
         assert any(
             call.args and call.args[0] == "\n" for call in notifier.call_args_list
@@ -183,7 +180,7 @@ class TestLLMLimiterAcquireWithNotifier:
 
     @pytest.mark.asyncio
     async def test_acquire_notifier_called_once_with_clear(self):
-        'Test notifier receives clear message after rate limit clears.'
+        "Test notifier receives clear message after rate limit clears."
         limiter = LLMLimiter()
         limiter.max_request_per_minute = 1
         limiter.max_token_per_minute = 10000

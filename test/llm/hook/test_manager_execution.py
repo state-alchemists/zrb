@@ -31,7 +31,7 @@ async def test_python_hook_execution():
 
 @pytest.mark.asyncio
 async def test_hook_factory_fires_on_first_lazy_access_not_just_manual_scan():
-    'Lazy execution runs factories before the first hook access.'
+    "Lazy execution runs factories before the first hook access."
     manager = HookManager(search_dirs=[])
     registered = []
 
@@ -45,7 +45,7 @@ async def test_hook_factory_fires_on_first_lazy_access_not_just_manual_scan():
 
 
 def test_reload_runs_each_factory_exactly_once():
-    'Reload runs each factory exactly once.'
+    "Reload runs each factory exactly once."
     manager = HookManager(search_dirs=[])
     call_count = 0
 
@@ -61,7 +61,7 @@ def test_reload_runs_each_factory_exactly_once():
 
 @pytest.mark.asyncio
 async def test_hooks_globally_disabled_by_config(monkeypatch):
-    'ZRB_HOOKS_ENABLED=off is a global kill-switch: no registered hook fires.'
+    "ZRB_HOOKS_ENABLED=off is a global kill-switch: no registered hook fires."
     monkeypatch.setenv("ZRB_HOOKS_ENABLED", "off")
     manager = HookManager(search_dirs=[])
     fired = []
@@ -75,7 +75,6 @@ async def test_hooks_globally_disabled_by_config(monkeypatch):
     results = await manager.execute_hooks(HookEvent.SESSION_START, {})
     assert results == []
     assert fired == []
-
 
     monkeypatch.setenv("ZRB_HOOKS_ENABLED", "on")
     results = await manager.execute_hooks(HookEvent.SESSION_START, {})
@@ -99,13 +98,9 @@ async def test_config_file_loading_and_hydration(tmp_path):
     with open(hooks_dir / "my_hook.json", "w") as f:
         json.dump(hook_config, f)
 
-
-
     manager = HookManager(search_dirs=[hooks_dir])
 
-
     results = await manager.execute_hooks_simple(HookEvent.SESSION_START, {})
-
 
     assert len(results) >= 1
     found = False
@@ -139,7 +134,7 @@ async def test_pre_tool_use_modification():
 
 @pytest.mark.asyncio
 async def test_command_hook_receives_claude_event_json_on_stdin():
-    'Command hooks get the Claude-shaped event payload on stdin.'
+    "Command hooks get the Claude-shaped event payload on stdin."
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -197,7 +192,7 @@ def _to_msys_path(path: str) -> str:
 
 @pytest.mark.asyncio
 async def test_command_hook_tolerates_tilde_and_missing_cwd():
-    'Expand ``~`` and tolerate a missing hook working directory.'
+    "Expand ``~`` and tolerate a missing hook working directory."
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -215,10 +210,6 @@ async def test_command_hook_tolerates_tilde_and_missing_cwd():
     actual = (res[0].message or "").strip()
     if os.name == "nt":
 
-
-
-
-
         assert actual in (expected, _to_msys_path(expected))
     else:
         assert actual == expected
@@ -231,7 +222,7 @@ async def test_command_hook_tolerates_tilde_and_missing_cwd():
 
 @pytest.mark.asyncio
 async def test_async_command_hook_is_non_blocking():
-    'Async command hooks return without waiting for the subprocess.'
+    "Async command hooks return without waiting for the subprocess."
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -251,16 +242,12 @@ async def test_async_command_hook_is_non_blocking():
     assert elapsed < 1.0, f"async hook blocked for {elapsed:.2f}s"
     assert results == []
 
-
-
-
-
     await manager.shutdown()
 
 
 @pytest.mark.asyncio
 async def test_async_agent_hook_is_non_blocking():
-    'An async agent-type Stop hook is backgrounded the same way an async'
+    "An async agent-type Stop hook is backgrounded the same way an async"
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -299,7 +286,7 @@ async def test_async_agent_hook_is_non_blocking():
 
 @pytest.mark.asyncio
 async def test_sync_command_hook_is_killed_on_timeout():
-    'A synchronous command hook that exceeds its timeout is killed and'
+    "A synchronous command hook that exceeds its timeout is killed and"
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -328,7 +315,7 @@ async def test_sync_command_hook_is_killed_on_timeout():
 )
 @pytest.mark.asyncio
 async def test_command_hook_drops_oversized_env_value():
-    'Oversized event_data is dropped from the subprocess environment, not'
+    "Oversized event_data is dropped from the subprocess environment, not"
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
         {
@@ -341,7 +328,6 @@ async def test_command_hook_drops_oversized_env_value():
         "test",
     )
 
-
     big = {"history": ["x" * 1000] * 1000}
     results = await manager.execute_hooks(HookEvent.STOP, big)
 
@@ -350,7 +336,7 @@ async def test_command_hook_drops_oversized_env_value():
 
 
 def test_get_search_directories_includes_claude_settings(tmp_path, monkeypatch):
-    '``~/.claude/settings.json`` and ``settings.local.json`` are discovered.'
+    "``~/.claude/settings.json`` and ``settings.local.json`` are discovered."
     from pathlib import Path
 
     from zrb.llm.hook import hook_loader
@@ -359,7 +345,6 @@ def test_get_search_directories_includes_claude_settings(tmp_path, monkeypatch):
     claude_dir.mkdir()
     (claude_dir / "settings.json").write_text("{}")
     (claude_dir / "settings.local.json").write_text("{}")
-
 
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     monkeypatch.setattr(Path, "cwd", classmethod(lambda cls: tmp_path))
@@ -371,7 +356,7 @@ def test_get_search_directories_includes_claude_settings(tmp_path, monkeypatch):
 
 
 def test_get_search_directories_dedups_home_and_project(tmp_path, monkeypatch):
-    'When cwd is under $HOME, the home tier and the project upward-walk both'
+    "When cwd is under $HOME, the home tier and the project upward-walk both"
     from pathlib import Path
 
     from zrb.llm.hook import hook_loader
@@ -392,7 +377,7 @@ def test_get_search_directories_dedups_home_and_project(tmp_path, monkeypatch):
 
 
 def test_get_plugin_root_for_path_matches_configured_plugin_dir(tmp_path, monkeypatch):
-    'A hook file under a configured LLM_PLUGIN_DIRS entry reports that entry'
+    "A hook file under a configured LLM_PLUGIN_DIRS entry reports that entry"
     from zrb.llm.hook import hook_loader
 
     plugin_dir = tmp_path / "my-plugin"

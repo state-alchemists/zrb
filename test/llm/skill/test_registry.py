@@ -1,4 +1,4 @@
-'Tests for the `SkillRegistry` split-out (ADR-0090).'
+"Tests for the `SkillRegistry` split-out (ADR-0090)."
 
 import pytest
 
@@ -29,11 +29,6 @@ def _skill(name, **kwargs):
     return Skill(name=name, **kwargs)
 
 
-
-
-
-
-
 def test_registry_constructed_empty(registry):
     assert registry.get_skills() == []
 
@@ -52,11 +47,6 @@ def test_manager_defaults_to_fresh_isolated_registry():
 
 def test_singleton_is_skill_registry():
     assert isinstance(skill_registry, SkillRegistry)
-
-
-
-
-
 
 
 def test_add_then_get(manager, skill):
@@ -85,11 +75,6 @@ def test_get_unknown(manager):
     assert manager.get_skill("nope") is None
 
 
-
-
-
-
-
 def test_remove_skill(manager, skill):
     manager.add_skill(skill)
     manager.remove_skill("alpha")
@@ -109,11 +94,6 @@ def test_remove_then_scan_rediscovers_file(manager, skill, tmp_path):
     assert manager.get_skill("Gone") is None
     manager.scan(search_dirs=[tmp_path])
     assert manager.get_skill("Gone") is not None
-
-
-
-
-
 
 
 def test_set_skills_replaces_whole_collection(manager, skill):
@@ -150,22 +130,12 @@ def test_manual_wins_name_collision_with_discovered(manager, skill, tmp_path):
     assert manager.get_skill("alpha") is skill
 
 
-
-
-
-
-
 def test_reload_keeps_manual(manager, skill, tmp_path):
     manager.add_skill(skill)
     (tmp_path / "found.skill.md").write_text("# Found")
     manager.scan(search_dirs=[tmp_path])
     manager.reload()
     assert manager.get_skill("alpha") is skill
-
-
-
-
-
 
 
 def test_llm_skills_allowlist_filters_only_discovered(registry, monkeypatch):

@@ -1,4 +1,4 @@
-'Test PromptManager configuration defaults mechanism.'
+"Test PromptManager configuration defaults mechanism."
 
 import os
 from unittest.mock import patch
@@ -12,7 +12,7 @@ from zrb.llm.prompt.manager import PromptManager
 
 
 def test_config_llm_include_sections_default():
-    'Test that LLM_INCLUDE_SECTIONS has the correct default.'
+    "Test that LLM_INCLUDE_SECTIONS has the correct default."
     assert hasattr(
         CFG, "LLM_INCLUDE_SECTIONS"
     ), "Config should have LLM_INCLUDE_SECTIONS property"
@@ -31,13 +31,13 @@ def test_config_llm_include_sections_default():
 
 
 def test_config_llm_include_sections_setter():
-    'Test that the LLM_INCLUDE_SECTIONS setter works.'
+    "Test that the LLM_INCLUDE_SECTIONS setter works."
     CFG.LLM_INCLUDE_SECTIONS = ["persona", "workflow"]
     assert CFG.LLM_INCLUDE_SECTIONS == ["persona", "workflow"]
 
 
 def test_environment_variable_overrides():
-    'Test that environment variables can override LLM_INCLUDE_SECTIONS.'
+    "Test that environment variables can override LLM_INCLUDE_SECTIONS."
     env_vars = {
         "ZRB_LLM_INCLUDE_SECTIONS": "persona,principle",
         "_ZRB_ENV_PREFIX": "ZRB",
@@ -49,9 +49,8 @@ def test_environment_variable_overrides():
 
 
 def test_prompt_manager_uses_config_defaults():
-    'Test that PromptManager uses config defaults when include_sections is None.'
+    "Test that PromptManager uses config defaults when include_sections is None."
     ctx = Context(SharedContext(), "test", 0, "")
-
 
     manager = PromptManager()
 
@@ -61,9 +60,8 @@ def test_prompt_manager_uses_config_defaults():
 
 
 def test_prompt_manager_mini_overrides():
-    'Test that explicit include_sections overrides config defaults.'
+    "Test that explicit include_sections overrides config defaults."
     ctx = Context(SharedContext(), "test", 0, "")
-
 
     manager = PromptManager(
         include_sections=["persona", "principle"],
@@ -75,7 +73,7 @@ def test_prompt_manager_mini_overrides():
 
 
 def test_prompt_manager_include_sections_mini_subset():
-    'Explicit include_sections selects only listed sections.'
+    "Explicit include_sections selects only listed sections."
     ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(
@@ -88,7 +86,7 @@ def test_prompt_manager_include_sections_mini_subset():
 
 
 def test_prompt_manager_include_sections_ordering():
-    'Section ordering follows include_sections order.'
+    "Section ordering follows include_sections order."
     ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(
@@ -102,14 +100,12 @@ def test_prompt_manager_include_sections_ordering():
 
 @pytest.mark.asyncio
 async def test_prompt_manager_integration():
-    'Integration test - verify PromptManager works end-to-end with config.'
+    "Integration test - verify PromptManager works end-to-end with config."
     ctx = Context(SharedContext(), "test", 0, "")
-
 
     manager1 = PromptManager()
     prompt1 = manager1.compose_prompt()(ctx)
     assert isinstance(prompt1, str)
-
 
     env_vars = {
         "ZRB_LLM_INCLUDE_SECTIONS": "persona,principle",
@@ -125,7 +121,7 @@ async def test_prompt_manager_integration():
 
 
 def test_prompt_manager_empty_sections_produces_no_builtin_content():
-    'include_sections=[] means no built-in sections.'
+    "include_sections=[] means no built-in sections."
     ctx = Context(SharedContext(), "test", 0, "")
 
     manager = PromptManager(include_sections=[])

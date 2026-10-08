@@ -14,13 +14,11 @@ class TestStreamEventHandlerInit:
         assert handler.was_tool_call_delta is False
         assert handler.was_tool_call_start is False
 
-
-
         assert handler.event_prefix == "\n  "
         assert handler.printed_tool_ids == set()
 
     def test_fresh_handler_first_print_has_a_leading_newline(self):
-        'A fresh handler starts output on a new line.'
+        "A fresh handler starts output on a new line."
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart
@@ -176,7 +174,7 @@ class TestStreamEventHandlerPartDelta:
 
 class TestStreamEventHandlerThinkingCollapse:
     def test_consecutive_thinking_parts_merge_into_one_block(self):
-        'Consecutive thinking parts collapse into one block.'
+        "Consecutive thinking parts collapse into one block."
         print_fn = MagicMock()
         on_start = MagicMock()
         on_collapse = MagicMock()
@@ -200,7 +198,6 @@ class TestStreamEventHandlerThinkingCollapse:
         third.part = ThinkingPart(content="Third paragraph of reasoning.")
         handler.handle_part_start(third)
 
-
         on_start.assert_called_once_with()
         on_collapse.assert_not_called()
 
@@ -215,8 +212,6 @@ class TestStreamEventHandlerThinkingCollapse:
         assert "Third paragraph" in printed
 
         assert printed.count("🧠") == 1
-
-
 
         _collapsed, full = on_collapse.call_args[0]
         assert "First paragraph" in full
@@ -262,7 +257,7 @@ class TestStreamEventHandlerThinkingCollapse:
         assert "Let me think..." in full_text
 
     def test_none_content_delta_does_not_print_literal_none(self):
-        'A missing thinking delta does not print ``None``.'
+        "A missing thinking delta does not print ``None``."
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ThinkingPartDelta
@@ -275,7 +270,7 @@ class TestStreamEventHandlerThinkingCollapse:
         assert "None" not in printed
 
     def test_carriage_return_in_a_delta_does_not_truncate_the_full_text(self):
-        'Carriage returns do not truncate accumulated thinking text.'
+        "Carriage returns do not truncate accumulated thinking text."
         print_fn = MagicMock()
         on_collapse = MagicMock()
         handler = StreamEventHandler(
@@ -287,9 +282,6 @@ class TestStreamEventHandlerThinkingCollapse:
         start_event = MagicMock()
         start_event.part = ThinkingPart(content="Reasoning about the problem")
         handler.handle_part_start(start_event)
-
-
-
 
         delta_event = MagicMock()
         delta_event.delta = ThinkingPartDelta(
@@ -339,7 +331,7 @@ class TestStreamEventHandlerThinkingCollapse:
         on_collapse.assert_not_called()
 
     def test_run_result_closes_a_still_open_thinking_block(self):
-        'Edge case: the run ends with thinking as the last streamed part'
+        "Edge case: the run ends with thinking as the last streamed part"
         print_fn = MagicMock()
         on_collapse = MagicMock()
         handler = StreamEventHandler(
@@ -358,7 +350,7 @@ class TestStreamEventHandlerThinkingCollapse:
         on_collapse.assert_called_once()
 
     def test_without_hooks_thinking_still_streams_and_nothing_raises(self):
-        'Without hooks, thinking streams without collapsing.'
+        "Without hooks, thinking streams without collapsing."
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart

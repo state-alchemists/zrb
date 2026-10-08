@@ -1,4 +1,4 @@
-'`FfmpegCameraBackend` device listing and the failure hints.'
+"`FfmpegCameraBackend` device listing and the failure hints."
 
 from __future__ import annotations
 
@@ -13,14 +13,14 @@ from zrb.llm.camera.backend import AutoCameraBackend, FfmpegCameraBackend
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    'Strip every camera-relevant env var before each test.'
+    "Strip every camera-relevant env var before each test."
     for var in ("WSL_DISTRO_NAME", "WSLENV"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
 
 
 class _FakeProcess:
-    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
+    "Minimal async-process stand-in for `asyncio.create_subprocess_exec`."
 
     def __init__(
         self,
@@ -171,7 +171,7 @@ def test_failure_hint_windows(clean_env):
 
 
 def test_failure_hint_wsl_no_device(clean_env):
-    'No /dev/video* at all -- usbipd attached the USB device, but the stock'
+    "No /dev/video* at all -- usbipd attached the USB device, but the stock"
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
@@ -184,7 +184,7 @@ def test_failure_hint_wsl_no_device(clean_env):
 
 
 def test_failure_hint_wsl_device_exists(clean_env):
-    '/dev/video0 exists -- driver is fine, the USB/IP tunnel is the problem.'
+    "/dev/video0 exists -- driver is fine, the USB/IP tunnel is the problem."
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
@@ -220,12 +220,11 @@ def test_list_devices_linux_globs_video_nodes(clean_env):
         lambda pattern: ["/dev/video1", "/dev/video0"],
     )
 
-
     assert AutoCameraBackend().list_devices() == ["/dev/video0", "/dev/video1"]
 
 
 def test_list_devices_windows_sync_never_blocks(clean_env):
-    'Windows dshow names need the ffmpeg subprocess probe; the sync path'
+    "Windows dshow names need the ffmpeg subprocess probe; the sync path"
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("sys.platform", "win32")
 
@@ -249,13 +248,12 @@ async def test_refresh_devices_parses_dshow_names_on_windows(clean_env):
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
         devices = await FfmpegCameraBackend().refresh_devices()
 
-
     assert devices == ["Integrated Webcam", "USB Camera"]
 
 
 @pytest.mark.asyncio
 async def test_schedule_device_refresh_schedules_probe_when_stale(clean_env):
-    'Stale cache + a running loop → a background refresh is scheduled and'
+    "Stale cache + a running loop → a background refresh is scheduled and"
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("sys.platform", "win32")
     backend = FfmpegCameraBackend()
@@ -266,7 +264,6 @@ async def test_schedule_device_refresh_schedules_probe_when_stale(clean_env):
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
         task = backend.schedule_device_refresh()
         assert task is not None
-
 
         await task
 
@@ -290,7 +287,7 @@ def test_list_devices_serves_the_cache_until_it_is_stale(clean_env):
 async def test_a_scheduled_probe_runs_to_completion_and_is_not_scheduled_twice(
     clean_env,
 ):
-    'The dshow listing is slow, so `list_devices` starts it in the background'
+    "The dshow listing is slow, so `list_devices` starts it in the background"
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("sys.platform", "win32")
     backend = FfmpegCameraBackend()

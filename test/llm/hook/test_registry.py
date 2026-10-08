@@ -1,4 +1,4 @@
-'Tests for the `HookRegistry` split-out (ADR-0090).'
+"Tests for the `HookRegistry` split-out (ADR-0090)."
 
 import pytest
 
@@ -37,11 +37,6 @@ def _config(event: HookEvent, priority: int = 0) -> HookConfig:
     )
 
 
-
-
-
-
-
 def test_registry_constructed_empty(registry):
     assert registry.get_hooks(HookEvent.NOTIFICATION) == []
     assert registry.get_global_hooks() == []
@@ -56,11 +51,6 @@ def test_manager_defaults_to_fresh_isolated_registry():
 
 def test_singleton_is_hook_registry():
     assert isinstance(hook_registry, HookRegistry)
-
-
-
-
-
 
 
 def test_register_event_hook(manager, registry):
@@ -103,11 +93,6 @@ def test_record_config_for_debugging(registry):
     assert registry.get_configs()["cfg"] is config
 
 
-
-
-
-
-
 def test_remove_hook_drops_everywhere(manager, registry):
     hook = _hook()
     manager.add_hook(hook, events=[HookEvent.STOP, HookEvent.SESSION_END])
@@ -136,11 +121,6 @@ def test_remove_event_hooks_keeps_global(manager, registry):
 
 def test_remove_hook_unknown_is_noop(manager):
     manager.remove_hook(_hook())
-
-
-
-
-
 
 
 def test_set_hooks_replaces_event(manager, registry):
@@ -176,22 +156,12 @@ def test_remove_event_hooks_prunes_stale_configs(manager, registry):
     assert registry.get_hook_config(hook) is None
 
 
-
-
-
-
-
 def test_reload_clears_registered_hooks(manager, registry):
     hook = _hook()
     manager.add_hook(hook, events=[HookEvent.NOTIFICATION])
     manager.reload()
 
     assert registry.get_hooks(HookEvent.NOTIFICATION) == []
-
-
-
-
-
 
 
 def test_llm_hooks_allowlist_filters_event_and_global(registry, monkeypatch):

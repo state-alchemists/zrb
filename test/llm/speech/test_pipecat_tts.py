@@ -220,9 +220,7 @@ def test_a_service_that_refuses_the_interruption_does_not_hold_the_next_sentence
             is_said.set()
 
         threading.Thread(target=say_next, daemon=True).start()
-        assert is_said.wait(
-            5
-        ), "the sentence after a failed interruption never started"
+        assert is_said.wait(5), "the sentence after a failed interruption never started"
     finally:
         pipeline.close()
 

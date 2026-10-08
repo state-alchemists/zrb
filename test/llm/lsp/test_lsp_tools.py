@@ -1,4 +1,4 @@
-'Tests for LSP tools public API.'
+"Tests for LSP tools public API."
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -6,11 +6,11 @@ import pytest
 
 
 class TestLspTools:
-    'Tests for LSP tool functions through public API.'
+    "Tests for LSP tool functions through public API."
 
     @pytest.mark.asyncio
     async def test_find_definition_delegates_to_manager(self):
-        'Test find_definition delegates to lsp_manager.'
+        "Test find_definition delegates to lsp_manager."
         from zrb.llm.lsp.tools import find_definition
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -27,7 +27,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_find_definition_with_symbol_kind(self):
-        'Test find_definition with symbol_kind parameter.'
+        "Test find_definition with symbol_kind parameter."
         from zrb.llm.lsp.tools import find_definition
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -42,7 +42,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_find_references_delegates_to_manager(self):
-        'Test find_references delegates to lsp_manager.'
+        "Test find_references delegates to lsp_manager."
         from zrb.llm.lsp.tools import find_references
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -55,7 +55,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_find_references_with_all_params(self):
-        'Test find_references with all parameters.'
+        "Test find_references with all parameters."
         from zrb.llm.lsp.tools import find_references
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -72,7 +72,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_get_diagnostics_delegates_to_manager(self):
-        'Test get_diagnostics delegates to lsp_manager.'
+        "Test get_diagnostics delegates to lsp_manager."
         from zrb.llm.lsp.tools import get_diagnostics
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -85,7 +85,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_get_diagnostics_with_severity(self):
-        'Test get_diagnostics with severity filter.'
+        "Test get_diagnostics with severity filter."
         from zrb.llm.lsp.tools import get_diagnostics
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -98,7 +98,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_get_document_symbols_delegates_to_manager(self):
-        'Test get_document_symbols delegates to lsp_manager.'
+        "Test get_document_symbols delegates to lsp_manager."
         from zrb.llm.lsp.tools import get_document_symbols
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -111,7 +111,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_get_workspace_symbols_delegates_to_manager(self):
-        'Test get_workspace_symbols delegates to lsp_manager.'
+        "Test get_workspace_symbols delegates to lsp_manager."
         from zrb.llm.lsp.tools import get_workspace_symbols
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -124,7 +124,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_get_workspace_symbols_with_file_path(self):
-        'Test get_workspace_symbols with file_path parameter.'
+        "Test get_workspace_symbols with file_path parameter."
         from zrb.llm.lsp.tools import get_workspace_symbols
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -139,7 +139,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_get_hover_info_delegates_to_manager(self):
-        'Test get_hover_info delegates to lsp_manager.'
+        "Test get_hover_info delegates to lsp_manager."
         from zrb.llm.lsp.tools import get_hover_info
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -154,7 +154,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_rename_symbol_delegates_to_manager(self):
-        'Test rename_symbol delegates to lsp_manager.'
+        "Test rename_symbol delegates to lsp_manager."
         from zrb.llm.lsp.tools import rename_symbol
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -171,7 +171,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_rename_symbol_with_all_params(self):
-        'Test rename_symbol with all parameters.'
+        "Test rename_symbol with all parameters."
         from zrb.llm.lsp.tools import rename_symbol
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -188,7 +188,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_list_available_servers(self):
-        'Test list_available_servers returns server info.'
+        "Test list_available_servers returns server info."
         from zrb.llm.lsp.tools import list_available_servers
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -211,7 +211,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_list_available_servers_multiple_languages(self):
-        'Test list_available_servers with multiple languages per server.'
+        "Test list_available_servers with multiple languages per server."
         from zrb.llm.lsp.tools import list_available_servers
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -231,7 +231,7 @@ class TestLspTools:
 
     @pytest.mark.asyncio
     async def test_list_available_servers_no_config(self):
-        'Test list_available_servers handles missing server config.'
+        "Test list_available_servers handles missing server config."
         from zrb.llm.lsp.tools import list_available_servers
 
         with patch("zrb.llm.lsp.tools.lsp_manager") as mock_manager:
@@ -250,7 +250,7 @@ class TestLspTools:
                 assert result["language_support"] == {}
 
     def test_create_lsp_tools(self):
-        'Test create_lsp_tools returns all tool functions.'
+        "Test create_lsp_tools returns all tool functions."
         from zrb.llm.lsp.tools import create_lsp_tools
 
         tools = create_lsp_tools()

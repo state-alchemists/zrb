@@ -1,4 +1,4 @@
-'Tests for tool call/return pair safety in summarization.'
+"Tests for tool call/return pair safety in summarization."
 
 import pytest
 from pydantic_ai.messages import (
@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
 
 def test_get_tool_pairs_basic():
-    'Test basic tool pair detection.'
+    "Test basic tool pair detection."
     messages = [
         ModelRequest(parts=[UserPromptPart("Hello")]),
         ModelResponse(
@@ -48,7 +48,7 @@ def test_get_tool_pairs_basic():
 
 
 def test_get_tool_pairs_multiple():
-    'Test detection of multiple tool pairs.'
+    "Test detection of multiple tool pairs."
     messages = [
         ModelRequest(parts=[UserPromptPart("Q1")]),
         ModelResponse(
@@ -90,7 +90,7 @@ def test_get_tool_pairs_multiple():
 
 
 def test_get_tool_pairs_orphaned_return():
-    'Test detection of orphaned returns (returns without calls).'
+    "Test detection of orphaned returns (returns without calls)."
     messages = [
         ModelRequest(parts=[UserPromptPart("Hello")]),
         ModelRequest(
@@ -111,13 +111,12 @@ def test_get_tool_pairs_orphaned_return():
 
 
 def test_get_tool_pairs_call_without_return():
-    'Test detection of calls without returns (incomplete pairs).'
+    "Test detection of calls without returns (incomplete pairs)."
     messages = [
         ModelRequest(parts=[UserPromptPart("Hello")]),
         ModelResponse(
             parts=[ToolCallPart(tool_name="tool1", args={}, tool_call_id="call_1")]
         ),
-
         ModelResponse(parts=[TextPart("Still waiting...")]),
     ]
 
@@ -129,7 +128,7 @@ def test_get_tool_pairs_call_without_return():
 
 
 def test_is_split_safe_complete_pair():
-    'Test that complete tool pairs can be kept together.'
+    "Test that complete tool pairs can be kept together."
     messages = [
         ModelRequest(parts=[UserPromptPart("Q1")]),
         ModelResponse(
@@ -147,15 +146,13 @@ def test_is_split_safe_complete_pair():
 
     tool_pairs = get_tool_pairs(messages)
 
-
     assert is_split_safe(messages, 3, tool_pairs) == True
-
 
     assert is_split_safe(messages, 2, tool_pairs) == False
 
 
 def test_is_split_safe_multiple_pairs():
-    'Test safety with multiple tool pairs.'
+    "Test safety with multiple tool pairs."
     messages = [
         ModelRequest(parts=[UserPromptPart("Q1")]),
         ModelResponse(
@@ -185,9 +182,7 @@ def test_is_split_safe_multiple_pairs():
 
     tool_pairs = get_tool_pairs(messages)
 
-
     assert is_split_safe(messages, 4, tool_pairs) == True
-
 
     assert is_split_safe(messages, 6, tool_pairs) == False
 
@@ -208,9 +203,7 @@ def test_is_split_safe_orphaned_return():
 
     tool_pairs = get_tool_pairs(messages)
 
-
     assert is_split_safe(messages, 1, tool_pairs) == False
-
 
     assert is_split_safe(messages, 2, tool_pairs) == True
 
@@ -222,16 +215,11 @@ def test_is_split_safe_call_without_return():
         ModelResponse(
             parts=[ToolCallPart(tool_name="tool1", args={}, tool_call_id="call_1")]
         ),
-
         ModelResponse(parts=[TextPart("Waiting...")]),
     ]
 
     tool_pairs = get_tool_pairs(messages)
 
-
     assert is_split_safe(messages, 1, tool_pairs) == True
 
-
-    assert (
-        is_split_safe(messages, 2, tool_pairs) == False
-    )
+    assert is_split_safe(messages, 2, tool_pairs) == False

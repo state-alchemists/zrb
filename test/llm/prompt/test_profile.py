@@ -1,4 +1,4 @@
-'Tests for the explicit prompt-profile adjustment.'
+"Tests for the explicit prompt-profile adjustment."
 
 import pytest
 

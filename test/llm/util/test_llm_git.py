@@ -1,4 +1,4 @@
-'Tests for llm/util/git.py - Git utility functions.'
+"Tests for llm/util/git.py - Git utility functions."
 
 import subprocess
 from unittest.mock import MagicMock, patch
@@ -8,7 +8,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _clear_git_cache():
-    'Clear the lru_cache on check_git_dir before each test.'
+    "Clear the lru_cache on check_git_dir before each test."
     from zrb.llm.util.git import check_git_dir
 
     check_git_dir.cache_clear()
@@ -17,10 +17,10 @@ def _clear_git_cache():
 
 
 class TestIsInsideGitDir:
-    'Test is_inside_git_dir function.'
+    "Test is_inside_git_dir function."
 
     def test_inside_git_dir(self):
-        'Test is_inside_git_dir returns True when inside a git directory.'
+        "Test is_inside_git_dir returns True when inside a git directory."
         from zrb.llm.util.git import is_inside_git_dir
 
         mock_result = MagicMock()
@@ -31,7 +31,7 @@ class TestIsInsideGitDir:
             assert result is True
 
     def test_not_inside_git_dir(self):
-        'Test is_inside_git_dir returns False when not inside a git directory.'
+        "Test is_inside_git_dir returns False when not inside a git directory."
         from zrb.llm.util.git import is_inside_git_dir
 
         mock_result = MagicMock()
@@ -42,7 +42,7 @@ class TestIsInsideGitDir:
             assert result is False
 
     def test_exception_returns_false(self):
-        'Test is_inside_git_dir returns False on exception.'
+        "Test is_inside_git_dir returns False on exception."
         from zrb.llm.util.git import is_inside_git_dir
 
         with patch("subprocess.run", side_effect=Exception("Test error")):
@@ -50,7 +50,7 @@ class TestIsInsideGitDir:
             assert result is False
 
     def test_calls_git_command(self):
-        'Test is_inside_git_dir calls correct git command.'
+        "Test is_inside_git_dir calls correct git command."
         from zrb.llm.util.git import is_inside_git_dir
 
         mock_result = MagicMock()
@@ -66,7 +66,7 @@ class TestIsInsideGitDir:
             )
 
     def test_probe_is_bounded_by_the_configured_timeout(self, monkeypatch):
-        'The probe uses ``ZRB_LLM_GIT_CMD_TIMEOUT``.'
+        "The probe uses ``ZRB_LLM_GIT_CMD_TIMEOUT``."
         from zrb.llm.util.git import is_inside_git_dir
 
         monkeypatch.setenv("ZRB_LLM_GIT_CMD_TIMEOUT", "2500")
@@ -79,14 +79,14 @@ class TestIsInsideGitDir:
         assert mock_run.call_args.kwargs["timeout"] == 2.5
 
     def test_probe_timeout_reads_as_not_a_git_dir(self):
-        'A timeout is the same safe answer as any other failure.'
+        "A timeout is the same safe answer as any other failure."
         from zrb.llm.util.git import is_inside_git_dir
 
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("git", 5.0)):
             assert is_inside_git_dir() is False
 
     def test_filenot_found_returns_false(self):
-        'Test is_inside_git_dir handles FileNotFoundError.'
+        "Test is_inside_git_dir handles FileNotFoundError."
         from zrb.llm.util.git import is_inside_git_dir
 
         with patch("subprocess.run", side_effect=FileNotFoundError("git not found")):
@@ -94,7 +94,7 @@ class TestIsInsideGitDir:
             assert result is False
 
     def test_permission_error_returns_false(self):
-        'Test is_inside_git_dir handles PermissionError.'
+        "Test is_inside_git_dir handles PermissionError."
         from zrb.llm.util.git import is_inside_git_dir
 
         with patch("subprocess.run", side_effect=PermissionError("Permission denied")):
@@ -102,20 +102,16 @@ class TestIsInsideGitDir:
             assert result is False
 
     def test_actually_inside_git_repo(self, monkeypatch):
-        'Test is_inside_git_dir in actual git repo (integration test).'
+        "Test is_inside_git_dir in actual git repo (integration test)."
         from pathlib import Path
 
         from zrb.llm.util.git import is_inside_git_dir
-
-
-
-
 
         monkeypatch.chdir(Path(__file__).resolve().parent.parent.parent)
         assert is_inside_git_dir() is True
 
     def test_probe_timeout_is_not_memoized(self):
-        'A timeout result is not memoized.'
+        "A timeout result is not memoized."
         from zrb.llm.util.git import is_inside_git_dir
 
         with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("git", 5.0)):
@@ -128,7 +124,7 @@ class TestIsInsideGitDir:
             mock_run.assert_called_once()
 
     def test_non_timeout_failure_is_still_memoized(self):
-        'Only the transient case is retried; a real answer stays cached.'
+        "Only the transient case is retried; a real answer stays cached."
         from zrb.llm.util.git import is_inside_git_dir
 
         with patch("subprocess.run", side_effect=FileNotFoundError("no git")):

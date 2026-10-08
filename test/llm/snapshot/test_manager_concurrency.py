@@ -1,4 +1,4 @@
-'Tests for SnapshotManager — what happens when something else is already'
+"Tests for SnapshotManager — what happens when something else is already"
 
 import asyncio
 import os
@@ -22,7 +22,6 @@ def workdir():
 
 @pytest.fixture
 def snapshot_dir():
-
 
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         yield d
@@ -107,7 +106,7 @@ async def test_a_store_busy_past_the_wait_fails_that_snapshot_not_rewind(
 async def test_waiting_for_the_store_does_not_spend_the_operation_budget(
     snapshot_dir, workdir, monkeypatch
 ):
-    'The budget starts once the store is held: a wait for a busy store is'
+    "The budget starts once the store is held: a wait for a busy store is"
     monkeypatch.setenv("ZRB_LLM_SNAPSHOT_OPERATION_TIMEOUT", "5")
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     await mgr.take_init_snapshot()
@@ -133,7 +132,7 @@ async def test_waiting_for_the_store_does_not_spend_the_operation_budget(
 async def test_an_operation_past_its_budget_turns_rewind_off(
     snapshot_dir, workdir, monkeypatch
 ):
-    'A directory too slow to hash within the budget fails every turn the'
+    "A directory too slow to hash within the budget fails every turn the"
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     await mgr.take_init_snapshot()
     real_snapshot = SnapshotStore.snapshot
@@ -153,7 +152,7 @@ async def test_an_operation_past_its_budget_turns_rewind_off(
 async def test_cancelling_a_snapshot_waiting_for_the_store_gives_up_at_once(
     snapshot_dir, workdir
 ):
-    'The wait is not a git command, so nothing else would tell the worker'
+    "The wait is not a git command, so nothing else would tell the worker"
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     await mgr.take_init_snapshot()
     held, release = threading.Event(), threading.Event()

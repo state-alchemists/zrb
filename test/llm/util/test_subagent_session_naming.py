@@ -1,4 +1,4 @@
-'Tests for llm/util/subagent_session_naming.py — the single source of truth'
+"Tests for llm/util/subagent_session_naming.py — the single source of truth"
 
 import os
 
@@ -51,7 +51,7 @@ def test_hyphenated_parent_session_still_parses():
 
 
 def test_subagent_only_directories_excludes_history_root(tmp_path):
-    'Unlike `subagent_history_directories`, the root itself — where'
+    "Unlike `subagent_history_directories`, the root itself — where"
     (tmp_path / "subagent" / "researcher").mkdir(parents=True)
     (tmp_path / "subagent" / "code-reviewer").mkdir(parents=True)
 

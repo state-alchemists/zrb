@@ -347,7 +347,7 @@ def test_ignore_dirs_skipped(manager, tmp_path):
 
 
 def test_search_dirs_property_override_and_default(tmp_path):
-    '`search_dirs` returns the explicit override when set, else the'
+    "`search_dirs` returns the explicit override when set, else the"
     manager = SkillManager()
     assert manager.search_dirs != []
 

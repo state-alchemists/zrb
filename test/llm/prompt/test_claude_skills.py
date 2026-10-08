@@ -4,10 +4,6 @@ from zrb.llm.prompt.claude import build_skill_replacements
 from zrb.llm.skill.manager import Skill, SkillManager
 
 
-
-
-
-
 def _scan(tmp_path):
     sm = SkillManager(root_dir=str(tmp_path))
     sm.scan(search_dirs=[tmp_path])
@@ -15,7 +11,7 @@ def _scan(tmp_path):
 
 
 def test_build_skill_replacements_returns_all_placeholders(tmp_path):
-    'All three placeholders are always present, even with no skills.'
+    "All three placeholders are always present, even with no skills."
     sm = SkillManager(root_dir=str(tmp_path))
     sm.scan(search_dirs=[])
 
@@ -25,7 +21,7 @@ def test_build_skill_replacements_returns_all_placeholders(tmp_path):
 
 
 def test_build_skill_replacements_lists_available_skill(tmp_path):
-    'A non-core model-invocable skill lands in AVAILABLE_SKILLS.'
+    "A non-core model-invocable skill lands in AVAILABLE_SKILLS."
     (tmp_path / "test.skill.md").write_text(
         "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
     )
@@ -38,7 +34,7 @@ def test_build_skill_replacements_lists_available_skill(tmp_path):
 
 
 def test_build_skill_replacements_separates_core_from_other(tmp_path):
-    'A skill under a core_skills/ dir is classified as core, not available.'
+    "A skill under a core_skills/ dir is classified as core, not available."
     core_dir = tmp_path / "core_skills" / "core-thing"
     core_dir.mkdir(parents=True)
     (core_dir / "SKILL.md").write_text(
@@ -56,7 +52,7 @@ def test_build_skill_replacements_separates_core_from_other(tmp_path):
 
 
 def test_build_skill_replacements_available_is_empty_when_none_registered(tmp_path):
-    'No available skills means no section at all — heading included.'
+    "No available skills means no section at all — heading included."
     sm = SkillManager(root_dir=str(tmp_path))
     sm.scan(search_dirs=[])
 
@@ -66,7 +62,7 @@ def test_build_skill_replacements_available_is_empty_when_none_registered(tmp_pa
 
 
 def test_build_skill_replacements_available_carries_its_own_heading(tmp_path):
-    'The heading rides with the list so it can disappear with it.'
+    "The heading rides with the list so it can disappear with it."
     (tmp_path / "test.skill.md").write_text(
         "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
     )
@@ -78,7 +74,7 @@ def test_build_skill_replacements_available_carries_its_own_heading(tmp_path):
 
 
 def test_build_skill_replacements_active_skill_content_loaded(tmp_path):
-    'Active skills are rendered with their full content.'
+    "Active skills are rendered with their full content."
     (tmp_path / "deep.skill.md").write_text(
         "---\nname: deep-skill\ndescription: Deep skill\n---\nDeep skill body text"
     )
@@ -90,7 +86,7 @@ def test_build_skill_replacements_active_skill_content_loaded(tmp_path):
 
 
 def test_build_skill_replacements_active_skill_excluded_from_lists(tmp_path):
-    'An active skill is not also advertised in the catalogue lists.'
+    "An active skill is not also advertised in the catalogue lists."
     (tmp_path / "act.skill.md").write_text(
         "---\nname: act\ndescription: Active one\n---\nbody"
     )
@@ -101,7 +97,7 @@ def test_build_skill_replacements_active_skill_excluded_from_lists(tmp_path):
 
 
 def test_build_skill_replacements_no_active_skills_empty(tmp_path):
-    'PREACTIVATED_SKILLS is empty when nothing is pre-activated.'
+    "PREACTIVATED_SKILLS is empty when nothing is pre-activated."
     (tmp_path / "test.skill.md").write_text(
         "---\nname: test-skill\ndescription: A test skill\n---\n# Content"
     )
@@ -112,7 +108,7 @@ def test_build_skill_replacements_no_active_skills_empty(tmp_path):
 
 
 def test_build_skill_replacements_missing_active_skill_does_not_crash(tmp_path):
-    'Requesting a non-existent active skill is ignored, not fatal.'
+    "Requesting a non-existent active skill is ignored, not fatal."
     sm = SkillManager(root_dir=str(tmp_path))
     sm.scan(search_dirs=[tmp_path])
 
@@ -122,7 +118,7 @@ def test_build_skill_replacements_missing_active_skill_does_not_crash(tmp_path):
 
 
 def test_build_skill_replacements_skips_non_invocable(tmp_path):
-    'Skills with disable-model-invocation are not listed.'
+    "Skills with disable-model-invocation are not listed."
     (tmp_path / "hidden.skill.md").write_text(
         "---\nname: hidden\ndescription: Hidden\n"
         "disable-model-invocation: true\n---\n# Content"
@@ -134,7 +130,7 @@ def test_build_skill_replacements_skips_non_invocable(tmp_path):
 
 
 def _many_skill_manager(tmp_path, count: int) -> SkillManager:
-    'A SkillManager with *count* programmatically-registered skills.'
+    "A SkillManager with *count* programmatically-registered skills."
     sm = SkillManager(root_dir=str(tmp_path))
     sm.scan(search_dirs=[])
     for i in range(count):
@@ -172,7 +168,7 @@ def test_build_skill_replacements_does_not_truncate_under_cap(tmp_path, monkeypa
 
 
 def test_build_skill_replacements_cap_zero_is_unlimited(tmp_path, monkeypatch):
-    '0 disables the cap: the whole catalogue is listed, no truncation note.'
+    "0 disables the cap: the whole catalogue is listed, no truncation note."
     monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "0")
 
     r = build_skill_replacements(_many_skill_manager(tmp_path, 15))
@@ -182,7 +178,7 @@ def test_build_skill_replacements_cap_zero_is_unlimited(tmp_path, monkeypatch):
 
 
 def test_build_skill_replacements_truncates_core_skills(tmp_path, monkeypatch):
-    'Core methodologies are capped the same way.'
+    "Core methodologies are capped the same way."
     monkeypatch.setenv("ZRB_LLM_MAX_SKILLS_IN_CATALOG", "2")
     for i in range(5):
         skill_dir = tmp_path / "core_skills" / f"core-{i}"

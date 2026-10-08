@@ -1,4 +1,4 @@
-'Shared fixtures for the skill-manager tests.'
+"Shared fixtures for the skill-manager tests."
 
 import pytest
 

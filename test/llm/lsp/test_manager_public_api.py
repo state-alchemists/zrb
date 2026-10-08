@@ -1,4 +1,4 @@
-'Tests for LSP manager functionality.'
+"Tests for LSP manager functionality."
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,7 +12,7 @@ from zrb.llm.lsp.server import LSPServer
 
 @pytest.fixture(autouse=True)
 def _cleanup_registry():
-    'Clear the shared ``lsp_server_configs`` before and after each test.'
+    "Clear the shared ``lsp_server_configs`` before and after each test."
     lsp_server_configs.clear()
     yield
     lsp_server_configs.clear()
@@ -20,13 +20,13 @@ def _cleanup_registry():
 
 @pytest.fixture
 def manager():
-    'Create a fresh LSPManager for each test by resetting the singleton.'
+    "Create a fresh LSPManager for each test by resetting the singleton."
     LSPManager.reset_singleton()
     return LSPManager()
 
 
 class TestLspPublicAPI:
-    'Test high-level public API methods.'
+    "Test high-level public API methods."
 
     def test_list_servers_returns_dict(self, manager):
         result = manager.list_available_servers()
@@ -34,7 +34,7 @@ class TestLspPublicAPI:
 
     @pytest.mark.asyncio
     async def test_get_document_symbols_formatting(self, manager, tmp_path):
-        'Test document symbols through the public API.'
+        "Test document symbols through the public API."
         test_file = tmp_path / "test.py"
         test_file.touch()
 
@@ -125,7 +125,7 @@ class TestLspPublicAPI:
     async def test_find_definition_falls_back_to_workspace_symbols(
         self, manager, tmp_path
     ):
-        'When textDocument/definition yields nothing, fall back to a'
+        "When textDocument/definition yields nothing, fall back to a"
         f = tmp_path / "mod.py"
         f.write_text("Foo()\n")
 

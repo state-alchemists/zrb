@@ -382,6 +382,7 @@ async def test_with_the_hold_off_a_stop_word_over_zrb_stops_it_as_soon_as_it_is_
     """The live transcript is what is left to decide on. A stop word said over
     zrb is acted on as it is heard, not when the utterance ends, and the turn
     is cancelled from the finished utterance as it would be either way."""
+
     async def listen(config, should_listen, **kwargs):
         kwargs["on_barge_in"]()
         kwargs["on_partial"]("stop")

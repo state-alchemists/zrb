@@ -1,4 +1,4 @@
-'Command-hook subprocess lifecycle tests.'
+"Command-hook subprocess lifecycle tests."
 
 import asyncio
 import logging
@@ -17,7 +17,6 @@ from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.schema import CommandHookConfig
 from zrb.llm.hook.types import HookEvent
 
-
 posix_shell_only = pytest.mark.skipif(
     os.name != "posix",
     reason="drives a POSIX shell script; cmd.exe does not share the syntax",
@@ -30,7 +29,7 @@ _SENTINEL_POLL_SECONDS = 0.05
 
 
 def _background_sleep_command(pid_path: str, *, exit_immediately: bool = False) -> str:
-    'Start a long-lived child that records its own pid before sleeping.'
+    "Start a long-lived child that records its own pid before sleeping."
     script = (
         "from pathlib import Path; import os, time; "
         f"Path({pid_path!r}).write_text(str(os.getpid())); time.sleep(60)"
@@ -40,7 +39,7 @@ def _background_sleep_command(pid_path: str, *, exit_immediately: bool = False) 
 
 
 def _started_chatter_command(ready_path: str) -> str:
-    'Start a child that writes before signaling readiness.'
+    "Start a child that writes before signaling readiness."
     script = (
         "import sys, time\n"
         "from pathlib import Path\n"
@@ -55,7 +54,7 @@ def _started_chatter_command(ready_path: str) -> str:
 
 
 def _process_is_live(pid: int) -> bool:
-    'Whether *pid* exists and is not a zombie awaiting reaping.'
+    "Whether *pid* exists and is not a zombie awaiting reaping."
     result = subprocess.run(
         ["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True
     )
@@ -63,7 +62,7 @@ def _process_is_live(pid: int) -> bool:
 
 
 async def _assert_recorded_process_stops(pid_path: str) -> None:
-    'A killed child must not remain runnable after the hook returns.'
+    "A killed child must not remain runnable after the hook returns."
     attempts = int(_PROCESS_STOP_TIMEOUT_SECONDS / _PROCESS_STOP_POLL_SECONDS)
     pid: int | None = None
     for _ in range(attempts):
@@ -79,7 +78,7 @@ async def _assert_recorded_process_stops(pid_path: str) -> None:
 
 
 class _StubProc:
-    'A Popen stand-in with a slow wait.'
+    "A Popen stand-in with a slow wait."
 
     returncode = None
     stdin = stdout = stderr = None
@@ -107,7 +106,7 @@ class _StubProc:
 
 @pytest.mark.asyncio
 async def test_command_hook_timeout_returns_clean_result():
-    'A timed-out hook is killed, reaped, and reported cleanly.'
+    "A timed-out hook is killed, reaped, and reported cleanly."
     hook = create_command_hook(CommandHookConfig(command="sleep 5"), timeout=0.1)
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
@@ -121,7 +120,7 @@ async def test_command_hook_timeout_returns_clean_result():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
-    'A timed-out hook must leave no surviving descendants.'
+    "A timed-out hook must leave no surviving descendants."
 
     with tempfile.TemporaryDirectory() as tmp:
         pid_path = os.path.join(tmp, "child.pid")
@@ -140,7 +139,7 @@ async def test_command_hook_timeout_kills_grandchildren_not_just_the_shell():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_returns_when_the_child_exits_not_at_pipe_eof():
-    'A hook that backgrounds work and exits succeeds at once, keeping output.'
+    "A hook that backgrounds work and exits succeeds at once, keeping output."
     with tempfile.TemporaryDirectory() as tmp:
         sentinel = os.path.join(tmp, "background-work-finished")
         hook = create_command_hook(
@@ -162,10 +161,6 @@ async def test_command_hook_returns_when_the_child_exits_not_at_pipe_eof():
 
         assert result.modifications.get("additionalContext") == "ok"
 
-
-
-
-
         for _ in range(int(_SENTINEL_TIMEOUT_SECONDS / _SENTINEL_POLL_SECONDS)):
             if os.path.exists(sentinel):
                 break
@@ -176,7 +171,7 @@ async def test_command_hook_returns_when_the_child_exits_not_at_pipe_eof():
 @posix_shell_only
 @pytest.mark.asyncio
 async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_exited():
-    'The group kill must reach descendants when the shell is already gone.'
+    "The group kill must reach descendants when the shell is already gone."
     with tempfile.TemporaryDirectory() as tmp:
         ready_path = os.path.join(tmp, "chatter-ready")
         pid_path = os.path.join(tmp, "child.pid")
@@ -197,7 +192,7 @@ async def test_command_hook_timeout_kills_descendants_of_a_shell_that_already_ex
 
 @pytest.mark.asyncio
 async def test_command_hook_timeout_process_already_gone():
-    'If the timed-out process is already gone (ProcessLookupError on kill),'
+    "If the timed-out process is already gone (ProcessLookupError on kill),"
 
     def _raise_gone():
         raise ProcessLookupError()
@@ -217,7 +212,7 @@ async def test_command_hook_timeout_process_already_gone():
 
 @pytest.mark.asyncio
 async def test_command_hook_cancelled_kills_process():
-    'Cancelling the awaiting task kills the subprocess and re-raises.'
+    "Cancelling the awaiting task kills the subprocess and re-raises."
     killed = {"done": False}
 
     def _mark_killed():
@@ -241,7 +236,7 @@ async def test_command_hook_cancelled_kills_process():
 
 @pytest.mark.asyncio
 async def test_command_hook_cancelled_when_process_already_gone():
-    'If the subprocess is already gone when cancellation fires, the'
+    "If the subprocess is already gone when cancellation fires, the"
 
     def _raise_gone():
         raise ProcessLookupError()
@@ -262,7 +257,7 @@ async def test_command_hook_cancelled_when_process_already_gone():
 
 @pytest.mark.asyncio
 async def test_command_hook_outer_exception_is_caught(caplog):
-    'An unexpected error while spawning the subprocess is caught and returned'
+    "An unexpected error while spawning the subprocess is caught and returned"
     hook = create_command_hook(CommandHookConfig(command="echo hi"))
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 

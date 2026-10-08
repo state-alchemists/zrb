@@ -29,18 +29,17 @@ def test_expand_prompt_multiple_files(tmp_path):
 
 
 def test_expand_prompt_file_reference(tmp_path):
-    'Test that file references expand correctly.'
+    "Test that file references expand correctly."
     f = tmp_path / "test.txt"
     f.write_text("file content")
     prompt = f"read @{f}"
     expanded = expand_prompt(prompt)
 
-
     assert "file content" in expanded
 
 
 def test_expand_prompt_directory_reference(tmp_path):
-    'Test that directory references expand correctly.'
+    "Test that directory references expand correctly."
 
     subdir = tmp_path / "subdir"
     subdir.mkdir()
@@ -50,16 +49,14 @@ def test_expand_prompt_directory_reference(tmp_path):
     prompt = f"list @{tmp_path}"
     expanded = expand_prompt(prompt)
 
-
     assert "subdir" in expanded or "(Empty directory)" in expanded
 
 
 def test_expand_prompt_mixed_references(tmp_path):
-    'Test mixed file and directory references.'
+    "Test mixed file and directory references."
 
     f = tmp_path / "test.txt"
     f.write_text("file content")
-
 
     subdir = tmp_path / "docs"
     subdir.mkdir()
@@ -68,7 +65,6 @@ def test_expand_prompt_mixed_references(tmp_path):
 
     prompt = f"check @{f} and @{subdir}"
     expanded = expand_prompt(prompt)
-
 
     assert "file content" in expanded
     assert "docs" in expanded

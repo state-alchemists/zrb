@@ -25,7 +25,6 @@ description: A global skill
         encoding="utf-8",
     )
 
-
     project_dir = tmp_path / "project"
     project_dir.mkdir()
     project_skill_dir = project_dir / ".claude" / "skills" / "project-skill"
@@ -40,7 +39,6 @@ description: A project skill
         encoding="utf-8",
     )
 
-
     fallback_skill_file = project_dir / "fallback-skill.skill.md"
     fallback_skill_file.write_text(
         """# Fallback Skill
@@ -48,9 +46,6 @@ Fallback content
 """,
         encoding="utf-8",
     )
-
-
-
 
     with (
         patch.object(Path, "home", return_value=tmp_path / "home"),
@@ -73,7 +68,7 @@ def skill_manager(tmp_path):
 
 
 def _builtin_mock_cfg(mock_cfg, *, enable_builtin_skills, extra_skill_dirs=None):
-    'Configure a mocked CFG that disables home/project search so only the'
+    "Configure a mocked CFG that disables home/project search so only the"
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_SEARCH_HOME = False
     mock_cfg.LLM_SEARCH_PROJECT = False
@@ -97,7 +92,6 @@ def test_skill_manager_scan(temp_skill_env):
     assert "global-skill" in skill_names
     assert "project-skill" in skill_names
     assert "Fallback Skill" in skill_names
-
 
     global_skill = next(s for s in skills if s.name == "global-skill")
     assert global_skill.description == "A global skill"
@@ -136,10 +130,8 @@ def test_skill_manager_reload(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     manager.scan()
 
-
     new_skill_file = tmp_path / "new.skill.md"
     new_skill_file.write_text("# New Skill")
-
 
     assert manager.get_skill("New Skill") is None
 
@@ -287,12 +279,9 @@ def test_skill_manager_max_depth(tmp_path):
     project_dir = tmp_path / "project_depth"
     project_dir.mkdir()
 
-
     d1 = project_dir / "d1"
     d1.mkdir()
     (d1 / "SKILL.md").write_text("# Skill 1")
-
-
 
     curr = project_dir
     for i in range(1, 7):
@@ -300,14 +289,12 @@ def test_skill_manager_max_depth(tmp_path):
         curr.mkdir()
     (curr / "SKILL.md").write_text("# Deep Skill")
 
-
     manager = SkillManager(root_dir=str(project_dir), max_depth=5)
     skills = manager.scan()
     skill_names = [s.name for s in skills]
 
     assert "Skill 1" in skill_names
     assert "Deep Skill" not in skill_names
-
 
     manager = SkillManager(root_dir=str(project_dir), max_depth=10)
     skills = manager.scan()
@@ -391,7 +378,7 @@ def test_skill_manager_scan_permission_error(skill_manager, tmp_path):
 
 
 def test_builtin_core_skills_dir_always_in_search_dirs(tmp_path):
-    'core_skills/ is searched even when builtin utility skills are disabled.'
+    "core_skills/ is searched even when builtin utility skills are disabled."
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         _builtin_mock_cfg(mock_cfg, enable_builtin_skills=False)
@@ -410,7 +397,7 @@ def test_builtin_skills_dir_present_when_enabled(tmp_path):
 
 
 def test_builtin_skills_toggle_off_keeps_core_drops_utility(tmp_path):
-    'Disabling builtin skills suppresses utility skills but never core skills,'
+    "Disabling builtin skills suppresses utility skills but never core skills,"
     extra = tmp_path / "extra_skills"
     (extra / "my-extra").mkdir(parents=True)
     (extra / "my-extra" / "SKILL.md").write_text(

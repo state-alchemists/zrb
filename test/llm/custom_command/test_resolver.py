@@ -1,4 +1,4 @@
-'Tests for llm/custom_command/resolver.py.'
+"Tests for llm/custom_command/resolver.py."
 
 from unittest.mock import MagicMock
 
@@ -40,13 +40,13 @@ def test_resolve_custom_command_no_slash_returns_none():
 
 
 def test_resolve_custom_command_empty_after_split_returns_none():
-    'A bare slash with no command name resolves to nothing.'
+    "A bare slash with no command name resolves to nothing."
     cmd = CustomCommand("/foo", "do foo", args=[])
     assert resolve_custom_command("/bar", [cmd]) is None
 
 
 def test_resolve_custom_command_with_unmatched_quoting_returns_none():
-    'shlex.split raising must not crash, and must not match a stranger.'
+    "shlex.split raising must not crash, and must not match a stranger."
 
     assert resolve_custom_command('/cmd "unbalanced', []) is None
 
@@ -64,7 +64,7 @@ def test_resolve_custom_command_matches_and_returns_prompt():
 
 
 def test_resolve_custom_command_joins_residue_args():
-    'Extra positional args get joined into the last declared arg.'
+    "Extra positional args get joined into the last declared arg."
     cmd = CustomCommand(
         "/say",
         "${who} says: ${msg}",
@@ -104,7 +104,7 @@ def test_run_custom_command_action_returning_none_is_still_handled():
 
 
 class OneArgCommand:
-    'A command written against `handle(kwargs)`, before it gained `ui`.'
+    "A command written against `handle(kwargs)`, before it gained `ui`."
 
     command = "/one-arg"
     description = "one"
@@ -130,7 +130,7 @@ class StarArgsCommand(OneArgCommand):
 
 
 def test_run_custom_command_gives_a_one_argument_handle_just_the_kwargs():
-    '`handle(kwargs)` is published API, so calling it with two arguments'
+    "`handle(kwargs)` is published API, so calling it with two arguments"
     cmd = OneArgCommand()
     outcome = run_custom_command("/one-arg", [cmd], MagicMock())  # type: ignore[list-item]
     assert outcome == CustomCommandOutcome(prompt=None, reply="handled")

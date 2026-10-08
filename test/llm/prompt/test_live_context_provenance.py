@@ -1,4 +1,4 @@
-'Input provenance and linked-worktree lines in the live context.'
+"Input provenance and linked-worktree lines in the live context."
 
 from unittest.mock import MagicMock, patch
 

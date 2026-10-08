@@ -1,4 +1,4 @@
-'Tests for HookManager class using Public API.'
+"Tests for HookManager class using Public API."
 
 import asyncio
 import json
@@ -12,7 +12,7 @@ from zrb.llm.hook.types import HookEvent
 
 
 def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
-    'A Popen stand-in backed by real pipes already holding *stdout*/*stderr*.'
+    "A Popen stand-in backed by real pipes already holding *stdout*/*stderr*."
 
     def _loaded(data: bytes):
         read_fd, write_fd = os.pipe()
@@ -28,8 +28,6 @@ def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
     process.poll.return_value = returncode
     process.wait.return_value = returncode
 
-
-
     process.communicate.side_effect = lambda input=None: (
         process.stdout.read(),
         process.stderr.read(),
@@ -39,7 +37,7 @@ def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
 
 @pytest.fixture
 def manager():
-    'Create HookManager for tests.'
+    "Create HookManager for tests."
     mock_cfg = MagicMock()
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
@@ -49,7 +47,7 @@ def manager():
 
 
 class TestHookManagerHookTypes:
-    'Test behavior of different hook types (Command, Prompt, Agent).'
+    "Test behavior of different hook types (Command, Prompt, Agent)."
 
     @pytest.mark.asyncio
     async def test_command_hook_exit_codes(self, manager, tmp_path):
@@ -100,7 +98,6 @@ class TestHookManagerHookTypes:
 
     @pytest.mark.asyncio
     async def test_command_hook_receives_command_env(self, manager, tmp_path):
-
 
         f = tmp_path / "h.json"
         f.write_text(
@@ -154,8 +151,6 @@ class TestHookManagerHookTypes:
         with patch("subprocess.Popen"):
             manager.scan(search_dirs=[str(tmp_path)])
             results = await manager.execute_hooks(HookEvent.SESSION_START, {})
-
-
 
             assert len(manager.background_tasks) == 1
             assert results == []
@@ -222,7 +217,7 @@ class TestHookManagerHookTypes:
 
 
 class TestHookManagerMatchers:
-    'Test matcher evaluation via Public API.'
+    "Test matcher evaluation via Public API."
 
     @pytest.mark.asyncio
     async def test_matcher_operators(self, manager, tmp_path):
@@ -254,7 +249,6 @@ class TestHookManagerMatchers:
 
         manager.scan(search_dirs=[str(tmp_path)])
 
-
         results = await manager.execute_hooks(HookEvent.SESSION_START, "hello")
 
         skipped_names = [
@@ -262,11 +256,6 @@ class TestHookManagerMatchers:
             for r in results
             if r.message == "Skipped due to matchers"
         ]
-
-
-
-
-
 
         assert sum(1 for r in results if r.message == "Skipped due to matchers") == 1
 

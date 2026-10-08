@@ -1,4 +1,4 @@
-'Tests for llm/lsp/manager/symbol_utils.py.'
+"Tests for llm/lsp/manager/symbol_utils.py."
 
 from zrb.llm.lsp.symbol_utils import format_document_symbols, uri_to_path
 
@@ -37,7 +37,7 @@ def test_format_document_symbols_flattens_top_level():
 
 
 def test_format_document_symbols_handles_symbol_information():
-    'SymbolInformation (flat; pylsp) positions come from location.range.'
+    "SymbolInformation (flat; pylsp) positions come from location.range."
     syms = [
         {
             "name": "LLMTask",

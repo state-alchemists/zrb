@@ -1,4 +1,4 @@
-'`AutoCameraBackend`: Termux:API first on Android, then ffmpeg per platform.'
+"`AutoCameraBackend`: Termux:API first on Android, then ffmpeg per platform."
 
 from __future__ import annotations
 
@@ -17,14 +17,14 @@ from zrb.llm.camera.backend import (
 
 @pytest.fixture
 def clean_env(monkeypatch):
-    'Strip every camera-relevant env var before each test.'
+    "Strip every camera-relevant env var before each test."
     for var in ("WSL_DISTRO_NAME", "WSLENV"):
         monkeypatch.delenv(var, raising=False)
     return monkeypatch
 
 
 class _FakeProcess:
-    'Minimal async-process stand-in for `asyncio.create_subprocess_exec`.'
+    "Minimal async-process stand-in for `asyncio.create_subprocess_exec`."
 
     def __init__(
         self,
@@ -107,7 +107,7 @@ async def test_termux_camera_photo_uses_device_as_camera_id(clean_env):
 
 @pytest.mark.asyncio
 async def test_termux_falls_through_to_ffmpeg_when_no_file_written(clean_env):
-    'termux-camera-photo ran but wrote nothing; ffmpeg is also unavailable.'
+    "termux-camera-photo ran but wrote nothing; ffmpeg is also unavailable."
     clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
 
@@ -189,7 +189,7 @@ async def test_linux_ffmpeg_v4l2_default_device(clean_env):
 
 @pytest.mark.asyncio
 async def test_linux_ffmpeg_tries_mjpeg_before_raw_fallback(clean_env):
-    'v4l2 requests MJPEG@640x480 first -- see camera.py module docstring for why.'
+    "v4l2 requests MJPEG@640x480 first -- see camera.py module docstring for why."
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))

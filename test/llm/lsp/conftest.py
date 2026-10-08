@@ -1,4 +1,4 @@
-'Shared executable stubs and probe counters for the LSP config tests.'
+"Shared executable stubs and probe counters for the LSP config tests."
 
 import os
 import shutil
@@ -10,7 +10,7 @@ from zrb.llm.lsp.configs import lsp_server_configs
 
 @pytest.fixture(autouse=True)
 def _cleanup_global_registry():
-    'Clear the shared registry (and its cached PATH scan) before and after each test.'
+    "Clear the shared registry (and its cached PATH scan) before and after each test."
     lsp_server_configs.clear()
     yield
     lsp_server_configs.clear()
@@ -18,7 +18,7 @@ def _cleanup_global_registry():
 
 @pytest.fixture
 def lsp_on_path(tmp_path, monkeypatch):
-    'Install real executable stubs on a ``$PATH`` holding only them.'
+    "Install real executable stubs on a ``$PATH`` holding only them."
 
     def _install(*names: str) -> dict[str, str]:
         bin_dir = tmp_path / "bin"
@@ -38,7 +38,7 @@ def lsp_on_path(tmp_path, monkeypatch):
 
 @pytest.fixture
 def probe_counter(monkeypatch):
-    'Count the ``$PATH`` directory listings detection has performed.'
+    "Count the ``$PATH`` directory listings detection has performed."
     calls = {"n": 0}
     real_listdir = os.listdir
 
@@ -52,7 +52,7 @@ def probe_counter(monkeypatch):
 
 @pytest.fixture
 def which_counter(monkeypatch):
-    'Count the ``shutil.which`` calls the prefilter did not avoid.'
+    "Count the ``shutil.which`` calls the prefilter did not avoid."
     calls = {"n": 0}
     real_which = shutil.which
 

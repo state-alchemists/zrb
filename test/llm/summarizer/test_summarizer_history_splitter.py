@@ -44,7 +44,6 @@ def test_is_split_safe_complete_pair():
 
     tool_pairs = get_tool_pairs(messages)
 
-
     assert is_split_safe(messages, 1, tool_pairs)
 
     assert not is_split_safe(messages, 2, tool_pairs)
@@ -62,11 +61,8 @@ def test_find_safe_split_index(limiter):
         ModelRequest(parts=[UserPromptPart(content="3")]),
     ]
 
-
-
     idx = find_safe_split_index(messages, limiter, 100)
     assert idx == 3
-
 
     messages_no_turn_start = [
         ModelRequest(parts=[UserPromptPart(content="0")]),
@@ -79,7 +75,6 @@ def test_find_safe_split_index(limiter):
     idx_no_turn = find_safe_split_index(messages_no_turn_start, limiter, 100)
     assert idx_no_turn == 1
 
-
     idx = find_safe_split_index(messages, limiter, 2)
     assert idx == 3
 
@@ -91,8 +86,6 @@ def test_find_best_effort_split(limiter):
         ModelRequest(parts=[UserPromptPart(content="2")]),
     ]
 
-
-
     to_sum, to_keep = find_best_effort_split(messages, limiter, 100)
 
     assert len(to_sum) == 1
@@ -102,11 +95,8 @@ def test_find_best_effort_split(limiter):
 def test_split_history_near_window(limiter):
     messages = [ModelRequest(parts=[UserPromptPart(content=str(i))]) for i in range(10)]
 
-
-
     to_sum, to_keep = split_history(messages, 3, limiter, 100)
     assert len(to_keep) == 3
-
 
     to_sum, to_keep = split_history(messages, 3, limiter, 2)
     assert len(to_keep) == 1

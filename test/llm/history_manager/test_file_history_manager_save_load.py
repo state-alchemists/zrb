@@ -17,7 +17,6 @@ def temp_history_dir(tmp_path):
 def test_file_history_manager_save_load(temp_history_dir):
     manager = FileHistoryManager(temp_history_dir)
 
-
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
@@ -35,7 +34,6 @@ def test_file_history_manager_save_load(temp_history_dir):
 
     assert os.path.exists(os.path.join(temp_history_dir, "session1.json"))
 
-
     manager2 = FileHistoryManager(temp_history_dir)
     loaded = manager2.load("session1")
     assert len(loaded) == 2
@@ -44,7 +42,7 @@ def test_file_history_manager_save_load(temp_history_dir):
 
 
 def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
-    'Content cleaning preserves structural fields it does not normalize.'
+    "Content cleaning preserves structural fields it does not normalize."
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
@@ -68,7 +66,6 @@ def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
     manager = FileHistoryManager(temp_history_dir)
     manager.update("structural", messages)
     manager.save("structural")
-
 
     loaded = FileHistoryManager(temp_history_dir).load("structural")
 
@@ -124,12 +121,9 @@ def test_file_history_manager_load_invalid(temp_history_dir):
 
 
 def test_file_history_manager_load_validation_error(temp_history_dir):
-    'Test that dictionary in UserPromptPart.content is proactively cleaned to JSON string.'
+    "Test that dictionary in UserPromptPart.content is proactively cleaned to JSON string."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted.json")
-
-
-
 
     corrupted_data = [
         {
@@ -154,20 +148,16 @@ def test_file_history_manager_load_validation_error(temp_history_dir):
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
 
-
     result = manager.load("corrupted")
     assert len(result) == 1
     assert isinstance(result[0].parts[0], UserPromptPart)
-    assert (
-        result[0].parts[0].content == '{"summary": "test", "results": []}'
-    )
+    assert result[0].parts[0].content == '{"summary": "test", "results": []}'
 
 
 def test_file_history_manager_load_validation_error_boolean(temp_history_dir):
-    'Test that boolean in UserPromptPart.content is proactively cleaned to string.'
+    "Test that boolean in UserPromptPart.content is proactively cleaned to string."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted_bool.json")
-
 
     corrupted_data = [
         {
@@ -189,7 +179,6 @@ def test_file_history_manager_load_validation_error_boolean(temp_history_dir):
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
 
-
     result = manager.load("corrupted_bool")
     assert len(result) == 1
     assert isinstance(result[0].parts[0], UserPromptPart)
@@ -197,10 +186,9 @@ def test_file_history_manager_load_validation_error_boolean(temp_history_dir):
 
 
 def test_file_history_manager_load_validation_error_number(temp_history_dir):
-    'Test that number in UserPromptPart.content is proactively cleaned to string.'
+    "Test that number in UserPromptPart.content is proactively cleaned to string."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "corrupted_number.json")
-
 
     corrupted_data = [
         {
@@ -222,7 +210,6 @@ def test_file_history_manager_load_validation_error_number(temp_history_dir):
     with open(file_path, "w") as f:
         json.dump(corrupted_data, f)
 
-
     result = manager.load("corrupted_number")
     assert len(result) == 1
     assert isinstance(result[0].parts[0], UserPromptPart)
@@ -230,14 +217,10 @@ def test_file_history_manager_load_validation_error_number(temp_history_dir):
 
 
 def test_file_history_manager_save_with_corrupted_data(temp_history_dir):
-    'Test that save() handles corrupted data with auto-recovery.'
+    "Test that save() handles corrupted data with auto-recovery."
     manager = FileHistoryManager(temp_history_dir)
 
-
     from pydantic_ai.messages import ModelMessage, ModelRequest, UserPromptPart
-
-
-
 
     messages: list[ModelMessage] = [
         ModelRequest(parts=[UserPromptPart(content="normal message")]),
@@ -246,10 +229,8 @@ def test_file_history_manager_save_with_corrupted_data(temp_history_dir):
     manager.update("test_session", messages)
     manager.save("test_session")
 
-
     file_path = os.path.join(temp_history_dir, "test_session.json")
     assert os.path.exists(file_path)
-
 
     loaded = manager.load("test_session")
     assert len(loaded) == 1
@@ -258,9 +239,8 @@ def test_file_history_manager_save_with_corrupted_data(temp_history_dir):
 
 
 def test_file_history_manager_clean_corrupted_content_via_load(temp_history_dir):
-    'Test that corrupted content is cleaned when loading via public API.'
+    "Test that corrupted content is cleaned when loading via public API."
     manager = FileHistoryManager(temp_history_dir)
-
 
     file_path = os.path.join(temp_history_dir, "test_dict.json")
     data = {
@@ -275,9 +255,8 @@ def test_file_history_manager_clean_corrupted_content_via_load(temp_history_dir)
 
 
 def test_file_history_manager_filter_empty_responses_via_load(temp_history_dir):
-    'Test filtering out empty responses when loading history data.'
+    "Test filtering out empty responses when loading history data."
     manager = FileHistoryManager(temp_history_dir)
-
 
     file_path = os.path.join(temp_history_dir, "test_filter.json")
     data = [
@@ -312,7 +291,7 @@ def test_file_history_manager_filter_empty_responses_via_load(temp_history_dir):
 
 
 def test_save_with_timestamped_session_name(temp_history_dir):
-    'Test that save() correctly handles session names with timestamps.'
+    "Test that save() correctly handles session names with timestamps."
     import re
 
     from pydantic_ai.messages import (
@@ -329,14 +308,11 @@ def test_save_with_timestamped_session_name(temp_history_dir):
         ModelResponse(parts=[TextPart(content="hi")]),
     ]
 
-
     manager.update("my-session-2024-03-18-10-30-00", messages)
     manager.save("my-session-2024-03-18-10-30-00")
 
-
     main_file = os.path.join(temp_history_dir, "my-session-2024-03-18-10-30-00.json")
     assert os.path.exists(main_file)
-
 
     files = os.listdir(temp_history_dir)
 
@@ -345,20 +321,16 @@ def test_save_with_timestamped_session_name(temp_history_dir):
     )
     backup_files = [f for f in files if backup_pattern.match(f)]
 
-
-
-
     timestamp_pattern = re.compile(
         r"my-session-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}\.json"
     )
     main_files = [f for f in files if timestamp_pattern.match(f)]
 
-
     assert len(main_files) == 2, f"Expected 2 files (main + backup), found: {files}"
 
 
 def test_rotation_never_deletes_timestamped_main_file(temp_history_dir, monkeypatch):
-    'A conversation whose name carries a timestamp must survive rotation.'
+    "A conversation whose name carries a timestamp must survive rotation."
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
@@ -383,7 +355,7 @@ def test_rotation_never_deletes_timestamped_main_file(temp_history_dir, monkeypa
 
 
 def test_init_creates_directory_if_not_exists(tmp_path):
-    'Line 24: os.makedirs() is called when history_dir does not exist.'
+    "Line 24: os.makedirs() is called when history_dir does not exist."
     new_dir = str(tmp_path / "does" / "not" / "exist")
     assert not os.path.exists(new_dir)
     FileHistoryManager(new_dir)
@@ -391,7 +363,7 @@ def test_init_creates_directory_if_not_exists(tmp_path):
 
 
 def test_load_user_prompt_with_list_of_non_strings(temp_history_dir):
-    'Lines 40-43: user-prompt content is a list that contains non-string items.'
+    "Lines 40-43: user-prompt content is a list that contains non-string items."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "list_content.json")
     data = [
@@ -418,7 +390,7 @@ def test_load_user_prompt_with_list_of_non_strings(temp_history_dir):
 
 
 def test_load_text_part_with_non_string_content(temp_history_dir):
-    'Line 51: text/thinking/retry-prompt part with non-string content is converted.'
+    "Line 51: text/thinking/retry-prompt part with non-string content is converted."
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "text_nonstring.json")
     data = [

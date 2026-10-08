@@ -46,7 +46,7 @@ async def test_passthrough_when_main_model_supports_image():
 
 @pytest.mark.asyncio
 async def test_passthrough_when_main_model_unidentifiable():
-    'MagicMock-style models pass through to the provider unchanged.'
+    "MagicMock-style models pass through to the provider unchanged."
     image = _png()
 
     result = await replace_unsupported_attachments(
@@ -140,7 +140,6 @@ async def test_image_substituted_with_description_when_fallback_succeeds():
             print_fn=lambda m: messages.append(m),
         )
 
-
     assert isinstance(result, str)
     assert "look" in result
     assert "Image attachment" in result
@@ -173,7 +172,7 @@ async def test_image_dropped_when_multimodal_describe_fails():
 
 @pytest.mark.asyncio
 async def test_document_dropped_when_main_model_text_only():
-    'A raw PDF (extraction-failure fallback) is not silently passed through.'
+    "A raw PDF (extraction-failure fallback) is not silently passed through."
     pdf = _pdf()
     messages = []
 
@@ -199,8 +198,6 @@ async def test_document_kept_when_main_model_supports_documents():
     result_with_pdf = await replace_unsupported_attachments(
         ["read this", pdf], main_model="openai:gpt-4o", multimodal_model=None
     )
-
-
 
     assert result == "read this"
     assert result_with_pdf[1] is pdf
@@ -242,7 +239,6 @@ async def test_describe_returns_none_when_no_multimodal_configured():
 async def test_describe_returns_none_when_multimodal_model_lacks_modality():
     audio = _audio()
 
-
     result = await describe_binary_attachment(
         audio, multimodal_model="anthropic:claude-haiku-3"
     )
@@ -260,7 +256,7 @@ class _FakeResult:
 
 @pytest.mark.asyncio
 async def test_describe_runs_sub_agent_and_returns_text_for_image():
-    'The happy path: a one-shot agent is built with the image prompt and the'
+    "The happy path: a one-shot agent is built with the image prompt and the"
     image = _png()
     captured = {}
 
@@ -345,7 +341,7 @@ async def test_describe_returns_none_when_sub_agent_run_fails():
 
 @pytest.mark.asyncio
 async def test_replace_keeps_non_list_non_string_input_untouched():
-    'Tuples and other sequence types pass through without interpretation.'
+    "Tuples and other sequence types pass through without interpretation."
     payload = ("keep", "me")
     result = await replace_unsupported_attachments(payload, main_model="x")
     assert result is payload

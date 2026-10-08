@@ -179,7 +179,7 @@ def create_safe_wrapper(func: Callable, name: str | None = None) -> Callable:
             if inspect.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
-                        # Offload sync tools; ContextVars propagate to the worker.
+                # Offload sync tools; ContextVars propagate to the worker.
                 result = await asyncio.to_thread(func, *args, **kwargs)
 
             # If result is already a ToolReturn, return it as-is. The tool framed

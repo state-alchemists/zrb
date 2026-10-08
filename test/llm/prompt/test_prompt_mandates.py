@@ -1,4 +1,4 @@
-'Tests for the shipped markdown prompt files.'
+"Tests for the shipped markdown prompt files."
 
 import pytest
 

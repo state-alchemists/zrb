@@ -14,7 +14,7 @@ from zrb.llm.hook.types import HookEvent
 
 @pytest.fixture(autouse=True)
 def _clean_skill_hook_configs():
-    'Skill frontmatter hooks are process-wide state: a test that scans a skill'
+    "Skill frontmatter hooks are process-wide state: a test that scans a skill"
     reset_skill_hook_configs()
     yield
     reset_skill_hook_configs()
@@ -22,7 +22,7 @@ def _clean_skill_hook_configs():
 
 @pytest.fixture
 def start_snapshot():
-    'Take a turn-start snapshot of a directory, as the runner puts it in the'
+    "Take a turn-start snapshot of a directory, as the runner puts it in the"
     snapshots: list[TurnSnapshot] = []
 
     def take(workdir) -> dict:
@@ -40,7 +40,7 @@ def start_snapshot():
 
 @pytest.fixture
 def gate():
-    'Switch the gate on and replace the reviewer; the context yields the'
+    "Switch the gate on and replace the reviewer; the context yields the"
     return _gate
 
 

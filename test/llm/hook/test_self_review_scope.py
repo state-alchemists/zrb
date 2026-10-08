@@ -31,8 +31,6 @@ async def test_without_a_turn_start_snapshot_only_the_paths_are_reviewed(
     with gate() as (seen, _):
         await stop(manager, changed_paths=("a.py", "new.py"))
 
-
-
     request = seen[0].event_data
     assert isinstance(request, str)
     assert "- a.py" in request and "- new.py" in request
@@ -102,7 +100,6 @@ async def test_slow_git_cannot_stretch_a_review_past_its_timeout(
     timeouts: list[float] = []
 
     def hanging_git(args, *rest, timeout=None, **kwargs):
-
 
         if args[0] != "git":
             return real_run(args, *rest, timeout=timeout, **kwargs)

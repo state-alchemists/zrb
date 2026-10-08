@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-
 import pytest
-
 
 from zrb.llm.dictation.backend.pipecat import PipecatDictationBackend
 from zrb.llm.dictation.config import DictationConfig

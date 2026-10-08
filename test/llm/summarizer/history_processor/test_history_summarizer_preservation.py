@@ -44,7 +44,7 @@ class MockLimiter:
 
 @pytest.mark.asyncio
 async def test_summarize_history_preserves_first_user_message():
-    'The opening user turn survives compaction verbatim (force=True).'
+    "The opening user turn survives compaction verbatim (force=True)."
     limiter = MockLimiter()
     agent = MagicMock()
     mock_result = MagicMock()
@@ -137,7 +137,6 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
     combined = "\n".join(message_to_text(m) for m in round2_result)
     assert opening_request in combined
 
-
     assert "round 1 summary" not in combined
 
 
@@ -167,11 +166,9 @@ async def test_process_tool_return_part_edge_cases():
     res, mod = await process_tool_return_part(part, None, limiter, 10, 20)
     assert mod is False
 
-
     part = ToolReturnPart(content="SUMMARY OF TOOL RESULT: ...", tool_name="t")
     res, mod = await process_tool_return_part(part, None, limiter, 10, 20)
     assert mod is False
-
 
     part = ToolReturnPart(content="Very long content...", tool_name="t")
     res, mod = await process_tool_return_part(part, None, limiter, 5, 20)
@@ -185,7 +182,6 @@ async def test_summarize_text_plain_edge_cases():
 
     assert await summarize_text_plain(123, None, limiter, 10) == "123"
 
-
     assert (
         await summarize_text_plain("hi", None, limiter, 0)
         == "[Threshold too low for summarization]"
@@ -198,20 +194,13 @@ async def test_summarize_heavy_recent_history():
     limiter = MockLimiter()
     agent = MagicMock()
 
-
     mock_result = MagicMock()
     mock_result.output = "SUMMARY"
     agent.run = AsyncMock(return_value=mock_result)
 
-
     msg1 = ModelRequest(parts=[UserPromptPart(content="Hello")])
     msg2 = ModelResponse(parts=[TextPart(content="A" * 100)])
     messages = [msg1, msg2]
-
-
-
-
-
 
     new_history = await summarize_history(
         messages,
@@ -221,22 +210,15 @@ async def test_summarize_heavy_recent_history():
         conversational_token_threshold=10,
     )
 
-
-
-
-
-
-
     assert len(new_history) == 1
     assert isinstance(new_history[0], ModelRequest)
-
 
     assert agent.run.called
 
 
 @pytest.mark.asyncio
 async def test_summarize_history_error_handling():
-    'Test that summarize_history returns original messages if agent fails.'
+    "Test that summarize_history returns original messages if agent fails."
     limiter = MockLimiter()
     agent = MagicMock()
     agent.run = AsyncMock(side_effect=Exception("Summarizer failed"))
@@ -255,15 +237,13 @@ async def test_summarize_history_error_handling():
             conversational_token_threshold=10,
         )
 
-
     assert new_history == messages
 
 
 def test_message_to_text_unknown_types():
-    'Test message_to_text with unknown message and part types.'
+    "Test message_to_text with unknown message and part types."
 
     assert message_to_text(123) == "123"
-
 
     class UnknownPart:
         pass
@@ -271,14 +251,13 @@ def test_message_to_text_unknown_types():
     req = ModelRequest(parts=[UnknownPart()])
     assert "Unknown part type: UnknownPart" in message_to_text(req)
 
-
     res = ModelResponse(parts=[UnknownPart()])
     assert "Unknown response part: UnknownPart" in message_to_text(res)
 
 
 @pytest.mark.asyncio
 async def test_summarize_short_text_non_string_output():
-    'Test summarize_short_text when agent returns non-string output.'
+    "Test summarize_short_text when agent returns non-string output."
     limiter = MockLimiter()
     agent = MagicMock()
     mock_result = MagicMock()
@@ -291,10 +270,9 @@ async def test_summarize_short_text_non_string_output():
 
 @pytest.mark.asyncio
 async def test_summarize_long_text_consolidation_failure():
-    'Test summarize_long_text when consolidation fails.'
+    "Test summarize_long_text when consolidation fails."
     limiter = MockLimiter()
     agent = MagicMock()
-
 
     mock_chunk_result = MagicMock()
     mock_chunk_result.output = "Chunk summary"
@@ -313,14 +291,10 @@ async def test_summarize_long_text_consolidation_failure():
 
 @pytest.mark.asyncio
 async def test_find_best_effort_split_complex():
-    'Test find_best_effort_split with mixed tool pairs.'
+    "Test find_best_effort_split with mixed tool pairs."
     from zrb.llm.summarizer.history_splitter import find_best_effort_split
 
     limiter = MockLimiter()
-
-
-
-
 
     messages = [
         ModelResponse(
@@ -338,9 +312,6 @@ async def test_find_best_effort_split_complex():
         ModelRequest(parts=[UserPromptPart(content="last message")]),
     ]
 
-
-
-
     class PreciseLimiter:
         def count_tokens(self, content):
             if isinstance(content, str):
@@ -352,19 +323,14 @@ async def test_find_best_effort_split_complex():
         def truncate_text(self, text, limit):
             return text[:limit]
 
-
-
-
-
     to_sum, to_keep = find_best_effort_split(messages, PreciseLimiter(), 25)
     assert len(to_keep) >= 1
     assert messages[-1] in to_keep
 
 
 def test_validate_tool_pair_integrity_problems():
-    'Test validate_tool_pair_integrity with problematic history.'
+    "Test validate_tool_pair_integrity with problematic history."
     from zrb.llm.message import validate_tool_pair_integrity
-
 
     messages = [
         ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="c1")])
@@ -372,7 +338,6 @@ def test_validate_tool_pair_integrity_problems():
     is_valid, problems = validate_tool_pair_integrity(messages)
     assert not is_valid
     assert any("has no return" in p for p in problems)
-
 
     messages = [
         ModelRequest(

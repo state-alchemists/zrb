@@ -414,7 +414,9 @@ def test_the_warning_names_the_offending_entry_without_quoting_it():
     entry is identified by position instead.
     """
     secret = "sk-live-0123456789abcdef"
-    found = _placeholder_warnings(f"curl -H 'Authorization: Bearer {secret}' {{ctx.input.url}}")
+    found = _placeholder_warnings(
+        f"curl -H 'Authorization: Bearer {secret}' {{ctx.input.url}}"
+    )
     assert len(found) == 1
     message = str(found[0].message)
     assert secret not in message

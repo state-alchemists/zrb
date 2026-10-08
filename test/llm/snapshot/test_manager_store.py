@@ -1,4 +1,4 @@
-'Tests for SnapshotManager — where the git snapshot store lives and how'
+"Tests for SnapshotManager — where the git snapshot store lives and how"
 
 import os
 import subprocess
@@ -19,7 +19,6 @@ def workdir():
 
 @pytest.fixture
 def snapshot_dir():
-
 
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as d:
         yield d
@@ -129,7 +128,7 @@ async def test_session_names_that_sanitize_alike_keep_separate_histories(
 
 
 async def _rewind_twice_and_restore_first(snapshot_dir: str, workdir: str) -> None:
-    'Two snapshots, then restore the first; the store must survive it.'
+    "Two snapshots, then restore the first; the store must survive it."
     file_path = os.path.join(workdir, "f.txt")
     with open(file_path, "w") as f:
         f.write("v1")
@@ -301,7 +300,7 @@ async def test_a_restore_that_cannot_move_the_history_back_still_counts(
 
 @pytest.mark.asyncio
 async def test_a_restore_reads_as_true_exactly_when_it_ran(snapshot_dir, workdir):
-    '`restore_snapshot` returned a bool; its outcome keeps that meaning.'
+    "`restore_snapshot` returned a bool; its outcome keeps that meaning."
     mgr = SnapshotManager(snapshot_dir, "s", workdir)
     sha = await mgr.take_init_snapshot()
 
@@ -314,7 +313,7 @@ async def test_a_restore_reads_as_true_exactly_when_it_ran(snapshot_dir, workdir
 async def test_a_copy_git_refuses_is_dropped_rather_than_failing_every_operation(
     snapshot_dir, workdir, monkeypatch
 ):
-    'Kept, a copy that keeps failing would fail every later snapshot of'
+    "Kept, a copy that keeps failing would fail every later snapshot of"
     mgr = SnapshotManager(snapshot_dir, "draft", workdir)
     await mgr.take_snapshot("in draft", message_count=1)
     real_git = SnapshotStore.git

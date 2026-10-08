@@ -1,4 +1,4 @@
-'The built-in self-review gate: registered only while switched on, blocks the'
+"The built-in self-review gate: registered only while switched on, blocks the"
 
 import pytest
 
@@ -111,7 +111,6 @@ async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks(
     tmp_path, monkeypatch, gate, stop, blocked
 ):
 
-
     monkeypatch.chdir(tmp_path)
     manager = HookManager(search_dirs=[])
     with gate(report=_FINDINGS, timeout=2, delay=30) as (seen, cancelled):
@@ -119,7 +118,6 @@ async def test_a_review_past_its_timeout_is_cancelled_and_never_blocks(
 
     assert blocked(results) == []
     assert len(seen) == 1
-
 
     assert cancelled == seen
 
@@ -171,7 +169,7 @@ async def test_rounds_are_counted_per_run(gate, stop, blocked):
 async def test_rounds_are_counted_per_turn_even_under_one_conversation_name(
     gate, stop, blocked
 ):
-    'Two sessions under one conversation name share a run scope; the turn'
+    "Two sessions under one conversation name share a run scope; the turn"
     manager = HookManager(search_dirs=[])
     with gate(report=_FINDINGS, max_rounds=1) as (seen, _):
         await stop(manager, run_scope="shared", turn_id="a")
@@ -187,7 +185,7 @@ async def test_rounds_are_counted_per_turn_even_under_one_conversation_name(
 
 @pytest.mark.asyncio
 async def test_counts_of_turns_that_never_came_back_are_bounded(gate, stop, blocked):
-    'A turn cancelled mid-continuation never clears its count; past'
+    "A turn cancelled mid-continuation never clears its count; past"
     manager = HookManager(search_dirs=[])
     with gate(report=_FINDINGS, max_rounds=1, max_tracked_turns=3):
         for turn in range(4):

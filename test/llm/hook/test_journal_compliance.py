@@ -1,4 +1,4 @@
-'The built-in journal-compliance judge: registered only while journaling is'
+"The built-in journal-compliance judge: registered only while journaling is"
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -13,7 +13,7 @@ from zrb.llm.hook.types import HookEvent, HookType
 
 
 def _mock_agent_cls(output: str = "skip"):
-    'A patchable pydantic_ai.Agent whose run() resolves immediately.'
+    "A patchable pydantic_ai.Agent whose run() resolves immediately."
     agent_instance = MagicMock()
     agent_instance.run = AsyncMock(return_value=MagicMock(output=output))
     return MagicMock(return_value=agent_instance)
@@ -59,7 +59,7 @@ async def test_registers_when_journal_enabled():
 
 @pytest.mark.asyncio
 async def test_fires_on_a_stated_preference_with_no_file_write():
-    'The widened trigger: `journal_worthy` is `wrote_files OR'
+    "The widened trigger: `journal_worthy` is `wrote_files OR"
     manager = HookManager(search_dirs=[])
     agent_cls = _mock_agent_cls()
     with (
@@ -93,13 +93,11 @@ async def test_does_not_register_when_journal_disabled():
 
 @pytest.mark.asyncio
 async def test_factory_fires_via_the_normal_lazy_load_path():
-    '`add_hook_factory` used to only run through a manual `scan()`/'
+    "`add_hook_factory` used to only run through a manual `scan()`/"
     manager = HookManager(search_dirs=[])
     with patch("zrb.llm.hook.journal_compliance.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_ENABLED = True
         manager.add_hook_factory(register_journal_compliance_hook)
-
-
 
         await manager.execute_hooks(HookEvent.NOTIFICATION, {})
 

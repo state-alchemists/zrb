@@ -18,10 +18,6 @@ def mock_cfg():
 
 def test_get_default_prompt_traversal_to_home(mock_cfg, tmp_path):
 
-
-
-
-
     home = tmp_path / "home"
     project = home / "project"
     subdir = project / "subdir"
@@ -43,24 +39,14 @@ def test_get_default_prompt_traversal_to_home(mock_cfg, tmp_path):
         patch("os.path.expanduser", return_value=str(home)),
     ):
 
-
         content = get_default_prompt("test_prompt")
         assert content == "Project Prompt Content"
-
 
         content = get_default_prompt("home_prompt")
         assert content == "Home Prompt Content"
 
 
 def test_get_default_prompt_home_reachable_outside_project_tree(mock_cfg, tmp_path):
-
-
-
-
-
-
-
-
 
     home = tmp_path / "home"
     home.mkdir()
@@ -82,10 +68,8 @@ def test_get_default_prompt_home_reachable_outside_project_tree(mock_cfg, tmp_pa
         patch("os.path.expanduser", return_value=str(home)),
     ):
 
-
         content = get_default_prompt("other_prompt")
         assert content == "Other Prompt Content"
-
 
         content = get_default_prompt("home_prompt")
         assert content == "Home Prompt Content"
@@ -94,7 +78,6 @@ def test_get_default_prompt_home_reachable_outside_project_tree(mock_cfg, tmp_pa
 def test_get_default_prompt_home_layer_off_when_search_home_disabled(
     mock_cfg, tmp_path
 ):
-
 
     mock_cfg.LLM_SEARCH_HOME = False
 

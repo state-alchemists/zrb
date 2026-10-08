@@ -70,7 +70,9 @@ def rewrite(text: str, counts: dict[str, int | float]) -> str:
     return _SENTENCE.sub(replacement, text)
 
 
-def _report(counts: dict[str, int | float], stated: dict[str, int | float] | None) -> int:
+def _report(
+    counts: dict[str, int | float], stated: dict[str, int | float] | None
+) -> int:
     """Report measured versus documented counts and return an exit code."""
     print(f"measured:   {counts}")
     if stated is None:

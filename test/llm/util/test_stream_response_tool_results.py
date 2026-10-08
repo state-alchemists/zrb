@@ -10,7 +10,7 @@ from zrb.llm.util.stream_response import (
 
 
 class TestStreamEventHandlerToolPrepareOffsetTracking:
-    'Test offset-tracked tool-parameter updates.'
+    "Test offset-tracked tool-parameter updates."
 
     def test_placeholder_uses_offset_hook_when_provided(self):
         print_fn = MagicMock()
@@ -77,7 +77,7 @@ class TestStreamEventHandlerToolPrepareOffsetTracking:
         on_prepare.assert_called_once_with("call_1", "")
 
     def test_parallel_tool_calls_each_get_their_own_key(self):
-        'Interleaved tool calls update and erase their own keys.'
+        "Interleaved tool calls update and erase their own keys."
         print_fn = MagicMock()
         on_prepare = MagicMock()
         handler = StreamEventHandler(
@@ -108,13 +108,11 @@ class TestStreamEventHandlerToolPrepareOffsetTracking:
         erase_calls = [c for c in on_prepare.call_args_list if c.args[1] == ""]
         assert {c.args[0] for c in erase_calls} == {"call_A", "call_B"}
 
-
-
         printed = [str(c.args[0]) for c in print_fn.call_args_list if c.args]
         assert not any("\r" in p or "Prepare tool parameters" in p for p in printed)
 
     def test_without_the_hook_falls_back_to_the_original_r_based_path(self):
-        'Without the hook, updates use the single-line ``\\r`` path.'
+        "Without the hook, updates use the single-line ``\\r`` path."
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn)
         from pydantic_ai import ToolCallPart, ToolCallPartDelta
@@ -180,7 +178,7 @@ class TestStreamEventHandlerToolResult:
         assert "y" * 50 in full
 
     def test_handle_tool_result_show_result_ignores_recorder(self):
-        'show_tool_result=True already shows everything inline — no need to'
+        "show_tool_result=True already shows everything inline — no need to"
         print_fn = MagicMock()
         recorder = MagicMock()
         handler = StreamEventHandler(
@@ -197,7 +195,7 @@ class TestStreamEventHandlerToolResult:
         print_fn.assert_called_once()
 
     def test_handle_tool_result_has_no_trailing_newline(self):
-        'Tool-result output has no trailing newline.'
+        "Tool-result output has no trailing newline."
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn, show_tool_result=False)
         mock_event = MagicMock()
@@ -290,7 +288,7 @@ class TestStreamEventHandlerRunResult:
         usage_callback.assert_called_once_with(mock_usage, request.usage)
 
     def test_handle_run_result_no_usage_callback(self):
-        'Run result is still printed when usage_callback is None.'
+        "Run result is still printed when usage_callback is None."
         print_fn = MagicMock()
         handler = create_event_handler(print_fn=print_fn, usage_callback=None)
         mock_usage = MagicMock()
@@ -339,7 +337,7 @@ class TestStreamEventHandlerCall:
 
     @pytest.mark.asyncio
     async def test_call_output_tool_call_and_result_events(self):
-        'OutputToolCallEvent/OutputToolResultEvent (final/deferred-output tool'
+        "OutputToolCallEvent/OutputToolResultEvent (final/deferred-output tool"
         print_fn = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn, show_tool_result=True)
         from pydantic_ai import OutputToolCallEvent, OutputToolResultEvent
