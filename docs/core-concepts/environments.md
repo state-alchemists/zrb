@@ -120,6 +120,26 @@ task = cli.add_task(
 )
 ```
 
+### Custom Sources: `AnyEnv`
+
+To load variables from somewhere else (a secrets manager, a JSON file), subclass `AnyEnv` (`from zrb import AnyEnv`) and implement `update_context(shared_ctx)`, writing each variable onto `shared_ctx.env`. Envs are applied in order, so a later env wins on a name collision.
+
+```python
+import json
+
+from zrb import AnyEnv
+
+
+class JsonEnv(AnyEnv):
+    def __init__(self, path: str):
+        self._path = path
+
+    def update_context(self, shared_ctx):
+        with open(self._path) as f:
+            for key, value in json.load(f).items():
+                shared_ctx.env[key] = str(value)
+```
+
 ---
 
 ## Quick Reference

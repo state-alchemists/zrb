@@ -199,10 +199,12 @@ class LLMChatTask(BaseTask):
             tool_confirmation: Policy deciding which tool calls need approval.
             tool_policies: Callables deciding whether a call is allowed, denied, or
                 needs confirmation. The first to return a verdict decides.
-            response_handlers: Callables post-processing a tool result before the
-                model sees it. The first non-`None` result wins.
+            response_handlers: Callables interpreting the user's answer to a
+                tool-approval prompt. The first to return a verdict decides.
             argument_formatters: Callables controlling how tool-call arguments are
-                displayed. All run in order, each overwriting the last.
+                displayed. All run in order; the last non-`None` result wins.
+                The built-in `Write`/`Edit` diff formatters are appended after
+                these.
             approval_channel: Channel carrying approval requests to whoever answers
                 them. Installed on the UI when set.
             permissions: Policy bounding which files and commands tools may touch.
@@ -563,7 +565,7 @@ class LLMChatTask(BaseTask):
         self._response_handlers += list(handler)
 
     def prepend_response_handler(self, *handler: ResponseHandler) -> None:
-        """Add handlers that post-process a tool's result before the model sees it."""
+        """Add handlers interpreting the user's answer to a tool-approval prompt."""
         self._response_handlers = list(handler) + self._response_handlers
 
     def set_response_handlers(self, handlers: list[ResponseHandler]) -> None:
@@ -706,12 +708,12 @@ class LLMChatTask(BaseTask):
 
     @property
     def llm_limiter(self) -> "LLMLimiter | None":
-        """Rate and token limiter throttling requests, or None if unlimited."""
+        """Rate and token limiter throttling requests; None uses the shared default."""
         return self._llm_limiter
 
     @llm_limiter.setter
     def llm_limiter(self, value: "LLMLimiter | None") -> None:
-        """Replace the rate/token limiter, or None to remove it."""
+        """Replace the rate/token limiter, or None to use the shared default."""
         if value is not None and not isinstance(value, LLMLimiter):
             raise TypeError(
                 f"{self.name}.llm_limiter must be an LLMLimiter or None, "
@@ -967,7 +969,7 @@ class LLMChatTask(BaseTask):
 
     @property
     def response_handlers(self) -> list[ResponseHandler]:
-        """Handlers post-processing a tool's result before the model sees it."""
+        """Handlers interpreting the user's answer to a tool-approval prompt."""
         return self._response_handlers
 
     @property

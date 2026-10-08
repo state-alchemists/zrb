@@ -13,6 +13,7 @@ A `Task` is the fundamental unit of work in Zrb. It represents a discrete action
 - [Execution Dependencies](#execution-dependencies-upstreams)
 - [Flow Control](#flow-control-successors-fallbacks-and-conditions)
 - [The Execution Lifecycle](#the-execution-lifecycle-how-it-works)
+- [Running a Task from Python](#running-a-task-from-python)
 - [Quick Reference](#quick-reference)
 
 ---
@@ -146,6 +147,17 @@ task_c = cli.add_task(
 )
 ```
 
+### Method C: `append_*` After Construction
+
+Every edge also has a method, useful when the other task is defined later or in another module. Each takes one task or a list, and skips a task already present:
+
+```python
+task_c.append_upstream([task_a, task_b])
+task_c.append_successor(notify)
+task_c.append_fallback(rollback)
+task_c.append_readiness_check(check_port)
+```
+
 ---
 
 ## Flow Control: Successors, Fallbacks, and Conditions
@@ -229,6 +241,32 @@ flowchart TB
     end
 
 ```
+
+---
+
+## Running a Task from Python
+
+A task can run without the CLI. All three forms run its upstreams first, in a new session unless you pass one:
+
+```python
+from zrb import StrInput, Task
+
+greet = Task(
+    name="greet",
+    input=StrInput("user-name", default="world"),
+    action=lambda ctx: f"Hello, {ctx.input.user_name}",
+)
+
+greet.run(kwargs={"user-name": "Ann"})          # typed values, keyed by input name
+greet.run(str_kwargs={"user-name": "Ann"})      # strings, parsed as CLI values
+await greet.async_run(kwargs={"user-name": "Ann"})  # inside a running event loop
+
+greet_fn = greet.to_function()   # a plain function: greet_fn(user_name="Ann")
+```
+
+`run` uses `asyncio.run()`, so it raises inside an already running loop; use `async_run` there. `run` returns `None` on Ctrl+C instead of raising. `to_function()` takes one snake_case keyword per input, upstreams' included, and carries a generated signature and docstring.
+
+`task.inputs` and `task.envs` include those inherited from upstreams; `task.own_inputs` and `task.own_envs` list only the ones declared on the task itself.
 
 ---
 

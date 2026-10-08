@@ -128,7 +128,7 @@ reliable_server = cli.add_task(
 
 ### Readiness Parameters
 
-Every task type accepts these:
+Every task type accepts these except `HttpCheck` and `TcpCheck`, which *are* readiness checks and raise `TypeError` if given any of them (or `retries`, `retry_period`, `retry_if`):
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|

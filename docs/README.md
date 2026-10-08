@@ -40,6 +40,7 @@ See the [LLM docs index](llm/README.md) for every page about `zrb llm chat`, `LL
 - [Automation: Triggers & Schedulers](task-types/triggers-and-schedulers.md)
 - [File Ops: Scaffolder & RsyncTask](task-types/file-ops.md)
 - [LLMChatTask API Reference](task-types/llmchat-task.md)
+- [LLMTask API Reference](task-types/llm-task.md) — single-shot LLM step for pipelines
 - [Built-in Helper Tasks](task-types/builtin-helpers.md) — Git, Base64, UUID, HTTP, and more
 
 ## IV. Configuration

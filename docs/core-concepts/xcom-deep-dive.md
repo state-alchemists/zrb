@@ -20,7 +20,7 @@ XCom (Cross-Communication) is Zrb's built-in mechanism for passing data between 
 
 ## How XCom Works
 
-Each session holds an `XCom` object that maps a task name to a `deque`; a task's queue is created on first use. The `XCom` is accessible via `ctx.xcom`:
+Each session holds an `XCom` object that maps a task name to an `Xcom` queue (a `collections.deque` subclass, exported as `zrb.Xcom`); a task's queue is created on first use. The `XCom` is accessible via `ctx.xcom`:
 
 ```python
 # Access another task's queue
@@ -37,11 +37,15 @@ Each queue supports the following operations:
 | Method | Description | Returns |
 |--------|-------------|---------|
 | `.push(value)` | Add a value to the end of the queue | `None` |
-| `.pop()` | Remove and return the oldest item | The value |
+| `.pop()` / `.popleft()` | Remove and return the oldest item (`pop` is FIFO here, unlike a plain `deque`) | The value |
 | `.popright()` | Remove and return the newest (most recently pushed) item | The value |
 | `.peek()` | View the oldest item without removing | The value |
-| `.get()` | Read the most recently pushed value without removing; returns `None` if empty | Value or `None` |
+| `.get(default_value=None)` | Read the most recently pushed value without removing; returns `default_value` if empty | Value or `default_value` |
 | `.set(value)` | Push a value, then discard everything except that latest value | `None` |
+
+A queue can also notify you. `append_push_callback(fn)` and `append_pop_callback(fn)` register zero-argument callables that run after every push (`push`, `append`, `extend`, `insert`, …) or every pop (`pop`, `popleft`, `popright`, `remove`), in registration order. The callback gets no value; read the queue for it. This is how a [`BaseTrigger`](../task-types/triggers-and-schedulers.md) fires its callbacks.
+
+To give a task a queue under a name of your own, assign one: `ctx.xcom["events"] = Xcom()`.
 
 ---
 

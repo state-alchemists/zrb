@@ -43,6 +43,7 @@ A *retired* setting still in your environment is named at startup too, with what
 |----------|-------------|---------|
 | `ZRB_SHELL` | Shell used by `CmdTask` | Auto-detected: `zsh` when it is your `$SHELL`, else `bash`, else `sh`; on Windows a POSIX shell such as Git Bash, else PowerShell, else `cmd` |
 | `ZRB_EDITOR` | Default text editor for interactive prompts | `nano` |
+| `ZRB_PROJECT_ENV_KEYS` | Your own variables under the `ZRB_` prefix (comma-separated, exact or `*` glob, prefix omitted) that the typo and retired-setting warnings should skip | (empty) |
 | `ZRB_IS_TERMUX` | Whether zrb runs under Termux (auto-detected; override for Termux-specific keybindings) | Auto-detected |
 | [`ZRB_LOGGING_LEVEL`](../advanced-topics/logging.md) | Verbosity of Zrb's internal logs | `WARNING` |
 | `ZRB_BANNER` | Custom ASCII art or text displayed at CLI start | Standard Zrb ASCII art |

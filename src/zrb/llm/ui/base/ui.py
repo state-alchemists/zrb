@@ -160,7 +160,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 ):
                     print(sep.join(str(v) for v in values), end=end)
 
-                async def ask_user(self, prompt: str) -> str:
+                async def ask_user(self, prompt, output_to_parent="", agent_id=None) -> str:
                     if prompt:
                         print(prompt, end="", flush=True)
                     return await asyncio.to_thread(input)
@@ -818,7 +818,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             The user's input as a string.
 
         Example:
-            async def ask_user(self, prompt: str) -> str:
+            async def ask_user(self, prompt, output_to_parent="", agent_id=None) -> str:
                 if prompt:
                     print(prompt, end="", flush=True)
                 return await asyncio.to_thread(input)

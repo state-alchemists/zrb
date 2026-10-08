@@ -44,6 +44,10 @@ my_callback = Callback(
 | `xcom_mapping` | Map of parent-session XCom names to names in the callback's session |
 | `result_queue` / `error_queue` / `session_name_queue` | XCom queues in the trigger's session that receive the task's result, error, or session name |
 
+`task` and `input_mapping` are required; pass `input_mapping={}` when the task takes no input. `input_mapping` may also be a callable taking the context and returning the dict.
+
+For behavior a `Callback` cannot express, subclass `AnyCallback` (`from zrb import AnyCallback`) and implement `async_run(parent_session, session)`: `parent_session` is the trigger's, `session` is the fresh one created for this event.
+
 The callback's task does not need to be registered with `cli.add_task`. Zrb currently warns at load time that such a task "is not registered and no task references it"; the warning is harmless here.
 
 ---
@@ -101,6 +105,13 @@ file_watcher = cli.add_task(
 ```
 
 When you run `zrb file-watcher`, it will run continuously. Every time `data.txt` is modified, the `print_event` task will execute.
+
+### How the Queue Works
+
+- `queue_name` defaults to the trigger's own name. It is a plain string, not a template.
+- Each push takes one event off the queue and runs every callback concurrently, each in a fresh session whose XCom holds only that event under `queue_name`. The callback's inputs are copied from the trigger's session.
+- From outside the action, `trigger.push_exchange_xcom(session, data)` publishes an event and `trigger.pop_exchange_xcom(session)` removes the oldest pending one (raising `IndexError` when none is pending).
+- A trigger with no `readiness_check` gets a no-op one that passes at once, so tasks downstream of a trigger start as soon as it does. Pass your own check to make them wait until the listener is really up.
 
 ---
 

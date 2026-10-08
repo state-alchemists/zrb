@@ -78,6 +78,12 @@ aws_group.add_task(CmdTask(name="deploy", cmd="aws s3 sync ..."))
 
 **Execution:** `zrb cloud aws deploy`
 
+### Group Options
+
+- `add_group` also takes a string: `cli.add_group("cloud")` is shorthand for `cli.add_group(Group("cloud"))`. Either form returns the registered group.
+- `Group(name, description=None, banner=None)`: `banner` is text printed above the group's help listing (`zrb cloud` with no task).
+- `group.get_task_by_alias("deploy")` and `group.get_group_by_alias("aws")` return the registered object, or `None`. They match aliases only, not names.
+
 ---
 
 ## Group & Task Aliases
@@ -106,6 +112,10 @@ cli.add_task(task)
 cli.add_task(task, alias="rm-all")
 ```
 
+### Overriding a Built-in Task
+
+Registering a different task under an alias already in use replaces the first one. This is how a project shadows a built-in task: add your own task under the same name in the same group. Two of *your own* tasks colliding this way is reported as a warning at startup, since it is usually a mistake.
+
 ---
 
 ## Removing Tasks and Groups
@@ -120,6 +130,8 @@ from zrb import cli
 cli.remove_task("legacy-deploy")
 cli.remove_group("old-tools")
 ```
+
+`remove_task` and `remove_group` accept the object itself, an alias, or a name; a string is matched against aliases first, then names.
 
 ---
 

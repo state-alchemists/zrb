@@ -58,6 +58,24 @@ The `Capability` enum lives in `src/zrb/llm/permission/capability.py`; the built
 | `META` | Harness control | `TodoWrite`, `AskUserQuestion` |
 | `UNKNOWN` | Untagged (e.g. third-party or MCP tools) | — |
 
+#### Tagging your own tools
+
+A tool you add is `UNKNOWN` until you tag it, so a rule like `read:allow` never matches it and [Plan Mode](plan-mode.md) denies it. Tag the callable before registering it:
+
+```python
+from zrb.llm.permission import Capability, tag
+
+
+def lookup_ticket(ticket_id: str) -> str:
+    """Return a ticket's title and status."""
+    ...
+
+
+llm_chat.append_tool(tag(lookup_ticket, Capability.READ))
+```
+
+For a tool defined inside a toolset, where the original callable is not what zrb sees, put the tag in its definition's metadata instead: `metadata=capability_metadata(Capability.READ)`, also from `zrb.llm.permission`.
+
 ---
 
 ## Defining a Policy
@@ -98,7 +116,7 @@ Rules can match on:
 When pydantic-ai requests a tool call, Zrb resolves the outcome using this priority order:
 
 0.  **Always-Approve:** Tools that *are* the user interaction (e.g. `AskUserQuestion`) are auto-approved unconditionally — gating them behind a prompt is meaningless, since approval would render *before* the question itself. A tool opts in by self-registering via `register_always_auto_approve(...)`, so the guarantee travels with the tool and holds in every path (main agent, sub-agents, web), independent of any policy list below.
-1.  **Tool Policy:** Argument-level rules registered in code (`auto_approve("Read")`, command validators). A match is final.
+1.  **Tool Policy:** Argument-level rules registered in code (`auto_approve("Read")`, command validators). A match is final. Writing your own: [Customizing Tool Approval](tool-approval.md#skipping-the-prompt-tool-policies).
 2.  **Permission Policy:** If a rule matches, its action is final — `ALLOW` approves, `DENY` blocks, and `ASK` is a *hard* ask: it does not prompt here, it removes the YOLO shortcut below so the call must reach a human.
     In a non-interactive run (`--interactive false`) a hard `ASK` cannot reach a human, so it is settled here: `ExitPlanMode` is approved and any other `ASK`ed tool is denied.
 3.  **YOLO Toggle:** If YOLO is ON, the call is approved.
@@ -187,6 +205,12 @@ with permission_policy(my_dynamic_policy):
 ```
 
 The explicit `permissions=` argument, when given, takes precedence over a value set this way.
+
+To build a policy from the same shapes `permissions=` and `ZRB_LLM_PERMISSIONS` accept, call `resolve_policy` from `zrb.llm.permission`. It takes a `PermissionPolicy`, a shorthand (`"ask"`), a `"key:action"` list string (`"edit:deny,Shell:ask,*:allow"`), or a list of `Rule`s or `{"key", "action", "arg_pattern"}` dicts. `None` or `""` returns `None`, meaning nothing is constrained.
+
+### Debugging decisions
+
+With `ZRB_LOGGING_LEVEL=DEBUG`, the permission-policy layer logs one JSON `policy_decision` event per tool call (its decision and the tool name), and the [sandbox](sandbox.md) logs one per shell command it wraps. Tool arguments are never logged. Code of your own that decides approvals, such as a custom approval channel, can emit the same event with `record_policy_decision(layer=..., decision=..., tool_name=..., reason=...)` from `zrb.llm.permission`.
 
 ---
 🔖 [Documentation Home](../README.md) > [LLM](./) > Permission Policy

@@ -14,6 +14,7 @@ Skills, sub-agents, hooks, extra prompts, and tools are all **component families
 - [Resolution order](#resolution-order)
 - [Deferred defaults: seeds, deltas, and lazy reads](#deferred-defaults-seeds-deltas-and-lazy-reads)
 - [Worked examples](#worked-examples)
+- [Manager and registry methods](#manager-and-registry-methods)
 - [`get_prompt(name)` vs `get_prompts()`](#get_promptname-vs-get_prompts)
 
 ---
@@ -25,7 +26,7 @@ Every component family has:
 | Piece | What it is | Instance |
 |-------|-----------|----------|
 | **`*Registry`** | The canonical, shared collection — the *source of defaults*. One per process. | `skill_registry`, `sub_agent_registry`, `hook_registry`, `prompt_registry`, `tool_registry` |
-| **`*Manager` (or host)** | The per-task, resolved view that actually runs. Reads the registry as its default unless told otherwise; its own `append`/`prepend`/`remove` ops layer over that resolved base without freezing it. | `SkillManager`, `SubAgentManager`, `HookManager`, `PromptManager`, an agent host (`LLMChatTask`/`LLMTask`/`SubAgentManager`) |
+| **`*Manager` (or host)** | The per-task, resolved view that actually runs. Reads the registry it is given (the singletons are bound to the shared one; a manager you construct with `registry=None` gets a fresh, empty registry — except `PromptManager`, which falls back to `prompt_registry`); its own `append`/`prepend`/`remove` ops layer over that resolved base without freezing it. | `SkillManager`, `SubAgentManager`, `HookManager`, `PromptManager`, an agent host (`LLMChatTask`/`LLMTask`/`SubAgentManager`) |
 | **CFG twin** | The env-var face of the registry — `CFG.LLM_*` reads as `ZRB_LLM_*`. | `LLM_SKILLS`, `LLM_AGENTS`, `LLM_HOOKS`, `LLM_PROMPT`, `LLM_TOOLS` |
 
 The registry **stores** everything the family knows; the manager **consumes** it. `zrb_init.py` and env vars both configure the registry (or a manager's view of it); a task argument overrides one host.
@@ -172,7 +173,9 @@ CFG twin (ZRB_LLM_* env var)                     (restricts the default/discover
 code default                                     (lowest)
 ```
 
-Concretely: `PromptManager(prompts=None)` reads `prompt_registry` *live* on every query; unless the registry was mutated in `zrb_init.py`, the registry's own default resolves `CFG.LLM_PROMPT`; the empty list is the code backstop. A manager's `append_prompt`/`remove_prompt` deltas are replayed over that live value, so registry or env changes *after* the append stay visible. Assigning `manager.prompts = [...]` (or passing `prompts=`) replaces that layer's own value wholesale and clears its deltas; on the registry the same operation is `prompt_registry.set_prompts(...)` — the layer below is then ignored. Same shape for skills (`SkillManager(registry=None)`), sub-agents, hooks, and tools.
+Concretely: `PromptManager(prompts=None)` reads `prompt_registry` *live* on every query; unless the registry was mutated in `zrb_init.py`, the registry's own default resolves `CFG.LLM_PROMPT`; the empty list is the code backstop. A manager's `append_prompt`/`remove_prompt` deltas are replayed over that live value, so registry or env changes *after* the append stay visible. Assigning `manager.prompts = [...]` (or passing `prompts=`) replaces that layer's own value wholesale and clears its deltas; on the registry the same operation is `prompt_registry.set_prompts(...)` — the layer below is then ignored.
+
+Skills, sub-agents and hooks layer the same way, with one difference: their manager reads only the registry passed to it — `SkillManager(registry=None)` (likewise `SubAgentManager`, `HookManager`) starts from a fresh, empty registry rather than the shared one. Pass `registry=skill_registry` (or `sub_agent_registry`, `hook_registry`) to read the shared collection.
 
 ## Deferred defaults: seeds, deltas, and lazy reads
 
@@ -210,6 +213,35 @@ export ZRB_LLM_HOOKS="journal-compliance-judge"
 ```bash
 export ZRB_LLM_PROMPT="Never quote stock without a warehouse."
 ```
+
+## Manager and registry methods
+
+All of these are exported from `zrb`: the classes `SkillManager`, `SubAgentManager`, `HookManager`, `SkillRegistry`, `SubAgentRegistry`, `HookRegistry`, `ToolRegistry`, and the shared instances `skill_manager`, `sub_agent_manager`, `hook_manager`, `skill_registry`, `sub_agent_registry`, `hook_registry`, `tool_registry`. Besides the mutation verbs in [the families table](#the-five-component-families), the managers have these:
+
+| Method | `SkillManager` | `SubAgentManager` | `HookManager` |
+|---|---|---|---|
+| `search_dirs` (read/write property) | Directories scanned, in priority order. Setting it replaces the defaults | same | same |
+| `scan(search_dirs=None)` | Discover from disk now. Manual registrations are kept | same; a manual definition wins a name clash | Runs the hook factories, then loads from disk. Manual hooks are kept |
+| `reload()` | Re-scan after config or file changes. Manual registrations survive | same | Clears **every** hook, then re-runs factories and re-loads from disk. A hook added with `add_hook` is lost; register it from `add_hook_factory` to survive |
+| Lookup | `get_skill(name)`, `get_skill_content(name)` (the instruction text, or `None`) | `get_agent_definition(name)` | — |
+
+Scanning is lazy: nothing is read from disk until the first lookup, so `scan()` is only needed to force it.
+
+`SubAgentManager` can also build what a definition describes:
+
+- `create_agent(name, ctx=None, yolo=None)` returns a ready-to-run pydantic-ai `Agent`, or `None` for an unknown name.
+- `create_llm_chat_task(name, ctx=None)` returns an `LLMChatTask` using that sub-agent's persona, or `None`.
+
+`HookManager` runs hooks outside a chat too:
+
+- `await execute_hooks(event, event_data, session_id=None, metadata=None, ...)` returns each hook's raw execution result.
+- `await execute_hooks_simple(event, event_data, session_id=None, metadata=None)` returns them flattened into `HookResult` objects.
+- `await shutdown(grace_seconds=2.0, drain=False)` cancels pending background hooks and waits up to `grace_seconds` for them to stop. With `drain=True` it first lets them run to completion within the grace period, and cancels only what is left.
+
+`ToolRegistry` has two methods beyond its verbs:
+
+- `apply_to(host)` appends every tool, tool factory and toolset factory to a host (`LLMChatTask`, `LLMTask`, `SubAgentManager`).
+- `set_seed(seed)` installs the lazy default list, the one `ZRB_LLM_TOOLS` filters. It is ignored once the registry has been read or changed; zrb sets it in `llm/common_tools.py`.
 
 ## `get_prompt(name)` vs `get_prompts()`
 

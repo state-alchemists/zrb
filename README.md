@@ -203,7 +203,7 @@ zrb server start
 
 Open `http://localhost:21213`. The server binds to `127.0.0.1` by default, so the UI is reachable only from the local machine. Full details: [Web UI Guide](docs/advanced-topics/web-ui.md).
 
-> **Safety boundary:** Zrb's web UI can start and control automation tasks, so it is not intended to be exposed publicly without deliberate hardening. If you set `ZRB_WEB_HTTP_HOST` to a non-loopback address, enable authentication and replace the documented default admin password and secret key with unique values. Startup warnings call out unsafe network-exposed configurations; see the [Web UI Guide](docs/advanced-topics/web-ui.md) before using a shared or public bind.
+> **Safety boundary:** Zrb's web UI can start and control automation tasks, so it is not intended to be exposed publicly without deliberate hardening. If you set `ZRB_WEB_HTTP_HOST` to a non-loopback address, enable authentication and replace the documented default admin password and secret key with unique values. The server refuses to start on a non-loopback bind without authentication or with the default credentials; see the [Web UI Guide](docs/advanced-topics/web-ui.md) before using a shared or public bind.
 
 ![Zrb Web UI](https://raw.githubusercontent.com/state-alchemists/zrb/main/_images/zrb-web-ui.png)
 

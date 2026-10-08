@@ -158,6 +158,62 @@ start_server = CmdTask(
 )
 ```
 
+### Building the Command: `Cmd` and `CmdPath`
+
+`cmd` takes a string, a `Tpl`, a callable receiving `ctx`, a `Cmd`, a `CmdPath`, or a list of any of these, joined as separate lines of one script. `Cmd` wraps a command for deferred resolution; `CmdPath` reads the command from a script file:
+
+```python
+from zrb import Cmd, CmdPath, CmdTask, cli
+
+deploy = cli.add_task(
+    CmdTask(
+        name="deploy",
+        cmd=[
+            Cmd(lambda ctx: f"echo 'deploying {ctx.input.version}'"),
+            CmdPath("scripts/deploy.sh"),  # file contents become part of the script
+        ],
+    )
+)
+```
+
+`CmdPath`'s path is resolved by Python against the directory `zrb` was started from, not against the task's `cwd`.
+
+### Running on a Remote Host (SSH)
+
+Set `remote_host` and the command runs over `ssh` instead of locally. Every other `remote_*` value is ignored without it.
+
+```python
+from zrb import CmdTask, Tpl, cli
+
+disk_usage = cli.add_task(
+    CmdTask(
+        name="remote-df",
+        remote_host="prod.example.com",
+        remote_user="deploy",
+        remote_port=2222,                    # default 22
+        remote_ssh_key="~/.ssh/id_ed25519",  # recommended
+        # remote_password=Tpl("{ctx.env.SSH_PASSWORD}"),  # needs `sshpass`
+        cmd="df -h /",
+    )
+)
+```
+
+A password is passed to `sshpass -e` through the `SSHPASS` variable, which only the remote invocation sees. [`RsyncTask`](file-ops.md#2-rsynctask) reuses these parameters.
+
+### Other `CmdTask` Parameters
+
+| Parameter | Default | What it does |
+|---|---|---|
+| `cwd` | Where `zrb` was started | Working directory. Accepts a `Tpl` or callable as well as a string |
+| `shell` / `shell_flag` | `ZRB_SHELL` / inferred (`-c`) | Shell binary and the flag that makes it read the script |
+| `plain_print` | `False` | Stream output verbatim, without the task-name prefix on each line |
+| `warn_unrecommended_command` | `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Warn about constructs that are fragile in a non-interactive `bash`/`zsh` script |
+| `max_output_line` / `max_error_line` | `1000` | Trailing stdout / stderr lines kept in the `CmdResult`; `0` or less keeps all |
+| `execution_timeout` | `3600` | Seconds before the command is killed; `0` disables the limit |
+| `is_interactive` | `False` | Attach the command to the terminal so it can prompt. Needs a TTY |
+
+A non-zero exit raises `CmdTaskError` (`from zrb.task.cmd_task import CmdTaskError`); its `return_code` becomes `zrb`'s exit code. A plain-string `cmd` containing `{ctx.` emits `UntemplatedCmdWarning` from the same module, because a bare string is never rendered.
+
 ---
 
 ## Quick Comparison

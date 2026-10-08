@@ -138,7 +138,7 @@ LLMTask(
 )
 ```
 
-Two things to internalize:
+Four things to internalize:
 
 1. **`system_prompt` follows the same rule as `message`** — a plain string is literal. For `{ ... }` substitution in a system-prompt *string*, wrap it in `Tpl` — or, more commonly, pass a callable and interpolate in Python:
 
@@ -146,7 +146,11 @@ Two things to internalize:
    system_prompt=lambda ctx: f"You are deploying to {ctx.env.DEPLOY_TARGET}. Be careful in prod.",
    ```
 
-2. **`system_prompt` is sugar over the next rung.** Under the hood, both tasks wrap it into `PromptManager(prompts=[system_prompt])`. So when a single string is no longer enough, you are not switching mechanisms — you are just naming the `PromptManager` it was already building for you.
+2. **`system_prompt` is sugar over the next rung.** Under the hood, both tasks wrap it into `PromptManager(prompts=[system_prompt], include_sections=[])`. So when a single string is no longer enough, you are not switching mechanisms — you are just naming the `PromptManager` it was already building for you.
+
+3. **A task you build yourself has none of zrb's built-in sections.** That `include_sections=[]` means the system prompt is exactly your `system_prompt` — or empty, if you set none. The persona, workflow rules, skill catalogue and project docs that `zrb llm chat` sends are not there. To get them, pass `prompt_manager=PromptManager()`, which emits the sections listed in `ZRB_LLM_INCLUDE_SECTIONS` (see Rung 5).
+
+4. **`system_prompt` is ignored when you also pass `prompt_manager`.** The task uses only the manager you gave it. Put the text into the manager instead: `PromptManager(prompts=[...])` or `pm.append_prompt(...)`.
 
 ### Seeding a chat with context
 
@@ -203,7 +207,7 @@ Three things are **not** sections:
 
 A `PromptManager` lets you control that assembly. Two independent levers:
 
-- **`prompts=[...]`** — extra content appended after the built-ins. This is exactly what `system_prompt` populates.
+- **`prompts=[...]`** — extra content appended after the built-ins. This is exactly what `system_prompt` populates when you pass no `prompt_manager`.
 - **`include_sections=[...]`** — the full ordered list of section names to emit. Drop or reorder the built-ins; the built-in set itself is fixed.
 
 Dropping a section is an intentional deployment trade-off: shipped prompt files
@@ -227,7 +231,7 @@ cli.add_task(LLMChatTask(name="lean-chat", prompt_manager=pm))
 
 You can also set the order without touching code, via the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive; see [LLM Configuration → Prompt Component Configuration](../configuration/llm-config.md#prompt-component-configuration)). A *new* name in `include_sections` resolves to nothing — it is ignored with a logged warning.
 
-**Task scope vs. registry scope.** Each task exposes its manager as `task.prompt_manager`. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` in `zrb_init.py` changes the default **every** task starts from (`PromptManager(prompts=None)` defers there); a task's `prompts=` argument or mutation overrides just that task. Each layer's append/remove ops stack on the one below — see [LLM Component Collections](../configuration/llm-collections.md).
+**Task scope vs. registry scope.** Each task exposes its manager as `task.prompt_manager`. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` in `zrb_init.py` changes the default **every** task starts from (`PromptManager(prompts=None)` defers there); giving a task its own `PromptManager(prompts=...)`, or mutating `task.prompt_manager`, overrides just that task. Each layer's append/remove ops stack on the one below — see [LLM Component Collections](../configuration/llm-collections.md).
 
 ## Rung 6 — sections that reflect live state
 

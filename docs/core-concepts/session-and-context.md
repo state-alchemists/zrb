@@ -46,8 +46,9 @@ When a task executes its `action`, Zrb passes it a `Context` object, universally
 |--------|-------------|
 | `ctx.print(*values)` | Formatted printing (includes task's color and name) |
 | `ctx.log_info(msg)` | Log an info message; shown only when `ZRB_LOGGING_LEVEL` is `INFO` or lower (the default is `WARNING`) |
-| `ctx.log_error(msg)` | Log error message to session log |
+| `ctx.log_error(msg)` | Print an `[ERROR]` line to stderr; shown unless `ZRB_LOGGING_LEVEL` is above `ERROR`. It is not written to the session log |
 | `ctx.render(template)` | Render an f-string-style template (single `{}`, evaluated against `ctx` and helpers) |
+| `ctx.render_bool(template)` / `ctx.render_int(template)` / `ctx.render_float(template)` | Render a template and convert the result. A value already of that type is returned as is; `render_bool` accepts `true`/`false`, `yes`/`no`, `y`/`n`, `on`/`off`, `1`/`0` (any case) and raises `ValueError` otherwise |
 
 ### Example
 
