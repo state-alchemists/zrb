@@ -348,53 +348,9 @@ zrb's speech and dictation run on [Pipecat](https://docs.pipecat.ai) services, s
 2. In `zrb_init.py`, register a factory that builds the service, under a name of your choosing: `tts_manager` for text-to-speech, `stt_manager` for speech-to-text.
 3. Select it by that name with `ZRB_LLM_SPEECH_BACKEND` or `ZRB_LLM_DICTATION_BACKEND` (or `SpeechConfig(backend=...)` / `DictationConfig(backend=...)` in code).
 
-This registers OpenAI's hosted voices and transcription (`OPENAI_API_KEY` must be set). Both services take Pipecat's `Settings` object; set only what zrb's config names, so an unset voice, model or language keeps the service's own default:
+OpenAI and Gemini need none of this: `openai` and `gemini` (and `openai` / `google` for dictation) are built-in backends, selected by name with no registration — see [Voice and Camera](voice-camera.md). This section is for the providers zrb does not cover.
 
-```python
-from zrb import stt_manager, tts_manager
-from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
-
-
-def create_openai_tts(config):
-    from pipecat.services.openai.tts import OpenAITTSService  # imported only when selected
-
-    settings = OpenAITTSService.Settings()
-    if config.voice:
-        settings.voice = config.voice
-    return OpenAITTSService(settings=settings)
-
-
-def create_openai_stt(config):
-    from pipecat.services.openai.stt import OpenAISTTService
-
-    settings = OpenAISTTService.Settings()
-    if config.stt_model:
-        settings.model = config.stt_model
-    if config.language:
-        settings.language = config.language
-    return OpenAISTTService(settings=settings)
-
-
-tts_manager.register(
-    "openai-tts",
-    TTSServiceSpec(name="openai-tts", provider="openai", is_local=False,
-                   doc="OpenAI's hosted voices", factory=create_openai_tts),
-)
-stt_manager.register(
-    "openai-stt",
-    STTServiceSpec(name="openai-stt", provider="openai", is_local=False,
-                   doc="OpenAI's hosted transcription", factory=create_openai_stt),
-)
-```
-
-```bash
-export ZRB_LLM_SPEECH_BACKEND=openai-tts     # text-to-speech
-export ZRB_LLM_DICTATION_BACKEND=openai-stt  # speech-to-text
-export ZRB_LLM_SPEECH_VOICE=nova             # reaches the factory as config.voice
-zrb llm chat
-```
-
-A service from its own package registers the same way. This is Floe for both directions (`pip install pipecat-floe`, and `FLOE_API_KEY` set):
+This registers [Floe](https://docs.pipecat.ai/api-reference/server/services/tts/floe) for both directions (`pip install pipecat-floe`, and `FLOE_API_KEY` set):
 
 ```python
 from zrb import stt_manager, tts_manager
@@ -402,7 +358,7 @@ from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
 
 
 def create_floe_tts(config):
-    from pipecat_floe import FloeTTSService
+    from pipecat_floe import FloeTTSService  # imported only when selected
 
     return FloeTTSService(model="openai/tts-1", voice=config.voice or "alloy")
 
@@ -425,7 +381,42 @@ stt_manager.register(
 )
 ```
 
+```bash
+export ZRB_LLM_SPEECH_BACKEND=floe      # text-to-speech
+export ZRB_LLM_DICTATION_BACKEND=floe   # speech-to-text
+export ZRB_LLM_SPEECH_VOICE=nova        # reaches the factory as config.voice
+zrb llm chat
+```
+
 The two registries are separate, so one name can mean a TTS and an STT service at once, and you can mix providers — Floe for speech, a local `whisper` for dictation. Any other provider follows the same shape: import its class from `pipecat.services.<provider>.tts` or `.stt` (or its own package) inside the factory and return an instance.
+
+Many Pipecat services take a `Settings` object instead of keyword arguments. Set only what zrb's config names, so an unset model or language keeps the service's own default. Check how the service finds its API key, too: Groq's speech-to-text, below, is built on the OpenAI client and does not read `GROQ_API_KEY` by itself:
+
+```python
+import os
+
+from zrb import stt_manager
+from zrb.llm.voice.spec import STTServiceSpec
+
+
+def create_groq_stt(config):
+    from pipecat.services.groq.stt import GroqSTTService
+
+    settings = GroqSTTService.Settings()
+    if config.stt_model:
+        settings.model = config.stt_model
+    if config.language:
+        settings.language = config.language
+    return GroqSTTService(api_key=os.environ["GROQ_API_KEY"], settings=settings)
+
+
+stt_manager.register(
+    "groq",
+    STTServiceSpec(name="groq", provider="openai",  # the client it imports
+                   is_local=False,
+                   doc="Groq's hosted Whisper", factory=create_groq_stt),
+)
+```
 
 | Spec field | Meaning |
 |---|---|
@@ -434,7 +425,7 @@ The two registries are separate, so one name can mean a TTS and an STT service a
 | `provider` | The importable module the service needs. If it is missing, zrb names it instead of failing inside the factory |
 | `is_local`, `doc` | How the service is labelled when zrb lists the choices |
 
-Pick a name zrb does not already handle itself. A registration replaces a Pipecat built-in of the same name (`kokoro`, `piper`, `pocket`; `whisper`, `moonshine`, `funasr`), but the backends zrb implements directly are matched first, so a service registered as `auto`, `termux`, `say`, `espeak-ng`, `openai` or `gemini` for speech, or `vosk`, `openai`, `google` or `multimodal` for dictation, is never used — hence `openai-tts` and `openai-stt` above.
+Pick a name zrb does not already handle itself. A registration replaces a Pipecat built-in of the same name (`kokoro`, `piper`, `pocket`; `whisper`, `moonshine`, `funasr`), but the backends zrb implements directly are matched first, so a service registered as `auto`, `termux`, `say`, `espeak-ng`, `openai` or `gemini` for speech, or `vosk`, `openai`, `google` or `multimodal` for dictation, is never used.
 
 Import the provider inside the factory, as above: `zrb_init.py` loads on every `zrb` command, and Pipecat takes seconds to import.
 
