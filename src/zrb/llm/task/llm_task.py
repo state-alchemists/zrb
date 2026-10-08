@@ -124,9 +124,10 @@ class LLMTask(BaseTask):
             attachment: Images or files to send alongside the message. A single
                 item, a list, or a callable taking the context.
             system_prompt: System prompt text, or a callable taking the context.
-                Overrides whatever `prompt_manager` would compose.
+                Ignored when `prompt_manager` is given.
             prompt_manager: `PromptManager` composing the system prompt from
-                sections. Defaults to the shared one.
+                sections. Defaults to one holding only `system_prompt`, with
+                no built-in sections.
             active_skills: Names of skills to pre-activate for this task.
             model: The model to use, as a name or a pydantic-ai `Model`. Defaults
                 to `CFG.LLM_MODEL`.
@@ -167,8 +168,8 @@ class LLMTask(BaseTask):
                 is used.
             history_processors: Callables rewriting history before each request,
                 run in order. This is the seam summarization uses.
-            summarize_commands: Aliases for the summarize command exposed to any
-                attached UI.
+            summarize_commands: Messages that, sent as the whole user message,
+                compress the conversation history instead of calling the model.
             hook_manager: `HookManager` supplying lifecycle hooks. Defaults to
                 the process-wide `hook_manager`.
             ui: UI receiving streamed output and prompts.

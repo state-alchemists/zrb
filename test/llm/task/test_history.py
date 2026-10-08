@@ -343,6 +343,20 @@ class TestHandleRunError:
         saved = history_manager.update.call_args[0][1]
         assert saved == []  # Not grown
 
+    def test_honors_an_overridden_context_length_check(self):
+        class ProviderTask(LLMTask):
+            def is_context_length_error(self, error: Exception) -> bool:
+                return "E413" in str(error)
+
+        error = ValueError("provider error E413")
+        error.zrb_history = []
+        history_manager = MagicMock()
+        task = ProviderTask(name="test-task")
+        task.handle_run_error(MagicMock(), history_manager, "test-convo", error)
+
+        saved = history_manager.update.call_args[0][1]
+        assert saved == []  # treated as context-length: not grown
+
     def test_no_op_when_error_has_no_history(self):
         error = ValueError("boom")  # no zrb_history attribute
         history_manager = MagicMock()

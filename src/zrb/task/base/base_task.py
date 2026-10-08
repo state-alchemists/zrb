@@ -58,8 +58,10 @@ class BaseTask(AnyTask):
         Args:
             name: Task name. Also the CLI sub-command name, so prefer
                 kebab-case (`build-image`).
-            color: 8-bit ANSI color code (0-255) for this task's log prefix.
-                Defaults to one derived from the name.
+            color: ANSI foreground color code for this task's log prefix, one
+                of `zrb.util.cli.style.VALID_COLORS` (30-37, 90-97); any other
+                value prints uncolored. Defaults to the next color in the
+                session's rotating palette.
             icon: Single-character emoji or glyph shown beside log lines.
             description: Help text shown by `zrb <group> <task> --help`.
                 Defaults to `name`.
@@ -201,7 +203,7 @@ class BaseTask(AnyTask):
 
     @property
     def color(self) -> int | None:
-        """8-bit ANSI color code for this task's log prefix, if one was set."""
+        """ANSI foreground color code for this task's log prefix, if one was set."""
         return self._color
 
     @property
