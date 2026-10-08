@@ -199,13 +199,13 @@ llm_chat.prepend_tool_policy(
     auto_approve("ListWorktrees"),
 )
 
-llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
-
 # Each reads its settings when a session starts, so zrb_init.py may change
 # them after this import.
 enable_camera(llm_chat)
 enable_dictation(llm_chat)
 enable_speech(llm_chat)
+
+llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
 
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)
