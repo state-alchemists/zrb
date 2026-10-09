@@ -48,9 +48,7 @@ def auto_approve(  # noqa: C901 -- registration/factory fn; mccabe sums nested h
                 return ToolApproved()
         else:
             for arg_name, pattern in kwargs_patterns.items():
-                if arg_name not in args or not re.search(
-                    pattern, str(args[arg_name])
-                ):
+                if arg_name not in args or not re.search(pattern, str(args[arg_name])):
                     return await next_handler(ui, call)
 
             return ToolApproved()
