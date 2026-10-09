@@ -403,7 +403,7 @@ A backend name only chooses the service; it does not switch the feature on. `ZRB
 
 The two registries are separate, so one name can mean a TTS and an STT service at once, and you can mix providers — Floe for speech, a local `whisper` for dictation. Any other provider follows the same shape: import its class from `pipecat.services.<provider>.tts` or `.stt` (or its own package) inside the factory and return an instance.
 
-Many Pipecat services take a `Settings` object instead of keyword arguments. Set only what zrb's config names, so an unset model or language keeps the service's own default. Check how the service finds its API key, too: Groq's speech-to-text, below, is built on the OpenAI client and does not read `GROQ_API_KEY` by itself:
+Many Pipecat services take a `Settings` object instead of keyword arguments. Set only what zrb's config names, so an unset model or language keeps the service's own default. Check how the service finds its API key, too: Groq's speech-to-text, below, is built on the OpenAI client and does not read `GROQ_API_KEY` by itself. It needs only `zrb[voice]`; the `pipecat-ai[groq]` extra is for Groq's TTS and LLM services:
 
 ```python
 import os
@@ -427,7 +427,7 @@ stt_manager.register(
     "groq",
     STTServiceSpec(
         name="groq",
-        provider="openai",  # the client it imports
+        provider="pipecat.services.groq.stt",
         is_local=False,
         doc="Groq's hosted Whisper",
         factory=create_groq_stt,
@@ -439,7 +439,7 @@ stt_manager.register(
 |---|---|
 | `name` | The name the env var or `backend=` selects |
 | `factory` | Called with the resolved `SpeechConfig` or `DictationConfig` when the service is first needed; returns the Pipecat service. Read `config.voice`, `config.language` or `config.stt_model` from it so the usual settings keep working |
-| `provider` | The importable module the service needs. If it is missing, zrb names it instead of failing inside the factory |
+| `provider` | A module that is importable only when the service can run. If it is missing, zrb names it instead of failing inside the factory. Name the provider's own package (`pipecat_floe`), or the Pipecat service module (`pipecat.services.groq.stt`) when the service needs nothing beyond `zrb[voice]` — not a package zrb always installs, such as `openai`, which would pass the check even without Pipecat |
 | `is_local`, `doc` | How the service is labelled when zrb lists the choices |
 
 Pick a name zrb does not already handle itself. A registration replaces a Pipecat built-in of the same name (`kokoro`, `piper`, `pocket`; `whisper`, `moonshine`, `funasr`), but the backends zrb implements directly are matched first, so a service registered as `auto`, `termux`, `say`, `espeak-ng`, `openai` or `gemini` for speech, or `vosk`, `openai`, `google` or `multimodal` for dictation, is never used.
