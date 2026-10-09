@@ -198,10 +198,12 @@ class ApiCallTask(BaseTask):
         return response.json()
 
 # Use it like any built-in task
-cli.add_task(ApiCallTask(
-    name="get-users",
-    endpoint="https://api.example.com/users",
-))
+cli.add_task(
+    ApiCallTask(
+        name="get-users",
+        endpoint="https://api.example.com/users",
+    )
+)
 ```
 
 ---

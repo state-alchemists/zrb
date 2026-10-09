@@ -85,20 +85,19 @@ A `PermissionPolicy` is an ordered tuple of `Rule` objects.
 ```python
 from zrb.llm.permission import PermissionPolicy, Rule, ALLOW, DENY, ASK, Capability
 
-my_policy = PermissionPolicy((
-    # Deny editing any .env or .git files
-    Rule("Edit", DENY, arg_pattern="*.env"),
-    Rule("Edit", DENY, arg_pattern="**/.git/**"),
-    
-    # Allow all reads
-    Rule(Capability.READ, ALLOW),
-    
-    # Force confirmation for all shell commands
-    Rule("Shell", ASK),
-    
-    # Deny everything else by default
-    Rule("*", DENY)
-))
+my_policy = PermissionPolicy(
+    (
+        # Deny editing any .env or .git files
+        Rule("Edit", DENY, arg_pattern="*.env"),
+        Rule("Edit", DENY, arg_pattern="**/.git/**"),
+        # Allow all reads
+        Rule(Capability.READ, ALLOW),
+        # Force confirmation for all shell commands
+        Rule("Shell", ASK),
+        # Deny everything else by default
+        Rule("*", DENY),
+    )
+)
 ```
 
 ### Rule Matching
