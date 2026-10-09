@@ -1,11 +1,15 @@
 """`enable_speech`: read replies, tool approvals and questions aloud.
 
 Everything is spoken by one background thread per session, in order, so a hook
-only queues text and returns. A reply is read whole, however long it is.
+only queues text and returns. A reply is read whole, however long it is,
+unless ``summarize_above_chars`` is set: a longer one is then spoken as the
+small model's summary, once the turn ends.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextvars
 import logging
 import time
 import weakref
@@ -21,6 +25,7 @@ from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import IsStale, Speaker, is_speaking
 from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
 from zrb.llm.speech.streamed_reply import StreamedReply
+from zrb.llm.speech.summary import SpeechSummaryError, summarize_for_speech
 from zrb.llm.speech.text import (
     clean_for_speech,
     fill_template,
@@ -246,7 +251,7 @@ class SpeechSession:
             return
         # The reply first: text flushed at a tool call's start counts as
         # speech, so the call is not announced on top of it.
-        if self._config.stream and "reply" in self._events:
+        if self.is_streaming_reply and "reply" in self._events:
             self.streamed_reply.handle_event(event)
         if "progress" in self._events:
             self.progress.handle_event(event)
@@ -285,7 +290,7 @@ class SpeechSession:
         if "reply" not in self._events:
             # Nothing to say here: a queued progress line is already stale.
             return HookResult(success=True)
-        if self._config.stream:
+        if self.is_streaming_reply:
             self.streamed_reply.flush()
             has_claimed_turn = self.streamed_reply.has_claimed_turn
             self.streamed_reply.reset()
@@ -323,9 +328,42 @@ class SpeechSession:
     def _is_own_session(self) -> bool:
         return current_session_key() == self._session_key
 
+    @property
+    def is_streaming_reply(self) -> bool:
+        """Whether the reply is spoken a sentence at a time as it is written.
+        A reply that may be summarized waits for its last word, so it is not."""
+        return bool(self._config.stream) and not self._summarize_above_chars
+
+    @property
+    def _summarize_above_chars(self) -> int:
+        return self._config.summarize_above_chars or 0
+
     def say_reply(self, reply: str) -> None:
-        """Speak *reply*, whole."""
-        self._say(clean_for_speech(reply))
+        """Speak *reply*: whole, or as a summary when its speakable text is
+        longer than ``summarize_above_chars``. The summary is made on the
+        speaker's thread, so the turn does not wait for the model."""
+        text = clean_for_speech(reply)
+        if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
+            self._say(text)
+            return
+        # The model settings a run scopes live in context variables, which the
+        # speaker's thread does not inherit.
+        context = contextvars.copy_context()
+        self._clock.mark()
+        self.speaker.say_later(lambda: context.run(self._summarize, text))
+
+    def _summarize(self, text: str) -> str:
+        try:
+            return asyncio.run(
+                summarize_for_speech(
+                    text,
+                    self._config.summary_model or None,
+                    self._config.summary_timeout or 0,
+                )
+            )
+        except SpeechSummaryError as exc:
+            logger.warning(f"Reading the reply whole, not summarized: {exc}")
+            return text
 
 
 def is_answered_since(ui: "AnyUI | None", asked_at: float) -> Callable[[], bool]:

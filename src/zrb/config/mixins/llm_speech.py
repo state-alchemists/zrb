@@ -3,7 +3,10 @@
 When enabled, replies are read aloud a sentence at a time as they stream
 (`LLM_SPEECH_STREAM`), along with tool approvals, questions, and a tool call
 that starts after a silence. With streaming off, the reply is read once the
-turn ends. Either way it is read whole, however long it is.
+turn ends. Either way it is read whole, however long it is, unless
+`LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` is set: a reply longer than that is then
+spoken as a short summary from the small model once the turn ends, and the
+reply is not streamed.
 
 Read when a chat session starts, not at import, so `zrb_init.py` may change
 any of these after importing zrb.
@@ -42,6 +45,9 @@ class LLMSpeechMixin:
         )
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
         self.DEFAULT_LLM_SPEECH_STREAM: str = "true"
+        self.DEFAULT_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS: str = "0"
+        self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
+        self.DEFAULT_LLM_SPEECH_SUMMARY_TIMEOUT: str = "15"
         self.DEFAULT_LLM_SPEECH_PROGRESS_INTERVAL: str = "8"
         self.DEFAULT_LLM_SPEECH_OPENAI_MODEL: str = "gpt-4o-mini-tts"
         self.DEFAULT_LLM_SPEECH_OPENAI_BASE_URL: str = "https://api.openai.com/v1"
@@ -162,8 +168,41 @@ class LLMSpeechMixin:
         doc=(
             "Speak a reply a sentence at a time while it is written, and the "
             "text before a tool call when the call starts, instead of the whole "
-            "reply once the turn ends. Either way the whole reply is read. "
-            "Default: true."
+            "reply once the turn ends. Either way the whole reply is read, "
+            "unless {ENV_PREFIX}_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS is set, "
+            "which turns streaming of the reply off. Default: true."
+        ),
+    )
+
+    LLM_SPEECH_SUMMARIZE_ABOVE_CHARS = EnvField(
+        int,
+        fallback=0,
+        doc=(
+            "A reply whose speakable text (code, tables and links left out) is "
+            "longer than this many characters is spoken as a short summary "
+            "from the small model ({ENV_PREFIX}_LLM_SPEECH_SUMMARY_MODEL) "
+            "instead of whole; the reply on screen is unchanged. It needs the "
+            "finished reply, so the reply is not streamed while this is set, "
+            "whatever {ENV_PREFIX}_LLM_SPEECH_STREAM says, and a slow or "
+            "failed summary falls back to reading the reply whole. 0 reads "
+            "every reply whole. Default: 0."
+        ),
+    )
+
+    LLM_SPEECH_SUMMARY_MODEL = EnvField(
+        str,
+        doc=(
+            "Model that summarizes a long reply for speech. Empty uses the "
+            "small model ({ENV_PREFIX}_LLM_SMALL_MODEL, else the main model)."
+        ),
+    )
+
+    LLM_SPEECH_SUMMARY_TIMEOUT = EnvField(
+        float,
+        fallback=15.0,
+        doc=(
+            "Seconds the summary may take before the reply is read whole "
+            "instead; 0 means no limit. Default: 15."
         ),
     )
 

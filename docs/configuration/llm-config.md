@@ -845,7 +845,10 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 | `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend (for `termux`, the `-v` variant); empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`, `af_heart` for `kokoro`, `en_US-ryan-high` for `piper`, `alba` for `pocket`) | (none) |
 | `ZRB_LLM_SPEECH_STYLE` | How `openai` and `gemini` should sound, in plain words (tone, pace, warmth); a direction, not read aloud. Empty uses the voice's default manner. The local engines ignore it | a warm, clear, conversational colleague |
 | `ZRB_LLM_SPEECH_RATE` | Words per minute for `say` and `espeak-ng` | `165` |
-| `ZRB_LLM_SPEECH_STREAM` | Speak a reply a sentence at a time while it is written, and the text before a tool call when the call starts. `off` reads the whole reply once the turn ends. Either way it is read whole, however long it is | `on` |
+| `ZRB_LLM_SPEECH_STREAM` | Speak a reply a sentence at a time while it is written, and the text before a tool call when the call starts. `off` reads the whole reply once the turn ends. Either way it is read whole, however long it is, unless `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` is set, which turns streaming of the reply off | `on` |
+| `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` | A reply whose speakable text is longer than this many characters is spoken as a short summary from the small model instead of whole; the reply on screen is unchanged. Needs the finished reply, so the reply is not streamed while this is set. `0` reads every reply whole | `0` |
+| `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Model that writes the summary. Empty uses the small model (`ZRB_LLM_SMALL_MODEL`, else the main model) | empty |
+| `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT` | Seconds the summary may take before the reply is read whole; `0` means no limit | `15` |
 | `ZRB_LLM_SPEECH_PROGRESS_INTERVAL` | With `progress` in `ZRB_LLM_SPEECH_EVENTS`, seconds of silence after which a tool call starting is announced; `0` announces nothing | `8` |
 | `ZRB_LLM_SPEECH_OPENAI_MODEL` | Model for `openai` | `gpt-4o-mini-tts` |
 | `ZRB_LLM_SPEECH_OPENAI_BASE_URL` | API base URL for `openai` | `https://api.openai.com/v1` |

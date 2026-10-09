@@ -35,8 +35,7 @@ RETIRED_SETTINGS: dict[str, str] = {
     ),
     # 3.14.0: speech reads the whole reply.
     "LLM_SPEECH_MAX_CHARS": "nothing: the whole reply is read",
-    "LLM_SPEECH_SUMMARIZE": "nothing: the whole reply is read",
-    "LLM_SPEECH_SUMMARY_MODEL": "nothing: the whole reply is read",
+    "LLM_SPEECH_SUMMARIZE": "LLM_SPEECH_SUMMARIZE_ABOVE_CHARS",
     "LLM_SPEECH_ON_SCREEN_NOTE": "nothing: the whole reply is read",
     # 3.10.0: voice became the dictation and camera features.
     "LLM_VOICE_ENABLED": "/voice is always offered",
