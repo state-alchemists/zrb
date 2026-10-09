@@ -104,13 +104,18 @@ def _search_with_python(
     return _format_results(raw_lines, abs_dir, query)
 
 
+# `path:line:content`. The path is matched lazily up to the first `:<digits>:`
+# so a Windows drive letter (`C:\notes\a.md:3:text`) stays in the path.
+_MATCH_LINE_RE = re.compile(r"^(.+?):(\d+):(.*)$")
+
+
 def _format_results(raw_lines: list[str], abs_dir: str, query: str) -> dict[str, Any]:
     results = []
     for line in raw_lines:
-        parts = line.split(":", 2)
-        if len(parts) < 3:
+        match = _MATCH_LINE_RE.match(line)
+        if not match:
             continue
-        file_path, line_num_str, content = parts
+        file_path, line_num_str, content = match.groups()
         rel = (
             os.path.relpath(file_path, abs_dir)
             if os.path.isabs(file_path)

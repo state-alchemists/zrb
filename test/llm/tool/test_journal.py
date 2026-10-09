@@ -117,13 +117,44 @@ def test_result_structure(journal_with_entries):
 
 
 def test_find_matches_with_ripgrep(journal_with_entries):
+    """The rg path runs `rg` and parses its output; no binary needs to exist."""
+    journal_file = os.path.join(journal_with_entries, "2024-01-02.md")
+    completed = MagicMock(
+        returncode=0, stdout=f"{journal_file}:1:Refactored the database layer.\n"
+    )
     with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"):
+        with (
+            patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"),
+            patch("zrb.llm.tool.journal.subprocess.run", return_value=completed) as run,
+        ):
             result = search_journal("database")
-    assert "results" in result
-    # rg path returns something (may return no matches if rg not installed, just no error)
-    assert "error" not in result
+    assert run.call_args.args[0][0] == "rg"
+    assert result["results"] == [
+        {
+            "file": "2024-01-02.md",
+            "line": "1",
+            "content": "Refactored the database layer.",
+        }
+    ]
+
+
+def test_rg_output_with_windows_drive_letter_is_parsed(journal_with_entries):
+    """`C:\\...` paths contain a colon; it belongs to the path, not the separator."""
+    completed = MagicMock(
+        returncode=0, stdout="C:\\notes\\2024-01-02.md:7:key: value\n"
+    )
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
+        with (
+            patch("zrb.llm.tool.journal.shutil.which", return_value="rg"),
+            patch("zrb.llm.tool.journal.subprocess.run", return_value=completed),
+        ):
+            result = search_journal("value")
+    entry = result["results"][0]
+    assert entry["line"] == "7"
+    assert entry["content"] == "key: value"
+    assert entry["file"].endswith("2024-01-02.md")
 
 
 def test_rg_subprocess_timeout_returns_error(journal_with_entries):

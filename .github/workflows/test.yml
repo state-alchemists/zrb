@@ -51,14 +51,24 @@ jobs:
       - name: Install ripgrep
         # file_search and the journal tool prefer `rg`; one test exercises the
         # ripgrep path directly and needs the binary present. Both non-Linux
-        # runners ship their package manager preinstalled.
+        # runners ship their package manager preinstalled. Package feeds fail
+        # transiently (choco returned 503 and the step still passed), so the
+        # install retries and the step fails if `rg` is still absent.
         shell: bash
         run: |
-          case "${{ runner.os }}" in
-            Linux)   sudo apt-get update && sudo apt-get install -y ripgrep ;;
-            macOS)   brew install ripgrep ;;
-            Windows) choco install ripgrep -y ;;
-          esac
+          install_rg() {
+            case "${{ runner.os }}" in
+              Linux)   sudo apt-get update && sudo apt-get install -y ripgrep ;;
+              macOS)   brew install ripgrep ;;
+              Windows) choco install ripgrep -y --no-progress ;;
+            esac
+          }
+          for attempt in 1 2 3; do
+            install_rg || true
+            command -v rg >/dev/null && break
+            [ "$attempt" -lt 3 ] && sleep $((attempt * 10))
+          done
+          rg --version
 
       - name: Build README.pypi.md
         # README.pypi.md is the readme Poetry packages (it is gitignored), so it
