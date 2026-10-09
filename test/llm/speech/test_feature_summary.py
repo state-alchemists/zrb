@@ -148,3 +148,15 @@ async def test_a_summary_is_dropped_when_speech_is_interrupted_meanwhile(summari
     session.interrupt()
 
     assert is_stale() is True
+
+
+@pytest.mark.asyncio
+async def test_a_summary_is_dropped_when_a_newer_reply_comes_first(summarizer):
+    session = _session(stream=False, summarize_above_chars=100)
+
+    await session.handle_stop(_stop(LONG))
+    await _heard(session)
+    is_stale = session.speaker.stale_checks[0]
+    await session.handle_stop(_stop("Done."))
+
+    assert is_stale() is True
