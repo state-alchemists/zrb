@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextvars
 import logging
+import threading
 import time
 import weakref
 from collections.abc import Callable
@@ -150,6 +151,7 @@ class SpeechSession:
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
         self._clock = SpeechClock()
+        self._interrupt_count = 0
         self.streamed_reply = StreamedReply(self._say)
         self.progress = ProgressNarrator(
             self._say,
@@ -214,6 +216,7 @@ class SpeechSession:
     def interrupt(self) -> None:
         """Stop speaking now and say nothing more of the response being
         written; `interrupt_speech`."""
+        self._interrupt_count += 1
         self.speaker.interrupt()
         self.streamed_reply.mute_response()
 
@@ -231,6 +234,7 @@ class SpeechSession:
     def toggle(self, kwargs: dict[str, str], ui: "BaseUI | None") -> str:
         self.speaker.is_enabled = not self.speaker.is_enabled
         if not self.speaker.is_enabled:
+            self._interrupt_count += 1
             self.speaker.clear()
             self.streamed_reply.reset()
         return f"🔊 Speech {'on' if self.speaker.is_enabled else 'off'}"
@@ -285,6 +289,7 @@ class SpeechSession:
                 self.streamed_reply.reset()
             # Whatever was being said belongs to the cancelled turn, and with
             # only `progress` on that is a progress line, not a reply.
+            self._interrupt_count += 1
             self.speaker.interrupt()
             return HookResult(success=True)
         if "reply" not in self._events:
@@ -340,17 +345,25 @@ class SpeechSession:
 
     def say_reply(self, reply: str) -> None:
         """Speak *reply*: whole, or as a summary when its speakable text is
-        longer than ``summarize_above_chars``. The summary is made on the
-        speaker's thread, so the turn does not wait for the model."""
+        longer than ``summarize_above_chars``. The summary is made on a thread of
+        its own, so neither the turn nor the speaker's queue waits for the
+        model, and it is dropped if speech is interrupted meanwhile."""
         text = clean_for_speech(reply)
         if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
             self._say(text)
             return
-        # The model settings a run scopes live in context variables, which the
-        # speaker's thread does not inherit.
+        # The model settings a run scopes live in context variables, which a
+        # new thread does not inherit.
         context = contextvars.copy_context()
-        self._clock.mark()
-        self.speaker.say_later(lambda: context.run(self._summarize, text))
+        interrupts = self._interrupt_count
+        threading.Thread(
+            target=context.run,
+            args=(self._say_summary, text, lambda: self._interrupt_count != interrupts),
+            daemon=True,
+        ).start()
+
+    def _say_summary(self, text: str, is_stale: IsStale) -> None:
+        self._say(self._summarize(text), is_stale=is_stale)
 
     def _summarize(self, text: str) -> str:
         try:

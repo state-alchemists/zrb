@@ -1,6 +1,6 @@
 """A reply longer than ``summarize_above_chars`` is spoken as a summary."""
 
-import threading
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -17,16 +17,12 @@ LONG = "The change touches three modules and adds a new knob. " * 6
 class FakeSpeaker:
     def __init__(self):
         self.said: list[str] = []
+        self.stale_checks = []
         self.is_enabled = True
 
     def say(self, text, is_stale=None):
         self.said.append(text)
-
-    def say_later(self, produce):
-        # The real speaker calls it from a thread of its own, with no loop.
-        thread = threading.Thread(target=lambda: self.said.append(produce()))
-        thread.start()
-        thread.join()
+        self.stale_checks.append(is_stale)
 
     def clear(self):
         pass
@@ -42,6 +38,14 @@ def _session(**config) -> SpeechSession:
     session = SpeechSession(SpeechConfig(enabled=True, **config).resolve())
     session.speaker = FakeSpeaker()
     return session
+
+
+async def _heard(session, count: int = 1) -> None:
+    """Wait for the summary thread to speak."""
+    for _ in range(500):
+        if len(session.speaker.said) >= count:
+            return
+        await asyncio.sleep(0.01)
 
 
 def _stop(message: str) -> HookContext:
@@ -79,6 +83,7 @@ async def test_a_long_reply_is_spoken_as_its_summary(summarizer):
     )
 
     await session.handle_stop(_stop(LONG))
+    await _heard(session)
 
     assert session.speaker.said == ["Three modules changed."]
     assert summarizer == [(LONG.strip(), "some:model", 3)]
@@ -99,6 +104,7 @@ async def test_a_reply_is_read_whole_when_the_knob_is_off(summarizer):
     session = _session(stream=False, summarize_above_chars=0)
 
     await session.handle_stop(_stop(LONG))
+    await _heard(session)
 
     assert session.speaker.said == [LONG.strip()]
     assert summarizer == []
@@ -111,6 +117,8 @@ async def test_the_reply_is_not_streamed_while_summarizing(summarizer):
     session.handle_stream_event(_text_delta("A whole sentence is here now. "))
     assert session.speaker.said == []
     await session.handle_stop(_stop(LONG))
+    await _heard(session)
+    await _heard(session)
 
     assert session.speaker.said == ["Three modules changed."]
 
@@ -124,5 +132,19 @@ async def test_a_failed_summary_leaves_the_reply_read_whole(monkeypatch):
     session = _session(stream=False, summarize_above_chars=100)
 
     await session.handle_stop(_stop(LONG))
+    await _heard(session)
 
     assert session.speaker.said == [LONG.strip()]
+
+
+@pytest.mark.asyncio
+async def test_a_summary_is_dropped_when_speech_is_interrupted_meanwhile(summarizer):
+    session = _session(stream=False, summarize_above_chars=100)
+
+    await session.handle_stop(_stop(LONG))
+    await _heard(session)
+    is_stale = session.speaker.stale_checks[0]
+    assert is_stale() is False
+    session.interrupt()
+
+    assert is_stale() is True
