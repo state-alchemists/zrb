@@ -92,6 +92,12 @@ def test_env_overrides_default(host, monkeypatch):
     assert host.PLAIN == 99
 
 
+def test_a_bad_value_names_the_alias_that_supplied_it(host, monkeypatch):
+    monkeypatch.setenv("TESTCFG_OLD_NAME", "nope")
+    with pytest.raises(ValueError, match="TESTCFG_OLD_NAME='nope'"):
+        host.ALIASED
+
+
 def test_alias_read_order(host, monkeypatch):
     monkeypatch.setenv("TESTCFG_OLD_NAME", "5")
     assert host.ALIASED == 5
