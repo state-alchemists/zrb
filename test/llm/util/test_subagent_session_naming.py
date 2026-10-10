@@ -66,3 +66,17 @@ def test_subagent_only_directories_excludes_history_root(tmp_path):
 
 def test_subagent_only_directories_missing_subagent_root_returns_empty(tmp_path):
     assert subagent_only_directories(str(tmp_path)) == []
+
+
+def test_a_renamed_conversation_keeps_its_sub_agent_transcript_names():
+    from zrb.llm.util.subagent_session_naming import (
+        format_delegated_session_name,
+        parse_delegated_session,
+    )
+
+    name = format_delegated_session_name(
+        "bold-arch-1234-greetings", "reviewer", "abcd1234"
+    )
+
+    assert name == "bold-arch-1234-sub-reviewer-abcd1234"
+    assert parse_delegated_session(name) == ("bold-arch-1234", "reviewer")

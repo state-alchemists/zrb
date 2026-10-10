@@ -12,12 +12,25 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.history_manager.file_history_manager import safe_segment
+from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
-from zrb.llm.util.subagent_session_naming import parse_delegated_session
+from zrb.llm.util.conversation_naming import (
+    ConversationNamingError,
+    should_auto_name,
+    suggest_slug,
+    with_slug,
+)
+from zrb.llm.util.subagent_session_naming import (
+    parse_delegated_agent_id,
+    parse_delegated_session,
+)
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
+from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
     from zrb.llm.snapshot.manager import SnapshotManager
@@ -26,11 +39,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+_AUTO_NAME_POLL_SECONDS = 0.2
+
+
 class BaseUIConversationCommands:
     """Conversation-management slash commands for BaseUI."""
 
     def __init__(self, base_ui: "BaseUI") -> None:
         self._base_ui = base_ui
+        # One naming task per conversation, so switching sessions mid-naming
+        # drops nothing.
+        self._auto_name_tasks: dict[str, asyncio.Task] = {}
 
     # --- exit / info ------------------------------------------------------
 
@@ -107,6 +126,92 @@ class BaseUIConversationCommands:
         self._base_ui.background_tasks.add(task)
         task.add_done_callback(self._base_ui.background_tasks.discard)
 
+    # --- auto-naming (ADR-0109) --------------------------------------------
+
+    def schedule_auto_name(self, user_message: str) -> None:
+        """After a turn, rename a conversation that still has its generated
+        name from *user_message*, in the background. Silent on any failure."""
+        ui = self._base_ui
+        name = ui.conversation_session_name
+        if (
+            name in self._auto_name_tasks
+            or not hasattr(ui.history_manager, "rename")
+            or not should_auto_name(name)
+        ):
+            return
+        task = asyncio.get_running_loop().create_task(
+            self._auto_name(name, user_message)
+        )
+        self._auto_name_tasks[name] = task
+        ui.background_tasks.add(task)
+        task.add_done_callback(ui.background_tasks.discard)
+
+    async def _auto_name(self, old_name: str, user_message: str) -> None:
+        ui = self._base_ui
+        try:
+            slug = await suggest_slug(user_message)
+            # A turn still running would save under the old name, so wait for
+            # it to end; a name chosen meanwhile stays.
+            while ui.is_thinking:
+                await asyncio.sleep(_AUTO_NAME_POLL_SECONDS)
+            if ui.conversation_session_name != old_name:
+                return
+            new_name = with_slug(old_name, slug)
+            ui.history_manager.rename(old_name, new_name)  # type: ignore[attr-defined]
+            if ui.snapshot_manager is not None:
+                self._schedule_history_copy(ui.snapshot_manager, old_name, new_name)
+            ui.conversation_session_name = new_name
+            ui.append_to_output(
+                stylize_muted(f"\n  🔖 Conversation named: {new_name}\n")
+            )
+        except (ConversationNamingError, OSError) as e:
+            CFG.LOGGER.debug(f"Auto-naming '{old_name}' failed: {e}")
+        finally:
+            self._auto_name_tasks.pop(old_name, None)
+
+    def restore_subagent_sessions(self, name: str) -> int:
+        """Re-register the sub-agent transcripts saved under conversation *name*
+        as idle live sessions (ADR-0109); returns how many were added."""
+        if parse_delegated_session(name) is not None:
+            return 0
+        # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.agent.subagent.manager import sub_agent_manager
+        from zrb.llm.tool.delegate import persist_subagent_history
+        from zrb.llm.ui.buffered_ui import BufferedUI
+
+        ui = self._base_ui
+        session_id = get_session_ownership_key(name)
+        saved_names = ui.history_manager.search("")
+        found: dict[str, tuple[str, list, str]] = {}
+        for saved in saved_names:
+            delegated = parse_delegated_session(saved)
+            agent_id = parse_delegated_agent_id(saved)
+            if (
+                delegated is None
+                or delegated[0] != safe_segment(get_conversation_key(name))
+                or agent_id is None
+                or agent_id in found
+                or live_subagent_session_registry.get(session_id, agent_id)
+                or sub_agent_manager.get_agent_definition(delegated[1]) is None
+            ):
+                continue
+            history = ui.history_manager.load(saved)
+            if not history:  # missing or unreadable: nothing to continue from
+                continue
+            found[agent_id] = (delegated[1], history, saved)
+        # Registered only once every transcript has loaded, so a failed load
+        # leaves no half-restored sessions behind.
+        for agent_id, (agent_name, history, saved) in found.items():
+            buffered = BufferedUI(ui, session_id=session_id)
+            buffered.set_activity_id(agent_id)
+            entry = live_subagent_session_registry.restore_session(
+                session_id, agent_id, agent_name, sub_agent_manager, buffered, history
+            )
+            # Turns sent to a restored sub-agent are saved like the original's.
+            entry.persist_history = partial(persist_subagent_history, saved)
+        return len(found)
+
     def handle_load_command(self, text: str) -> bool:
         text = text.strip()
         if self._missing_argument_warning(
@@ -129,6 +234,7 @@ class BaseUIConversationCommands:
                     # past sessions' spend is not persisted, so start fresh.
                     self._base_ui.usage.reset()
                     self.apply_persona_for_session(name)
+                    self.restore_subagent_sessions(name)
                 except Exception as e:
                     # Roll back both the session-name switch (or later turns
                     # persist under the wrong conversation) and any partial

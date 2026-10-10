@@ -45,7 +45,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/model <name>` | Switch LLM model (e.g., `/model openai:gpt-4o`) |
 | `/set <name> <value>` | Change a setting for the rest of the process, e.g. `/set LLM_SHOW_TOOL_CALL_RESULT on`. Any `CFG` field settable from Python is accepted (name without the `ZRB_` prefix, case-insensitive); Tab completes names, and values with model names, `on`/`off`, or the current value. `/set model`, `/set small_model` and `/set multimodal_model` switch that model live, like `/model`. Nothing is written to disk |
 | `/yolo` or `/yolo <tools>` | Toggle auto-execute mode. With tool names (e.g., `/yolo Write,Edit`), selectively auto-approve only those tools |
-| `/load <name>`, `/resume <name>` | Load a named session |
+| `/load <name>`, `/resume <name>` | Load a named session, and re-register its saved sub-agent transcripts as idle sessions you can message |
 | `/save <name>` | Save current session |
 | `/attach <file_path>` | Attach a file to next message (capped by `LLM_MAX_ATTACHMENT_BYTES`, default 20MB; content is sniffed against its extension) |
 | `/photo [device]`, `/p [device]` | Capture a photo from the camera and attach it to the next message (device is optional and tab-completes; auto-detected per platform) |

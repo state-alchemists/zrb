@@ -71,7 +71,7 @@ class FakeLiveRegistry:
         return session.cancel_result if hasattr(session, "cancel_result") else True
 
 
-def _session(agent_id, agent_name="researcher", buffer_text=""):
+def _session(agent_id, agent_name="researcher", buffer_text="", title=""):
     buffered_ui = MagicMock()
     buffered_ui.get_buffered_output.return_value = buffer_text
     return SimpleNamespace(
@@ -79,6 +79,7 @@ def _session(agent_id, agent_name="researcher", buffer_text=""):
         agent_name=agent_name,
         buffered_ui=buffered_ui,
         state="idle",
+        title=title,
     )
 
 
@@ -381,6 +382,18 @@ def test_picker_renders_running_and_finished_rows():
     assert "reviewer" in text
     assert "[finished]" in text
     assert "↑/↓ move · enter talk · esc cancel" in text
+
+
+def test_picker_shows_a_titled_session_topic():
+    ui = FakeUI()
+    _open(ui, [_session("a", agent_name="reviewer", title="fix-login-timeout")])
+    with patch(
+        "zrb.llm.ui.default.agent_picker.agent_activity_registry",
+        MagicMock(active=lambda session_id: []),
+    ):
+        text = "".join(t for _s, t in ui.get_agent_picker_text())
+
+    assert "reviewer · fix-login-timeout" in text
 
 
 def test_picker_render_empty_when_closed():

@@ -30,6 +30,7 @@ from zrb.llm.tool.delegate_background import (
     create_background_delegate_tool,
     create_get_delegation_result_tool,
 )
+from zrb.llm.tool.delegate_message import create_send_message_to_subagent_tool
 from zrb.llm.tool_call import (
     auto_approve,
     read_file_validation_policy,
@@ -124,6 +125,7 @@ def _delegate_tool_factory(ctx):
         _tool_factory(create_search_agent_tool(), defer_loading=False),
         _tool_factory(create_background_delegate_tool()),
         _tool_factory(create_get_delegation_result_tool()),
+        _tool_factory(create_send_message_to_subagent_tool()),
     ]
 
 

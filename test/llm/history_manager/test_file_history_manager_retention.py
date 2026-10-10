@@ -53,6 +53,20 @@ def test_an_expired_auto_named_conversation_is_pruned_with_its_backups(
     assert os.path.exists(fresh)
 
 
+def test_an_expired_topic_named_conversation_is_pruned_too(history_dir, retention):
+    old = _write(history_dir, "bold-arch-1234-greetings", age_seconds=3 * 86400)
+    old_backup = _write(
+        history_dir,
+        "bold-arch-1234-greetings-2024-01-01-10-00-00",
+        age_seconds=3 * 86400,
+    )
+
+    _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
+
+    assert not os.path.exists(old)
+    assert not os.path.exists(old_backup)
+
+
 def test_a_named_conversation_is_kept_however_old(history_dir, retention):
     named = _write(history_dir, "my-project", age_seconds=365 * 86400)
 
@@ -86,3 +100,81 @@ def test_zero_retention_keeps_every_conversation(history_dir, retention):
     _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
 
     assert os.path.exists(old)
+
+
+def test_a_rename_is_refused_when_the_unsaved_history_cannot_be_written(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    manager.update(
+        "bold-arch-1234", [ModelRequest(parts=[UserPromptPart(content="hi")])]
+    )
+
+    with patch("builtins.open", side_effect=OSError("disk full")):
+        with pytest.raises(OSError):
+            manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert manager.is_dirty("bold-arch-1234")
+    assert manager.load("bold-arch-1234")
+
+
+def test_a_rename_never_overwrites_an_existing_conversation(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "bold-arch-1234")
+    taken = _write(history_dir, "bold-arch-1234-greetings")
+
+    with pytest.raises(OSError):
+        manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert os.path.exists(os.path.join(history_dir, "bold-arch-1234.json"))
+    assert open(taken).read() == "[]"
+
+
+def test_a_legacy_delegated_transcript_is_not_pruned_as_a_conversation(
+    history_dir, retention
+):
+    legacy = _write(
+        history_dir, "bold-arch-1234-sub-reviewer-abcd1234", age_seconds=3 * 86400
+    )
+
+    _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
+
+    assert os.path.exists(legacy)
+
+
+def test_a_rename_without_saved_history_is_refused(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+
+    with pytest.raises(OSError, match="no saved history"):
+        manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+
+def test_a_rename_that_cannot_remove_the_source_leaves_no_duplicate(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "bold-arch-1234")
+
+    with patch("os.unlink", side_effect=[OSError("busy"), None]):
+        with pytest.raises(OSError, match="busy"):
+            manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert os.path.exists(os.path.join(history_dir, "bold-arch-1234.json"))
+
+
+def test_a_rename_onto_a_conversation_open_in_memory_is_refused(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "bold-arch-1234")
+    manager.update(
+        "bold-arch-1234-greetings", [ModelRequest(parts=[UserPromptPart(content="b")])]
+    )
+
+    with pytest.raises(OSError, match="open in memory"):
+        manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert os.path.exists(os.path.join(history_dir, "bold-arch-1234.json"))
+
+
+def test_a_rename_that_cannot_undo_its_link_names_both_files(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "bold-arch-1234")
+
+    with patch("os.unlink", side_effect=OSError("busy")):
+        with pytest.raises(OSError, match="left both"):
+            manager.rename("bold-arch-1234", "bold-arch-1234-greetings")

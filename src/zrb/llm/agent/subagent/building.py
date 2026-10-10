@@ -20,6 +20,7 @@ from zrb.llm.agent.subagent.tool_resolver import (
     resolve_tools_by_name,
     resolved_tool_name,
 )
+from zrb.llm.agent.subagent.parent_message import send_message_to_parent
 from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.factory_resolver import resolve_factory_items
@@ -93,7 +94,7 @@ class SubAgentBuilding:
         return create_agent(
             model=resolved.model,
             system_prompt=resolved.system_prompt,
-            tools=resolved.tools,
+            tools=[*resolved.tools, send_message_to_parent],
             toolsets=resolved.toolsets,
             history_processors=[create_summarizer_history_processor()],
             yolo=resolved.yolo,

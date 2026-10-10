@@ -77,6 +77,8 @@ flowchart TD
 | `DelegateToAgent` | `src/zrb/llm/tool/delegate.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree |
 | `DelegateToAgentBackground` | `src/zrb/llm/tool/delegate_background.py` | Starts a child detached and returns a handle; `GetDelegationResult` collects it |
 | `run_agent_task` | `src/zrb/llm/tool/delegate.py` | The shared child run: build, envelope, hooks, `run_agent`, transcript, result |
+| `send_message_to_subagent` | `src/zrb/llm/tool/delegate_message.py` | The parent's tool to message a live child; the message names the main agent as sender |
+| `send_message_to_parent` | `src/zrb/llm/agent/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
 | `BufferedUI` | `src/zrb/llm/ui/buffered_ui.py` | A child's own view: buffers output, forwards approvals to the parent UI |
 | `LiveSubAgentSessionRegistry` | `src/zrb/llm/agent/subagent/live_session.py` | Children a human can open and keep talking to, for the rest of the chat session |
 | `AuthoritySnapshot` | `src/zrb/llm/agent/run/authority_snapshot.py` | The permission policy, yolo, sandbox, hook manager, approval handler (tool policies, formatters, response handlers) and approval channel captured at delegation |
@@ -125,6 +127,10 @@ sequenceDiagram
     end
 ```
 
+**Agents messaging each other.** The same registry carries agent-originated messages (ADR-0108). `send_message_to_subagent` steers into a running child or continues an idle one; `send_message_to_parent` submits to the parent UI, which steers into the main agent's live turn or queues it as its next one. Each message starts with a header naming its sender. A child's message reaches the parent mid-run only with background delegation; under synchronous `DelegateToAgent` the parent is blocked, so it arrives in the parent's next turn.
+
+**After a restart.** `/load <conversation>` re-registers that conversation's saved child transcripts as idle sessions (ADR-0109). They carry no `AuthoritySnapshot`, so a continuation runs under the permissions in force when it starts. Restore resolves agents through the default `sub_agent_manager`, so a transcript from a delegation made with a custom `SubAgentManager` is not restored. A restored session shows its agent name and no topic title. Transcripts are named after the conversation's key (its generated name without the topic added by auto-naming), so renaming a conversation does not move them.
+
 ### Variations
 
 | Case | Where it is decided | What is different |
@@ -147,6 +153,7 @@ sequenceDiagram
 | Change the envelope, fan-out or the child run | `src/zrb/llm/tool/delegate.py` | `test/llm/tool/` |
 | Change background handles and waiting | `src/zrb/llm/tool/delegate_background.py` | `test/llm/tool/test_delegate_background_results.py` |
 | Change follow-ups to a finished child | `src/zrb/llm/agent/subagent/live_session.py` | `test/llm/agent/subagent/test_live_session_registry.py` |
+| Change agent-to-agent messages | `src/zrb/llm/tool/delegate_message.py`, `src/zrb/llm/agent/subagent/parent_message.py` | `test/llm/tool/test_delegate_message.py` |
 | Change what authority is captured | `src/zrb/llm/agent/run/authority_snapshot.py` | `test/llm/agent/run/test_authority_snapshot.py` |
 
 ## See Also

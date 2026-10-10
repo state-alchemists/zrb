@@ -20,7 +20,7 @@ from zrb.llm.util.subagent_session_naming import (
 )
 from zrb.util.match import fuzzy_match
 from zrb.util.string.conversion import to_string
-from zrb.util.string.name import is_random_name
+from zrb.util.string.name import has_random_name_prefix
 from zrb.util.todo.duration import parse_duration
 
 # Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
@@ -39,7 +39,7 @@ _BACKUP_FILENAME_PATTERN = re.compile(
 _MAX_CACHED_CONVERSATIONS = 8
 
 
-def _safe_segment(name: str) -> str:
+def safe_segment(name: str) -> str:
     """A filesystem-safe single path segment for *name* (also used for the
     per-agent-type subdirectory, which is the agent name)."""
     safe = "".join(c for c in name if c.isalnum() or c in (" ", ".", "_", "-")).strip()
@@ -228,6 +228,61 @@ class FileHistoryManager(AnyHistoryManager):
                 plain=True,
             )
 
+    def rename(self, conversation_name: str, new_name: str) -> None:
+        """Move one conversation's history file to *new_name* (ADR-0109).
+
+        Sub-agent transcripts stay where they are: they hang off the
+        conversation's key, which a rename keeps. Timestamped backups stay
+        under the old name. For ordinary conversations only (auto-naming
+        renames nothing else), so the legacy delegated-transcript path never
+        applies.
+
+        Raises `OSError`, leaving everything in place, when the unsaved
+        history cannot be written, there is no saved history to move,
+        *new_name* exists on disk or is open in memory, or the filesystem
+        cannot hard-link. The target is
+        created exclusively (`os.link`), so it is never overwritten, even by a
+        concurrent writer."""
+        self.save(conversation_name, write_backup=False)
+        if conversation_name in self._dirty:
+            raise OSError(
+                f"Cannot rename '{conversation_name}': its unsaved history "
+                "could not be written, so it stays under its current name."
+            )
+        source = self._get_file_path(conversation_name)
+        target = self._get_file_path(new_name)
+        if new_name in self._cache or new_name in self._dirty:
+            raise OSError(
+                f"Cannot rename '{conversation_name}' to '{new_name}': that "
+                "conversation is already open in memory and would be overwritten."
+            )
+        if not os.path.exists(source):
+            raise OSError(
+                f"Cannot rename '{conversation_name}': it has no saved history "
+                "to move, so it keeps its current name."
+            )
+        try:
+            os.link(source, target)
+        except FileExistsError as e:
+            raise OSError(
+                f"Cannot rename '{conversation_name}' to '{new_name}': "
+                f"{target} already exists and would be overwritten."
+            ) from e
+        try:
+            os.unlink(source)
+        except OSError as e:
+            try:
+                os.unlink(target)  # undo the link, so nothing is duplicated
+            except OSError:
+                raise OSError(
+                    f"Renaming '{conversation_name}' left both {source} and "
+                    f"{target} in place; remove the one you do not want."
+                ) from e
+            raise
+        self._cache.pop(conversation_name, None)
+        self._cache_mtime.pop(conversation_name, None)
+        self._dirty.discard(conversation_name)
+
     def search(self, keyword: str) -> list[str]:
         if not os.path.exists(self._history_dir):
             return []
@@ -387,11 +442,11 @@ class FileHistoryManager(AnyHistoryManager):
         """The pre-`subagent/`-layout location for a delegated transcript:
         flat in the history root, next to ordinary sessions."""
         return os.path.join(
-            self._history_dir, f"{_safe_segment(conversation_name)}.json"
+            self._history_dir, f"{safe_segment(conversation_name)}.json"
         )
 
     def _get_file_path(self, conversation_name: str) -> str:
-        safe_name = _safe_segment(conversation_name)
+        safe_name = safe_segment(conversation_name)
         delegated = parse_delegated_session(safe_name)
         if delegated is not None:
             # Delegated sub-agent transcripts live in their own per-agent-type
@@ -400,7 +455,7 @@ class FileHistoryManager(AnyHistoryManager):
             return os.path.join(
                 self._history_dir,
                 SUBAGENT_HISTORY_SUBDIR,
-                _safe_segment(delegated[1]),
+                safe_segment(delegated[1]),
                 f"{safe_name}.json",
             )
         return os.path.join(self._history_dir, f"{safe_name}.json")
@@ -454,7 +509,7 @@ class FileHistoryManager(AnyHistoryManager):
         if retention <= 0:
             return
         cutoff = time.time() - retention
-        protected = {_safe_segment(current), *map(_safe_segment, self._dirty)}
+        protected = {safe_segment(current), *map(safe_segment, self._dirty)}
         try:
             entries = list(os.scandir(self._history_dir))
         except OSError:
@@ -464,7 +519,11 @@ class FileHistoryManager(AnyHistoryManager):
                 continue
             match = _BACKUP_FILENAME_PATTERN.match(entry.name)
             base = match.group("base") if match else entry.name[: -len(".json")]
-            if not is_random_name(base) or base in protected:
+            if (
+                not has_random_name_prefix(base)
+                or parse_delegated_session(base) is not None
+                or base in protected
+            ):
                 continue
             try:
                 if entry.is_file() and entry.stat().st_mtime < cutoff:

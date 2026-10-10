@@ -33,6 +33,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SNAPSHOT_OPERATION_TIMEOUT: str = "120"
         self.DEFAULT_LLM_SNAPSHOT_LOCK_TIMEOUT: str = "60"
         self.DEFAULT_LLM_HISTORY_RETENTION: str = "30d"
+        self.DEFAULT_LLM_AUTO_NAME_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
@@ -112,6 +113,24 @@ class LLMContentMixin:
             "snapshot (e.g. 30d, 2w); older histories are dropped, and their "
             "files pruned from the snapshot store, when a later session starts "
             "in the same directory. 0 keeps every history."
+        ),
+    )
+
+    LLM_AUTO_NAME_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Rename a conversation that still has its generated name, after "
+            "its first message, to `<generated-name>-<topic>` using the small "
+            "model. A name you chose is never renamed."
+        ),
+    )
+
+    LLM_AUTO_NAME_MODEL = EnvField(
+        str,
+        doc=(
+            "Model that names a conversation. Empty uses the small model "
+            "({ENV_PREFIX}_LLM_SMALL_MODEL, else the main model)."
         ),
     )
 
@@ -262,6 +281,17 @@ class LLMContentMixin:
             "/ LLM_SNAPSHOT_LOOSE_MAX_MB — past that, rewind is off for the "
             "session and says why. A file larger than LLM_SNAPSHOT_FILE_MAX_MB "
             "is left out, as if ignored: rewind neither restores nor removes it."
+        ),
+    )
+
+    LLM_AGENT_MESSAGE_LIMIT = EnvField(
+        int,
+        fallback=20,
+        doc=(
+            "Maximum messages the main agent and one delegated sub-agent may "
+            "send each other (both directions together) before the send "
+            "tools refuse, so two agents cannot answer each other forever. "
+            "Human messages do not count."
         ),
     )
 
