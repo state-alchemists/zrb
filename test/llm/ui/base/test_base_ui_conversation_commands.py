@@ -484,3 +484,26 @@ def test_load_restores_sub_agents_of_a_name_that_needed_sanitizing(conv_ui):
         conv_ui.handle_load_command("load customer/acme")
 
     assert [s.agent_id for s in registry.active("customer/acme")] == ["abcd1234"]
+
+
+def test_a_failed_load_leaves_no_half_restored_sub_agent_sessions(conv_ui):
+    # lazy: the registry pulls in pydantic_ai
+    from zrb.llm.agent.subagent.live_session import LiveSubAgentSessionRegistry
+
+    registry = LiveSubAgentSessionRegistry()
+    conv_ui.history_manager.search.return_value = [
+        "second-sub-reviewer-abcd1234",
+        "second-sub-reviewer-ffff0000",
+    ]
+    conv_ui.history_manager.load.side_effect = [[], ["ok"], RuntimeError("corrupt")]
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            registry,
+        ),
+        patch("zrb.llm.agent.subagent.manager.sub_agent_manager", MagicMock()),
+    ):
+        conv_ui.handle_load_command("load second")
+
+    assert registry.active("second") == []
+    assert conv_ui.conversation_session_name == "session-one"

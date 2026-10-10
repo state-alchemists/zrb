@@ -471,3 +471,17 @@ def test_rekey_keeps_sessions_addressable_under_the_new_name(
     assert registry.get("new", "a1") is entry
     assert entry.session_id == "new"
     buffered_ui.set_session_id.assert_called_once_with("new")
+
+
+def test_rekey_refuses_to_replace_a_session_already_at_the_destination(
+    registry, buffered_ui, sub_agent_manager
+):
+    mine = registry.add_session("old", "a1", "reviewer", sub_agent_manager, buffered_ui)
+    other = registry.add_session("new", "a1", "planner", sub_agent_manager, buffered_ui)
+
+    assert registry.can_rekey("old", "new") is False
+    with pytest.raises(ValueError):
+        registry.rekey("old", "new")
+
+    assert registry.get("old", "a1") is mine
+    assert registry.get("new", "a1") is other

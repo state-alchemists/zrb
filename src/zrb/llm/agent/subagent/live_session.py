@@ -156,9 +156,21 @@ class LiveSubAgentSessionRegistry:
             entry.active_task = asyncio.ensure_future(_continue_live_session(entry))
         return True
 
+    def can_rekey(self, old_id: str, new_id: str) -> bool:
+        """Whether *old_id*'s sessions can move to *new_id* without replacing
+        a session already registered there."""
+        return not (
+            self._sessions.get(old_id, {}).keys() & self._sessions.get(new_id, {}).keys()
+        )
+
     def rekey(self, old_id: str, new_id: str) -> None:
         """Move *old_id*'s sessions to *new_id* when their conversation is
         renamed, so they stay listed and addressable under the new name."""
+        if not self.can_rekey(old_id, new_id):
+            raise ValueError(
+                f"Cannot move sub-agent sessions from '{old_id}' to '{new_id}': "
+                "the destination already has sessions with the same agent ids."
+            )
         bucket = self._sessions.pop(old_id, None)
         if not bucket or old_id == new_id:
             return

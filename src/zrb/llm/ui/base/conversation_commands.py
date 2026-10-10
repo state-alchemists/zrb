@@ -158,6 +158,8 @@ class BaseUIConversationCommands:
             if ui.conversation_session_name != old_name:
                 return
             new_name = with_slug(old_name, source[2])
+            if not self._can_rekey_live_sessions(old_name, new_name):
+                return
             ui.history_manager.rename(old_name, new_name)  # type: ignore[attr-defined]
             if ui.snapshot_manager is not None:
                 self._schedule_history_copy(ui.snapshot_manager, old_name, new_name)
@@ -168,6 +170,15 @@ class BaseUIConversationCommands:
             CFG.LOGGER.debug(f"Auto-naming '{old_name}' failed: {e}")
         finally:
             self._auto_name_task = None
+
+    def _can_rekey_live_sessions(self, old_name: str, new_name: str) -> bool:
+        # lazy: transitively heavy via internal — live_session.py imports
+        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+
+        return live_subagent_session_registry.can_rekey(
+            get_session_ownership_key(old_name), get_session_ownership_key(new_name)
+        )
 
     def _rekey_live_sessions(self, old_name: str, new_name: str) -> None:
         # lazy: transitively heavy via internal — live_session.py imports
@@ -190,8 +201,8 @@ class BaseUIConversationCommands:
 
         ui = self._base_ui
         session_id = get_session_ownership_key(name)
-        restored = 0
         saved_names = ui.history_manager.search("")
+        found = []
         for saved in saved_names:
             delegated = parse_delegated_session(saved)
             agent_id = parse_delegated_agent_id(saved)
@@ -203,18 +214,16 @@ class BaseUIConversationCommands:
                 or sub_agent_manager.get_agent_definition(delegated[1]) is None
             ):
                 continue
+            found.append((agent_id, delegated[1], ui.history_manager.load(saved)))
+        # Registered only once every transcript has loaded, so a failed load
+        # leaves no half-restored sessions behind.
+        for agent_id, agent_name, history in found:
             buffered = BufferedUI(ui, session_id=session_id)
             buffered.set_activity_id(agent_id)
             live_subagent_session_registry.restore_session(
-                session_id,
-                agent_id,
-                delegated[1],
-                sub_agent_manager,
-                buffered,
-                ui.history_manager.load(saved),
+                session_id, agent_id, agent_name, sub_agent_manager, buffered, history
             )
-            restored += 1
-        return restored
+        return len(found)
 
     def handle_load_command(self, text: str) -> bool:
         text = text.strip()
