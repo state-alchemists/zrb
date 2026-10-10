@@ -114,7 +114,7 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 | `GetDelegationResult` | Poll a background delegation's handle for its result. |
 | `send_message_to_subagent` | Message a delegated sub-agent that is running or idle; the sub-agent sees who sent it. Bounded by `LLM_AGENT_MESSAGE_LIMIT`. |
 
-A delegated sub-agent also gets `send_message_to_parent`, which messages the main agent without ending its run.
+A delegated sub-agent built from a prompt-based definition also gets `send_message_to_parent`, which messages the main agent without ending its run. A definition supplied as a ready `agent_instance` or `agent_factory` is used as is and does not get it.
 
 The four delegation tools belong to the built-in `zrb llm chat` task only — sub-agents never get them, the `minimal` prompt profile drops them, and `apply_common_tools` does not add them. `ActivateSkill` and `SearchSkill` are part of the common set.
 
