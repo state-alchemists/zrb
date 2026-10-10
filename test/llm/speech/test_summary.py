@@ -12,7 +12,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from zrb.llm.speech.summary import SpeechSummaryError, summarize_for_speech
+from zrb.llm.speech.summary import (
+    ResolutionSlot,
+    SpeechSummaryError,
+    summarize_for_speech,
+)
 
 LONG = "The change touches three modules and adds a new knob. " * 6
 
@@ -132,3 +136,33 @@ async def test_a_model_that_cannot_be_resolved_is_reported(monkeypatch):
 
     with pytest.raises(SpeechSummaryError, match="no credentials"):
         await summarize_for_speech(LONG)
+
+
+@pytest.mark.asyncio
+async def test_a_late_resolution_is_dropped_and_frees_the_slot(monkeypatch):
+    release = threading.Event()
+    returned = threading.Event()
+
+    def late_create(*args, **kwargs):
+        release.wait(5)
+        returned.set()
+        return _Agent("short")
+
+    monkeypatch.setattr(
+        "zrb.llm.speech.summary.create_speech_summarizer_agent", late_create
+    )
+    slot = ResolutionSlot()
+    with pytest.raises(SpeechSummaryError):
+        await summarize_for_speech(LONG, timeout=0.05, slot=slot)
+
+    with pytest.raises(SpeechSummaryError, match="still running"):
+        await summarize_for_speech(LONG, timeout=0.05, slot=slot)
+    release.set()
+    assert returned.wait(2)
+    await asyncio.sleep(0.1)
+    monkeypatch.setattr(
+        "zrb.llm.speech.summary.create_speech_summarizer_agent",
+        lambda *a, **k: _Agent("short"),
+    )
+
+    assert await summarize_for_speech(LONG, timeout=1, slot=slot) == "short"

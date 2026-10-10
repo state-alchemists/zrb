@@ -26,7 +26,11 @@ from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import IsStale, Speaker, is_speaking
 from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
 from zrb.llm.speech.streamed_reply import StreamedReply
-from zrb.llm.speech.summary import SpeechSummaryError, summarize_for_speech
+from zrb.llm.speech.summary import (
+    ResolutionSlot,
+    SpeechSummaryError,
+    summarize_for_speech,
+)
 from zrb.llm.speech.text import (
     clean_for_speech,
     fill_template,
@@ -154,6 +158,7 @@ class SpeechSession:
         # Bumped whenever what is pending stops mattering: an interrupt, or a
         # newer reply than a summary still being made.
         self._generation = 0
+        self._resolution_slot = ResolutionSlot()
         self.streamed_reply = StreamedReply(self._say)
         self.progress = ProgressNarrator(
             self._say,
@@ -205,7 +210,9 @@ class SpeechSession:
             manager.remove_hook(hook)
 
     def close(self) -> None:
-        """Take the hooks back out and stop the speaker."""
+        """Take the hooks back out and stop the speaker. A summary still being
+        made is dropped when it finishes."""
+        self._generation += 1
         for manager in list(self._hooks):
             self.unregister_hooks(manager)
         self.speaker.close()
@@ -378,6 +385,7 @@ class SpeechSession:
                     text,
                     self._config.summary_model or None,
                     self._config.summary_timeout or 0,
+                    self._resolution_slot,
                 )
             )
         except SpeechSummaryError as exc:

@@ -1,6 +1,7 @@
 """A reply longer than ``summarize_above_chars`` is spoken as a summary."""
 
 import asyncio
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -65,7 +66,7 @@ def _text_delta(content: str):
 def summarizer(monkeypatch):
     calls = []
 
-    async def summarize(text, model, timeout):
+    async def summarize(text, model, timeout, slot=None):
         calls.append((text, model, timeout))
         return "Three modules changed."
 
@@ -125,7 +126,7 @@ async def test_the_reply_is_not_streamed_while_summarizing(summarizer):
 
 @pytest.mark.asyncio
 async def test_a_failed_summary_leaves_the_reply_read_whole(monkeypatch):
-    async def fail(text, model, timeout):
+    async def fail(text, model, timeout, slot=None):
         raise SpeechSummaryError("down")
 
     monkeypatch.setattr("zrb.llm.speech.feature.summarize_for_speech", fail)
@@ -211,3 +212,40 @@ async def test_a_sub_agents_stop_leaves_a_pending_summary_alone(summarizer):
     )
 
     assert await _pending_summary_is_stale(session, nested) is False
+
+
+@pytest.mark.asyncio
+async def test_a_summary_is_dropped_when_the_session_closes(summarizer):
+    session = _session(stream=False, summarize_above_chars=100)
+    await session.handle_stop(_stop(LONG))
+    await _heard(session)
+    is_stale = session.speaker.stale_checks[0]
+
+    session.close()
+
+    assert is_stale() is True
+
+
+@pytest.mark.asyncio
+async def test_a_blocked_model_resolution_is_not_repeated_for_every_reply(monkeypatch):
+    release = threading.Event()
+    started = []
+
+    def blocking_create(*args, **kwargs):
+        started.append(1)
+        release.wait(5)
+        raise RuntimeError("gave up")
+
+    monkeypatch.setattr(
+        "zrb.llm.speech.summary.create_speech_summarizer_agent", blocking_create
+    )
+    session = _session(stream=False, summarize_above_chars=100, summary_timeout=0.05)
+    try:
+        for count in (1, 2, 3):
+            await session.handle_stop(_stop(LONG))
+            await _heard(session, count)
+
+        assert session.speaker.said == [LONG.strip()] * 3
+        assert len(started) == 1
+    finally:
+        release.set()
