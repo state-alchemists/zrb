@@ -273,10 +273,17 @@ def start_titling(entry: LiveSubAgentSession, text: str) -> None:
 
     async def _title() -> None:
         try:
-            entry.title = await suggest_slug(text)
+            title = await suggest_slug(text)
         except ConversationNamingError as e:
             CFG.LOGGER.debug(f"Sub-agent '{entry.agent_name}' left untitled: {e}")
             return
+        # The session may have been cleared while the model was answering.
+        if (
+            live_subagent_session_registry.get(entry.session_id, entry.agent_id)
+            is not entry
+        ):
+            return
+        entry.title = title
         # An open picker would otherwise keep showing the untitled row.
         invalidate = getattr(
             getattr(entry.buffered_ui, "parent_ui", None), "invalidate_ui", None

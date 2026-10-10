@@ -262,7 +262,11 @@ class FileHistoryManager(AnyHistoryManager):
                 f"Cannot rename '{conversation_name}' to '{new_name}': "
                 f"{target} already exists and would be overwritten."
             ) from e
-        os.unlink(source)
+        try:
+            os.unlink(source)
+        except OSError:
+            os.unlink(target)  # undo the link, so nothing is duplicated
+            raise
         self._cache.pop(conversation_name, None)
         self._cache_mtime.pop(conversation_name, None)
         self._dirty.discard(conversation_name)

@@ -18,11 +18,16 @@ from zrb.config.config import CFG
 from zrb.llm.history_manager.file_history_manager import safe_segment
 from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
-from zrb.llm.util.conversation_naming import (ConversationNamingError,
-                                              should_auto_name, suggest_slug,
-                                              with_slug)
-from zrb.llm.util.subagent_session_naming import (parse_delegated_agent_id,
-                                                  parse_delegated_session)
+from zrb.llm.util.conversation_naming import (
+    ConversationNamingError,
+    should_auto_name,
+    suggest_slug,
+    with_slug,
+)
+from zrb.llm.util.subagent_session_naming import (
+    parse_delegated_agent_id,
+    parse_delegated_session,
+)
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
 from zrb.util.string.name import get_conversation_key
 
@@ -169,8 +174,7 @@ class BaseUIConversationCommands:
         if parse_delegated_session(name) is not None:
             return 0
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
-        from zrb.llm.agent.subagent.live_session import \
-            live_subagent_session_registry
+        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
         from zrb.llm.agent.subagent.manager import sub_agent_manager
         from zrb.llm.ui.buffered_ui import BufferedUI
 
