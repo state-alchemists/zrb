@@ -285,13 +285,15 @@ class SpeechSession:
         if not self._is_own_session() or event_data.get("nested_run"):
             return HookResult(success=True)
         self.progress.reset()
+        # A summary still being made belongs to an earlier turn, whatever this
+        # one goes on to say; one `say_reply` starts is for the new generation.
+        self._generation += 1
         if event_data.get("reason"):
             if "reply" in self._events:
                 # Cancelled: stop the sentence playing too, not only the queue.
                 self.streamed_reply.reset()
             # Whatever was being said belongs to the cancelled turn, and with
             # only `progress` on that is a progress line, not a reply.
-            self._generation += 1
             self.speaker.interrupt()
             return HookResult(success=True)
         if "reply" not in self._events:

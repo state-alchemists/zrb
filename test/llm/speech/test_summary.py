@@ -7,6 +7,7 @@ help, so the caller can read the reply whole instead of losing it.
 from __future__ import annotations
 
 import asyncio
+import threading
 from types import SimpleNamespace
 
 import pytest
@@ -100,3 +101,34 @@ def test_the_summarizer_agent_uses_the_small_model_and_the_speech_prompt(monkeyp
     assert captured["model"] == "resolved:m"
     assert "spoken summary" in captured["system_prompt"]
     assert captured["resolve_model"] is False
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_cannot_be_resolved_in_time_is_reported(monkeypatch):
+    release = threading.Event()
+
+    def blocking_create(*args, **kwargs):
+        release.wait(5)
+        return _Agent("short")
+
+    monkeypatch.setattr(
+        "zrb.llm.speech.summary.create_speech_summarizer_agent", blocking_create
+    )
+    try:
+        with pytest.raises(SpeechSummaryError):
+            await asyncio.wait_for(summarize_for_speech(LONG, timeout=0.05), 2)
+    finally:
+        release.set()
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_cannot_be_resolved_is_reported(monkeypatch):
+    def failing_create(*args, **kwargs):
+        raise RuntimeError("no credentials")
+
+    monkeypatch.setattr(
+        "zrb.llm.speech.summary.create_speech_summarizer_agent", failing_create
+    )
+
+    with pytest.raises(SpeechSummaryError, match="no credentials"):
+        await summarize_for_speech(LONG)

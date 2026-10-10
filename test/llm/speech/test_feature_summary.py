@@ -160,3 +160,54 @@ async def test_a_summary_is_dropped_when_a_newer_reply_comes_first(summarizer):
     await session.handle_stop(_stop("Done."))
 
     assert is_stale() is True
+
+
+async def _pending_summary_is_stale(session, follow_up: HookContext) -> bool:
+    await session.handle_stop(_stop(LONG))
+    await _heard(session)
+    is_stale = session.speaker.stale_checks[0]
+    assert is_stale() is False
+
+    await session.handle_stop(follow_up)
+
+    return is_stale()
+
+
+@pytest.mark.asyncio
+async def test_a_summary_is_dropped_when_the_next_turn_says_nothing(summarizer):
+    session = _session(stream=False, summarize_above_chars=100)
+    silent = HookContext(event=HookEvent.STOP, event_data={})
+
+    assert await _pending_summary_is_stale(session, silent) is True
+
+
+@pytest.mark.asyncio
+async def test_a_summary_is_dropped_when_the_next_turn_is_cancelled(summarizer):
+    session = _session(stream=False, summarize_above_chars=100)
+    cancelled = HookContext(event=HookEvent.STOP, event_data={"reason": "esc"})
+
+    assert await _pending_summary_is_stale(session, cancelled) is True
+
+
+@pytest.mark.asyncio
+async def test_a_summary_is_dropped_when_speech_is_switched_off(summarizer):
+    session = _session(stream=False, summarize_above_chars=100)
+    await session.handle_stop(_stop(LONG))
+    await _heard(session)
+    is_stale = session.speaker.stale_checks[0]
+
+    session.toggle({}, None)
+
+    assert is_stale() is True
+
+
+@pytest.mark.asyncio
+async def test_a_sub_agents_stop_leaves_a_pending_summary_alone(summarizer):
+    session = _session(stream=False, summarize_above_chars=100)
+    nested = HookContext(
+        event=HookEvent.STOP,
+        event_data={"nested_run": True},
+        last_assistant_message="x",
+    )
+
+    assert await _pending_summary_is_stale(session, nested) is False
