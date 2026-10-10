@@ -30,7 +30,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 | Setting | What it does |
 |---|---|
 | `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` | Replaces the retired `ZRB_LLM_SPEECH_SUMMARIZE`. A reply whose speakable text is longer than this many characters is spoken as a short summary from the small model; `0` (the default) reads every reply whole. The reply is then not streamed, whatever `ZRB_LLM_SPEECH_STREAM` says. |
-| `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Active again, no longer retired: the model that writes the summary, used only when the threshold above is set. Empty uses the small model. |
+| `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Active again, no longer retired: the model that writes the summary, used only when the threshold above is set. Empty uses the small model (`ZRB_LLM_SMALL_MODEL`, else the main model). |
 | `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT` | New: seconds the summary may take before the reply is read whole instead (default `15`; `0` is no limit). |
 
 A leftover `ZRB_LLM_SPEECH_SUMMARIZE` is still reported at startup and now names `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`. `ZRB_LLM_SPEECH_MAX_CHARS` and `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` stay retired: a reply is never cut at a fixed length.
