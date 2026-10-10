@@ -14,6 +14,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import closing
 from dataclasses import dataclass, replace
 from enum import Enum
+from functools import partial
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.config.config import CFG
@@ -361,21 +362,32 @@ async def listen(
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
         _UtteranceStreamer(np, create_stream, on_partial, on_partial_over_zrb),
     )
-    stream = await _open_microphone(
+    open_microphone = partial(
+        _open_microphone,
         sd,
         on_audio,
         device=config.device or None,
         blocksize=int(SAMPLE_RATE * block_seconds),
     )
+
+    stream = await open_microphone()
     try:
-        with closing(stream):
+        try:
             while should_listen():
                 item = await backlog.get(timeout=block_seconds * 5)
                 if item is None:
+                    # PortAudio stops a stream on a host error (an ALSA xrun
+                    # or poll failure) and the callback is never called again.
+                    if not stream.active:
+                        logger.warning("The microphone stream died; reopening it")
+                        await close_quietly(stream.close, "the dead microphone")
+                        stream = await open_microphone()
                     continue
                 utterance = await blocks.handle(item)
                 if utterance is not None:
                     yield utterance
+        finally:
+            stream.close()
         if keep_partial:
             utterance = await blocks.flush(time.monotonic())
             if utterance is not None:

@@ -1,6 +1,7 @@
 """Tests for dictation listening and utterance cutting."""
 
 import asyncio
+from contextlib import aclosing
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +18,7 @@ class FakeStream:
     def __init__(self):
         self.is_started = False
         self.is_closed = False
+        self.active = True
 
     def start(self):
         self.is_started = True
@@ -415,3 +417,35 @@ def test_the_block_duration_is_what_every_duration_is_counted_in():
 def test_a_block_duration_that_is_not_positive_is_refused():
     with pytest.raises(ValueError, match="BLOCK_DURATION"):
         UtteranceCutter(DictationConfig(block_duration=0).resolve())
+
+
+@pytest.mark.asyncio
+async def test_listen_reopens_a_microphone_stream_that_died():
+    streams = []
+
+    def make_stream(**kwargs):
+        stream = FakeStream()
+        stream.callback = kwargs["callback"]
+        streams.append(stream)
+        return stream
+
+    fake_sd = MagicMock()
+    fake_sd.InputStream.side_effect = make_stream
+    config = DictationConfig(block_duration=0.01)
+
+    async def consume():
+        async with aclosing(listen(config, lambda: len(streams) < 2)) as gen:
+            return [u async for u in gen]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": fake_sd}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+    ):
+        task = asyncio.create_task(consume())
+        while not streams:
+            await asyncio.sleep(0.01)
+        streams[0].active = False
+        await asyncio.wait_for(task, timeout=5)
+
+    assert len(streams) == 2
+    assert streams[0].is_closed
