@@ -66,11 +66,11 @@ def _text_delta(content: str):
 def summarizer(monkeypatch):
     calls = []
 
-    async def summarize(text, model, timeout, slot=None):
+    async def summarize(text, model, timeout):
         calls.append((text, model, timeout))
         return "Three modules changed."
 
-    monkeypatch.setattr("zrb.llm.speech.feature.summarize_for_speech", summarize)
+    monkeypatch.setattr("zrb.llm.speech.summary.summarize_for_speech", summarize)
     return calls
 
 
@@ -126,10 +126,10 @@ async def test_the_reply_is_not_streamed_while_summarizing(summarizer):
 
 @pytest.mark.asyncio
 async def test_a_failed_summary_leaves_the_reply_read_whole(monkeypatch):
-    async def fail(text, model, timeout, slot=None):
+    async def fail(text, model, timeout):
         raise SpeechSummaryError("down")
 
-    monkeypatch.setattr("zrb.llm.speech.feature.summarize_for_speech", fail)
+    monkeypatch.setattr("zrb.llm.speech.summary.summarize_for_speech", fail)
     session = _session(stream=False, summarize_above_chars=100)
 
     await session.handle_stop(_stop(LONG))
@@ -227,26 +227,26 @@ async def test_a_summary_is_dropped_when_the_session_closes(summarizer):
 
 
 @pytest.mark.asyncio
-async def test_a_blocked_model_resolution_is_not_repeated_for_every_reply(monkeypatch):
+async def test_a_stuck_model_call_reads_each_reply_whole_without_new_threads(
+    monkeypatch,
+):
     release = threading.Event()
     started = []
 
-    def blocking_create(*args, **kwargs):
+    async def stuck(text, model, timeout):
         started.append(1)
         release.wait(5)
-        raise RuntimeError("gave up")
+        return "late"
 
-    monkeypatch.setattr(
-        "zrb.llm.speech.summary.create_speech_summarizer_agent", blocking_create
-    )
-    session = _session(stream=False, summarize_above_chars=100, summary_timeout=0.05)
+    monkeypatch.setattr("zrb.llm.speech.summary.summarize_for_speech", stuck)
+    session = _session(stream=False, summarize_above_chars=100, summary_timeout=0.1)
     try:
         for count in (1, 2, 3):
             await session.handle_stop(_stop(LONG))
             await _heard(session, count)
 
         assert session.speaker.said == [LONG.strip()] * 3
-        assert len(started) == 1
+        assert started == [1]
     finally:
         release.set()
 

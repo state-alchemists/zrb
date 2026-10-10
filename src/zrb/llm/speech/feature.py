@@ -8,10 +8,7 @@ small model's summary, once the turn ends.
 
 from __future__ import annotations
 
-import asyncio
-import contextvars
 import logging
-import threading
 import time
 import weakref
 from collections.abc import Callable
@@ -26,11 +23,7 @@ from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import IsStale, Speaker, is_speaking
 from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
 from zrb.llm.speech.streamed_reply import StreamedReply
-from zrb.llm.speech.summary import (
-    ResolutionSlot,
-    SpeechSummaryError,
-    summarize_for_speech,
-)
+from zrb.llm.speech.summary import SpeechSummarizer
 from zrb.llm.speech.text import (
     clean_for_speech,
     fill_template,
@@ -158,7 +151,7 @@ class SpeechSession:
         # Bumped whenever what is pending stops mattering: an interrupt, or a
         # newer reply than a summary still being made.
         self._generation = 0
-        self._resolution_slot = ResolutionSlot()
+        self._summarizer = SpeechSummarizer()
         self.streamed_reply = StreamedReply(self._say)
         self.progress = ProgressNarrator(
             self._say,
@@ -356,41 +349,27 @@ class SpeechSession:
 
     def say_reply(self, reply: str) -> None:
         """Speak *reply*: whole, or as a summary when its speakable text is
-        longer than ``summarize_above_chars``. The summary is made on a thread of
-        its own, so neither the turn nor the speaker's queue waits for the
-        model, and it is dropped if speech is interrupted or a newer reply comes
-        first."""
+        longer than ``summarize_above_chars``. The summary is made on a worker
+        (`SpeechSummarizer`), so neither the turn nor the speaker's queue waits
+        for the model; it is dropped if speech is interrupted, the session
+        closes or a newer reply comes first, and the reply is read whole when
+        the summary fails, is late, or another is still being made."""
         self._generation += 1
         text = clean_for_speech(reply)
         if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
             self._say(text)
             return
-        # The model settings a run scopes live in context variables, which a
-        # new thread does not inherit.
-        context = contextvars.copy_context()
-        interrupts = self._generation
-        threading.Thread(
-            target=context.run,
-            args=(self._say_summary, text, lambda: self._generation != interrupts),
-            daemon=True,
-        ).start()
+        generation = self._generation
 
-    def _say_summary(self, text: str, is_stale: IsStale) -> None:
-        self._say(self._summarize(text), is_stale=is_stale)
+        def speak(spoken: str) -> None:
+            self._say(spoken, is_stale=lambda: self._generation != generation)
 
-    def _summarize(self, text: str) -> str:
-        try:
-            return asyncio.run(
-                summarize_for_speech(
-                    text,
-                    self._config.summary_model or None,
-                    self._config.summary_timeout or 0,
-                    self._resolution_slot,
-                )
-            )
-        except SpeechSummaryError as exc:
-            logger.warning(f"Reading the reply whole, not summarized: {exc}")
-            return text
+        self._summarizer.start(
+            text,
+            self._config.summary_model or None,
+            self._config.summary_timeout or 0,
+            speak,
+        )
 
 
 def is_answered_since(ui: "AnyUI | None", asked_at: float) -> Callable[[], bool]:
