@@ -33,13 +33,12 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
     last_pos = 0
     score = 0.0
 
-    # Heuristics
     BOUNDARY_BONUS = 20.0
     SUBSEQUENCE_PENALTY = 10.0
     SEPARATORS = {os.path.sep, "/", "_", "-", ".", " "}
 
     for token in tokens:
-        # 1. Try contiguous substring search
+        # Contiguous substring first
         idx = text_cmp.find(token, last_pos)
 
         if idx != -1:
@@ -53,7 +52,7 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
             score += token_score
             last_pos = idx + len(token)
         else:
-            # 2. Fallback to subsequence matching
+            # Fall back to subsequence matching
             res = _find_subsequence_range(text_cmp, token, last_pos)
             if res is None:
                 return False, 0.0

@@ -80,11 +80,11 @@ FACADE_BUDGETS = {
     # calls after a submit or a command so a submitted recall does not leave the
     # input unable to start a fresh Up-arrow recall (PR #562 round-3) -- new
     # surface, not a delegator-only line.
-    "llm/ui/default/ui.py": 708,
+    "llm/ui/default/ui.py": 672,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.
-    "llm/task/chat/task.py": 1078,
+    "llm/task/chat/task.py": 1005,
     # +26 (783->809): `stream_observers` with `set_stream_observers` and append/prepend/
     # remove, handed to `run_agent` -- new surface.
     # +4 (809->813): the `dynamic_yolo` docstring names the arguments a

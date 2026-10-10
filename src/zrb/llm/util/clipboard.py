@@ -40,9 +40,7 @@ async def get_clipboard_image() -> bytes | None:
         return None
 
 
-# ---------------------------------------------------------------------------
 # macOS
-# ---------------------------------------------------------------------------
 
 
 async def _macos() -> bytes | None:
@@ -101,9 +99,7 @@ async def _macos_osascript() -> bytes | None:
     return data or None
 
 
-# ---------------------------------------------------------------------------
 # Windows
-# ---------------------------------------------------------------------------
 
 
 def _windows() -> bytes | None:
@@ -122,9 +118,7 @@ def _windows() -> bytes | None:
         return None  # Pillow is required on Windows; handled by caller
 
 
-# ---------------------------------------------------------------------------
 # Linux / WSL
-# ---------------------------------------------------------------------------
 
 # MIME types to try with wl-paste, in preference order.
 # Windows clipboard images are often BMP/DIB, not PNG.
@@ -202,9 +196,7 @@ async def _run(cmd: list[str]) -> bytes | None:
         return None
 
 
-# ---------------------------------------------------------------------------
 # Clipboard writing
-# ---------------------------------------------------------------------------
 
 
 def copy_text(text: str) -> bool:

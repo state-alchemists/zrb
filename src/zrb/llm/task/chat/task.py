@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Any, AsyncIterable, Callable, Unpack
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent import AnyToolConfirmation
-from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -26,6 +25,7 @@ from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.task.history_config import HistoryConfig
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.task.shared_getters import set_default_retry_if
 from zrb.llm.tool_call import (
     ArgumentFormatter,
     ResponseHandler,
@@ -243,8 +243,7 @@ class LLMChatTask(BaseTask):
         # A chat turn is interactive, so a silent retry replays the user's
         # message. BaseTask defaults to 2.
         kwargs.setdefault("retries", 0)
-        if kwargs.get("retry_if") is None:
-            kwargs["retry_if"] = retry_unless_permanent
+        set_default_retry_if(kwargs)
         super().__init__(
             name=name,
             **kwargs,
@@ -341,8 +340,6 @@ class LLMChatTask(BaseTask):
             write_file_formatter,
         ]
 
-    # --- Post-construction configuration (builder-style mutators) ------------
-
     @property
     def prompt_manager(self) -> PromptManager:
         """The `PromptManager` composing this task's system prompt."""
@@ -357,8 +354,6 @@ class LLMChatTask(BaseTask):
                 f"got {type(value).__name__}."
             )
         self._prompt_manager = value
-
-    # UIs (ordered) -----------------------------------------------------------
 
     def append_ui(self, ui: "AnyUI") -> None:
         """Append a UI, keeping those already attached."""
@@ -375,8 +370,6 @@ class LLMChatTask(BaseTask):
     def remove_ui(self, ui: "AnyUI") -> None:
         """Detach *ui*. A no-op if it is not attached."""
         _remove_first(self._uis, ui)
-
-    # UI factories (ordered) ---------------------------------------------------
 
     def append_ui_factory(self, factory: "Callable[..., AnyUI]") -> None:
         """Append a factory building a UI once the run's context is known."""
@@ -400,8 +393,6 @@ class LLMChatTask(BaseTask):
         """Replace the custom model-name list."""
         self._custom_model_names = value
 
-    # Approval channels (ordered) -----------------------------------------------
-
     def append_approval_channel(self, channel: "AnyApprovalChannel") -> None:
         """Append an approval channel to the list."""
         self._approval_channels.append(channel)
@@ -413,8 +404,6 @@ class LLMChatTask(BaseTask):
     def remove_approval_channel(self, channel: "AnyApprovalChannel") -> None:
         """Drop *channel*. A no-op if it is not registered."""
         _remove_first(self._approval_channels, channel)
-
-    # Toolsets (ordered) --------------------------------------------------------
 
     def append_toolset(self, *toolset: "AbstractToolset[None]") -> None:
         """Add pydantic-ai toolsets whose tools the agent may call."""
@@ -455,8 +444,6 @@ class LLMChatTask(BaseTask):
     ) -> None:
         """Drop *factory*. A no-op if it is not registered."""
         _remove_first(self._toolset_factories, factory)
-
-    # Tools (ordered) -------------------------------------------------------
 
     def append_tool(self, *tool: "Tool | ToolFuncEither") -> None:
         """Add tools the agent may call."""
@@ -502,8 +489,6 @@ class LLMChatTask(BaseTask):
         """Drop *factory*. A no-op if it is not registered."""
         _remove_first(self._tool_factories, factory)
 
-    # Hook factories (ordered) -----------------------------------------------
-
     def append_hook_factory(self, *factory: Callable[[HookManager], None]) -> None:
         """Add factories registering hooks on this task's hook manager."""
         self._hook_factories += list(factory)
@@ -522,8 +507,6 @@ class LLMChatTask(BaseTask):
         """Drop *factory*. A no-op if it is not registered."""
         _remove_first(self._hook_factories, factory)
 
-    # History processors (ordered) -------------------------------------------
-
     def append_history_processor(self, *processor: "HistoryProcessor") -> None:
         """Add processors that rewrite conversation history before each request."""
         self._history_processors += list(processor)
@@ -539,8 +522,6 @@ class LLMChatTask(BaseTask):
     def remove_history_processor(self, processor: "HistoryProcessor") -> None:
         """Drop *processor*. A no-op if it is not registered."""
         _remove_first(self._history_processors, processor)
-
-    # Stream observers (ordered) ---------------------------------------------
 
     def append_stream_observer(self, *observer: StreamObserver) -> None:
         """Add observers seeing every event a run streams."""
@@ -558,8 +539,6 @@ class LLMChatTask(BaseTask):
         """Drop *observer*. A no-op if it is not registered."""
         _remove_first(self._stream_observers, observer)
 
-    # Response handlers (ordered) --------------------------------------------
-
     def append_response_handler(self, *handler: ResponseHandler) -> None:
         """Add handlers after those already registered."""
         self._response_handlers += list(handler)
@@ -575,8 +554,6 @@ class LLMChatTask(BaseTask):
     def remove_response_handler(self, handler: ResponseHandler) -> None:
         """Drop *handler*. A no-op if it is not registered."""
         _remove_first(self._response_handlers, handler)
-
-    # Tool policies (ordered) -------------------------------------------------
 
     def append_tool_policy(self, *policy: ToolPolicy) -> None:
         """Add policies after those already registered."""
@@ -594,8 +571,6 @@ class LLMChatTask(BaseTask):
         """Drop *policy*. A no-op if it is not registered."""
         _remove_first(self._tool_policies, policy)
 
-    # Argument formatters (ordered) -------------------------------------------
-
     def append_argument_formatter(self, *formatter: ArgumentFormatter) -> None:
         """Add formatters after those already registered."""
         self._argument_formatters += list(formatter)
@@ -612,8 +587,6 @@ class LLMChatTask(BaseTask):
         """Drop *formatter*. A no-op if it is not registered."""
         _remove_first(self._argument_formatters, formatter)
 
-    # Triggers (ordered) ------------------------------------------------------
-
     def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]) -> None:
         """Add sources that feed messages into the chat loop unprompted."""
         self._triggers += trigger
@@ -629,8 +602,6 @@ class LLMChatTask(BaseTask):
     def remove_trigger(self, trigger: Callable[[], AsyncIterable[Any]]) -> None:
         """Drop *trigger*. A no-op if it is not registered."""
         _remove_first(self._triggers, trigger)
-
-    # Custom commands (ordered) ------------------------------------------------
 
     def append_custom_command(
         self,
@@ -665,8 +636,6 @@ class LLMChatTask(BaseTask):
     ) -> None:
         """Drop *custom_command*. A no-op if it is not registered."""
         _remove_first(self._custom_commands, custom_command)
-
-    # --- Construction-time config (own fields, read/written directly) -------
 
     @property
     def model_getter(
@@ -994,8 +963,6 @@ class LLMChatTask(BaseTask):
         """Extra slash commands available inside the chat session."""
         return self._custom_commands
 
-    # --- ChatRunning delegators ----------------------------------------------
-
     async def run_non_interactive_session(self, *args: Any, **kwargs: Any) -> Any:
         """Run a non-interactive (one-shot) chat session."""
         return await self._running.run_non_interactive_session(*args, **kwargs)
@@ -1003,8 +970,6 @@ class LLMChatTask(BaseTask):
     async def run_interactive_session(self, *args: Any, **kwargs: Any) -> Any:
         """Run an interactive chat session with a UI."""
         return await self._running.run_interactive_session(*args, **kwargs)
-
-    # --- ChatExecution delegators ---------------------------------------------
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         """Compose the full system prompt for this run."""

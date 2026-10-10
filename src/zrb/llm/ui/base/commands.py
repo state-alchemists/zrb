@@ -53,7 +53,7 @@ class BaseUICommands:
         """Handlers for shell exec, `/btw` side questions, and custom commands."""
         return self._exec
 
-    # --- command dispatch (with hooks) ------------------------------------
+    # command dispatch (with hooks)
 
     def command_table(self) -> "list[tuple[Callable, list[str], bool, bool]]":
         """Single source of truth for command routing.
@@ -214,7 +214,7 @@ class BaseUICommands:
                 return True
         return self._base_ui.handle_custom_command(text)
 
-    # --- delegators to the handler parts ---------------------------------
+    # delegators to the handler parts
 
     async def run_shell_command(self, cmd: str) -> None:
         await self._exec.run_shell_command(cmd)
@@ -222,7 +222,7 @@ class BaseUICommands:
     async def stream_btw_response(self, llm_task: Any, question: str) -> None:
         await self._exec.stream_btw_response(llm_task, question)
 
-    # --- help text --------------------------------------------------------
+    # help text
 
     def get_help_panel(
         self, art: str = "", header: str = "", max_commands: int | None = None

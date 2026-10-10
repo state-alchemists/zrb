@@ -79,7 +79,7 @@ class UISelection:
         """The choice widget's window (None before `init_selection_state`)."""
         return getattr(self, "_choice_window", None)
 
-    # --- hooks called by UIConfirmation -------------------------------
+    # hooks called by UIConfirmation
 
     def begin_choice(self, spec: dict) -> None:
         self._active_choice = spec
@@ -98,7 +98,7 @@ class UISelection:
         self._choice_selected = set()
         focus_widget(self._ui.input_field, "Input-field")
 
-    # --- widget construction --------------------------------------------
+    # widget construction
 
     def _create_choice_window(self) -> "Window":
         # lazy: heavy third-party
@@ -136,7 +136,7 @@ class UISelection:
             wrap_lines=True,
         )
 
-    # --- state transitions (public-testable seams) -----------------------
+    # state transitions (public-testable seams)
 
     def move_choice_cursor(self, delta: int) -> None:
         """Move the selection cursor by `delta`, clamped (public API)."""
@@ -241,7 +241,7 @@ class UISelection:
         self._ui.resolve_current(combined, echo=echo)
         return True
 
-    # --- rendering -------------------------------------------------------
+    # rendering
 
     def get_choice_text(self) -> "StyleAndTextTuples":
         spec = self._active_choice
@@ -331,7 +331,7 @@ class UISelection:
         columns = getattr(self._ui, "output_field_width", None)
         return max(24, (columns or 84) - 4)
 
-    # --- helpers ---------------------------------------------------------
+    # helpers
 
     def _append_now(self, text: str) -> None:
         """Append to output now, bypassing the confirmation buffer guard.

@@ -373,9 +373,7 @@ class UI(BaseUI):
             clipboard=clipboard,
         )
 
-    # =========================================================================
     # UILifecycle delegators
-    # =========================================================================
 
     async def cleanup_background_tasks(self) -> None:
         await self._lifecycle.cleanup_background_tasks()
@@ -392,9 +390,7 @@ class UI(BaseUI):
     def on_exit(self) -> None:
         self._lifecycle.on_exit()
 
-    # =========================================================================
     # UIAgentPicker delegators
-    # =========================================================================
 
     @property
     def viewing_agent_id(self) -> str | None:
@@ -429,9 +425,7 @@ class UI(BaseUI):
     def cancel_viewed_agent(self) -> bool:
         return self._agent_picker.cancel_viewed_agent()
 
-    # =========================================================================
     # UIMessageEditing delegators
-    # =========================================================================
 
     @property
     def queued_edit_entry(self) -> Any:
@@ -466,9 +460,7 @@ class UI(BaseUI):
         """Override hook `BaseUI` invokes polymorphically (see its base no-op)."""
         self._message_editing.remove_echo(entry)
 
-    # =========================================================================
     # UIOutput delegators
-    # =========================================================================
 
     @property
     def output_part(self) -> "UIOutput":
@@ -603,9 +595,7 @@ class UI(BaseUI):
     def schedule_invalidate(self) -> None:
         self._output.schedule_invalidate()
 
-    # =========================================================================
     # UIConfirmation delegators
-    # =========================================================================
 
     async def ask_user(
         self,

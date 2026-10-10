@@ -36,8 +36,6 @@ class LLMLimiter:
         self._max_token_per_request: int | None = None
         self._throttle_check_interval: float | None = None
 
-    # --- Configuration Properties ---
-
     @property
     def max_request_per_minute(self) -> int:
         """Requests allowed per minute (default 60); zero blocks all requests."""
@@ -109,8 +107,6 @@ class LLMLimiter:
     def tiktoken_encoding(self) -> str:
         """Encoding name used when `use_tiktoken` is on (default `cl100k_base`)."""
         return CFG.TIKTOKEN_ENCODING_NAME
-
-    # --- Public API ---
 
     def fit_context_window(
         self,
@@ -253,8 +249,6 @@ class LLMLimiter:
         if len(text) > estimated_chars:
             return text[:estimated_chars]
         return text
-
-    # --- Helpers ---
 
     def _history_token_costs(
         self, history: list[Any]

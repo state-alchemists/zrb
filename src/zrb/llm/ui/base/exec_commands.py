@@ -29,7 +29,7 @@ class BaseUIExecCommands:
     def __init__(self, base_ui: "BaseUI") -> None:
         self._base_ui = base_ui
 
-    # --- exec (shell) -----------------------------------------------------
+    # exec (shell)
 
     def handle_exec_command(self, text: str) -> bool:
         if self._base_ui.is_thinking:
@@ -117,7 +117,7 @@ class BaseUIExecCommands:
             await self._base_ui.update_system_info()
             self._base_ui.invalidate_ui()
 
-    # --- /btw side question -----------------------------------------------
+    # /btw side question
 
     def handle_btw_command(self, text: str) -> bool:
         """Handle /btw <question>: a side question not saved to history.
@@ -203,7 +203,7 @@ class BaseUIExecCommands:
         finally:
             self._base_ui.invalidate_ui()
 
-    # --- custom commands --------------------------------------------------
+    # custom commands
 
     def handle_custom_command(self, text: str) -> bool:
         text = text.strip()

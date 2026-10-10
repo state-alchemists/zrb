@@ -19,7 +19,6 @@ from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
-from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -33,7 +32,11 @@ from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.task.history_config import HistoryConfig
-from zrb.llm.task.shared_getters import apply_model_hooks, get_policy_skip_decision
+from zrb.llm.task.shared_getters import (
+    apply_model_hooks,
+    get_policy_skip_decision,
+    set_default_retry_if,
+)
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.params import BaseTaskParams
@@ -177,8 +180,7 @@ class LLMTask(BaseTask):
         Every parameter `BaseTask` accepts is also accepted here and behaves
         identically; see `BaseTask` for those.
         """
-        if kwargs.get("retry_if") is None:
-            kwargs["retry_if"] = retry_unless_permanent
+        set_default_retry_if(kwargs)
         super().__init__(
             name=name,
             **kwargs,
@@ -225,8 +227,6 @@ class LLMTask(BaseTask):
         self._summarize_commands = summarize_commands or []
         self._building = LLMTaskBuilding(self)
         self._history = LLMTaskHistory(self)
-
-    # --- LLMTaskBuilding delegators ------------------------------------------
 
     @property
     def prompt_manager(self) -> PromptManager:
@@ -500,8 +500,6 @@ class LLMTask(BaseTask):
     def get_model(self, ctx: AnyContext) -> "str | Model":
         """The task's model, rendered against *ctx*, falling back to the config's."""
         return self._building.get_model(ctx)
-
-    # --- LLMTaskHistory delegators --------------------------------------------
 
     @property
     def conversation_name_attr(self) -> "StrAttr | None":

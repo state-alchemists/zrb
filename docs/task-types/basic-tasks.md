@@ -86,7 +86,7 @@ The same applies to `_exec_action` in a `BaseTask` subclass — see [Custom Task
 
 ## 2. `CmdTask`
 
-The `CmdTask` is your go-to tool for running shell commands. It seamlessly integrates Zrb's context (inputs, envs, xcom) directly into the shell execution environment.
+`CmdTask` runs shell commands. It passes Zrb's context (inputs, envs, xcom) directly into the shell execution environment.
 
 ### When to Use
 

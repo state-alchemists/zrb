@@ -224,7 +224,7 @@ class UIAgentPicker:
             return
         self._ui.set_output_text(content)
 
-    # --- widget construction --------------------------------------------
+    # widget construction
 
     def _create_agent_picker_window(self) -> Any:
         # lazy: heavy third-party
@@ -268,7 +268,7 @@ class UIAgentPicker:
             wrap_lines=True,
         )
 
-    # --- rendering -------------------------------------------------------
+    # rendering
 
     def get_agent_picker_text(self) -> "StyleAndTextTuples":
         if not self._picker_sessions:
@@ -333,7 +333,7 @@ class UIAgentPicker:
             for future, _, _, entry_agent_id in queue
         )
 
-    # --- helpers ---------------------------------------------------------
+    # helpers
 
     def _invalidate(self) -> None:
         invalidate_app("Agent-picker")

@@ -522,9 +522,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def system_info_task(self, value: "asyncio.Task | None"):
         self._system_info_task = value
 
-    # =========================================================================
     # BaseUICommands delegators (part of the `AnyUI` contract)
-    # =========================================================================
 
     @property
     def commands(self) -> BaseUICommands:
@@ -551,7 +549,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def get_help_text(self, width: int | None = None) -> str:
         return self._base_commands.get_help_text(width)
 
-    # --- conversation commands ---
+    # conversation commands
     def handle_exit_command(self, text: str) -> bool:
         return self._conversation.handle_exit_command(text)
 
@@ -591,7 +589,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def apply_persona_for_session(self, name: str) -> None:
         self._conversation.apply_persona_for_session(name)
 
-    # --- model commands ---
+    # model commands
     def toggle_yolo(self) -> None:
         self.models.toggle_yolo()
 
@@ -616,7 +614,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def handle_set_command(self, text: str):
         return self.models.handle_set_command(text)
 
-    # --- exec commands ---
+    # exec commands
     def handle_exec_command(self, text: str) -> bool:
         return self._exec.handle_exec_command(text)
 
@@ -632,16 +630,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def handle_custom_command(self, text: str) -> bool:
         return self._exec.handle_custom_command(text)
 
-    # =========================================================================
     # BaseUIReplay delegators
-    # =========================================================================
 
     def replay_history(self, messages: list) -> None:
         self._base_replay.replay_history(messages)
 
-    # =========================================================================
     # BaseUISystemInfo delegators
-    # =========================================================================
 
     async def update_system_info(self) -> None:
         await self._base_system_info.update_system_info()
@@ -763,9 +757,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             self._ctx.xcom[self._yolo_xcom_key] = Xcom()
         self._ctx.xcom[self._yolo_xcom_key].set(value)
 
-    # =========================================================================
     # REQUIRED METHODS - Must be implemented by subclasses
-    # =========================================================================
 
     def append_to_output(
         self,
@@ -894,9 +886,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             f"{self.__class__.__name__} must implement run_async()"
         )
 
-    # =========================================================================
     # OPTIONAL METHODS - Can be overridden by subclasses
-    # =========================================================================
 
     def stream_to_parent(
         self,
