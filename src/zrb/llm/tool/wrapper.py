@@ -5,7 +5,8 @@ zrb.llm.agent.common; use tool_safe_async only to append a custom error_hint.
 """
 
 import functools
-from typing import Any, Awaitable, Callable, ParamSpec, TypeVar, cast, overload
+from collections.abc import Awaitable, Callable
+from typing import Any, ParamSpec, TypeVar, cast, overload
 
 from zrb.llm.agent_tool_result import tool_return
 

@@ -84,12 +84,12 @@ from zrb.llm.voice.registry import (
     tts_registry,
 )
 from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
+from zrb.remote.inventory import Host, Target, host_inventory, target_inventory
 from zrb.runner.cli import Cli, cli
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
-from zrb.remote.inventory import Host, Target, host_inventory, target_inventory
 from zrb.task.cmd_task import CmdTask
 from zrb.task.http_check import HttpCheck
 from zrb.task.make_task import make_task
@@ -256,7 +256,7 @@ _RETIRED_EXPORTS = {
     "llm_config": _NO_LLM_CONFIG,
     "UICommands": (
         "was removed in 3.0.0: command aliases are `UIConfig` fields, or the "
-        "ZRB_LLM_UI_COMMAND_* settings."
+        "{ENV_PREFIX}_LLM_UI_COMMAND_* settings."
     ),
     "fstring": "was removed in 3.0.0: it was an alias of `str`; use `str`.",
 }
@@ -274,9 +274,9 @@ def __getattr__(name: str):
     if name in _RETIRED_EXPORTS:
         # An ImportError, not an AttributeError: `from zrb import X` turns an
         # AttributeError into a bare "cannot import name", dropping the hint.
+        hint = _RETIRED_EXPORTS[name].replace("{ENV_PREFIX}", CFG.ENV_PREFIX)
         raise ImportError(
-            f"zrb.{name} {_RETIRED_EXPORTS[name]} See "
-            "docs/advanced-topics/upgrading-guide.md.",
+            f"zrb.{name} {hint} See docs/advanced-topics/upgrading-guide.md.",
             name=name,
         )
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

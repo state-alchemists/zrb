@@ -140,11 +140,7 @@ def generate_uuid_v5(ctx: AnyContext) -> str:
     alias="validate",
 )
 def validate_uuid(ctx: AnyContext) -> bool:
-    if _is_valid_uuid(ctx.input.id):
-        ctx.print("Valid UUID")
-        return True
-    ctx.print("Invalid UUID")
-    return False
+    return _is_valid_and_reported(ctx, None)
 
 
 @make_task(
@@ -155,11 +151,7 @@ def validate_uuid(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v1(ctx: AnyContext) -> bool:
-    if _is_valid_uuid(ctx.input.id, 1):
-        ctx.print("Valid UUID V1")
-        return True
-    ctx.print("Invalid UUID V1")
-    return False
+    return _is_valid_and_reported(ctx, 1)
 
 
 @make_task(
@@ -170,11 +162,7 @@ def validate_uuid_v1(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v3(ctx: AnyContext) -> bool:
-    if _is_valid_uuid(ctx.input.id, 3):
-        ctx.print("Valid UUID V3")
-        return True
-    ctx.print("Invalid UUID V3")
-    return False
+    return _is_valid_and_reported(ctx, 3)
 
 
 @make_task(
@@ -185,11 +173,7 @@ def validate_uuid_v3(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v4(ctx: AnyContext) -> bool:
-    if _is_valid_uuid(ctx.input.id, 4):
-        ctx.print("Valid UUID V4")
-        return True
-    ctx.print("Invalid UUID V4")
-    return False
+    return _is_valid_and_reported(ctx, 4)
 
 
 @make_task(
@@ -200,8 +184,11 @@ def validate_uuid_v4(ctx: AnyContext) -> bool:
     alias="validate",
 )
 def validate_uuid_v5(ctx: AnyContext) -> bool:
-    if _is_valid_uuid(ctx.input.id, 5):
-        ctx.print("Valid UUID V5")
-        return True
-    ctx.print("Invalid UUID V5")
-    return False
+    return _is_valid_and_reported(ctx, 5)
+
+
+def _is_valid_and_reported(ctx: AnyContext, version: int | None) -> bool:
+    label = "UUID" if version is None else f"UUID V{version}"
+    is_valid = _is_valid_uuid(ctx.input.id, version)
+    ctx.print(f"Valid {label}" if is_valid else f"Invalid {label}")
+    return is_valid

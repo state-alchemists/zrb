@@ -1,8 +1,9 @@
 """Utility for formatting pydantic-ai conversation history into human-readable text."""
 
 import json
+from collections.abc import Sequence
 from datetime import datetime
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.tool_call.args import parse_tool_args_value

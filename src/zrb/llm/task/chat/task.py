@@ -10,12 +10,14 @@ See docs/task-types/llmchat-task.md and docs/llm/llm-chat-lifecycle.md.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, AsyncIterable, Callable, Unpack
+from collections.abc import AsyncIterable, Callable
+from typing import TYPE_CHECKING, Any, Unpack
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.context.any_context import AnyContext
 from zrb.llm.agent import AnyToolConfirmation
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.model_resolver import require_model_hook
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
@@ -649,12 +651,7 @@ class LLMChatTask(BaseTask):
         self, value: "Callable[[str | Model | None], str | Model | None] | None"
     ) -> None:
         """Replace the model-getter hook, or None to remove it."""
-        if value is not None and not callable(value):
-            raise TypeError(
-                f"{self.name}.model_getter must be a callable or None, "
-                f"got {type(value).__name__}."
-            )
-        self._model_getter = value
+        self._model_getter = require_model_hook(value, f"{self.name}.model_getter")
 
     @property
     def model_renderer(
@@ -668,12 +665,7 @@ class LLMChatTask(BaseTask):
         self, value: "Callable[[str | Model | None], str | Model | None] | None"
     ) -> None:
         """Replace the model-renderer hook, or None to remove it."""
-        if value is not None and not callable(value):
-            raise TypeError(
-                f"{self.name}.model_renderer must be a callable or None, "
-                f"got {type(value).__name__}."
-            )
-        self._model_renderer = value
+        self._model_renderer = require_model_hook(value, f"{self.name}.model_renderer")
 
     @property
     def llm_limiter(self) -> "LLMLimiter | None":

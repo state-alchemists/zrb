@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolPolicy

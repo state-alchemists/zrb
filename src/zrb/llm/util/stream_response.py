@@ -1,5 +1,6 @@
 import time
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Literal
 
 from zrb.llm.tool_call.args import parse_tool_args_value
 from zrb.llm.util.tool_args import is_empty_tool_args, truncate_tool_args_values

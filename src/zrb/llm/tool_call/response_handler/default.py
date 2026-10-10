@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.tool_call.args import parse_tool_args

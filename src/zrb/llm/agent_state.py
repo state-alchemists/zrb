@@ -12,8 +12,9 @@ Outside `zrb.llm.agent.run`, use the typed getters rather than the raw vars.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from zrb.llm.approval.approval_channel import current_approval_channel
 

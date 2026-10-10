@@ -15,9 +15,10 @@ entries and backlinks, which upholds these invariants by construction:
 import os
 import re
 import subprocess
+from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Annotated, Iterator
+from typing import Annotated
 
 from pydantic import Field
 

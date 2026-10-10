@@ -10,20 +10,17 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from collections.abc import Sequence
+from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from contextlib import ExitStack
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.deferred_calls import (
     process_deferred_requests,
     rebuild_for_denials,
 )
-from zrb.llm.agent.run.error_classifier import (
-    add_credential_hint,
-    classify_error_type,
-)
+from zrb.llm.agent.run.error_classifier import add_credential_hint, classify_error_type
 from zrb.llm.agent.run.history_utils import (
     history_through_deferred_returns,
     history_without_trailing_response,

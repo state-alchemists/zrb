@@ -3,7 +3,8 @@
 import os
 import selectors
 import subprocess
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from zrb.util.async_thread import run_in_daemon
 

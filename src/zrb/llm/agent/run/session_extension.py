@@ -5,8 +5,9 @@ caps prevent either path from looping indefinitely."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.hook_result_extractor import (

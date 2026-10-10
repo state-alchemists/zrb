@@ -4,7 +4,8 @@ A catalogue that outgrows its cap is truncated with a pointer to the matching
 search tool, so the cap only saves tokens and the overflow stays reachable.
 """
 
-from typing import Protocol, Sequence, TypeVar
+from collections.abc import Sequence
+from typing import Protocol, TypeVar
 
 # Caps on-demand search output so an empty or broad query cannot dump the
 # whole catalogue; 30 keeps a full page of matches visible.

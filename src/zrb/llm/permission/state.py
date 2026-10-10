@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Generator
+from typing import Any
 
 from zrb.llm.permission.policy import PLAN_MODE_POLICY, PermissionPolicy
 from zrb.util.contextvar_scope import scoped

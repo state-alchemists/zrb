@@ -1,6 +1,7 @@
 import os
 import tempfile
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.tool_call.args import parse_tool_args

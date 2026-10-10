@@ -13,8 +13,9 @@ aliases are per-group, and replacing a built-in is an intended shadow.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator
 from types import ModuleType
-from typing import TYPE_CHECKING, Iterable, Iterator, NamedTuple, cast
+from typing import TYPE_CHECKING, NamedTuple, cast
 
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group, TaskReplacement

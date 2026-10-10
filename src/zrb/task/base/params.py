@@ -12,7 +12,8 @@ A subclass declares only the keywords it adds and takes the rest as
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence, TypedDict
+from collections.abc import Callable, Sequence
+from typing import Any, TypedDict
 
 from zrb.attr.tpl import Tpl
 from zrb.attr.type import BoolAttr, IntAttr, StrAttr

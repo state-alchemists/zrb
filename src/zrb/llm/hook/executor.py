@@ -6,10 +6,11 @@ import contextvars
 import logging
 import queue
 import threading
+from collections.abc import Callable
 from concurrent.futures import Future
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, Callable, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import current_tool_confirmation, current_ui

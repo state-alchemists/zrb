@@ -1,4 +1,5 @@
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from zrb.builtin.git import git_commit
 from zrb.builtin.group import git_subtree_group

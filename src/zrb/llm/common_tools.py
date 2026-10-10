@@ -19,7 +19,8 @@ via ``zrb_is_delegate_tool``), argument formatters and response handlers
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Protocol, runtime_checkable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag

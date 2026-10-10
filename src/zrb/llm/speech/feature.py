@@ -24,11 +24,7 @@ from zrb.llm.speech.player import IsStale, Speaker, is_speaking
 from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
 from zrb.llm.speech.streamed_reply import StreamedReply
 from zrb.llm.speech.summary import SpeechSummarizer
-from zrb.llm.speech.text import (
-    clean_for_speech,
-    fill_template,
-    match_tool_phrase,
-)
+from zrb.llm.speech.text import clean_for_speech, fill_template, match_tool_phrase
 from zrb.llm.util.feature_config import (
     current_session_key,
     get_session_ui,
@@ -163,12 +159,12 @@ class SpeechSession:
         if not CFG.HOOKS_ENABLED:
             logger.warning(
                 "Speech is delivered by the hook subsystem, which is off "
-                "(ZRB_HOOKS_ENABLED), so nothing will be spoken."
+                f"({CFG.ENV_PREFIX}_HOOKS_ENABLED), so nothing will be spoken."
             )
         hidden = set(_HOOK_NAMES) - set(CFG.LLM_HOOKS or _HOOK_NAMES)
         if hidden:
             logger.warning(
-                "The ZRB_LLM_HOOKS allowlist leaves out speech's hooks "
+                f"The {CFG.ENV_PREFIX}_LLM_HOOKS allowlist leaves out speech's hooks "
                 f"({', '.join(sorted(hidden))}), so those events are not spoken."
             )
 

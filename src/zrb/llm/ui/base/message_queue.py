@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import asyncio
 from collections import deque
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance

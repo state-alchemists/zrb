@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, Union, cast
 
+from zrb.config.config import CFG
 from zrb.llm.voice.registry import (
     SpeechServiceRegistry,
     STTServiceRegistry,
@@ -73,7 +74,8 @@ class SpeechServiceManager(Generic[T]):
             return f"{name}: not a registered speech service"
         where = "local" if spec.is_local else "remote"
         missing = "" if spec.is_available else f" (needs {spec.provider})"
-        return f"{spec.name} ({where}): {spec.doc}{missing}"
+        doc = spec.doc.replace("{ENV_PREFIX}", CFG.ENV_PREFIX)
+        return f"{spec.name} ({where}): {doc}{missing}"
 
     def list_lines(self) -> list[str]:
         """Every service, one line each, in name order."""

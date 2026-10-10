@@ -15,6 +15,8 @@ import wave
 from collections.abc import Callable, Iterable, Iterator
 from typing import BinaryIO
 
+from zrb.config.config import CFG
+
 _CHUNK_BYTES = 4096
 # The header before the samples, all chunks together: a WAV's metadata is a
 # few hundred bytes, and a stream that claims more (a hostile or broken
@@ -132,7 +134,7 @@ def _read_exactly(source: BinaryIO, size: int) -> bytes:
 def _unplayable(problem: str) -> str:
     return (
         f"The speech backend's audio {problem}, so zrb cannot play it itself; "
-        "set ZRB_LLM_SPEECH_PLAYER=command to use a player program."
+        f"set {CFG.ENV_PREFIX}_LLM_SPEECH_PLAYER=command to use a player program."
     )
 
 

@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Callable, TypeVar
+from collections.abc import Callable
+from typing import TYPE_CHECKING, TypeVar
 
 from zrb.config.config import CFG
 from zrb.task.any_task import AnyTask

@@ -785,7 +785,7 @@ def get_block_seconds(config: DictationConfig) -> float:
     if seconds is None or seconds <= 0:
         raise ValueError(
             f"block_duration must be a positive number of seconds, got {seconds!r}; "
-            "set ZRB_LLM_DICTATION_BLOCK_DURATION (default 0.1)."
+            f"set {CFG.ENV_PREFIX}_LLM_DICTATION_BLOCK_DURATION (default 0.1)."
         )
     return seconds
 

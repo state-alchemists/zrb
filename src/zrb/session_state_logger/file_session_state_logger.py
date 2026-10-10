@@ -1,7 +1,8 @@
 import datetime
 import os
 import time
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
 from zrb.util.file import read_file, write_file

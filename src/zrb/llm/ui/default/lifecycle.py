@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import traceback as tb_lib
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.snapshot.manager import GIT_MISSING_REASON

@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Sequence
+from collections.abc import Sequence
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelRequest, ModelResponse
