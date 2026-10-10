@@ -73,6 +73,8 @@ def _fake_listen(monkeypatch, *said: str, is_barge_in=True):
 
 
 def _session(**config) -> DictationSession:
+    # The judge asks a real small model about an ambiguous utterance.
+    config.setdefault("interrupt_judge_enabled", False)
     return DictationSession(
         DictationConfig(backend=FakeBackend(), mode="hands_free", **config).resolve()
     )
