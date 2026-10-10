@@ -26,14 +26,12 @@ def test_complete_load_arg_caps_at_fifty_results():
     assert len(results) == 50
 
 
-def test_complete_load_arg_omits_delegated_subagent_sessions():
+def test_complete_load_arg_excludes_delegated_sessions_from_search():
     hm = MagicMock()
-    hm.search.return_value = [
-        "sess1-sub-code-reviewer-a1b2c3d4",
-        "my-ordinary-session",
-    ]
-    results = [c.text for c in complete_load_arg("s", hm)]
-    assert results == ["my-ordinary-session"]
+    hm.search.return_value = ["foo-sub-bar-deadbeef"]
+    results = [c.text for c in complete_load_arg("foo", hm)]
+    hm.search.assert_called_once_with("foo", include_delegated=False)
+    assert results == ["foo-sub-bar-deadbeef"]
 
 
 def test_complete_redirect_arg_silent_when_prefix_doesnt_match_timestamp():

@@ -56,17 +56,8 @@ def complete_load_arg(
     history_manager: AnyHistoryManager,
 ) -> Iterable[Completion]:
     """Main-agent sessions matching `arg_prefix`; delegated ones are omitted."""
-    # lazy: zrb internal — this module is cheap and dependency-free, but
-    # even a cheap import isn't worth paying on the completion hot path
-    # (hit on every keystroke) unless /load is actually being typed.
-    from zrb.llm.util.subagent_session_naming import parse_delegated_session
-
-    main_sessions = [
-        res
-        for res in history_manager.search(arg_prefix)
-        if parse_delegated_session(res) is None
-    ]
-    for res in main_sessions[:_LOAD_COMPLETION_LIMIT]:
+    results = history_manager.search(arg_prefix, include_delegated=False)
+    for res in results[:_LOAD_COMPLETION_LIMIT]:
         yield Completion(res, start_position=-len(arg_prefix))
 
 

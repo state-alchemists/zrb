@@ -227,3 +227,19 @@ def test_delegated_history_search_scans_subagent_subdirectories(temp_history_dir
     assert reviewer in results
     assert "apple" in results
     assert manager.search("researcher") == [researcher]
+
+
+def test_search_without_delegated_keeps_root_sessions_that_look_delegated(
+    temp_history_dir,
+):
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    delegated = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
+    manager = FileHistoryManager(temp_history_dir)
+    manager.update(delegated, _sample_messages())
+    manager.save(delegated, write_backup=False)
+    open(os.path.join(temp_history_dir, "foo-sub-bar-deadbeef.json"), "w").close()
+
+    results = manager.search("", include_delegated=False)
+
+    assert results == ["foo-sub-bar-deadbeef"]
