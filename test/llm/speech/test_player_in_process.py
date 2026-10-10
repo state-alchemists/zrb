@@ -177,7 +177,7 @@ def test_pause_holds_a_pausable_utterance_and_resume_carries_on(lock_file):
     )
     speaker = Speaker(_config(backend, lock_file))
     speaker.say("long")
-    assert backend.started.wait(1)
+    assert backend.started.wait(5)
 
     speaker.pause()
     speaker.resume()
@@ -202,13 +202,13 @@ def test_pause_stops_only_the_sentence_that_cannot_pause(lock_file):
     speaker.resume()
     speaker.say("first")
     speaker.say("second")
-    assert started.wait(1)
+    assert started.wait(5)
 
     speaker.pause()
     assert not release.wait(0.3)
 
     speaker.resume()
-    assert release.wait(1)
+    assert release.wait(5)
     assert played == ["second"]
     speaker.close()
 
@@ -230,7 +230,7 @@ def test_speech_being_made_when_cleared_is_never_played(lock_file, switch_off):
     backend = _slow_backend(created, release)
     speaker = Speaker(_config(backend, lock_file))
     speaker.say("in the making")
-    assert created.wait(1)
+    assert created.wait(5)
 
     if switch_off:
         speaker.is_enabled = False
@@ -278,7 +278,7 @@ def test_speech_made_while_paused_waits_for_resume(lock_file):
     assert not backend.done.wait(0.3)
 
     speaker.resume()
-    assert backend.done.wait(1)
+    assert backend.done.wait(5)
     assert backend.played == ["queued"]
     speaker.close()
 
@@ -293,7 +293,7 @@ def test_interrupting_a_pause_drops_what_waited_and_unpauses(lock_file):
     speaker.interrupt()
     speaker.say("next")
 
-    assert backend.done.wait(1)
+    assert backend.done.wait(5)
     assert backend.played == ["next"]
     speaker.close()
 

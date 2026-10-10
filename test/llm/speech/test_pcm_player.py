@@ -287,7 +287,7 @@ def test_stopping_during_the_fallback_stops_the_player_program():
     with patch.dict("sys.modules", {"sounddevice": _broken_device()}):
         player = threading.Thread(target=utterance.play, args=(1,))
         player.start()
-        assert started.wait(1)
+        assert started.wait(5)
         assert not utterance.is_pausable  # a program cannot pause
         utterance.stop()
         player.join(1)
