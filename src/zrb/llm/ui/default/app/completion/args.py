@@ -26,6 +26,9 @@ _MODEL_SETTINGS = frozenset(
 )
 
 
+_LOAD_COMPLETION_LIMIT = 50
+
+
 def complete_save_arg(
     arg_prefix: str,
     history_manager: AnyHistoryManager,
@@ -52,22 +55,19 @@ def complete_load_arg(
     arg_prefix: str,
     history_manager: AnyHistoryManager,
 ) -> Iterable[Completion]:
-    """Existing sessions matching `arg_prefix`, labeling delegated sessions."""
+    """Main-agent sessions matching `arg_prefix`; delegated ones are omitted."""
     # lazy: zrb internal — this module is cheap and dependency-free, but
     # even a cheap import isn't worth paying on the completion hot path
     # (hit on every keystroke) unless /load is actually being typed.
     from zrb.llm.util.subagent_session_naming import parse_delegated_session
 
-    for res in history_manager.search(arg_prefix)[:10]:
-        delegated = parse_delegated_session(res)
-        display_meta = (
-            f"Sub-agent: {delegated[1]}" if delegated is not None else "Session Name"
-        )
-        yield Completion(
-            res,
-            start_position=-len(arg_prefix),
-            display_meta=display_meta,
-        )
+    main_sessions = [
+        res
+        for res in history_manager.search(arg_prefix)
+        if parse_delegated_session(res) is None
+    ]
+    for res in main_sessions[:_LOAD_COMPLETION_LIMIT]:
+        yield Completion(res, start_position=-len(arg_prefix))
 
 
 def complete_redirect_arg(arg_prefix: str) -> Iterable[Completion]:
