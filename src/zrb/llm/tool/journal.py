@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -67,7 +68,7 @@ search_journal.__name__ = "SearchJournal"
 
 
 def _search_with_rg(query: str, abs_dir: str, case_sensitive: bool) -> dict[str, Any]:
-    cmd = ["rg", "--with-filename", "--line-number", "--no-heading", "--no-messages"]
+    cmd = ["rg", "--json", "--no-messages"]
     if not case_sensitive:
         cmd.append("--ignore-case")
     cmd.extend(["--", query, abs_dir])
@@ -80,13 +81,36 @@ def _search_with_rg(query: str, abs_dir: str, case_sensitive: bool) -> dict[str,
     if proc.returncode == 2:
         return {"error": f"rg error: {proc.stderr.strip()}"}
 
-    return _format_results(proc.stdout.splitlines(), abs_dir, query)
+    return _format_results(_parse_rg_json(proc.stdout), abs_dir, query)
+
+
+def _parse_rg_json(stdout: str) -> list[tuple[str, int, str]]:
+    """`(path, line, content)` for each match event of `rg --json`.
+
+    Structured output, because `path:line:content` is ambiguous: a path may
+    hold `:` (a Windows drive, or a Unix `note:12:x.md`).
+    """
+    matches: list[tuple[str, int, str]] = []
+    for raw in stdout.splitlines():
+        try:
+            event = json.loads(raw)
+        except ValueError:
+            continue
+        if event.get("type") != "match":
+            continue
+        data = event["data"]
+        path = data["path"].get("text")
+        content = data["lines"].get("text")
+        if path is None or content is None:  # non-UTF-8 bytes
+            continue
+        matches.append((path, data["line_number"], content.rstrip("\r\n")))
+    return matches
 
 
 def _search_with_python(
     query: str, abs_dir: str, pattern: re.Pattern
 ) -> dict[str, Any]:
-    raw_lines: list[str] = []
+    raw_lines: list[tuple[str, int, str]] = []
     for root, dirs, files in os.walk(abs_dir):
         dirs[:] = [d for d in dirs if not d.startswith(".")]
         for filename in files:
@@ -98,31 +122,24 @@ def _search_with_python(
                     for line_num, line in enumerate(f, 1):
                         if pattern.search(line):
                             rel = os.path.relpath(file_path, abs_dir)
-                            raw_lines.append(f"{rel}:{line_num}:{line.rstrip()}")
+                            raw_lines.append((rel, line_num, line.rstrip()))
             except OSError:
                 pass
     return _format_results(raw_lines, abs_dir, query)
 
 
-# `path:line:content`. The path is matched lazily up to the first `:<digits>:`
-# so a Windows drive letter (`C:\notes\a.md:3:text`) stays in the path.
-_MATCH_LINE_RE = re.compile(r"^(.+?):(\d+):(.*)$")
-
-
-def _format_results(raw_lines: list[str], abs_dir: str, query: str) -> dict[str, Any]:
+def _format_results(
+    matches: list[tuple[str, int, str]], abs_dir: str, query: str
+) -> dict[str, Any]:
     results = []
-    for line in raw_lines:
-        match = _MATCH_LINE_RE.match(line)
-        if not match:
-            continue
-        file_path, line_num_str, content = match.groups()
+    for file_path, line_num, content in matches:
         rel = (
             os.path.relpath(file_path, abs_dir)
             if os.path.isabs(file_path)
             else file_path
         )
         truncated, _ = truncate_text(content, 500, keep="head")
-        results.append({"file": rel, "line": line_num_str, "content": truncated})
+        results.append({"file": rel, "line": str(line_num), "content": truncated})
 
     if not results:
         empty: dict[str, Any] = {"summary": "No matches found.", "results": []}
