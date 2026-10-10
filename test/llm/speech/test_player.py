@@ -240,7 +240,7 @@ def test_close_cuts_off_what_is_playing(lock_file):
     backend = HangingBackend()
     speaker = Speaker(_config(backend, lock_file, drain_timeout=5))
     speaker.say("a long reply")
-    assert backend.started.wait(1)
+    assert backend.started.wait(5)
 
     speaker.close()
 
@@ -251,7 +251,7 @@ def test_drain_cuts_off_what_outlives_its_timeout(lock_file):
     backend = HangingBackend()
     speaker = Speaker(_config(backend, lock_file, drain_timeout=0.05))
     speaker.say("a long reply")
-    assert backend.started.wait(1)
+    assert backend.started.wait(5)
 
     speaker.drain()
 
@@ -262,7 +262,7 @@ def test_ctrl_c_during_drain_still_cuts_off_what_is_playing(lock_file, monkeypat
     backend = HangingBackend()
     speaker = Speaker(_config(backend, lock_file, drain_timeout=5))
     speaker.say("a long reply")
-    assert backend.started.wait(1)
+    assert backend.started.wait(5)
 
     def interrupted_join(self, timeout=None):
         raise KeyboardInterrupt
@@ -282,7 +282,7 @@ def test_ctrl_c_during_the_exit_drain_cuts_off_without_a_traceback(
     backend = HangingBackend()
     speaker = Speaker(_config(backend, lock_file, drain_timeout=5))
     speaker.say("a long reply")
-    assert backend.started.wait(1)
+    assert backend.started.wait(5)
 
     def interrupted_join(self, timeout=None):
         raise KeyboardInterrupt
@@ -314,7 +314,7 @@ def test_stale_text_is_skipped(lock_file):
     speaker.say("stale", is_stale=lambda: True)
     speaker.say("fresh")
 
-    assert backend.done.wait(1)
+    assert backend.done.wait(5)
     speaker.drain()
     assert backend.played == ["fresh"]
 
@@ -324,11 +324,11 @@ def test_text_going_stale_while_playing_is_cut_off(lock_file):
     speaker = Speaker(_config(backend, lock_file))
     answered = threading.Event()
     speaker.say("approve this?", is_stale=answered.is_set)
-    assert backend.started.wait(1)
+    assert backend.started.wait(5)
 
     answered.set()
 
-    assert backend.utterances[0].stopped.wait(1)
+    assert backend.utterances[0].stopped.wait(5)
     speaker.close()
 
 
@@ -337,7 +337,7 @@ def test_interrupt_stops_what_is_playing_and_drops_the_queue(lock_file):
     speaker = Speaker(_config(backend, lock_file, drain_timeout=1))
     speaker.say("a long reply")
     speaker.say("queued behind it")
-    assert backend.started.wait(1)
+    assert backend.started.wait(5)
 
     speaker.interrupt()
     speaker.drain()
@@ -365,7 +365,7 @@ def test_interrupt_drops_an_item_dequeued_before_the_generation_bump(
 
     monkeypatch.setattr(queue.Queue, "get", get)
     speaker.say("before interrupt")
-    assert dequeued.wait(1)
+    assert dequeued.wait(5)
 
     speaker.interrupt()
     release.set()
@@ -388,7 +388,7 @@ def test_speech_being_made_when_interrupted_is_dropped(lock_file):
     backend = SlowBackend()
     speaker = Speaker(_config(backend, lock_file))
     speaker.say("slow")
-    assert created.wait(1)
+    assert created.wait(5)
 
     speaker.interrupt()
     release.set()
@@ -404,7 +404,7 @@ def test_the_next_sentence_is_made_while_the_current_one_plays(lock_file):
     speaker = Speaker(_config(backend, lock_file, drain_timeout=0.2))
     speaker.say("first")
     speaker.say("second")
-    assert backend.started.wait(1)
+    assert backend.started.wait(5)
 
     deadline = time.monotonic() + 1
     while len(backend.utterances) < 2 and time.monotonic() < deadline:

@@ -11,6 +11,12 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.ui_config import UIConfig
 
+
+@pytest.fixture(autouse=True)
+def _auto_naming_on(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_AUTO_NAME_ENABLED", "on")
+
+
 _COMMANDS = dict(
     conversation_session_name="session-one",
     exit_commands=["exit"],

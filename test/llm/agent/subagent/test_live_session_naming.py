@@ -11,6 +11,11 @@ from zrb.llm.agent.subagent.live_session import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _auto_naming_on(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_AUTO_NAME_ENABLED", "on")
+
+
 @pytest.fixture
 def registry():
     return LiveSubAgentSessionRegistry()
