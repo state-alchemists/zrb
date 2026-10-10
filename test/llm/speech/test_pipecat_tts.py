@@ -194,6 +194,16 @@ def test_a_service_that_refuses_the_interruption_does_not_hold_the_next_sentence
     monkeypatch,
 ):
     """Even a failed interruption releases the sentence lock for the next call."""
+    # The recorder gives each frame to the current sentence, so the first
+    # sentence's stop frame must land before the next sentence starts.
+    first_ended = threading.Event()
+    record_end = pipecat_tts.SpeechRecorder.record_end
+
+    def recording_end(recorder):
+        record_end(recorder)
+        first_ended.set()
+
+    monkeypatch.setattr(pipecat_tts.SpeechRecorder, "record_end", recording_end)
     service = FakeSpeechService()
     pipeline = TTSPipeline.start(service)
 
@@ -204,6 +214,7 @@ def test_a_service_that_refuses_the_interruption_does_not_hold_the_next_sentence
     try:
         audio = pipeline.speak(SENTENCE, timeout=5)
         assert next(iter(audio.chunks)) == CHUNK  # read, but not to its end
+        assert first_ended.wait(5)
 
         with monkeypatch.context() as failing:
             failing.setattr(pipecat_tts, "_call", refused)
