@@ -98,13 +98,13 @@ chat = LLMChatTask(
 
 `model`, `model_settings`, and `capabilities` are pydantic-ai's own types, passed straight through unchanged — zrb doesn't wrap or reinterpret them. For what `Model`/`ModelSettings` accept per provider, and the full catalogue of capability classes, see [pydantic-ai's documentation](https://ai.pydantic.dev).
 
-- **`model`** — a model name string (`"openai:gpt-4o"`) or a pydantic-ai `Model` instance. See [LLM & Rate Limiter Configuration](../configuration/llm-config.md) for the supported-provider list, credentials, and the task's own `model_getter`/`model_renderer` hooks for tiering or A/B routing.
-- **`model_settings`** — a pydantic-ai `ModelSettings` (temperature, `openai_reasoning_effort`, …), or a callable taking the context for per-run values. See [Core LLM Routing](../configuration/llm-config.md#1-core-llm-routing) for the defaults zrb layers on top (`ZRB_LLM_THINKING`, `openai_reasoning_summary`, …).
+- **`model`** — a model name string (`"openai:gpt-4o"`) or a pydantic-ai `Model` instance. See [LLM Models, Providers & Rate Limits](../configuration/llm-models.md) for the supported-provider list, credentials, and the task's own `model_getter`/`model_renderer` hooks for tiering or A/B routing.
+- **`model_settings`** — a pydantic-ai `ModelSettings` (temperature, `openai_reasoning_effort`, …), or a callable taking the context for per-run values. See [Core LLM Routing](../configuration/llm-models.md#core-llm-routing) for the defaults zrb layers on top (`ZRB_LLM_THINKING`, `openai_reasoning_summary`, …).
 - **`capabilities`** — a list of pydantic-ai `AbstractCapability` instances (`ProcessHistory`, `Thinking`, `WebSearch`, `PrepareTools`, …), pydantic-ai's own agent-extension mechanism. It replaced the `Agent(history_processors=...)` constructor kwarg pydantic-ai itself carried before 2.36. Do not confuse it with either of these zrb-specific things that share part of the name:
   - `history_processors` (below) — zrb's **own** history-rewriting pipeline (`append_history_processor`), which predates and is independent of pydantic-ai's `capabilities`/`ProcessHistory`.
   - the [Model Capabilities registry](../llm/extending-the-llm.md#model-capabilities) — zrb's per-model table of modality/parallel-tool-call support, unrelated to this constructor argument.
 
-`custom_model_names`, and `ui_config`'s `show_ollama_models`/`show_pydantic_ai_models` fields, only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-config.md#8-model-autocomplete).
+`custom_model_names`, and `ui_config`'s `show_ollama_models`/`show_pydantic_ai_models` fields, only affect the `/model` picker's autocomplete list in the chat TUI — see [Model Autocomplete](../configuration/llm-models.md#model-autocomplete).
 
 `active_skills` pre-activates named skills for the session (skipping their normal on-demand discovery); wrap an entry in `Tpl` to resolve it against the context. See the skill catalogue notes under [Programming the Prompt → Rung 5](../llm/programming-the-prompt.md#rung-5--composing-sections-with-promptmanager).
 

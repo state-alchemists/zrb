@@ -69,7 +69,7 @@ UIs/triggers/commands. Since 2.65.3 these are **composed attributes**
 
 Three things happen here:
 
-1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.agent.subagent.sub_agent_manager` contribute their respective pieces.
+1. **Build the inner `LLMTask`** with the resolved tools, toolsets, system prompt, capabilities, and history processors (inside `ChatExecution.exec_action`). Heavy collaborator: `zrb.llm.prompt.manager.PromptManager` assembles the system prompt; `zrb.llm.skill.SkillManager`, `zrb.llm.hook.HookManager`, and `zrb.llm.subagent.sub_agent_manager` contribute their respective pieces.
 2. **Resolve UIs** from `ui_factories` (or fall back to the default TUI). For `zrb llm chat`, this ends up being the prompt-toolkit UI in `src/zrb/llm/ui/default/ui.py`. See [llm-custom-ui.md](./llm-custom-ui.md) for the UI factory contract.
 3. **Wrap approval channels** — if multiple are present, in a `MultiplexApprovalChannel`. Otherwise the single channel passes through.
 
@@ -195,7 +195,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 7 parts: lifecycle, output, confirmation, selection, message editing, agent picker, keybindings) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/hook/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `journal_compliance.py` |
-| Sub-agents | `src/zrb/llm/agent/subagent/` |
+| Sub-agents | `src/zrb/llm/subagent/` |
 | Permission policy | `src/zrb/llm/permission/` |
 | Persistence | `src/zrb/llm/history_manager/file_history_manager.py` |
 | Snapshots | `src/zrb/llm/snapshot/manager.py` |

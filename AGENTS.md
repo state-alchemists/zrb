@@ -17,10 +17,11 @@ See [Maintainer Guide → Getting Started](docs/contributing/maintainer-guide.md
 | `attr/`, `env/`, `input/` | Deferred-evaluation attribute types, `Env`, `Input` |
 | `builtin/` | Pre-packaged user-executable tasks (`zrb <group> <task>`) |
 | `callback/`, `xcom/` | Task callbacks, and the per-task FIFO queue tasks exchange values through |
-| `cmd/`, `content_transformer/` | Shell command building, `Scaffolder` content rewriting |
+| `cmd/`, `content_transformer/` | Building and running shell and SSH commands (`command.py`, `remote.py`), `Scaffolder` content rewriting |
 | `config/` | The `CFG` singleton, composed from mixins under `mixins/`. `CFG.FOO` access stays flat regardless of which mixin owns it |
 | `context/`, `session/`, `session_state_log*/` | Three-tier context (SharedContext → Session → Context) and run state |
-| `dot_dict/`, `util/` | `DotDict`, plus string/file/cmd/truncation helpers |
+| `dot_dict/`, `util/` | `DotDict`, plus string/file/truncation helpers. At runtime `util/` imports only `zrb.attr`'s type aliases and, for `util/load.py`'s `zrb_print`, `zrb.context`; package cycles are guarded by `test_packages_do_not_import_each_other` |
+| `git/` | Git commands and subtree config behind the `zrb git` builtins |
 | `group/`, `task_status/` | CLI group tree, per-task status tracking |
 | `llm/` | Everything LLM — see below |
 | `llm_plugin/` | The built-in skills and agents that ship with zrb |
@@ -33,7 +34,8 @@ Inside `llm/`:
 
 | Path | What is in it |
 | --- | --- |
-| `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `subagent/` handles delegation; `gates.py` enforces permission denials |
+| `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `gates.py` enforces permission denials |
+| `subagent/` | Sub-agent definitions, discovery and delegation sessions — a layer above `agent/`, which never imports it |
 | `ui/` | The UI protocol (`any_ui.py`) plus its implementations; the prompt_toolkit TUI lives under `ui/default/app/` |
 | `approval/`, `permission/` | The approval channel, and the permission ruleset (`policy.py`, `state.py`) |
 | `config/` | LLM-specific config: model resolution, the rate limiter |
@@ -51,7 +53,7 @@ Inside `llm/`:
 | `util/` | LLM-side helpers: streaming, PDF/clipboard capture, history formatting, model capabilities |
 | `message.py`, `factory_resolver.py`, `input_source.py`, `stream_observer.py` | Message-history repair (role alternation, orphaned tool calls), merging static and factory-produced tools, user-turn provenance, and the outside-the-UI stream observers (`enable_speech` uses one) |
 | `common_tools.py` | Registers the shared baseline used by `LLMChatTask`, `LLMTask` and `SubAgentManager` |
-| `agent_state.py`, `agent_tool_result.py` | Leaf modules `zrb.llm.agent` depends on, kept at top level so importing them does not trigger `agent/`'s package `__init__` (ADR-0088) |
+| `agent_state.py`, `agent_tool_result.py`, `agent_activity.py`, `ambient_state.py`, `tool_registry.py` | Leaf modules shared by `agent/`, `tool/` and `ui/`, kept at top level so a reader does not import the package that happens to write them (ADR-0088) |
 
 `llm_plugin/` is split into core and optional content: `core_skills/` (always-on methodology baseline), `skills/` (utility skills, gated by `CFG.LLM_ENABLE_BUILTIN_SKILLS`), `core_agents/` (always-on sub-agents), and `agents/` (optional sub-agents, gated by `CFG.LLM_ENABLE_BUILTIN_AGENTS`). Each skill is `SKILL.md` or `SKILL.py`; each agent is `*.agent.md`. The toggles suppress only optional built-in content — user, project and plugin skills and agents always load (ADR-0054).
 
@@ -110,7 +112,7 @@ Lives under `docs/changelog/`: `README.md` (index), `v1.md` (1.x archive), `v2/`
   - On a class users subclass (`BaseTask`, `BaseUI`), an owner-only part is stored as `self._base_<aspect>` so a subclass's own `self._<aspect>` cannot silently overwrite it.
 - **No path stutter.** `X/manager/manager.py` is `X/manager.py`; siblings become `X/manager_<aspect>.py`. **The 17 `X/X.py` paths are not this** — `task/task.py`, `group/group.py`, `config/config.py` and the rest are `<package>/<eponymous-type>.py`, a package named for its principal type. Flattening one would collide with its own package (`task/task.py` → `task.py` next to `task/`), and most of them (`Task`, `Group`, `Session`, `Xcom`, ...) are top-level `zrb` exports with deep-import users.
 - **Collection verbs** ([R5/R6](docs/contributing/framework-conventions.md)). Ordered collections (prompts, tools, policies, UIs) take `append_X`, `prepend_X`, `set_X`, `remove_X` — never `add_X`, which cannot say front or back. Name- or event-keyed collections (skills, agents, hooks) take `add_X`, `set_X`, `remove_X` — never `append_X`.
-- **One verb per meaning** (ADR-0098). The other 4,538 functions, which currently answer to 493 distinct leading tokens, 39.4% of them used once, converge on: `get_X` returns X (not `fetch`/`retrieve`/`lookup`); `resolve_X` evaluates a deferred attribute against a context (ADR-0005); `read_X` touches the filesystem, `load_X` imports or deserializes; `create_X` constructs (not `build`/`make`/`new`/`generate`); `remove_X` takes X out of a collection, `delete_X` destroys it at its source; `set_X`/`reset_X` assign and restore; `handle_X` processes an event; `enable_X` switches an optional feature on for a task (ADR-0102). A verb outside the list needs a reason. Review vocabulary only — no fitness test.
+- **One verb per meaning** (ADR-0098). The other 4,539 functions, which currently answer to 493 distinct leading tokens, 39.4% of them used once, converge on: `get_X` returns X (not `fetch`/`retrieve`/`lookup`); `resolve_X` evaluates a deferred attribute against a context (ADR-0005); `read_X` touches the filesystem, `load_X` imports or deserializes; `create_X` constructs (not `build`/`make`/`new`/`generate`); `remove_X` takes X out of a collection, `delete_X` destroys it at its source; `set_X`/`reset_X` assign and restore; `handle_X` processes an event; `enable_X` switches an optional feature on for a task (ADR-0102). A verb outside the list needs a reason. Review vocabulary only — no fitness test.
 - **A function annotated `-> bool` is named as a question** — `is_`, `has_`, `should_`, `can_`, `needs_`, or an `_enabled`/`_active` property suffix (ADR-0098). Ratcheted by `test/architecture/test_bool_naming_ratchet.py`: the count of non-question names may only go down. Rename when touching a file for another reason, never as a sweep.
 - **Error handling** ([R10](docs/contributing/framework-conventions.md), ADR-0057). An LLM tool error the *model* must recover from carries a `[SYSTEM SUGGESTION]` prefix with actionable guidance; ordinary programmer errors stay plain `ValueError`/`RuntimeError`. Catch only what the code can recover from: a non-re-raising `except Exception:` and `Any` in an annotation are both ratcheted (`test_broad_except_ratchet.py`, `test_any_annotation_ratchet.py`) and may only go down.
 
@@ -175,7 +177,7 @@ Default to module-level imports. An in-function import must justify itself with 
 - ❌ No suffixes like `_advanced.py`, `_coverage.py`, `_extra.py`, `_comprehensive.py`
 - ✅ Single source of truth: update the main test file (`test_manager.py`), not a sibling
 - ✅ Split files >500 lines by **feature group** (`test_manager_lifecycle.py`, `test_manager_search.py`), not by depth or coverage level
-- ⚠️ Mirroring `src/` produces **duplicate basenames** (`test_registry.py` under `llm/agent/subagent/`, `llm/hook/`, `llm/prompt/`, `llm/skill/`, `llm/tool/`, …). pytest imports rootdir-relative, so two bare `test_registry.py` files collide at collection. Fix by adding an empty `__init__.py` to the test directory. Keep the mirrored filename; do not rename the test to dodge the clash.
+- ⚠️ Mirroring `src/` produces **duplicate basenames** (`test_registry.py` under `llm/subagent/`, `llm/hook/`, `llm/prompt/`, `llm/skill/`, …). pytest imports rootdir-relative, so two bare `test_registry.py` files collide at collection. Fix by adding an empty `__init__.py` to the test directory. Keep the mirrored filename; do not rename the test to dodge the clash.
 
 **Type checking:** the tree runs at pyright `standard`, with a `strict` array in `pyrightconfig.json` naming the packages held to `strict` (`callback`, `dot_dict`, `group`, `input`, `session`, `session_state_logger`, `xcom`). `./zrb-test.sh` gates both through the one `pyright src/zrb` call. Add a package to that list once it is strict-clean; never remove one. Prefer fixing the *root* of an inference failure over annotating each site that inherits it — when `builtin/` was first checked, one unannotated parameter in `util/cli/style.py` accounted for 335 of its strict errors.
 

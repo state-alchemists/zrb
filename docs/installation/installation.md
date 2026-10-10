@@ -90,10 +90,10 @@ The core install covers the task engine, the web UI, and `zrb llm chat` with Ope
 
 | Extra | Adds |
 |-------|------|
-| `anthropic`, `google`, `groq`, `mistral`, `xai`, `cohere`, `bedrock`, `huggingface` | That LLM provider's SDK (see [Supported Providers](../configuration/llm-config.md#supported-providers)) |
+| `anthropic`, `google`, `groq`, `mistral`, `xai`, `cohere`, `bedrock`, `huggingface` | That LLM provider's SDK (see [Supported Providers](../configuration/llm-models.md#supported-providers)) |
 | `vertexai` | Google Vertex auth (`google-auth`); use with `google` |
 | `voyageai` | Voyage AI SDK (Python < 3.14 only) |
-| `rag` | ChromaDB, for the RAG tool ([RAG configuration](../configuration/llm-config.md#9-rag-retrieval-augmented-generation-configuration)) |
+| `rag` | ChromaDB, for the RAG tool ([RAG configuration](../configuration/llm-tools.md#rag-retrieval-augmented-generation-configuration)) |
 | `playwright` | Headless Chromium for `WebFetch`, so JavaScript-rendered pages load. Also download the browser with the zrb venv's `playwright install chromium`; without it, `WebFetch` falls back to plain HTTP |
 | `voice` | `vosk`, `sounddevice`, `numpy` for dictation and local speech playback |
 | `python` | `black` and `isort` |
@@ -323,7 +323,7 @@ export OPENAI_API_KEY=sk-...
 zrb llm chat
 ```
 
-For another provider, a local model (Ollama), or a gateway, set `ZRB_LLM_MODEL` (and `ZRB_LLM_API_KEY` / `ZRB_LLM_BASE_URL` if needed) — see [Core LLM Routing](../configuration/llm-config.md#1-core-llm-routing).
+For another provider, a local model (Ollama), or a gateway, set `ZRB_LLM_MODEL` (and `ZRB_LLM_API_KEY` / `ZRB_LLM_BASE_URL` if needed) — see [Core LLM Routing](../configuration/llm-models.md#core-llm-routing).
 
 ---
 
@@ -477,4 +477,4 @@ PIP_TRUSTED_HOST=pypi.org pipx install zrb
 Zrb is configured through environment variables (logging, editors, web UI, LLM, …). See:
 
 -   [Environment Variables & Overrides](../configuration/env-vars.md)
--   [LLM & Rate Limiter Configuration](../configuration/llm-config.md)
+-   [LLM Configuration](../configuration/llm-config.md)

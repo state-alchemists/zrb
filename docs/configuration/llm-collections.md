@@ -79,7 +79,7 @@ Anything an env var can't express — a callable tool, a discovered-skill collis
 ```python
 # zrb_init.py — ran once at CLI startup, before any task runs.
 from zrb import hook_registry, prompt_registry, skill_registry, sub_agent_registry
-from zrb.llm.agent.subagent.definition import SubAgentDefinition
+from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.skill.manager import Skill
@@ -110,7 +110,7 @@ prompt_registry.set_prompts(["Only these extra prompts run."])
 Layer onto the shipped surface:
 
 ```python
-from zrb.llm.tool.registry import tool_registry
+from zrb.llm.tool_registry import tool_registry
 
 def my_special_tool(ctx) -> dict:
     """..."""

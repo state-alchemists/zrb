@@ -8,6 +8,12 @@ from typing import Annotated, Any
 
 from pydantic import Field
 
+from zrb.cmd.command import (
+    close_transport,
+    resolve_shell,
+    terminate_process,
+    wait_for_exit_and_drain,
+)
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_ui
 from zrb.llm.sandbox import get_effective_sandbox_policy
@@ -17,12 +23,6 @@ from zrb.llm.sandbox.os_sandbox import (
 )
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
-from zrb.util.cmd.command import (
-    close_transport,
-    resolve_shell,
-    terminate_process,
-    wait_for_exit_and_drain,
-)
 
 # Minimum seconds between live shell-output repaints.
 _LIVE_UPDATE_INTERVAL = 0.5

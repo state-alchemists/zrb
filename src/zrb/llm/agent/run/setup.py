@@ -26,8 +26,7 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.ui.multi_ui import MultiUI, create_combined_ui
-from zrb.llm.ui.std_ui import StdUI
+from zrb.llm.ui.multi_ui import get_main_ui, resolve_ui
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
@@ -60,7 +59,7 @@ def session_model_scope(ui: "AnyUI | list[AnyUI] | None") -> "Iterator[None]":
     Only non-`None` values are bound, so an enclosing run's binding is never
     replaced by nothing.
     """
-    effective_ui = None if ui is None else create_combined_ui(ui, fallback=StdUI())
+    effective_ui = None if ui is None else resolve_ui(ui)
     with ExitStack() as stack:
         small_model = getattr(effective_ui, "small_model", None)
         if small_model is not None:
@@ -74,10 +73,7 @@ def session_model_scope(ui: "AnyUI | list[AnyUI] | None") -> "Iterator[None]":
 def resolve_context_dependencies(
     ui, tool_confirmation, yolo, approval_channel, hook_manager
 ):
-    ui_arg = ui if ui is not None else current_ui.get()
-    if ui_arg is None:
-        ui_arg = StdUI()
-    effective_ui = create_combined_ui(ui_arg, fallback=StdUI())
+    effective_ui = resolve_ui(ui if ui is not None else current_ui.get())
 
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
     # A nested run inherits the manager its parent is running on, the way it
@@ -97,9 +93,7 @@ def resolve_context_dependencies(
 
     if effective_approval_channel is not None and effective_ui is not None:
         if not isinstance(effective_approval_channel, MultiplexApprovalChannel):
-            ui_for_terminal = effective_ui
-            if isinstance(effective_ui, MultiUI) and effective_ui.main_ui is not None:
-                ui_for_terminal = effective_ui.main_ui
+            ui_for_terminal = get_main_ui(effective_ui)
             CFG.LOGGER.debug(
                 f"Creating TerminalApprovalChannel with UI: {ui_for_terminal}"
             )

@@ -2,7 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Generic, Literal, TypeVar
 
-from zrb.util.cmd.remote import bracket_ipv6
+from zrb.cmd.remote import bracket_ipv6
 
 
 @dataclass(frozen=True)

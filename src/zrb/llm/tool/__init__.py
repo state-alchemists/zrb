@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan import create_plan_tools, get_todos, write_todos
     from zrb.llm.tool.rag import create_rag_from_directory
-    from zrb.llm.tool.registry import ToolRegistry, tool_name, tool_registry
     from zrb.llm.tool.shell import run_shell_command
     from zrb.llm.tool.shell_background import create_monitor_process_tool
     from zrb.llm.tool.skill import create_activate_skill_tool, create_search_skill_tool
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
     )
+    from zrb.llm.tool_registry import ToolRegistry, tool_name, tool_registry
 
 __all__ = [
     "run_shell_command",
@@ -71,7 +71,7 @@ __all__ = [
 ]
 
 _SOURCES = {
-    "ToolRegistry": "zrb.llm.tool.registry",
+    "ToolRegistry": "zrb.llm.tool_registry",
     "analyze_file": "zrb.llm.tool.file",
     "create_activate_skill_tool": "zrb.llm.tool.skill",
     "create_list_zrb_task_tool": "zrb.llm.tool.zrb_task",
@@ -94,8 +94,8 @@ _SOURCES = {
     "search_files": "zrb.llm.tool.file",
     "search_internet": "zrb.llm.tool.web",
     "search_journal": "zrb.llm.tool.journal",
-    "tool_name": "zrb.llm.tool.registry",
-    "tool_registry": "zrb.llm.tool.registry",
+    "tool_name": "zrb.llm.tool_registry",
+    "tool_registry": "zrb.llm.tool_registry",
     "write_file": "zrb.llm.tool.file",
     "write_journal_note": "zrb.llm.tool.journal_write",
     "write_todos": "zrb.llm.tool.plan",

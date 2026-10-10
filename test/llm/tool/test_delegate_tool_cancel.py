@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
 
 
@@ -62,7 +62,7 @@ async def test_delegate_cancel_without_human_flag_propagates(mock_sub_agent_mana
     """A cancellation NOT flagged by the sub-agent-view Esc (e.g. the main
     run's own Esc) must propagate as CancelledError — swallowing it would
     resurrect a main turn the user explicitly cancelled."""
-    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.subagent.live_session import live_subagent_session_registry
 
     live_subagent_session_registry.clear()  # earlier tests may have left sessions
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
@@ -92,7 +92,7 @@ async def test_delegate_cancel_without_human_flag_propagates(mock_sub_agent_mana
 async def test_delegate_marks_done_in_live_view_on_success(mock_sub_agent_manager):
     """A completed delegation appends an end-of-session <Done> to the sub-agent's
     live-view transcript — after the turn went idle, so the view visibly ends."""
-    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.subagent.live_session import live_subagent_session_registry
 
     live_subagent_session_registry.clear()
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
@@ -122,7 +122,7 @@ async def test_delegate_marks_done_in_live_view_on_success(mock_sub_agent_manage
 async def test_delegate_cancelled_view_shows_no_done_marker(mock_sub_agent_manager):
     """A human-cancelled delegation must not end with <Done> — the TUI wrote
     <Esc> Canceled, and a <Done> on top would contradict it."""
-    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.subagent.live_session import live_subagent_session_registry
 
     live_subagent_session_registry.clear()
     mock_sub_agent_manager.create_agent.return_value = MagicMock()

@@ -2,8 +2,8 @@ import os
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.tool.file_edit import find_fuzzy_match
 from zrb.llm.tool_call.args import parse_tool_args
+from zrb.util.string.fuzzy_match import find_fuzzy_match
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart

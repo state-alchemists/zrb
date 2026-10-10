@@ -13,8 +13,8 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.hook.interface import HookEvent
-from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import remove_style, stylize_error, stylize_muted
 
@@ -334,7 +334,7 @@ class UIKeybindings:
                 # lazy: transitively heavy via internal — live_session.py
                 # imports run_agent (zrb.llm.agent.run.runner), which pulls
                 # in pydantic_ai.
-                from zrb.llm.agent.subagent.live_session import (
+                from zrb.llm.subagent.live_session import (
                     live_subagent_session_registry,
                 )
 

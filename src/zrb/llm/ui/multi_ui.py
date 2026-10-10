@@ -28,6 +28,7 @@ from zrb.llm.permission.state import (
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.session.session import Session
@@ -857,3 +858,18 @@ def create_combined_ui(uis: "AnyUI | list[AnyUI]", fallback: "AnyUI") -> "AnyUI"
     if not uis:
         return fallback
     return uis[0] if len(uis) == 1 else MultiUI(uis)
+
+
+def resolve_ui(uis: "AnyUI | list[AnyUI] | None" = None) -> "AnyUI":
+    """One UI for *uis* (see `create_combined_ui`); stdout's `StdUI` when there
+    is none."""
+    if uis is None:
+        return StdUI()
+    return create_combined_ui(uis, fallback=StdUI())
+
+
+def get_main_ui(ui: "AnyUI") -> "AnyUI":
+    """*ui*'s primary member when it is a `MultiUI` that has one, else *ui*."""
+    if isinstance(ui, MultiUI) and ui.main_ui is not None:
+        return ui.main_ui
+    return ui

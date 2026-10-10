@@ -229,7 +229,7 @@ pm = PromptManager(
 cli.add_task(LLMChatTask(name="lean-chat", prompt_manager=pm))
 ```
 
-You can also set the order without touching code, via the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive; see [LLM Configuration → Prompt Component Configuration](../configuration/llm-config.md#prompt-component-configuration)). A *new* name in `include_sections` resolves to nothing — it is ignored with a logged warning.
+You can also set the order without touching code, via the `ZRB_LLM_INCLUDE_SECTIONS` env var (comma-separated, order-sensitive; see [LLM Configuration → Prompt Component Configuration](../configuration/llm-prompts.md#prompt-component-configuration)). A *new* name in `include_sections` resolves to nothing — it is ignored with a logged warning.
 
 **Task scope vs. registry scope.** Each task exposes its manager as `task.prompt_manager`. The same API exists at registry scope: `prompt_registry.set_prompts` / `append_prompt` in `zrb_init.py` changes the default **every** task starts from (`PromptManager(prompts=None)` defers there); giving a task its own `PromptManager(prompts=...)`, or mutating `task.prompt_manager`, overrides just that task. Each layer's append/remove ops stack on the one below — see [LLM Component Collections](../configuration/llm-collections.md).
 
@@ -276,7 +276,7 @@ The `add_live_context` provider runs every turn, so the injected block always re
 
 ## Rung 7 — file-backed sections and profiles
 
-Section wording ships as files, so you can override any of them without Python: place a same-named file higher on the override chain (project override → env → base-prompt-dir → package) and it replaces the packaged wording, `{PLACEHOLDER}` substitution included — e.g. `persona.md` in `ZRB_LLM_PROMPT_DIR` replaces the packaged persona. The chain's env vars and the list of overridable names are in [LLM Configuration → Prompt Customization Hierarchy](../configuration/llm-config.md#prompt-customization-hierarchy).
+Section wording ships as files, so you can override any of them without Python: place a same-named file higher on the override chain (project override → env → base-prompt-dir → package) and it replaces the packaged wording, `{PLACEHOLDER}` substitution included — e.g. `persona.md` in `ZRB_LLM_PROMPT_DIR` replaces the packaged persona. The chain's env vars and the list of overridable names are in [LLM Configuration → Prompt Customization Hierarchy](../configuration/llm-prompts.md#prompt-customization-hierarchy).
 
 Independently, `ZRB_LLM_PROFILE` selects one of three **profiles** — `minimal`, `standard`, or `capable` — that swap the final `profile` section via `profile.{name}.md`, and for `minimal` only, drop the delegate (sub-agent) tools:
 

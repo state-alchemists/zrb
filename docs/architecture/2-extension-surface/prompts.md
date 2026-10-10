@@ -52,7 +52,7 @@ The prompt is read by the model on every request, so small mistakes here cost on
 | The `profile` section follows the active profile | A capable model gets the default rulebook, with no error | `test/llm/prompt/test_manager.py::test_profile_section_uses_the_active_profile` |
 | An unknown section name is skipped, not fatal | A config typo crashes every run | `test/llm/prompt/test_manager.py::test_unknown_section_names_are_ignored` |
 | Extra prompts given as a callable are resolved on every compose | Values captured at build time go stale | `test/llm/prompt/test_registry.py::test_manager_resolves_callable_each_compose` |
-| A sub-agent inherits no main-agent sections unless it asks | Every sub-agent silently takes on the main persona | `test/llm/agent/subagent/test_manager_building.py::test_sub_agent_manager_without_inherit_sections_skips_inheritance` |
+| A sub-agent inherits no main-agent sections unless it asks | Every sub-agent silently takes on the main persona | `test/llm/subagent/test_manager_building.py::test_sub_agent_manager_without_inherit_sections_skips_inheritance` |
 
 ## Realization
 
@@ -117,7 +117,7 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | `LLM_PROFILE=auto` | `resolve_profile` in `src/zrb/llm/prompt/profile.py` | The model id picks the profile by declared size; an id that declares nothing gets `standard` |
 | The `minimal` profile | `active_profile`, read again at tool registration | Also drops the delegate tools — see [Tools](tools.md) |
 | First turn, or after compaction | `LLMTask` and `summarize_history` | The journal index is added to live context, or baked into the summary |
-| A sub-agent with `inherit_sections` | `src/zrb/llm/agent/subagent/building.py` | A temporary `PromptManager` composes only those sections, then the agent's own body is appended. Being single-turn, it folds live context (or, without `system_context`, just the journal index) into its system prompt |
+| A sub-agent with `inherit_sections` | `src/zrb/llm/subagent/building.py` | A temporary `PromptManager` composes only those sections, then the agent's own body is appended. Being single-turn, it folds live context (or, without `system_context`, just the journal index) into its system prompt |
 | A custom per-turn fact | `PromptManager.add_live_context` | Rendered inside `<live-context>`, never in the system prompt |
 | Plan mode or journal on/off | `src/zrb/llm/common_tools.py` | Changes which tools are registered; no prompt section switches on or off |
 
@@ -133,7 +133,7 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | Change session facts | `src/zrb/llm/prompt/system_context.py` | `test/llm/prompt/test_system_context.py` |
 | Change per-turn live context | `src/zrb/llm/prompt/live_context.py` | `test/llm/prompt/test_live_context.py` |
 | Change extra-prompt layering | `src/zrb/llm/prompt/registry.py` | `test/llm/prompt/test_registry.py` |
-| Change sub-agent inheritance | `src/zrb/llm/agent/subagent/building.py` | `test/llm/agent/subagent/test_manager_building.py` |
+| Change sub-agent inheritance | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/test_manager_building.py` |
 
 ## See Also
 

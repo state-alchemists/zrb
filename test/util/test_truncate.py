@@ -122,7 +122,7 @@ def test_the_live_stream_and_the_exported_transcript_agree():
     different output: one elided as `val[:27] + "..."`, the other as
     `arg[:26] + " ..."`, so the exported transcript and the live stream
     disagreed by a character on the same call. Both now share
-    `zrb.llm.util.tool_args.truncate_tool_args_values`.
+    `zrb.llm.tool_call.args.truncate_tool_args_values`.
 
     Asserted through the public surface: the transcript renderer's output must
     equal `truncate_display`, and both renderers must be bound to
@@ -130,9 +130,9 @@ def test_the_live_stream_and_the_exported_transcript_agree():
     """
     import json
 
+    from zrb.llm.tool_call.args import truncate_tool_args_values
     from zrb.llm.util import history_formatter, stream_response
     from zrb.llm.util.history_formatter import format_args
-    from zrb.llm.util.tool_args import truncate_tool_args_values
     from zrb.util.truncate import truncate_display
 
     value = "x" * 80

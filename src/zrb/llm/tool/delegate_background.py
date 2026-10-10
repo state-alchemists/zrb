@@ -22,25 +22,23 @@ from typing import TYPE_CHECKING, Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.agent.subagent.manager import (
-    SubAgentManager,
-)
-from zrb.llm.agent.subagent.manager import (
-    sub_agent_manager as default_sub_agent_manager,
-)
 from zrb.llm.agent_state import get_current_ui
-from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.ambient_state import (
+from zrb.llm.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
+from zrb.llm.permission import Capability, tag
+from zrb.llm.subagent.manager import (
+    SubAgentManager,
+)
+from zrb.llm.subagent.manager import sub_agent_manager as default_sub_agent_manager
 from zrb.llm.tool.delegate import (
     BufferedUI,
     agent_not_found_message,
     agent_roster_doc,
     run_agent_task,
 )
-from zrb.llm.ui.std_ui import StdUI
+from zrb.llm.ui.multi_ui import resolve_ui
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.string.name import get_random_name
 
@@ -255,7 +253,7 @@ def create_background_delegate_tool(
         # Validate before detaching, else an unknown agent surfaces only when polled.
         if not sub_agent_manager.get_agent_definition(agent_name):
             return agent_not_found_message(agent_name, sub_agent_manager)
-        parent_ui = get_current_ui() or StdUI()
+        parent_ui = resolve_ui(get_current_ui())
         handle = get_random_name(separator="-", add_random_digit=True)
         prefix = f"[{agent_name}:{handle}] "
         buffered_ui = BufferedUI(

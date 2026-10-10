@@ -6,7 +6,7 @@ Zrb can be heavily customized using environment variables. These control everyth
 
 > This page is about Zrb's *own* config knobs (read via the `CFG` singleton). Looking for how to define environment variables for *your own tasks* instead? See [Core Concepts: Environments (Envs)](../core-concepts/environments.md).
 
-> This page covers the general knobs; the LLM, chat TUI and voice ones are in [LLM & Rate Limiter Configuration](./llm-config.md). `zrb config explain` (optionally `--keyword <text>`) prints every setting with its current value and description.
+> This page covers the general knobs; the LLM, chat TUI and voice ones are in [LLM Configuration](./llm-config.md). `zrb config explain` (optionally `--keyword <text>`) prints every setting with its current value and description.
 
 > **Note on White-labeling:** If you have customized `_ZRB_ENV_PREFIX` (e.g., in `__main__.py` for a custom CLI), remember to replace `ZRB_` with your custom prefix (e.g., `ACME_LOGGING_LEVEL`).
 
@@ -145,7 +145,7 @@ ANSI colors for plain terminal output (outside the TUI). Each `_COLOR_*` value i
 
 > These affect `stylize_warning`, `stylize_error`, `stylize_muted` (alias: `stylize_faint`/`stylize_log`), `stylize_highlight`, `stylize_info`, `stylize_success`, and the `stylize_todo_*` helpers. Physical helpers (`stylize_yellow`, `stylize_red`, etc.) are unaffected — they always produce their named color.
 
-`ZRB_THEME` (see [LLM Configuration → Themes](./llm-config.md#themes-zrb_theme)) supplies the defaults for these knobs; an individual export still wins.
+`ZRB_THEME` (see [LLM Configuration → Themes](./llm-tui.md#themes-zrb_theme)) supplies the defaults for these knobs; an individual export still wins.
 
 ---
 

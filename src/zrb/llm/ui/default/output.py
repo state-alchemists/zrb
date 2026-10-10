@@ -13,8 +13,8 @@ import time
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
-from zrb.llm.agent.activity import agent_activity_registry
-from zrb.llm.tool.ambient_state import get_session_ownership_key
+from zrb.llm.agent_activity import agent_activity_registry
+from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.ui.output_chunk import (
     CollapsibleBlockSource,
     merge_into_block,
@@ -600,7 +600,7 @@ class UIOutput:
         if viewing_agent_id:
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-            from zrb.llm.agent.subagent.live_session import (
+            from zrb.llm.subagent.live_session import (
                 live_subagent_session_registry,
             )
 
@@ -642,7 +642,7 @@ class UIOutput:
         # tracked — not only while something is currently running.
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.subagent.live_session import live_subagent_session_registry
 
         live = live_subagent_session_registry.active(
             session_id=get_session_ownership_key(self._ui.conversation_session_name)

@@ -5,11 +5,11 @@ from zrb.builtin.git import git_commit
 from zrb.builtin.group import git_subtree_group
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.git.commands import get_repo_dir
+from zrb.git.subtree import add_subtree, load_config, pull_subtree, push_subtree
 from zrb.input.str_input import StrInput
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_muted
-from zrb.util.git.commands import get_repo_dir
-from zrb.util.git.subtree import add_subtree, load_config, pull_subtree, push_subtree
 
 
 @make_task(

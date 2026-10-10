@@ -10,8 +10,8 @@ import pytest
 
 from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
 from zrb.llm.snapshot.manager import OPERATION_LOCK_NAME
+from zrb.llm.snapshot.store import SnapshotStore
 from zrb.util.file_lock import hold_file_lock
-from zrb.util.git.snapshot_store import SnapshotStore
 
 
 @pytest.fixture

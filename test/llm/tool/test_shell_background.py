@@ -8,8 +8,8 @@ import pytest
 import pytest_asyncio
 
 from zrb.config.config import CFG
+from zrb.llm.ambient_state import current_chat_session_id
 from zrb.llm.permission import Capability, tool_capability
-from zrb.llm.tool.ambient_state import current_chat_session_id
 from zrb.llm.tool.shell import run_shell_command
 from zrb.llm.tool.shell_background import (
     create_monitor_process_tool,

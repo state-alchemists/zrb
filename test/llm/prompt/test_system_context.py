@@ -4,10 +4,10 @@ import os
 from unittest.mock import MagicMock, patch
 
 from zrb.context.any_context import AnyContext
+from zrb.llm.ambient_state import get_current_context_session
 from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.sandbox import SandboxPolicy, sandbox_policy
-from zrb.llm.tool.ambient_state import get_current_context_session
 
 
 class TestSystemContext:
@@ -371,7 +371,7 @@ class TestRenderLiveContext:
 
     def test_render_live_context_sets_interactive_mode_contextvar(self):
         "The ContextVar must be updated so the tool can read it later."
-        from zrb.llm.tool.ambient_state import (
+        from zrb.llm.ambient_state import (
             get_interactive_mode,
             set_interactive_mode,
         )

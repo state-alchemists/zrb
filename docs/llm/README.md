@@ -20,7 +20,7 @@ Everything about zrb's coding agent: using it, configuring it, and programming i
 
 | Page | Read it to… |
 |---|---|
-| [LLM & Rate Limiter Configuration](../configuration/llm-config.md) | Pick a provider and model, and look up any `ZRB_LLM_*` variable |
+| [LLM Configuration](../configuration/llm-config.md) | Pick a provider and model, and look up any `ZRB_LLM_*` variable |
 | [LLM Component Collections](../configuration/llm-collections.md) | Add or filter skills, agents, hooks, prompts and tools from `zrb_init.py` |
 | [Claude Code Compatibility](claude-compatibility.md) | Reuse `CLAUDE.md`, skills, agents, hooks and plugins — and see where zrb differs |
 | [Hooks](hooks.md) | Run commands, prompts or agents at lifecycle events |

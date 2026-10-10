@@ -348,9 +348,7 @@ def test_escape_while_viewing_sub_agent_cancels_it(mock_ui, setup_bindings):
     mock_ui.saved_main_output = "main transcript"
     fake = _FakeLiveRegistry()
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry", fake
-    ):
+    with patch("zrb.llm.subagent.live_session.live_subagent_session_registry", fake):
         trigger_binding(setup_bindings, "escape", event)
 
     assert fake.cancelled == [("test_session", "abc123")]
@@ -369,9 +367,7 @@ def test_escape_while_viewing_idle_sub_agent_does_nothing(mock_ui, setup_binding
     mock_ui.saved_main_output = "main transcript"
     fake = _FakeLiveRegistry(cancel_result=False)
 
-    with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry", fake
-    ):
+    with patch("zrb.llm.subagent.live_session.live_subagent_session_registry", fake):
         trigger_binding(setup_bindings, "escape", event)
 
     assert fake.cancelled == [("test_session", "abc123")]

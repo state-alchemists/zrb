@@ -10,7 +10,7 @@
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; a cloud key; or a local Pipecat voice |
 
-To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns without interrupting, `speak` to only hear replies). Every setting is an environment variable, listed in [LLM Configuration § 21](../configuration/llm-config.md#21-voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
+To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns without interrupting, `speak` to only hear replies). Every setting is an environment variable, listed in [LLM Voice and Camera configuration](../configuration/llm-voice-camera.md#voice-and-camera). Platform problems are covered in [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
 
 ## Table of Contents
 
@@ -142,7 +142,7 @@ CFG.LLM_DICTATION_WAKE_WORDS = ["hey zed"]
 
 You can also set environment variables (`os.environ`), but direct assignment to `CFG` is cleaner and ensures the values are serialized correctly. Settings are read when the session starts, so changes after `import zrb` still apply.
 
-**Everything is a setting.** Every word zrb listens for and every phrase it says, apart from the status-bar badges, is a variable in [LLM configuration § Voice and Camera](../configuration/llm-config.md#21-voice-and-camera):
+**Everything is a setting.** Every word zrb listens for and every phrase it says, apart from the status-bar badges, is a variable in [LLM configuration § Voice and Camera](../configuration/llm-voice-camera.md#voice-and-camera):
 
 - **Words it listens for:** wake words, approve and deny words, stop words, and the polite words a yes or a no may carry. The defaults are English; set them for your language.
 - **What it says:** the approval request and each tool's action in it, every progress line and the tools it keeps quiet about, the question notice, and the note after a cut reply. The two per-tool tables are JSON objects of tool-name patterns (`{"Read": "Membaca berkas.", "*": "Memakai {tool}."}`).

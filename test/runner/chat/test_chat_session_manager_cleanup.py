@@ -25,7 +25,7 @@ class TestChatSessionManagerCleanup:
     @pytest.mark.asyncio
     async def test_remove_session_clears_its_activity_registry_bucket(self):
         """Removing a session drops its agent_activity_registry bucket."""
-        from zrb.llm.agent.activity import agent_activity_registry
+        from zrb.llm.agent_activity import agent_activity_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = await ChatSessionManager.get_instance()
@@ -63,7 +63,7 @@ class TestChatSessionManagerCleanup:
     @pytest.mark.asyncio
     async def test_remove_session_clears_its_live_subagent_session_bucket(self):
         """Removing a session drops its live sub-agent session bucket."""
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.subagent.live_session import live_subagent_session_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
 
         manager = await ChatSessionManager.get_instance()
@@ -83,7 +83,7 @@ class TestChatSessionManagerCleanup:
         self, tmp_path
     ):
         """A background shell process does not outlive session removal."""
-        from zrb.llm.tool.ambient_state import current_chat_session_id
+        from zrb.llm.ambient_state import current_chat_session_id
         from zrb.llm.tool.shell import run_shell_command
         from zrb.llm.tool.shell_background import get_shell_background_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager
@@ -108,7 +108,7 @@ class TestChatSessionManagerCleanup:
         self, tmp_path
     ):
         """Cleanup keys off session_id, since `session_name` is not unique."""
-        from zrb.llm.tool.ambient_state import current_chat_session_id
+        from zrb.llm.ambient_state import current_chat_session_id
         from zrb.llm.tool.shell import run_shell_command
         from zrb.llm.tool.shell_background import get_shell_background_registry
         from zrb.runner.chat.chat_session_manager import ChatSessionManager

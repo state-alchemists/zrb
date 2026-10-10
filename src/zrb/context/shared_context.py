@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import datetime
 import sys
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.context.print_fn import PrintFn
 from zrb.dot_dict.dot_dict import DotDict
-from zrb.session.any_session import AnySession
 from zrb.util.cli.terminal import is_real_console
 from zrb.util.string.conversion import (
     double_quote,
@@ -19,6 +20,9 @@ from zrb.util.string.conversion import (
 )
 from zrb.util.string.format import fstring_format
 from zrb.xcom.xcom import Xcom
+
+if TYPE_CHECKING:
+    from zrb.session.any_session import AnySession
 
 
 class SharedContext(AnySharedContext):

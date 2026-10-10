@@ -22,7 +22,7 @@ from zrb.context.any_context import AnyContext
 from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
-from zrb.llm.config.model_resolver import require_model_hook
+from zrb.llm.config.model_resolver import apply_model_hooks, require_model_hook
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
@@ -34,11 +34,7 @@ from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory
 from zrb.llm.task.history_config import HistoryConfig
-from zrb.llm.task.shared_getters import (
-    apply_model_hooks,
-    get_policy_skip_decision,
-    set_default_retry_if,
-)
+from zrb.llm.task.shared_getters import get_policy_skip_decision, set_default_retry_if
 from zrb.llm.util.attachment import get_attachments
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.params import BaseTaskParams

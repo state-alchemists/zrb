@@ -56,14 +56,14 @@ This launches a full-screen chat application where you can have a conversation w
 | `!` or `/exec <shell_cmd>` | Execute shell command |
 | `/btw <question>` | Ask a side question answered by a separate agent that sees the conversation but has **no tools** — it cannot read a file or run a command, so it answers from what is already in context. The exchange is not saved to history. Works while the assistant is thinking |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
-| `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-config.md#6-rewind--snapshots) (on by default; `ZRB_LLM_ENABLE_REWIND`) |
+| `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-context.md#rewind--snapshots) (on by default; `ZRB_LLM_ENABLE_REWIND`) |
 | `/voice`, `/v` | Record speech: a pause or `/voice` again stops, and the transcript lands in the input box. Needs `zrb[voice]` |
 | `/handsfree` | Switch hands-free voice input on or off: every utterance becomes a turn, or answers the pending approval |
 | `/speech` | Switch reading replies aloud on or off |
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
-> The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-config.md#17-slash-command-aliases). `/photo`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
+> The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-tui.md#slash-command-aliases). `/photo`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
 
 ### Recalling Previous Messages
 

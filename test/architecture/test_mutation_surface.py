@@ -17,7 +17,7 @@ specific cases" section and R6's own row for the reasoning.
 import importlib
 
 ORDERED_COLLECTIONS = {
-    "zrb.llm.tool.registry:tool_registry": [
+    "zrb.llm.tool_registry:tool_registry": [
         ("tool", "tools"),
         ("tool_factory", "tool_factories"),
         ("toolset_factory", "toolset_factories"),
@@ -43,7 +43,7 @@ ORDERED_COLLECTIONS = {
 
 KEYED_COLLECTIONS = {
     "zrb.llm.skill.registry:skill_registry": [("skill", "skills")],
-    "zrb.llm.agent.subagent.registry:sub_agent_registry": [("agent", "agents")],
+    "zrb.llm.subagent.registry:sub_agent_registry": [("agent", "agents")],
     "zrb.llm.hook.registry:hook_registry": [("hook", "hooks")],
 }
 
@@ -211,7 +211,7 @@ def test_managers_expose_the_same_roster_api():
     """
     for path in (
         "zrb.llm.skill.manager:skill_manager",
-        "zrb.llm.agent.subagent.manager:sub_agent_manager",
+        "zrb.llm.subagent.manager:sub_agent_manager",
         "zrb.llm.hook.manager:hook_manager",
     ):
         manager = _load(path)

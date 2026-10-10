@@ -152,11 +152,11 @@ async def test_agent_hook_skips_llm_call_when_no_named_tools_resolve():
     mock_config, mock_module = _patched_agent(agent_cls)
     with (
         patch(
-            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
+            "zrb.llm.subagent.manager.sub_agent_manager.get_tool_registry",
             return_value={},
         ),
         patch(
-            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_factories",
+            "zrb.llm.subagent.manager.sub_agent_manager.get_tool_factories",
             return_value=(),
         ),
         mock_config,
@@ -184,11 +184,11 @@ async def test_resolved_agent_hook_tools_contain_tool_errors():
 
     with (
         patch(
-            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
+            "zrb.llm.subagent.manager.sub_agent_manager.get_tool_registry",
             return_value={"FlakyTool": flaky_tool},
         ),
         patch(
-            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_factories",
+            "zrb.llm.subagent.manager.sub_agent_manager.get_tool_factories",
             return_value=(),
         ),
     ):
@@ -217,11 +217,11 @@ async def test_resolved_agent_hook_tools_are_undeferred():
 
     with (
         patch(
-            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
+            "zrb.llm.subagent.manager.sub_agent_manager.get_tool_registry",
             return_value={},
         ),
         patch(
-            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_factories",
+            "zrb.llm.subagent.manager.sub_agent_manager.get_tool_factories",
             return_value=[lambda ctx: [Tool(deferred_tool, defer_loading=True)]],
         ),
     ):
@@ -253,11 +253,11 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
         # wrap_tool builds around the resolved tool, below.
         patch("pydantic_ai.Agent", agent_cls),
         patch(
-            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_registry",
+            "zrb.llm.subagent.manager.sub_agent_manager.get_tool_registry",
             return_value={"LogActivity": fake_log_activity},
         ),
         patch(
-            "zrb.llm.agent.subagent.manager.sub_agent_manager.get_tool_factories",
+            "zrb.llm.subagent.manager.sub_agent_manager.get_tool_factories",
             return_value=(),
         ),
     ):

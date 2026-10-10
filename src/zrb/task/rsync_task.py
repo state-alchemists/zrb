@@ -1,11 +1,11 @@
 from typing import Unpack
 
 from zrb.attr.type import StrAttr
+from zrb.cmd.remote import bracket_ipv6
 from zrb.context.any_context import AnyContext
 from zrb.task.base.params import CmdTaskParams, reject_non_rsync_params
 from zrb.task.cmd_task import CmdTask
 from zrb.util.attr import get_str_attr
-from zrb.util.cmd.remote import bracket_ipv6
 
 
 class RsyncTask(CmdTask):

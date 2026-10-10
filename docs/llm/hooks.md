@@ -69,7 +69,7 @@ Hooks Claude Code (and drop-in tools like peon-ping) register inside `settings.j
 
 ### Hooks Subsystem Configuration
 
-Five `CFG`/env knobs control the subsystem as a whole, independent of each hook's own `enabled`/`timeout` fields: the `HOOKS_ENABLED` master switch, extra `HOOKS_DIRS`, the default `HOOKS_TIMEOUT`, the TUI's `HOOKS_EXIT_TIMEOUT`, and the `LLM_HOOKS` name allowlist. Their env names and defaults are in [LLM Configuration → LLM Hooks Configuration](../configuration/llm-config.md#11-llm-hooks-configuration).
+Five `CFG`/env knobs control the subsystem as a whole, independent of each hook's own `enabled`/`timeout` fields: the `HOOKS_ENABLED` master switch, extra `HOOKS_DIRS`, the default `HOOKS_TIMEOUT`, the TUI's `HOOKS_EXIT_TIMEOUT`, and the `LLM_HOOKS` name allowlist. Their env names and defaults are in [LLM Configuration → LLM Hooks Configuration](../configuration/llm-tools.md#llm-hooks-configuration).
 
 ---
 

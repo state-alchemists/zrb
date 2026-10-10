@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import BoolAttr
 from zrb.context.any_context import AnyContext
 from zrb.context.print_fn import PrintFn
 from zrb.env.any_env import AnyEnv
-from zrb.group.any_group import AnyGroup
 from zrb.input.any_input import AnyInput
 from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
+
+if TYPE_CHECKING:
+    from zrb.group.any_group import AnyGroup
 
 
 def make_task(

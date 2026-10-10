@@ -8,18 +8,18 @@ from zrb.attr.type import IntAttr, StrAttr
 from zrb.cmd.any_cmd_val import AnyCmdVal
 from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import CmdVal, SingleCmdVal
+from zrb.cmd.command import (
+    check_unrecommended_commands,
+    get_shell_flag,
+    run_command,
+)
+from zrb.cmd.remote import get_remote_cmd_script
 from zrb.config.config import CFG
 from zrb.config.helper import get_shell_name
 from zrb.context.any_context import AnyContext
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base.params import BaseTaskParams
 from zrb.util.attr import get_int_attr, get_str_attr
-from zrb.util.cmd.command import (
-    check_unrecommended_commands,
-    get_shell_flag,
-    run_command,
-)
-from zrb.util.cmd.remote import get_remote_cmd_script
 from zrb.util.secret import redact_env_map
 from zrb.xcom.xcom import Xcom
 

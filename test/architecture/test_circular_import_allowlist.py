@@ -1,9 +1,11 @@
 """Guard circular imports with an allowlist and isolated module imports.
 
 The allowlist records each `# lazy: circular` count; isolated imports expose
-cycles hidden by package initialization.
+cycles hidden by package initialization; the package allowlist keeps two
+packages from importing each other at runtime.
 """
 
+import ast
 import re
 import subprocess
 import sys
@@ -40,6 +42,59 @@ def test_circular_import_workarounds_match_the_allowlist():
         "added, fixed, or moved. Update CIRCULAR_IMPORT_ALLOWLIST in this "
         f"file to match, in the same diff, with a reason.\nactual={actual}\n"
         f"expected={CIRCULAR_IMPORT_ALLOWLIST}"
+    )
+
+
+# Package pairs allowed to import each other at runtime (imports under
+# `TYPE_CHECKING` or inside a function excluded); additions need reasons.
+PACKAGE_CYCLE_ALLOWLIST: set[frozenset[str]] = {
+    # `util/load.py` reports a failed user-code load through `zrb_print`, which
+    # routes to the running task's context; that context state is owned by
+    # `zrb.context`, not by a helper package.
+    frozenset({"zrb.context", "zrb.util"}),
+}
+
+
+def _package_of(module: str) -> str:
+    parts = module.split(".")
+    depth = 3 if len(parts) > 2 and parts[1] == "llm" else 2
+    return ".".join(parts[:depth])
+
+
+def _runtime_imports(tree: ast.Module) -> list[str]:
+    found: list[str] = []
+    pending: list[ast.stmt] = list(tree.body)
+    while pending:
+        node = pending.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        if isinstance(node, ast.If) and "TYPE_CHECKING" in ast.unparse(node.test):
+            pending.extend(node.orelse)
+            continue
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            found.append(node.module)
+        for field in ("body", "orelse", "finalbody", "handlers"):
+            pending.extend(getattr(node, field, None) or [])
+    return [module for module in found if module.startswith("zrb.")]
+
+
+def _package_cycles() -> set[frozenset[str]]:
+    edges: set[tuple[str, str]] = set()
+    for path in SRC.rglob("*.py"):
+        module = ".".join(("zrb", *path.relative_to(SRC).with_suffix("").parts))
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for target in _runtime_imports(tree):
+            edges.add((_package_of(module), _package_of(target)))
+    return {frozenset({a, b}) for a, b in edges if a != b and (b, a) in edges}
+
+
+def test_packages_do_not_import_each_other():
+    actual = _package_cycles()
+    assert actual == PACKAGE_CYCLE_ALLOWLIST, (
+        "Two packages import each other at runtime. Move the shared piece to "
+        "the lower package, or under `TYPE_CHECKING` when it is only an "
+        "annotation; a fixed cycle is removed from PACKAGE_CYCLE_ALLOWLIST in "
+        f"the same diff.\nactual={sorted(map(sorted, actual))}"
     )
 
 

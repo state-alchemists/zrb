@@ -16,15 +16,15 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.file_history_manager import safe_segment
-from zrb.llm.tool.ambient_state import get_session_ownership_key
-from zrb.llm.util.attachment import get_media_type, get_oversized_by
-from zrb.llm.util.conversation_naming import (
+from zrb.llm.ambient_state import get_session_ownership_key
+from zrb.llm.history_manager.conversation_naming import (
     ConversationNamingError,
     should_auto_name,
     suggest_slug,
     with_slug,
 )
+from zrb.llm.history_manager.file_history_manager import safe_segment
+from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.subagent_session_naming import (
     parse_delegated_agent_id,
     parse_delegated_session,
@@ -175,8 +175,8 @@ class BaseUIConversationCommands:
         if parse_delegated_session(name) is not None:
             return 0
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
-        from zrb.llm.agent.subagent.manager import sub_agent_manager
+        from zrb.llm.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.subagent.manager import sub_agent_manager
         from zrb.llm.tool.delegate import persist_subagent_history
         from zrb.llm.ui.buffered_ui import BufferedUI
 
@@ -288,8 +288,8 @@ class BaseUIConversationCommands:
 
     def _swap_to_subagent_persona(self, agent_name: str) -> None:
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
-        from zrb.llm.agent.subagent.manager import sub_agent_manager
         from zrb.llm.prompt.manager import PromptManager
+        from zrb.llm.subagent.manager import sub_agent_manager
 
         definition = sub_agent_manager.get_agent_definition(agent_name)
         if definition is None or definition.agent_instance or definition.agent_factory:

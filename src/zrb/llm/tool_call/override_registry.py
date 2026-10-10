@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from zrb.llm.util.tool_args import truncate_tool_args_values
+from zrb.llm.tool_call.args import truncate_tool_args_values
 
 _pending: dict[str, tuple[dict[str, Any], dict[str, Any]]] = {}
 

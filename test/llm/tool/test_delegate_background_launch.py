@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.permission import Capability, tool_capability
+from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import AgentTaskResult
 from zrb.llm.tool.delegate_background import (
     create_background_delegate_tool,
@@ -201,8 +201,8 @@ async def test_background_inherits_parent_permission_context(manager):
     """The background task inherits the parent's approval channel and interactive
     mode, and auto-approves tool calls (yolo=True) so background agents never
     block. Deny rules in the permission policy still block at execution time."""
+    from zrb.llm.ambient_state import get_interactive_mode, set_interactive_mode
     from zrb.llm.approval.approval_channel import current_approval_channel
-    from zrb.llm.tool.ambient_state import get_interactive_mode, set_interactive_mode
 
     sentinel_channel = MagicMock()
     captured = {}

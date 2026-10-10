@@ -5,6 +5,7 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.ambient_state import active_worktree
 from zrb.llm.sandbox import (
     build_sandboxed_argv,
     check_write,
@@ -14,7 +15,6 @@ from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-from zrb.llm.tool.ambient_state import active_worktree
 from zrb.llm.tool.shell import start_process
 
 

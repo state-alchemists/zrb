@@ -16,11 +16,11 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_permission_decision,
     extract_pre_tool_decision,
 )
+from zrb.llm.ambient_state import get_interactive_mode
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import ASK
-from zrb.llm.tool.ambient_state import get_interactive_mode
 from zrb.llm.tool_call.always_approve import is_always_auto_approve
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolCallHandler

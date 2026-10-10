@@ -18,7 +18,7 @@ from zrb.llm.tool.delegate_background import (
     create_background_delegate_tool,
     get_background_registry,
 )
-from zrb.llm.tool.registry import tool_name
+from zrb.llm.tool_registry import tool_name
 
 
 def _names(profile: str, model: str | None = None) -> list[str]:

@@ -10,12 +10,10 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from zrb.llm.agent.subagent.manager import (
-    sub_agent_manager as default_sub_agent_manager,
-)
+from zrb.llm.subagent.manager import sub_agent_manager as default_sub_agent_manager
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.subagent.manager import SubAgentManager
+    from zrb.llm.subagent.manager import SubAgentManager
 
 _MENTION_PATTERN = re.compile(r"@([\w-]+)")
 

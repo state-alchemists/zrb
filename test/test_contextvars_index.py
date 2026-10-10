@@ -79,7 +79,7 @@ def test_index_does_not_create_independent_state():
 
     assert cv.current_ui is direct_var
 
-    from zrb.llm.tool.ambient_state import active_worktree as direct_worktree
+    from zrb.llm.ambient_state import active_worktree as direct_worktree
 
     assert cv.active_worktree is direct_worktree
 

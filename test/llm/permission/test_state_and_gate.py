@@ -205,7 +205,7 @@ async def test_gate_inert_without_policy():
 
 
 def test_inheritance_checker_uses_policy():
-    from zrb.llm.agent.subagent.yolo import make_yolo_inheritance_checker
+    from zrb.llm.subagent.yolo import make_yolo_inheritance_checker
 
     policy = PermissionPolicy((Rule("Read", "allow"), Rule("*", "ask")))
     token = current_permission_policy.set(policy)
