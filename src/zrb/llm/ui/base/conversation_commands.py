@@ -15,6 +15,7 @@ import os
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.history_manager.file_history_manager import safe_segment
 from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.conversation_naming import (
@@ -42,6 +43,9 @@ class BaseUIConversationCommands:
     def __init__(self, base_ui: "BaseUI") -> None:
         self._base_ui = base_ui
         self._auto_name_task: asyncio.Task | None = None
+        # (conversation, first message, slug once suggested): a deferred rename
+        # retries from the first message, never a later one.
+        self._auto_name_source: list[str] = []
 
     # --- exit / info ------------------------------------------------------
 
@@ -122,29 +126,33 @@ class BaseUIConversationCommands:
 
     def schedule_auto_name(self, user_message: str) -> None:
         """After a turn, rename a conversation that still has its generated
-        name from *user_message*, in the background. Silent on any failure."""
+        name from its first message, in the background. Silent on any failure."""
         ui = self._base_ui
+        name = ui.conversation_session_name
         if (
             self._auto_name_task is not None
             or not hasattr(ui.history_manager, "rename")
-            or not should_auto_name(ui.conversation_session_name)
+            or not should_auto_name(name)
         ):
             return
-        task = asyncio.get_running_loop().create_task(self._auto_name(user_message))
+        if not self._auto_name_source or self._auto_name_source[0] != name:
+            self._auto_name_source = [name, user_message]
+        task = asyncio.get_running_loop().create_task(self._auto_name(name))
         self._auto_name_task = task
         ui.background_tasks.add(task)
         task.add_done_callback(ui.background_tasks.discard)
 
-    async def _auto_name(self, user_message: str) -> None:
+    async def _auto_name(self, old_name: str) -> None:
         ui = self._base_ui
-        old_name = ui.conversation_session_name
+        source = self._auto_name_source
         try:
-            slug = await suggest_slug(user_message)
-            # A turn already running would save under the old name, so wait for
-            # the next one; a name chosen meanwhile stays.
+            if len(source) < 3:
+                source.append(await suggest_slug(source[1]))
+            # A turn already running would save under the old name, so retry
+            # after the next one; a name chosen meanwhile stays.
             if ui.is_thinking or ui.conversation_session_name != old_name:
                 return
-            new_name = with_slug(old_name, slug)
+            new_name = with_slug(old_name, source[2])
             ui.history_manager.rename(old_name, new_name)  # type: ignore[attr-defined]
             if ui.snapshot_manager is not None:
                 self._schedule_history_copy(ui.snapshot_manager, old_name, new_name)
@@ -184,7 +192,7 @@ class BaseUIConversationCommands:
             agent_id = parse_delegated_agent_id(saved)
             if (
                 delegated is None
-                or delegated[0] != name
+                or delegated[0] != safe_segment(name)
                 or agent_id is None
                 or live_subagent_session_registry.get(session_id, agent_id)
                 or sub_agent_manager.get_agent_definition(delegated[1]) is None

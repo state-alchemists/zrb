@@ -100,3 +100,15 @@ def test_zero_retention_keeps_every_conversation(history_dir, retention):
     _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
 
     assert os.path.exists(old)
+
+
+def test_a_rename_is_refused_when_the_unsaved_history_cannot_be_written(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    manager.update("bold-arch-1234", [ModelRequest(parts=[UserPromptPart(content="hi")])])
+
+    with patch("builtins.open", side_effect=OSError("disk full")):
+        with pytest.raises(OSError):
+            manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert manager.is_dirty("bold-arch-1234")
+    assert manager.load("bold-arch-1234")

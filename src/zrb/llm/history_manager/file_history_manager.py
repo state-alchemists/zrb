@@ -39,7 +39,7 @@ _BACKUP_FILENAME_PATTERN = re.compile(
 _MAX_CACHED_CONVERSATIONS = 8
 
 
-def _safe_segment(name: str) -> str:
+def safe_segment(name: str) -> str:
     """A filesystem-safe single path segment for *name* (also used for the
     per-agent-type subdirectory, which is the agent name)."""
     safe = "".join(c for c in name if c.isalnum() or c in (" ", ".", "_", "-")).strip()
@@ -233,7 +233,12 @@ class FileHistoryManager(AnyHistoryManager):
         *new_name*, so a sub-agent stays tied to its conversation (ADR-0109).
         Timestamped backups are left under the old name."""
         self.save(conversation_name, write_backup=False)
-        old_safe, new_safe = _safe_segment(conversation_name), _safe_segment(new_name)
+        if conversation_name in self._dirty:
+            raise OSError(
+                f"Cannot rename '{conversation_name}': its unsaved history "
+                "could not be written, so it stays under its current name."
+            )
+        old_safe, new_safe = safe_segment(conversation_name), safe_segment(new_name)
         moves = [
             (
                 self._get_file_path(conversation_name),
@@ -418,11 +423,11 @@ class FileHistoryManager(AnyHistoryManager):
         """The pre-`subagent/`-layout location for a delegated transcript:
         flat in the history root, next to ordinary sessions."""
         return os.path.join(
-            self._history_dir, f"{_safe_segment(conversation_name)}.json"
+            self._history_dir, f"{safe_segment(conversation_name)}.json"
         )
 
     def _get_file_path(self, conversation_name: str) -> str:
-        safe_name = _safe_segment(conversation_name)
+        safe_name = safe_segment(conversation_name)
         delegated = parse_delegated_session(safe_name)
         if delegated is not None:
             # Delegated sub-agent transcripts live in their own per-agent-type
@@ -431,7 +436,7 @@ class FileHistoryManager(AnyHistoryManager):
             return os.path.join(
                 self._history_dir,
                 SUBAGENT_HISTORY_SUBDIR,
-                _safe_segment(delegated[1]),
+                safe_segment(delegated[1]),
                 f"{safe_name}.json",
             )
         return os.path.join(self._history_dir, f"{safe_name}.json")
@@ -485,7 +490,7 @@ class FileHistoryManager(AnyHistoryManager):
         if retention <= 0:
             return
         cutoff = time.time() - retention
-        protected = {_safe_segment(current), *map(_safe_segment, self._dirty)}
+        protected = {safe_segment(current), *map(safe_segment, self._dirty)}
         try:
             entries = list(os.scandir(self._history_dir))
         except OSError:

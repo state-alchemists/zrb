@@ -442,3 +442,45 @@ async def test_a_failed_naming_keeps_the_generated_name(conv_ui):
         await asyncio.sleep(0.05)
     conv_ui.history_manager.rename.assert_not_called()
     assert conv_ui.conversation_session_name == "bold-arch-1234"
+
+
+@pytest.mark.asyncio
+async def test_a_deferred_rename_still_uses_the_first_message(conv_ui):
+    conv_ui.conversation_session_name = "bold-arch-1234"
+    conv_ui.llm_task.async_run = AsyncMock(return_value="hi!")
+    release = asyncio.Event()
+
+    async def slow_slug(message):
+        await release.wait()
+        return "first-topic"
+
+    suggest = AsyncMock(side_effect=slow_slug)
+    with patch("zrb.llm.ui.base.conversation_commands.suggest_slug", suggest):
+        await conv_ui.stream_ai_response(conv_ui.llm_task, "first message")
+        conv_ui.is_thinking = True  # a second turn starts while naming is pending
+        release.set()
+        await asyncio.sleep(0.05)
+        conv_ui.history_manager.rename.assert_not_called()
+        await conv_ui.stream_ai_response(conv_ui.llm_task, "second message")
+        await _wait_output(conv_ui, "named")
+    suggest.assert_called_once_with("first message")
+    assert conv_ui.conversation_session_name == "bold-arch-1234-first-topic"
+
+
+def test_load_restores_sub_agents_of_a_name_that_needed_sanitizing(conv_ui):
+    # lazy: the registry pulls in pydantic_ai
+    from zrb.llm.agent.subagent.live_session import LiveSubAgentSessionRegistry
+
+    registry = LiveSubAgentSessionRegistry()
+    conv_ui.history_manager.search.return_value = ["customeracme-sub-reviewer-abcd1234"]
+    conv_ui.history_manager.load.return_value = ["hist"]
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            registry,
+        ),
+        patch("zrb.llm.agent.subagent.manager.sub_agent_manager", MagicMock()),
+    ):
+        conv_ui.handle_load_command("load customer/acme")
+
+    assert [s.agent_id for s in registry.active("customer/acme")] == ["abcd1234"]
