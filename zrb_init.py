@@ -113,7 +113,8 @@ git_diff = CmdTask(
         prompt="Git range",
         default="origin/main...HEAD",
     ),
-    cmd=Tpl('git diff --stat "{ctx.input.range}"'),
+    # --name-status, not --stat: stat elides long paths with "...".
+    cmd=Tpl('git diff --name-status "{ctx.input.range}"'),
 )
 
 review_code = code_group.add_task(
@@ -133,21 +134,35 @@ review_code = code_group.add_task(
         retries=0,
         message=Tpl(
             "Review the changes in git range {ctx.input.range}."
-            " Changed files: {ctx.xcom['git-diff'].peek()}"
-            " Read the diff with git and read the files it touches."
-            " Report ALL defects you can point at in the diff:"
+            " Changed files (status, path): {ctx.xcom['git-diff'].peek()}"
+            " Read the diff with git and read the files it touches,"
+            " including the callers of whatever the diff changes."
+            " Report only defects the diff introduces or makes worse:"
             " a wrong result, a crash, a leak, a security hole."
-            " Skip style and speculation."
+            " Skip style, speculation, pre-existing behaviour, and limits"
+            " the code or docs already state that normal use cannot trigger."
+            " Every finding needs a concrete trigger: the input or state,"
+            " the path from normal use that reaches the code, and the wrong"
+            " outcome. If you cannot name all three, drop the finding."
+            " Check a claim before you report it: you have a shell, so run"
+            " a small `python -c` or git command to confirm a behaviour you"
+            " are unsure of, such as whether a regex matches or a function"
+            " returns what you assume."
             " Do NOT run the test suite, build, or any linter --"
             " CI already ran them in a separate step and a second run"
             " here only burns minutes."
             " Work directly: no skill activation, no delegation,"
             " no plan -- go straight to reading the diff."
-            " Your review should be in markdown format"
-            " Give every finding its own section with"
-            " Problem, Location (file:line) and Suggestion, and end the"
-            " report with a verdict line reading either"
-            " 'Request changes' or 'LGTM'."
+            " Rank each finding Blocker (data loss, a crash, a wrong result"
+            " in normal use, a security hole), Major (a wrong result in a"
+            " realistic but uncommon case) or Minor. Report at most five,"
+            " most severe first."
+            " Your review should be in markdown format."
+            " Give every finding its own section with Severity, Problem,"
+            " Trigger, Location (file:line) and Suggestion, and end the"
+            " report with a verdict line reading 'LGTM' when there is no"
+            " Blocker or Major finding (Minor ones may still be listed),"
+            " otherwise 'Request changes'."
         ),
     ),
     alias="review",
