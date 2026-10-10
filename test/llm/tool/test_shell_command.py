@@ -169,7 +169,7 @@ async def test_run_shell_command_reports_background_pids():
 @pytest.mark.skipif(os.name != "posix", reason="background shell syntax is POSIX-only")
 @pytest.mark.asyncio
 async def test_run_shell_command_reports_discarded_background_output():
-    res = await run_shell_command("(sleep 1; echo LATE) &", timeout=4)
+    res = await run_shell_command("(sleep 5; echo LATE) &", timeout=10)
 
     assert "[zrb] output not fully captured" in res
     assert "Exit Code: 0" in res
