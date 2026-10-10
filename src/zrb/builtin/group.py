@@ -84,3 +84,6 @@ searxng_group = _maybe_add_group(
     Group(name="searxng", description="🔎 Searxng related command")
 )
 config_group = _maybe_add_group(Group(name="config", description="🔧 Configuration"))
+remote_group = _maybe_add_group(
+    Group(name="remote", description="💻 Run commands and checks on many hosts")
+)

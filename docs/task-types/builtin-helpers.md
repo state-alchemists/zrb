@@ -30,6 +30,55 @@ Encode, decode, and validate base64 strings.
 | `zrb util base64 decode` | Decode base64 to string (`--url-safe` for the `-_` alphabet) |
 | `zrb util base64 validate` | Validate base64 string (accepts base64 of binary data, not only UTF-8 text) |
 
+### 💻 Remote (`remote`)
+
+Run a command on, or check connectivity from, many machines at once. Register machines and endpoints in `zrb_init.py`:
+
+```python
+from zrb import Host, Target, host_inventory, target_inventory
+
+host_inventory.add(
+    Host("node1", labels=["k8s"], remote_host="10.0.0.11", remote_user="ops", remote_ssh_key="~/.ssh/id_ed25519"),
+    Host("me", labels=["k8s"]),  # no remote_host: runs locally
+)
+target_inventory.add(
+    Target("nexus", host="nexus.corp", port=8081, kind="http", labels=["registry"]),
+    Target("gitlab", host="gitlab.corp", port=22, labels=["registry"]),
+)
+```
+
+| Command | Description |
+|---------|-------------|
+| `zrb remote run --host-labels k8s --command hostname` | Run a command on every host whose name or label matches |
+| `zrb remote check --host-labels k8s --target-labels registry` | Show whether each host can reach each target |
+
+**Options.** `--host-labels` / `--target-labels` take **one** label or name (choices are offered from what you registered); a host or target may carry several labels, and an empty value selects everything. `--format` is `table` (rendered), `markdown` (raw) or `json` (raw statuses: `[{"host", "ok", "output"}]` for `run`, `[{"host", "targets": {name: status}}]` for `check`). `--concurrency` is how many hosts run at once and `--timeout` is the seconds allowed **per host** (must be positive).
+
+**`Host` fields.**
+
+| Field | Meaning |
+|-------|---------|
+| `name`, `labels` | Key (also selects) and group names; a string is one label |
+| `remote_host` | SSH host; omit to run on the machine running zrb |
+| `remote_port`, `remote_user` | SSH port (22) and user (empty: current user) |
+| `remote_password` | Sent through `sshpass`, which must be installed where zrb runs; hidden from `repr`. Prefer `remote_ssh_key` |
+| `remote_ssh_key` | Private key path |
+| `cwd`, `shell` | Directory commands start in; the shell a **local** `remote run` command starts under. Remote hosts and `remote check` always use `sh` (on Windows, a POSIX shell such as Git Bash must be installed) |
+
+**`Target` fields.** `name`, `labels`, `host` (resolved **from the checking host**), `port`, `kind` (`tcp` or `http`), and for http `scheme`, `path` or a full `url`.
+
+**Reading `check` results.**
+
+| Cell | Meaning |
+|------|---------|
+| `✅ ok` | TCP port accepted a connection |
+| `✅ 200`, `✅ 404` | HTTP got a response; any status code counts as connected |
+| `❌ fail` | No connection, or no response within 5 seconds |
+| `➖ n/a` | The host has no `bash`/`nc` (TCP) or `curl` (HTTP); no Python is needed |
+| `❌ error` | The host never reported: SSH failed, the host timed out, or the command failed |
+
+One SSH session per host probes every selected target. See [ADR-0110](../adr/adr-0110.md).
+
 ### ⚙️ Config (`config`)
 
 Inspect runtime configuration.
@@ -306,6 +355,7 @@ from zrb.builtin import encode_base64, git_commit, http_request
 | Module | Import Example |
 |--------|---------------|
 | base64 | `from zrb.builtin import encode_base64` |
+| remote | `from zrb.builtin import remote_run, remote_check` |
 | case | `from zrb.builtin import convert_case` |
 | config | `from zrb.builtin import explain_config` |
 | cron | `from zrb.builtin import parse_cron` |

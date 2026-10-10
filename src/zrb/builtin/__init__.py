@@ -40,6 +40,7 @@ from zrb.builtin.random import (
     shuffle_values,
     throw_dice,
 )
+from zrb.builtin.remote import remote_check, remote_run
 from zrb.builtin.searxng.start import start_searxng
 from zrb.builtin.setup.asdf.asdf import setup_asdf
 from zrb.builtin.setup.latex.ubuntu import setup_latex_on_ubuntu
@@ -123,6 +124,8 @@ __all__ = [
     "generate_token",
     "shuffle_values",
     "throw_dice",
+    "remote_check",
+    "remote_run",
     "start_searxng",
     "setup_asdf",
     "setup_latex_on_ubuntu",

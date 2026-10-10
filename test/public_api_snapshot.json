@@ -38,6 +38,7 @@
     "HookManager",
     "HookRegistry",
     "HookResult",
+    "Host",
     "HttpCheck",
     "IntAttr",
     "IntInput",
@@ -72,6 +73,7 @@
     "TTSServiceManager",
     "TTSServiceRegistry",
     "TTSServiceSpec",
+    "Target",
     "Task",
     "TcpCheck",
     "TextInput",
@@ -85,6 +87,7 @@
     "cli",
     "hook_manager",
     "hook_registry",
+    "host_inventory",
     "llm_limiter",
     "load_file",
     "load_module",
@@ -100,6 +103,7 @@
     "stt_registry",
     "sub_agent_manager",
     "sub_agent_registry",
+    "target_inventory",
     "to_infinite_stream",
     "tool_registry",
     "tts_manager",
@@ -806,6 +810,20 @@
       "members": [
         "to_claude_json"
       ]
+    },
+    "Host": {
+      "init": [
+        "name:POSITIONAL_OR_KEYWORD:0",
+        "labels:POSITIONAL_OR_KEYWORD:1",
+        "remote_host:POSITIONAL_OR_KEYWORD:1",
+        "remote_port:POSITIONAL_OR_KEYWORD:1",
+        "remote_user:POSITIONAL_OR_KEYWORD:1",
+        "remote_password:POSITIONAL_OR_KEYWORD:1",
+        "remote_ssh_key:POSITIONAL_OR_KEYWORD:1",
+        "cwd:POSITIONAL_OR_KEYWORD:1",
+        "shell:POSITIONAL_OR_KEYWORD:1"
+      ],
+      "members": []
     },
     "HttpCheck": {
       "init": [
@@ -1738,6 +1756,21 @@
       ],
       "members": [
         "is_available"
+      ]
+    },
+    "Target": {
+      "init": [
+        "name:POSITIONAL_OR_KEYWORD:0",
+        "host:POSITIONAL_OR_KEYWORD:1",
+        "port:POSITIONAL_OR_KEYWORD:1",
+        "kind:POSITIONAL_OR_KEYWORD:1",
+        "scheme:POSITIONAL_OR_KEYWORD:1",
+        "path:POSITIONAL_OR_KEYWORD:1",
+        "url:POSITIONAL_OR_KEYWORD:1",
+        "labels:POSITIONAL_OR_KEYWORD:1"
+      ],
+      "members": [
+        "get_url"
       ]
     },
     "Task": {
