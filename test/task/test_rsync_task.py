@@ -186,3 +186,30 @@ async def test_rsync_task_with_key_and_password(mock_session):
         cmd_script = call_kwargs["cmd"][2]
         assert "sshpass" in cmd_script
         assert "-i /path/to/key" in cmd_script
+
+
+@pytest.mark.asyncio
+async def test_rsync_task_brackets_an_ipv6_host(mock_session):
+    rsync_task = RsyncTask(
+        name="test_rsync_v6",
+        local_source_path="/local/path",
+        remote_destination_path="/remote/path",
+        remote_host="2001:db8::1",
+        remote_user="remote-user",
+    )
+    mock_session.register_task(rsync_task)
+    scripts = []
+
+    def mock_run_command(*args, **kwargs):
+        async def _coro():
+            scripts.append(kwargs["cmd"][2])
+            return (None, 0)
+
+        return _coro()
+
+    with patch(
+        "zrb.task.cmd_task.run_command", new=MagicMock(side_effect=mock_run_command)
+    ):
+        await rsync_task.exec(mock_session)
+
+    assert "remote-user@[2001:db8::1]:/remote/path" in scripts[0]

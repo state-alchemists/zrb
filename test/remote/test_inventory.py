@@ -39,3 +39,8 @@ def test_get_choices_lists_every_name_and_label_once_sorted():
     inv.add(Host("a", labels=["z", "k8s"]), Host("b", labels=["k8s"]))
     assert inv.get_choices() == ["a", "b", "k8s", "z"]
     assert Inventory().get_choices() == []
+
+
+def test_target_url_brackets_an_ipv6_host():
+    t = Target("v6", host="2001:db8::1", port=443, kind="http", scheme="https")
+    assert t.get_url() == "https://[2001:db8::1]:443/"

@@ -2,6 +2,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Generic, Literal, TypeVar
 
+from zrb.util.cmd.remote import bracket_ipv6
+
 
 @dataclass(frozen=True)
 class Host:
@@ -68,7 +70,9 @@ class Target:
 
     def get_url(self) -> str:
         """The URL probed for an http target."""
-        return self.url or f"{self.scheme}://{self.host}:{self.port}{self.path}"
+        return self.url or (
+            f"{self.scheme}://{bracket_ipv6(self.host)}:{self.port}{self.path}"
+        )
 
 
 def _to_labels(labels: Iterable[str]) -> frozenset[str]:
