@@ -138,3 +138,10 @@ def test_a_legacy_delegated_transcript_is_not_pruned_as_a_conversation(
     _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
 
     assert os.path.exists(legacy)
+
+
+def test_a_rename_without_saved_history_is_refused(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+
+    with pytest.raises(OSError, match="no saved history"):
+        manager.rename("bold-arch-1234", "bold-arch-1234-greetings")

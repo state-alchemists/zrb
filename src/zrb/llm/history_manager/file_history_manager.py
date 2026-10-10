@@ -233,29 +233,36 @@ class FileHistoryManager(AnyHistoryManager):
 
         Sub-agent transcripts stay where they are: they hang off the
         conversation's key, which a rename keeps. Timestamped backups stay
-        under the old name. Raises `OSError`, leaving everything in place,
-        when the unsaved history cannot be written or *new_name* exists.
+        under the old name. For ordinary conversations only (auto-naming
+        renames nothing else), so the legacy delegated-transcript path never
+        applies.
 
-        For ordinary conversations only (auto-naming renames nothing else), so
-        the legacy delegated-transcript path never applies. The existence
-        check is not atomic: a second process creating *new_name* in between
-        is not guarded against."""
+        Raises `OSError`, leaving everything in place, when the unsaved
+        history cannot be written, there is no saved history to move,
+        *new_name* exists, or the filesystem cannot hard-link. The target is
+        created exclusively (`os.link`), so it is never overwritten, even by a
+        concurrent writer."""
         self.save(conversation_name, write_backup=False)
         if conversation_name in self._dirty:
             raise OSError(
                 f"Cannot rename '{conversation_name}': its unsaved history "
                 "could not be written, so it stays under its current name."
             )
-        source, target = self._get_file_path(conversation_name), self._get_file_path(
-            new_name
-        )
-        if os.path.exists(target):
+        source = self._get_file_path(conversation_name)
+        target = self._get_file_path(new_name)
+        if not os.path.exists(source):
+            raise OSError(
+                f"Cannot rename '{conversation_name}': it has no saved history "
+                "to move, so it keeps its current name."
+            )
+        try:
+            os.link(source, target)
+        except FileExistsError as e:
             raise OSError(
                 f"Cannot rename '{conversation_name}' to '{new_name}': "
                 f"{target} already exists and would be overwritten."
-            )
-        if os.path.exists(source):
-            os.replace(source, target)
+            ) from e
+        os.unlink(source)
         self._cache.pop(conversation_name, None)
         self._cache_mtime.pop(conversation_name, None)
         self._dirty.discard(conversation_name)
