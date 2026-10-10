@@ -54,6 +54,9 @@ _TEST_ENV = {
     "ZRB_LLM_PROFILE": "auto",
     # Disable the built-in journal judge; its dedicated tests re-enable it.
     "ZRB_LLM_JOURNAL_ENABLED": "off",
+    # Auto-naming runs a background model call that outlives a short test and
+    # leaves a never-awaited coroutine; its dedicated tests re-enable it.
+    "ZRB_LLM_AUTO_NAME_ENABLED": "off",
     # Use a per-run speech lock so another zrb process cannot affect the suite.
     "ZRB_LLM_SPEECH_LOCK_FILE": os.path.join(
         tempfile.gettempdir(), f"zrb-test-speech-{os.getpid()}.lock"

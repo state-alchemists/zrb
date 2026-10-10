@@ -250,6 +250,13 @@ timeout = 60
 # project's own: without `.*` the run collects the copies in `.zrb/worktree/`
 # and other hidden directories.
 norecursedirs = "*.egg .* _darcs build CVS dist node_modules venv {arch} playground examples"
+# Deprecations raised inside third-party packages zrb cannot change: pipecat
+# subclasses its own deprecated `AudioContextTTSService`, and starlette's
+# `TestClient` uses the old `anyio.abc.BlockingPortal` alias.
+filterwarnings = [
+    "ignore:`AudioContextTTSService` is deprecated:DeprecationWarning",
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

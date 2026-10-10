@@ -12,6 +12,11 @@ from zrb.llm.util.conversation_naming import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _auto_naming_on(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_AUTO_NAME_ENABLED", "on")
+
+
 def test_sanitize_slug_keeps_a_short_lowercase_slug():
     assert sanitize_slug('  "Fix: Login Timeout!" ') == "fix-login-timeout"
     assert len(sanitize_slug("a" * 100)) <= 40

@@ -17,6 +17,7 @@ from zrb.llm.sandbox.os_sandbox import (
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.cmd.command import (
+    close_transport,
     resolve_shell,
     terminate_process,
     wait_for_exit_and_drain,
@@ -204,6 +205,8 @@ async def run_shell_command(
             "[SYSTEM SUGGESTION]: Check the command syntax and that any "
             "referenced files or programs exist, then retry."
         )
+    finally:
+        _close_transport_if_started(process)
 
 
 async def _start_background_shell(
@@ -248,6 +251,13 @@ def _build_stream_captures(
         StreamCapture(max_chars, echo_cap, print_live=not supports_live_collapse),
         StreamCapture(max_chars, echo_cap, print_live=not supports_live_collapse),
     )
+
+
+def _close_transport_if_started(process: "asyncio.subprocess.Process | None") -> None:
+    """Close *process*'s pipes. A timeout cancels the drain before it does, and
+    left open they warn at GC once the loop is gone."""
+    if process is not None:
+        close_transport(process)
 
 
 async def _kill_if_still_running(process: "asyncio.subprocess.Process | None") -> None:

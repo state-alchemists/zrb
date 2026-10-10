@@ -1,4 +1,6 @@
 import asyncio
+import gc
+import warnings
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -183,3 +185,14 @@ def test_docstring_routes_file_work_to_the_file_tools():
         assert wrong in doc
 
     assert "not Bash" in doc
+
+
+@pytest.mark.asyncio
+async def test_a_timed_out_command_leaves_no_unclosed_transport():
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        await run_shell_command("sleep 5", timeout=1)
+        gc.collect()
+
+    leaked = [str(w.message) for w in caught if "unclosed transport" in str(w.message)]
+    assert leaked == []

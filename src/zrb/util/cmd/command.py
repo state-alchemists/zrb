@@ -180,7 +180,7 @@ async def wait_for_exit_and_drain(
                     "the pipe open past the drain grace."
                 )
             await _cancel_and_wait(readers)
-            _close_transport(process)
+            close_transport(process)
         return await exit_task
     finally:
         await _cancel_and_wait(exit_task)
@@ -198,7 +198,7 @@ async def _cancel_and_wait(future: "asyncio.Future[_T]") -> None:
         future.exception()
 
 
-def _close_transport(process: asyncio.subprocess.Process) -> None:
+def close_transport(process: asyncio.subprocess.Process) -> None:
     """Close *process*'s pipes while the loop is alive.
 
     Left to GC, the transport's ``__del__`` can run after the loop is gone and
@@ -383,7 +383,7 @@ async def __release_process(
     for task in helper_tasks:
         task.cancel()
     await asyncio.gather(*helper_tasks, return_exceptions=True)
-    _close_transport(cmd_process)
+    close_transport(cmd_process)
 
 
 async def __terminate_on_cancel(

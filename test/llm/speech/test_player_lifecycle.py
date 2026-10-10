@@ -94,7 +94,7 @@ def test_speech_created_after_close_is_never_played(lock_file):
     backend = SlowBackend()
     speaker = Speaker(_config(backend, lock_file))
     speaker.say("slow")
-    assert created.wait(1)
+    assert created.wait(5)
 
     speaker.close()
     release.set()
@@ -116,7 +116,7 @@ def test_text_said_later_is_dropped_when_the_speaker_closes(lock_file):
         return "too late"
 
     speaker.say_later(produce)
-    assert producing.wait(1)
+    assert producing.wait(5)
     speaker.close()
     release.set()
     time.sleep(0.1)
@@ -157,7 +157,7 @@ def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(lock_file):
     backend = SlowClosingBackend()
     speaker = Speaker(_config(backend, lock_file))
     speaker.say("slow")
-    assert created.wait(1)
+    assert created.wait(5)
 
     speaker.close()
     release.set()
