@@ -71,3 +71,22 @@ async def test_a_new_title_repaints_the_parent_ui(
 
     assert entry.title == "fix-login"
     buffered_ui.parent_ui.invalidate_ui.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_a_restored_session_is_titled_from_its_first_message(
+    registry, buffered_ui, sub_agent_manager
+):
+    from pydantic_ai.messages import ModelRequest, UserPromptPart
+
+    history = [ModelRequest(parts=[UserPromptPart(content="fix the login bug")])]
+    suggest = AsyncMock(return_value="fix-login")
+    with patch("zrb.llm.agent.subagent.live_session.suggest_slug", suggest):
+        entry = registry.restore_session(
+            "s", "a1", "reviewer", sub_agent_manager, buffered_ui, history
+        )
+        await asyncio.sleep(0.05)
+
+    suggest.assert_called_once_with("fix the login bug")
+    assert entry.title == "fix-login"
+    buffered_ui.parent_ui.invalidate_ui.assert_called_once()

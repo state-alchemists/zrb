@@ -14,15 +14,16 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
-from zrb.llm.agent.run.authority_snapshot import (
-    AuthoritySnapshot,
-    capture_current_authority,
-)
+from zrb.llm.agent.run.authority_snapshot import (AuthoritySnapshot,
+                                                  capture_current_authority)
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
+from zrb.llm.agent_state import (current_approval_channel,
+                                 current_tool_confirmation)
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.ui.base.message_queue import steer_into_live_run
-from zrb.llm.util.conversation_naming import ConversationNamingError, suggest_slug
+from zrb.llm.util.conversation_naming import (ConversationNamingError,
+                                              suggest_slug)
+from zrb.llm.util.history_formatter import extract_user_message_texts
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
@@ -62,8 +63,7 @@ class LiveSubAgentSession:
     # Agent-originated messages in either direction, bounded by
     # `CFG.LLM_AGENT_MESSAGE_LIMIT` so two agents cannot answer each other forever.
     agent_messages_sent: int = 0
-    # A short topic from the small model (ADR-0109); empty until named, and
-    # for a session restored from disk.
+    # A short topic from the small model (ADR-0109); empty until named.
     title: str = ""
 
     def set_active_task(self, task: "asyncio.Task | None") -> None:
@@ -200,6 +200,9 @@ class LiveSubAgentSessionRegistry:
             history=history,
         )
         self._sessions.setdefault(session_id, {})[agent_id] = entry
+        user_texts = extract_user_message_texts(history)
+        if user_texts:
+            start_titling(entry, user_texts[0])
         return entry
 
     def has_message_budget(self, session_id: str, agent_id: str) -> bool:
@@ -307,7 +310,10 @@ def start_titling(entry: LiveSubAgentSession, text: str) -> None:
         if callable(invalidate):
             invalidate()
 
-    task = asyncio.ensure_future(_title())
+    try:
+        task = asyncio.get_running_loop().create_task(_title())
+    except RuntimeError:
+        return  # no loop to run it on
     _titling_tasks.add(task)
     task.add_done_callback(_titling_tasks.discard)
 
