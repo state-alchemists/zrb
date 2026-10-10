@@ -382,6 +382,7 @@ async def listen(
                         logger.warning("The microphone stream died; reopening it")
                         await close_quietly(stream.close, "the dead microphone")
                         stream = await open_microphone()
+                        backlog.mark_gap()
                     continue
                 utterance = await blocks.handle(item)
                 if utterance is not None:
@@ -653,8 +654,16 @@ class _Backlog:
         self._max_blocks = max_blocks
         self._blocks: deque[_CapturedBlock] = deque()
         self._arrived = asyncio.Event()
+        self._is_after_gap = False
+
+    def mark_gap(self) -> None:
+        """The next block to arrive follows audio that was never captured."""
+        self._is_after_gap = True
 
     def append(self, captured: _CapturedBlock) -> None:
+        if self._is_after_gap:
+            captured = replace(captured, follows_gap=True)
+            self._is_after_gap = False
         if self._max_blocks and len(self._blocks) >= self._max_blocks:
             self._blocks.popleft()
             if self._blocks:
