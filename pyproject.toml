@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "3.16.1"
+version = "3.16.2"
 description = "A terminal coding agent with a build system inside"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -88,6 +88,9 @@ dependencies = [
     # Security fix: GHSA-65pc-fj4g-8rjx (CVE-2026-45409) - DoS via crafted input to idna.encode().
     # idna is transitive via requests, httpx, anyio (pydantic-ai). We pin >=3.15.
     "idna>=3.15",
+    # Security fix: CVE-2026-104874 - reference leak in MultiDict view operations.
+    # multidict is transitive via aiohttp in optional extras; we pin >=6.9.1.
+    "multidict>=6.9.1",
     # pydantic-ai-slim's HTTP layer moved to httpx2 (was httpx) as of 2.36.0.
     # >=2.7 matches pydantic-ai's own floor for it.
     "httpx2>=2.7.0",
