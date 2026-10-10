@@ -61,7 +61,9 @@ async def test_output_is_bounded_to_the_trailing_lines():
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(sys.platform != "linux", reason="needs Linux's full-backlog SYN drop")
+@pytest.mark.skipif(
+    sys.platform != "linux", reason="needs Linux's full-backlog SYN drop"
+)
 async def test_probe_of_a_stalled_connect_fails_within_the_probe_limit():
     server = socket.socket()
     server.bind(("127.0.0.1", 0))

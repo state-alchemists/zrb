@@ -125,8 +125,7 @@ async def remote_check(ctx: AnyContext) -> str:
     )
     statuses = [parse_probe_output(r.output, len(targets)) for r in results]
     rows = [
-        [r.host.name, *(_describe(s) for s in row)]
-        for r, row in zip(results, statuses)
+        [r.host.name, *(_describe(s) for s in row)] for r, row in zip(results, statuses)
     ]
     records = [
         {"host": r.host.name, "targets": {t.name: s for t, s in zip(targets, row)}}

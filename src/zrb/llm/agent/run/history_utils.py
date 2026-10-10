@@ -73,8 +73,8 @@ def strip_thinking_parts(messages: list[Any]) -> list[Any]:
     For providers that reject a stray `reasoning_content`; without
     ThinkingParts pydantic-ai sends none.
     """
+    from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
     from pydantic_ai.messages import (
-        ModelResponse,  # lazy: heavy third-party
         TextPart,
         ThinkingPart,
     )
@@ -201,8 +201,8 @@ _SANITIZE_STEPS: tuple[Callable[[list[Any]], list[Any]], ...] = (
 
 def _detect_problems(messages: list[Any]) -> list[str]:
     """Invariant violations providers enforce but pydantic-ai does not check."""
+    from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
     from pydantic_ai.messages import (
-        ModelResponse,  # lazy: heavy third-party
         TextPart,
         ToolCallPart,
     )
@@ -266,8 +266,8 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     Both sides of every tool pair are converted, so nothing is orphaned.
     Large tool results are truncated to ``_TOOL_RESULT_MAX_CHARS``.
     """
+    from pydantic_ai.messages import ModelRequest  # lazy: heavy third-party
     from pydantic_ai.messages import (
-        ModelRequest,  # lazy: heavy third-party
         ModelResponse,
         TextPart,
     )
@@ -461,8 +461,8 @@ def history_through_deferred_returns(
     That is how far a resumed round got once pydantic-ai ran the approved
     tools, whatever failed after. `None` when the round never ran them.
     """
+    from pydantic_ai.messages import ModelRequest  # lazy: heavy third-party
     from pydantic_ai.messages import (
-        ModelRequest,  # lazy: heavy third-party
         RetryPromptPart,
         ToolReturnPart,
     )
