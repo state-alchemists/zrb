@@ -18,6 +18,11 @@ def test_sanitize_slug_keeps_a_short_lowercase_slug():
     assert sanitize_slug("???") == ""
 
 
+def test_a_slug_that_looks_like_a_sub_agent_transcript_is_refused():
+    with pytest.raises(ConversationNamingError):
+        with_slug("trim-coil-1234", "sub-reviewer-abcd1234")
+
+
 def test_with_slug_appends_the_topic():
     assert with_slug("trim-coil-1234", "greetings") == "trim-coil-1234-greetings"
 

@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.util.subagent_session_naming import parse_delegated_session
 from zrb.util.string.name import is_random_name
 
 if TYPE_CHECKING:
@@ -30,8 +31,16 @@ def sanitize_slug(text: str) -> str:
 
 
 def with_slug(conversation_name: str, slug: str) -> str:
-    """`trim-coil-1234` + `greetings` -> `trim-coil-1234-greetings`."""
-    return f"{conversation_name}-{slug}"
+    """`trim-coil-1234` + `greetings` -> `trim-coil-1234-greetings`. Raises
+    `ConversationNamingError` when the result would look like a delegated
+    sub-agent transcript (`…-sub-<agent>-<id>`), which is stored elsewhere."""
+    name = f"{conversation_name}-{slug}"
+    if parse_delegated_session(name) is not None:
+        raise ConversationNamingError(
+            f"'{name}' looks like a sub-agent transcript name; the conversation "
+            "keeps its generated name."
+        )
+    return name
 
 
 class ConversationNamingError(Exception):
