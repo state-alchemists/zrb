@@ -2,7 +2,7 @@
 
 # Zrb Architecture, Philosophy, & Conventions
 
-This document is aimed at maintainers, contributors, and curious power users who want to understand the *why* and *how* behind Zrb's codebase. Zrb is a complex, asynchronous task execution framework masquerading as a simple automation tool. Navigating its internals requires understanding its core design philosophies. **This page is the philosophy. [Architecture: The Design of Zrb](../architecture/README.md) breaks it down part by part, with principles linked to ADRs and invariants linked to tests.**
+For maintainers, contributors and curious users who want the *why* behind Zrb's codebase: an asynchronous task execution framework behind a simple automation interface. **This page is the philosophy. [Architecture: The Design of Zrb](../architecture/README.md) breaks it down part by part, with principles linked to ADRs and invariants linked to tests.**
 
 ---
 

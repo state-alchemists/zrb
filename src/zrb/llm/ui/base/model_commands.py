@@ -46,7 +46,7 @@ class BaseUIModelCommands:
     def __init__(self, base_ui: "BaseUI") -> None:
         self._base_ui = base_ui
 
-    # --- yolo / model -----------------------------------------------------
+    # yolo / model
 
     def toggle_yolo(self):
         """Toggle YOLO mode (full on/off) and force refresh."""
@@ -87,7 +87,7 @@ class BaseUIModelCommands:
                 return True
         return False
 
-    # --- Shift+Tab mode cycle ---------------------------------------------
+    # Shift+Tab mode cycle
 
     def current_cycle_mode(self) -> str:
         """Name of the mode the UI is in, derived from live state.

@@ -104,8 +104,6 @@ class LLMLimitsMixin:
         ),
     )
 
-    # --- Retries ----------------------------------------------------------
-
     LLM_MAX_CONTEXT_RETRIES = EnvField(
         int, doc="Maximum retries for context-related errors."
     )
@@ -128,8 +126,6 @@ class LLMLimitsMixin:
         int,
         doc="Maximum seconds to wait between retries (honors Retry-After header).",
     )
-
-    # --- Timeouts ---------------------------------------------------------
 
     LLM_SSE_KEEPALIVE_TIMEOUT = EnvField(
         int, doc="Timeout in milliseconds for SSE keepalive messages."
@@ -177,8 +173,6 @@ class LLMLimitsMixin:
             "open-ended by nature."
         ),
     )
-
-    # --- Size caps --------------------------------------------------------
 
     LLM_MAX_OUTPUT_CHARS = EnvField(
         int,

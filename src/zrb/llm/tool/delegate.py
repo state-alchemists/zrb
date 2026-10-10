@@ -404,34 +404,29 @@ def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager)
     )
 
 
-async def worktree_has_changes(worktree_path: str) -> bool:
-    """Whether *worktree_path* has any uncommitted change (`git status --short`)."""
+async def _git_output(cwd: str, *args: str) -> tuple[int, str]:
+    """Run ``git *args`` in *cwd*; return (returncode, stripped stdout)."""
     proc = await asyncio.create_subprocess_exec(
         "git",
-        "status",
-        "--short",
-        cwd=worktree_path,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    stdout, _ = await proc.communicate()
-    return bool(stdout.decode().strip())
-
-
-async def current_head_sha(cwd: str) -> str:
-    """``git rev-parse HEAD`` in *cwd*, or ``""`` if it fails."""
-    proc = await asyncio.create_subprocess_exec(
-        "git",
-        "rev-parse",
-        "HEAD",
+        *args,
         cwd=cwd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     stdout, _ = await proc.communicate()
-    if proc.returncode != 0:
-        return ""
-    return stdout.decode().strip()
+    return proc.returncode or 0, stdout.decode().strip()
+
+
+async def worktree_has_changes(worktree_path: str) -> bool:
+    """Whether *worktree_path* has any uncommitted change (`git status --short`)."""
+    _, out = await _git_output(worktree_path, "status", "--short")
+    return bool(out)
+
+
+async def current_head_sha(cwd: str) -> str:
+    """``git rev-parse HEAD`` in *cwd*, or ``""`` if it fails."""
+    code, out = await _git_output(cwd, "rev-parse", "HEAD")
+    return out if code == 0 else ""
 
 
 async def worktree_has_new_commits(worktree_path: str, base_sha: str) -> bool:
@@ -442,19 +437,11 @@ async def worktree_has_new_commits(worktree_path: str, base_sha: str) -> bool:
     """
     if not base_sha:
         return True
-    proc = await asyncio.create_subprocess_exec(
-        "git",
-        "rev-list",
-        "--count",
-        f"{base_sha}..HEAD",
-        cwd=worktree_path,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
+    code, count = await _git_output(
+        worktree_path, "rev-list", "--count", f"{base_sha}..HEAD"
     )
-    stdout, _ = await proc.communicate()
-    if proc.returncode != 0:
+    if code != 0:
         return True
-    count = stdout.decode().strip()
     return count.isdigit() and int(count) > 0
 
 

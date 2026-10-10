@@ -51,7 +51,7 @@ class BaseUIConversationCommands:
         # drops nothing.
         self._auto_name_tasks: dict[str, asyncio.Task] = {}
 
-    # --- exit / info ------------------------------------------------------
+    # exit / info
 
     def handle_exit_command(self, text: str) -> bool:
         if text.strip().lower() in self._base_ui.exit_commands:
@@ -67,7 +67,7 @@ class BaseUIConversationCommands:
             return True
         return False
 
-    # --- save / load ------------------------------------------------------
+    # save / load
 
     def handle_save_command(self, text: str) -> bool:
         text = text.strip()
@@ -126,7 +126,7 @@ class BaseUIConversationCommands:
         self._base_ui.background_tasks.add(task)
         task.add_done_callback(self._base_ui.background_tasks.discard)
 
-    # --- auto-naming (ADR-0109) --------------------------------------------
+    # auto-naming (ADR-0109)
 
     def schedule_auto_name(self, user_message: str) -> None:
         """After a turn, rename a conversation that still has its generated
@@ -273,7 +273,7 @@ class BaseUIConversationCommands:
                 return True
         return False
 
-    # --- persona-swap-on-/load ---------------------------------------------
+    # persona-swap-on-/load
     #
     # Loading a delegated sub-agent's transcript (`subagent_session_naming.py`)
     # also swaps the persona, so new messages go to that sub-agent; loading an
@@ -367,7 +367,7 @@ class BaseUIConversationCommands:
         self._base_ui.persona.active_subagent = state["active_subagent_persona"]
         self._base_ui.persona.original_snapshot = state["original_persona_snapshot"]
 
-    # --- rewind -----------------------------------------------------------
+    # rewind
 
     def handle_rewind_command(self, text: str) -> bool:
         text = text.strip()
@@ -516,7 +516,7 @@ class BaseUIConversationCommands:
             self._base_ui.is_thinking = False
             self._base_ui.invalidate_ui()
 
-    # --- redirect / attach ------------------------------------------------
+    # redirect / attach
 
     def last_ai_response(self) -> str:
         """Last AI response text: the live one, else the latest from history.
@@ -605,7 +605,7 @@ class BaseUIConversationCommands:
                 return True
         return False
 
-    # --- copy --------------------------------------------------------------
+    # copy
 
     def handle_copy_command(self, text: str) -> bool:
         text = text.strip()

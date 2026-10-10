@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
 
+from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.permission import ALLOW, ASK, DENY, Capability, get_effective_policy
@@ -14,6 +15,13 @@ if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.types import AbstractToolset, Model, Tool, ToolFuncEither
     from zrb.llm.prompt.manager import PromptManager
+    from zrb.task.base.params import BaseTaskParams
+
+
+def set_default_retry_if(kwargs: BaseTaskParams) -> None:
+    """Make a task retry only errors the classifier does not call permanent."""
+    if kwargs.get("retry_if") is None:
+        kwargs["retry_if"] = retry_unless_permanent
 
 
 def resolve_all_tools(

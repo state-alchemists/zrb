@@ -60,11 +60,11 @@ def approve_if_path_inside_skill_or_plugin_dir(args: dict[str, Any]) -> bool:
     from zrb.llm.skill.manager import skill_manager
 
     abs_path = os.path.abspath(os.path.expanduser(str(path)))
-    # 1. Check resolved skill search directories (builtin + home + project + extras)
+    # Resolved skill search directories (builtin + home + project + extras)
     for search_dir in skill_manager.search_dirs:
         if path_inside_parent(abs_path, str(search_dir)):
             return True
-    # 2. Check explicit plugin directories (both env-var and programmatically set)
+    # Explicit plugin directories (both env-var and programmatically set)
     if path_inside_any_parent(abs_path, list(CFG.LLM_PLUGIN_DIRS)):
         return True
     return False

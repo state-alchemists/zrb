@@ -63,7 +63,7 @@ Standard git operations wrapped as Zrb tasks.
 
 ### 🌳 Git Subtree (`git subtree`)
 
-Manage git subtrees easily.
+Manage git subtrees.
 
 | Command | Description |
 |---------|-------------|

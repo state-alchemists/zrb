@@ -12,7 +12,7 @@ import re
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from typing import Any, Callable
+from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -32,9 +32,6 @@ LIVE_CONTEXT_ANCHOR = (
     "most recent <live-context> as authoritative; earlier ones are stale "
     "snapshots from when that turn was sent."
 )
-
-
-SimpleLiveContextProvider = Callable[[AnyContext], str | None]
 
 # `append_live_context` always appends the block last, after "\n\n" (or bare).
 _LIVE_CONTEXT_BLOCK_RE = re.compile(
