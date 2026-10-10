@@ -108,7 +108,7 @@ def test_a_project_may_reuse_a_name_zrb_retired(monkeypatch):
 
 def test_the_exemption_is_prefix_relative(monkeypatch):
     """Entries carry no prefix, so one list serves any prefix."""
-    monkeypatch.setenv("_ZRB_ENV_PREFIX", "BANKAI")
+    monkeypatch.setenv("_ZRB_ENV_PREFIX", "ARASAKA")
     monkeypatch.setenv("ARASAKA_PROJECT_ENV_KEYS", "LLM_PROXY_*")
     monkeypatch.setenv("ARASAKA_LLM_PROXY_BASE_URL", "https://proxy.example/v1")
     assert Config().get_mistyped_env_keys() == {}
