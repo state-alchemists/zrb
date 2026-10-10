@@ -23,9 +23,9 @@ on:
       ZRB_LLM_MODEL:
         required: false
       DOCKERHUB_USERNAME:
-        required: false
+        required: true
       DOCKERHUB_TOKEN:
-        required: false
+        required: true
 
 jobs:
 
@@ -33,7 +33,7 @@ jobs:
   Run-command:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:3.5.0
+      image: stalchmst/zrb:3.15.0
       # Anonymous pulls from shared runner IPs hit Docker Hub's rate limit.
       credentials:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
