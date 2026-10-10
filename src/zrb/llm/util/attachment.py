@@ -80,7 +80,7 @@ def get_oversized_by(path: str) -> "tuple[int, int] | None":
 
 # Magic-byte signatures; audio/video/office containers have too many variants
 # to verify by prefix, so they are not checked.
-# ponytail: covers images + PDF only; extend the table if spoofing other
+# covers images + PDF only; extend the table if spoofing other
 # extensions becomes a real problem.
 _SIGNATURES: dict[str, tuple[bytes, ...]] = {
     "image/png": (b"\x89PNG\r\n\x1a\n",),

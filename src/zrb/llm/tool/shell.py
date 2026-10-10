@@ -388,7 +388,7 @@ async def start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process
         start_new_session=True,
         # asyncio's default 64KB StreamReader limit makes readline() raise on a
         # single long line (minified JS, one-line JSON logs), losing all output.
-        # ponytail: 8MB line ceiling; switch to chunked read() if ever exceeded.
+        # 8MB line ceiling; switch to chunked read() if ever exceeded.
         limit=8 * 1024 * 1024,
     )
 
@@ -607,7 +607,7 @@ def _dump_full_output(
     exit_code_str: str,
 ) -> str | None:
     """Persist untruncated output to a temp file; return its path, or None on failure."""
-    # ponytail: not auto-deleted; the OS reaps its temp dir. Add cleanup only if it bloats.
+    # not auto-deleted; the OS reaps its temp dir. Add cleanup only if it bloats.
     try:
         fd, path = tempfile.mkstemp(prefix="zrb_shell_", suffix=".log")
         with os.fdopen(fd, "w", encoding="utf-8") as f:

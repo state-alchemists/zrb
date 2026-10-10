@@ -220,7 +220,7 @@ def copy_text(text: str) -> bool:
         try:
             # Text goes over stdin, not argv: a copied transcript easily exceeds
             # ARG_MAX, which would fail the whole copy with E2BIG.
-            # ponytail: 3s ceiling blocks the caller; copy_text is sync all the
+            # 3s ceiling blocks the caller; copy_text is sync all the
             # way up to the /copy command handler, so make it async only if a
             # hung termux-clipboard-set turns out to be a real problem.
             proc = subprocess.run(

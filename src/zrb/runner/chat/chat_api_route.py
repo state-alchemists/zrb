@@ -45,7 +45,7 @@ def _ensure_private_dir(path: str) -> None:
 def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
     """Persist an uploaded attachment to a per-session temp dir, return its path.
 
-    ponytail: uploads are never cleaned up. Add a retention sweep if the temp
+    Uploads are never cleaned up. Add a retention sweep if the temp
     dir's growth becomes a real problem.
     """
     upload_root = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
