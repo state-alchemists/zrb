@@ -231,19 +231,34 @@ class FileHistoryManager(AnyHistoryManager):
     def rename(self, conversation_name: str, new_name: str) -> None:
         """Move *conversation_name* and its delegated sub-agent transcripts to
         *new_name*, so a sub-agent stays tied to its conversation (ADR-0109).
-        Timestamped backups are left under the old name."""
+        Timestamped backups are left under the old name. Raises `OSError`,
+        leaving everything where it was, when the unsaved history cannot be
+        written, a destination exists, or a move fails."""
         self.save(conversation_name, write_backup=False)
         if conversation_name in self._dirty:
             raise OSError(
                 f"Cannot rename '{conversation_name}': its unsaved history "
                 "could not be written, so it stays under its current name."
             )
+        moves = self._plan_rename(conversation_name, new_name)
+        for _, target in moves:
+            if os.path.exists(target):
+                raise OSError(
+                    f"Cannot rename '{conversation_name}' to '{new_name}': "
+                    f"{target} already exists and would be overwritten."
+                )
+        self._apply_moves(conversation_name, moves)
+        self._cache.pop(conversation_name, None)
+        self._cache_mtime.pop(conversation_name, None)
+        self._dirty.discard(conversation_name)
+
+    def _plan_rename(
+        self, conversation_name: str, new_name: str
+    ) -> list[tuple[str, str]]:
+        """The existing (source, target) files a rename moves."""
         old_safe, new_safe = safe_segment(conversation_name), safe_segment(new_name)
         moves = [
-            (
-                self._get_file_path(conversation_name),
-                self._get_file_path(new_name),
-            )
+            (self._get_file_path(conversation_name), self._get_file_path(new_name))
         ]
         for directory in subagent_history_directories(self._history_dir):
             for filename in os.listdir(directory):
@@ -259,26 +274,30 @@ class FileHistoryManager(AnyHistoryManager):
                             os.path.join(directory, renamed),
                         )
                     )
-        moves = [(src, dst) for src, dst in moves if os.path.exists(src)]
-        for _, target in moves:
-            if os.path.exists(target):
-                raise OSError(
-                    f"Cannot rename '{conversation_name}' to '{new_name}': "
-                    f"{target} already exists and would be overwritten."
-                )
+        return [(src, dst) for src, dst in moves if os.path.exists(src)]
+
+    @staticmethod
+    def _apply_moves(conversation_name: str, moves: list[tuple[str, str]]) -> None:
+        """Move every file, or put back the ones already moved and raise."""
         done: list[tuple[str, str]] = []
         try:
             for source, target in moves:
                 os.replace(source, target)
                 done.append((source, target))
         except OSError:
-            # Put back what moved, so a load never sees half a conversation.
+            stuck = []
             for source, target in reversed(done):
-                os.replace(target, source)
+                try:
+                    os.replace(target, source)
+                except OSError:
+                    stuck.append(target)
+            if stuck:
+                raise OSError(
+                    f"Renaming '{conversation_name}' failed and could not be "
+                    f"undone; these files are still under the new name: "
+                    f"{', '.join(stuck)}"
+                ) from None
             raise
-        self._cache.pop(conversation_name, None)
-        self._cache_mtime.pop(conversation_name, None)
-        self._dirty.discard(conversation_name)
 
     def search(self, keyword: str) -> list[str]:
         if not os.path.exists(self._history_dir):

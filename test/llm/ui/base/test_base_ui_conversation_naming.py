@@ -192,3 +192,23 @@ def test_a_failed_load_leaves_no_half_restored_sub_agent_sessions(conv_ui):
 
     assert registry.active("second") == []
     assert conv_ui.conversation_session_name == "session-one"
+
+
+def test_a_transcript_found_twice_is_restored_once(conv_ui):
+    # lazy: the registry pulls in pydantic_ai
+    from zrb.llm.agent.subagent.live_session import LiveSubAgentSessionRegistry
+
+    registry = LiveSubAgentSessionRegistry()
+    name = "second-sub-reviewer-abcd1234"
+    conv_ui.history_manager.search.return_value = [name, name]
+    conv_ui.history_manager.load.return_value = ["hist"]
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            registry,
+        ),
+        patch("zrb.llm.agent.subagent.manager.sub_agent_manager", MagicMock()),
+    ):
+        conv_ui.handle_load_command("load second")
+
+    assert len(registry.active("second")) == 1

@@ -15,7 +15,9 @@ def registry():
     reg = LiveSubAgentSessionRegistry()
     with (
         patch("zrb.llm.tool.delegate_message.live_subagent_session_registry", reg),
-        patch("zrb.llm.agent.subagent.parent_message.live_subagent_session_registry", reg),
+        patch(
+            "zrb.llm.agent.subagent.parent_message.live_subagent_session_registry", reg
+        ),
     ):
         yield reg
 
@@ -85,5 +87,7 @@ async def test_message_limit_stops_ping_pong(registry, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_outside_a_sub_agent_there_is_no_parent(registry):
-    with patch("zrb.llm.agent.subagent.parent_message.get_current_ui", return_value=None):
+    with patch(
+        "zrb.llm.agent.subagent.parent_message.get_current_ui", return_value=None
+    ):
         assert "not a delegated sub-agent" in await send_message_to_parent("x")

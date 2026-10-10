@@ -104,7 +104,9 @@ def test_zero_retention_keeps_every_conversation(history_dir, retention):
 
 def test_a_rename_is_refused_when_the_unsaved_history_cannot_be_written(history_dir):
     manager = FileHistoryManager(str(history_dir))
-    manager.update("bold-arch-1234", [ModelRequest(parts=[UserPromptPart(content="hi")])])
+    manager.update(
+        "bold-arch-1234", [ModelRequest(parts=[UserPromptPart(content="hi")])]
+    )
 
     with patch("builtins.open", side_effect=OSError("disk full")):
         with pytest.raises(OSError):
@@ -144,11 +146,9 @@ def test_a_failed_rename_puts_every_moved_file_back(history_dir):
     _save(manager, "bold-arch-1234")
     _save(manager, sub)
     real_replace = os.replace
-    calls = []
 
     def flaky_replace(source, target):
-        calls.append(source)
-        if len(calls) == 2:
+        if "-sub-" in target and "greetings" in target:  # the sub-agent move
             raise OSError("read-only directory")
         real_replace(source, target)
 
@@ -158,14 +158,36 @@ def test_a_failed_rename_puts_every_moved_file_back(history_dir):
 
     assert manager.load("bold-arch-1234")
     assert manager.load(sub)
-    assert not os.path.exists(os.path.join(history_dir, "bold-arch-1234-greetings.json"))
+    assert not os.path.exists(
+        os.path.join(history_dir, "bold-arch-1234-greetings.json")
+    )
 
 
 def test_a_rename_leaves_sub_agent_backups_under_the_old_name(history_dir):
     manager = FileHistoryManager(str(history_dir))
     _save(manager, "bold-arch-1234")
-    backup = _write(history_dir, "bold-arch-1234-sub-reviewer-abcd1234-2024-01-01-10-00-00")
+    backup = _write(
+        history_dir, "bold-arch-1234-sub-reviewer-abcd1234-2024-01-01-10-00-00"
+    )
 
     manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
 
     assert os.path.exists(backup)
+
+
+def test_a_rename_that_cannot_be_undone_names_the_files_left_behind(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    sub = "bold-arch-1234-sub-reviewer-abcd1234"
+    _save(manager, "bold-arch-1234")
+    _save(manager, sub)
+    real_replace = os.replace
+
+    def failing_replace(source, target):
+        sub_move = "-sub-" in target and "greetings" in target
+        if sub_move or "greetings" in source:  # the move, and the undo of the main
+            raise OSError("read-only directory")
+        real_replace(source, target)
+
+    with patch("os.replace", side_effect=failing_replace):
+        with pytest.raises(OSError, match="could not be undone"):
+            manager.rename("bold-arch-1234", "bold-arch-1234-greetings")

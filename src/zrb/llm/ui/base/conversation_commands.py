@@ -165,7 +165,9 @@ class BaseUIConversationCommands:
                 self._schedule_history_copy(ui.snapshot_manager, old_name, new_name)
             ui.conversation_session_name = new_name
             self._rekey_live_sessions(old_name, new_name)
-            ui.append_to_output(stylize_muted(f"\n  🔖 Conversation named: {new_name}\n"))
+            ui.append_to_output(
+                stylize_muted(f"\n  🔖 Conversation named: {new_name}\n")
+            )
         except (ConversationNamingError, OSError) as e:
             CFG.LOGGER.debug(f"Auto-naming '{old_name}' failed: {e}")
         finally:
@@ -202,7 +204,7 @@ class BaseUIConversationCommands:
         ui = self._base_ui
         session_id = get_session_ownership_key(name)
         saved_names = ui.history_manager.search("")
-        found = []
+        found: dict[str, tuple[str, list]] = {}
         for saved in saved_names:
             delegated = parse_delegated_session(saved)
             agent_id = parse_delegated_agent_id(saved)
@@ -210,14 +212,15 @@ class BaseUIConversationCommands:
                 delegated is None
                 or delegated[0] != safe_segment(name)
                 or agent_id is None
+                or agent_id in found
                 or live_subagent_session_registry.get(session_id, agent_id)
                 or sub_agent_manager.get_agent_definition(delegated[1]) is None
             ):
                 continue
-            found.append((agent_id, delegated[1], ui.history_manager.load(saved)))
+            found[agent_id] = (delegated[1], ui.history_manager.load(saved))
         # Registered only once every transcript has loaded, so a failed load
         # leaves no half-restored sessions behind.
-        for agent_id, agent_name, history in found:
+        for agent_id, (agent_name, history) in found.items():
             buffered = BufferedUI(ui, session_id=session_id)
             buffered.set_activity_id(agent_id)
             live_subagent_session_registry.restore_session(
