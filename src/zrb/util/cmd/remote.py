@@ -18,7 +18,7 @@ def get_remote_cmd_script(
     quoted_script = shlex.quote(cmd_script)
     quoted_port = shlex.quote(str(port))
     quoted_ssh_key = shlex.quote(ssh_key)
-    quoted_user_host = shlex.quote(f"{user}@{host}")
+    quoted_user_host = shlex.quote(f"{user}@{host}" if user else host)
     if ssh_key != "" and use_password:
         return f"sshpass -e ssh -t -p {quoted_port} -i {quoted_ssh_key} {quoted_user_host} {quoted_script}"  # noqa
     if ssh_key != "":

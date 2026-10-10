@@ -184,4 +184,8 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0105** — [Barge-in guards against zrb's own voice instead of cancelling it](adr-0105.md)
 - **ADR-0107** — [Voice runs on Pipecat's pipeline, and the meaning stays zrb's](adr-0107.md)
 
+### Fleet administration
+
+- **ADR-0110** — [Fleet tasks run through a label-selected `Host`/`Target` inventory, not a new task class](adr-0110.md)
+
 🔖 [Documentation Home](../README.md)

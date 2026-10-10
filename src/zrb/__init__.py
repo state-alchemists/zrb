@@ -89,6 +89,7 @@ from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
+from zrb.remote.inventory import Host, Target, host_inventory, target_inventory
 from zrb.task.cmd_task import CmdTask
 from zrb.task.http_check import HttpCheck
 from zrb.task.make_task import make_task
@@ -172,6 +173,10 @@ __all__ = [
     "BaseTask",
     "BaseTrigger",
     "CmdTask",
+    "Host",
+    "Target",
+    "host_inventory",
+    "target_inventory",
     "HttpCheck",
     "make_task",
     "RsyncTask",

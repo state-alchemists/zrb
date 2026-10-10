@@ -30,6 +30,30 @@ Encode, decode, and validate base64 strings.
 | `zrb util base64 decode` | Decode base64 to string (`--url-safe` for the `-_` alphabet) |
 | `zrb util base64 validate` | Validate base64 string (accepts base64 of binary data, not only UTF-8 text) |
 
+### 💻 Remote (`remote`)
+
+Run a command on, or check connectivity from, many machines at once. Register machines and endpoints in `zrb_init.py`:
+
+```python
+from zrb import Host, Target, host_inventory, target_inventory
+
+host_inventory.add(
+    Host("node1", labels=["k8s"], remote_host="10.0.0.11", remote_user="ops", remote_ssh_key="~/.ssh/id_ed25519"),
+    Host("me", labels=["k8s"]),  # no remote_host: runs locally
+)
+target_inventory.add(
+    Target("nexus", host="nexus.corp", port=8081, kind="http", labels=["registry"]),
+    Target("gitlab", host="gitlab.corp", port=22, labels=["registry"]),
+)
+```
+
+| Command | Description |
+|---------|-------------|
+| `zrb remote run --host-labels k8s --command hostname` | Run a command on every host whose name or any label matches |
+| `zrb remote check --host-labels k8s --target-labels registry` | Show whether each host can reach each target (`ok`, an HTTP status, `fail`, or `n/a` when the host has no `bash`/`nc`/`curl`) |
+
+Both take `--format table|markdown`, `--concurrency` and `--timeout`. Empty labels select everything. See [ADR-0110](../adr/adr-0110.md).
+
 ### ⚙️ Config (`config`)
 
 Inspect runtime configuration.
