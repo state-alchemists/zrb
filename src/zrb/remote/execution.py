@@ -47,21 +47,32 @@ class HostResult:
 
 
 async def run_on_hosts(
-    hosts: Sequence[Host], script: str, timeout: float = 60, concurrency: int = 10
+    hosts: Sequence[Host],
+    script: str,
+    timeout: float = 60,
+    concurrency: int = 10,
+    posix_only: bool = False,
 ) -> list[HostResult]:
-    """Run `script` on every host, at most `concurrency` at a time, in host order."""
+    """Run `script` on every host, at most `concurrency` at a time, in host order.
+
+    `posix_only` runs a POSIX script locally under `sh` instead of the host's
+    `shell`. A remote host always starts `ssh` under `sh`, whose quoting the
+    command line uses; `Host.shell` applies only to a local, non-POSIX-only run.
+    """
     if timeout <= 0:
         raise ValueError(f"timeout must be positive, got {timeout}")
     semaphore = asyncio.Semaphore(max(1, concurrency))
 
     async def run_one(host: Host) -> HostResult:
         async with semaphore:
-            return await _run_on_host(host, script, timeout)
+            return await _run_on_host(host, script, timeout, posix_only)
 
     return list(await asyncio.gather(*(run_one(h) for h in hosts)))
 
 
-async def _run_on_host(host: Host, script: str, timeout: float) -> HostResult:
+async def _run_on_host(
+    host: Host, script: str, timeout: float, posix_only: bool
+) -> HostResult:
     if host.cwd:
         script = f"cd {shlex.quote(host.cwd)} && {script}"
     env_map = None
@@ -77,7 +88,8 @@ async def _run_on_host(host: Host, script: str, timeout: float) -> HostResult:
         )
         if host.remote_password != "":
             env_map = {**os.environ, "SSHPASS": host.remote_password}
-    shell, flag = resolve_shell(host.shell or "")
+    use_sh = posix_only or host.remote_host is not None
+    shell, flag = resolve_shell("sh" if use_sh else host.shell or "")
     try:
         result, return_code = await run_command(
             [shell, flag, script],

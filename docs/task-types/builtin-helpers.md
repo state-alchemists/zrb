@@ -63,7 +63,7 @@ target_inventory.add(
 | `remote_port`, `remote_user` | SSH port (22) and user (empty: current user) |
 | `remote_password` | Sent through `sshpass`, which must be installed where zrb runs; hidden from `repr`. Prefer `remote_ssh_key` |
 | `remote_ssh_key` | Private key path |
-| `cwd`, `shell` | Directory commands start in; local shell zrb starts the command with. Remote commands run under `sh -c` |
+| `cwd`, `shell` | Directory commands start in; the shell a **local** `remote run` command starts under. Remote hosts and `remote check` always use `sh` (on Windows, a POSIX shell such as Git Bash must be installed) |
 
 **`Target` fields.** `name`, `labels`, `host` (resolved **from the checking host**), `port`, `kind` (`tcp` or `http`), and for http `scheme`, `path` or a full `url`.
 

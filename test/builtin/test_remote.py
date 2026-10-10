@@ -51,7 +51,7 @@ async def test_remote_run_renders_a_table_by_default():
     res = await remote_run.async_run(
         session=get_session(), kwargs=_kwargs(command="echo hello", format="table")
     )
-    assert "node1" in res and "hello" in res and "┃" in res
+    assert "node1" in res and "hello" in res and "Host" in res and "{" not in res
 
 
 @pytest.mark.asyncio

@@ -121,6 +121,7 @@ async def remote_check(ctx: AnyContext) -> str:
         create_probe_script(targets),
         ctx.input.timeout,
         ctx.input.concurrency,
+        posix_only=True,
     )
     statuses = [parse_probe_output(r.output, len(targets)) for r in results]
     rows = [

@@ -82,3 +82,12 @@ async def test_probe_of_a_stalled_connect_fails_within_the_probe_limit():
             sock.close()
     assert parse_probe_output(result.output, 1) == ["fail"]
     assert 4 < time.monotonic() - start < 15
+
+
+@pytest.mark.asyncio
+async def test_posix_only_ignores_the_host_shell_and_run_honors_it():
+    host = Host("w", shell="definitely-not-a-shell")
+    (probe,) = await run_on_hosts([host], "echo hi", posix_only=True)
+    assert probe.ok and probe.output == "hi"
+    (run,) = await run_on_hosts([host], "echo hi")
+    assert not run.ok

@@ -19,8 +19,8 @@ class Host:
             where zrb runs). Hidden from `repr`. Prefer `remote_ssh_key`.
         remote_ssh_key: Path to the private key.
         cwd: Directory commands start in on the host.
-        shell: Shell zrb runs locally to start the command; defaults to `CFG.SHELL`.
-            Commands on a remote host always run under `sh -c`.
+        shell: Shell a local command of `zrb remote run` starts under; defaults to
+            `CFG.SHELL`. A remote host and `zrb remote check` always use `sh`.
     """
 
     name: str
