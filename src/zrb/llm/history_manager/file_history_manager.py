@@ -234,7 +234,12 @@ class FileHistoryManager(AnyHistoryManager):
         Sub-agent transcripts stay where they are: they hang off the
         conversation's key, which a rename keeps. Timestamped backups stay
         under the old name. Raises `OSError`, leaving everything in place,
-        when the unsaved history cannot be written or *new_name* exists."""
+        when the unsaved history cannot be written or *new_name* exists.
+
+        For ordinary conversations only (auto-naming renames nothing else), so
+        the legacy delegated-transcript path never applies. The existence
+        check is not atomic: a second process creating *new_name* in between
+        is not guarded against."""
         self.save(conversation_name, write_backup=False)
         if conversation_name in self._dirty:
             raise OSError(
