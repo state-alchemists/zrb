@@ -53,6 +53,20 @@ def test_an_expired_auto_named_conversation_is_pruned_with_its_backups(
     assert os.path.exists(fresh)
 
 
+def test_an_expired_topic_named_conversation_is_pruned_too(history_dir, retention):
+    old = _write(history_dir, "bold-arch-1234-greetings", age_seconds=3 * 86400)
+    old_backup = _write(
+        history_dir,
+        "bold-arch-1234-greetings-2024-01-01-10-00-00",
+        age_seconds=3 * 86400,
+    )
+
+    _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
+
+    assert not os.path.exists(old)
+    assert not os.path.exists(old_backup)
+
+
 def test_a_named_conversation_is_kept_however_old(history_dir, retention):
     named = _write(history_dir, "my-project", age_seconds=365 * 86400)
 

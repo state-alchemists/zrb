@@ -20,7 +20,7 @@ from zrb.llm.util.subagent_session_naming import (
 )
 from zrb.util.match import fuzzy_match
 from zrb.util.string.conversion import to_string
-from zrb.util.string.name import is_random_name
+from zrb.util.string.name import has_random_name_prefix
 from zrb.util.todo.duration import parse_duration
 
 # Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
@@ -227,6 +227,37 @@ class FileHistoryManager(AnyHistoryManager):
                 f"Error: Failed to save history for {conversation_name}: {e}",
                 plain=True,
             )
+
+    def rename(self, conversation_name: str, new_name: str) -> None:
+        """Move *conversation_name* and its delegated sub-agent transcripts to
+        *new_name*, so a sub-agent stays tied to its conversation (ADR-0109).
+        Timestamped backups are left under the old name."""
+        self.save(conversation_name, write_backup=False)
+        old_safe, new_safe = _safe_segment(conversation_name), _safe_segment(new_name)
+        moves = [
+            (
+                self._get_file_path(conversation_name),
+                self._get_file_path(new_name),
+            )
+        ]
+        for directory in subagent_history_directories(self._history_dir):
+            for filename in os.listdir(directory):
+                if filename.startswith(f"{old_safe}-sub-") and filename.endswith(
+                    ".json"
+                ):
+                    renamed = new_safe + filename[len(old_safe) :]
+                    moves.append(
+                        (
+                            os.path.join(directory, filename),
+                            os.path.join(directory, renamed),
+                        )
+                    )
+        for source, target in moves:
+            if os.path.exists(source):
+                os.replace(source, target)
+        self._cache.pop(conversation_name, None)
+        self._cache_mtime.pop(conversation_name, None)
+        self._dirty.discard(conversation_name)
 
     def search(self, keyword: str) -> list[str]:
         if not os.path.exists(self._history_dir):
@@ -464,7 +495,7 @@ class FileHistoryManager(AnyHistoryManager):
                 continue
             match = _BACKUP_FILENAME_PATTERN.match(entry.name)
             base = match.group("base") if match else entry.name[: -len(".json")]
-            if not is_random_name(base) or base in protected:
+            if not has_random_name_prefix(base) or base in protected:
                 continue
             try:
                 if entry.is_file() and entry.stat().st_mtime < cutoff:

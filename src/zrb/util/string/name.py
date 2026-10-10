@@ -88,4 +88,11 @@ def is_random_name(name: str) -> bool:
     return _RANDOM_NAME.fullmatch(name) is not None
 
 
+def has_random_name_prefix(name: str) -> bool:
+    """Whether *name* is a generated name, alone or followed by a `-topic`
+    (`bold-arch-1234`, `bold-arch-1234-greetings`)."""
+    return _RANDOM_NAME_PREFIX.fullmatch(name) is not None
+
+
 _RANDOM_NAME = re.compile(rf"(?:{'|'.join(PREFIXES)})-(?:{'|'.join(SUFFIXES)})-\d{{4}}")
+_RANDOM_NAME_PREFIX = re.compile(_RANDOM_NAME.pattern + r"(?:-.+)?")

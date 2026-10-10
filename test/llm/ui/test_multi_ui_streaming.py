@@ -272,3 +272,15 @@ async def test_multi_ui_stream_non_string_result_clears_last_output(
     await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
     assert multi_ui.last_result_data is None
+
+
+@pytest.mark.asyncio
+async def test_a_finished_turn_offers_the_conversation_for_auto_naming(mock_child_ui):
+    multi_ui = MultiUI([mock_child_ui])
+    multi_ui.append_to_output = MagicMock()
+    mock_llm_task = MagicMock()
+    mock_llm_task.async_run = AsyncMock(return_value="hi!")
+
+    await multi_ui.stream_ai_response(mock_llm_task, "Hello", [])
+
+    mock_child_ui.conversation.schedule_auto_name.assert_called_once_with("Hello")

@@ -44,3 +44,13 @@ def test_is_random_name_recognises_generated_names_only():
     assert not is_random_name("bold-arch-12345")
     assert not is_random_name("zzz-arch-1234")
     assert not is_random_name(get_random_name(separator="_"))
+
+
+def test_has_random_name_prefix_accepts_a_generated_name_with_a_topic():
+    from zrb.util.string.name import get_random_name, has_random_name_prefix
+
+    generated = get_random_name()
+    assert has_random_name_prefix(generated)
+    assert has_random_name_prefix(f"{generated}-greetings")
+    assert not has_random_name_prefix("my-session")
+    assert not has_random_name_prefix(f"my-{generated}")

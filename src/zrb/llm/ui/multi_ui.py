@@ -433,6 +433,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 self._last_result_data = result_data
                 self.append_to_output("\n")
                 self.append_markdown(result_data)
+            if self.main_ui is not None:
+                self.main_ui.conversation.schedule_auto_name(user_message)
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")

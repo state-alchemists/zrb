@@ -56,6 +56,20 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         """Route this sub-agent's output lines to the activity registry."""
         self._agent_id = agent_id
 
+    @property
+    def agent_id(self) -> str | None:
+        """The delegated agent's id, once `set_activity_id` has been called."""
+        return self._agent_id
+
+    @property
+    def session_id(self) -> str:
+        """The chat session this sub-agent belongs to."""
+        return self._session_id
+
+    def set_session_id(self, session_id: str) -> None:
+        """Follow the chat session when its conversation is renamed."""
+        self._session_id = session_id
+
     def set_label(self, prefix: str) -> None:
         """Set the per-line output prefix (e.g. ``[generalist #1] ``)."""
         self._prefix = prefix

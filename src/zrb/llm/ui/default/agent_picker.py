@@ -304,6 +304,8 @@ class UIAgentPicker:
             label = f"{session.agent_name} #{activity_entry.ordinal}"
         else:
             label = session.agent_name
+        if session.title:
+            label += f" · {session.title}"
         state = "running" if running else "finished"
         row: StyleAndTextTuples = [(style, f" {cursor}{label}")]
         if running and activity_entry.task:

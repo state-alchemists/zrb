@@ -458,3 +458,16 @@ async def test_continue_live_session_reflects_in_activity_registry(
         "a", "researcher", task="hello", session_id="sess1"
     )
     mock_registry.finish.assert_called_once_with("a", session_id="sess1")
+
+
+def test_rekey_keeps_sessions_addressable_under_the_new_name(
+    registry, buffered_ui, sub_agent_manager
+):
+    entry = registry.add_session("old", "a1", "reviewer", sub_agent_manager, buffered_ui)
+
+    registry.rekey("old", "new")
+
+    assert registry.get("old", "a1") is None
+    assert registry.get("new", "a1") is entry
+    assert entry.session_id == "new"
+    buffered_ui.set_session_id.assert_called_once_with("new")

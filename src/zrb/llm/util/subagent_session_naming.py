@@ -42,6 +42,12 @@ def parse_delegated_session(base_name: str) -> tuple[str, str] | None:
     return match.group("parent"), match.group("agent_name")
 
 
+def parse_delegated_agent_id(base_name: str) -> str | None:
+    """The 8-hex agent id of a delegated sub-agent conversation name, else ``None``."""
+    match = _DELEGATED_SESSION_PATTERN.match(base_name)
+    return match.group("agent_id") if match else None
+
+
 def subagent_history_directories(history_dir: str) -> list[str]:
     """The directories that can hold delegated transcripts: the history root
     itself (legacy flat files written before the subdirectory layout) plus

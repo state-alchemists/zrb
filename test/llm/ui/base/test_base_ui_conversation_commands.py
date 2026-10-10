@@ -370,3 +370,75 @@ def test_rewind_follows_the_conversation_the_ui_switches_to(rewind_ui):
     rewind_ui.conversation_session_name = "loaded-conversation"
 
     assert rewind_ui.snapshot_manager.session_name == "loaded-conversation"
+
+
+@pytest.mark.asyncio
+async def test_a_generated_name_is_replaced_by_a_topic_name(conv_ui):
+    conv_ui.conversation_session_name = "bold-arch-1234"
+    conv_ui.llm_task.async_run = AsyncMock(return_value="hi!")
+    with patch(
+        "zrb.llm.ui.base.conversation_commands.suggest_slug",
+        AsyncMock(return_value="greetings"),
+    ):
+        await conv_ui.stream_ai_response(conv_ui.llm_task, "hello")
+        await _wait_output(conv_ui, "named")
+    conv_ui.history_manager.rename.assert_called_once_with(
+        "bold-arch-1234", "bold-arch-1234-greetings"
+    )
+    assert conv_ui.conversation_session_name == "bold-arch-1234-greetings"
+
+
+@pytest.mark.asyncio
+async def test_a_chosen_name_is_never_renamed(conv_ui):
+    with patch(
+        "zrb.llm.ui.base.conversation_commands.suggest_slug",
+        AsyncMock(return_value="greetings"),
+    ) as suggest:
+        conv_ui.llm_task.async_run = AsyncMock(return_value="hi!")
+        await conv_ui.stream_ai_response(conv_ui.llm_task, "hello")
+        await asyncio.sleep(0.05)
+    suggest.assert_not_called()
+    assert conv_ui.conversation_session_name == "session-one"
+
+
+def test_load_restores_the_conversations_sub_agent_sessions(conv_ui):
+    # lazy: the registry pulls in pydantic_ai
+    from zrb.llm.agent.subagent.live_session import LiveSubAgentSessionRegistry
+
+    registry = LiveSubAgentSessionRegistry()
+    conv_ui.history_manager.search.return_value = [
+        "second-sub-reviewer-abcd1234",
+        "other-sub-reviewer-ffff0000",
+        "second",
+    ]
+    conv_ui.history_manager.load.return_value = ["hist"]
+    manager = MagicMock()
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            registry,
+        ),
+        patch("zrb.llm.agent.subagent.manager.sub_agent_manager", manager),
+    ):
+        conv_ui.handle_load_command("load second")
+
+    [session] = registry.active("second")
+    assert (session.agent_id, session.agent_name) == ("abcd1234", "reviewer")
+    assert session.state == "idle" and session.authority is None
+    assert session.history == ["hist"]
+
+
+@pytest.mark.asyncio
+async def test_a_failed_naming_keeps_the_generated_name(conv_ui):
+    from zrb.llm.util.conversation_naming import ConversationNamingError
+
+    conv_ui.conversation_session_name = "bold-arch-1234"
+    conv_ui.llm_task.async_run = AsyncMock(return_value="hi!")
+    with patch(
+        "zrb.llm.ui.base.conversation_commands.suggest_slug",
+        AsyncMock(side_effect=ConversationNamingError("down")),
+    ):
+        await conv_ui.stream_ai_response(conv_ui.llm_task, "hello")
+        await asyncio.sleep(0.05)
+    conv_ui.history_manager.rename.assert_not_called()
+    assert conv_ui.conversation_session_name == "bold-arch-1234"

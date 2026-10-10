@@ -10,7 +10,7 @@ import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
@@ -22,6 +22,7 @@ from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.ui.base.message_queue import steer_into_live_run
+from zrb.llm.util.conversation_naming import ConversationNamingError, suggest_slug
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
@@ -58,6 +59,12 @@ class LiveSubAgentSession:
     # "Cancelled by user", so a continuation hands it the latest response on
     # its natural end (`_report_latest_response_to_parent`).
     notify_parent_on_end: bool = False
+    # Agent-originated messages in either direction, bounded by
+    # `CFG.LLM_AGENT_MESSAGE_LIMIT` so two agents cannot answer each other forever.
+    agent_messages_sent: int = 0
+    # A short topic from the small model (ADR-0109); empty until named, and
+    # for a session restored from disk.
+    title: str = ""
 
     def set_active_task(self, task: "asyncio.Task | None") -> None:
         """Set the task driving this session's run, if any."""
@@ -149,6 +156,73 @@ class LiveSubAgentSessionRegistry:
             entry.active_task = asyncio.ensure_future(_continue_live_session(entry))
         return True
 
+    def rekey(self, old_id: str, new_id: str) -> None:
+        """Move *old_id*'s sessions to *new_id* when their conversation is
+        renamed, so they stay listed and addressable under the new name."""
+        bucket = self._sessions.pop(old_id, None)
+        if not bucket or old_id == new_id:
+            return
+        for entry in bucket.values():
+            entry.session_id = new_id
+            entry.buffered_ui.set_session_id(new_id)
+        self._sessions.setdefault(new_id, {}).update(bucket)
+
+    def restore_session(
+        self,
+        session_id: str,
+        agent_id: str,
+        agent_name: str,
+        sub_agent_manager: "SubAgentManager",
+        buffered_ui: "BufferedUI",
+        history: list,
+    ) -> LiveSubAgentSession:
+        """Register an idle session rebuilt from a saved transcript. It has no
+        authority snapshot: a continuation runs under the permissions in force
+        when it starts, not ones granted in an earlier process (ADR-0109)."""
+        entry = LiveSubAgentSession(
+            agent_id=agent_id,
+            agent_name=agent_name,
+            session_id=session_id,
+            sub_agent_manager=sub_agent_manager,
+            buffered_ui=buffered_ui,
+            history=history,
+        )
+        self._sessions.setdefault(session_id, {})[agent_id] = entry
+        return entry
+
+    def has_message_budget(self, session_id: str, agent_id: str) -> bool:
+        """Whether *agent_id*'s session may send another agent-originated
+        message (`LLM_AGENT_MESSAGE_LIMIT`)."""
+        entry = self.get(session_id, agent_id)
+        return entry is not None and entry.agent_messages_sent < (
+            CFG.LLM_AGENT_MESSAGE_LIMIT
+        )
+
+    def record_agent_message(self, session_id: str, agent_id: str) -> None:
+        """Count one agent-originated message sent for *agent_id*'s session."""
+        entry = self.get(session_id, agent_id)
+        if entry is not None:
+            entry.agent_messages_sent += 1
+
+    def describe_send_refusal(self, session_id: str, agent_id: str) -> str:
+        """Why a message to or from *agent_id* was refused, for the model."""
+        if self.get(session_id, agent_id) is None:
+            live = [e.agent_id for e in self.active(session_id)]
+            return (
+                f"[SYSTEM SUGGESTION] No sub-agent '{agent_id}'. "
+                f"Live sub-agent ids: {', '.join(live) or 'none'}."
+            )
+        return (
+            f"[SYSTEM SUGGESTION] Message limit ({CFG.LLM_AGENT_MESSAGE_LIMIT}) "
+            "reached for this delegation; finish the work or wait for the result."
+        )
+
+    def get_parent_ui(self, session_id: str, agent_id: str) -> "Any | None":
+        """The parent UI that can take a message from *agent_id*, if any."""
+        entry = self.get(session_id, agent_id)
+        parent = getattr(entry.buffered_ui, "parent_ui", None) if entry else None
+        return parent if hasattr(parent, "submit_message") else None
+
     def cancel(self, session_id: str, agent_id: str) -> bool:
         """Cancel what the sub-agent is doing: drop its queued messages and
         cancel its current run task (continuation or original delegation).
@@ -198,6 +272,25 @@ class LiveSubAgentSessionRegistry:
 
 
 live_subagent_session_registry = LiveSubAgentSessionRegistry()
+
+_titling_tasks: set[asyncio.Task] = set()
+
+
+def start_titling(entry: LiveSubAgentSession, text: str) -> None:
+    """Give *entry* a short topic title from *text* in the background (ADR-0109).
+    Silent when auto-naming is off or the model fails."""
+    if not CFG.LLM_AUTO_NAME_ENABLED or not text.strip():
+        return
+
+    async def _title() -> None:
+        try:
+            entry.title = await suggest_slug(text)
+        except ConversationNamingError as e:
+            CFG.LOGGER.debug(f"Sub-agent '{entry.agent_name}' left untitled: {e}")
+
+    task = asyncio.ensure_future(_title())
+    _titling_tasks.add(task)
+    task.add_done_callback(_titling_tasks.discard)
 
 
 async def _continue_live_session(entry: LiveSubAgentSession) -> None:

@@ -12,7 +12,10 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import HasActivityTracking, agent_activity_registry
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+from zrb.llm.agent.subagent.live_session import (
+    live_subagent_session_registry,
+    start_titling,
+)
 from zrb.llm.agent.subagent.manager import (
     SubAgentManager,
 )
@@ -119,7 +122,13 @@ async def run_agent_task(
         ui, agent_id, agent_name, deliverable or task, activity_session_id
     )
     session = _register_live_session(
-        ui, activity_session_id, agent_id, agent_name, sub_agent_manager, yolo
+        ui,
+        activity_session_id,
+        agent_id,
+        agent_name,
+        sub_agent_manager,
+        yolo,
+        deliverable or task,
     )
     try:
         # Inside the try so a cancel here goes through `consume_cancelled_flag`.
@@ -200,6 +209,7 @@ def _register_live_session(
     agent_name: str,
     sub_agent_manager: SubAgentManager,
     yolo: bool | None,
+    task_text: str,
 ):
     """Register this run so a human can talk to it while it works.
 
@@ -218,6 +228,7 @@ def _register_live_session(
     )
     session.cancelled_by_human = False  # a fresh run, not a stale flag
     session.active_task = asyncio.current_task()
+    start_titling(session, task_text)
     return session
 
 

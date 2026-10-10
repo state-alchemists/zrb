@@ -266,7 +266,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._hook_tasks: set[asyncio.Task] = set()
 
         self._base_commands = BaseUICommands(self)
-        self._conversation = self._base_commands.conversation
+        self._conversation = self.conversation = self._base_commands.conversation
         self.models = self._base_commands.models
         self._exec = self._base_commands.exec
         self._base_replay = BaseUIReplay(self)
@@ -1156,14 +1156,14 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             llm_task.tool_confirmation = cast(Any, self.confirm_tool_execution)
             result_data = await llm_task.async_run(session)
 
-            # Tools like EnterPlanMode set the ContextVar, visible here in the
-            # same Task context.
+            # Tools like EnterPlanMode set the ContextVar, visible in this Task.
             self._plan_mode_active = get_current_agent_mode() == AgentMode.PLAN
 
             if isinstance(result_data, str):
                 self._last_result_data = result_data
                 self.append_to_output("\n")
                 self.append_markdown(result_data)
+            self._conversation.schedule_auto_name(user_message)
 
         except asyncio.CancelledError:
             self.append_to_output("\n[Cancelled]\n")
