@@ -98,7 +98,7 @@ class ChatRunning:
         )
         session = Session(shared_ctx)
         uis = llm_task_core.get_uis()
-        # ponytail: the first sink stands for the session; the web runner
+        # the first sink stands for the session; the web runner
         # attaches one HTTPUI, so there is no second to choose from.
         with _bound_session_ui(uis[0] if uis else None):
             result = await llm_task_core.async_run(session)

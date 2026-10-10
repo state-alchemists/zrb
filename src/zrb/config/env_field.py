@@ -246,10 +246,12 @@ class EnvField(Generic[T]):
             raw = self._resolve_default(obj)
         try:
             value = self._cast(raw)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
             if self._fallback is not _UNSET:
                 return self._fallback
-            raise
+            keys = self.get_read_keys(obj.ENV_PREFIX)
+            key = next((k for k in keys if k in os.environ), keys[0])
+            raise ValueError(f"{key}={raw!r}: {e}") from e
         if self._transform is not None:
             value = self._transform(value, obj)
         return value

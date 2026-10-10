@@ -27,7 +27,7 @@ To find a setting:
 
 import os
 from fnmatch import fnmatchcase
-from typing import Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from zrb.config.env_field import EnvField
 from zrb.config.mixins.cli_style import CLIStyleMixin
@@ -126,6 +126,19 @@ class Config(
         ):
             raise AttributeError(self._unknown_knob_message(name))
         super().__setattr__(name, value)
+
+    if not TYPE_CHECKING:  # keeps pyright flagging a mistyped `CFG.X`
+
+        def __getattr__(self, name: str) -> NoReturn:
+            """Name the closest setting when an UPPERCASE read misses.
+
+            Only reached when normal lookup fails, so defined settings never pay.
+            """
+            if name.isupper() and not name.startswith("DEFAULT_"):
+                raise AttributeError(self._unknown_knob_message(name))
+            raise AttributeError(
+                f"{type(self).__name__!r} object has no attribute {name!r}"
+            )
 
     def _unknown_knob_message(self, name: str) -> str:
         known = self.get_settable_field_names()

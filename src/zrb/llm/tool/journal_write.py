@@ -239,10 +239,10 @@ def _scrub_links_to(root: str, target_path: str) -> None:
     """Drop every `- [title](path)` or HUD `([note](path))` line elsewhere in
     *root* that resolves to *target_path*.
 
-    ponytail: the label is matched greedily since a title may contain `]`;
+    The label is matched greedily since a title may contain `]`;
     the end-anchored target always finds the last link on the line.
 
-    ponytail: a full-tree scan per delete; add an index if the journal grows large.
+    A full-tree scan per delete; add an index if the journal grows large.
     """
     link_re = re.compile(r"^- (?:\[.*\]\(([^)]+)\)|.*\(\[note\]\(([^)]+)\)\))\s*$")
     target_abs = os.path.abspath(target_path)

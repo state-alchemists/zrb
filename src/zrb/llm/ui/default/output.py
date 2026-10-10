@@ -421,7 +421,7 @@ class UIOutput:
         self._ui.rendered_width = width
         if not self._ui.rendered_blocks:
             return
-        # ponytail: splices by recorded offsets, which assumes nothing rewrote
+        # splices by recorded offsets, which assumes nothing rewrote
         # the transcript inside a tracked span (only the trailing status line
         # is ever rewritten, via \r). If that stops holding, store the rendered
         # text per block and rebuild the whole buffer from the block list.

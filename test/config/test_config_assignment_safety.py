@@ -89,3 +89,28 @@ def test_a_setting_whose_write_key_differs_from_its_name_reads_back(name, monkey
     setattr(cfg, name, 4321)
     assert os.environ[write_key] == "4321"
     assert getattr(cfg, name) == 4321
+
+
+def test_reading_an_unknown_uppercase_knob_raises_and_suggests():
+    cfg = Config()
+    with pytest.raises(AttributeError) as excinfo:
+        cfg.LLM_MODELL
+    message = str(excinfo.value)
+    assert "LLM_MODELL" in message
+    assert "LLM_MODEL" in message
+
+
+def test_reading_an_unknown_name_keeps_getattr_default_and_hasattr_working():
+    cfg = Config()
+    assert getattr(cfg, "LLM_MODELL", "fallback") == "fallback"
+    assert not hasattr(cfg, "not_a_setting")
+
+
+def test_a_bad_env_value_names_the_knob_on_read(monkeypatch):
+    cfg = Config()
+    monkeypatch.setenv(f"{cfg.ENV_PREFIX}_LLM_MAX_REQUEST_PER_MINUTE", "nope")
+    with pytest.raises(ValueError) as excinfo:
+        cfg.LLM_MAX_REQUEST_PER_MINUTE
+    message = str(excinfo.value)
+    assert f"{cfg.ENV_PREFIX}_LLM_MAX_REQUEST_PER_MINUTE" in message
+    assert "nope" in message
