@@ -1,3 +1,4 @@
+import json
 from unittest import mock
 
 import pytest
@@ -94,3 +95,15 @@ async def test_a_host_name_selects_it():
         session=get_session(), kwargs=_kwargs(host_labels="other", command="echo x")
     )
     assert "| other | ✅ | x |" in res
+
+
+@pytest.mark.asyncio
+async def test_json_format_returns_raw_statuses():
+    run = await remote_run.async_run(
+        session=get_session(), kwargs=_kwargs(command="echo hi", format="json")
+    )
+    assert json.loads(run) == [{"host": "node1", "ok": True, "output": "hi"}]
+    check = await remote_check.async_run(
+        session=get_session(), kwargs=_kwargs(target_labels="t", format="json")
+    )
+    assert json.loads(check) == [{"host": "node1", "targets": {"closed": "fail"}}]

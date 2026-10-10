@@ -49,10 +49,35 @@ target_inventory.add(
 
 | Command | Description |
 |---------|-------------|
-| `zrb remote run --host-labels k8s --command hostname` | Run a command on every host whose name or any label matches |
-| `zrb remote check --host-labels k8s --target-labels registry` | Show whether each host can reach each target (`ok`, an HTTP status, `fail`, or `n/a` when the host has no `bash`/`nc`/`curl`) |
+| `zrb remote run --host-labels k8s --command hostname` | Run a command on every host whose name or label matches |
+| `zrb remote check --host-labels k8s --target-labels registry` | Show whether each host can reach each target |
 
-Both take `--format table|markdown`, `--concurrency` and `--timeout`. Empty labels select everything. See [ADR-0110](../adr/adr-0110.md).
+**Options.** `--host-labels` / `--target-labels` take **one** label or name (choices are offered from what you registered); a host or target may carry several labels, and an empty value selects everything. `--format` is `table` (rendered), `markdown` (raw) or `json` (raw statuses: `[{"host", "ok", "output"}]` for `run`, `[{"host", "targets": {name: status}}]` for `check`). `--concurrency` is how many hosts run at once and `--timeout` is the seconds allowed **per host** (must be positive).
+
+**`Host` fields.**
+
+| Field | Meaning |
+|-------|---------|
+| `name`, `labels` | Key (also selects) and group names; a string is one label |
+| `remote_host` | SSH host; omit to run on the machine running zrb |
+| `remote_port`, `remote_user` | SSH port (22) and user (empty: current user) |
+| `remote_password` | Sent through `sshpass`, which must be installed where zrb runs; hidden from `repr`. Prefer `remote_ssh_key` |
+| `remote_ssh_key` | Private key path |
+| `cwd`, `shell` | Directory commands start in; local shell zrb starts the command with. Remote commands run under `sh -c` |
+
+**`Target` fields.** `name`, `labels`, `host` (resolved **from the checking host**), `port`, `kind` (`tcp` or `http`), and for http `scheme`, `path` or a full `url`.
+
+**Reading `check` results.**
+
+| Cell | Meaning |
+|------|---------|
+| `✅ ok` | TCP port accepted a connection |
+| `✅ 200`, `✅ 404` | HTTP got a response; any status code counts as connected |
+| `❌ fail` | No connection, or no response within 5 seconds |
+| `➖ n/a` | The host has no `bash`/`nc` (TCP) or `curl` (HTTP); no Python is needed |
+| `❌ error` | The host never reported: SSH failed, the host timed out, or the command failed |
+
+One SSH session per host probes every selected target. See [ADR-0110](../adr/adr-0110.md).
 
 ### ⚙️ Config (`config`)
 
@@ -330,6 +355,7 @@ from zrb.builtin import encode_base64, git_commit, http_request
 | Module | Import Example |
 |--------|---------------|
 | base64 | `from zrb.builtin import encode_base64` |
+| remote | `from zrb.builtin import remote_run, remote_check` |
 | case | `from zrb.builtin import convert_case` |
 | config | `from zrb.builtin import explain_config` |
 | cron | `from zrb.builtin import parse_cron` |

@@ -24,6 +24,7 @@ See [Maintainer Guide → Getting Started](docs/contributing/maintainer-guide.md
 | `group/`, `task_status/` | CLI group tree, per-task status tracking |
 | `llm/` | Everything LLM — see below |
 | `llm_plugin/` | The built-in skills and agents that ship with zrb |
+| `remote/` | `Host`/`Target` inventories (`host_inventory`, `target_inventory`) and the fan-out executor behind `zrb remote run/check` (ADR-0110) |
 | `runner/` | `cli.py`, `web_app.py` + `web_route/`, and `chat/` (the chat session HTTP layer) |
 | `task/` | The task engine: `BaseTask`, `Task`, `CmdTask`, `HttpCheck`, `TcpCheck`, `Scheduler`, `Scaffolder`, `RsyncTask`, and the `make_task` decorator. Shared constructor keywords live once in `base/params.py` |
 | `contextvars.py` | Canonical index of every ambient `ContextVar`, its owning module, and its typed wrapper |

@@ -1,3 +1,4 @@
+import json
 from collections.abc import Sequence
 
 from zrb.builtin.group import remote_group
@@ -23,9 +24,9 @@ _host_labels_input = OptionInput(
 )
 _format_input = OptionInput(
     name="format",
-    description="table: rendered, markdown: raw markdown",
+    description="table: rendered, markdown: raw markdown, json: raw statuses",
     default="table",
-    options=["table", "markdown"],
+    options=["table", "markdown", "json"],
 )
 _concurrency_input = IntInput(
     name="concurrency", description="Hosts handled at once", default=10
@@ -49,7 +50,14 @@ def _select_hosts(ctx: AnyContext) -> list[Host]:
     return hosts
 
 
-def _format(ctx: AnyContext, headers: Sequence[str], rows: Sequence[Sequence[str]]):
+def _format(
+    ctx: AnyContext,
+    headers: Sequence[str],
+    rows: Sequence[Sequence[str]],
+    records: Sequence[dict[str, object]],
+) -> str:
+    if ctx.input.format == "json":
+        return json.dumps(records, indent=2, ensure_ascii=False)
     if ctx.input.format == "markdown":
         return create_markdown_table(headers, rows)
     return render_table(headers, rows)
@@ -77,7 +85,8 @@ async def remote_run(ctx: AnyContext) -> str:
         [r.host.name, "✅" if r.ok else "❌", r.output or "(no output)"]
         for r in results
     ]
-    return _format(ctx, ["Host", "Status", "Output"], rows)
+    records = [{"host": r.host.name, "ok": r.ok, "output": r.output} for r in results]
+    return _format(ctx, ["Host", "Status", "Output"], rows, records)
 
 
 @make_task(
@@ -113,11 +122,16 @@ async def remote_check(ctx: AnyContext) -> str:
         ctx.input.timeout,
         ctx.input.concurrency,
     )
+    statuses = [parse_probe_output(r.output, len(targets)) for r in results]
     rows = [
-        [r.host.name, *(_describe(s) for s in parse_probe_output(r.output, len(targets)))]
-        for r in results
+        [r.host.name, *(_describe(s) for s in row)]
+        for r, row in zip(results, statuses)
     ]
-    return _format(ctx, ["Host", *(t.name for t in targets)], rows)
+    records = [
+        {"host": r.host.name, "targets": {t.name: s for t, s in zip(targets, row)}}
+        for r, row in zip(results, statuses)
+    ]
+    return _format(ctx, ["Host", *(t.name for t in targets)], rows, records)
 
 
 def _describe(status: str) -> str:
