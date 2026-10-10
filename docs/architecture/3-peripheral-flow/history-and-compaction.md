@@ -121,7 +121,7 @@ sequenceDiagram
 | `/compress` | `LLMTask`, before any agent is built | Runs `summarize_history` with `force=True`, even under the threshold |
 | A `PreCompact` hook blocks | `run_agent` history preparation | Summarization is skipped; the emergency prune to the last message still runs if the list does not fit |
 | A delegated sub-agent's transcript | `src/zrb/llm/util/subagent_session_naming.py` | Saved under `subagent/{agent}/` with no backup, and pruned by count — see [Sub-agents](../2-extension-surface/sub-agents.md) |
-| An old auto-named conversation | `FileHistoryManager` on its first save | Deleted once it is older than `LLM_HISTORY_RETENTION`; a name someone chose is never pruned |
+| An old auto-named conversation | `FileHistoryManager` on its first save | Deleted once it is older than `LLM_HISTORY_RETENTION`, whether it still has just its generated name or a `-topic` after it (see `LLM_AUTO_NAME_ENABLED`); a name someone chose is never pruned |
 
 ### Change it here
 
