@@ -61,8 +61,9 @@ async def summarize_for_speech(
     """A spoken summary of *text*, shorter than it. Raises `SpeechSummaryError`
     when the model fails, takes longer than *timeout* seconds (0: no limit), or
     gives back nothing or something no shorter. The timeout cancels the request
-    where the model call is cancellable; `SpeechSummarizer` backs it with a
-    deadline that is not."""
+    only at an ``await``: it cannot interrupt a resolver that blocks while the
+    agent is created, which is why the session goes through `SpeechSummarizer`,
+    whose deadline is kept outside the worker."""
     try:
         output = await asyncio.wait_for(_run(text, model), timeout or None)
     except Exception as exc:
