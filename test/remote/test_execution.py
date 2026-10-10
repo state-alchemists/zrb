@@ -35,3 +35,9 @@ async def test_probe_script_checks_a_closed_port_locally():
 
 def test_parse_probe_output_marks_missing_targets_as_error():
     assert parse_probe_output("0 ok\r\n2 200\njunk", 3) == ["ok", "error", "200"]
+
+
+@pytest.mark.asyncio
+async def test_run_on_hosts_rejects_a_non_positive_timeout():
+    with pytest.raises(ValueError, match="timeout"):
+        await run_on_hosts([Host("h")], "true", timeout=-1)

@@ -34,8 +34,8 @@ def test_target_url_and_validation():
         Target("bad", kind="tcp")
 
 
-def test_get_labels_lists_every_label_once_sorted():
+def test_get_choices_lists_every_name_and_label_once_sorted():
     inv: Inventory[Host] = Inventory()
     inv.add(Host("a", labels=["z", "k8s"]), Host("b", labels=["k8s"]))
-    assert inv.get_labels() == ["k8s", "z"]
-    assert Inventory().get_labels() == []
+    assert inv.get_choices() == ["a", "b", "k8s", "z"]
+    assert Inventory().get_choices() == []

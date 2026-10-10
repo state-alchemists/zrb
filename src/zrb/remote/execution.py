@@ -46,6 +46,8 @@ async def run_on_hosts(
     hosts: Sequence[Host], script: str, timeout: float = 60, concurrency: int = 10
 ) -> list[HostResult]:
     """Run `script` on every host, at most `concurrency` at a time, in host order."""
+    if timeout <= 0:
+        raise ValueError(f"timeout must be positive, got {timeout}")
     semaphore = asyncio.Semaphore(max(1, concurrency))
 
     async def run_one(host: Host) -> HostResult:

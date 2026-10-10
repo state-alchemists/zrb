@@ -16,9 +16,9 @@ from zrb.task.make_task import make_task
 
 _host_labels_input = OptionInput(
     name="host-labels",
-    description="Host label; empty = all hosts",
-    prompt="Host label",
-    options=lambda _: host_inventory.get_labels(),
+    description="Host label or name; empty = all hosts",
+    prompt="Host label or name",
+    options=lambda _: host_inventory.get_choices(),
     allow_empty=True,
 )
 _format_input = OptionInput(
@@ -89,9 +89,9 @@ async def remote_run(ctx: AnyContext) -> str:
         _host_labels_input,
         OptionInput(
             name="target-labels",
-            description="Target label; empty = all targets",
-            prompt="Target label",
-            options=lambda _: target_inventory.get_labels(),
+            description="Target label or name; empty = all targets",
+            prompt="Target label or name",
+            options=lambda _: target_inventory.get_choices(),
             allow_empty=True,
         ),
         _format_input,

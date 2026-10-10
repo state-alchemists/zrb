@@ -77,9 +77,11 @@ class Inventory(Generic[T]):
     def get_all(self) -> list[T]:
         return list(self._items.values())
 
-    def get_labels(self) -> list[str]:
-        """Every label in use, sorted."""
-        return sorted(set().union(*(set(i.labels) for i in self._items.values())))
+    def get_choices(self) -> list[str]:
+        """Every label and name that `select` accepts, sorted."""
+        names = set(self._items)
+        labels = set().union(*(set(i.labels) for i in self._items.values()))
+        return sorted(names | labels)
 
     def select(self, labels: Iterable[str] = ()) -> list[T]:
         """Items whose name or any label is in `labels`; all items if empty."""

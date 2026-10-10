@@ -69,7 +69,7 @@ async def test_empty_inventories_raise_a_suggestion():
         await remote_run.async_run(
             session=get_session(), kwargs=_kwargs(host_labels="", command="true")
         )
-    host_inventory.add(Host("node1"))
+    host_inventory.add(Host("node1", labels=["k8s"]))
     for item in target_inventory.get_all():
         target_inventory.remove(item.name)
     with pytest.raises(ValueError, match="SYSTEM SUGGESTION"):
@@ -82,7 +82,15 @@ def test_markdown_table_escapes_pipes_and_newlines():
     assert create_markdown_table(["h"], [["a|b\nc"]]).endswith("| a\\|b<br>c |")
 
 
-def test_label_inputs_offer_the_registered_labels():
+def test_label_inputs_offer_the_registered_labels_and_names():
     shared = SharedContext()
     html = [i for i in remote_run.inputs if i.name == "host-labels"][0].to_html(shared)
-    assert '<option value="k8s"' in html
+    assert '<option value="k8s"' in html and '<option value="node1"' in html
+
+
+@pytest.mark.asyncio
+async def test_a_host_name_selects_it():
+    res = await remote_run.async_run(
+        session=get_session(), kwargs=_kwargs(host_labels="other", command="echo x")
+    )
+    assert "| other | ✅ | x |" in res
