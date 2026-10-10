@@ -156,3 +156,16 @@ def test_a_rename_that_cannot_remove_the_source_leaves_no_duplicate(history_dir)
             manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
 
     assert os.path.exists(os.path.join(history_dir, "bold-arch-1234.json"))
+
+
+def test_a_rename_onto_a_conversation_open_in_memory_is_refused(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "bold-arch-1234")
+    manager.update(
+        "bold-arch-1234-greetings", [ModelRequest(parts=[UserPromptPart(content="b")])]
+    )
+
+    with pytest.raises(OSError, match="open in memory"):
+        manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert os.path.exists(os.path.join(history_dir, "bold-arch-1234.json"))

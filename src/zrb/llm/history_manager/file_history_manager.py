@@ -239,7 +239,8 @@ class FileHistoryManager(AnyHistoryManager):
 
         Raises `OSError`, leaving everything in place, when the unsaved
         history cannot be written, there is no saved history to move,
-        *new_name* exists, or the filesystem cannot hard-link. The target is
+        *new_name* exists on disk or is open in memory, or the filesystem
+        cannot hard-link. The target is
         created exclusively (`os.link`), so it is never overwritten, even by a
         concurrent writer."""
         self.save(conversation_name, write_backup=False)
@@ -250,6 +251,11 @@ class FileHistoryManager(AnyHistoryManager):
             )
         source = self._get_file_path(conversation_name)
         target = self._get_file_path(new_name)
+        if new_name in self._cache or new_name in self._dirty:
+            raise OSError(
+                f"Cannot rename '{conversation_name}' to '{new_name}': that "
+                "conversation is already open in memory and would be overwritten."
+            )
         if not os.path.exists(source):
             raise OSError(
                 f"Cannot rename '{conversation_name}': it has no saved history "
