@@ -17,6 +17,11 @@ class SpeechConfig:
     *backend* names a built-in backend (``auto``, ``termux``, ``say``,
     ``espeak-ng``, ``openai``, ``gemini``), built from the fields here, or is
     an `AnySpeechBackend` of your own, which ignores them.
+
+    A *summarize_above_chars* above 0 has the small model summarize a reply
+    longer than that, once it is finished, and speaks the summary instead; it
+    also turns off sentence streaming of the reply, which cannot be summarized
+    while it is still being written.
     """
 
     enabled: bool | None = None
@@ -26,6 +31,9 @@ class SpeechConfig:
     style: str | None = None
     rate: int | None = None
     stream: bool | None = None
+    summarize_above_chars: int | None = None
+    summary_model: str | None = None
+    summary_timeout: float | None = None
     progress_interval: float | None = None
     events: list[str] | None = None
     openai_model: str | None = None

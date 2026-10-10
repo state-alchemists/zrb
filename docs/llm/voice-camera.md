@@ -95,9 +95,11 @@ Speech starts off. Turn it on with `ZRB_LLM_SPEECH_ENABLED=on`, or with `/speech
 - "I need to write a file /tmp/a.py. I need your approval." when a tool waits for approval — not read if you answer first, and cut off if you answer while it is being read,
 - a question the agent asks you.
 
-**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. It is read whole, however long it is — nothing is shortened, so nothing is left for the screen to hold. The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
+**Speaking as it writes.** A reply is read a sentence at a time while the model is still writing it, and what it writes before a tool call ("Let me run the tests.") is read when the call starts. Code, tables and links are not read. By default it is read whole, however long it is; see *Summarizing a long reply* below to shorten it. The next sentence's audio is made while the current one plays, so a cloud voice has no gap between sentences.
 
 With `ZRB_LLM_SPEECH_STREAM=off`, the reply is read once the turn ends instead, whole in one go.
+
+**Summarizing a long reply.** Set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` (default `0`, off) to a length such as `600`, and a reply whose speakable text is longer is spoken as a two-to-four-sentence summary from the small model instead (`ZRB_LLM_SPEECH_SUMMARY_MODEL`, else `ZRB_LLM_SMALL_MODEL`, else the main model); the reply on screen is unchanged. A summary needs the finished reply, so while this is set the reply is **not** streamed, whatever `ZRB_LLM_SPEECH_STREAM` says: a short reply is read whole and a long one summarized, once the turn ends. If the model fails or takes longer than `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT` (15 seconds), the reply is read whole.
 
 **Saying what it is doing.** A tool call that starts after 8 seconds of silence (`ZRB_LLM_SPEECH_PROGRESS_INTERVAL`) is announced: "Running a command.", "Searching the code." Nothing is announced while zrb is speaking, and an announcement still waiting when its tool finishes is dropped. Take `progress` out of `ZRB_LLM_SPEECH_EVENTS` to turn it off.
 

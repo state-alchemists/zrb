@@ -1,7 +1,9 @@
 """`enable_speech`: read replies, tool approvals and questions aloud.
 
 Everything is spoken by one background thread per session, in order, so a hook
-only queues text and returns. A reply is read whole, however long it is.
+only queues text and returns. A reply is read whole, however long it is,
+unless ``summarize_above_chars`` is set: a longer one is then spoken as the
+small model's summary, once the turn ends.
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import IsStale, Speaker, is_speaking
 from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
 from zrb.llm.speech.streamed_reply import StreamedReply
+from zrb.llm.speech.summary import SpeechSummarizer
 from zrb.llm.speech.text import (
     clean_for_speech,
     fill_template,
@@ -145,6 +148,10 @@ class SpeechSession:
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
         self._clock = SpeechClock()
+        # Bumped whenever what is pending stops mattering: an interrupt, or a
+        # newer reply than a summary still being made.
+        self._generation = 0
+        self._summarizer = SpeechSummarizer()
         self.streamed_reply = StreamedReply(self._say)
         self.progress = ProgressNarrator(
             self._say,
@@ -196,7 +203,9 @@ class SpeechSession:
             manager.remove_hook(hook)
 
     def close(self) -> None:
-        """Take the hooks back out and stop the speaker."""
+        """Take the hooks back out and stop the speaker. A summary still being
+        made is dropped when it finishes."""
+        self._generation += 1
         for manager in list(self._hooks):
             self.unregister_hooks(manager)
         self.speaker.close()
@@ -209,6 +218,7 @@ class SpeechSession:
     def interrupt(self) -> None:
         """Stop speaking now and say nothing more of the response being
         written; `interrupt_speech`."""
+        self._generation += 1
         self.speaker.interrupt()
         self.streamed_reply.mute_response()
 
@@ -226,6 +236,7 @@ class SpeechSession:
     def toggle(self, kwargs: dict[str, str], ui: "BaseUI | None") -> str:
         self.speaker.is_enabled = not self.speaker.is_enabled
         if not self.speaker.is_enabled:
+            self._generation += 1
             self.speaker.clear()
             self.streamed_reply.reset()
         return f"🔊 Speech {'on' if self.speaker.is_enabled else 'off'}"
@@ -246,7 +257,7 @@ class SpeechSession:
             return
         # The reply first: text flushed at a tool call's start counts as
         # speech, so the call is not announced on top of it.
-        if self._config.stream and "reply" in self._events:
+        if self.is_streaming_reply and "reply" in self._events:
             self.streamed_reply.handle_event(event)
         if "progress" in self._events:
             self.progress.handle_event(event)
@@ -274,6 +285,9 @@ class SpeechSession:
         if not self._is_own_session() or event_data.get("nested_run"):
             return HookResult(success=True)
         self.progress.reset()
+        # A summary still being made belongs to an earlier turn, whatever this
+        # one goes on to say; one `say_reply` starts is for the new generation.
+        self._generation += 1
         if event_data.get("reason"):
             if "reply" in self._events:
                 # Cancelled: stop the sentence playing too, not only the queue.
@@ -285,7 +299,7 @@ class SpeechSession:
         if "reply" not in self._events:
             # Nothing to say here: a queued progress line is already stale.
             return HookResult(success=True)
-        if self._config.stream:
+        if self.is_streaming_reply:
             self.streamed_reply.flush()
             has_claimed_turn = self.streamed_reply.has_claimed_turn
             self.streamed_reply.reset()
@@ -323,9 +337,39 @@ class SpeechSession:
     def _is_own_session(self) -> bool:
         return current_session_key() == self._session_key
 
+    @property
+    def is_streaming_reply(self) -> bool:
+        """Whether the reply is spoken a sentence at a time as it is written.
+        A reply that may be summarized waits for its last word, so it is not."""
+        return bool(self._config.stream) and not self._summarize_above_chars
+
+    @property
+    def _summarize_above_chars(self) -> int:
+        return max(self._config.summarize_above_chars or 0, 0)
+
     def say_reply(self, reply: str) -> None:
-        """Speak *reply*, whole."""
-        self._say(clean_for_speech(reply))
+        """Speak *reply*: whole, or as a summary when its speakable text is
+        longer than ``summarize_above_chars``. The summary is made on a worker
+        (`SpeechSummarizer`), so neither the turn nor the speaker's queue waits
+        for the model; it is dropped if speech is interrupted, the session
+        closes or a newer reply comes first, and the reply is read whole when
+        the summary fails, is late, or another is still being made."""
+        self._generation += 1
+        text = clean_for_speech(reply)
+        if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
+            self._say(text)
+            return
+        generation = self._generation
+
+        def speak(spoken: str) -> None:
+            self._say(spoken, is_stale=lambda: self._generation != generation)
+
+        self._summarizer.start(
+            text,
+            self._config.summary_model or None,
+            self._config.summary_timeout or 0,
+            speak,
+        )
 
 
 def is_answered_since(ui: "AnyUI | None", asked_at: float) -> Callable[[], bool]:
