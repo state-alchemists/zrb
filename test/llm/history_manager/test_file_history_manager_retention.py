@@ -124,3 +124,48 @@ def test_a_rename_never_overwrites_an_existing_conversation(history_dir):
 
     assert os.path.exists(os.path.join(history_dir, "bold-arch-1234.json"))
     assert open(taken).read() == "[]"
+
+
+def test_a_legacy_delegated_transcript_is_not_pruned_as_a_conversation(
+    history_dir, retention
+):
+    legacy = _write(
+        history_dir, "bold-arch-1234-sub-reviewer-abcd1234", age_seconds=3 * 86400
+    )
+
+    _save(FileHistoryManager(str(history_dir)), "warm-base-0001")
+
+    assert os.path.exists(legacy)
+
+
+def test_a_failed_rename_puts_every_moved_file_back(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    sub = "bold-arch-1234-sub-reviewer-abcd1234"
+    _save(manager, "bold-arch-1234")
+    _save(manager, sub)
+    real_replace = os.replace
+    calls = []
+
+    def flaky_replace(source, target):
+        calls.append(source)
+        if len(calls) == 2:
+            raise OSError("read-only directory")
+        real_replace(source, target)
+
+    with patch("os.replace", side_effect=flaky_replace):
+        with pytest.raises(OSError):
+            manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert manager.load("bold-arch-1234")
+    assert manager.load(sub)
+    assert not os.path.exists(os.path.join(history_dir, "bold-arch-1234-greetings.json"))
+
+
+def test_a_rename_leaves_sub_agent_backups_under_the_old_name(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "bold-arch-1234")
+    backup = _write(history_dir, "bold-arch-1234-sub-reviewer-abcd1234-2024-01-01-10-00-00")
+
+    manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert os.path.exists(backup)

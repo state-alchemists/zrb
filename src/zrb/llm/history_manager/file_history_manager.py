@@ -247,8 +247,10 @@ class FileHistoryManager(AnyHistoryManager):
         ]
         for directory in subagent_history_directories(self._history_dir):
             for filename in os.listdir(directory):
-                if filename.startswith(f"{old_safe}-sub-") and filename.endswith(
-                    ".json"
+                if (
+                    filename.startswith(f"{old_safe}-sub-")
+                    and filename.endswith(".json")
+                    and not _BACKUP_FILENAME_PATTERN.match(filename)
                 ):
                     renamed = new_safe + filename[len(old_safe) :]
                     moves.append(
@@ -264,8 +266,16 @@ class FileHistoryManager(AnyHistoryManager):
                     f"Cannot rename '{conversation_name}' to '{new_name}': "
                     f"{target} already exists and would be overwritten."
                 )
-        for source, target in moves:
-            os.replace(source, target)
+        done: list[tuple[str, str]] = []
+        try:
+            for source, target in moves:
+                os.replace(source, target)
+                done.append((source, target))
+        except OSError:
+            # Put back what moved, so a load never sees half a conversation.
+            for source, target in reversed(done):
+                os.replace(target, source)
+            raise
         self._cache.pop(conversation_name, None)
         self._cache_mtime.pop(conversation_name, None)
         self._dirty.discard(conversation_name)
@@ -506,7 +516,11 @@ class FileHistoryManager(AnyHistoryManager):
                 continue
             match = _BACKUP_FILENAME_PATTERN.match(entry.name)
             base = match.group("base") if match else entry.name[: -len(".json")]
-            if not has_random_name_prefix(base) or base in protected:
+            if (
+                not has_random_name_prefix(base)
+                or parse_delegated_session(base) is not None
+                or base in protected
+            ):
                 continue
             try:
                 if entry.is_file() and entry.stat().st_mtime < cutoff:
