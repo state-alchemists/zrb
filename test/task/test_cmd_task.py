@@ -470,3 +470,4 @@ def test_the_warning_fires_once_per_call_site():
             CmdTask(name="greet", cmd="echo {ctx.input.name}")
     found = [w for w in caught if issubclass(w.category, UntemplatedCmdWarning)]
     assert len(found) == 1
+

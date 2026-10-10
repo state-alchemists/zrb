@@ -41,3 +41,16 @@ def test_parse_probe_output_marks_missing_targets_as_error():
 async def test_run_on_hosts_rejects_a_non_positive_timeout():
     with pytest.raises(ValueError, match="timeout"):
         await run_on_hosts([Host("h")], "true", timeout=-1)
+
+
+@pytest.mark.asyncio
+async def test_failed_run_keeps_stdout_and_stderr_apart():
+    (result,) = await run_on_hosts([Host("h")], "printf out; printf err >&2; exit 1")
+    assert result.output == "out\nerr"
+
+
+@pytest.mark.asyncio
+async def test_output_is_bounded_to_the_trailing_lines():
+    (result,) = await run_on_hosts([Host("h")], "seq 1 5000")
+    lines = result.output.splitlines()
+    assert len(lines) <= 1001 and lines[-1] == "5000"

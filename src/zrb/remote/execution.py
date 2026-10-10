@@ -8,6 +8,9 @@ from zrb.remote.inventory import Host, Target
 from zrb.util.cmd.command import resolve_shell, run_command
 from zrb.util.cmd.remote import get_remote_cmd_script
 
+# Trailing lines kept per stream and host, as `CmdTask` does.
+MAX_OUTPUT_LINE = 1000
+
 # Runs under plain `sh`, so a target host needs no bash, python or any one tool:
 # TCP uses bash's /dev/tcp, else nc; HTTP uses curl. A missing tool is `n/a`.
 _PROBE_FUNCTIONS = r"""
@@ -69,6 +72,7 @@ async def _run_on_host(host: Host, script: str, timeout: float) -> HostResult:
             user=host.remote_user,
             use_password=host.remote_password != "",
             ssh_key=host.remote_ssh_key,
+            tty=False,
         )
         if host.remote_password != "":
             env_map = {**os.environ, "SSHPASS": host.remote_password}
@@ -79,12 +83,13 @@ async def _run_on_host(host: Host, script: str, timeout: float) -> HostResult:
             env_map=env_map,
             print_method=lambda *_, **__: None,
             timeout=timeout,
-            max_output_line=0,
-            max_error_line=0,
+            max_output_line=MAX_OUTPUT_LINE,
+            max_error_line=MAX_OUTPUT_LINE,
         )
     except (TimeoutError, OSError) as e:
         return HostResult(host, False, f"{type(e).__name__}: {e}".strip())
-    output = result.output if return_code == 0 else result.output + result.error
+    streams = [result.output] if return_code == 0 else [result.output, result.error]
+    output = "\n".join(text for text in streams if text)
     return HostResult(host, return_code == 0, output.replace("\r", "").strip())
 
 
