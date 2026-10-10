@@ -270,8 +270,14 @@ class FileHistoryManager(AnyHistoryManager):
             ) from e
         try:
             os.unlink(source)
-        except OSError:
-            os.unlink(target)  # undo the link, so nothing is duplicated
+        except OSError as e:
+            try:
+                os.unlink(target)  # undo the link, so nothing is duplicated
+            except OSError:
+                raise OSError(
+                    f"Renaming '{conversation_name}' left both {source} and "
+                    f"{target} in place; remove the one you do not want."
+                ) from e
             raise
         self._cache.pop(conversation_name, None)
         self._cache_mtime.pop(conversation_name, None)

@@ -169,3 +169,12 @@ def test_a_rename_onto_a_conversation_open_in_memory_is_refused(history_dir):
         manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
 
     assert os.path.exists(os.path.join(history_dir, "bold-arch-1234.json"))
+
+
+def test_a_rename_that_cannot_undo_its_link_names_both_files(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "bold-arch-1234")
+
+    with patch("os.unlink", side_effect=OSError("busy")):
+        with pytest.raises(OSError, match="left both"):
+            manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
