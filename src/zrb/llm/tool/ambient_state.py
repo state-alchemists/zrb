@@ -5,6 +5,7 @@ from __future__ import annotations
 from contextvars import ContextVar
 
 from zrb.llm.input_source import InputProvenance
+from zrb.util.string.name import get_conversation_key
 
 # Declared here, not in `ask.py`/`worktree.py`, so `live_context.py` can read
 # them on the `import zrb` path without loading pydantic (~55ms).
@@ -52,8 +53,11 @@ def get_current_chat_session_id() -> str:
 
 
 def get_session_ownership_key(display_name: str = "") -> str:
-    """The chat session ID, falling back to *display_name* outside web chat."""
-    return get_current_chat_session_id() or display_name or "default"
+    """The chat session ID, falling back to the conversation key of
+    *display_name* outside web chat, so a renamed conversation keeps its key."""
+    return (
+        get_current_chat_session_id() or get_conversation_key(display_name) or "default"
+    )
 
 
 def get_current_context_session() -> str:

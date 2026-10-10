@@ -129,7 +129,7 @@ sequenceDiagram
 
 **Agents messaging each other.** The same registry carries agent-originated messages (ADR-0108). `send_message_to_subagent` steers into a running child or continues an idle one; `send_message_to_parent` submits to the parent UI, which steers into the main agent's live turn or queues it as its next one. Each message starts with a header naming its sender. A child's message reaches the parent mid-run only with background delegation; under synchronous `DelegateToAgent` the parent is blocked, so it arrives in the parent's next turn.
 
-**After a restart.** `/load <conversation>` re-registers that conversation's saved child transcripts as idle sessions (ADR-0109). They carry no `AuthoritySnapshot`, so a continuation runs under the permissions in force when it starts. A restored session is titled again from its transcript's first message, so it shows its agent name until that small-model call returns.
+**After a restart.** `/load <conversation>` re-registers that conversation's saved child transcripts as idle sessions (ADR-0109). They carry no `AuthoritySnapshot`, so a continuation runs under the permissions in force when it starts. A restored session shows its agent name and no topic title. Transcripts are named after the conversation's key (its generated name without the topic added by auto-naming), so renaming a conversation does not move them.
 
 ### Variations
 

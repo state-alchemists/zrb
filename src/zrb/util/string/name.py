@@ -94,5 +94,18 @@ def has_random_name_prefix(name: str) -> bool:
     return _RANDOM_NAME_PREFIX.fullmatch(name) is not None
 
 
+def get_conversation_key(name: str) -> str:
+    """The stable identity of a conversation: its generated name without a
+    `-topic` (`bold-arch-1234-greetings` -> `bold-arch-1234`), else *name*.
+
+    A conversation is renamed after its first message, but what hangs off it
+    (sub-agent transcripts, live sessions) keeps this key, so a rename moves
+    one history file and nothing else."""
+    match = _RANDOM_NAME.match(name)
+    if match and (match.end() == len(name) or name[match.end()] == "-"):
+        return match.group(0)
+    return name
+
+
 _RANDOM_NAME = re.compile(rf"(?:{'|'.join(PREFIXES)})-(?:{'|'.join(SUFFIXES)})-\d{{4}}")
 _RANDOM_NAME_PREFIX = re.compile(_RANDOM_NAME.pattern + r"(?:-.+)?")

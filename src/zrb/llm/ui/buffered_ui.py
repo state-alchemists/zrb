@@ -66,10 +66,6 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         """The chat session this sub-agent belongs to."""
         return self._session_id
 
-    def set_session_id(self, session_id: str) -> None:
-        """Follow the chat session when its conversation is renamed."""
-        self._session_id = session_id
-
     def set_label(self, prefix: str) -> None:
         """Set the per-line output prefix (e.g. ``[generalist #1] ``)."""
         self._prefix = prefix

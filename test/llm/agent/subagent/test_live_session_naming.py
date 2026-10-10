@@ -1,4 +1,4 @@
-"""Live-session renaming (rekey) and sub-agent titles (ADR-0109)."""
+"""Sub-agent session titles (ADR-0109)."""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -28,35 +28,6 @@ def sub_agent_manager():
     return MagicMock()
 
 
-def test_rekey_keeps_sessions_addressable_under_the_new_name(
-    registry, buffered_ui, sub_agent_manager
-):
-    entry = registry.add_session(
-        "old", "a1", "reviewer", sub_agent_manager, buffered_ui
-    )
-
-    registry.rekey("old", "new")
-
-    assert registry.get("old", "a1") is None
-    assert registry.get("new", "a1") is entry
-    assert entry.session_id == "new"
-    buffered_ui.set_session_id.assert_called_once_with("new")
-
-
-def test_rekey_refuses_to_replace_a_session_already_at_the_destination(
-    registry, buffered_ui, sub_agent_manager
-):
-    mine = registry.add_session("old", "a1", "reviewer", sub_agent_manager, buffered_ui)
-    other = registry.add_session("new", "a1", "planner", sub_agent_manager, buffered_ui)
-
-    assert registry.can_rekey("old", "new") is False
-    with pytest.raises(ValueError):
-        registry.rekey("old", "new")
-
-    assert registry.get("old", "a1") is mine
-    assert registry.get("new", "a1") is other
-
-
 @pytest.mark.asyncio
 async def test_a_new_title_repaints_the_parent_ui(
     registry, buffered_ui, sub_agent_manager
@@ -69,24 +40,5 @@ async def test_a_new_title_repaints_the_parent_ui(
         start_titling(entry, "fix the login bug")
         await asyncio.sleep(0.05)
 
-    assert entry.title == "fix-login"
-    buffered_ui.parent_ui.invalidate_ui.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_a_restored_session_is_titled_from_its_first_message(
-    registry, buffered_ui, sub_agent_manager
-):
-    from pydantic_ai.messages import ModelRequest, UserPromptPart
-
-    history = [ModelRequest(parts=[UserPromptPart(content="fix the login bug")])]
-    suggest = AsyncMock(return_value="fix-login")
-    with patch("zrb.llm.agent.subagent.live_session.suggest_slug", suggest):
-        entry = registry.restore_session(
-            "s", "a1", "reviewer", sub_agent_manager, buffered_ui, history
-        )
-        await asyncio.sleep(0.05)
-
-    suggest.assert_called_once_with("fix the login bug")
     assert entry.title == "fix-login"
     buffered_ui.parent_ui.invalidate_ui.assert_called_once()

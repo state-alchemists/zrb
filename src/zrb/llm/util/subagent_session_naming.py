@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 import re
 
+from zrb.util.string.name import get_conversation_key
+
 # The subdirectory under LLM_HISTORY_DIR that holds delegated transcripts.
 SUBAGENT_HISTORY_SUBDIR = "subagent"
 
@@ -26,10 +28,11 @@ def format_delegated_session_name(
 ) -> str:
     """The persisted conversation name for one delegated sub-agent run.
 
-    An empty ``parent_session_id`` becomes ``"default"`` so the name still
-    round-trips through ``parse_delegated_session``.
+    The parent is the conversation's key, so a conversation renamed after its
+    first message keeps its transcripts. An empty ``parent_session_id`` becomes
+    ``"default"`` so the name still round-trips through ``parse_delegated_session``.
     """
-    parent_session_id = parent_session_id.strip() or "default"
+    parent_session_id = get_conversation_key(parent_session_id.strip()) or "default"
     return f"{parent_session_id}-sub-{agent_name}-{agent_id}"
 
 

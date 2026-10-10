@@ -212,3 +212,64 @@ def test_a_transcript_found_twice_is_restored_once(conv_ui):
         conv_ui.handle_load_command("load second")
 
     assert len(registry.active("second")) == 1
+
+
+@pytest.mark.asyncio
+async def test_switching_conversations_mid_naming_still_names_the_new_one(conv_ui):
+    conv_ui.conversation_session_name = "bold-arch-1234"
+    conv_ui.llm_task.async_run = AsyncMock(return_value="hi!")
+    release = asyncio.Event()
+
+    async def slow_slug(message):
+        await release.wait()
+        return message
+
+    with patch(
+        "zrb.llm.ui.base.conversation_commands.suggest_slug",
+        AsyncMock(side_effect=slow_slug),
+    ):
+        await conv_ui.stream_ai_response(conv_ui.llm_task, "first")
+        conv_ui.conversation_session_name = "calm-atom-5678"  # /load another one
+        await conv_ui.stream_ai_response(conv_ui.llm_task, "second")
+        release.set()
+        await _wait_output(conv_ui, "calm-atom-5678-second")
+
+
+def test_a_transcript_that_loads_empty_is_not_restored(conv_ui):
+    # lazy: the registry pulls in pydantic_ai
+    from zrb.llm.agent.subagent.live_session import LiveSubAgentSessionRegistry
+
+    registry = LiveSubAgentSessionRegistry()
+    conv_ui.history_manager.search.return_value = ["second-sub-reviewer-abcd1234"]
+    conv_ui.history_manager.load.return_value = []
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            registry,
+        ),
+        patch("zrb.llm.agent.subagent.manager.sub_agent_manager", MagicMock()),
+    ):
+        conv_ui.handle_load_command("load second")
+
+    assert registry.active("second") == []
+
+
+def test_load_by_the_topic_name_restores_the_sub_agents_of_its_key(conv_ui):
+    # lazy: the registry pulls in pydantic_ai
+    from zrb.llm.agent.subagent.live_session import LiveSubAgentSessionRegistry
+
+    registry = LiveSubAgentSessionRegistry()
+    conv_ui.history_manager.search.return_value = [
+        "bold-arch-1234-sub-reviewer-abcd1234"
+    ]
+    conv_ui.history_manager.load.return_value = ["hist"]
+    with (
+        patch(
+            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            registry,
+        ),
+        patch("zrb.llm.agent.subagent.manager.sub_agent_manager", MagicMock()),
+    ):
+        conv_ui.handle_load_command("load bold-arch-1234-greetings")
+
+    assert [s.agent_id for s in registry.active("bold-arch-1234")] == ["abcd1234"]

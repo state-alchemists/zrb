@@ -54,3 +54,12 @@ def test_has_random_name_prefix_accepts_a_generated_name_with_a_topic():
     assert has_random_name_prefix(f"{generated}-greetings")
     assert not has_random_name_prefix("my-session")
     assert not has_random_name_prefix(f"my-{generated}")
+
+
+def test_conversation_key_drops_the_topic_of_a_generated_name_only():
+    from zrb.util.string.name import get_conversation_key
+
+    assert get_conversation_key("bold-arch-1234") == "bold-arch-1234"
+    assert get_conversation_key("bold-arch-1234-fix-login") == "bold-arch-1234"
+    assert get_conversation_key("my-session") == "my-session"
+    assert get_conversation_key("bold-arch-12345") == "bold-arch-12345"

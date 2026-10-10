@@ -14,16 +14,15 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.activity import agent_activity_registry
-from zrb.llm.agent.run.authority_snapshot import (AuthoritySnapshot,
-                                                  capture_current_authority)
+from zrb.llm.agent.run.authority_snapshot import (
+    AuthoritySnapshot,
+    capture_current_authority,
+)
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent_state import (current_approval_channel,
-                                 current_tool_confirmation)
+from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.ui.base.message_queue import steer_into_live_run
-from zrb.llm.util.conversation_naming import (ConversationNamingError,
-                                              suggest_slug)
-from zrb.llm.util.history_formatter import extract_user_message_texts
+from zrb.llm.util.conversation_naming import ConversationNamingError, suggest_slug
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
@@ -63,7 +62,8 @@ class LiveSubAgentSession:
     # Agent-originated messages in either direction, bounded by
     # `CFG.LLM_AGENT_MESSAGE_LIMIT` so two agents cannot answer each other forever.
     agent_messages_sent: int = 0
-    # A short topic from the small model (ADR-0109); empty until named.
+    # A short topic from the small model (ADR-0109); empty until named, and
+    # for a session restored from disk.
     title: str = ""
 
     def set_active_task(self, task: "asyncio.Task | None") -> None:
@@ -156,29 +156,6 @@ class LiveSubAgentSessionRegistry:
             entry.active_task = asyncio.ensure_future(_continue_live_session(entry))
         return True
 
-    def can_rekey(self, old_id: str, new_id: str) -> bool:
-        """Whether *old_id*'s sessions can move to *new_id* without replacing
-        a session already registered there."""
-        return not (
-            self._sessions.get(old_id, {}).keys() & self._sessions.get(new_id, {}).keys()
-        )
-
-    def rekey(self, old_id: str, new_id: str) -> None:
-        """Move *old_id*'s sessions to *new_id* when their conversation is
-        renamed, so they stay listed and addressable under the new name."""
-        if not self.can_rekey(old_id, new_id):
-            raise ValueError(
-                f"Cannot move sub-agent sessions from '{old_id}' to '{new_id}': "
-                "the destination already has sessions with the same agent ids."
-            )
-        bucket = self._sessions.pop(old_id, None)
-        if not bucket or old_id == new_id:
-            return
-        for entry in bucket.values():
-            entry.session_id = new_id
-            entry.buffered_ui.set_session_id(new_id)
-        self._sessions.setdefault(new_id, {}).update(bucket)
-
     def restore_session(
         self,
         session_id: str,
@@ -200,9 +177,6 @@ class LiveSubAgentSessionRegistry:
             history=history,
         )
         self._sessions.setdefault(session_id, {})[agent_id] = entry
-        user_texts = extract_user_message_texts(history)
-        if user_texts:
-            start_titling(entry, user_texts[0])
         return entry
 
     def has_message_budget(self, session_id: str, agent_id: str) -> bool:

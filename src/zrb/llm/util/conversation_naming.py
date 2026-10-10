@@ -55,5 +55,7 @@ async def suggest_slug(message: str, model: "str | Model | None" = None) -> str:
     except Exception as e:
         raise ConversationNamingError(str(e) or type(e).__name__) from e
     if not slug:
-        raise ConversationNamingError("the model returned no usable topic; the conversation keeps its generated name")
+        raise ConversationNamingError(
+            "the model returned no usable topic; the conversation keeps its generated name"
+        )
     return slug

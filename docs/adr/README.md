@@ -161,7 +161,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0102** — [Optional chat features install through `LLMChatTask`'s extension points, configured when a session starts](adr-0102.md)
 - **ADR-0104** — [Stream observers see an agent run's events beside the UI](adr-0104.md)
 - **ADR-0108** — [The main agent and a delegated sub-agent message each other through the live-session registry, and every message names its sender](adr-0108.md)
-- **ADR-0109** — [A default-named conversation is renamed from its first message, and loading a conversation restores its sub-agent sessions](adr-0109.md)
+- **ADR-0109** — [A conversation is renamed from its first message but keeps a stable key, and loading it restores its sub-agent sessions](adr-0109.md)
 
 ### Chat UI and rendering
 

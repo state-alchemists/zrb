@@ -18,17 +18,13 @@ from zrb.config.config import CFG
 from zrb.llm.history_manager.file_history_manager import safe_segment
 from zrb.llm.tool.ambient_state import get_session_ownership_key
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
-from zrb.llm.util.conversation_naming import (
-    ConversationNamingError,
-    should_auto_name,
-    suggest_slug,
-    with_slug,
-)
-from zrb.llm.util.subagent_session_naming import (
-    parse_delegated_agent_id,
-    parse_delegated_session,
-)
+from zrb.llm.util.conversation_naming import (ConversationNamingError,
+                                              should_auto_name, suggest_slug,
+                                              with_slug)
+from zrb.llm.util.subagent_session_naming import (parse_delegated_agent_id,
+                                                  parse_delegated_session)
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
+from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
     from zrb.llm.snapshot.manager import SnapshotManager
@@ -45,10 +41,9 @@ class BaseUIConversationCommands:
 
     def __init__(self, base_ui: "BaseUI") -> None:
         self._base_ui = base_ui
-        self._auto_name_task: asyncio.Task | None = None
-        # (conversation, first message, slug once suggested): a later turn
-        # never replaces the first message as the source of the name.
-        self._auto_name_source: list[str] = []
+        # One naming task per conversation, so switching sessions mid-naming
+        # drops nothing.
+        self._auto_name_tasks: dict[str, asyncio.Task] = {}
 
     # --- exit / info ------------------------------------------------------
 
@@ -129,67 +124,44 @@ class BaseUIConversationCommands:
 
     def schedule_auto_name(self, user_message: str) -> None:
         """After a turn, rename a conversation that still has its generated
-        name from its first message, in the background. Silent on any failure."""
+        name from *user_message*, in the background. Silent on any failure."""
         ui = self._base_ui
         name = ui.conversation_session_name
         if (
-            self._auto_name_task is not None
+            name in self._auto_name_tasks
             or not hasattr(ui.history_manager, "rename")
             or not should_auto_name(name)
         ):
             return
-        if not self._auto_name_source or self._auto_name_source[0] != name:
-            self._auto_name_source = [name, user_message]
-        task = asyncio.get_running_loop().create_task(self._auto_name(name))
-        self._auto_name_task = task
+        task = asyncio.get_running_loop().create_task(
+            self._auto_name(name, user_message)
+        )
+        self._auto_name_tasks[name] = task
         ui.background_tasks.add(task)
         task.add_done_callback(ui.background_tasks.discard)
 
-    async def _auto_name(self, old_name: str) -> None:
+    async def _auto_name(self, old_name: str, user_message: str) -> None:
         ui = self._base_ui
-        source = self._auto_name_source
         try:
-            if len(source) < 3:
-                source.append(await suggest_slug(source[1]))
-            # A turn already running would save under the old name, so wait for
+            slug = await suggest_slug(user_message)
+            # A turn still running would save under the old name, so wait for
             # it to end; a name chosen meanwhile stays.
             while ui.is_thinking:
                 await asyncio.sleep(_AUTO_NAME_POLL_SECONDS)
             if ui.conversation_session_name != old_name:
                 return
-            new_name = with_slug(old_name, source[2])
-            if not self._can_rekey_live_sessions(old_name, new_name):
-                return
+            new_name = with_slug(old_name, slug)
             ui.history_manager.rename(old_name, new_name)  # type: ignore[attr-defined]
             if ui.snapshot_manager is not None:
                 self._schedule_history_copy(ui.snapshot_manager, old_name, new_name)
             ui.conversation_session_name = new_name
-            self._rekey_live_sessions(old_name, new_name)
             ui.append_to_output(
                 stylize_muted(f"\n  🔖 Conversation named: {new_name}\n")
             )
         except (ConversationNamingError, OSError) as e:
             CFG.LOGGER.debug(f"Auto-naming '{old_name}' failed: {e}")
         finally:
-            self._auto_name_task = None
-
-    def _can_rekey_live_sessions(self, old_name: str, new_name: str) -> bool:
-        # lazy: transitively heavy via internal — live_session.py imports
-        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
-
-        return live_subagent_session_registry.can_rekey(
-            get_session_ownership_key(old_name), get_session_ownership_key(new_name)
-        )
-
-    def _rekey_live_sessions(self, old_name: str, new_name: str) -> None:
-        # lazy: transitively heavy via internal — live_session.py imports
-        # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
-
-        live_subagent_session_registry.rekey(
-            get_session_ownership_key(old_name), get_session_ownership_key(new_name)
-        )
+            self._auto_name_tasks.pop(old_name, None)
 
     def restore_subagent_sessions(self, name: str) -> int:
         """Re-register the sub-agent transcripts saved under conversation *name*
@@ -197,7 +169,8 @@ class BaseUIConversationCommands:
         if parse_delegated_session(name) is not None:
             return 0
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.agent.subagent.live_session import \
+            live_subagent_session_registry
         from zrb.llm.agent.subagent.manager import sub_agent_manager
         from zrb.llm.ui.buffered_ui import BufferedUI
 
@@ -210,14 +183,17 @@ class BaseUIConversationCommands:
             agent_id = parse_delegated_agent_id(saved)
             if (
                 delegated is None
-                or delegated[0] != safe_segment(name)
+                or delegated[0] != safe_segment(get_conversation_key(name))
                 or agent_id is None
                 or agent_id in found
                 or live_subagent_session_registry.get(session_id, agent_id)
                 or sub_agent_manager.get_agent_definition(delegated[1]) is None
             ):
                 continue
-            found[agent_id] = (delegated[1], ui.history_manager.load(saved))
+            history = ui.history_manager.load(saved)
+            if not history:  # missing or unreadable: nothing to continue from
+                continue
+            found[agent_id] = (delegated[1], history)
         # Registered only once every transcript has loaded, so a failed load
         # leaves no half-restored sessions behind.
         for agent_id, (agent_name, history) in found.items():

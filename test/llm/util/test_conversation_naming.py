@@ -54,21 +54,20 @@ async def test_suggest_slug_raises_when_the_model_fails():
             await suggest_slug("hello")
 
 
-def test_rename_moves_the_conversation_and_its_sub_agent_transcripts(tmp_path):
+def test_rename_moves_the_history_file_and_leaves_sub_agent_transcripts(tmp_path):
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
     from zrb.llm.history_manager.file_history_manager import FileHistoryManager
 
     manager = FileHistoryManager(str(tmp_path))
     messages = [ModelRequest(parts=[UserPromptPart(content="hi")])]
-    sub_old = "bold-arch-1234-sub-reviewer-abcd1234"
-    for name in ("bold-arch-1234", sub_old):
+    sub = "bold-arch-1234-sub-reviewer-abcd1234"
+    for name in ("bold-arch-1234", sub):
         manager.update(name, messages)
         manager.save(name, write_backup=False)
 
     manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
 
     assert manager.load("bold-arch-1234-greetings")
-    assert manager.load("bold-arch-1234-greetings-sub-reviewer-abcd1234")
     assert not os.path.exists(tmp_path / "bold-arch-1234.json")
-    assert manager.load(sub_old) == []
+    assert manager.load(sub)  # keyed by the conversation key, untouched

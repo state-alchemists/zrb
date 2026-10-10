@@ -229,75 +229,31 @@ class FileHistoryManager(AnyHistoryManager):
             )
 
     def rename(self, conversation_name: str, new_name: str) -> None:
-        """Move *conversation_name* and its delegated sub-agent transcripts to
-        *new_name*, so a sub-agent stays tied to its conversation (ADR-0109).
-        Timestamped backups are left under the old name. Raises `OSError`,
-        leaving everything where it was, when the unsaved history cannot be
-        written, a destination exists, or a move fails."""
+        """Move one conversation's history file to *new_name* (ADR-0109).
+
+        Sub-agent transcripts stay where they are: they hang off the
+        conversation's key, which a rename keeps. Timestamped backups stay
+        under the old name. Raises `OSError`, leaving everything in place,
+        when the unsaved history cannot be written or *new_name* exists."""
         self.save(conversation_name, write_backup=False)
         if conversation_name in self._dirty:
             raise OSError(
                 f"Cannot rename '{conversation_name}': its unsaved history "
                 "could not be written, so it stays under its current name."
             )
-        moves = self._plan_rename(conversation_name, new_name)
-        for _, target in moves:
-            if os.path.exists(target):
-                raise OSError(
-                    f"Cannot rename '{conversation_name}' to '{new_name}': "
-                    f"{target} already exists and would be overwritten."
-                )
-        self._apply_moves(conversation_name, moves)
+        source, target = self._get_file_path(conversation_name), self._get_file_path(
+            new_name
+        )
+        if os.path.exists(target):
+            raise OSError(
+                f"Cannot rename '{conversation_name}' to '{new_name}': "
+                f"{target} already exists and would be overwritten."
+            )
+        if os.path.exists(source):
+            os.replace(source, target)
         self._cache.pop(conversation_name, None)
         self._cache_mtime.pop(conversation_name, None)
         self._dirty.discard(conversation_name)
-
-    def _plan_rename(
-        self, conversation_name: str, new_name: str
-    ) -> list[tuple[str, str]]:
-        """The existing (source, target) files a rename moves."""
-        old_safe, new_safe = safe_segment(conversation_name), safe_segment(new_name)
-        moves = [
-            (self._get_file_path(conversation_name), self._get_file_path(new_name))
-        ]
-        for directory in subagent_history_directories(self._history_dir):
-            for filename in os.listdir(directory):
-                if (
-                    filename.startswith(f"{old_safe}-sub-")
-                    and filename.endswith(".json")
-                    and not _BACKUP_FILENAME_PATTERN.match(filename)
-                ):
-                    renamed = new_safe + filename[len(old_safe) :]
-                    moves.append(
-                        (
-                            os.path.join(directory, filename),
-                            os.path.join(directory, renamed),
-                        )
-                    )
-        return [(src, dst) for src, dst in moves if os.path.exists(src)]
-
-    @staticmethod
-    def _apply_moves(conversation_name: str, moves: list[tuple[str, str]]) -> None:
-        """Move every file, or put back the ones already moved and raise."""
-        done: list[tuple[str, str]] = []
-        try:
-            for source, target in moves:
-                os.replace(source, target)
-                done.append((source, target))
-        except OSError:
-            stuck = []
-            for source, target in reversed(done):
-                try:
-                    os.replace(target, source)
-                except OSError:
-                    stuck.append(target)
-            if stuck:
-                raise OSError(
-                    f"Renaming '{conversation_name}' failed and could not be "
-                    f"undone; these files are still under the new name: "
-                    f"{', '.join(stuck)}"
-                ) from None
-            raise
 
     def search(self, keyword: str) -> list[str]:
         if not os.path.exists(self._history_dir):
