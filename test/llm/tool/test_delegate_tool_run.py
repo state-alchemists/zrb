@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import BufferedUI, create_delegate_to_agent_tool
 
 
@@ -67,7 +67,7 @@ async def test_delegate_passes_live_sessions_run_scope_to_run_agent(
     """The live-session registry entry's run_scope must reach run_agent, so
     a later continuation of this same sub-agent (live_session.py) can reuse
     it instead of each turn getting its own file_observation.py bucket."""
-    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.subagent.live_session import live_subagent_session_registry
 
     live_subagent_session_registry.clear()  # earlier tests may have left sessions
     try:
@@ -181,7 +181,7 @@ async def test_delegate_tool_exception(mock_sub_agent_manager):
 @pytest.mark.asyncio
 async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
     """A human-flagged cancel ends only the sub-agent; the delegate returns a cancelled result."""
-    from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+    from zrb.llm.subagent.live_session import live_subagent_session_registry
 
     live_subagent_session_registry.clear()  # earlier tests may have left sessions
     mock_sub_agent_manager.create_agent.return_value = MagicMock()

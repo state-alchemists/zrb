@@ -28,6 +28,16 @@ def require_model_hook(value: "ModelHook | None", label: str) -> "ModelHook | No
     return value
 
 
+def apply_model_hooks(
+    model: "str | Model",
+    model_getter: "ModelHook | None",
+    model_renderer: "ModelHook | None",
+) -> "str | Model | None":
+    """Apply *model_getter* then *model_renderer* to *model*; either may return None."""
+    active = model_getter(model) if model_getter else model
+    return model_renderer(active) if model_renderer else active
+
+
 class ModelResolver:
     """Resolve model names with optional provider credentials and hooks."""
 
@@ -76,11 +86,7 @@ class ModelResolver:
         resolved = self._resolve_model_by_name(
             model, api_key, base_url, resolved_provider
         )
-        return self._apply_hooks(resolved)
-
-    def _apply_hooks(self, model: "str | Model") -> "str | Model | None":
-        active = self._model_getter(model) if self._model_getter else model
-        return self._model_renderer(active) if self._model_renderer else active
+        return apply_model_hooks(resolved, self._model_getter, self._model_renderer)
 
     def _resolve_provider(
         self,

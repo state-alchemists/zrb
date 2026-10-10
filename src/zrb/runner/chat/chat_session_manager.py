@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.agent.activity import agent_activity_registry
+from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.history_manager.file_history_manager import (
     FileHistoryManager,
     default_history_manager,
@@ -238,7 +238,7 @@ class ChatSessionManager:
             close_feature_sessions(session_id)
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent, which pulls in pydantic_ai.
-            from zrb.llm.agent.subagent.live_session import (
+            from zrb.llm.subagent.live_session import (
                 live_subagent_session_registry,
             )
 

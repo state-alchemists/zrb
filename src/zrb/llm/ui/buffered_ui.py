@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, TextIO
 
-from zrb.llm.agent.activity import agent_activity_registry
+from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_into_block
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin

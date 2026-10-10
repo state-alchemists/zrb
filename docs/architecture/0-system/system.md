@@ -106,7 +106,7 @@ flowchart TD
 | A task called from Python | `BaseTask.run` / `BaseTask.async_run` | No runner at all; a new `Session` is created when none is passed |
 | A task started from the web | `serve_task_session_api` | Scheduled in the background; the request returns a session name at once |
 | A one-shot LLM call inside a pipeline | `LLMTask` | Same agent loop with no interactive UI |
-| A sub-agent | `src/zrb/llm/agent/subagent/` | A child agent run that inherits the parent's ambient state — see [Sub-agents](../2-extension-surface/sub-agents.md) |
+| A sub-agent | `src/zrb/llm/subagent/` | A child agent run that inherits the parent's ambient state — see [Sub-agents](../2-extension-surface/sub-agents.md) |
 | Built-in tasks switched off | `CFG.ENABLE_BUILTIN_TASKS` | Only your own tasks appear under `zrb` |
 
 ### Change it here
@@ -120,7 +120,7 @@ Most changes land on one of the Tier 2 pages:
 | Change the system prompt — [Prompts](../2-extension-surface/prompts.md) | `src/zrb/llm/prompt/` | `test/llm/prompt/` |
 | Add or change a hook — [Hooks](../2-extension-surface/hooks.md) | `src/zrb/llm/hook/` | `test/llm/hook/` |
 | Add a setting — [Config](../2-extension-surface/config.md) | `src/zrb/config/mixins/` | `test/config/` |
-| Change delegation — [Sub-agents](../2-extension-surface/sub-agents.md) | `src/zrb/llm/agent/subagent/` | `test/llm/agent/subagent/` |
+| Change delegation — [Sub-agents](../2-extension-surface/sub-agents.md) | `src/zrb/llm/subagent/` | `test/llm/subagent/` |
 
 For anything else — the engine, the web, history, the sandbox — or when you start from a symptom, use the [Change Map](../change-map.md).
 

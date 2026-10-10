@@ -50,14 +50,14 @@ TESTS = REPO_ROOT / "test"
 # prompt assembly, skill discovery. A package belongs here once it has a
 # measured rate; a speculative floor of 0 asserts nothing.
 #
-# Baseline at 25 mutants each: task/base 56%, util/cmd 35%, llm/skill 60%,
+# Baseline at 25 mutants each: task/base 56%, cmd 48%, llm/skill 60%,
 # llm/prompt 56%. Each floor sits a few points under its baseline, unlike the
 # line-count budgets which are pinned exact -- an edit to a package shifts which
 # mutation sites get drawn, so the rate moves a little with no test changing.
 # The margin absorbs that drift; it is not slack for new untested code.
 FLOORS: dict[str, int] = {
     "task/base": 50,
-    "util/cmd": 30,
+    "cmd": 30,
     "llm/skill": 55,
     "llm/prompt": 50,
 }

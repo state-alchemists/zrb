@@ -17,15 +17,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.agent.activity import agent_activity_registry
-from zrb.llm.tool.ambient_state import get_session_ownership_key
+from zrb.llm.agent_activity import agent_activity_registry
+from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
 
-    from zrb.llm.agent.subagent.live_session import LiveSubAgentSession
+    from zrb.llm.subagent.live_session import LiveSubAgentSession
     from zrb.llm.ui.default.ui import UI
 
 
@@ -88,7 +88,7 @@ class UIAgentPicker:
         """
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.subagent.live_session import live_subagent_session_registry
 
         sessions = live_subagent_session_registry.active(
             get_session_ownership_key(self._ui.conversation_session_name)
@@ -164,7 +164,7 @@ class UIAgentPicker:
             return False
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.subagent.live_session import live_subagent_session_registry
 
         session_id = get_session_ownership_key(self._ui.conversation_session_name)
         agent_id = self._viewing_agent_id
@@ -212,7 +212,7 @@ class UIAgentPicker:
     def _get_viewed_session(self, agent_id: str) -> "LiveSubAgentSession | None":
         # lazy: transitively heavy via internal — live_session.py imports
         # run_agent (zrb.llm.agent.run.runner), which pulls in pydantic_ai.
-        from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
+        from zrb.llm.subagent.live_session import live_subagent_session_registry
 
         return live_subagent_session_registry.get(
             get_session_ownership_key(self._ui.conversation_session_name),

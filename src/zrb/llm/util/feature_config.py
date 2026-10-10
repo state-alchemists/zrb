@@ -17,7 +17,7 @@ from dataclasses import fields, replace
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from zrb.config.config import CFG
-from zrb.llm.tool.ambient_state import get_session_ownership_key
+from zrb.llm.ambient_state import get_session_ownership_key
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI

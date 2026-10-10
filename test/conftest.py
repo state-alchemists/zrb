@@ -95,7 +95,7 @@ def _reset_unscoped_ambient_state():
     Their setters are intentionally unscoped, so a missed reset can leak session,
     worktree, or interactive-mode state into unrelated tests.
     """
-    from zrb.llm.tool.ambient_state import (
+    from zrb.llm.ambient_state import (
         get_active_worktree,
         get_current_context_session,
         get_interactive_mode,

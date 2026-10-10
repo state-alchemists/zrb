@@ -7,8 +7,8 @@ import tempfile
 import pytest
 
 from zrb.llm.snapshot import RestoreOutcome, SnapshotManager
-from zrb.util.git.snapshot_command import SnapshotError
-from zrb.util.git.snapshot_store import SnapshotStore
+from zrb.llm.snapshot.command import SnapshotError
+from zrb.llm.snapshot.store import SnapshotStore
 
 
 @pytest.fixture

@@ -172,7 +172,7 @@ async def test_viewing_agent_resolves_its_own_queued_request_not_fifo_head():
     with (
         patch("prompt_toolkit.application.get_app"),
         patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry.get",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry.get",
             return_value=fake_entry,
         ),
     ):
@@ -209,7 +209,7 @@ async def test_viewing_agent_with_own_current_request_echoes_to_its_view():
     with (
         patch("prompt_toolkit.application.get_app"),
         patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry.get",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry.get",
             return_value=fake_entry,
         ),
     ):

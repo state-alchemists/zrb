@@ -1,12 +1,13 @@
+from __future__ import annotations
+
 import datetime
 import logging
 import sys
-from typing import Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.context.any_context import AnyContext
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.dot_dict.dot_dict import DotDict
-from zrb.session.any_session import AnySession
 from zrb.util.cli.style import (
     remove_style,
     stylize,
@@ -15,6 +16,9 @@ from zrb.util.cli.style import (
     stylize_warning,
 )
 from zrb.util.string.conversion import to_boolean
+
+if TYPE_CHECKING:
+    from zrb.session.any_session import AnySession
 
 
 class Context(AnyContext):

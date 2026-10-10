@@ -13,9 +13,9 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_ui
+from zrb.llm.ambient_state import get_interactive_mode
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.tool.ambient_state import get_interactive_mode
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.tool_call.choice_spec_format import get_option_label

@@ -3,9 +3,9 @@
 from unittest.mock import MagicMock, patch
 
 from zrb.context.any_context import AnyContext
+from zrb.llm.ambient_state import input_provenance
 from zrb.llm.input_source import InputProvenance
 from zrb.llm.prompt.live_context import render_live_context
-from zrb.llm.tool.ambient_state import input_provenance
 
 
 def test_live_context_includes_input_provenance():

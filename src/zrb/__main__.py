@@ -8,6 +8,7 @@ from types import ModuleType
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.config.init_path import get_init_path_list
 from zrb.group.any_group import NodeNotFoundError
 from zrb.group.task_diagnostics import (
     collect_declared_tasks,
@@ -18,7 +19,6 @@ from zrb.group.task_diagnostics import (
 )
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
-from zrb.util.init_path import get_init_path_list
 from zrb.util.load import load_file_with_result, load_module_with_result
 
 

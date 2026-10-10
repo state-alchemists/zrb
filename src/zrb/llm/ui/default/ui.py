@@ -20,6 +20,7 @@ from zrb.llm.ui.default.app.layout import (
 )
 from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
 from zrb.llm.ui.default.app.style import create_style
+from zrb.llm.ui.default.ascii_art.banner import get_ascii_art
 from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.lifecycle import UILifecycle
@@ -29,7 +30,6 @@ from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
 from zrb.llm.ui.default.selection import UISelection
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.util.history_formatter import extract_user_message_texts
-from zrb.util.ascii_art.banner import get_ascii_art
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.terminal import get_terminal_size
 

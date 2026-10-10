@@ -16,14 +16,14 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.permission.state import AgentMode, get_current_agent_mode
-from zrb.llm.tool.ambient_state import (
+from zrb.llm.ambient_state import (
     get_active_worktree,
     get_input_provenance,
     set_active_worktree,
     set_current_tool_session,
     set_interactive_mode,
 )
+from zrb.llm.permission.state import AgentMode, get_current_agent_mode
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
 LIVE_CONTEXT_ANCHOR = (

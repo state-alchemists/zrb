@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import logging
 
-from zrb.util.git.snapshot_command import SnapshotError, SnapshotTimeoutError
-from zrb.util.git.snapshot_listing import SnapshotBudgetError
-from zrb.util.git.snapshot_store import SnapshotStore
+from zrb.llm.snapshot.command import SnapshotError, SnapshotTimeoutError
+from zrb.llm.snapshot.listing import SnapshotBudgetError
+from zrb.llm.snapshot.store import SnapshotStore
 
 logger = logging.getLogger(__name__)
 

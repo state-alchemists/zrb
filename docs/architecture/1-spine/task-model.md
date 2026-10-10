@@ -81,7 +81,7 @@ flowchart TD
 | `BaseTaskContext` | `src/zrb/task/base/context.py` | Combining inputs and envs over the upstream closure, and filling them into the shared context once per run |
 | `DotDict` | `src/zrb/dot_dict/dot_dict.py` | The mapping behind `ctx.input`, `ctx.env` and `ctx.xcom`, so a resolved value reads as an attribute instead of a key lookup |
 | `Group`, `Cli` | `src/zrb/group/group.py`, `src/zrb/runner/cli.py` | The command tree; `extract_node` turns words into a task or group for both the CLI and the web |
-| `serve_cli`, `get_init_path_list` | `src/zrb/__main__.py`, `src/zrb/util/init_path.py` | Finding and loading every `zrb_init.py`, then reporting unreachable tasks |
+| `serve_cli`, `get_init_path_list` | `src/zrb/__main__.py`, `src/zrb/config/init_path.py` | Finding and loading every `zrb_init.py`, then reporting unreachable tasks |
 | `find_task_diagnostics` | `src/zrb/group/task_diagnostics.py` | Unregistered tasks and alias collisions between the project's own tasks |
 | `Callback` | `src/zrb/callback/callback.py` | Running a task for one trigger event, mapping inputs in and results back |
 | `FileSessionStateLogger` | `src/zrb/session_state_logger/file_session_state_logger.py` | Writing each run's `SessionStateLog` to disk, and pruning old ones |

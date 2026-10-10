@@ -2,8 +2,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent.subagent.live_session import LiveSubAgentSessionRegistry
-from zrb.llm.agent.subagent.parent_message import send_message_to_parent
+from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
+from zrb.llm.subagent.parent_message import send_message_to_parent
 from zrb.llm.tool.delegate_message import create_send_message_to_subagent_tool
 from zrb.llm.ui.buffered_ui import BufferedUI
 
@@ -15,9 +15,7 @@ def registry():
     reg = LiveSubAgentSessionRegistry()
     with (
         patch("zrb.llm.tool.delegate_message.live_subagent_session_registry", reg),
-        patch(
-            "zrb.llm.agent.subagent.parent_message.live_subagent_session_registry", reg
-        ),
+        patch("zrb.llm.subagent.parent_message.live_subagent_session_registry", reg),
     ):
         yield reg
 
@@ -33,7 +31,7 @@ def _add(registry, parent):
 async def test_sub_agent_message_reaches_parent_with_sender(registry):
     parent = MagicMock()
     ui = _add(registry, parent)
-    with patch("zrb.llm.agent.subagent.parent_message.get_current_ui", return_value=ui):
+    with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui):
         result = await send_message_to_parent("need the repo path")
     assert "sent" in result
     sent = parent.submit_message.call_args.args[0]
@@ -75,9 +73,7 @@ async def test_message_limit_stops_ping_pong(registry, monkeypatch):
     monkeypatch.setenv("ZRB_LLM_AGENT_MESSAGE_LIMIT", "1")
     parent = MagicMock()
     ui = _add(registry, parent)
-    with (
-        patch("zrb.llm.agent.subagent.parent_message.get_current_ui", return_value=ui),
-    ):
+    with (patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui),):
         first = await send_message_to_parent("a")
         second = await send_message_to_parent("b")
     assert "sent" in first
@@ -87,7 +83,5 @@ async def test_message_limit_stops_ping_pong(registry, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_outside_a_sub_agent_there_is_no_parent(registry):
-    with patch(
-        "zrb.llm.agent.subagent.parent_message.get_current_ui", return_value=None
-    ):
+    with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=None):
         assert "not a delegated sub-agent" in await send_message_to_parent("x")

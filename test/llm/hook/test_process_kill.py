@@ -34,7 +34,7 @@ def test_kill_process_tree_never_targets_zrbs_own_pid():
     "A tree kill aimed at our own pid must be refused."
     process = _KillRecordingProc(os.getpid())
 
-    with patch("zrb.util.cmd.command.kill_pid") as mock_kill_pid:
+    with patch("zrb.cmd.command.kill_pid") as mock_kill_pid:
 
         kill_process_tree(process)
 
@@ -49,7 +49,7 @@ def test_kill_process_tree_never_targets_zrbs_own_process_group():
 
     with (
         patch("os.getpgid", return_value=4242),
-        patch("zrb.util.cmd.command.kill_pid") as mock_kill_pid,
+        patch("zrb.cmd.command.kill_pid") as mock_kill_pid,
     ):
         kill_process_tree(process, pgid=4242)
 
@@ -82,7 +82,7 @@ def test_kill_process_tree_falls_back_to_psutil_when_killpg_fails():
         def kill(self):
             killed["direct"] = True
 
-    with patch("zrb.util.cmd.command.kill_pid") as mock_kill_pid:
+    with patch("zrb.cmd.command.kill_pid") as mock_kill_pid:
         kill_process_tree(_Proc(), pgid=_DEAD_PID)
 
     mock_kill_pid.assert_called_once()
@@ -102,7 +102,7 @@ def test_kill_process_tree_survives_a_failing_psutil_walk():
         def kill(self):
             killed["direct"] = True
 
-    with patch("zrb.util.cmd.command.kill_pid", side_effect=RuntimeError("psutil")):
+    with patch("zrb.cmd.command.kill_pid", side_effect=RuntimeError("psutil")):
         kill_process_tree(_Proc(), pgid=_DEAD_PID)
 
     assert killed["direct"] is True
@@ -121,7 +121,7 @@ def test_kill_process_tree_refuses_killpg_when_os_group_does_not_match():
     with (
         patch("os.getpgid", side_effect=fake_getpgid),
         patch("os.killpg") as mock_killpg,
-        patch("zrb.util.cmd.command.kill_pid") as mock_kill_pid,
+        patch("zrb.cmd.command.kill_pid") as mock_kill_pid,
     ):
         kill_process_tree(process, pgid=4242)
 

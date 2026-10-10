@@ -256,7 +256,7 @@ fetch_ticket >> triage_with_llm >> route_to_team
 
 -   **[Installation Guide](docs/installation/installation.md)**: `pip`, the `install.sh` script, Docker images, and Android (Termux/Proot).
 -   **[Environment Variables & Overrides](docs/configuration/env-vars.md)**: every general environment variable.
--   **[LLM & Rate Limiter Configuration](docs/configuration/llm-config.md)**: LLM provider, token budgets, and agent behavior.
+-   **[LLM Configuration](docs/configuration/llm-config.md)**: LLM provider, token budgets, and agent behavior, one page per feature.
 
 ---
 

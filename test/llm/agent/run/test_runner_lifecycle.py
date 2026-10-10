@@ -10,7 +10,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
-from zrb.util.git.snapshot_store import Snapshot
+from zrb.llm.snapshot.store import Snapshot
 
 
 def _run_from(agen_func):

@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.registry import tool_name, tool_registry
 from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
+from zrb.llm.tool_registry import tool_name, tool_registry
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
@@ -254,7 +254,7 @@ def _seed_tool_factories() -> tuple[list, list]:
 
 def _resolve_interactive(ctx: "AnyContext") -> bool:
     """Interactivity from ``ctx.input.interactive``, else the ``interactive_mode`` ContextVar."""
-    from zrb.llm.tool.ambient_state import get_interactive_mode
+    from zrb.llm.ambient_state import get_interactive_mode
 
     val = getattr(getattr(ctx, "input", None), "interactive", None)
     if isinstance(val, bool):

@@ -25,7 +25,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Upgrading to 3.16.0
 
-3.16.0 brings an opt-in spoken summary back. Nothing changes unless you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.
+3.16.0 brings an opt-in spoken summary back and moves some modules to the package that owns them ([Moved modules](#moved-modules)). Speech changes only if you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.
 
 | Setting | What it does |
 |---|---|
@@ -34,6 +34,24 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 | `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT` | New: seconds the summary may take before the reply is read whole instead (default `15`; `0` is no limit). |
 
 A leftover `ZRB_LLM_SPEECH_SUMMARIZE` is still reported at startup and now names `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`. `ZRB_LLM_SPEECH_MAX_CHARS` and `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` stay retired: a reply is never cut at a fixed length.
+
+### Moved modules
+
+Top-level `zrb` exports are unchanged. A deep import of a module that moved to the package owning it needs the new path:
+
+| Old | New |
+|---|---|
+| `zrb.util.cmd.command`, `zrb.util.cmd.remote` | `zrb.cmd.command`, `zrb.cmd.remote` |
+| `zrb.util.git.*` | `zrb.git.*` |
+| `zrb.util.init_path` | `zrb.config.init_path` |
+| `zrb.util.ascii_art.banner` | `zrb.llm.ui.default.ascii_art.banner` |
+| `zrb.util.git.snapshot_store` / `snapshot_listing` / `snapshot_command` | `zrb.llm.snapshot.store` / `listing` / `command` |
+| `zrb.llm.agent.subagent.*` | `zrb.llm.subagent.*` |
+| `zrb.llm.agent.activity`, `zrb.llm.tool.ambient_state`, `zrb.llm.tool.registry` | `zrb.llm.agent_activity`, `zrb.llm.ambient_state`, `zrb.llm.tool_registry` (still re-exported by `zrb.llm.tool`) |
+| `zrb.llm.util.conversation_naming`, `zrb.llm.util.multimodal_describe` | `zrb.llm.history_manager.conversation_naming`, `zrb.llm.agent.run.multimodal_describe` |
+| `zrb.llm.util.tool_args` | merged into `zrb.llm.tool_call.args` |
+| `zrb.llm.tool.file_edit.find_fuzzy_match` | `zrb.util.string.fuzzy_match.find_fuzzy_match` |
+| `zrb.llm.task.shared_getters.apply_model_hooks` | `zrb.llm.config.model_resolver.apply_model_hooks`, which `ModelResolver` now uses instead of its own copy |
 
 ---
 
@@ -106,7 +124,7 @@ A project or home skill or agent now replaces a built-in one of the same name, a
 | `ZRB_LLM_UI_COMMAND_VOICE` | `ZRB_LLM_DICTATION_COMMANDS` |
 | `ZRB_LLM_UI_COMMAND_PHOTO` | `ZRB_LLM_CAMERA_COMMANDS` |
 
-There are no aliases: an old variable is ignored, and from 3.12.0 zrb says so when it starts, naming what to set instead. Each command in `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` must start with `/` and is matched case-sensitively: `photo` or `/Photo` never matches `/photo`. New settings are listed in [LLM configuration § 21](../configuration/llm-config.md#21-voice-and-camera).
+There are no aliases: an old variable is ignored, and from 3.12.0 zrb says so when it starts, naming what to set instead. Each command in `ZRB_LLM_CAMERA_COMMANDS`, `ZRB_LLM_DICTATION_COMMANDS` and `ZRB_LLM_SPEECH_COMMANDS` must start with `/` and is matched case-sensitively: `photo` or `/Photo` never matches `/photo`. New settings are listed in [LLM Voice and Camera configuration](../configuration/llm-voice-camera.md#voice-and-camera).
 
 ### Code
 

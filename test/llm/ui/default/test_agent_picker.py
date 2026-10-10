@@ -3,7 +3,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.tool.ambient_state import current_chat_session_id
+from zrb.llm.ambient_state import current_chat_session_id
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.util.contextvar_scope import scoped
@@ -92,7 +92,7 @@ def _activity(agent_id, ordinal=1, task="write report"):
 def _open(ui, sessions):
     """Open the picker with the given sessions patched in, return the ui."""
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(*sessions),
     ):
         assert ui.open_agent_picker() is True
@@ -102,7 +102,7 @@ def _open(ui, sessions):
 def test_open_agent_picker_false_without_sessions():
     ui = FakeUI()
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(),
     ):
         assert ui.open_agent_picker() is False
@@ -122,7 +122,7 @@ def test_open_agent_picker_uses_unique_chat_ownership_id():
     with (
         scoped(current_chat_session_id, "opaque-chat-id"),
         patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
     ):
@@ -197,7 +197,7 @@ def test_sync_output_to_viewed_agent_updates_and_converges():
     ui = FakeUI()
     session = _session("a", buffer_text="first")
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)
@@ -217,14 +217,14 @@ def test_sync_output_returns_to_main_when_session_vanishes():
     session = _session("a", buffer_text="sub-agent output")
 
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)
         assert ui.output_text == "sub-agent output"
         # The session is torn down mid-view; the next sync exits the view.
         with patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry",
             FakeLiveRegistry(),
         ):
             ui.sync_output_to_viewed_agent()
@@ -241,7 +241,7 @@ def test_toggle_viewed_agent_block_routes_to_the_sub_agents_own_scope():
     session.buffered_ui.toggle_collapsible_block_at_offset.return_value = True
 
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)
@@ -274,7 +274,7 @@ def test_toggle_viewed_agent_block_noop_when_nothing_to_toggle():
     session.buffered_ui.toggle_collapsible_block_at_offset.return_value = False
 
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)
@@ -290,12 +290,12 @@ def test_toggle_viewed_agent_block_noop_when_session_vanished():
     session = _session("a", buffer_text="sub-agent output")
 
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)
         with patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry",
             FakeLiveRegistry(),
         ):
             toggled = ui.toggle_viewed_agent_block()
@@ -310,7 +310,7 @@ def test_exit_agent_view_restores_main():
     session = _session("a", buffer_text="sub-agent output")
 
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)
@@ -334,7 +334,7 @@ def test_cancel_viewed_agent_cancels_running_session_and_echoes():
     ui = FakeUI()
     session = _session("a", buffer_text="sub-agent output")
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)
@@ -348,7 +348,7 @@ def test_cancel_viewed_agent_noop_when_subagent_has_nothing_in_flight():
     session = _session("a")
     session.cancel_result = False
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)
@@ -438,7 +438,7 @@ def test_picker_left_arrow_closes_picker_without_touching_view():
     ui = FakeUI()
     session = _session("a", buffer_text="sub-agent output")
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
         FakeLiveRegistry(session),
     ):
         ui.enter_agent_view(session)

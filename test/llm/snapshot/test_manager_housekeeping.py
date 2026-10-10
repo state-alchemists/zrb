@@ -8,7 +8,7 @@ import time
 import pytest
 
 from zrb.llm.snapshot import SnapshotManager
-from zrb.util.git.snapshot_store import SnapshotStore
+from zrb.llm.snapshot.store import SnapshotStore
 
 
 @pytest.fixture

@@ -47,12 +47,6 @@ from zrb.input.option_input import OptionInput
 from zrb.input.password_input import PasswordInput
 from zrb.input.str_input import StrInput
 from zrb.input.text_input import TextInput
-from zrb.llm.agent.subagent.manager import (
-    SubAgentDefinition,
-    SubAgentManager,
-    sub_agent_manager,
-)
-from zrb.llm.agent.subagent.registry import SubAgentRegistry, sub_agent_registry
 from zrb.llm.config.limiter import LLMLimiter, llm_limiter
 from zrb.llm.config.model_resolver import ModelResolver, model_resolver
 from zrb.llm.hook import HookContext, HookEvent, HookResult
@@ -64,10 +58,16 @@ from zrb.llm.prompt.registry import PromptRegistry, prompt_registry
 from zrb.llm.skill import Skill, SkillRegistry
 from zrb.llm.skill.manager import SkillManager, skill_manager
 from zrb.llm.skill.registry import skill_registry
+from zrb.llm.subagent.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+    sub_agent_manager,
+)
+from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
-from zrb.llm.tool.registry import ToolRegistry, tool_registry
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
+from zrb.llm.tool_registry import ToolRegistry, tool_registry
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
 from zrb.llm.util.capabilities import model_capabilities

@@ -1,4 +1,6 @@
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import (
     BoolAttr,
@@ -8,9 +10,11 @@ from zrb.attr.type import (
     StrDictAttr,
     StrListAttr,
 )
-from zrb.context.any_context import AnyContext
-from zrb.context.any_shared_context import AnySharedContext
 from zrb.util.string.conversion import to_boolean
+
+if TYPE_CHECKING:
+    from zrb.context.any_context import AnyContext
+    from zrb.context.any_shared_context import AnySharedContext
 
 
 def get_str_list_attr(

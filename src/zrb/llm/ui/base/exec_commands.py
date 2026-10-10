@@ -9,13 +9,12 @@ import asyncio
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from zrb.llm.config.model_resolver import resolve_configured_model
+from zrb.cmd.command import terminate_process, wait_for_exit_and_drain
+from zrb.llm.config.model_resolver import apply_model_hooks, resolve_configured_model
 from zrb.llm.custom_command.resolver import get_custom_command_match, run_custom_command
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.task.shared_getters import apply_model_hooks
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.util.cli.style import stylize_error, stylize_muted
-from zrb.util.cmd.command import terminate_process, wait_for_exit_and_drain
 from zrb.util.exception import exception_summary
 
 if TYPE_CHECKING:

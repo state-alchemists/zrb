@@ -13,7 +13,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.tool.ambient_state import current_chat_session_id, input_provenance
+from zrb.llm.ambient_state import current_chat_session_id, input_provenance
 from zrb.runner.chat.chat_session_manager import ChatSession, ChatSessionManager
 from zrb.runner.chat.http_ui import create_http_ui_factory
 from zrb.session.session import Session

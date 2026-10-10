@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import (
     agent_not_found_message,
     agent_roster_doc,

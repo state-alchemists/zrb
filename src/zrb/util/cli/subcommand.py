@@ -1,4 +1,9 @@
-from zrb.group.any_group import AnyGroup
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from zrb.group.any_group import AnyGroup
 
 
 class SubCommand:

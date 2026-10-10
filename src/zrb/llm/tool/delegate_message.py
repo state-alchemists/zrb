@@ -1,7 +1,7 @@
 """Tools for the main agent and a delegated sub-agent to message each other.
 
 The main agent's side of ADR-0108; the sub-agent's side is
-`agent/subagent/parent_message.py`. Delivery reuses the live-session registry: a
+`subagent/parent_message.py`. Delivery reuses the live-session registry: a
 message steers into a live turn or queues for the next, and names its sender.
 """
 
@@ -11,11 +11,11 @@ from typing import Annotated
 
 from pydantic import Field
 
-from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
-from zrb.llm.tool.ambient_state import (
+from zrb.llm.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
+from zrb.llm.subagent.live_session import live_subagent_session_registry
 
 
 def create_send_message_to_subagent_tool():

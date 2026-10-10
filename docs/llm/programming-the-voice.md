@@ -11,7 +11,7 @@ text-to-speech itself.
 This page is the practical companion to [Voice and Camera](voice-camera.md):
 it starts with working configurations, then shows the Python extension points.
 The exhaustive environment-variable reference is [LLM Configuration → Voice
-and Camera](../configuration/llm-config.md#21-voice-and-camera).
+and Camera](../configuration/llm-voice-camera.md#voice-and-camera).
 
 ## Table of contents
 

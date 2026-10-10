@@ -3,7 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.multi_ui import MultiUI, get_main_ui, resolve_ui
+from zrb.llm.ui.std_ui import StdUI
 
 
 @pytest.fixture
@@ -406,3 +407,26 @@ def test_multi_ui_takes_only_genuinely_inert_members_from_the_defaults():
         # MultiUI is the top of the tree, with no parent to flush to.
         "flush_to_parent",
     }
+
+
+def test_resolve_ui_without_a_ui_is_the_stdout_ui():
+    assert isinstance(resolve_ui(), StdUI)
+    assert isinstance(resolve_ui([]), StdUI)
+
+
+def test_resolve_ui_returns_a_single_ui_unchanged(child_ui_1):
+    assert resolve_ui(child_ui_1) is child_ui_1
+    assert resolve_ui([child_ui_1]) is child_ui_1
+
+
+def test_resolve_ui_combines_several_uis(child_ui_1, child_ui_2):
+    assert isinstance(resolve_ui([child_ui_1, child_ui_2]), MultiUI)
+
+
+def test_get_main_ui_unwraps_a_multi_ui_main_member(child_ui_1, child_ui_2):
+    multi = MultiUI([child_ui_1, child_ui_2], main_ui_index=1)
+    assert get_main_ui(multi) is child_ui_2
+
+
+def test_get_main_ui_returns_any_other_ui_unchanged(child_ui_1):
+    assert get_main_ui(child_ui_1) is child_ui_1

@@ -72,16 +72,6 @@ def resolve_model(
     return resolve_configured_model(rendered_model)
 
 
-def apply_model_hooks(
-    model: "str | Model",
-    model_getter: "Callable[[str | Model | None], str | Model | None] | None",
-    model_renderer: "Callable[[str | Model | None], str | Model | None] | None",
-) -> "str | Model | None":
-    """Apply *model_getter* then *model_renderer* to *model*; either may return None."""
-    active = model_getter(model) if model_getter else model
-    return model_renderer(active) if model_renderer else active
-
-
 def resolve_conversation_name(
     ctx: AnyContext,
     conversation_name: Any,

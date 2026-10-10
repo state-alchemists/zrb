@@ -4,9 +4,9 @@ import shlex
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from zrb.cmd.command import resolve_shell, run_command
+from zrb.cmd.remote import get_remote_cmd_script
 from zrb.remote.inventory import Host, Target
-from zrb.util.cmd.command import resolve_shell, run_command
-from zrb.util.cmd.remote import get_remote_cmd_script
 
 # Trailing lines kept per stream and host, as `CmdTask` does.
 MAX_OUTPUT_LINE = 1000

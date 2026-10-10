@@ -50,9 +50,9 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
             logger.debug(f"killpg failed for hook group {group}: {e}")
     if pid is not None and not group_killed:
         try:
-            # lazy: heavy third-party — zrb.util.cmd.command imports psutil;
+            # lazy: heavy third-party — zrb.cmd.command imports psutil;
             # inside the try so an ImportError cannot escape.
-            from zrb.util.cmd.command import kill_pid
+            from zrb.cmd.command import kill_pid
 
             kill_pid(pid, print_method=logger.debug)
         except Exception as e:

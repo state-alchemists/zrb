@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import asyncio
 import traceback
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.attr.type import StrDictAttr
 from zrb.callback.any_callback import AnyCallback
 from zrb.config.config import CFG
 from zrb.session.any_session import AnySession
-from zrb.task.any_task import AnyTask
 from zrb.util.attr import get_str_dict_attr
 from zrb.util.string.conversion import to_snake_case
 from zrb.xcom.xcom import Xcom
+
+if TYPE_CHECKING:
+    from zrb.task.any_task import AnyTask
 
 
 class Callback(AnyCallback):

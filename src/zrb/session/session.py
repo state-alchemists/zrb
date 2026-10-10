@@ -18,9 +18,9 @@ if TYPE_CHECKING:
         SessionStateLog,
         TaskStatusStateLog,
     )
+    from zrb.task.any_task import AnyTask
 
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
-from zrb.task.any_task import AnyTask
 from zrb.task_status.task_status import TaskStatus
 from zrb.util.cli.style import (
     BLUE,

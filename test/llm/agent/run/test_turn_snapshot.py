@@ -6,7 +6,7 @@ import subprocess
 import pytest
 
 from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
-from zrb.util.git.snapshot_store import SnapshotStore
+from zrb.llm.snapshot.store import SnapshotStore
 
 
 @pytest.fixture(autouse=True)

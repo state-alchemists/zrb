@@ -46,7 +46,8 @@ See the [LLM docs index](llm/README.md) for every page about `zrb llm chat`, `LL
 ## IV. Configuration
 
 - [Environment Variables](configuration/env-vars.md) — general, task-runtime, CLI colour, and web UI settings
-- [LLM & Rate Limiter Configuration](configuration/llm-config.md) — providers, budgets, prompts, journal, rewind, chat TUI, voice
+- [LLM Configuration](configuration/llm-config.md) — index of every `ZRB_LLM_*` setting, one page per feature:
+  [models & rate limits](configuration/llm-models.md) · [prompts](configuration/llm-prompts.md) · [conversation context](configuration/llm-context.md) · [tools & extensions](configuration/llm-tools.md) · [chat TUI](configuration/llm-tui.md) · [timeouts & limits](configuration/llm-limits.md) · [voice & camera](configuration/llm-voice-camera.md)
 - [LLM Component Collections](configuration/llm-collections.md) — registries for skills, agents, hooks, prompts and tools
 
 ## V. Advanced Topics

@@ -21,9 +21,9 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig
 from zrb.llm.hook.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.util.git.snapshot_command import SnapshotError, run_in_worker
-from zrb.util.git.snapshot_listing import get_fork_point
-from zrb.util.git.snapshot_store import Snapshot, SnapshotStore
+from zrb.llm.snapshot.command import SnapshotError, run_in_worker
+from zrb.llm.snapshot.listing import get_fork_point
+from zrb.llm.snapshot.store import Snapshot, SnapshotStore
 from zrb.util.truncate import truncate_text
 
 if TYPE_CHECKING:

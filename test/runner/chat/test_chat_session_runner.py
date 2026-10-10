@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.llm.ambient_state import get_input_provenance
 from zrb.llm.input_source import WEB_INPUT
-from zrb.llm.tool.ambient_state import get_input_provenance
 from zrb.runner.chat.chat_session_manager import ChatSession
 from zrb.runner.chat.chat_session_runner import run_chat_session
 

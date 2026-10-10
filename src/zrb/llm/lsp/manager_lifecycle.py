@@ -5,13 +5,13 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from zrb.cmd.command import kill_pid
 from zrb.config.config import CFG
 from zrb.llm.lsp.server import (
     LSPServer,
     detect_available_lsp_servers,
     get_lsp_config_for_file,
 )
-from zrb.util.cmd.command import kill_pid
 
 # The cache only saves a directory walk, so a FIFO size cap is enough.
 _MAX_PROJECT_ROOT_CACHE = 4096

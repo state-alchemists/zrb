@@ -1,6 +1,6 @@
 """Every voice setting is a `CFG` knob, a `DictationConfig`/`SpeechConfig`
 field read from it when a session starts (so `zrb_init.py` can change it),
-and a row in docs/configuration/llm-config.md."""
+and a row in docs/configuration/llm-voice-camera.md."""
 
 from dataclasses import fields
 from pathlib import Path
@@ -12,7 +12,7 @@ from zrb.config.env_field import EnvField
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.speech.config import SpeechConfig
 
-_DOC = Path(__file__).parents[2] / "docs" / "configuration" / "llm-config.md"
+_DOC = Path(__file__).parents[2] / "docs" / "configuration" / "llm-voice-camera.md"
 _FEATURES = [("LLM_DICTATION_", DictationConfig), ("LLM_SPEECH_", SpeechConfig)]
 
 

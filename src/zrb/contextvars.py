@@ -7,7 +7,7 @@ own them:
 * `zrb.llm.agent_state` - agent-run ambient state (UI, YOLO, approval, ...)
 * `zrb.llm.permission.state`  - permission policy + agent mode (plan/default)
 * `zrb.llm.sandbox.state`     - sandbox policy (filesystem containment)
-* `zrb.llm.tool.ambient_state`  - tool-scoped ambient state (worktree, session)
+* `zrb.llm.ambient_state`  - tool-scoped ambient state (worktree, session)
 
 Nothing here owns state. When you add, remove, or rename a `ContextVar`, also
 update:
@@ -44,25 +44,8 @@ from zrb.llm.agent_state import (
     get_current_yolo,
 )
 
-# --- Permission state (policy + agent mode) ---
-from zrb.llm.permission.state import (
-    current_agent_mode,
-    current_permission_policy,
-    get_current_agent_mode,
-    get_current_permission_policy,
-    permission_policy,
-    set_current_agent_mode,
-)
-
-# --- Sandbox state (filesystem containment policy) ---
-from zrb.llm.sandbox.state import (
-    current_sandbox_policy,
-    get_current_sandbox_policy,
-    sandbox_policy,
-)
-
 # --- Tool ambient state ---
-from zrb.llm.tool.ambient_state import (
+from zrb.llm.ambient_state import (
     active_worktree,
     current_chat_session_id,
     get_active_worktree,
@@ -79,6 +62,23 @@ from zrb.llm.tool.ambient_state import (
     set_current_tool_session,
     set_input_provenance,
     set_interactive_mode,
+)
+
+# --- Permission state (policy + agent mode) ---
+from zrb.llm.permission.state import (
+    current_agent_mode,
+    current_permission_policy,
+    get_current_agent_mode,
+    get_current_permission_policy,
+    permission_policy,
+    set_current_agent_mode,
+)
+
+# --- Sandbox state (filesystem containment policy) ---
+from zrb.llm.sandbox.state import (
+    current_sandbox_policy,
+    get_current_sandbox_policy,
+    sandbox_policy,
 )
 
 __all__ = [

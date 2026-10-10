@@ -1,16 +1,6 @@
 from zrb.builtin.group import git_branch_group, git_group
 from zrb.context.any_context import AnyContext
-from zrb.input.bool_input import BoolInput
-from zrb.input.str_input import StrInput
-from zrb.task.make_task import make_task
-from zrb.util.cli.style import (
-    stylize_green,
-    stylize_muted,
-    stylize_red,
-    stylize_warning,
-    stylize_yellow,
-)
-from zrb.util.git.commands import (
+from zrb.git.commands import (
     add,
     commit,
     delete_branch,
@@ -23,6 +13,16 @@ from zrb.util.git.commands import (
     pull,
     push,
     remove_worktree,
+)
+from zrb.input.bool_input import BoolInput
+from zrb.input.str_input import StrInput
+from zrb.task.make_task import make_task
+from zrb.util.cli.style import (
+    stylize_green,
+    stylize_muted,
+    stylize_red,
+    stylize_warning,
+    stylize_yellow,
 )
 
 

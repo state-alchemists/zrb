@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
 
 from zrb.config.config import CFG
-from zrb.task.any_task import AnyTask
 
 if TYPE_CHECKING:
     from zrb.runner.web_schema.user import User
+    from zrb.task.any_task import AnyTask
 
 T = TypeVar("T")
 

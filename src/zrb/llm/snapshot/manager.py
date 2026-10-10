@@ -1,6 +1,6 @@
 """Git-backed snapshot manager for LLM rewind functionality.
 
-Snapshots are commits of `SnapshotStore` trees (`util/git/snapshot_store.py`),
+Snapshots are commits of `SnapshotStore` trees (`llm/snapshot/store.py`),
 with the working directory as the store's work tree.
 
 Layout: one store per working directory, ``<snapshot_dir>/<name>-<hash>.git``,
@@ -39,17 +39,17 @@ from contextlib import contextmanager
 from typing import Any, NamedTuple, TypeVar
 
 from zrb.config.config import CFG
-from zrb.util.file_lock import FileLockCancelled, FileLockTimeout, hold_file_lock
-from zrb.util.git.snapshot_command import (
+from zrb.llm.snapshot.command import (
     SnapshotCancelledError,
     SnapshotError,
     SnapshotTimeoutError,
     get_worker_cancel,
     run_in_worker,
 )
-from zrb.util.git.snapshot_listing import DEFAULT_IGNORE_DIRS, SnapshotBudgetError
-from zrb.util.git.snapshot_store import Snapshot as StoreSnapshot
-from zrb.util.git.snapshot_store import SnapshotStore
+from zrb.llm.snapshot.listing import DEFAULT_IGNORE_DIRS, SnapshotBudgetError
+from zrb.llm.snapshot.store import Snapshot as StoreSnapshot
+from zrb.llm.snapshot.store import SnapshotStore
+from zrb.util.file_lock import FileLockCancelled, FileLockTimeout, hold_file_lock
 from zrb.util.string.conversion import to_safe_filename
 
 logger = logging.getLogger(__name__)

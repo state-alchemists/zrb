@@ -115,7 +115,7 @@ def test_output_text_property():
 def test_get_agent_activity_text_scopes_by_conversation_session_name():
     """The activity panel must read only this UI's own
     session's entries, not bleed in another session's running sub-agents."""
-    from zrb.llm.agent.activity import AgentActivityRegistry
+    from zrb.llm.agent_activity import AgentActivityRegistry
 
     ui = MockOutputUI()
     reg = AgentActivityRegistry()
@@ -221,7 +221,7 @@ def test_get_info_bar_text_partial_yolo_lists_tools():
 
 def test_get_agent_activity_text_shows_picker_hint_when_agents_running():
     """The picker hint shows while at least one sub-agent is actively running."""
-    from zrb.llm.agent.activity import AgentActivityRegistry
+    from zrb.llm.agent_activity import AgentActivityRegistry
 
     ui = MockOutputUI()
     reg = AgentActivityRegistry()
@@ -229,7 +229,7 @@ def test_get_agent_activity_text_shows_picker_hint_when_agents_running():
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
         with patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry",
             MagicMock(active=lambda session_id: []),
         ):
             frags = ui.get_agent_activity_text()
@@ -245,7 +245,7 @@ def test_get_agent_activity_text_omits_picker_hint_without_live_sessions():
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", no_activity):
         with patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry",
             no_activity,
         ):
             frags = ui.get_agent_activity_text()
@@ -264,7 +264,7 @@ def test_get_agent_activity_text_shows_back_hint_while_viewing():
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", running):
         with patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry",
             live,
         ):
             frags = ui.get_agent_activity_text()
@@ -276,7 +276,7 @@ def test_get_agent_activity_text_shows_back_hint_while_viewing():
 
 def test_get_agent_activity_text_unchanged_when_not_viewing():
     """Outside the live view the panel still lists running sub-agents."""
-    from zrb.llm.agent.activity import AgentActivityRegistry
+    from zrb.llm.agent_activity import AgentActivityRegistry
 
     ui = MockOutputUI()
     reg = AgentActivityRegistry()
@@ -284,7 +284,7 @@ def test_get_agent_activity_text_unchanged_when_not_viewing():
 
     with patch("zrb.llm.ui.default.output.agent_activity_registry", reg):
         with patch(
-            "zrb.llm.agent.subagent.live_session.live_subagent_session_registry",
+            "zrb.llm.subagent.live_session.live_subagent_session_registry",
             MagicMock(active=lambda session_id: []),
         ):
             frags = ui.get_agent_activity_text()
@@ -302,7 +302,7 @@ def test_get_info_bar_text_shows_viewing_sub_agent():
     session = SimpleNamespace(agent_name="researcher")
 
     with patch(
-        "zrb.llm.agent.subagent.live_session.live_subagent_session_registry"
+        "zrb.llm.subagent.live_session.live_subagent_session_registry"
     ) as mock_reg:
         mock_reg.get.return_value = session
         fragments = to_formatted_text(ui.get_info_bar_text())

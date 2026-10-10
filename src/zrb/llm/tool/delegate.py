@@ -3,42 +3,41 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
-from functools import partial
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.agent.activity import HasActivityTracking, agent_activity_registry
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent.subagent.live_session import (
-    live_subagent_session_registry,
-    start_titling,
-)
-from zrb.llm.agent.subagent.manager import (
-    SubAgentManager,
-)
-from zrb.llm.agent.subagent.manager import (
-    sub_agent_manager as default_sub_agent_manager,
-)
+from zrb.llm.agent_activity import HasActivityTracking, agent_activity_registry
 from zrb.llm.agent_state import get_current_ui
-from zrb.llm.config.limiter import get_run_llm_limiter
-from zrb.llm.hook.manager import get_run_hook_manager
-from zrb.llm.hook.types import HookEvent
-from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.ambient_state import (
+from zrb.llm.ambient_state import (
     get_active_worktree,
     get_current_tool_session,
     get_session_ownership_key,
 )
+from zrb.llm.config.limiter import get_run_llm_limiter
+from zrb.llm.hook.manager import get_run_hook_manager
+from zrb.llm.hook.types import HookEvent
+from zrb.llm.permission import Capability, tag
+from zrb.llm.subagent.live_session import (
+    live_subagent_session_registry,
+    start_titling,
+)
+from zrb.llm.subagent.manager import (
+    SubAgentManager,
+)
+from zrb.llm.subagent.manager import sub_agent_manager as default_sub_agent_manager
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree
 from zrb.llm.ui.buffered_ui import BufferedUI
-from zrb.llm.ui.std_ui import StdUI
+from zrb.llm.ui.multi_ui import resolve_ui
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI
+
 from zrb.llm.util.roster import cap_items, search_roster
 from zrb.llm.util.subagent_session_naming import (
     format_delegated_session_name,
@@ -465,7 +464,7 @@ async def _run_parallel(
                 "deliverable, task, and non_goals (list; [] allowed)."
             )
 
-    parent_ui = get_current_ui() or StdUI()
+    parent_ui = resolve_ui(get_current_ui())
     ui_lock = asyncio.Lock()
     # Caps concurrent runs; 0/negative disables the cap.
     _max_parallel = CFG.LLM_MAX_PARALLEL_DELEGATIONS
@@ -654,7 +653,7 @@ def create_delegate_to_agent_tool(
                 "[SYSTEM SUGGESTION]: provide agent_name, deliverable, and task "
                 "(non_goals defaults to []), or pass tasks=[...] to fan out."
             )
-        parent_ui = get_current_ui() or StdUI()
+        parent_ui = resolve_ui(get_current_ui())
         # run_agent_task assigns the [agent_name #ordinal] label.
         buffered_ui = BufferedUI(
             parent_ui,

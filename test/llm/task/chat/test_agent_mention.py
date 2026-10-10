@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from zrb.llm.agent.subagent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.task.chat.agent_mention import resolve_agent_mention
 
 
