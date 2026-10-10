@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
+from functools import partial
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any
@@ -255,6 +256,8 @@ def _finalize_successful_run(
         get_current_tool_session(), agent_name, agent_id
     )
     persist_subagent_history(conversation_name, history)
+    if session is not None:
+        session.persist_history = partial(persist_subagent_history, conversation_name)
     if result:
         return f"{result}\n\n(Transcript saved as '{conversation_name}')"
     return result

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
@@ -65,6 +65,9 @@ class LiveSubAgentSession:
     # A short topic from the small model (ADR-0109); empty until named, and
     # for a session restored from disk.
     title: str = ""
+    # Saves the history after each continuation under the session's transcript
+    # name (best-effort); set when the transcript is first saved or restored.
+    persist_history: "Callable[[list], None] | None" = None
 
     def set_active_task(self, task: "asyncio.Task | None") -> None:
         """Set the task driving this session's run, if any."""
@@ -360,6 +363,8 @@ async def _continue_live_session(entry: LiveSubAgentSession) -> None:
                         ),
                     )
                 entry.history = history
+                if entry.persist_history is not None:
+                    entry.persist_history(history)
             except Exception as e:  # noqa: BLE001
                 CFG.LOGGER.debug(
                     f"Live sub-agent continuation for '{entry.agent_name}' failed: {e}"

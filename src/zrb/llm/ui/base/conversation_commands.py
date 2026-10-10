@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -176,12 +177,13 @@ class BaseUIConversationCommands:
         # lazy: heavy transitive (pydantic_ai) via SubAgentManager.
         from zrb.llm.agent.subagent.live_session import live_subagent_session_registry
         from zrb.llm.agent.subagent.manager import sub_agent_manager
+        from zrb.llm.tool.delegate import persist_subagent_history
         from zrb.llm.ui.buffered_ui import BufferedUI
 
         ui = self._base_ui
         session_id = get_session_ownership_key(name)
         saved_names = ui.history_manager.search("")
-        found: dict[str, tuple[str, list]] = {}
+        found: dict[str, tuple[str, list, str]] = {}
         for saved in saved_names:
             delegated = parse_delegated_session(saved)
             agent_id = parse_delegated_agent_id(saved)
@@ -197,15 +199,17 @@ class BaseUIConversationCommands:
             history = ui.history_manager.load(saved)
             if not history:  # missing or unreadable: nothing to continue from
                 continue
-            found[agent_id] = (delegated[1], history)
+            found[agent_id] = (delegated[1], history, saved)
         # Registered only once every transcript has loaded, so a failed load
         # leaves no half-restored sessions behind.
-        for agent_id, (agent_name, history) in found.items():
+        for agent_id, (agent_name, history, saved) in found.items():
             buffered = BufferedUI(ui, session_id=session_id)
             buffered.set_activity_id(agent_id)
-            live_subagent_session_registry.restore_session(
+            entry = live_subagent_session_registry.restore_session(
                 session_id, agent_id, agent_name, sub_agent_manager, buffered, history
             )
+            # Turns sent to a restored sub-agent are saved like the original's.
+            entry.persist_history = partial(persist_subagent_history, saved)
         return len(found)
 
     def handle_load_command(self, text: str) -> bool:

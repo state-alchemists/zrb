@@ -272,4 +272,6 @@ def test_load_by_the_topic_name_restores_the_sub_agents_of_its_key(conv_ui):
     ):
         conv_ui.handle_load_command("load bold-arch-1234-greetings")
 
-    assert [s.agent_id for s in registry.active("bold-arch-1234")] == ["abcd1234"]
+    [session] = registry.active("bold-arch-1234")
+    assert session.agent_id == "abcd1234"
+    assert session.persist_history is not None
