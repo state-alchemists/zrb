@@ -22,7 +22,8 @@ from zrb.llm.speech.chunker import SpeechChunker
 class StreamedReply:
     """The part of one turn's reply already spoken, and what is left to cut.
 
-    Every sentence is spoken and the whole reply is read.
+    Every sentence is spoken and the whole reply is read: a session that
+    summarizes long replies does not stream them (`SpeechSession`).
     Events arrive on the event loop and the turn ends on a hook thread, so
     every method holds a lock.
     """

@@ -6,6 +6,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.16.0](#upgrading-to-3160)
 - [Upgrading to 3.15.0](#upgrading-to-3150)
 - [Upgrading to 3.14.0](#upgrading-to-3140)
 - [Upgrading to 3.12.0](#upgrading-to-3120)
@@ -19,6 +20,20 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 - [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+
+---
+
+## Upgrading to 3.16.0
+
+3.16.0 brings an opt-in spoken summary back. Nothing changes unless you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.
+
+| Setting | What it does |
+|---|---|
+| `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` | Replaces the retired `ZRB_LLM_SPEECH_SUMMARIZE`. A reply whose speakable text is longer than this many characters is spoken as a short summary from the small model; `0` (the default) reads every reply whole. The reply is then not streamed, whatever `ZRB_LLM_SPEECH_STREAM` says. |
+| `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Active again, no longer retired: the model that writes the summary, used only when the threshold above is set. Empty uses the small model. |
+| `ZRB_LLM_SPEECH_SUMMARY_TIMEOUT` | New: seconds the summary may take before the reply is read whole instead (default `15`; `0` is no limit). |
+
+A leftover `ZRB_LLM_SPEECH_SUMMARIZE` is still reported at startup and now names `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`. `ZRB_LLM_SPEECH_MAX_CHARS` and `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` stay retired: a reply is never cut at a fixed length.
 
 ---
 
@@ -53,8 +68,8 @@ A project or home skill or agent now replaces a built-in one of the same name, a
 | `ZRB_LLM_DICTATION_SELF_ECHO_TAIL` | Nothing — see `_SELF_ECHO_MATCH`. |
 | `ZRB_LLM_DICTATION_TRAILING_WORDS` | Nothing: an utterance fed to a streaming transcriber now ends after `ZRB_LLM_DICTATION_MIN_SILENCE` once it has words, without waiting for a word a sentence ends on. Raise `ZRB_LLM_DICTATION_MIN_SILENCE` if you are cut off mid-sentence. |
 | `ZRB_LLM_SPEECH_MAX_CHARS` | Nothing: the whole reply is read, so nothing is cut. |
-| `ZRB_LLM_SPEECH_SUMMARIZE` | Nothing: nothing is cut, so there is nothing for a summary to stand in for. |
-| `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Nothing — see `_SUMMARIZE`. |
+| `ZRB_LLM_SPEECH_SUMMARIZE` | Nothing in 3.14.0; since 3.16.0, `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` — see [Upgrading to 3.16.0](#upgrading-to-3160). |
+| `ZRB_LLM_SPEECH_SUMMARY_MODEL` | Nothing in 3.14.0; active again since 3.16.0, used when `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` is set. |
 | `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` | Nothing: nothing is left unsaid, so there is nothing on screen to point at. |
 
 `ZRB_LLM_DICTATION_POLITE_WORDS` still exists but no longer applies to stop words: a yes or a no may carry one ("yes please", "no thanks"), a stop may not, so "stop please" is put to the small model instead of matching. Keep `ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED` on if you relied on that.
