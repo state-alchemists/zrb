@@ -352,7 +352,7 @@ class SpeechSession:
 
     @property
     def _summarize_above_chars(self) -> int:
-        return self._config.summarize_above_chars or 0
+        return max(self._config.summarize_above_chars or 0, 0)
 
     def say_reply(self, reply: str) -> None:
         """Speak *reply*: whole, or as a summary when its speakable text is

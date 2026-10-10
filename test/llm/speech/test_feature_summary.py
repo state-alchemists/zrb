@@ -249,3 +249,14 @@ async def test_a_blocked_model_resolution_is_not_repeated_for_every_reply(monkey
         assert len(started) == 1
     finally:
         release.set()
+
+
+@pytest.mark.asyncio
+async def test_a_negative_threshold_reads_every_reply_whole(summarizer):
+    session = _session(stream=True, summarize_above_chars=-1)
+
+    await session.handle_stop(_stop(LONG))
+
+    assert session.speaker.said == [LONG.strip()]
+    assert summarizer == []
+    assert session.is_streaming_reply is True
