@@ -1,5 +1,6 @@
 """Tests for `SearchJournal` (`zrb/llm/tool/journal.py`)."""
 
+import json
 import os
 import subprocess
 from unittest.mock import MagicMock, patch
@@ -116,14 +117,69 @@ def test_result_structure(journal_with_entries):
         assert "content" in entry
 
 
-def test_find_matches_with_ripgrep(journal_with_entries):
+def _rg_match(path, line_number, text):
+    return json.dumps(
+        {
+            "type": "match",
+            "data": {
+                "path": {"text": path},
+                "line_number": line_number,
+                "lines": {"text": text + "\n"},
+            },
+        }
+    )
+
+
+def _search_with_rg_output(journal_dir, query, stdout):
+    completed = MagicMock(returncode=0, stdout=stdout)
     with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
-        mock_cfg.LLM_JOURNAL_DIR = journal_with_entries
-        with patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"):
-            result = search_journal("database")
-    assert "results" in result
-    # rg path returns something (may return no matches if rg not installed, just no error)
-    assert "error" not in result
+        mock_cfg.LLM_JOURNAL_DIR = journal_dir
+        with (
+            patch("zrb.llm.tool.journal.shutil.which", return_value="/usr/bin/rg"),
+            patch("zrb.llm.tool.journal.subprocess.run", return_value=completed) as run,
+        ):
+            result = search_journal(query)
+    return result, run
+
+
+def test_find_matches_with_ripgrep(journal_with_entries):
+    """The rg path runs `rg` and parses its output; no binary needs to exist."""
+    journal_file = os.path.join(journal_with_entries, "2024-01-02.md")
+    stdout = "\n".join(
+        [
+            json.dumps({"type": "begin", "data": {"path": {"text": journal_file}}}),
+            _rg_match(journal_file, 1, "Refactored the database layer."),
+            json.dumps({"type": "summary", "data": {}}),
+        ]
+    )
+    result, run = _search_with_rg_output(journal_with_entries, "database", stdout)
+    assert run.call_args.args[0][0] == "rg"
+    assert result["results"] == [
+        {
+            "file": "2024-01-02.md",
+            "line": "1",
+            "content": "Refactored the database layer.",
+        }
+    ]
+
+
+def test_rg_match_in_windows_drive_path_is_parsed(journal_with_entries):
+    """A drive-letter colon belongs to the path, not the separator."""
+    stdout = _rg_match("C:\\notes\\2024-01-02.md", 7, "key: value")
+    result, _ = _search_with_rg_output(journal_with_entries, "value", stdout)
+    entry = result["results"][0]
+    assert entry["line"] == "7"
+    assert entry["content"] == "key: value"
+    assert entry["file"].endswith("2024-01-02.md")
+
+
+def test_rg_match_in_filename_with_colon_digits_is_parsed(journal_with_entries):
+    path = os.path.join(journal_with_entries, "note:12:archive.md")
+    stdout = _rg_match(path, 7, "matching content")
+    result, _ = _search_with_rg_output(journal_with_entries, "matching", stdout)
+    assert result["results"] == [
+        {"file": "note:12:archive.md", "line": "7", "content": "matching content"}
+    ]
 
 
 def test_rg_subprocess_timeout_returns_error(journal_with_entries):
