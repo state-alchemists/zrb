@@ -19,29 +19,19 @@ def test_complete_save_arg_yields_existing_sessions():
     assert "beta" in completions
 
 
-def test_complete_load_arg_caps_at_ten_results():
+def test_complete_load_arg_caps_at_fifty_results():
     hm = MagicMock()
-    hm.search.return_value = [f"sess-{i}" for i in range(25)]
+    hm.search.return_value = [f"sess-{i}" for i in range(80)]
     results = list(complete_load_arg("sess", hm))
-    assert len(results) == 10
+    assert len(results) == 50
 
 
-def test_complete_load_arg_labels_delegated_subagent_sessions():
-    """Without this, a delegated sub-agent transcript is
-    indistinguishable from an ordinary session in the /load dropdown -- the
-    only discovery mechanism the CLI TUI has for "what sub-agent sessions
-    exist"."""
+def test_complete_load_arg_excludes_delegated_sessions_from_search():
     hm = MagicMock()
-    hm.search.return_value = [
-        "sess1-sub-code-reviewer-a1b2c3d4",
-        "my-ordinary-session",
-    ]
-    results = {c.text: c.display_meta_text for c in complete_load_arg("s", hm)}
-    delegated_meta = results["sess1-sub-code-reviewer-a1b2c3d4"]
-    ordinary_meta = results["my-ordinary-session"]
-    assert "code-reviewer" in delegated_meta
-    assert delegated_meta != ordinary_meta
-    assert ordinary_meta == "Session Name"
+    hm.search.return_value = ["foo-sub-bar-deadbeef"]
+    results = [c.text for c in complete_load_arg("foo", hm)]
+    hm.search.assert_called_once_with("foo", include_delegated=False)
+    assert results == ["foo-sub-bar-deadbeef"]
 
 
 def test_complete_redirect_arg_silent_when_prefix_doesnt_match_timestamp():

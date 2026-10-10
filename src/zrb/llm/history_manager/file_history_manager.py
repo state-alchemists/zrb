@@ -283,7 +283,7 @@ class FileHistoryManager(AnyHistoryManager):
         self._cache_mtime.pop(conversation_name, None)
         self._dirty.discard(conversation_name)
 
-    def search(self, keyword: str) -> list[str]:
+    def search(self, keyword: str, include_delegated: bool = True) -> list[str]:
         if not os.path.exists(self._history_dir):
             return []
 
@@ -291,7 +291,12 @@ class FileHistoryManager(AnyHistoryManager):
         # Delegated transcripts live in subagent/{agent_type}/ subdirectories;
         # scan those alongside the history root (which may still hold legacy
         # flat delegated files) so search sees every conversation.
-        for directory in subagent_history_directories(self._history_dir):
+        directories = (
+            subagent_history_directories(self._history_dir)
+            if include_delegated
+            else [self._history_dir]
+        )
+        for directory in directories:
             for filename in os.listdir(directory):
                 if not filename.endswith(".json"):
                     continue
