@@ -92,7 +92,7 @@ jobs:
   run-zrb-tasks:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:<version>
+      image: stalchmst/zrb:3.15.0
 
     steps:
       - name: Check out repository code
@@ -133,7 +133,7 @@ GitLab CI/CD uses a `.gitlab-ci.yml` file in the root of your repository.
 ### Example Pipeline
 
 ```yaml
-image: stalchmst/zrb:<version>
+image: stalchmst/zrb:3.15.0
 
 stages:
   - setup
@@ -181,7 +181,7 @@ Bitbucket Pipelines uses a `bitbucket-pipelines.yml` file.
 ### Example Pipeline
 
 ```yaml
-image: stalchmst/zrb:<version>
+image: stalchmst/zrb:3.15.0
 
 pipelines:
   default:
