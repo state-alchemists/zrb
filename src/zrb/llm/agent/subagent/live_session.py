@@ -299,6 +299,13 @@ def start_titling(entry: LiveSubAgentSession, text: str) -> None:
             entry.title = await suggest_slug(text)
         except ConversationNamingError as e:
             CFG.LOGGER.debug(f"Sub-agent '{entry.agent_name}' left untitled: {e}")
+            return
+        # An open picker would otherwise keep showing the untitled row.
+        invalidate = getattr(
+            getattr(entry.buffered_ui, "parent_ui", None), "invalidate_ui", None
+        )
+        if callable(invalidate):
+            invalidate()
 
     task = asyncio.ensure_future(_title())
     _titling_tasks.add(task)
