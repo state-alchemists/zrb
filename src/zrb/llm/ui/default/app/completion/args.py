@@ -7,8 +7,8 @@ passed in by the caller.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Iterable
 
 from prompt_toolkit.completion import Completion
 

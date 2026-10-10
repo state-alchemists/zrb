@@ -10,7 +10,8 @@ The allowlist, read at query time, filters only the discovered layer.
 
 from __future__ import annotations
 
-from typing import Callable, Generic, Protocol, TypeVar
+from collections.abc import Callable
+from typing import Generic, Protocol, TypeVar
 
 
 class RegistryItem(Protocol):

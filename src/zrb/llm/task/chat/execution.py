@@ -5,8 +5,9 @@ tool/model resolution and session-end teardown.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG

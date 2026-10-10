@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable, overload
+from collections.abc import Callable, Sequence
+from typing import TYPE_CHECKING, Any, overload
 
 from zrb.env.any_env import AnyEnv
 from zrb.input.any_input import AnyInput

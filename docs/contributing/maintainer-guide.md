@@ -147,6 +147,7 @@ Each release is a `## <version> (<Month D, YYYY>)` heading followed by one conti
 - One flat `- **<Category>: <Title>** (`paths`): <prose>` bullet per change. No sub-bullets; a change too big for one bullet is usually two changes.
 - Categories are free-form but conventionally `Feature` / `Improvement` / `Fix` / `Reliability` / `Security` / `Refactor` / `Performance` / `Chore` / `Documentation` / `Tests`.
 - Past tense, factual, and anchored to something locatable (`module.py`, `ClassName`, an env var, `ADR-NNNN`).
+- Say what changed for the user: the new behavior, a changed default, a migration step, a headline number. The mechanism belongs in the ADR or doc the bullet cites, so a bullet that keeps it duplicates a record that will be rewritten while the changelog is not. Aim for under ~120 words.
 
 ### Collapsing (compaction)
 

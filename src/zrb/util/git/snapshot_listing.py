@@ -28,8 +28,8 @@ from one it never saw.
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from typing import Iterable
 
 from zrb.config.config import CFG
 from zrb.util.git.snapshot_command import (

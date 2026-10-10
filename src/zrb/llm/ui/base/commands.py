@@ -21,7 +21,7 @@ from zrb.util.cli.style import stylize_muted
 from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
-    from typing import Callable
+    from collections.abc import Callable
 
     from zrb.llm.ui.base.ui import BaseUI
 

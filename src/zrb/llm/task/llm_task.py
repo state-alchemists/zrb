@@ -12,8 +12,9 @@ and `summarize_history` at this module path.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Any, Callable, Unpack, cast
+from typing import TYPE_CHECKING, Any, Unpack, cast
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.config.config import CFG
@@ -21,6 +22,7 @@ from zrb.context.any_context import AnyContext
 from zrb.llm.agent import AnyToolConfirmation, create_agent, run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
+from zrb.llm.config.model_resolver import require_model_hook
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
@@ -584,12 +586,7 @@ class LLMTask(BaseTask):
         self, value: "Callable[[str | Model | None], str | Model | None] | None"
     ) -> None:
         """Replace the model-getter hook, or None to remove it."""
-        if value is not None and not callable(value):
-            raise TypeError(
-                f"{self.name}.model_getter must be a callable or None, "
-                f"got {type(value).__name__}."
-            )
-        self._model_getter = value
+        self._model_getter = require_model_hook(value, f"{self.name}.model_getter")
 
     @property
     def model_renderer(
@@ -603,12 +600,7 @@ class LLMTask(BaseTask):
         self, value: "Callable[[str | Model | None], str | Model | None] | None"
     ) -> None:
         """Replace the model-renderer hook, or None to remove it."""
-        if value is not None and not callable(value):
-            raise TypeError(
-                f"{self.name}.model_renderer must be a callable or None, "
-                f"got {type(value).__name__}."
-            )
-        self._model_renderer = value
+        self._model_renderer = require_model_hook(value, f"{self.name}.model_renderer")
 
     @property
     def llm_limiter(self) -> LLMLimiter:

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager

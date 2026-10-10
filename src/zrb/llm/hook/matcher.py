@@ -5,7 +5,8 @@ from __future__ import annotations
 import fnmatch
 import logging
 import re
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.schema import MatcherConfig

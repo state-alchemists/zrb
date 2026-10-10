@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.model_resolver import resolve_configured_model

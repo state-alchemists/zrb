@@ -13,7 +13,8 @@ import asyncio
 import hashlib
 import os
 from collections import OrderedDict, defaultdict
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 from zrb.llm.agent_state import get_current_agent_run_scope
 

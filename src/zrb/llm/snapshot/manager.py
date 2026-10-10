@@ -34,8 +34,9 @@ import re
 import shutil
 import threading
 import time
+from collections.abc import Callable, Coroutine, Iterator
 from contextlib import contextmanager
-from typing import Any, Callable, Coroutine, Iterator, NamedTuple, TypeVar
+from typing import Any, NamedTuple, TypeVar
 
 from zrb.config.config import CFG
 from zrb.util.file_lock import FileLockCancelled, FileLockTimeout, hold_file_lock
@@ -62,19 +63,22 @@ GIT_MISSING_REASON = "git is not installed"
 _T = TypeVar("_T")
 
 
-# Progress callback contract for `take_init_snapshot`. Stages:
-#   "start"      right before the working tree is hashed
-#   "notice"     optional, before "done": the snapshot is shallower than a full
-#                tree, with the reason — see `LOOSE_SNAPSHOT_REASON`
-#   "done"       init commit exists; skipped counts files git could not read
-#   "up-to-date" session already has snapshots (resumed session)
-#   "error"      the snapshot failed, with or without a "start" before it;
-#                reason is `unavailable_reason` when rewind is off for the
-#                session, else the failure's text
-# Every invocation ends with exactly one of the last three, with at most one
-# "notice" before it. All events fire on the event-loop thread.
 class SnapshotProgress(NamedTuple):
-    """Progress event for `take_init_snapshot`; read fields by name."""
+    """Progress event for `take_init_snapshot`; read fields by name.
+
+    Stages:
+      "start"      right before the working tree is hashed
+      "notice"     optional, before "done": the snapshot is shallower than a
+                   full tree, with the reason — see `LOOSE_SNAPSHOT_REASON`
+      "done"       init commit exists; skipped counts files git could not read
+      "up-to-date" session already has snapshots (resumed session)
+      "error"      the snapshot failed, with or without a "start" before it;
+                   reason is `unavailable_reason` when rewind is off for the
+                   session, else the failure's text
+
+    Every invocation ends with exactly one of the last three, with at most one
+    "notice" before it. All events fire on the event-loop thread.
+    """
 
     stage: str
     skipped: int = 0
@@ -595,8 +599,7 @@ def _ref(session: str) -> str:
     return f"refs/zrb/{_readable_key(session, session)}"
 
 
-# A snapshot's commit message. The label is the user's text, so the format
-# gives it no way to pass for metadata:
+# A snapshot's commit message. The label is the user's text:
 #
 #     <label, on one line> [mc:<message count, or ->]
 #

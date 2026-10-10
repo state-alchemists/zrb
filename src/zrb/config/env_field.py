@@ -10,7 +10,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Callable, Generic, Sequence, TypeVar, overload
+from collections.abc import Callable, Sequence
+from typing import Any, Generic, TypeVar, overload
 
 from zrb.config.helper import get_env
 

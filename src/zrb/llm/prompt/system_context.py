@@ -7,8 +7,9 @@ import glob
 import os
 import platform
 import shutil
+from collections.abc import Callable
 from functools import lru_cache
-from typing import Any, Callable
+from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext

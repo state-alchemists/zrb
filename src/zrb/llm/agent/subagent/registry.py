@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.util.layered_registry import LayeredRegistry

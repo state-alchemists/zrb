@@ -3,7 +3,8 @@ from __future__ import annotations
 import asyncio
 import itertools
 import json
-from typing import TYPE_CHECKING, Any, Coroutine, Iterator
+from collections.abc import Coroutine, Iterator
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_shared_context import AnySharedContext
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
         SessionStateLog,
         TaskStatusStateLog,
     )
+
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
 from zrb.task_status.task_status import TaskStatus

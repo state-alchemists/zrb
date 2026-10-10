@@ -1,5 +1,5 @@
 import datetime
-from typing import Callable
+from collections.abc import Callable
 
 
 def parse_cron_field(field: str, min_value: int, max_value: int):

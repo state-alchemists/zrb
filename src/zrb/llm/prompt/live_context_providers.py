@@ -1,6 +1,6 @@
 """Per-turn live-context providers: an ordered, name-keyed list owned by one `PromptManager`."""
 
-from typing import Callable
+from collections.abc import Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext

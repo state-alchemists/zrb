@@ -12,11 +12,7 @@ class BaseUIUsage:
     """Accumulated session token counters and current context-window size."""
 
     def __init__(self) -> None:
-        self._session_input_tokens = 0
-        self._session_output_tokens = 0
-        self._session_cache_read_tokens = 0
-        # Current context-window occupancy; replaced each turn, not summed.
-        self._context_tokens = 0
+        self.reset()
 
     @property
     def session_token_usage(self) -> tuple[int, int]:
@@ -54,4 +50,5 @@ class BaseUIUsage:
         self._session_input_tokens = 0
         self._session_output_tokens = 0
         self._session_cache_read_tokens = 0
+        # Current context-window occupancy; replaced each turn, not summed.
         self._context_tokens = 0

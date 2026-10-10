@@ -12,8 +12,8 @@ renders to text, which the typed getters coerce (`to_boolean`, `int`, ...).
 There is no `AnyAttr`: `Any | Callable[..., Any]` collapses to `Any`.
 """
 
-from collections.abc import Sequence
-from typing import Any, Callable
+from collections.abc import Callable, Sequence
+from typing import Any
 
 from zrb.attr.tpl import Tpl
 

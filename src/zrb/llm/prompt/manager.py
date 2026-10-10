@@ -1,6 +1,7 @@
 import inspect
+from collections.abc import Callable
 from functools import partial
-from typing import Any, Callable, TypeGuard, cast
+from typing import Any, TypeGuard, cast
 
 from zrb.attr.type import StrListAttr
 from zrb.config.config import CFG

@@ -3,8 +3,9 @@ import os
 import signal
 import sys
 import traceback
+from collections.abc import Callable
 from types import ModuleType
-from typing import Any, Callable
+from typing import Any
 
 from zrb.config.config import CFG
 from zrb.group.any_group import NodeNotFoundError

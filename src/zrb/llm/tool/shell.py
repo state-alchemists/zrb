@@ -3,7 +3,8 @@ import os
 import platform
 import tempfile
 import time
-from typing import Annotated, Any, Callable
+from collections.abc import Callable
+from typing import Annotated, Any
 
 from pydantic import Field
 

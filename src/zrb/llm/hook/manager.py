@@ -3,8 +3,9 @@
 import asyncio
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, cast
+from typing import Any, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_hook_manager

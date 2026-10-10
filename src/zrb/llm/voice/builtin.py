@@ -146,7 +146,7 @@ STT_SERVICE_SPECS: dict[str, STTServiceSpec] = {
         languages=(),
         doc=(
             "Faster-Whisper on ctranslate2. Multilingual, and the heaviest of "
-            "the three: pick a size with ZRB_LLM_DICTATION_STT_MODEL (tiny, "
+            "the three: pick a size with {ENV_PREFIX}_LLM_DICTATION_STT_MODEL (tiny, "
             "base, small, medium, large-v3; empty uses the service's own)."
         ),
         factory=_create_whisper,
@@ -158,7 +158,7 @@ STT_SERVICE_SPECS: dict[str, STTServiceSpec] = {
         doc=(
             "Moonshine, ONNX on the CPU. The lightest of the three and the "
             "only one with no GPU path at all; English is where its model "
-            "range is widest (ZRB_LLM_DICTATION_STT_MODEL: tiny, base, "
+            "range is widest ({ENV_PREFIX}_LLM_DICTATION_STT_MODEL: tiny, base, "
             "small-streaming, medium-streaming)."
         ),
         factory=_create_moonshine,
@@ -184,7 +184,7 @@ TTS_SERVICE_SPECS: dict[str, TTSServiceSpec] = {
         languages=("en", "de", "es", "fr", "it", "pt", "ja", "zh"),
         doc=(
             "Kokoro-82M through kokoro-onnx: neural speech on the CPU, with a "
-            "fixed voice list (ZRB_LLM_SPEECH_VOICE, e.g. af_heart) rather than "
+            "fixed voice list ({ENV_PREFIX}_LLM_SPEECH_VOICE, e.g. af_heart) rather than "
             "cloning. Model files download on first use; af_heart is what an "
             "unset voice falls back to."
         ),
@@ -208,7 +208,7 @@ TTS_SERVICE_SPECS: dict[str, TTSServiceSpec] = {
         languages=("en", "fr", "de", "es", "it", "pt"),
         doc=(
             "Kyutai's Pocket TTS. The one that clones: "
-            "ZRB_LLM_SPEECH_VOICE may be a predefined name (e.g. alba), a .wav "
+            "{ENV_PREFIX}_LLM_SPEECH_VOICE may be a predefined name (e.g. alba), a .wav "
             "to clone, an exported .safetensors voice state, or an hf:// path. "
             "Needs PyTorch."
         ),

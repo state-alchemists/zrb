@@ -1,5 +1,5 @@
+from collections.abc import Callable
 from dataclasses import dataclass, field, fields, replace
-from typing import Callable
 
 from zrb.config.config import CFG
 

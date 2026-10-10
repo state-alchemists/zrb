@@ -1,5 +1,6 @@
+from collections.abc import Awaitable, Callable
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
@@ -19,9 +20,7 @@ from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
 )
-from zrb.llm.summarizer.history_splitter import (
-    split_history,
-)
+from zrb.llm.summarizer.history_splitter import split_history
 from zrb.llm.summarizer.message_processor import process_message_for_summarization
 from zrb.util.cli.style import stylize_error, stylize_warning
 from zrb.util.markdown import make_markdown_section

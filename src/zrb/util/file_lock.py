@@ -11,8 +11,9 @@ import errno
 import sys
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import IO, Iterator
+from typing import IO
 
 # How often a waiter tries again while another holds the lock. Each try
 # (`_has_taken_lock`) takes the lock if it is free, and says whether it did.

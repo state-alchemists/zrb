@@ -1,7 +1,8 @@
 """Resolve configured model names into pydantic-ai models."""
 
 import inspect
-from typing import TYPE_CHECKING, Callable
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import (
@@ -15,6 +16,16 @@ if TYPE_CHECKING:
     from pydantic_ai.providers import Provider
 
     ModelHook = Callable[["str | Model | None"], "str | Model | None"]
+
+
+def require_model_hook(value: "ModelHook | None", label: str) -> "ModelHook | None":
+    """Return *value* if it is a callable or None; raise `TypeError` naming
+    *label* otherwise."""
+    if value is not None and not callable(value):
+        raise TypeError(
+            f"{label} must be a callable or None, got {type(value).__name__}."
+        )
+    return value
 
 
 class ModelResolver:
@@ -34,12 +45,7 @@ class ModelResolver:
 
     @model_getter.setter
     def model_getter(self, value: "ModelHook | None") -> None:
-        if value is not None and not callable(value):
-            raise TypeError(
-                "model_resolver.model_getter must be a callable or None, "
-                f"got {type(value).__name__}"
-            )
-        self._model_getter = value
+        self._model_getter = require_model_hook(value, "model_resolver.model_getter")
 
     @property
     def model_renderer(
@@ -50,12 +56,9 @@ class ModelResolver:
 
     @model_renderer.setter
     def model_renderer(self, value: "ModelHook | None") -> None:
-        if value is not None and not callable(value):
-            raise TypeError(
-                "model_resolver.model_renderer must be a callable or None, "
-                f"got {type(value).__name__}"
-            )
-        self._model_renderer = value
+        self._model_renderer = require_model_hook(
+            value, "model_resolver.model_renderer"
+        )
 
     def resolve(
         self,

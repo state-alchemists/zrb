@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Any, Callable, cast
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, cast
 
 from prompt_toolkit.filters import Condition, has_completions, has_selection
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText

@@ -1,5 +1,6 @@
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, Awaitable, Callable, ClassVar
+from typing import Any, ClassVar
 
 from zrb.llm.hook.types import HookEvent
 

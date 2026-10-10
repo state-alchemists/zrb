@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any, Callable, Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
 # Accept Claude's case-insensitive ``Bash`` alias for zrb's ``Shell``.
 _TOOL_NAME_ALIASES = {"bash": "Shell"}

@@ -29,8 +29,9 @@ import sys
 import tempfile
 import unicodedata
 import uuid
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
-from typing import Any, Callable, Iterable, Iterator, NamedTuple
+from typing import Any, NamedTuple
 
 from zrb.config.config import CFG
 from zrb.util.git.snapshot_command import (
