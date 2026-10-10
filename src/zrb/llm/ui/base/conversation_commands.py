@@ -37,14 +37,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+_AUTO_NAME_POLL_SECONDS = 0.2
+
+
 class BaseUIConversationCommands:
     """Conversation-management slash commands for BaseUI."""
 
     def __init__(self, base_ui: "BaseUI") -> None:
         self._base_ui = base_ui
         self._auto_name_task: asyncio.Task | None = None
-        # (conversation, first message, slug once suggested): a deferred rename
-        # retries from the first message, never a later one.
+        # (conversation, first message, slug once suggested): a later turn
+        # never replaces the first message as the source of the name.
         self._auto_name_source: list[str] = []
 
     # --- exit / info ------------------------------------------------------
@@ -148,9 +151,11 @@ class BaseUIConversationCommands:
         try:
             if len(source) < 3:
                 source.append(await suggest_slug(source[1]))
-            # A turn already running would save under the old name, so retry
-            # after the next one; a name chosen meanwhile stays.
-            if ui.is_thinking or ui.conversation_session_name != old_name:
+            # A turn already running would save under the old name, so wait for
+            # it to end; a name chosen meanwhile stays.
+            while ui.is_thinking:
+                await asyncio.sleep(_AUTO_NAME_POLL_SECONDS)
+            if ui.conversation_session_name != old_name:
                 return
             new_name = with_slug(old_name, source[2])
             ui.history_manager.rename(old_name, new_name)  # type: ignore[attr-defined]

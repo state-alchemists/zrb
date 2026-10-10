@@ -43,6 +43,3 @@ async def send_message_to_parent(
 
 
 tag(send_message_to_parent, Capability.META)
-
-
-tag(send_message_to_parent, Capability.META)

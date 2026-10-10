@@ -112,3 +112,15 @@ def test_a_rename_is_refused_when_the_unsaved_history_cannot_be_written(history_
 
     assert manager.is_dirty("bold-arch-1234")
     assert manager.load("bold-arch-1234")
+
+
+def test_a_rename_never_overwrites_an_existing_conversation(history_dir):
+    manager = FileHistoryManager(str(history_dir))
+    _save(manager, "bold-arch-1234")
+    taken = _write(history_dir, "bold-arch-1234-greetings")
+
+    with pytest.raises(OSError):
+        manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
+
+    assert os.path.exists(os.path.join(history_dir, "bold-arch-1234.json"))
+    assert open(taken).read() == "[]"

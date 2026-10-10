@@ -257,9 +257,15 @@ class FileHistoryManager(AnyHistoryManager):
                             os.path.join(directory, renamed),
                         )
                     )
+        moves = [(src, dst) for src, dst in moves if os.path.exists(src)]
+        for _, target in moves:
+            if os.path.exists(target):
+                raise OSError(
+                    f"Cannot rename '{conversation_name}' to '{new_name}': "
+                    f"{target} already exists and would be overwritten."
+                )
         for source, target in moves:
-            if os.path.exists(source):
-                os.replace(source, target)
+            os.replace(source, target)
         self._cache.pop(conversation_name, None)
         self._cache_mtime.pop(conversation_name, None)
         self._dirty.discard(conversation_name)

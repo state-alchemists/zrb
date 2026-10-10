@@ -445,7 +445,7 @@ async def test_a_failed_naming_keeps_the_generated_name(conv_ui):
 
 
 @pytest.mark.asyncio
-async def test_a_deferred_rename_still_uses_the_first_message(conv_ui):
+async def test_a_rename_waits_for_the_running_turn_and_uses_the_first_message(conv_ui):
     conv_ui.conversation_session_name = "bold-arch-1234"
     conv_ui.llm_task.async_run = AsyncMock(return_value="hi!")
     release = asyncio.Event()
@@ -461,7 +461,7 @@ async def test_a_deferred_rename_still_uses_the_first_message(conv_ui):
         release.set()
         await asyncio.sleep(0.05)
         conv_ui.history_manager.rename.assert_not_called()
-        await conv_ui.stream_ai_response(conv_ui.llm_task, "second message")
+        conv_ui.is_thinking = False  # that turn ends
         await _wait_output(conv_ui, "named")
     suggest.assert_called_once_with("first message")
     assert conv_ui.conversation_session_name == "bold-arch-1234-first-topic"
