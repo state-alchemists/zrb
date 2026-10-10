@@ -16,11 +16,12 @@ MAX_OUTPUT_LINE = 1000
 _PROBE_FUNCTIONS = r"""
 probe_tcp() {
   if command -v bash >/dev/null 2>&1; then
-    if command -v timeout >/dev/null 2>&1; then
-      timeout 5 bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" >/dev/null 2>&1 && echo ok || echo fail
-    else
-      bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" >/dev/null 2>&1 && echo ok || echo fail
-    fi
+    bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" >/dev/null 2>&1 &
+    pid=$!
+    (sleep 5; kill $pid) >/dev/null 2>&1 &
+    killer=$!
+    if wait $pid; then echo ok; else echo fail; fi
+    kill $killer >/dev/null 2>&1
   elif command -v nc >/dev/null 2>&1; then
     nc -z -w 5 "$1" "$2" >/dev/null 2>&1 && echo ok || echo fail
   else

@@ -1,3 +1,7 @@
+import socket
+import sys
+import time
+
 import pytest
 
 from zrb.remote.execution import (
@@ -54,3 +58,27 @@ async def test_output_is_bounded_to_the_trailing_lines():
     (result,) = await run_on_hosts([Host("h")], "seq 1 5000")
     lines = result.output.splitlines()
     assert len(lines) <= 1001 and lines[-1] == "5000"
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(sys.platform != "linux", reason="needs Linux's full-backlog SYN drop")
+async def test_probe_of_a_stalled_connect_fails_within_the_probe_limit():
+    server = socket.socket()
+    server.bind(("127.0.0.1", 0))
+    server.listen(0)
+    port = server.getsockname()[1]
+    fillers = []
+    for _ in range(4):
+        filler = socket.socket()
+        filler.setblocking(False)
+        filler.connect_ex(("127.0.0.1", port))
+        fillers.append(filler)
+    targets = [Target("stalled", host="127.0.0.1", port=port)]
+    start = time.monotonic()
+    try:
+        (result,) = await run_on_hosts([Host("l")], create_probe_script(targets))
+    finally:
+        for sock in [server, *fillers]:
+            sock.close()
+    assert parse_probe_output(result.output, 1) == ["fail"]
+    assert 4 < time.monotonic() - start < 15
