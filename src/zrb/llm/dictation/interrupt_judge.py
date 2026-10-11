@@ -39,9 +39,10 @@ DEFAULT_JUDGE_TIMEOUT_SECONDS = 2.0
 class BargeInVerdict(BaseModel):
     """What the words heard over zrb ask of it."""
 
-    intent: Literal["stop", "ask"]
-    """``stop``: be quiet and cancel the turn. ``ask``: it is a request; the
-    turn goes on and takes it into account."""
+    intent: Literal["stop", "hush", "ask"]
+    """``stop``: be quiet and cancel the turn. ``hush``: be quiet, the work
+    goes on, and the words are not for the assistant. ``ask``: it is a
+    request; the turn goes on and takes it into account."""
 
     reason: str = ""
     """Why, in a few words: logged, and shown to no one."""

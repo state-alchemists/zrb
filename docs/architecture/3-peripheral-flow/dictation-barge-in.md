@@ -59,6 +59,10 @@ Each one fails quietly: the chat keeps working, but zrb talks over the user, sta
 | A barge-in is reported once, before the utterance ends | zrb only pauses after the user has finished speaking | `test/llm/dictation/test_listen_barge_in.py::test_listen_reports_a_barge_in_once_before_the_utterance_ends` |
 | Closing the listener mid-pause resumes speech | zrb's voice stays held forever after hands-free stops | `test/llm/dictation/test_feature_barge_in_pause.py::test_closing_mid_pause_resumes` |
 | zrb's own voice is kept out by the loudness bar and the minimum word count, not by a transcript match | zrb answers its own reply as a user turn | **unpinned** — ADR-0105 records why there is no transcript-match guard |
+| A stop word said alone, with polite words, fillers or a repeat around it, cancels the turn without asking a model | "stop please" or "wait wait" waits on a model clock and may only quiet the voice | `test/llm/dictation/test_feature_barge_in_outcomes.py::test_a_polite_or_repeated_stop_cancels_the_turn_without_the_judge` |
+| A hush quiets zrb and sends nothing; the turn goes on | "I got it" reaches the agent as a new message, or cancels its work | `test/llm/dictation/test_feature_barge_in_outcomes.py::test_a_hush_quiets_zrb_and_leaves_the_turn_and_the_words_alone` |
+| A stop that carries on cancels the turn and sends the words | "hold on, use postgres" is lost, or steers a turn that is already cancelled | `test/llm/dictation/test_feature_barge_in_outcomes.py::test_a_stop_that_carries_on_cancels_the_turn_and_sends_the_words` |
+| A long utterance, or one the lists read, never waits on the judge | Every interruption costs a model call and up to the judge's budget | `test/llm/dictation/test_feature_barge_in_outcomes.py::test_a_long_utterance_is_a_request_and_skips_the_judge` |
 | A single word over zrb does not interrupt it | A stray "yeah" or echoed word cuts the reply short | `test/llm/dictation/test_feature_barge_in.py::test_a_single_word_over_zrb_is_not_taken_for_the_user` |
 | A room heard loudly enough does not open a turn | The room's own conversation becomes turns | `test/llm/dictation/test_listen.py::test_a_room_loud_enough_to_lift_the_bar_opens_no_turn` |
 | "No" to a pending approval denies the tool, not the turn | Answering an approval by voice cancels the whole turn | `test/llm/dictation/test_feature_barge_in.py::test_no_to_a_pending_approval_denies_it_rather_than_the_turn` |
@@ -84,7 +88,7 @@ flowchart TD
 | --- | --- | --- |
 | `enable_dictation`, `DictationSession` | `src/zrb/llm/dictation/feature.py` | Registering `/voice` and the hands-free trigger; per session, turning each utterance into a command or nothing, and deciding pause, stop or resume |
 | `listen`, `UtteranceCutter` | `src/zrb/llm/dictation/listen.py` | Keeping the microphone open, cutting audio into `Utterance` values by loudness and silence, and spotting a barge-in early |
-| `count_words`, `is_transcriber_guess` | `src/zrb/llm/dictation/words.py` | The word-level guards |
+| `count_words`, `is_transcriber_guess`, `is_said_alone`, `read_barge_in` | `src/zrb/llm/dictation/words.py` | The word-level guards, and what the stop and hush lists make of words said over zrb |
 | `DictationConfig` | `src/zrb/llm/dictation/config.py` | One field per `CFG.LLM_DICTATION_*` setting; `None` means "use the setting" |
 | `enable_speech`, `SpeechSession` | `src/zrb/llm/speech/feature.py` | Registering speech hooks and the stream observer; per session, feeding the speaker |
 | `pause_speech`, `resume_speech`, `interrupt_speech` | `src/zrb/llm/speech/feature.py` | Speech control by chat session key, the only way dictation touches speech |
@@ -118,27 +122,35 @@ The guards run in `DictationSession` in this order. Empty text, or a known trans
 
 Independent of any utterance, `UtteranceCutter` measures the room: speech heard while zrb is silent must be `noise_margin` times the quietest the room was heard at over the last few seconds, so the room's own conversation does not open a turn of its own — a room that never falls quiet is measured at its own level, which is what lifts the bar over it. With the `vosk` backend, a hands-free transcript whose words were heard too faintly on average (`vosk_confidence`) is dropped as well; push-to-talk keeps every word. Neither tells a stranger's request from the user's, which only a wake word does.
 
-**Acting on the words.** What was said over zrb ends one of three ways:
+**Acting on the words.** What was said over zrb ends one of four ways, and the cheap checks come first:
 
 ```mermaid
 flowchart TD
-    Heard[Words heard over zrb] --> Wake{Wake words set, none first?}
-    Wake -->|yes| Ignored[Ignored, zrb carries on]
-    Wake -->|no| Alone{Stop word alone?}
-    Alone -->|yes| Stop[Stop]
-    Alone -->|no| Judge{Judge says stop within 2 s?}
-    Judge -->|yes| Stop
-    Judge -->|"no, off, timeout"| Ask[Request]
-    Stop --> Prompt{Prompt waiting?}
-    Prompt -->|yes| Answer[Words answer it]
-    Prompt -->|no| Cancel[Voice off, turn cancelled]
-    Ask --> Hush[Voice off, turn goes on, new message]
+    Heard[Words over zrb] --> Wake{Wake word first?}
+    Wake -->|no| Ignored[Ignored]
+    Wake -->|yes| Lists{Lists read it?}
+    Lists -->|yes| Read[Stop, hush or redirect]
+    Lists -->|no| Long{Over 5 words?}
+    Long -->|yes| Ask[Request]
+    Long -->|no| Judge[Judge: stop, hush or request]
+```
+
+```mermaid
+flowchart TD
+    Prompt{Prompt waiting?} -->|yes| Answer[The words answer it]
+    Prompt -->|no| Outcome{Outcome}
+    Outcome -->|Stop| Cancel[Voice off, turn cancelled, nothing sent]
+    Outcome -->|Hush| Quiet[Voice off, turn goes on, nothing sent]
+    Outcome -->|Redirect| Both[Voice off, turn cancelled, words sent as a message]
+    Outcome -->|Request| Steer[Voice off, turn goes on, words sent as a message]
     Esc[Esc key] --> Cancel
 ```
 
-The first two exits are free string comparisons; only the third waits on a model and a clock, which is why the same word can cancel the turn once and only silence the voice the next time. The judge's budget is `interrupt_judge_timeout` (2 seconds by default).
+Before any of that, the words are normalised: fillers ("uh", "hey"), polite words and a sentence said twice ("wait wait", "hold on hold on") are set aside, so "stop please" is a stop. The word lists are `stop_words` and `hush_words`, matched in `read_barge_in`; a phrase in both is a stop, since the user listed it for stopping and a hush that should have been a stop leaves them pressing Esc. A redirect waits, up to two seconds, for the cancelled turn to end before sending the words, so they start a turn rather than steering one that is already gone.
 
-A stop — a stop word said alone, or a judge verdict of stop — cancels the running turn through `AnyUI.cancel_current_turn` and is sent nowhere. Anything else becomes a `TriggerReply`. `BaseUITriggers` sends it as an answer if a prompt is waiting and the utterance began after the prompt appeared; otherwise it becomes a new message, which steers the running turn by default.
+The lists answer without a model, so a stop word, a hush, and a stop that carries on cost nothing. A model is asked only for short words (at most `interrupt_judge_max_words`) the lists could not read; longer ones are requests, since a stop in other words is short. The judge's budget is `interrupt_judge_timeout` (2 seconds by default). Cancelling a turn loses work and carrying on costs a repeat or an Esc, so every uncertain path ends at Request. That is also why the same word can cancel the turn once and only silence the voice the next time: a list match is a string comparison, the judge races a clock.
+
+A stop cancels the running turn through `AnyUI.cancel_current_turn` and is sent nowhere. A request becomes a `TriggerReply`. `BaseUITriggers` sends it as an answer if a prompt is waiting and the utterance began after the prompt appeared; otherwise it becomes a new message, which steers the running turn by default.
 
 **Reading the reply.** Speech sees the same events as the UI:
 
@@ -163,7 +175,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Barge-in off (the default) | `DictationConfig.barge_in_enabled` | The microphone is deaf while zrb speaks, so there is nothing to pause |
 | The hold off | `DictationConfig.barge_in_hold` | Nothing is held on loudness; a stop word or a wake word seen in the live partial stops zrb at once, and anything else stops it once the utterance is transcribed |
 | Wake words set | `DictationConfig.wake_words` | Only words starting with a wake word count; one heard in the live partial transcript stops zrb early |
-| The interrupt judge | `DictationConfig.interrupt_judge_enabled` | What an interrupting utterance asks of zrb is put to the small model when the word lists cannot read it; a stop word said alone never reaches the model, and the word lists decide when the judge is off, slow or unsure |
+| The interrupt judge | `DictationConfig.interrupt_judge_enabled` | What an interrupting utterance asks of zrb is put to the small model when the word lists cannot read it and it is at most `interrupt_judge_max_words` long; a stop or a hush the lists read never reaches the model, and a request is the answer when the judge is off, slow or unsure |
 | Speech not enabled | `interrupt_speech` and siblings | Find no speech session for the key and do nothing; dictation works the same |
 | Push-to-talk (`/voice`) | `DictationSession.toggle_recording` | Every word is kept; the transcript goes into the input box for the user to edit, not sent |
 | A sentence played by an external program | `Speaker.pause` | It cannot be held, so it is stopped and speech carries on with the next sentence |
@@ -174,7 +186,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | To… | Open | Then run |
 | --- | --- | --- |
 | Change utterance cutting, the bar over zrb's voice, or the bar under ordinary speech | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen_barge_in.py`, `test/llm/dictation/test_listen.py` |
-| Change the transcript guards or command routing | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py` |
+| Change the transcript guards or command routing | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py`, `test/llm/dictation/test_words.py` |
 | Change pause, stop or resume | `src/zrb/llm/dictation/feature.py` | `test/llm/dictation/test_feature_barge_in_pause.py` |
 | Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py` |
 | Change how a streamed reply is spoken | `src/zrb/llm/speech/streamed_reply.py`, `src/zrb/llm/speech/feature.py` | `test/llm/speech/test_feature_stream.py` |

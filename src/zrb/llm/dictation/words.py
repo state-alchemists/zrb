@@ -4,11 +4,19 @@ from __future__ import annotations
 
 import re
 from collections.abc import Collection
+from typing import Literal
 
 from zrb.config.config import CFG
 
 _WORD_RE = re.compile(r"[\w']+")
 _STRIPPED_AFTER_WAKE_WORD = " ,.!?;:，。"
+# Sounds people make before or between words; they never change what was meant.
+_FILLER_WORDS = frozenset({"uh", "um", "er", "erm", "hmm", "oh", "ah", "hey"})
+
+#: What the words said over zrb ask of it, when the word lists can tell:
+#: ``stop`` cancels the turn, ``hush`` only quiets the voice, ``redirect`` is a
+#: stop with more to say, so the turn is cancelled and the words are sent.
+BargeInRead = Literal["stop", "hush", "redirect"]
 # What Whisper-like transcribers write for silence or noise. Lowercase, with
 # end punctuation left off.
 _NOISE_GUESSES = frozenset(
@@ -122,11 +130,60 @@ def _is_one_phrase_repeated(words: list[str]) -> bool:
     return False
 
 
-def is_said_alone(text: str, phrases: list[list[str]]) -> bool:
-    """Whether *text* is made only of *phrases*, at least one of them:
-    "Stop!", "stop". Unlike `is_answer`, no polite word may stand beside it:
-    "stop please" is not said alone."""
-    return _is_made_of(_words_of(text), phrases, frozenset())
+def is_said_alone(
+    text: str,
+    phrases: list[list[str]],
+    polite_words: Collection[str] | None = None,
+) -> bool:
+    """Whether *text* is made only of *phrases*, at least one of them, once
+    fillers, polite words and a whole-sentence repeat are set aside: "Stop!",
+    "stop please", "wait wait", "hey, hold on". *polite_words* default to
+    `CFG.LLM_DICTATION_POLITE_WORDS`."""
+    heard = _get_plain_words(text, polite_words)
+    return _is_made_of(heard, phrases, frozenset())
+
+
+def read_barge_in(
+    text: str,
+    stop_words: list[list[str]],
+    hush_words: list[list[str]],
+    polite_words: Collection[str] | None = None,
+) -> BargeInRead | None:
+    """What the word lists make of *text*, said over zrb, or ``None`` when
+    they cannot tell and the words are for the judge or a plain request.
+
+    Made only of stop phrases is ``stop``; made only of hush phrases is
+    ``hush`` ("okay", "I got it"); starting with a stop phrase and carrying on
+    ("hold on, use postgres") is ``redirect``. A stop outranks a hush when a
+    phrase is in both lists."""
+    heard = _get_plain_words(text, polite_words)
+    if _is_made_of(heard, stop_words, frozenset()):
+        return "stop"
+    if _is_made_of(heard, hush_words, frozenset()):
+        return "hush"
+    if any(heard[: len(phrase)] == phrase for phrase in stop_words if phrase):
+        return "redirect"
+    return None
+
+
+def _get_plain_words(text: str, polite_words: Collection[str] | None) -> list[str]:
+    """The words of *text* without fillers or polite words, and with a sentence
+    said twice or more ("wait wait", "hold on hold on") read once."""
+    polite = _get_polite_words(polite_words)
+    heard = [
+        word
+        for word in _words_of(text)
+        if word not in _FILLER_WORDS and word not in polite
+    ]
+    return _collapse_repeats(heard)
+
+
+def _collapse_repeats(words: list[str]) -> list[str]:
+    """*words* as the phrase it is, when it is one phrase said whole times."""
+    for size in range(1, len(words) // 2 + 1):
+        if len(words) % size == 0 and words == words[:size] * (len(words) // size):
+            return words[:size]
+    return words
 
 
 def _words_of(text: str) -> list[str]:

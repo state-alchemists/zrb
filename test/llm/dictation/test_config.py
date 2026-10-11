@@ -41,5 +41,9 @@ def test_a_field_added_after_barge_in_hold_leaves_every_earlier_position_alone()
     # `barge_in_hold` was the last field when the dataclass was last extended;
     # a later one goes after it, so a positional caller keeps its meaning.
     assert names.index("barge_in_hold") == 41
-    assert names[names.index("barge_in_hold") + 1 :] == ["interrupt_judge_timeout"]
+    assert names[names.index("barge_in_hold") + 1 :] == [
+        "interrupt_judge_timeout",
+        "interrupt_judge_max_words",
+        "hush_words",
+    ]
     assert names.index("interrupt_judge_model") == 20

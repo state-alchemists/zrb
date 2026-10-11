@@ -45,21 +45,24 @@ Everything heard while zrb is silent measures as the room, your own voice includ
 
 By default zrb ignores the microphone while it is speaking, so its own voice is not taken as yours, and anything you say over it is lost.
 
-**Talking over zrb (barge-in).** With `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on`, the microphone keeps listening while zrb speaks. About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words meant for zrb, it stops and the rest of that reply is not read; if not, zrb carries on where it paused. Words too brief to pause it (a crisp "stop") stop it as soon as they are transcribed. On speakers the microphone hears zrb too, so a room loud enough to keep crossing the bar is heard as a stutter of pauses and resumes; set `ZRB_LLM_DICTATION_BARGE_IN_HOLD=off` for barge-in without it — nothing is held on loudness, so zrb speaks on until the words are known to be meant for it, and a stop word or a wake word seen in the live transcript (`vosk` transcribes while you speak) stops it as soon as it is heard. Then:
+### Talking over zrb (barge-in)
 
-- A stop word said alone ("stop", "wait", "hold on", "cancel", "no"; `ZRB_LLM_DICTATION_STOP_WORDS`) cancels the turn, as Esc does, and is sent nowhere.
-- Anything else is put to the small model (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED`), which reads what it asks: a stop in other words ("please stop", "shut up", a stop in another language) cancels the turn like a stop word, and anything else steers the running turn — the agent takes it into account at its next step. With the judge off, only the stop words cancel it and everything else steers.
-- While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
+With `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on`, the microphone keeps listening while zrb speaks. About a third of a second of speech over it (`ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH`) pauses zrb at once. If what you said turns out to be words meant for zrb, it stops and the rest of that reply is not read; if not, zrb carries on where it paused. Words too brief to pause it (a crisp "stop") stop it as soon as they are transcribed. On speakers the microphone hears zrb too, so a room loud enough to keep crossing the bar is heard as a stutter of pauses and resumes; set `ZRB_LLM_DICTATION_BARGE_IN_HOLD=off` for barge-in without it — nothing is held on loudness, so zrb speaks on until the words are known to be meant for it, and a stop word or a wake word seen in the live transcript (`vosk` transcribes while you speak) stops it as soon as it is heard. Then:
 
-So what you say over zrb ends one of three ways:
+What zrb makes of the words is settled in this order, and a model is asked only at the end:
 
-| What you said | What happens | Why |
-|---|---|---|
-| A stop word alone ("stop", "wait", "hold on") | zrb goes quiet **and the turn is cancelled**, exactly as Esc does | An exact match: free and instant, no model involved |
-| Anything else ("stop please", "stop talking", "wait a moment") | The small model reads it. A stop cancels the turn as above; a request quiets zrb's voice, but **the turn goes on** and your words become a new message it takes into account | The model has 2 seconds (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT`). If it is off, slow or fails, the answer is "request", so a stop in other words can quiet zrb without cancelling the turn |
-| Something not starting with a wake word (wake words set) | Nothing: the badge says `ignored … (no wake word)` and zrb carries on | Only words that start with a wake word count, so anything before it, even a stray "yes", means the utterance is not for zrb |
+| What you said | What happens |
+|---|---|
+| A stop word alone ("stop", "wait", "hold on", "cancel", "never mind"; `ZRB_LLM_DICTATION_STOP_WORDS`), with fillers ("uh", "hey"), polite words ("please") and a sentence said twice ignored, so "stop please" and "wait wait" count | zrb goes quiet **and the turn is cancelled**, exactly as Esc does. The words are sent nowhere |
+| A hush word alone ("okay", "got it", "I got it", "enough"; `ZRB_LLM_DICTATION_HUSH_WORDS`) | zrb goes quiet, **the turn goes on**, and the words are sent nowhere: you understood, nothing more |
+| A stop word first, then more ("hold on, use postgres") | The turn is cancelled and your words are sent as a new message |
+| More than five words that match none of the above (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_MAX_WORDS`) | A request: zrb goes quiet and the turn goes on, taking your words into account at its next step |
+| Up to five words that match none | The small model reads them (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED`) and answers stop, hush or request, within 2 seconds (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT`). A stop in other words ("please fucking stop", a stop in another language) cancels the turn. Off, slow or failing, the answer is "request" |
+| Something not starting with a wake word (wake words set) | Nothing: the badge says `ignored … (no wake word)` and zrb carries on |
 
-That is why the same "stop" sometimes cancels and sometimes only hushes: the first row is a string comparison, the second races a clock. When you want a guaranteed cancel, say the stop word alone, or press Esc.
+While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn. "No" is not a stop word, so over zrb with nothing waiting it is a request or goes to the model.
+
+That is why the same "stop" sometimes cancels and sometimes only hushes: the first row is a string comparison, and the last rows race a clock. Cancelling a turn loses work, so when zrb cannot tell, it does not cancel. When you want a guaranteed cancel, say the stop word alone, or press Esc.
 
 With wake words, zrb stops only once it has heard one. Talk in the room holds its voice like anything else heard over it, on loudness alone, and the words give that hold back when they turn out not to be the user's.
 
