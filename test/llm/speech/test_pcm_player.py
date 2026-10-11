@@ -434,3 +434,41 @@ def test_a_finished_fallback_no_longer_counts_as_playing():
     assert utterance.is_pausable
     utterance.pause()
     assert "stopped" not in events
+
+
+class SlowStopStream(FakeOutputStream):
+    """A stream whose stop takes until it is released, as CoreAudio's can when
+    two threads stop one at once."""
+
+    release = threading.Event()
+    stopping = threading.Event()
+
+    def stop(self):
+        SlowStopStream.stopping.set()
+        SlowStopStream.release.wait(5)
+        super().stop()
+
+
+def test_nothing_waits_when_no_stream_is_open(sd):
+    pcm_player.wait_for_streams_to_close(0.01)
+
+    assert not pcm_player.has_open_streams()
+
+
+def test_a_stream_still_stopping_is_waited_for(sd):
+    SlowStopStream.release = threading.Event()
+    SlowStopStream.stopping = threading.Event()
+    sd.OutputStream = SlowStopStream
+    utterance = PcmUtterance(SpeechAudio(RATE, [_pcm([1] * 256)]))
+    player = threading.Thread(target=utterance.play, args=(5,))
+    player.start()
+    assert SlowStopStream.stopping.wait(5)
+
+    pcm_player.wait_for_streams_to_close(0.05)
+    open_while_stopping = pcm_player.has_open_streams()
+    SlowStopStream.release.set()
+    player.join(5)
+    pcm_player.wait_for_streams_to_close(1)
+
+    assert open_while_stopping
+    assert not pcm_player.has_open_streams()

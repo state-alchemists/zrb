@@ -15,7 +15,8 @@ import logging
 import threading
 import time
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from zrb.config.config import CFG
@@ -30,6 +31,39 @@ _BUFFER_POLL_SECONDS = 0.005
 _TIMEOUT_POLL_SECONDS = 0.02
 
 logger = logging.getLogger(__name__)
+
+# Output streams between being created and being closed. PortAudio's own exit
+# handler stops every stream still open, and on macOS two threads stopping one
+# CoreAudio stream at once deadlock, so what ends a process waits on this first.
+_streams_changed = threading.Condition()
+_open_streams = 0
+
+
+@contextmanager
+def _tracked_stream() -> Iterator[None]:
+    global _open_streams
+    with _streams_changed:
+        _open_streams += 1
+    try:
+        yield
+    finally:
+        with _streams_changed:
+            _open_streams -= 1
+            _streams_changed.notify_all()
+
+
+def has_open_streams() -> bool:
+    """Whether an output stream is still open: playing, or being stopped."""
+    with _streams_changed:
+        return _open_streams > 0
+
+
+def wait_for_streams_to_close(timeout: float) -> None:
+    """Wait up to *timeout* seconds for every output stream to be stopped and
+    closed; `has_open_streams` says whether any is left. Call it once playback
+    has been told to stop and before the process lets PortAudio terminate."""
+    with _streams_changed:
+        _streams_changed.wait_for(lambda: _open_streams == 0, timeout)
 
 
 @functools.cache
@@ -203,21 +237,22 @@ class PcmUtterance(Utterance):
                 reader.join(_READER_JOIN_SECONDS)
 
     def _play_stream(self, stream: Any, timeout: float | None) -> None:
-        try:
-            stream.start()
-        except BaseException:
-            stream.close()  # opened, never started: close it all the same
-            raise
-        try:
-            self._has_opened = True
-            self.report_started()
-            if not self._is_finished_in_time(timeout):
-                self.stop()
-        finally:
+        with _tracked_stream():
             try:
-                stream.stop()
+                stream.start()
+            except BaseException:
+                stream.close()  # opened, never started: close it all the same
+                raise
+            try:
+                self._has_opened = True
+                self.report_started()
+                if not self._is_finished_in_time(timeout):
+                    self.stop()
             finally:
-                stream.close()
+                try:
+                    stream.stop()
+                finally:
+                    stream.close()
 
     def _is_finished_in_time(self, timeout: float | None) -> bool:
         """Whether playback finished before *timeout* seconds of playing;
