@@ -145,6 +145,8 @@ Boolean `CFG`/env knobs follow a naming rule (ADR-0026):
 - **`<NAMESPACE>_ENABLED`** (state-last) when the toggle is the master switch of a namespace that has *other* settings, so it groups with its siblings — `WEB_AUTH_ENABLED` (alongside `WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES`), `LLM_SANDBOX_ENABLED`, `HOOKS_ENABLED`, `LLM_JOURNAL_ENABLED`.
 - **Verb-first** (`ENABLE_`/`SHOW_`/`SEARCH_`/`INCLUDE_`/`ALLOW_`) for a standalone on/off behavior with no sub-config namespace — `LLM_ENABLE_BUILTIN_SKILLS`, `LLM_SEARCH_PROJECT`, `LLM_SHOW_TOOL_CALL_DETAIL`.
 
+**Time knobs.** A new knob that holds a duration is **seconds, `float`**, and its `doc` says "seconds" (`LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT`, `LLM_SPEECH_TIMEOUT`). The older core, task-runtime, web and TUI knobs are **milliseconds, `int`** (`LLM_REQUEST_TIMEOUT`, `HTTP_CHECK_INTERVAL`, `LLM_UI_*_INTERVAL`), and `WEB_AUTH_*_EXPIRE_MINUTES` carries its unit in the name. Do not re-scale a released knob to match: the old key would silently change meaning. When adding one beside millisecond neighbours, say "seconds" in the doc and in the config docs row, since the page's heading unit does not apply to it.
+
 When **renaming** a released knob, preserve the old env key via `EnvField(aliases=[new, old], write_key=new)` (reads either, writes the new form). A clean break is only safe pre-release. When **removing** one (or dropping an alias), add it to `RETIRED_SETTINGS` in `config/retired.py` with what replaces it, so zrb names it at startup instead of silently ignoring it. A removed top-level `zrb` export goes in `_RETIRED_EXPORTS` in `zrb/__init__.py` the same way.
 
 ### Imports

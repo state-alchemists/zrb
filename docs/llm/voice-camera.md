@@ -51,6 +51,16 @@ By default zrb ignores the microphone while it is speaking, so its own voice is 
 - Anything else is put to the small model (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED`), which reads what it asks: a stop in other words ("please stop", "shut up", a stop in another language) cancels the turn like a stop word, and anything else steers the running turn — the agent takes it into account at its next step. With the judge off, only the stop words cancel it and everything else steers.
 - While a tool approval is waiting, what you say answers it, as usual: "no" denies the tool call, not the turn.
 
+So what you say over zrb ends one of three ways:
+
+| What you said | What happens | Why |
+|---|---|---|
+| A stop word alone ("stop", "wait", "hold on") | zrb goes quiet **and the turn is cancelled**, exactly as Esc does | An exact match: free and instant, no model involved |
+| Anything else ("stop please", "stop talking", "wait a moment") | The small model reads it. A stop cancels the turn as above; a request quiets zrb's voice, but **the turn goes on** and your words become a new message it takes into account | The model has 2 seconds (`ZRB_LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT`). If it is off, slow or fails, the answer is "request", so a stop in other words can quiet zrb without cancelling the turn |
+| Something not starting with a wake word (wake words set) | Nothing: the badge says `ignored … (no wake word)` and zrb carries on | Only words that start with a wake word count, so anything before it, even a stray "yes", means the utterance is not for zrb |
+
+That is why the same "stop" sometimes cancels and sometimes only hushes: the first row is a string comparison, the second races a clock. When you want a guaranteed cancel, say the stop word alone, or press Esc.
+
 With wake words, zrb stops only once it has heard one. Talk in the room holds its voice like anything else heard over it, on loudness alone, and the words give that hold back when they turn out not to be the user's.
 
 **zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass the checks below before it reaches the model. None of them compares the words heard against what zrb was saying, so a word of zrb's own reply, loud enough to clear the bar, can still open a turn — keep the volume down, or wear headphones. Push-to-talk keeps every word: its transcript lands in the input box for you to edit.

@@ -90,3 +90,41 @@ async def test_a_cancelled_turn_is_not_a_failed_judge(monkeypatch):
 
     with pytest.raises(asyncio.CancelledError):
         await task
+
+
+@pytest.mark.asyncio
+async def test_a_judge_slower_than_its_timeout_leaves_no_verdict(monkeypatch):
+    """The timeout is the caller's: a hanging judge gives up after it, and the
+    word lists decide."""
+    monkeypatch.setattr(
+        "zrb.llm.dictation.interrupt_judge.create_interrupt_judge_agent",
+        lambda *args, **kwargs: _HangingAgent(),
+    )
+
+    verdict = await judge_barge_in("please stop", "some:model", timeout=0.01)
+
+    assert verdict is None
+
+
+@pytest.mark.asyncio
+async def test_a_longer_timeout_lets_a_slow_judge_answer(monkeypatch):
+    """A judge slower than the default still decides when given the time."""
+
+    class _SlowAgent:
+        async def run(self, command: str):
+            await asyncio.sleep(0.05)
+            return SimpleNamespace(output=BargeInVerdict(intent="stop"))
+
+    monkeypatch.setattr(
+        "zrb.llm.dictation.interrupt_judge.DEFAULT_JUDGE_TIMEOUT_SECONDS", 0.001
+    )
+    monkeypatch.setattr(
+        "zrb.llm.dictation.interrupt_judge.create_interrupt_judge_agent",
+        lambda *args, **kwargs: _SlowAgent(),
+    )
+
+    assert await judge_barge_in("please stop", "m") is None
+    verdict = await judge_barge_in("please stop", "m", timeout=1.0)
+
+    assert verdict is not None
+    assert verdict.intent == "stop"
