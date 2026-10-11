@@ -28,11 +28,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-#: How long the judge may take before the word lists decide instead. Long
-#: enough for a small model on a slow link, short enough that zrb's voice is
-#: not held on it: a stop worth making arrives while the user is still talking,
-#: and the words are only transcribed after they stop.
-_JUDGE_TIMEOUT_SECONDS = 2.0
+#: How long the judge may take before the word lists decide instead, when the
+#: caller names no `CFG.LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT`. Long enough for
+#: a small model on a slow link, short enough that zrb's voice is not held on
+#: it: a stop worth making arrives while the user is still talking, and the
+#: words are only transcribed after they stop.
+DEFAULT_JUDGE_TIMEOUT_SECONDS = 2.0
 
 
 class BargeInVerdict(BaseModel):
@@ -66,15 +67,20 @@ def create_interrupt_judge_agent(
 
 
 async def judge_barge_in(
-    command: str, model: "str | Model | None" = None
+    command: str,
+    model: "str | Model | None" = None,
+    timeout: float | None = None,
 ) -> BargeInVerdict | None:
     """What *command* — what was heard over zrb, past its wake word — asks of
     it, or ``None`` when the judge could not answer in time, is not configured
     to work, or failed. Never raises: any failure leaves the word lists
-    deciding."""
+    deciding. *timeout* is in seconds; ``None`` takes the default."""
     try:
         agent = create_interrupt_judge_agent(model)
-        result = await asyncio.wait_for(agent.run(command), _JUDGE_TIMEOUT_SECONDS)
+        result = await asyncio.wait_for(
+            agent.run(command),
+            timeout if timeout is not None else DEFAULT_JUDGE_TIMEOUT_SECONDS,
+        )
         return result.output
     except asyncio.CancelledError:
         # A turn being cancelled is not a judge that failed: let it unwind.

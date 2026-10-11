@@ -59,7 +59,7 @@ def judge(monkeypatch):
     decide — which is what happens with no small model reachable. A test that
     wants a verdict patches over this."""
 
-    async def could_not_answer(command, model=None):
+    async def could_not_answer(command, model=None, timeout=None):
         return None
 
     monkeypatch.setattr(
@@ -162,7 +162,7 @@ async def test_words_a_word_list_cannot_read_as_a_stop_stop_zrb_anyway(
     and no word list should have to know that. The small model reads it, and
     the turn is cancelled rather than reaching the model as a message."""
 
-    async def judge_stop(command, model=None):
+    async def judge_stop(command, model=None, timeout=None):
         if command == "please fucking stop":
             return BargeInVerdict(intent="stop", reason="asks zrb to be quiet")
         return None
@@ -190,7 +190,7 @@ async def test_a_one_word_stop_the_word_lists_do_not_know_still_reaches_the_judg
     """
     asked: list[str] = []
 
-    async def judge_stop(command, model=None):
+    async def judge_stop(command, model=None, timeout=None):
         asked.append(command)
         if command == "berhenti":
             return BargeInVerdict(intent="stop", reason="a stop in another language")
@@ -215,7 +215,7 @@ async def test_a_stop_word_is_not_put_to_the_model(monkeypatch, speech):
     they could not read, and about nothing else."""
     asked: list[str] = []
 
-    async def judge_spy(command, model=None):
+    async def judge_spy(command, model=None, timeout=None):
         asked.append(command)
         return None
 

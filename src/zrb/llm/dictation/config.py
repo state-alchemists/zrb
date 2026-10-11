@@ -42,6 +42,7 @@ class DictationConfig:
     barge_in_min_words: int | None = None
     interrupt_judge_enabled: bool | None = None
     interrupt_judge_model: str | None = None
+    interrupt_judge_timeout: float | None = None
     approve_words: list[str] | None = None
     deny_words: list[str] | None = None
     stop_words: list[str] | None = None

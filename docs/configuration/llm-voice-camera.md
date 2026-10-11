@@ -37,6 +37,8 @@ export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
 
 `/voice` starts recording; a pause or `/voice` again stops it, and the transcript lands in the input box. `/handsfree` switches to always listening: each utterance is submitted as a turn, or answers the tool approval or question being asked. With speech on too (`/speech`), that is a voice conversation (see [Voice and camera § Talking with zrb](../llm/voice-camera.md#talking-with-zrb)).
 
+Every duration below is in **seconds** (a `float`), unlike the millisecond knobs elsewhere in the configuration docs.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_DICTATION_MODE` | Mode a session starts in: `ptt` or `hands_free` | `ptt`, or as `ZRB_LLM_VOICE` sets it |
@@ -61,6 +63,7 @@ export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
 | `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` | With barge-in on, the fewest words said over zrb, or while a turn runs, that reach it; fewer are taken for zrb's own voice or noise, and zrb carries on. A stop word, or an answer to the prompt being asked, always counts | `2` |
 | `ZRB_LLM_DICTATION_BARGE_IN_MIN_SPEECH` | Seconds of speech over zrb's voice that pause it, so a click does not; it then stops only if what was said has words. Shorter words over zrb (a crisp "stop") do not pause it, but still stop it once transcribed | `0.3` |
 | `ZRB_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED` | With barge-in on, whether the small model is asked what an interrupting utterance asks of zrb, so "please fucking stop", the same stop said twice, or a stop in another language cancels the turn instead of reaching the model. The word lists answer first, for free, and stand when the model is slow, unconfigured or unsure. `off`: the word lists decide alone | `on` |
+| `ZRB_LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT` | Seconds the judge has to read what was said over zrb. A later verdict is dropped and the word lists decide, which only quiets zrb's voice and lets the turn go on, so raise it for a slow model or link | `2.0` |
 | `ZRB_LLM_DICTATION_INTERRUPT_JUDGE_MODEL` | Model that decides that. Empty uses the small model (`ZRB_LLM_SMALL_MODEL`, else the main model). A cloud model costs a round trip on the words that stop zrb, so a fast local one answers sooner | |
 | `ZRB_LLM_DICTATION_APPROVE_WORDS` | Phrases that approve a tool approval when a hands-free answer is made only of them and polite words ("yes please"). Any other answer denies it, with what was said as the reason | `yes, yeah, yep, ok, okay, sure, approve, accept, go ahead, do it` |
 | `ZRB_LLM_DICTATION_DENY_WORDS` | Phrases that deny a tool approval when a hands-free answer is made only of them and polite words ("no thanks") | `no, nope, deny, cancel, stop, don't` |

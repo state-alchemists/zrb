@@ -118,7 +118,27 @@ The guards run in `DictationSession` in this order. Empty text, or a known trans
 
 Independent of any utterance, `UtteranceCutter` measures the room: speech heard while zrb is silent must be `noise_margin` times the quietest the room was heard at over the last few seconds, so the room's own conversation does not open a turn of its own — a room that never falls quiet is measured at its own level, which is what lifts the bar over it. With the `vosk` backend, a hands-free transcript whose words were heard too faintly on average (`vosk_confidence`) is dropped as well; push-to-talk keeps every word. Neither tells a stranger's request from the user's, which only a wake word does.
 
-**Acting on the words.** A stop word said alone cancels the running turn through `AnyUI.cancel_current_turn` and is sent nowhere. Anything else becomes a `TriggerReply`. `BaseUITriggers` sends it as an answer if a prompt is waiting and the utterance began after the prompt appeared; otherwise it becomes a new message, which steers the running turn by default.
+**Acting on the words.** What was said over zrb ends one of three ways:
+
+```mermaid
+flowchart TD
+    Heard[Words heard over zrb] --> Wake{Wake words set, none first?}
+    Wake -->|yes| Ignored[Ignored, zrb carries on]
+    Wake -->|no| Alone{Stop word alone?}
+    Alone -->|yes| Stop[Stop]
+    Alone -->|no| Judge{Judge says stop within 2 s?}
+    Judge -->|yes| Stop
+    Judge -->|"no, off, timeout"| Ask[Request]
+    Stop --> Prompt{Prompt waiting?}
+    Prompt -->|yes| Answer[Words answer it]
+    Prompt -->|no| Cancel[Voice off, turn cancelled]
+    Ask --> Hush[Voice off, turn goes on, new message]
+    Esc[Esc key] --> Cancel
+```
+
+The first two exits are free string comparisons; only the third waits on a model and a clock, which is why the same word can cancel the turn once and only silence the voice the next time. The judge's budget is `interrupt_judge_timeout` (2 seconds by default).
+
+A stop — a stop word said alone, or a judge verdict of stop — cancels the running turn through `AnyUI.cancel_current_turn` and is sent nowhere. Anything else becomes a `TriggerReply`. `BaseUITriggers` sends it as an answer if a prompt is waiting and the utterance began after the prompt appeared; otherwise it becomes a new message, which steers the running turn by default.
 
 **Reading the reply.** Speech sees the same events as the UI:
 

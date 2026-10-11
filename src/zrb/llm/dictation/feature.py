@@ -621,7 +621,9 @@ class DictationSession:
         from zrb.llm.dictation.interrupt_judge import judge_barge_in
 
         verdict = await judge_barge_in(
-            command, self._config.interrupt_judge_model or None
+            command,
+            self._config.interrupt_judge_model or None,
+            self._config.interrupt_judge_timeout,
         )
         return verdict.intent if verdict is not None else "ask"
 

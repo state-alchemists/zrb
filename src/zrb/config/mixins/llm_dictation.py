@@ -345,6 +345,18 @@ class LLMDictationMixin:
         ),
     )
 
+    LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT = EnvField(
+        float,
+        fallback=2.0,
+        doc=(
+            "Seconds the judge ({ENV_PREFIX}_LLM_DICTATION_INTERRUPT_JUDGE_MODEL) "
+            "has to read what was said over zrb. A verdict later than this is "
+            "dropped and the word lists decide, which only quiets zrb's voice "
+            "and lets the turn go on, so raise it for a slow model or link. "
+            "Default: 2.0."
+        ),
+    )
+
     LLM_DICTATION_APPROVE_WORDS = EnvField(
         comma_list,
         serialize=comma_join,
