@@ -26,6 +26,7 @@ from zrb.llm.dictation.words import (
     is_answer,
     is_said_alone,
     is_transcriber_guess,
+    read_barge_in,
     split_phrases,
     strip_wake_word,
     to_answer,
@@ -63,6 +64,8 @@ _TRANSCRIBING = "📝 transcribing…"
 _INTERRUPTED = "✋ interrupted · go on…"
 _PAUSED = "✋ paused · listening…"
 _MAX_QUOTED_CHARS = 40
+# A cancelled turn is given this long to wind down before a redirect is sent.
+_TURN_END_WAIT_SECONDS = 2.0
 
 
 def enable_dictation(
@@ -111,6 +114,7 @@ class DictationSession:
         self._approve_words = split_phrases(config.approve_words or [])
         self._deny_words = split_phrases(config.deny_words or [])
         self._stop_words = split_phrases(config.stop_words or [])
+        self._hush_words = split_phrases(config.hush_words or [])
         self._polite_words = config.polite_words
         # UI that last enabled hands-free, used when no session UI is bound.
         self._ui: "AnyUI | None" = None
@@ -449,7 +453,7 @@ class DictationSession:
         so "yes please" and "no thanks" count as answers here rather than being
         dropped by the minimum word count.
         """
-        if is_said_alone(text, self._stop_words):
+        if is_said_alone(text, self._stop_words, self._polite_words):
             return True
         return is_answer(
             text, self._approve_words, self._deny_words, self._polite_words
@@ -592,30 +596,49 @@ class DictationSession:
         """Act on what the user said over zrb, and say whether it still goes on
         to be a turn or an answer.
 
-        A stop — a word-list phrase said alone, or what the judge reads as one —
-        stops zrb speaking and cancels the turn, and is sent nowhere. An answer
-        to the prompt being asked is left alone: "no" there denies a tool call,
-        not the turn."""
+        A stop — a stop word said alone, or what the judge reads as one —
+        stops zrb speaking and cancels the turn, and is sent nowhere. A hush
+        ("okay", "I got it") only quiets the voice: the turn goes on and the
+        words are sent nowhere. A stop that carries on ("hold on, use
+        postgres") cancels the turn and then goes on to be a message. An
+        answer to the prompt being asked is left alone: "no" there denies a
+        tool call, not the turn."""
         ui = get_session_ui() or self._ui
         if ui is None or ui.is_waiting_for_answer:
             return True
-        if await self._get_barge_in_intent(command) == "stop":
+        intent = await self._get_barge_in_intent(command)
+        if intent == "stop":
             self._settle_barge_in(utterance, True)
             ui.cancel_current_turn("barge_in")
             self._rest("✋ stopped · listening")
             return False
+        if intent == "hush":
+            self._settle_barge_in(utterance, True)
+            self._rest("✋ hushed · listening")
+            return False
+        if intent == "redirect":
+            self._settle_barge_in(utterance, True)
+            ui.cancel_current_turn("barge_in")
+            await _wait_for_turn_to_end(ui)
         return True
 
     async def _get_barge_in_intent(self, command: str) -> str:
-        """What *command*, said over zrb, asks of it: ``"stop"`` or ``"ask"``.
+        """What *command*, said over zrb, asks of it: ``"stop"``, ``"hush"``,
+        ``"redirect"`` or ``"ask"``.
 
-        The word lists answer first, for free, and stand when the judge is off
-        or could not answer. What they miss — a stop word carrying an
-        expletive, the same stop said twice, a stop in another language — is
-        what the small model is for, and it is asked only when they miss it."""
-        if is_said_alone(command, self._stop_words):
-            return "stop"
+        The word lists answer first, for free. What they cannot read goes to
+        the small model only when it is short enough to be a stop in other
+        words (`interrupt_judge_max_words`): a stop word carrying an
+        expletive, a stop in another language. A longer one is a request, and
+        so is anything the judge is off or too slow to read."""
+        read = read_barge_in(
+            command, self._stop_words, self._hush_words, self._polite_words
+        )
+        if read is not None:
+            return read
         if not self._config.interrupt_judge_enabled:
+            return "ask"
+        if count_words(command) > (self._config.interrupt_judge_max_words or 0):
             return "ask"
         # lazy: heavy transitive (pydantic_ai) via zrb.llm.dictation.interrupt_judge
         from zrb.llm.dictation.interrupt_judge import judge_barge_in
@@ -651,7 +674,7 @@ class DictationSession:
                 self._confirm_barge_in()
             return
         if not self._config.is_barge_in_hold_enabled:
-            if is_said_alone(partial, self._stop_words):
+            if is_said_alone(partial, self._stop_words, self._polite_words):
                 self._stop_speech()
 
     def _show_mic_state(self, state: MicState) -> None:
@@ -745,6 +768,14 @@ class DictationSession:
             # Close unfinished streams, which may hold a connection or decoder.
             if utterance.stream is not None and not is_finished:
                 await close_quietly(utterance.stream.close, "a transcription stream")
+
+
+async def _wait_for_turn_to_end(ui: "AnyUI") -> None:
+    """Wait, briefly, for a cancelled turn to finish, so the words that follow
+    start a turn rather than steering one that is already gone."""
+    deadline = asyncio.get_running_loop().time() + _TURN_END_WAIT_SECONDS
+    while ui.is_turn_running and asyncio.get_running_loop().time() < deadline:
+        await asyncio.sleep(0.05)
 
 
 def _quote(text: str) -> str:

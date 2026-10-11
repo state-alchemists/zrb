@@ -67,6 +67,8 @@ class DictationConfig:
     vosk_confidence: float | None = None
     barge_in_hold: bool | None = None
     interrupt_judge_timeout: float | None = None
+    interrupt_judge_max_words: int | None = None
+    hush_words: list[str] | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:

@@ -5,6 +5,7 @@ from zrb.llm.dictation.words import (
     count_words,
     is_answer,
     is_said_alone,
+    read_barge_in,
     is_transcriber_guess,
     split_phrases,
     strip_wake_word,
@@ -84,11 +85,57 @@ def test_to_answer_reads_the_polite_words_from_cfg_when_called(monkeypatch):
 def test_is_said_alone_needs_one_of_the_phrases():
     stop = split_phrases(["stop", "hold on"])
     assert is_said_alone("Hold on.", stop)
-    # A polite word carries a yes or a no, not a stop: "please" is not a stop
-    # word, so this is a message for the model, which reads it as one.
-    assert not is_said_alone("Hold on, please.", stop)
     assert not is_said_alone("no", stop)
     assert not is_said_alone("please", stop)
+
+
+@pytest.mark.parametrize(
+    "said",
+    [
+        "Hold on, please.",
+        "stop please",
+        "wait wait",
+        "hold on hold on",
+        "uh, hey, stop",
+    ],
+)
+def test_is_said_alone_sets_aside_polite_words_fillers_and_repeats(said):
+    stop = split_phrases(["stop", "wait", "hold on"])
+    assert is_said_alone(said, stop, ["please"])
+
+
+def test_is_said_alone_does_not_read_a_stop_with_words_after_it():
+    assert not is_said_alone("stop the tests", split_phrases(["stop"]), ["please"])
+
+
+STOP = split_phrases(["stop", "wait", "hold on", "wait a moment"])
+HUSH = split_phrases(["okay", "got it", "i got it", "that's enough"])
+
+
+@pytest.mark.parametrize(
+    "said, read",
+    [
+        ("Stop!", "stop"),
+        ("wait wait", "stop"),
+        ("stop please", "stop"),
+        ("wait a moment", "stop"),
+        ("Okay.", "hush"),
+        ("okay okay", "hush"),
+        ("I got it, thanks", "hush"),
+        ("hold on, use postgres instead", "redirect"),
+        ("stop the tests and run the linter", "redirect"),
+        ("what time is it", None),
+        ("okay but use postgres", None),
+        ("berhenti", None),
+        ("", None),
+    ],
+)
+def test_read_barge_in(said, read):
+    assert read_barge_in(said, STOP, HUSH, ["please", "thanks"]) == read
+
+
+def test_a_stop_outranks_a_hush_when_a_phrase_is_in_both_lists():
+    assert read_barge_in("enough", split_phrases(["enough"]), HUSH) == "stop"
 
 
 @pytest.mark.parametrize(

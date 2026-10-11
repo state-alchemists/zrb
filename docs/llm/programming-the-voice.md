@@ -181,6 +181,7 @@ enable_dictation(
         stt_model="medium-streaming",
         wake_words=["hi", "hai", "hey", "hei", "嗨"],
         stop_words=["stop", "wait", "hold on", "cancel"],
+        hush_words=["okay", "got it"],
         approve_words=["yes", "go ahead", "do it"],
         deny_words=["no", "cancel", "don't"],
         barge_in_enabled=True,

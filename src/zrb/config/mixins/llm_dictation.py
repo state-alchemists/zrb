@@ -67,8 +67,15 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_VOSK_MAX_FILES: str = "10000"
         self.DEFAULT_LLM_DICTATION_VOSK_CONFIDENCE: str = "0.0"
         self.DEFAULT_LLM_DICTATION_STOP_WORDS: str = (
-            "stop, wait, hold on, cancel, no, nope, deny, don't"
+            "stop, wait, hold on, cancel, halt, abort, stop it, stop talking, "
+            "shut up, quiet, wait a moment, wait a second, hold on a second, "
+            "one moment, never mind, forget it"
         )
+        self.DEFAULT_LLM_DICTATION_HUSH_WORDS: str = (
+            "okay, ok, alright, got it, i got it, understood, i see, enough, "
+            "that's enough"
+        )
+        self.DEFAULT_LLM_DICTATION_INTERRUPT_JUDGE_MAX_WORDS: str = "5"
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
         self.DEFAULT_LLM_DICTATION_DEVICE: str = ""
@@ -345,6 +352,18 @@ class LLMDictationMixin:
         ),
     )
 
+    LLM_DICTATION_INTERRUPT_JUDGE_MAX_WORDS = EnvField(
+        int,
+        fallback=5,
+        doc=(
+            "Most words said over zrb that the judge "
+            "({ENV_PREFIX}_LLM_DICTATION_INTERRUPT_JUDGE_MODEL) is asked "
+            "about, once the word lists could not read them. Longer is a "
+            "request and steers the turn without waiting on a model; a stop "
+            "in other words is short. Default: 5."
+        ),
+    )
+
     LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT = EnvField(
         float,
         fallback=2.0,
@@ -387,7 +406,27 @@ class LLMDictationMixin:
             "turn runs with "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED=on, stop "
             "zrb speaking and cancel the turn instead of reaching the "
-            "model. Default: stop, wait, hold on, cancel, no, nope, deny, don't."
+            "model. Said first and followed by more words ('hold on, use "
+            "postgres'), one cancels the turn and the words are sent as a new "
+            "message. A list of their own, so 'no' can deny an approval "
+            "without stopping anything. Default: stop, wait, hold on, cancel, "
+            "halt, abort, stop it, stop talking, shut up, quiet, wait a "
+            "moment, wait a second, hold on a second, one moment, never "
+            "mind, forget it."
+        ),
+    )
+
+    LLM_DICTATION_HUSH_WORDS = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated phrases that, said alone over zrb or while a "
+            "turn runs with "
+            "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED=on, only quiet "
+            "zrb's voice: the turn goes on and the words are sent nowhere "
+            "('okay', 'I got it'). A stop word outranks one in both lists. "
+            "Default: okay, ok, alright, got it, i got it, understood, "
+            "i see, enough, that's enough."
         ),
     )
 
@@ -396,8 +435,9 @@ class LLMDictationMixin:
         serialize=comma_join,
         doc=(
             "Comma-separated words a yes or a no may carry without changing "
-            "it, as in 'yes please' or 'no thanks'. Approvals only: a stop "
-            "word is taken as one only when it is said alone. "
+            "it, as in 'yes please' or 'no thanks'. Set aside, with fillers "
+            "('uh', 'hey') and a sentence said twice, before a stop or hush "
+            "word is matched, so 'stop please' and 'wait wait' are stops. "
             "Default: please, thanks, thank, you."
         ),
     )
