@@ -212,20 +212,28 @@ class PcmUtterance(Utterance):
         reader = threading.Thread(target=self._read_source, daemon=True)
         is_played = False
         try:
-            stream = sd.OutputStream(
-                samplerate=self._audio.sample_rate,
-                channels=1,
-                dtype="int16",
-                blocksize=self._block_frames,
-                callback=lambda out, frames, info, status: self._fill(
-                    np, sd, out, frames
-                ),
-                finished_callback=self._finished.set,
-            )
-            # Only once there is a stream to play into: a device that cannot
-            # open must not leave a download running.
-            reader.start()
-            self._play_stream(stream, timeout)
+            # Tracked from before the device opens until it is closed: a
+            # constructed `OutputStream` is already an open PortAudio stream,
+            # so the exit handler must see it from the moment it exists.
+            with _tracked_stream():
+                stream = sd.OutputStream(
+                    samplerate=self._audio.sample_rate,
+                    channels=1,
+                    dtype="int16",
+                    blocksize=self._block_frames,
+                    callback=lambda out, frames, info, status: self._fill(
+                        np, sd, out, frames
+                    ),
+                    finished_callback=self._finished.set,
+                )
+                try:
+                    # Only once there is a stream to play into: a device that
+                    # cannot open must not leave a download running.
+                    reader.start()
+                except BaseException:
+                    stream.close()
+                    raise
+                self._play_stream(stream, timeout)
             is_played = True
         finally:
             self._finished.set()
@@ -237,22 +245,21 @@ class PcmUtterance(Utterance):
                 reader.join(_READER_JOIN_SECONDS)
 
     def _play_stream(self, stream: Any, timeout: float | None) -> None:
-        with _tracked_stream():
+        try:
+            stream.start()
+        except BaseException:
+            stream.close()  # opened, never started: close it all the same
+            raise
+        try:
+            self._has_opened = True
+            self.report_started()
+            if not self._is_finished_in_time(timeout):
+                self.stop()
+        finally:
             try:
-                stream.start()
-            except BaseException:
-                stream.close()  # opened, never started: close it all the same
-                raise
-            try:
-                self._has_opened = True
-                self.report_started()
-                if not self._is_finished_in_time(timeout):
-                    self.stop()
+                stream.stop()
             finally:
-                try:
-                    stream.stop()
-                finally:
-                    stream.close()
+                stream.close()
 
     def _is_finished_in_time(self, timeout: float | None) -> bool:
         """Whether playback finished before *timeout* seconds of playing;
