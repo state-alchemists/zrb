@@ -15,7 +15,11 @@ from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.builtin import get_speech_backend
 from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.config import SpeechConfig
-from zrb.llm.speech.pcm_player import PcmUtterance
+from zrb.llm.speech.pcm_player import (
+    PcmUtterance,
+    guard_exit_handler,
+    wait_for_streams_to_close,
+)
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
@@ -28,6 +32,10 @@ _playing_count = 0
 _lock_files: dict[str, int] = {}
 _STALE_POLL_SECONDS = 0.1
 _PLAYERS = ("auto", "command")
+# How long closing or exiting waits for a stopped output stream to finish
+# closing: long enough for the device to let go, short enough that a wedged one
+# cannot keep the process from ending.
+_STREAM_CLOSE_WAIT_SECONDS = 2.0
 IsStale = Callable[[], bool] | None
 
 
@@ -117,6 +125,8 @@ class Speaker:
     ) -> None:
         if not self.is_enabled:
             return
+        if self._worker is None:
+            self._import_audio_before_exit_handler()
         with self._lock:
             if self._is_closed:
                 return
@@ -135,6 +145,16 @@ class Speaker:
                 self._player.start()
                 atexit.register(self._drain_at_exit)
             self._queue.put((item, is_stale, self._generation))
+
+    def _import_audio_before_exit_handler(self) -> None:
+        """Import sounddevice before `_drain_at_exit` is registered.
+
+        sounddevice terminates PortAudio from its own exit handler, and exit
+        handlers run last-registered first. Importing it later, when the first
+        sentence is prepared, would make it terminate PortAudio while speech is
+        still playing, before `_drain_at_exit` had stopped anything."""
+        if self._player_mode != "command" and is_in_process_available():
+            guard_exit_handler()
 
     def clear(self) -> None:
         """Drop queued and currently synthesized speech."""
@@ -308,7 +328,7 @@ class Speaker:
             self._is_device_unavailable = True
         if is_first:
             logger.warning(
-                f"Could not open the audio device to play speech in process "
+                f"Could not use the audio device to play speech in process "
                 f"({exc}); a player program plays it for the rest of the session"
             )
 
@@ -362,6 +382,10 @@ class Speaker:
         self._cut_off()
         # Do not wait for a worker still synthesizing or waiting for the lock.
         self._stop(join_timeout=0)
+        # But do wait for the stream playing to be let go of: a process ending
+        # now would otherwise stop it a second time from PortAudio's exit
+        # handler.
+        wait_for_streams_to_close(_STREAM_CLOSE_WAIT_SECONDS)
 
     def drain(self) -> None:
         """Drain queued speech for the configured timeout, then stop."""
@@ -379,6 +403,8 @@ class Speaker:
             self.drain()
         except KeyboardInterrupt:
             pass
+        finally:
+            wait_for_streams_to_close(_STREAM_CLOSE_WAIT_SECONDS)
 
     def _cut_off(self) -> None:
         with self._lock:

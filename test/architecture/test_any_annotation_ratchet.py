@@ -11,7 +11,7 @@ REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
 # Baseline history: -2 queue types, -1 dead `_admits`, -4 daemon-thread hooks.
-ANY_ANNOTATIONS = 1089
+ANY_ANNOTATIONS = 1088
 
 
 def _count_any(annotation: ast.expr | None) -> int:

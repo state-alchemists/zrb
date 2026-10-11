@@ -219,3 +219,28 @@ def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(lock_f
     assert let_go.wait(5)
     assert let_go_while_playing == [False]
     assert backend.closed
+
+
+def test_audio_is_imported_before_the_exit_handler_is_registered(
+    monkeypatch, lock_file
+):
+    """Exit handlers run last-registered first. sounddevice terminates
+    PortAudio from its own, so it has to be registered before the speaker's:
+    otherwise it runs first and stops a stream that is still playing."""
+    order: list[str] = []
+    monkeypatch.setattr(
+        "zrb.llm.speech.player.is_in_process_available",
+        lambda: order.append("import audio") or False,
+    )
+    monkeypatch.setattr(
+        "zrb.llm.speech.player.atexit.register", lambda fn: order.append("register")
+    )
+    monkeypatch.setattr("zrb.llm.speech.player.atexit.unregister", lambda fn: None)
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file, player="auto"))
+
+    speaker.say("hello")
+    backend.done.wait(2)
+    speaker.close()
+
+    assert order[:2] == ["import audio", "register"]

@@ -21,6 +21,7 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
+from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 
 # How long playback waits for the source reader to see it has ended.
 _READER_JOIN_SECONDS = 1.0
@@ -28,8 +29,62 @@ _BUFFER_POLL_SECONDS = 0.005
 # How often playback checks whether it is paused, to leave paused time out
 # of the timeout.
 _TIMEOUT_POLL_SECONDS = 0.02
+# How long stopping and closing an output stream may take. It takes
+# milliseconds; past this the operating system's audio service is wedged (a
+# CoreAudio deadlock between PortAudio's audio thread and the stopping one), and
+# the stream is given up on rather than left to hold the playing thread, the
+# speaker and the exit of the process.
+STREAM_STOP_TIMEOUT_SECONDS = 2.0
 
 logger = logging.getLogger(__name__)
+
+# Output streams between being created and being closed. PortAudio's own exit
+# handler stops every stream still open, and on macOS two threads stopping one
+# CoreAudio stream at once deadlock, so what ends a process waits on this first.
+_streams_changed = threading.Condition()
+_open_streams = 0
+
+
+class _Captured:
+    """Holds the exception raised inside a ``with`` block instead of raising
+    it there, so a thread can hand it to the one waiting on it."""
+
+    def __init__(self) -> None:
+        self.error: BaseException | None = None
+
+    def __enter__(self) -> "_Captured":
+        return self
+
+    def __exit__(self, exc_type: object, exc: BaseException | None, tb: object) -> bool:
+        self.error = exc
+        return exc is not None
+
+
+def _stream_opened() -> None:
+    global _open_streams
+    with _streams_changed:
+        _open_streams += 1
+
+
+def _stream_closed() -> None:
+    global _open_streams
+    with _streams_changed:
+        _open_streams -= 1
+        _streams_changed.notify_all()
+
+
+def has_open_streams() -> bool:
+    """Whether an output stream is still open: playing, or being stopped."""
+    with _streams_changed:
+        return _open_streams > 0
+
+
+def wait_for_streams_to_close(timeout: float) -> None:
+    """Wait up to *timeout* seconds for every output stream to be stopped and
+    closed; `has_open_streams` says whether any is left. Call it once playback
+    has been told to stop and before the process lets PortAudio terminate."""
+    with _streams_changed:
+        _streams_changed.wait_for(lambda: _open_streams == 0, timeout)
 
 
 @functools.cache
@@ -178,19 +233,32 @@ class PcmUtterance(Utterance):
         reader = threading.Thread(target=self._read_source, daemon=True)
         is_played = False
         try:
-            stream = sd.OutputStream(
-                samplerate=self._audio.sample_rate,
-                channels=1,
-                dtype="int16",
-                blocksize=self._block_frames,
-                callback=lambda out, frames, info, status: self._fill(
-                    np, sd, out, frames
-                ),
-                finished_callback=self._finished.set,
-            )
-            # Only once there is a stream to play into: a device that cannot
-            # open must not leave a download running.
-            reader.start()
+            # Counted as open from before it is built (a constructed
+            # `OutputStream` is already an open PortAudio stream, so the exit
+            # handler must see it from the moment it exists) until it has
+            # actually been closed, which `_stop_stream` says.
+            _stream_opened()
+            try:
+                stream = sd.OutputStream(
+                    samplerate=self._audio.sample_rate,
+                    channels=1,
+                    dtype="int16",
+                    blocksize=self._block_frames,
+                    callback=lambda out, frames, info, status: self._fill(
+                        np, out, frames
+                    ),
+                    finished_callback=self._finished.set,
+                )
+            except BaseException:
+                _stream_closed()
+                raise
+            try:
+                # Only once there is a stream to play into: a device that
+                # cannot open must not leave a download running.
+                reader.start()
+            except BaseException:
+                self._close_unplayed(stream.close)
+                raise
             self._play_stream(stream, timeout)
             is_played = True
         finally:
@@ -202,11 +270,18 @@ class PcmUtterance(Utterance):
             if reader.is_alive():
                 reader.join(_READER_JOIN_SECONDS)
 
+    def _close_unplayed(self, close: Callable[[], object]) -> None:
+        """Close a stream that was opened and never played."""
+        try:
+            close()
+        finally:
+            _stream_closed()
+
     def _play_stream(self, stream: Any, timeout: float | None) -> None:
         try:
             stream.start()
         except BaseException:
-            stream.close()  # opened, never started: close it all the same
+            self._close_unplayed(stream.close)  # never started: close it all the same
             raise
         try:
             self._has_opened = True
@@ -214,10 +289,58 @@ class PcmUtterance(Utterance):
             if not self._is_finished_in_time(timeout):
                 self.stop()
         finally:
+            self._stop_stream(stream.stop, stream.close)
+
+    def _stop_stream(
+        self, stop: Callable[[], object], close: Callable[[], object]
+    ) -> None:
+        """Stop and close a stream, through *stop* and *close*, on a thread of
+        its own, and give up on it if that does not finish in time.
+
+        On macOS, stopping a stream can deadlock inside CoreAudio: the audio
+        thread, in PortAudio's start-stop callback, and the stopping thread
+        each wait for a lock the other holds. Nothing can be done about that
+        from here, so it must not be allowed to freeze the thread that plays
+        speech, which every later sentence waits on."""
+        done = threading.Event()
+        captured = _Captured()
+
+        def run() -> None:
             try:
-                stream.stop()
+                with captured:
+                    try:
+                        stop()
+                    finally:
+                        close()
             finally:
-                stream.close()
+                # Only now is the stream closed. Abandoned by the wait below,
+                # it stays counted until this thread is done with it, so
+                # nothing at exit takes it for gone.
+                _stream_closed()
+                done.set()
+
+        threading.Thread(target=run, name="zrb-speech-stop", daemon=True).start()
+        if not done.wait(STREAM_STOP_TIMEOUT_SECONDS):
+            self._abandon_stream()
+        elif captured.error is not None:
+            raise captured.error
+
+    def _abandon_stream(self) -> None:
+        """Stop waiting for a stream that will not stop, and say so.
+
+        What was being said is not lost by this: the stream is only stopped once
+        its audio has played to the end, or on purpose (`stop`, a timeout), so
+        handing the sentence to a player program as well would say it twice.
+        Later sentences go to the program, once the device is reported unusable."""
+        error = TimeoutError(
+            f"stopping the output stream took over {STREAM_STOP_TIMEOUT_SECONDS} "
+            "seconds; the audio service is stuck"
+        )
+        guard_exit_handler()
+        if self._on_device_error is not None:
+            self._on_device_error(error)
+        else:
+            logger.warning(f"Giving up on the speech stream: {error}")
 
     def _is_finished_in_time(self, timeout: float | None) -> bool:
         """Whether playback finished before *timeout* seconds of playing;
@@ -269,12 +392,20 @@ class PcmUtterance(Utterance):
     def _is_done(self) -> bool:
         return self.is_stopped or self._is_abandoned
 
-    def _fill(self, np: Any, sd: Any, out: Any, frames: int) -> None:
+    def _fill(self, np: Any, out: Any, frames: int) -> None:
         """The stream's callback: the next *frames* samples, or silence
-        while paused or waiting for the download."""
+        while paused, waiting for the download, or finished.
+
+        It never raises `sd.CallbackStop`. PortAudio answers that by stopping
+        the stream from its own audio thread, while the thread playing the
+        utterance stops the same stream once `_finished` is set; two threads
+        stopping one CoreAudio stream deadlock. Only the playing thread stops
+        the stream, so the callback only says it is done, by setting
+        `_finished`."""
         if self.is_stopped:
             out.fill(0)
-            raise sd.CallbackStop
+            self._finished.set()
+            return
         if self._is_paused:
             out.fill(0)
             return
@@ -288,7 +419,17 @@ class PcmUtterance(Utterance):
         if len(samples):
             self._has_played_audio = True
         if not samples.size and self._is_source_done and not self._buffer:
-            raise sd.CallbackStop
+            self._finished.set()
+
+
+def guard_exit_handler() -> None:
+    """Keep sounddevice's exit handler from holding the process; see
+    `guard_portaudio_exit`."""
+    try:
+        _, sd = _import_audio()
+    except (ImportError, OSError):
+        return
+    guard_portaudio_exit(sd)
 
 
 def _import_audio() -> tuple[Any, Any]:
