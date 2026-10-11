@@ -222,7 +222,7 @@ class PcmUtterance(Utterance):
                     dtype="int16",
                     blocksize=self._block_frames,
                     callback=lambda out, frames, info, status: self._fill(
-                        np, sd, out, frames
+                        np, out, frames
                     ),
                     finished_callback=self._finished.set,
                 )
@@ -311,12 +311,20 @@ class PcmUtterance(Utterance):
     def _is_done(self) -> bool:
         return self.is_stopped or self._is_abandoned
 
-    def _fill(self, np: Any, sd: Any, out: Any, frames: int) -> None:
+    def _fill(self, np: Any, out: Any, frames: int) -> None:
         """The stream's callback: the next *frames* samples, or silence
-        while paused or waiting for the download."""
+        while paused, waiting for the download, or finished.
+
+        It never raises `sd.CallbackStop`. PortAudio answers that by stopping
+        the stream from its own audio thread, while the thread playing the
+        utterance stops the same stream once `_finished` is set; two threads
+        stopping one CoreAudio stream deadlock. Only the playing thread stops
+        the stream, so the callback only says it is done, by setting
+        `_finished`."""
         if self.is_stopped:
             out.fill(0)
-            raise sd.CallbackStop
+            self._finished.set()
+            return
         if self._is_paused:
             out.fill(0)
             return
@@ -330,7 +338,7 @@ class PcmUtterance(Utterance):
         if len(samples):
             self._has_played_audio = True
         if not samples.size and self._is_source_done and not self._buffer:
-            raise sd.CallbackStop
+            self._finished.set()
 
 
 def _import_audio() -> tuple[Any, Any]:
