@@ -11,6 +11,7 @@ import pytest
 
 from zrb.llm.speech import pcm_player
 from zrb.llm.speech.backend.audio import SpeechAudio
+from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.pcm_player import PcmUtterance
 
 from .test_pcm_player import CallbackStop, FakeOutputStream
@@ -156,12 +157,24 @@ def test_the_callback_does_not_stop_the_stream_when_it_is_stopped(sd):
     assert StrictStream.raised == []
 
 
-def test_a_stream_that_will_not_stop_is_given_up_on_not_waited_for_forever(
+class ProgramUtterance(Utterance):
+    """A player program standing in for the fallback."""
+
+    def __init__(self, events):
+        super().__init__([])
+        self.events = events
+
+    def play(self, timeout):
+        self.events.append("played")
+
+
+def test_a_stream_that_will_not_stop_is_given_up_on_but_stays_counted_until_it_does(
     sd, monkeypatch
 ):
     """CoreAudio can deadlock a stop for good. The playing thread must come
     back, and the device be reported as unusable so a player program takes
-    over."""
+    over; but PortAudio still owns the stream, so the exit handler must not take
+    it for closed until its stop really has finished."""
     SlowStopStream.release = threading.Event()
     SlowStopStream.stopping = threading.Event()
     sd.OutputStream = SlowStopStream
@@ -172,15 +185,41 @@ def test_a_stream_that_will_not_stop_is_given_up_on_not_waited_for_forever(
     )
 
     started = time.monotonic()
-    try:
-        utterance.play(timeout=5)
-        elapsed = time.monotonic() - started
-    finally:
-        SlowStopStream.release.set()
+    utterance.play(timeout=5)
+    elapsed = time.monotonic() - started
+    open_while_stuck = pcm_player.has_open_streams()
+    SlowStopStream.release.set()
+    pcm_player.wait_for_streams_to_close(2)
 
     assert elapsed < 2
     assert [type(error) for error in device_errors] == [TimeoutError]
+    assert open_while_stuck
     assert not pcm_player.has_open_streams()
+
+
+def test_a_stop_timeout_does_not_say_the_sentence_again_through_the_fallback(
+    sd, monkeypatch
+):
+    """The stream is stopped only once its audio has played, or on purpose, so
+    nothing was lost; the player program is for what is said after."""
+    SlowStopStream.release = threading.Event()
+    SlowStopStream.stopping = threading.Event()
+    sd.OutputStream = SlowStopStream
+    monkeypatch.setattr(pcm_player, "STREAM_STOP_TIMEOUT_SECONDS", 0.05)
+    events: list[str] = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1] * 256)]),
+        fallback=lambda: ProgramUtterance(events),
+        on_device_error=lambda error: None,
+    )
+
+    try:
+        utterance.play(timeout=5)
+    finally:
+        SlowStopStream.release.set()
+        pcm_player.wait_for_streams_to_close(2)
+
+    assert events == []
 
 
 def test_a_stream_that_stops_normally_is_not_reported(sd):

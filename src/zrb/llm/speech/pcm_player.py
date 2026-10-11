@@ -15,8 +15,7 @@ import logging
 import threading
 import time
 from collections import deque
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from typing import Any
 
 from zrb.config.config import CFG
@@ -61,17 +60,17 @@ class _Captured:
         return exc is not None
 
 
-@contextmanager
-def _tracked_stream() -> Iterator[None]:
+def _stream_opened() -> None:
     global _open_streams
     with _streams_changed:
         _open_streams += 1
-    try:
-        yield
-    finally:
-        with _streams_changed:
-            _open_streams -= 1
-            _streams_changed.notify_all()
+
+
+def _stream_closed() -> None:
+    global _open_streams
+    with _streams_changed:
+        _open_streams -= 1
+        _streams_changed.notify_all()
 
 
 def has_open_streams() -> bool:
@@ -234,10 +233,12 @@ class PcmUtterance(Utterance):
         reader = threading.Thread(target=self._read_source, daemon=True)
         is_played = False
         try:
-            # Tracked from before the device opens until it is closed: a
-            # constructed `OutputStream` is already an open PortAudio stream,
-            # so the exit handler must see it from the moment it exists.
-            with _tracked_stream():
+            # Counted as open from before it is built (a constructed
+            # `OutputStream` is already an open PortAudio stream, so the exit
+            # handler must see it from the moment it exists) until it has
+            # actually been closed, which `_stop_stream` says.
+            _stream_opened()
+            try:
                 stream = sd.OutputStream(
                     samplerate=self._audio.sample_rate,
                     channels=1,
@@ -248,14 +249,17 @@ class PcmUtterance(Utterance):
                     ),
                     finished_callback=self._finished.set,
                 )
-                try:
-                    # Only once there is a stream to play into: a device that
-                    # cannot open must not leave a download running.
-                    reader.start()
-                except BaseException:
-                    stream.close()
-                    raise
-                self._play_stream(stream, timeout)
+            except BaseException:
+                _stream_closed()
+                raise
+            try:
+                # Only once there is a stream to play into: a device that
+                # cannot open must not leave a download running.
+                reader.start()
+            except BaseException:
+                self._close_unplayed(stream.close)
+                raise
+            self._play_stream(stream, timeout)
             is_played = True
         finally:
             self._finished.set()
@@ -266,11 +270,18 @@ class PcmUtterance(Utterance):
             if reader.is_alive():
                 reader.join(_READER_JOIN_SECONDS)
 
+    def _close_unplayed(self, close: Callable[[], object]) -> None:
+        """Close a stream that was opened and never played."""
+        try:
+            close()
+        finally:
+            _stream_closed()
+
     def _play_stream(self, stream: Any, timeout: float | None) -> None:
         try:
             stream.start()
         except BaseException:
-            stream.close()  # opened, never started: close it all the same
+            self._close_unplayed(stream.close)  # never started: close it all the same
             raise
         try:
             self._has_opened = True
@@ -295,12 +306,18 @@ class PcmUtterance(Utterance):
         captured = _Captured()
 
         def run() -> None:
-            with captured:
-                try:
-                    stop()
-                finally:
-                    close()
-            done.set()
+            try:
+                with captured:
+                    try:
+                        stop()
+                    finally:
+                        close()
+            finally:
+                # Only now is the stream closed. Abandoned by the wait below,
+                # it stays counted until this thread is done with it, so
+                # nothing at exit takes it for gone.
+                _stream_closed()
+                done.set()
 
         threading.Thread(target=run, name="zrb-speech-stop", daemon=True).start()
         if not done.wait(STREAM_STOP_TIMEOUT_SECONDS):
@@ -309,6 +326,12 @@ class PcmUtterance(Utterance):
             raise captured.error
 
     def _abandon_stream(self) -> None:
+        """Stop waiting for a stream that will not stop, and say so.
+
+        What was being said is not lost by this: the stream is only stopped once
+        its audio has played to the end, or on purpose (`stop`, a timeout), so
+        handing the sentence to a player program as well would say it twice.
+        Later sentences go to the program, once the device is reported unusable."""
         error = TimeoutError(
             f"stopping the output stream took over {STREAM_STOP_TIMEOUT_SECONDS} "
             "seconds; the audio service is stuck"
