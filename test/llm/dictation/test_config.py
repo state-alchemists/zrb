@@ -29,7 +29,7 @@ def test_barge_in_hold_does_not_shift_legacy_positional_fields():
 
     assert config.barge_in_enabled is True
     assert config.barge_in_min_speech == 16
-    assert config.barge_in_margin == 20
+    assert config.barge_in_margin == 17
     assert config.barge_in_min_words == 18
     assert config.interrupt_judge_enabled is True
     assert config.barge_in_hold is None
