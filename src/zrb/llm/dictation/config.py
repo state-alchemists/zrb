@@ -19,6 +19,9 @@ class DictationConfig:
     ``multimodal``), a speech service registered with ``stt_manager``
     (``whisper``, ``moonshine``, ``funasr``), or is an `AnyDictationBackend` of
     your own. *stt_model* picks the model of whichever service is named.
+
+    New fields go at the end: a caller may pass them positionally, and a field
+    inserted earlier would shift every argument after it.
     """
 
     mode: str | None = None
@@ -42,7 +45,6 @@ class DictationConfig:
     barge_in_min_words: int | None = None
     interrupt_judge_enabled: bool | None = None
     interrupt_judge_model: str | None = None
-    interrupt_judge_timeout: float | None = None
     approve_words: list[str] | None = None
     deny_words: list[str] | None = None
     stop_words: list[str] | None = None
@@ -64,6 +66,7 @@ class DictationConfig:
     vosk_max_files: float | None = None
     vosk_confidence: float | None = None
     barge_in_hold: bool | None = None
+    interrupt_judge_timeout: float | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:
