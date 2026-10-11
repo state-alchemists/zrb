@@ -18,9 +18,11 @@ from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.pcm_player import (
     PcmUtterance,
     guard_exit_handler,
-    wait_for_streams_to_close,
 )
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
+from zrb.llm.speech.pcm_player import (
+    wait_for_streams_to_close,
+)
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 logger = logging.getLogger(__name__)

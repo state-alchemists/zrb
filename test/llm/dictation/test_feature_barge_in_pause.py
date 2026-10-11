@@ -13,13 +13,14 @@ from zrb.llm.dictation.interrupt_judge import BargeInVerdict
 from zrb.llm.dictation.listen import Utterance
 from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
-
-from .barge_in_support import (  # noqa: F401  (fixtures)
+from .barge_in_support import (
     FakeUI,
     judge,
-    listen_over_zrb as _listen,
-    replies_of as _replies,
-    make_session as _session,
+)
+from .barge_in_support import listen_over_zrb as _listen  # noqa: F401  (fixtures)
+from .barge_in_support import make_session as _session
+from .barge_in_support import replies_of as _replies
+from .barge_in_support import (
     speech,
 )
 
