@@ -21,6 +21,7 @@ from zrb.config.config import CFG
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
+from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 from zrb.llm.util.teardown import close_quietly
 
 if TYPE_CHECKING:
@@ -716,6 +717,7 @@ def import_audio() -> tuple[Any, Any]:
         raise RuntimeError(
             f"Dictation needs the zrb[voice] extra ({e}): pip install 'zrb[voice]'"
         ) from e
+    guard_portaudio_exit(sd)
     return np, sd
 
 

@@ -22,6 +22,7 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
+from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 
 # How long playback waits for the source reader to see it has ended.
 _READER_JOIN_SECONDS = 1.0
@@ -29,6 +30,12 @@ _BUFFER_POLL_SECONDS = 0.005
 # How often playback checks whether it is paused, to leave paused time out
 # of the timeout.
 _TIMEOUT_POLL_SECONDS = 0.02
+# How long stopping and closing an output stream may take. It takes
+# milliseconds; past this the operating system's audio service is wedged (a
+# CoreAudio deadlock between PortAudio's audio thread and the stopping one), and
+# the stream is given up on rather than left to hold the playing thread, the
+# speaker and the exit of the process.
+STREAM_STOP_TIMEOUT_SECONDS = 2.0
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +44,21 @@ logger = logging.getLogger(__name__)
 # CoreAudio stream at once deadlock, so what ends a process waits on this first.
 _streams_changed = threading.Condition()
 _open_streams = 0
+
+
+class _Captured:
+    """Holds the exception raised inside a ``with`` block instead of raising
+    it there, so a thread can hand it to the one waiting on it."""
+
+    def __init__(self) -> None:
+        self.error: BaseException | None = None
+
+    def __enter__(self) -> "_Captured":
+        return self
+
+    def __exit__(self, exc_type: object, exc: BaseException | None, tb: object) -> bool:
+        self.error = exc
+        return exc is not None
 
 
 @contextmanager
@@ -256,10 +278,46 @@ class PcmUtterance(Utterance):
             if not self._is_finished_in_time(timeout):
                 self.stop()
         finally:
-            try:
-                stream.stop()
-            finally:
-                stream.close()
+            self._stop_stream(stream.stop, stream.close)
+
+    def _stop_stream(
+        self, stop: Callable[[], object], close: Callable[[], object]
+    ) -> None:
+        """Stop and close a stream, through *stop* and *close*, on a thread of
+        its own, and give up on it if that does not finish in time.
+
+        On macOS, stopping a stream can deadlock inside CoreAudio: the audio
+        thread, in PortAudio's start-stop callback, and the stopping thread
+        each wait for a lock the other holds. Nothing can be done about that
+        from here, so it must not be allowed to freeze the thread that plays
+        speech, which every later sentence waits on."""
+        done = threading.Event()
+        captured = _Captured()
+
+        def run() -> None:
+            with captured:
+                try:
+                    stop()
+                finally:
+                    close()
+            done.set()
+
+        threading.Thread(target=run, name="zrb-speech-stop", daemon=True).start()
+        if not done.wait(STREAM_STOP_TIMEOUT_SECONDS):
+            self._abandon_stream()
+        elif captured.error is not None:
+            raise captured.error
+
+    def _abandon_stream(self) -> None:
+        error = TimeoutError(
+            f"stopping the output stream took over {STREAM_STOP_TIMEOUT_SECONDS} "
+            "seconds; the audio service is stuck"
+        )
+        guard_exit_handler()
+        if self._on_device_error is not None:
+            self._on_device_error(error)
+        else:
+            logger.warning(f"Giving up on the speech stream: {error}")
 
     def _is_finished_in_time(self, timeout: float | None) -> bool:
         """Whether playback finished before *timeout* seconds of playing;
@@ -339,6 +397,16 @@ class PcmUtterance(Utterance):
             self._has_played_audio = True
         if not samples.size and self._is_source_done and not self._buffer:
             self._finished.set()
+
+
+def guard_exit_handler() -> None:
+    """Keep sounddevice's exit handler from holding the process; see
+    `guard_portaudio_exit`."""
+    try:
+        _, sd = _import_audio()
+    except (ImportError, OSError):
+        return
+    guard_portaudio_exit(sd)
 
 
 def _import_audio() -> tuple[Any, Any]:

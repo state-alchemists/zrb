@@ -15,7 +15,11 @@ from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.builtin import get_speech_backend
 from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.config import SpeechConfig
-from zrb.llm.speech.pcm_player import PcmUtterance, wait_for_streams_to_close
+from zrb.llm.speech.pcm_player import (
+    PcmUtterance,
+    guard_exit_handler,
+    wait_for_streams_to_close,
+)
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
@@ -149,8 +153,8 @@ class Speaker:
         handlers run last-registered first. Importing it later, when the first
         sentence is prepared, would make it terminate PortAudio while speech is
         still playing, before `_drain_at_exit` had stopped anything."""
-        if self._player_mode != "command":
-            is_in_process_available()
+        if self._player_mode != "command" and is_in_process_available():
+            guard_exit_handler()
 
     def clear(self) -> None:
         """Drop queued and currently synthesized speech."""
@@ -324,7 +328,7 @@ class Speaker:
             self._is_device_unavailable = True
         if is_first:
             logger.warning(
-                f"Could not open the audio device to play speech in process "
+                f"Could not use the audio device to play speech in process "
                 f"({exc}); a player program plays it for the rest of the session"
             )
 

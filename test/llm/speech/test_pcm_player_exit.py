@@ -154,3 +154,41 @@ def test_the_callback_does_not_stop_the_stream_when_it_is_stopped(sd):
     _play_on_strict_stream(sd, utterance, stop_after=0.05)
 
     assert StrictStream.raised == []
+
+
+def test_a_stream_that_will_not_stop_is_given_up_on_not_waited_for_forever(
+    sd, monkeypatch
+):
+    """CoreAudio can deadlock a stop for good. The playing thread must come
+    back, and the device be reported as unusable so a player program takes
+    over."""
+    SlowStopStream.release = threading.Event()
+    SlowStopStream.stopping = threading.Event()
+    sd.OutputStream = SlowStopStream
+    monkeypatch.setattr(pcm_player, "STREAM_STOP_TIMEOUT_SECONDS", 0.05)
+    device_errors: list[Exception] = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1] * 256)]), on_device_error=device_errors.append
+    )
+
+    started = time.monotonic()
+    try:
+        utterance.play(timeout=5)
+        elapsed = time.monotonic() - started
+    finally:
+        SlowStopStream.release.set()
+
+    assert elapsed < 2
+    assert [type(error) for error in device_errors] == [TimeoutError]
+    assert not pcm_player.has_open_streams()
+
+
+def test_a_stream_that_stops_normally_is_not_reported(sd):
+    device_errors: list[Exception] = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1] * 256)]), on_device_error=device_errors.append
+    )
+
+    utterance.play(timeout=5)
+
+    assert device_errors == []
