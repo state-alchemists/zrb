@@ -34,7 +34,21 @@ async def test_run_on_hosts_reports_timeout_as_failure():
 async def test_probe_script_checks_a_closed_port_locally():
     targets = [Target("closed", host="127.0.0.1", port=1)]
     (result,) = await run_on_hosts([Host("l")], create_probe_script(targets))
-    assert parse_probe_output(result.output, 1) == ["fail"]
+    assert parse_probe_output(result.output, 1) == ["refused"]
+
+
+@pytest.mark.asyncio
+async def test_probe_script_names_an_unresolvable_host_dns():
+    targets = [Target("nowhere", host="no-such-host.invalid", port=80)]
+    (result,) = await run_on_hosts([Host("l")], create_probe_script(targets))
+    assert parse_probe_output(result.output, 1) == ["dns"]
+
+
+@pytest.mark.asyncio
+async def test_probe_script_names_a_closed_http_port_refused():
+    targets = [Target("web", host="127.0.0.1", port=1, kind="http")]
+    (result,) = await run_on_hosts([Host("l")], create_probe_script(targets))
+    assert parse_probe_output(result.output, 1) == ["refused"]
 
 
 def test_parse_probe_output_marks_missing_targets_as_error():
@@ -64,7 +78,7 @@ async def test_output_is_bounded_to_the_trailing_lines():
 @pytest.mark.skipif(
     sys.platform != "linux", reason="needs Linux's full-backlog SYN drop"
 )
-async def test_probe_of_a_stalled_connect_fails_within_the_probe_limit():
+async def test_probe_of_a_stalled_connect_times_out_within_the_probe_limit():
     server = socket.socket()
     server.bind(("127.0.0.1", 0))
     server.listen(0)
@@ -82,7 +96,7 @@ async def test_probe_of_a_stalled_connect_fails_within_the_probe_limit():
     finally:
         for sock in [server, *fillers]:
             sock.close()
-    assert parse_probe_output(result.output, 1) == ["fail"]
+    assert parse_probe_output(result.output, 1) == ["timeout"]
     assert 4 < time.monotonic() - start < 15
 
 

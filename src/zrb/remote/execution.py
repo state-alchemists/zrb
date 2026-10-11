@@ -13,25 +13,52 @@ MAX_OUTPUT_LINE = 1000
 
 # Runs under plain `sh`, so a target host needs no bash, python or any one tool:
 # TCP uses bash's /dev/tcp, else nc; HTTP uses curl. A missing tool is `n/a`.
+# A failure is named by what the tool said: `refused` (host answered, nothing
+# listens), `timeout` (no answer, usually a firewall), `dns` (name did not
+# resolve), else plain `fail`.
 _PROBE_FUNCTIONS = r"""
+classify_failure() {
+  case "$1" in
+    *[Rr]efused*) echo refused ;;
+    *"timed out"*|*[Tt]imeout*) echo timeout ;;
+    *"not known"*|*"name resolution"*|*"Unknown host"*|*"nodename nor servname"*|*"Could not resolve"*) echo dns ;;
+    *) echo fail ;;
+  esac
+}
 probe_tcp() {
+  err=$(mktemp 2>/dev/null) || err=/tmp/probe.$$
   if command -v bash >/dev/null 2>&1; then
-    bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" >/dev/null 2>&1 &
+    bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" >/dev/null 2>"$err" &
     pid=$!
     (sleep 5; kill $pid) >/dev/null 2>&1 &
     killer=$!
-    if wait $pid; then echo ok; else echo fail; fi
+    wait $pid
+    rc=$?
     kill $killer >/dev/null 2>&1
+    if [ $rc -eq 0 ]; then echo ok
+    elif [ $rc -gt 128 ]; then echo timeout
+    else classify_failure "$(cat "$err")"; fi
   elif command -v nc >/dev/null 2>&1; then
-    nc -z -w 5 "$1" "$2" >/dev/null 2>&1 && echo ok || echo fail
+    if nc -vz -w 5 "$1" "$2" >"$err" 2>&1; then echo ok
+    else classify_failure "$(cat "$err")"; fi
   else
     echo n/a
   fi
+  rm -f "$err"
 }
 probe_http() {
   if command -v curl >/dev/null 2>&1; then
-    code=$(curl -s -o /dev/null -m 5 -w '%{http_code}' "$1" 2>/dev/null)
-    if [ -z "$code" ] || [ "$code" = 000 ]; then echo fail; else echo "$code"; fi
+    err=$(mktemp 2>/dev/null) || err=/tmp/probe.$$
+    code=$(curl -sS -o /dev/null -m 5 -w '%{http_code}' "$1" 2>"$err")
+    rc=$?
+    if [ -n "$code" ] && [ "$code" != 000 ]; then echo "$code"
+    elif [ $rc -eq 28 ]; then echo timeout
+    elif [ $rc -eq 6 ]; then echo dns
+    elif [ $rc -eq 7 ]; then
+      # Newer curl words a refusal "Couldn't connect to server".
+      case "$(cat "$err")" in *nreachable*|*"No route"*) echo fail ;; *) echo refused ;; esac
+    else classify_failure "$(cat "$err")"; fi
+    rm -f "$err"
   else
     echo n/a
   fi
@@ -107,7 +134,10 @@ async def _run_on_host(
 
 
 def create_probe_script(targets: Sequence[Target]) -> str:
-    """Script printing `<index> <status>` per target; status is ok, an HTTP code, fail or n/a."""
+    """Script printing `<index> <status>` per target.
+
+    Status is `ok`, an HTTP code, `refused`, `timeout`, `dns`, `fail` or `n/a`.
+    """
     lines = [_PROBE_FUNCTIONS]
     for i, target in enumerate(targets):
         if target.kind == "http":

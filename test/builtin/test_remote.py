@@ -59,7 +59,7 @@ async def test_remote_check_builds_host_by_target_matrix():
     res = await remote_check.async_run(
         session=get_session(), kwargs=_kwargs(target_labels="t")
     )
-    assert res.splitlines()[-1] == "| node1 | ❌ fail |"
+    assert res.splitlines()[-1] == "| node1 | ❌ refused |"
 
 
 @pytest.mark.asyncio
@@ -106,4 +106,4 @@ async def test_json_format_returns_raw_statuses():
     check = await remote_check.async_run(
         session=get_session(), kwargs=_kwargs(target_labels="t", format="json")
     )
-    assert json.loads(check) == [{"host": "node1", "targets": {"closed": "fail"}}]
+    assert json.loads(check) == [{"host": "node1", "targets": {"closed": "refused"}}]
