@@ -16,7 +16,12 @@ MAX_OUTPUT_LINE = 1000
 # A failure is named by what the tool said: `refused` (host answered, nothing
 # listens), `timeout` (no answer, usually a firewall), `dns` (name did not
 # resolve), else plain `fail`.
+# One scratch file holds every probe's stderr; a trap removes it when the script
+# ends or is terminated by the host timeout, so repeated checks leave nothing.
 _PROBE_FUNCTIONS = r"""
+PROBE_ERR=$(mktemp 2>/dev/null) || PROBE_ERR=/tmp/probe.$$
+trap 'rm -f "$PROBE_ERR"' EXIT
+trap 'rm -f "$PROBE_ERR"; exit 1' HUP INT TERM
 classify_failure() {
   case "$1" in
     *[Rr]efused*) echo refused ;;
@@ -26,7 +31,8 @@ classify_failure() {
   esac
 }
 probe_tcp() {
-  err=$(mktemp 2>/dev/null) || err=/tmp/probe.$$
+  err=$PROBE_ERR
+  : >"$err"
   if command -v bash >/dev/null 2>&1; then
     bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" >/dev/null 2>"$err" &
     pid=$!
@@ -44,11 +50,11 @@ probe_tcp() {
   else
     echo n/a
   fi
-  rm -f "$err"
 }
 probe_http() {
   if command -v curl >/dev/null 2>&1; then
-    err=$(mktemp 2>/dev/null) || err=/tmp/probe.$$
+    err=$PROBE_ERR
+  : >"$err"
     code=$(curl -sS -o /dev/null -m 5 -w '%{http_code}' "$1" 2>"$err")
     rc=$?
     if [ -n "$code" ] && [ "$code" != 000 ]; then echo "$code"
@@ -58,7 +64,6 @@ probe_http() {
       # Newer curl words a refusal "Couldn't connect to server".
       case "$(cat "$err")" in *nreachable*|*"No route"*) echo fail ;; *) echo refused ;; esac
     else classify_failure "$(cat "$err")"; fi
-    rm -f "$err"
   else
     echo n/a
   fi

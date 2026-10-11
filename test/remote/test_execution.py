@@ -51,6 +51,34 @@ async def test_probe_script_names_a_closed_http_port_refused():
     assert parse_probe_output(result.output, 1) == ["refused"]
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "message, status",
+    [
+        ("bash: h: Name or service not known", "dns"),
+        ("bash: h: nodename nor servname provided, or not known", "dns"),
+        ("nc: getaddrinfo: Temporary failure in name resolution", "dns"),
+        ("curl: (6) Could not resolve host: h", "dns"),
+        ("nc: connect to h port 1 (tcp) failed: Connection refused", "refused"),
+        ("nc: connect to h port 1 (tcp) timed out", "timeout"),
+        ("something unexpected", "fail"),
+    ],
+)
+async def test_probe_classifies_tool_messages(message, status):
+    script = create_probe_script([Target("t", host="h", port=1)])
+    script = script.split('echo "0')[0] + f'classify_failure "{message}"'
+    (result,) = await run_on_hosts([Host("l")], script, posix_only=True)
+    assert result.output == status
+
+
+@pytest.mark.asyncio
+async def test_probe_removes_its_scratch_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    script = create_probe_script([Target("closed", host="127.0.0.1", port=1)])
+    await run_on_hosts([Host("l")], script)
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_parse_probe_output_marks_missing_targets_as_error():
     assert parse_probe_output("0 ok\r\n2 200\njunk", 3) == ["ok", "error", "200"]
 
