@@ -1,4 +1,5 @@
 import socket
+from pathlib import Path
 import sys
 import time
 
@@ -34,7 +35,63 @@ async def test_run_on_hosts_reports_timeout_as_failure():
 async def test_probe_script_checks_a_closed_port_locally():
     targets = [Target("closed", host="127.0.0.1", port=1)]
     (result,) = await run_on_hosts([Host("l")], create_probe_script(targets))
+    assert parse_probe_output(result.output, 1) == ["refused"]
+
+
+@pytest.mark.asyncio
+async def test_probe_script_names_an_unresolvable_host_dns():
+    targets = [Target("nowhere", host="no-such-host.invalid", port=80)]
+    (result,) = await run_on_hosts([Host("l")], create_probe_script(targets))
+    assert parse_probe_output(result.output, 1) == ["dns"]
+
+
+@pytest.mark.asyncio
+async def test_probe_script_names_a_closed_http_port_refused():
+    targets = [Target("web", host="127.0.0.1", port=1, kind="http")]
+    (result,) = await run_on_hosts([Host("l")], create_probe_script(targets))
+    assert parse_probe_output(result.output, 1) == ["refused"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "message, status",
+    [
+        ("bash: h: Name or service not known", "dns"),
+        ("bash: h: nodename nor servname provided, or not known", "dns"),
+        ("nc: getaddrinfo: Temporary failure in name resolution", "dns"),
+        ("curl: (6) Could not resolve host: h", "dns"),
+        ("nc: connect to h port 1 (tcp) failed: Connection refused", "refused"),
+        ("nc: connect to h port 1 (tcp) timed out", "timeout"),
+        ("something unexpected", "fail"),
+    ],
+)
+async def test_probe_classifies_tool_messages(message, status):
+    script = create_probe_script([Target("t", host="h", port=1)])
+    script = script.split('echo "0')[0] + f'classify_failure "{message}"'
+    (result,) = await run_on_hosts([Host("l")], script, posix_only=True)
+    assert result.output == status
+
+
+@pytest.mark.asyncio
+async def test_probe_removes_its_scratch_file(tmp_path, monkeypatch):
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    script = create_probe_script([Target("closed", host="127.0.0.1", port=1)])
+    await run_on_hosts([Host("l")], script)
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_probe_without_mktemp_degrades_to_fail_and_writes_nothing(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    script = "mktemp() { return 1; }\n" + create_probe_script(
+        [Target("closed", host="127.0.0.1", port=1)]
+    )
+    (result,) = await run_on_hosts([Host("l")], script)
     assert parse_probe_output(result.output, 1) == ["fail"]
+    assert list(tmp_path.iterdir()) == []
+    assert not list(Path("/tmp").glob("probe.*"))
 
 
 def test_parse_probe_output_marks_missing_targets_as_error():
@@ -64,7 +121,7 @@ async def test_output_is_bounded_to_the_trailing_lines():
 @pytest.mark.skipif(
     sys.platform != "linux", reason="needs Linux's full-backlog SYN drop"
 )
-async def test_probe_of_a_stalled_connect_fails_within_the_probe_limit():
+async def test_probe_of_a_stalled_connect_times_out_within_the_probe_limit():
     server = socket.socket()
     server.bind(("127.0.0.1", 0))
     server.listen(0)
@@ -82,7 +139,7 @@ async def test_probe_of_a_stalled_connect_fails_within_the_probe_limit():
     finally:
         for sock in [server, *fillers]:
             sock.close()
-    assert parse_probe_output(result.output, 1) == ["fail"]
+    assert parse_probe_output(result.output, 1) == ["timeout"]
     assert 4 < time.monotonic() - start < 15
 
 

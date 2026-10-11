@@ -134,9 +134,12 @@ async def remote_check(ctx: AnyContext) -> str:
     return _format(ctx, ["Host", *(t.name for t in targets)], rows, records)
 
 
+_FAILED_STATUSES = ("refused", "timeout", "dns", "fail", "error")
+
+
 def _describe(status: str) -> str:
     if status == "n/a":
         return "➖ n/a"
-    if status in ("fail", "error"):
+    if status in _FAILED_STATUSES:
         return f"❌ {status}"
     return f"✅ {status}"
