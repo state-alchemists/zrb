@@ -18,10 +18,12 @@ MAX_OUTPUT_LINE = 1000
 # resolve), else plain `fail`.
 # One scratch file holds every probe's stderr; a trap removes it when the script
 # ends or is terminated by the host timeout, so repeated checks leave nothing.
+# Without `mktemp` there is no scratch file (never a guessable /tmp name, which a
+# local user could pre-create as a symlink) and a failure is a plain `fail`.
 _PROBE_FUNCTIONS = r"""
-PROBE_ERR=$(mktemp 2>/dev/null) || PROBE_ERR=/tmp/probe.$$
-trap 'rm -f "$PROBE_ERR"' EXIT
-trap 'rm -f "$PROBE_ERR"; exit 1' HUP INT TERM
+PROBE_ERR=$(mktemp 2>/dev/null) || PROBE_ERR=
+trap '[ -z "$PROBE_ERR" ] || rm -f "$PROBE_ERR"' EXIT
+trap '[ -z "$PROBE_ERR" ] || rm -f "$PROBE_ERR"; exit 1' HUP INT TERM
 classify_failure() {
   case "$1" in
     *[Rr]efused*) echo refused ;;
@@ -31,7 +33,7 @@ classify_failure() {
   esac
 }
 probe_tcp() {
-  err=$PROBE_ERR
+  err=${PROBE_ERR:-/dev/null}
   : >"$err"
   if command -v bash >/dev/null 2>&1; then
     bash -c 'exec 3<>"/dev/tcp/$0/$1"' "$1" "$2" >/dev/null 2>"$err" &
@@ -53,7 +55,7 @@ probe_tcp() {
 }
 probe_http() {
   if command -v curl >/dev/null 2>&1; then
-    err=$PROBE_ERR
+    err=${PROBE_ERR:-/dev/null}
   : >"$err"
     code=$(curl -sS -o /dev/null -m 5 -w '%{http_code}' "$1" 2>"$err")
     rc=$?

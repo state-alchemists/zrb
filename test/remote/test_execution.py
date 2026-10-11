@@ -1,4 +1,5 @@
 import socket
+from pathlib import Path
 import sys
 import time
 
@@ -77,6 +78,20 @@ async def test_probe_removes_its_scratch_file(tmp_path, monkeypatch):
     script = create_probe_script([Target("closed", host="127.0.0.1", port=1)])
     await run_on_hosts([Host("l")], script)
     assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
+async def test_probe_without_mktemp_degrades_to_fail_and_writes_nothing(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setenv("TMPDIR", str(tmp_path))
+    script = "mktemp() { return 1; }\n" + create_probe_script(
+        [Target("closed", host="127.0.0.1", port=1)]
+    )
+    (result,) = await run_on_hosts([Host("l")], script)
+    assert parse_probe_output(result.output, 1) == ["fail"]
+    assert list(tmp_path.iterdir()) == []
+    assert not list(Path("/tmp").glob("probe.*"))
 
 
 def test_parse_probe_output_marks_missing_targets_as_error():
