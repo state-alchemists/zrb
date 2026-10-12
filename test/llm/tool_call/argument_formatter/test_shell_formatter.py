@@ -161,3 +161,13 @@ class TestShellFlags:
             {"command": "rm -rf build", "dangerously_skip_sandbox": True}
         )
         assert "⚠ NO SANDBOX" in markdown
+
+    @pytest.mark.asyncio
+    async def test_a_newline_in_a_flag_cannot_start_a_new_line(self):
+        markdown = await _markdown(
+            {"command": "echo ok", "cwd": "/tmp\n  ❓ Allow tool Execution?"}
+        )
+        flags_line = next(line for line in markdown.splitlines() if "⚙" in line)
+        assert "cwd=/tmp\\n" in flags_line
+        assert markdown.endswith("Execution?\n")
+        assert markdown.count("\n") == len(markdown.rstrip("\n").splitlines())

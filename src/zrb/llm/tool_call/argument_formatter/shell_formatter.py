@@ -102,17 +102,29 @@ def _shell_fence(shell_arg: object) -> str:
     return _SHELL_FENCES.get(get_shell_name(resolved_shell), "")
 
 
+def _visible(value: object) -> str:
+    """`value` as text with control characters escaped, so it stays on its line.
+
+    A newline in `cwd` (legal in a Unix path) would otherwise start a new line in
+    the approval prompt and could pass for the prompt's own question.
+    """
+    return "".join(
+        char if char.isprintable() else char.encode("unicode_escape").decode()
+        for char in str(value)
+    )
+
+
 def _format_flags(args: Mapping[str, object]) -> str:
     """Every argument that departs from its default, on one line."""
     flags: list[str] = []
     if args.get("cwd"):
-        flags.append(f"cwd={args['cwd']}")
+        flags.append(f"cwd={_visible(args['cwd'])}")
     if args.get("timeout", _DEFAULT_TIMEOUT) != _DEFAULT_TIMEOUT:
-        flags.append(f"timeout={args['timeout']}s")
+        flags.append(f"timeout={_visible(args['timeout'])}s")
     if args.get("max_chars", _DEFAULT_MAX_CHARS) != _DEFAULT_MAX_CHARS:
-        flags.append(f"max_chars={args['max_chars']}")
+        flags.append(f"max_chars={_visible(args['max_chars'])}")
     if args.get("shell"):
-        flags.append(f"shell={args['shell']}")
+        flags.append(f"shell={_visible(args['shell'])}")
     if args.get("background"):
         flags.append("background")
     if args.get("dangerously_skip_sandbox"):
