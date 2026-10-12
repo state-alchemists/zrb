@@ -2,8 +2,9 @@
 
 Owns conversation state that all concrete UIs share: history manager,
 snapshot manager, message queue, confirmation queue, attachments, system
-info, hook execution, and the slash-command dispatch (composed via
-`BaseUICommands`). Concrete subclasses pick a rendering layer:
+info, the status-bar state (composed via `BaseUIStatusBar`), hook
+execution, and the slash-command dispatch (composed via `BaseUICommands`).
+Concrete subclasses pick a rendering layer:
 
   default/ui.py          - prompt-toolkit TUI (the `zrb llm chat` default)
   simple_ui_base.py      - bring-your-own print/input (for headless callers)
@@ -21,10 +22,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-import time
 from collections.abc import AsyncIterable, Callable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, NamedTuple, TextIO, cast
+from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -59,6 +59,7 @@ from zrb.llm.ui.base.message_queue import (
 )
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
 from zrb.llm.ui.base.replay import BaseUIReplay
+from zrb.llm.ui.base.status_bar import BaseUIStatusBar, RunningTool
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.usage import BaseUIUsage
@@ -95,14 +96,6 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
 
 logger = logging.getLogger(__name__)
-
-
-class RunningTool(NamedTuple):
-    """A tool call currently executing; ``started_at`` is ``time.monotonic()``."""
-
-    tool_name: str
-    tool_call_id: str
-    started_at: float
 
 
 def _default_list(value: "Any") -> list:
@@ -222,7 +215,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._markdown_theme = markdown_theme
         self._custom_commands = _default_list(custom_commands)
         self._plan_mode_active = False
-        self._status_badges: dict[str, str] = {}
         self._trigger_tasks: list[asyncio.Task] = []
         self._base_triggers = BaseUITriggers(self)
         self.usage = BaseUIUsage()
@@ -230,9 +222,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self._active_run_context: Any = None
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
-        # Status-bar timers; running tools are keyed by tool_call_id.
-        self._working_started_at: float | None = None
-        self._running_tools: dict[str, RunningTool] = {}
+        self._base_status_bar = BaseUIStatusBar()
 
         self._cwd = os.getcwd()
         self._git_info = "Checking..."
@@ -458,37 +448,29 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @is_thinking.setter
     def is_thinking(self, value: bool) -> None:
-        was_thinking = self._uidefaults_is_thinking
         self._uidefaults_is_thinking = value
-        if value and not was_thinking:
-            self._working_started_at = time.monotonic()
-        elif not value:
-            self._working_started_at = None
+        if value:
+            self._base_status_bar.start_working()
+        else:
+            self._base_status_bar.stop_working()
 
     @property
     def working_started_at(self) -> float | None:
         """`time.monotonic()` when the current working period began."""
-        return self._working_started_at
+        return self._base_status_bar.working_started_at
 
     @property
     def running_tool(self) -> "RunningTool | None":
         """The most recently started tool call still executing, or None."""
-        if not self._running_tools:
-            return None
-        return max(self._running_tools.values(), key=lambda item: item.started_at)
+        return self._base_status_bar.running_tool
 
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Record the start of `tool_name`'s execution for the status bar."""
-        self._running_tools[tool_call_id] = RunningTool(
-            tool_name, tool_call_id, time.monotonic()
-        )
+        self._base_status_bar.start_tool_call(tool_name, tool_call_id)
 
     def end_tool_call(self, tool_call_id: str | None = None) -> None:
         """Forget the finished call `tool_call_id`; ``None`` clears all."""
-        if tool_call_id is None:
-            self._running_tools.clear()
-            return
-        self._running_tools.pop(tool_call_id, None)
+        self._base_status_bar.end_tool_call(tool_call_id)
 
     @property
     def markdown_theme(self) -> Any:
@@ -1073,16 +1055,13 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self.submit_user_message(self.llm_task, user_message, source)
 
     def set_status_badge(self, key: str, text: str | None) -> None:
-        if text is None:
-            self._status_badges.pop(key, None)
-        else:
-            self._status_badges[key] = text
+        self._base_status_bar.set_badge(key, text)
         self.invalidate_ui()
 
     @property
     def status_badges(self) -> tuple[str, ...]:
         """The badges `set_status_badge` shows, in the order first set."""
-        return tuple(self._status_badges.values())
+        return self._base_status_bar.badges
 
     @property
     def is_waiting_for_answer(self) -> bool:

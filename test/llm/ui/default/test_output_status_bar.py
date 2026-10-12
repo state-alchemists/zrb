@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from zrb.config.config import CFG
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
-from zrb.llm.ui.base.ui import RunningTool
+from zrb.llm.ui.base.status_bar import RunningTool
 from zrb.llm.ui.default.output import UIOutput, format_elapsed
 
 
