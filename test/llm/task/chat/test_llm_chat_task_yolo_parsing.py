@@ -273,7 +273,7 @@ def test_llm_chat_task_ui_factories_property():
 def test_ordered_collection_verbs_round_trip(stem, plural):
     """append_X/prepend_X/set_X/remove_X round-trip on every R5 collection.
 
-    `argument_formatters` starts with two built-in defaults, so assertions
+    `argument_formatters` starts with its built-in defaults, so assertions
     are relative to the initial contents.
     """
     task = LLMChatTask(name="t")

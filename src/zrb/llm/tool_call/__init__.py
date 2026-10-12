@@ -1,6 +1,9 @@
 from zrb.llm.tool_call.argument_formatter.replace_in_file_formatter import (
     replace_in_file_formatter,
 )
+from zrb.llm.tool_call.argument_formatter.shell_formatter import (
+    shell_formatter,
+)
 from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
     write_file_formatter,
 )
@@ -36,5 +39,6 @@ __all__ = [
     "default_response_handler",
     "replace_in_file_response_handler",
     "replace_in_file_formatter",
+    "shell_formatter",
     "write_file_formatter",
 ]

@@ -33,6 +33,7 @@ from zrb.llm.tool_call import (
     ResponseHandler,
     ToolPolicy,
     replace_in_file_formatter,
+    shell_formatter,
     write_file_formatter,
 )
 from zrb.task.base.base_task import BaseTask
@@ -339,6 +340,7 @@ class LLMChatTask(BaseTask):
         self._tool_policies = tool_policies or []
         self._argument_formatters = (argument_formatters or []) + [
             replace_in_file_formatter,
+            shell_formatter,
             write_file_formatter,
         ]
 

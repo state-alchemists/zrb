@@ -154,6 +154,35 @@ class TestFormatDiff:
         space_lines = [line for line in lines if line.startswith(" ")]
         assert len(space_lines) > 0
 
+    def test_format_diff_marks_removed_trailing_whitespace(self):
+        """A trailing-space change reads as `foo···` against `foo`, not as two
+        identical-looking lines."""
+        result = format_diff("foo   \nbar", "foo\nbar", "test.txt")
+
+        assert "foo···" in result
+        assert "+    1  foo" in result
+
+    def test_format_diff_marks_a_whitespace_only_line(self):
+        result = format_diff("a\n   \nb", "a\n\nb", "test.txt")
+
+        assert "···" in result
+
+    def test_format_diff_marks_tabs(self):
+        result = format_diff("a\tb", "a b", "test.txt")
+
+        assert "a→b" in result
+
+    def test_format_diff_keeps_unicode_trailing_whitespace(self):
+        result = format_diff("foo\u00a0\u2003", "foo", "test.txt")
+
+        assert "foo\u00a0\u2003" in result
+
+    def test_format_diff_leaves_ordinary_lines_unmarked(self):
+        result = format_diff("a\nold\nb", "a\nnew\nb", "test.txt")
+
+        assert "·" not in result
+        assert "→" not in result
+
     def test_format_diff_hunk_header_format(self):
         """Test format_diff produces correct hunk headers."""
         old_content = "line1\nline2\nline3\nline4\nline5"

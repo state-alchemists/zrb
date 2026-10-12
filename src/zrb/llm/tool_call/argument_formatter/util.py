@@ -5,6 +5,22 @@ import textwrap
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.terminal import get_terminal_size
 
+# Trailing whitespace and tabs are invisible, so a diff line whose only change
+# is one of them renders exactly like its counterpart: removing three trailing
+# spaces reads as deleting a line and adding it back.
+_WHITESPACE_MARKS = {" ": "·", "\t": "→"}
+
+
+def _mark_invisible_whitespace(line: str) -> str:
+    """`·` for each trailing space, `→` for each tab, the rest untouched."""
+    body = line.rstrip(" \t")
+    if body == line and "\t" not in line:
+        return line
+    marks = _WHITESPACE_MARKS
+    marked_body = "".join(marks.get(char, char) for char in body)
+    marked_tail = "".join(marks.get(char, char) for char in line[len(body) :])
+    return marked_body + marked_tail
+
 
 def format_diff(
     old_content: str,
@@ -72,7 +88,7 @@ def format_diff(
                 formatted_lines.append(f"@@ -{old_start} +{new_start} @@")
             continue
 
-        raw_line = line[1:].rstrip("\n")
+        raw_line = _mark_invisible_whitespace(line[1:].rstrip("\n"))
 
         marker = ""
         lineno_str = ""
@@ -116,11 +132,11 @@ def format_diff(
     return "```diff\n" + "\n".join(formatted_lines) + "\n```"
 
 
-def render_indented_diff(diff_md: str) -> str:
-    """Render *diff_md* at the real terminal width, indented under a tool line.
+def render_indented_markdown(markdown: str) -> str:
+    """Render *markdown* at the real terminal width, indented under a tool line.
 
     ``width=None`` would make Rich fall back to 80 when stdout is a capture
     pipe, re-wrapping the already-wide lines `format_diff` produced.
     """
-    rendered = render_markdown(diff_md, width=get_terminal_size().columns)
+    rendered = render_markdown(markdown, width=get_terminal_size().columns)
     return "\n".join(" " * 7 + line for line in rendered.splitlines())
