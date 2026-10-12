@@ -109,11 +109,22 @@ class TestShellFormatter:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\x85", "\r"])
-    async def test_a_unicode_line_break_before_a_fence_gets_a_longer_one(
+    async def test_a_unicode_line_break_before_a_fence_cannot_close_the_block(
         self, separator
     ):
         markdown = await _markdown({"command": f"echo x{separator}```{separator}ls"})
-        assert markdown.startswith("````bash\n")
+        body = markdown.split("\n")
+        assert body[0] == "```bash"
+        assert body[-2] == "```" and len(body) == 4
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\x85", "\r"])
+    async def test_a_unicode_line_break_is_shown_escaped_not_as_a_newline(
+        self, separator
+    ):
+        markdown = await _markdown({"command": f"printf one{separator}printf two"})
+        escaped = separator.encode("unicode_escape").decode()
+        assert f"printf one{escaped}printf two\n" in markdown
 
     @pytest.mark.asyncio
     async def test_a_description_spread_over_lines_lands_on_one(self):

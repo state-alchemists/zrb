@@ -72,6 +72,7 @@ def _format_shell(command: str, args: Mapping[str, object]) -> str:
     description = _flatten_description(args.get("description"))
     if description:
         lines.append(f"📝 {description}")
+    command = _escape_line_breaks(command)
     fence = _code_fence(command)
     lines.append(f"{fence}{_shell_fence(args.get('shell'))}")
     lines.extend(command.splitlines())
@@ -81,10 +82,22 @@ def _format_shell(command: str, args: Mapping[str, object]) -> str:
     return f"{section}\n{flags}" if flags else f"{section}\n"
 
 
+def _escape_line_breaks(command: str) -> str:
+    """Every line break but `\\n` as a visible escape, so it is not shown as `\\n`.
+
+    `splitlines()` would turn U+2028 or a bare `\\r` into a newline, and the
+    approval would then show two commands where the shell runs one.
+    """
+    return "".join(
+        char.encode("unicode_escape").decode()
+        if char != "\n" and len(f"a{char}b".splitlines()) > 1
+        else char
+        for char in command
+    )
+
+
 def _code_fence(command: str) -> str:
     """A backtick run long enough that `command` cannot close the block."""
-    # `splitlines()` is the split `_format_shell` emits, so a separator such as
-    # U+2028 starts a line here exactly where it starts one in the block.
     runs = (
         len(match.group(1))
         for match in map(_BACKTICK_RUN.match, command.splitlines())
