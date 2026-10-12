@@ -6,7 +6,7 @@ from zrb.config.config import CFG
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.argument_formatter.util import (
     format_diff,
-    render_indented_diff,
+    render_indented_markdown,
 )
 
 if TYPE_CHECKING:
@@ -62,7 +62,7 @@ def format_single_write(path: str, new_content: str, mode: str, ui) -> str | Non
     if not diff_md:
         return f"       📄 File: {path} (No changes)\n"
 
-    formatted_diff = render_indented_diff(diff_md)
+    formatted_diff = render_indented_markdown(diff_md)
 
     if mode == "a":
         return f"       📝 Appending to: {path}\n{formatted_diff}\n"

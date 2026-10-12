@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.argument_formatter.util import (
     format_diff,
-    render_indented_diff,
+    render_indented_markdown,
 )
 
 if TYPE_CHECKING:
@@ -63,6 +63,6 @@ def _format_replace(path, old_text, new_text, count, ui) -> str | None:
     if not diff_md:
         return None
 
-    formatted_diff = render_indented_diff(diff_md)
+    formatted_diff = render_indented_markdown(diff_md)
 
     return f"       📄 File: {path}\n{formatted_diff}\n"
