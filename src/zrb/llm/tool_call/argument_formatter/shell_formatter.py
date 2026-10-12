@@ -72,7 +72,7 @@ def _format_shell(command: str, args: Mapping[str, object]) -> str:
     description = _flatten_description(args.get("description"))
     if description:
         lines.append(f"📝 {description}")
-    command = _escape_line_breaks(command)
+    command = _escape_unprintable(command, keep="\n\t")
     fence = _code_fence(command)
     lines.append(f"{fence}{_shell_fence(args.get('shell'))}")
     lines.extend(command.splitlines())
@@ -82,17 +82,19 @@ def _format_shell(command: str, args: Mapping[str, object]) -> str:
     return f"{section}\n{flags}" if flags else f"{section}\n"
 
 
-def _escape_line_breaks(command: str) -> str:
-    """Every line break but `\\n` as a visible escape, so it is not shown as `\\n`.
+def _escape_unprintable(text: object, keep: str = "") -> str:
+    """`text` as a string with every non-printable character as a visible escape.
 
-    `splitlines()` would turn U+2028 or a bare `\\r` into a newline, and the
-    approval would then show two commands where the shell runs one.
+    Terminals act on ESC sequences and Markdown on Unicode line breaks, so a raw
+    one could clear or rewrite the approval, or show two commands where the
+    shell runs one. Characters in `keep` (the `\\n` and `\\t` of a command)
+    pass through.
     """
     return "".join(
-        char.encode("unicode_escape").decode()
-        if char != "\n" and len(f"a{char}b".splitlines()) > 1
-        else char
-        for char in command
+        char
+        if char in keep or char.isprintable()
+        else char.encode("unicode_escape").decode()
+        for char in str(text)
     )
 
 
@@ -110,7 +112,7 @@ def _flatten_description(description: object) -> str:
     """The description on one line: one spread over lines could fence itself."""
     if not isinstance(description, str):
         return ""
-    return " ".join(description.split())
+    return _escape_unprintable(" ".join(description.split()))
 
 
 def _shell_fence(shell_arg: object) -> str:
@@ -121,29 +123,17 @@ def _shell_fence(shell_arg: object) -> str:
     return _SHELL_FENCES.get(get_shell_name(resolved_shell), "")
 
 
-def _visible(value: object) -> str:
-    """`value` as text with control characters escaped, so it stays on its line.
-
-    A newline in `cwd` (legal in a Unix path) would otherwise start a new line in
-    the approval prompt and could pass for the prompt's own question.
-    """
-    return "".join(
-        char if char.isprintable() else char.encode("unicode_escape").decode()
-        for char in str(value)
-    )
-
-
 def _format_flags(args: Mapping[str, object]) -> str:
     """Every argument that departs from its default, on one line."""
     flags: list[str] = []
     if args.get("cwd"):
-        flags.append(f"cwd={_visible(args['cwd'])}")
+        flags.append(f"cwd={_escape_unprintable(args['cwd'])}")
     if args.get("timeout", _DEFAULT_TIMEOUT) != _DEFAULT_TIMEOUT:
-        flags.append(f"timeout={_visible(args['timeout'])}s")
+        flags.append(f"timeout={_escape_unprintable(args['timeout'])}s")
     if args.get("max_chars", _DEFAULT_MAX_CHARS) != _DEFAULT_MAX_CHARS:
-        flags.append(f"max_chars={_visible(args['max_chars'])}")
+        flags.append(f"max_chars={_escape_unprintable(args['max_chars'])}")
     if args.get("shell"):
-        flags.append(f"shell={_visible(args['shell'])}")
+        flags.append(f"shell={_escape_unprintable(args['shell'])}")
     if args.get("background"):
         flags.append("background")
     if args.get("dangerously_skip_sandbox"):

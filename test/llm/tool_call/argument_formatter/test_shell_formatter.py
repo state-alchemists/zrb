@@ -137,6 +137,27 @@ class TestShellFormatter:
         assert "```fish\n" in markdown
 
 
+class TestShellFormatterControlCharacters:
+    """A raw ESC sequence would be acted on by the terminal, not shown."""
+
+    @pytest.mark.asyncio
+    async def test_an_escape_sequence_in_the_command_is_shown_escaped(self):
+        markdown = await _markdown({"command": "echo ok\x1b[2J\nrm"})
+        assert "\x1b" not in markdown
+        assert "echo ok\\x1b[2J\nrm" in markdown
+
+    @pytest.mark.asyncio
+    async def test_an_escape_sequence_in_the_description_is_shown_escaped(self):
+        markdown = await _markdown({"command": "ls", "description": "a\x1b[2Jb"})
+        assert "\x1b" not in markdown
+        assert "📝 a\\x1b[2Jb\n" in markdown
+
+    @pytest.mark.asyncio
+    async def test_a_tab_in_the_command_is_kept(self):
+        markdown = await _markdown({"command": "printf 'a\tb'"})
+        assert "a\tb" in markdown
+
+
 class TestShellFormatterRendered:
     """What the panel shows: the command stays inside the fence, verbatim."""
 
