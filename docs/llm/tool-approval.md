@@ -10,7 +10,7 @@ When the agent wants to run a tool that needs your approval, zrb shows a prompt 
   ❓ Allow tool Execution? (✅ Y | 🛑 n | 📝 e)?
 ```
 
-What that shows depends on the tool. `Shell`'s command is syntax-highlighted for the shell that will run it, and any argument that departs from its default — `cwd`, `timeout`, `max_chars`, `shell`, `background`, `dangerously_skip_sandbox` — is listed under it. `Write` and `Edit` show a diff; trailing whitespace and tabs are marked (`·` and `→`) so a change that only removes whitespace is visible rather than looking like a line deleted and added back. Any other tool shows its arguments as YAML.
+What that shows depends on the tool. `Shell`'s command is syntax-highlighted for the shell that will run it — the fence grows past any backtick line the command carries, so the command is shown whole rather than partly re-read as Markdown — and any argument that departs from its default — `cwd`, `timeout`, `max_chars`, `shell`, `background`, `dangerously_skip_sandbox` — is listed under it. `Write` and `Edit` show a diff; trailing whitespace and tabs are marked (`·` and `→`) so a change that only removes whitespace is visible rather than looking like a line deleted and added back. Any other tool shows its arguments as YAML.
 
 Three ordered lists on `LLMChatTask` control everything about that prompt — whether it appears, what it shows, and what your answer means:
 

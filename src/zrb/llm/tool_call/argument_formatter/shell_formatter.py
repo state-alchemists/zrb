@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,13 @@ _SHELL_FENCES = {
 _DEFAULT_TIMEOUT = 120
 _DEFAULT_MAX_CHARS = -1
 
+# Markdown ends a fenced block at the first line holding at least as many
+# backticks as the opener, indented by at most three spaces. A command carrying
+# such a line — a heredoc, say — would close the block early and spill the rest
+# of itself out as Markdown, where it reads as prose instead of as what runs.
+_MIN_FENCE_LENGTH = 3
+_BACKTICK_RUN = re.compile(r"^ {0,3}(`+)", re.MULTILINE)
+
 
 async def shell_formatter(
     ui: "AnyAgentOutput",
@@ -61,16 +69,29 @@ async def shell_formatter(
 
 def _format_shell(command: str, args: Mapping[str, object]) -> str:
     lines: list[str] = []
-    description = args.get("description")
-    if isinstance(description, str) and description.strip():
-        lines.append(f"📝 {description.strip()}")
-    fence = _shell_fence(args.get("shell"))
-    lines.append(f"```{fence}".rstrip())
+    description = _flatten_description(args.get("description"))
+    if description:
+        lines.append(f"📝 {description}")
+    fence = _code_fence(command)
+    lines.append(f"{fence}{_shell_fence(args.get('shell'))}")
     lines.extend(command.splitlines())
-    lines.append("```")
+    lines.append(fence)
     section = render_indented_markdown("\n".join(lines))
     flags = _format_flags(args)
     return f"{section}\n{flags}" if flags else f"{section}\n"
+
+
+def _code_fence(command: str) -> str:
+    """A backtick run long enough that `command` cannot close the block."""
+    runs = (len(run) for run in _BACKTICK_RUN.findall(command))
+    return "`" * max(_MIN_FENCE_LENGTH, max(runs, default=0) + 1)
+
+
+def _flatten_description(description: object) -> str:
+    """The description on one line: one spread over lines could fence itself."""
+    if not isinstance(description, str):
+        return ""
+    return " ".join(description.split())
 
 
 def _shell_fence(shell_arg: object) -> str:

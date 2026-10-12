@@ -7,6 +7,7 @@ from pydantic_ai.messages import ToolCallPart
 
 from zrb.config.config import CFG
 from zrb.llm.tool_call.argument_formatter.shell_formatter import shell_formatter
+from zrb.util.cli.ansi import strip_ansi
 
 
 class MockUI:
@@ -97,9 +98,38 @@ class TestShellFormatter:
         assert "📝" not in await _markdown({"command": "ls"})
 
     @pytest.mark.asyncio
+    async def test_a_command_carrying_a_fence_gets_a_longer_one(self):
+        markdown = await _markdown({"command": "cat <<'EOF'\n```\nrm -rf build\nEOF"})
+        assert "````bash\ncat <<'EOF'\n```\nrm -rf build\nEOF\n````\n" in markdown
+
+    @pytest.mark.asyncio
+    async def test_the_fence_outgrows_the_longest_run_in_the_command(self):
+        markdown = await _markdown({"command": "echo x\n`````\nrm -rf /"})
+        assert "``````bash\n" in markdown
+
+    @pytest.mark.asyncio
+    async def test_a_description_spread_over_lines_lands_on_one(self):
+        markdown = await _markdown({"command": "ls", "description": "list\n```\nfiles"})
+        assert markdown.startswith("📝 list ``` files\n")
+
+    @pytest.mark.asyncio
     async def test_args_as_a_json_string(self):
         markdown = await _markdown('{"command": "echo hi", "shell": "fish"}')
         assert "```fish\n" in markdown
+
+
+class TestShellFormatterRendered:
+    """What the panel shows: the command stays inside the fence, verbatim."""
+
+    @pytest.mark.asyncio
+    async def test_a_command_holding_a_fence_still_shows_whole(self):
+        result = await shell_formatter(
+            MockUI(), _call({"command": "cat <<'EOF'\n```\nrm -rf build\nEOF"}), ""
+        )
+        assert result is not None
+        lines = [line.strip() for line in strip_ansi(result).splitlines()]
+        for line in ("cat <<'EOF'", "```", "rm -rf build", "EOF"):
+            assert line in lines
 
 
 class TestShellFlags:
