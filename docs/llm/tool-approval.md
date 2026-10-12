@@ -5,10 +5,12 @@
 When the agent wants to run a tool that needs your approval, zrb shows a prompt like this:
 
 ```
-  🎰 Executing tool 'Bash'
-       command: rm -rf build
+  🎰 Executing tool 'Shell'
+       rm -rf build
   ❓ Allow tool Execution? (✅ Y | 🛑 n | 📝 e)?
 ```
+
+What that shows depends on the tool. `Shell`'s command is syntax-highlighted for the shell that will run it, and any argument that departs from its default — `cwd`, `timeout`, `max_chars`, `shell`, `background`, `dangerously_skip_sandbox` — is listed under it. `Write` and `Edit` show a diff; trailing whitespace and tabs are marked (`·` and `→`) so a change that only removes whitespace is visible rather than looking like a line deleted and added back. Any other tool shows its arguments as YAML.
 
 Three ordered lists on `LLMChatTask` control everything about that prompt — whether it appears, what it shows, and what your answer means:
 
@@ -42,27 +44,29 @@ from zrb.llm.tool_call import ArgumentFormatter
 from zrb.llm.tool_call.args import parse_tool_args
 
 
-async def bash_formatter(ui, call, args_section: str) -> str | None:
-    if call.tool_name != "Bash":
+async def command_formatter(ui, call, args_section: str) -> str | None:
+    if call.tool_name != "Shell":
         return None  # not mine — keep whatever is there
     args = parse_tool_args(call) or {}
     return f"       $ {args.get('command', '')}\n"
 
 
-chat.append_argument_formatter(bash_formatter)
+chat.append_argument_formatter(command_formatter)
 ```
 
 The prompt now reads:
 
 ```
-  🎰 Executing tool 'Bash'
+  🎰 Executing tool 'Shell'
        $ rm -rf build
   ❓ Allow tool Execution? (✅ Y | 🛑 n | 📝 e)?
 ```
 
+`Shell` already ships with more than this — `shell_formatter` fences the command for the shell that runs it and lists the non-default arguments — so read the example as the mechanics of a formatter, not as a gap to fill.
+
 **Every formatter runs, in list order, and the last non-`None` result wins.** Each one receives the section as the previous formatter left it, so a formatter can also decorate rather than replace (`return args_section + "       ⚠️ destructive\n"`).
 
-> **Order matters for `Write` and `Edit`.** `LLMChatTask` always places its two built-in formatters — `replace_in_file_formatter` (`Edit`) and `write_file_formatter` (`Write`), which render a diff — at the end of the list it is constructed with. A formatter passed to the constructor or added with `prepend_argument_formatter` therefore runs *before* them and is overwritten for those two tools. To change how `Write` or `Edit` is shown, use `append_argument_formatter`, or `set_argument_formatters` to drop the built-ins entirely.
+> **Order matters for `Write`, `Edit` and `Shell`.** `LLMChatTask` always places its three built-in formatters — `replace_in_file_formatter` (`Edit`) and `write_file_formatter` (`Write`), which render a diff, and `shell_formatter` (`Shell`), which fences the command — at the end of the list it is constructed with. A formatter passed to the constructor or added with `prepend_argument_formatter` therefore runs *before* them and is overwritten for those tools. To change how one of them is shown, use `append_argument_formatter`, or `set_argument_formatters` to drop the built-ins entirely.
 
 Return the string with its own trailing newline: the instruction line is concatenated straight after it. A formatter that does blocking work (reading a large file, computing a diff) should push it off the event loop with `await asyncio.to_thread(...)`, as the built-ins do, or the TUI freezes while it runs.
 
@@ -80,7 +84,7 @@ async def no_force_push(ui, call, next_handler):
     from zrb.llm.tool_call.args import parse_tool_args
 
     args = parse_tool_args(call) or {}
-    if call.tool_name == "Bash" and "push --force" in args.get("command", ""):
+    if call.tool_name == "Shell" and "push --force" in args.get("command", ""):
         return ToolDenied(
             "[SYSTEM SUGGESTION]: force-push is not allowed; push a new branch instead."
         )
@@ -89,11 +93,11 @@ async def no_force_push(ui, call, next_handler):
 
 chat.prepend_tool_policy(
     no_force_push,
-    auto_approve("Bash", {"command": r"^(git status|git diff|ls)\b"}),
+    auto_approve("Shell", {"command": r"^(git status|git diff|ls)\b"}),
 )
 ```
 
-Policies form a chain: the first to return a verdict decides, and if every policy passes the call on, the prompt is shown. The denial reason reaches the model as the tool result, so make it actionable.
+Policies form a chain: the first to return a verdict decides, and if every policy passes the call on, the prompt is shown. The denial reason reaches the model as the tool result, so make it actionable. Match a tool by its registered name — `Shell`, not Claude's `Bash` alias: the comparison is exact, so a policy naming `Bash` matches nothing.
 
 `auto_approve(tool_name, kwargs_patterns)` builds the common case. `kwargs_patterns` maps argument names to regexes, or is a predicate over the argument dict. With a mapping, every named argument must be present in the call and match its regex — a call that omits one is handed on, not approved — while arguments the mapping does not name are ignored; omit it to approve every call to that tool. It never approves a call that asks for `dangerously_skip_sandbox`.
 
@@ -148,7 +152,7 @@ The built-in chat task is an ordinary `LLMChatTask`; change it from your `zrb_in
 ```python
 from zrb.builtin.llm.chat import llm_chat
 
-llm_chat.append_argument_formatter(bash_formatter)
+llm_chat.append_argument_formatter(command_formatter)
 llm_chat.prepend_tool_policy(no_force_push, allow_remembered)
 llm_chat.prepend_response_handler(always_for_session)
 ```
@@ -161,8 +165,9 @@ All importable from `zrb.llm.tool_call` unless noted.
 
 | Name | Kind | What it does | On `llm_chat` by default |
 |---|---|---|---|
-| `write_file_formatter` | formatter | Shows a diff for `Write` | yes |
-| `replace_in_file_formatter` | formatter | Shows a diff for `Edit` | yes |
+| `write_file_formatter` | formatter | Shows a diff for `Write`, with trailing whitespace and tabs marked | yes |
+| `replace_in_file_formatter` | formatter | Shows a diff for `Edit`, with trailing whitespace and tabs marked | yes |
+| `shell_formatter` | formatter | Shows a `Shell` command fenced for the shell that runs it, plus the non-default arguments | yes |
 | `default_response_handler` | response handler | `y` / `n` / `e` / free-text denial | yes (interactive UI) |
 | `replace_in_file_response_handler` | response handler | On `e`, opens the `Edit` replacement in `ZRB_DIFF_EDIT_COMMAND` | yes |
 | `auto_approve(tool, patterns)` | policy factory | Approves matching calls | yes, for reads inside the project, journal and skill directories |
