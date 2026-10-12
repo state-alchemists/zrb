@@ -389,11 +389,11 @@ def test_working_timer_starts_and_resets_with_thinking_state():
     ui = ConcreteUI(ctx=ctx, llm_task=MagicMock(), history_manager=MagicMock())
     assert ui.working_started_at is None
 
-    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=12345.0):
+    with patch("zrb.llm.ui.base.status_bar.time.monotonic", return_value=12345.0):
         ui.is_thinking = True
     assert ui.working_started_at == 12345.0
 
-    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=99999.0):
+    with patch("zrb.llm.ui.base.status_bar.time.monotonic", return_value=99999.0):
         ui.is_thinking = True
     assert ui.working_started_at == 12345.0
 
@@ -403,7 +403,7 @@ def test_working_timer_starts_and_resets_with_thinking_state():
 
 def test_start_tool_call_records_the_running_tool(base_ui):
     """`start_tool_call` captures the tool name, id and a monotonic start time."""
-    with patch("zrb.llm.ui.base.ui.time.monotonic", return_value=999.0):
+    with patch("zrb.llm.ui.base.status_bar.time.monotonic", return_value=999.0):
         base_ui.start_tool_call("Shell", "call_1")
 
     running = base_ui.running_tool
