@@ -182,6 +182,24 @@ def test_get_info_bar_text_shows_active_subagent_persona():
     assert "code-reviewer" in rendered
 
 
+def test_the_sub_agent_marker_continues_the_session_row():
+    """The bar keeps three rows; the marker shares Session's, not its own."""
+    from prompt_toolkit.formatted_text import to_formatted_text
+
+    ui = MockOutputUI()
+    ui.conversation_session_name = "trim-coil-1234-greetings"
+    ui.persona.active_subagent = "code-reviewer"
+    fragments = to_formatted_text(ui.get_info_bar_text())
+    rendered = "".join(text for _style, text, *_ in fragments)
+
+    rows = [row.strip() for row in rendered.split("\n")]
+
+    assert len(rows) == 3
+    assert "Session:" in rows[1] and "Sub-agent:" in rows[1]
+    assert rows[1].index("Session:") < rows[1].index("Sub-agent:")
+    assert "Sub-agent:" not in rows[0]
+
+
 def test_get_info_bar_text_accepts_style_strings_with_spaces():
     """Regression: INFO_* knobs hold full prompt_toolkit style strings (e.g.
     "ansired bold"). The old HTML-attribute path raised
