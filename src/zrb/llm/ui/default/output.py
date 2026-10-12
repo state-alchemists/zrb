@@ -2,7 +2,7 @@
 
 Carries the logic for appending text to the read-only output buffer
 (`append_to_output`) and rendering the info / status bars. Kept separate
-from `default_ui.py` so the prompt-toolkit Application setup stays focused.
+from `llm/ui/default/ui.py` so the prompt-toolkit Application setup stays focused.
 """
 
 from __future__ import annotations
@@ -84,11 +84,10 @@ def _fmt_tokens(count: int) -> str:
 
 
 def _get_mode_status_style(mode: str) -> str:
-    """Lazy lookup of the status-bar mode badge style from CFG.
+    """Read the status-bar mode badge style from CFG per call.
 
-    Module-level dicts would evaluate CFG at import time, baking in the
-    values and defeating runtime reconfiguration. This function reads from
-    CFG on every call so env-var changes take effect without a restart.
+    Deliberately not a module-level dict: that would bake the values in at
+    import time, so a reconfiguration would need a restart.
     """
     return {
         "normal": CFG.LLM_UI_STYLE_MODE_NORMAL,
@@ -520,16 +519,7 @@ class UIOutput:
         line1 = [
             ("", " 🤖 "),
             ("bold", "Model:"),
-            ("", f" {model_name} | 💬 "),
-            ("bold", "Session:"),
-            ("", f" {self._ui.conversation_session_name} "),
-        ]
-        sub_agent_frag = self._sub_agent_fragment()
-        if sub_agent_frag:
-            line1 += sub_agent_frag
-
-        line2 = [
-            ("", " 📋 "),
+            ("", f" {model_name} | 📋 "),
             ("bold", "Plan Mode:"),
             ("", " "),
             self._plan_fragment(),
@@ -537,8 +527,16 @@ class UIOutput:
             ("bold", "YOLO:"),
             ("", " "),
             self._yolo_fragment(),
+        ]
+        line2 = [
+            ("", "💬 "),
+            ("bold", "Session:"),
+            ("", f" {self._ui.conversation_session_name} "),
             ("", " "),
         ]
+        sub_agent_frag = self._sub_agent_fragment()
+        if sub_agent_frag:
+            line2 += sub_agent_frag
         line3 = [
             ("", " 📂 "),
             ("bold", "Dir:"),
@@ -587,11 +585,9 @@ class UIOutput:
     def _sub_agent_fragment(self) -> "list | None":
         """Fragments announcing an active persona or viewed sub-agent.
 
-        The UI clue that /load swapped which persona is
-        driving new messages — absent (bar unchanged) while driving the
-        main agent, mirroring how the activity panel collapses when idle.
-        Extended (same wording) to announce the sub-agent whose live view
-        the output pane currently shows (UIAgentPicker).
+        The clue that /load swapped which persona drives new messages, or
+        which sub-agent's live view the output pane shows (UIAgentPicker).
+        ``None`` while the main agent drives, so the bar keeps its three rows.
         """
         persona = getattr(self._ui, "persona", None)
         active_persona = None if persona is None else persona.active_subagent
