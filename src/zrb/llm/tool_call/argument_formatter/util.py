@@ -13,7 +13,7 @@ _WHITESPACE_MARKS = {" ": "·", "\t": "→"}
 
 def _mark_invisible_whitespace(line: str) -> str:
     """`·` for each trailing space, `→` for each tab, the rest untouched."""
-    body = line.rstrip()
+    body = line.rstrip(" \t")
     if body == line and "\t" not in line:
         return line
     marks = _WHITESPACE_MARKS

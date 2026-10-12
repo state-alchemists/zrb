@@ -172,6 +172,11 @@ class TestFormatDiff:
 
         assert "a→b" in result
 
+    def test_format_diff_keeps_unicode_trailing_whitespace(self):
+        result = format_diff("foo\u00a0\u2003", "foo", "test.txt")
+
+        assert "foo\u00a0\u2003" in result
+
     def test_format_diff_leaves_ordinary_lines_unmarked(self):
         result = format_diff("a\nold\nb", "a\nnew\nb", "test.txt")
 

@@ -108,6 +108,14 @@ class TestShellFormatter:
         assert "``````bash\n" in markdown
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("separator", ["\u2028", "\u2029", "\x85", "\r"])
+    async def test_a_unicode_line_break_before_a_fence_gets_a_longer_one(
+        self, separator
+    ):
+        markdown = await _markdown({"command": f"echo x{separator}```{separator}ls"})
+        assert markdown.startswith("````bash\n")
+
+    @pytest.mark.asyncio
     async def test_a_description_spread_over_lines_lands_on_one(self):
         markdown = await _markdown({"command": "ls", "description": "list\n```\nfiles"})
         assert markdown.startswith("📝 list ``` files\n")

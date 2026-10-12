@@ -44,7 +44,7 @@ _DEFAULT_MAX_CHARS = -1
 # such a line — a heredoc, say — would close the block early and spill the rest
 # of itself out as Markdown, where it reads as prose instead of as what runs.
 _MIN_FENCE_LENGTH = 3
-_BACKTICK_RUN = re.compile(r"^ {0,3}(`+)", re.MULTILINE)
+_BACKTICK_RUN = re.compile(r" {0,3}(`+)")
 
 
 async def shell_formatter(
@@ -83,7 +83,13 @@ def _format_shell(command: str, args: Mapping[str, object]) -> str:
 
 def _code_fence(command: str) -> str:
     """A backtick run long enough that `command` cannot close the block."""
-    runs = (len(run) for run in _BACKTICK_RUN.findall(command))
+    # `splitlines()` is the split `_format_shell` emits, so a separator such as
+    # U+2028 starts a line here exactly where it starts one in the block.
+    runs = (
+        len(match.group(1))
+        for match in map(_BACKTICK_RUN.match, command.splitlines())
+        if match
+    )
     return "`" * max(_MIN_FENCE_LENGTH, max(runs, default=0) + 1)
 
 
