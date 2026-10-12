@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 
 from zrb.cmd.command import resolve_shell
 from zrb.config.helper import get_shell_name
-from zrb.llm.tool_call.argument_formatter.util import render_indented_markdown
 from zrb.llm.tool_call.args import parse_tool_args
+from zrb.llm.tool_call.argument_formatter.util import render_indented_markdown
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
@@ -91,9 +91,11 @@ def _escape_unprintable(text: object, keep: str = "") -> str:
     pass through.
     """
     return "".join(
-        char
-        if char in keep or char.isprintable()
-        else char.encode("unicode_escape").decode()
+        (
+            char
+            if char in keep or char.isprintable()
+            else char.encode("unicode_escape").decode()
+        )
         for char in str(text)
     )
 
