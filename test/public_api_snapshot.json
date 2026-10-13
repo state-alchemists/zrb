@@ -1770,6 +1770,7 @@
         "labels:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
+        "get_address",
         "get_url"
       ]
     },
