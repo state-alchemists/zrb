@@ -29,6 +29,17 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 
 **Letting the agent look.** With `ZRB_LLM_CAMERA_ENABLE_TOOL=on`, the agent also gets a `TakePhoto` tool: when you say "what do you think of this?" with something held up, it can take the photo itself. Every call asks for approval like `Shell` does, and plan mode denies it. To skip the prompt, add `auto_approve("TakePhoto")` to your tool policies (see [Customizing Tool Approval](tool-approval.md)).
 
+**On a text-only model.** A photo from `/photo` and one from `TakePhoto` reach the model by the same rule:
+
+| The main model | What it gets |
+|---|---|
+| Reads images | The photo itself |
+| Is text-only, and `ZRB_LLM_MULTIMODAL_MODEL` reads images | A description of the photo, written by that model |
+| Is text-only, with no such model | Nothing. `/photo` prints `❗ Dropped image attachment`; `TakePhoto` tells the agent it cannot see the photo and to ask you to set `ZRB_LLM_MULTIMODAL_MODEL` |
+| Is one zrb does not know | The photo itself, since zrb cannot tell whether it reads images |
+
+The description costs one call to the multimodal model per photo. See [LLM Models](../configuration/llm-models.md#core-llm-routing) for setting it.
+
 ## Dictation
 
 **Push-to-talk.** Type `/voice` and talk. A pause of about a second, or `/voice` again, stops the recording. The transcript is inserted at the cursor, where you can edit it before pressing Enter. `/voice` works while the model is still answering.

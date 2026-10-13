@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import current_model
 from zrb.llm.camera import AnyCameraBackend, CameraConfig, enable_camera
 from zrb.llm.camera.feature import create_camera_commands, create_camera_tools
 from zrb.llm.permission.capability import Capability, tool_capability
@@ -164,6 +165,41 @@ async def test_the_photo_tool_shows_the_model_the_photo():
     assert camera.captured_from == ["0"]
     (photo,) = result.content
     assert photo.media_type == "image/jpeg"
+
+
+@pytest.fixture
+def text_only_model():
+    token = current_model.set("openai:gpt-3.5-turbo")
+    yield
+    current_model.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_a_text_only_model_gets_the_photo_described(text_only_model, monkeypatch):
+    async def describe(binary, multimodal_model):
+        return "a cat on a keyboard"
+
+    monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o-mini")
+    monkeypatch.setattr(
+        "zrb.llm.agent.run.multimodal_describe.describe_binary_attachment", describe
+    )
+
+    result = await _take_photo(FakeCamera(b"\xff\xd8\xff-fake-jpeg"))()
+
+    assert result.startswith("Photo taken.")
+    assert "a cat on a keyboard" in result
+
+
+@pytest.mark.asyncio
+async def test_a_text_only_model_without_a_describer_is_told_why(
+    text_only_model, monkeypatch
+):
+    monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "")
+
+    result = await _take_photo(FakeCamera(b"\xff\xd8\xff-fake-jpeg"))()
+
+    assert "[SYSTEM SUGGESTION]" in result
+    assert "LLM_MULTIMODAL_MODEL" in result
 
 
 @pytest.mark.asyncio
