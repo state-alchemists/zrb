@@ -553,7 +553,7 @@ class BaseUIConversationCommands:
     def copy_to_clipboard_and_report(self, content: str, success_message: str) -> None:
         """Copy `content` to the clipboard, appending a success/failure line."""
         # lazy: tests patch clipboard.copy_text; hoisting bypasses the mock
-        from zrb.llm.util.clipboard import copy_text
+        from zrb.util.clipboard import copy_text
 
         if copy_text(content):
             self._base_ui.append_to_output(stylize_muted(success_message))

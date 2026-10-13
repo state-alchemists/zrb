@@ -3,20 +3,16 @@ import platform
 import re
 
 from zrb.builtin.group import llm_group
-from zrb.config.helper import get_current_shell, is_wsl
+from zrb.config.helper import get_current_shell
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
 from zrb.llm.agent import create_agent
 from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.util.clipboard import copy_text
 from zrb.runner.cli import cli
 from zrb.task.make_task import make_task
-from zrb.util.cli.style import (
-    stylize_faint,
-    stylize_green,
-    stylize_red,
-    stylize_yellow,
-)
+from zrb.util.cli.style import stylize_faint, stylize_green, stylize_red, stylize_yellow
+from zrb.util.clipboard import copy_text
+from zrb.util.platform import is_wsl
 
 SYSTEM_PROMPT = """
 You translate a user's intent into a single shell command.

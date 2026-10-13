@@ -1,6 +1,7 @@
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Generic, Literal, TypeVar
+from urllib.parse import urlsplit, urlunsplit
 
 from zrb.cmd.remote import bracket_ipv6
 
@@ -73,6 +74,22 @@ class Target:
         return self.url or (
             f"{self.scheme}://{bracket_ipv6(self.host)}:{self.port}{self.path}"
         )
+
+    def get_address(self) -> str:
+        """Where the target is probed, safe to display: the URL of an http target
+        with any `user:password@` replaced by `***@`, else `host:port`."""
+        if self.kind == "http":
+            return _redact_userinfo(self.get_url())
+        return f"{bracket_ipv6(self.host)}:{self.port}"
+
+
+def _redact_userinfo(url: str) -> str:
+    parts = urlsplit(url)
+    _, at, hostinfo = parts.netloc.rpartition("@")
+    if not at:
+        return url
+    netloc = f"***@{hostinfo}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
 def _to_labels(labels: Iterable[str]) -> frozenset[str]:

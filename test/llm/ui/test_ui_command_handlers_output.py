@@ -71,7 +71,7 @@ class TestBaseUIOutputCommands:
         ui.last_result_data = "Test AI output"
         ui.append_to_output = MagicMock()
 
-        with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
+        with patch("zrb.util.clipboard.copy_text", return_value=True) as mock_copy:
             result = ui.handle_redirect_command("/redirect")
 
         assert result is True
@@ -86,7 +86,7 @@ class TestBaseUIOutputCommands:
         ui.last_result_data = None
         ui.append_to_output = MagicMock()
 
-        with patch("zrb.llm.util.clipboard.copy_text") as mock_copy:
+        with patch("zrb.util.clipboard.copy_text") as mock_copy:
             result = ui.handle_redirect_command("/redirect")
 
         assert result is True
@@ -104,7 +104,7 @@ class TestBaseUIOutputCommands:
         )
         ui.append_to_output = MagicMock()
 
-        with patch("zrb.llm.util.clipboard.copy_text", return_value=True) as mock_copy:
+        with patch("zrb.util.clipboard.copy_text", return_value=True) as mock_copy:
             with patch(
                 "zrb.llm.util.history_formatter.format_history_as_text",
                 return_value="transcript",

@@ -289,9 +289,9 @@ async def test_ctrl_v_no_image_no_hint(mock_ui, setup_bindings):
     event = create_mock_event()
 
     with patch(
-        "zrb.llm.util.clipboard.get_clipboard_image", new_callable=AsyncMock
+        "zrb.util.clipboard.get_clipboard_image", new_callable=AsyncMock
     ) as mock_get_img:
-        with patch("zrb.llm.util.clipboard.missing_tool_hint") as mock_hint:
+        with patch("zrb.util.clipboard.missing_tool_hint") as mock_hint:
             with patch("prompt_toolkit.application.get_app") as mock_get_app:
                 mock_get_img.return_value = None
                 mock_hint.return_value = None

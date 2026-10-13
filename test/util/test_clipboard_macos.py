@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.util.clipboard import get_clipboard_image
+from zrb.util.clipboard import get_clipboard_image
 
 
 @pytest.fixture
@@ -297,7 +297,7 @@ async def test_macos_osascript_unlink_failure_does_not_propagate(clean_env, tmp_
         return real_unlink(p, *a, **kw)
 
     with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
-        with patch("zrb.llm.util.clipboard.os.unlink", side_effect=flaky_unlink):
+        with patch("zrb.util.clipboard.os.unlink", side_effect=flaky_unlink):
             result = await get_clipboard_image()
 
     assert result == payload

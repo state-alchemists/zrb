@@ -1,3 +1,4 @@
+import csv
 import io
 import sys
 from collections.abc import Sequence
@@ -17,6 +18,27 @@ def create_markdown_table(headers: Sequence[str], rows: Rows) -> str:
     ]
     lines += ["| " + " | ".join(cell(c) for c in row) + " |" for row in rows]
     return "\n".join(lines)
+
+
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def create_csv(headers: Sequence[str], rows: Rows) -> str:
+    """RFC 4180 CSV; the `csv` module quotes commas, quotes and newlines.
+
+    A cell a spreadsheet would read as a formula (a leading `=`, `+`, `-`, `@`,
+    tab or CR) gets a leading `'`, since command output is untrusted and the
+    result is meant to be pasted into a spreadsheet.
+    """
+
+    def safe(cell: str) -> str:
+        return "'" + cell if cell.startswith(_FORMULA_PREFIXES) else cell
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow([safe(h) for h in headers])
+    writer.writerows([safe(c) for c in row] for row in rows)
+    return buffer.getvalue().rstrip("\n")
 
 
 def render_table(headers: Sequence[str], rows: Rows) -> str:

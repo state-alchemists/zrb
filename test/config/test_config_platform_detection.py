@@ -10,7 +10,6 @@ from zrb.config.helper import (
     get_shell_name,
     get_windows_posix_shell,
     is_termux,
-    is_wsl,
 )
 
 
@@ -186,24 +185,6 @@ def test_is_termux_detects_android_root(monkeypatch):
     monkeypatch.delenv("PREFIX", raising=False)
     monkeypatch.setenv("ANDROID_ROOT", "/system")
     assert is_termux() is True
-
-
-def test_is_wsl_detects_distro_name(monkeypatch):
-    monkeypatch.setenv("WSL_DISTRO_NAME", "Ubuntu")
-    monkeypatch.delenv("WSLENV", raising=False)
-    assert is_wsl() is True
-
-
-def test_is_wsl_detects_wslenv(monkeypatch):
-    monkeypatch.delenv("WSL_DISTRO_NAME", raising=False)
-    monkeypatch.setenv("WSLENV", "TERM/u")
-    assert is_wsl() is True
-
-
-def test_is_wsl_false_off_wsl(monkeypatch):
-    monkeypatch.delenv("WSL_DISTRO_NAME", raising=False)
-    monkeypatch.delenv("WSLENV", raising=False)
-    assert is_wsl() is False
 
 
 def test_cfg_is_termux_auto_detected(monkeypatch):

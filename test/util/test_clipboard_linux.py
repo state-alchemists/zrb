@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.util.clipboard import copy_text, get_clipboard_image, missing_tool_hint
+from zrb.util.clipboard import copy_text, get_clipboard_image, missing_tool_hint
 
 
 @pytest.fixture
@@ -116,7 +116,7 @@ def test_missing_tool_hint_recommends_wl_clipboard_on_wayland_without_tool(
 ):
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WAYLAND_DISPLAY", "wayland-0")
-    with patch("zrb.llm.util.clipboard.shutil.which", return_value=None):
+    with patch("zrb.util.clipboard.shutil.which", return_value=None):
 
         hint = missing_tool_hint()
 
@@ -127,14 +127,14 @@ def test_missing_tool_hint_recommends_wl_clipboard_on_wayland_without_tool(
 def test_missing_tool_hint_silent_when_wayland_tool_present(clean_env):
     clean_env.setattr("sys.platform", "linux")
     clean_env.setenv("WAYLAND_DISPLAY", "wayland-0")
-    with patch("zrb.llm.util.clipboard.shutil.which", return_value="/usr/bin/wl-paste"):
+    with patch("zrb.util.clipboard.shutil.which", return_value="/usr/bin/wl-paste"):
 
         assert missing_tool_hint() == ""
 
 
 def test_missing_tool_hint_recommends_xclip_on_x11_without_tool(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    with patch("zrb.llm.util.clipboard.shutil.which", return_value=None):
+    with patch("zrb.util.clipboard.shutil.which", return_value=None):
 
         hint = missing_tool_hint()
 
@@ -143,7 +143,7 @@ def test_missing_tool_hint_recommends_xclip_on_x11_without_tool(clean_env):
 
 def test_missing_tool_hint_silent_when_xclip_present(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    with patch("zrb.llm.util.clipboard.shutil.which", return_value="/usr/bin/xclip"):
+    with patch("zrb.util.clipboard.shutil.which", return_value="/usr/bin/xclip"):
 
         assert missing_tool_hint() == ""
 
@@ -231,9 +231,7 @@ def test_copy_text_termux_success(clean_env):
 
     with (
         patch("zrb.config.helper.is_termux", return_value=True),
-        patch(
-            "zrb.llm.util.clipboard.subprocess.run", return_value=mock_proc
-        ) as mock_run,
+        patch("zrb.util.clipboard.subprocess.run", return_value=mock_proc) as mock_run,
     ):
         result = copy_text("hello termux")
 
@@ -257,7 +255,7 @@ def test_copy_text_termux_fallback_to_pyperclip(clean_env):
 
     with (
         patch("zrb.config.helper.is_termux", return_value=True),
-        patch("zrb.llm.util.clipboard.subprocess.run", return_value=mock_proc),
+        patch("zrb.util.clipboard.subprocess.run", return_value=mock_proc),
         patch.dict("sys.modules", {"pyperclip": fake_pyperclip}),
     ):
         result = copy_text("hello")

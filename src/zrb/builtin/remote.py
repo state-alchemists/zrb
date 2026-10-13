@@ -6,14 +6,12 @@ from zrb.context.any_context import AnyContext
 from zrb.input.int_input import IntInput
 from zrb.input.option_input import OptionInput
 from zrb.input.str_input import StrInput
-from zrb.remote.execution import (
-    create_probe_script,
-    parse_probe_output,
-    run_on_hosts,
-)
+from zrb.remote.execution import create_probe_script, parse_probe_output, run_on_hosts
 from zrb.remote.inventory import Host, host_inventory, target_inventory
-from zrb.remote.report import create_markdown_table, render_table
+from zrb.remote.report import create_csv, create_markdown_table, render_table
 from zrb.task.make_task import make_task
+from zrb.util.cli.style import stylize_green, stylize_red
+from zrb.util.clipboard import copy_text
 
 _host_labels_input = OptionInput(
     name="host-labels",
@@ -24,9 +22,12 @@ _host_labels_input = OptionInput(
 )
 _format_input = OptionInput(
     name="format",
-    description="table: rendered, markdown: raw markdown, json: raw statuses",
+    description=(
+        "table: rendered, markdown: raw markdown, json: raw statuses, csv: plain "
+        "rows. markdown, json and csv are also copied to the clipboard"
+    ),
     default="table",
-    options=["table", "markdown", "json"],
+    options=["table", "markdown", "json", "csv"],
 )
 _concurrency_input = IntInput(
     name="concurrency", description="Hosts handled at once", default=10
@@ -55,12 +56,28 @@ def _format(
     headers: Sequence[str],
     rows: Sequence[Sequence[str]],
     records: Sequence[dict[str, object]],
+    plain_headers: Sequence[str],
+    plain_rows: Sequence[Sequence[str]],
 ) -> str:
-    if ctx.input.format == "json":
-        return json.dumps(records, indent=2, ensure_ascii=False)
-    if ctx.input.format == "markdown":
-        return create_markdown_table(headers, rows)
-    return render_table(headers, rows)
+    """Render in the chosen format; csv takes the emoji-free `plain_*` cells."""
+    fmt = ctx.input.format
+    if fmt == "json":
+        text = json.dumps(records, indent=2, ensure_ascii=False)
+    elif fmt == "csv":
+        text = create_csv(plain_headers, plain_rows)
+    elif fmt == "markdown":
+        text = create_markdown_table(headers, rows)
+    else:
+        return render_table(headers, rows)
+    _copy_to_clipboard(ctx, text)
+    return text
+
+
+def _copy_to_clipboard(ctx: AnyContext, text: str) -> None:
+    if copy_text(text):
+        ctx.print(stylize_green("📋 Copied to clipboard"))
+    else:
+        ctx.print(stylize_red("❗ Could not access clipboard, please copy manually"))
 
 
 @make_task(
@@ -81,12 +98,30 @@ async def remote_run(ctx: AnyContext) -> str:
     results = await run_on_hosts(
         hosts, ctx.input.command, ctx.input.timeout, ctx.input.concurrency
     )
+    headers = ["Host", "Remote Host", "Status", "Output"]
     rows = [
-        [r.host.name, "✅" if r.ok else "❌", r.output or "(no output)"]
+        [
+            r.host.name,
+            r.host.remote_host or "(local)",
+            "✅" if r.ok else "❌",
+            r.output or "(no output)",
+        ]
         for r in results
     ]
-    records = [{"host": r.host.name, "ok": r.ok, "output": r.output} for r in results]
-    return _format(ctx, ["Host", "Status", "Output"], rows, records)
+    plain_rows = [
+        [r.host.name, r.host.remote_host or "", "ok" if r.ok else "failed", r.output]
+        for r in results
+    ]
+    records = [
+        {
+            "host": r.host.name,
+            "remote_host": r.host.remote_host,
+            "ok": r.ok,
+            "output": r.output,
+        }
+        for r in results
+    ]
+    return _format(ctx, headers, rows, records, headers, plain_rows)
 
 
 @make_task(
@@ -125,13 +160,33 @@ async def remote_check(ctx: AnyContext) -> str:
     )
     statuses = [parse_probe_output(r.output, len(targets)) for r in results]
     rows = [
-        [r.host.name, *(_describe(s) for s in row)] for r, row in zip(results, statuses)
-    ]
-    records = [
-        {"host": r.host.name, "targets": {t.name: s for t, s in zip(targets, row)}}
+        [r.host.name, r.host.remote_host or "(local)", *(_describe(s) for s in row)]
         for r, row in zip(results, statuses)
     ]
-    return _format(ctx, ["Host", *(t.name for t in targets)], rows, records)
+    plain_rows = [
+        [r.host.name, r.host.remote_host or "", *row]
+        for r, row in zip(results, statuses)
+    ]
+    records = [
+        {
+            "host": r.host.name,
+            "remote_host": r.host.remote_host,
+            "targets": {t.name: s for t, s in zip(targets, row)},
+            "target_addresses": {t.name: t.get_address() for t in targets},
+        }
+        for r, row in zip(results, statuses)
+    ]
+    headers = [
+        "Host",
+        "Remote Host",
+        *(f"{t.name}\n{t.get_address()}" for t in targets),
+    ]
+    plain_headers = [
+        "Host",
+        "Remote Host",
+        *(f"{t.name} ({t.get_address()})" for t in targets),
+    ]
+    return _format(ctx, headers, rows, records, plain_headers, plain_rows)
 
 
 _FAILED_STATUSES = ("refused", "timeout", "dns", "fail", "error")
