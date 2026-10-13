@@ -27,6 +27,8 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 
 `/photo` captures one photo and attaches it to your next message, so you can say what to do with it: `/photo`, then "what does this error on my screen mean?". `/photo 1` picks a device; press Tab after `/photo ` to list them.
 
+**Letting the agent look.** With `ZRB_LLM_CAMERA_ENABLE_TOOL=on`, the agent also gets a `TakePhoto` tool: when you say "what do you think of this?" with something held up, it can take the photo itself. Every call asks for approval like `Shell` does, and plan mode denies it. To skip the prompt, add `auto_approve("TakePhoto")` to your tool policies (see [Customizing Tool Approval](tool-approval.md)).
+
 ## Dictation
 
 **Push-to-talk.** Type `/voice` and talk. A pause of about a second, or `/voice` again, stops the recording. The transcript is inserted at the cursor, where you can edit it before pressing Enter. `/voice` works while the model is still answering.

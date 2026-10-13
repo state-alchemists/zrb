@@ -14,6 +14,8 @@ class CameraConfig:
     """Settings for `enable_camera`. Each field mirrors `CFG.LLM_CAMERA_<FIELD>`;
     one left ``None`` is read from there when a session starts.
 
+    *enable_tool* adds the `TakePhoto` tool beside the command.
+
     *backend* names a built-in backend (``auto``, ``termux``, ``ffmpeg``) or
     is an `AnyCameraBackend` of your own.
     """
@@ -22,6 +24,7 @@ class CameraConfig:
     backend: "str | AnyCameraBackend | None" = None
     device: str | None = None
     timeout: float | None = None
+    enable_tool: bool | None = None
 
     def resolve(self) -> "CameraConfig":
         """A copy with every ``None`` field read from `CFG`."""

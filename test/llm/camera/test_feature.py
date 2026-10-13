@@ -5,7 +5,8 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.camera import AnyCameraBackend, CameraConfig, enable_camera
-from zrb.llm.camera.feature import create_camera_commands
+from zrb.llm.camera.feature import create_camera_commands, create_camera_tools
+from zrb.llm.permission.capability import Capability, tool_capability
 
 
 class FakeCamera(AnyCameraBackend):
@@ -123,3 +124,69 @@ def test_enabling_the_camera_again_replaces_the_first_call():
         for command in factory()
     ]
     assert [command.command for command in commands] == ["/snap"]
+
+
+def _take_photo(camera: FakeCamera, **config):
+    config = CameraConfig(backend=camera, enable_tool=True, **config).resolve()
+    (tool,) = create_camera_tools(config)
+    return tool
+
+
+def test_the_photo_tool_is_off_unless_enabled(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_CAMERA_ENABLE_TOOL", False)
+    config = CameraConfig(backend=FakeCamera(b"jpeg")).resolve()
+
+    assert create_camera_tools(config) == []
+
+
+def test_the_photo_tool_builds_into_an_agent_tool():
+    from pydantic_ai import Tool
+
+    tool = Tool(_take_photo(FakeCamera(b"jpeg")))
+
+    assert tool.name == "TakePhoto"
+    assert "device" in tool.function_schema.json_schema["properties"]
+
+
+def test_the_photo_tool_is_named_and_always_asks():
+    tool = _take_photo(FakeCamera(b"jpeg"))
+
+    assert tool.__name__ == "TakePhoto"
+    assert tool_capability(tool) == Capability.EXECUTE
+
+
+@pytest.mark.asyncio
+async def test_the_photo_tool_shows_the_model_the_photo():
+    camera = FakeCamera(b"\xff\xd8\xff-fake-jpeg")
+
+    result = await _take_photo(camera, device="0")()
+
+    assert camera.captured_from == ["0"]
+    (photo,) = result.content
+    assert photo.media_type == "image/jpeg"
+
+
+@pytest.mark.asyncio
+async def test_the_device_the_model_names_wins_over_the_configured_one():
+    camera = FakeCamera(None)
+
+    await _take_photo(camera, device="0")(device="2")
+
+    assert camera.captured_from == ["2"]
+
+
+@pytest.mark.asyncio
+async def test_a_failed_photo_tells_the_model_not_to_retry():
+    result = await _take_photo(FakeCamera(None))()
+
+    assert "[SYSTEM SUGGESTION]" in result
+    assert "plug the camera in" in result
+
+
+def test_enable_camera_reads_the_tool_switch_when_a_session_starts(monkeypatch):
+    chat = MagicMock()
+    enable_camera(chat, CameraConfig(backend=FakeCamera(b"jpeg")))
+    (create_tools,) = chat.append_tool_factory.call_args.args
+
+    monkeypatch.setattr(CFG, "LLM_CAMERA_ENABLE_TOOL", True)
+    assert [tool.__name__ for tool in create_tools(None)] == ["TakePhoto"]
