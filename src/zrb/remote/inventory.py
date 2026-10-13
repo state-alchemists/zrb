@@ -88,7 +88,8 @@ def _redact_userinfo(url: str) -> str:
     _, at, hostinfo = parts.netloc.rpartition("@")
     if not at:
         return url
-    return urlunsplit(parts._replace(netloc=f"***@{hostinfo}"))
+    netloc = f"***@{hostinfo}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
 def _to_labels(labels: Iterable[str]) -> frozenset[str]:
