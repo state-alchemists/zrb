@@ -7,7 +7,7 @@ import pytest
 from zrb.builtin.remote import remote_check, remote_run
 from zrb.context.shared_context import SharedContext
 from zrb.remote.inventory import Host, Target, host_inventory, target_inventory
-from zrb.remote.report import create_markdown_table
+from zrb.remote.report import create_csv, create_markdown_table
 from zrb.session.session import Session
 
 
@@ -174,3 +174,8 @@ async def test_table_format_is_not_copied_and_clipboard_failure_is_tolerated():
             session=get_session(), kwargs=_kwargs(command="echo hi", format="json")
         )
     assert json.loads(res)[0]["output"] == "hi"
+
+
+def test_csv_neutralizes_spreadsheet_formulas():
+    out = create_csv(["h"], [["=1+1"], ["+x"], ["-x"], ["@x"], ["safe"]])
+    assert out.splitlines() == ["h", "'=1+1", "'+x", "'-x", "'@x", "safe"]
