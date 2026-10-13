@@ -179,3 +179,10 @@ async def test_table_format_is_not_copied_and_clipboard_failure_is_tolerated():
 def test_csv_neutralizes_spreadsheet_formulas():
     out = create_csv(["h"], [["=1+1"], ["+x"], ["-x"], ["@x"], ["safe"]])
     assert out.splitlines() == ["h", "'=1+1", "'+x", "'-x", "'@x", "safe"]
+
+
+def test_target_address_redacts_url_credentials():
+    target = Target("api", kind="http", url="https://alice:secret@example.com/health")
+    assert target.get_address() == "https://***@example.com/health"
+    assert target.get_url() == "https://alice:secret@example.com/health"
+    assert Target("plain", kind="http", host="h").get_address() == "http://h:80/"
