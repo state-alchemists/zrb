@@ -1,4 +1,5 @@
 import json
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -43,7 +44,11 @@ async def test_remote_run_returns_markdown_table_for_selected_hosts():
     res = await remote_run.async_run(
         session=get_session(), kwargs=_kwargs(command="echo hello")
     )
-    assert res == "| Host | Status | Output |\n|---|---|---|\n| node1 | ✅ | hello |"
+    assert res == (
+        "| Host | Remote Host | Status | Output |\n"
+        "|---|---|---|---|\n"
+        "| node1 | (local) | ✅ | hello |"
+    )
 
 
 @pytest.mark.asyncio
@@ -59,7 +64,8 @@ async def test_remote_check_builds_host_by_target_matrix():
     res = await remote_check.async_run(
         session=get_session(), kwargs=_kwargs(target_labels="t")
     )
-    assert res.splitlines()[-1] == "| node1 | ❌ refused |"
+    assert res.splitlines()[0] == "| Host | Remote Host | closed<br>127.0.0.1:1 |"
+    assert res.splitlines()[-1] == "| node1 | (local) | ❌ refused |"
 
 
 @pytest.mark.asyncio
@@ -94,7 +100,7 @@ async def test_a_host_name_selects_it():
     res = await remote_run.async_run(
         session=get_session(), kwargs=_kwargs(host_labels="other", command="echo x")
     )
-    assert "| other | ✅ | x |" in res
+    assert "| other | (local) | ✅ | x |" in res
 
 
 @pytest.mark.asyncio
@@ -102,8 +108,69 @@ async def test_json_format_returns_raw_statuses():
     run = await remote_run.async_run(
         session=get_session(), kwargs=_kwargs(command="echo hi", format="json")
     )
-    assert json.loads(run) == [{"host": "node1", "ok": True, "output": "hi"}]
+    assert json.loads(run) == [
+        {"host": "node1", "remote_host": None, "ok": True, "output": "hi"}
+    ]
     check = await remote_check.async_run(
         session=get_session(), kwargs=_kwargs(target_labels="t", format="json")
     )
-    assert json.loads(check) == [{"host": "node1", "targets": {"closed": "refused"}}]
+    assert json.loads(check) == [
+        {
+            "host": "node1",
+            "remote_host": None,
+            "targets": {"closed": "refused"},
+            "target_addresses": {"closed": "127.0.0.1:1"},
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_csv_format_is_plain_and_includes_the_remote_host():
+    host = Host("node1", labels=["k8s"], remote_host="10.0.0.1")
+    run_result = SimpleNamespace(host=host, ok=True, output="a,b")
+    check_result = SimpleNamespace(host=host, ok=True, output="refused")
+    with (
+        mock.patch("zrb.builtin.remote.copy_text", return_value=True),
+        mock.patch(
+            "zrb.builtin.remote.run_on_hosts",
+            side_effect=[[run_result], [check_result]],
+        ),
+        mock.patch("zrb.builtin.remote.parse_probe_output", return_value=["refused"]),
+    ):
+        run = await remote_run.async_run(
+            session=get_session(), kwargs=_kwargs(command="x", format="csv")
+        )
+        check = await remote_check.async_run(
+            session=get_session(), kwargs=_kwargs(target_labels="t", format="csv")
+        )
+    assert run.splitlines() == [
+        "Host,Remote Host,Status,Output",
+        'node1,10.0.0.1,ok,"a,b"',
+    ]
+    assert check.splitlines() == [
+        "Host,Remote Host,closed (127.0.0.1:1)",
+        "node1,10.0.0.1,refused",
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fmt", ["csv", "json", "markdown"])
+async def test_machine_formats_are_copied_to_the_clipboard(fmt):
+    with mock.patch("zrb.builtin.remote.copy_text", return_value=True) as copy:
+        res = await remote_run.async_run(
+            session=get_session(), kwargs=_kwargs(command="echo hi", format=fmt)
+        )
+    copy.assert_called_once_with(res)
+
+
+@pytest.mark.asyncio
+async def test_table_format_is_not_copied_and_clipboard_failure_is_tolerated():
+    with mock.patch("zrb.builtin.remote.copy_text", return_value=False) as copy:
+        await remote_run.async_run(
+            session=get_session(), kwargs=_kwargs(command="echo hi", format="table")
+        )
+        copy.assert_not_called()
+        res = await remote_run.async_run(
+            session=get_session(), kwargs=_kwargs(command="echo hi", format="json")
+        )
+    assert json.loads(res)[0]["output"] == "hi"

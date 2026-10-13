@@ -116,11 +116,6 @@ def is_termux() -> bool:
     return False
 
 
-def is_wsl() -> bool:
-    """Best-effort detection of WSL (``WSL_DISTRO_NAME`` or ``WSLENV``)."""
-    return bool(os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSLENV"))
-
-
 def get_default_diff_edit_command(editor: str) -> str:
     if editor in [
         "code",

@@ -18,7 +18,6 @@ import sys
 import time
 from typing import Any
 
-from zrb.config.helper import is_wsl
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.deadline import (
     communicate_within,
@@ -26,6 +25,7 @@ from zrb.llm.camera.backend.deadline import (
     get_earlier,
     get_remaining,
 )
+from zrb.util.platform import is_wsl
 
 logger = logging.getLogger(__name__)
 

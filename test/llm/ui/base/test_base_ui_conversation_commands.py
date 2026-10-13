@@ -276,17 +276,17 @@ def test_write_text_to_file_creates_parents(tmp_path):
 
 
 def test_copy_to_clipboard_success_and_failure(conv_ui):
-    with patch("zrb.llm.util.clipboard.copy_text", return_value=True):
+    with patch("zrb.util.clipboard.copy_text", return_value=True):
         conv_ui.copy_to_clipboard_and_report("x", "copied!")
         assert any("copied!" in line for line in conv_ui.outputs)
-    with patch("zrb.llm.util.clipboard.copy_text", return_value=False):
+    with patch("zrb.util.clipboard.copy_text", return_value=False):
         conv_ui.copy_to_clipboard_and_report("x", "copied!")
         assert any("Failed to copy" in line for line in conv_ui.outputs)
 
 
 def test_redirect_command_copies_last_ai_response(conv_ui):
     conv_ui.last_result_data = "some answer"
-    with patch("zrb.llm.util.clipboard.copy_text", return_value=True):
+    with patch("zrb.util.clipboard.copy_text", return_value=True):
         assert conv_ui.handle_redirect_command("redirect") is True
     assert any("copied" in line for line in conv_ui.outputs)
 
@@ -329,7 +329,7 @@ def test_copy_command_copies_full_transcript(conv_ui):
         patch(
             "zrb.llm.util.history_formatter.format_history_as_text", return_value="text"
         ),
-        patch("zrb.llm.util.clipboard.copy_text", return_value=True),
+        patch("zrb.util.clipboard.copy_text", return_value=True),
     ):
         assert conv_ui.handle_copy_command("copy") is True
     assert any("copied to clipboard" in line for line in conv_ui.outputs)

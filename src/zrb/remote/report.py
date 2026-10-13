@@ -1,3 +1,4 @@
+import csv
 import io
 import sys
 from collections.abc import Sequence
@@ -17,6 +18,15 @@ def create_markdown_table(headers: Sequence[str], rows: Rows) -> str:
     ]
     lines += ["| " + " | ".join(cell(c) for c in row) + " |" for row in rows]
     return "\n".join(lines)
+
+
+def create_csv(headers: Sequence[str], rows: Rows) -> str:
+    """RFC 4180 CSV; the `csv` module quotes commas, quotes and newlines."""
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(headers)
+    writer.writerows(rows)
+    return buffer.getvalue().rstrip("\n")
 
 
 def render_table(headers: Sequence[str], rows: Rows) -> str:

@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 
-from zrb.config.helper import is_wsl
+from zrb.util.platform import is_wsl
 
 
 async def get_clipboard_image() -> bytes | None:

@@ -74,6 +74,12 @@ class Target:
             f"{self.scheme}://{bracket_ipv6(self.host)}:{self.port}{self.path}"
         )
 
+    def get_address(self) -> str:
+        """Where the target is probed: the URL of an http target, else `host:port`."""
+        if self.kind == "http":
+            return self.get_url()
+        return f"{bracket_ipv6(self.host)}:{self.port}"
+
 
 def _to_labels(labels: Iterable[str]) -> frozenset[str]:
     return frozenset([labels] if isinstance(labels, str) else labels)

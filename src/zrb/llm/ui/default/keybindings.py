@@ -201,10 +201,10 @@ class UIKeybindings:
 
     async def _on_clipboard_paste(self, clipboard: Any) -> None:
         """Paste an image from the clipboard, or fall back to text."""
-        # lazy: tests patch `zrb.llm.util.clipboard.get_clipboard_image`
+        # lazy: tests patch `zrb.util.clipboard.get_clipboard_image`
         # at the source path; hoisting would bind the name at
         # module-load and bypass the mock.
-        from zrb.llm.util.clipboard import get_clipboard_image, missing_tool_hint
+        from zrb.util.clipboard import get_clipboard_image, missing_tool_hint
 
         ui = self._ui
         img_bytes = await get_clipboard_image()
