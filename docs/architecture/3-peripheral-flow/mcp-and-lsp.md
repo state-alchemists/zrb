@@ -57,7 +57,7 @@ Both protocols let the agent use an outside program as a tool. MCP brings in thi
 
 ```mermaid
 flowchart TD
-    Cfg[mcp-config.json] -->|load_mcp_config| Sets[MCPToolset per server]
+    Cfg[mcp-config.json] -->|load_mcp_config| Sets[MCPToolset per server, prefixed if configured]
     Sets -->|per run| Task[LLMTask]
     Detect[detect_available_lsp_servers] -->|any found| Tools[create_lsp_tools]
     Tools -->|tagged, deferred| Task
@@ -68,7 +68,7 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `load_mcp_config` | `src/zrb/llm/tool/mcp.py` | Finds `mcp-config.json` files, merges their `mcpServers`, expands `${VAR}`, builds one `MCPToolset` per server |
+| `load_mcp_config` | `src/zrb/llm/tool/mcp.py` | Finds `mcp-config.json` files, merges their `mcpServers`, expands `${VAR}`, builds one `MCPToolset` per server; an entry with `prefix` gets `<prefix>_` on each tool name and drops tools whose prefixed name exceeds 64 characters |
 | `cap_mcp_result`, `frame_mcp_result` | `src/zrb/llm/tool/mcp.py` | Bound a result against `LLM_MAX_OUTPUT_CHARS`, then attach the untrusted-data note |
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Registers the per-run MCP toolset factory and, when a server is detected, the LSP tools |
 | `LLMTask` | `src/zrb/llm/task/llm_task.py` | Resolves toolsets once per run, enters them, runs the turn, exits them |

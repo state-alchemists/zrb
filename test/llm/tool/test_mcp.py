@@ -5,7 +5,10 @@ from unittest.mock import patch
 
 import pytest
 from fastmcp.client.transports import StdioTransport
+from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPToolset
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.toolsets import FunctionToolset
 
 from zrb.config.config import CFG
 from zrb.llm.tool.mcp import cap_mcp_result, frame_mcp_result, load_mcp_config
@@ -206,6 +209,62 @@ def test_mcp_toolset_factory_overrides(mock_fs):
         transport = toolsets[0].client.transport
         assert isinstance(transport, StdioTransport)
         assert transport.command == "cmd2"
+
+
+def _fake_mcp_toolset(*_args, id, **_kwargs):
+    def short_tool() -> str:
+        return "ok"
+
+    def long_tool() -> str:
+        return "ok"
+
+    toolset = FunctionToolset(id=id)
+    toolset.add_function(short_tool, name="type_text")
+    toolset.add_function(long_tool, name="t" * 60)
+    return toolset
+
+
+def test_mcp_config_prefix_renames_tools_and_skips_overlong_names(mock_fs):
+    home_dir, _, sub_dir = mock_fs
+    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
+        json.dump(
+            {
+                "mcpServers": {
+                    "desktop": {"command": "cmd", "prefix": "desk"},
+                    "browser": {"command": "cmd"},
+                }
+            },
+            f,
+        )
+
+    with (
+        patch("os.path.expanduser", return_value=home_dir),
+        patch("os.getcwd", return_value=sub_dir),
+        patch("zrb.llm.agent.types.MCPToolset", side_effect=_fake_mcp_toolset),
+        patch("zrb.llm.tool.mcp.zrb_print") as mock_print,
+    ):
+        toolsets = load_mcp_config()
+        called = json.loads(Agent(TestModel(), toolsets=toolsets).run_sync("go").output)
+
+    assert set(called) == {"desk_type_text", "type_text", "t" * 60}
+    assert "desk_" + "t" * 60 in mock_print.call_args.args[0]
+
+
+@pytest.mark.parametrize("prefix", [True, 5, "", "has space", "x" * 63])
+def test_mcp_config_skips_a_server_with_an_invalid_prefix(mock_fs, prefix):
+    home_dir, _, sub_dir = mock_fs
+    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
+        json.dump({"mcpServers": {"desktop": {"command": "cmd", "prefix": prefix}}}, f)
+
+    with (
+        patch("os.path.expanduser", return_value=home_dir),
+        patch("os.getcwd", return_value=sub_dir),
+        patch("zrb.llm.tool.mcp.zrb_print") as mock_print,
+    ):
+        toolsets = load_mcp_config()
+
+    assert toolsets == []
+    assert "prefix must be" in mock_print.call_args.args[0]
 
 
 def test_mcp_config_skips_home_when_cwd_is_a_sibling_of_home(tmp_path):

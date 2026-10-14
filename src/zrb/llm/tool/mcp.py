@@ -1,14 +1,22 @@
 import json
 import os
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 
+if TYPE_CHECKING:
+    from pydantic_ai import RunContext
+    from pydantic_ai.tools import ToolDefinition
+
 _ENV_VAR_PATTERN = re.compile(r"\$\{([^}:]+)(:-([^}]*))?\}")
+# OpenAI's limit, the strictest provider's; one longer name fails the whole request.
+_MAX_TOOL_NAME_LENGTH = 64
+# Leaves room for "_" and at least one character of the tool name.
+_PREFIX_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,62}")
 
 
 def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
@@ -90,31 +98,57 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
                 env = {
                     k: _expand_env_vars(v) for k, v in config.get("env", {}).items()
                 } or None
-                transport = StdioTransport(command=command, args=args, env=env)
-                toolsets.append(
-                    MCPToolset(
-                        transport,
-                        id=server_name,
-                        max_retries=CFG.LLM_MCP_MAX_RETRIES,
-                        process_tool_call=_truncating_process_tool_call,
-                    )
-                )
+                target = StdioTransport(command=command, args=args, env=env)
             elif "url" in config:
-                url = _expand_env_vars(config["url"])
-                toolsets.append(
-                    MCPToolset(
-                        url,
-                        id=server_name,
-                        max_retries=CFG.LLM_MCP_MAX_RETRIES,
-                        process_tool_call=_truncating_process_tool_call,
+                target = _expand_env_vars(config["url"])
+            else:
+                continue
+            toolset = MCPToolset(
+                target,
+                id=server_name,
+                max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                process_tool_call=_truncating_process_tool_call,
+            )
+            # Two servers exposing the same tool name abort the whole run.
+            if (prefix := config.get("prefix")) is not None:
+                if not isinstance(prefix, str) or not _PREFIX_PATTERN.fullmatch(prefix):
+                    raise ValueError(
+                        f"prefix must be 1-62 letters, digits, '_' or '-', got {prefix!r}"
                     )
+                toolset = toolset.prefixed(prefix).filtered(
+                    _create_tool_name_length_filter(server_name)
                 )
+            toolsets.append(toolset)
         except Exception as e:
             zrb_print(
                 f"Warning: Failed to create MCP server '{server_name}': {e}", plain=True
             )
 
     return toolsets
+
+
+def _create_tool_name_length_filter(
+    server_name: str,
+) -> "Callable[[RunContext[object], ToolDefinition], bool]":
+    """Drop a prefixed tool whose name grew past the provider limit, warning once.
+
+    Skipping one tool beats a provider rejecting the whole request.
+    """
+    warned: set[str] = set()
+
+    def is_short_enough(_ctx: "RunContext[object]", tool_def: "ToolDefinition") -> bool:
+        if len(tool_def.name) <= _MAX_TOOL_NAME_LENGTH:
+            return True
+        if tool_def.name not in warned:
+            warned.add(tool_def.name)
+            zrb_print(
+                f"Warning: Skipping MCP tool '{tool_def.name}' from '{server_name}': "
+                f"prefixed name exceeds {_MAX_TOOL_NAME_LENGTH} characters",
+                plain=True,
+            )
+        return False
+
+    return is_short_enough
 
 
 def cap_mcp_result(result: Any) -> Any:
