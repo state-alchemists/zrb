@@ -88,12 +88,16 @@ class FfmpegCameraBackend(AnyCameraBackend):
     ) -> bytes | None:
         dshow_ffmpeg = _get_dshow_ffmpeg(device)
         if dshow_ffmpeg is not None:
-            data = await self._capture_dshow(dshow_ffmpeg, device, deadline)
+            name = await self._get_dshow_device(dshow_ffmpeg, device, deadline)
+            if name is not None:
+                return await self._run(
+                    _ffmpeg_cmd(dshow_ffmpeg, "dshow", [], f"video={name}"), deadline
+                )
             # A camera attached to WSL through usbipd is gone from Windows'
-            # listing but present as /dev/video*, so an unnamed device falls
-            # back to v4l2.
-            if data is not None or device or not glob.glob("/dev/video*"):
-                return data
+            # listing but present as /dev/video*. Only an empty listing falls
+            # back: a listed camera that fails must not become another photo.
+            if not glob.glob("/dev/video*"):
+                return None
         if shutil.which("ffmpeg") is None:
             return None
         if sys.platform == "darwin":
@@ -117,17 +121,12 @@ class FfmpegCameraBackend(AnyCameraBackend):
             return data
         return await self._run(_ffmpeg_cmd("ffmpeg", "v4l2", [], input_arg), deadline)
 
-    async def _capture_dshow(
+    async def _get_dshow_device(
         self, ffmpeg: str, device: str | None, deadline: float | None
-    ) -> bytes | None:
+    ) -> str | None:
         if shutil.which(ffmpeg) is None:
             return None
-        name = device or await self._get_dshow_default_device(ffmpeg, deadline)
-        if name is None:
-            return None
-        return await self._run(
-            _ffmpeg_cmd(ffmpeg, "dshow", [], f"video={name}"), deadline
-        )
+        return device or await self._get_dshow_default_device(ffmpeg, deadline)
 
     async def _run(self, cmd: list[str], deadline: float | None) -> bytes | None:
         timeout = get_remaining(deadline)

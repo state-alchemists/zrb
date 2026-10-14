@@ -176,6 +176,29 @@ async def test_wsl_falls_back_to_a_usbipd_camera_windows_no_longer_lists(clean_e
 
 
 @pytest.mark.asyncio
+async def test_wsl_does_not_swap_a_busy_windows_camera_for_dev_video(clean_env):
+    "A listed Windows camera that fails must not turn into another camera's photo."
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
+    clean_env.setattr("glob.glob", lambda pattern: ["/dev/video0"])
+    commands: list[list[str]] = []
+
+    def _make_proc(*args, **kwargs):
+        commands.append(list(args))
+        if "-list_devices" in args:
+            return _FakeProcess(stderr=b'[dshow @ 0] "USB Camera" (video)\n')
+        return _FakeProcess(stderr=b"Could not run graph", returncode=1)
+
+    with patch("asyncio.create_subprocess_exec", new=AsyncMock(side_effect=_make_proc)):
+        result = await AutoCameraBackend().capture(None)
+
+    assert result is None
+    assert all(cmd[0] == "ffmpeg.exe" for cmd in commands)
+
+
+@pytest.mark.asyncio
 async def test_a_failed_dev_video_capture_on_wsl_gets_the_linux_hint(clean_env):
     "/photo /dev/video0 fails on Linux v4l2; the hint must not blame dshow."
     clean_env.setattr("sys.platform", "linux")
