@@ -28,6 +28,10 @@ def get_task_str_kwargs(
             str_value = task_input.get_default_str(dummy_shared_ctx)
         task_str_kwargs[input_name] = str_value
         task_input.update_shared_context(dummy_shared_ctx, str_value=str_value)
+    # Never prompted: the run may not reach the task that reads them.
+    for task_input in task.side_inputs:
+        if task_input.name in str_kwargs:
+            task_str_kwargs[task_input.name] = str_kwargs[task_input.name]
     return task_str_kwargs
 
 
@@ -52,7 +56,7 @@ def _reject_unknown_kwargs(task: AnyTask, str_kwargs: dict[str, str]) -> None:
 
     Only keyword arguments are checked; leftover positionals become `ctx.args`.
     """
-    known = {task_input.name for task_input in task.inputs}
+    known = {task_input.name for task_input in task.inputs + task.side_inputs}
     unknown = [
         key
         for key in str_kwargs

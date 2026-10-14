@@ -81,6 +81,13 @@ class AnyTask(ABC):
         pass
 
     @property
+    def side_inputs(self) -> list[AnyInput]:
+        """Inputs only the task's fallbacks, successors and readiness checks
+        declare. They are filled from a passed value or their default and
+        never prompted for, since the run may not reach the task reading them."""
+        return []
+
+    @property
     @abstractmethod
     def envs(self) -> list[AnyEnv]:
         """Task envs, merged with those of every transitive upstream."""

@@ -169,3 +169,30 @@ async def test_explain_config_marks_an_unset_value_as_default(
 
     printed = _printed_text(mock_print)
     assert "ZRB_WEB_HTTP_PORT = 21213 (default)" in printed
+
+
+@pytest.mark.asyncio
+async def test_explain_config_never_shows_a_secret_default(
+    session, mock_print, monkeypatch
+):
+    monkeypatch.setenv("ZRB_WEB_SUPER_ADMIN_PASSWORD", "hunter2")
+    await config_module.explain_config.async_run(
+        session=session, kwargs={"keyword": "ZRB_WEB_SUPER_ADMIN_PASSWORD"}
+    )
+
+    printed = _printed_text(mock_print)
+    assert "Value (set):" in printed
+    assert "Default:" not in printed
+    assert "hunter2" not in printed
+
+
+@pytest.mark.asyncio
+async def test_explain_config_treats_an_empty_value_as_default(
+    session, mock_print, monkeypatch
+):
+    monkeypatch.setenv("ZRB_WEB_HTTP_PORT", "")
+    await config_module.explain_config.async_run(
+        session=session, kwargs={"keyword": "ZRB_WEB_HTTP_PORT"}
+    )
+
+    assert "Value (default):" in _printed_text(mock_print)

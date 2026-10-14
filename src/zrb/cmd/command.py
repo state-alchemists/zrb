@@ -498,10 +498,7 @@ class __StreamState:
 
     def get_captured(self) -> str:
         """The captured text with trailing newlines removed, like `$(...)`."""
-        lines = list(self.captured)
-        if self.line:
-            lines.append(self.line)
-        return "\n".join(lines).rstrip("\n")
+        return "\n".join(self.captured).rstrip("\n")
 
 
 def __resolve_chunk(future: "asyncio.Future[bytes]") -> bytes:
@@ -555,6 +552,8 @@ def __finalize_stream(
 ) -> None:
     text = state.decoder.decode(b"", final=True)
     state.capture(text)
+    if state.line:
+        state.capture_line()
     state.buffer += text
     __emit_line(state.buffer, print_method, display_queue)
 

@@ -22,7 +22,7 @@ or turned from optional into required.
 
 To accept an intentional change, review the diff and regenerate:
 
-    ZRB_UPDATE_API_SNAPSHOT=1 pytest test/test_public_api_contract.py
+    UPDATE_API_SNAPSHOT=1 pytest test/test_public_api_contract.py
 """
 
 import inspect
@@ -103,11 +103,11 @@ def build_surface() -> dict:
 def snapshot() -> dict:
     """Load the golden file, regenerating it first when explicitly requested."""
     current = build_surface()
-    if os.environ.get("ZRB_UPDATE_API_SNAPSHOT"):
+    if os.environ.get("UPDATE_API_SNAPSHOT"):
         SNAPSHOT_PATH.write_text(json.dumps(current, indent=2, sort_keys=True) + "\n")
     assert SNAPSHOT_PATH.exists(), (
         f"{SNAPSHOT_PATH} is missing. Generate it with "
-        "ZRB_UPDATE_API_SNAPSHOT=1 pytest test/test_public_api_contract.py"
+        "UPDATE_API_SNAPSHOT=1 pytest test/test_public_api_contract.py"
     )
     return json.loads(SNAPSHOT_PATH.read_text())
 
@@ -118,7 +118,7 @@ def test_exported_names_are_unchanged(snapshot):
     # Assert
     assert current == snapshot["__all__"], (
         "zrb.__all__ changed. Removing an export breaks user code; adding one is "
-        "fine but must be recorded via ZRB_UPDATE_API_SNAPSHOT=1."
+        "fine but must be recorded via UPDATE_API_SNAPSHOT=1."
     )
 
 
@@ -178,7 +178,7 @@ def _render_drift(drifted: dict, subject: str) -> str:
             lines.append(f"    reordered: {expected} -> {actual}")
     lines.append(
         "Removals and reorderings break user code. If the change is intended, "
-        "regenerate with ZRB_UPDATE_API_SNAPSHOT=1."
+        "regenerate with UPDATE_API_SNAPSHOT=1."
     )
     return "\n".join(lines)
 

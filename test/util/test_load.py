@@ -173,3 +173,15 @@ def test_get_user_frames_falls_back_to_the_raising_frame():
     except ValueError as error:
         user_frame, raising_frame = get_user_frames(error)
     assert user_frame is raising_frame
+
+
+def test_get_user_frames_skips_stdlib_frames():
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("import json\n\njson.loads('{')\n")
+        path = f.name
+    try:
+        _, error = load_file_with_result(path)
+        user_frame, _ = get_user_frames(error)
+        assert (user_frame.filename, user_frame.lineno) == (path, 3)
+    finally:
+        os.remove(path)

@@ -284,3 +284,14 @@ async def test_run_command_output_keeps_blank_lines_and_whitespace():
 
     assert return_code == 0
     assert result.output == "a\n\n  indented\nb   "
+
+
+@pytest.mark.asyncio
+async def test_run_command_caps_output_lines_without_a_trailing_newline():
+    result, _ = await run_command(
+        [_BASH, "-c", "printf 'a\\nb\\nc'"],
+        max_output_line=2,
+        print_method=lambda *args, **kwargs: None,
+    )
+
+    assert result.output == "b\nc"

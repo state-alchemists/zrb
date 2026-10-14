@@ -1,3 +1,4 @@
+import os
 import shutil
 import textwrap
 from typing import NamedTuple
@@ -19,6 +20,7 @@ class _Entry(NamedTuple):
     value: str
     default: str
     is_set: bool
+    is_secret: bool
     description: str
 
 
@@ -73,7 +75,7 @@ def _render_detail(entry: _Entry) -> str:
     lines = [stylize_cyan(entry.env_var), ""]
     lines.append(stylize_muted(f"Value {_source_label(entry)}:"))
     lines.extend(_verbatim_lines(entry.value))
-    if entry.is_set:
+    if entry.is_set and not entry.is_secret:
         lines.extend(["", stylize_muted("Default:")])
         lines.extend(_verbatim_lines(entry.default))
     if entry.description.strip():
@@ -147,8 +149,13 @@ def _collect_entries(keyword: str) -> list[_Entry]:
             )
             if kw and kw not in env_var.lower() and kw not in description.lower():
                 continue
-            is_set = attr_val.is_set(CFG.ENV_PREFIX)
-            entries.append(_Entry(env_var, value, default, is_set, description))
+            # An empty value reads as the default, so it is not a choice.
+            is_set = any(
+                os.environ.get(key) for key in attr_val.get_read_keys(CFG.ENV_PREFIX)
+            )
+            entries.append(
+                _Entry(env_var, value, default, is_set, attr_val.secret, description)
+            )
 
     return sorted(entries, key=lambda entry: entry.env_var)
 

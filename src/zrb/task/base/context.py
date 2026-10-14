@@ -136,7 +136,7 @@ class BaseTaskContext:
         """Populate the shared context with input values not already set."""
         str_kwarg_dict = str_kwargs if str_kwargs is not None else {}
         kwarg_dict = kwargs if kwargs is not None else {}
-        for task_input in self._task.inputs:
+        for task_input in self._task.inputs + self._task.side_inputs:
             if task_input.name not in shared_ctx.input:
                 val = kwarg_dict.get(task_input.name, None)
                 if val is None:
@@ -178,25 +178,30 @@ class BaseTaskContext:
         self,
         task_inputs: Sequence[AnyInput | None] | AnyInput | None = None,
     ) -> list[AnyInput]:
-        """Aggregate inputs from every task a run can reach; first per name wins.
-
-        Upstreams come first, then the task's own inputs, then those of the
-        fallbacks, successors and readiness checks the run may execute: inputs
-        are filled once per run, so an input only those declare would
-        otherwise never get a value.
+        """Aggregate inputs from the task and its upstreams; first per name wins.
 
         Raises:
             ValueError: if the task appears in its own upstream chain.
         """
         inputs: list[AnyInput] = []
-        upstreams = _upstream_closure(self._task)
-        for upstream in upstreams:
+        for upstream in _upstream_closure(self._task):
             if upstream is self._task:
                 continue
             _combine_inputs(inputs, upstream.own_inputs)
 
         if task_inputs is not None:
             _combine_inputs(inputs, task_inputs)
-        for side_task in _side_task_closure(upstreams):
-            _combine_inputs(inputs, side_task.own_inputs)
         return inputs
+
+    def get_side_inputs(self) -> list[AnyInput]:
+        """Inputs only the reachable fallbacks, successors and readiness
+        checks declare; first per name wins, and `inputs` wins over these.
+
+        A run fills them once, like `inputs`, but may never execute the task
+        that reads them, so they are never prompted for.
+        """
+        inputs = list(self._task.inputs)
+        names = {task_input.name for task_input in inputs}
+        for side_task in _side_task_closure(_upstream_closure(self._task)):
+            _combine_inputs(inputs, side_task.own_inputs)
+        return [task_input for task_input in inputs if task_input.name not in names]
