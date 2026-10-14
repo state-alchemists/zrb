@@ -9,6 +9,8 @@ from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 
 _ENV_VAR_PATTERN = re.compile(r"\$\{([^}:]+)(:-([^}]*))?\}")
+# Providers reject tool names outside [A-Za-z0-9_-]{1,64}.
+_PREFIX_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,32}")
 
 
 def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
@@ -102,7 +104,11 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
                 process_tool_call=_truncating_process_tool_call,
             )
             # Two servers exposing the same tool name abort the whole run.
-            if prefix := config.get("prefix"):
+            if (prefix := config.get("prefix")) is not None:
+                if not isinstance(prefix, str) or not _PREFIX_PATTERN.fullmatch(prefix):
+                    raise ValueError(
+                        f"prefix must be 1-32 letters, digits, '_' or '-', got {prefix!r}"
+                    )
                 toolset = toolset.prefixed(prefix)
             toolsets.append(toolset)
         except Exception as e:

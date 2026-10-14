@@ -234,6 +234,23 @@ def test_mcp_config_prefix_wraps_only_that_servers_toolset(mock_fs):
     assert isinstance(browser, MCPToolset)
 
 
+@pytest.mark.parametrize("prefix", [True, 5, "", "has space", "x" * 33])
+def test_mcp_config_skips_a_server_with_an_invalid_prefix(mock_fs, prefix):
+    home_dir, _, sub_dir = mock_fs
+    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
+        json.dump({"mcpServers": {"desktop": {"command": "cmd", "prefix": prefix}}}, f)
+
+    with (
+        patch("os.path.expanduser", return_value=home_dir),
+        patch("os.getcwd", return_value=sub_dir),
+        patch("zrb.llm.tool.mcp.zrb_print") as mock_print,
+    ):
+        toolsets = load_mcp_config()
+
+    assert toolsets == []
+    assert "prefix must be" in mock_print.call_args.args[0]
+
+
 def test_mcp_config_skips_home_when_cwd_is_a_sibling_of_home(tmp_path):
     home_dir = tmp_path / "alice"
     sibling = tmp_path / "alice2" / "project"
