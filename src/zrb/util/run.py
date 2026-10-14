@@ -49,7 +49,7 @@ async def gather_fail_fast(*coros: Any) -> list[Any]:
             )
         except BaseException:
             # Cancellation aimed at us. Settle the children before unwinding.
-            await _cancel_and_settle(tasks)
+            await cancel_and_settle(tasks)
             raise
         # FIRST_COMPLETED: FIRST_EXCEPTION treats a cancelled child as a normal
         # completion and keeps waiting. Scanned in argument order so the
@@ -59,12 +59,12 @@ async def gather_fail_fast(*coros: Any) -> list[Any]:
             None,
         )
         if failed is not None:
-            await _cancel_and_settle(tasks)
+            await cancel_and_settle(tasks)
             return await failed  # re-raises the failure (or its CancelledError)
     return [task.result() for task in tasks]
 
 
-async def _cancel_and_settle(tasks: "list[asyncio.Task[Any]]") -> None:
+async def cancel_and_settle(tasks: "list[asyncio.Task[Any]]") -> None:
     """Cancel *tasks* and wait, up to ``CANCEL_SETTLE_TIMEOUT``, for them to
     unwind."""
     for task in tasks:

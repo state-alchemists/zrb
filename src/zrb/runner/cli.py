@@ -8,7 +8,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
-from zrb.runner.common_util import get_task_str_kwargs
+from zrb.runner.common_util import get_residual_args, get_task_str_kwargs
 from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
@@ -65,9 +65,10 @@ class Cli(Group):
         task_str_kwargs = get_task_str_kwargs(
             task=node, str_args=str_args, str_kwargs=str_kwargs, cli_mode=True
         )
+        residual_args = get_residual_args(node, str_args, str_kwargs)
         session = None
         try:
-            result, session = self._run_task(node, str_args, task_str_kwargs)
+            result, session = self._run_task(node, residual_args, task_str_kwargs)
             if result is not None:
                 print(result)
             return result
@@ -200,8 +201,10 @@ class Cli(Group):
                     kwargs[key] = value
                 else:
                     # `--key value`, or a bare `--flag` when no value follows.
+                    # Like argparse, a negative number is a value, any other
+                    # dash-prefixed word a flag (`--key=-x` passes one).
                     key = arg[2:]
-                    if i + 1 < len(args) and not args[i + 1].startswith("-"):
+                    if i + 1 < len(args) and _is_value(args[i + 1]):
                         kwargs[key] = args[i + 1]
                         i += 1
                     else:
@@ -212,6 +215,16 @@ class Cli(Group):
                 residual_args.append(arg)
             i += 1
         return kwargs, residual_args
+
+
+def _is_value(arg: str) -> bool:
+    if not arg.startswith("-"):
+        return True
+    try:
+        float(arg)
+    except ValueError:
+        return False
+    return True
 
 
 cli = Cli()

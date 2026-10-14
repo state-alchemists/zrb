@@ -65,8 +65,12 @@ class TestMonitorTaskReadinessException:
                     "zrb.task.base.monitoring.gather_fail_fast",
                     side_effect=RuntimeError("check failed"),
                 ):
-                    with patch(
-                        "zrb.task.base.monitoring.run_async", new=mock_run_async
+                    with (
+                        patch("zrb.task.base.monitoring.run_async", new=mock_run_async),
+                        patch(
+                            "zrb.task.base.monitoring.run_readiness_check",
+                            new=mock_run_async,
+                        ),
                     ):
                         await monitoring.monitor_task_readiness(session, action_coro)
 
@@ -116,8 +120,14 @@ class TestMonitorTaskReadinessChecksNotCompleted:
                     new=MagicMock(return_value=None),
                 ):
                     with patch("asyncio.wait_for", new=AsyncMock(return_value=None)):
-                        with patch(
-                            "zrb.task.base.monitoring.run_async", new=mock_run_async
+                        with (
+                            patch(
+                                "zrb.task.base.monitoring.run_async", new=mock_run_async
+                            ),
+                            patch(
+                                "zrb.task.base.monitoring.run_readiness_check",
+                                new=mock_run_async,
+                            ),
                         ):
                             await monitoring.monitor_task_readiness(
                                 session, action_coro
@@ -172,8 +182,12 @@ class TestMonitorTaskReadinessThresholdReached:
                     "zrb.task.base.monitoring.gather_fail_fast",
                     side_effect=asyncio.TimeoutError,
                 ):
-                    with patch(
-                        "zrb.task.base.monitoring.run_async", new=mock_run_async
+                    with (
+                        patch("zrb.task.base.monitoring.run_async", new=mock_run_async),
+                        patch(
+                            "zrb.task.base.monitoring.run_readiness_check",
+                            new=mock_run_async,
+                        ),
                     ):
                         with patch("asyncio.create_task", return_value=mock_new_task):
                             with patch.object(
@@ -241,8 +255,12 @@ class TestMonitorThresholdReachedActionErrorsOnCancel:
                     "zrb.task.base.monitoring.gather_fail_fast",
                     side_effect=asyncio.TimeoutError,
                 ):
-                    with patch(
-                        "zrb.task.base.monitoring.run_async", new=mock_run_async
+                    with (
+                        patch("zrb.task.base.monitoring.run_async", new=mock_run_async),
+                        patch(
+                            "zrb.task.base.monitoring.run_readiness_check",
+                            new=mock_run_async,
+                        ),
                     ):
                         with patch("asyncio.create_task", return_value=mock_new_task):
                             with patch.object(

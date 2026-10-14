@@ -272,3 +272,15 @@ def test_check_unrecommended_commands_no_false_positive(cmd_script):
 def test_check_unrecommended_commands_still_warns(cmd_script):
     """Real violations must still be caught after tightening the matcher."""
     assert check_unrecommended_commands(cmd_script) != {}
+
+
+@pytest.mark.asyncio
+async def test_run_command_output_keeps_blank_lines_and_whitespace():
+    """Like `$(...)`: raw lines, only trailing newlines removed."""
+    result, return_code = await run_command(
+        [_BASH, "-c", "printf 'a\\n\\n  indented\\nb   \\n\\n'"],
+        print_method=lambda *args, **kwargs: None,
+    )
+
+    assert return_code == 0
+    assert result.output == "a\n\n  indented\nb   "

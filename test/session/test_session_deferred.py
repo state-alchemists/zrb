@@ -6,6 +6,7 @@ import pytest
 from zrb.context.any_shared_context import AnySharedContext
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
+from zrb.task.base.base_task import BaseTask
 
 
 @pytest.fixture
@@ -238,3 +239,38 @@ async def test_defer_action_cancels_previous_orphan():
             break
         await asyncio.sleep(0.01)
     assert cancelled_first.is_set()
+
+
+@pytest.mark.asyncio
+async def test_wait_deferred_surfaces_action_failure_beside_a_monitored_task():
+    """A monitoring loop never ends, so it must not hide another action's crash.
+
+    The crash lands after readiness passed, while the run waits on deferrals.
+    """
+
+    async def forever(_ctx):
+        await asyncio.sleep(1000)
+
+    async def crash(_ctx):
+        await asyncio.sleep(0.3)
+        raise RuntimeError("crashed")
+
+    monitored = BaseTask(
+        name="monitored",
+        action=forever,
+        readiness_check=BaseTask(name="monitored-check", action="ok"),
+        readiness_check_delay=0,
+        monitor_readiness=True,
+        readiness_check_period=1,
+    )
+    crashing = BaseTask(
+        name="crashing",
+        action=crash,
+        readiness_check=BaseTask(name="crashing-check", action="ok"),
+        readiness_check_delay=0,
+        retries=0,
+    )
+    main = BaseTask(name="main", upstream=[monitored, crashing], action="done")
+
+    with pytest.raises(RuntimeError, match="crashed"):
+        await asyncio.wait_for(main.async_run(), timeout=5)

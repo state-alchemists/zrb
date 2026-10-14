@@ -36,7 +36,7 @@ from zrb.util.cli.style import (
     YELLOW,
     remove_style,
 )
-from zrb.util.run import gather_fail_fast, gather_isolated
+from zrb.util.run import cancel_and_settle, gather_isolated
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
 
@@ -296,28 +296,49 @@ class Session(AnySession):
         return True
 
     async def wait_deferred(self):
-        await self._wait_deferred_monitoring()
-        await self._wait_deferred_action()
+        await self._wait_deferred_action_and_monitoring()
         # Loop: a trigger callback can defer new coros while a batch is awaited.
         while self._coros:
             batch = self._coros
             self._coros = []
             await gather_isolated(*batch)
 
-    async def _wait_deferred_action(self):
-        # Fail fast: long-running task bodies never return on their own, so
-        # waiting for siblings would hang the run after one has failed.
-        if len(self._action_coros) == 0:
-            return
-        task_coros = self._action_coros.values()
-        await gather_fail_fast(*task_coros)
+    async def _wait_deferred_action_and_monitoring(self):
+        # Watched together and fail fast: monitoring loops and long-running
+        # actions never return on their own, so waiting on either group first
+        # would hide a failure in the other. The dicts are re-read each round
+        # because a monitor restarts its action under a new coro.
+        while True:
+            monitors = list(self._monitoring_coros.values())
+            actions = list(self._action_coros.items())
+            watched = monitors + [coro for _, coro in actions]
+            failed = next((coro for coro in monitors if _has_failed(coro)), None)
+            if failed is None:
+                failed = next(
+                    (
+                        coro
+                        for task, coro in actions
+                        if _has_failed(coro, tolerate_cancel=self._is_restartable(task))
+                    ),
+                    None,
+                )
+            if failed is not None:
+                await cancel_and_settle(watched)
+                await failed
+                return
+            pending = [coro for coro in watched if not coro.done()]
+            if not pending:
+                return
+            try:
+                await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)
+            except BaseException:
+                await cancel_and_settle(watched)
+                raise
 
-    async def _wait_deferred_monitoring(self):
-        # Monitoring loops (Scheduler/BaseTrigger) poll forever; fail fast too.
-        if len(self._monitoring_coros) == 0:
-            return
-        task_coros = self._monitoring_coros.values()
-        await gather_fail_fast(*task_coros)
+    def _is_restartable(self, task: AnyTask) -> bool:
+        # A monitor cancels its task's action to restart it; until the session
+        # ends, that cancellation is not a failure.
+        return task in self._monitoring_coros and not self._is_terminated
 
     def register_task(self, task: AnyTask):
         self._register_task_graph(task)
@@ -439,6 +460,14 @@ class Session(AnySession):
             if not self._task_status[upstream].allow_run_downstream
         ]
         return len(unfulfilled_upstreams) == 0
+
+
+def _has_failed(coro: asyncio.Task[object], tolerate_cancel: bool = False) -> bool:
+    if not coro.done():
+        return False
+    if coro.cancelled():
+        return not tolerate_cancel
+    return coro.exception() is not None
 
 
 def _state_log_models():

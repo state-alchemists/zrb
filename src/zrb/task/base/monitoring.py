@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 from zrb.session.any_session import AnySession
 from zrb.task.any_task import AnyTask
+from zrb.task.base.execution import run_readiness_check
 from zrb.util.run import gather_fail_fast, run_async
 from zrb.xcom.xcom import Xcom
 
@@ -106,7 +107,7 @@ class BaseTaskMonitoring:
     ) -> bool:
         """Run all readiness checks and return True if all completed successfully."""
         readiness_check_coros = [
-            run_async(check.exec_chain(session)) for check in readiness_checks
+            run_readiness_check(session, check) for check in readiness_checks
         ]
         try:
             gather_coro = gather_fail_fast(*readiness_check_coros)

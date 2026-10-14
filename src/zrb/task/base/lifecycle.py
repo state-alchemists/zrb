@@ -87,10 +87,11 @@ class BaseTaskLifecycle:
         if session is None:
             session = Session(shared_ctx=SharedContext(print_fn=print_fn))
 
+        # Envs first: an input default may read `ctx.env`.
+        self._base_context.fill_shared_context_envs(session.shared_ctx)
         self._base_context.fill_shared_context_inputs(
             session.shared_ctx, str_kwargs, kwargs
         )
-        self._base_context.fill_shared_context_envs(session.shared_ctx)
 
         result = await task.exec_root_tasks(session)
         return result
