@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.error_classifier import is_prompt_too_long_error
 from zrb.llm.agent.run.history_utils import close_dangling_tool_calls
 from zrb.llm.history_manager.file_history_manager import default_history_manager
 from zrb.llm.task.shared_getters import resolve_conversation_name
@@ -61,17 +62,7 @@ class LLMTaskHistory:
 
     def is_context_length_error(self, error: Exception) -> bool:
         """Return True when the error is a model context-length / prompt-too-long rejection."""
-        err_str = str(error).lower()
-        context_keywords = [
-            "prompt too long",
-            "context length",
-            "context window",
-            "max tokens",
-            "token limit",
-            "input too long",
-            "maximum context",
-        ]
-        return any(kw in err_str for kw in context_keywords)
+        return is_prompt_too_long_error(error)
 
     def handle_run_error(
         self,

@@ -3,7 +3,11 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from zrb.util.dir_search import get_upward_dirs, scan_plugin_dirs
+from zrb.util.dir_search import (
+    get_dirs_up_to_home,
+    get_upward_dirs,
+    scan_plugin_dirs,
+)
 
 
 def test_get_upward_dirs_returns_root_to_start(tmp_path):
@@ -46,3 +50,23 @@ def test_scan_plugin_dirs_returns_empty_on_error():
     bogus = Path("/no/such/dir/anywhere/123")
     # iterdir() on a nonexistent dir raises FileNotFoundError; helper must swallow.
     assert scan_plugin_dirs(bogus) == []
+
+
+def test_get_dirs_up_to_home_walks_nearest_first(tmp_path):
+    home = str(tmp_path)
+    nested = str(tmp_path / "a" / "b")
+    assert get_dirs_up_to_home(nested, home) == [
+        nested,
+        str(tmp_path / "a"),
+        home,
+    ]
+
+
+def test_get_dirs_up_to_home_outside_home_is_start_only(tmp_path):
+    outside = str(tmp_path / "elsewhere")
+    assert get_dirs_up_to_home(outside, str(tmp_path / "home")) == [outside]
+
+
+def test_get_dirs_up_to_home_other_drive_is_start_only():
+    with patch("os.path.commonpath", side_effect=ValueError("different drives")):
+        assert get_dirs_up_to_home("/x/y", "/x") == ["/x/y"]

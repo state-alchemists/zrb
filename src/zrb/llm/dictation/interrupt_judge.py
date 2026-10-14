@@ -87,5 +87,5 @@ async def judge_barge_in(
         # A turn being cancelled is not a judge that failed: let it unwind.
         raise
     except Exception as exc:
-        logger.warning(f"Deciding what {command!r} asks of zrb failed: {exc}")
+        logger.warning(f"Judging the interrupt {command!r} failed: {exc}")
         return None

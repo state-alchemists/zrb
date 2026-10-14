@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import inspect
 import shlex
 from collections.abc import Callable
-from inspect import Parameter
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.util.signature import can_take_positional
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
@@ -65,30 +64,13 @@ def run_custom_command(
     handle = getattr(custom_cmd, "handle", None)
     if handle is None:
         reply = None
-    elif _can_take_ui(handle):
+    elif can_take_positional(handle, 2, if_unknown=True):
         reply = handle(kwargs, ui)
     else:
         reply = handle(kwargs)
     if reply is not None:
         return CustomCommandOutcome(prompt=None, reply=reply)
     return CustomCommandOutcome(prompt=custom_cmd.get_prompt(kwargs), reply=None)
-
-
-def _can_take_ui(handle: "Callable[..., Any]") -> bool:
-    """Whether *handle* accepts the optional ``ui`` argument."""
-    try:
-        parameters = inspect.signature(handle).parameters
-    except (TypeError, ValueError):
-        # Not introspectable (a C function, say): the current signature.
-        return True
-    if any(p.kind is Parameter.VAR_POSITIONAL for p in parameters.values()):
-        return True
-    positional = [
-        p
-        for p in parameters.values()
-        if p.kind in (Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
-    ]
-    return len(positional) >= 2
 
 
 def get_custom_command_match(

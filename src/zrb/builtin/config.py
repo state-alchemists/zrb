@@ -42,7 +42,7 @@ def _render_entries(entries: list[tuple[str, str, str]]) -> str:
     rendered = "\n\n".join(blocks)
     if truncated_any:
         rendered += "\n\n" + stylize_muted(
-            "Some values are shortened. Run `zrb config explain <NAME>` "
+            f"Some values are shortened. Run `{CFG.ROOT_GROUP_NAME} config explain <NAME>` "
             "for one knob to see its full value."
         )
     return rendered

@@ -55,6 +55,7 @@ from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
+    settle_previous_job,
     submit_user_message_via_queue,
 )
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
@@ -966,7 +967,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         while True:
             try:
                 entry = await self._message_queue.get()
-                await self._settle_previous_job()
+                await settle_previous_job(self._running_llm_task)
                 await self._run_queued_job(entry)
                 self._message_queue.task_done()
             except asyncio.CancelledError:
@@ -981,21 +982,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                     await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
                 except RuntimeError:
                     break
-
-    async def _settle_previous_job(self) -> None:
-        """Await a still-running previous job, swallowing its outcome."""
-        if self._running_llm_task is None or self._running_llm_task.done():
-            return
-        try:
-            await self._running_llm_task
-        except (KeyboardInterrupt, SystemExit):
-            # Process-level interrupts are not a job outcome.
-            raise
-        except BaseException:
-            # A cancel aimed at this loop must still propagate.
-            current = asyncio.current_task()
-            if current is not None and current.cancelling() > 0:
-                raise
 
     async def _run_queued_job(self, entry: "QueuedMessage") -> None:
         """Run one queued job to completion, absorbing its failure."""

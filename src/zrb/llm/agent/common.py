@@ -6,7 +6,6 @@ import inspect
 import json
 from collections.abc import Callable
 from functools import wraps
-from inspect import Parameter
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
@@ -24,6 +23,7 @@ from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.llm.util.prompt import expand_prompt
+from zrb.util.signature import can_take_positional
 from zrb.util.string.conversion import to_string
 
 if TYPE_CHECKING:
@@ -474,32 +474,9 @@ def _with_tool_args(decide: "Callable[..., bool]") -> "Callable[..., bool]":
     through to yolo. A single-argument callable — the shape published before
     this — keeps working: it is wrapped, never called with what it cannot take.
     """
-    if _can_take_tool_args(decide):
+    if can_take_positional(decide, 2, if_unknown=False):
         return decide
     return lambda tool_def, args: decide(tool_def)
-
-
-def _can_take_tool_args(decide: "Callable[..., bool]") -> bool:
-    """Whether *decide* accepts the tool call's arguments as a second argument.
-
-    Read from the signature rather than discovered from a `TypeError`, which a
-    real failure inside the callable looks exactly like — the same reasoning as
-    `custom_command/resolver.py`'s `_can_take_ui`, on the same kind of published
-    extension point.
-    """
-    try:
-        parameters = inspect.signature(decide).parameters
-    except (TypeError, ValueError):
-        # Not introspectable (a builtin, say): call it the way it shipped.
-        return False
-    if any(p.kind is Parameter.VAR_POSITIONAL for p in parameters.values()):
-        return True
-    positional = [
-        p
-        for p in parameters.values()
-        if p.kind in (Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD)
-    ]
-    return len(positional) >= 2
 
 
 def create_agent(

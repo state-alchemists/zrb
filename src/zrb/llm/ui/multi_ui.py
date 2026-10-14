@@ -26,7 +26,11 @@ from zrb.llm.permission.state import (
     set_current_agent_mode,
 )
 from zrb.llm.ui.any_ui import AnyUI
-from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
+from zrb.llm.ui.base.message_queue import (
+    MessageQueue,
+    settle_previous_job,
+    submit_user_message_via_queue,
+)
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
@@ -581,21 +585,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         while True:
             try:
                 entry = await self._message_queue.get()
-
-                # Settle a still-running previous job, swallowing its outcome
-                # unless the cancel is aimed at this loop.
-                if (
-                    self._running_llm_task is not None
-                    and not self._running_llm_task.done()
-                ):
-                    try:
-                        await self._running_llm_task
-                    except (KeyboardInterrupt, SystemExit):
-                        raise
-                    except BaseException:
-                        current = asyncio.current_task()
-                        if current is not None and current.cancelling() > 0:
-                            raise
+                await settle_previous_job(self._running_llm_task)
 
                 current_task = asyncio.current_task()
                 if current_task:

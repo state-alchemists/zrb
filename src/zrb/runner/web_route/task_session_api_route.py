@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.context.shared_context import SharedContext
-from zrb.group.any_group import AnyGroup, NodeNotFoundError
+from zrb.group.any_group import AnyGroup
 from zrb.runner.web_schema.session import NewSessionResponse
+from zrb.runner.web_util.task_lookup import create_error_response, find_task
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.session.session import Session
 from zrb.session_state_log.session_state_log import SessionStateLog, SessionStateLogList
@@ -26,7 +27,6 @@ def serve_task_session_api(  # noqa: C901 -- registration/factory fn; mccabe sum
 ) -> None:
     # lazy: heavy third-party
     from fastapi import Query, Request
-    from fastapi.responses import JSONResponse
 
     @app.post("/api/v1/task-sessions/{path:path}")
     async def create_new_task_session_api(
@@ -38,31 +38,22 @@ def serve_task_session_api(  # noqa: C901 -- registration/factory fn; mccabe sum
         Creating new session
         """
         user = await get_user_from_request(web_auth_config, request)
-        args = path.strip("/").split("/")
-        try:
-            task, _, residual_args = root_group.extract_node(args)
-        except NodeNotFoundError:
-            # FastAPI returns the Response directly; the model annotation only
-            # drives response_model for the success path.
-            return JSONResponse(
-                content={"detail": "Not found"}, status_code=404
-            )  # pyright: ignore[reportReturnType]
-        if isinstance(task, AnyTask):
-            if not user.can_access_task(task):
-                return JSONResponse(
-                    content={"detail": "Forbidden"}, status_code=403
-                )  # pyright: ignore[reportReturnType]
-            session_name = residual_args[0] if residual_args else None
-            if not session_name:
-                shared_ctx = SharedContext(is_web_mode=True)
-                session = Session(shared_ctx=shared_ctx, root_group=root_group)
-                coro = asyncio.create_task(task.async_run(session, str_kwargs=inputs))
-                coroutines.append(coro)
-                coro.add_done_callback(lambda coro: coroutines.remove(coro))
-                return NewSessionResponse(session_name=session.name)
-        return JSONResponse(
-            content={"detail": "Not found"}, status_code=404
-        )  # pyright: ignore[reportReturnType]
+        found = find_task(root_group, path)
+        # FastAPI returns a Response directly; the model annotation only
+        # drives response_model for the success path.
+        if found is None:
+            return create_error_response(404)  # pyright: ignore[reportReturnType]
+        task, residual_args = found
+        if not user.can_access_task(task):
+            return create_error_response(403)  # pyright: ignore[reportReturnType]
+        if residual_args and residual_args[0]:
+            return create_error_response(404)  # pyright: ignore[reportReturnType]
+        shared_ctx = SharedContext(is_web_mode=True)
+        session = Session(shared_ctx=shared_ctx, root_group=root_group)
+        coro = asyncio.create_task(task.async_run(session, str_kwargs=inputs))
+        coroutines.append(coro)
+        coro.add_done_callback(lambda coro: coroutines.remove(coro))
+        return NewSessionResponse(session_name=session.name)
 
     @app.get(
         "/api/v1/task-sessions/{path:path}",
@@ -80,59 +71,45 @@ def serve_task_session_api(  # noqa: C901 -- registration/factory fn; mccabe sum
         Getting existing session or sessions
         """
         user = await get_user_from_request(web_auth_config, request)
-        args = path.strip("/").split("/")
-        try:
-            task, _, residual_args = root_group.extract_node(args)
-        except NodeNotFoundError:
-            return JSONResponse(
-                content={"detail": "Not found"}, status_code=404
-            )  # pyright: ignore[reportReturnType]
-        if isinstance(task, AnyTask) and residual_args:
-            if not user.can_access_task(task):
-                return JSONResponse(
-                    content={"detail": "Forbidden"}, status_code=403
+        found = find_task(root_group, path)
+        # A task path without a session name answers 404 before the access
+        # check, so it does not reveal that a restricted task exists.
+        if found is None or not found[1]:
+            return create_error_response(404)  # pyright: ignore[reportReturnType]
+        task, residual_args = found
+        if not user.can_access_task(task):
+            return create_error_response(403)  # pyright: ignore[reportReturnType]
+        if residual_args[0] == "list":
+            task_path = root_group.get_node_path(task)
+            try:
+                max_start_time = (
+                    datetime.now()
+                    if max_start_query is None
+                    else datetime.strptime(max_start_query, "%Y-%m-%d %H:%M:%S")
+                )
+                min_start_time = (
+                    max_start_time - timedelta(hours=1)
+                    if min_start_query is None
+                    else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
+                )
+            except ValueError:
+                return create_error_response(
+                    400, "Invalid 'from'/'to' timestamp; expected 'YYYY-MM-DD HH:MM:SS'"
                 )  # pyright: ignore[reportReturnType]
-            if residual_args[0] == "list":
-                task_path = root_group.get_node_path(task)
-                try:
-                    max_start_time = (
-                        datetime.now()
-                        if max_start_query is None
-                        else datetime.strptime(max_start_query, "%Y-%m-%d %H:%M:%S")
-                    )
-                    min_start_time = (
-                        max_start_time - timedelta(hours=1)
-                        if min_start_query is None
-                        else datetime.strptime(min_start_query, "%Y-%m-%d %H:%M:%S")
-                    )
-                except ValueError:
-                    return JSONResponse(
-                        content={
-                            "detail": "Invalid 'from'/'to' timestamp; expected "
-                            "'YYYY-MM-DD HH:MM:SS'"
-                        },
-                        status_code=400,
-                    )  # pyright: ignore[reportReturnType]
-                return sanitize_session_state_log_list(
-                    task,
-                    session_state_logger.list(
-                        task_path or [], min_start_time, max_start_time, page, limit
-                    ),
-                )
-            else:
-                session_state_log = read_task_session_state_log(
-                    session_state_logger, residual_args[0]
-                )
-                if session_state_log is None or not session_belongs_to_task(
-                    root_group, task, session_state_log
-                ):
-                    return JSONResponse(
-                        content={"detail": "Not found"}, status_code=404
-                    )  # pyright: ignore[reportReturnType]
-                return sanitize_session_state_log(task, session_state_log)
-        return JSONResponse(
-            content={"detail": "Not found"}, status_code=404
-        )  # pyright: ignore[reportReturnType]
+            return sanitize_session_state_log_list(
+                task,
+                session_state_logger.list(
+                    task_path or [], min_start_time, max_start_time, page, limit
+                ),
+            )
+        session_state_log = read_task_session_state_log(
+            session_state_logger, residual_args[0]
+        )
+        if session_state_log is None or not session_belongs_to_task(
+            root_group, task, session_state_log
+        ):
+            return create_error_response(404)  # pyright: ignore[reportReturnType]
+        return sanitize_session_state_log(task, session_state_log)
 
 
 def read_task_session_state_log(

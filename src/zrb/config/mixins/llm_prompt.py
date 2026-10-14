@@ -86,7 +86,7 @@ class LLMPromptMixin:
             "the model id: "
             "a declared size of 4B or less selects 'minimal', 5-14B 'standard', "
             "above 14B 'capable'; an id declaring nothing falls back to "
-            "'standard'. Override per model with ZRB_LLM_PROFILE.\n"
+            "'standard'. Set a profile name to skip the derivation."
         ),
     )
 
