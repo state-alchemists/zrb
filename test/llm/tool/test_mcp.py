@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from fastmcp.client.transports import StdioTransport
 from pydantic_ai.mcp import MCPToolset
+from pydantic_ai.toolsets import PrefixedToolset
 
 from zrb.config.config import CFG
 from zrb.llm.tool.mcp import cap_mcp_result, frame_mcp_result, load_mcp_config
@@ -206,6 +207,31 @@ def test_mcp_toolset_factory_overrides(mock_fs):
         transport = toolsets[0].client.transport
         assert isinstance(transport, StdioTransport)
         assert transport.command == "cmd2"
+
+
+def test_mcp_config_prefix_wraps_only_that_servers_toolset(mock_fs):
+    home_dir, _, sub_dir = mock_fs
+    with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
+        json.dump(
+            {
+                "mcpServers": {
+                    "desktop": {"command": "cmd", "prefix": "desk"},
+                    "browser": {"url": "http://localhost:8080/mcp"},
+                }
+            },
+            f,
+        )
+
+    with (
+        patch("os.path.expanduser", return_value=home_dir),
+        patch("os.getcwd", return_value=sub_dir),
+    ):
+        desktop, browser = load_mcp_config()
+
+    assert isinstance(desktop, PrefixedToolset)
+    assert desktop.prefix == "desk"
+    assert desktop.wrapped.id == "desktop"
+    assert isinstance(browser, MCPToolset)
 
 
 def test_mcp_config_skips_home_when_cwd_is_a_sibling_of_home(tmp_path):

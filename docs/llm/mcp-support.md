@@ -61,6 +61,17 @@ The format is the same as [Claude Desktop's MCP configuration](https://modelcont
 
 An entry with `command` is a stdio server (subprocess); an entry with `url` is an HTTP server. The file must be plain JSON — no comments.
 
+Any entry may also set `"prefix"`. Every tool from that server is then exposed as `<prefix>_<tool>`. Use it when two servers ship a tool with the same name (e.g. both have `click`): the run otherwise aborts with `UserError: ... defines a tool whose name conflicts with existing tool`.
+
+```json
+{
+  "mcpServers": {
+    "chrome-devtools": { "command": "npx", "args": ["-y", "chrome-devtools-mcp@1.10.1"] },
+    "desktop": { "command": "python", "args": ["desktop_mcp.py"], "prefix": "desktop" }
+  }
+}
+```
+
 Environment variable placeholders — `${VAR_NAME}`, or `${VAR_NAME:-default}` — in `command`, `args`, `env`, and `url` values are expanded when the config is loaded. A placeholder whose variable is unset and has no default makes zrb skip that server with a warning.
 
 ---
@@ -86,7 +97,7 @@ The most common type. Zrb spawns the server as a child process and communicates 
 }
 ```
 
-Required fields: `command`. Optional: `args`, `env`.
+Required fields: `command`. Optional: `args`, `env`, `prefix`.
 
 ### HTTP (Streamable HTTP or SSE)
 
@@ -105,7 +116,7 @@ For servers already running as an HTTP service.
 }
 ```
 
-Required fields: `url`. A URL ending in `/sse` uses the SSE transport; any other URL uses Streamable HTTP.
+Required fields: `url`. Optional: `prefix`. A URL ending in `/sse` uses the SSE transport; any other URL uses Streamable HTTP.
 
 ---
 

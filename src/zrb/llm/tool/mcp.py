@@ -90,25 +90,21 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
                 env = {
                     k: _expand_env_vars(v) for k, v in config.get("env", {}).items()
                 } or None
-                transport = StdioTransport(command=command, args=args, env=env)
-                toolsets.append(
-                    MCPToolset(
-                        transport,
-                        id=server_name,
-                        max_retries=CFG.LLM_MCP_MAX_RETRIES,
-                        process_tool_call=_truncating_process_tool_call,
-                    )
-                )
+                target = StdioTransport(command=command, args=args, env=env)
             elif "url" in config:
-                url = _expand_env_vars(config["url"])
-                toolsets.append(
-                    MCPToolset(
-                        url,
-                        id=server_name,
-                        max_retries=CFG.LLM_MCP_MAX_RETRIES,
-                        process_tool_call=_truncating_process_tool_call,
-                    )
-                )
+                target = _expand_env_vars(config["url"])
+            else:
+                continue
+            toolset = MCPToolset(
+                target,
+                id=server_name,
+                max_retries=CFG.LLM_MCP_MAX_RETRIES,
+                process_tool_call=_truncating_process_tool_call,
+            )
+            # Two servers exposing the same tool name abort the whole run.
+            if prefix := config.get("prefix"):
+                toolset = toolset.prefixed(prefix)
+            toolsets.append(toolset)
         except Exception as e:
             zrb_print(
                 f"Warning: Failed to create MCP server '{server_name}': {e}", plain=True
