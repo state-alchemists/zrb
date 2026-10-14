@@ -1,4 +1,4 @@
-"""Preset defaults for speech, dictation mode, and dictation barge-in."""
+"""Preset defaults for speech, dictation mode, barge-in and echo cancellation."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ VOICE_PRESETS: dict[str, dict[str, str]] = {
         "LLM_SPEECH_ENABLED": "on",
         "LLM_DICTATION_MODE": "hands_free",
         "LLM_DICTATION_BARGE_IN_ENABLED": "on",
+        "LLM_DICTATION_ENABLE_ECHO_CANCEL": "on",
     },
 }
 
@@ -46,14 +47,16 @@ class LLMVoiceMixin:
         to_voice_preset,
         doc=(
             "How a session talks with you, setting the defaults of "
-            "{ENV_PREFIX}_LLM_SPEECH_ENABLED, {ENV_PREFIX}_LLM_DICTATION_MODE "
-            "and {ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED together (each "
+            "{ENV_PREFIX}_LLM_SPEECH_ENABLED, {ENV_PREFIX}_LLM_DICTATION_MODE, "
+            "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED and "
+            "{ENV_PREFIX}_LLM_DICTATION_ENABLE_ECHO_CANCEL together (each "
             "still wins when set on its own). One of:\n"
             "- 'off' (default): typing; /speech and /voice switch voice on.\n"
             "- 'speak': replies are read aloud.\n"
             "- 'turns': read aloud and always listening; you and zrb take "
             "turns.\n"
             "- 'conversation': as 'turns', and you can talk over zrb to "
-            "interrupt it."
+            "interrupt it; on macOS, zrb's voice is cancelled out of the "
+            "microphone."
         ),
     )

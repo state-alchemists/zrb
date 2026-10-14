@@ -45,5 +45,6 @@ def test_a_field_added_after_barge_in_hold_leaves_every_earlier_position_alone()
         "interrupt_judge_timeout",
         "interrupt_judge_max_words",
         "hush_words",
+        "enable_echo_cancel",
     ]
     assert names.index("interrupt_judge_model") == 20

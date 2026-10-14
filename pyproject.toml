@@ -178,6 +178,8 @@ voice = [
     "vosk>=0.3.45; sys_platform != 'darwin'",
     "sounddevice>=0.5.1",
     "numpy>=1.26.0",
+    # macOS voice processing, for echo cancellation (ADR-0111).
+    "pyobjc-framework-AVFoundation>=12.0; sys_platform == 'darwin'",
     # The pipeline zrb's voice is moving onto (ADR-0107). Pinned to the minor:
     # pipecat is pre-2.0 and moving under its users — `PipelineTask` is
     # deprecated in favour of `PipelineWorker`, which no longer starts itself,

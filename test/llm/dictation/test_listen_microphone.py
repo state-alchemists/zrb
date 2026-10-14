@@ -1,4 +1,5 @@
-"""The microphone itself: opening it, which device it opens, and recording.
+"""The microphone itself: opening it, which device it opens, echo
+cancellation, and recording.
 
 `listen` and `record` both go through `_open_microphone`, so this is where a
 device that will not start is retried, and where the report says which device it
@@ -319,3 +320,87 @@ async def test_a_microphone_that_will_not_start_says_which_device_it_tried():
     assert "Error starting stream: Wait timed out" in message
     assert "device 'pulse'" in message
     assert "LLM_DICTATION_DEVICE" in message
+
+
+class _FakeEchoCancelledMicrophone(FakeStream):
+    """Stands in for macOS voice processing; *fails* makes start raise."""
+
+    fails = False
+    instances: list = []
+
+    def __init__(self, np_module, callback, samplerate, blocksize):
+        super().__init__()
+        self.callback = callback
+        self.blocksize = blocksize
+        _FakeEchoCancelledMicrophone.instances.append(self)
+
+    def start(self):
+        if self.fails:
+            raise RuntimeError("voice processing would not start")
+        super().start()
+
+
+async def _collect_echo_cancelled(blocks, reason=None, fails=False, device=None):
+    """Run `listen` with echo cancellation asked for; returns the utterances,
+    what sounddevice was asked for, and the voice-processing microphones."""
+    captured = {}
+    _FakeEchoCancelledMicrophone.instances = []
+    _FakeEchoCancelledMicrophone.fails = fails
+    config = _listen_config(enable_echo_cancel=True, device=device)
+
+    async def consume():
+        stream = listen(config, _holds_for(len(blocks)))
+        return [utterance async for utterance in stream]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+        patch("zrb.llm.dictation.listen.get_unavailable_reason", return_value=reason),
+        patch(
+            "zrb.llm.dictation.listen.EchoCancelledMicrophone",
+            _FakeEchoCancelledMicrophone,
+        ),
+    ):
+        task = asyncio.create_task(consume())
+        await asyncio.sleep(0)
+        microphones = _FakeEchoCancelledMicrophone.instances
+        feed = microphones[0].callback if microphones and not fails else None
+        for block in blocks:
+            (feed or captured["callback"])(block, len(block), None, None)
+        return await task, captured, microphones
+
+
+@pytest.mark.asyncio
+async def test_listen_hears_through_voice_processing_when_echo_cancel_is_on():
+    blocks = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+
+    utterances, captured, microphones = await _collect_echo_cancelled(blocks)
+
+    assert len(utterances) == 1
+    assert captured == {}  # sounddevice never opened
+    assert microphones[0].is_started and microphones[0].is_closed
+    assert microphones[0].blocksize == 1600
+
+
+@pytest.mark.asyncio
+async def test_listen_falls_back_to_portaudio_when_voice_processing_fails(caplog):
+    blocks = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+
+    utterances, captured, _ = await _collect_echo_cancelled(blocks, fails=True)
+
+    assert len(utterances) == 1
+    assert captured["blocksize"] == 1600
+    assert "without echo cancellation" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_listen_says_why_echo_cancel_is_unavailable(caplog):
+    blocks = [_block(0.0), _block(0.0)]
+
+    _, captured, microphones = await _collect_echo_cancelled(
+        blocks, reason="a reason only this test gives", device="2"
+    )
+
+    assert microphones == []
+    assert captured["device"] == 2
+    assert "Echo cancellation is off: a reason only this test gives" in caplog.text

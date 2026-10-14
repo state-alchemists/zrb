@@ -14,11 +14,15 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import closing
 from dataclasses import dataclass, replace
 from enum import Enum
-from functools import partial
+from functools import cache, partial
 from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.config.config import CFG
 from zrb.llm.dictation.config import DictationConfig
+from zrb.llm.dictation.echo_cancel import (
+    EchoCancelledMicrophone,
+    get_unavailable_reason,
+)
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
@@ -368,6 +372,7 @@ async def listen(
         sd,
         on_audio,
         device=config.device or None,
+        is_echo_cancelled=_is_echo_cancel_usable(config),
         blocksize=int(SAMPLE_RATE * block_seconds),
     )
 
@@ -740,9 +745,15 @@ async def _open_microphone(
     sd: Any,
     on_audio: Callable[..., None],
     device: "str | int | None" = None,
+    is_echo_cancelled: bool = False,
     **options: Any,
 ) -> Any:
     """The microphone, open and running, or a `RuntimeError` saying why.
+
+    With *is_echo_cancelled*, it opens through macOS voice processing
+    (`EchoCancelledMicrophone`, which needs ``blocksize`` among *options*);
+    when that will not start, the plain PortAudio one opens instead, so a
+    broken one never costs the user their microphone.
 
     PortAudio gives the ALSA thread it starts one second to come up and reports
     ``paTimedOut`` when it misses: a WSL2 VM stalling on I/O misses it, for
@@ -754,6 +765,10 @@ async def _open_microphone(
     A failure to construct the stream (no such device, PortAudio missing) is
     not retried.
     """
+    if is_echo_cancelled:
+        microphone = _start_echo_cancelled_microphone(on_audio, options["blocksize"])
+        if microphone is not None:
+            return microphone
     device = to_device(device)
     attempt = 0
     while True:
@@ -781,6 +796,39 @@ async def _open_microphone(
                 raise RuntimeError(_microphone_failure_message(device, e)) from e
             logger.warning(f"Starting the microphone failed ({e}); trying again")
             await asyncio.sleep(_OPEN_RETRY_SECONDS)
+
+
+def _is_echo_cancel_usable(config: DictationConfig) -> bool:
+    """Whether *config* asks for echo cancellation and this machine can give
+    it; when it asks and cannot, says why once."""
+    if not config.is_echo_cancel_enabled:
+        return False
+    reason = get_unavailable_reason(config.device)
+    if reason is not None:
+        _warn_once(f"Echo cancellation is off: {reason}")
+    return reason is None
+
+
+@cache
+def _warn_once(message: str) -> None:
+    """Log *message* the first time only; push-to-talk opens the microphone
+    on every press."""
+    logger.warning(message)
+
+
+def _start_echo_cancelled_microphone(
+    on_audio: Callable[..., None], blocksize: int
+) -> EchoCancelledMicrophone | None:
+    """The microphone through macOS voice processing, or ``None`` (and a
+    warning saying why) when it will not start."""
+    np, _ = import_audio()
+    microphone = EchoCancelledMicrophone(np, on_audio, SAMPLE_RATE, blocksize)
+    try:
+        microphone.start()
+    except RuntimeError as e:
+        logger.warning(f"{e}; using the microphone without echo cancellation")
+        return None
+    return microphone
 
 
 def _microphone_failure_message(device: "int | str | None", error: Exception) -> str:
