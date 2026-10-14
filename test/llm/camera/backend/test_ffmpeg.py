@@ -159,6 +159,39 @@ async def test_wsl_without_ffmpeg_exe_falls_back_to_v4l2(clean_env):
 
 
 @pytest.mark.asyncio
+async def test_wsl_falls_back_to_a_usbipd_camera_windows_no_longer_lists(clean_env):
+    "A camera attached through usbipd leaves Windows' listing for /dev/video0."
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
+    clean_env.setattr("glob.glob", lambda pattern: ["/dev/video0"])
+    commands, exec_mock = _record_procs()
+
+    with patch("asyncio.create_subprocess_exec", new=exec_mock):
+        result = await AutoCameraBackend().capture(None)
+
+    assert result == b"jpeg"
+    assert commands[-1][0] == "ffmpeg" and "/dev/video0" in commands[-1]
+
+
+@pytest.mark.asyncio
+async def test_wsl_without_any_camera_stops_after_the_windows_listing(clean_env):
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
+    clean_env.setattr("glob.glob", lambda pattern: [])
+    commands, exec_mock = _record_procs()
+
+    with patch("asyncio.create_subprocess_exec", new=exec_mock):
+        result = await AutoCameraBackend().capture(None)
+
+    assert result is None
+    assert all(cmd[0] == "ffmpeg.exe" for cmd in commands)
+
+
+@pytest.mark.asyncio
 async def test_capture_returns_none_on_nonzero_exit(clean_env):
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)

@@ -70,7 +70,7 @@ On WSL, zrb takes the photo with Windows' own ffmpeg:
 
 The camera is open only while the photo is taken, so Windows apps keep using it, and nothing is attached to WSL. A Windows app that holds the camera exclusively (some video-call apps do) can make a capture fail while it runs. A virtual camera, such as OBS's, lets several apps share one camera; name it in `ZRB_LLM_CAMERA_DEVICE` or `/photo "<name>"`, because auto-detection takes only the devices ffmpeg tags `(video)` and a virtual camera is listed without that tag, so it is never chosen for you.
 
-zrb uses the Linux `ffmpeg` and `/dev/video0` instead when `ffmpeg.exe` is not on the `PATH`, or when the device is a `/dev/video*` path. That needs the fallback below.
+zrb uses the Linux `ffmpeg` and `/dev/video0` instead when `ffmpeg.exe` is not on the `PATH`, when the device is a `/dev/video*` path, or when no device is named and Windows has no camera to give while a `/dev/video*` exists (a camera attached to WSL through usbipd leaves Windows' listing). That needs the fallback below.
 
 ### Fallback: usbipd-win passthrough with a custom kernel
 

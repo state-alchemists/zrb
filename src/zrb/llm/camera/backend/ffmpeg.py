@@ -84,7 +84,12 @@ class FfmpegCameraBackend(AnyCameraBackend):
     ) -> bytes | None:
         dshow_ffmpeg = _get_dshow_ffmpeg(device)
         if dshow_ffmpeg is not None:
-            return await self._capture_dshow(dshow_ffmpeg, device, deadline)
+            data = await self._capture_dshow(dshow_ffmpeg, device, deadline)
+            # A camera attached to WSL through usbipd is gone from Windows'
+            # listing but present as /dev/video*, so an unnamed device falls
+            # back to v4l2.
+            if data is not None or device or not glob.glob("/dev/video*"):
+                return data
         if shutil.which("ffmpeg") is None:
             return None
         if sys.platform == "darwin":
