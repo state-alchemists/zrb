@@ -16,6 +16,6 @@ class ThemeMixin:
             "'dark' (the default) and 'light'. Register more via "
             "zrb.config.theme.register_theme (merged onto 'dark', so a partial "
             "theme only lists what it changes; see examples/themes/). An "
-            "individually set ZRB_* style env still overrides the theme."
+            "individually set style knob still overrides the theme."
         ),
     )

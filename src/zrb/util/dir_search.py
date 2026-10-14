@@ -5,6 +5,7 @@ user home → project directories (root→cwd) → plugins → extras → builti
 """
 
 import logging
+import os
 from pathlib import Path
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +32,27 @@ def get_upward_dirs(start_dir: str | Path) -> list[Path]:
             "Failed to resolve upward directories from %s", start_dir, exc_info=True
         )
         return []
+
+
+def get_dirs_up_to_home(start_dir: str, home_dir: str) -> list[str]:
+    """*start_dir* followed by each ancestor up to *home_dir*, nearest first.
+
+    Only *start_dir* when it is not under *home_dir* (or on another drive).
+    """
+    dirs = [start_dir]
+    try:
+        if os.path.commonpath([start_dir, home_dir]) != home_dir:
+            return dirs
+    except ValueError:
+        return dirs
+    current = start_dir
+    while current != home_dir:
+        parent = os.path.dirname(current)
+        if parent == current:
+            break
+        current = parent
+        dirs.append(current)
+    return dirs
 
 
 def scan_plugin_dirs(plugins_root: Path) -> list[Path]:

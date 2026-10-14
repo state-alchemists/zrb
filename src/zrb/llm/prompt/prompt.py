@@ -3,6 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from zrb.config.config import CFG
+from zrb.util.dir_search import get_dirs_up_to_home
 from zrb.util.string.conversion import to_snake_case
 
 
@@ -109,20 +110,7 @@ def _get_default_prompt_search_path_cached(
     ``LLM_SEARCH_HOME``, as skill and agent discovery do.
     """
     home_path = os.path.abspath(os.path.expanduser("~"))
-    search_paths: list[str] = []
-    if search_project:
-        search_paths.append(cwd)
-        try:
-            if os.path.commonpath([cwd, home_path]) == home_path:
-                temp_path = cwd
-                while temp_path != home_path:
-                    new_temp_path = os.path.dirname(temp_path)
-                    if new_temp_path == temp_path:
-                        break
-                    temp_path = new_temp_path
-                    search_paths.append(temp_path)
-        except ValueError:
-            pass
+    search_paths = get_dirs_up_to_home(cwd, home_path) if search_project else []
     if search_home and home_path not in search_paths:
         search_paths.append(home_path)
     return tuple(search_paths)

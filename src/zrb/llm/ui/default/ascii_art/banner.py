@@ -5,24 +5,13 @@ import os
 import random
 
 from zrb.config.config import CFG
+from zrb.util.dir_search import get_dirs_up_to_home
 
 
 def get_default_banner_search_path() -> list[str]:
-    current_path = os.path.abspath(os.getcwd())
-    home_path = os.path.abspath(os.path.expanduser("~"))
-    search_paths = [current_path]
-    try:
-        if os.path.commonpath([current_path, home_path]) == home_path:
-            temp_path = current_path
-            while temp_path != home_path:
-                new_temp_path = os.path.dirname(temp_path)
-                if new_temp_path == temp_path:
-                    break
-                temp_path = new_temp_path
-                search_paths.append(temp_path)
-    except ValueError:
-        pass
-    return search_paths
+    return get_dirs_up_to_home(
+        os.path.abspath(os.getcwd()), os.path.abspath(os.path.expanduser("~"))
+    )
 
 
 def get_ascii_art(art: str | None = None) -> str:

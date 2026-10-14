@@ -195,13 +195,8 @@ class FileHistoryManager(AnyHistoryManager):
                 self._has_pruned = True
                 self._prune_expired(conversation_name)
 
-            # Retention is controlled by LLM_HISTORY_BACKUP_RETAIN:
-            #   0  → backups disabled entirely
-            #  -1  → keep every backup
-            #   N  → keep the N most recent backups per conversation base name
-            # write_backup=False (mid-turn checkpoint saves) skips this
-            # regardless of retention — a backup per tool call would spam the
-            # history dir with near-duplicate snapshots for no benefit.
+            # Mid-turn checkpoints pass write_backup=False: a backup per tool
+            # call would fill the history dir with near-duplicates.
             backup_retain = CFG.LLM_HISTORY_BACKUP_RETAIN
             if write_backup and backup_retain != 0:
                 base_name = self._extract_base_name(conversation_name)

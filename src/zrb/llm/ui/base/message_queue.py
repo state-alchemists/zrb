@@ -361,3 +361,19 @@ def steer_into_live_run(
             exc_info=True,
         )
         return False
+
+
+async def settle_previous_job(job: "asyncio.Task[object] | None") -> None:
+    """Await a still-running previous job, swallowing its outcome."""
+    if job is None or job.done():
+        return
+    try:
+        await job
+    except (KeyboardInterrupt, SystemExit):
+        # Process-level interrupts are not a job outcome.
+        raise
+    except BaseException:
+        # A cancel aimed at the awaiting loop must still propagate.
+        current = asyncio.current_task()
+        if current is not None and current.cancelling() > 0:
+            raise

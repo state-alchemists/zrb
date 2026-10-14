@@ -263,3 +263,24 @@ def test_get_task_session_api_not_task(app_deps, mock_user):
     ):
         response = client.get("/api/v1/task-sessions/my/group/sess1")
         assert response.status_code == 404
+
+
+def test_get_task_session_api_without_session_hides_restricted_task(
+    app_deps, mock_user
+):
+    """No session name answers 404 even for a restricted task, never 403."""
+    client, root_group, _, _, _ = app_deps
+    mock_user.can_access_task.return_value = False
+
+    from zrb.task.any_task import AnyTask
+
+    mock_task = MagicMock(spec=AnyTask)
+    root_group.extract_node.return_value = (mock_task, MagicMock(), [])
+
+    with patch(
+        "zrb.runner.web_route.task_session_api_route.get_user_from_request",
+        new_callable=AsyncMock,
+        return_value=mock_user,
+    ):
+        response = client.get("/api/v1/task-sessions/my/task")
+        assert response.status_code == 404
