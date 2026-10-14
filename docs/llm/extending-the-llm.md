@@ -2,7 +2,7 @@
 
 # Extending the LLM (Tools, Sub-agents, Capabilities)
 
-Built-in tools, how to write your own, sub-agent delegation, per-model capability overrides, and the context-management internals behind `zrb llm chat`. For the end-user TUI commands, troubleshooting, and `LLMTask`/`LLMChatTask` usage, see [LLM Integration](llm-integration.md).
+Built-in tools, how to write your own, sub-agent delegation, per-model capability overrides, and the context-management internals behind `zrb llm chat`. For the end-user TUI commands, troubleshooting, and `LLMTask`/`LLMChatTask` usage, see [LLM Integration](llm-integration.md); for copy-paste snippets of the common changes, see [LLM Recipes](recipes.md).
 
 ---
 

@@ -9,7 +9,7 @@ Zrb scales from a one-line `zrb please` to a hundred-node pipeline with an agent
 | You are… | Read, in order |
 |---|---|
 | **New to zrb** | [Installation](installation/installation.md) → [Verify: your first task](installation/installation.md#3-verify-installation) → [First LLM chat](installation/installation.md#first-llm-chat) |
-| **Here for the agent** | [LLM docs index](llm/README.md) → [LLM Integration](llm/llm-integration.md) → [Programming the Agent](llm/programming-the-agent.md) → [Permission Policy](llm/permission-policy.md) |
+| **Here for the agent** | [LLM docs index](llm/README.md) → [LLM Integration](llm/llm-integration.md) → [LLM Recipes](llm/recipes.md) → [Programming the Agent](llm/programming-the-agent.md) → [Permission Policy](llm/permission-policy.md) |
 | **Writing pipelines** | [Tasks & Execution Lifecycle](core-concepts/tasks-and-lifecycle.md) → [CLI and Groups](core-concepts/cli-and-groups.md) → [Inputs](core-concepts/inputs.md) → [Task Types](#iii-task-types) |
 | **Running zrb for a team** (config, web UI, CI) | [Environment Variables](configuration/env-vars.md) → [Web UI Guide](advanced-topics/web-ui.md) → [CI/CD Integration](advanced-topics/ci-cd.md) |
 | **Contributing to zrb** | [Contributing](contributing/README.md) → [Architecture](architecture/README.md) → [ADRs](adr/README.md) |

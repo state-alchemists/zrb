@@ -85,7 +85,9 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.skill.manager import Skill
 
 # Skills and sub-agents — add to what discovery found.
-skill_registry.add_skill(Skill(name="my-skill", path=".", description="..."))
+skill_registry.add_skill(
+    Skill(name="my-skill", path=".", description="...", content="The instructions.")
+)
 sub_agent_registry.add_agent(
     SubAgentDefinition(
         name="my-agent", path=".", description="...", system_prompt="..."
@@ -103,7 +105,9 @@ Replace wholesale:
 
 ```python
 # set_* takes a concrete list OR a zero-arg callable resolved at query time.
-skill_registry.set_skills([Skill(name="only-this", path=".", description="...")])
+skill_registry.set_skills(
+    [Skill(name="only-this", path=".", description="...", content="...")]
+)
 prompt_registry.set_prompts(["Only these extra prompts run."])
 ```
 
@@ -112,8 +116,8 @@ Layer onto the shipped surface:
 ```python
 from zrb.llm.tool_registry import tool_registry
 
-def my_special_tool(ctx) -> dict:
-    """..."""
+def my_special_tool(ticket_id: str) -> dict:
+    """...: the parameters are what the model fills in, so no `ctx`."""
 
 tool_registry.append_tool(my_special_tool)   # after the built-ins
 tool_registry.remove_tool("EnterWorktree")   # or drop a shipped one by name
@@ -131,7 +135,9 @@ from zrb.llm.prompt.manager import PromptManager
 
 task = LLMChatTask(
     name="chat",
-    prompt_manager=PromptManager(prompts=["Just this one bot."]),
+    # `prompts` comes after the built-in sections; `include_sections=[]`
+    # drops those, so this text is the whole system prompt.
+    prompt_manager=PromptManager(prompts=["Just this one bot."], include_sections=[]),
 )
 task.append_tool(my_special_tool)   # this task only (defined in the snippet above)
 ```
@@ -148,7 +154,9 @@ a built-in task is already defined can still replace one wholesale:
 from zrb.builtin import llm_chat
 from zrb.llm.prompt.manager import PromptManager
 
-llm_chat.prompt_manager = PromptManager(prompts=["Just this one bot."])
+llm_chat.prompt_manager = PromptManager(
+    prompts=["Just this one bot."], include_sections=[]
+)
 ```
 
 This is channel 3 for a single component rather than a collection: the same

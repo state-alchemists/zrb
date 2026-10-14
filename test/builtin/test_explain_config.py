@@ -112,7 +112,7 @@ async def test_explain_config_single_match_shows_full_value(session, mock_print)
     )
 
     printed = _printed_text(mock_print)
-    assert "Value:" in printed
+    assert "Value (default):" in printed
     assert "Description:" in printed
     # The banner is multi-line and 330 chars; every line survives.
     assert "Coding Agent + Task Engine" in printed
@@ -141,3 +141,31 @@ async def test_explain_config_names_are_never_wrapped(session, mock_print):
 
     printed = _printed_text(mock_print)
     assert "ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD" in printed
+
+
+@pytest.mark.asyncio
+async def test_explain_config_marks_a_set_value_and_shows_its_default(
+    session, mock_print, monkeypatch
+):
+    monkeypatch.setenv("ZRB_WEB_HTTP_PORT", "9000")
+    await config_module.explain_config.async_run(
+        session=session, kwargs={"keyword": "ZRB_WEB_HTTP_PORT"}
+    )
+
+    printed = _printed_text(mock_print)
+    assert "Value (set):" in printed
+    assert "Default:" in printed
+    assert "21213" in printed
+
+
+@pytest.mark.asyncio
+async def test_explain_config_marks_an_unset_value_as_default(
+    session, mock_print, monkeypatch
+):
+    monkeypatch.delenv("ZRB_WEB_HTTP_PORT", raising=False)
+    await config_module.explain_config.async_run(
+        session=session, kwargs={"keyword": "web_http"}
+    )
+
+    printed = _printed_text(mock_print)
+    assert "ZRB_WEB_HTTP_PORT = 21213 (default)" in printed

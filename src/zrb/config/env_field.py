@@ -183,6 +183,10 @@ class EnvField(Generic[T]):
         """
         return any(key in os.environ for key in self.get_read_keys(prefix))
 
+    def get_default(self, host: object) -> str:
+        """The raw text this field falls back to when no env var is set."""
+        return self._resolve_default(host)
+
     def serialize(self, value: Any) -> str:
         """Render *value* the way this field writes it to the environment."""
         return self._serialize(value)
