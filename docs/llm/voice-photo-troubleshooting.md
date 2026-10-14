@@ -10,7 +10,8 @@
 
 - [Voice (`/voice`)](#voice-voice)
 - [Photo (`/photo`)](#photo-photo)
-- [WSL2 camera passthrough: building a custom kernel](#wsl2-camera-passthrough-building-a-custom-kernel)
+- [WSL camera](#wsl-camera)
+  - [Fallback: usbipd-win passthrough with a custom kernel](#fallback-usbipd-win-passthrough-with-a-custom-kernel)
 
 ---
 
@@ -43,16 +44,32 @@
 
 | Symptom | Solution |
 |---------|----------|
-| "Camera capture failed" with no other detail | Install `ffmpeg` — it's the capture backend on every desktop platform |
+| "Camera capture failed" with no other detail | Install `ffmpeg` — it's the capture backend on every desktop platform, and zrb does not install it: `brew install ffmpeg`, `sudo apt install ffmpeg`, or `winget install Gyan.FFmpeg` on Windows and WSL |
 | macOS: capture fails or returns a black frame | Grant your terminal app camera access in **System Settings > Privacy & Security > Camera** — easy to miss, since the OS doesn't always prompt for a CLI tool |
 | Linux: no camera found | Check `/dev/video0` exists and your user is in the `video` group (`sudo usermod -aG video $USER`, then re-login) |
 | Windows: capture fails or picks the wrong camera | Auto-detection parses `ffmpeg -f dshow -list_devices true -i dummy`; if it fails or the machine has multiple cameras, run that command yourself to find the device name and pass it explicitly: `/photo "<device name>"` |
-| WSL: no camera found / `/dev/video0` never appears, even after `usbipd attach` | `usbipd-win` alone is not enough — see [WSL2 camera passthrough](#wsl2-camera-passthrough-building-a-custom-kernel) below |
-| WSL: capture hangs and the camera light stays on ("Camera capture failed" with a `capture timed out` detail) | `/dev/video0` exists, but usbipd-win's USB/IP tunnel can't sustain the video stream — see the note at the end of [WSL2 camera passthrough](#wsl2-camera-passthrough-building-a-custom-kernel) |
-| WSL: `usbipd attach` fails with `Device busy (exported)` even after `usbipd bind` | Windows itself is still holding the camera. This is common for a laptop's **built-in/integrated camera** — Windows' Frame Server keeps a handle on it (for Windows Hello, the Camera app, background video-conferencing processes, etc.) and often won't release it even when nothing appears to be using it, sometimes not even after a reboot. An **external USB webcam** attaches far more reliably than an integrated one. If you must use the integrated camera, try closing Windows Hello/Camera/Teams/Zoom first, or as a last resort disable the built-in camera in Device Manager before attaching (`usbipd attach --wsl --busid=<id>`) — re-enable it afterward to use it on Windows again |
+| WSL: "Camera capture failed" | Install ffmpeg **on Windows** (`winget install Gyan.FFmpeg`), then `wsl --shutdown` so `ffmpeg.exe` is on WSL's `PATH` — see [WSL camera](#wsl-camera) |
+| WSL: `ffmpeg.exe` is installed but capture fails or picks the wrong camera | Run `ffmpeg.exe -f dshow -list_devices true -i dummy` and pass the name: `/photo "<device name>"` or `ZRB_LLM_CAMERA_DEVICE`. Check the camera works in a Windows app first |
+| WSL (usbipd fallback): `/dev/video0` never appears, even after `usbipd attach` | `usbipd-win` alone is not enough — see [the fallback](#fallback-usbipd-win-passthrough-with-a-custom-kernel) below |
+| WSL (usbipd fallback): capture hangs and the camera light stays on (`capture timed out`) | `/dev/video0` exists, but usbipd-win's USB/IP tunnel can't sustain the video stream — see the note at the end of [the fallback](#fallback-usbipd-win-passthrough-with-a-custom-kernel) |
+| WSL (usbipd fallback): `usbipd attach` fails with `Device busy (exported)` even after `usbipd bind` | Windows itself is still holding the camera. This is common for a laptop's **built-in/integrated camera** — Windows' Frame Server keeps a handle on it (for Windows Hello, the Camera app, background video-conferencing processes, etc.) and often won't release it even when nothing appears to be using it, sometimes not even after a reboot. Use Windows' `ffmpeg.exe` instead, which needs no attach. Otherwise, an **external USB webcam** attaches far more reliably; or close Windows Hello/Camera/Teams/Zoom first, or as a last resort disable the built-in camera in Device Manager before attaching — re-enable it afterward to use it on Windows again |
 | Termux (native or `proot-distro`): "Camera capture failed" | Install the Termux:API app (F-Droid) and `pkg install termux-api`. `/photo` works from inside `proot-distro` too — the capture writes to Termux's real home directory rather than a temp path, so it's visible from both native Termux and a proot guest |
 
-## WSL2 camera passthrough: building a custom kernel
+## WSL camera
+
+On WSL, zrb takes the photo with Windows' own ffmpeg:
+
+1. In Windows, install ffmpeg: `winget install Gyan.FFmpeg`.
+2. Restart WSL so it picks up the new Windows `PATH`: `wsl --shutdown` from PowerShell, then reopen it. Check with `which ffmpeg.exe`. WSL adds the Windows `PATH` unless `appendWindowsPath=false` is set in `/etc/wsl.conf`.
+3. `/photo`. zrb runs `ffmpeg.exe -f dshow` on the Windows side and auto-detects the first camera; `ffmpeg.exe -f dshow -list_devices true -i dummy` lists them, and `ZRB_LLM_CAMERA_DEVICE` picks one by name.
+
+The camera is open only while the photo is taken, so Windows apps keep using it, and nothing is attached to WSL. A Windows app that holds the camera exclusively (some video-call apps do) can make a capture fail while it runs. A virtual camera, such as OBS's, lets several apps share one camera; name it in `ZRB_LLM_CAMERA_DEVICE`.
+
+zrb uses the Linux `ffmpeg` and `/dev/video0` instead when `ffmpeg.exe` is not on the `PATH`, or when the device is a `/dev/video*` path. That needs the fallback below.
+
+### Fallback: usbipd-win passthrough with a custom kernel
+
+This route takes the camera away from Windows while it is attached, and needs a kernel you build yourself. Prefer `ffmpeg.exe` above.
 
 [usbipd-win](https://github.com/dorssel/usbipd-win) only does USB-level passthrough — it gets the webcam enumerated on WSL2's USB bus (confirm with `lsusb` and `dmesg | tail`, which show the device even when nothing else works). Turning that into a `/dev/video0` node is the kernel's job, and the stock `microsoft-standard-WSL2` kernel ships with **no camera driver at all** — no `uvcvideo`, no v4l2 core, not even as a loadable module (`sudo modprobe uvcvideo` fails with `Module uvcvideo not found`). There is no config flag or package that fixes this; you have to build a custom kernel.
 

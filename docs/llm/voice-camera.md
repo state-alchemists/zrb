@@ -6,7 +6,7 @@
 
 | Feature | Commands | Needs |
 |---|---|---|
-| Camera | `/photo [device]` | `ffmpeg`, or Termux:API on Android |
+| Camera | `/photo [device]` | `ffmpeg` (on WSL, Windows' `ffmpeg.exe`), or Termux:API on Android |
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; a cloud key; or a local Pipecat voice |
 
@@ -26,6 +26,8 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 ## Camera
 
 `/photo` captures one photo and attaches it to your next message, so you can say what to do with it: `/photo`, then "what does this error on my screen mean?". `/photo 1` picks a device; press Tab after `/photo ` to list them.
+
+**Installing ffmpeg.** On a desktop, the photo is taken by `ffmpeg`, which zrb does not install: `brew install ffmpeg` on macOS, `sudo apt install ffmpeg` (or your distribution's package) on Linux, `winget install Gyan.FFmpeg` on Windows. On WSL, install it **on Windows** with `winget`, then run `wsl --shutdown` so WSL sees it on the `PATH`: zrb runs `ffmpeg.exe` to take the photo on the Windows side, which holds the camera only for the photo, so Windows apps keep using it. A Linux `ffmpeg` with usbipd-win is the fallback; see [WSL camera](voice-photo-troubleshooting.md#wsl-camera).
 
 **Letting the agent look.** With `ZRB_LLM_CAMERA_ENABLE_TOOL=on`, the agent also gets a `TakePhoto` tool: when you say "what do you think of this?" with something held up, it can take the photo itself. Every call asks for approval like `Shell` does, and plan mode denies it. To skip the prompt, add `auto_approve("TakePhoto")` to your tool policies (see [Customizing Tool Approval](tool-approval.md)).
 

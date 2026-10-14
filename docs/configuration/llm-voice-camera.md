@@ -155,7 +155,7 @@ The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KE
 |----------|-------------|---------|
 | `ZRB_LLM_CAMERA_COMMANDS` | Aliases for the camera command | `/photo, /p` |
 | `ZRB_LLM_CAMERA_BACKEND` | `auto` (Termux:API on Android when installed, else ffmpeg), `termux`, `ffmpeg` | `auto` |
-| `ZRB_LLM_CAMERA_DEVICE` | Device used when the command names none; empty picks the platform default | (none) |
+| `ZRB_LLM_CAMERA_DEVICE` | Device used when the command names none; empty picks the platform default. On WSL, a `/dev/video*` path captures through Linux ffmpeg instead of Windows' `ffmpeg.exe` | (none) |
 | `ZRB_LLM_CAMERA_TIMEOUT` | Seconds a capture may take, every attempt included, before it is abandoned; `0` means no limit | `15` |
 | `ZRB_LLM_CAMERA_ENABLE_TOOL` | Give the agent a `TakePhoto` tool, so it can look through the camera on its own. Each call asks for approval, and plan mode denies it | `off` |
 
