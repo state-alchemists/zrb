@@ -15,10 +15,12 @@ and PipeWire cancel echo system-wide once their echo-cancel module is loaded.
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 import importlib.util
 import sys
 import threading
+import time
 from collections.abc import Callable
 from types import ModuleType
 from typing import TYPE_CHECKING
@@ -35,6 +37,8 @@ if TYPE_CHECKING:
 _FILTER_HALF_TAPS = 32
 # Where the filter cuts, as a fraction of the target rate's Nyquist frequency.
 _FILTER_CUTOFF = 0.9
+# How often `confirm_audio` looks for the first block.
+_CONFIRM_POLL_SECONDS = 0.05
 
 AudioCallback = Callable[["Samples", int, None, None], None]
 
@@ -147,6 +151,7 @@ class EchoCancelledMicrophone:
         # An `AVAudioEngine` once started; pyobjc ships no type stubs.
         self._engine = None
         self._lock = threading.Lock()
+        self._has_audio = threading.Event()
 
     @property
     def is_active(self) -> bool:
@@ -172,18 +177,44 @@ class EchoCancelledMicrophone:
         with self._lock:
             self._engine = engine
 
+    async def confirm_audio(self, timeout: float) -> None:
+        """Wait until the first block arrives, or raise `RuntimeError`.
+
+        A started engine is not yet a working microphone: with a Bluetooth
+        headset as the default device, macOS stops voice processing right
+        after it starts, and no audio ever arrives. This says so at once
+        when the engine stops, and after *timeout* seconds otherwise.
+        """
+        deadline = time.monotonic() + timeout
+        while not self._has_audio.is_set():
+            if not self.is_active or time.monotonic() >= deadline:
+                raise RuntimeError(
+                    "The echo-cancelled microphone heard nothing (macOS stops "
+                    "voice processing on some devices, such as a Bluetooth "
+                    "headset)"
+                )
+            await asyncio.sleep(_CONFIRM_POLL_SECONDS)
+
     def close(self) -> None:
-        """Stop the engine; voice processing ends with it."""
+        """Stop the engine and switch voice processing off."""
         with self._lock:
             engine, self._engine = self._engine, None
-        if engine is None:
-            return
-        engine.inputNode().removeTapOnBus_(0)
-        engine.stop()
+        if engine is not None:
+            _release(engine)
 
     def _start_engine(self):  # an AVAudioEngine; pyobjc has no type stubs
         avf = import_avfoundation()
         engine = avf.AVAudioEngine.alloc().init()
+        try:
+            self._run_engine(avf, engine)
+        except BaseException:
+            # Voice processing, the tap or a half-started engine would keep
+            # the microphone from the plain one opened in its place.
+            _release(engine)
+            raise
+        return engine
+
+    def _run_engine(self, avf: ModuleType, engine) -> None:  # an AVAudioEngine
         # The voice-processing unit is one input/output unit: its output side
         # fails to initialize (-10875) unless it exists before voice
         # processing is switched on.
@@ -202,11 +233,9 @@ class EchoCancelledMicrophone:
         engine.prepare()
         is_started, error = engine.startAndReturnError_(None)
         if not is_started:
-            node.removeTapOnBus_(0)
             raise RuntimeError(
                 f"The echo-cancelled microphone would not start: {error}"
             )
-        return engine
 
     def _create_tap(self, input_rate: float):  # an AVAudioNodeTapBlock
         np = self._np
@@ -219,6 +248,7 @@ class EchoCancelledMicrophone:
             channel = buffer.floatChannelData()[0]
             samples = np.frombuffer(channel.as_buffer(frames), dtype=np.float32)
             rechunker.append(resampler.convert(samples))
+            self._has_audio.set()
 
         return tap
 
@@ -230,6 +260,20 @@ def import_avfoundation() -> ModuleType:
     """pyobjc's AVFoundation; only imported on macOS, once echo
     cancellation is asked for."""
     return importlib.import_module("AVFoundation")
+
+
+def _release(engine) -> None:  # an AVAudioEngine; pyobjc has no type stubs
+    """Take the tap off, stop *engine* and switch voice processing off. Each
+    step runs even when one before it raised, and a failure is raised after
+    them all, chained to whatever failure the caller was handling."""
+    node = engine.inputNode()
+    try:
+        node.removeTapOnBus_(0)
+    finally:
+        try:
+            engine.stop()
+        finally:
+            node.setVoiceProcessingEnabled_error_(False, None)
 
 
 def _reduce_ducking(avf: ModuleType, node: object) -> None:

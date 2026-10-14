@@ -323,9 +323,11 @@ async def test_a_microphone_that_will_not_start_says_which_device_it_tried():
 
 
 class _FakeEchoCancelledMicrophone(FakeStream):
-    """Stands in for macOS voice processing; *fails* makes start raise."""
+    """Stands in for macOS voice processing; *fails* makes start raise, and
+    *is_silent* makes it start but hear nothing (a Bluetooth headset)."""
 
     fails = False
+    is_silent = False
     instances: list = []
 
     def __init__(self, np_module, callback, samplerate, blocksize):
@@ -339,13 +341,20 @@ class _FakeEchoCancelledMicrophone(FakeStream):
             raise RuntimeError("voice processing would not start")
         super().start()
 
+    async def confirm_audio(self, timeout):
+        if self.is_silent:
+            raise RuntimeError("The echo-cancelled microphone heard nothing")
 
-async def _collect_echo_cancelled(blocks, reason=None, fails=False, device=None):
+
+async def _collect_echo_cancelled(
+    blocks, reason=None, fails=False, device=None, is_silent=False
+):
     """Run `listen` with echo cancellation asked for; returns the utterances,
     what sounddevice was asked for, and the voice-processing microphones."""
     captured = {}
     _FakeEchoCancelledMicrophone.instances = []
     _FakeEchoCancelledMicrophone.fails = fails
+    _FakeEchoCancelledMicrophone.is_silent = is_silent
     config = _listen_config(enable_echo_cancel=True, device=device)
 
     async def consume():
@@ -364,7 +373,8 @@ async def _collect_echo_cancelled(blocks, reason=None, fails=False, device=None)
         task = asyncio.create_task(consume())
         await asyncio.sleep(0)
         microphones = _FakeEchoCancelledMicrophone.instances
-        feed = microphones[0].callback if microphones and not fails else None
+        is_heard = microphones and not (fails or is_silent)
+        feed = microphones[0].callback if is_heard else None
         for block in blocks:
             (feed or captured["callback"])(block, len(block), None, None)
         return await task, captured, microphones
@@ -404,3 +414,17 @@ async def test_listen_says_why_echo_cancel_is_unavailable(caplog):
     assert microphones == []
     assert captured["device"] == 2
     assert "Echo cancellation is off: a reason only this test gives" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_listen_falls_back_when_voice_processing_hears_nothing(caplog):
+    blocks = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+
+    utterances, captured, microphones = await _collect_echo_cancelled(
+        blocks, is_silent=True
+    )
+
+    assert len(utterances) == 1
+    assert captured["blocksize"] == 1600
+    assert microphones[0].is_closed
+    assert "heard nothing" in caplog.text

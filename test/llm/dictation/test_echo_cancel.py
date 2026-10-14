@@ -1,12 +1,17 @@
 """Tests for the echo-cancelled microphone (macOS voice processing)."""
 
+import asyncio
 import sys
 from unittest.mock import MagicMock, call, patch
 
 import pytest
 
-from zrb.llm.dictation.echo_cancel import (EchoCancelledMicrophone, Rechunker,
-                                           Resampler, get_unavailable_reason)
+from zrb.llm.dictation.echo_cancel import (
+    EchoCancelledMicrophone,
+    Rechunker,
+    Resampler,
+    get_unavailable_reason,
+)
 
 np = pytest.importorskip("numpy")
 
@@ -184,38 +189,75 @@ def test_microphone_skips_ducking_where_macos_has_no_setting():
     assert microphone.active
 
 
-def test_microphone_raises_when_voice_processing_will_not_switch_on():
-    avf, _, _ = _fake_avfoundation(enabled=(False, "no"))
+def _assert_released(engine, node):
+    """The tap is off, the engine stopped, and voice processing off again."""
+    node.removeTapOnBus_.assert_called_once_with(0)
+    engine.stop.assert_called_once_with()
+    node.setVoiceProcessingEnabled_error_.assert_called_with(False, None)
+
+
+def test_microphone_raises_and_releases_when_voice_processing_will_not_switch_on():
+    avf, engine, node = _fake_avfoundation(enabled=(False, "no"))
 
     with pytest.raises(RuntimeError, match="would not switch on"):
         _start(avf)
+    _assert_released(engine, node)
 
 
-def test_microphone_raises_and_removes_its_tap_when_the_engine_will_not_start():
-    avf, _, node = _fake_avfoundation(started=(False, "-10875"))
+def test_microphone_raises_and_releases_when_the_engine_will_not_start():
+    avf, engine, node = _fake_avfoundation(started=(False, "-10875"))
 
     with pytest.raises(RuntimeError, match="would not start"):
         _start(avf)
-    node.removeTapOnBus_.assert_called_once_with(0)
+    _assert_released(engine, node)
 
 
-def test_microphone_turns_a_cocoa_error_into_a_runtime_error():
-    avf, engine, _ = _fake_avfoundation()
-    engine.prepare.side_effect = ValueError("NSInternalInconsistencyException")
+@pytest.mark.parametrize("step", ["prepare", "startAndReturnError_"])
+def test_microphone_releases_the_engine_when_cocoa_raises(step):
+    avf, engine, node = _fake_avfoundation()
+    getattr(engine, step).side_effect = ValueError("NSInternalInconsistencyException")
 
     with pytest.raises(RuntimeError, match="NSInternalInconsistencyException"):
         _start(avf)
+    _assert_released(engine, node)
 
 
-def test_microphone_close_stops_the_engine_once():
+def test_microphone_release_runs_every_step_when_one_fails():
+    avf, engine, node = _fake_avfoundation()
+    engine.prepare.side_effect = ValueError("route lost")
+    node.removeTapOnBus_.side_effect = ValueError("no tap")
+
+    with pytest.raises(RuntimeError) as raised:
+        _start(avf)
+
+    engine.stop.assert_called_once_with()
+    node.setVoiceProcessingEnabled_error_.assert_called_with(False, None)
+    # The release failure is what surfaces; the startup failure is kept
+    # as its context, so neither is lost.
+    assert "no tap" in str(raised.value)
+    assert "route lost" in str(raised.value.__cause__.__context__)
+
+
+def test_microphone_close_releases_the_engine_once():
     avf, engine, node = _fake_avfoundation()
     microphone, _ = _start(avf)
 
     microphone.close()
     microphone.close()
 
+    _assert_released(engine, node)
+    assert not microphone.active
+
+
+def test_microphone_close_stops_the_engine_even_when_the_tap_will_not_come_off():
+    avf, engine, node = _fake_avfoundation()
+    microphone, _ = _start(avf)
+    node.removeTapOnBus_.side_effect = ValueError("no tap")
+
+    with pytest.raises(ValueError, match="no tap"):
+        microphone.close()
+
     engine.stop.assert_called_once_with()
-    node.removeTapOnBus_.assert_called_once_with(0)
     assert not microphone.active
 
 
@@ -226,3 +268,33 @@ def test_microphone_is_inactive_once_macos_stops_the_engine():
     engine.isRunning.return_value = False
 
     assert not microphone.active
+
+
+@pytest.mark.asyncio
+async def test_microphone_confirms_audio_once_a_block_arrives():
+    avf, _, node = _fake_avfoundation()
+    microphone, _ = _start(avf)
+    tap = node.installTapOnBus_bufferSize_format_block_.call_args.args[3]
+    tap(_FakeBuffer(_tone(48000, 0.1)), None)
+
+    await microphone.confirm_audio(timeout=1.0)
+
+
+@pytest.mark.asyncio
+async def test_microphone_confirm_fails_at_once_when_macos_stops_the_engine():
+    # A Bluetooth headset: voice processing starts, then macOS stops it.
+    avf, engine, _ = _fake_avfoundation()
+    microphone, _ = _start(avf)
+    engine.isRunning.return_value = False
+
+    with pytest.raises(RuntimeError, match="heard nothing"):
+        await asyncio.wait_for(microphone.confirm_audio(timeout=60), timeout=1)
+
+
+@pytest.mark.asyncio
+async def test_microphone_confirm_fails_when_no_audio_arrives_in_time():
+    avf, _, _ = _fake_avfoundation()
+    microphone, _ = _start(avf)
+
+    with pytest.raises(RuntimeError, match="heard nothing"):
+        await microphone.confirm_audio(timeout=0.1)

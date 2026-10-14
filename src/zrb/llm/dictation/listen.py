@@ -49,6 +49,8 @@ _RECORD_POLL_SECONDS = 0.1
 # Retry count and delay for PortAudio's one-second ALSA startup deadline.
 _OPEN_ATTEMPTS = 3
 _OPEN_RETRY_SECONDS = 0.5
+# How long the echo-cancelled microphone has to deliver its first block.
+_ECHO_CANCEL_FIRST_AUDIO_SECONDS = 2.0
 
 
 class Utterance(NamedTuple):
@@ -766,7 +768,9 @@ async def _open_microphone(
     not retried.
     """
     if is_echo_cancelled:
-        microphone = _start_echo_cancelled_microphone(on_audio, options["blocksize"])
+        microphone = await _start_echo_cancelled_microphone(
+            on_audio, options["blocksize"]
+        )
         if microphone is not None:
             return microphone
     device = to_device(device)
@@ -816,16 +820,18 @@ def _warn_once(message: str) -> None:
     logger.warning(message)
 
 
-def _start_echo_cancelled_microphone(
+async def _start_echo_cancelled_microphone(
     on_audio: Callable[..., None], blocksize: int
 ) -> EchoCancelledMicrophone | None:
-    """The microphone through macOS voice processing, or ``None`` (and a
-    warning saying why) when it will not start."""
+    """The microphone through macOS voice processing, hearing, or ``None``
+    (and a warning saying why) when it will not start or hears nothing."""
     np, _ = import_audio()
     microphone = EchoCancelledMicrophone(np, on_audio, SAMPLE_RATE, blocksize)
     try:
         microphone.start()
+        await microphone.confirm_audio(_ECHO_CANCEL_FIRST_AUDIO_SECONDS)
     except RuntimeError as e:
+        microphone.close()
         logger.warning(f"{e}; using the microphone without echo cancellation")
         return None
     return microphone
