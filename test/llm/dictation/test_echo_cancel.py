@@ -198,10 +198,24 @@ def _assert_released(engine, node):
 
 def test_microphone_raises_and_releases_when_voice_processing_will_not_switch_on():
     avf, engine, node = _fake_avfoundation(enabled=(False, "no"))
+    # macOS may treat taking off a tap that is not there as an error.
+    node.removeTapOnBus_.side_effect = ValueError("no tap on bus 0")
 
     with pytest.raises(RuntimeError, match="would not switch on"):
         _start(avf)
-    _assert_released(engine, node)
+    node.removeTapOnBus_.assert_not_called()
+    engine.stop.assert_called_once_with()
+    node.setVoiceProcessingEnabled_error_.assert_called_with(False, None)
+
+
+def test_microphone_leaves_the_tap_alone_when_it_failed_before_installing_it():
+    avf, engine, node = _fake_avfoundation()
+    node.outputFormatForBus_.side_effect = ValueError("no input format")
+
+    with pytest.raises(RuntimeError, match="no input format"):
+        _start(avf)
+    node.removeTapOnBus_.assert_not_called()
+    engine.stop.assert_called_once_with()
 
 
 def test_microphone_raises_and_releases_when_the_engine_will_not_start():
@@ -254,7 +268,7 @@ def test_microphone_close_stops_the_engine_even_when_the_tap_will_not_come_off()
     microphone, _ = _start(avf)
     node.removeTapOnBus_.side_effect = ValueError("no tap")
 
-    with pytest.raises(ValueError, match="no tap"):
+    with pytest.raises(RuntimeError, match="no tap"):
         microphone.close()
 
     engine.stop.assert_called_once_with()

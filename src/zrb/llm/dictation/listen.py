@@ -831,8 +831,11 @@ async def _start_echo_cancelled_microphone(
         microphone.start()
         await microphone.confirm_audio(_ECHO_CANCEL_FIRST_AUDIO_SECONDS)
     except RuntimeError as e:
-        microphone.close()
         logger.warning(f"{e}; using the microphone without echo cancellation")
+        try:
+            microphone.close()
+        except RuntimeError as close_error:
+            logger.warning(f"{close_error}; opening the plain microphone anyway")
         return None
     return microphone
 
@@ -872,9 +875,16 @@ def to_blocks(seconds: float | None, block_seconds: float) -> int:
     return max(0, round((seconds or 0) / block_seconds))
 
 
-async def record(should_record: Callable[[], bool]) -> bytes:
+async def record(
+    should_record: Callable[[], bool], config: DictationConfig | None = None
+) -> bytes:
     """Everything the default microphone hears while *should_record* holds,
-    as 16-bit PCM, pauses included; for a button held down to talk."""
+    as 16-bit PCM, pauses included; for a button held down to talk.
+
+    With *config*, its ``device`` is the microphone, and with its echo
+    cancellation on, zrb's voice is taken out as `listen` does; without one,
+    PortAudio's default microphone records as it is.
+    """
     np, sd = import_audio()
     loop = asyncio.get_running_loop()
     blocks: "asyncio.Queue[Any]" = asyncio.Queue()
@@ -883,7 +893,17 @@ async def record(should_record: Callable[[], bool]) -> bytes:
         loop.call_soon_threadsafe(blocks.put_nowait, indata.copy())
 
     recorded: list[Any] = []
-    with closing(await _open_microphone(sd, on_audio)):
+    if config is None:
+        stream = await _open_microphone(sd, on_audio)
+    else:
+        stream = await _open_microphone(
+            sd,
+            on_audio,
+            device=config.device or None,
+            is_echo_cancelled=_is_echo_cancel_usable(config),
+            blocksize=int(SAMPLE_RATE * get_block_seconds(config)),
+        )
+    with closing(stream):
         while should_record():
             try:
                 recorded.append(

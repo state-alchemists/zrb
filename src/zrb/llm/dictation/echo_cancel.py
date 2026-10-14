@@ -152,6 +152,9 @@ class EchoCancelledMicrophone:
         self._engine = None
         self._lock = threading.Lock()
         self._has_audio = threading.Event()
+        # Whether the tap went on during the last start: macOS may treat
+        # taking off a tap that is not there as an error.
+        self._is_tapped = False
 
     @property
     def is_active(self) -> bool:
@@ -196,21 +199,23 @@ class EchoCancelledMicrophone:
             await asyncio.sleep(_CONFIRM_POLL_SECONDS)
 
     def close(self) -> None:
-        """Stop the engine and switch voice processing off."""
+        """Stop the engine and switch voice processing off, or raise
+        `RuntimeError` when part of that failed (every part is still tried)."""
         with self._lock:
             engine, self._engine = self._engine, None
         if engine is not None:
-            _release(engine)
+            _release(engine, is_tapped=True)
 
     def _start_engine(self):  # an AVAudioEngine; pyobjc has no type stubs
         avf = import_avfoundation()
         engine = avf.AVAudioEngine.alloc().init()
+        self._is_tapped = False
         try:
             self._run_engine(avf, engine)
         except BaseException:
             # Voice processing, the tap or a half-started engine would keep
             # the microphone from the plain one opened in its place.
-            _release(engine)
+            _release(engine, self._is_tapped)
             raise
         return engine
 
@@ -230,6 +235,7 @@ class EchoCancelledMicrophone:
         node.installTapOnBus_bufferSize_format_block_(
             0, frames, None, self._create_tap(input_rate)
         )
+        self._is_tapped = True
         engine.prepare()
         is_started, error = engine.startAndReturnError_(None)
         if not is_started:
@@ -262,13 +268,25 @@ def import_avfoundation() -> ModuleType:
     return importlib.import_module("AVFoundation")
 
 
-def _release(engine) -> None:  # an AVAudioEngine; pyobjc has no type stubs
-    """Take the tap off, stop *engine* and switch voice processing off. Each
-    step runs even when one before it raised, and a failure is raised after
-    them all, chained to whatever failure the caller was handling."""
+def _release(engine, is_tapped: bool) -> None:  # an AVAudioEngine
+    """Take the tap off (when *is_tapped*), stop *engine* and switch voice
+    processing off. Each step runs even when one before it raised; a failure
+    is then raised as `RuntimeError`, which the fallback to the plain
+    microphone catches, chained to whatever failure the caller was handling.
+    """
+    try:
+        _release_steps(engine, is_tapped)
+    except Exception as e:  # pyobjc raises whatever Cocoa raised
+        raise RuntimeError(
+            f"Releasing the echo-cancelled microphone failed: {e}"
+        ) from e
+
+
+def _release_steps(engine, is_tapped: bool) -> None:  # an AVAudioEngine
     node = engine.inputNode()
     try:
-        node.removeTapOnBus_(0)
+        if is_tapped:
+            node.removeTapOnBus_(0)
     finally:
         try:
             engine.stop()

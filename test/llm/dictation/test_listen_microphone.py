@@ -328,6 +328,7 @@ class _FakeEchoCancelledMicrophone(FakeStream):
 
     fails = False
     is_silent = False
+    close_fails = False
     instances: list = []
 
     def __init__(self, np_module, callback, samplerate, blocksize):
@@ -341,13 +342,18 @@ class _FakeEchoCancelledMicrophone(FakeStream):
             raise RuntimeError("voice processing would not start")
         super().start()
 
+    def close(self):
+        super().close()
+        if self.close_fails:
+            raise RuntimeError("Releasing the echo-cancelled microphone failed")
+
     async def confirm_audio(self, timeout):
         if self.is_silent:
             raise RuntimeError("The echo-cancelled microphone heard nothing")
 
 
 async def _collect_echo_cancelled(
-    blocks, reason=None, fails=False, device=None, is_silent=False
+    blocks, reason=None, fails=False, device=None, is_silent=False, close_fails=False
 ):
     """Run `listen` with echo cancellation asked for; returns the utterances,
     what sounddevice was asked for, and the voice-processing microphones."""
@@ -355,6 +361,7 @@ async def _collect_echo_cancelled(
     _FakeEchoCancelledMicrophone.instances = []
     _FakeEchoCancelledMicrophone.fails = fails
     _FakeEchoCancelledMicrophone.is_silent = is_silent
+    _FakeEchoCancelledMicrophone.close_fails = close_fails
     config = _listen_config(enable_echo_cancel=True, device=device)
 
     async def consume():
@@ -428,3 +435,57 @@ async def test_listen_falls_back_when_voice_processing_hears_nothing(caplog):
     assert captured["blocksize"] == 1600
     assert microphones[0].is_closed
     assert "heard nothing" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_listen_opens_the_plain_microphone_even_when_releasing_fails(caplog):
+    blocks = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
+
+    utterances, captured, _ = await _collect_echo_cancelled(
+        blocks, is_silent=True, close_fails=True
+    )
+
+    assert len(utterances) == 1
+    assert captured["blocksize"] == 1600
+    assert "opening the plain microphone anyway" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_record_with_a_config_records_through_echo_cancellation():
+    _FakeEchoCancelledMicrophone.instances = []
+    _FakeEchoCancelledMicrophone.fails = False
+    _FakeEchoCancelledMicrophone.is_silent = False
+    _FakeEchoCancelledMicrophone.close_fails = False
+    captured = {}
+    config = _listen_config(enable_echo_cancel=True)
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
+        patch("zrb.llm.dictation.listen.get_unavailable_reason", return_value=None),
+        patch(
+            "zrb.llm.dictation.listen.EchoCancelledMicrophone",
+            _FakeEchoCancelledMicrophone,
+        ),
+    ):
+        task = asyncio.create_task(record(_holds_for(3), config))
+        await asyncio.sleep(0)
+        microphone = _FakeEchoCancelledMicrophone.instances[0]
+        microphone.callback(_block(0.5), 2, None, None)
+        audio = await task
+
+    assert audio == _pcm(0.5, 0.5)
+    assert captured == {}  # sounddevice never opened
+    assert microphone.is_closed
+
+
+@pytest.mark.asyncio
+async def test_record_with_a_config_opens_its_device():
+    captured = {}
+
+    with patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}):
+        task = asyncio.create_task(record(_holds_for(1), _listen_config(device="2")))
+        await asyncio.sleep(0)
+        await task
+
+    assert captured["device"] == 2
+    assert captured["blocksize"] == 1600
