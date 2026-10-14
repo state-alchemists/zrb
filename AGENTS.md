@@ -97,6 +97,24 @@ Lives under `docs/changelog/`: `README.md` (index), `v1.md` (1.x archive), `v2/`
 > New here? Start at the [Contributing guide](docs/contributing/README.md), then [Which pattern do I reach for?](docs/contributing/which-pattern.md).
 > The enforced rule list is [Framework Conventions](docs/contributing/framework-conventions.md) (R1–R12). Cite rule numbers in review.
 
+### What fails the build
+
+These conventions fail `./zrb-test.sh` when broken. Everything else in this section is review guidance: reviewers apply it, no test fails.
+
+| Convention | Enforced by |
+| --- | --- |
+| R1–R12 | the test each row of [Framework Conventions](docs/contributing/framework-conventions.md) names |
+| A part never crosses a `_` name on another object | `test_boundaries.py::test_no_part_reaches_another_objects_private_state` |
+| Tests touch no private members; `-> bool` names are questions; no new swallowed `except Exception:` or `Any` annotation | the ratchets: `test_private_test_access_ratchet.py`, `test_bool_naming_ratchet.py`, `test_broad_except_ratchet.py`, `test_any_annotation_ratchet.py` |
+| Function complexity ≤ 15 | `test_complexity_ratchet.py` |
+| Every `# lazy:` import names an allowed reason; no unused import | `test_lazy_import_categories.py`; `flake8 --select=F` |
+| Constructors forward `BaseTaskParams` and document it | `test_constructor_surface.py` |
+| Test files ≤ 500 lines | `test_test_file_size_ratchet.py` |
+| Builtin tasks registered; tools tagged with a `Capability` | `test/builtin/test_registration_completeness.py`; `test_every_registered_tool_carries_a_known_capability` |
+| Coverage ≥ 95%; pyright `standard`, and `strict` for the listed packages | `zrb-test.sh` |
+
+Review guidance only: the ~30-line function target, the Mixin-vs-part composition shape beyond the `_` check, no path stutter, the verb vocabulary, the config naming, unit and rename rules, and the test-file naming conventions.
+
 ### Code Style
 
 - Follow existing project conventions (formatting, naming, typing).
