@@ -79,7 +79,7 @@ That is why the same "stop" sometimes cancels and sometimes only hushes: the fir
 
 With wake words, zrb stops only once it has heard one. Talk in the room holds its voice like anything else heard over it, on loudness alone, and the words give that hold back when they turn out not to be the user's.
 
-**zrb's own voice.** On speakers the microphone hears zrb too, and zrb does not try to subtract it: no echo canceller removes all of it on laptop speakers, and what is left, transcribed, would become turns zrb answers itself. Instead, what hands-free hears has to pass the checks below before it reaches the model. None of them compares the words heard against what zrb was saying, so a word of zrb's own reply, loud enough to clear the bar, can still open a turn — keep the volume down, or wear headphones. Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
+**zrb's own voice.** On speakers the microphone hears zrb too. The operating system can take it out ([Hearing zrb in what you say](#hearing-zrb-in-what-you-say)); zrb does not subtract it itself, since what an echo canceller leaves on laptop speakers, transcribed, would become turns zrb answers itself. Either way, what hands-free hears has to pass the checks below before it reaches the model. None of them compares the words heard against what zrb was saying, so a word of zrb's own reply, loud enough to clear the bar, can still open a turn — keep the volume down, or wear headphones. Push-to-talk keeps every word: its transcript lands in the input box for you to edit.
 
 | Check | What it keeps out | Setting |
 |---|---|---|
@@ -88,6 +88,47 @@ With wake words, zrb stops only once it has heard one. Talk in the room holds it
 | At least two words over zrb, or (with barge-in on) while a turn runs, unless a stop word or an answer to the prompt being asked | One-word leftovers ("sleep", "well") | `ZRB_LLM_DICTATION_BARGE_IN_MIN_WORDS` (2) |
 
 On headphones the microphone hears no zrb, so the bar stays at `ZRB_LLM_DICTATION_THRESHOLD`. Speak up a little over laptop speakers. zrb plays its speech itself when it can (`ZRB_LLM_SPEECH_PLAYER=auto`, the default with the `zrb[voice]` extra), so it can pause while you talk; speech a player program plays cannot pause, and only the sentence playing is stopped.
+
+#### Hearing zrb in what you say
+
+The checks above decide whether what was heard reaches zrb; they cannot clean it. When you talk over zrb on speakers, your words and zrb's arrive in the same audio, and the transcript mixes them: "remind me to call my sister" comes back as "remind me to call it will be sunny in the morning". Echo cancellation takes zrb's voice out of the microphone before anything is transcribed. Each platform has its own, and headphones need none.
+
+| Platform | Echo cancellation | What to do |
+|---|---|---|
+| macOS | The system's voice processing (what calls use), which an app has to ask for | `ZRB_LLM_DICTATION_ENABLE_ECHO_CANCEL=on`, already on under `ZRB_LLM_VOICE=conversation` |
+| Linux | PulseAudio's or PipeWire's echo-cancel module, the WebRTC canceller browsers use. Off on most distributions | Load it, below. Nothing in zrb changes |
+| Windows | Many laptops' audio drivers cancel echo for every recording | Usually nothing; if zrb's words show up in yours, use headphones |
+
+**macOS.** zrb opens the default microphone through voice processing, which cancels whatever the speakers play, so zrb's voice stays out of the transcript while yours comes through. It also evens out your level and quiets the room, and keeps other apps' audio at full volume. It works on the default microphone only: with `ZRB_LLM_DICTATION_DEVICE` set, or without `pyobjc-framework-AVFoundation` (part of `zrb[voice]`), the microphone opens as usual, and zrb logs why once. For the first second or two zrb speaks, the canceller is still learning the room, which the checks above cover. While zrb listens this way, another app recording the microphone without voice processing hears it very faintly, as during a call.
+
+**Linux.** Load the module and make its microphone and speakers the defaults. zrb records from the default microphone and plays to the default speakers, so both go through it:
+
+```bash
+# PulseAudio, or PipeWire's pulse server (pipewire-pulse); lasts until logout
+pactl load-module module-echo-cancel aec_method=webrtc \
+  source_name=ec_source sink_name=ec_sink
+pactl set-default-source ec_source
+pactl set-default-sink ec_sink
+```
+
+To keep it on PipeWire, put the module in `~/.config/pipewire/pipewire.conf.d/echo-cancel.conf`, run `systemctl --user restart pipewire`, and make `ec_source` and `ec_sink` the defaults as above (or in your desktop's sound settings):
+
+```
+context.modules = [
+  { name = libpipewire-module-echo-cancel
+    args = {
+      library.name = aec/libspa-aec-webrtc
+      source.props = { node.name = "ec_source" node.description = "Echo-cancelled microphone" }
+      sink.props   = { node.name = "ec_sink" node.description = "Echo-cancelled speakers" }
+    }
+  }
+]
+```
+
+The canceller removes only what it played, so zrb's voice must reach the speakers through `ec_sink`, and the microphone must be `ec_source`:
+
+- Leave `ZRB_LLM_DICTATION_DEVICE` empty, or name `ec_source` (or `pulse`); a `hw:` device skips the canceller.
+- zrb plays through the default speakers itself with `zrb[voice]`. Without it, a player program plays the speech, and `aplay` on a system whose ALSA default is not routed through PulseAudio or PipeWire skips the canceller.
 
 **Transcribing while you speak.** vosk transcribes an utterance as you say it, and the status bar shows the last words heard. Once you pause for half a second (`ZRB_LLM_DICTATION_MIN_SILENCE`) once words have been heard, the utterance ends. The other backends transcribe the whole utterance after it ends and always wait the full second.
 

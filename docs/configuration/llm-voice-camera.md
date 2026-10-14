@@ -20,14 +20,14 @@ Three optional features of `zrb llm chat`, each added with one call and read fro
 
 ### Voice preset
 
-Most sessions need only one setting. `ZRB_LLM_VOICE` sets how a session talks with you by moving the defaults of the three settings that decide it; any of the three set on its own still wins.
+Most sessions need only one setting. `ZRB_LLM_VOICE` sets how a session talks with you by moving the defaults of the settings that decide it; any of them set on its own still wins.
 
-| `ZRB_LLM_VOICE` | Replies read aloud (`ZRB_LLM_SPEECH_ENABLED`) | Always listening (`ZRB_LLM_DICTATION_MODE`) | Talk over zrb (`ZRB_LLM_DICTATION_BARGE_IN_ENABLED`) |
-|---|---|---|---|
-| `off` (default) | `off` | `ptt` | `off` |
-| `speak` | `on` | `ptt` | `off` |
-| `turns` | `on` | `hands_free` | `off` |
-| `conversation` | `on` | `hands_free` | `on` |
+| `ZRB_LLM_VOICE` | Replies read aloud (`ZRB_LLM_SPEECH_ENABLED`) | Always listening (`ZRB_LLM_DICTATION_MODE`) | Talk over zrb (`ZRB_LLM_DICTATION_BARGE_IN_ENABLED`) | zrb's voice out of the microphone, macOS (`ZRB_LLM_DICTATION_ENABLE_ECHO_CANCEL`) |
+|---|---|---|---|---|
+| `off` (default) | `off` | `ptt` | `off` | `off` |
+| `speak` | `on` | `ptt` | `off` | `off` |
+| `turns` | `on` | `hands_free` | `off` | `off` |
+| `conversation` | `on` | `hands_free` | `on` | `on` |
 
 ```bash
 export ZRB_LLM_VOICE=conversation   # talk with zrb, and interrupt it
@@ -72,6 +72,7 @@ Every duration below is in **seconds** (a `float`), unlike the millisecond knobs
 | `ZRB_LLM_DICTATION_HUSH_WORDS` | Phrases that, said alone over zrb or while a turn runs with barge-in on, only quiet zrb's voice: the turn goes on and the words are sent nowhere. A stop word outranks one in both lists | `okay, ok, alright, got it, i got it, understood, i see, enough, that's enough` |
 | `ZRB_LLM_DICTATION_POLITE_WORDS` | Words a yes or a no may carry without changing it ("yes please", "no thanks"). Also set aside, with fillers ("uh", "hey") and a sentence said twice, before a stop or hush word is matched, so "stop please" and "wait wait" are stops | `please, thanks, thank, you` |
 | `ZRB_LLM_DICTATION_BLOCK_DURATION` | Seconds of audio per microphone block: the step every other listening duration is counted in, and how often speech is checked | `0.1` |
+| `ZRB_LLM_DICTATION_ENABLE_ECHO_CANCEL` | `on`: on macOS, the microphone opens through the system's voice processing (what calls use), which takes zrb's own voice out of it, so what you say over zrb is transcribed without zrb's words. It also evens out your level and quiets the room. Default microphone only: with `ZRB_LLM_DICTATION_DEVICE` set, or without `pyobjc-framework-AVFoundation` (part of `zrb[voice]`), the microphone opens as usual and zrb logs why. On Linux, load PulseAudio's or PipeWire's echo-cancel module instead ([Hearing zrb in what you say](../llm/voice-camera.md#hearing-zrb-in-what-you-say)) | `off`; `on` under `ZRB_LLM_VOICE=conversation` |
 | `ZRB_LLM_DICTATION_DEVICE` | Microphone PortAudio opens: a name, or the number `query_devices()` lists it under; `pulse` and `default` on a Linux or WSL machine are not the same microphone. Empty uses PortAudio's own default (`python -c "import sounddevice; sounddevice.query_devices()"` lists them) | (empty) |
 
 Each backend uses only its own variables:

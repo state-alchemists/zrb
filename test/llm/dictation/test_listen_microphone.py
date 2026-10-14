@@ -319,3 +319,16 @@ async def test_a_microphone_that_will_not_start_says_which_device_it_tried():
     assert "Error starting stream: Wait timed out" in message
     assert "device 'pulse'" in message
     assert "LLM_DICTATION_DEVICE" in message
+
+
+@pytest.mark.asyncio
+async def test_record_with_a_config_opens_its_device():
+    captured = {}
+
+    with patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}):
+        task = asyncio.create_task(record(_holds_for(1), _listen_config(device="2")))
+        await asyncio.sleep(0)
+        await task
+
+    assert captured["device"] == 2
+    assert captured["blocksize"] == 1600

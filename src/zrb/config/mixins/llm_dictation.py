@@ -79,6 +79,7 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
         self.DEFAULT_LLM_DICTATION_DEVICE: str = ""
+        self.DEFAULT_LLM_DICTATION_ENABLE_ECHO_CANCEL: str = "off"
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
             "Transcribe exactly what is spoken. Do not translate or paraphrase. "
             "Return only the transcription."
@@ -460,6 +461,25 @@ class LLMDictationMixin:
             "where which of them is opened is the usual difference between a "
             "microphone that starts and one that times out. Empty uses "
             "PortAudio's own default (`sd.default.device`). Default: empty."
+        ),
+    )
+
+    LLM_DICTATION_ENABLE_ECHO_CANCEL = EnvField(
+        to_boolean,
+        serialize=on_off,
+        default_factory=lambda c: get_voice_default(
+            c, "LLM_DICTATION_ENABLE_ECHO_CANCEL"
+        ),
+        doc=(
+            "'on' asks macOS to take zrb's own voice out of the microphone "
+            "(its voice processing, as calls use), so what you say over zrb "
+            "is transcribed without zrb's words in it. It also evens out "
+            "your level and quiets the room. macOS only, on the default "
+            "microphone: with {ENV_PREFIX}_LLM_DICTATION_DEVICE set, or "
+            "without pyobjc-framework-AVFoundation (zrb[voice]), the "
+            "microphone opens as usual and zrb says why. On Linux, load "
+            "PulseAudio's or PipeWire's echo-cancel module instead. Default: "
+            "off, or as {ENV_PREFIX}_LLM_VOICE sets it."
         ),
     )
 

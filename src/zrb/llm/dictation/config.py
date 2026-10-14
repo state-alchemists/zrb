@@ -69,6 +69,7 @@ class DictationConfig:
     interrupt_judge_timeout: float | None = None
     interrupt_judge_max_words: int | None = None
     hush_words: list[str] | None = None
+    enable_echo_cancel: bool | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:
@@ -84,6 +85,12 @@ class DictationConfig:
         if self.barge_in_hold is None:
             return True
         return bool(self.barge_in_hold)
+
+    @property
+    def is_echo_cancel_enabled(self) -> bool:
+        """Whether *enable_echo_cancel* is set: on macOS, the microphone opens
+        through voice processing, which takes zrb's own voice out of it."""
+        return bool(self.enable_echo_cancel)
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""
