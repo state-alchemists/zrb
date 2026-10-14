@@ -252,6 +252,8 @@ class EchoCancelledMicrophone:
             frames = buffer.frameLength()
             # Every channel carries the same processed voice; take the first.
             channel = buffer.floatChannelData()[0]
+            # pyobjc's `as_buffer` counts elements, not bytes: *frames*
+            # float32 samples come back as 4 x *frames* bytes (measured).
             samples = np.frombuffer(channel.as_buffer(frames), dtype=np.float32)
             rechunker.append(resampler.convert(samples))
             self._has_audio.set()

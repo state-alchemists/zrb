@@ -51,6 +51,10 @@ _OPEN_ATTEMPTS = 3
 _OPEN_RETRY_SECONDS = 0.5
 # How long the echo-cancelled microphone has to deliver its first block.
 _ECHO_CANCEL_FIRST_AUDIO_SECONDS = 2.0
+_ECHO_CANCEL_DIED = (
+    "macOS stopped voice processing (the audio devices changed); listening "
+    "without echo cancellation until the microphone is opened again"
+)
 
 
 class Utterance(NamedTuple):
@@ -389,6 +393,14 @@ async def listen(
                     if not stream.active:
                         logger.warning("The microphone stream died; reopening it")
                         await close_quietly(stream.close, "the dead microphone")
+                        if isinstance(stream, EchoCancelledMicrophone):
+                            # macOS stops voice processing on a route change;
+                            # reopening it could die the same way, over and
+                            # over, so the session carries on without it.
+                            logger.warning(_ECHO_CANCEL_DIED)
+                            open_microphone = partial(
+                                open_microphone, is_echo_cancelled=False
+                            )
                         stream = await open_microphone()
                         backlog.mark_gap()
                     continue
@@ -396,7 +408,9 @@ async def listen(
                 if utterance is not None:
                     yield utterance
         finally:
-            stream.close()
+            # An echo-cancelled microphone that fails to release must not
+            # take the transcript or the caller's own error with it.
+            await close_quietly(stream.close, "the microphone")
         if keep_partial:
             utterance = await blocks.flush(time.monotonic())
             if utterance is not None:

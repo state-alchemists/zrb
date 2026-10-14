@@ -155,7 +155,9 @@ def test_microphone_hands_on_blocks_at_the_transcriber_rate():
         tap(_FakeBuffer(_tone(48000, 0.1)), None)
 
     assert node.installTapOnBus_bufferSize_format_block_.call_args.args[1] == 4800
-    assert len(blocks) >= 2
+    # Every sample of every buffer is read: three 0.1 s buffers are three
+    # 0.1 s blocks, not a quarter of them.
+    assert len(blocks) == 3
     assert all(block.shape == (1600, 1) for block in blocks)
     assert microphone.active
 
