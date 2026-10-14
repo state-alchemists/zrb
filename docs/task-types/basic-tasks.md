@@ -212,7 +212,7 @@ A password is passed to `sshpass -e` through the `SSHPASS` variable, which only 
 | `execution_timeout` | `3600` | Seconds before the command is killed; `0` disables the limit |
 | `is_interactive` | `False` | Attach the command to the terminal so it can prompt. Needs a TTY |
 
-A non-zero exit raises `CmdTaskError` (`from zrb.task.cmd_task import CmdTaskError`); its `return_code` becomes `zrb`'s exit code. A plain-string `cmd` containing `{ctx.` emits `UntemplatedCmdWarning` from the same module, because a bare string is never rendered.
+A non-zero exit raises `CmdTaskError` (`from zrb.task.cmd_task import CmdTaskError`); its `return_code` becomes `zrb`'s exit code. A plain-string `cmd` containing `{ctx.` raises `ValueError` at construction, because a bare string is never rendered; wrap it in `Tpl(...)`.
 
 ---
 

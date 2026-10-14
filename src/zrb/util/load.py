@@ -2,11 +2,34 @@ import importlib
 import importlib.util
 import os
 import sys
+import traceback
 from collections.abc import Callable
 from importlib.abc import Loader
 from types import ModuleType
 
 from zrb.context.any_context import zrb_print
+
+_ZRB_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_user_frames(
+    error: BaseException,
+) -> tuple[traceback.FrameSummary, traceback.FrameSummary]:
+    """The deepest frame of *error* outside zrb, and the frame that raised it.
+
+    A mistake in a `zrb_init.py` (a misspelled keyword, a wrong type) is
+    usually raised inside zrb, but the line to fix is the user's call site.
+    Both are the raising frame when no frame lies outside zrb.
+    """
+    frames = traceback.extract_tb(error.__traceback__)
+    outside = [
+        frame
+        for frame in frames
+        if not frame.filename.startswith(_ZRB_DIR + os.sep)
+        and not frame.filename.startswith("<")
+    ]
+    raising = frames[-1]
+    return (outside[-1] if outside else raising), raising
 
 
 def _get_new_python_path(path_to_add: str) -> str:
