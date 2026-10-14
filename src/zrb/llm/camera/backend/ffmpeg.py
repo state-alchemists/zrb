@@ -47,6 +47,9 @@ class FfmpegCameraBackend(AnyCameraBackend):
     def __init__(self, timeout: float = 15.0) -> None:
         self._timeout = timeout
         self._last_error: str | None = None
+        # Whether the last capture went through Linux v4l2, so the hint
+        # names the path that failed.
+        self._tried_v4l2 = False
         # {"time": float, "devices": list[str], "refreshing": bool}
         self._device_cache: dict[str, Any] = {}
         # The in-flight probe. Held here because `list_devices` ignores the
@@ -74,6 +77,7 @@ class FfmpegCameraBackend(AnyCameraBackend):
         deadline = get_earlier(deadline, create_deadline(self._timeout))
         # Early returns set no error; don't report the previous capture's.
         self._last_error = None
+        self._tried_v4l2 = False
         try:
             return await self._capture(device, deadline)
         except Exception:
@@ -101,6 +105,7 @@ class FfmpegCameraBackend(AnyCameraBackend):
             )
             return await self._run(cmd, deadline)
         input_arg = device or "/dev/video0"
+        self._tried_v4l2 = True
         # Raw YUYV at max resolution hangs over WSL2's usbipd-win tunnel,
         # and so does 720p MJPEG; 640x480 MJPEG is the largest that lands.
         # Cameras without MJPEG fall back to the raw default.
@@ -224,7 +229,7 @@ class FfmpegCameraBackend(AnyCameraBackend):
         return age < DEVICE_CACHE_TTL_SECONDS
 
     def get_failure_hint(self) -> str:
-        hint = _get_platform_hint()
+        hint = _get_platform_hint(self._tried_v4l2)
         if self._last_error:
             hint += f"  ffmpeg said: {self._last_error}\n"
         return hint
@@ -303,7 +308,7 @@ def _list_devices_now() -> list[str]:
     return sorted(glob.glob("/dev/video*"))
 
 
-def _get_platform_hint() -> str:
+def _get_platform_hint(tried_v4l2: bool) -> str:
     if sys.platform == "darwin":
         return (
             "  Install ffmpeg (brew install ffmpeg) and grant your terminal "
@@ -318,15 +323,15 @@ def _get_platform_hint() -> str:
             'it explicitly: /photo "<device name>".\n'
         )
     if is_wsl():
-        return _get_wsl_hint()
+        return _get_wsl_hint(tried_v4l2)
     return (
         "  Install ffmpeg. If no camera is found, check /dev/video* "
         "permissions (add your user to the `video` group).\n"
     )
 
 
-def _get_wsl_hint() -> str:
-    if shutil.which("ffmpeg.exe"):
+def _get_wsl_hint(tried_v4l2: bool) -> str:
+    if shutil.which("ffmpeg.exe") and not tried_v4l2:
         return (
             "  Captured through Windows ffmpeg.exe (dshow). Check the camera "
             "works in a Windows app, and that no app holds it exclusively. If "

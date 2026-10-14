@@ -176,6 +176,28 @@ async def test_wsl_falls_back_to_a_usbipd_camera_windows_no_longer_lists(clean_e
 
 
 @pytest.mark.asyncio
+async def test_a_failed_dev_video_capture_on_wsl_gets_the_linux_hint(clean_env):
+    "/photo /dev/video0 fails on Linux v4l2; the hint must not blame dshow."
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    clean_env.setattr("shutil.which", _which_only("ffmpeg", "ffmpeg.exe"))
+    clean_env.setattr("glob.glob", lambda pattern: ["/dev/video0"])
+    backend = AutoCameraBackend()
+
+    with patch(
+        "asyncio.create_subprocess_exec",
+        new=AsyncMock(return_value=_FakeProcess(stdout=b"", returncode=1)),
+    ):
+        result = await backend.capture("/dev/video0")
+
+    assert result is None
+    hint = backend.get_failure_hint()
+    assert "Captured through Windows ffmpeg.exe" not in hint
+    assert "/dev/video* exists" in hint
+
+
+@pytest.mark.asyncio
 async def test_wsl_without_any_camera_stops_after_the_windows_listing(clean_env):
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
