@@ -59,7 +59,14 @@ zrb greet
 `_exec_action` is an **async** method that receives `ctx` (the task context) and returns a value that is automatically pushed to XCom:
 
 ```python
+from zrb import BaseTask, IntInput
+from zrb.context.any_context import AnyContext
+
+
 class ComputeTask(BaseTask):
+    def __init__(self, **kwargs):
+        super().__init__(input=IntInput("base", default=21), **kwargs)
+
     async def _exec_action(self, ctx: AnyContext):
         result = self._compute(ctx)
         ctx.print(f"Result: {result}")

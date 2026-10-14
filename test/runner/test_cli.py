@@ -372,3 +372,27 @@ def test_conversation_name_swallows_lookup_error():
     session.shared_ctx.xcom.get.side_effect = AttributeError("no xcom")
     # Should not raise despite the lookup blowing up.
     cli.print_conversation_name(MagicMock(), session)
+
+
+def test_a_negative_number_is_an_option_value():
+    cli = Cli()
+    cli.add_task(
+        Task(
+            name="neg",
+            input=IntInput(name="offset"),
+            action=Tpl("{ctx.input.offset}"),
+        )
+    )
+    assert cli.run(str_args=["neg", "--offset", "-5"]) == "-5"
+
+
+def test_args_exclude_positionals_consumed_as_inputs():
+    cli = Cli()
+    cli.add_task(
+        Task(
+            name="greet",
+            input=StrInput(name="name"),
+            action=lambda ctx: (ctx.input.name, ctx.args),
+        )
+    )
+    assert cli.run(str_args=["greet", "alice", "extra"]) == ("alice", ["extra"])

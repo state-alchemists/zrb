@@ -363,3 +363,18 @@ def test_cfg_readiness_timeout_reaches_every_task_class(task_factory):
 def test_default_readiness_timeout_is_finite():
     """The shipped default caps the wait instead of disabling it."""
     assert CFG.TASK_READINESS_TIMEOUT > 0
+
+
+def test_tasks_sharing_a_readiness_check_both_become_ready():
+    """The second task waits for the check the first one started."""
+
+    async def slow_check(_ctx):
+        await asyncio.sleep(0.2)
+        return True
+
+    check = BaseTask(name="db-ready", action=slow_check)
+    a = BaseTask(name="a", action="a", readiness_check=check, retries=0)
+    b = BaseTask(name="b", action="b", readiness_check=check, retries=0)
+    main = BaseTask(name="main", upstream=[a, b], action="main ok", retries=0)
+
+    assert main.run() == "main ok"

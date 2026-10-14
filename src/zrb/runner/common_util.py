@@ -1,3 +1,5 @@
+import os
+
 from zrb.context.shared_context import SharedContext
 from zrb.task.any_task import AnyTask
 from zrb.util.string.suggestion import format_suggestion
@@ -9,8 +11,9 @@ def get_task_str_kwargs(
     if cli_mode:
         _reject_unknown_kwargs(task, str_kwargs)
     arg_index = 0
-    # Each resolved value feeds later inputs' defaults.
-    dummy_shared_ctx = SharedContext()
+    # Each resolved value feeds later inputs' defaults, which may also read
+    # `ctx.env`.
+    dummy_shared_ctx = SharedContext(env=dict(os.environ))
     task_str_kwargs = {}
     for task_input in task.inputs:
         input_name = task_input.name
@@ -26,6 +29,18 @@ def get_task_str_kwargs(
         task_str_kwargs[input_name] = str_value
         task_input.update_shared_context(dummy_shared_ctx, str_value=str_value)
     return task_str_kwargs
+
+
+def get_residual_args(
+    task: AnyTask, str_args: list[str], str_kwargs: dict[str, str]
+) -> list[str]:
+    """The positionals `get_task_str_kwargs` did not consume as input values."""
+    consumed = sum(
+        1
+        for task_input in task.inputs
+        if task_input.name not in str_kwargs and task_input.allow_positional_parsing
+    )
+    return str_args[consumed:]
 
 
 # Flags the CLI consumes before a task sees them.
@@ -55,5 +70,6 @@ def _reject_unknown_kwargs(task: AnyTask, str_kwargs: dict[str, str]) -> None:
         else "(this task takes no options)"
     )
     raise ValueError(
-        f"Unknown option for task '{task.name}': {details} Available: {known_str}"
+        f"Unknown option for task '{task.name}': {details} Available: {known_str}. "
+        "A value starting with '-' is passed as --key=value."
     )

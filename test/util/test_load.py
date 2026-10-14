@@ -4,7 +4,9 @@ import tempfile
 
 import pytest
 
+from zrb.task.cmd_task import CmdTask
 from zrb.util.load import (
+    get_user_frames,
     load_file,
     load_file_with_result,
     load_module,
@@ -145,5 +147,41 @@ def test_load_module_from_path_broken_script_returns_none():
         path = f.name
     try:
         assert load_module_from_path("broken_mod", path) is None
+    finally:
+        os.remove(path)
+
+
+def test_get_user_frames_points_at_the_user_line_not_the_zrb_one():
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write(
+            "from zrb.task.cmd_task import CmdTask\n\nCmdTask(name='x', cmmd='a')\n"
+        )
+        path = f.name
+    try:
+        _, error = load_file_with_result(path)
+        assert isinstance(error, TypeError)
+        user_frame, raising_frame = get_user_frames(error)
+        assert (user_frame.filename, user_frame.lineno) == (path, 3)
+        assert raising_frame.filename == sys.modules[CmdTask.__module__].__file__
+    finally:
+        os.remove(path)
+
+
+def test_get_user_frames_falls_back_to_the_raising_frame():
+    try:
+        raise ValueError("x")
+    except ValueError as error:
+        user_frame, raising_frame = get_user_frames(error)
+    assert user_frame is raising_frame
+
+
+def test_get_user_frames_skips_stdlib_frames():
+    with tempfile.NamedTemporaryFile(suffix=".py", mode="w", delete=False) as f:
+        f.write("import json\n\njson.loads('{')\n")
+        path = f.name
+    try:
+        _, error = load_file_with_result(path)
+        user_frame, _ = get_user_frames(error)
+        assert (user_frame.filename, user_frame.lineno) == (path, 3)
     finally:
         os.remove(path)

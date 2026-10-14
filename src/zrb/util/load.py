@@ -2,11 +2,46 @@ import importlib
 import importlib.util
 import os
 import sys
+import traceback
 from collections.abc import Callable
 from importlib.abc import Loader
 from types import ModuleType
 
 from zrb.context.any_context import zrb_print
+
+# Not the user's code: zrb itself, and the interpreter's stdlib and
+# installed packages.
+_NOT_USER_DIRS = tuple(
+    os.path.join(os.path.realpath(path), "")
+    for path in {
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        sys.prefix,
+        sys.base_prefix,
+        sys.exec_prefix,
+    }
+)
+
+
+def get_user_frames(
+    error: BaseException,
+) -> tuple[traceback.FrameSummary, traceback.FrameSummary]:
+    """The deepest frame of *error* in the user's code, and the frame that
+    raised it.
+
+    A mistake in a `zrb_init.py` (a misspelled keyword, a bad `json.loads`) is
+    usually raised inside zrb, the stdlib or a package, but the line to fix is
+    the user's call site. Both are the raising frame when no frame is the
+    user's.
+    """
+    frames = traceback.extract_tb(error.__traceback__)
+    outside = [
+        frame
+        for frame in frames
+        if not frame.filename.startswith("<")
+        and not os.path.realpath(frame.filename).startswith(_NOT_USER_DIRS)
+    ]
+    raising = frames[-1]
+    return (outside[-1] if outside else raising), raising
 
 
 def _get_new_python_path(path_to_add: str) -> str:

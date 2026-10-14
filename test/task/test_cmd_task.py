@@ -1,4 +1,3 @@
-import warnings
 from functools import partial
 
 import pytest
@@ -8,7 +7,7 @@ from zrb.cmd.cmd_result import CmdResult
 from zrb.cmd.cmd_val import Cmd
 from zrb.context.shared_context import SharedContext
 from zrb.session.session import Session
-from zrb.task.cmd_task import CmdTask, UntemplatedCmdWarning
+from zrb.task.cmd_task import CmdTask
 
 
 @pytest.fixture
@@ -383,90 +382,71 @@ async def test_cmd_task_warns_about_unrecommended_commands_by_shell_name(
 # --- plain-string `cmd` with a `{ctx.` placeholder ---------------------------
 
 
-def _placeholder_warnings(cmd) -> list:
-    """`UntemplatedCmdWarning`s raised while building a task around `cmd`."""
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
+def _placeholder_error(cmd) -> str | None:
+    """The error building a task around `cmd` raises, or None."""
+    try:
         CmdTask(name="greet", cmd=cmd)
-    return [w for w in caught if issubclass(w.category, UntemplatedCmdWarning)]
+    except ValueError as e:
+        return str(e)
+    return None
 
 
-def test_a_plain_string_cmd_with_a_placeholder_warns_and_names_the_fix():
-    """The runtime half of the doc guard: a user's own `cmd`, not a doc fence.
-
-    A bare string is a literal, so `cmd="echo {ctx.input.name}"` echoes the
-    braces, exits 0, and is simply wrong. Nothing used to say so.
-    """
-    found = _placeholder_warnings("echo {ctx.input.name}")
-    assert len(found) == 1
-    message = str(found[0].message)
+def test_a_plain_string_cmd_with_a_placeholder_fails_and_names_the_fix():
+    """A bare string is a literal, so `cmd="echo {ctx.input.name}"` would echo
+    the braces, exit 0, and simply be wrong."""
+    message = _placeholder_error("echo {ctx.input.name}")
+    assert message is not None
     assert "Tpl(" in message
     assert "`cmd`" in message
 
 
-def test_the_warning_names_the_offending_entry_without_quoting_it():
-    """A `cmd` can carry a credential, and this warning reaches stderr.
+def test_the_error_names_the_offending_entry_without_quoting_it():
+    """A `cmd` can carry a credential, and this error reaches stderr.
 
-    It is raised at construction, before anything has decided to run the task,
-    so it is not a command log a reader opted into. `redact_env_map` cannot be
-    used here — it redacts by environment *name*, and a command string has no
-    names to go by — so the command text has to stay out of the message, and the
-    entry is identified by position instead.
+    `redact_env_map` cannot be used here — it redacts by environment *name*,
+    and a command string has no names to go by — so the command text stays out
+    of the message, and the entry is identified by position instead.
     """
     secret = "sk-live-0123456789abcdef"
-    found = _placeholder_warnings(
+    message = _placeholder_error(
         f"curl -H 'Authorization: Bearer {secret}' {{ctx.input.url}}"
     )
-    assert len(found) == 1
-    message = str(found[0].message)
+    assert message is not None
     assert secret not in message
     assert "curl" not in message
     assert "Tpl(" in message
     assert "`cmd`" in message
 
 
-def test_a_tpl_cmd_does_not_warn():
-    """`Tpl` exists to render the placeholder; warning here reports the fix."""
-    assert _placeholder_warnings(Tpl("echo {ctx.input.name}")) == []
+def test_a_tpl_cmd_is_accepted():
+    assert _placeholder_error(Tpl("echo {ctx.input.name}")) is None
 
 
-def test_a_cmd_wrapper_does_not_warn():
+def test_a_cmd_wrapper_is_accepted():
     """`Cmd` resolves through the context, exactly like `Tpl`."""
-    assert _placeholder_warnings(Cmd("echo {ctx.input.name}")) == []
+    assert _placeholder_error(Cmd("echo {ctx.input.name}")) is None
 
 
-def test_a_callable_cmd_does_not_warn():
+def test_a_callable_cmd_is_accepted():
     """A callable builds its string at run time, so there is nothing to read."""
-    assert _placeholder_warnings(lambda ctx: "echo {ctx.input.name}") == []
+    assert _placeholder_error(lambda ctx: "echo {ctx.input.name}") is None
 
 
-def test_a_plain_string_of_shell_braces_does_not_warn():
+def test_a_plain_string_of_shell_braces_is_accepted():
     """`${VAR}` and `awk '{print}'` are shell syntax, not placeholders.
 
-    Escaping those is the whole reason a bare string is a literal, so a warning
-    here would be wrong about the feature it guards.
+    Escaping those is the whole reason a bare string is a literal.
     """
-    assert _placeholder_warnings("awk '{print $1}' && echo ${HOME}") == []
+    assert _placeholder_error("awk '{print $1}' && echo ${HOME}") is None
 
 
 def test_a_placeholder_inside_a_list_of_commands_names_its_position():
     """The entry is identified by index, since its text is not quoted."""
-    found = _placeholder_warnings(["echo hi", "echo {ctx.input.name}"])
-    assert len(found) == 1
-    message = str(found[0].message)
+    message = _placeholder_error(["echo hi", "echo {ctx.input.name}"])
+    assert message is not None
     assert "`cmd[1]`" in message
     assert "echo {ctx.input.name}" not in message
 
 
-def test_a_list_of_tpls_does_not_warn():
-    assert _placeholder_warnings([Tpl("echo {ctx.input.name}")]) == []
-
-
-def test_the_warning_fires_once_per_call_site():
-    """A task defined in a loop reports once, not once per iteration."""
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("default")
-        for _ in range(3):
-            CmdTask(name="greet", cmd="echo {ctx.input.name}")
-    found = [w for w in caught if issubclass(w.category, UntemplatedCmdWarning)]
-    assert len(found) == 1
+def test_a_list_of_tpls_is_accepted():
+    assert _placeholder_error([Tpl("echo {ctx.input.name}")]) is None

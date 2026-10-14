@@ -97,6 +97,24 @@ Lives under `docs/changelog/`: `README.md` (index), `v1.md` (1.x archive), `v2/`
 > New here? Start at the [Contributing guide](docs/contributing/README.md), then [Which pattern do I reach for?](docs/contributing/which-pattern.md).
 > The enforced rule list is [Framework Conventions](docs/contributing/framework-conventions.md) (R1–R12). Cite rule numbers in review.
 
+### What fails the build
+
+These conventions fail `./zrb-test.sh` when broken. Everything else in this section is review guidance: reviewers apply it, no test fails.
+
+| Convention | Enforced by |
+| --- | --- |
+| R1–R12 | the test each row of [Framework Conventions](docs/contributing/framework-conventions.md) names |
+| A part never crosses a `_` name on another object | `test_boundaries.py::test_no_part_reaches_another_objects_private_state` |
+| Tests touch no private members; `-> bool` names are questions; no new swallowed `except Exception:` or `Any` annotation | the ratchets: `test_private_test_access_ratchet.py`, `test_bool_naming_ratchet.py`, `test_broad_except_ratchet.py`, `test_any_annotation_ratchet.py` |
+| Function complexity ≤ 15 | `test_complexity_ratchet.py` |
+| Every `# lazy:` import names an allowed reason; no unused import | `test_lazy_import_categories.py`; `flake8 --select=F` |
+| Constructors forward `BaseTaskParams` and document it | `test_constructor_surface.py` |
+| Test files ≤ 500 lines | `test_test_file_size_ratchet.py` |
+| Builtin tasks registered; tools tagged with a `Capability` | `test/builtin/test_registration_completeness.py`; `test_every_registered_tool_carries_a_known_capability` |
+| Coverage ≥ 95%; pyright `standard`, and `strict` for the listed packages | `zrb-test.sh` |
+
+Review guidance only: the ~30-line function target, the Mixin-vs-part composition shape beyond the `_` check, no path stutter, the verb vocabulary, the config naming, unit and rename rules, and the test-file naming conventions.
+
 ### Code Style
 
 - Follow existing project conventions (formatting, naming, typing).
@@ -110,7 +128,7 @@ Lives under `docs/changelog/`: `README.md` (index), `v1.md` (1.x archive), `v2/`
   - On a class users subclass (`BaseTask`, `BaseUI`), an owner-only part is stored as `self._base_<aspect>` so a subclass's own `self._<aspect>` cannot silently overwrite it.
 - **No path stutter.** `X/manager/manager.py` is `X/manager.py`; siblings become `X/manager_<aspect>.py`. **The 17 `X/X.py` paths are not this** — `task/task.py`, `group/group.py`, `config/config.py` and the rest are `<package>/<eponymous-type>.py`, a package named for its principal type. Flattening one would collide with its own package (`task/task.py` → `task.py` next to `task/`), and most of them (`Task`, `Group`, `Session`, `Xcom`, ...) are top-level `zrb` exports with deep-import users.
 - **Collection verbs** ([R5/R6](docs/contributing/framework-conventions.md)). Ordered collections (prompts, tools, policies, UIs) take `append_X`, `prepend_X`, `set_X`, `remove_X` — never `add_X`, which cannot say front or back. Name- or event-keyed collections (skills, agents, hooks) take `add_X`, `set_X`, `remove_X` — never `append_X`.
-- **One verb per meaning** (ADR-0098). The other 4,616 functions, which currently answer to 498 distinct leading tokens, 39.2% of them used once, converge on: `get_X` returns X (not `fetch`/`retrieve`/`lookup`); `resolve_X` evaluates a deferred attribute against a context (ADR-0005); `read_X` touches the filesystem, `load_X` imports or deserializes; `create_X` constructs (not `build`/`make`/`new`/`generate`); `remove_X` takes X out of a collection, `delete_X` destroys it at its source; `set_X`/`reset_X` assign and restore; `handle_X` processes an event; `enable_X` switches an optional feature on for a task (ADR-0102). A verb outside the list needs a reason. Review vocabulary only — no fitness test.
+- **One verb per meaning** (ADR-0098). Function names converge on: `get_X` returns X (not `fetch`/`retrieve`/`lookup`); `resolve_X` evaluates a deferred attribute against a context (ADR-0005); `read_X` touches the filesystem, `load_X` imports or deserializes; `create_X` constructs (not `build`/`make`/`new`/`generate`); `remove_X` takes X out of a collection, `delete_X` destroys it at its source; `set_X`/`reset_X` assign and restore; `handle_X` processes an event; `enable_X` switches an optional feature on for a task (ADR-0102). A verb outside the list needs a reason. Review vocabulary only — no fitness test.
 - **A function annotated `-> bool` is named as a question** — `is_`, `has_`, `should_`, `can_`, `needs_`, or an `_enabled`/`_active` property suffix (ADR-0098). Ratcheted by `test/architecture/test_bool_naming_ratchet.py`: the count of non-question names may only go down. Rename when touching a file for another reason, never as a sweep.
 - **Error handling** ([R10](docs/contributing/framework-conventions.md), ADR-0057). An LLM tool error the *model* must recover from carries a `[SYSTEM SUGGESTION]` prefix with actionable guidance; ordinary programmer errors stay plain `ValueError`/`RuntimeError`. Catch only what the code can recover from: a non-re-raising `except Exception:` and `Any` in an annotation are both ratcheted (`test_broad_except_ratchet.py`, `test_any_annotation_ratchet.py`) and may only go down.
 

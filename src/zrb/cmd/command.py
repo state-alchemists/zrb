@@ -336,8 +336,8 @@ async def run_command(
             await streams_task
             return_code = await wait_for_exit(cmd_process)
         __report_dropped(states, actual_print_method)
-        stdout = "\r\n".join(states["stdout"].captured)
-        stderr = "\r\n".join(states["stderr"].captured)
+        stdout = states["stdout"].get_captured()
+        stderr = states["stderr"].get_captured()
         display = "\r\n".join(display_lines)
         return CmdResult(stdout, stderr, display=display), return_code
     except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
@@ -477,6 +477,28 @@ class __StreamState:
         self.buffer = ""
         self.captured: deque[str] = deque(maxlen=max_line if max_line > 0 else None)
         self.dropped = 0
+        self.line = ""
+
+    def capture(self, text: str) -> None:
+        """Keep *text* verbatim, split into lines on `\\n` only."""
+        parts = text.split("\n")
+        self.line += parts[0]
+        for part in parts[1:]:
+            self.capture_line()
+            self.line = part
+        # ponytail: bounds memory on newline-free output by splitting the line.
+        if len(self.line) > CFG.CMD_BUFFER_LIMIT:
+            self.capture_line()
+
+    def capture_line(self) -> None:
+        if self.max_line > 0 and len(self.captured) == self.max_line:
+            self.dropped += 1
+        self.captured.append(self.line)
+        self.line = ""
+
+    def get_captured(self) -> str:
+        """The captured text with trailing newlines removed, like `$(...)`."""
+        return "\n".join(self.captured).rstrip("\n")
 
 
 def __resolve_chunk(future: "asyncio.Future[bytes]") -> bytes:
@@ -489,7 +511,6 @@ def __resolve_chunk(future: "asyncio.Future[bytes]") -> bytes:
 
 
 def __emit_line(
-    state: __StreamState,
     line: str,
     print_method: Callable[..., None],
     display_queue: deque[Any],
@@ -501,9 +522,6 @@ def __emit_line(
         print_method(clean_part, end="\r\n")
     except Exception:
         print_method(clean_part)
-    if state.max_line > 0 and len(state.captured) == state.max_line:
-        state.dropped += 1
-    state.captured.append(clean_part)
     display_queue.append(clean_part)
 
 
@@ -513,15 +531,17 @@ def __feed_stream(
     print_method: Callable[..., None],
     display_queue: deque[Any],
 ) -> None:
-    state.buffer += state.decoder.decode(chunk)
+    text = state.decoder.decode(chunk)
+    state.capture(text)
+    state.buffer += text
     while True:
         match = re.search(r"[\r\n]", state.buffer)
         if match is None:
             break
-        __emit_line(state, state.buffer[: match.start()], print_method, display_queue)
+        __emit_line(state.buffer[: match.start()], print_method, display_queue)
         state.buffer = state.buffer[match.end() :]
     if len(state.buffer) > CFG.CMD_BUFFER_LIMIT:
-        __emit_line(state, state.buffer, print_method, display_queue)
+        __emit_line(state.buffer, print_method, display_queue)
         state.buffer = ""
 
 
@@ -530,8 +550,12 @@ def __finalize_stream(
     print_method: Callable[..., None],
     display_queue: deque[Any],
 ) -> None:
-    state.buffer += state.decoder.decode(b"", final=True)
-    __emit_line(state, state.buffer, print_method, display_queue)
+    text = state.decoder.decode(b"", final=True)
+    state.capture(text)
+    if state.line:
+        state.capture_line()
+    state.buffer += text
+    __emit_line(state.buffer, print_method, display_queue)
 
 
 def __report_dropped(

@@ -2,7 +2,6 @@ import logging
 import os
 import signal
 import sys
-import traceback
 from collections.abc import Callable
 from types import ModuleType
 from typing import Any
@@ -19,7 +18,11 @@ from zrb.group.task_diagnostics import (
 )
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
-from zrb.util.load import load_file_with_result, load_module_with_result
+from zrb.util.load import (
+    get_user_frames,
+    load_file_with_result,
+    load_module_with_result,
+)
 
 
 class FaintFormatter(logging.Formatter):
@@ -80,16 +83,15 @@ def _load_or_warn(
 
 
 def _report_load_failure(label: str, error: Exception) -> None:
-    """Print file, line, and exception type for an init source that failed."""
-    frame = traceback.extract_tb(error.__traceback__)[-1]
-    print(
-        stylize_error(
-            f"Failed to load {label}\n"
-            f"  {frame.filename}:{frame.lineno}\n"
-            f"  {type(error).__name__}: {error}"
-        ),
-        file=sys.stderr,
-    )
+    """Print the user's failing line, then the exception, for an init source."""
+    user_frame, raising_frame = get_user_frames(error)
+    lines = [f"Failed to load {label}", f"  {user_frame.filename}:{user_frame.lineno}"]
+    if user_frame.line:
+        lines.append(f"    {user_frame.line}")
+    if raising_frame is not user_frame:
+        lines.append(f"  raised at {raising_frame.filename}:{raising_frame.lineno}")
+    lines.append(f"  {type(error).__name__}: {error}")
+    print(stylize_error("\n".join(lines)), file=sys.stderr)
 
 
 def serve_cli():

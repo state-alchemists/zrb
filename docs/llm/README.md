@@ -31,6 +31,7 @@ Everything about zrb's coding agent: using it, configuring it, and programming i
 
 | Page | Read it to… |
 |---|---|
+| [LLM Recipes](recipes.md) | Copy a tested snippet for the common changes: a gateway, a tool, the persona, a skill, a sub-agent |
 | [Programming the Agent](programming-the-agent.md) | See every way to shape the agent from Python, in one overview |
 | [Programming the Prompt](programming-the-prompt.md) | Go from a plain `message` string to a composed `PromptManager` |
 | [Extending the LLM](extending-the-llm.md) | Add tools and sub-agents, and tune model capabilities and context |

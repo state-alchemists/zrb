@@ -38,7 +38,7 @@ class Skill:
         content_factory: Callable[[], str] | None = None,
         companion_files: list[str] | None = None,
     ):
-        """Define a skill programmatically: `skill_manager.add_skill(Skill(...))`.
+        """Define a skill programmatically: `skill_registry.add_skill(Skill(...))`.
 
         Args:
             name: Display name, and the `/slash-command` that invokes it.

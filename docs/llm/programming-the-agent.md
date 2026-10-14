@@ -53,6 +53,8 @@ async def get_open_incidents(team: str) -> str:
 chat = LLMChatTask(name="ops-chat", tools=[get_open_incidents])
 ```
 
+A task you construct starts bare: this one has only that tool and no system-prompt sections. To add the tool to `zrb llm chat` instead, or to give your own task zrb's tools, see [LLM Recipes](recipes.md).
+
 ## Programming the prompt
 
 Everything the model reads — the per-turn `message` and the standing `system_prompt` — is a value you supply: a string, a `{ctx…}` template, a Python callable, or a fully composed `PromptManager` with reorderable sections, live-state providers, and profiles. That whole ladder, from the one-line string up to the built-in file-backed sections, has its own page:

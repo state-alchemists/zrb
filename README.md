@@ -229,16 +229,19 @@ Every part of the agent is a value you can supply or a callable you can register
 ### Example: a custom tool the agent calls in-process
 
 ```python
-from zrb import cli, LLMChatTask
+from zrb.builtin import llm_chat
+from zrb.llm.permission import Capability, tag
 
 # A normal Python function becomes a tool — typed args + docstring are the spec.
 async def get_open_incidents(team: str) -> str:
     """Return the current open incidents for a given team."""
     return my_oncall_db.query(team)  # your code, running in-process
 
-chat = LLMChatTask(name="ops-chat", tools=[get_open_incidents])
-cli.add_task(chat)
+# `zrb llm chat` keeps its prompt and tools and gains this one.
+llm_chat.append_tool(tag(get_open_incidents, Capability.READ))
 ```
+
+More in [LLM Recipes](docs/llm/recipes.md): a gateway, the persona, skills, sub-agents, your own chat task.
 
 ### The part nothing else does: the agent *is* a pipeline node
 
@@ -257,6 +260,7 @@ fetch_ticket >> triage_with_llm >> route_to_team
 -   **[Installation Guide](docs/installation/installation.md)**: `pip`, the `install.sh` script, Docker images, and Android (Termux/Proot).
 -   **[Environment Variables & Overrides](docs/configuration/env-vars.md)**: every general environment variable.
 -   **[LLM Configuration](docs/configuration/llm-config.md)**: LLM provider, token budgets, and agent behavior, one page per feature.
+-   `zrb config explain [keyword]` prints every setting with its current value and whether it was set or defaulted.
 
 ---
 

@@ -92,6 +92,28 @@ def _upstream_closure(task: "AnyTask") -> list["AnyTask"]:
     return order
 
 
+def _side_task_closure(upstreams: list["AnyTask"]) -> list["AnyTask"]:
+    """Every task reachable from *upstreams* through a fallback, successor or
+    readiness check (and their own upstreams), excluding *upstreams*."""
+    seen = {id(task) for task in upstreams}
+    found: list["AnyTask"] = []
+    stack = [
+        side for task in reversed(upstreams) for side in reversed(_side_tasks(task))
+    ]
+    while stack:
+        current = stack.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        found.append(current)
+        stack.extend(reversed(current.upstreams + _side_tasks(current)))
+    return found
+
+
+def _side_tasks(task: "AnyTask") -> list["AnyTask"]:
+    return task.fallbacks + task.successors + task.readiness_checks
+
+
 class BaseTaskContext:
     """Builds task execution contexts and aggregates envs/inputs for `BaseTask`."""
 
@@ -156,17 +178,27 @@ class BaseTaskContext:
         self,
         task_inputs: Sequence[AnyInput | None] | AnyInput | None = None,
     ) -> list[AnyInput]:
-        """Aggregate inputs from the task and its upstreams; first per name wins.
+        """Aggregate inputs from every task a run can reach; first per name wins.
+
+        Upstreams come first, then the task's own inputs, then those of the
+        fallbacks, successors and readiness checks the run may execute:
+        inputs are filled once per run, so an input only those declare would
+        otherwise never get a value. Give such an input a name that says
+        whose it is (`deploy-channel`); it is prompted for like the rest
+        unless it sets `always_prompt=False` or `allow_empty=True`.
 
         Raises:
             ValueError: if the task appears in its own upstream chain.
         """
         inputs: list[AnyInput] = []
-        for upstream in _upstream_closure(self._task):
+        upstreams = _upstream_closure(self._task)
+        for upstream in upstreams:
             if upstream is self._task:
                 continue
             _combine_inputs(inputs, upstream.own_inputs)
 
         if task_inputs is not None:
             _combine_inputs(inputs, task_inputs)
+        for side_task in _side_task_closure(upstreams):
+            _combine_inputs(inputs, side_task.own_inputs)
         return inputs

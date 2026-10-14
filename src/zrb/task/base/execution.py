@@ -17,6 +17,7 @@ from zrb.util.run import gather_fail_fast, gather_isolated, run_async
 from zrb.xcom.xcom import Xcom
 
 if TYPE_CHECKING:
+    from zrb.task.any_task import AnyTask
     from zrb.task.base.base_task import BaseTask
     from zrb.task.base.monitoring import BaseTaskMonitoring
 
@@ -111,7 +112,7 @@ class BaseTaskExecution:
             await asyncio.sleep(readiness_check_delay)
 
             readiness_check_coros = [
-                run_async(check.exec_chain(session)) for check in readiness_checks
+                run_readiness_check(session, check) for check in readiness_checks
             ]
 
             ctx.log_info("Waiting for readiness checks")
@@ -347,6 +348,29 @@ class BaseTaskExecution:
     def skip_fallbacks(self, session: AnySession):
         """Marks all fallback tasks as skipped."""
         self._skip_task_group(session, self._task.fallbacks, "fallback")
+
+
+async def run_readiness_check(session: AnySession, check: "AnyTask") -> None:
+    """Run *check*, or wait for the run another task already started.
+
+    Tasks can share a check (several services waiting on one "db-ready");
+    only the first runs it, and `exec_chain` returns at once for the rest.
+    """
+    status = session.get_task_status(check)
+    if session.is_allowed_to_run(check) or not status.is_started:
+        await run_async(check.exec_chain(session))
+        return
+    # ponytail: polls; switch to a per-task completion event if checks get hot.
+    while not (
+        status.is_completed
+        or status.is_permanently_failed
+        or status.is_skipped
+        or session.is_terminated
+    ):
+        await asyncio.sleep(_SHARED_CHECK_POLL_INTERVAL)
+
+
+_SHARED_CHECK_POLL_INTERVAL = 0.05
 
 
 async def _has_action_failed_by_readiness(
