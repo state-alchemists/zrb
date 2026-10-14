@@ -26,7 +26,7 @@ def test_a_fallback_reads_its_own_input():
     assert seen == ["hello"]
 
 
-def test_successor_and_readiness_check_inputs_are_side_inputs():
+def test_successor_and_readiness_check_inputs_join_the_task_inputs():
     check = Task(name="check", input=StrInput("check-port", default="1"))
     successor = Task(name="successor", input=StrInput("successor-msg", default="2"))
     main = Task(
@@ -36,8 +36,7 @@ def test_successor_and_readiness_check_inputs_are_side_inputs():
         successor=successor,
     )
 
-    assert [i.name for i in main.inputs] == ["main-arg"]
-    assert [i.name for i in main.side_inputs] == ["successor-msg", "check-port"]
+    assert [i.name for i in main.inputs] == ["main-arg", "successor-msg", "check-port"]
 
 
 def test_the_task_own_input_wins_over_a_side_task_input_of_the_same_name():
@@ -46,26 +45,15 @@ def test_the_task_own_input_wins_over_a_side_task_input_of_the_same_name():
     main = Task(name="main", input=own, successor=successor)
 
     assert main.inputs == [own]
-    assert main.side_inputs == []
 
 
-def test_a_side_input_without_a_default_is_never_prompted():
-    """The fallback may never run, so a run without stdin must not fail on it."""
-    cli = Cli()
-    fallback = Task(name="fallback", input=StrInput("reason"), action="fb")
-    cli.add_task(Task(name="main", action="ok", fallback=fallback))
-
-    with patch("sys.stdin", None):
-        assert cli.run(str_args=["main"]) == "ok"
-
-
-def test_a_side_input_is_passed_on_the_cli():
+def test_a_fallback_input_is_passed_on_the_cli():
     seen = []
     cli = Cli()
     fallback = Task(
         name="fallback",
-        input=StrInput("reason", default="none"),
-        action=lambda ctx: seen.append(ctx.input.reason),
+        input=StrInput("fallback-reason", default="none"),
+        action=lambda ctx: seen.append(ctx.input.fallback_reason),
     )
 
     def fail(_ctx):
@@ -74,7 +62,7 @@ def test_a_side_input_is_passed_on_the_cli():
     cli.add_task(Task(name="main", action=fail, fallback=fallback, retries=0))
 
     try:
-        cli.run(str_args=["main", "--reason", "disk full"])
+        cli.run(str_args=["main", "--fallback-reason", "disk full"])
     except (RuntimeError, KeyboardInterrupt):
         pass
 

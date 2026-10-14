@@ -315,12 +315,6 @@ class BaseTask(AnyTask):
         """This task's inputs, merged with those of its upstreams."""
         return self._base_context.get_combined_inputs(task_inputs=self._inputs)
 
-    @property
-    def side_inputs(self) -> list[AnyInput]:
-        """Inputs only this task's fallbacks, successors and readiness checks
-        declare: filled from a value or their default, never prompted for."""
-        return self._base_context.get_side_inputs()
-
     def _append_unique_tasks(
         self, items: "AnyTask | Sequence[AnyTask]", target: "list[AnyTask]"
     ) -> None:

@@ -241,7 +241,6 @@
         "own_inputs",
         "readiness_checks",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -364,7 +363,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -414,7 +412,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -558,7 +555,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -870,7 +866,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -1068,7 +1063,6 @@
         "set_toolsets",
         "set_triggers",
         "set_uis",
-        "side_inputs",
         "snapshot_dir",
         "stream_observers",
         "successors",
@@ -1219,7 +1213,6 @@
         "save_cancelled_history",
         "set_stream_observers",
         "set_ui",
-        "side_inputs",
         "stream_observers",
         "successors",
         "to_function",
@@ -1380,7 +1373,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -1475,7 +1467,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -1524,7 +1515,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -1842,7 +1832,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
@@ -1889,7 +1878,6 @@
         "retry_if",
         "retry_period",
         "run",
-        "side_inputs",
         "successors",
         "to_function",
         "upstreams"
