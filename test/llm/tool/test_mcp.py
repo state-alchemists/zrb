@@ -5,8 +5,10 @@ from unittest.mock import patch
 
 import pytest
 from fastmcp.client.transports import StdioTransport
+from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPToolset
-from pydantic_ai.toolsets import PrefixedToolset
+from pydantic_ai.models.test import TestModel
+from pydantic_ai.toolsets import FunctionToolset
 
 from zrb.config.config import CFG
 from zrb.llm.tool.mcp import cap_mcp_result, frame_mcp_result, load_mcp_config
@@ -209,14 +211,27 @@ def test_mcp_toolset_factory_overrides(mock_fs):
         assert transport.command == "cmd2"
 
 
-def test_mcp_config_prefix_wraps_only_that_servers_toolset(mock_fs):
+def _fake_mcp_toolset(*_args, id, **_kwargs):
+    def short_tool() -> str:
+        return "ok"
+
+    def long_tool() -> str:
+        return "ok"
+
+    toolset = FunctionToolset(id=id)
+    toolset.add_function(short_tool, name="type_text")
+    toolset.add_function(long_tool, name="t" * 60)
+    return toolset
+
+
+def test_mcp_config_prefix_renames_tools_and_skips_overlong_names(mock_fs):
     home_dir, _, sub_dir = mock_fs
     with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:
         json.dump(
             {
                 "mcpServers": {
                     "desktop": {"command": "cmd", "prefix": "desk"},
-                    "browser": {"url": "http://localhost:8080/mcp"},
+                    "browser": {"command": "cmd"},
                 }
             },
             f,
@@ -225,16 +240,17 @@ def test_mcp_config_prefix_wraps_only_that_servers_toolset(mock_fs):
     with (
         patch("os.path.expanduser", return_value=home_dir),
         patch("os.getcwd", return_value=sub_dir),
+        patch("zrb.llm.agent.types.MCPToolset", side_effect=_fake_mcp_toolset),
+        patch("zrb.llm.tool.mcp.zrb_print") as mock_print,
     ):
-        desktop, browser = load_mcp_config()
+        toolsets = load_mcp_config()
+        called = json.loads(Agent(TestModel(), toolsets=toolsets).run_sync("go").output)
 
-    assert isinstance(desktop, PrefixedToolset)
-    assert desktop.prefix == "desk"
-    assert desktop.wrapped.id == "desktop"
-    assert isinstance(browser, MCPToolset)
+    assert set(called) == {"desk_type_text", "type_text", "t" * 60}
+    assert "desk_" + "t" * 60 in mock_print.call_args.args[0]
 
 
-@pytest.mark.parametrize("prefix", [True, 5, "", "has space", "x" * 33])
+@pytest.mark.parametrize("prefix", [True, 5, "", "has space", "x" * 63])
 def test_mcp_config_skips_a_server_with_an_invalid_prefix(mock_fs, prefix):
     home_dir, _, sub_dir = mock_fs
     with open(os.path.join(home_dir, "mcp-config.json"), "w") as f:

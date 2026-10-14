@@ -1,16 +1,22 @@
 import json
 import os
 import re
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 
+if TYPE_CHECKING:
+    from pydantic_ai import RunContext
+    from pydantic_ai.tools import ToolDefinition
+
 _ENV_VAR_PATTERN = re.compile(r"\$\{([^}:]+)(:-([^}]*))?\}")
-# Providers reject tool names outside [A-Za-z0-9_-]{1,64}.
-_PREFIX_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,32}")
+# OpenAI's limit, the strictest provider's; one longer name fails the whole request.
+_MAX_TOOL_NAME_LENGTH = 64
+# Leaves room for "_" and at least one character of the tool name.
+_PREFIX_PATTERN = re.compile(r"[A-Za-z0-9_-]{1,62}")
 
 
 def load_mcp_config(config_file_name: str | None = None) -> list[Any]:
@@ -107,9 +113,11 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
             if (prefix := config.get("prefix")) is not None:
                 if not isinstance(prefix, str) or not _PREFIX_PATTERN.fullmatch(prefix):
                     raise ValueError(
-                        f"prefix must be 1-32 letters, digits, '_' or '-', got {prefix!r}"
+                        f"prefix must be 1-62 letters, digits, '_' or '-', got {prefix!r}"
                     )
-                toolset = toolset.prefixed(prefix)
+                toolset = toolset.prefixed(prefix).filtered(
+                    _create_tool_name_length_filter(server_name)
+                )
             toolsets.append(toolset)
         except Exception as e:
             zrb_print(
@@ -117,6 +125,30 @@ def _create_mcp_toolsets(merged_servers: dict[str, Any]) -> list[Any]:
             )
 
     return toolsets
+
+
+def _create_tool_name_length_filter(
+    server_name: str,
+) -> "Callable[[RunContext[object], ToolDefinition], bool]":
+    """Drop a prefixed tool whose name grew past the provider limit, warning once.
+
+    Skipping one tool beats a provider rejecting the whole request.
+    """
+    warned: set[str] = set()
+
+    def is_short_enough(_ctx: "RunContext[object]", tool_def: "ToolDefinition") -> bool:
+        if len(tool_def.name) <= _MAX_TOOL_NAME_LENGTH:
+            return True
+        if tool_def.name not in warned:
+            warned.add(tool_def.name)
+            zrb_print(
+                f"Warning: Skipping MCP tool '{tool_def.name}' from '{server_name}': "
+                f"prefixed name exceeds {_MAX_TOOL_NAME_LENGTH} characters",
+                plain=True,
+            )
+        return False
+
+    return is_short_enough
 
 
 def cap_mcp_result(result: Any) -> Any:

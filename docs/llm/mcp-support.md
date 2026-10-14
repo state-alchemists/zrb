@@ -61,7 +61,7 @@ The format is the same as [Claude Desktop's MCP configuration](https://modelcont
 
 An entry with `command` is a stdio server (subprocess); an entry with `url` is an HTTP server. The file must be plain JSON — no comments.
 
-Any entry may also set `"prefix"` (1–32 letters, digits, `_` or `-`; `${VAR}` is not expanded here). Every tool from that server is then exposed as `<prefix>_<tool>`. Use it when two servers ship a tool with the same name (e.g. both have `click`): the run otherwise aborts with `UserError: ... defines a tool whose name conflicts with existing tool`.
+Any entry may also set `"prefix"` (1–62 letters, digits, `_` or `-`; `${VAR}` is not expanded here). Every tool from that server is then exposed as `<prefix>_<tool>`. A tool whose prefixed name exceeds 64 characters (OpenAI's limit, the strictest provider's) is skipped with a warning, since one overlong name makes the provider reject the whole request. Use it when two servers ship a tool with the same name (e.g. both have `click`): the run otherwise aborts with `UserError: ... defines a tool whose name conflicts with existing tool`.
 
 ```json
 {
