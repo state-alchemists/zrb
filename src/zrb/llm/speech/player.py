@@ -214,10 +214,15 @@ class Speaker:
             playing.stop()
 
     def speak(self, text: str, is_stale: "IsStale" = None) -> None:
-        """Speak *text* now, falling back locally when needed."""
-        self._speak(text, is_stale, self._generation)
+        """Speak *text* now, falling back locally when needed.
 
-    def _speak(self, text: str, is_stale: "IsStale", generation: int) -> None:
+        Blank, stale, muted or interrupted text is skipped. When nothing could
+        be said, this raises: `RuntimeError` when no backend made the speech,
+        `FileLockTimeout` when another session held the audio device, or the
+        player's own error.
+        """
+        # Read before synthesis, so an interrupt during it drops this text.
+        generation = self._generation
         utterance = self._prepare(text, is_stale)
         if utterance is not None:
             self._play_prepared(utterance, is_stale, generation)
@@ -263,9 +268,10 @@ class Speaker:
                 self._playing = None
             utterance.cleanup()
 
-    def _create_with_fallback(self, text: str) -> Utterance | None:
-        """Create *text* with the first usable backend."""
+    def _create_with_fallback(self, text: str) -> Utterance:
+        """Create *text* with the first usable backend, or raise why none could."""
         backends = self._get_backends()
+        failures: list[str] = []
         for index, backend in enumerate(backends):
             if backend.needs_zrb_playback and not self._is_in_process_wanted():
                 # Without in-process playback, this backend cannot produce audio.
@@ -274,7 +280,9 @@ class Speaker:
                 return self._create_utterance(backend, text, backends[index + 1 :])
             except Exception as exc:
                 logger.warning(f"Speech backend {backend.name} failed: {exc}")
-        return None
+                failures.append(f"{backend.name}: {exc}")
+        reason = "; ".join(failures) or "none can play here"
+        raise RuntimeError(f"No speech backend could speak ({reason})")
 
     def _create_utterance(
         self,
@@ -373,6 +381,10 @@ class Speaker:
             while (entry := self._ready.get()) is not None:
                 try:
                     self._play_prepared(*entry)
+                except FileLockTimeout:
+                    logger.warning(
+                        "Speech dropped: another session held the audio device"
+                    )
                 except Exception as exc:
                     logger.warning(f"Speech failed: {exc}")
         finally:
@@ -453,20 +465,19 @@ def _resolve_player(player: str | None) -> str:
 
 
 def play(utterance: Utterance, config: SpeechConfig) -> None:
-    """Play *utterance* while holding the resolved audio lock."""
-    try:
-        with hold_file_lock(
-            config.lock_file or CFG.LLM_SPEECH_LOCK_FILE, timeout=config.lock_timeout
-        ):
-            _set_playing(+1)
-            try:
-                utterance.play(config.player_timeout or None)
-            finally:
-                _set_playing(-1)
-    except FileLockTimeout:
-        logger.warning("Speech dropped: another session held the audio device")
-    except Exception as exc:
-        logger.warning(f"Speech playback failed: {exc}")
+    """Play *utterance* while holding the resolved audio lock.
+
+    Raises `FileLockTimeout` when another session holds the lock past
+    *config.lock_timeout*, and whatever the utterance's player raises.
+    """
+    with hold_file_lock(
+        config.lock_file or CFG.LLM_SPEECH_LOCK_FILE, timeout=config.lock_timeout
+    ):
+        _set_playing(+1)
+        try:
+            utterance.play(config.player_timeout or None)
+        finally:
+            _set_playing(-1)
 
 
 def _stop_when_stale(

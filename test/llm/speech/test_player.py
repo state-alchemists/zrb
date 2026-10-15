@@ -7,7 +7,7 @@ import pytest
 
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.player import is_speaking, play
-from zrb.util.file_lock import hold_file_lock
+from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 
 class RecordingUtterance(Utterance):
@@ -103,10 +103,23 @@ def test_another_session_speaking_is_seen_and_waited_out(lock_file):
 
     with hold_file_lock(lock_file):
         assert is_speaking(lock_file)
-        speaker.speak("dropped")  # lock_timeout passes while it is held
+        with pytest.raises(FileLockTimeout):
+            speaker.speak("dropped")  # lock_timeout passes while it is held
 
     assert backend.played == []
     assert not is_speaking(lock_file)
+
+
+def test_queued_text_dropped_for_another_session_is_logged(lock_file, caplog):
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    with hold_file_lock(lock_file):
+        speaker.say("dropped")
+        speaker.drain()
+
+    assert backend.played == []
+    assert "another session held the audio device" in caplog.text
 
 
 def test_a_failing_backend_falls_back_to_the_local_engine(lock_file, monkeypatch):
@@ -140,19 +153,66 @@ def test_nothing_is_spoken_when_every_backend_fails(lock_file, monkeypatch):
     monkeypatch.setattr("shutil.which", lambda name: None)
     backend = FakeBackend(fail=True)
 
-    Speaker(_config(backend, lock_file)).speak("hello")
+    with pytest.raises(RuntimeError, match="FakeBackend: no network"):
+        Speaker(_config(backend, lock_file)).speak("hello")
 
     assert backend.played == []
 
 
-def test_a_failing_player_is_logged_not_raised(lock_file):
-    class Broken(Utterance):
-        def play(self, timeout):
-            raise OSError("device gone")
+def test_text_interrupted_while_being_made_is_not_played(lock_file):
+    making, release = threading.Event(), threading.Event()
 
-    play(Broken([]), _config(FakeBackend(), lock_file))
+    class SlowBackend(FakeBackend):
+        def create_utterance(self, text):
+            making.set()
+            release.wait(5)
+            return super().create_utterance(text)
+
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    speaking = threading.Thread(target=speaker.speak, args=("hello",))
+    speaking.start()
+    assert making.wait(5)
+
+    speaker.interrupt()
+    release.set()
+    speaking.join(5)
+
+    assert backend.played == []
+
+
+def test_blank_text_is_skipped_without_raising(lock_file):
+    backend = FakeBackend(fail=True)
+
+    Speaker(_config(backend, lock_file)).speak("  ")
+
+    assert backend.played == []
+
+
+class BrokenUtterance(Utterance):
+    def play(self, timeout):
+        raise OSError("device gone")
+
+
+class BrokenPlayerBackend(AnySpeechBackend):
+    def create_utterance(self, text):
+        return BrokenUtterance([])
+
+
+def test_a_failing_player_raises_and_releases_the_lock(lock_file):
+    with pytest.raises(OSError, match="device gone"):
+        play(BrokenUtterance([]), _config(FakeBackend(), lock_file))
 
     assert not is_speaking(lock_file)
+
+
+def test_a_failing_player_in_the_queue_is_logged_not_raised(lock_file, caplog):
+    speaker = Speaker(_config(BrokenPlayerBackend(), lock_file))
+
+    speaker.say("hello")
+    speaker.drain()
+
+    assert "Speech failed: device gone" in caplog.text
 
 
 def test_dictation_hears_a_speaker_with_its_own_lock_file(tmp_path, lock_file):
