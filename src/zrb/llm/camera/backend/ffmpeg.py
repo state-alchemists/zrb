@@ -1,9 +1,11 @@
 """Camera capture through ffmpeg: avfoundation on macOS, dshow on Windows
-(auto-detecting the first video device), v4l2 on Linux and WSL.
+(auto-detecting the first video device), v4l2 on Linux.
 
-On WSL2 the stock kernel has no UVC driver (usbipd-win alone never yields a
-`/dev/video*`), and usbipd-win's USB/IP tunnel cannot sustain raw YUYV, so
-capture asks for 640x480 MJPEG first. See
+On WSL, a Windows `ffmpeg.exe` on the PATH captures through dshow on the
+Windows side, which opens the camera only for the photo, so Windows apps keep
+using it. Without one, or for a `/dev/video*` device, capture falls back to
+v4l2, which needs usbipd-win and a custom kernel; its USB/IP tunnel cannot
+sustain raw YUYV, so v4l2 asks for 640x480 MJPEG first. See
 `docs/llm/voice-photo-troubleshooting.md`.
 """
 
@@ -45,6 +47,9 @@ class FfmpegCameraBackend(AnyCameraBackend):
     def __init__(self, timeout: float = 15.0) -> None:
         self._timeout = timeout
         self._last_error: str | None = None
+        # Whether the last capture went through Linux v4l2, so the hint
+        # names the path that failed.
+        self._tried_v4l2 = False
         # {"time": float, "devices": list[str], "refreshing": bool}
         self._device_cache: dict[str, Any] = {}
         # The in-flight probe. Held here because `list_devices` ignores the
@@ -72,6 +77,7 @@ class FfmpegCameraBackend(AnyCameraBackend):
         deadline = get_earlier(deadline, create_deadline(self._timeout))
         # Early returns set no error; don't report the previous capture's.
         self._last_error = None
+        self._tried_v4l2 = False
         try:
             return await self._capture(device, deadline)
         except Exception:
@@ -80,32 +86,48 @@ class FfmpegCameraBackend(AnyCameraBackend):
     async def _capture(
         self, device: str | None, deadline: float | None
     ) -> bytes | None:
+        dshow_ffmpeg = _get_dshow_ffmpeg(device)
+        if dshow_ffmpeg is not None:
+            name = await self._get_dshow_device(dshow_ffmpeg, device, deadline)
+            if name is not None:
+                return await self._run(
+                    _ffmpeg_cmd(dshow_ffmpeg, "dshow", [], f"video={name}"), deadline
+                )
+            # A camera attached to WSL through usbipd is gone from Windows'
+            # listing but present as /dev/video*. Only an unnamed device with an
+            # empty listing falls back: a named or listed camera that fails
+            # must not become another camera's photo.
+            if device or not glob.glob("/dev/video*"):
+                return None
+        self._tried_v4l2 = sys.platform != "darwin"
         if shutil.which("ffmpeg") is None:
             return None
-        extra_args: list[str] = []
         if sys.platform == "darwin":
             # avfoundation defaults to 29.97fps, which many macOS cameras don't
             # support (they list only exact 15 or 30fps modes) -- ffmpeg then
             # fails to open the device with a bare "Input/output error".
-            input_fmt, input_arg = "avfoundation", device or "0"
-            extra_args = ["-framerate", "30"]
-        elif sys.platform == "win32":
-            name = device or await self._get_dshow_default_device(deadline)
-            if name is None:
-                return None
-            input_fmt, input_arg = "dshow", f"video={name}"
-        else:
-            input_fmt, input_arg = "v4l2", device or "/dev/video0"
-            # Raw YUYV at max resolution hangs over WSL2's usbipd-win tunnel,
-            # and so does 720p MJPEG; 640x480 MJPEG is the largest that lands.
-            # Cameras without MJPEG fall back to the raw default.
-            mjpeg_args = ["-input_format", "mjpeg", "-video_size", "640x480"]
-            data = await self._run(
-                _ffmpeg_cmd(input_fmt, mjpeg_args, input_arg), deadline
+            cmd = _ffmpeg_cmd(
+                "ffmpeg", "avfoundation", ["-framerate", "30"], device or "0"
             )
-            if data is not None:
-                return data
-        return await self._run(_ffmpeg_cmd(input_fmt, extra_args, input_arg), deadline)
+            return await self._run(cmd, deadline)
+        input_arg = device or "/dev/video0"
+        # Raw YUYV at max resolution hangs over WSL2's usbipd-win tunnel,
+        # and so does 720p MJPEG; 640x480 MJPEG is the largest that lands.
+        # Cameras without MJPEG fall back to the raw default.
+        mjpeg_args = ["-input_format", "mjpeg", "-video_size", "640x480"]
+        data = await self._run(
+            _ffmpeg_cmd("ffmpeg", "v4l2", mjpeg_args, input_arg), deadline
+        )
+        if data is not None:
+            return data
+        return await self._run(_ffmpeg_cmd("ffmpeg", "v4l2", [], input_arg), deadline)
+
+    async def _get_dshow_device(
+        self, ffmpeg: str, device: str | None, deadline: float | None
+    ) -> str | None:
+        if shutil.which(ffmpeg) is None:
+            return None
+        return device or await self._get_dshow_default_device(ffmpeg, deadline)
 
     async def _run(self, cmd: list[str], deadline: float | None) -> bytes | None:
         timeout = get_remaining(deadline)
@@ -135,13 +157,15 @@ class FfmpegCameraBackend(AnyCameraBackend):
         self._last_error = stderr.decode(errors="ignore").strip()[-500:]
         return None
 
-    async def _get_dshow_default_device(self, deadline: float | None) -> str | None:
+    async def _get_dshow_default_device(
+        self, ffmpeg: str, deadline: float | None
+    ) -> str | None:
         remaining = get_remaining(deadline)
         if remaining == 0:
             return None
         timeout = DSHOW_LIST_TIMEOUT_SECONDS
         names = await _list_dshow_devices(
-            timeout if remaining is None else min(timeout, remaining)
+            ffmpeg, timeout if remaining is None else min(timeout, remaining)
         )
         return names[0] if names else None
 
@@ -163,10 +187,10 @@ class FfmpegCameraBackend(AnyCameraBackend):
 
     async def refresh_devices(self) -> list[str]:
         """Probe devices, including the slow Windows ffmpeg listing."""
-        if sys.platform == "win32":
-            devices = await _list_dshow_devices()
-        else:
-            devices = _list_devices_now()
+        dshow_ffmpeg = _get_dshow_ffmpeg(None)
+        devices = _list_devices_now()
+        if dshow_ffmpeg is not None:
+            devices = await _list_dshow_devices(dshow_ffmpeg) + devices
         self._device_cache["time"] = time.monotonic()
         self._device_cache["devices"] = devices
         return devices
@@ -205,15 +229,27 @@ class FfmpegCameraBackend(AnyCameraBackend):
         return age < DEVICE_CACHE_TTL_SECONDS
 
     def get_failure_hint(self) -> str:
-        hint = _get_platform_hint()
+        hint = _get_platform_hint(self._tried_v4l2)
         if self._last_error:
             hint += f"  ffmpeg said: {self._last_error}\n"
         return hint
 
 
-def _ffmpeg_cmd(input_fmt: str, extra_args: list[str], input_arg: str) -> list[str]:
+def _get_dshow_ffmpeg(device: str | None) -> str | None:
+    """The ffmpeg that captures through dshow: `ffmpeg` on Windows, a Windows
+    `ffmpeg.exe` on WSL unless *device* is a `/dev/video*` node; else None."""
+    if sys.platform == "win32":
+        return "ffmpeg"
+    if is_wsl() and not (device or "").startswith("/dev/"):
+        return "ffmpeg.exe" if shutil.which("ffmpeg.exe") else None
+    return None
+
+
+def _ffmpeg_cmd(
+    ffmpeg: str, input_fmt: str, extra_args: list[str], input_arg: str
+) -> list[str]:
     return [
-        "ffmpeg",
+        ffmpeg,
         "-y",
         "-f",
         input_fmt,
@@ -233,7 +269,7 @@ def _ffmpeg_cmd(input_fmt: str, extra_args: list[str], input_arg: str) -> list[s
 
 
 async def _list_dshow_devices(
-    timeout: float = DSHOW_LIST_TIMEOUT_SECONDS,
+    ffmpeg: str, timeout: float = DSHOW_LIST_TIMEOUT_SECONDS
 ) -> list[str]:
     """All dshow video device names, via ffmpeg's device listing.
 
@@ -242,7 +278,7 @@ async def _list_dshow_devices(
     """
     try:
         proc = await asyncio.create_subprocess_exec(
-            "ffmpeg",
+            ffmpeg,
             "-f",
             "dshow",
             "-list_devices",
@@ -272,7 +308,7 @@ def _list_devices_now() -> list[str]:
     return sorted(glob.glob("/dev/video*"))
 
 
-def _get_platform_hint() -> str:
+def _get_platform_hint(tried_v4l2: bool) -> str:
     if sys.platform == "darwin":
         return (
             "  Install ffmpeg (brew install ffmpeg) and grant your terminal "
@@ -281,41 +317,52 @@ def _get_platform_hint() -> str:
         )
     if sys.platform == "win32":
         return (
-            "  Install ffmpeg (https://ffmpeg.org) and make sure a webcam "
+            "  Install ffmpeg (`winget install Gyan.FFmpeg`) and make sure a webcam "
             "driver is installed. If detection fails, run `ffmpeg -f dshow "
             "-list_devices true -i dummy` to find your device name and pass "
             'it explicitly: /photo "<device name>".\n'
         )
     if is_wsl():
-        return _get_wsl_hint()
+        return _get_wsl_hint(tried_v4l2)
     return (
         "  Install ffmpeg. If no camera is found, check /dev/video* "
         "permissions (add your user to the `video` group).\n"
     )
 
 
-def _get_wsl_hint() -> str:
+def _get_wsl_hint(tried_v4l2: bool) -> str:
+    if shutil.which("ffmpeg.exe") and not tried_v4l2:
+        return (
+            "  Captured through Windows ffmpeg.exe (dshow). Check the camera "
+            "works in a Windows app, and that no app holds it exclusively. If "
+            "detection fails, run `ffmpeg.exe -f dshow -list_devices true -i "
+            'dummy` and pass the name explicitly: /photo "<device name>". '
+            f"Details: {_TROUBLESHOOTING_URL}\n"
+        )
+    if tried_v4l2 and shutil.which("ffmpeg") is None:
+        return (
+            "  The camera is a Linux device, which zrb captures with ffmpeg "
+            "inside WSL, and it is not installed: `sudo apt install ffmpeg`. "
+            f"Details: {_TROUBLESHOOTING_URL}\n"
+        )
     if glob.glob("/dev/video*"):
         # The device node exists, so usbipd-win + the kernel driver are both
         # fine -- ffmpeg opened the camera but got no frame, which on WSL2 is
         # almost always usbipd-win's USB/IP tunnel failing to sustain the
         # video stream (not a zrb-side timeout tuning issue).
         return (
-            "  Install ffmpeg if it's missing. /dev/video* exists, so the "
-            "camera is attached and the driver is loaded -- ffmpeg just "
-            "isn't getting a frame from it. WSL2's USB/IP tunnel "
-            "(usbipd-win) often can't sustain a webcam stream even at "
-            "reduced resolution/format; an external USB webcam is far "
-            "more reliable than a laptop's integrated one over USB/IP. "
-            f"Details: {_TROUBLESHOOTING_URL}\n"
+            "  /dev/video* exists, so the camera is attached and the driver "
+            "is loaded -- ffmpeg just isn't getting a frame from it. WSL2's "
+            "USB/IP tunnel (usbipd-win) often can't sustain a webcam stream; "
+            "an external USB webcam is far more reliable than a laptop's "
+            "integrated one over USB/IP. Simpler: install ffmpeg on Windows "
+            "(`winget install Gyan.FFmpeg`), and zrb captures through "
+            f"ffmpeg.exe instead. Details: {_TROUBLESHOOTING_URL}\n"
         )
     return (
-        "  Install ffmpeg if it's missing. No /dev/video* device. "
-        "Attaching the camera with usbipd-win "
-        "(https://github.com/dorssel/usbipd-win) is necessary but not "
-        "sufficient: the stock WSL2 kernel ships with no camera "
-        "driver at all (no uvcvideo/v4l2), so usbipd can attach the "
-        "USB device yet no /dev/video* node ever appears. Building a "
-        "custom WSL2 kernel with USB Video Class support is required "
-        f"-- step-by-step instructions: {_TROUBLESHOOTING_URL}\n"
+        "  Install ffmpeg on Windows (`winget install Gyan.FFmpeg`), then "
+        "restart WSL (`wsl --shutdown`) so ffmpeg.exe is on the PATH: zrb "
+        "captures through it and Windows apps keep the camera. The "
+        "alternative, usbipd-win, needs a custom WSL2 kernel with a camera "
+        f"driver and takes the camera from Windows. Details: {_TROUBLESHOOTING_URL}\n"
     )
