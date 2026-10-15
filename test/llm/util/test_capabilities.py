@@ -134,7 +134,9 @@ def test_context_window_is_known_for_current_model_families():
     assert model_capabilities.get("openai:gpt-5.6-luna").context_window == 1_050_000
     assert model_capabilities.get("openai:gpt-6-astra").context_window == 1_050_000
     assert model_capabilities.get("anthropic:claude-opus-5").context_window == 1_000_000
-    assert model_capabilities.get("google-gla:gemini-4-argon").context_window == 1_000_000
+    assert (
+        model_capabilities.get("google-gla:gemini-4-argon").context_window == 1_000_000
+    )
     assert model_capabilities.get("deepseek:deepseek-flash").context_window == 1_000_000
     assert model_capabilities.get("moonshotai:kimi-k3").context_window == 1_000_000
     assert model_capabilities.get("moonshotai:kimi-k2.6").context_window == 256_000
