@@ -221,6 +221,22 @@ async def test_a_failed_dev_video_capture_on_wsl_gets_the_linux_hint(clean_env):
 
 
 @pytest.mark.asyncio
+async def test_dev_video_on_wsl_without_linux_ffmpeg_asks_for_it(clean_env):
+    clean_env.setattr("sys.platform", "linux")
+    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setenv("WSL_DISTRO_NAME", "Ubuntu")
+    clean_env.setattr("shutil.which", _which_only("ffmpeg.exe"))
+    backend = AutoCameraBackend()
+
+    result = await backend.capture("/dev/video0")
+
+    assert result is None
+    hint = backend.get_failure_hint()
+    assert "sudo apt install ffmpeg" in hint
+    assert "Captured through Windows ffmpeg.exe" not in hint
+
+
+@pytest.mark.asyncio
 async def test_wsl_without_any_camera_stops_after_the_windows_listing(clean_env):
     clean_env.setattr("sys.platform", "linux")
     clean_env.setattr("zrb.config.helper.is_termux", lambda: False)

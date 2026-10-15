@@ -98,6 +98,7 @@ class FfmpegCameraBackend(AnyCameraBackend):
             # back: a listed camera that fails must not become another photo.
             if not glob.glob("/dev/video*"):
                 return None
+        self._tried_v4l2 = sys.platform != "darwin"
         if shutil.which("ffmpeg") is None:
             return None
         if sys.platform == "darwin":
@@ -109,7 +110,6 @@ class FfmpegCameraBackend(AnyCameraBackend):
             )
             return await self._run(cmd, deadline)
         input_arg = device or "/dev/video0"
-        self._tried_v4l2 = True
         # Raw YUYV at max resolution hangs over WSL2's usbipd-win tunnel,
         # and so does 720p MJPEG; 640x480 MJPEG is the largest that lands.
         # Cameras without MJPEG fall back to the raw default.
@@ -336,6 +336,12 @@ def _get_wsl_hint(tried_v4l2: bool) -> str:
             "works in a Windows app, and that no app holds it exclusively. If "
             "detection fails, run `ffmpeg.exe -f dshow -list_devices true -i "
             'dummy` and pass the name explicitly: /photo "<device name>". '
+            f"Details: {_TROUBLESHOOTING_URL}\n"
+        )
+    if tried_v4l2 and shutil.which("ffmpeg") is None:
+        return (
+            "  The camera is a Linux device, which zrb captures with ffmpeg "
+            "inside WSL, and it is not installed: `sudo apt install ffmpeg`. "
             f"Details: {_TROUBLESHOOTING_URL}\n"
         )
     if glob.glob("/dev/video*"):
