@@ -55,6 +55,41 @@ def test_image_input_unsupported_for_text_only_models(model_name):
     assert model_capabilities.get(model_name).supports_image_input is False
 
 
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "openai:gpt-6-astra",
+        "anthropic:claude-haiku-5-5",
+        "zai:glm-5.3-flash",
+        "zai:glm-5v-turbo",
+        "moonshotai:kimi-k3",
+        "moonshotai:kimi-k2.6",
+        "minimax:MiniMax-M3",
+        "alibaba:qwen3.8-max",
+        "xai:grok-build-0.1",
+        "deepseek:deepseek-flash",
+        "deepseek:deepseek-v4-flash-vision-exp",
+        "ollama:deepseek-v4.1-flash:cloud",
+    ],
+)
+def test_image_input_supported_for_current_vision_models(model_name):
+    assert model_capabilities.get(model_name).supports_image_input is True
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "zai:glm-5.3",
+        "minimax:MiniMax-M2.7",
+        "alibaba:qwen-max",
+        # Routed to V4.1-Flash or not depending on which DeepSeek page you read.
+        "deepseek:deepseek-v4-pro",
+    ],
+)
+def test_image_input_unsupported_for_current_text_only_models(model_name):
+    assert model_capabilities.get(model_name).supports_image_input is False
+
+
 def test_audio_input_recognised_for_audio_capable_models():
     assert model_capabilities.get("openai:gpt-4o").supports_audio_input is True
     assert (
@@ -95,6 +130,16 @@ def test_context_window_is_known_for_documented_model_families():
     assert model_capabilities.get("local:unknown").context_window is None
 
 
+def test_context_window_is_known_for_current_model_families():
+    assert model_capabilities.get("openai:gpt-5.6-luna").context_window == 1_050_000
+    assert model_capabilities.get("openai:gpt-6-astra").context_window == 1_050_000
+    assert model_capabilities.get("anthropic:claude-opus-5").context_window == 1_000_000
+    assert model_capabilities.get("google-gla:gemini-4-argon").context_window == 1_000_000
+    assert model_capabilities.get("deepseek:deepseek-flash").context_window == 1_000_000
+    assert model_capabilities.get("moonshotai:kimi-k3").context_window == 1_000_000
+    assert model_capabilities.get("moonshotai:kimi-k2.6").context_window == 256_000
+
+
 def test_parallel_tool_calls_unknown_for_general_models():
 
     assert model_capabilities.get("openai:gpt-4o").supports_parallel_tool_calls is None
@@ -123,9 +168,10 @@ def test_parallel_tool_calls_known_unsupported_models(model_name):
         "google-gla:gemini-2.5-flash",
         "google-gla:gemini-2.5-pro",
         "google-vertex:gemini-3-pro-preview",
+        "google-gla:gemini-4-argon",
     ],
 )
-def test_thinking_summary_supported_for_gemini_2_5_and_3(model_name):
+def test_thinking_summary_supported_for_gemini_2_5_and_newer(model_name):
     assert model_capabilities.get(model_name).supports_thinking_summary is True
 
 
@@ -138,7 +184,7 @@ def test_thinking_summary_supported_for_gemini_2_5_and_3(model_name):
         "anthropic:claude-sonnet-4-6",
     ],
 )
-def test_thinking_summary_unsupported_outside_gemini_2_5_and_3(model_name):
+def test_thinking_summary_unsupported_outside_gemini_2_5_and_newer(model_name):
     assert model_capabilities.get(model_name).supports_thinking_summary is False
 
 
@@ -219,6 +265,21 @@ def test_document_input_unsupported_for_text_only_models():
         model_capabilities.get("anthropic:claude-haiku-3").supports_document_input
         is False
     )
+
+
+def test_document_input_denied_where_only_images_are_documented():
+    "Reading an image is not reading a PDF, even for the same model."
+    deepseek = model_capabilities.get("deepseek:deepseek-flash")
+    assert deepseek.supports_image_input is True
+    assert deepseek.supports_document_input is False
+
+    flash = model_capabilities.get("google-gla:gemini-2.5-flash")
+    assert flash.supports_image_input is True
+    assert flash.supports_video_input is True
+    assert flash.supports_document_input is False
+
+    pro = model_capabilities.get("google-gla:gemini-2.5-pro")
+    assert pro.supports_document_input is True
 
 
 def test_supports_modality_dispatches_document():

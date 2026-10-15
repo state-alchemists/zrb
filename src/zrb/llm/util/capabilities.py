@@ -143,6 +143,12 @@ def media_type_modality(media_type: str) -> Modality | None:
     return None
 
 
+# DeepSeek's live id is `deepseek-flash`; the retired `deepseek-v4-flash` and
+# `deepseek-v4-flash-vision-exp` ids are served by the same model. `deepseek-v4-pro`
+# is deliberately absent — DeepSeek's own docs disagree on whether it routes to
+# V4.1-Flash, and a wrong "reads images" would send it a photo it rejects.
+_DEEPSEEK_FLASH = r"deepseek-(?:v4\.1-|v4-)?flash"
+
 # Patterns that support image input, matched case-insensitively.
 _IMAGE_PATTERNS = (
     r"gpt-?4o",
@@ -150,6 +156,7 @@ _IMAGE_PATTERNS = (
     r"gpt-?4-vision",
     r"gpt-?4-turbo",  # vision-capable since 2024-04
     r"gpt-?5",
+    r"gpt-?6",
     r"o1",
     r"o3",
     r"o4",
@@ -167,6 +174,7 @@ _IMAGE_PATTERNS = (
     r"bakllava",
     r"pixtral",
     r"qwen.*-?vl",
+    r"qwen3\.[5-8]-(?:max|plus|flash|omni)",  # natively multimodal, no "-vl" suffix
     r"moondream",
     r"minicpm-?v",
     r"internvl",
@@ -176,11 +184,18 @@ _IMAGE_PATTERNS = (
     r"claude-mythos",
     r"claude-opus-5",
     r"claude-sonnet-5",
+    r"claude-haiku-5",
     r"grok-3",
     r"grok-4",
+    r"grok-build",
     r"glm-4\.5v",
     r"glm-4\.6v",
     r"glm-5v",
+    r"glm-5\.3-flash",  # the multimodal GLM-5; plain `glm-5.3` is text-only
+    r"kimi-k3",
+    r"kimi-k2\.[67]",
+    r"minimax-m3",
+    _DEEPSEEK_FLASH,
     r"moonshot-v1-.*-vision",
     r"computer-use",
 )
@@ -207,6 +222,7 @@ _AUDIO_PATTERNS = (
     r"gemini-1\.5",
     r"gemini-2",
     r"gemini-3",
+    r"gemini-4",
     r"qwen2-audio",
     r"whisper",
 )
@@ -215,11 +231,19 @@ _VIDEO_PATTERNS = (
     r"gemini-1\.5",
     r"gemini-2",
     r"gemini-3",
+    r"gemini-4",
+    r"qwen3\.[5-8]-(?:max|plus|flash|omni)",
 )
 
-# See the `supports_document_input` docstring: same providers, same list.
+# See the `supports_document_input` docstring: same providers, same image list,
+# minus the families that document no PDF path.
 _DOCUMENT_PATTERNS = _IMAGE_PATTERNS
-_DOCUMENT_DENY = _IMAGE_DENY
+_DOCUMENT_DENY = _IMAGE_DENY + (
+    # Images only: the vision guide's format list is JPEG, PNG, GIF and WebP.
+    r"deepseek-",
+    # Images, video and audio, but no PDF where its Gemini siblings list one.
+    r"^gemini-2\.5-flash$",
+)
 
 # Models that *malform* parallel tool calls: one tool_call with concatenated
 # names and arguments (``name="ActivateSkillReadRead"``), losing both calls.
@@ -234,19 +258,25 @@ _NO_PARALLEL_TOOL_CALLS = (
     r"glm-4\.7",
 )
 
-# Mirrors pydantic-ai's `is_thinking_model` in
-# `pydantic_ai.profiles.google.google_model_profile`.
+# Mirrors `supports_thinking` in pydantic-ai's `google_model_profile`: Gemini 2.5
+# thinks through `thinking_budget`, Gemini 3 and later through `thinking_level`,
+# and Gemma and Gemini 1.x/2.0 do not think at all.
 _THINKING_SUMMARY_PATTERNS = (
     r"gemini-2\.5",
-    r"gemini-3",
+    r"gemini-(?:3|4)",
 )
 
 # A missing entry leaves the configured request limit unchanged.
 _CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
     (r"gpt-?4\.1", 1_000_000),
+    (r"gpt-?(?:5\.6|6)", 1_050_000),
     (r"gpt-?4o", 128_000),
     (r"claude-(?:3|(?:haiku|sonnet|opus)-[34])", 200_000),
-    (r"gemini-(1\.5|2|3)", 1_000_000),
+    (r"claude-(?:fable|mythos|opus|sonnet|haiku)-5", 1_000_000),
+    (r"gemini-(1\.5|2|3|4)", 1_000_000),
+    (_DEEPSEEK_FLASH, 1_000_000),
+    (r"kimi-k3", 1_000_000),
+    (r"kimi-k2\.[67]", 256_000),
 )
 
 

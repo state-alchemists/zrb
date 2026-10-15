@@ -146,7 +146,7 @@ Rate limits and token budgets guard against runaway loops, cost, and provider li
 | `ZRB_LLM_MAX_REQUEST_PER_MINUTE` | Max API requests per minute | `60` |
 | `ZRB_LLM_MAX_REQUEST_PER_RUN` | Max model requests in one agent run before it halts — the backstop for a run that stops converging. `0` disables. | `300` |
 | `ZRB_LLM_MAX_TOKENS_PER_MINUTE` | Max tokens processed per minute (`ZRB_LLM_MAX_TOKEN_PER_MINUTE` is still read) | `128000` |
-| `ZRB_LLM_MAX_TOKENS_PER_REQUEST` | Hard context window limit (`ZRB_LLM_MAX_TOKEN_PER_REQUEST` is still read). The effective per-request budget is the **lower** of this and the model's known context window (`gpt-4o` 128k, `gpt-4.1` 1M, Claude 3/4 200k, Gemini 1.5/2/3 1M); models zrb doesn't recognise keep this cap. | `128000` |
+| `ZRB_LLM_MAX_TOKENS_PER_REQUEST` | Hard context window limit (`ZRB_LLM_MAX_TOKEN_PER_REQUEST` is still read). The effective per-request budget is the **lower** of this and the model's known context window (`gpt-4o` 128k, `gpt-4.1` 1M, `gpt-5.6`/`gpt-6` 1.05M, Claude 3/4 200k, Claude 5 1M, Gemini 1.5/2/3/4 1M, DeepSeek Flash 1M, Kimi K3 1M, Kimi K2.6/K2.7 256k); models zrb doesn't recognise keep this cap. | `128000` |
 | `ZRB_LLM_THROTTLE_SLEEP` | Seconds to pause when rate-limited | `1.0` |
 | `ZRB_ENABLE_TIKTOKEN` | Use tiktoken for accurate counting | `off` (false) |
 | `ZRB_TIKTOKEN_ENCODING_NAME` | Tiktoken encoding scheme (`ZRB_TIKTOKEN_ENCODING` is still read) | `cl100k_base` |
