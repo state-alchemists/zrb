@@ -94,9 +94,10 @@ class FfmpegCameraBackend(AnyCameraBackend):
                     _ffmpeg_cmd(dshow_ffmpeg, "dshow", [], f"video={name}"), deadline
                 )
             # A camera attached to WSL through usbipd is gone from Windows'
-            # listing but present as /dev/video*. Only an empty listing falls
-            # back: a listed camera that fails must not become another photo.
-            if not glob.glob("/dev/video*"):
+            # listing but present as /dev/video*. Only an unnamed device with an
+            # empty listing falls back: a named or listed camera that fails
+            # must not become another camera's photo.
+            if device or not glob.glob("/dev/video*"):
                 return None
         self._tried_v4l2 = sys.platform != "darwin"
         if shutil.which("ffmpeg") is None:
