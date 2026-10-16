@@ -71,7 +71,7 @@ class FakeSpeaker:
         self.closed = 0
         self.is_enabled = True
 
-    def say(self, text, is_stale=None):
+    def say(self, text, is_stale=None, voice=""):
         self.said.append(text)
 
     def say_later(self, produce):

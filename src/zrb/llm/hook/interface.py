@@ -51,6 +51,8 @@ class HookContext:
     model: str | None = None
     permission_suggestions: list[dict[str, Any]] | None = None  # PermissionRequest
     last_assistant_message: str | None = None  # Stop
+    emotion: str | None = None  # Emotion — "happy", "sad", ...
+    emotion_source: str | None = None  # Emotion — "user" or "assistant"
 
     _JSON_FIELDS: "ClassVar[list[str]]" = [
         "prompt",
@@ -83,6 +85,8 @@ class HookContext:
         "source",
         "model",
         "permission_suggestions",
+        "emotion",
+        "emotion_source",
     ]
 
     def to_claude_json(self) -> dict[str, Any]:

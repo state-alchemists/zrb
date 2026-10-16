@@ -18,6 +18,7 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 - [Dictation](#dictation)
 - [Speech](#speech)
 - [Talking with zrb](#talking-with-zrb)
+- [Emotion](#emotion)
 - [Configuring in code](#configuring-in-code)
 - [Programming the Voice](programming-the-voice.md)
 - [Your own backend](#your-own-backend)
@@ -153,7 +154,7 @@ A line above the status bar shows what the microphone is doing, while hands-free
 
 Push-to-talk shows `🔴 recording…` and `📝 transcribing…` the same way.
 
-The default transcriber is vosk, which runs offline and downloads its model on first use, but mangles technical terms. It is also the only one that transcribes while you speak. Three more run offline through Pipecat, each needing the package it ships in ([the installs](#your-own-backend)): `ZRB_LLM_DICTATION_BACKEND=whisper` runs Faster-Whisper, multilingual and the heaviest of the three, sized with `ZRB_LLM_DICTATION_STT_MODEL` (`tiny`, `base`, `small`, `medium`, `large-v3`); `moonshine` is the lightest and the only one with no GPU path at all; `funasr` is strongest on Chinese. With an OpenAI key, `ZRB_LLM_DICTATION_BACKEND=openai` and `ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe` are far more accurate. [`examples/voice-interaction`](../../examples/voice-interaction/README.md) compares the backends on one clip.
+The default transcriber is vosk, which runs offline and downloads its model on first use, but mangles technical terms. It is also the only one that transcribes while you speak. Three more run offline through Pipecat, each needing the package it ships in ([the installs](#your-own-backend)): `ZRB_LLM_DICTATION_BACKEND=whisper` runs Faster-Whisper, multilingual and the heaviest of the three, sized with `ZRB_LLM_DICTATION_STT_MODEL` (`tiny`, `base`, `small`, `medium`, `large-v3`); `moonshine` is the lightest and the only one with no GPU path at all; `funasr` is strongest on Chinese. `ZRB_LLM_DICTATION_BACKEND=sensevoice` runs the same SenseVoice model on sherpa-onnx instead of PyTorch, which is many times faster on a CPU (`pip install sherpa-onnx huggingface_hub`). With an OpenAI key, `ZRB_LLM_DICTATION_BACKEND=openai` and `ZRB_LLM_DICTATION_OPENAI_MODEL=gpt-4o-transcribe` are far more accurate. [`examples/voice-interaction`](../../examples/voice-interaction/README.md) compares the backends on one clip.
 
 ## Speech
 
@@ -198,6 +199,16 @@ Add `ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on` to talk over it, on speakers or head
 
 For the quickest replies, use vosk for dictation (it transcribes while you speak and ends an utterance half a second after you finish) and a fast model. Each part's delay can be tuned with the variables above.
 
+## Emotion
+
+With emotion on, zrb opens each reply with an emoji for how it feels, and hears the tone of a dictated message:
+
+```bash
+ZRB_LLM_EMOTION_ENABLED=on ZRB_LLM_DICTATION_DETECT_EMOTION=on ZRB_LLM_DICTATION_BACKEND=sensevoice zrb llm chat
+```
+
+`ZRB_LLM_DICTATION_DETECT_EMOTION` has emotion2vec+ hear your tone in each hands-free utterance while it is transcribed, locally and with any backend (`pip install funasr torch`). Your words stay as you said them: the tone rides on the turn, and the model reads it in its live context as how you sounded and how sure the detector is. Zaruba's own emotion is the emoji it opens its reply with. Each, yours and its, fires the `Emotion` hook, which an avatar such as zrb-face listens to ([Hooks → Emotion](hooks.md#emotion)). Recognition is reliable for happy, angry and sad, and rough beyond that.
+
 ## Configuring in code
 
 Each feature has a config dataclass whose fields mirror its environment variables; a field left `None` reads the variable when a session starts. To change the built-in chat from a `zrb_init.py`, assign directly to `CFG`:
@@ -225,7 +236,7 @@ Each feature takes a backend name or an object implementing its interface:
 | Feature | Interface | Built-in names |
 |---|---|---|
 | Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg` |
-| Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal`, and the local Pipecat services `whisper`, `moonshine`, `funasr` |
+| Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal`, `sensevoice`, and the local Pipecat services `whisper`, `moonshine`, `funasr` |
 | Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, so dictation knows zrb is heard); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini`, and the local Pipecat services `kokoro`, `piper`, `pocket` |
 
 A speech backend that talks to a local TTS server and plays the WAV it returns:

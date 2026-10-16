@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
+from zrb.llm.ambient_state import get_current_speech_voice
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.voice.manager import tts_manager
 
@@ -44,8 +45,10 @@ class PipecatSpeechBackend(AnySpeechBackend):
         )
 
     def create_audio(self, text: str) -> "SpeechAudio":
-        """Return *text* as PCM for in-process playback."""
-        return self._get_pipeline().speak(text)
+        """Return *text* as PCM for in-process playback, in the voice the
+        speaker asks for, else the configured one."""
+        voice = get_current_speech_voice() or self._config.voice or ""
+        return self._get_pipeline().speak(text, voice=voice)
 
     def close(self) -> None:
         """Stop and discard the pipeline."""

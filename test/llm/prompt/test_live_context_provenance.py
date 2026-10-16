@@ -32,6 +32,21 @@ def test_live_context_warns_for_transcribed_input():
     assert "STT transcript may be inaccurate" in rendered
 
 
+def test_live_context_says_how_a_dictated_turn_sounded():
+    ctx = MagicMock(spec=AnyContext)
+    token = input_provenance.set(
+        InputProvenance(
+            "microphone", "dictation", transcription=True, tone="sad", tone_score=0.82
+        )
+    )
+    try:
+        rendered = render_live_context(ctx)
+    finally:
+        input_provenance.reset(token)
+
+    assert "- Input: user via microphone/dictation, sounding sad (0.82)" in rendered
+
+
 def test_live_context_includes_active_worktrees(tmp_path):
     current = tmp_path / "current"
     other = tmp_path / "other"

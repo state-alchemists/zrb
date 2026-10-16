@@ -1,6 +1,6 @@
 [project]
 name = "zrb"
-version = "3.21.0"
+version = "3.22.0"
 description = "A terminal coding agent with a build system inside"
 authors = [{name = "Go Frendi Gunawan", email = "gofrendiasgard@gmail.com"}]
 license = "AGPL-3.0-or-later"
@@ -240,6 +240,9 @@ pytest-timeout = "^2.3.1"
 tomlkit = "^0.13.3"
 radon = "^6.0.1"
 pdoc = ">=15"
+# The 'sensevoice' dictation backend's engine. Optional for users (no Termux
+# wheel), so it is not in the voice extra; here so pyright and the tests see it.
+sherpa-onnx = "^1.13.8"
 
 [tool.pytest.ini_options]
 # Pin the suite to `src/`. Without it `import zrb` resolves by whatever is on

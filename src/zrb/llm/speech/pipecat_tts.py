@@ -204,6 +204,8 @@ class TTSPipeline:
         self._speaking: SpokenSentence | None = None
         self._claim = threading.Lock()
         self._worker: "PipelineWorker | None" = worker
+        # The voice last asked for; empty until one is.
+        self._voice = ""
         self._runner: "asyncio.Task[None] | None" = runner
 
     @property
@@ -233,9 +235,10 @@ class TTSPipeline:
         return cls(service, sink, recorder, loop, thread, worker, runner)
 
     def speak(
-        self, text: str, timeout: float = FIRST_CHUNK_TIMEOUT_SECONDS
+        self, text: str, timeout: float = FIRST_CHUNK_TIMEOUT_SECONDS, voice: str = ""
     ) -> SpeechAudio:
-        """Return *text* as audio, or raise if synthesis fails to start."""
+        """Return *text* as audio in *voice* (empty: the service's current
+        one), or raise if synthesis fails to start."""
         self._sentence_lock.acquire()
         try:
             sentence = self._recorder.start_sentence()
@@ -246,7 +249,7 @@ class TTSPipeline:
         with self._claim:
             self._speaking = sentence
         try:
-            _call(self._loop, self._say(text))
+            _call(self._loop, self._say(text, voice))
             first = sentence.wait_for_chunk(timeout)
         except BaseException:
             # Close and interrupt before releasing the claim, so late audio
@@ -259,14 +262,21 @@ class TTSPipeline:
             close=lambda: self._drop(sentence),
         )
 
-    async def _say(self, text: str) -> None:
-        """Hand the service one sentence to say."""
+    async def _say(self, text: str, voice: str) -> None:
+        """Hand the service one sentence to say, switching to *voice* first
+        when it is a new one."""
         # lazy: heavy third-party — pipecat is the `voice` extra.
-        from pipecat.frames.frames import TTSSpeakFrame
+        from pipecat.frames.frames import TTSSpeakFrame, TTSUpdateSettingsFrame
+        from pipecat.services.settings import TTSSettings
 
         worker = self._worker
         if worker is None:
             raise RuntimeError("the Pipecat speech pipeline is not running")
+        if voice and voice != self._voice:
+            await worker.queue_frame(
+                TTSUpdateSettingsFrame(delta=TTSSettings(voice=voice))
+            )
+            self._voice = voice
         await worker.queue_frame(TTSSpeakFrame(text))
 
     def _read(self, sentence: SpokenSentence, first: bytes) -> Iterator[bytes]:

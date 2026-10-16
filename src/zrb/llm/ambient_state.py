@@ -18,6 +18,18 @@ input_provenance: ContextVar[InputProvenance | None] = ContextVar(
 )
 
 
+# The voice the speech being made now should use, bound by the speaker's
+# worker around each utterance so a wrapping backend passes it through.
+current_speech_voice: ContextVar[str] = ContextVar(
+    "zrb_current_speech_voice", default=""
+)
+
+
+def get_current_speech_voice() -> str:
+    """The voice the speech being made now should use; empty: as configured."""
+    return current_speech_voice.get()
+
+
 def get_interactive_mode() -> bool:
     """Return whether the current chat session is interactive."""
     return interactive_mode.get()

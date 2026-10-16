@@ -65,6 +65,7 @@ class SpeechConfig:
     player_read_ahead: int | None = None
     progress_phrases: dict[str, str] | None = None
     approval_actions: dict[str, str] | None = None
+    emotion_voices: dict[str, str] | None = None
 
     def resolve(self) -> "SpeechConfig":
         """A copy with every ``None`` field read from `CFG`."""

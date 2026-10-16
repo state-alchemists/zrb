@@ -67,6 +67,7 @@ The active `Context` for the executing task. Set at the start of `execute_task_a
 | `_current_session` | `str` | The active conversation's *display* session name, defaulted by tools (todo tools, `DelegateToAgent`, `BufferedUI`) called without an explicit `session=` — a client-supplied label with no uniqueness guarantee, never a resource-ownership key |
 | `interactive_mode` | `bool` | Whether the chat session is interactive — gates `ask_user_question` so non-interactive runs short-circuit instead of blocking on stdin |
 | `input_provenance` | `InputProvenance \| None` | Source and transcription reliability of the current user turn, rendered in live context |
+| `current_speech_voice` | `str` | The voice the utterance being made should use, bound by `Speaker`'s worker thread around each one, so a backend wrapped by another (zrb-face's) still sees it. Empty: the configured voice |
 | `current_chat_session_id` | `str` | `ChatSessionManager`'s own unique session_id, bound once per message drive in `chat_session_runner.py`. Unlike `_current_session`, it is unique: `shell_background.py` tags background processes with it so `ChatSessionManager.remove_session()` cleans up exactly that session's processes, never a same-named one's |
 
 ## The Scoping Pattern

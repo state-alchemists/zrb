@@ -10,10 +10,15 @@ import pytest
 from zrb.config.config import CFG
 from zrb.config.env_field import EnvField
 from zrb.llm.dictation.config import DictationConfig
+from zrb.llm.emotion.config import EmotionConfig
 from zrb.llm.speech.config import SpeechConfig
 
 _DOC = Path(__file__).parents[2] / "docs" / "configuration" / "llm-voice-camera.md"
-_FEATURES = [("LLM_DICTATION_", DictationConfig), ("LLM_SPEECH_", SpeechConfig)]
+_FEATURES = [
+    ("LLM_DICTATION_", DictationConfig),
+    ("LLM_SPEECH_", SpeechConfig),
+    ("LLM_EMOTION_", EmotionConfig),
+]
 
 
 def _knobs(prefix: str) -> set[str]:

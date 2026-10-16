@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
+from zrb.llm.emotion.label import ReplyOpening, get_leading_emotion
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.prompt.prompt import get_prompt
@@ -143,12 +144,16 @@ class SpeechSession:
         ) = weakref.WeakKeyDictionary()
         self.speaker = Speaker(config)
         self.speaker.is_enabled = bool(config.enabled)
+        if self.speaker.is_enabled:
+            self.speaker.warm_up()
         self._clock = SpeechClock()
         # Bumped whenever what is pending stops mattering: an interrupt, or a
         # newer reply than a summary still being made.
         self._generation = 0
         self._summarizer = SpeechSummarizer()
-        self.streamed_reply = StreamedReply(self._say)
+        # The emotion the reply being streamed opens with picks its voice.
+        self._opening = ReplyOpening()
+        self.streamed_reply = StreamedReply(self._say_reply_part)
         self.progress = ProgressNarrator(
             self._say,
             self._seconds_since_said,
@@ -251,6 +256,8 @@ class SpeechSession:
         has no stream observers."""
         if not self.speaker.is_enabled:
             return
+        # Before the reply, so its first sentence already has its voice.
+        self._opening.read(event)
         # The reply first: text flushed at a tool call's start counts as
         # speech, so the call is not announced on top of it.
         if self.is_streaming_reply and "reply" in self._events:
@@ -258,11 +265,18 @@ class SpeechSession:
         if "progress" in self._events:
             self.progress.handle_event(event)
 
-    def _say(self, text: str, is_stale: IsStale = None) -> None:
+    def _say(self, text: str, is_stale: IsStale = None, voice: str = "") -> None:
         # Through `self.speaker` at call time, so a speaker replaced later is
         # the one that speaks.
         self._clock.mark()
-        self.speaker.say(text, is_stale=is_stale)
+        self.speaker.say(text, is_stale=is_stale, voice=voice)
+
+    def _say_reply_part(self, text: str) -> None:
+        self._say(text, voice=self._get_voice(self._opening.emotion))
+
+    def _get_voice(self, emotion: str | None) -> str:
+        """The voice for *emotion*; empty: the configured one."""
+        return (self._config.emotion_voices or {}).get(emotion or "", "")
 
     def _seconds_since_said(self) -> float:
         if is_speaking(self._config.lock_file or None):
@@ -352,13 +366,16 @@ class SpeechSession:
         the summary fails, is late, or another is still being made."""
         self._generation += 1
         text = clean_for_speech(reply)
+        voice = self._get_voice(get_leading_emotion(reply))
         if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
-            self._say(text)
+            self._say(text, voice=voice)
             return
         generation = self._generation
 
         def speak(spoken: str) -> None:
-            self._say(spoken, is_stale=lambda: self._generation != generation)
+            self._say(
+                spoken, is_stale=lambda: self._generation != generation, voice=voice
+            )
 
         self._summarizer.start(
             text,

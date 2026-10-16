@@ -60,6 +60,8 @@ def test_index_exports_all_wrappers():
         "current_chat_session_id",
         "get_current_chat_session_id",
         "get_session_ownership_key",
+        "current_speech_voice",
+        "get_current_speech_voice",
     }
     actual = set(cv.__all__)
     assert actual == expected, (

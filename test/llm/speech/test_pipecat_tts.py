@@ -15,6 +15,7 @@ from pipecat.frames.frames import (  # noqa: E402
     Frame,
     InterruptionFrame,
     TTSAudioRawFrame,
+    TTSUpdateSettingsFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection  # noqa: E402
 from pipecat.services.settings import TTSSettings  # noqa: E402
@@ -124,6 +125,32 @@ def test_a_sentence_reaches_the_service_and_its_audio_comes_back():
     assert service.said == [SENTENCE]
     assert chunks == [CHUNK]
     assert sample_rate == RATE
+
+
+class VoiceRecordingService(FakeSpeechService):
+    """A fake service that records each voice it is switched to."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.voices: list[str] = []
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
+        if isinstance(frame, TTSUpdateSettingsFrame) and frame.delta is not None:
+            self.voices.append(frame.delta.voice)
+        await super().process_frame(frame, direction)
+
+
+def test_the_service_switches_voice_only_when_a_new_one_is_asked_for():
+    service = VoiceRecordingService()
+    pipeline = TTSPipeline.start(service)
+    try:
+        for text, voice in [("a", "sad.wav"), ("b", "sad.wav"), ("c", ""), ("d", "x")]:
+            list(pipeline.speak(text, timeout=5, voice=voice).chunks)
+    finally:
+        pipeline.close()
+
+    assert service.said == ["a", "b", "c", "d"]
+    assert service.voices == ["sad.wav", "x"]
 
 
 def test_the_pipeline_says_one_sentence_after_another():

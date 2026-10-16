@@ -93,6 +93,7 @@ Five `CFG`/env knobs control the subsystem as a whole, independent of each hook'
 | `PostCompact` | After history summarization completes (`trigger: "auto"`). Can inject `additionalContext` | No |
 | `SubagentStart` | A sub-agent (delegation) begins. Observe-only; matches on `agent_type` (the delegated agent's name); also carries `agent_id` | No |
 | `SubagentStop` | A sub-agent finishes (success or error). Observe-only; same `agent_type`/`agent_id` as its `SubagentStart` | No |
+| `Emotion` | zrb-specific, with [`ZRB_LLM_EMOTION_ENABLED`](../configuration/llm-voice-camera.md#emotion) on: an emotion read from the user's prompt or the model's reply. Observe-only; matches on `emotion_source`. See [Emotion](#emotion) | No |
 
 `PreCommand` / `PostCommand` fire when the user runs any built-in or custom command token (`/save`, `/exit`, a custom `>` redirect, …; not only `/`-prefixed), exposed as `command_name` / `command_args` (see [Environment Variables](#environment-variables)). Plain chat messages do **not** fire them.
 
@@ -106,6 +107,29 @@ async def downgrade_opus(ctx):
 ```
 
 A command hook does the same by printing `{"command_args": "sonnet"}` on stdout. The highest-priority hook that sets `command_args` wins.
+
+### Emotion
+
+With `ZRB_LLM_EMOTION_ENABLED` on, the model opens each reply with an emoji for how it feels (😊 😢 😠 😮 😌 🙂), and with `ZRB_LLM_DICTATION_DETECT_EMOTION` on, dictation hears the tone each prompt is said in. Each fires `Emotion` once, with `emotion` (VRM 1.0's preset expression names: `happy`, `sad`, `angry`, `surprised`, `relaxed`, `neutral`) and `emotion_source` (`user` or `assistant`). The user's fires with the start of the reply, just before the reply's own. An emoji the user types is just text and fires nothing. An avatar shows one like this:
+
+```python
+from zrb.builtin import llm_chat
+from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.types import HookEvent
+
+
+def show_emotion(hooks):
+    async def hook(context):
+        send_to_avatar(context.emotion_source, context.emotion)
+        return HookResult()
+
+    hooks.add_hook(hook, events=[HookEvent.EMOTION])
+
+
+llm_chat.append_hook_factory(show_emotion)
+```
+
+A command hook reads `CLAUDE_EMOTION` and `CLAUDE_EMOTION_SOURCE`. The hook runs while the reply streams, so make a slow command hook `async`.
 
 ---
 
@@ -583,6 +607,7 @@ Command hooks receive these environment variables automatically:
 | `CLAUDE_COMMAND_HANDLED` | Whether a handler consumed the command (for `PostCommand`) |
 | `CLAUDE_MESSAGE`, `CLAUDE_TITLE`, `CLAUDE_NOTIFICATION_TYPE` | Notification fields (for `Notification`) |
 | `CLAUDE_AGENT_ID` | Sub-agent id (for `SubagentStart`/`SubagentStop`) |
+| `CLAUDE_EMOTION`, `CLAUDE_EMOTION_SOURCE` | The emotion and whose it is, `user` or `assistant` (for `Emotion`) |
 
 Every value is capped at 16 KiB; a longer one is left unset rather than truncated. Event-specific variables are set only when the event carries that field.
 

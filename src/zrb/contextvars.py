@@ -48,9 +48,11 @@ from zrb.llm.agent_state import (
 from zrb.llm.ambient_state import (
     active_worktree,
     current_chat_session_id,
+    current_speech_voice,
     get_active_worktree,
     get_current_chat_session_id,
     get_current_context_session,
+    get_current_speech_voice,
     get_current_tool_session,
     get_input_provenance,
     get_interactive_mode,
@@ -135,4 +137,6 @@ __all__ = [
     "current_chat_session_id",
     "get_current_chat_session_id",
     "get_session_ownership_key",
+    "current_speech_voice",
+    "get_current_speech_voice",
 ]

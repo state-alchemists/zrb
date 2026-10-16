@@ -53,6 +53,8 @@ _ENV_CONTEXT_FIELDS = (
     "agent_id",
     "teammate_name",
     "task_id",
+    "emotion",
+    "emotion_source",
 )
 
 

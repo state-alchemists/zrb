@@ -7,6 +7,7 @@ from zrb.llm.dictation.backend.google import GoogleDictationBackend
 from zrb.llm.dictation.backend.multimodal import MultimodalDictationBackend
 from zrb.llm.dictation.backend.openai import OpenAIDictationBackend
 from zrb.llm.dictation.backend.pipecat import PipecatDictationBackend
+from zrb.llm.dictation.backend.sensevoice import SenseVoiceDictationBackend
 from zrb.llm.dictation.backend.vosk import VoskDictationBackend
 from zrb.llm.voice.registry import stt_registry
 
@@ -18,9 +19,15 @@ def get_dictation_backend(
     backend: "str | AnyDictationBackend", config: "DictationConfig"
 ) -> AnyDictationBackend:
     """*backend* itself, or the one it names, built from the resolved *config*:
-    ``vosk``, ``openai``, ``google``, ``multimodal``, or a speech-to-text
+    ``vosk``, ``openai``, ``google``, ``multimodal``, ``sensevoice``, or a speech-to-text
     service registered with ``stt_manager`` (``whisper``, ``moonshine``,
     ``funasr``, or one a project registered)."""
+    return _get_backend(backend, config)
+
+
+def _get_backend(
+    backend: "str | AnyDictationBackend", config: "DictationConfig"
+) -> AnyDictationBackend:
     if isinstance(backend, AnyDictationBackend):
         return backend
     name = backend.strip().lower() or "vosk"
@@ -34,7 +41,7 @@ def get_dictation_backend(
         return PipecatDictationBackend(name, config)
     raise ValueError(
         f"unknown dictation backend {backend!r}: use vosk, openai, google, "
-        f"multimodal, {', '.join(stt_registry.names())}, or an "
+        f"multimodal, sensevoice, {', '.join(stt_registry.names())}, or an "
         "AnyDictationBackend"
     )
 
@@ -67,4 +74,14 @@ def _get_builtin_backend(
         )
     if name == "multimodal":
         return MultimodalDictationBackend(instruction=config.transcribe_prompt or None)
+    if name == "sensevoice":
+        return _create_sensevoice(config)
     return None
+
+
+def _create_sensevoice(config: "DictationConfig") -> SenseVoiceDictationBackend:
+    return SenseVoiceDictationBackend(
+        config.sensevoice_model or "",
+        language=config.language or "",
+        num_threads=config.sensevoice_threads or 4,
+    )

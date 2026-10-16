@@ -27,6 +27,9 @@ class HookEvent(str, Enum):
     # Fired around sub-agent delegation, on the parent run's hook manager.
     SUBAGENT_START = "SubagentStart"
     SUBAGENT_STOP = "SubagentStop"
+    # zrb-specific: an emotion read from the user's prompt or the model's
+    # reply, under `enable_emotion` (observe-only).
+    EMOTION = "Emotion"
 
     @classmethod
     def from_claude_string(cls, value: str) -> "HookEvent":
