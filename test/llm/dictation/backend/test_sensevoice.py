@@ -35,6 +35,14 @@ def engine(monkeypatch):
         built.update(kwargs)
         return recognizer
 
+    asked: list = []
+
+    def download(repo, name, local_files_only=False):
+        asked.append((name, local_files_only))
+        if local_files_only and not built.get("cached", True):
+            raise FileNotFoundError(name)
+        return f"/cache/{repo}/{name}"
+
     offline = SimpleNamespace(from_sense_voice=from_sense_voice)
     monkeypatch.setitem(
         sys.modules, "sherpa_onnx", SimpleNamespace(OfflineRecognizer=offline)
@@ -42,9 +50,9 @@ def engine(monkeypatch):
     monkeypatch.setitem(
         sys.modules,
         "huggingface_hub",
-        SimpleNamespace(hf_hub_download=lambda repo, name: f"/cache/{repo}/{name}"),
+        SimpleNamespace(hf_hub_download=download),
     )
-    return SimpleNamespace(built=built, recognizer=recognizer)
+    return SimpleNamespace(built=built, recognizer=recognizer, asked=asked)
 
 
 @pytest.mark.asyncio
@@ -92,3 +100,19 @@ async def test_prepare_loads_the_model_before_the_first_recording(engine):
     await backend.prepare(lambda message: None)
 
     assert engine.built["model"] == "/cache/me/sv/model.int8.onnx"
+
+
+@pytest.mark.asyncio
+async def test_a_cached_model_is_used_without_asking_the_hub(engine):
+    await SenseVoiceDictationBackend("me/sv").prepare(lambda message: None)
+
+    assert engine.asked == [("model.int8.onnx", True), ("tokens.txt", True)]
+
+
+@pytest.mark.asyncio
+async def test_a_model_not_cached_yet_is_downloaded(engine):
+    engine.built["cached"] = False
+
+    await SenseVoiceDictationBackend("me/sv").prepare(lambda message: None)
+
+    assert ("model.int8.onnx", False) in engine.asked
