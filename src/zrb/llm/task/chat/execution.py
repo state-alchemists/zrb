@@ -5,6 +5,7 @@ tool/model resolution and session-end teardown.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
 from typing import TYPE_CHECKING, Any, cast
@@ -207,14 +208,25 @@ class ChatExecution:
             raise cancellation
 
     async def _release_interactive_resources(self) -> None:
+        # One budget for every hook this quit waits on: SESSION_END, then the
+        # detached hooks still running. Summed per-stage limits let one slow
+        # SessionEnd hook hold the terminal for its own timeout (600 s).
+        deadline = time.monotonic() + CFG.HOOKS_EXIT_TIMEOUT / 1000
         # SESSION_END fires once per session (run_agent fires only STOP per
         # turn). Every exit cause funnels through here, so `source` is "other".
         if self._llm_chat_task.active_hook_manager is not None:
             try:
-                await self._llm_chat_task.active_hook_manager.execute_hooks(
-                    HookEvent.SESSION_END,
-                    {"reason": "exit"},
-                    source="other",
+                await asyncio.wait_for(
+                    self._llm_chat_task.active_hook_manager.execute_hooks(
+                        HookEvent.SESSION_END,
+                        {"reason": "exit"},
+                        source="other",
+                    ),
+                    timeout=_seconds_left(deadline),
+                )
+            except asyncio.TimeoutError:
+                CFG.LOGGER.warning(
+                    "A SessionEnd hook was still running at exit; cancelling it."
                 )
             except Exception:
                 CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
@@ -231,7 +243,7 @@ class ChatExecution:
         # Settle detached hooks before releasing the worker pool, so their
         # cancellation handlers can kill process trees that sit in their own
         # process group and never see the terminal's Ctrl+C.
-        await self.teardown_background_hooks()
+        await self.teardown_background_hooks(drain_seconds=_seconds_left(deadline))
         # Reap background shell / delegation subprocesses while the loop is
         # alive; otherwise their exit logs "Loop <...> that handles pid N is
         # closed".
@@ -258,23 +270,28 @@ class ChatExecution:
         except Exception as e:
             CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
 
-    async def teardown_background_hooks(self) -> None:
+    async def teardown_background_hooks(
+        self, drain_seconds: float | None = None
+    ) -> None:
         """Settle this run's detached (``async: true``) hooks.
 
         Detached hooks sit in their own process group, so nothing else reaps
-        them. ``drain=True`` lets just-dispatched hooks finish before stragglers
-        are cancelled. Falls back to the module singleton when no per-run
-        manager was created, matching ``run_agent``.
+        them. ``drain=True`` lets just-dispatched hooks finish, for up to
+        *drain_seconds* (the hook manager's default when ``None``), before
+        stragglers are cancelled. Falls back to the module singleton when no
+        per-run manager was created, matching ``run_agent``.
         """
         try:
             if self._llm_chat_task.active_hook_manager is not None:
-                await self._llm_chat_task.active_hook_manager.shutdown(drain=True)
+                await self._llm_chat_task.active_hook_manager.shutdown(
+                    drain=True, drain_seconds=drain_seconds
+                )
             else:
                 # lazy: zrb internal — only needed at teardown; keeps this
                 # import off the hot path every other turn takes.
                 from zrb.llm.hook.manager import hook_manager
 
-                await hook_manager.shutdown(drain=True)
+                await hook_manager.shutdown(drain=True, drain_seconds=drain_seconds)
         except Exception as e:
             CFG.LOGGER.debug(f"Background-hook shutdown at teardown failed: {e}")
 
@@ -485,3 +502,7 @@ def _yolo_skip_decision(ctx, llm_chat_task, tool_def) -> bool:
     if isinstance(yolo_value, frozenset) and tool_def is not None:
         return getattr(tool_def, "name", str(tool_def)) in yolo_value
     return False
+
+
+def _seconds_left(deadline: float) -> float:
+    return max(0.0, deadline - time.monotonic())

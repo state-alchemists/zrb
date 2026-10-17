@@ -20,7 +20,7 @@ class HooksMixin:
         self.DEFAULT_HOOKS_ENABLED: str = "on"
         self.DEFAULT_HOOKS_DIRS: str = ""
         self.DEFAULT_HOOKS_TIMEOUT: str = "30000"
-        self.DEFAULT_HOOKS_EXIT_TIMEOUT: str = "10000"
+        self.DEFAULT_HOOKS_EXIT_TIMEOUT: str = "2000"
         self.DEFAULT_LLM_HOOKS: str = ""
         super().__init__()
 
@@ -40,7 +40,9 @@ class HooksMixin:
         int,
         doc=(
             "Milliseconds the chat TUI waits, as it exits, for hooks still "
-            "running — a Stop hook Ctrl+C fired — before cancelling them."
+            "running — a Stop hook Ctrl+C fired, then SessionEnd and detached "
+            "hooks sharing one budget — before cancelling them. An agent "
+            "hook still gets its own timeout."
         ),
     )
 
