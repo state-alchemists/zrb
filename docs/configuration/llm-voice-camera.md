@@ -2,7 +2,7 @@
 
 # LLM Voice and Camera
 
-Dictation, spoken replies, and the camera.
+Dictation, spoken replies, the camera, and screenshots.
 
 ## Table of Contents
 
@@ -12,12 +12,13 @@ Dictation, spoken replies, and the camera.
   - [Speech (text-to-speech)](#speech-text-to-speech)
   - [Emotion](#emotion)
   - [Camera](#camera)
+  - [Screenshot](#screenshot)
 
 ---
 
 ## Voice and Camera
 
-Three optional features of `zrb llm chat`, each added with one call and read from these variables **when a session starts**, so `zrb_init.py` may change them after importing zrb. A setting passed to `CameraConfig`, `DictationConfig` or `SpeechConfig` in code wins over its variable; see [Voice and camera](../llm/voice-camera.md) for that, [Programming the Voice](../llm/programming-the-voice.md) for recipes and Python extension points, and [Voice & Photo Troubleshooting](../llm/voice-photo-troubleshooting.md) for platform setup. Audio dependencies (sounddevice, numpy, vosk) load only when the microphone first opens, costing nothing at startup.
+The optional features of `zrb llm chat`, each added with one call and read from these variables **when a session starts**, so `zrb_init.py` may change them after importing zrb. A setting passed to `CameraConfig`, `ScreenshotConfig`, `DictationConfig` or `SpeechConfig` in code wins over its variable; see [Voice and camera](../llm/voice-camera.md) for that, [Programming the Voice](../llm/programming-the-voice.md) for recipes and Python extension points, and [Voice & Photo Troubleshooting](../llm/voice-photo-troubleshooting.md) for platform setup. Audio dependencies (sounddevice, numpy, vosk) load only when the microphone first opens, costing nothing at startup.
 
 ### Voice preset
 
@@ -193,6 +194,18 @@ The request to the model is the `emotion_live` prompt file, overridable like any
 | `ZRB_LLM_CAMERA_DEVICE` | Device used when the command names none; empty picks the platform default. On WSL, a `/dev/video*` path captures through Linux ffmpeg instead of Windows' `ffmpeg.exe` | (none) |
 | `ZRB_LLM_CAMERA_TIMEOUT` | Seconds a capture may take, every attempt included, before it is abandoned; `0` means no limit | `15` |
 | `ZRB_LLM_CAMERA_ENABLE_TOOL` | Give the agent a `TakePhoto` tool, so it can look through the camera on its own. Each call asks for approval, and plan mode denies it | `off` |
+
+### Screenshot
+
+`/screenshot [display]` attaches a capture of your screen to the next message.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_SCREENSHOT_COMMANDS` | Aliases for the screenshot command; empty leaves it out | `/screenshot, /ss` |
+| `ZRB_LLM_SCREENSHOT_BACKEND` | `auto` (the platform's chain, see [Screenshot](../llm/voice-camera.md#screenshot)), `pillow`, or one program: `screencapture`, `powershell`, `powershell.exe`, `grim`, `gnome-screenshot`, `spectacle`, `scrot`, `import` | `auto` |
+| `ZRB_LLM_SCREENSHOT_DISPLAY` | Screen captured when the command names none; empty is the main screen. macOS: a display number (`1` is the main one); Wayland with grim: an output name (`eDP-1`); Windows and WSL: `all` for every screen; X11: an X display (`:1`). Other programs capture what they always do | (none) |
+| `ZRB_LLM_SCREENSHOT_TIMEOUT` | Seconds a capture may take, every program tried included, before it is abandoned; `0` means no limit | `15` |
+| `ZRB_LLM_SCREENSHOT_ENABLE_TOOL` | Give the agent a `TakeScreenshot` tool, so it can look at your screen on its own. Each call asks for approval, and plan mode denies it | `off` |
 
 ```bash
 # Hands-free with OpenAI transcription, a wake word, and replies read aloud

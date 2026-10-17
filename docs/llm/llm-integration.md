@@ -49,6 +49,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/save <name>` | Save current session |
 | `/attach <file_path>` | Attach a file to next message (capped by `LLM_MAX_ATTACHMENT_BYTES`, default 20MB; content is sniffed against its extension). Pasting a message that is only file paths attaches them the same way — iTerm2's "Save to Temp File and Paste Path" for a clipboard image, or files dragged into the terminal. Text files (`.md`, `.txt`, `.csv`, `.html`) stay pasted as text |
 | `/photo [device]`, `/p [device]` | Capture a photo from the camera and attach it to the next message (device is optional and tab-completes; auto-detected per platform) |
+| `/screenshot [display]`, `/ss [display]` | Capture the screen and attach it to the next message (display is optional and tab-completes; see [Screenshot](voice-camera.md#screenshot)) |
 | `>` or `/redirect` (bare) | Copy last AI response to clipboard |
 | `>` or `/redirect <file_path>` | Save last AI response to a file |
 | `/copy` (bare) | Copy full conversation transcript to clipboard |
@@ -63,7 +64,7 @@ This launches a full-screen chat application where you can have a conversation w
 
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
-> The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-tui.md#slash-command-aliases). `/photo`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
+> The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-tui.md#slash-command-aliases). `/photo`, `/screenshot`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
 
 ### Recalling Previous Messages
 

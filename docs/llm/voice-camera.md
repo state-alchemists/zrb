@@ -2,11 +2,12 @@
 
 # Voice and Camera
 
-`zrb llm chat` can take a photo, take dictation, and read its replies aloud. Each is an optional feature added to the chat task with one call; the built-in `llm_chat` makes all three calls, so they work out of the box. For copy-pasteable setups and the Python extension points behind voice input, spoken responses, and TTS, see [Programming the Voice](programming-the-voice.md).
+`zrb llm chat` can take a photo, capture your screen, take dictation, and read its replies aloud. Each is an optional feature added to the chat task with one call; the built-in `llm_chat` makes every call, so they work out of the box. For copy-pasteable setups and the Python extension points behind voice input, spoken responses, and TTS, see [Programming the Voice](programming-the-voice.md).
 
 | Feature | Commands | Needs |
 |---|---|---|
 | Camera | `/photo [device]` | `ffmpeg` (on WSL, Windows' `ffmpeg.exe`), or Termux:API on Android |
+| Screenshot | `/screenshot [display]` | nothing on macOS, Windows and WSL; `grim`, `gnome-screenshot` or `spectacle` on Wayland; nothing (or `scrot`) on X11 |
 | Dictation | `/voice`, `/handsfree` | `pip install 'zrb[voice]'` |
 | Speech | `/speech` | nothing on macOS; Termux:API on Android; `espeak-ng` on Linux and Windows; a cloud key; or a local Pipecat voice |
 
@@ -15,6 +16,7 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 ## Table of Contents
 
 - [Camera](#camera)
+- [Screenshot](#screenshot)
 - [Dictation](#dictation)
 - [Speech](#speech)
 - [Talking with zrb](#talking-with-zrb)
@@ -42,6 +44,31 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 | Is one zrb does not know | The photo itself, since zrb cannot tell whether it reads images |
 
 The description costs one call to the multimodal model per photo. See [LLM Models](../configuration/llm-models.md#core-llm-routing) for setting it.
+
+## Screenshot
+
+`/screenshot` (or `/ss`) captures your screen and attaches it to your next message, so you can say what to do with it: `/screenshot`, then "why is this dialog greyed out?". `/screenshot 2` captures another display; press Tab after `/screenshot ` for the names your platform takes. The capture is written to a temporary directory, read back, and deleted, and it is scaled like any pasted image (`ZRB_LLM_MAX_IMAGE_DIMENSION`), so a 4K screen does not cost the model a 4K image.
+
+**How the screen is captured.** zrb tries each program the platform offers, in order, until one delivers, all within `ZRB_LLM_SCREENSHOT_TIMEOUT` (15 seconds):
+
+| Platform | Tried in order | Display argument |
+|---|---|---|
+| macOS | `screencapture -x` (silent) | a display number, `1` being the main one |
+| Windows | Pillow's `ImageGrab` (a zrb dependency), then `powershell` | `all` for every screen |
+| WSL | `powershell.exe`, which captures the Windows desktop | `all` for every screen |
+| Wayland | `grim` (sway, Hyprland), `gnome-screenshot`, `spectacle` (KDE) | an output name for `grim` (`eDP-1`) |
+| X11 | Pillow's `ImageGrab`, `scrot`, ImageMagick's `import`, `gnome-screenshot`, `spectacle` | an X display (`:1`) |
+| Termux | nothing: Android lets no app capture the screen without root or adb | — |
+
+A Wayland session never falls back to the X11 programs: through XWayland they would capture a black or partial screen. `ZRB_LLM_SCREENSHOT_BACKEND` names one program (or `pillow`) to use it alone.
+
+**On macOS** the first capture makes the system ask whether your terminal app may record the screen. Allow it in System Settings > Privacy & Security > Screen & System Audio Recording, then restart the terminal. Until then a capture fails, or shows only the wallpaper.
+
+**Letting the agent look.** With `ZRB_LLM_SCREENSHOT_ENABLE_TOOL=on`, the agent also gets a `TakeScreenshot` tool: when you say "look at this error", it can capture the screen itself. The tool is off by default and every call asks for approval, because a screen can show anything — a password manager, a private chat, a bank tab — and plan mode denies it. `auto_approve("TakeScreenshot")` skips the prompt; think twice before adding it. The tool and the command are separate switches: `ScreenshotConfig(commands=[], enable_tool=True)` gives the agent the tool without the command, and `ScreenshotConfig(commands=[])` with the tool off leaves screenshots out entirely.
+
+A screenshot reaches a text-only model by the same rule as a photo, in the table under [Camera](#camera).
+
+In the web chat, `/screenshot` and `TakeScreenshot` capture the screen of the machine zrb runs on, not the browser's.
 
 ## Dictation
 
@@ -236,6 +263,7 @@ Each feature takes a backend name or an object implementing its interface:
 | Feature | Interface | Built-in names |
 |---|---|---|
 | Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg` |
+| Screenshot | `zrb.llm.screenshot.AnyScreenshotBackend` — `async capture(display) -> bytes \| None` (PNG or JPEG) | `auto`, `pillow`, `screencapture`, `powershell`, `powershell.exe`, `grim`, `gnome-screenshot`, `spectacle`, `scrot`, `import` |
 | Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal`, `sensevoice`, and the local Pipecat services `whisper`, `moonshine`, `funasr` |
 | Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, so dictation knows zrb is heard); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini`, and the local Pipecat services `kokoro`, `piper`, `pocket` |
 
@@ -264,7 +292,7 @@ class LocalTTS(AnySpeechBackend):
 enable_speech(llm_chat, SpeechConfig(backend=LocalTTS(), enabled=True))
 ```
 
-`llm_chat` already called `enable_speech` with the default config; calling it again replaces that call, so there is still one `/speech` per session and the earlier session's speaker is closed. The same holds for `enable_camera` and `enable_dictation`.
+`llm_chat` already called `enable_speech` with the default config; calling it again replaces that call, so there is still one `/speech` per session and the earlier session's speaker is closed. The same holds for `enable_camera`, `enable_screenshot` and `enable_dictation`.
 
 If your backend fails, the local engine (`termux`, `say` or `espeak-ng`) speaks instead. zrb-extras adds a pyttsx3 backend. Audio passed to `transcribe` is 16 kHz mono 16-bit PCM; `zrb.llm.dictation.backend.wav.pcm16_to_wav_bytes` wraps it for an API that wants a file.
 
@@ -307,16 +335,18 @@ A custom `LLMChatTask` gets none of these until it asks:
 from zrb import LLMChatTask
 from zrb.llm.camera import enable_camera
 from zrb.llm.dictation import DictationConfig, enable_dictation
+from zrb.llm.screenshot import ScreenshotConfig, enable_screenshot
 from zrb.llm.speech import enable_speech
 
 chat = LLMChatTask(name="assistant")
 enable_camera(chat)
+enable_screenshot(chat, ScreenshotConfig(enable_tool=True))
 enable_dictation(chat, DictationConfig(mode="hands_free", wake_words=["hey zed"]))
 enable_speech(chat)
 ```
 
 `enable_speech` also works on an `LLMTask`, which has no commands: it speaks the task's final reply.
 
-The three features are built only from `LLMChatTask`'s public extension points — `append_custom_command`, `append_trigger`, `append_hook_factory`, `append_stream_observer` — so the same shapes are open to your own features. A stream observer is called with every event a run streams, text deltas included, after the UI. [LLMChatTask → Triggers & Custom Commands](../task-types/llmchat-task.md#triggers--custom-commands) describes them.
+The features are built only from `LLMChatTask`'s public extension points — `append_custom_command`, `append_trigger`, `append_hook_factory`, `append_stream_observer` — so the same shapes are open to your own features. A stream observer is called with every event a run streams, text deltas included, after the UI. [LLMChatTask → Triggers & Custom Commands](../task-types/llmchat-task.md#triggers--custom-commands) describes them.
 
 🔖 [Documentation Home](../README.md) > [LLM Integration](llm-integration.md) > Voice and Camera

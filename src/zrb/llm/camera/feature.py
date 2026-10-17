@@ -12,13 +12,13 @@ from typing import TYPE_CHECKING, Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_model
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.builtin import get_camera_backend
 from zrb.llm.camera.config import CameraConfig
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.permission.capability import Capability, tag
 from zrb.llm.util.feature_config import replace_registration
+from zrb.llm.util.image_for_model import get_image_for_current_model
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import stylize_error, stylize_muted
 
@@ -127,7 +127,7 @@ def create_camera_tools(config: CameraConfig) -> "list[ToolFuncEither]":
                 "camera did not deliver a photo and pass on this hint, rather "
                 f"than retrying:\n{backend.get_failure_hint()}"
             )
-        shown = await get_photo_for_current_model(photo)
+        shown = await get_image_for_current_model(photo)
         if not shown:
             return (
                 "Photo taken, but you cannot see it. [SYSTEM SUGGESTION]: Your "
@@ -143,24 +143,6 @@ def create_camera_tools(config: CameraConfig) -> "list[ToolFuncEither]":
     # EXECUTE, not READ: plan mode allows READ without asking, and a photo
     # of the user must always be approved.
     return [tag(take_photo, Capability.EXECUTE)]
-
-
-async def get_photo_for_current_model(
-    photo: "BinaryContent",
-) -> "str | list[BinaryContent]":
-    """*photo* as the running model can take it, by the same rule a prompt
-    attachment follows: kept for a model that reads images, else described by
-    `LLM_MULTIMODAL_MODEL`, else dropped (an empty string)."""
-    # lazy: transitively heavy — multimodal_describe loads pydantic_ai
-    from zrb.llm.agent.run.multimodal_describe import replace_unsupported_attachments
-    from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
-
-    fitted = await replace_unsupported_attachments(
-        [photo],
-        main_model=get_current_model(),
-        multimodal_model=resolve_configured_multimodal_model(),
-    )
-    return fitted or ""
 
 
 async def capture_photo(
