@@ -151,7 +151,7 @@ CFG.LLM_SPEECH_EMOTION_VOICES = {
 }
 ```
 
-Each `.wav` is a short clip spoken in that emotion, which `pocket` clones, tone included; an emotion with no voice is read in `ZRB_LLM_SPEECH_VOICE`. Your tone reaches the model in its live context (`sounding sad (0.82)`), never in your words. emotion2vec+ and `pocket` run on PyTorch, which loads in the chat process, so Ctrl+C can be slow while it does. Each setting is in [LLM configuration § Emotion](../configuration/llm-voice-camera.md#emotion), and an avatar can follow both emotions through the [`Emotion` hook](hooks.md#emotion).
+Each `.wav` is a short clip spoken in that emotion, which `pocket` clones, tone included; an emotion with no voice is read in `ZRB_LLM_SPEECH_VOICE`. Your tone reaches the model in its live context (`sounding sad (0.82)`), never in your words. Each setting is in [LLM configuration § Emotion](../configuration/llm-voice-camera.md#emotion), and an avatar can follow both emotions through the [`Emotion` hook](hooks.md#emotion).
 
 ## See what is configured
 

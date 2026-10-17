@@ -170,3 +170,43 @@ def test_the_backend_is_local_as_its_registered_service_is(monkeypatch):
     assert PipecatSpeechBackend("kokoro", config).is_local
     assert not PipecatSpeechBackend("remote", config).is_local
     assert not PipecatSpeechBackend("unknown", config).is_local
+
+
+def test_closing_does_not_wait_for_a_pipeline_still_starting(monkeypatch):
+    """Quitting mid-download returns at once; the late pipeline closes itself."""
+    building, release = threading.Event(), threading.Event()
+    built = FakeTTSServiceFactory()
+
+    def slow_create_service(name: str, config: SpeechConfig) -> FakeSpeechService:
+        building.set()
+        release.wait(5)
+        return built(name, config)
+
+    monkeypatch.setattr(
+        "zrb.llm.speech.backend.pipecat.tts_manager.create_service",
+        slow_create_service,
+    )
+    backend = PipecatSpeechBackend("pocket", SpeechConfig().resolve())
+    errors: list[Exception] = []
+
+    def speak() -> None:
+        try:
+            backend.create_audio(SENTENCE)
+        except RuntimeError as exc:
+            errors.append(exc)
+
+    speaker = threading.Thread(target=speak)
+    speaker.start()
+    assert building.wait(5)
+
+    closer = threading.Thread(target=backend.close)
+    closer.start()
+    closer.join(1)
+    is_close_blocked = closer.is_alive()
+    release.set()
+    speaker.join(5)
+
+    assert not is_close_blocked
+    assert [str(e) for e in errors] == ["the pocket speech service was closed"]
+    assert len(built.services) == 1
+    assert _tts_threads() == []
