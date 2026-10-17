@@ -230,7 +230,8 @@ async def test_non_interactive_run_settles_its_background_hooks():
         )
         await task.async_run(Session(SharedContext(), state_logger=MagicMock()))
 
-    mock_shutdown.assert_awaited_once_with(drain=True)
+    # No exit budget: a one-shot run drains for the hook manager's default.
+    mock_shutdown.assert_awaited_once_with(drain=True, drain_seconds=None)
 
 
 @pytest.mark.asyncio
