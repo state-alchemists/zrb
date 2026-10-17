@@ -14,6 +14,10 @@ from zrb.llm.tool.file import (
 from zrb.llm.tool.file_observation import clear_observed
 
 
+def _rd(*a, **kw):
+    return asyncio.run(read_file(*a, **kw))
+
+
 @pytest.fixture(autouse=True)
 def _reset_observed_state():
     """Reset the run-scoped observation map between tests."""
@@ -115,7 +119,7 @@ def test_write_file_allows_overwrite_after_read(tmp_path):
     file_path = tmp_path / "f.txt"
     file_path.write_text("original")
 
-    read_file(str(file_path))
+    _rd(str(file_path))
     result = _w(str(file_path), "updated")
 
     assert "Successfully wrote" in result
@@ -126,7 +130,7 @@ def test_write_file_blocks_overwrite_when_content_changed_after_read(tmp_path):
     file_path = tmp_path / "f.txt"
     file_path.write_text("original")
 
-    read_file(str(file_path))
+    _rd(str(file_path))
     file_path.write_text("changed by something else")  # bypasses our tools
     result = _w(str(file_path), "clobbered")
 
@@ -209,7 +213,7 @@ def test_observed_map_evicts_the_least_recently_used_scope(
     for name, path in (("s1", first), ("s2", second), ("s3", third)):
         token = run_scope(name)
         tokens[name] = token
-        read_file(str(path))
+        _rd(str(path))
         record_observed(str(path), path.read_text())
         current_agent_run_scope_reset(token)
 
@@ -249,7 +253,7 @@ def test_observed_map_treats_a_check_as_a_use_of_its_scope(
     record_observed(str(watched), watched.read_text())
     current_agent_run_scope_reset(token)
     token = run_scope("filler-a")
-    read_file(str(filler_a))
+    _rd(str(filler_a))
     current_agent_run_scope_reset(token)
 
     # A check under the watched scope refreshes its recency...
@@ -261,7 +265,7 @@ def test_observed_map_treats_a_check_as_a_use_of_its_scope(
     # `filler-a` scope is dropped and the watched scope survives — without
     # the touch above, it would have been the one evicted here.
     token = run_scope("filler-b")
-    read_file(str(filler_b))
+    _rd(str(filler_b))
     current_agent_run_scope_reset(token)
 
     token = run_scope("watched")
@@ -304,7 +308,7 @@ def test_check_listed_allows_a_file_already_read(tmp_path):
 
     target = tmp_path / "victim.txt"
     target.write_text("content")
-    read_file(str(target))
+    _rd(str(target))
     assert check_listed(str(target), recursive=False) is None
 
 

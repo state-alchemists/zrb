@@ -31,7 +31,12 @@ async def analyze_file(
             "nearby."
         )
 
-    content = read_file(abs_path)
+    content = await read_file(abs_path)
+    if not isinstance(content, str):
+        return (
+            f"Error: {path} is an image. [SYSTEM SUGGESTION]: AnalyzeFile "
+            "analyzes text; Read the image to see it."
+        )
     if content.startswith("Error:"):
         return content
 

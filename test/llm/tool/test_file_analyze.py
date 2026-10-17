@@ -39,7 +39,8 @@ async def test_analyze_file_not_found():
 @pytest.mark.asyncio
 async def test_analyze_file_read_error(temp_file):
     with patch(
-        "zrb.llm.tool.file_analyze.read_file", return_value="Error: Permission denied"
+        "zrb.llm.tool.file_analyze.read_file",
+        new=AsyncMock(return_value="Error: Permission denied"),
     ):
         result = await analyze_file(temp_file, "query")
         assert "Error: Permission denied" in result
@@ -66,3 +67,16 @@ async def test_analyze_file_truncation(temp_file):
         assert result == "Truncated analysis"
         user_msg = mock_run.call_args[1]["message"]
         assert "TRUNCATED" in user_msg
+
+
+@pytest.mark.asyncio
+async def test_analyze_file_points_an_image_at_read(tmp_path):
+    from PIL import Image
+
+    image = tmp_path / "shot.png"
+    Image.new("RGB", (4, 4), "red").save(image)
+
+    result = await analyze_file(str(image), "What is this?")
+
+    assert "[SYSTEM SUGGESTION]" in result
+    assert "Read the image" in result

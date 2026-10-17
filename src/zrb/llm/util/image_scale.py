@@ -127,3 +127,24 @@ def _has_alpha(img) -> bool:
     if img.mode in ("RGBA", "LA", "PA"):
         return True
     return img.mode == "P" and "transparency" in img.info
+
+
+def is_corrupt_image(data: bytes) -> bool:
+    """True when Pillow is installed and cannot decode *data*.
+
+    A provider rejects an undecodable image with an error that fails the whole
+    request, so a caller holding one should refuse it instead of sending it.
+    Without Pillow nothing can be checked and the answer is False.
+    """
+    try:
+        # lazy: heavy third-party — Pillow is optional; absence means no check.
+        from PIL import Image
+    except ImportError:
+        return False
+    try:
+        with Image.open(io.BytesIO(data)) as img:
+            img.load()
+    # What Pillow raises for unidentified, truncated or bomb-sized input.
+    except (OSError, EOFError, ValueError, SyntaxError, Image.DecompressionBombError):
+        return True
+    return False

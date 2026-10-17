@@ -1,6 +1,6 @@
 import io
 
-from zrb.llm.util.image_scale import ScaleResult, scale_image_bytes
+from zrb.llm.util.image_scale import ScaleResult, is_corrupt_image, scale_image_bytes
 
 
 def _png_bytes(
@@ -122,3 +122,26 @@ def test_scale_result_saved_bytes_never_negative():
     )
 
     assert result.saved_bytes == 0
+
+
+def test_a_decodable_image_is_not_corrupt():
+    assert is_corrupt_image(_png_bytes(4, 4)) is False
+
+
+def test_a_truncated_image_is_corrupt():
+    assert is_corrupt_image(_png_bytes(64, 64)[:40]) is True
+
+
+def test_without_pillow_no_image_counts_as_corrupt(monkeypatch):
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fail_pil(name, *args, **kwargs):
+        if name == "PIL" or name.startswith("PIL."):
+            raise ImportError("PIL unavailable")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fail_pil)
+
+    assert is_corrupt_image(b"not an image") is False

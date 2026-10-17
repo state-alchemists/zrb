@@ -48,6 +48,8 @@ class LLMLimitsMixin:
         # 20MB: above a phone photo or voice memo, under provider ceilings,
         # small enough to keep on-disk history bounded.
         self.DEFAULT_LLM_MAX_ATTACHMENT_BYTES: str = "20000000"
+        # On: a text-only model still gets a description or a clear refusal.
+        self.DEFAULT_LLM_ENABLE_READ_IMAGE: str = "on"
         super().__init__()
 
     LLM_MAX_REQUEST_PER_MINUTE = EnvField(
@@ -234,5 +236,16 @@ class LLMLimitsMixin:
             "Maximum file size (bytes) accepted by /attach and other "
             "attachment paths. Checked before the file is read. "
             "0 or negative disables the cap."
+        ),
+    )
+
+    LLM_ENABLE_READ_IMAGE = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "When on, Read on a PNG, JPEG, GIF or WebP file shows the image to "
+            "the model as an attachment (described via LLM_MULTIMODAL_MODEL "
+            "for a text-only model) instead of refusing it as binary. Capped "
+            "by LLM_MAX_ATTACHMENT_BYTES."
         ),
     )
