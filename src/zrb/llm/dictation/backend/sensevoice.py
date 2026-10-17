@@ -1,7 +1,6 @@
 """Offline dictation with SenseVoice on sherpa-onnx, fast on a CPU. The model
 is downloaded from Hugging Face on first use. Its own emotion tag is left
-unread: on English speech it was right 18% of the time, so the tone comes
-from `EmotionDetector` instead."""
+unread; the tone comes from `EmotionDetector` instead (ADR-0112)."""
 
 from __future__ import annotations
 
@@ -21,17 +20,20 @@ SAMPLE_RATE = 16000
 class SenseVoiceDictationBackend(AnyDictationBackend):
     """SenseVoice through sherpa-onnx, from the Hugging Face repo *model*.
 
-    *language* is ``auto`` or one of ``zh``, ``en``, ``ja``, ``ko``, ``yue``."""
+    *language* is ``auto`` or one of ``zh``, ``en``, ``ja``, ``ko``, ``yue``;
+    an empty or ``None`` argument takes the default."""
 
     def __init__(
         self,
-        model: str = "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17",
+        model: str | None = None,
         language: str = "",
-        num_threads: int = 4,
+        num_threads: int | None = None,
     ) -> None:
-        self._model = model
+        self._model = (
+            model or "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
+        )
         self._language = language or "auto"
-        self._num_threads = num_threads
+        self._num_threads = num_threads or 4
         self._recognizer: "OfflineRecognizer | None" = None
         self._loading = threading.Lock()
 
@@ -40,7 +42,10 @@ class SenseVoiceDictationBackend(AnyDictationBackend):
         return "sensevoice"
 
     async def prepare(self, report: Callable[[str], None]) -> None:
-        """Download and load the model before the first recording."""
+        """Download and load the model before the first recording, through
+        *report* saying so when it is not loaded yet."""
+        if self._recognizer is None:
+            report("Loading the sensevoice model…")
         await run_in_daemon(self._get_recognizer, name="zrb-sensevoice")
 
     async def transcribe(self, audio: bytes) -> str:

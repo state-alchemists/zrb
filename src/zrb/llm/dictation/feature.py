@@ -105,7 +105,7 @@ class DictationSession:
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
         self._emotion = (
-            EmotionDetector(config.emotion_model or "", config.emotion_min_score or 0)
+            EmotionDetector(config.emotion_model, config.emotion_min_score)
             if config.detect_emotion
             else None
         )
@@ -349,7 +349,7 @@ class DictationSession:
             try:
                 await self.backend.prepare(self._report)
                 if self._emotion is not None:
-                    await self._emotion.prepare()
+                    await self._emotion.prepare(self._report)
                 self._warn_without_wake_words()
                 self._rest(self._listening_badge())
                 async with aclosing(self._replies()) as replies:

@@ -45,7 +45,7 @@ Every duration below is in **seconds** (a `float`), unlike the millisecond knobs
 | `ZRB_LLM_DICTATION_MODE` | Mode a session starts in: `ptt` or `hands_free` | `ptt`, or as `ZRB_LLM_VOICE` sets it |
 | `ZRB_LLM_DICTATION_COMMANDS` | Aliases that start and stop a push-to-talk recording | `/voice, /v` |
 | `ZRB_LLM_DICTATION_HANDS_FREE_COMMANDS` | Aliases that switch hands-free on and off | `/handsfree` |
-| `ZRB_LLM_DICTATION_BACKEND` | Speech-to-text service: `vosk` (offline, and the only one that transcribes while you speak), `whisper` / `moonshine` / `funasr` (local, on Pipecat), `openai`, `google`, or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL`) | `vosk` |
+| `ZRB_LLM_DICTATION_BACKEND` | Speech-to-text service: `vosk` (offline, and the only one that transcribes while you speak), `whisper` / `moonshine` / `funasr` (local, on Pipecat), `sensevoice` (local, on sherpa-onnx), `openai`, `google`, or `multimodal` (uses `ZRB_LLM_MULTIMODAL_MODEL`) | `vosk` |
 | `ZRB_LLM_DICTATION_STT_MODEL` | Which model of the named local service to run, e.g. `small` for `whisper` or `medium-streaming` for `moonshine`; empty uses the service's own default. Ignored by `vosk`, `openai`, `google` and `multimodal` | (empty) |
 | `ZRB_LLM_DICTATION_WAKE_WORDS` | Comma-separated; in hands-free mode only utterances starting with one count. Said alone, one accepts the next utterance within `ZRB_LLM_DICTATION_WAKE_WINDOW` seconds | (none) |
 | `ZRB_LLM_DICTATION_WAKE_WINDOW` | Seconds a lone wake word keeps listening | `8.0` |

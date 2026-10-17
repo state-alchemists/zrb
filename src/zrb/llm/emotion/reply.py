@@ -80,11 +80,10 @@ class ReplyEmotion(AbstractCapability[None]):
             ),
             None,
         )
+        # The emotion itself was read from the stream, which this
+        # capability makes every run produce.
         if index is None or not _part_emotion(response.parts[index]):
             return response
-        # A streamed reply has set it already; a non-streamed one sets it here.
-        if not current_reply_emotion.get():
-            current_reply_emotion.set(_part_emotion(response.parts[index]))
         parts = list(response.parts)
         parts[index] = _strip_part(parts[index])
         return replace(response, parts=parts)
@@ -110,8 +109,8 @@ class _Opening:
         # Indexes of parts whose emoji was removed, so their end event is
         # stripped too.
         self._stripped: set[int] = set()
-        # Index of a part whose emoji arrived without the space after it;
-        # that space is dropped when it arrives.
+        # Index of a part whose text so far is only the emoji and blanks;
+        # the blanks that follow are dropped until its text starts.
         self._trimming: int | None = None
         # True once visible text has been seen; later parts pass untouched.
         self._is_opening_read = False

@@ -81,7 +81,7 @@ def _get_builtin_backend(
 
 def _create_sensevoice(config: "DictationConfig") -> SenseVoiceDictationBackend:
     return SenseVoiceDictationBackend(
-        config.sensevoice_model or "",
+        config.sensevoice_model,
         language=config.language or "",
-        num_threads=config.sensevoice_threads or 4,
+        num_threads=config.sensevoice_threads,
     )

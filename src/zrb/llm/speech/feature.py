@@ -15,7 +15,7 @@ from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.ambient_state import get_reply_emotion
+from zrb.llm.ambient_state import get_current_reply_emotion
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
@@ -281,7 +281,7 @@ class SpeechSession:
         self.speaker.say(text, is_stale=is_stale, voice=voice)
 
     def _say_reply_part(self, text: str) -> None:
-        self._say(text, voice=self._get_voice(get_reply_emotion()))
+        self._say(text, voice=self._get_voice(get_current_reply_emotion()))
 
     def _get_voice(self, emotion: str | None) -> str:
         """The voice for *emotion*; empty means the configured voice."""
@@ -375,7 +375,7 @@ class SpeechSession:
         the summary fails, is late, or another is still being made."""
         self._generation += 1
         text = clean_for_speech(reply)
-        voice = self._get_voice(get_reply_emotion())
+        voice = self._get_voice(get_current_reply_emotion())
         if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
             self._say(text, voice=voice)
             return

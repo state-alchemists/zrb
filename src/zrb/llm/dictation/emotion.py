@@ -3,8 +3,8 @@
 Dictation runs `EmotionDetector` beside the transcriber, on the same audio, so
 it hears the tone whichever backend writes the words, and a streamed one too.
 The tone reaches the turn as metadata (`InputProvenance.tone`), never as text
-in the user's words. On RAVDESS (actors, 180 clips) emotion2vec+ base was
-right 97% of the time at ~0.3 s a clip on a CPU.
+in the user's words. Why emotion2vec+ and not the transcriber's own tag:
+ADR-0112.
 """
 
 from __future__ import annotations
@@ -23,6 +23,20 @@ logger = logging.getLogger(__name__)
 #: other and unknown are not.
 _EMOTIONS = ("happy", "sad", "angry", "surprised")
 
+#: What funasr and torch raise loading the model or classifying a clip. Any of
+#: them costs only the tone, never the user's words.
+_MODEL_ERRORS = (
+    ImportError,
+    OSError,
+    RuntimeError,
+    ValueError,
+    KeyError,
+    IndexError,
+    TypeError,
+    AttributeError,
+    AssertionError,
+)
+
 #: Classifies one clip, returning emotion2vec's labels and their scores.
 Classify = Callable[[object], dict[str, list[object]]]
 
@@ -37,21 +51,21 @@ class Tone:
 
 class EmotionDetector:
     """emotion2vec+ (the Hugging Face repo *model*), reporting a tone it hears
-    with at least *min_score*."""
+    with at least *min_score*; ``None`` takes the default of each."""
 
-    def __init__(
-        self,
-        model: str = "emotion2vec/emotion2vec_plus_base",
-        min_score: float = 0.5,
-    ) -> None:
-        self._model_repo = model
-        self._min_score = min_score
+    def __init__(self, model: str | None = None, min_score: float | None = None) -> None:
+        self._model_repo = model or "emotion2vec/emotion2vec_plus_base"
+        self._min_score = 0.5 if min_score is None else min_score
         self._classify: Classify | None = None
-        self._loading = threading.Lock()
+        # Guards loading the model and every call into it.
+        self._model_lock = threading.Lock()
         self._is_unavailable = False
 
-    async def prepare(self) -> None:
-        """Load the model before the first utterance."""
+    async def prepare(self, report: Callable[[str], None]) -> None:
+        """Load the model before the first utterance, through *report*
+        saying so when it is not loaded yet."""
+        if self._classify is None and not self._is_unavailable:
+            report("Loading the emotion model…")
         await run_in_daemon(self._get_classify, name="zrb-emotion")
 
     async def hear(self, audio: bytes) -> Tone | None:
@@ -68,12 +82,12 @@ class EmotionDetector:
 
         samples = np.frombuffer(audio, dtype="<i2").astype("float32") / 32768
         try:
-            with self._loading:
+            with self._model_lock:
                 result = classify(samples)
             scores = [float(str(score)) for score in result["scores"]]
             best = max(range(len(scores)), key=scores.__getitem__)
             emotion = str(result["labels"][best]).split("/")[-1]
-        except (RuntimeError, ValueError, KeyError, IndexError, TypeError) as exc:
+        except _MODEL_ERRORS as exc:
             # Keep dictating; this utterance just has no tone.
             logger.warning(f"Hearing the tone failed: {exc}")
             return None
@@ -82,11 +96,11 @@ class EmotionDetector:
         return Tone(emotion, round(scores[best], 2))
 
     def _get_classify(self) -> Classify | None:
-        with self._loading:
+        with self._model_lock:
             if self._classify is None and not self._is_unavailable:
                 try:
                     self._classify = _load(self._model_repo)
-                except (ImportError, OSError, RuntimeError, ValueError) as exc:
+                except _MODEL_ERRORS as exc:
                     # Keep dictating, without tones.
                     self._is_unavailable = True
                     logger.warning(
