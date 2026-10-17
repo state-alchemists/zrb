@@ -1,6 +1,8 @@
+import asyncio
 import time
 from unittest.mock import patch
 
+import pytest
 from pydantic_ai.messages import ModelRequest, UserPromptPart
 
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
@@ -326,3 +328,28 @@ class TestLLMLimiterTokenCounting:
         result = limiter.to_str(nested)
         assert "outer" in result
         assert "inner" in result
+
+
+def test_acquire_admits_a_request_over_the_whole_minute_budget():
+    # It can never fit; it waits for an empty window, then goes.
+    limiter = LLMLimiter()
+    limiter.max_token_per_minute = 100
+    limiter.throttle_check_interval = 0.01
+
+    asyncio.run(asyncio.wait_for(limiter.acquire("word " * 1000), timeout=2))
+
+    assert len(limiter.request_log) == 1
+
+
+def test_acquire_waits_out_the_window_before_an_oversized_request():
+    limiter = LLMLimiter()
+    limiter.max_token_per_minute = 100
+    limiter.throttle_check_interval = 0.01
+    limiter.token_log.append((time.time(), 10))
+
+    async def run():
+        await asyncio.wait_for(limiter.acquire("word " * 1000), timeout=0.2)
+
+    with pytest.raises(TimeoutError):
+        asyncio.run(run())
+    assert len(limiter.request_log) == 0

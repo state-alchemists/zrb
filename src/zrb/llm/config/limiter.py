@@ -209,13 +209,18 @@ class LLMLimiter:
     async def acquire(self, content: Any, notifier: Callable[[str], Any] | None = None):
         """Wait until *content* fits the current rate limits, then record it."""
         estimated_tokens = self._count_tokens(content)
+        # A request over the whole per-minute budget can never fit: waiting
+        # for an empty window is all that helps, so it goes then, never hangs.
+        # A budget of 0 still blocks everything.
+        budget = self.max_token_per_minute
+        needed = min(estimated_tokens, budget) if budget > 0 else estimated_tokens
 
         self.prune_logs()
 
         notified = False
-        while not self.can_proceed(estimated_tokens):
-            wait_time = self.calculate_wait_time(estimated_tokens)
-            reason = self.get_limit_reason(estimated_tokens)
+        while not self.can_proceed(needed):
+            wait_time = self.calculate_wait_time(needed)
+            reason = self.get_limit_reason(needed)
 
             if notifier:
                 msg = f"Rate Limit reached: {reason}. Waiting {wait_time:.1f}s..."
