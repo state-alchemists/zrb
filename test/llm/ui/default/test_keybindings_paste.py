@@ -453,3 +453,16 @@ def test_bracketed_paste_of_the_same_image_twice_attaches_it_once(
 
     assert len(mock_ui.pending_attachments) == 1
     assert any("Already attached: pasted-image.png" in o for o in mock_ui.outputs)
+
+
+def test_bracketed_paste_of_an_image_queued_by_attach_is_not_added(
+    mock_ui, setup_bindings, tmp_path
+):
+    image = tmp_path / "photo.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+    mock_ui.pending_attachments.append(str(image))
+
+    _paste(setup_bindings, str(image))
+
+    assert mock_ui.pending_attachments == [str(image)]
+    assert any("Already attached: photo.png" in o for o in mock_ui.outputs)

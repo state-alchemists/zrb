@@ -309,3 +309,12 @@ def test_get_pasted_attachment_paths_rejects_empty_unbalanced_and_huge_pastes():
     assert get_pasted_attachment_paths("   ") is None
     assert get_pasted_attachment_paths("it's broken") is None
     assert get_pasted_attachment_paths("x.png " * 1000) is None
+
+
+def test_normalize_attachments_sends_a_file_queued_as_path_and_bytes_once(tmp_path):
+    path = _make_image(tmp_path, "photo.png")
+    pasted = normalize_attachments([path])
+
+    attachments = normalize_attachments([*pasted, path, path])
+
+    assert attachments == pasted

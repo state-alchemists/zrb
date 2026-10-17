@@ -288,6 +288,10 @@ class UIKeybindings:
             ui.append_to_output(stylize_error(f"\n  ❌ {message}\n"))
 
         name = os.path.basename(path)
+        # `/attach` queues the path itself; a paste of it is the same file.
+        if path in ui.pending_attachments:
+            ui.append_to_output(stylize_error(f"\n  📎 Already attached: {name}\n"))
+            return
         for attachment in normalize_attachments([path], print_fn=report_error):
             # Same bytes, same image: rejected like `/attach`'s repeated path.
             if attachment in ui.pending_attachments:
