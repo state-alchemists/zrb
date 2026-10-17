@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.multi_ui import MultiUI
 
 
@@ -203,3 +204,34 @@ def test_multi_ui_submit_message_uses_own_llm_task(multi_ui):
     with patch.object(multi_ui, "submit_user_message") as mock_submit:
         multi_ui.submit_message("report text")
     mock_submit.assert_called_once_with(llm_task, "report text", None)
+
+
+@pytest.mark.asyncio
+async def test_quitting_ends_the_loop_when_the_job_absorbs_its_cancel(multi_ui):
+    started = asyncio.Event()
+
+    async def absorbs_its_cancel() -> None:
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            return
+
+    multi_ui.message_queue.put_nowait(
+        QueuedMessage(text="hi", attachments=[], kind="message", run=absorbs_its_cancel)
+    )
+    loop = asyncio.create_task(multi_ui.process_messages_loop())
+    await asyncio.wait_for(started.wait(), 1)
+
+    loop.cancel()
+    # `asyncio.wait`, not `wait_for`: a timeout must not cancel the loop again.
+    await asyncio.wait({loop}, timeout=1)
+    is_ended = loop.done()
+    join = asyncio.ensure_future(multi_ui.message_queue.join())
+    await asyncio.wait({join}, timeout=1)
+    is_settled = join.done()
+    join.cancel()
+    loop.cancel()
+
+    assert is_ended
+    assert is_settled
