@@ -340,12 +340,23 @@ class HookManager(HookManagerLoading):
         return self._background_tasks
 
     async def shutdown(
-        self, grace_seconds: float = 2.0, *, drain: bool = False
+        self,
+        grace_seconds: float = 2.0,
+        *,
+        drain: bool = False,
+        drain_seconds: float | None = None,
     ) -> None:
-        """Drain or cancel pending background hooks within the grace period."""
+        """Drain or cancel pending background hooks.
+
+        With *drain*, pending hooks get *drain_seconds* (default
+        *grace_seconds*) to finish, extended to a pending agent hook's own
+        timeout. Stragglers are then cancelled and get *grace_seconds* to
+        kill their processes, however little drain time was left.
+        """
         if drain:
+            drain_for = grace_seconds if drain_seconds is None else drain_seconds
             await self._settle_background_hooks(
-                self._effective_grace_seconds(grace_seconds)
+                self._effective_grace_seconds(drain_for)
             )
         tasks = [task for task in self._background_tasks if not task.done()]
         for task in tasks:
