@@ -1,3 +1,5 @@
+import os
+from pathlib import Path
 from unittest.mock import MagicMock
 
 from pydantic_ai.messages import UserContent
@@ -232,8 +234,48 @@ def test_get_pasted_attachment_paths_accepts_escaped_and_quoted_paths(tmp_path):
 
 def test_get_pasted_attachment_paths_accepts_a_file_uri(tmp_path):
     path = _make_image(tmp_path, "my shot.png")
-    uri = "file://" + path.replace(" ", "%20")
+    # as_uri() gives this platform's form: file:///C:/... on Windows.
+    uri = Path(path).as_uri()
+    assert "%20" in uri
     assert get_pasted_attachment_paths(uri) == [path]
+    localhost_uri = uri.replace("file:///", "file://localhost/", 1)
+    assert get_pasted_attachment_paths(localhost_uri) == [path]
+
+
+def test_get_pasted_attachment_paths_reads_a_drive_letter_uri_on_windows(
+    tmp_path, monkeypatch
+):
+    import nturl2path
+
+    import zrb.llm.util.attachment as attachment_module
+
+    monkeypatch.setattr(attachment_module, "url2pathname", nturl2path.url2pathname)
+    monkeypatch.setattr(attachment_module.os.path, "isfile", lambda path: True)
+    monkeypatch.setattr(attachment_module.os.path, "abspath", lambda path: path)
+
+    paths = get_pasted_attachment_paths(
+        "file:///C:/Users/me/my%20shot.png file://server/share/shot.png"
+    )
+
+    assert paths == ["C:\\Users\\me\\my shot.png", "\\\\server\\share\\shot.png"]
+
+
+def test_normalize_attachments_reports_a_file_removed_after_it_was_found(
+    tmp_path, monkeypatch
+):
+    path = _make_image(tmp_path, "gone.png")
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 1000)
+    original_getsize = os.path.getsize
+
+    def getsize_after_removal(target):
+        os.remove(target)
+        return original_getsize(target)
+
+    monkeypatch.setattr(os.path, "getsize", getsize_after_removal)
+    messages = []
+
+    assert normalize_attachments([path], print_fn=messages.append) == []
+    assert any("Failed to read attachment" in m for m in messages)
 
 
 def test_get_pasted_attachment_paths_rejects_a_path_inside_prose(tmp_path):

@@ -3,7 +3,8 @@ import shlex
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import unquote, urlparse
+from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -72,11 +73,18 @@ def normalize_attachments(
 
 
 def get_oversized_by(path: str) -> "tuple[int, int] | None":
-    """``(actual_size, limit)`` when *path* exceeds the configured cap, else None."""
+    """``(actual_size, limit)`` when *path* exceeds the configured cap, else None.
+
+    None too when the size cannot be read, e.g. a temp file removed since it
+    was found: the read that follows reports it, so this check never raises.
+    """
     limit = CFG.LLM_MAX_ATTACHMENT_BYTES
     if limit <= 0:
         return None
-    size = os.path.getsize(path)
+    try:
+        size = os.path.getsize(path)
+    except OSError:
+        return None
     return (size, limit) if size > limit else None
 
 
@@ -181,7 +189,11 @@ def _split_pasted_paths(text: str) -> list[str]:
 
 def _to_local_path(token: str) -> str:
     if token.startswith("file://"):
-        token = unquote(urlparse(token).path)
+        parsed = urlparse(token)
+        # url2pathname turns Windows' `/C:/x` into `C:\x`; a host other than
+        # localhost is a UNC share, `file://server/share/x`.
+        host = "" if parsed.netloc in ("", "localhost") else parsed.netloc
+        token = url2pathname(f"//{host}{parsed.path}" if host else parsed.path)
     return os.path.abspath(os.path.expanduser(token))
 
 
