@@ -244,7 +244,7 @@ Scanning is lazy: nothing is read from disk until the first lookup, so `scan()` 
 
 - `await execute_hooks(event, event_data, session_id=None, metadata=None, ...)` returns each hook's raw execution result.
 - `await execute_hooks_simple(event, event_data, session_id=None, metadata=None)` returns them flattened into `HookResult` objects.
-- `await shutdown(grace_seconds=2.0, drain=False)` cancels pending background hooks and waits up to `grace_seconds` for them to stop. With `drain=True` it first lets them run to completion within the grace period, and cancels only what is left.
+- `await shutdown(grace_seconds=2.0, drain=False, drain_seconds=None)` cancels pending background hooks and waits up to `grace_seconds` for them to stop. With `drain=True` it first lets them run to completion for `drain_seconds` (`grace_seconds` when `None`, extended to a pending agent hook's own timeout), and cancels only what is left.
 
 `ToolRegistry` has two methods beyond its verbs:
 
