@@ -366,8 +366,8 @@ class Speaker:
             # billed for a word nobody hears.
             if not backends[0].needs_zrb_playback or not self._is_in_process_wanted():
                 return
-            # The path a sentence takes, which contains each backend's failure.
-            self._create_with_fallback("Hi.").cleanup()
+            # That backend alone: a fallback may be a cloud voice, billed too.
+            self._create_utterance(backends[0], "Hi.", []).cleanup()
         except (RuntimeError, ValueError) as exc:
             # The first sentence tries again, and reports it if it fails too.
             logger.debug(f"Speech warm-up failed: {exc}")

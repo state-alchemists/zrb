@@ -87,7 +87,10 @@ FACADE_BUDGETS = {
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.
-    "llm/task/chat/task.py": 1005,
+    # +23 (1005->1028): the `capability_factories` collection (append/prepend/
+    # set/remove plus its property), building a run's pydantic-ai capabilities
+    # from its context, which emotion uses -- new surface.
+    "llm/task/chat/task.py": 1028,
     # +26 (783->809): `stream_observers` with `set_stream_observers` and append/prepend/
     # remove, handed to `run_agent` -- new surface.
     # +4 (809->813): the `dynamic_yolo` docstring names the arguments a

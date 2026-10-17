@@ -2,7 +2,12 @@
 
 import pytest
 from pydantic_ai import Agent
-from pydantic_ai.messages import ModelResponse, PartDeltaEvent, PartStartEvent
+from pydantic_ai.messages import (
+    ModelResponse,
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+)
 from pydantic_ai.models.function import FunctionModel
 
 from zrb.llm.ambient_state import current_reply_emotion
@@ -94,3 +99,35 @@ async def test_a_reply_of_only_spaces_passes_through():
 
     assert read == []
     assert seen.strip() == output.strip() == ""
+
+
+async def _noop(*_):
+    return None
+
+
+@pytest.mark.asyncio
+async def test_a_reply_without_an_emotion_does_not_keep_the_last_one():
+    """Even run without a stream handler: the capability makes every run
+    stream, and a text part opening with no emotion clears it."""
+    replies = iter(["😊 Hello.", "Plain words."])
+
+    def respond(messages, info):
+        return ModelResponse(parts=[TextPart(next(replies))])
+
+    async def stream(messages, info):
+        yield next(replies)
+
+    model = FunctionModel(respond, stream_function=stream)
+    agent = Agent(model, capabilities=[ReplyEmotion(_noop, _noop)])
+    token = current_reply_emotion.set("")
+    try:
+        first = await agent.run("hi")
+        after_first = current_reply_emotion.get()
+        await agent.run("again")
+        after_second = current_reply_emotion.get()
+    finally:
+        current_reply_emotion.reset(token)
+
+    assert first.output == "Hello."
+    assert after_first == "happy"
+    assert after_second == ""

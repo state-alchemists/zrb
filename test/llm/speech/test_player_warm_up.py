@@ -88,3 +88,23 @@ def test_warm_up_waits_for_a_player_program_to_be_unwanted(lock_file):
     time.sleep(0.2)
 
     assert backend.made == []
+
+
+class FallbackBackend(CloudBackend):
+    """The local voice a speaker falls back to."""
+
+
+def test_warm_up_never_falls_back_to_another_backend(lock_file, monkeypatch):
+    failing = WarmingBackend()
+    failing.create_audio = lambda text: (_ for _ in ()).throw(RuntimeError("no model"))
+    fallback = FallbackBackend()
+    monkeypatch.setattr(
+        "zrb.llm.speech.player.get_speech_backend",
+        lambda name, config: fallback if name == "auto" else failing,
+    )
+    speaker = Speaker(_config("configured", lock_file))
+
+    speaker.warm_up()
+    time.sleep(0.2)
+
+    assert fallback.made == []
