@@ -96,10 +96,25 @@ async def test_a_missing_engine_names_what_to_install(monkeypatch):
 @pytest.mark.asyncio
 async def test_prepare_loads_the_model_before_the_first_recording(engine):
     backend = SenseVoiceDictationBackend("me/sv")
+    reports: list[str] = []
 
-    await backend.prepare(lambda message: None)
+    await backend.prepare(reports.append)
+    await backend.prepare(reports.append)
 
     assert engine.built["model"] == "/cache/me/sv/model.int8.onnx"
+    assert reports == ["Loading the sensevoice model…"]
+
+
+@pytest.mark.asyncio
+async def test_no_model_or_thread_count_takes_the_defaults(engine):
+    await SenseVoiceDictationBackend(None, num_threads=None).prepare(
+        lambda message: None
+    )
+
+    assert engine.built["model"].endswith(
+        "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/model.int8.onnx"
+    )
+    assert engine.built["num_threads"] == 4
 
 
 @pytest.mark.asyncio

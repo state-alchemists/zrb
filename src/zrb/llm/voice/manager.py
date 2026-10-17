@@ -22,7 +22,7 @@ from zrb.llm.voice.registry import (
 from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
 
 if TYPE_CHECKING:
-    from loguru import Message
+    from loguru import Message, Record
     from pipecat.services.stt_service import STTService
     from pipecat.services.tts_service import TTSService
 
@@ -151,15 +151,26 @@ def route_pipecat_logs() -> None:
 
     def to_logging(message: "Message") -> None:
         record = message.record
-        logging.getLogger(record["name"] or "pipecat").log(
-            record["level"].no, record["message"]
+        exception = record["exception"]
+        _get_logger(record).log(
+            record["level"].no,
+            record["message"],
+            exc_info=exception.value if exception is not None else None,
         )
+
+    def is_wanted(record: "Record") -> bool:
+        # Skip formatting a record `logging` would drop anyway.
+        return _get_logger(record).isEnabledFor(record["level"].no)
 
     try:
         logger.remove(_LOGURU_DEFAULT_SINK)
     except ValueError:
         return
-    logger.add(to_logging, level="DEBUG", format="{message}")
+    logger.add(to_logging, level="DEBUG", format="{message}", filter=is_wanted)
+
+
+def _get_logger(record: "Record") -> logging.Logger:
+    return logging.getLogger(record["name"] or "pipecat")
 
 
 #: The id loguru gives the stderr sink it starts with.

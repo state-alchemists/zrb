@@ -17,13 +17,15 @@ LABELS = ["生气/angry", "开心/happy", "中立/neutral", "难过/sad", "吃�
 @pytest.fixture
 def classifier(monkeypatch):
     """A fake funasr AutoModel scoring every clip as *scores* says."""
-    state = SimpleNamespace(scores=[0.0, 0.9, 0.1, 0.0, 0.0], loaded=[])
+    state = SimpleNamespace(scores=[0.0, 0.9, 0.1, 0.0, 0.0], loaded=[], error=None)
 
     class AutoModel:
         def __init__(self, model, disable_update):
             state.loaded.append(model)
 
         def generate(self, input, granularity, extract_embedding):
+            if state.error is not None:
+                raise state.error
             return [{"labels": LABELS, "scores": state.scores}]
 
     monkeypatch.setitem(sys.modules, "funasr", SimpleNamespace(AutoModel=AutoModel))
@@ -61,13 +63,26 @@ async def test_a_failing_model_hears_no_tone_and_says_why(classifier, caplog):
 
 
 @pytest.mark.asyncio
-async def test_prepare_loads_the_model_once(classifier):
-    detector = EmotionDetector("me/e2v")
+async def test_a_model_raising_an_unexpected_error_costs_only_the_tone(
+    classifier, caplog
+):
+    classifier.error = AssertionError("bad clip")
 
-    await detector.prepare()
+    assert await EmotionDetector().hear(b"\x00\x00") is None
+    assert "bad clip" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_prepare_loads_the_model_once_and_says_so(classifier):
+    detector = EmotionDetector("me/e2v")
+    reports: list[str] = []
+
+    await detector.prepare(reports.append)
+    await detector.prepare(reports.append)
     await detector.hear(b"\x00\x00")
 
     assert classifier.loaded == ["/cache/me/e2v"]
+    assert reports == ["Loading the emotion model…"]
 
 
 @pytest.mark.asyncio
@@ -91,7 +106,7 @@ class FakeDetector:
     def __init__(self, model, min_score):
         self.prepared = 0
 
-    async def prepare(self):
+    async def prepare(self, report):
         self.prepared += 1
 
     async def hear(self, audio):

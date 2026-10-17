@@ -31,3 +31,16 @@ def test_a_sink_a_project_added_keeps_receiving():
         logger.remove(sink)
 
     assert [str(m).strip() for m in received] == ["still mine"]
+
+
+def test_a_logged_exception_keeps_its_traceback(caplog):
+    route_pipecat_logs()
+
+    with caplog.at_level(logging.ERROR):
+        try:
+            raise ValueError("pipeline broke")
+        except ValueError:
+            logger.exception("the service failed")
+
+    (record,) = caplog.records
+    assert record.exc_info is not None and record.exc_info[0] is ValueError

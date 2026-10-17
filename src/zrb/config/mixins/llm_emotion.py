@@ -24,8 +24,9 @@ class LLMEmotionMixin:
         serialize=on_off,
         doc=(
             "'on' asks the model to open each reply with an emoji for how it "
-            "feels, and fires the Emotion hook with the emotion of each reply "
-            "and of each prompt ending in one (e.g. a dictated prompt, with "
-            "{ENV_PREFIX}_LLM_DICTATION_DETECT_EMOTION on). Default: off."
+            "feels, which zrb takes out before the user sees it, and fires the "
+            "Emotion hook with the emotion of each reply and with the tone "
+            "dictation heard each prompt in "
+            "({ENV_PREFIX}_LLM_DICTATION_DETECT_EMOTION). Default: off."
         ),
     )

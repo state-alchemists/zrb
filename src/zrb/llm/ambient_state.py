@@ -38,7 +38,7 @@ current_reply_emotion: ContextVar[str] = ContextVar(
 )
 
 
-def get_reply_emotion() -> str:
+def get_current_reply_emotion() -> str:
     """The emotion of the reply being streamed; empty when it has none."""
     return current_reply_emotion.get()
 
@@ -135,5 +135,5 @@ __all__ = [
     "current_speech_voice",
     "get_current_speech_voice",
     "current_reply_emotion",
-    "get_reply_emotion",
+    "get_current_reply_emotion",
 ]
