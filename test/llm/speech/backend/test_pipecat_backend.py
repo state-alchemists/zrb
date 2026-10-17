@@ -15,6 +15,9 @@ from pipecat.services.tts_service import TTSService  # noqa: E402
 from zrb.config.config import CFG  # noqa: E402
 from zrb.llm.speech import SpeechConfig  # noqa: E402
 from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend  # noqa: E402
+from zrb.llm.voice.builtin import TTS_SERVICE_SPECS  # noqa: E402
+from zrb.llm.voice.registry import TTSServiceRegistry  # noqa: E402
+from zrb.llm.voice.spec import TTSServiceSpec  # noqa: E402
 
 RATE = 24000
 CHUNK = b"\x11\x22" * 400
@@ -155,3 +158,15 @@ def test_a_closed_backend_starts_no_second_pipeline(factory):
 
     assert factory.services == []
     assert _tts_threads() == []
+
+
+
+def test_the_backend_is_local_as_its_registered_service_is(monkeypatch):
+    registry = TTSServiceRegistry(TTS_SERVICE_SPECS)
+    registry.register("remote", TTSServiceSpec(name="remote", is_local=False))
+    monkeypatch.setattr("zrb.llm.speech.backend.pipecat.tts_registry", registry)
+    config = SpeechConfig().resolve()
+
+    assert PipecatSpeechBackend("kokoro", config).is_local
+    assert not PipecatSpeechBackend("remote", config).is_local
+    assert not PipecatSpeechBackend("unknown", config).is_local

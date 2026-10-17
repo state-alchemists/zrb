@@ -104,7 +104,7 @@ class Speaker:
         self._playing: Utterance | None = None
         # Cached backends may hold models or running pipelines.
         self._backends: list[AnySpeechBackend] | None = None
-        # The worker and a warm-up may both ask for the backends first.
+        # The prepare thread and the warm-up thread may both build backends.
         self._building = threading.Lock()
         # Paused utterances wait on `_unpaused`.
         self._is_paused = False
@@ -350,9 +350,9 @@ class Speaker:
             )
 
     def warm_up(self) -> None:
-        """Load the model of a backend zrb plays itself, on a thread of its
-        own, so the first sentence does not wait for it. One short word is
-        made the way a sentence is (through any wrapper) and never played."""
+        """Load a local in-process backend's model on a thread of its own, so
+        the first sentence does not wait for it. One word is made and never
+        played."""
         threading.Thread(
             target=self._warm_up,
             name=f"{CFG.ROOT_GROUP_NAME}-speech-warm-up",
@@ -361,15 +361,18 @@ class Speaker:
 
     def _warm_up(self) -> None:
         try:
-            backends = self._get_backends()
-            # Only a model zrb runs needs warming; a cloud voice would be
-            # billed for a word nobody hears.
-            if not backends[0].needs_zrb_playback or not self._is_in_process_wanted():
+            backend = self._get_backends()[0]
+            # A remote voice would bill a word nobody hears; the fallback is
+            # never tried for the same reason.
+            if not (
+                backend.is_local
+                and backend.needs_zrb_playback
+                and self._is_in_process_wanted()
+            ):
                 return
-            # That backend alone: a fallback may be a cloud voice, billed too.
-            self._create_utterance(backends[0], "Hi.", []).cleanup()
-        except (RuntimeError, ValueError) as exc:
-            # The first sentence tries again, and reports it if it fails too.
+            self._create_utterance(backend, "Hi.", []).cleanup()
+        except (ImportError, OSError, RuntimeError, ValueError) as exc:
+            # The first sentence tries again and reports a failure itself.
             logger.debug(f"Speech warm-up failed: {exc}")
 
     def _get_backends(self) -> list[AnySpeechBackend]:

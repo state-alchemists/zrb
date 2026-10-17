@@ -19,11 +19,11 @@ from zrb.util.async_thread import run_in_daemon
 
 logger = logging.getLogger(__name__)
 
-#: The emotion2vec labels a tone is reported for, in the emotion feature's
-#: names. The others (neutral, fearful, disgusted, other, unknown) are not.
+#: The emotion2vec labels reported as a tone. Neutral, fearful, disgusted,
+#: other and unknown are not.
 _EMOTIONS = ("happy", "sad", "angry", "surprised")
 
-#: emotion2vec on one clip: its labels and their scores.
+#: Classifies one clip, returning emotion2vec's labels and their scores.
 Classify = Callable[[object], dict[str, list[object]]]
 
 
@@ -67,11 +67,16 @@ class EmotionDetector:
         import numpy as np
 
         samples = np.frombuffer(audio, dtype="<i2").astype("float32") / 32768
-        with self._loading:
-            result = classify(samples)
-        scores = [float(str(score)) for score in result["scores"]]
-        best = max(range(len(scores)), key=scores.__getitem__)
-        emotion = str(result["labels"][best]).split("/")[-1]
+        try:
+            with self._loading:
+                result = classify(samples)
+            scores = [float(str(score)) for score in result["scores"]]
+            best = max(range(len(scores)), key=scores.__getitem__)
+            emotion = str(result["labels"][best]).split("/")[-1]
+        except (RuntimeError, ValueError, KeyError, IndexError, TypeError) as exc:
+            # Keep dictating; this utterance just has no tone.
+            logger.warning(f"Hearing the tone failed: {exc}")
+            return None
         if emotion not in _EMOTIONS or scores[best] < self._min_score:
             return None
         return Tone(emotion, round(scores[best], 2))
@@ -82,7 +87,7 @@ class EmotionDetector:
                 try:
                     self._classify = _load(self._model_repo)
                 except (ImportError, OSError, RuntimeError, ValueError) as exc:
-                    # Dictation goes on without the tone rather than failing.
+                    # Keep dictating, without tones.
                     self._is_unavailable = True
                     logger.warning(
                         f"Emotion detection is off: {exc}. It needs funasr and "
@@ -92,8 +97,8 @@ class EmotionDetector:
 
 
 def _load(repo: str) -> Classify:
-    # lazy: heavy third-party — huggingface_hub; funasr (and torch) are
-    # imported by name, as they are not a dependency zrb declares.
+    # lazy: heavy third-party — huggingface_hub. funasr and torch are not zrb
+    # dependencies, so funasr is imported by name.
     from huggingface_hub import snapshot_download
 
     auto_model = importlib.import_module("funasr").AutoModel

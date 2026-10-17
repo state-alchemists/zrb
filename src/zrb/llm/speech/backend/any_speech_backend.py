@@ -29,5 +29,10 @@ class AnySpeechBackend(ABC):
         """Whether the backend requires zrb's own playback."""
         return False
 
+    @property
+    def is_local(self) -> bool:
+        """Whether the backend synthesizes on this machine, not a paid API."""
+        return False
+
     def close(self) -> None:
         """Release backend resources during session teardown."""

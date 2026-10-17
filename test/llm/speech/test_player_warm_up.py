@@ -28,7 +28,7 @@ def _config(backend, lock_file, player="auto"):
 
 
 class WarmingBackend(AnySpeechBackend):
-    """A backend zrb plays itself, recording what it was asked to make."""
+    """A local backend zrb plays itself, recording what it was asked to make."""
 
     def __init__(self):
         self.made: list[str] = []
@@ -36,6 +36,10 @@ class WarmingBackend(AnySpeechBackend):
 
     @property
     def needs_zrb_playback(self) -> bool:
+        return True
+
+    @property
+    def is_local(self) -> bool:
         return True
 
     def create_utterance(self, text):
@@ -80,6 +84,33 @@ def test_warm_up_leaves_a_voice_zrb_does_not_run_alone(lock_file):
     time.sleep(0.2)
 
     assert backend.made == []
+
+
+class RemoteInProcessBackend(WarmingBackend):
+    """A paid API whose audio zrb plays, like a registered cloud Pipecat voice."""
+
+    @property
+    def is_local(self) -> bool:
+        return False
+
+
+def test_warm_up_leaves_a_remote_voice_zrb_plays_alone(lock_file):
+    backend = RemoteInProcessBackend()
+    Speaker(_config(backend, lock_file)).warm_up()
+    time.sleep(0.2)
+
+    assert backend.made == []
+
+
+def test_warm_up_logs_a_missing_package_instead_of_raising(lock_file, monkeypatch):
+    raised = []
+    monkeypatch.setattr(threading, "excepthook", raised.append)
+    backend = WarmingBackend()
+    backend.create_audio = lambda text: (_ for _ in ()).throw(ImportError("no torch"))
+    Speaker(_config(backend, lock_file)).warm_up()
+    time.sleep(0.2)
+
+    assert raised == []
 
 
 def test_warm_up_waits_for_a_player_program_to_be_unwanted(lock_file):

@@ -76,9 +76,8 @@ def enable_speech(
         sessions.get().handle_stream_event(event)
 
     async def warm_up() -> AsyncIterator[None]:
-        # A trigger, because triggers start once the UI runs and captures
-        # what is printed: loading a voice prints, and before that it would
-        # land on the terminal under the UI.
+        # Run as a trigger: triggers start after the UI captures output, and
+        # loading a voice prints.
         sessions.get().warm_up()
         return
         yield
@@ -270,8 +269,8 @@ class SpeechSession:
             self.progress.handle_event(event)
 
     def warm_up(self) -> None:
-        """Load the voice now rather than at the first sentence, while
-        speech is on."""
+        """Load the voice now instead of at the first sentence, if speech
+        is on."""
         if self.speaker.is_enabled:
             self.speaker.warm_up()
 
@@ -282,11 +281,10 @@ class SpeechSession:
         self.speaker.say(text, is_stale=is_stale, voice=voice)
 
     def _say_reply_part(self, text: str) -> None:
-        # The emotion feature read it from the reply before this sentence.
         self._say(text, voice=self._get_voice(get_reply_emotion()))
 
     def _get_voice(self, emotion: str | None) -> str:
-        """The voice for *emotion*; empty: the configured one."""
+        """The voice for *emotion*; empty means the configured voice."""
         return (self._config.emotion_voices or {}).get(emotion or "", "")
 
     def _seconds_since_said(self) -> float:

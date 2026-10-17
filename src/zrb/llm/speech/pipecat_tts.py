@@ -204,8 +204,8 @@ class TTSPipeline:
         self._speaking: SpokenSentence | None = None
         self._claim = threading.Lock()
         self._worker: "PipelineWorker | None" = worker
-        # The voice the service was built with, which a sentence asking for
-        # none returns to, and the one it speaks in now.
+        # The service's own voice, used when a sentence asks for none, and
+        # the voice currently active.
         self._default_voice = str(getattr(service.settings, "voice", None) or "")
         self._voice = self._default_voice
         self._runner: "asyncio.Task[None] | None" = runner

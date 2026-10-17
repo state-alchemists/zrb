@@ -139,11 +139,13 @@ tts_manager = TTSServiceManager(tts_registry)
 
 @functools.cache
 def route_pipecat_logs() -> None:
-    """Send Pipecat's log records to `logging`, once, before it is imported.
+    """Send what loguru's default sink would write to `logging`, once, before
+    Pipecat is imported.
 
     Pipecat logs through loguru, whose default sink writes every DEBUG line
-    straight to stderr, over the chat UI; through `logging` they are filtered
-    and shown the way zrb's own records are."""
+    to stderr, over the chat UI. Only that sink is replaced: one a project
+    added keeps receiving, and when the default is gone already nothing is
+    added."""
     # lazy: heavy third-party — loguru comes with pipecat, the voice extra.
     from loguru import logger
 
@@ -153,5 +155,12 @@ def route_pipecat_logs() -> None:
             record["level"].no, record["message"]
         )
 
-    logger.remove()
+    try:
+        logger.remove(_LOGURU_DEFAULT_SINK)
+    except ValueError:
+        return
     logger.add(to_logging, level="DEBUG", format="{message}")
+
+
+#: The id loguru gives the stderr sink it starts with.
+_LOGURU_DEFAULT_SINK = 0

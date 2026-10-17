@@ -71,8 +71,7 @@ class ReplyEmotion(AbstractCapability[None]):
         request_context: ModelRequestContext,
         response: ModelResponse,
     ) -> ModelResponse:
-        # Only the first text that shows opens the reply; later text keeps
-        # an emoji it starts with.
+        # Only the first non-blank text part can carry the emoji.
         index = next(
             (
                 i
@@ -83,7 +82,7 @@ class ReplyEmotion(AbstractCapability[None]):
         )
         if index is None or not _part_emotion(response.parts[index]):
             return response
-        # The stream read it already; a reply that did not stream is read here.
+        # A streamed reply has set it already; a non-streamed one sets it here.
         if not current_reply_emotion.get():
             current_reply_emotion.set(_part_emotion(response.parts[index]))
         parts = list(response.parts)
@@ -97,22 +96,24 @@ class ReplyEmotion(AbstractCapability[None]):
 
 
 class _Opening:
-    """Holds a response's events from its first text part's start until that
-    part shows a visible character, which tells whether it opens with an
-    emotion emoji; then passes them on in their order, without the emoji.
-    Later text parts pass untouched. `take` and `flush` return what to pass
-    on; a `str` among it is the emotion read (``""`` when it opens with
-    none)."""
+    """Buffers a response's events from the start of its first text part
+    until that part has visible text, then releases them in order with the
+    leading emoji removed. Later text parts pass through untouched.
+
+    `take` and `flush` return the events to pass on. A `str` among them is
+    the emotion read, ``""`` when the reply opens without one."""
 
     def __init__(self) -> None:
         self._held: list[AgentStreamEvent] = []
         self._index: int | None = None
         self._text = ""
-        # Text parts whose emoji was taken out, so their end event is too.
+        # Indexes of parts whose emoji was removed, so their end event is
+        # stripped too.
         self._stripped: set[int] = set()
-        # A part whose emoji came alone: the space after it is still to come.
+        # Index of a part whose emoji arrived without the space after it;
+        # that space is dropped when it arrives.
         self._trimming: int | None = None
-        # Set once a text part has shown text: the reply's opening is read.
+        # True once visible text has been seen; later parts pass untouched.
         self._is_opening_read = False
 
     def take(self, event: AgentStreamEvent) -> "list[AgentStreamEvent | str]":
@@ -140,7 +141,8 @@ class _Opening:
         return []
 
     def flush(self) -> "list[AgentStreamEvent | str]":
-        """Pass on what is held unchanged: its part ended showing no text."""
+        """Release the held events unchanged; their part had no visible
+        text."""
         held, self._held, self._index, self._text = self._held, [], None, ""
         return list(held)
 
@@ -161,8 +163,8 @@ class _Opening:
         return [emotion, *held]
 
     def _trim(self, event: AgentStreamEvent) -> "list[AgentStreamEvent | str]":
-        """Drop the leading space of a part whose emoji came alone, until
-        its text starts."""
+        """Drop the whitespace after an emoji that arrived in a delta of its
+        own, until the part's text starts."""
         if self._trimming is None or not _is_text_delta(event, self._trimming):
             return [event]
         assert isinstance(event, PartDeltaEvent)
