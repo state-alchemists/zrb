@@ -265,7 +265,9 @@ class UIKeybindings:
         data = event.data.replace("\r\n", "\n").replace("\r", "\n")
         paths = get_pasted_attachment_paths(data)
         if paths is None:
-            event.current_buffer.insert_text(data)
+            # Target input_field: focus may be on the read-only output pane.
+            event.app.layout.focus(self._ui.input_field)
+            self._ui.input_field.buffer.insert_text(data)
             return
         for path in paths:
             self._attach_pasted_path(path)
