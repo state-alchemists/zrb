@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.tool.file_analyze import analyze_file
 
 
@@ -80,3 +81,31 @@ async def test_analyze_file_points_an_image_at_read(tmp_path):
 
     assert "[SYSTEM SUGGESTION]" in result
     assert "Read the image" in result
+
+
+@pytest.mark.asyncio
+async def test_analyze_file_refuses_an_image_a_text_only_model_gets_described(
+    tmp_path, monkeypatch
+):
+    from PIL import Image
+
+    from zrb.llm.agent_state import current_model
+
+    async def describe(binary, multimodal_model):
+        return "a red square"
+
+    monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o-mini")
+    monkeypatch.setattr(
+        "zrb.llm.agent.run.multimodal_describe.describe_binary_attachment", describe
+    )
+    image = tmp_path / "shot.png"
+    Image.new("RGB", (4, 4), "red").save(image)
+    token = current_model.set("openai:gpt-3.5-turbo")
+    try:
+        with patch("zrb.llm.agent.run_agent", new_callable=AsyncMock) as mock_run:
+            result = await analyze_file(str(image), "What is this?")
+    finally:
+        current_model.reset(token)
+
+    assert "Read the image" in result
+    mock_run.assert_not_called()

@@ -6,6 +6,7 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.llm.tool.file_read import read_file
 from zrb.llm.tool.file_search import search_files
+from zrb.llm.util.attachment import get_media_type
 
 
 async def analyze_file(
@@ -31,12 +32,17 @@ async def analyze_file(
             "nearby."
         )
 
-    content = await read_file(abs_path)
-    if not isinstance(content, str):
+    # By path, not by Read's result: for a text-only model Read returns an
+    # image's description as a plain string, which is not the file's text.
+    media_type = get_media_type(abs_path)
+    if media_type is not None and media_type.startswith("image/"):
         return (
             f"Error: {path} is an image. [SYSTEM SUGGESTION]: AnalyzeFile "
             "analyzes text; Read the image to see it."
         )
+
+    # Text for any non-image path; str() only narrows Read's return type.
+    content = str(await read_file(abs_path))
     if content.startswith("Error:"):
         return content
 

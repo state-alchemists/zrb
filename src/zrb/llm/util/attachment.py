@@ -60,6 +60,9 @@ def normalize_attachments(
                     continue
                 if media_type.startswith("image/"):
                     scaled = scale_image_bytes(data, media_type=media_type)
+                    if scaled.rejected is not None:
+                        print_fn(f"Image {scaled.rejected}, skipping: {path}")
+                        continue
                     data = scaled.data
                     media_type = scaled.media_type
                 final_attachments.append(

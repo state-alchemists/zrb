@@ -8,7 +8,7 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.llm.tool.file_observation import record_observed
 from zrb.llm.util.attachment import get_media_type, get_oversized_by, sniff_mismatch
-from zrb.llm.util.image_scale import is_corrupt_image, scale_image_bytes
+from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.llm.util.pdf import extract_pdf_text
 from zrb.util.truncate import truncate_text
 
@@ -154,17 +154,27 @@ def _load_image(path: str, abs_path: str, media_type: str) -> "BinaryContent | s
             "then retry."
         )
     mismatch = sniff_mismatch(data, media_type)
-    if mismatch is None and is_corrupt_image(data):
-        mismatch = "it cannot be decoded"
     if mismatch is not None:
-        return (
-            f"Error: {path} is not a readable {media_type} image ({mismatch}). "
-            "[SYSTEM SUGGESTION]: The file is corrupt or its extension is "
-            "wrong. Do not Read it again; inspect it with Shell (e.g. `file`) "
-            "if its real type matters."
-        )
+        return _unreadable_image_error(path, media_type, mismatch)
+    # Decoded once, and only after its header shows it fits the pixel budget.
     scaled = scale_image_bytes(data, media_type=media_type)
+    if scaled.rejected is not None:
+        return (
+            f"Error: Image {path} is {scaled.rejected}. [SYSTEM SUGGESTION]: "
+            "Do not retry. Ask the user for a smaller copy."
+        )
+    if scaled.is_undecodable:
+        return _unreadable_image_error(path, media_type, "it cannot be decoded")
     return BinaryContent(data=scaled.data, media_type=scaled.media_type)
+
+
+def _unreadable_image_error(path: str, media_type: str, reason: str) -> str:
+    return (
+        f"Error: {path} is not a readable {media_type} image ({reason}). "
+        "[SYSTEM SUGGESTION]: The file is corrupt or its extension is "
+        "wrong. Do not Read it again; inspect it with Shell (e.g. `file`) "
+        "if its real type matters."
+    )
 
 
 def _number_lines(lines: list[str], start: int) -> str:

@@ -312,6 +312,28 @@ async def test_ctrl_v_no_image_no_hint(mock_ui, setup_bindings):
 
 
 @pytest.mark.asyncio
+async def test_ctrl_v_refuses_an_image_too_large_to_decode(
+    mock_ui, setup_bindings, monkeypatch
+):
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGB", (20, 20), "red").save(buf, format="PNG")
+    monkeypatch.setattr("zrb.llm.util.image_scale.MAX_DECODE_PIXELS", 100)
+    with patch(
+        "zrb.util.clipboard.get_clipboard_image", new_callable=AsyncMock
+    ) as mock_get_img:
+        mock_get_img.return_value = buf.getvalue()
+        trigger_binding(setup_bindings, "c-v", create_mock_event())
+        await list(mock_ui.background_tasks)[0]
+
+    assert mock_ui.pending_attachments == []
+    assert any("too large to decode safely" in out for out in mock_ui.outputs)
+
+
+@pytest.mark.asyncio
 async def test_integration_redirect_token_writes_file(integration_ui, tmp_path):
     # The bug that started this: ">" is a configured (non-"/") command token.
     # Driving the real keybinding must run the redirect handler, not the LLM.

@@ -1,6 +1,6 @@
 import io
 
-from zrb.llm.util.image_scale import ScaleResult, is_corrupt_image, scale_image_bytes
+from zrb.llm.util.image_scale import ScaleResult, scale_image_bytes
 
 
 def _png_bytes(
@@ -81,6 +81,7 @@ def test_undecodable_bytes_are_returned_as_is_with_note():
     result = scale_image_bytes(b"\x00\x01not-an-image", media_type="image/png")
 
     assert result.scaled is False
+    assert result.is_undecodable is True
     assert result.data == b"\x00\x01not-an-image"
 
 
@@ -124,24 +125,64 @@ def test_scale_result_saved_bytes_never_negative():
     assert result.saved_bytes == 0
 
 
-def test_a_decodable_image_is_not_corrupt():
-    assert is_corrupt_image(_png_bytes(4, 4)) is False
+def test_an_image_over_the_pixel_budget_is_rejected_without_decoding(monkeypatch):
+    from PIL import ImageFile
+
+    def must_not_decode(self):
+        raise AssertionError("pixel data was decoded")
+
+    monkeypatch.setattr("zrb.llm.util.image_scale.MAX_DECODE_PIXELS", 100)
+    src = _png_bytes(20, 20)
+    monkeypatch.setattr(ImageFile.ImageFile, "load", must_not_decode)
+
+    result = scale_image_bytes(src, media_type="image/png")
+
+    assert "too large to decode safely" in result.rejected
+    assert "20x20" in result.rejected
+    assert result.data == src
 
 
-def test_a_truncated_image_is_corrupt():
-    assert is_corrupt_image(_png_bytes(64, 64)[:40]) is True
+def test_a_jpeg_over_the_budget_is_decoded_at_a_reduced_scale(monkeypatch):
+    monkeypatch.setattr("zrb.llm.util.image_scale.MAX_DECODE_PIXELS", 100_000)
+    src = _jpeg_bytes(2000, 1000)
+
+    result = scale_image_bytes(src, media_type="image/jpeg", max_dimension=200)
+
+    assert result.rejected is None
+    assert result.scaled is True
 
 
-def test_without_pillow_no_image_counts_as_corrupt(monkeypatch):
-    import builtins
+def test_an_image_past_pillows_bomb_warning_is_rejected(monkeypatch):
+    from PIL import Image
 
-    real_import = builtins.__import__
+    src = _png_bytes(8, 8)
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 50)
 
-    def fail_pil(name, *args, **kwargs):
-        if name == "PIL" or name.startswith("PIL."):
-            raise ImportError("PIL unavailable")
-        return real_import(name, *args, **kwargs)
+    result = scale_image_bytes(src, media_type="image/png")
 
-    monkeypatch.setattr(builtins, "__import__", fail_pil)
+    assert "too large to decode safely" in result.rejected
 
-    assert is_corrupt_image(b"not an image") is False
+
+def test_an_image_past_pillows_bomb_error_is_rejected(monkeypatch):
+    from PIL import Image
+
+    src = _png_bytes(8, 8)
+    monkeypatch.setattr(Image, "MAX_IMAGE_PIXELS", 10)
+
+    result = scale_image_bytes(src, media_type="image/png")
+
+    assert "too large to decode safely" in result.rejected
+
+
+def test_running_out_of_memory_while_decoding_is_a_rejection(monkeypatch):
+    from PIL import ImageFile
+
+    def out_of_memory(self):
+        raise MemoryError
+
+    src = _png_bytes(4, 4)
+    monkeypatch.setattr(ImageFile.ImageFile, "load", out_of_memory)
+
+    result = scale_image_bytes(src, media_type="image/png")
+
+    assert result.rejected == "not enough memory to decode it"
