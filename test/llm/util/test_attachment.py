@@ -311,10 +311,8 @@ def test_get_pasted_attachment_paths_rejects_empty_unbalanced_and_huge_pastes():
     assert get_pasted_attachment_paths("x.png " * 1000) is None
 
 
-def test_normalize_attachments_sends_a_file_queued_as_path_and_bytes_once(tmp_path):
-    path = _make_image(tmp_path, "photo.png")
-    pasted = normalize_attachments([path])
+def test_normalize_attachments_keeps_distinct_files_with_equal_content(tmp_path):
+    first = _make_image(tmp_path, "a.png")
+    second = _make_image(tmp_path, "b.png")
 
-    attachments = normalize_attachments([*pasted, path, path])
-
-    assert attachments == pasted
+    assert len(normalize_attachments([first, second])) == 2

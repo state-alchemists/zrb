@@ -69,17 +69,7 @@ def normalize_attachments(
                 print_fn(f"Failed to read attachment {path}: {e}")
         else:
             final_attachments.append(item)
-    return _without_duplicates(final_attachments)
-
-
-def _without_duplicates(attachments: "list[UserContent]") -> "list[UserContent]":
-    # A file queued both as a path (`/attach`) and as bytes (a paste) reads
-    # to equal content here, the one point where both forms meet.
-    unique: "list[UserContent]" = []
-    for attachment in attachments:
-        if attachment not in unique:
-            unique.append(attachment)
-    return unique
+    return final_attachments
 
 
 def get_oversized_by(path: str) -> "tuple[int, int] | None":
