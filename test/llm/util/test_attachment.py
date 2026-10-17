@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from pydantic_ai.messages import UserContent
 
 from zrb.config.config import CFG
@@ -225,11 +226,19 @@ def test_get_pasted_attachment_paths_accepts_a_bare_path(tmp_path):
     assert get_pasted_attachment_paths(f"{path}\n") == [path]
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX shell quoting")
 def test_get_pasted_attachment_paths_accepts_escaped_and_quoted_paths(tmp_path):
     spaced = _make_image(tmp_path, "my shot.png")
     other = _make_image(tmp_path, "other.jpg")
     escaped = spaced.replace(" ", "\\ ")
     assert get_pasted_attachment_paths(f"{escaped} '{other}'") == [spaced, other]
+
+
+def test_get_pasted_attachment_paths_accepts_double_quoted_paths(tmp_path):
+    # The quoting Windows terminals paste, and valid on POSIX too.
+    spaced = _make_image(tmp_path, "my shot.png")
+    other = _make_image(tmp_path, "other.jpg")
+    assert get_pasted_attachment_paths(f'"{spaced}" "{other}"') == [spaced, other]
 
 
 def test_get_pasted_attachment_paths_accepts_a_file_uri(tmp_path):

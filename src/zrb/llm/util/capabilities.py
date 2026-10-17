@@ -282,7 +282,12 @@ _CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
 
 def _bare_name(model: "str | Model | None") -> str:
     """The bare lowercase model name, or ``""`` when there is no real string
-    ``model_name``/``name``."""
+    ``model_name``/``name``.
+
+    Only a ``provider:name`` string carries a prefix to strip. A ``Model``'s
+    ``model_name`` is already bare, and an Ollama tag keeps its own colon:
+    ``deepseek-v4.1-flash:cloud`` must not become ``cloud``.
+    """
     if model is None:
         return ""
     if isinstance(model, str):
@@ -290,7 +295,7 @@ def _bare_name(model: "str | Model | None") -> str:
     for attr in ("model_name", "name"):
         value = getattr(model, attr, None)
         if isinstance(value, str) and value:
-            return value.split(":", 1)[-1].strip().lower()
+            return value.strip().lower()
     return ""
 
 

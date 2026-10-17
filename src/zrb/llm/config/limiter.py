@@ -9,6 +9,14 @@ from zrb.llm.agent_state import get_current_llm_limiter
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_info
 
+# What one binary attachment (an image, after `scale_image_bytes`) is counted
+# as: roughly Anthropic's ~1.15-megapixel image. Its bytes are never counted
+# as text, which made a 333 KB screenshot ~240k tokens and emptied history.
+ATTACHMENT_TOKEN_ESTIMATE = 1600
+# One token under tiktoken and four characters under the char/4 fallback, so
+# both counters see ATTACHMENT_TOKEN_ESTIMATE tokens.
+_ATTACHMENT_STAND_IN = " the" * ATTACHMENT_TOKEN_ESTIMATE
+
 
 def is_turn_start(msg: Any) -> bool:
     """Identify start of a new user interaction (User Prompt without Tool Return)."""
@@ -355,6 +363,8 @@ class LLMLimiter:
         the other three count whenever the attribute is present, so a field
         explicitly set to `None` still contributes, as it always has.
         """
+        if isinstance(getattr(content, "data", None), bytes):
+            return _ATTACHMENT_STAND_IN  # `BinaryContent`
         fields = ["parts", "content", "args"]
         if not skip_instructions and getattr(content, "instructions", None):
             fields.insert(1, "instructions")
