@@ -28,6 +28,7 @@ from zrb.llm.permission.state import (
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
+    raise_if_cancelling,
     settle_previous_job,
     submit_user_message_via_queue,
 )
@@ -595,12 +596,11 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                     try:
                         await task
                     except asyncio.CancelledError:
-                        # Re-raise only a cancel aimed at this loop, not the job.
-                        current = asyncio.current_task()
-                        if current is not None and current.cancelling() > 0:
-                            raise
+                        # A cancel aimed at the job alone keeps the loop going.
+                        pass
                     finally:
                         self._running_llm_task = None
+                    raise_if_cancelling()
 
                 self._message_queue.task_done()
 

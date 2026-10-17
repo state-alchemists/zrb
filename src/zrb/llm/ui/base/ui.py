@@ -55,6 +55,7 @@ from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
+    raise_if_cancelling,
     settle_previous_job,
     submit_user_message_via_queue,
 )
@@ -984,20 +985,20 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                     break
 
     async def _run_queued_job(self, entry: "QueuedMessage") -> None:
-        """Run one queued job to completion, absorbing its failure."""
+        """Run one queued job to completion, absorbing its failure, and raise
+        `CancelledError` when the loop was cancelled meanwhile (quitting),
+        even if the job absorbed the cancel."""
         current_task = asyncio.create_task(entry.run())
         self._running_llm_task = current_task
         try:
             await current_task
         except asyncio.CancelledError:
-            try:
-                await current_task
-            except asyncio.CancelledError:
-                pass
+            await settle_previous_job(current_task)
         except Exception as e:
             logger.error(f"Error executing job: {e}")
         finally:
             self._running_llm_task = None
+        raise_if_cancelling()
 
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
         """Record the output-buffer span of `echo` on `entry`. No-op here."""

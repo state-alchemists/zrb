@@ -363,6 +363,17 @@ def steer_into_live_run(
         return False
 
 
+def raise_if_cancelling() -> None:
+    """Raise `CancelledError` when the running task has a cancel pending.
+
+    A task cancelled while it awaits another passes the cancel on and sees no
+    exception if that one absorbs it and returns, so a loop checks this after
+    each job instead of taking the next one."""
+    current = asyncio.current_task()
+    if current is not None and current.cancelling() > 0:
+        raise asyncio.CancelledError()
+
+
 async def settle_previous_job(job: "asyncio.Task[object] | None") -> None:
     """Await a still-running previous job, swallowing its outcome."""
     if job is None or job.done():
