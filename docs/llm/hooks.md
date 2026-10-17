@@ -110,7 +110,7 @@ A command hook does the same by printing `{"command_args": "sonnet"}` on stdout.
 
 ### Emotion
 
-With `ZRB_LLM_EMOTION_ENABLED` on, the model opens each reply with an emoji for how it feels (😊 😢 😠 😮 😌 🙂), and with `ZRB_LLM_DICTATION_DETECT_EMOTION` on, dictation hears the tone each prompt is said in. Each fires `Emotion` once, with `emotion` (VRM 1.0's preset expression names: `happy`, `sad`, `angry`, `surprised`, `relaxed`, `neutral`) and `emotion_source` (`user` or `assistant`). The user's fires with the start of the reply, just before the reply's own. An emoji the user types is just text and fires nothing. An avatar shows one like this:
+With `ZRB_LLM_EMOTION_ENABLED` on, the model opens each reply with an emoji for how it feels (😊 😢 😠 😮 😌 🙂), which zrb takes out of the reply before anything shows or keeps it, and with `ZRB_LLM_DICTATION_DETECT_EMOTION` on, dictation hears the tone each prompt is said in. Each fires `Emotion` once, with `emotion` (VRM 1.0's preset expression names: `happy`, `sad`, `angry`, `surprised`, `relaxed`, `neutral`) and `emotion_source` (`user` or `assistant`). The user's fires with the start of the reply, just before the reply's own. An emoji the user types is just text and fires nothing. An avatar shows one like this:
 
 ```python
 from zrb.builtin import llm_chat

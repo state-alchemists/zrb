@@ -402,8 +402,10 @@ async def listen(
                             open_microphone = partial(
                                 open_microphone, is_echo_cancelled=False
                             )
-                        stream = await open_microphone()
+                        # Before reopening: the new stream may deliver a block
+                        # while it is still being opened off the event loop.
                         backlog.mark_gap()
+                        stream = await open_microphone()
                     continue
                 utterance = await blocks.handle(item)
                 if utterance is not None:

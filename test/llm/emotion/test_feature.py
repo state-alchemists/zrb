@@ -1,7 +1,5 @@
 """The emotion of prompts and replies, read and fired as the Emotion hook."""
 
-from types import SimpleNamespace
-
 import pytest
 
 from zrb.llm.ambient_state import input_provenance
@@ -19,29 +17,16 @@ class PersistentHookTask:
     def __init__(self):
         self.hook_manager = HookManager(search_dirs=[])
         self.prompt_manager = PromptManager(include_sections=[])
-        self.stream_observers = []
+        self.capability_factories = []
 
     def append_hook_factory(self, factory):
         factory(self.hook_manager)
 
-    def append_stream_observer(self, observer):
-        self.stream_observers.append(observer)
+    def append_capability_factory(self, factory):
+        self.capability_factories.append(factory)
 
-    def remove_stream_observer(self, observer):
-        self.stream_observers.remove(observer)
-
-
-def _text_start(content: str):
-    return SimpleNamespace(
-        event_kind="part_start", part=SimpleNamespace(part_kind="text", content=content)
-    )
-
-
-def _text_delta(content: str):
-    return SimpleNamespace(
-        event_kind="part_delta",
-        delta=SimpleNamespace(part_delta_kind="text", content_delta=content),
-    )
+    def remove_capability_factory(self, factory):
+        self.capability_factories.remove(factory)
 
 
 def _prompt(text: str) -> HookContext:
@@ -77,93 +62,57 @@ def fired(monkeypatch):
     return contexts
 
 
-async def _feed(session: EmotionSession, *events) -> None:
-    for event in events:
-        fire = session.handle_stream_event(event)
-        if fire is not None:
-            await fire
-
-
 def _fired(contexts):
     return [(c.emotion_source, c.emotion) for c in contexts]
 
 
 @pytest.mark.asyncio
-async def test_the_emoji_a_reply_opens_with_fires_its_emotion(fired):
-    session = EmotionSession(EmotionConfig(enabled=True))
-
-    await _feed(session, _text_start(""), _text_delta(" "), _text_delta("😊 Done."))
-
-    assert _fired(fired) == [("assistant", "happy")]
-
-
-@pytest.mark.asyncio
-async def test_a_reply_without_an_emoji_fires_nothing(fired):
-    session = EmotionSession(EmotionConfig(enabled=True))
-
-    await _feed(session, _text_start("Done 😊"), _text_delta(" more"))
-
-    assert fired == []
-
-
-@pytest.mark.asyncio
-async def test_the_tone_dictation_heard_fires_with_the_replys_first_event(fired):
+async def test_the_users_tone_fires_as_the_reply_starts_then_the_replys(fired):
     session = EmotionSession(EmotionConfig(enabled=True))
     await _submit(session, _said("angry"), "this is broken again")
     assert fired == []
 
-    await _feed(session, _text_start("😢 Sorry about that."))
+    await session.handle_stream_start()
+    await session.handle_reply_emotion("sad")
 
     assert _fired(fired) == [("user", "angry"), ("assistant", "sad")]
 
 
 @pytest.mark.asyncio
-async def test_each_text_part_is_read_once(fired):
+async def test_an_emoji_typed_or_a_turn_without_a_tone_fires_nothing(fired):
     session = EmotionSession(EmotionConfig(enabled=True))
+    await _submit(session, KEYBOARD_INPUT, "we shipped it 😊")
+    await session.handle_stream_start()
+    await _submit(session, DICTATION_INPUT, "we shipped it")
+    await session.handle_stream_start()
 
-    await _feed(
-        session, _text_start("😮 Oh."), _text_delta(" 😊"), _text_start("😌 Ok.")
-    )
-
-    assert _fired(fired) == [("assistant", "surprised"), ("assistant", "relaxed")]
+    assert fired == []
 
 
 @pytest.mark.asyncio
-async def test_a_disabled_session_reads_nothing(fired):
-    session = EmotionSession(EmotionConfig(enabled=False))
+async def test_a_tone_a_turn_never_streamed_is_not_given_to_the_next(fired):
+    session = EmotionSession(EmotionConfig(enabled=True))
+    await _submit(session, _said("angry"), "fix it")
+    await _submit(session, DICTATION_INPUT, "never mind")
 
-    await _feed(session, _text_start("😊 Done."))
+    await session.handle_stream_start()
 
     assert fired == []
+
+
+def test_a_disabled_session_adds_no_capability_and_no_prompt():
+    session = EmotionSession(EmotionConfig(enabled=False))
+
+    assert session.create_capabilities() == []
     assert session.create_live_context() == ""
 
 
-@pytest.mark.asyncio
-async def test_the_emotion_hook_reaches_a_hook_registered_on_the_task(monkeypatch):
-    task = PersistentHookTask()
-    contexts: list[HookContext] = []
+def test_an_enabled_session_adds_the_reply_capability():
+    from zrb.llm.emotion.reply import ReplyEmotion
 
-    async def record(context: HookContext) -> HookResult:
-        contexts.append(context)
-        return HookResult()
+    (capability,) = EmotionSession(EmotionConfig(enabled=True)).create_capabilities()
 
-    task.hook_manager.add_hook(record, events=[HookEvent.EMOTION])
-    monkeypatch.setattr(
-        "zrb.llm.emotion.feature.get_run_hook_manager", lambda: task.hook_manager
-    )
-    enable_emotion(task, EmotionConfig(enabled=True))
-    token = input_provenance.set(_said("happy"))
-    try:
-        await task.hook_manager.execute_hooks(
-            HookEvent.USER_PROMPT_SUBMIT, {}, prompt="we did it"
-        )
-        await task.stream_observers[0](_text_start("😊 Great!"))
-    finally:
-        input_provenance.reset(token)
-        close_feature_sessions("")
-
-    assert _fired(contexts) == [("user", "happy"), ("assistant", "happy")]
-    assert contexts[0].to_claude_json()["emotion_source"] == "user"
+    assert isinstance(capability, ReplyEmotion)
 
 
 def test_enable_emotion_twice_registers_once():
@@ -174,7 +123,8 @@ def test_enable_emotion_twice_registers_once():
         providers = task.prompt_manager.get_live_contexts()
         assert [name for name, _ in providers] == ["emotion"]
         assert "😊 happy" in providers[0][1](None)
-        assert len(task.stream_observers) == 1
+        assert len(task.capability_factories) == 1
+        assert len(task.capability_factories[0](None)) == 1
     finally:
         close_feature_sessions("")
 
@@ -189,25 +139,3 @@ def test_closing_takes_the_prompt_hook_back_out():
     session.close()
 
     assert manager.registry.get_hooks(HookEvent.USER_PROMPT_SUBMIT) == []
-
-
-@pytest.mark.asyncio
-async def test_an_emoji_typed_or_a_turn_without_a_tone_fires_nothing(fired):
-    session = EmotionSession(EmotionConfig(enabled=True))
-    await _submit(session, KEYBOARD_INPUT, "we shipped it 😊")
-    await _submit(session, DICTATION_INPUT, "we shipped it")
-
-    await _feed(session, _text_start("Done."))
-
-    assert fired == []
-
-
-@pytest.mark.asyncio
-async def test_a_tone_a_turn_never_streamed_is_not_given_to_the_next(fired):
-    session = EmotionSession(EmotionConfig(enabled=True))
-    await _submit(session, _said("angry"), "fix it")
-    await _submit(session, DICTATION_INPUT, "never mind")
-
-    await _feed(session, _text_start("🙂 Okay."))
-
-    assert _fired(fired) == [("assistant", "neutral")]

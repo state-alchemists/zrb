@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from zrb.llm.ambient_state import current_reply_emotion
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
@@ -105,9 +106,14 @@ async def test_a_streamed_reply_is_spoken_a_sentence_at_a_time():
 async def test_a_reply_is_read_in_the_voice_of_the_emotion_it_opens_with():
     session = _session(stream=True, emotion_voices={"sad": "sad.wav"})
 
-    session.handle_stream_event(_text_start(""))
-    session.handle_stream_event(_text_delta("😢 The build failed. Again."))
-    session.handle_stream_event(_tool_call_start())
+    # The emotion feature sets it as it takes the emoji out of the reply.
+    token = current_reply_emotion.set("sad")
+    try:
+        session.handle_stream_event(_text_start(""))
+        session.handle_stream_event(_text_delta("The build failed. Again."))
+        session.handle_stream_event(_tool_call_start())
+    finally:
+        current_reply_emotion.reset(token)
     session.handle_stream_event(_text_start("I will look."))
     session.handle_stream_event(_tool_call_start())
 
@@ -119,7 +125,11 @@ async def test_a_reply_is_read_in_the_voice_of_the_emotion_it_opens_with():
 async def test_a_reply_spoken_at_stop_is_read_in_its_emotions_voice():
     session = _session(stream=False, emotion_voices={"happy": "happy.wav"})
 
-    await session.handle_stop(_stop("😊 All green."))
+    token = current_reply_emotion.set("happy")
+    try:
+        await session.handle_stop(_stop("All green."))
+    finally:
+        current_reply_emotion.reset(token)
 
     assert session.speaker.said == ["All green."]
     assert session.speaker.voices == ["happy.wav"]

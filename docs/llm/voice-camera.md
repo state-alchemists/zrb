@@ -201,7 +201,7 @@ For the quickest replies, use vosk for dictation (it transcribes while you speak
 
 ## Emotion
 
-With emotion on, zrb opens each reply with an emoji for how it feels, and hears the tone of a dictated message:
+With emotion on, zrb's replies carry how it feels, which picks the voice they are read in, and it hears the tone of a dictated message:
 
 ```bash
 ZRB_LLM_EMOTION_ENABLED=on ZRB_LLM_DICTATION_DETECT_EMOTION=on ZRB_LLM_DICTATION_BACKEND=sensevoice zrb llm chat

@@ -156,7 +156,7 @@ The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KE
 
 ### Emotion
 
-The model opens each reply with an emoji for how it feels, and the emotion of each reply, and the tone dictation heard each prompt in (`ZRB_LLM_DICTATION_DETECT_EMOTION`), fires the `Emotion` hook (see [hooks](../llm/hooks.md#emotion)). Emotions are VRM 1.0's preset expression names: `happy`, `sad`, `angry`, `surprised`, `relaxed`, `neutral`.
+The model opens each reply with an emoji for how it feels, which zrb takes out before the reply is shown or kept (it reaches speech and hooks as `current_reply_emotion` instead), and the emotion of each reply, and the tone dictation heard each prompt in (`ZRB_LLM_DICTATION_DETECT_EMOTION`), fires the `Emotion` hook (see [hooks](../llm/hooks.md#emotion)). Emotions are VRM 1.0's preset expression names: `happy`, `sad`, `angry`, `surprised`, `relaxed`, `neutral`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|

@@ -204,8 +204,10 @@ class TTSPipeline:
         self._speaking: SpokenSentence | None = None
         self._claim = threading.Lock()
         self._worker: "PipelineWorker | None" = worker
-        # The voice last asked for; empty until one is.
-        self._voice = ""
+        # The voice the service was built with, which a sentence asking for
+        # none returns to, and the one it speaks in now.
+        self._default_voice = str(getattr(service.settings, "voice", None) or "")
+        self._voice = self._default_voice
         self._runner: "asyncio.Task[None] | None" = runner
 
     @property
@@ -237,8 +239,8 @@ class TTSPipeline:
     def speak(
         self, text: str, timeout: float = FIRST_CHUNK_TIMEOUT_SECONDS, voice: str = ""
     ) -> SpeechAudio:
-        """Return *text* as audio in *voice* (empty: the service's current
-        one), or raise if synthesis fails to start."""
+        """Return *text* as audio in *voice* (empty: the voice the service
+        was built with), or raise if synthesis fails to start."""
         self._sentence_lock.acquire()
         try:
             sentence = self._recorder.start_sentence()
@@ -263,8 +265,8 @@ class TTSPipeline:
         )
 
     async def _say(self, text: str, voice: str) -> None:
-        """Hand the service one sentence to say, switching to *voice* first
-        when it is a new one."""
+        """Hand the service one sentence to say, switching to *voice* (empty:
+        the default) first when it is not the one in use."""
         # lazy: heavy third-party — pipecat is the `voice` extra.
         from pipecat.frames.frames import TTSSpeakFrame, TTSUpdateSettingsFrame
         from pipecat.services.settings import TTSSettings
@@ -272,11 +274,12 @@ class TTSPipeline:
         worker = self._worker
         if worker is None:
             raise RuntimeError("the Pipecat speech pipeline is not running")
-        if voice and voice != self._voice:
+        wanted = voice or self._default_voice
+        if wanted and wanted != self._voice:
             await worker.queue_frame(
-                TTSUpdateSettingsFrame(delta=TTSSettings(voice=voice))
+                TTSUpdateSettingsFrame(delta=TTSSettings(voice=wanted))
             )
-            self._voice = voice
+            self._voice = wanted
         await worker.queue_frame(TTSSpeakFrame(text))
 
     def _read(self, sentence: SpokenSentence, first: bytes) -> Iterator[bytes]:

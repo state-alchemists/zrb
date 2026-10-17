@@ -216,6 +216,14 @@ chat.append_stream_observer(on_event)
 
 An observer is called with every event a run streams, after the UI, and may be async. It runs on the event loop for every delta, so it must return quickly; one that raises is logged and skipped. A delegated sub-agent's run does not reach it. Speech uses one to read a reply while it is written.
 
+### Capability Factories
+
+```python
+chat.append_capability_factory(lambda ctx: [MyCapability()])
+```
+
+A factory builds [pydantic-ai capabilities](https://ai.pydantic.dev/) for each run from the task context, after the ones passed as `capabilities=`; returning an empty list adds none. Unlike an observer, a capability can change what the UI and the run see: emotion uses one to take the emoji out of the reply, streamed and final, while it is on. `prepend_capability_factory`, `set_capability_factories` and `remove_capability_factory` complete the list.
+
 ### Approval & Policy
 
 ```python
@@ -402,6 +410,7 @@ To store history somewhere else (a database, an object store), subclass `AnyHist
 | **Hook system** | `append_hook_factory` onto a **fresh** manager per run | `append_hook_factory` onto a **persistent** manager |
 | **History processors** | `append_history_processor` | Same |
 | **Stream observers** | `append_stream_observer` | Same |
+| **Capability factories** | `append_capability_factory` | No (`capabilities=` only) |
 | **System prompt** | Via `system_prompt` or `prompt_manager` | Same |
 
 ---

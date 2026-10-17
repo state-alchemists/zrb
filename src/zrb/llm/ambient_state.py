@@ -30,6 +30,18 @@ def get_current_speech_voice() -> str:
     return current_speech_voice.get()
 
 
+# The emotion the model's reply being written opens with, set by the emotion
+# feature as it takes the emoji out of the reply; read by speech and hooks.
+current_reply_emotion: ContextVar[str] = ContextVar(
+    "zrb_current_reply_emotion", default=""
+)
+
+
+def get_reply_emotion() -> str:
+    """The emotion the reply being written opens with; empty: none."""
+    return current_reply_emotion.get()
+
+
 def get_interactive_mode() -> bool:
     """Return whether the current chat session is interactive."""
     return interactive_mode.get()
@@ -119,4 +131,8 @@ __all__ = [
     "current_chat_session_id",
     "get_current_chat_session_id",
     "get_session_ownership_key",
+    "current_speech_voice",
+    "get_current_speech_voice",
+    "current_reply_emotion",
+    "get_reply_emotion",
 ]

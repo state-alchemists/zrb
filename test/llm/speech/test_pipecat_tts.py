@@ -128,10 +128,12 @@ def test_a_sentence_reaches_the_service_and_its_audio_comes_back():
 
 
 class VoiceRecordingService(FakeSpeechService):
-    """A fake service that records each voice it is switched to."""
+    """A fake service, built with *voice*, recording each voice it is
+    switched to."""
 
-    def __init__(self) -> None:
+    def __init__(self, voice: str | None = None) -> None:
         super().__init__()
+        self.settings.voice = voice
         self.voices: list[str] = []
 
     async def process_frame(self, frame: Frame, direction: FrameDirection) -> None:
@@ -151,6 +153,18 @@ def test_the_service_switches_voice_only_when_a_new_one_is_asked_for():
 
     assert service.said == ["a", "b", "c", "d"]
     assert service.voices == ["sad.wav", "x"]
+
+
+def test_a_sentence_asking_for_no_voice_returns_to_the_one_built_with():
+    service = VoiceRecordingService(voice="base")
+    pipeline = TTSPipeline.start(service)
+    try:
+        for text, voice in [("a", ""), ("b", "happy.wav"), ("c", ""), ("d", "")]:
+            list(pipeline.speak(text, timeout=5, voice=voice).chunks)
+    finally:
+        pipeline.close()
+
+    assert service.voices == ["happy.wav", "base"]
 
 
 def test_the_pipeline_says_one_sentence_after_another():

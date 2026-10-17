@@ -46,9 +46,8 @@ class PipecatSpeechBackend(AnySpeechBackend):
 
     def create_audio(self, text: str) -> "SpeechAudio":
         """Return *text* as PCM for in-process playback, in the voice the
-        speaker asks for, else the configured one."""
-        voice = get_current_speech_voice() or self._config.voice or ""
-        return self._get_pipeline().speak(text, voice=voice)
+        speaker asks for, else the one the service was built with."""
+        return self._get_pipeline().speak(text, voice=get_current_speech_voice())
 
     def close(self) -> None:
         """Stop and discard the pipeline."""
