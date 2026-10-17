@@ -58,6 +58,14 @@ async def _is_ended(task: asyncio.Task) -> bool:
     return task.done()
 
 
+async def _is_queue_settled(ui: BaseUI) -> bool:
+    """Whether every entry taken off the queue was marked done."""
+    join = asyncio.ensure_future(ui.effective_message_queue.join())
+    await asyncio.wait({join}, timeout=1)
+    join.cancel()
+    return join.done() and not join.cancelled()
+
+
 async def _stop(*tasks: asyncio.Task) -> None:
     """Leave no task running, even one ignoring a cancel."""
     for _ in range(3):
@@ -74,9 +82,11 @@ async def test_quitting_ends_the_loop_when_the_job_absorbs_its_cancel(ui):
 
     loop.cancel()
     is_ended = await _is_ended(loop)
+    is_settled = await _is_queue_settled(ui)
     await _stop(loop)
 
     assert is_ended
+    assert is_settled
 
 
 @pytest.mark.asyncio
@@ -117,6 +127,8 @@ async def test_quitting_again_ends_the_loop_while_the_job_ignores_its_cancel(ui)
     await asyncio.sleep(0.05)
     loop.cancel()
     is_ended = await _is_ended(loop)
+    is_settled = await _is_queue_settled(ui)
     await _stop(loop, job)
 
     assert is_ended
+    assert is_settled

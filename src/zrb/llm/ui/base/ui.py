@@ -968,9 +968,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         while True:
             try:
                 entry = await self._message_queue.get()
-                await settle_previous_job(self._running_llm_task)
-                await self._run_queued_job(entry)
-                self._message_queue.task_done()
+                try:
+                    await settle_previous_job(self._running_llm_task)
+                    await self._run_queued_job(entry)
+                finally:
+                    # Also when quitting ends the loop mid-job.
+                    self._message_queue.task_done()
             except asyncio.CancelledError:
                 break
             except RuntimeError as e:

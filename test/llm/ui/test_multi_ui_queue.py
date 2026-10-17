@@ -227,6 +227,11 @@ async def test_quitting_ends_the_loop_when_the_job_absorbs_its_cancel(multi_ui):
     # `asyncio.wait`, not `wait_for`: a timeout must not cancel the loop again.
     await asyncio.wait({loop}, timeout=1)
     is_ended = loop.done()
+    join = asyncio.ensure_future(multi_ui.message_queue.join())
+    await asyncio.wait({join}, timeout=1)
+    is_settled = join.done()
+    join.cancel()
     loop.cancel()
 
     assert is_ended
+    assert is_settled

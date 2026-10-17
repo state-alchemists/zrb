@@ -28,6 +28,7 @@ from zrb.llm.permission.state import (
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
+    QueuedMessage,
     raise_if_cancelling,
     settle_previous_job,
     submit_user_message_via_queue,
@@ -586,29 +587,31 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         while True:
             try:
                 entry = await self._message_queue.get()
-                await settle_previous_job(self._running_llm_task)
-
-                current_task = asyncio.current_task()
-                if current_task:
-                    task = asyncio.create_task(entry.run())
-                    self._running_llm_task = task
-
-                    try:
-                        await task
-                    except asyncio.CancelledError:
-                        # A cancel aimed at the job alone keeps the loop going.
-                        pass
-                    finally:
-                        self._running_llm_task = None
-                    raise_if_cancelling()
-
-                self._message_queue.task_done()
-
+                try:
+                    await settle_previous_job(self._running_llm_task)
+                    await self._run_job(entry)
+                finally:
+                    # Also when quitting ends the loop mid-job.
+                    self._message_queue.task_done()
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 logger.error(f"Error in message queue: {e}")
                 await asyncio.sleep(CFG.LLM_UI_STATUS_INTERVAL / 1000)
+
+    async def _run_job(self, entry: "QueuedMessage") -> None:
+        """Run one queued job, and raise `CancelledError` when the loop was
+        cancelled meanwhile (quitting), even if the job absorbed the cancel."""
+        task = asyncio.create_task(entry.run())
+        self._running_llm_task = task
+        try:
+            await task
+        except asyncio.CancelledError:
+            # A cancel aimed at the job alone keeps the loop going.
+            pass
+        finally:
+            self._running_llm_task = None
+        raise_if_cancelling()
 
     async def ask_user(
         self,
