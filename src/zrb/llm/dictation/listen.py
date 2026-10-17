@@ -27,6 +27,7 @@ from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 from zrb.llm.util.teardown import close_quietly
+from zrb.util.async_thread import run_in_daemon
 
 if TYPE_CHECKING:
     # Annotation-only to avoid importing the backend barrel and its audio
@@ -401,8 +402,10 @@ async def listen(
                             open_microphone = partial(
                                 open_microphone, is_echo_cancelled=False
                             )
-                        stream = await open_microphone()
+                        # Before reopening: the new stream may deliver a block
+                        # while it is still being opened off the event loop.
                         backlog.mark_gap()
+                        stream = await open_microphone()
                     continue
                 utterance = await blocks.handle(item)
                 if utterance is not None:
@@ -788,9 +791,8 @@ async def _open_microphone(
         if microphone is not None:
             return microphone
     device = to_device(device)
-    attempt = 0
-    while True:
-        attempt += 1
+
+    def start():
         try:
             stream = sd.InputStream(
                 samplerate=SAMPLE_RATE,
@@ -807,13 +809,44 @@ async def _open_microphone(
             ) from e
         try:
             stream.start()
-            return stream
         except Exception as e:
-            await close_quietly(stream.close, "the microphone that would not start")
-            if attempt >= _OPEN_ATTEMPTS:
-                raise RuntimeError(_microphone_failure_message(device, e)) from e
-            logger.warning(f"Starting the microphone failed ({e}); trying again")
-            await asyncio.sleep(_OPEN_RETRY_SECONDS)
+            raise _NotStarted(stream.close, e) from e
+        return stream
+
+    def start_or_not_started():
+        # Returned, not raised: a failure orphaned by cancellation reaches
+        # `on_orphan` too, which closes it like a stream.
+        try:
+            return start()
+        except _NotStarted as e:
+            return e
+
+    attempt = 0
+    while True:
+        attempt += 1
+        # Off the event loop: opening can stall for seconds (WSL2 above),
+        # and a stalled loop cannot be cancelled, so Ctrl+C could not quit.
+        opened = await run_in_daemon(
+            start_or_not_started, name="zrb-microphone", on_orphan=lambda s: s.close()
+        )
+        if not isinstance(opened, _NotStarted):
+            return opened
+        await close_quietly(opened.close, "the microphone that would not start")
+        if attempt >= _OPEN_ATTEMPTS:
+            raise RuntimeError(
+                _microphone_failure_message(device, opened.cause)
+            ) from opened
+        logger.warning(f"Starting the microphone failed ({opened.cause}); trying again")
+        await asyncio.sleep(_OPEN_RETRY_SECONDS)
+
+
+class _NotStarted(Exception):
+    """A stream that was made but would not start; *close* closes it."""
+
+    def __init__(self, close: Callable[[], None], cause: Exception) -> None:
+        super().__init__(str(cause))
+        self.close = close
+        self.cause = cause
 
 
 def _is_echo_cancel_usable(config: DictationConfig) -> bool:

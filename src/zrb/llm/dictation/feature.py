@@ -10,6 +10,7 @@ command switches between the two.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 from collections.abc import AsyncGenerator, Callable
 from contextlib import aclosing
@@ -20,6 +21,7 @@ from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
+from zrb.llm.dictation.emotion import EmotionDetector, Tone
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
 from zrb.llm.dictation.words import (
     count_words,
@@ -102,6 +104,12 @@ class DictationSession:
 
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
+        # Hears the tone of each hands-free utterance, beside the transcriber.
+        self._emotion = (
+            EmotionDetector(config.emotion_model or "", config.emotion_min_score or 0)
+            if config.detect_emotion
+            else None
+        )
         self._backend: AnyDictationBackend | None = None
         # `close` ends the session; no backend or transcript is created after it.
         self._is_closed = False
@@ -341,6 +349,8 @@ class DictationSession:
                 await asyncio.sleep(0.2)
             try:
                 await self.backend.prepare(self._report)
+                if self._emotion is not None:
+                    await self._emotion.prepare()
                 self._warn_without_wake_words()
                 self._rest(self._listening_badge())
                 async with aclosing(self._replies()) as replies:
@@ -360,19 +370,32 @@ class DictationSession:
         async with aclosing(self._listen()) as mic:
             async for utterance in mic:
                 self._show(_TRANSCRIBING)
+                hearing = self._hear(utterance)
                 try:
                     text = await self._transcribe_or_drop(utterance)
                 except Exception as exc:
+                    hearing.cancel()
                     self._release_barge_in()
                     self._rest("❗ transcription failed · listening")
                     self._report(f"Hands-free transcription failed: {exc}")
                     continue
                 if text is None:
+                    hearing.cancel()
                     self._release_barge_in()
                     return
                 command = await self._to_command(utterance, text)
-                if command is not None:
-                    yield self._to_reply(command, utterance)
+                if command is None:
+                    hearing.cancel()
+                    continue
+                yield self._to_reply(command, utterance, await hearing)
+
+    def _hear(self, utterance: Utterance) -> "asyncio.Future[Tone | None]":
+        """The utterance's tone, heard while it is transcribed."""
+        if self._emotion is None:
+            done: asyncio.Future[Tone | None] = asyncio.Future()
+            done.set_result(None)
+            return done
+        return asyncio.ensure_future(self._emotion.hear(utterance.audio))
 
     async def _listen(self) -> AsyncGenerator[Utterance, None]:
         """`listen` while hands-free holds.
@@ -506,7 +529,9 @@ class DictationSession:
             self._armed_until = utterance.ended_at + (self._config.wake_window or 0)
             self._rest("🎤 go ahead…")
 
-    def _to_reply(self, command: str, utterance: Utterance) -> TriggerReply:
+    def _to_reply(
+        self, command: str, utterance: Utterance, tone: Tone | None = None
+    ) -> TriggerReply:
         reply = TriggerReply(
             command,
             approval=to_answer(
@@ -514,7 +539,12 @@ class DictationSession:
             ),
             started_at=utterance.started_at,
         )
-        object.__setattr__(reply, "source", DICTATION_INPUT)
+        source = DICTATION_INPUT
+        if tone is not None:
+            source = dataclasses.replace(
+                source, tone=tone.emotion, tone_score=tone.score
+            )
+        object.__setattr__(reply, "source", source)
         return reply
 
     def _handle_barge_in(self) -> None:

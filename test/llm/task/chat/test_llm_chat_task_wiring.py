@@ -311,3 +311,46 @@ async def test_the_inner_task_runs_with_the_chats_active_hook_manager():
 
     used = mock_run_agent.call_args.kwargs["hook_manager"]
     assert used is task.active_hook_manager
+
+
+def test_capability_factories_keep_their_order_and_come_back_out():
+    first, second, third = (lambda ctx: []), (lambda ctx: []), (lambda ctx: [])
+    task = LLMChatTask(name="cap-task", interactive=False)
+
+    task.append_capability_factory(second)
+    task.prepend_capability_factory(first)
+    task.append_capability_factory(third)
+    assert task.capability_factories == [first, second, third]
+
+    task.remove_capability_factory(second)
+    task.remove_capability_factory(second)
+    assert task.capability_factories == [first, third]
+
+    task.set_capability_factories([third])
+    assert task.capability_factories == [third]
+
+
+@pytest.mark.asyncio
+async def test_a_capability_factory_adds_its_capabilities_to_each_run():
+    static, built = object(), object()
+    seen_contexts = []
+
+    def factory(ctx):
+        seen_contexts.append(ctx)
+        return [built]
+
+    task = LLMChatTask(name="cap-task", capabilities=[static], interactive=False)
+    task.append_capability_factory(factory, lambda ctx: [])
+
+    with (
+        patch("zrb.llm.task.llm_task.create_agent") as mock_create_agent,
+        patch(
+            "zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
+    ):
+        mock_run_agent.return_value = ("Done", [])
+        session = Session(SharedContext(), state_logger=MagicMock())
+        await task.async_run(session)
+
+    assert len(seen_contexts) == 1
+    assert mock_create_agent.call_args.kwargs["capabilities"] == [static, built]

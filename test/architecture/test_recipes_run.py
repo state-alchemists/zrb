@@ -50,6 +50,7 @@ def test_every_marked_recipe_is_checked():
         "skill",
         "agent",
         "own-chat",
+        "emotion",
     }
 
 
@@ -112,3 +113,17 @@ def test_own_chat(tmp_path):
         assert [i.name for i in ops_chat.inputs] == ["message"]
         """)
     _run(_get_snippets()["own-chat"] + check, tmp_path)
+
+
+def test_emotion(tmp_path):
+    check = textwrap.dedent("""
+        from zrb.llm.dictation.config import DictationConfig
+        from zrb.llm.speech.config import SpeechConfig
+        dictation, speech = DictationConfig().resolve(), SpeechConfig().resolve()
+        assert CFG.LLM_EMOTION_ENABLED
+        assert dictation.detect_emotion and dictation.mode == "hands_free"
+        assert dictation.backend == "sensevoice"
+        assert speech.enabled and speech.backend == "pocket"
+        assert speech.emotion_voices["sad"].endswith("sad.wav")
+        """)
+    _run(_get_snippets()["emotion"] + check, tmp_path)

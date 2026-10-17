@@ -17,6 +17,7 @@ from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.approval import resolve_approval_channel
+from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.file_history_manager import default_history_manager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
@@ -148,7 +149,11 @@ class ChatExecution:
             interactive,
             resolved_tools,
             resolved_toolsets,
-            self._llm_chat_task.capabilities,
+            resolve_factory_items(
+                self._llm_chat_task.capabilities,
+                self._llm_chat_task.capability_factories,
+                ctx,
+            ),
         )
 
         if not interactive:

@@ -89,6 +89,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_PROGRESS_PHRASES: str = (
             '{"Read": "Reading a file.", "AnalyzeFile": "Reading a file.", "LS": "Looking through the files.", "Glob": "Looking through the files.", "Grep": "Searching the code.", "AnalyzeCode": "Reading the code.", "Write": "Writing a file.", "Edit": "Editing a file.", "MV": "Moving a file.", "RM": "Removing a file.", "Shell": "Running a command.", "Bash": "Running a command.", "WebSearch": "Searching the web.", "WebFetch": "Reading a web page.", "DelegateToAgent": "Handing this to a sub-agent.", "DelegateToAgentBackground": "Handing this to a sub-agent.", "Lsp*": "Checking the code.", "": "Working on it.", "*": "Using the {tool} tool."}'
         )
+        self.DEFAULT_LLM_SPEECH_EMOTION_VOICES: str = "{}"
         self.DEFAULT_LLM_SPEECH_APPROVAL_ACTIONS: str = (
             '{"Write": "write a file", "Edit": "edit a file", "NotebookEdit": "edit a notebook", "Shell": "run a shell command", "Bash": "run a shell command", "DelegateToAgent": "delegate work to a sub-agent", "DelegateToAgentBackground": "delegate background work to a sub-agent", "": "run a tool", "*": "use the {tool} tool"}'
         )
@@ -398,6 +399,19 @@ class LLMSpeechMixin:
             "{tool} is the tool's name. Default: English actions for the "
             'built-in tools that ask, then "": "run a tool" and "*": "use '
             'the {tool} tool"'
+        ),
+    )
+
+    LLM_SPEECH_EMOTION_VOICES = EnvField(
+        json_object,
+        serialize=json_dump,
+        doc=(
+            "JSON object of the voice a reply is read in by the emotion it "
+            "opens with ({ENV_PREFIX}_LLM_EMOTION_ENABLED): happy, sad, angry, "
+            "surprised, relaxed, neutral. A missing one, and every other "
+            "line, is read in {ENV_PREFIX}_LLM_SPEECH_VOICE. Honored by the "
+            "Pipecat services (pocket, kokoro, piper); with pocket a voice is "
+            "a .wav to clone, so the clip's tone carries over. Default: {}."
         ),
     )
 

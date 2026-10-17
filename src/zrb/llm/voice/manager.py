@@ -6,6 +6,8 @@ by name before the factory runs.
 
 from __future__ import annotations
 
+import functools
+import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, Union, cast
 
@@ -20,6 +22,7 @@ from zrb.llm.voice.registry import (
 from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
 
 if TYPE_CHECKING:
+    from loguru import Message
     from pipecat.services.stt_service import STTService
     from pipecat.services.tts_service import TTSService
 
@@ -102,6 +105,7 @@ class SpeechServiceManager(Generic[T]):
                 f"speech service {spec.name!r} needs the {spec.provider!r} "
                 "package, which is not installed"
             )
+        route_pipecat_logs()
         # The resolved spec determines which config its factory receives.
         factory = cast(
             "Callable[[ServiceConfig], STTService | TTSService]", spec.factory
@@ -131,3 +135,23 @@ stt_manager = STTServiceManager(stt_registry)
 
 #: The text-to-speech manager every session starts from.
 tts_manager = TTSServiceManager(tts_registry)
+
+
+@functools.cache
+def route_pipecat_logs() -> None:
+    """Send Pipecat's log records to `logging`, once, before it is imported.
+
+    Pipecat logs through loguru, whose default sink writes every DEBUG line
+    straight to stderr, over the chat UI; through `logging` they are filtered
+    and shown the way zrb's own records are."""
+    # lazy: heavy third-party — loguru comes with pipecat, the voice extra.
+    from loguru import logger
+
+    def to_logging(message: "Message") -> None:
+        record = message.record
+        logging.getLogger(record["name"] or "pipecat").log(
+            record["level"].no, record["message"]
+        )
+
+    logger.remove()
+    logger.add(to_logging, level="DEBUG", format="{message}")

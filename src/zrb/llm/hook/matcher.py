@@ -92,6 +92,7 @@ CLAUDE_EVENT_MATCHER_FIELDS: dict[HookEvent, str] = {
     HookEvent.STOP_FAILURE: "error_type",
     HookEvent.PRE_COMPACT: "trigger",
     HookEvent.POST_COMPACT: "trigger",
+    HookEvent.EMOTION: "emotion_source",
 }
 
 

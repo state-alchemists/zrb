@@ -85,6 +85,15 @@ class LLMDictationMixin:
             "Return only the transcription."
         )
         self.DEFAULT_LLM_DICTATION_LANGUAGE: str = ""
+        self.DEFAULT_LLM_DICTATION_DETECT_EMOTION: str = "off"
+        self.DEFAULT_LLM_DICTATION_SENSEVOICE_MODEL: str = (
+            "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
+        )
+        self.DEFAULT_LLM_DICTATION_SENSEVOICE_THREADS: str = "4"
+        self.DEFAULT_LLM_DICTATION_EMOTION_MODEL: str = (
+            "emotion2vec/emotion2vec_plus_base"
+        )
+        self.DEFAULT_LLM_DICTATION_EMOTION_MIN_SCORE: str = "0.5"
         super().__init__()
 
     LLM_DICTATION_MODE = EnvField(
@@ -121,6 +130,9 @@ class LLMDictationMixin:
             "- 'whisper': Faster-Whisper, local.\n"
             "- 'moonshine': Moonshine, local and CPU-only.\n"
             "- 'funasr': FunASR's SenseVoice, local.\n"
+            "- 'sensevoice': SenseVoice on sherpa-onnx, local and fast on a "
+            "CPU; also hears the speaker's tone "
+            "({ENV_PREFIX}_LLM_DICTATION_DETECT_EMOTION).\n"
             "- 'openai': OpenAI transcription API.\n"
             "- 'google': Google Gemini.\n"
             "- 'multimodal': uses {ENV_PREFIX}_LLM_MULTIMODAL_MODEL "
@@ -481,6 +493,49 @@ class LLMDictationMixin:
             "PulseAudio's or PipeWire's echo-cancel module instead. Default: "
             "off, or as {ENV_PREFIX}_LLM_VOICE sets it."
         ),
+    )
+
+    LLM_DICTATION_DETECT_EMOTION = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "'on' has emotion2vec+ ({ENV_PREFIX}_LLM_DICTATION_EMOTION_MODEL) "
+            "hear the tone of each hands-free utterance while it is "
+            "transcribed, with any backend; the model is told it as part of "
+            "where the turn came from, not in your words. Needs funasr and "
+            "torch. Default: off."
+        ),
+    )
+
+    LLM_DICTATION_EMOTION_MODEL = EnvField(
+        str,
+        doc=(
+            "Hugging Face repo of the emotion2vec+ model that hears the tone "
+            "while {ENV_PREFIX}_LLM_DICTATION_DETECT_EMOTION is on. Default: "
+            "emotion2vec/emotion2vec_plus_base."
+        ),
+    )
+
+    LLM_DICTATION_EMOTION_MIN_SCORE = EnvField(
+        float,
+        doc=(
+            "Lowest score (0-1) emotion2vec+ must give a tone to report it; "
+            "below it the turn carries none. Default: 0.5."
+        ),
+    )
+
+    LLM_DICTATION_SENSEVOICE_MODEL = EnvField(
+        str,
+        doc=(
+            "Hugging Face repo the 'sensevoice' backend downloads "
+            "model.int8.onnx and tokens.txt from on first use. Default: "
+            "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17."
+        ),
+    )
+
+    LLM_DICTATION_SENSEVOICE_THREADS = EnvField(
+        int,
+        doc="CPU threads the 'sensevoice' backend decodes with. Default: 4.",
     )
 
     LLM_DICTATION_TRANSCRIBE_PROMPT = EnvField(

@@ -5,6 +5,7 @@ import time
 
 import pytest
 
+from zrb.llm.ambient_state import get_current_speech_voice
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.player import is_speaking, play
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
@@ -34,8 +35,10 @@ class FakeBackend(AnySpeechBackend):
         self.played: list[str] = []
         self.done = threading.Event()
         self.utterances: list[RecordingUtterance] = []
+        self.voices: list[str] = []
 
     def create_utterance(self, text):
+        self.voices.append(get_current_speech_voice())
         if self.fail:
             raise RuntimeError("no network")
         utterance = RecordingUtterance(text, self.played, self.done)
@@ -69,6 +72,18 @@ def test_queued_text_is_spoken_in_order_on_the_background_thread(lock_file):
     assert all(u.speaking_while_played for u in backend.utterances)
     assert all(u.cleaned for u in backend.utterances)
     assert not is_speaking(lock_file)
+
+
+def test_each_text_is_made_in_the_voice_it_was_queued_with(lock_file):
+    backend = FakeBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.say("one", voice="happy.wav")
+    speaker.say("two")
+    speaker.drain()
+
+    assert backend.voices == ["happy.wav", ""]
+    assert get_current_speech_voice() == ""
 
 
 def test_nothing_is_queued_while_disabled_or_blank(lock_file):

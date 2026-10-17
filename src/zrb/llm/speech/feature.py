@@ -11,10 +11,11 @@ from __future__ import annotations
 import logging
 import time
 import weakref
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.ambient_state import get_reply_emotion
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
@@ -74,13 +75,23 @@ def enable_speech(
     def observe_stream(event: Any) -> None:
         sessions.get().handle_stream_event(event)
 
+    async def warm_up() -> AsyncIterator[None]:
+        # A trigger, because triggers start once the UI runs and captures
+        # what is printed: loading a voice prints, and before that it would
+        # land on the terminal under the UI.
+        sessions.get().warm_up()
+        return
+        yield
+
     registrations: list[tuple[str, Any]] = [
         ("append_hook_factory", register_hooks),
         ("append_stream_observer", observe_stream),
     ]
-    # Only `LLMChatTask` takes custom commands; `LLMTask` has none.
+    # Only `LLMChatTask` takes custom commands and triggers; `LLMTask` has none.
     if callable(getattr(task, "append_custom_command", None)):
         registrations.append(("append_custom_command", create_commands))
+    if callable(getattr(task, "append_trigger", None)):
+        registrations.append(("append_trigger", warm_up))
     replace_registration(task, "speech", registrations)
     # Keyed by name, so enabling speech again replaces it.
     task.prompt_manager.add_live_context(
@@ -148,7 +159,7 @@ class SpeechSession:
         # newer reply than a summary still being made.
         self._generation = 0
         self._summarizer = SpeechSummarizer()
-        self.streamed_reply = StreamedReply(self._say)
+        self.streamed_reply = StreamedReply(self._say_reply_part)
         self.progress = ProgressNarrator(
             self._say,
             self._seconds_since_said,
@@ -258,11 +269,25 @@ class SpeechSession:
         if "progress" in self._events:
             self.progress.handle_event(event)
 
-    def _say(self, text: str, is_stale: IsStale = None) -> None:
+    def warm_up(self) -> None:
+        """Load the voice now rather than at the first sentence, while
+        speech is on."""
+        if self.speaker.is_enabled:
+            self.speaker.warm_up()
+
+    def _say(self, text: str, is_stale: IsStale = None, voice: str = "") -> None:
         # Through `self.speaker` at call time, so a speaker replaced later is
         # the one that speaks.
         self._clock.mark()
-        self.speaker.say(text, is_stale=is_stale)
+        self.speaker.say(text, is_stale=is_stale, voice=voice)
+
+    def _say_reply_part(self, text: str) -> None:
+        # The emotion feature read it from the reply before this sentence.
+        self._say(text, voice=self._get_voice(get_reply_emotion()))
+
+    def _get_voice(self, emotion: str | None) -> str:
+        """The voice for *emotion*; empty: the configured one."""
+        return (self._config.emotion_voices or {}).get(emotion or "", "")
 
     def _seconds_since_said(self) -> float:
         if is_speaking(self._config.lock_file or None):
@@ -352,13 +377,16 @@ class SpeechSession:
         the summary fails, is late, or another is still being made."""
         self._generation += 1
         text = clean_for_speech(reply)
+        voice = self._get_voice(get_reply_emotion())
         if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
-            self._say(text)
+            self._say(text, voice=voice)
             return
         generation = self._generation
 
         def speak(spoken: str) -> None:
-            self._say(spoken, is_stale=lambda: self._generation != generation)
+            self._say(
+                spoken, is_stale=lambda: self._generation != generation, voice=voice
+            )
 
         self._summarizer.start(
             text,

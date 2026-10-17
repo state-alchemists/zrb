@@ -16,7 +16,7 @@ class DictationConfig:
     session starts.
 
     *backend* names a built-in backend (``vosk``, ``openai``, ``google``,
-    ``multimodal``), a speech service registered with ``stt_manager``
+    ``multimodal``, ``sensevoice``), a speech service registered with ``stt_manager``
     (``whisper``, ``moonshine``, ``funasr``), or is an `AnyDictationBackend` of
     your own. *stt_model* picks the model of whichever service is named.
 
@@ -70,6 +70,11 @@ class DictationConfig:
     interrupt_judge_max_words: int | None = None
     hush_words: list[str] | None = None
     enable_echo_cancel: bool | None = None
+    detect_emotion: bool | None = None
+    sensevoice_model: str | None = None
+    sensevoice_threads: int | None = None
+    emotion_model: str | None = None
+    emotion_min_score: float | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:

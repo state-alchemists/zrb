@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from zrb.llm.ambient_state import current_reply_emotion
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
@@ -17,13 +18,15 @@ from zrb.llm.util.feature_config import close_feature_sessions
 class FakeSpeaker:
     def __init__(self):
         self.said: list[str] = []
+        self.voices: list[str] = []
         self.stale_checks = []
         self.cleared = 0
         self.interrupted = 0
         self.is_enabled = True
 
-    def say(self, text, is_stale=None):
+    def say(self, text, is_stale=None, voice=""):
         self.said.append(text)
+        self.voices.append(voice)
         if is_stale is not None:
             self.stale_checks.append(is_stale)
 
@@ -100,7 +103,39 @@ async def test_a_streamed_reply_is_spoken_a_sentence_at_a_time():
 
 
 @pytest.mark.asyncio
-async def test_text_before_a_tool_call_is_spoken_when_the_call_starts():
+async def test_a_reply_is_read_in_the_voice_of_the_emotion_it_opens_with():
+    session = _session(stream=True, emotion_voices={"sad": "sad.wav"})
+
+    # The emotion feature sets it as it takes the emoji out of the reply.
+    token = current_reply_emotion.set("sad")
+    try:
+        session.handle_stream_event(_text_start(""))
+        session.handle_stream_event(_text_delta("The build failed. Again."))
+        session.handle_stream_event(_tool_call_start())
+    finally:
+        current_reply_emotion.reset(token)
+    session.handle_stream_event(_text_start("I will look."))
+    session.handle_stream_event(_tool_call_start())
+
+    assert session.speaker.said == ["The build failed. Again.", "I will look."]
+    assert session.speaker.voices == ["sad.wav", ""]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_spoken_at_stop_is_read_in_its_emotions_voice():
+    session = _session(stream=False, emotion_voices={"happy": "happy.wav"})
+
+    token = current_reply_emotion.set("happy")
+    try:
+        await session.handle_stop(_stop("All green."))
+    finally:
+        current_reply_emotion.reset(token)
+
+    assert session.speaker.said == ["All green."]
+    assert session.speaker.voices == ["happy.wav"]
+
+
+def test_text_before_a_tool_call_is_spoken_when_the_call_starts():
     session = _session(stream=True)
 
     session.handle_stream_event(_text_start("Let me look."))

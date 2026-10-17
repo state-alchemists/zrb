@@ -58,6 +58,12 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.ui_config import UIConfig
 
+#: Builds pydantic-ai capabilities for one run from the task context; an
+#: empty list adds none.
+CapabilityFactory = Callable[
+    [AnyContext], "AbstractCapability[Any] | list[AbstractCapability[Any]]"
+]
+
 
 def _remove_first(items: list, item: Any) -> None:
     """Drop the first entry of *items* equal or identical to *item*; no-op if absent."""
@@ -271,6 +277,7 @@ class LLMChatTask(BaseTask):
         self._attachment = attachment
         self._history_processors = history_processors or []
         self._capabilities = capabilities or []
+        self._capability_factories: list[CapabilityFactory] = []
         self._model = model
         self._model_settings = model_settings
         self._model_getter = model_getter
@@ -832,6 +839,28 @@ class LLMChatTask(BaseTask):
     def capabilities(self) -> "list[AbstractCapability[Any]]":
         """pydantic-ai capabilities enabled for the run."""
         return self._capabilities
+
+    @property
+    def capability_factories(self) -> "list[CapabilityFactory]":
+        """Factories building capabilities per run, from the task context."""
+        return self._capability_factories
+
+    def append_capability_factory(self, *factory: "CapabilityFactory") -> None:
+        """Add factories building capabilities per run, from the task context.
+        One returning an empty list adds none to that run."""
+        self._capability_factories += list(factory)
+
+    def prepend_capability_factory(self, *factory: "CapabilityFactory") -> None:
+        """Add capability factories ahead of those already registered."""
+        self._capability_factories[0:0] = factory
+
+    def set_capability_factories(self, factories: "list[CapabilityFactory]") -> None:
+        """Replace the capability-factory list wholesale."""
+        self._capability_factories = list(factories)
+
+    def remove_capability_factory(self, factory: "CapabilityFactory") -> None:
+        """Drop *factory*. A no-op if it is not registered."""
+        _remove_first(self._capability_factories, factory)
 
     @property
     def conversation_name(self) -> "StrAttr | None":

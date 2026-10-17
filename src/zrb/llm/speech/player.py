@@ -11,6 +11,7 @@ from collections.abc import Callable
 from dataclasses import replace
 
 from zrb.config.config import CFG
+from zrb.llm.ambient_state import current_speech_voice
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.builtin import get_speech_backend
 from zrb.llm.speech.backend.utterance import Utterance
@@ -88,7 +89,7 @@ class Speaker:
         if self._lock_file_held:
             _register_lock_file(self._lock_file)
         self._queue: (
-            "queue.Queue[tuple[str | Callable[[], str], IsStale, int] | None]"
+            "queue.Queue[tuple[str | Callable[[], str], IsStale, int, str] | None]"
         ) = queue.Queue()
         # Made but not yet played: what the player thread takes next.
         self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
@@ -103,6 +104,8 @@ class Speaker:
         self._playing: Utterance | None = None
         # Cached backends may hold models or running pipelines.
         self._backends: list[AnySpeechBackend] | None = None
+        # The worker and a warm-up may both ask for the backends first.
+        self._building = threading.Lock()
         # Paused utterances wait on `_unpaused`.
         self._is_paused = False
         self._unpaused = threading.Condition(self._lock)
@@ -113,17 +116,21 @@ class Speaker:
         self._generation = 0
         self.is_enabled = True
 
-    def say(self, text: str, is_stale: "IsStale" = None) -> None:
-        """Queue *text* unless it is blank, disabled, or stale."""
+    def say(self, text: str, is_stale: "IsStale" = None, voice: str = "") -> None:
+        """Queue *text* unless it is blank, disabled, or stale, to be said in
+        *voice* (empty: the configured one)."""
         if text.strip():
-            self._enqueue(text, is_stale)
+            self._enqueue(text, is_stale, voice)
 
     def say_later(self, produce: "Callable[[], str]") -> None:
         """Queue text produced on the speaker's thread."""
         self._enqueue(produce)
 
     def _enqueue(
-        self, item: "str | Callable[[], str]", is_stale: "IsStale" = None
+        self,
+        item: "str | Callable[[], str]",
+        is_stale: "IsStale" = None,
+        voice: str = "",
     ) -> None:
         if not self.is_enabled:
             return
@@ -146,7 +153,7 @@ class Speaker:
                 self._worker.start()
                 self._player.start()
                 atexit.register(self._drain_at_exit)
-            self._queue.put((item, is_stale, self._generation))
+            self._queue.put((item, is_stale, self._generation, voice))
 
     def _import_audio_before_exit_handler(self) -> None:
         """Import sounddevice before `_drain_at_exit` is registered.
@@ -342,8 +349,35 @@ class Speaker:
                 f"({exc}); a player program plays it for the rest of the session"
             )
 
+    def warm_up(self) -> None:
+        """Load the model of a backend zrb plays itself, on a thread of its
+        own, so the first sentence does not wait for it. One short word is
+        made the way a sentence is (through any wrapper) and never played."""
+        threading.Thread(
+            target=self._warm_up,
+            name=f"{CFG.ROOT_GROUP_NAME}-speech-warm-up",
+            daemon=True,
+        ).start()
+
+    def _warm_up(self) -> None:
+        try:
+            backends = self._get_backends()
+            # Only a model zrb runs needs warming; a cloud voice would be
+            # billed for a word nobody hears.
+            if not backends[0].needs_zrb_playback or not self._is_in_process_wanted():
+                return
+            # That backend alone: a fallback may be a cloud voice, billed too.
+            self._create_utterance(backends[0], "Hi.", []).cleanup()
+        except (RuntimeError, ValueError) as exc:
+            # The first sentence tries again, and reports it if it fails too.
+            logger.debug(f"Speech warm-up failed: {exc}")
+
     def _get_backends(self) -> list[AnySpeechBackend]:
         """Return this speaker's cached backends."""
+        with self._building:
+            return self._get_backends_unlocked()
+
+    def _get_backends_unlocked(self) -> list[AnySpeechBackend]:
         if self._backends is None:
             config = self._config
             requested = get_speech_backend(config.backend or "auto", config)
@@ -358,13 +392,16 @@ class Speaker:
     def _prepare_queue(self) -> None:
         """Make each queued text's audio, handing it to the player thread."""
         while (entry := self._queue.get()) is not None:
-            item, is_stale, generation = entry
+            item, is_stale, generation, voice = entry
+            token = current_speech_voice.set(voice)
             try:
                 text = item() if callable(item) else item
                 utterance = self._prepare(text, is_stale)
             except Exception as exc:
                 logger.warning(f"Speech failed: {exc}")
                 continue
+            finally:
+                current_speech_voice.reset(token)
             if utterance is None:
                 continue
             if self._is_cut_off:

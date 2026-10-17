@@ -10,6 +10,7 @@ Dictation, spoken replies, and the camera.
   - [Voice preset](#voice-preset)
   - [Dictation (speech-to-text)](#dictation-speech-to-text)
   - [Speech (text-to-speech)](#speech-text-to-speech)
+  - [Emotion](#emotion)
   - [Camera](#camera)
 
 ---
@@ -84,6 +85,11 @@ Each backend uses only its own variables:
 | `openai` | `ZRB_LLM_DICTATION_LANGUAGE` | Optional ISO-639-1 language hint, such as `en` or `id`; empty lets OpenAI detect the language | (empty) |
 | `google` | `ZRB_LLM_DICTATION_GOOGLE_MODEL` | Gemini model | `gemini-2.5-flash` |
 | `google`, `multimodal` | `ZRB_LLM_DICTATION_TRANSCRIBE_PROMPT` | Instruction sent with the audio; the default preserves the spoken language and does not translate | `Transcribe exactly what is spoken. Do not translate or paraphrase. Return only the transcription.` |
+| all | `ZRB_LLM_DICTATION_DETECT_EMOTION` | `on` has emotion2vec+ hear the tone of each hands-free utterance while it is transcribed, with any backend, streaming ones included. A confident happy, sad, angry or surprised rides on the turn, not in your words: the model reads `Input: user via microphone/dictation, sounding sad (0.82)` in its live context, and [emotion](#emotion) fires the `Emotion` hook with it. Needs `pip install funasr torch`; without them dictation goes on without the tone and says why. Push-to-talk text goes to the input box as typed text, so it carries none | `off` |
+| all | `ZRB_LLM_DICTATION_EMOTION_MODEL` | Hugging Face repo of the emotion2vec+ model, downloaded on first use. On RAVDESS (actors, 180 clips) `emotion2vec_plus_base` was right 97% of the time at ~0.3 s a clip on a CPU; `emotion2vec_plus_large` is larger | `emotion2vec/emotion2vec_plus_base` |
+| all | `ZRB_LLM_DICTATION_EMOTION_MIN_SCORE` | Lowest score (0–1) a tone needs to be reported | `0.5` |
+| `sensevoice` | `ZRB_LLM_DICTATION_SENSEVOICE_MODEL` | Hugging Face repo `model.int8.onnx` and `tokens.txt` are downloaded from on first use. Needs `pip install sherpa-onnx huggingface_hub`. `ZRB_LLM_DICTATION_LANGUAGE` is `auto` or one of `zh`, `en`, `ja`, `ko`, `yue` | `csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17` |
+| `sensevoice` | `ZRB_LLM_DICTATION_SENSEVOICE_THREADS` | CPU threads it decodes with | `4` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_NAME` | Model directory name (without `.zip`), downloaded from `<VOSK_MODEL_URL>/<name>.zip` | `vosk-model-small-en-us-0.15` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_MODEL_URL` | Base URL for the model zip (extracted to `~/.cache/vosk/`) | `https://alphacephei.com/vosk/models` |
 | `vosk` | `ZRB_LLM_DICTATION_VOSK_DOWNLOAD_TIMEOUT` | Seconds to wait for the model server to answer; `0` means the transfer is not capped, though a stalled connection still gives up after 30 s | `120` |
@@ -106,6 +112,7 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 | `ZRB_LLM_SPEECH_EVENTS` | What to speak: `reply`, `approval`, `question`, `progress` (a tool call starting after a silence: "Running a command.") | `reply, approval, question, progress` |
 | `ZRB_LLM_SPEECH_BACKEND` | `auto` (`termux` on Termux, `say` on macOS, else `espeak-ng`), `termux`, `say`, `espeak-ng`, `openai`, `gemini`, or `kokoro` / `piper` / `pocket` (local, on Pipecat, with zrb playing the audio). A failing backend falls back to the local engine | `auto` |
 | `ZRB_LLM_SPEECH_VOICE` | Voice name for the backend (for `termux`, the `-v` variant); empty uses its default (system voice, `en-us+m3`, `alloy`, `Sulafat`, `af_heart` for `kokoro`, `en_US-ryan-high` for `piper`, `alba` for `pocket`) | (none) |
+| `ZRB_LLM_SPEECH_EMOTION_VOICES` | JSON object of the voice a reply is read in by the emotion it opens with, under [emotion](#emotion): `happy`, `sad`, `angry`, `surprised`, `relaxed`, `neutral`. A missing emotion, and every line that is not a reply, uses `ZRB_LLM_SPEECH_VOICE`. Honored by the Pipecat services (`pocket`, `kokoro`, `piper`); with `pocket` each voice is a `.wav` to clone, and the clip's tone carries over | `{}` |
 | `ZRB_LLM_SPEECH_STYLE` | How `openai` and `gemini` should sound, in plain words (tone, pace, warmth); a direction, not read aloud. Empty uses the voice's default manner. The local engines ignore it | a warm, clear, conversational colleague |
 | `ZRB_LLM_SPEECH_RATE` | Words per minute for `say` and `espeak-ng` | `165` |
 | `ZRB_LLM_SPEECH_STREAM` | Speak a reply a sentence at a time while it is written, and the text before a tool call when the call starts. `off` reads the whole reply once the turn ends. Either way it is read whole, however long it is, unless `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` is set, which turns streaming of the reply off | `on` |
@@ -146,6 +153,34 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 A placeholder is replaced only where written; any other brace stays as it is. The prompts behind speech are prompt files, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`: `speech_live` (while speech is on, asks the model to open with a spoken answer).
 
 The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
+
+### Emotion
+
+The model opens each reply with an emoji for how it feels, which zrb takes out before the reply is shown or kept (it reaches speech and hooks as `current_reply_emotion` instead), and the emotion of each reply, and the tone dictation heard each prompt in (`ZRB_LLM_DICTATION_DETECT_EMOTION`), fires the `Emotion` hook (see [hooks](../llm/hooks.md#emotion)). Emotions are VRM 1.0's preset expression names: `happy`, `sad`, `angry`, `surprised`, `relaxed`, `neutral`.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_EMOTION_ENABLED` | `on` asks the model for the emoji and fires the `Emotion` hook | `off` |
+
+To hear it too, give each emotion its own voice with `ZRB_LLM_SPEECH_EMOTION_VOICES`. With `pocket`, a voice is a clip to clone, and a clip spoken in that emotion makes the reply sound that way:
+
+```bash
+ZRB_LLM_SPEECH_BACKEND=pocket
+ZRB_LLM_SPEECH_VOICE=$HOME/voices/neutral.wav
+ZRB_LLM_SPEECH_EMOTION_VOICES='{"happy": "'$HOME'/voices/happy.wav", "sad": "'$HOME'/voices/sad.wav"}'
+```
+
+A `.wav` costs Pocket about a second and a half each time the voice changes, since it derives the voice from the clip again. Export each clip once to a `.safetensors` voice state and name those instead, and a change is instant:
+
+```python
+from pocket_tts import TTSModel
+from pocket_tts.models.tts_model import export_model_state
+
+model = TTSModel.load_model()
+export_model_state(model.get_state_for_audio_prompt("happy.wav"), "happy.safetensors")
+```
+
+The request to the model is the `emotion_live` prompt file, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`.
 
 ### Camera
 
