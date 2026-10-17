@@ -1,7 +1,9 @@
 import os
+import shlex
 from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from urllib.parse import unquote, urlparse
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -132,6 +134,64 @@ def get_attachments(
     if isinstance(attachment, list):
         return attachment
     return [attachment]
+
+
+# A paste longer than this is prose or a log, never a handful of file paths;
+# skip it before tokenizing so a large paste costs no filesystem lookups.
+_MAX_PASTED_PATHS_LENGTH = 4096
+
+
+def get_pasted_attachment_paths(text: str) -> list[str] | None:
+    """The attachable files a paste names, when the paste is nothing but them.
+
+    Terminals paste a file as its path: iTerm2's "Save to Temp File and Paste
+    Path" for a clipboard image, and dragging files from a file manager into
+    most terminals. Paths may be quoted, backslash-escaped or ``file://`` URIs,
+    several to a paste. Any token that is not an existing attachable file (a
+    word, a missing path) returns None, so a path mentioned inside a sentence
+    stays text.
+
+    Text types (``.md``, ``.txt``, ``.csv``, ``.html``) are not attachable
+    here: a pasted path to one is usually a reference the agent can read with
+    its own tools, so it stays text. ``/attach`` still takes them.
+    """
+    stripped = text.strip()
+    if not stripped or len(stripped) > _MAX_PASTED_PATHS_LENGTH:
+        return None
+    tokens = _split_pasted_paths(stripped)
+    if not tokens:
+        return None
+    paths = [_to_local_path(token) for token in tokens]
+    if all(_is_pasteable_attachment(path) for path in paths):
+        return paths
+    return None
+
+
+def _split_pasted_paths(text: str) -> list[str]:
+    # Windows paths use backslashes, which POSIX shlex reads as escapes.
+    posix = os.name != "nt"
+    try:
+        tokens = shlex.split(text, posix=posix)
+    except ValueError:
+        return []  # unbalanced quote: prose, not a path list
+    if not posix:
+        tokens = [token.strip('"') for token in tokens]
+    return tokens
+
+
+def _to_local_path(token: str) -> str:
+    if token.startswith("file://"):
+        token = unquote(urlparse(token).path)
+    return os.path.abspath(os.path.expanduser(token))
+
+
+def _is_pasteable_attachment(path: str) -> bool:
+    media_type = get_media_type(path)
+    return (
+        media_type is not None
+        and not media_type.startswith("text/")
+        and os.path.isfile(path)
+    )
 
 
 def get_media_type(filename: str) -> str | None:

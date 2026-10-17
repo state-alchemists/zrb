@@ -8,6 +8,7 @@ from zrb.llm.util.attachment import (
     get_attachments,
     get_media_type,
     get_oversized_by,
+    get_pasted_attachment_paths,
     normalize_attachments,
     sniff_mismatch,
 )
@@ -209,3 +210,60 @@ def test_check_attachment_bytes_spoofed():
     reason = check_attachment_bytes(b"not a png", "image/png")
     assert reason is not None
     assert "doesn't look like" in reason
+
+
+def _make_image(directory, name):
+    path = directory / name
+    path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    return str(path)
+
+
+def test_get_pasted_attachment_paths_accepts_a_bare_path(tmp_path):
+    path = _make_image(tmp_path, "pasted.png")
+    assert get_pasted_attachment_paths(f"{path}\n") == [path]
+
+
+def test_get_pasted_attachment_paths_accepts_escaped_and_quoted_paths(tmp_path):
+    spaced = _make_image(tmp_path, "my shot.png")
+    other = _make_image(tmp_path, "other.jpg")
+    escaped = spaced.replace(" ", "\\ ")
+    assert get_pasted_attachment_paths(f"{escaped} '{other}'") == [spaced, other]
+
+
+def test_get_pasted_attachment_paths_accepts_a_file_uri(tmp_path):
+    path = _make_image(tmp_path, "my shot.png")
+    uri = "file://" + path.replace(" ", "%20")
+    assert get_pasted_attachment_paths(uri) == [path]
+
+
+def test_get_pasted_attachment_paths_rejects_a_path_inside_prose(tmp_path):
+    path = _make_image(tmp_path, "pasted.png")
+    assert get_pasted_attachment_paths(f"look at {path}") is None
+
+
+def test_get_pasted_attachment_paths_accepts_non_image_attachments(tmp_path):
+    pdf = tmp_path / "report.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    image = _make_image(tmp_path, "shot.png")
+    assert get_pasted_attachment_paths(f"{pdf} {image}") == [str(pdf), image]
+
+
+def test_get_pasted_attachment_paths_keeps_text_and_unknown_files_as_text(tmp_path):
+    notes = tmp_path / "notes.md"
+    notes.write_text("hi")
+    script = tmp_path / "run.py"
+    script.write_text("print()")
+    image = _make_image(tmp_path, "shot.png")
+    assert get_pasted_attachment_paths(str(notes)) is None
+    assert get_pasted_attachment_paths(str(script)) is None
+    assert get_pasted_attachment_paths(f"{image} {notes}") is None
+
+
+def test_get_pasted_attachment_paths_rejects_missing_files(tmp_path):
+    assert get_pasted_attachment_paths(str(tmp_path / "gone.png")) is None
+
+
+def test_get_pasted_attachment_paths_rejects_empty_unbalanced_and_huge_pastes():
+    assert get_pasted_attachment_paths("   ") is None
+    assert get_pasted_attachment_paths("it's broken") is None
+    assert get_pasted_attachment_paths("x.png " * 1000) is None

@@ -47,7 +47,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/yolo` or `/yolo <tools>` | Toggle auto-execute mode. With tool names (e.g., `/yolo Write,Edit`), selectively auto-approve only those tools |
 | `/load <name>`, `/resume <name>` | Load a named session, and re-register its saved sub-agent transcripts as idle sessions you can message |
 | `/save <name>` | Save current session |
-| `/attach <file_path>` | Attach a file to next message (capped by `LLM_MAX_ATTACHMENT_BYTES`, default 20MB; content is sniffed against its extension) |
+| `/attach <file_path>` | Attach a file to next message (capped by `LLM_MAX_ATTACHMENT_BYTES`, default 20MB; content is sniffed against its extension). Pasting a message that is only file paths attaches them the same way — iTerm2's "Save to Temp File and Paste Path" for a clipboard image, or files dragged into the terminal. Text files (`.md`, `.txt`, `.csv`, `.html`) stay pasted as text |
 | `/photo [device]`, `/p [device]` | Capture a photo from the camera and attach it to the next message (device is optional and tab-completes; auto-detected per platform) |
 | `>` or `/redirect` (bare) | Copy last AI response to clipboard |
 | `>` or `/redirect <file_path>` | Save last AI response to a file |
