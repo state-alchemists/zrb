@@ -53,7 +53,9 @@ class EmotionDetector:
     """emotion2vec+ (the Hugging Face repo *model*), reporting a tone it hears
     with at least *min_score*; ``None`` takes the default of each."""
 
-    def __init__(self, model: str | None = None, min_score: float | None = None) -> None:
+    def __init__(
+        self, model: str | None = None, min_score: float | None = None
+    ) -> None:
         self._model_repo = model or "emotion2vec/emotion2vec_plus_base"
         self._min_score = 0.5 if min_score is None else min_score
         self._classify: Classify | None = None

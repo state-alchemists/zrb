@@ -322,7 +322,6 @@ async def test_a_microphone_that_will_not_start_says_which_device_it_tried():
     assert "LLM_DICTATION_DEVICE" in message
 
 
-
 @pytest.mark.asyncio
 async def test_a_start_that_fails_after_the_wait_is_cancelled_is_still_closed():
     """Ctrl+C while `start()` stalls leaves its stream to the thread (PR #633

@@ -136,7 +136,6 @@ async def test_a_reply_without_an_emotion_does_not_keep_the_last_one():
     assert after_second == ""
 
 
-
 _TWO_TEXTS = [TextPart("Here is the result:"), TextPart("😊 literal content")]
 
 

@@ -160,7 +160,6 @@ def test_a_closed_backend_starts_no_second_pipeline(factory):
     assert _tts_threads() == []
 
 
-
 def test_the_backend_is_local_as_its_registered_service_is(monkeypatch):
     registry = TTSServiceRegistry(TTS_SERVICE_SPECS)
     registry.register("remote", TTSServiceSpec(name="remote", is_local=False))
