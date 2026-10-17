@@ -421,3 +421,22 @@ def test_bracketed_paste_of_text_inserts_it(mock_ui, setup_bindings):
 
     event.current_buffer.insert_text.assert_called_once_with("line one\nline two\n")
     assert mock_ui.pending_attachments == []
+
+
+def test_bracketed_paste_of_a_pdf_reaches_the_prompt_as_its_text(
+    mock_ui, setup_bindings, tmp_path
+):
+    from zrb.llm.agent.run.prompt_content import get_prompt_content
+
+    pdf = tmp_path / "report.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    mock_ui.submit_attachment = MagicMock(
+        side_effect=mock_ui.pending_attachments.append
+    )
+
+    _paste(setup_bindings, str(pdf))
+    with patch("zrb.llm.util.attachment.extract_pdf_text", return_value="report text"):
+        content = get_prompt_content("hi", mock_ui.pending_attachments, print)
+
+    mock_ui.submit_attachment.assert_called_once_with(str(pdf))
+    assert content == ["hi", "report text"]

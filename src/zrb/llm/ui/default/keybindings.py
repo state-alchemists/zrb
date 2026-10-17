@@ -17,7 +17,11 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.hook.interface import HookEvent
-from zrb.llm.util.attachment import get_pasted_attachment_paths, normalize_attachments
+from zrb.llm.util.attachment import (
+    get_media_type,
+    get_pasted_attachment_paths,
+    normalize_attachments,
+)
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import remove_style, stylize_error, stylize_muted
 
@@ -263,19 +267,31 @@ class UIKeybindings:
         if paths is None:
             event.current_buffer.insert_text(data)
             return
+        for path in paths:
+            self._attach_pasted_path(path)
+        self._ui.invalidate_ui()
+
+    def _attach_pasted_path(self, path: str) -> None:
+        """Queue one pasted file the way `/attach` does.
+
+        An image is read now, not at submit: iTerm2's pasted image is a temp
+        file that may be cleaned up first. Anything else stays a path, since
+        submit normalizes again and would read a PDF's extracted text as one.
+        """
         ui = self._ui
+        media_type = get_media_type(path) or ""
+        if not media_type.startswith("image/"):
+            ui.submit_attachment(path)
+            return
 
         def report_error(message: str) -> None:
             ui.append_to_output(stylize_error(f"\n  ❌ {message}\n"))
 
-        # Read now, not at submit: a pasted temp file may be cleaned up first.
-        for path in paths:
-            attachments = normalize_attachments([path], print_fn=report_error)
-            if attachments:
-                ui.pending_attachments.extend(attachments)
-                name = os.path.basename(path)
-                ui.append_to_output(stylize_muted(f"\n  📎 Attached: {name}\n"))
-        ui.invalidate_ui()
+        attachments = normalize_attachments([path], print_fn=report_error)
+        if attachments:
+            ui.pending_attachments.extend(attachments)
+            name = os.path.basename(path)
+            ui.append_to_output(stylize_muted(f"\n  📎 Attached: {name}\n"))
 
     def _on_delete_queued(self, event: "KeyPressEvent") -> None:
         """Ctrl+X drops the queued message Up Arrow has recalled, if any.
