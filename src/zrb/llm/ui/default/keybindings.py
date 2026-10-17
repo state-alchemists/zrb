@@ -2,7 +2,8 @@
 
 `setup_app_keybindings` is a registration table: it wires each
 prompt-toolkit key to a thin closure that delegates to a named `_on_*`
-handler method. The involved handlers (Enter dispatch, clipboard paste)
+handler method. The involved handlers (Enter dispatch, clipboard and
+bracketed paste)
 live in those methods rather than as nested
 closures, so each is a reviewable, individually testable unit.
 """
@@ -10,11 +11,17 @@ closures, so each is a reviewable, individually testable unit.
 from __future__ import annotations
 
 import asyncio
+import os
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.hook.interface import HookEvent
+from zrb.llm.util.attachment import (
+    get_media_type,
+    get_pasted_attachment_paths,
+    normalize_attachments,
+)
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import remove_style, stylize_error, stylize_muted
 
@@ -38,6 +45,7 @@ class UIKeybindings:
     ):
         # lazy: heavy third-party
         from prompt_toolkit.filters import Condition, has_completions
+        from prompt_toolkit.keys import Keys
 
         ui = self._ui
 
@@ -94,6 +102,12 @@ class UIKeybindings:
             task = asyncio.create_task(self._on_clipboard_paste(clipboard))
             ui.background_tasks.add(task)
             task.add_done_callback(ui.background_tasks.discard)
+
+        # Overrides prompt_toolkit's own paste binding, so a paste that is only
+        # file paths attaches the files instead of typing the paths.
+        @app_keybindings.add(Keys.BracketedPaste)
+        def _(event):
+            self._on_bracketed_paste(event)
 
         @app_keybindings.add("escape")
         def _(event):
@@ -240,6 +254,53 @@ class UIKeybindings:
 
                 _get_app().layout.focus(ui.input_field)
                 ui.input_field.buffer.paste_clipboard_data(clipboard.get_data())
+
+    def _on_bracketed_paste(self, event: "KeyPressEvent") -> None:
+        """Attach a paste of file paths; insert any other paste as text.
+
+        iTerm2 answers Cmd+V on a clipboard image with "Save to Temp File and
+        Paste Path", and dragging a file into a terminal pastes its path.
+        """
+        # The line-ending normalization prompt_toolkit's own binding does.
+        data = event.data.replace("\r\n", "\n").replace("\r", "\n")
+        paths = get_pasted_attachment_paths(data)
+        if paths is None:
+            # Target input_field: focus may be on the read-only output pane.
+            event.app.layout.focus(self._ui.input_field)
+            self._ui.input_field.buffer.insert_text(data)
+            return
+        for path in paths:
+            self._attach_pasted_path(path)
+        self._ui.invalidate_ui()
+
+    def _attach_pasted_path(self, path: str) -> None:
+        """Queue one pasted file the way `/attach` does.
+
+        An image is read now, not at submit: iTerm2's pasted image is a temp
+        file that may be cleaned up first. Anything else stays a path, since
+        submit normalizes again and would read a PDF's extracted text as one.
+        """
+        ui = self._ui
+        media_type = get_media_type(path) or ""
+        if not media_type.startswith("image/"):
+            ui.submit_attachment(path)
+            return
+
+        def report_error(message: str) -> None:
+            ui.append_to_output(stylize_error(f"\n  ❌ {message}\n"))
+
+        name = os.path.basename(path)
+        # `/attach` queues the path itself; a paste of it is the same file.
+        if path in ui.pending_attachments:
+            ui.append_to_output(stylize_error(f"\n  📎 Already attached: {name}\n"))
+            return
+        for attachment in normalize_attachments([path], print_fn=report_error):
+            # Same bytes, same image: rejected like `/attach`'s repeated path.
+            if attachment in ui.pending_attachments:
+                ui.append_to_output(stylize_error(f"\n  📎 Already attached: {name}\n"))
+                continue
+            ui.pending_attachments.append(attachment)
+            ui.append_to_output(stylize_muted(f"\n  📎 Attached: {name}\n"))
 
     def _on_delete_queued(self, event: "KeyPressEvent") -> None:
         """Ctrl+X drops the queued message Up Arrow has recalled, if any.

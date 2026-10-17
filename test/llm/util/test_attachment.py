@@ -1,5 +1,8 @@
+import os
+from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
 from pydantic_ai.messages import UserContent
 
 from zrb.config.config import CFG
@@ -8,6 +11,7 @@ from zrb.llm.util.attachment import (
     get_attachments,
     get_media_type,
     get_oversized_by,
+    get_pasted_attachment_paths,
     normalize_attachments,
     sniff_mismatch,
 )
@@ -209,3 +213,115 @@ def test_check_attachment_bytes_spoofed():
     reason = check_attachment_bytes(b"not a png", "image/png")
     assert reason is not None
     assert "doesn't look like" in reason
+
+
+def _make_image(directory, name):
+    path = directory / name
+    path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    return str(path)
+
+
+def test_get_pasted_attachment_paths_accepts_a_bare_path(tmp_path):
+    path = _make_image(tmp_path, "pasted.png")
+    assert get_pasted_attachment_paths(f"{path}\n") == [path]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX shell quoting")
+def test_get_pasted_attachment_paths_accepts_escaped_and_quoted_paths(tmp_path):
+    spaced = _make_image(tmp_path, "my shot.png")
+    other = _make_image(tmp_path, "other.jpg")
+    escaped = spaced.replace(" ", "\\ ")
+    assert get_pasted_attachment_paths(f"{escaped} '{other}'") == [spaced, other]
+
+
+def test_get_pasted_attachment_paths_accepts_double_quoted_paths(tmp_path):
+    # The quoting Windows terminals paste, and valid on POSIX too.
+    spaced = _make_image(tmp_path, "my shot.png")
+    other = _make_image(tmp_path, "other.jpg")
+    assert get_pasted_attachment_paths(f'"{spaced}" "{other}"') == [spaced, other]
+
+
+def test_get_pasted_attachment_paths_accepts_a_file_uri(tmp_path):
+    path = _make_image(tmp_path, "my shot.png")
+    # as_uri() gives this platform's form: file:///C:/... on Windows.
+    uri = Path(path).as_uri()
+    assert "%20" in uri
+    assert get_pasted_attachment_paths(uri) == [path]
+    localhost_uri = uri.replace("file:///", "file://localhost/", 1)
+    assert get_pasted_attachment_paths(localhost_uri) == [path]
+
+
+def test_get_pasted_attachment_paths_reads_a_drive_letter_uri_on_windows(
+    tmp_path, monkeypatch
+):
+    import nturl2path
+
+    import zrb.llm.util.attachment as attachment_module
+
+    monkeypatch.setattr(attachment_module, "url2pathname", nturl2path.url2pathname)
+    monkeypatch.setattr(attachment_module.os.path, "isfile", lambda path: True)
+    monkeypatch.setattr(attachment_module.os.path, "abspath", lambda path: path)
+
+    paths = get_pasted_attachment_paths(
+        "file:///C:/Users/me/my%20shot.png file://server/share/shot.png"
+    )
+
+    assert paths == ["C:\\Users\\me\\my shot.png", "\\\\server\\share\\shot.png"]
+
+
+def test_normalize_attachments_reports_a_file_removed_after_it_was_found(
+    tmp_path, monkeypatch
+):
+    path = _make_image(tmp_path, "gone.png")
+    monkeypatch.setattr(CFG, "LLM_MAX_ATTACHMENT_BYTES", 1000)
+    original_getsize = os.path.getsize
+
+    def getsize_after_removal(target):
+        os.remove(target)
+        return original_getsize(target)
+
+    monkeypatch.setattr(os.path, "getsize", getsize_after_removal)
+    messages = []
+
+    assert normalize_attachments([path], print_fn=messages.append) == []
+    assert any("Failed to read attachment" in m for m in messages)
+
+
+def test_get_pasted_attachment_paths_rejects_a_path_inside_prose(tmp_path):
+    path = _make_image(tmp_path, "pasted.png")
+    assert get_pasted_attachment_paths(f"look at {path}") is None
+
+
+def test_get_pasted_attachment_paths_accepts_non_image_attachments(tmp_path):
+    pdf = tmp_path / "report.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    image = _make_image(tmp_path, "shot.png")
+    assert get_pasted_attachment_paths(f"{pdf} {image}") == [str(pdf), image]
+
+
+def test_get_pasted_attachment_paths_keeps_text_and_unknown_files_as_text(tmp_path):
+    notes = tmp_path / "notes.md"
+    notes.write_text("hi")
+    script = tmp_path / "run.py"
+    script.write_text("print()")
+    image = _make_image(tmp_path, "shot.png")
+    assert get_pasted_attachment_paths(str(notes)) is None
+    assert get_pasted_attachment_paths(str(script)) is None
+    assert get_pasted_attachment_paths(f"{image} {notes}") is None
+
+
+def test_get_pasted_attachment_paths_rejects_missing_files(tmp_path):
+    assert get_pasted_attachment_paths(str(tmp_path / "gone.png")) is None
+
+
+def test_get_pasted_attachment_paths_rejects_empty_unbalanced_and_huge_pastes():
+    assert get_pasted_attachment_paths("   ") is None
+    assert get_pasted_attachment_paths("it's broken") is None
+    assert get_pasted_attachment_paths("x.png " * 1000) is None
+
+
+def test_normalize_attachments_keeps_distinct_files_with_equal_content(tmp_path):
+    first = _make_image(tmp_path, "a.png")
+    second = _make_image(tmp_path, "b.png")
+
+    assert len(normalize_attachments([first, second])) == 2

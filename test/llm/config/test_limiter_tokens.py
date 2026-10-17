@@ -376,3 +376,30 @@ async def test_llm_limiter_acquire_behavior():
     elapsed = time.time() - start
 
     assert elapsed < 1.0
+
+
+@pytest.mark.parametrize("use_tiktoken", [True, False])
+def test_an_image_counts_as_the_attachment_estimate_not_its_bytes(use_tiktoken):
+    from pydantic_ai.messages import BinaryContent
+
+    from zrb.llm.config.limiter import ATTACHMENT_TOKEN_ESTIMATE
+
+    limiter = LLMLimiter()
+    image = BinaryContent(data=b"\x89PNG" + b"\xab" * 400_000, media_type="image/png")
+    with patch.object(
+        LLMLimiter, "use_tiktoken", new_callable=PropertyMock, return_value=use_tiktoken
+    ):
+        assert limiter.count_tokens(image) == ATTACHMENT_TOKEN_ESTIMATE
+        prompt = UserPromptPart(content=["hi", image])
+        assert limiter.count_tokens(prompt) <= ATTACHMENT_TOKEN_ESTIMATE + 2
+
+
+def test_fit_context_window_keeps_history_for_a_message_with_an_image():
+    from pydantic_ai.messages import BinaryContent
+
+    limiter = LLMLimiter()
+    limiter.max_token_per_request = 100_000
+    history = [ModelRequest(parts=[UserPromptPart(content="earlier turn")])]
+    image = BinaryContent(data=b"\xab" * 400_000, media_type="image/png")
+
+    assert limiter.fit_context_window(history, ["look", image]) == history

@@ -216,6 +216,16 @@ def test_pydantic_ai_model_instance_resolved_via_model_name():
     assert model_capabilities.get(fake).supports_image_input is True
 
 
+def test_model_instance_keeps_the_colon_of_an_ollama_tag():
+    # `OllamaModel("deepseek-v4.1-flash:cloud")`: the tag is part of the name.
+    fake = MagicMock()
+    fake.model_name = "deepseek-v4.1-flash:cloud"
+    assert model_capabilities.supports_modality(fake, "image") is True
+    assert model_capabilities.supports_modality(
+        "ollama:deepseek-v4.1-flash:cloud", "image"
+    )
+
+
 def test_magic_mock_without_real_string_name_treated_as_unknown():
     mock = MagicMock()
     assert is_known_model(mock) is False

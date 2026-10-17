@@ -320,7 +320,7 @@ class FileHistoryManager(AnyHistoryManager):
         if content is None:
             content = ""
         elif isinstance(content, list):
-            if any(not isinstance(item, str) for item in content):
+            if not all(_is_user_content_item(item) for item in content):
                 content = to_string(content)
         elif not isinstance(content, str):
             content = to_string(content)
@@ -561,3 +561,30 @@ class FileHistoryManager(AnyHistoryManager):
                 os.remove(full)
             except OSError:
                 continue
+
+
+# The `kind` of every pydantic-ai `UserContent` that is not a plain string.
+_USER_CONTENT_KINDS = frozenset(
+    {
+        "binary",
+        "image-url",
+        "audio-url",
+        "video-url",
+        "document-url",
+        "text-content",
+        "uploaded-file",
+        "cache-point",
+    }
+)
+
+
+def _is_user_content_item(item: object) -> bool:
+    """A string or a dumped attachment: kept as is, never flattened to text.
+
+    Flattening an image wrote its base64 into the prompt as ~450k characters
+    of text, which the next turn sent to the model and the limiter could not
+    fit in a minute's budget.
+    """
+    if isinstance(item, str):
+        return True
+    return isinstance(item, dict) and item.get("kind") in _USER_CONTENT_KINDS

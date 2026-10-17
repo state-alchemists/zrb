@@ -379,3 +379,95 @@ async def test_integration_btw_runs_while_thinking(integration_ui):
 
     assert ui.btw_questions == ["are you there"]
     assert ui.submitted == []
+
+
+def _paste(key_bindings, data):
+    # lazy: heavy third-party
+    from prompt_toolkit.keys import Keys
+
+    event = create_mock_event()
+    event.data = data
+    trigger_binding(key_bindings, Keys.BracketedPaste, event)
+    return event
+
+
+def test_bracketed_paste_of_a_file_path_attaches_it(mock_ui, setup_bindings, tmp_path):
+    image = tmp_path / "pasted-image.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    _paste(setup_bindings, f"{image}\r\n")
+
+    mock_ui.input_field.buffer.insert_text.assert_not_called()
+    assert len(mock_ui.pending_attachments) == 1
+    assert mock_ui.pending_attachments[0].media_type == "image/png"
+    assert any("Attached: pasted-image.png" in o for o in mock_ui.outputs)
+
+
+def test_bracketed_paste_of_an_unreadable_file_reports_it(
+    mock_ui, setup_bindings, tmp_path
+):
+    image = tmp_path / "fake.png"
+    image.write_bytes(b"not a png")
+
+    _paste(setup_bindings, str(image))
+
+    mock_ui.input_field.buffer.insert_text.assert_not_called()
+    assert mock_ui.pending_attachments == []
+    assert any("doesn't look like image/png" in o for o in mock_ui.outputs)
+
+
+def test_bracketed_paste_of_text_goes_to_the_input_field(mock_ui, setup_bindings):
+    # Focus may be on the read-only output pane; the paste still lands in input.
+    event = _paste(setup_bindings, "line one\r\nline two\r")
+
+    event.app.layout.focus.assert_called_once_with(mock_ui.input_field)
+    mock_ui.input_field.buffer.insert_text.assert_called_once_with(
+        "line one\nline two\n"
+    )
+    event.current_buffer.insert_text.assert_not_called()
+    assert mock_ui.pending_attachments == []
+
+
+def test_bracketed_paste_of_a_pdf_reaches_the_prompt_as_its_text(
+    mock_ui, setup_bindings, tmp_path
+):
+    from zrb.llm.agent.run.prompt_content import get_prompt_content
+
+    pdf = tmp_path / "report.pdf"
+    pdf.write_bytes(b"%PDF-1.4")
+    mock_ui.submit_attachment = MagicMock(
+        side_effect=mock_ui.pending_attachments.append
+    )
+
+    _paste(setup_bindings, str(pdf))
+    with patch("zrb.llm.util.attachment.extract_pdf_text", return_value="report text"):
+        content = get_prompt_content("hi", mock_ui.pending_attachments, print)
+
+    mock_ui.submit_attachment.assert_called_once_with(str(pdf))
+    assert content == ["hi", "report text"]
+
+
+def test_bracketed_paste_of_the_same_image_twice_attaches_it_once(
+    mock_ui, setup_bindings, tmp_path
+):
+    image = tmp_path / "pasted-image.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    _paste(setup_bindings, str(image))
+    _paste(setup_bindings, str(image))
+
+    assert len(mock_ui.pending_attachments) == 1
+    assert any("Already attached: pasted-image.png" in o for o in mock_ui.outputs)
+
+
+def test_bracketed_paste_of_an_image_queued_by_attach_is_not_added(
+    mock_ui, setup_bindings, tmp_path
+):
+    image = tmp_path / "photo.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+    mock_ui.pending_attachments.append(str(image))
+
+    _paste(setup_bindings, str(image))
+
+    assert mock_ui.pending_attachments == [str(image)]
+    assert any("Already attached: photo.png" in o for o in mock_ui.outputs)

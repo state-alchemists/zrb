@@ -9,6 +9,14 @@ from zrb.llm.agent_state import get_current_llm_limiter
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_info
 
+# What one binary attachment (an image, after `scale_image_bytes`) is counted
+# as: roughly Anthropic's ~1.15-megapixel image. Its bytes are never counted
+# as text, which made a 333 KB screenshot ~240k tokens and emptied history.
+ATTACHMENT_TOKEN_ESTIMATE = 1600
+# One token under tiktoken and four characters under the char/4 fallback, so
+# both counters see ATTACHMENT_TOKEN_ESTIMATE tokens.
+_ATTACHMENT_STAND_IN = " the" * ATTACHMENT_TOKEN_ESTIMATE
+
 
 def is_turn_start(msg: Any) -> bool:
     """Identify start of a new user interaction (User Prompt without Tool Return)."""
@@ -201,13 +209,18 @@ class LLMLimiter:
     async def acquire(self, content: Any, notifier: Callable[[str], Any] | None = None):
         """Wait until *content* fits the current rate limits, then record it."""
         estimated_tokens = self._count_tokens(content)
+        # A request over the whole per-minute budget can never fit: waiting
+        # for an empty window is all that helps, so it goes then, never hangs.
+        # A budget of 0 still blocks everything.
+        budget = self.max_token_per_minute
+        needed = min(estimated_tokens, budget) if budget > 0 else estimated_tokens
 
         self.prune_logs()
 
         notified = False
-        while not self.can_proceed(estimated_tokens):
-            wait_time = self.calculate_wait_time(estimated_tokens)
-            reason = self.get_limit_reason(estimated_tokens)
+        while not self.can_proceed(needed):
+            wait_time = self.calculate_wait_time(needed)
+            reason = self.get_limit_reason(needed)
 
             if notifier:
                 msg = f"Rate Limit reached: {reason}. Waiting {wait_time:.1f}s..."
@@ -355,6 +368,8 @@ class LLMLimiter:
         the other three count whenever the attribute is present, so a field
         explicitly set to `None` still contributes, as it always has.
         """
+        if isinstance(getattr(content, "data", None), bytes):
+            return _ATTACHMENT_STAND_IN  # `BinaryContent`
         fields = ["parts", "content", "args"]
         if not skip_instructions and getattr(content, "instructions", None):
             fields.insert(1, "instructions")

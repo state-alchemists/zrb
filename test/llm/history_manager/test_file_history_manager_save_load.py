@@ -412,3 +412,21 @@ def test_load_text_part_with_non_string_content(temp_history_dir):
     assert len(result) == 1
     assert isinstance(result[0].parts[0], TextPart)
     assert result[0].parts[0].content == "99"
+
+
+def test_an_image_in_a_user_prompt_survives_save_and_load(temp_history_dir):
+    from pydantic_ai.messages import BinaryContent, ModelRequest
+
+    image = BinaryContent(data=b"\x89PNG\r\n\x1a\n", media_type="image/png")
+    messages = [ModelRequest(parts=[UserPromptPart(content=["look", image])])]
+    manager = FileHistoryManager(temp_history_dir)
+    manager.update("with-image", messages)
+    manager.save("with-image")
+
+    reloaded = FileHistoryManager(temp_history_dir).load("with-image")
+
+    content = reloaded[0].parts[0].content
+    assert isinstance(content, list)
+    assert content[0] == "look"
+    assert content[1].data == image.data
+    assert content[1].media_type == "image/png"
