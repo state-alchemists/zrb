@@ -71,13 +71,23 @@ class ReplyEmotion(AbstractCapability[None]):
         request_context: ModelRequestContext,
         response: ModelResponse,
     ) -> ModelResponse:
-        parts = [_strip_part(part) for part in response.parts]
-        if all(new is old for new, old in zip(parts, response.parts)):
+        # Only the first text that shows opens the reply; later text keeps
+        # an emoji it starts with.
+        index = next(
+            (
+                i
+                for i, part in enumerate(response.parts)
+                if isinstance(part, TextPart) and part.content.strip()
+            ),
+            None,
+        )
+        if index is None or not _part_emotion(response.parts[index]):
             return response
         # The stream read it already; a reply that did not stream is read here.
-        emotion = next((e for e in map(_part_emotion, response.parts) if e), "")
-        if emotion and not current_reply_emotion.get():
-            current_reply_emotion.set(emotion)
+        if not current_reply_emotion.get():
+            current_reply_emotion.set(_part_emotion(response.parts[index]))
+        parts = list(response.parts)
+        parts[index] = _strip_part(parts[index])
         return replace(response, parts=parts)
 
     async def _read(self, emotion: str) -> None:
@@ -87,11 +97,12 @@ class ReplyEmotion(AbstractCapability[None]):
 
 
 class _Opening:
-    """Holds a run's events from a text part's start until that part shows a
-    visible character, which tells whether it opens with an emotion emoji;
-    then passes them on in their order, without the emoji. `take` and
-    `flush` return what to pass on; a `str` among it is the emotion read
-    (``""`` for a text part that opens with none)."""
+    """Holds a response's events from its first text part's start until that
+    part shows a visible character, which tells whether it opens with an
+    emotion emoji; then passes them on in their order, without the emoji.
+    Later text parts pass untouched. `take` and `flush` return what to pass
+    on; a `str` among it is the emotion read (``""`` when it opens with
+    none)."""
 
     def __init__(self) -> None:
         self._held: list[AgentStreamEvent] = []
@@ -101,9 +112,15 @@ class _Opening:
         self._stripped: set[int] = set()
         # A part whose emoji came alone: the space after it is still to come.
         self._trimming: int | None = None
+        # Set once a text part has shown text: the reply's opening is read.
+        self._is_opening_read = False
 
     def take(self, event: AgentStreamEvent) -> "list[AgentStreamEvent | str]":
-        if isinstance(event, PartStartEvent) and isinstance(event.part, TextPart):
+        if (
+            isinstance(event, PartStartEvent)
+            and isinstance(event.part, TextPart)
+            and not self._is_opening_read
+        ):
             self._trimming = None
             passed = self.flush()
             self._held = [event]
@@ -134,6 +151,7 @@ class _Opening:
         cut = len(self._text) - len(_strip_text(self._text)) if emotion else 0
         index, held, text = self._index, self._held, self._text
         self._held, self._index, self._text = [], None, ""
+        self._is_opening_read = True
         if cut:
             assert index is not None
             self._stripped.add(index)

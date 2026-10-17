@@ -1,10 +1,13 @@
 """The emotion emoji taken out of a real pydantic-ai run's reply, streamed and final."""
 
+from unittest.mock import MagicMock
+
 import pytest
 from pydantic_ai import Agent
 from pydantic_ai.messages import (
     ModelResponse,
     PartDeltaEvent,
+    PartEndEvent,
     PartStartEvent,
     TextPart,
 )
@@ -131,3 +134,47 @@ async def test_a_reply_without_an_emotion_does_not_keep_the_last_one():
     assert first.output == "Hello."
     assert after_first == "happy"
     assert after_second == ""
+
+
+
+_TWO_TEXTS = [TextPart("Here is the result:"), TextPart("😊 literal content")]
+
+
+@pytest.mark.asyncio
+async def test_only_the_first_text_of_a_streamed_reply_gives_its_emotion():
+    """A later text part keeps an emoji it opens with (PR #633 review)."""
+    read: list[str] = []
+
+    async def on_emotion(emotion):
+        read.append(emotion)
+
+    async def events():
+        for index, part in enumerate(_TWO_TEXTS):
+            yield PartStartEvent(index=index, part=part)
+            yield PartEndEvent(index=index, part=part)
+
+    capability = ReplyEmotion(on_emotion, _noop)
+    passed = [
+        event
+        async for event in capability.wrap_run_event_stream(
+            MagicMock(), stream=events()
+        )
+    ]
+
+    assert [e.part.content for e in passed if isinstance(e, PartStartEvent)] == [
+        "Here is the result:",
+        "😊 literal content",
+    ]
+    assert read == []
+
+
+@pytest.mark.asyncio
+async def test_only_the_first_text_of_a_finished_reply_loses_its_emoji():
+    response = ModelResponse(parts=list(_TWO_TEXTS))
+    capability = ReplyEmotion(_noop, _noop)
+
+    kept = await capability.after_model_request(
+        MagicMock(), request_context=MagicMock(), response=response
+    )
+
+    assert kept is response

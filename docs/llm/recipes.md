@@ -15,6 +15,7 @@ Python snippets go in a `zrb_init.py` at your project root; zrb runs it at start
 - [Add a skill](#add-a-skill)
 - [Add a sub-agent](#add-a-sub-agent)
 - [Build your own chat task with zrb's tools](#build-your-own-chat-task-with-zrbs-tools)
+- [Hear and voice emotion](#hear-and-voice-emotion)
 - [See what is configured](#see-what-is-configured)
 
 ---
@@ -122,6 +123,35 @@ cli.add_task(ops_chat)
 ```
 
 `zrb ops-chat --message "what is failing?"` then runs it. Adding a tool to `zrb llm chat` itself, as above, is usually all you need.
+
+## Hear and voice emotion
+
+The model opens each reply with an emoji for how it feels, which zrb takes out of the reply and reads it in that emotion's voice, and emotion2vec+ hears the tone of what you say. Install the local models first:
+
+```bash
+pip install "zrb[voice]" "pipecat-ai[pocket-tts,funasr]" torch sherpa-onnx huggingface_hub
+```
+
+Then, in `zrb_init.py`:
+
+<!-- recipe: emotion -->
+```python
+import os
+
+from zrb import CFG
+
+CFG.LLM_VOICE = "conversation"  # speech, and hands-free dictation
+CFG.LLM_EMOTION_ENABLED = True  # the reply's emoji, and the Emotion hook
+CFG.LLM_DICTATION_DETECT_EMOTION = True  # your tone, heard by emotion2vec+
+CFG.LLM_DICTATION_BACKEND = "sensevoice"
+CFG.LLM_SPEECH_BACKEND = "pocket"
+CFG.LLM_SPEECH_EMOTION_VOICES = {
+    emotion: os.path.expanduser(f"~/voices/{emotion}.wav")
+    for emotion in ("happy", "sad", "angry", "surprised", "relaxed", "neutral")
+}
+```
+
+Each `.wav` is a short clip spoken in that emotion, which `pocket` clones, tone included; an emotion with no voice is read in `ZRB_LLM_SPEECH_VOICE`. Your tone reaches the model in its live context (`sounding sad (0.82)`), never in your words. emotion2vec+ and `pocket` run on PyTorch, which loads in the chat process, so Ctrl+C can be slow while it does. Each setting is in [LLM configuration § Emotion](../configuration/llm-voice-camera.md#emotion), and an avatar can follow both emotions through the [`Emotion` hook](hooks.md#emotion).
 
 ## See what is configured
 

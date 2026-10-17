@@ -8,6 +8,7 @@ it.
 """
 
 import asyncio
+import threading
 from contextlib import aclosing
 from unittest.mock import MagicMock, patch
 
@@ -319,6 +320,43 @@ async def test_a_microphone_that_will_not_start_says_which_device_it_tried():
     assert "Error starting stream: Wait timed out" in message
     assert "device 'pulse'" in message
     assert "LLM_DICTATION_DEVICE" in message
+
+
+
+@pytest.mark.asyncio
+async def test_a_start_that_fails_after_the_wait_is_cancelled_is_still_closed():
+    """Ctrl+C while `start()` stalls leaves its stream to the thread (PR #633
+    review): a start that then fails must close it, as one that succeeds is."""
+    release = threading.Event()
+    streams = []
+
+    class StallingStream(FakeStream):
+        def start(self):
+            streams.append(self)
+            release.wait(5)
+            raise RuntimeError("Error starting stream: Wait timed out")
+
+    stalling_sd = MagicMock()
+    stalling_sd.InputStream.side_effect = lambda **kwargs: StallingStream()
+
+    async def consume():
+        async with aclosing(listen(_listen_config(), _holds_for(1))) as mic:
+            await anext(mic)
+
+    with patch.dict("sys.modules", {"sounddevice": stalling_sd}):
+        task = asyncio.create_task(consume())
+        while not streams:
+            await asyncio.sleep(0.01)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        release.set()
+        for _ in range(100):
+            if streams[0].is_closed:
+                break
+            await asyncio.sleep(0.01)
+
+    assert streams[0].is_closed
 
 
 @pytest.mark.asyncio

@@ -813,27 +813,37 @@ async def _open_microphone(
             raise _NotStarted(stream.close, e) from e
         return stream
 
+    def start_or_not_started():
+        # Returned, not raised: a failure orphaned by cancellation reaches
+        # `on_orphan` too, which closes it like a stream.
+        try:
+            return start()
+        except _NotStarted as e:
+            return e
+
     attempt = 0
     while True:
         attempt += 1
-        try:
-            # Off the event loop: opening can stall for seconds (WSL2 above),
-            # and a stalled loop cannot be cancelled, so Ctrl+C could not quit.
-            return await run_in_daemon(
-                start, name="zrb-microphone", on_orphan=lambda s: s.close()
-            )
-        except _NotStarted as e:
-            await close_quietly(e.close, "the microphone that would not start")
-            if attempt >= _OPEN_ATTEMPTS:
-                raise RuntimeError(_microphone_failure_message(device, e.cause)) from e
-            logger.warning(f"Starting the microphone failed ({e.cause}); trying again")
-            await asyncio.sleep(_OPEN_RETRY_SECONDS)
+        # Off the event loop: opening can stall for seconds (WSL2 above),
+        # and a stalled loop cannot be cancelled, so Ctrl+C could not quit.
+        opened = await run_in_daemon(
+            start_or_not_started, name="zrb-microphone", on_orphan=lambda s: s.close()
+        )
+        if not isinstance(opened, _NotStarted):
+            return opened
+        await close_quietly(opened.close, "the microphone that would not start")
+        if attempt >= _OPEN_ATTEMPTS:
+            raise RuntimeError(
+                _microphone_failure_message(device, opened.cause)
+            ) from opened
+        logger.warning(f"Starting the microphone failed ({opened.cause}); trying again")
+        await asyncio.sleep(_OPEN_RETRY_SECONDS)
 
 
 class _NotStarted(Exception):
     """A stream that was made but would not start; *close* closes it."""
 
-    def __init__(self, close: Callable[[], object], cause: Exception) -> None:
+    def __init__(self, close: Callable[[], None], cause: Exception) -> None:
         super().__init__(str(cause))
         self.close = close
         self.cause = cause
