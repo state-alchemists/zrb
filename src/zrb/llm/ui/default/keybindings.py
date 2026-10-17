@@ -287,10 +287,13 @@ class UIKeybindings:
         def report_error(message: str) -> None:
             ui.append_to_output(stylize_error(f"\n  ❌ {message}\n"))
 
-        attachments = normalize_attachments([path], print_fn=report_error)
-        if attachments:
-            ui.pending_attachments.extend(attachments)
-            name = os.path.basename(path)
+        name = os.path.basename(path)
+        for attachment in normalize_attachments([path], print_fn=report_error):
+            # Same bytes, same image: rejected like `/attach`'s repeated path.
+            if attachment in ui.pending_attachments:
+                ui.append_to_output(stylize_error(f"\n  📎 Already attached: {name}\n"))
+                continue
+            ui.pending_attachments.append(attachment)
             ui.append_to_output(stylize_muted(f"\n  📎 Attached: {name}\n"))
 
     def _on_delete_queued(self, event: "KeyPressEvent") -> None:

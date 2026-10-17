@@ -440,3 +440,16 @@ def test_bracketed_paste_of_a_pdf_reaches_the_prompt_as_its_text(
 
     mock_ui.submit_attachment.assert_called_once_with(str(pdf))
     assert content == ["hi", "report text"]
+
+
+def test_bracketed_paste_of_the_same_image_twice_attaches_it_once(
+    mock_ui, setup_bindings, tmp_path
+):
+    image = tmp_path / "pasted-image.png"
+    image.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    _paste(setup_bindings, str(image))
+    _paste(setup_bindings, str(image))
+
+    assert len(mock_ui.pending_attachments) == 1
+    assert any("Already attached: pasted-image.png" in o for o in mock_ui.outputs)
