@@ -24,8 +24,11 @@ class PipecatSpeechBackend(AnySpeechBackend):
         self._service_name = service_name
         self._config = config
         self._pipeline: TTSPipeline | None = None
-        # Serialize lazy pipeline creation.
+        # Serializes starting the pipeline, which can take as long as a model
+        # download; `close` never waits for it.
         self._starting = threading.Lock()
+        # Guards `_pipeline` and `_is_closed`, held only briefly.
+        self._state = threading.Lock()
         self._is_closed = False
 
     @property
@@ -57,8 +60,9 @@ class PipecatSpeechBackend(AnySpeechBackend):
         return self._get_pipeline().speak(text, voice=get_current_speech_voice())
 
     def close(self) -> None:
-        """Stop and discard the pipeline."""
-        with self._starting:
+        """Stop and discard the pipeline. A pipeline still starting is not
+        waited for: it closes itself once it has started."""
+        with self._state:
             self._is_closed = True
             pipeline, self._pipeline = self._pipeline, None
         if pipeline is not None:
@@ -66,15 +70,29 @@ class PipecatSpeechBackend(AnySpeechBackend):
 
     def _get_pipeline(self) -> "TTSPipeline":
         """Return the cached pipeline, starting it on first use."""
+        with self._starting:
+            with self._state:
+                pipeline, is_closed = self._pipeline, self._is_closed
+            if is_closed:
+                raise self._closed_error()
+            if pipeline is None:
+                pipeline = self._start_pipeline()
+            return pipeline
+
+    def _start_pipeline(self) -> "TTSPipeline":
         # lazy: circular — defer the pipeline import until first use.
         from zrb.llm.speech.pipecat_tts import TTSPipeline
 
-        with self._starting:
-            if self._is_closed:
-                raise RuntimeError(
-                    f"the {self._service_name} speech service was closed"
-                )
-            if self._pipeline is None:
-                service = tts_manager.create_service(self._service_name, self._config)
-                self._pipeline = TTSPipeline.start(service)
-            return self._pipeline
+        service = tts_manager.create_service(self._service_name, self._config)
+        pipeline = TTSPipeline.start(service)
+        with self._state:
+            is_closed = self._is_closed
+            if not is_closed:
+                self._pipeline = pipeline
+        if is_closed:
+            pipeline.close()
+            raise self._closed_error()
+        return pipeline
+
+    def _closed_error(self) -> RuntimeError:
+        return RuntimeError(f"the {self._service_name} speech service was closed")
