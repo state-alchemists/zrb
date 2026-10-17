@@ -53,6 +53,14 @@ async def test_an_unsure_or_unreported_tone_is_none(classifier):
 
 
 @pytest.mark.asyncio
+async def test_a_failing_model_hears_no_tone_and_says_why(classifier, caplog):
+    classifier.scores = []
+
+    assert await EmotionDetector().hear(b"\x00\x00") is None
+    assert "Hearing the tone failed" in caplog.text
+
+
+@pytest.mark.asyncio
 async def test_prepare_loads_the_model_once(classifier):
     detector = EmotionDetector("me/e2v")
 

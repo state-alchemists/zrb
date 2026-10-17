@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.ambient_state import get_current_speech_voice
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.voice.manager import tts_manager
+from zrb.llm.voice.registry import tts_registry
 
 if TYPE_CHECKING:
     from zrb.llm.speech.backend.audio import SpeechAudio
@@ -36,6 +37,12 @@ class PipecatSpeechBackend(AnySpeechBackend):
     def needs_zrb_playback(self) -> bool:
         """Whether this service requires zrb playback."""
         return True
+
+    @property
+    def is_local(self) -> bool:
+        """Whether the registered service runs on this machine."""
+        spec = tts_registry.get(self._service_name)
+        return spec is not None and spec.is_local
 
     def create_utterance(self, text: str) -> "Utterance":
         """Reject playback through an external player program."""

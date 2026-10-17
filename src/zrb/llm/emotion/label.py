@@ -9,8 +9,8 @@ this way; dictation hears it and the turn carries it (`InputProvenance.tone`).
 
 from __future__ import annotations
 
-# Every emoji read as an emotion. The first of each is the one the model is
-# asked to write.
+# The emoji recognized for each emotion. The first is the one the prompt
+# asks for.
 _EMOJI_BY_EMOTION: dict[str, str] = {
     "happy": "😊😄😁😀😃🥰😍",
     "sad": "😢😔😞😭🙁",

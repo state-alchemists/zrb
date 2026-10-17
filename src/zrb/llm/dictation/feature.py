@@ -104,7 +104,6 @@ class DictationSession:
 
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
-        # Hears the tone of each hands-free utterance, beside the transcriber.
         self._emotion = (
             EmotionDetector(config.emotion_model or "", config.emotion_min_score or 0)
             if config.detect_emotion
@@ -372,25 +371,25 @@ class DictationSession:
                 self._show(_TRANSCRIBING)
                 hearing = self._hear(utterance)
                 try:
-                    text = await self._transcribe_or_drop(utterance)
-                except Exception as exc:
+                    try:
+                        text = await self._transcribe_or_drop(utterance)
+                    except Exception as exc:
+                        self._release_barge_in()
+                        self._rest("❗ transcription failed · listening")
+                        self._report(f"Hands-free transcription failed: {exc}")
+                        continue
+                    if text is None:
+                        self._release_barge_in()
+                        return
+                    command = await self._to_command(utterance, text)
+                    if command is not None:
+                        yield self._to_reply(command, utterance, await hearing)
+                finally:
+                    # Stop the tone check too if the loop closes mid-utterance.
                     hearing.cancel()
-                    self._release_barge_in()
-                    self._rest("❗ transcription failed · listening")
-                    self._report(f"Hands-free transcription failed: {exc}")
-                    continue
-                if text is None:
-                    hearing.cancel()
-                    self._release_barge_in()
-                    return
-                command = await self._to_command(utterance, text)
-                if command is None:
-                    hearing.cancel()
-                    continue
-                yield self._to_reply(command, utterance, await hearing)
 
     def _hear(self, utterance: Utterance) -> "asyncio.Future[Tone | None]":
-        """The utterance's tone, heard while it is transcribed."""
+        """Start hearing the utterance's tone while it is transcribed."""
         if self._emotion is None:
             done: asyncio.Future[Tone | None] = asyncio.Future()
             done.set_result(None)

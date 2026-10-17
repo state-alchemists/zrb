@@ -64,15 +64,16 @@ def enable_emotion(task: "LLMChatTask", config: EmotionConfig | None = None) -> 
 
 
 class EmotionSession:
-    """The emotions one chat session has read and not yet fired."""
+    """One chat session's emotion state: its prompt hook and the user's tone
+    waiting to fire."""
 
     def __init__(self, config: EmotionConfig) -> None:
         self.is_enabled = bool(config.enabled)
-        # Kept, so `remove_hook` gets back the object `add_hook` was given.
+        # Bound once, so `remove_hook` gets the same object `add_hook` got.
         self._prompt_hook = self.handle_user_prompt_submit
         self._managers: "weakref.WeakSet[HookManager]" = weakref.WeakSet()
-        # The user's tone, held by the prompt hook (a pool thread) until the
-        # reply's stream starts on the event loop.
+        # The user's tone, stored by the prompt hook (on a pool thread) and
+        # fired when the reply starts streaming (on the event loop).
         self._pending: list[tuple[str, str]] = []
 
     def register_hooks(self, manager: "HookManager") -> None:
@@ -97,8 +98,8 @@ class EmotionSession:
         return get_prompt("emotion_live") if self.is_enabled else ""
 
     def create_capabilities(self) -> "list[ReplyEmotion]":
-        """The capability taking the emoji out of this run's reply, while
-        enabled; none otherwise, so a run without emotion is untouched."""
+        """The capability that strips the emoji from this run's reply, or
+        none while disabled."""
         if not self.is_enabled:
             return []
         # lazy: heavy third-party — the capability is a pydantic-ai class.
@@ -107,9 +108,9 @@ class EmotionSession:
         return [ReplyEmotion(self.handle_reply_emotion, self.handle_stream_start)]
 
     async def handle_user_prompt_submit(self, context: HookContext) -> HookResult:
-        """Hold the tone dictation heard the prompt in, for the reply to fire.
-        It replaces whatever an earlier turn left unfired (one that ended
-        before streaming anything), which is not this turn's."""
+        """Store the tone dictation heard this prompt in, to fire when the
+        reply starts streaming. It replaces a tone left unfired by an earlier
+        turn that ended before streaming."""
         provenance = get_input_provenance()
         tone = provenance.tone if provenance is not None else ""
         self._pending = [("user", tone)] if tone else []

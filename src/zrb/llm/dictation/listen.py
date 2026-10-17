@@ -402,8 +402,8 @@ async def listen(
                             open_microphone = partial(
                                 open_microphone, is_echo_cancelled=False
                             )
-                        # Before reopening: the new stream may deliver a block
-                        # while it is still being opened off the event loop.
+                        # Mark the gap first: the new stream can deliver blocks
+                        # while it is still opening off the event loop.
                         backlog.mark_gap()
                         stream = await open_microphone()
                     continue
@@ -814,8 +814,8 @@ async def _open_microphone(
         return stream
 
     def start_or_not_started():
-        # Returned, not raised: a failure orphaned by cancellation reaches
-        # `on_orphan` too, which closes it like a stream.
+        # Return the failure instead of raising it, so one that lands after
+        # cancellation still reaches `on_orphan` and gets closed.
         try:
             return start()
         except _NotStarted as e:
@@ -824,8 +824,8 @@ async def _open_microphone(
     attempt = 0
     while True:
         attempt += 1
-        # Off the event loop: opening can stall for seconds (WSL2 above),
-        # and a stalled loop cannot be cancelled, so Ctrl+C could not quit.
+        # Open off the event loop: opening can stall for seconds (see WSL2
+        # above), and Ctrl+C cannot cancel a blocked loop.
         opened = await run_in_daemon(
             start_or_not_started, name="zrb-microphone", on_orphan=lambda s: s.close()
         )
@@ -841,7 +841,7 @@ async def _open_microphone(
 
 
 class _NotStarted(Exception):
-    """A stream that was made but would not start; *close* closes it."""
+    """A stream that was created but failed to start; *close* closes it."""
 
     def __init__(self, close: Callable[[], None], cause: Exception) -> None:
         super().__init__(str(cause))

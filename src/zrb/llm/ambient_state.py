@@ -18,27 +18,28 @@ input_provenance: ContextVar[InputProvenance | None] = ContextVar(
 )
 
 
-# The voice the speech being made now should use, bound by the speaker's
-# worker around each utterance so a wrapping backend passes it through.
+# The voice for the utterance being synthesized. The speaker sets it around
+# each utterance, so a backend that wraps another still sees it.
 current_speech_voice: ContextVar[str] = ContextVar(
     "zrb_current_speech_voice", default=""
 )
 
 
 def get_current_speech_voice() -> str:
-    """The voice the speech being made now should use; empty: as configured."""
+    """The voice for the utterance being synthesized; empty means the
+    configured voice."""
     return current_speech_voice.get()
 
 
-# The emotion the model's reply being written opens with, set by the emotion
-# feature as it takes the emoji out of the reply; read by speech and hooks.
+# The emotion of the reply being streamed. The emotion feature sets it when it
+# strips the leading emoji; speech and hooks read it.
 current_reply_emotion: ContextVar[str] = ContextVar(
     "zrb_current_reply_emotion", default=""
 )
 
 
 def get_reply_emotion() -> str:
-    """The emotion the reply being written opens with; empty: none."""
+    """The emotion of the reply being streamed; empty when it has none."""
     return current_reply_emotion.get()
 
 
