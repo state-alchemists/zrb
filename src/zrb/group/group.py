@@ -10,6 +10,7 @@ from typing import Any, NamedTuple, TypeVar
 
 from zrb.group.any_group import AnyGroup, NodeNotFoundError
 from zrb.task.any_task import AnyTask
+from zrb.task.lazy_task import resolve_task
 from zrb.util.string.suggestion import format_suggestion
 
 _T = TypeVar("_T", bound=AnyTask)
@@ -264,6 +265,10 @@ class Group(AnyGroup):
         Raises:
             NodeNotFoundError: If no matching task or group is found for a
                 given argument.
+
+        A `LazyTask` reached on the path is resolved before returning, so this
+        is the single point where a command line turns into the real task and
+        the module that declares it loads.
         """
         node: "AnyGroup | AnyTask" = self
         node_path: list[str] = []
@@ -297,6 +302,8 @@ class Group(AnyGroup):
                 node = task
                 residual_args = args[index + 1 :]
                 break
+        if isinstance(node, AnyTask):
+            node = resolve_task(node)
         return node, node_path, residual_args
 
 

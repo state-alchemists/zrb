@@ -72,6 +72,19 @@ def get_builtin_task_ids() -> frozenset[int]:
     return _builtin_task_ids
 
 
+def mark_builtin_task(task: AnyTask) -> None:
+    """Add a task the snapshot could not have seen, as a built-in.
+
+    `zrb.builtin` registers the chat task as a `LazyTask` stand-in, so the
+    snapshot holds the stand-in. The real task replaces it the first time a
+    command line addresses it — after the snapshot. Without this, a project
+    task shadowing that built-in is reported as a collision between two of the
+    project's own tasks.
+    """
+    global _builtin_task_ids
+    _builtin_task_ids = _builtin_task_ids | {id(task)}
+
+
 def reset_task_replacements(root: Group) -> None:
     """Drop the replacement log a previous `serve_cli` left on the tree."""
     for _, group in _collect_groups(root):

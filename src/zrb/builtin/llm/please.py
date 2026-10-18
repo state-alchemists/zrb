@@ -6,8 +6,6 @@ from zrb.builtin.group import llm_group
 from zrb.config.helper import get_current_shell
 from zrb.context.any_context import AnyContext
 from zrb.input.str_input import StrInput
-from zrb.llm.agent import create_agent
-from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.runner.cli import cli
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_faint, stylize_green, stylize_red, stylize_yellow
@@ -46,6 +44,11 @@ closest single command that accomplishes the most essential part.
 )
 async def please(ctx: AnyContext) -> str:
     ctx.print(stylize_faint(f"🤔 Thinking about: {ctx.input.message}"))
+    # lazy: pydantic_ai is a heavy extra — `please` sits on `cli` for every run,
+    # and a run that never calls it should not carry the agent stack.
+    from zrb.llm.agent import create_agent
+    from zrb.llm.config.model_resolver import resolve_configured_small_model
+
     model = str(ctx.input.model).strip() or resolve_configured_small_model()
     agent = create_agent(model=model, system_prompt=SYSTEM_PROMPT, yolo=True)
     result = await agent.run(build_user_message(str(ctx.input.message)))

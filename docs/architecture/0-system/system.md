@@ -49,6 +49,7 @@ These hold across the whole system. Each subsystem's own invariants live on its 
 | --- | --- | --- |
 | `import zrb` declares no pydantic model | Every command, even `--help`, pays for pydantic's schema machinery | `test/architecture/test_eager_pydantic_models.py::test_importing_zrb_declares_no_pydantic_model` |
 | `import zrb` loads no `zrb.*` submodule, and the entry point still registers every built-in task | Every caller pays for the agent stack; or `zrb --help` silently loses the built-in tasks | `test/architecture/test_facade_import_cost.py` |
+| Importing the built-ins loads no `zrb.llm` module, and the CLI still lists the chat task | Every command pays ~0.24 s for the agent stack; or `llm chat` silently leaves `--help` | `test/architecture/test_builtin_lazy_llm_task.py` |
 | Every built-in task module is wired into the CLI | A shipped task never appears in `zrb` | `test/builtin/test_registration_completeness.py::test_every_task_module_on_disk_is_wired_into_the_cli` |
 | Every `pydantic_ai.Agent` zrb builds goes through `create_agent`; an `Agent` or `agent_factory` the user supplies is used as given | A second agent path skips the tool wrapper, and with it the permission and sandbox checks | **unpinned** |
 
