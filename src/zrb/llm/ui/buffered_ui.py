@@ -80,6 +80,11 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         """The UI this buffer flushes to (the parent agent's UI)."""
         return self._wrapped
 
+    @property
+    def is_local(self) -> bool:
+        """Whether the wrapped UI's user sits at this machine."""
+        return self._wrapped.is_local
+
     async def ask_user(
         self,
         prompt: str,

@@ -68,7 +68,7 @@ A Wayland session never falls back to the X11 programs: through XWayland they wo
 
 A screenshot reaches a text-only model by the same rule as a photo, in the table under [Camera](#camera).
 
-In the web chat, `/screenshot` and `TakeScreenshot` capture the screen of the machine zrb runs on, not the browser's.
+In the web chat or on Telegram, `/screenshot` refuses: it would capture the screen of the machine zrb runs on, not yours. Attach the screenshot from your own device instead. The opt-in `TakeScreenshot` tool still works there — every call asks for approval, so a server-screen capture is always an explicit yes.
 
 ## Dictation
 

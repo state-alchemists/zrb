@@ -36,6 +36,13 @@ class EventDrivenUI(SimpleUI):
                 self.handle_incoming_message(update.message.text)
     """
 
+    @property
+    def is_local(self) -> bool:
+        """False: the user drives this UI over a network (the web chat's
+        HTTPUI, Telegram, Discord), so local-hardware commands such as
+        `/screenshot` would act on a machine they cannot see."""
+        return False
+
     def __init__(
         self,
         ctx,

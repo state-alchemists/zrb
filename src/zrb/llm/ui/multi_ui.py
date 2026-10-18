@@ -138,6 +138,13 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         return self._uis[self._main_ui_index] if self._uis else None
 
     @property
+    def is_local(self) -> bool:
+        """Whether the main child's user sits at this machine (a MultiUI is
+        only as local as the UI its input comes from)."""
+        main_ui = self.main_ui
+        return main_ui.is_local if main_ui is not None else False
+
+    @property
     def last_output(self) -> str:
         """The last answer rendered through this MultiUI."""
         return self._last_output

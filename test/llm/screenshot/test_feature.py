@@ -40,6 +40,8 @@ class FakeScreen(AnyScreenshotBackend):
 
 
 class FakeUI:
+    is_local = True
+
     def __init__(self):
         self.background_tasks: set = set()
         self.pending_attachments: list = []
@@ -50,6 +52,10 @@ class FakeUI:
 
     def invalidate_ui(self):
         pass
+
+
+class FakeRemoteUI(FakeUI):
+    is_local = False
 
 
 async def _run(command, text_args: dict, ui: FakeUI) -> None:
@@ -74,6 +80,18 @@ async def test_the_screenshot_is_attached_to_the_next_message():
     assert screenshot.media_type == "image/jpeg"
     assert any("Screenshot captured" in output for output in ui.outputs)
     assert screen.captured == [None]
+
+
+@pytest.mark.asyncio
+async def test_a_non_local_ui_is_refused_before_the_screen_is_captured():
+    screen = FakeScreen(_image("JPEG"))
+    ui = FakeRemoteUI()
+
+    await _run(_screenshot_command(screen), {"display": ""}, ui)
+
+    assert ui.pending_attachments == []
+    assert screen.captured == []
+    assert any("Screenshot refused" in output for output in ui.outputs)
 
 
 @pytest.mark.asyncio

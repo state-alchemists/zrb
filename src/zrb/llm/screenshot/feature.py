@@ -86,8 +86,22 @@ def create_screenshot_commands(
 async def attach_screenshot(
     ui: "BaseUI | None", backend: AnyScreenshotBackend, display: str | None
 ) -> None:
-    """Capture *display* and queue the screenshot for *ui*'s next message."""
+    """Capture *display* and queue the screenshot for *ui*'s next message.
+
+    Refused on a non-local UI (the web chat, Telegram): the capture shows
+    the machine zrb runs on, which that UI's user cannot see or intend.
+    """
     if ui is None:
+        return
+    if not ui.is_local:
+        ui.append_to_output(
+            stylize_error(
+                "\n  ❌ Screenshot refused: this chat is not on the machine "
+                "zrb runs on, so a capture would show the server's screen, "
+                "not yours. [SYSTEM SUGGESTION]: Attach the screenshot from "
+                "your own device instead.\n"
+            )
+        )
         return
     ui.append_to_output(stylize_muted("\n  📸 Capturing the screen...\n"))
     screenshot = await capture_screenshot(backend, display)
