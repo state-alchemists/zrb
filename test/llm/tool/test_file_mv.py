@@ -1,3 +1,4 @@
+import asyncio
 import os
 
 import pytest
@@ -5,6 +6,10 @@ import pytest
 from zrb.llm.tool.file_mv import move_file
 from zrb.llm.tool.file_observation import clear_observed
 from zrb.llm.tool.file_read import read_file
+
+
+def _rd(*a, **kw):
+    return asyncio.run(read_file(*a, **kw))
 
 
 @pytest.fixture(autouse=True)
@@ -93,7 +98,7 @@ def test_move_onto_read_existing_destination_succeeds(temp_dir):
         f.write("new")
     with open(dst, "w") as f:
         f.write("old")
-    read_file(dst)
+    _rd(dst)
     result = move_file(src, dst)
     assert "Moved" in result
     with open(dst) as f:

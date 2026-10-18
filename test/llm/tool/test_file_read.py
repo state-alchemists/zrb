@@ -8,6 +8,10 @@ from zrb.llm.tool.file import read_file, replace_in_file, write_file
 from zrb.llm.tool.file_observation import clear_observed
 
 
+def _rd(*a, **kw):
+    return asyncio.run(read_file(*a, **kw))
+
+
 @pytest.fixture(autouse=True)
 def _reset_observed_state():
     """Reset the run-scoped observation map between tests."""
@@ -70,11 +74,11 @@ def test_read_file_prefixes_each_line_with_its_number(tmp_path):
     file_path = tmp_path / "test.txt"
     file_path.write_text("\n".join(f"line{i}" for i in range(1, 11)))
 
-    body = read_file(str(file_path)).split("---CONTENT---\n", 1)[1]
+    body = _rd(str(file_path)).split("---CONTENT---\n", 1)[1]
     assert body.startswith("     1\tline1\n")
     assert "    10\tline10" in body
 
-    ranged = read_file(str(file_path), start_line=3, end_line=5)
+    ranged = _rd(str(file_path), start_line=3, end_line=5)
     ranged_body = ranged.split("---CONTENT---\n", 1)[1]
     assert ranged_body == "     3\tline3\n     4\tline4\n     5\tline5\n"
 
@@ -88,7 +92,7 @@ def test_read_file_budget_counts_file_chars_not_prefixes(tmp_path):
 
     with patch("zrb.llm.tool.file_read.CFG") as cfg:
         cfg.LLM_MAX_OUTPUT_CHARS = 40
-        body = read_file(str(file_path)).split("---CONTENT---\n", 1)[1]
+        body = _rd(str(file_path)).split("---CONTENT---\n", 1)[1]
 
     delivered = "".join(
         line.split("\t", 1)[1]
@@ -107,7 +111,7 @@ def test_read_file_single_line_over_budget_is_hard_cut(tmp_path):
 
     with patch("zrb.llm.tool.file_read.CFG") as cfg:
         cfg.LLM_MAX_OUTPUT_CHARS = 40
-        body = read_file(str(file_path)).split("---CONTENT---\n", 1)[1]
+        body = _rd(str(file_path)).split("---CONTENT---\n", 1)[1]
 
     assert body.startswith("     1\t")
     assert body.rstrip().endswith("...[TRUNCATED]")
@@ -119,7 +123,7 @@ def test_read_file_non_utf8(tmp_path):
     # Write latin-1 encoded bytes that are not valid UTF-8
     file_path.write_bytes(b"caf\xe9 au lait")
 
-    result = read_file(str(file_path))
+    result = _rd(str(file_path))
     assert "Error" in result
     assert "binary" in result.lower() or "non-UTF-8" in result
 
@@ -148,7 +152,7 @@ def test_read_pdf_file(tmp_path):
         sys.modules,
         {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
     ):
-        result = read_file(str(pdf_file))
+        result = _rd(str(pdf_file))
     assert "Hello World PDF content" in result
     assert "---CONTENT---" in result
     # Unnumbered: a PDF's line breaks come from the extractor, so a numbered
@@ -181,7 +185,7 @@ def test_read_pdf_file_no_text(tmp_path):
         sys.modules,
         {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
     ):
-        result = read_file(str(pdf_file))
+        result = _rd(str(pdf_file))
     assert "Error" in result
     assert "No extractable text" in result
 
@@ -203,7 +207,7 @@ def test_read_pdf_file_invalid(tmp_path):
         sys.modules,
         {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
     ):
-        result = read_file(str(pdf_file))
+        result = _rd(str(pdf_file))
     assert "Error" in result
     assert "corrupted" in result.lower()
 
@@ -217,7 +221,7 @@ def test_write_to_binary_file_denied_even_after_read(temp_dir):
         f.write(b"%PDF-1.4 \xe9\x00 not valid utf-8")
 
     with _mock_pdfplumber("extracted text"):
-        assert "extracted text" in read_file(pdf_file)
+        assert "extracted text" in _rd(pdf_file)
 
     result = _w(pdf_file, "replacement text", mode="w")
     assert "Error" in result
@@ -246,7 +250,7 @@ def test_text_decodable_pdf_allows_grounded_overwrite(temp_dir):
         f.write("plain text masquerading as pdf")
 
     with _mock_pdfplumber("plain text masquerading as pdf"):
-        read_file(pdf_file)
+        _rd(pdf_file)
 
     result = _w(pdf_file, "replacement")
     assert "Successfully wrote" in result
@@ -277,7 +281,7 @@ def test_read_pdf_file_line_range(tmp_path):
         sys.modules,
         {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
     ):
-        result = read_file(str(pdf_file), start_line=3, end_line=5)
+        result = _rd(str(pdf_file), start_line=3, end_line=5)
     body = result.split("---CONTENT---")[1]
     assert "line3" in body and "line4" in body and "line5" in body
     assert "line2" not in body and "line6" not in body
@@ -309,7 +313,7 @@ def test_read_pdf_file_end_line_negative_one(tmp_path):
         sys.modules,
         {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
     ):
-        result = read_file(str(pdf_file), start_line=4, end_line=-1)
+        result = _rd(str(pdf_file), start_line=4, end_line=-1)
     body = result.split("---CONTENT---")[1]
     assert "line4" in body and "line5" in body
     assert "line3" not in body
@@ -339,7 +343,7 @@ def test_read_pdf_file_start_line_beyond_eof(tmp_path):
         sys.modules,
         {"pdfplumber": mock_pdfplumber, "pdfplumber.pdf": mock_pdfplumber.pdf},
     ):
-        result = read_file(str(pdf_file), start_line=99)
+        result = _rd(str(pdf_file), start_line=99)
     assert "Error" in result
     assert "beyond end of file" in result
 

@@ -67,10 +67,18 @@ async def _assert_recorded_process_stops(pid_path: str) -> None:
     pid: int | None = None
     for _ in range(attempts):
         if os.path.exists(pid_path):
-            with open(pid_path) as file:
-                pid = int(file.read())
-            if not _process_is_live(pid):
-                return
+            try:
+                with open(pid_path) as file:
+                    content = file.read().strip()
+                if not content:
+                    await asyncio.sleep(_PROCESS_STOP_POLL_SECONDS)
+                    continue
+                pid = int(content)
+                if not _process_is_live(pid):
+                    return
+            except (ValueError, OSError):
+                await asyncio.sleep(_PROCESS_STOP_POLL_SECONDS)
+                continue
         await asyncio.sleep(_PROCESS_STOP_POLL_SECONDS)
     assert pid is None or not _process_is_live(
         pid

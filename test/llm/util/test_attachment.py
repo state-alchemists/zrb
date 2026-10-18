@@ -325,3 +325,19 @@ def test_normalize_attachments_keeps_distinct_files_with_equal_content(tmp_path)
     second = _make_image(tmp_path, "b.png")
 
     assert len(normalize_attachments([first, second])) == 2
+
+
+def test_normalize_attachments_skips_an_image_too_large_to_decode(
+    tmp_path, monkeypatch
+):
+    from PIL import Image
+
+    monkeypatch.setattr("zrb.llm.util.image_scale.MAX_DECODE_PIXELS", 100)
+    image = tmp_path / "huge.png"
+    Image.new("RGB", (20, 20), "red").save(image)
+    messages: list[str] = []
+
+    result = normalize_attachments([str(image)], print_fn=messages.append)
+
+    assert result == []
+    assert "too large to decode safely" in messages[0]

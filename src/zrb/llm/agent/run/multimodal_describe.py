@@ -7,15 +7,20 @@ audio are described.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent_state import get_current_model
+from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.util.capabilities import (
     is_known_model,
     media_type_modality,
     model_capabilities,
 )
+
+if TYPE_CHECKING:
+    from zrb.llm.agent.types import BinaryContent, ToolReturn
 
 
 async def describe_binary_attachment(
@@ -82,6 +87,43 @@ async def describe_binary_attachment(
     except Exception as exc:
         CFG.LOGGER.warning(f"Multimodal describe failed: {exc}")
         return None
+
+
+async def create_image_tool_return(
+    image: "BinaryContent", done: str
+) -> "str | ToolReturn":
+    """A tool result that shows *image* to the running model, led by *done*
+    (``"Photo taken"``): the image attached for a model that reads images, its
+    description for a text-only one, or a `[SYSTEM SUGGESTION]` naming
+    `LLM_MULTIMODAL_MODEL` when neither works."""
+    # lazy: heavy third-party (pydantic_ai) via zrb.llm.agent.types
+    from zrb.llm.agent.types import ToolReturn
+
+    shown = await get_attachment_for_current_model(image)
+    if not shown:
+        return (
+            f"{done}, but you cannot see it. [SYSTEM SUGGESTION]: Your model is "
+            "text-only and no multimodal model that reads images is configured. "
+            f"Tell the user to set {CFG.ENV_PREFIX}_LLM_MULTIMODAL_MODEL, "
+            "rather than retrying."
+        )
+    if isinstance(shown, str):
+        return f"{done}. {shown}"
+    return ToolReturn(return_value=f"{done}; it is attached.", content=shown)
+
+
+async def get_attachment_for_current_model(
+    attachment: "BinaryContent",
+) -> "str | list[BinaryContent]":
+    """*attachment* as the running model can take it, by the same rule a prompt
+    attachment follows: kept for a model that reads it, else described by
+    `LLM_MULTIMODAL_MODEL`, else dropped (an empty string)."""
+    fitted = await replace_unsupported_attachments(
+        [attachment],
+        main_model=get_current_model(),
+        multimodal_model=resolve_configured_multimodal_model(),
+    )
+    return fitted or ""
 
 
 async def replace_unsupported_attachments(
