@@ -1,14 +1,26 @@
-"`AutoScreenshotBackend`: the capture chain and failure hint per platform."
+"""AutoScreenshotBackend: the capture chain and failure hint per platform.
+
+Pillow now runs in a subprocess (`sys.executable -c`), so the subprocess mock
+records a Pillow attempt by its argv rather than by patching `PIL.ImageGrab`
+in-process."""
 
 from __future__ import annotations
 
 import base64
+import io
+import sys
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from PIL import Image
 
 from zrb.llm.screenshot.backend import AutoScreenshotBackend
+
+
+def _jpeg_bytes(size=(8, 6)) -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", size).save(buffer, format="JPEG", quality=90)
+    return buffer.getvalue()
 
 
 class _FakeProcess:
@@ -29,6 +41,14 @@ class _FakeProcess:
         return self.returncode
 
 
+def _is_pillow_proc(args: tuple) -> bool:
+    return (
+        len(args) > 1
+        and args[0] == sys.executable
+        and args[1] == "-c"
+    )
+
+
 @pytest.fixture
 def platform(monkeypatch):
     "A Linux desktop with no session; each test sets up its own."
@@ -41,10 +61,22 @@ def platform(monkeypatch):
     return monkeypatch
 
 
-def _programs(ran: list[str], working: set[str]):
-    "Run each program, recording it; only those in *working* write an image."
+def _programs(
+    ran: list[str],
+    working: set[str],
+    *,
+    pillow_ok: bool = True,
+):
+    """Run each program, recording it; only those in *working* write an image.
+    Pillow's subprocess is recognised by its argv and succeeds unless
+    *pillow_ok* is false."""
 
     def _make_proc(*args, **kwargs):
+        if _is_pillow_proc(args):
+            ran.append("pillow")
+            if not pillow_ok:
+                return _FakeProcess(stderr=b"cannot grab", returncode=1)
+            return _FakeProcess(stdout=_jpeg_bytes())
         ran.append(args[0])
         if args[0] not in working:
             return _FakeProcess(stderr=b"no luck", returncode=1)
@@ -57,14 +89,14 @@ def _programs(ran: list[str], working: set[str]):
     return AsyncMock(side_effect=_make_proc)
 
 
-def _no_pillow(**kwargs):
-    raise OSError("cannot grab")
-
-
-async def _capture(working: set[str]) -> tuple[bytes | None, list[str], str]:
+async def _capture(
+    working: set[str], *, pillow_ok: bool = True
+) -> tuple[bytes | None, list[str], str]:
     ran: list[str] = []
     backend = AutoScreenshotBackend()
-    with patch("asyncio.create_subprocess_exec", new=_programs(ran, working)):
+    with patch(
+        "asyncio.create_subprocess_exec", new=_programs(ran, working, pillow_ok=pillow_ok)
+    ):
         data = await backend.capture(None)
     return data, ran, backend.get_failure_hint()
 
@@ -92,30 +124,27 @@ async def test_macos_failure_points_at_screen_recording_permission(platform):
 @pytest.mark.asyncio
 async def test_windows_uses_pillow_first(platform):
     platform.setattr("sys.platform", "win32")
-    platform.setattr("PIL.ImageGrab.grab", lambda **kwargs: Image.new("RGB", (4, 4)))
 
-    data, ran, _ = await _capture(set())
+    data, ran, _ = await _capture(set(), pillow_ok=True)
 
     assert data is not None
-    assert ran == []
+    assert ran == ["pillow"]
 
 
 @pytest.mark.asyncio
 async def test_windows_falls_back_to_powershell(platform):
     platform.setattr("sys.platform", "win32")
-    platform.setattr("PIL.ImageGrab.grab", _no_pillow)
 
-    data, ran, _ = await _capture({"powershell"})
+    data, ran, _ = await _capture({"powershell"}, pillow_ok=False)
 
-    assert (data, ran) == (b"shot", ["powershell"])
+    assert (data, ran) == (b"shot", ["pillow", "powershell"])
 
 
 @pytest.mark.asyncio
 async def test_windows_failure_lists_both_attempts(platform):
     platform.setattr("sys.platform", "win32")
-    platform.setattr("PIL.ImageGrab.grab", _no_pillow)
 
-    _, _, hint = await _capture(set())
+    _, _, hint = await _capture(set(), pillow_ok=False)
 
     assert "interactive desktop" in hint
     assert "pillow: cannot grab" in hint
@@ -157,36 +186,31 @@ async def test_wayland_tries_grim_then_the_desktop_tools(platform):
 async def test_wayland_never_falls_back_to_x11_grabbers(platform):
     platform.setenv("XDG_SESSION_TYPE", "wayland")
     platform.setenv("DISPLAY", ":0")
-    grabbed: list = []
-    platform.setattr("PIL.ImageGrab.grab", lambda **kwargs: grabbed.append(kwargs))
 
     data, ran, hint = await _capture(set())
 
     assert data is None
     assert ran == ["grim", "gnome-screenshot", "spectacle"]
-    assert grabbed == []
     assert "Install grim" in hint
 
 
 @pytest.mark.asyncio
 async def test_x11_tries_pillow_then_the_programs(platform):
     platform.setenv("DISPLAY", ":0")
-    platform.setattr("PIL.ImageGrab.grab", _no_pillow)
 
-    data, ran, _ = await _capture({"import"})
+    data, ran, _ = await _capture({"import"}, pillow_ok=False)
 
     assert data == b"shot"
-    assert ran == ["scrot", "import"]
+    assert ran == ["pillow", "scrot", "import"]
 
 
 @pytest.mark.asyncio
 async def test_x11_failure_suggests_a_program(platform):
     platform.setenv("DISPLAY", ":0")
-    platform.setattr("PIL.ImageGrab.grab", _no_pillow)
 
-    _, ran, hint = await _capture(set())
+    _, ran, hint = await _capture(set(), pillow_ok=False)
 
-    assert ran == ["scrot", "import", "gnome-screenshot", "spectacle"]
+    assert ran == ["pillow", "scrot", "import", "gnome-screenshot", "spectacle"]
     assert "Install scrot" in hint
 
 
