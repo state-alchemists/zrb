@@ -13,7 +13,7 @@ import uuid
 
 from zrb.config.config import CFG
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
-from zrb.llm.camera.backend.deadline import (
+from zrb.llm.util.deadline import (
     communicate_within,
     create_deadline,
     get_earlier,

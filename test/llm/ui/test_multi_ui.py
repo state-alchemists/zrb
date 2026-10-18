@@ -430,3 +430,21 @@ def test_get_main_ui_unwraps_a_multi_ui_main_member(child_ui_1, child_ui_2):
 
 def test_get_main_ui_returns_any_other_ui_unchanged(child_ui_1):
     assert get_main_ui(child_ui_1) is child_ui_1
+
+
+def test_multi_ui_is_local_when_all_children_are_local(child_ui_1, child_ui_2):
+    child_ui_1.is_local = True
+    child_ui_2.is_local = True
+
+    assert MultiUI([child_ui_1, child_ui_2]).is_local is True
+
+
+def test_multi_ui_is_local_false_when_any_child_is_remote(child_ui_1, child_ui_2):
+    child_ui_1.is_local = True
+    child_ui_2.is_local = False
+
+    assert MultiUI([child_ui_1, child_ui_2]).is_local is False
+
+
+def test_multi_ui_is_local_false_with_no_children():
+    assert MultiUI([]).is_local is False

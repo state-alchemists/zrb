@@ -13,6 +13,7 @@ To find a setting:
 - Camera / dictation / speech / voice preset -> mixins/llm_camera.py,
   llm_dictation.py, llm_speech.py, llm_voice.py
 - Emotion read from prompts and replies      -> mixins/llm_emotion.py
+- Screenshot command and tool                -> mixins/llm_screenshot.py
 - LLM throttle/retry/timeout/size caps       -> mixins/llm_limits.py
 - LLM history/journal/snapshot/summarization -> mixins/llm_content.py
 - LLM prompt dirs/INCLUDE_* toggles          -> mixins/llm_prompt.py
@@ -43,6 +44,7 @@ from zrb.config.mixins.llm_emotion import LLMEmotionMixin
 from zrb.config.mixins.llm_limits import LLMLimitsMixin
 from zrb.config.mixins.llm_prompt import LLMPromptMixin
 from zrb.config.mixins.llm_sandbox import LLMSandboxMixin
+from zrb.config.mixins.llm_screenshot import LLMScreenshotMixin
 from zrb.config.mixins.llm_search import LLMSearchMixin
 from zrb.config.mixins.llm_speech import LLMSpeechMixin
 from zrb.config.mixins.llm_tools import LLMToolsMixin
@@ -96,6 +98,7 @@ class Config(
     LLMCoreMixin,
     LLMUIMixin,
     LLMCameraMixin,
+    LLMScreenshotMixin,
     LLMDictationMixin,
     LLMSpeechMixin,
     LLMEmotionMixin,

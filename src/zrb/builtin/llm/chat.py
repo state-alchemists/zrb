@@ -19,6 +19,7 @@ from zrb.llm.dictation import enable_dictation
 from zrb.llm.emotion import enable_emotion
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.prompt.profile import MINIMAL_PROFILE, active_profile
+from zrb.llm.screenshot import enable_screenshot
 from zrb.llm.skill.manager import skill_manager
 from zrb.llm.speech import enable_speech
 from zrb.llm.task.chat.task import LLMChatTask
@@ -201,6 +202,7 @@ llm_chat.prepend_tool_policy(
 # Each reads its settings when a session starts, so zrb_init.py may change
 # them after this import.
 enable_camera(llm_chat)
+enable_screenshot(llm_chat)
 enable_dictation(llm_chat)
 enable_speech(llm_chat)
 enable_emotion(llm_chat)

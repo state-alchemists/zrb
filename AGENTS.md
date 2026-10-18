@@ -43,7 +43,7 @@ Inside `llm/`:
 | `history_manager/`, `summarizer/` | Conversation persistence and two-tier summarization |
 | `hook/` | Claude-compatible lifecycle hooks |
 | `lsp/`, `sandbox/`, `snapshot/` | Language-server clients, the opt-in FS sandbox, filesystem snapshots |
-| `camera/`, `dictation/`, `speech/` | Optional chat features — `/photo`, speech-to-text input, replies read aloud. Each is one `enable_*` call plus a config dataclass and a `backend/` package, and none is known to the UI (ADR-0102) |
+| `camera/`, `screenshot/`, `dictation/`, `speech/` | Optional chat features — `/photo`, `/screenshot`, speech-to-text input, replies read aloud. Each is one `enable_*` call plus a config dataclass and a `backend/` package, and none is known to the UI (ADR-0102) |
 | `voice/` | The Pipecat STT/TTS service registry that `dictation/` and `speech/` select their backend from |
 | `prompt/` | System-prompt composition — `manager.py`, `profile.py`, `live_context.py`, and the `markdown/` section files |
 | `skill/` | Skill discovery and activation |

@@ -113,6 +113,17 @@ class AnyUI(ABC):
         """
 
     @property
+    def is_local(self) -> bool:
+        """Whether the user driving this UI sits at the machine zrb runs on.
+
+        The default is True: a UI is local until it says otherwise. A UI
+        driven over a network (the web chat, Telegram) returns False, so a
+        command that acts on local hardware — the screen, the camera — can
+        refuse instead of capturing a machine the user cannot see.
+        """
+        return True
+
+    @property
     @abstractmethod
     def is_thinking(self) -> bool:
         """Whether the assistant is currently producing a response."""
