@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Annotated
 from pydantic import Field
 
 from zrb.llm.custom_command.action_command import ActionCommand
-from zrb.llm.agent_state import get_current_ui
 from zrb.llm.permission.capability import Capability, tag
 from zrb.llm.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
 from zrb.llm.screenshot.backend.builtin import get_screenshot_backend
@@ -145,17 +144,9 @@ def create_screenshot_tools(config: ScreenshotConfig) -> "list[ToolFuncEither]":
         # lazy: transitively heavy — multimodal_describe loads pydantic_ai
         from zrb.llm.agent.run.multimodal_describe import create_image_tool_return
 
-        # Refuse on a non-local UI (the web chat, Telegram): the capture shows
-        # the machine zrb runs on, which that UI's user cannot see or intend.
-        ui = get_current_ui()
-        if ui is not None and not ui.is_local:
-            return (
-                "Screenshot refused: this chat is not on the machine zrb runs "
-                "on, so a capture would show the server's screen, not yours. "
-                "[SYSTEM SUGGESTION]: Attach the screenshot from your own "
-                "device instead."
-            )
-
+        # TakeScreenshot is opt-in and every call is approved by the user
+        # (Capability.EXECUTE), so an explicitly approved remote capture is
+        # fine — the refusal below applies only to the user-facing command.
         screenshot = await capture_screenshot(
             backend, display or config.display or None
         )
