@@ -6,9 +6,7 @@ class DotDict(dict[str, Any]):
         try:
             return self[key]
         except KeyError:
-            raise AttributeError(
-                f"'DotDict' object has no attribute '{key}'"
-            ) from None
+            raise AttributeError(f"'DotDict' object has no attribute '{key}'") from None
 
     def __setattr__(self, key: str, value: Any) -> None:
         self[key] = value
@@ -17,9 +15,7 @@ class DotDict(dict[str, Any]):
         try:
             del self[key]
         except KeyError:
-            raise AttributeError(
-                f"'DotDict' object has no attribute '{key}'"
-            ) from None
+            raise AttributeError(f"'DotDict' object has no attribute '{key}'") from None
 
     def copy(self) -> "DotDict":
         return DotDict(super().copy())

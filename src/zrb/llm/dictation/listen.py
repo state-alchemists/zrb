@@ -831,9 +831,7 @@ async def _open_microphone(
         )
         if not isinstance(opened, _NotStarted):
             return opened
-        await _close_microphone(
-            opened.close, "the microphone that would not start"
-        )
+        await _close_microphone(opened.close, "the microphone that would not start")
         if attempt >= _OPEN_ATTEMPTS:
             raise RuntimeError(
                 _microphone_failure_message(device, opened.cause)

@@ -42,11 +42,7 @@ class _FakeProcess:
 
 
 def _is_pillow_proc(args: tuple) -> bool:
-    return (
-        len(args) > 1
-        and args[0] == sys.executable
-        and args[1] == "-c"
-    )
+    return len(args) > 1 and args[0] == sys.executable and args[1] == "-c"
 
 
 @pytest.fixture
@@ -95,7 +91,8 @@ async def _capture(
     ran: list[str] = []
     backend = AutoScreenshotBackend()
     with patch(
-        "asyncio.create_subprocess_exec", new=_programs(ran, working, pillow_ok=pillow_ok)
+        "asyncio.create_subprocess_exec",
+        new=_programs(ran, working, pillow_ok=pillow_ok),
     ):
         data = await backend.capture(None)
     return data, ran, backend.get_failure_hint()

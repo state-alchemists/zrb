@@ -20,7 +20,12 @@ import asyncio
 import sys
 
 from zrb.llm.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
-from zrb.llm.util.deadline import communicate_within, create_deadline, get_earlier, get_remaining
+from zrb.llm.util.deadline import (
+    communicate_within,
+    create_deadline,
+    get_earlier,
+    get_remaining,
+)
 
 # Runs in a subprocess: `-c` with this source, the display as argv[1]. Kept
 # out of the shared asyncio thread pool so a timed-out grab is killable.

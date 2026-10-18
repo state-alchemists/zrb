@@ -19,7 +19,6 @@ from typing import TYPE_CHECKING
 # The names below are resolved at runtime by `__getattr__`; these imports are
 # for readers, IDEs and pyright only.
 if TYPE_CHECKING:
-    from zrb.runner.web_schema.user import User
     from zrb import builtin
     from zrb.attr.tpl import Tpl
     from zrb.attr.type import (
@@ -97,6 +96,7 @@ if TYPE_CHECKING:
     from zrb.llm.voice.spec import STTServiceSpec, TTSServiceSpec
     from zrb.remote.inventory import Host, Target, host_inventory, target_inventory
     from zrb.runner.cli import Cli, cli
+    from zrb.runner.web_schema.user import User
     from zrb.session.session import Session
     from zrb.task.any_task import AnyTask
     from zrb.task.base.base_task import BaseTask
@@ -390,4 +390,3 @@ def __getattr__(name: str):
 def __dir__() -> list[str]:
     """Keep lazily-exported names visible to `dir()` (PEP 562)."""
     return sorted(set(globals()) | set(_LAZY_EXPORTS))
-

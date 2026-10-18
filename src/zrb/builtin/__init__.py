@@ -12,6 +12,7 @@
 # as a task that must appear in `__all__`.
 import typing
 
+import zrb.builtin.llm.deferred  # noqa: F401 — registers `llm chat` without importing it
 from zrb.builtin.base64 import decode_base64, encode_base64, validate_base64
 from zrb.builtin.case import convert_case, slugify
 from zrb.builtin.changelog import generate_changelog
@@ -38,7 +39,6 @@ from zrb.builtin.json import (
     yaml_to_json,
 )
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
-import zrb.builtin.llm.deferred  # noqa: F401 — registers `llm chat` without importing it
 from zrb.builtin.llm.please import please
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
 from zrb.builtin.number import convert_base
