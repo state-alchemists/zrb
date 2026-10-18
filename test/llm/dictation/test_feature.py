@@ -109,6 +109,7 @@ async def test_push_to_talk_puts_the_transcript_in_the_input_box(monkeypatch):
     assert heard == [True]  # speech cut off by the stop is kept
     assert not session.is_recording
     assert any("getting ready" in output for output in ui.outputs)
+    assert any("✅ FakeBackend ready" in output for output in ui.outputs)
     assert any("Transcribed" in output for output in ui.outputs)
     assert [text for _, text in ui.badges] == [
         "🔴 recording… (/voice or a pause to stop)",

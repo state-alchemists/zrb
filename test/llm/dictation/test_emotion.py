@@ -17,7 +17,13 @@ LABELS = ["生气/angry", "开心/happy", "中立/neutral", "难过/sad", "吃�
 @pytest.fixture
 def classifier(monkeypatch):
     """A fake funasr AutoModel scoring every clip as *scores* says."""
-    state = SimpleNamespace(scores=[0.0, 0.9, 0.1, 0.0, 0.0], loaded=[], error=None)
+    state = SimpleNamespace(
+        scores=[0.0, 0.9, 0.1, 0.0, 0.0],
+        loaded=[],
+        error=None,
+        cached=True,
+        asked=[],
+    )
 
     class AutoModel:
         def __init__(self, model, disable_update):
@@ -29,12 +35,37 @@ def classifier(monkeypatch):
             return [{"labels": LABELS, "scores": state.scores}]
 
     monkeypatch.setitem(sys.modules, "funasr", SimpleNamespace(AutoModel=AutoModel))
+
+    def snapshot_download(repo, local_files_only=False):
+        state.asked.append(local_files_only)
+        if local_files_only and not state.cached:
+            raise FileNotFoundError(repo)
+        return f"/cache/{repo}"
+
     monkeypatch.setitem(
         sys.modules,
         "huggingface_hub",
-        SimpleNamespace(snapshot_download=lambda repo: f"/cache/{repo}"),
+        SimpleNamespace(snapshot_download=snapshot_download),
     )
     return state
+
+
+@pytest.mark.asyncio
+async def test_a_cached_model_loads_without_asking_the_hub(classifier):
+    await EmotionDetector("me/e2v").prepare(lambda message: None)
+
+    assert classifier.asked == [True]
+    assert classifier.loaded == ["/cache/me/e2v"]
+
+
+@pytest.mark.asyncio
+async def test_a_model_not_cached_yet_is_downloaded(classifier):
+    classifier.cached = False
+
+    await EmotionDetector("me/e2v").prepare(lambda message: None)
+
+    assert classifier.asked == [True, False]
+    assert classifier.loaded == ["/cache/me/e2v"]
 
 
 @pytest.mark.asyncio
@@ -95,6 +126,26 @@ async def test_without_funasr_no_tone_is_heard_and_it_says_why_once(
     assert await detector.hear(b"\x00\x00") is None
     assert await detector.hear(b"\x00\x00") is None
     assert caplog.text.count("pip install funasr torch") == 1
+    assert "pip install funasr torch" in detector.unavailable_reason
+
+
+@pytest.mark.asyncio
+async def test_a_model_that_cannot_load_ends_its_loading_line_with_a_failure(
+    monkeypatch, caplog
+):
+    monkeypatch.setitem(sys.modules, "funasr", None)
+    # Fakes the microphone; the real detector then replaces the fake one.
+    _session_hearing(monkeypatch, "hello", detect_emotion=True)
+    monkeypatch.setattr("zrb.llm.dictation.feature.EmotionDetector", EmotionDetector)
+    session = DictationSession(
+        DictationConfig(
+            backend=WordsBackend(), mode="hands_free", detect_emotion=True
+        ).resolve()
+    )
+
+    assert await _sources(session, 1) == [("hello", DICTATION_INPUT)]
+    assert "Loading the emotion model…" in caplog.text
+    assert "❗ emotion model failed to load" in caplog.text
 
 
 class WordsBackend(AnyDictationBackend):

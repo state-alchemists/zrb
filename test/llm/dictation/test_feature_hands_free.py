@@ -304,7 +304,9 @@ async def test_hands_free_prepares_the_backend_and_reports_to_the_ui(monkeypatch
     await _replies(session, 1)
 
     assert backend.prepared == 1
-    assert any("getting ready" in output for output in ui.outputs)
+    ready = [i for i, output in enumerate(ui.outputs) if "getting ready" in output]
+    assert ready
+    assert "✅ FakeBackend ready" in ui.outputs[ready[0] + 1]
 
 
 @pytest.mark.asyncio
