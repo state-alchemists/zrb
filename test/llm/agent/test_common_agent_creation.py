@@ -3,6 +3,8 @@
 from collections.abc import Callable
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from zrb.config.config import CFG
 from zrb.llm.agent.common import create_agent
 
@@ -240,3 +242,27 @@ def test_create_agent_omits_the_timeout_when_disabled(monkeypatch):
     # No timeout key, but the reasoning/caching defaults still apply — those
     # are unconditional, unlike the timeout which can be disabled.
     assert _settings_of(mock_agent_class) == _reasoning_defaults()
+
+
+def test_create_agent_does_not_chain_an_unrecognized_error_to_itself():
+    failure = RuntimeError("provider exploded")
+
+    with patch("pydantic_ai.Agent", MagicMock(side_effect=failure)):
+        with pytest.raises(RuntimeError) as raised:
+            create_agent(model="test-model", yolo=True)
+
+    assert raised.value is failure
+    assert raised.value.__cause__ is None
+
+
+def test_create_agent_chains_a_hinted_missing_key_error_to_the_original():
+    from pydantic_ai.exceptions import UserError
+
+    original = UserError("Set the `OPENAI_API_KEY` environment variable")
+
+    with patch("pydantic_ai.Agent", MagicMock(side_effect=original)):
+        with pytest.raises(UserError) as raised:
+            create_agent(model="test-model", yolo=True)
+
+    assert raised.value is not original
+    assert raised.value.__cause__ is original

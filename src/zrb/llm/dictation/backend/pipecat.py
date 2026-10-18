@@ -24,6 +24,8 @@ if TYPE_CHECKING:
 
     from zrb.llm.dictation.config import DictationConfig
 
+_closing_tasks: "set[asyncio.Task[None]]" = set()
+
 
 class PipecatDictationBackend(AnyDictationBackend):
     """A dictation backend whose transcription is a Pipecat STT service.
@@ -137,7 +139,10 @@ class PipecatDictationBackend(AnyDictationBackend):
         except RuntimeError:
             asyncio.run(closing)
             return
-        loop.create_task(closing)
+        # asyncio holds tasks weakly; keep a strong reference until done.
+        task = loop.create_task(closing)
+        _closing_tasks.add(task)
+        task.add_done_callback(_closing_tasks.discard)
 
     def _create_service(self) -> "STTService":
         """Create the service off the event loop because its constructor loads
