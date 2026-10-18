@@ -100,12 +100,16 @@ async def test_x11_names_the_display_so_pillow_runs_no_program(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_without_an_x_display_nothing_is_grabbed(monkeypatch):
-    monkeypatch.setattr("sys.platform", "linux")
     monkeypatch.delenv("DISPLAY", raising=False)
     backend = PillowScreenshotBackend()
-
-    assert await backend.capture(None) is None
-    assert "DISPLAY is unset" in backend.get_failure_hint()
+    if sys.platform == "win32":
+        # Windows always has a screen to grab; DISPLAY is irrelevant there,
+        # and the grab subprocess sees the real win32 platform.
+        assert await backend.capture(None) is not None
+    else:
+        monkeypatch.setattr("sys.platform", "linux")
+        assert await backend.capture(None) is None
+        assert "DISPLAY is unset" in backend.get_failure_hint()
 
 
 @pytest.mark.asyncio
