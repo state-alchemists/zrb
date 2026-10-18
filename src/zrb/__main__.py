@@ -6,6 +6,7 @@ from collections.abc import Callable
 from types import ModuleType
 from typing import Any
 
+import zrb.builtin  # noqa: F401 — importing it registers the built-in tasks on `cli`
 from zrb.config.config import CFG
 from zrb.config.init_path import get_init_path_list
 from zrb.group.any_group import NodeNotFoundError
@@ -15,6 +16,7 @@ from zrb.group.task_diagnostics import (
     format_diagnostic,
     get_builtin_task_ids,
     reset_task_replacements,
+    snapshot_builtin_task_ids,
 )
 from zrb.runner.cli import cli
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
@@ -23,6 +25,14 @@ from zrb.util.load import (
     load_file_with_result,
     load_module_with_result,
 )
+
+# `zrb` resolves its exports lazily, so `import zrb` no longer imports
+# `zrb.builtin` — and with it the built-in tasks that import registers on `cli`
+# (see `zrb/__init__.py`). This is the entry point's job now, at import time:
+# after the built-ins exist, and before `serve_cli` loads any init source, so a
+# task an earlier run registered on the process-wide `cli` tree is never frozen
+# as a built-in.
+snapshot_builtin_task_ids(cli)
 
 
 class FaintFormatter(logging.Formatter):

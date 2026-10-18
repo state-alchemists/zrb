@@ -15,6 +15,10 @@ import ast
 import re
 from pathlib import Path
 
+# The command strings under test name built-in task paths, so the built-in
+# tasks must be on `cli` — `import zrb` resolves its exports lazily and no
+# longer imports them (see `zrb/__init__.py`).
+import zrb.builtin  # noqa: F401
 from zrb.config.config import CFG
 from zrb.runner.cli import cli
 
