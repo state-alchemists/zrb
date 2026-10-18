@@ -139,10 +139,12 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def is_local(self) -> bool:
-        """Whether the main child's user sits at this machine (a MultiUI is
-        only as local as the UI its input comes from)."""
-        main_ui = self.main_ui
-        return main_ui.is_local if main_ui is not None else False
+        """Whether every child's user sits at this machine. A MultiUI is
+        only as local as its least-local child: any child can submit a
+        command whose capture is queued for the shared conversation, so a
+        single remote child means a capture would expose the machine zrb
+        runs on to a user who cannot see it."""
+        return all(child.is_local for child in self._uis) if self._uis else False
 
     @property
     def last_output(self) -> str:
