@@ -105,7 +105,6 @@ class VoskDictationBackend(AnyDictationBackend):
             return
         report("Downloading the voice model...")
         await self._download()
-        report("Voice model ready")
 
     async def transcribe(self, audio: bytes) -> str:
         """Everything spoken in *audio*: push-to-talk submits this to the input

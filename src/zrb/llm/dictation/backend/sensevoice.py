@@ -9,6 +9,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
+from zrb.llm.dictation.hub import get_hub_path
 from zrb.util.async_thread import run_in_daemon
 
 if TYPE_CHECKING:
@@ -80,18 +81,9 @@ class SenseVoiceDictationBackend(AnyDictationBackend):
                 "huggingface_hub: pip install sherpa-onnx huggingface_hub"
             ) from exc
         return sherpa_onnx.OfflineRecognizer.from_sense_voice(
-            model=_download(hf_hub_download, self._model, "model.int8.onnx"),
-            tokens=_download(hf_hub_download, self._model, "tokens.txt"),
+            model=get_hub_path(hf_hub_download, self._model, "model.int8.onnx"),
+            tokens=get_hub_path(hf_hub_download, self._model, "tokens.txt"),
             num_threads=self._num_threads,
             language=self._language,
             use_itn=True,
         )
-
-
-def _download(hf_hub_download: Callable[..., str], repo: str, name: str) -> str:
-    """The cached copy of *name* when there is one, without asking the Hub
-    whether it changed (a round trip on every start); else a download."""
-    try:
-        return hf_hub_download(repo, name, local_files_only=True)
-    except OSError:
-        return hf_hub_download(repo, name)
