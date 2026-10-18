@@ -537,7 +537,7 @@ def create_agent(
         )
     except Exception as e:
         # pydantic-ai builds the provider here, so a missing key surfaces now.
-        raise add_credential_hint(e) from e
+        raise add_credential_hint(e)
     # Ad-hoc attribute on the pydantic-ai agent; setattr keeps it honest
     # instead of a blanket type suppression.
     setattr(agent, "zrb_history_processors", history_processors or [])
