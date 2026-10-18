@@ -227,6 +227,12 @@ class UIKeybindings:
             from zrb.llm.agent.types import BinaryContent
 
             scaled = scale_image_bytes(img_bytes, media_type="image/png")
+            if scaled.rejected is not None:
+                ui.append_to_output(
+                    stylize_error(f"\n  ❌ Clipboard image {scaled.rejected}.\n")
+                )
+                ui.invalidate_ui()
+                return
             attachment = BinaryContent(data=scaled.data, media_type=scaled.media_type)
             ui.pending_attachments.append(attachment)
             size_kb = scaled.final_bytes / 1024

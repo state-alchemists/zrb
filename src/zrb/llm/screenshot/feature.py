@@ -14,14 +14,12 @@ from typing import TYPE_CHECKING, Annotated
 
 from pydantic import Field
 
-from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.permission.capability import Capability, tag
 from zrb.llm.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
 from zrb.llm.screenshot.backend.builtin import get_screenshot_backend
 from zrb.llm.screenshot.config import ScreenshotConfig
 from zrb.llm.util.feature_config import replace_registration
-from zrb.llm.util.image_for_model import get_image_for_current_model
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import stylize_error, stylize_muted
 
@@ -129,8 +127,8 @@ def create_screenshot_tools(config: ScreenshotConfig) -> "list[ToolFuncEither]":
         file or command output when that answers the question. The screen
         may show private things; the user approves each capture.
         """
-        # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.types
-        from zrb.llm.agent.types import ToolReturn
+        # lazy: transitively heavy — multimodal_describe loads pydantic_ai
+        from zrb.llm.agent.run.multimodal_describe import create_image_tool_return
 
         screenshot = await capture_screenshot(
             backend, display or config.display or None
@@ -141,19 +139,7 @@ def create_screenshot_tools(config: ScreenshotConfig) -> "list[ToolFuncEither]":
                 "screen could not be captured and pass on this hint, rather "
                 f"than retrying:\n{backend.get_failure_hint()}"
             )
-        shown = await get_image_for_current_model(screenshot)
-        if not shown:
-            return (
-                "Screenshot taken, but you cannot see it. [SYSTEM SUGGESTION]: "
-                "Your model is text-only and no multimodal model that reads "
-                "images is configured. Tell the user to set "
-                f"{CFG.ENV_PREFIX}_LLM_MULTIMODAL_MODEL, rather than retrying."
-            )
-        if isinstance(shown, str):
-            return f"Screenshot taken. {shown}"
-        return ToolReturn(
-            return_value="Screenshot taken; it is attached.", content=shown
-        )
+        return await create_image_tool_return(screenshot, "Screenshot taken")
 
     take_screenshot.__name__ = "TakeScreenshot"
     # EXECUTE, not READ: plan mode allows READ without asking, and a capture

@@ -11,14 +11,12 @@ from typing import TYPE_CHECKING, Annotated
 
 from pydantic import Field
 
-from zrb.config.config import CFG
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.builtin import get_camera_backend
 from zrb.llm.camera.config import CameraConfig
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.permission.capability import Capability, tag
 from zrb.llm.util.feature_config import replace_registration
-from zrb.llm.util.image_for_model import get_image_for_current_model
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import stylize_error, stylize_muted
 
@@ -117,8 +115,8 @@ def create_camera_tools(config: CameraConfig) -> "list[ToolFuncEither]":
         think of my...") or ask how they look. Do not use it to check on the
         user unprompted. The user approves each photo.
         """
-        # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.types
-        from zrb.llm.agent.types import ToolReturn
+        # lazy: transitively heavy — multimodal_describe loads pydantic_ai
+        from zrb.llm.agent.run.multimodal_describe import create_image_tool_return
 
         photo = await capture_photo(backend, device or config.device or None)
         if photo is None:
@@ -127,17 +125,7 @@ def create_camera_tools(config: CameraConfig) -> "list[ToolFuncEither]":
                 "camera did not deliver a photo and pass on this hint, rather "
                 f"than retrying:\n{backend.get_failure_hint()}"
             )
-        shown = await get_image_for_current_model(photo)
-        if not shown:
-            return (
-                "Photo taken, but you cannot see it. [SYSTEM SUGGESTION]: Your "
-                "model is text-only and no multimodal model that reads images "
-                "is configured. Tell the user to set "
-                f"{CFG.ENV_PREFIX}_LLM_MULTIMODAL_MODEL, rather than retrying."
-            )
-        if isinstance(shown, str):
-            return f"Photo taken. {shown}"
-        return ToolReturn(return_value="Photo taken; it is attached.", content=shown)
+        return await create_image_tool_return(photo, "Photo taken")
 
     take_photo.__name__ = "TakePhoto"
     # EXECUTE, not READ: plan mode allows READ without asking, and a photo
