@@ -199,7 +199,6 @@ class TestVoskBackend:
         dl.assert_awaited_once_with("m", "http://host", 120.0, ANY)
         assert [c.args[0] for c in report.call_args_list] == [
             "Downloading the voice model...",
-            "Voice model ready",
         ]
 
 

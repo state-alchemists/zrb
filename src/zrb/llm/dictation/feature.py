@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import logging
-from collections.abc import AsyncGenerator, Callable
+from collections.abc import AsyncGenerator
 from contextlib import aclosing
 from typing import TYPE_CHECKING
 
@@ -23,6 +23,7 @@ from zrb.llm.dictation.backend.builtin import get_dictation_backend
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.dictation.emotion import EmotionDetector, Tone
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
+from zrb.llm.dictation.load_report import prepare_reported, write_line
 from zrb.llm.dictation.words import (
     count_words,
     is_answer,
@@ -43,7 +44,6 @@ from zrb.llm.util.feature_config import (
     replace_registration,
 )
 from zrb.llm.util.teardown import close_quietly
-from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
@@ -300,7 +300,7 @@ class DictationSession:
         # Use one backend for recording and transcription; session teardown must
         # not start a replacement backend.
         backend = self.backend
-        await backend.prepare(_to_output(ui))
+        await prepare_reported(backend.name, backend.prepare, lambda: ui)
         commands = ", ".join(self._config.commands or [])
         try:
             self._show(f"🔴 recording… ({commands} or a pause to stop)", ui)
@@ -327,6 +327,17 @@ class DictationSession:
             return ""
         return (await backend.transcribe(audio)).strip()
 
+    async def _prepare_emotion(self) -> None:
+        emotion = self._emotion
+        if emotion is None:
+            return
+        await prepare_reported(
+            "emotion model",
+            emotion.prepare,
+            self._get_output_ui,
+            lambda: emotion.unavailable_reason,
+        )
+
     async def _record_one(self, stop: asyncio.Event) -> bytes:
         def should_listen() -> bool:
             return not stop.is_set()
@@ -347,9 +358,11 @@ class DictationSession:
             while not self.is_hands_free:
                 await asyncio.sleep(0.2)
             try:
-                await self.backend.prepare(self._report)
-                if self._emotion is not None:
-                    await self._emotion.prepare(self._report)
+                backend = self.backend
+                await prepare_reported(
+                    backend.name, backend.prepare, self._get_output_ui
+                )
+                await self._prepare_emotion()
                 self._warn_without_wake_words()
                 self._rest(self._listening_badge())
                 async with aclosing(self._replies()) as replies:
@@ -745,11 +758,10 @@ class DictationSession:
 
     def _report(self, message: str) -> None:
         """Say *message* on the session's UI, else log it."""
-        ui = get_session_ui() or self._ui
-        if ui is None:
-            logger.warning(message)
-            return
-        _to_output(ui)(message)
+        write_line(self._get_output_ui(), f"🎤 {message}")
+
+    def _get_output_ui(self) -> "AnyUI | None":
+        return get_session_ui() or self._ui
 
     def _warn_without_wake_words(self) -> None:
         """Say, whenever the microphone opens, that without a wake word
@@ -813,7 +825,3 @@ def _quote(text: str) -> str:
     if len(line) > _MAX_QUOTED_CHARS:
         line = line[: _MAX_QUOTED_CHARS - 1].rstrip() + "…"
     return f'"{line}"'
-
-
-def _to_output(ui: "AnyUI") -> Callable[[str], None]:
-    return lambda message: ui.append_to_output(stylize_muted(f"\n  🎤 {message}\n"))

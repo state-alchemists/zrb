@@ -15,6 +15,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from zrb.llm.dictation.hub import get_hub_path
 from zrb.util.async_thread import run_in_daemon
 
 logger = logging.getLogger(__name__)
@@ -61,14 +62,20 @@ class EmotionDetector:
         self._classify: Classify | None = None
         # Guards loading the model and every call into it.
         self._model_lock = threading.Lock()
-        self._is_unavailable = False
+        self._unavailable_reason = ""
 
     async def prepare(self, report: Callable[[str], None]) -> None:
         """Load the model before the first utterance, through *report*
         saying so when it is not loaded yet."""
-        if self._classify is None and not self._is_unavailable:
+        if self._classify is None and not self._unavailable_reason:
             report("Loading the emotion model…")
         await run_in_daemon(self._get_classify, name="zrb-emotion")
+
+    @property
+    def unavailable_reason(self) -> str:
+        """Why the model could not load, so no tone is heard; ``""`` while it
+        is loaded or not tried yet."""
+        return self._unavailable_reason
 
     async def hear(self, audio: bytes) -> Tone | None:
         """The tone of *audio* (16 kHz mono 16-bit PCM), or ``None`` when it
@@ -99,15 +106,17 @@ class EmotionDetector:
 
     def _get_classify(self) -> Classify | None:
         with self._model_lock:
-            if self._classify is None and not self._is_unavailable:
+            if self._classify is None and not self._unavailable_reason:
                 try:
                     self._classify = _load(self._model_repo)
                 except _MODEL_ERRORS as exc:
                     # Keep dictating, without tones.
-                    self._is_unavailable = True
-                    logger.warning(
-                        f"Emotion detection is off: {exc}. It needs funasr and "
+                    self._unavailable_reason = (
+                        f"{exc or type(exc).__name__}. It needs funasr and "
                         "torch: pip install funasr torch"
+                    )
+                    logger.warning(
+                        f"Emotion detection is off: {self._unavailable_reason}"
                     )
             return self._classify
 
@@ -118,7 +127,9 @@ def _load(repo: str) -> Classify:
     from huggingface_hub import snapshot_download
 
     auto_model = importlib.import_module("funasr").AutoModel
-    model = auto_model(model=snapshot_download(repo), disable_update=True)
+    # A local directory, so funasr loads it as it is instead of looking the
+    # name up on its default hub, ModelScope.
+    model = auto_model(model=get_hub_path(snapshot_download, repo), disable_update=True)
     return lambda samples: model.generate(
         samples, granularity="utterance", extract_embedding=False
     )[0]
