@@ -1,6 +1,16 @@
 # This is the master registration list for `zrb <group> <task>` CLI discovery.
 # A new task module under `builtin/` must be imported here AND added to
 # `__all__` below, or it silently never appears in the CLI (no error).
+#
+# `llm_chat` is the one name reached through `__getattr__` below, because its
+# module builds an `LLMChatTask` out of pydantic and pydantic-ai: importing it
+# here would put ~0.21s on every command, `zrb --help` included.
+# `builtin/llm/deferred.py` registers a stand-in the CLI resolves on dispatch.
+
+# `import typing` rather than `from typing import TYPE_CHECKING`: the AST check in
+# `test/builtin/test_registration_completeness.py` reads every `from` import here
+# as a task that must appear in `__all__`.
+import typing
 
 from zrb.builtin.base64 import decode_base64, encode_base64, validate_base64
 from zrb.builtin.case import convert_case, slugify
@@ -28,7 +38,7 @@ from zrb.builtin.json import (
     yaml_to_json,
 )
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
-from zrb.builtin.llm.chat import llm_chat
+import zrb.builtin.llm.deferred  # noqa: F401 — registers `llm chat` without importing it
 from zrb.builtin.llm.please import please
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
 from zrb.builtin.number import convert_base
@@ -74,6 +84,10 @@ from zrb.builtin.uuid import (
     validate_uuid_v4,
     validate_uuid_v5,
 )
+
+if typing.TYPE_CHECKING:
+    # Declares the name for pyright; the runtime import lives in `__getattr__`.
+    from zrb.builtin.llm.chat import llm_chat
 
 __all__ = [
     "explain_config",
@@ -159,3 +173,17 @@ __all__ = [
     "validate_uuid_v4",
     "validate_uuid_v5",
 ]
+
+
+def __getattr__(name: str):
+    """Resolve `llm_chat` on first access (PEP 562).
+
+    `builtin/llm/deferred.py` holds the stand-in registered on the CLI tree;
+    `resolve()` imports its module, which is the import this file defers.
+    """
+    if name != "llm_chat":
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    # lazy: zrb.builtin.llm.chat builds an LLMChatTask out of pydantic_ai
+    from zrb.builtin.llm.deferred import llm_chat
+
+    return llm_chat.resolve()

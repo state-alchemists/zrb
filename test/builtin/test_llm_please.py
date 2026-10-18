@@ -25,6 +25,11 @@ def _create_fake_agent(output: str) -> mock.MagicMock:
     return agent
 
 
+def _patch_create_agent(agent: mock.MagicMock):
+    """`please` imports the factory inside its body, so patch it at the source."""
+    return mock.patch("zrb.llm.agent.create_agent", return_value=agent)
+
+
 def test_strip_code_fences_plain_command():
     assert please_module.strip_code_fences("ls -la") == "ls -la"
 
@@ -87,7 +92,7 @@ def test_build_user_message_reports_existing_shell(monkeypatch):
 @pytest.mark.asyncio
 async def test_please_copies_command_to_clipboard(session):
     agent = _create_fake_agent("```bash\nls -la\n```")
-    with mock.patch.object(please_module, "create_agent", return_value=agent):
+    with _patch_create_agent(agent):
         with mock.patch.object(
             please_module, "copy_text", return_value=True
         ) as copy_text_mock:
@@ -102,7 +107,7 @@ async def test_please_copies_command_to_clipboard(session):
 @pytest.mark.asyncio
 async def test_please_reports_empty_command(session):
     agent = _create_fake_agent("")
-    with mock.patch.object(please_module, "create_agent", return_value=agent):
+    with _patch_create_agent(agent):
         result = await please_module.please.async_run(
             session=session,
             kwargs={"message": "impossible request", "model": ""},
@@ -113,7 +118,7 @@ async def test_please_reports_empty_command(session):
 @pytest.mark.asyncio
 async def test_please_succeeds_when_clipboard_unavailable(session):
     agent = _create_fake_agent("df -h")
-    with mock.patch.object(please_module, "create_agent", return_value=agent):
+    with _patch_create_agent(agent):
         with mock.patch.object(please_module, "copy_text", return_value=False):
             result = await please_module.please.async_run(
                 session=session,

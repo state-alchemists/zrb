@@ -10,6 +10,7 @@ from zrb.builtin.llm.chat_tool_policy import (
 )
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.group.task_diagnostics import mark_builtin_task
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
 from zrb.llm.camera import enable_camera
@@ -209,5 +210,8 @@ enable_emotion(llm_chat)
 
 llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
 
+# `zrb.builtin` registers a `LazyTask` stand-in for this task, and the snapshot
+# `zrb/__main__.py` takes at import time holds the stand-in's identity.
+mark_builtin_task(llm_chat)
 llm_group.add_task(llm_chat)
 cli.add_task(llm_chat)

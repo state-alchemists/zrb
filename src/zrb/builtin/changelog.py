@@ -6,7 +6,6 @@ from zrb.cmd.command import run_command
 from zrb.context.any_context import AnyContext
 from zrb.git.commands import get_repo_dir
 from zrb.input.str_input import StrInput
-from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.task.make_task import make_task
 from zrb.util.cli.style import stylize_green, stylize_muted, stylize_yellow
 
@@ -66,6 +65,10 @@ _EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
 )
 async def generate_changelog(ctx: AnyContext):
     repo_dir = await get_repo_dir(print_method=ctx.print)
+    # lazy: zrb.llm.config is transitively heavy — this task is registered with
+    # every built-in, and importing the LLM tree here would load it for all of them.
+    from zrb.llm.config.model_resolver import resolve_configured_model
+
     model = str(ctx.input.model).strip() or resolve_configured_model()
     os.makedirs(ctx.input.dir, exist_ok=True)
     with open(ctx.input.template, encoding="utf-8") as f:
