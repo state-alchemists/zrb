@@ -76,6 +76,18 @@ def record_observed(abs_path: str, content: str) -> None:
     _bucket(_observed, scope, dict)[abs_path] = _hash(content)
 
 
+def record_observed_binary(abs_path: str, data: bytes) -> None:
+    """Record raw `data` as this run's knowledge of `abs_path`.
+
+    For files whose content is not text (an image Read returned to the
+    model). Only `check_listed` consumes the entry — `check_observed` refuses
+    binary files for writing before it compares hashes — so the hash is of
+    the bytes as read, with no text form to reconstruct.
+    """
+    scope = get_current_agent_run_scope()
+    _bucket(_observed, scope, dict)[abs_path] = hashlib.sha256(data).hexdigest()
+
+
 def record_listed(root_abs_path: str, shown_paths: list[str]) -> None:
     """Record an LS/Glob of `root_abs_path` that showed `shown_paths` (post-truncation).
 

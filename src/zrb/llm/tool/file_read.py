@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.tool.file_observation import record_observed
+from zrb.llm.tool.file_observation import record_observed, record_observed_binary
 from zrb.llm.util.attachment import get_media_type, get_oversized_by, sniff_mismatch
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.llm.util.pdf import extract_pdf_text
@@ -165,6 +165,8 @@ def _load_image(path: str, abs_path: str, media_type: str) -> "BinaryContent | s
         )
     if scaled.is_undecodable:
         return _unreadable_image_error(path, media_type, "it cannot be decoded")
+    # The model saw this image, so RM/MV need no fresh listing to confirm it.
+    record_observed_binary(abs_path, data)
     return BinaryContent(data=scaled.data, media_type=scaled.media_type)
 
 
