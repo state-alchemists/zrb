@@ -85,4 +85,9 @@ class QueueBasedInput:
         elif outcome.prompt is not None:
             self._submit_message(outcome.prompt, source)
         elif outcome.reply:
-            asyncio.ensure_future(self._simple_ui.print(outcome.reply, kind="text"))
+            # asyncio holds tasks weakly; keep a strong reference until done.
+            task = asyncio.ensure_future(
+                self._simple_ui.print(outcome.reply, kind="text")
+            )
+            self._simple_ui.background_tasks.add(task)
+            task.add_done_callback(self._simple_ui.background_tasks.discard)
