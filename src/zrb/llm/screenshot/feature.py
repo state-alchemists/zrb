@@ -165,7 +165,7 @@ async def capture_screenshot(
     backend: AnyScreenshotBackend, display: str | None
 ) -> "BinaryContent | None":
     """A screenshot of *display*, scaled for a model, or ``None`` when the
-    capture failed."""
+    capture failed or the image is too large to decode safely."""
     # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.types
     from zrb.llm.agent.types import BinaryContent
 
@@ -174,4 +174,6 @@ async def capture_screenshot(
         return None
     media_type = "image/png" if image_bytes.startswith(_PNG_SIGNATURE) else "image/jpeg"
     scaled = scale_image_bytes(image_bytes, media_type=media_type)
+    if scaled.rejected is not None:
+        return None
     return BinaryContent(data=scaled.data, media_type=scaled.media_type)

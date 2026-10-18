@@ -137,7 +137,7 @@ async def capture_photo(
     backend: AnyCameraBackend, device: str | None
 ) -> "BinaryContent | None":
     """A photo from *device*, scaled for a model, or ``None`` when the capture
-    failed."""
+    failed or the image is too large to decode safely."""
     # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent.types
     from zrb.llm.agent.types import BinaryContent
 
@@ -145,4 +145,6 @@ async def capture_photo(
     if photo_bytes is None:
         return None
     scaled = scale_image_bytes(photo_bytes, media_type="image/jpeg")
+    if scaled.rejected is not None:
+        return None
     return BinaryContent(data=scaled.data, media_type=scaled.media_type)
