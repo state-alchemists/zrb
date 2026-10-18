@@ -1,5 +1,6 @@
 """The speaker's tone: emotion2vec+ beside the transcriber, carried by the turn."""
 
+import asyncio
 import sys
 from types import SimpleNamespace
 
@@ -204,3 +205,37 @@ async def test_no_tone_is_heard_unless_detection_is_on(monkeypatch):
     session = _session_hearing(monkeypatch, "I am so sorry", detect_emotion=False)
 
     assert await _sources(session, 1) == [("I am so sorry", DICTATION_INPUT)]
+
+
+@pytest.mark.asyncio
+async def test_the_transcriber_and_the_emotion_model_load_at_the_same_time(
+    monkeypatch,
+):
+    both_loading = asyncio.Event()
+    started: list[str] = []
+
+    async def load(name: str) -> None:
+        started.append(name)
+        if len(started) == 2:
+            both_loading.set()
+        # Neither load finishes until the other has started.
+        await asyncio.wait_for(both_loading.wait(), timeout=2)
+
+    class SlowBackend(WordsBackend):
+        async def prepare(self, report):
+            await load("transcriber")
+
+    class SlowDetector(FakeDetector):
+        async def prepare(self, report):
+            await load("emotion")
+
+    _session_hearing(monkeypatch, "hello", detect_emotion=True)
+    monkeypatch.setattr("zrb.llm.dictation.feature.EmotionDetector", SlowDetector)
+    session = DictationSession(
+        DictationConfig(
+            backend=SlowBackend(), mode="hands_free", detect_emotion=True
+        ).resolve()
+    )
+
+    assert await _sources(session, 1) == [("hello", DICTATION_INPUT)]
+    assert sorted(started) == ["emotion", "transcriber"]

@@ -327,6 +327,14 @@ class DictationSession:
             return ""
         return (await backend.transcribe(audio)).strip()
 
+    async def _prepare_models(self, backend: AnyDictationBackend) -> None:
+        """Load the transcriber and, when tones are heard, the emotion model
+        at the same time: each load waits on disk or network, not on the other."""
+        await asyncio.gather(
+            prepare_reported(backend.name, backend.prepare, self._get_output_ui),
+            self._prepare_emotion(),
+        )
+
     async def _prepare_emotion(self) -> None:
         emotion = self._emotion
         if emotion is None:
@@ -358,11 +366,7 @@ class DictationSession:
             while not self.is_hands_free:
                 await asyncio.sleep(0.2)
             try:
-                backend = self.backend
-                await prepare_reported(
-                    backend.name, backend.prepare, self._get_output_ui
-                )
-                await self._prepare_emotion()
+                await self._prepare_models(self.backend)
                 self._warn_without_wake_words()
                 self._rest(self._listening_badge())
                 async with aclosing(self._replies()) as replies:
