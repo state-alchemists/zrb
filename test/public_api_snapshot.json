@@ -259,6 +259,7 @@
         "flush_to_parent",
         "history_manager",
         "invalidate_ui",
+        "is_local",
         "is_prompt_answered_since",
         "is_thinking",
         "is_turn_running",
