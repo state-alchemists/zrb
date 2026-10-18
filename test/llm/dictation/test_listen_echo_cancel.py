@@ -7,6 +7,7 @@ test; the plain microphone is a fake `sounddevice` that does the same.
 """
 
 import asyncio
+import threading
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -302,3 +303,37 @@ async def test_listen_carries_on_without_echo_cancel_once_it_dies(caplog):
     assert len(utterances) == 1
     assert len(_FakeEchoCancelledMicrophone.instances) == 1  # never retried
     assert "without echo cancellation until" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_a_microphone_that_is_slow_to_close_does_not_block_the_event_loop():
+    closing = threading.Event()
+    release = threading.Event()
+
+    class SlowClose(FakeStream):
+        def close(self):
+            closing.set()
+            # Core Audio's teardown can take this long; the thread waits here.
+            release.wait(timeout=5)
+            super().close()
+
+    fake_sd = MagicMock()
+    fake_sd.InputStream.side_effect = lambda **kwargs: SlowClose()
+
+    async def consume():
+        return [u async for u in listen(_listen_config(), lambda: False)]
+
+    with patch.dict("sys.modules", {"sounddevice": fake_sd}):
+        task = asyncio.create_task(consume())
+        try:
+            for _ in range(200):
+                if closing.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert closing.is_set()
+            # The loop still turns while the close is stuck.
+            await asyncio.wait_for(asyncio.sleep(0.05), timeout=1)
+            assert not task.done()
+        finally:
+            release.set()
+        assert await asyncio.wait_for(task, timeout=5) == []

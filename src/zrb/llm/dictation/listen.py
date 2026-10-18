@@ -393,7 +393,7 @@ async def listen(
                     # or poll failure) and the callback is never called again.
                     if not stream.active:
                         logger.warning("The microphone stream died; reopening it")
-                        await close_quietly(stream.close, "the dead microphone")
+                        await _close_microphone(stream.close, "the dead microphone")
                         if isinstance(stream, EchoCancelledMicrophone):
                             # macOS stops voice processing on a route change;
                             # reopening it could die the same way, over and
@@ -413,7 +413,7 @@ async def listen(
         finally:
             # An echo-cancelled microphone that fails to release must not
             # take the transcript or the caller's own error with it.
-            await close_quietly(stream.close, "the microphone")
+            await _close_microphone(stream.close, "the microphone")
         if keep_partial:
             utterance = await blocks.flush(time.monotonic())
             if utterance is not None:
@@ -831,13 +831,28 @@ async def _open_microphone(
         )
         if not isinstance(opened, _NotStarted):
             return opened
-        await close_quietly(opened.close, "the microphone that would not start")
+        await _close_microphone(
+            opened.close, "the microphone that would not start"
+        )
         if attempt >= _OPEN_ATTEMPTS:
             raise RuntimeError(
                 _microphone_failure_message(device, opened.cause)
             ) from opened
         logger.warning(f"Starting the microphone failed ({opened.cause}); trying again")
         await asyncio.sleep(_OPEN_RETRY_SECONDS)
+
+
+async def _close_microphone(close: Callable[[], object], what: str) -> None:
+    """`close_quietly`, with *close* run off the event loop.
+
+    Stopping a stream can block, and the echo-cancelled one waits on Core Audio
+    to switch voice processing off; on the loop that freezes the UI and a
+    Ctrl+C lands inside the native call, where it escapes as a
+    `KeyboardInterrupt`. Opening is off the loop for the same reason.
+    """
+    await close_quietly(
+        partial(run_in_daemon, close, name="zrb-microphone-close"), what
+    )
 
 
 class _NotStarted(Exception):
