@@ -108,8 +108,8 @@ def _patched(sounddevice):
     with (
         patch.dict("sys.modules", {"sounddevice": sounddevice}),
         patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
-        # The idle-branch asks as often as the loop turns, so a change is
-        # what a test sets it to, not what the wait says.
+        # The loop asks as often as it turns, so a change is what a test
+        # sets it to, not what the wait says.
         patch("zrb.llm.dictation.listen.DEVICE_WATCH_SECONDS", 0.0),
     ):
         yield
@@ -188,6 +188,43 @@ async def test_an_operating_system_default_change_reopens_the_microphone(caplog)
     assert "The audio devices changed" in caplog.text
     # The device view was unchanged: only the resolved default moved.
     assert [d["name"] for d in sounddevice.query_devices()] == ["BuiltIn", "AirPods"]
+
+
+@pytest.mark.asyncio
+async def test_a_change_while_audio_keeps_arriving_reopens_the_microphone(caplog):
+    """The watch does not wait for the quiet: with the microphone producing
+    blocks without a pause — the loop never seeing an empty timeout — a
+    device change still closes the old stream and opens the new one."""
+    sounddevice = FakeSoundDevice()
+    is_listening = [True]
+
+    async def speak_through_the_change():
+        await _wait_for(lambda: len(sounddevice.opened) == 1)
+        [stream] = [stream for stream, _ in sounddevice.opened]
+        for index in range(30):
+            stream.callback(_loud_block(), 2, None, None)
+            if index == 10:
+                sounddevice.default_in = 1
+            await asyncio.sleep(0.01)
+            # The reopen answered while the blocks kept coming.
+            if len(sounddevice.opened) == 2:
+                break
+        assert len(sounddevice.opened) == 2
+
+    with _patched(sounddevice):
+        task = asyncio.create_task(_listen(sounddevice, _listen_config(), is_listening))
+        await asyncio.wait_for(speak_through_the_change(), timeout=5)
+        is_listening[0] = False
+        await asyncio.wait_for(task, timeout=5)
+
+    [first, second] = [stream for stream, _ in sounddevice.opened]
+    assert first.is_closed
+    assert second.is_started and second.is_closed
+    assert "The audio devices changed" in caplog.text
+
+
+def _loud_block():
+    return np.full((2, 1), 1.0, dtype=np.float32)
 
 
 @pytest.mark.asyncio

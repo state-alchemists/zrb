@@ -415,6 +415,17 @@ async def listen(
                 # logging cannot make the audio callback late.
                 _say_overflow(last_overflow_report, reported_overflow)
                 item = await backlog.get(timeout=block_seconds * 5)
+                if watcher is not None and watcher.has_changed():
+                    # A microphone plugged, unplugged or made default: closing
+                    # and opening follows the new devices, where hands-free
+                    # listening would otherwise carry on with the last one.
+                    # The check runs every turn of the loop — blocks arriving
+                    # as much as the quiet, where a change mid-speech would
+                    # otherwise never meet it.
+                    logger.warning("The audio devices changed; reopening it")
+                    await _close_microphone(stream.close, "the old microphone")
+                    backlog.mark_gap()
+                    stream = await open_microphone()
                 if item is None:
                     # PortAudio stops a stream on a host error (an ALSA xrun
                     # or poll failure) and the callback is never called again.
@@ -431,15 +442,6 @@ async def listen(
                             )
                         # Mark the gap first: the new stream can deliver blocks
                         # while it is still opening off the event loop.
-                        backlog.mark_gap()
-                        stream = await open_microphone()
-                    elif watcher is not None and watcher.has_changed():
-                        # A microphone plugged, unplugged or made default, with
-                        # PortAudio's stream still alive: closing and opening
-                        # follows the new devices, where hands-free listening
-                        # would otherwise carry on with the last one.
-                        logger.warning("The audio devices changed; reopening it")
-                        await _close_microphone(stream.close, "the old microphone")
                         backlog.mark_gap()
                         stream = await open_microphone()
                     continue
