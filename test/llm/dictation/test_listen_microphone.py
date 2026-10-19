@@ -72,7 +72,8 @@ def _pcm(*values):
 
 
 async def _play(captured, blocks):
-    await asyncio.sleep(0)  # let the coroutine open the stream
+    while "callback" not in captured:  # the stream opens on a thread
+        await asyncio.sleep(0.001)
     for block in blocks:
         captured["callback"](block, len(block), None, None)
 
