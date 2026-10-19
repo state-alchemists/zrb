@@ -25,6 +25,7 @@ from zrb.llm.dictation.echo_cancel import (
 )
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
+from zrb.llm.util.audio_devices import DeviceWatcher
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 from zrb.llm.util.teardown import close_quietly
 from zrb.util.async_thread import run_in_daemon
@@ -39,6 +40,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000  # what the transcribers expect
+# How often the device list is re-read while listening, to follow a microphone
+# or speakers being plugged, unplugged or made the default.
+DEVICE_WATCH_SECONDS = 2.0
+# How long a drop of captured audio waits before it is reported again.
+_OVERFLOW_REPORT_SECONDS = 5.0
 # Window and minimum sample count for measuring zrb's voice level.
 _ZRB_LEVEL_SECONDS = 3.0
 _ZRB_LEVEL_MIN_SECONDS = 0.5
@@ -364,6 +370,11 @@ async def listen(
     backlog = _Backlog(to_blocks(config.max_backlog, block_seconds))
 
     def on_audio(indata: Any, frames: int, time_info: Any, status: Any) -> None:
+        # Logging can block, which would make this callback late for the
+        # blocks that follow, so a drop is only timestamped here: the loop
+        # says it.
+        if _should_stamp_overflow(status, last_overflow_report):
+            last_overflow_report[0] = time.monotonic()
         # Check at capture; queued blocks may be processed after zrb starts speaking.
         captured = _CapturedBlock(indata.copy(), is_speaking(), time.monotonic())
         loop.call_soon_threadsafe(backlog.append, captured)
@@ -374,20 +385,47 @@ async def listen(
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
         _UtteranceStreamer(np, create_stream, on_partial, on_partial_over_zrb),
     )
+    is_echo_cancelled = _is_echo_cancel_usable(config)
     open_microphone = partial(
         _open_microphone,
         sd,
         on_audio,
         device=config.device or None,
-        is_echo_cancelled=_is_echo_cancel_usable(config),
+        is_echo_cancelled=is_echo_cancelled,
         blocksize=int(SAMPLE_RATE * block_seconds),
+    )
+    last_overflow_report = [0.0]
+    reported_overflow = [0.0]
+    # The device list is watched only while PortAudio opens its own default,
+    # and not for the echo-cancelled microphone: a microphone named in the
+    # setting does not move for a speaker being plugged in, and macOS voice
+    # processing has its own relation to the devices (it stops on a route
+    # change, which `listen` reopens from).
+    watcher = (
+        None
+        if config.device or is_echo_cancelled
+        else DeviceWatcher(sd, DEVICE_WATCH_SECONDS)
     )
 
     stream = await open_microphone()
     try:
         try:
             while should_listen():
+                # The overflow warning runs here, on the event loop, where
+                # logging cannot make the audio callback late.
+                _say_overflow(last_overflow_report, reported_overflow)
                 item = await backlog.get(timeout=block_seconds * 5)
+                if watcher is not None and watcher.has_changed():
+                    # A microphone plugged, unplugged or made default: closing
+                    # and opening follows the new devices, where hands-free
+                    # listening would otherwise carry on with the last one.
+                    # The check runs every turn of the loop — blocks arriving
+                    # as much as the quiet, where a change mid-speech would
+                    # otherwise never meet it.
+                    logger.warning("The audio devices changed; reopening it")
+                    await _close_microphone(stream.close, "the old microphone")
+                    backlog.mark_gap()
+                    stream = await open_microphone()
                 if item is None:
                     # PortAudio stops a stream on a host error (an ALSA xrun
                     # or poll failure) and the callback is never called again.
@@ -423,6 +461,26 @@ async def listen(
 
 
 CreateStream = Callable[[], Awaitable["AnyTranscriptionStream | None"]]
+
+
+def _should_stamp_overflow(status: object, last_report: list[float]) -> bool:
+    """Whether PortAudio said audio was dropped (`status.input_overflow`) and
+    the drop has not been stamped within `_OVERFLOW_REPORT_SECONDS` of the
+    last one; *last_report* holds the `time.monotonic()` of the last stamp
+    (the audio callback stamps, where logging is not allowed to run)."""
+    if status is None or not getattr(status, "input_overflow", False):
+        return False
+    return time.monotonic() - last_report[0] >= _OVERFLOW_REPORT_SECONDS
+
+
+def _say_overflow(stamps: list[float], reported: list[float]) -> None:
+    """Say a stamped drop the loop has not said yet. This runs on the event
+    loop, where logging is safe — never inside the audio callback, whose
+    blocks a slow log handler would make late."""
+    if stamps[0] <= reported[0]:
+        return
+    reported[0] = stamps[0]
+    logger.warning("The microphone dropped audio it could not capture in time")
 
 
 @dataclass(frozen=True)

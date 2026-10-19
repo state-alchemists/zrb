@@ -9,6 +9,7 @@ it.
 
 import asyncio
 import threading
+import types
 from contextlib import aclosing
 from unittest.mock import MagicMock, patch
 
@@ -33,6 +34,12 @@ class FakeStream:
 
     def close(self):
         self.is_closed = True
+
+    @property
+    def active(self):
+        # PortAudio's word on whether the stream is still alive; the
+        # listening checks it on an idle tick.
+        return not self.is_closed
 
 
 def _fake_sounddevice(captured):
@@ -135,6 +142,46 @@ async def test_record_explains_a_microphone_that_will_not_open():
     with patch.dict("sys.modules", {"sounddevice": fake_sd}):
         with pytest.raises(RuntimeError, match="Cannot open microphone: no device"):
             await record(lambda: True)
+
+
+@pytest.mark.asyncio
+async def test_a_drop_of_captured_audio_is_reported_once_in_a_window(caplog):
+    """PortAudio's `status.input_overflow` is audio the microphone could not
+    capture in time — a hole in what somebody said — so the silence is
+    explained, without repeating itself while the drop keeps happening."""
+    captured = {}
+    dropped = types.SimpleNamespace(
+        input_underflow=False,
+        input_overflow=True,
+        output_underflow=False,
+        output_overflow=False,
+    )
+    is_listening = [True]
+
+    async def consume():
+        async with aclosing(listen(_listen_config(), lambda: is_listening[0])) as mic:
+            return [utterance async for utterance in mic]
+
+    with (
+        patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
+        patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
+    ):
+        task = asyncio.create_task(consume())
+        await _play(captured, [_block(0.0)])
+        for _ in range(2):
+            captured["callback"](_block(0.5), 2, None, dropped)
+        # A stamp is all the capture does before the event loop has spoken:
+        # saying it in the callback could itself drop the next blocks.
+        assert caplog.text.count("dropped audio") == 0
+        for _ in range(10):
+            await asyncio.sleep(0)
+            if "dropped audio" in caplog.text:
+                break
+        assert caplog.text.count("dropped audio") == 1
+        is_listening[0] = False
+        await asyncio.wait_for(task, timeout=5)
+
+    assert caplog.text.count("dropped audio") == 1
 
 
 # --- opening the microphone --------------------------------------------------
