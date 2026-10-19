@@ -404,7 +404,8 @@ class PcmUtterance(Utterance):
         unplugged, or no longer being the output as another one was made
         default with the hand-over's dead stream dropped): the sentence ends
         there, what was heard was heard, and the next one opens on whatever
-        is the device then."""
+        is the device then. Its finished callback sets `_finished` too, so
+        the wait answering is not by itself an end that was played to."""
         played = 0.0
         last = time.monotonic()
         while not self._finished.wait(_TIMEOUT_POLL_SECONDS):
@@ -416,13 +417,30 @@ class PcmUtterance(Utterance):
             if timeout is not None and played >= timeout:
                 return False
             if not getattr(stream, "active", False):
-                self._source_error = RuntimeError(
-                    "the output stream stopped playing on its own (the audio "
-                    "device may have been unplugged or changed)"
-                )
-                logger.warning(f"Speech was cut off: {self._source_error}")
+                self._note_the_device_lost()
                 self._finished.set()
+        # The wait is over, but not every end of it was played to: PortAudio
+        # can have stopped the stream itself — its finished callback set
+        # `_finished` before the loop had a look at the device.
+        if not self.is_stopped and not getattr(stream, "active", False):
+            self._note_the_device_lost()
         return True
+
+    def _note_the_device_lost(self) -> None:
+        """A stream PortAudio stopped on its own — its device was unplugged,
+        or stopped being the output while the hand-over dropped the old
+        stream: the sentence is cut off, what was heard was heard, and the
+        source is closed (`_is_abandoned`, not `stop`), which ends the read
+        that would otherwise keep running behind a device that is gone."""
+        self._source_error = RuntimeError(
+            "the output stream stopped playing on its own (the audio "
+            "device may have been unplugged or changed)"
+        )
+        logger.warning(f"Speech was cut off: {self._source_error}")
+        self._is_abandoned = True
+        self._audio.close()
+        with self._buffer_changed:
+            self._buffer_changed.notify_all()
 
     def stop(self) -> None:
         super().stop()

@@ -219,3 +219,53 @@ def test_a_device_gone_mid_sentence_is_played_as_far_as_it_came(sd, caplog):
     assert int(np.count_nonzero(_played(stream))) > 0
     assert utterance.is_pausable  # nothing took over to stop it
     assert "cut off" in caplog.text and "audio device" in caplog.text
+
+
+class StreamGoneWithFinishedCallback(StreamGoneMidway):
+    """A stream whose device went while it was playing, and whose PortAudio
+    says so both ways: it stops asking for blocks, and reports the stream
+    finished (`finished_callback`)."""
+
+    def _run(self):
+        while self._running and self.blocks < 3:
+            out = np.zeros((self.blocksize, 1), np.int16)
+            try:
+                self.callback(out, self.blocksize, None, None)
+            except CallbackStop:
+                break
+            self.played.append(out.copy())
+            self.blocks += 1
+            time.sleep(0.001)
+        # The device is gone: PortAudio stops the stream and says it finished.
+        self.finished()
+
+
+def test_a_device_portaudio_stops_itself_is_a_cut_off_not_an_end(sd, caplog):
+    """PortAudio stops a stream whose device went, and says it finished: the
+    wait answers at once, and the end reads as what it is — a sentence cut
+    off, its source closed — not one played to the end."""
+    closed = []
+    reads = [0]
+
+    def still_arriving():
+        while True:
+            time.sleep(0.02)
+            reads[0] += 1
+            yield _pcm([5] * 1024)
+
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, still_arriving(), lambda: closed.append(True))
+    )
+    sd.OutputStream = StreamGoneWithFinishedCallback
+
+    utterance.play(timeout=5)
+
+    [stream] = FakeOutputStream.instances
+    assert stream.is_closed
+    assert int(np.count_nonzero(_played(stream))) > 0
+    assert utterance.is_pausable  # nothing took over to stop it
+    assert closed  # the source was closed, its read ended with the device
+    assert "cut off" in caplog.text and "audio device" in caplog.text
+    reads_after = reads[0]
+    time.sleep(0.2)  # what another read would have needed, had one run
+    assert reads[0] == reads_after  # nothing is read behind the lost device
