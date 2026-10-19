@@ -14,10 +14,10 @@ from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.pcm_player import PcmUtterance
 
 from .test_pcm_player import (
+    RATE,
     CallbackStop,
     FakeOutputStream,
     ProgramUtterance,
-    RATE,
     _pcm,
     _played,
 )
@@ -182,9 +182,7 @@ def test_a_stop_while_the_prebuffer_waits_never_starts_the_device(sd):
     assert utterance.is_stopped
 
 
-def test_a_device_that_stops_before_its_audio_plays_hands_it_to_a_program(
-    sd, caplog
-):
+def test_a_device_that_stops_before_its_audio_plays_hands_it_to_a_program(sd, caplog):
     closed = []
     events = []
     utterance = PcmUtterance(
@@ -210,9 +208,7 @@ def test_a_device_gone_mid_sentence_is_played_as_far_as_it_came(sd, caplog):
         while True:
             yield _pcm([5] * 256)
 
-    utterance = PcmUtterance(
-        SpeechAudio(RATE, endless(), lambda: closed.append(True))
-    )
+    utterance = PcmUtterance(SpeechAudio(RATE, endless(), lambda: closed.append(True)))
     sd.OutputStream = StreamGoneMidway
 
     utterance.play(timeout=5)

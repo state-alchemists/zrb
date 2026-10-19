@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import time
 
-
 # How often the snapshot is re-read at most, in `has_changed`.
 DEFAULT_POLL_SECONDS = 2.0
 
@@ -35,7 +34,9 @@ def _snapshot_errors(sd: object) -> "tuple[type[BaseException], ...]":
     return (RuntimeError, OSError) + _SNAPSHOT_ERRORS + extra
 
 
-def read_device_snapshot(sd: object) -> "tuple[tuple[tuple[int, str, int, int], ...], tuple[int, int]] | None":
+def read_device_snapshot(
+    sd: object,
+) -> "tuple[tuple[tuple[int, str, int, int], ...], tuple[int, int]] | None":
     """PortAudio's devices and default device, as one value to compare, or
     ``None`` when the view cannot be read.
 

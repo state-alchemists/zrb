@@ -49,7 +49,11 @@ def _airpods():
 
 
 def _speakers():
-    return {"name": "Monitor Speakers", "max_input_channels": 0, "max_output_channels": 2}
+    return {
+        "name": "Monitor Speakers",
+        "max_input_channels": 0,
+        "max_output_channels": 2,
+    }
 
 
 def test_a_device_snapshot_reads_devices_and_their_defaults():
@@ -76,9 +80,7 @@ def test_an_operating_system_default_change_is_a_change():
     """The OS default microphone moved to a device that was there all along:
     the device list says the same, the resolved default does not, and that
     is what the watch is for."""
-    devices = FakeSoundDevice(
-        [_builtin(), _airpods()], default_in=0, default_out=1
-    )
+    devices = FakeSoundDevice([_builtin(), _airpods()], default_in=0, default_out=1)
     watcher = DeviceWatcher(devices, poll_seconds=0.0)
     assert watcher.has_changed() is False
 

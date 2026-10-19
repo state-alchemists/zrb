@@ -39,8 +39,7 @@ class FakeSoundDevice:
     def query_devices(self, device=None, kind=None):
         self.is_queried = True
         entries = [
-            {**device, "index": index}
-            for index, device in enumerate(self.devices)
+            {**device, "index": index} for index, device in enumerate(self.devices)
         ]
         if device is None and kind is not None:
             return entries[self.default_in if kind == "input" else self.default_out]
