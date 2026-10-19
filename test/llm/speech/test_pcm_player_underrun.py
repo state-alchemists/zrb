@@ -204,12 +204,15 @@ def test_a_device_that_stops_before_its_audio_plays_hands_it_to_a_program(
 def test_a_device_gone_mid_sentence_is_played_as_far_as_it_came(sd, caplog):
     """What was heard was heard, and what came afterwards goes to the next
     sentence's own opening of the device; nothing raises into the caller."""
+    closed = []
 
     def endless():
         while True:
             yield _pcm([5] * 256)
 
-    utterance = PcmUtterance(SpeechAudio(RATE, endless()))
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, endless(), lambda: closed.append(True))
+    )
     sd.OutputStream = StreamGoneMidway
 
     utterance.play(timeout=5)
@@ -218,7 +221,9 @@ def test_a_device_gone_mid_sentence_is_played_as_far_as_it_came(sd, caplog):
     assert stream.is_closed
     assert int(np.count_nonzero(_played(stream))) > 0
     assert utterance.is_pausable  # nothing took over to stop it
-    assert "cut off" in caplog.text and "audio device" in caplog.text
+    assert closed == [True]  # the source was closed once, not once per look
+    assert caplog.text.count("cut off") == 1  # said once, not once per look
+    assert "audio device" in caplog.text
 
 
 class StreamGoneWithFinishedCallback(StreamGoneMidway):
@@ -265,7 +270,8 @@ def test_a_device_portaudio_stops_itself_is_a_cut_off_not_an_end(sd, caplog):
     assert int(np.count_nonzero(_played(stream))) > 0
     assert utterance.is_pausable  # nothing took over to stop it
     assert closed  # the source was closed, its read ended with the device
-    assert "cut off" in caplog.text and "audio device" in caplog.text
+    assert caplog.text.count("cut off") == 1  # said once, not once per look
+    assert "audio device" in caplog.text
     reads_after = reads[0]
     time.sleep(0.2)  # what another read would have needed, had one run
     assert reads[0] == reads_after  # nothing is read behind the lost device

@@ -431,7 +431,11 @@ class PcmUtterance(Utterance):
         or stopped being the output while the hand-over dropped the old
         stream: the sentence is cut off, what was heard was heard, and the
         source is closed (`_is_abandoned`, not `stop`), which ends the read
-        that would otherwise keep running behind a device that is gone."""
+        that would otherwise keep running behind a device that is gone.
+        Said once: the monitor that saw it and the look after its wait can
+        both come here for the same dead stream."""
+        if self._is_abandoned:
+            return
         self._source_error = RuntimeError(
             "the output stream stopped playing on its own (the audio "
             "device may have been unplugged or changed)"
@@ -441,6 +445,12 @@ class PcmUtterance(Utterance):
         self._audio.close()
         with self._buffer_changed:
             self._buffer_changed.notify_all()
+        if self._has_played_audio or self._fallback is None:
+            # What was heard was heard: the saying was done here, and the
+            # source error would only have the handler say it again. A
+            # sentence nothing of was heard keeps it, for the handler to
+            # hand it to a player program.
+            self._source_error = None
 
     def stop(self) -> None:
         super().stop()
