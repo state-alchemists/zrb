@@ -7,18 +7,25 @@ import types
 from zrb.llm.util.audio_devices import DeviceWatcher, read_device_snapshot
 
 
+class _PortAudioError(Exception):
+    """A stand-in for `sounddevice.PortAudioError`."""
+
+
 class FakeSoundDevice:
     """A `sounddevice`: *devices* is its view of the hardware and *default*
     its default device pair (an index, or an ``(input, output)`` pair)."""
+
+    PortAudioError = _PortAudioError
 
     def __init__(self, devices, default=-1):
         self.devices = list(devices)
         self.default = types.SimpleNamespace(device=default)
         self.is_readable = True
+        self.read_error = KeyError("no view of the devices")
 
     def query_devices(self):
         if not self.is_readable:
-            raise KeyError("no view of the devices")
+            raise self.read_error
         return [dict(device) for device in self.devices]
 
 
@@ -53,6 +60,40 @@ def test_an_unreadable_view_says_nothing():
     assert read_device_snapshot(types.SimpleNamespace()) is None
     watcher = DeviceWatcher(types.SimpleNamespace(), poll_seconds=0.0)
     assert watcher.has_changed() is False
+
+
+def test_a_portaudio_failure_during_a_transition_says_nothing():
+    """Unplugging a device while the snapshot is taken can leave PortAudio
+    unable to list the hardware for a moment: the read says nothing, and the
+    listening is not ended with it."""
+    devices = FakeSoundDevice([_builtin()], default=-1)
+    devices.is_readable = False
+    devices.read_error = RuntimeError("PortAudio could not enumerate devices")
+    assert read_device_snapshot(devices) is None
+
+
+def test_a_portaudio_error_says_nothing():
+    """`sounddevice.PortAudioError` — what a failed query raises on the real
+    `sounddevice` — is treated like any other unreadable snapshot."""
+    devices = FakeSoundDevice([_builtin()], default=-1)
+    devices.is_readable = False
+    devices.read_error = devices.PortAudioError("hardware hiccup")
+    assert read_device_snapshot(devices) is None
+
+
+def test_a_device_transition_keeps_the_last_readable_snapshot():
+    """A failure in between does not end the listening, and does not wash a
+    change out: the watcher keeps the last snapshot it could read, and the
+    change a later readable view carries is still said."""
+    devices = FakeSoundDevice([_builtin()], default=-1)
+    watcher = DeviceWatcher(devices, poll_seconds=0.0)
+    assert watcher.has_changed() is False
+
+    devices.read_error = devices.PortAudioError("hardware hiccup")
+    assert watcher.has_changed() is False
+
+    devices.devices.append(_airpods())
+    assert watcher.has_changed() is True
 
 
 def test_a_plugged_or_unplugged_device_is_a_change():

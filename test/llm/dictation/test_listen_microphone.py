@@ -35,6 +35,12 @@ class FakeStream:
     def close(self):
         self.is_closed = True
 
+    @property
+    def active(self):
+        # PortAudio's word on whether the stream is still alive; the
+        # listening checks it on an idle tick.
+        return not self.is_closed
+
 
 def _fake_sounddevice(captured):
     def make_stream(**kwargs):
@@ -164,7 +170,14 @@ async def test_a_drop_of_captured_audio_is_reported_once_in_a_window(caplog):
         await _play(captured, [_block(0.0)])
         for _ in range(2):
             captured["callback"](_block(0.5), 2, None, dropped)
-        await asyncio.sleep(0)
+        # A stamp is all the capture does before the event loop has spoken:
+        # saying it in the callback could itself drop the next blocks.
+        assert caplog.text.count("dropped audio") == 0
+        for _ in range(10):
+            await asyncio.sleep(0)
+            if "dropped audio" in caplog.text:
+                break
+        assert caplog.text.count("dropped audio") == 1
         is_listening[0] = False
         await asyncio.wait_for(task, timeout=5)
 

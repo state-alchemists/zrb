@@ -19,6 +19,22 @@ DEFAULT_POLL_SECONDS = 2.0
 _SNAPSHOT_ERRORS = (AttributeError, IndexError, KeyError, TypeError, ValueError)
 
 
+def _snapshot_errors(sd: object) -> "tuple[type[BaseException], ...]":
+    """The errors above, plus the ones a device transition raises: while a
+    device is unplugged or made default, PortAudio can fail for a moment to
+    list the devices or name the default, where a read that says nothing
+    keeps the listening going. `PortAudioError` is what the real
+    *sounddevice* raises, when the *sd* at hand has one."""
+    port_audio_error = getattr(sd, "PortAudioError", None)
+    extra = (
+        (port_audio_error,)
+        if isinstance(port_audio_error, type)
+        and issubclass(port_audio_error, BaseException)
+        else ()
+    )
+    return (RuntimeError, OSError) + _SNAPSHOT_ERRORS + extra
+
+
 def read_device_snapshot(sd: object) -> "tuple[tuple[tuple[int, str, int, int], ...], tuple[int, int]] | None":
     """PortAudio's devices and default device, as one value to compare, or
     ``None`` when the view cannot be read.
@@ -26,7 +42,8 @@ def read_device_snapshot(sd: object) -> "tuple[tuple[tuple[int, str, int, int], 
     A device reads as its index, name and the channels it can open, which make
     one out when it is plugged, unplugged or renamed; the default device pair
     carries a swapped default microphone or speakers, whether either was asked
-    for by name.
+    for by name. A read that raises (a fake, a device entry missing its
+    fields, or a PortAudio failure during a device transition) is no snapshot.
     """
     try:
         entries = getattr(sd, "query_devices")()
@@ -45,7 +62,7 @@ def read_device_snapshot(sd: object) -> "tuple[tuple[tuple[int, str, int, int], 
         else:
             default_pair = (int(default), int(default))
         return devices, default_pair
-    except _SNAPSHOT_ERRORS:
+    except _snapshot_errors(sd):
         return None
 
 
