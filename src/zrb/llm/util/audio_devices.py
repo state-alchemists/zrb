@@ -40,13 +40,16 @@ def read_device_snapshot(sd: object) -> "tuple[tuple[tuple[int, str, int, int], 
     ``None`` when the view cannot be read.
 
     A device reads as its index, name and the channels it can open, which make
-    one out when it is plugged, unplugged or renamed; the default device pair
-    carries a swapped default microphone or speakers, whether either was asked
-    for by name. A read that raises (a fake, a device entry missing its
-    fields, or a PortAudio failure during a device transition) is no snapshot.
+    one out when it is plugged, unplugged or renamed. The defaults read as the
+    *resolved* default microphone and speaker (`query_devices(kind="input")`
+    and `"output"`) — what PortAudio opens without being asked for one, so
+    the system default a change of setting has moved is seen — rather than
+    `sd.default.device`, which carries at most what somebody set by hand.
+    A read that raises (a fake, a device entry missing its fields, or a
+    PortAudio failure during a device transition) is no snapshot.
     """
     try:
-        entries = getattr(sd, "query_devices")()
+        query = getattr(sd, "query_devices")
         devices = tuple(
             (
                 int(index),
@@ -54,14 +57,11 @@ def read_device_snapshot(sd: object) -> "tuple[tuple[tuple[int, str, int, int], 
                 int(entry["max_input_channels"]),
                 int(entry["max_output_channels"]),
             )
-            for index, entry in enumerate(entries)
+            for index, entry in enumerate(query())
         )
-        default = getattr(sd, "default").device
-        if isinstance(default, tuple):
-            default_pair = (int(default[0]), int(default[1]))
-        else:
-            default_pair = (int(default), int(default))
-        return devices, default_pair
+        default_input = int(query(kind="input")["index"])
+        default_output = int(query(kind="output")["index"])
+        return devices, (default_input, default_output)
     except _snapshot_errors(sd):
         return None
 

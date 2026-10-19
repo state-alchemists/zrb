@@ -29,7 +29,10 @@ class UnderrunningOutputStream(FakeOutputStream):
     """A stream whose device says, as PortAudio does, that its block did not
     arrive in time."""
 
+    callback_thread: list = []
+
     def _run(self):
+        UnderrunningOutputStream.callback_thread.append(threading.get_ident())
         while self._running:
             out = np.zeros((self.blocksize, 1), np.int16)
             flags = types.SimpleNamespace(
@@ -119,6 +122,28 @@ def test_audio_arriving_too_late_is_counted_as_an_underrun(sd, caplog):
 
     assert utterance.underruns >= 1
     assert "stuttered" in caplog.text
+
+
+def test_the_stutter_is_said_by_the_playing_thread_not_the_callback(sd):
+    """The audio callback only counts (`underruns`): logging can lock or
+    write, what would make this real-time callback late and underrun again.
+    The playing thread says what makes it."""
+    UnderrunningOutputStream.callback_thread = []
+    said_on = []
+    sd.OutputStream = UnderrunningOutputStream
+    utterance = PcmUtterance(SpeechAudio(RATE, [_pcm([5] * 2048)]))
+
+    with patch("zrb.llm.speech.pcm_player.logger") as fake_logger:
+        fake_logger.warning.side_effect = lambda *message, **_: (
+            "stuttered" in str(message) and said_on.append(threading.get_ident())
+        )
+        utterance.play(timeout=5)
+
+    [callback_thread] = UnderrunningOutputStream.callback_thread
+    assert len(said_on) == 1  # said once
+    [playing_thread] = said_on
+    assert playing_thread != callback_thread
+    assert utterance.underruns >= 1
 
 
 def test_the_first_block_waits_for_the_audio_it_will_play(sd):

@@ -22,21 +22,29 @@ np = pytest.importorskip("numpy")
 
 class FakeSoundDevice:
     """A `sounddevice` with a readable device view, which opens what it is
-    asked for when a stream is."""
+    asked for when a stream is. *default_in* is what `query_devices` answers
+    for the default microphone (`kind="input"`), what a stream with no
+    *device* would open."""
 
     def __init__(self):
         self.devices = [
-            {"name": "BuiltIn", "max_input_channels": 2, "max_output_channels": 0}
+            {"name": "BuiltIn", "max_input_channels": 2, "max_output_channels": 0},
+            _airpods(),
         ]
-        self.default = MagicMock()
-        # PortAudio's -1: whatever the system has as its default device.
-        self.default.device = -1
+        self.default_in = 0
+        self.default_out = 1
         self.opened: list = []
         self.is_queried = False
 
-    def query_devices(self):
+    def query_devices(self, device=None, kind=None):
         self.is_queried = True
-        return [dict(device) for device in self.devices]
+        entries = [
+            {**device, "index": index}
+            for index, device in enumerate(self.devices)
+        ]
+        if device is None and kind is not None:
+            return entries[self.default_in if kind == "input" else self.default_out]
+        return entries
 
     def InputStream(self, **kwargs):
         stream = FakeStream()
@@ -150,6 +158,36 @@ async def test_a_device_change_while_listening_reopens_the_microphone(caplog):
     assert second.is_started and second.is_closed
     assert utterances == []
     assert "The audio devices changed" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_an_operating_system_default_change_reopens_the_microphone(caplog):
+    """The OS moved its default microphone to a device that was there all
+    along: the device list says the same, but the resolved default the
+    watch follows does not, and the stream is reopened on what the OS says
+    now."""
+    sounddevice = FakeSoundDevice()
+    is_listening = [True]
+
+    async def make_it_the_default():
+        await _wait_for(lambda: len(sounddevice.opened) == 1)
+        await asyncio.sleep(0.05)  # a check or two against the unchanged view
+        sounddevice.default_in = 1
+        await _wait_for(lambda: len(sounddevice.opened) == 2)
+        is_listening[0] = False
+
+    with _patched(sounddevice):
+        task = asyncio.create_task(_listen(sounddevice, _listen_config(), is_listening))
+        await asyncio.wait_for(make_it_the_default(), timeout=5)
+        utterances = await asyncio.wait_for(task, timeout=5)
+
+    [first, second] = [stream for stream, _ in sounddevice.opened]
+    assert first.is_closed
+    assert second.is_started and second.is_closed
+    assert utterances == []
+    assert "The audio devices changed" in caplog.text
+    # The device view was unchanged: only the resolved default moved.
+    assert [d["name"] for d in sounddevice.query_devices()] == ["BuiltIn", "AirPods"]
 
 
 @pytest.mark.asyncio

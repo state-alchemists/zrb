@@ -156,6 +156,10 @@ class PcmUtterance(Utterance):
         self._source_error: Exception | None = None
         self._has_played_audio = False
         self._underruns = 0
+        # An underrun the callback counted, and whether it was said, live
+        # with the playing thread: the callback cannot log, the monitor can.
+        self._underruns_pending = False
+        self._underruns_logged = False
         if block_frames is None:
             block_frames = CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES
         if read_ahead is None:
@@ -323,6 +327,9 @@ class PcmUtterance(Utterance):
             self.report_started()
             if not self._is_finished_in_time(timeout, stream):
                 self.stop()
+            # An underrun in the block that finished the playback (the wait
+            # was over before another poll of it) is still said.
+            self._say_pending_underruns()
         finally:
             self._stop_stream(stream.stop, stream.close)
 
@@ -401,6 +408,7 @@ class PcmUtterance(Utterance):
         played = 0.0
         last = time.monotonic()
         while not self._finished.wait(_TIMEOUT_POLL_SECONDS):
+            self._say_pending_underruns()
             now = time.monotonic()
             if not self._is_paused:
                 played += now - last
@@ -506,14 +514,28 @@ class PcmUtterance(Utterance):
 
     def _note_underrun(self) -> None:
         """Count one block the playback could not fill with audio in time,
-        what the listener hears as stutter, and say what makes it once."""
+        what the listener hears as stutter. Only the count lives here: the
+        saying of it runs where logging cannot block this (real-time)
+        callback, whose lateness would underrun again."""
         self._underruns += 1
-        if self._underruns == 1:
-            logger.warning(
-                "Speech stuttered: the next block of audio was not standing "
-                "by in time (the audio arrives slowly, or the machine cannot "
-                "fill the block from one callback to the next)"
-            )
+        self._underruns_pending = True
+
+    def _say_pending_underruns(self) -> None:
+        """Say an underrun the audio callback counted that no one has said
+        yet; the playing thread runs this, off the callback. Once is said:
+        the count (`underruns`) carries the rest, and a stutter repeated is
+        not another reason to say why."""
+        if not self._underruns_pending:
+            return
+        self._underruns_pending = False
+        if self._underruns_logged:
+            return
+        self._underruns_logged = True
+        logger.warning(
+            "Speech stuttered: the next block of audio was not standing "
+            "by in time (the audio arrives slowly, or the machine cannot "
+            "fill the block from one callback to the next)"
+        )
 
 
 def guard_exit_handler() -> None:
