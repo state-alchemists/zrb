@@ -25,6 +25,7 @@ from zrb.llm.dictation.echo_cancel import (
 )
 from zrb.llm.dictation.words import count_words
 from zrb.llm.speech.player import is_speaking
+from zrb.llm.util.audio_devices import DeviceWatcher
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 from zrb.llm.util.teardown import close_quietly
 from zrb.util.async_thread import run_in_daemon
@@ -39,6 +40,11 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 SAMPLE_RATE = 16000  # what the transcribers expect
+# How often the device list is re-read while listening, to follow a microphone
+# or speakers being plugged, unplugged or made the default.
+DEVICE_WATCH_SECONDS = 2.0
+# How long a drop of captured audio waits before it is reported again.
+_OVERFLOW_REPORT_SECONDS = 5.0
 # Window and minimum sample count for measuring zrb's voice level.
 _ZRB_LEVEL_SECONDS = 3.0
 _ZRB_LEVEL_MIN_SECONDS = 0.5
@@ -364,6 +370,10 @@ async def listen(
     backlog = _Backlog(to_blocks(config.max_backlog, block_seconds))
 
     def on_audio(indata: Any, frames: int, time_info: Any, status: Any) -> None:
+        soon = _is_overflow_to_report(status, last_overflow_report)
+        if soon:
+            last_overflow_report[0] = time.monotonic()
+            logger.warning("The microphone dropped audio it could not capture in time")
         # Check at capture; queued blocks may be processed after zrb starts speaking.
         captured = _CapturedBlock(indata.copy(), is_speaking(), time.monotonic())
         loop.call_soon_threadsafe(backlog.append, captured)
@@ -374,13 +384,25 @@ async def listen(
         _BlockReports(on_state, on_barge_in, on_barge_in_dropped),
         _UtteranceStreamer(np, create_stream, on_partial, on_partial_over_zrb),
     )
+    is_echo_cancelled = _is_echo_cancel_usable(config)
     open_microphone = partial(
         _open_microphone,
         sd,
         on_audio,
         device=config.device or None,
-        is_echo_cancelled=_is_echo_cancel_usable(config),
+        is_echo_cancelled=is_echo_cancelled,
         blocksize=int(SAMPLE_RATE * block_seconds),
+    )
+    last_overflow_report = [0.0]
+    # The device list is watched only while PortAudio opens its own default,
+    # and not for the echo-cancelled microphone: a microphone named in the
+    # setting does not move for a speaker being plugged in, and macOS voice
+    # processing has its own relation to the devices (it stops on a route
+    # change, which `listen` reopens from).
+    watcher = (
+        None
+        if config.device or is_echo_cancelled
+        else DeviceWatcher(sd, DEVICE_WATCH_SECONDS)
     )
 
     stream = await open_microphone()
@@ -406,6 +428,15 @@ async def listen(
                         # while it is still opening off the event loop.
                         backlog.mark_gap()
                         stream = await open_microphone()
+                    elif watcher is not None and watcher.has_changed():
+                        # A microphone plugged, unplugged or made default, with
+                        # PortAudio's stream still alive: closing and opening
+                        # follows the new devices, where hands-free listening
+                        # would otherwise carry on with the last one.
+                        logger.warning("The audio devices changed; reopening it")
+                        await _close_microphone(stream.close, "the old microphone")
+                        backlog.mark_gap()
+                        stream = await open_microphone()
                     continue
                 utterance = await blocks.handle(item)
                 if utterance is not None:
@@ -423,6 +454,15 @@ async def listen(
 
 
 CreateStream = Callable[[], Awaitable["AnyTranscriptionStream | None"]]
+
+
+def _is_overflow_to_report(status: object, last_report: list[float]) -> bool:
+    """Whether PortAudio said audio was dropped (`status.input_overflow`) and
+    the drop has not been said within `_OVERFLOW_REPORT_SECONDS` of the last
+    one; *last_report* holds the `time.monotonic()` of the last report."""
+    if status is None or not getattr(status, "input_overflow", False):
+        return False
+    return time.monotonic() - last_report[0] >= _OVERFLOW_REPORT_SECONDS
 
 
 @dataclass(frozen=True)

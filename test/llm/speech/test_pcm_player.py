@@ -25,6 +25,8 @@ class CallbackStop(Exception):
 class FakeOutputStream:
     latency = 0.02
     instances: list = []
+    # PortAudio's word on whether it got its block in time, set by tests.
+    status = None
 
     def __init__(
         self, samplerate, channels, dtype, blocksize, callback, finished_callback
@@ -34,6 +36,11 @@ class FakeOutputStream:
         self.played: list = []
         self._running = False
         FakeOutputStream.instances.append(self)
+
+    @property
+    def active(self) -> bool:
+        """Whether the device is still playing PortAudio's stream."""
+        return self._running
 
     def start(self):
         self._running = True
@@ -52,7 +59,7 @@ class FakeOutputStream:
         while self._running:
             out = np.zeros((self.blocksize, 1), np.int16)
             try:
-                self.callback(out, self.blocksize, None, None)
+                self.callback(out, self.blocksize, None, self.status)
             except CallbackStop:
                 self.played.append(out.copy())
                 break

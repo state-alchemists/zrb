@@ -25,7 +25,15 @@ from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 
 # How long playback waits for the source reader to see it has ended.
 _READER_JOIN_SECONDS = 1.0
+# How long a reader or prebuffer may wait before re-checking what it waits
+# on, without a notify.
 _BUFFER_POLL_SECONDS = 0.005
+# Audio to have read ahead before the device starts playing, and how long
+# holding it off for that at all is worth; past the wait, what came goes, and
+# a sentence that never starts is worse than one that stutters in its first
+# block.
+_PREBUFFER_SECONDS = 0.1
+_PREBUFFER_WAIT_SECONDS = 1.0
 # How often playback checks whether it is paused, to leave paused time out
 # of the timeout.
 _TIMEOUT_POLL_SECONDS = 0.02
@@ -111,7 +119,14 @@ class PcmUtterance(Utterance):
     error logged. Audio that fails part-way is played as far as it came,
     and logged as cut off. *on_device_error*, when given, is told of a
     device that cannot open instead of it being logged, so a caller can
-    stop trying the device and say so once.
+    stop trying the device and say so once. A device PortAudio stops
+    playing on its own (it was unplugged, or stopped being the output while
+    its old stream was dropped) ends the sentence the same way, and the
+    next one reopens on whatever is the output then.
+
+    Blocks the device asks for before the audio arrives, or that arrive
+    late (`underruns`, what the listener hears as stutter), are counted and
+    said once.
 
     The play timeout counts playing time only: a pause does not use it up.
     """
@@ -140,6 +155,7 @@ class PcmUtterance(Utterance):
         # What made the source stop early, unless `stop` did.
         self._source_error: Exception | None = None
         self._has_played_audio = False
+        self._underruns = 0
         if block_frames is None:
             block_frames = CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES
         if read_ahead is None:
@@ -148,6 +164,11 @@ class PcmUtterance(Utterance):
         self._read_ahead = max(1, read_ahead)
         self._audio = audio
         self._buffer: deque[bytes] = deque()
+        # The audio in `_buffer`, in bytes; both it and `_is_source_done`
+        # answer to `_buffer_changed`, whose waiters are the reader and the
+        # prebuffer to play.
+        self._buffer_bytes = 0
+        self._buffer_changed = threading.Condition()
         self._pending = b""
         self._is_source_done = False
         self._is_paused = False
@@ -156,6 +177,12 @@ class PcmUtterance(Utterance):
     @property
     def is_paused(self) -> bool:
         return self._is_paused
+
+    @property
+    def underruns(self) -> int:
+        """How many blocks this playback could not fill with audio in time:
+        the stutter the listener heard."""
+        return self._underruns
 
     @property
     def is_pausable(self) -> bool:
@@ -245,7 +272,7 @@ class PcmUtterance(Utterance):
                     dtype="int16",
                     blocksize=self._block_frames,
                     callback=lambda out, frames, info, status: self._fill(
-                        np, out, frames
+                        np, out, frames, status
                     ),
                     finished_callback=self._finished.set,
                 )
@@ -267,6 +294,8 @@ class PcmUtterance(Utterance):
                 # The device failed: close the source, which ends the read.
                 self._is_abandoned = True
                 self._audio.close()
+                with self._buffer_changed:
+                    self._buffer_changed.notify_all()
             if reader.is_alive():
                 reader.join(_READER_JOIN_SECONDS)
 
@@ -278,7 +307,13 @@ class PcmUtterance(Utterance):
             _stream_closed()
 
     def _play_stream(self, stream: Any, timeout: float | None) -> None:
+        # Nothing is heard until the device starts: starting it on audio in
+        # hand keeps the first block from being silence.
+        self._prebuffer()
         try:
+            if self._is_done:
+                self._close_unplayed(stream.close)
+                return
             stream.start()
         except BaseException:
             self._close_unplayed(stream.close)  # never started: close it all the same
@@ -286,10 +321,22 @@ class PcmUtterance(Utterance):
         try:
             self._has_opened = True
             self.report_started()
-            if not self._is_finished_in_time(timeout):
+            if not self._is_finished_in_time(timeout, stream):
                 self.stop()
         finally:
             self._stop_stream(stream.stop, stream.close)
+
+    def _prebuffer(self) -> None:
+        """Wait until a moment of audio stands by to play (`_is_source_done`
+        and `stop` release the wait), so the device's first block has sound."""
+        ready = int(self._audio.sample_rate * _PREBUFFER_SECONDS) * 2
+        with self._buffer_changed:
+            self._buffer_changed.wait_for(
+                lambda: self._buffer_bytes >= ready
+                or self._is_source_done
+                or self._is_done,
+                timeout=_PREBUFFER_WAIT_SECONDS,
+            )
 
     def _stop_stream(
         self, stop: Callable[[], object], close: Callable[[], object]
@@ -342,12 +389,15 @@ class PcmUtterance(Utterance):
         else:
             logger.warning(f"Giving up on the speech stream: {error}")
 
-    def _is_finished_in_time(self, timeout: float | None) -> bool:
-        """Whether playback finished before *timeout* seconds of playing;
-        paused time is not counted."""
-        if timeout is None:
-            self._finished.wait()
-            return True
+    def _is_finished_in_time(self, timeout: float | None, stream: object) -> bool:
+        """Whether playback finished before *timeout* seconds of playing,
+        paused time is not counted, and the device itself kept playing.
+
+        PortAudio stops the stream when its device is gone (a headset
+        unplugged, or no longer being the output as another one was made
+        default with the hand-over's dead stream dropped): the sentence ends
+        there, what was heard was heard, and the next one opens on whatever
+        is the device then."""
         played = 0.0
         last = time.monotonic()
         while not self._finished.wait(_TIMEOUT_POLL_SECONDS):
@@ -355,14 +405,23 @@ class PcmUtterance(Utterance):
             if not self._is_paused:
                 played += now - last
             last = now
-            if played >= timeout:
+            if timeout is not None and played >= timeout:
                 return False
+            if not getattr(stream, "active", False):
+                self._source_error = RuntimeError(
+                    "the output stream stopped playing on its own (the audio "
+                    "device may have been unplugged or changed)"
+                )
+                logger.warning(f"Speech was cut off: {self._source_error}")
+                self._finished.set()
         return True
 
     def stop(self) -> None:
         super().stop()
         self._finished.set()
         self._audio.close()
+        with self._buffer_changed:
+            self._buffer_changed.notify_all()
         with self._fallback_lock:
             fallback_playing = self._fallback_playing
         if fallback_playing is not None:
@@ -375,26 +434,41 @@ class PcmUtterance(Utterance):
         try:
             for chunk in self._audio.chunks:
                 # Read ahead a little, not the whole download into memory.
-                while len(self._buffer) >= self._read_ahead and not self._is_done:
-                    time.sleep(_BUFFER_POLL_SECONDS)
-                if self._is_done:
+                if not self._has_room_for_a_chunk():
                     break
-                self._buffer.append(chunk)
+                with self._buffer_changed:
+                    self._buffer.append(chunk)
+                    self._buffer_bytes += len(chunk)
+                    self._buffer_changed.notify_all()
         except Exception as exc:
             # A download cut off by `stop` is no failure; any other is, and
             # what came is still played.
             if not self._is_done:
                 self._source_error = exc
         finally:
-            self._is_source_done = True
+            with self._buffer_changed:
+                self._is_source_done = True
+                self._buffer_changed.notify_all()
+
+    def _has_room_for_a_chunk(self) -> bool:
+        """Whether another chunk may be appended, past waiting for the read
+        ahead (`_read_ahead`) to have room; not, when playback was stopped."""
+        with self._buffer_changed:
+            self._buffer_changed.wait_for(
+                lambda: len(self._buffer) < self._read_ahead or self._is_done,
+                timeout=_BUFFER_POLL_SECONDS,
+            )
+            return len(self._buffer) < self._read_ahead and not self._is_done
 
     @property
     def _is_done(self) -> bool:
         return self.is_stopped or self._is_abandoned
 
-    def _fill(self, np: Any, out: Any, frames: int) -> None:
+    def _fill(self, np: Any, out: Any, frames: int, status: object) -> None:
         """The stream's callback: the next *frames* samples, or silence
-        while paused, waiting for the download, or finished.
+        while paused, waiting for the download, or finished. *status* is
+        PortAudio's own word on whether the device got its audio in time
+        (`output_underflow`).
 
         It never raises `sd.CallbackStop`. PortAudio answers that by stopping
         the stream from its own audio thread, while the thread playing the
@@ -410,16 +484,36 @@ class PcmUtterance(Utterance):
             out.fill(0)
             return
         wanted = frames * 2
-        while len(self._pending) < wanted and self._buffer:
-            self._pending += self._buffer.popleft()
-        data, self._pending = self._pending[:wanted], self._pending[wanted:]
+        with self._buffer_changed:
+            while len(self._pending) < wanted and self._buffer:
+                chunk = self._buffer.popleft()
+                self._buffer_bytes -= len(chunk)
+                self._pending += chunk
+                self._buffer_changed.notify_all()
+            data, self._pending = self._pending[:wanted], self._pending[wanted:]
+            is_source_done = self._is_source_done
         samples = np.frombuffer(data, np.int16)
         out[: len(samples), 0] = samples
         out[len(samples) :, 0] = 0
         if len(samples):
             self._has_played_audio = True
-        if not samples.size and self._is_source_done and not self._buffer:
+        if getattr(status, "output_underflow", False) or (
+            samples.size < frames and not is_source_done
+        ):
+            self._note_underrun()
+        if not samples.size and is_source_done and not self._buffer:
             self._finished.set()
+
+    def _note_underrun(self) -> None:
+        """Count one block the playback could not fill with audio in time,
+        what the listener hears as stutter, and say what makes it once."""
+        self._underruns += 1
+        if self._underruns == 1:
+            logger.warning(
+                "Speech stuttered: the next block of audio was not standing "
+                "by in time (the audio arrives slowly, or the machine cannot "
+                "fill the block from one callback to the next)"
+            )
 
 
 def guard_exit_handler() -> None:
