@@ -76,6 +76,10 @@ def _is_locked(lock_file: str) -> bool:
         return False
 
 
+# Pipecat gives up on a service after this many silent sentences in a row.
+_RENDER_FAILURES_BEFORE_RESTART = 3
+
+
 class Speaker:
     """Speak queued text in order on background threads."""
 
@@ -106,6 +110,8 @@ class Speaker:
         self._backends: list[AnySpeechBackend] | None = None
         # The prepare thread and the warm-up thread may both build backends.
         self._building = threading.Lock()
+        # Consecutive in-process renders that failed; a dead service never recovers.
+        self._failed_renders = 0
         # Paused utterances wait on `_unpaused`.
         self._is_paused = False
         self._unpaused = threading.Condition(self._lock)
@@ -301,7 +307,9 @@ class Speaker:
         if self._is_in_process_wanted():
             try:
                 audio = backend.create_audio(text)
+                self._failed_renders = 0
             except Exception as exc:
+                self._handle_render_failure()
                 logger.warning(
                     f"Speech backend {backend.name} could not render audio to "
                     f"play in process ({exc}); a player program plays it instead"
@@ -374,6 +382,24 @@ class Speaker:
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
             # The first sentence tries again and reports a failure itself.
             logger.debug(f"Speech warm-up failed: {exc}")
+
+    def _handle_render_failure(self) -> None:
+        self._failed_renders += 1
+        if self._failed_renders >= _RENDER_FAILURES_BEFORE_RESTART:
+            self.restart_backends()
+
+    def restart_backends(self) -> None:
+        """Drop the cached backends, so the next sentence builds fresh ones.
+
+        A backend whose service died (Pipecat marks it unusable) stays dead
+        for as long as it is cached."""
+        with self._lock:
+            if self._is_closed:
+                return
+            backends, self._backends = self._backends, None
+            self._failed_renders = 0
+        for backend in backends or []:
+            backend.close()
 
     def _get_backends(self) -> list[AnySpeechBackend]:
         """Return this speaker's cached backends."""

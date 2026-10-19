@@ -245,6 +245,8 @@ class SpeechSession:
             self._generation += 1
             self.speaker.clear()
             self.streamed_reply.reset()
+        else:
+            self.speaker.restart_backends()
         return f"🔊 Speech {'on' if self.speaker.is_enabled else 'off'}"
 
     def create_live_context(self) -> str:
