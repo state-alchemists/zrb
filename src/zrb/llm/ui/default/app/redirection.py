@@ -4,7 +4,12 @@ import threading
 from contextlib import contextmanager
 from typing import TextIO
 
+from zrb.config.config import CFG
 from zrb.util.cli.style import is_color_enabled, set_color_enabled
+
+# The captured pipe's reader only reaches EOF once every copy of the write end
+# closes; a child spawned during the session holds one for its whole lifetime.
+_CAPTURE_CLOSE_WAIT_SECONDS = 0.5
 
 
 class GlobalStreamCapture:
@@ -56,7 +61,17 @@ class GlobalStreamCapture:
             self.pipe_w = None
 
         if self.thread:
-            self.thread.join()
+            # A child spawned while capturing inherits FD 1/2, so a copy of the
+            # write end outlives this call and the reader reaches no EOF. That
+            # child is reaped later, in the session teardown, so an unbounded
+            # join puts the whole quit behind its lifetime.
+            self.thread.join(_CAPTURE_CLOSE_WAIT_SECONDS)
+            if self.thread.is_alive():
+                CFG.LOGGER.info(
+                    "A writer still held the captured pipe after %ss; "
+                    "leaving its reader behind.",
+                    _CAPTURE_CLOSE_WAIT_SECONDS,
+                )
             self.thread = None
 
     @contextmanager

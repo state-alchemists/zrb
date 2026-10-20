@@ -159,6 +159,24 @@ def test_global_stream_capture_not_capturing_pause():
     capture.stop()
 
 
+def test_stop_returns_while_another_writer_still_holds_the_pipe():
+    """A child spawned while capturing inherits FD 1/2, so a copy of the pipe's
+    write end outlives stop(); the reader sees no EOF until that copy closes."""
+    capture = GlobalStreamCapture()
+    capture.start()
+    write_end = capture.pipe_w
+    assert write_end is not None
+    held_writer = os.dup(write_end)
+    stopper = threading.Thread(target=capture.stop)
+    try:
+        stopper.start()
+        stopper.join(2.0)
+        assert not stopper.is_alive(), "stop() waited for the other writer"
+    finally:
+        os.close(held_writer)
+        stopper.join(5.0)
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
 
