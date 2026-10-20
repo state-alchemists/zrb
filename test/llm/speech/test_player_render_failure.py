@@ -116,12 +116,44 @@ def test_a_backend_that_fails_to_render_three_times_in_a_row_is_dropped(
     backend = DeadService()
     speaker = Speaker(_config(backend, lock_file, player="auto"))
 
-    for text in ("one", "two"):
+    for text in ("one", "two", "three"):
         speaker.speak(text)
     assert backend.closed == 0
-    speaker.speak("three")
+    speaker.speak("four")
 
     assert backend.closed == 1
+
+
+def test_the_sentence_that_lost_its_backend_still_falls_back_with_it(
+    lock_file, monkeypatch
+):
+    """The drop waits for the next sentence. Closing it here would close it
+    under the sentence that is still being made from it, which is how a
+    service kept being reported as closed for the rest of a session."""
+    _in_process(monkeypatch)
+    seen: "list[int]" = []
+
+    class DeadService(AudioBackend):
+        def __init__(self):
+            super().__init__(renders=False)
+            self.closed = 0
+
+        def create_audio(self, text):
+            raise RuntimeError("the pocket service was closed")
+
+        def create_utterance(self, text):
+            seen.append(self.closed)
+            return super().create_utterance(text)
+
+        def close(self):
+            self.closed += 1
+
+    speaker = Speaker(_config(DeadService(), lock_file, player="auto"))
+
+    for text in ("one", "two", "three"):
+        speaker.speak(text)
+
+    assert seen == [0, 0, 0]
 
 
 def test_restarting_backends_closes_the_cached_ones(lock_file, monkeypatch):
