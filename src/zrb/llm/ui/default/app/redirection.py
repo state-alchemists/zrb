@@ -1,4 +1,3 @@
-import codecs
 import os
 import sys
 import threading
@@ -32,28 +31,23 @@ class _Handover:
         self.lock = threading.Lock()
         self.enabled = False
         self.released = False
-        self.lines: list[str] = []
-        self.tail = ""
+        self.lines: list[bytes] = []
+        self.tail = b""
 
 
 class GlobalStreamCapture:
     def __init__(self):
         self.original_stdout_fd = os.dup(sys.stdout.fileno())
         self.original_stderr_fd = os.dup(sys.stderr.fileno())
-        # Both directions of the pipe belong to the stream this capture renders
-        # back to: a cp1252 console hands us cp1252 bytes and reads cp1252 back,
-        # so decoding or re-encoding as UTF-8 loses every character above 127.
-        #
-        # A writer that chose an encoding of its own is passed through instead:
-        # decoding and re-encoding with one codec is a round trip for bytes it
-        # defines, and `surrogateescape` carries the ones it does not, so the
-        # terminal sees exactly what the writer wrote.
+        # The pipe is carried as bytes, so the terminal sees exactly what each
+        # writer wrote, whatever encoding it chose. Only the snapshot returned
+        # by `get_buffered_output()` is text, decoded as this terminal reads it.
         self.terminal_encoding = sys.stdout.encoding or "utf-8"
         self.capturing = False
         self.thread: threading.Thread | None = None
         self.pipe_r = None
         self.pipe_w = None
-        self._buffer: list[str] = []
+        self._buffer: list[bytes] = []
         self._handover: _Handover | None = None
 
     def start(self):
@@ -139,56 +133,52 @@ class GlobalStreamCapture:
                 os.dup2(self.pipe_w, sys.stderr.fileno())
 
     def _reader(self, pipe_r, handover: _Handover):
-        # Bytes, not lines: `for line in f` holds a flushed line inside the text
-        # wrapper until its newline or EOF arrives, and a child that outlives the
-        # session sends neither.
-        decoder = codecs.getincrementaldecoder(self.terminal_encoding)(
-            "surrogateescape"
-        )
+        # Chunks, not lines: a flushed line must leave the pipe even when its
+        # newline or EOF never comes, as with a child that outlives the session.
         try:
             while True:
                 chunk = os.read(pipe_r, _READ_CHUNK_SIZE)
                 if not chunk:
                     break
-                self._route_lines(decoder.decode(chunk), handover)
-            self._route_last_line(decoder.decode(b"", final=True), handover)
+                self._route_lines(chunk, handover)
+            self._route_last_line(handover)
         finally:
             os.close(pipe_r)
 
-    def _route_lines(self, text: str, handover: _Handover) -> None:
-        """Send every line *text* completes where it belongs. What has no
+    def _route_lines(self, data: bytes, handover: _Handover) -> None:
+        """Send every line *data* completes where it belongs. What has no
         newline yet stays in `handover.tail`, where `show_buffered_output()`
         finds it and where the next chunk continues it."""
         with handover.lock:
-            *lines, tail = (handover.tail + text).split("\n")
-            shown = self._route(((line + "\n") for line in lines), handover)
+            *lines, tail = (handover.tail + data).split(b"\n")
+            shown = self._route(((line + b"\n") for line in lines), handover)
             if handover.released and tail:
                 # The snapshot is out; nothing will read `tail` again.
                 shown.append(tail)
-                handover.tail = ""
+                handover.tail = b""
             else:
                 handover.tail = tail
         if shown:
-            self._write_to_terminal("".join(shown))
+            self._write_to_terminal(b"".join(shown))
 
-    def _route_last_line(self, text: str, handover: _Handover) -> None:
+    def _route_last_line(self, handover: _Handover) -> None:
         """The pipe closed: a line with no newline ends here, so it goes where
         the lines before it went instead of waiting for one that never comes."""
         with handover.lock:
-            lines = (handover.tail + text).split("\n")
-            handover.tail = ""
-            pieces = [line + "\n" for line in lines[:-1]]
+            lines = handover.tail.split(b"\n")
+            handover.tail = b""
+            pieces = [line + b"\n" for line in lines[:-1]]
             if lines[-1]:
                 pieces.append(lines[-1])
             shown = self._route(pieces, handover)
         if shown:
-            self._write_to_terminal("".join(shown))
+            self._write_to_terminal(b"".join(shown))
 
-    def _route(self, pieces: Iterable[str], handover: _Handover) -> list[str]:
+    def _route(self, pieces: Iterable[bytes], handover: _Handover) -> list[bytes]:
         """Put each piece where it belongs now. What comes back is printed by
         the caller, outside the lock: a stalled terminal must not hold the
         snapshot."""
-        shown: list[str] = []
+        shown: list[bytes] = []
         for piece in pieces:
             piece = piece.expandtabs(4)
             if not handover.enabled:
@@ -199,10 +189,9 @@ class GlobalStreamCapture:
                 shown.append(piece)
         return shown
 
-    def _write_to_terminal(self, text: str) -> None:
+    def _write_to_terminal(self, data: bytes) -> None:
         """Through the FD this capture was made against, not `sys.stdout`: after
         a later `start()`, that points at the new capture's pipe."""
-        data = text.encode(self.terminal_encoding, "surrogateescape")
         while data:
             try:
                 written = os.write(self.original_stdout_fd, data)
@@ -233,21 +222,21 @@ class GlobalStreamCapture:
     def get_buffered_output(self) -> str:
         """Returns every line captured up to `stop()`; what a lingering writer
         emits after that is shown by `show_buffered_output()` instead."""
-        return "".join(self._buffer)
+        return b"".join(self._buffer).decode(self.terminal_encoding, "replace")
 
     def show_buffered_output(self) -> None:
         """Print the captured output, then whatever the lingering writer already
         emitted, and from then on print its output as it arrives."""
         handover = self._handover
         if handover is None:
-            self._write_to_terminal("".join(self._buffer))
+            self._write_to_terminal(b"".join(self._buffer))
             return
         with handover.lock:
-            text = "".join(self._buffer) + "".join(handover.lines)
+            data = b"".join(self._buffer) + b"".join(handover.lines)
             # Any newline-free tail comes after the lines: a later line absorbs
             # it, so when both exist the lines came first.
-            text += handover.tail.expandtabs(4)
-            handover.tail = ""
+            data += handover.tail.expandtabs(4)
+            handover.tail = b""
             handover.lines.clear()
-            self._write_to_terminal(text)
+            self._write_to_terminal(data)
             handover.released = True
