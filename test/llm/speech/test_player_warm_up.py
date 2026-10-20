@@ -138,18 +138,66 @@ class ProbingBackend(WarmingBackend):
 
 
 def test_a_failed_warm_up_is_not_a_failed_sentence(lock_file):
-    """A warm-up runs at the start of every turn. A probe that fails must not
-    count toward dropping the backend the turn's sentences are spoken by, and
-    must not drop it from another thread while those sentences are made."""
+    """A warm-up runs at the start of every turn and loads the model once. A
+    probe that fails must not count toward dropping the backend the turn's
+    sentences are spoken by, and must not drop it from another thread while
+    those sentences are made."""
     backend = ProbingBackend()
     speaker = Speaker(_config(backend, lock_file))
 
     for _ in range(3):
-        backend.probed.clear()
         speaker.warm_up()
-        assert backend.probed.wait(5)
 
+    assert backend.probed.wait(5)
     assert backend.let_go == 0
+
+
+class SlowBackend(WarmingBackend):
+    """A backend whose model is loading: `create_audio` is where it waits."""
+
+    def __init__(self):
+        super().__init__()
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def create_audio(self, text):
+        self.entered.set()
+        self.release.wait(5)
+        return super().create_audio(text)
+
+
+def test_a_warm_up_already_loading_is_not_started_again(lock_file):
+    """Every turn asks for one, and the model loads once: a turn asking while
+    it loads waits for nothing and starts nothing — one chat had 38 of these
+    threads parked behind the same load."""
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.warm_up()
+    assert backend.entered.wait(5)
+    speaker.warm_up()
+    speaker.warm_up()
+    backend.release.set()
+
+    assert backend.closed.wait(5)
+    time.sleep(0.2)
+    assert backend.made == ["Hi."]
+
+
+def test_a_restarted_backend_set_is_warmed_again(lock_file):
+    """A set of backends dropped and built again holds other models, so the
+    turn after the restart warms them."""
+    backend = WarmingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.warm_up()
+    assert backend.closed.wait(5)
+    backend.closed.clear()
+    speaker.restart_backends()
+    speaker.warm_up()
+
+    assert backend.closed.wait(5)
+    assert backend.made == ["Hi.", "Hi."]
 
 
 class FallbackBackend(CloudBackend):

@@ -2,6 +2,8 @@
 
 import asyncio
 import sys
+import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -146,7 +148,9 @@ async def test_a_model_that_cannot_load_ends_its_loading_line_with_a_failure(
 
     assert await _sources(session, 1) == [("hello", DICTATION_INPUT)]
     assert "Loading the emotion model…" in caplog.text
-    assert "❗ emotion model failed to load" in caplog.text
+    # The load runs beside the microphone now, so the failure line lands a
+    # moment after the turn it did not hold up (ADR-0115).
+    assert await _wait_until(lambda: "❗ emotion model failed to load" in caplog.text)
 
 
 class WordsBackend(AnyDictationBackend):
@@ -155,7 +159,7 @@ class WordsBackend(AnyDictationBackend):
 
 
 class FakeDetector:
-    def __init__(self, model, min_score):
+    def __init__(self, model, min_score, out_of_process=False):
         self.prepared = 0
 
     async def prepare(self, report):
@@ -163,6 +167,9 @@ class FakeDetector:
 
     async def hear(self, audio):
         return Tone("sad", 0.82) if b"sorry" in audio else None
+
+    def close(self):
+        pass
 
 
 def _session_hearing(monkeypatch, *said: str, detect_emotion: bool):
@@ -208,34 +215,142 @@ async def test_no_tone_is_heard_unless_detection_is_on(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_the_transcriber_and_the_emotion_model_load_at_the_same_time(
-    monkeypatch,
-):
-    both_loading = asyncio.Event()
-    started: list[str] = []
-
-    async def load(name: str) -> None:
-        started.append(name)
-        if len(started) == 2:
-            both_loading.set()
-        # Neither load finishes until the other has started.
-        await asyncio.wait_for(both_loading.wait(), timeout=2)
-
-    class SlowBackend(WordsBackend):
-        async def prepare(self, report):
-            await load("transcriber")
+async def test_the_microphone_listens_before_the_emotion_model_loads(monkeypatch):
+    """A tone is worth a wait; a microphone is not. The transcriber is loaded
+    before listening starts, and the emotion model beside it (ADR-0115)."""
+    started = asyncio.Event()
+    finish = asyncio.Event()
 
     class SlowDetector(FakeDetector):
         async def prepare(self, report):
-            await load("emotion")
+            started.set()
+            await finish.wait()
 
     _session_hearing(monkeypatch, "hello", detect_emotion=True)
     monkeypatch.setattr("zrb.llm.dictation.feature.EmotionDetector", SlowDetector)
     session = DictationSession(
         DictationConfig(
-            backend=SlowBackend(), mode="hands_free", detect_emotion=True
+            backend=WordsBackend(), mode="hands_free", detect_emotion=True
         ).resolve()
     )
 
+    replies = await asyncio.wait_for(_sources(session, 1), timeout=2)
+    try:
+        assert replies == [("hello", DICTATION_INPUT)]
+        assert started.is_set()  # the load began
+        assert not finish.is_set()  # and the turn did not wait for it
+    finally:
+        finish.set()
+        session.close()
+
+
+@pytest.mark.asyncio
+async def test_the_transcriber_is_still_loaded_before_listening(monkeypatch):
+    """The words need the transcriber, so that one still comes first."""
+    prepared: list[str] = []
+
+    class SlowBackend(WordsBackend):
+        async def prepare(self, report):
+            prepared.append("transcriber")
+
+    _session_hearing(monkeypatch, "hello", detect_emotion=False)
+    session = DictationSession(
+        DictationConfig(backend=SlowBackend(), mode="hands_free").resolve()
+    )
+
     assert await _sources(session, 1) == [("hello", DICTATION_INPUT)]
-    assert sorted(started) == ["emotion", "transcriber"]
+    assert prepared == ["transcriber"]
+
+
+@pytest.mark.asyncio
+async def test_an_utterance_heard_while_the_model_loads_gets_no_tone(monkeypatch):
+    """The load takes up to twenty seconds; a clip heard meanwhile is answered
+    at once without a tone, not after waiting for the model."""
+    loading = threading.Event()
+    release = threading.Event()
+
+    class SlowAutoModel:
+        def __init__(self, model, disable_update):
+            loading.set()
+            release.wait(5)
+
+        def generate(self, input, granularity, extract_embedding):
+            return [{"labels": LABELS, "scores": [0.0, 0.9, 0.1, 0.0, 0.0]}]
+
+    monkeypatch.setitem(
+        sys.modules, "funasr", SimpleNamespace(AutoModel=SlowAutoModel)
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub",
+        SimpleNamespace(snapshot_download=lambda repo, local_files_only=True: repo),
+    )
+    detector = EmotionDetector("me/e2v")
+
+    prepare = asyncio.create_task(detector.prepare(lambda message: None))
+    assert await asyncio.to_thread(loading.wait, 5)
+    assert await asyncio.wait_for(detector.hear(b"\x00\x10" * 160), timeout=2) is None
+
+    release.set()
+    await prepare
+    assert await detector.hear(b"\x00\x10" * 160) == Tone("happy", 0.9)
+
+
+@pytest.mark.asyncio
+async def test_out_of_process_classifies_through_a_worker(monkeypatch):
+    workers: list[FakeWorker] = []
+
+    class FakeWorker:
+        def __init__(self, repo):
+            self.repo = repo
+            self.closed = False
+            workers.append(self)
+
+        def start(self):
+            return lambda samples: {
+                "labels": LABELS,
+                "scores": [0.0, 0.9, 0.1, 0.0, 0.0],
+            }
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr("zrb.llm.dictation.emotion.EmotionWorker", FakeWorker)
+    detector = EmotionDetector("me/e2v", out_of_process=True)
+
+    assert await detector.hear(b"\x00\x10" * 160) == Tone("happy", 0.9)
+    detector.close()
+
+    [worker] = workers
+    assert worker.repo == "me/e2v"
+    assert worker.closed
+
+
+@pytest.mark.asyncio
+async def test_a_worker_that_cannot_start_costs_only_the_tone(monkeypatch, caplog):
+    class DeadWorker:
+        def __init__(self, repo):
+            self.closed = False
+
+        def start(self):
+            raise RuntimeError("this machine has no room for it")
+
+        def close(self):
+            self.closed = True
+
+    monkeypatch.setattr("zrb.llm.dictation.emotion.EmotionWorker", DeadWorker)
+    detector = EmotionDetector(out_of_process=True)
+
+    assert await detector.hear(b"\x00\x00") is None
+    assert "no room for it" in detector.unavailable_reason
+    assert "this machine has no room for it" in caplog.text
+
+
+async def _wait_until(condition, timeout: float = 2.0) -> bool:
+    """Wait for a background task's effect, up to *timeout* seconds."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if condition():
+            return True
+        await asyncio.sleep(0.01)
+    return condition()

@@ -12,6 +12,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Generic, TypeAlias, TypeVar, Union, cast
 
 from zrb.config.config import CFG
+from zrb.llm.util.model_load import heavy_model_load
 from zrb.llm.voice.registry import (
     SpeechServiceRegistry,
     STTServiceRegistry,
@@ -110,7 +111,13 @@ class SpeechServiceManager(Generic[T]):
         factory = cast(
             "Callable[[ServiceConfig], STTService | TTSService]", spec.factory
         )
-        return factory(config)
+        if not spec.is_local:
+            return factory(config)
+        # A local service builds its model here, and a model's load costs far
+        # more than the model keeps: one at a time, so two of them never peak
+        # together (the memory that costs a chat its life on a small machine).
+        with heavy_model_load(f"the {spec.name} service"):
+            return factory(config)
 
 
 class STTServiceManager(SpeechServiceManager[STTServiceSpec]):

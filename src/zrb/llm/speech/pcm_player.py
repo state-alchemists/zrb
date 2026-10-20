@@ -679,9 +679,12 @@ class PcmUtterance(Utterance):
             return
         self._underruns_logged = True
         logger.warning(
-            "Speech stuttered: the next block of audio was not standing "
-            "by in time (the audio arrives slowly, or the machine cannot "
-            "fill the block from one callback to the next)"
+            f"Speech stuttered: {self._underruns} block(s) of audio were not "
+            "standing by in time (the audio arrives slowly, or the machine "
+            f"cannot fill a block of {self._block_frames} frames from one "
+            "callback to the next; "
+            f"{CFG.ENV_PREFIX}_LLM_SPEECH_PLAYER_BLOCK_FRAMES makes the block "
+            "longer to wait for)"
         )
 
 

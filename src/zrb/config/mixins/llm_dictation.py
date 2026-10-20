@@ -94,6 +94,7 @@ class LLMDictationMixin:
             "emotion2vec/emotion2vec_plus_base"
         )
         self.DEFAULT_LLM_DICTATION_EMOTION_MIN_SCORE: str = "0.5"
+        self.DEFAULT_LLM_DICTATION_EMOTION_OUT_OF_PROCESS: str = "off"
         super().__init__()
 
     LLM_DICTATION_MODE = EnvField(
@@ -520,6 +521,21 @@ class LLMDictationMixin:
         doc=(
             "Lowest score (0-1) emotion2vec+ must give a tone to report it; "
             "below it the turn carries none. Default: 0.5."
+        ),
+    )
+
+    LLM_DICTATION_EMOTION_OUT_OF_PROCESS = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "'on' loads the emotion2vec+ model in a child process instead of "
+            "the chat's own. Its load spikes about 2 GB above what the model "
+            "keeps (funasr copies the 1.1 GB checkpoint into the model), and a "
+            "chat that also holds the transcriber and the speech model can be "
+            "what the kernel's OOM killer picks; in a child, the spike is the "
+            "child's, and the child asks to be killed first. Costs one process "
+            "while the model is loaded, and a tone nobody hears when it dies. "
+            "Default: off."
         ),
     )
 

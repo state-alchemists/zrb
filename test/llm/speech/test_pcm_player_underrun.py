@@ -105,6 +105,7 @@ def test_a_block_the_device_says_it_got_early_counts_as_an_underrun(sd, caplog):
     [stream] = FakeOutputStream.instances
     assert stream.played and utterance.underruns >= len(stream.played) - 1
     assert caplog.text.count("stuttered") == 1  # said once, not per block
+    assert f"{utterance.underruns} block(s) of audio" in caplog.text
 
 
 def test_audio_arriving_too_late_is_counted_as_an_underrun(sd, caplog):

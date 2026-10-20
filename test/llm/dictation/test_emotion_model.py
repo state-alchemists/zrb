@@ -1,0 +1,219 @@
+"""emotion2vec+ in a child process: the model's load spike lands there (ADR-0115).
+
+The child is a real process in production and a thread here, so what these
+cover is the protocol — start, ready, classify, a child that died — without
+loading a two-gigabyte model into a test.
+"""
+
+import multiprocessing
+import os
+import sys
+import threading
+from multiprocessing.connection import Connection
+from types import SimpleNamespace
+
+import pytest
+
+from zrb.llm.dictation import emotion_model
+from zrb.llm.dictation.emotion_model import EmotionWorker
+
+LABELS = ["happy", "sad"]
+SCORES = [0.9, 0.1]
+
+
+class ThreadProcess:
+    """A `multiprocessing.Process` that runs its target as a thread.
+
+    Every pipe end the target receives is duplicated up front, as a real spawn
+    gives the child a handle of its own: without that, the parent closing its
+    copy of the child's end would close the child's too."""
+
+    def __init__(self, target, args, daemon):
+        self._target = target
+        self._args = tuple(_own_handle(arg) for arg in args)
+        self._thread = None
+        self.was_terminated = False
+
+    def start(self):
+        self._thread = threading.Thread(target=self._target, args=self._args)
+        self._thread.daemon = True
+        self._thread.start()
+
+    def join(self, timeout=None):
+        if self._thread is not None:
+            self._thread.join(timeout)
+
+    def is_alive(self):
+        return self._thread is not None and self._thread.is_alive()
+
+    def terminate(self):
+        self.was_terminated = True
+
+
+class ThreadContext:
+    """A `multiprocessing` context whose processes are threads."""
+
+    def Pipe(self, duplex=True):
+        return multiprocessing.Pipe(duplex)
+
+    def Process(self, target, args, daemon):
+        return ThreadProcess(target, args, daemon)
+
+
+def _own_handle(arg):
+    """*arg*, or a handle of its own when it is a pipe end."""
+    if isinstance(arg, Connection):
+        return Connection(os.dup(arg.fileno()))
+    return arg
+
+
+def _classify(samples):
+    return {"labels": LABELS, "scores": SCORES}
+
+
+@pytest.fixture
+def in_threads(monkeypatch):
+    """`EmotionWorker` starts a thread instead of a process, with a fake model."""
+    monkeypatch.setattr(
+        emotion_model,
+        "multiprocessing",
+        SimpleNamespace(get_context=lambda method: ThreadContext()),
+    )
+    monkeypatch.setattr(emotion_model, "make_expendable", lambda: None)
+    monkeypatch.setattr(emotion_model, "load_classifier", lambda repo: _classify)
+    return monkeypatch
+
+
+def test_the_worker_classifies_through_its_child(in_threads):
+    worker = EmotionWorker("me/e2v")
+    try:
+        classify = worker.start()
+        assert worker.is_started
+        assert classify(b"\x00\x00") == {"labels": LABELS, "scores": SCORES}
+    finally:
+        worker.close()
+    assert not worker.is_started
+
+
+def test_a_started_worker_hands_out_the_same_child_again(in_threads):
+    worker = EmotionWorker("me/e2v")
+    try:
+        assert worker.start() == worker.start()
+    finally:
+        worker.close()
+
+
+def test_a_model_that_will_not_load_says_why(in_threads):
+    def broken(repo):
+        raise ImportError("no funasr here")
+
+    in_threads.setattr(emotion_model, "load_classifier", broken)
+    worker = EmotionWorker("me/e2v")
+
+    with pytest.raises(RuntimeError, match="no funasr here"):
+        worker.start()
+    assert not worker.is_started
+
+
+@pytest.mark.filterwarnings(
+    "ignore::pytest.PytestUnhandledThreadExceptionWarning"
+)
+def test_a_child_that_died_is_forgotten_and_the_next_one_starts(in_threads):
+    attempts = []
+
+    def die_once(repo):
+        attempts.append(repo)
+        if len(attempts) == 1:
+
+            def dies(samples):
+                raise SystemExit("killed")
+
+            return dies
+        return _classify
+
+    in_threads.setattr(emotion_model, "load_classifier", die_once)
+    worker = EmotionWorker("me/e2v")
+    try:
+        with pytest.raises(RuntimeError, match="stopped"):
+            worker.start()(b"\x00\x00")
+        assert worker.start()(b"\x00\x00") == {"labels": LABELS, "scores": SCORES}
+    finally:
+        worker.close()
+    assert len(attempts) == 2
+
+
+@pytest.mark.filterwarnings(
+    "ignore::pytest.PytestUnhandledThreadExceptionWarning"
+)
+def test_a_child_that_keeps_dying_is_given_up_on(in_threads):
+    def dies(samples):
+        raise SystemExit("killed")
+
+    in_threads.setattr(emotion_model, "load_classifier", lambda repo: dies)
+    in_threads.setattr(emotion_model, "MAX_DEATHS", 1)
+    worker = EmotionWorker("me/e2v")
+    try:
+        with pytest.raises(RuntimeError, match="stopped"):
+            worker.start()(b"\x00\x00")
+        with pytest.raises(RuntimeError, match="no room for it"):
+            worker.start()
+    finally:
+        worker.close()
+
+
+def test_a_closed_worker_starts_nothing_more(in_threads):
+    worker = EmotionWorker("me/e2v")
+    worker.close()
+
+    with pytest.raises(RuntimeError, match="closed"):
+        worker.start()
+
+
+def test_load_classifier_reads_the_cached_copy_first(monkeypatch):
+    asked = []
+
+    def snapshot_download(repo, local_files_only=False):
+        asked.append(local_files_only)
+        return f"/cache/{repo}"
+
+    class AutoModel:
+        def __init__(self, model, disable_update):
+            self.model = model
+
+        def generate(self, samples, granularity, extract_embedding):
+            return [{"labels": LABELS, "scores": SCORES}]
+
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub",
+        SimpleNamespace(snapshot_download=snapshot_download),
+    )
+    monkeypatch.setitem(sys.modules, "funasr", SimpleNamespace(AutoModel=AutoModel))
+
+    classify = emotion_model.load_classifier("me/e2v")
+
+    assert asked == [True]
+    assert classify(b"\x00\x00") == {"labels": LABELS, "scores": SCORES}
+
+
+def test_make_expendable_asks_to_be_the_one_killed(monkeypatch, tmp_path):
+    score = tmp_path / "oom_score_adj"
+    score.write_text("0", encoding="utf-8")
+    monkeypatch.setattr(emotion_model, "OOM_SCORE_PATH", str(score))
+
+    emotion_model.make_expendable()
+
+    assert score.read_text(encoding="utf-8") == "1000"
+
+
+def test_make_expendable_is_quiet_where_there_is_no_such_file(
+    monkeypatch, tmp_path, caplog
+):
+    score = tmp_path / "oom_score_adj"
+    score.write_text("0", encoding="utf-8")
+    monkeypatch.setattr(emotion_model, "OOM_SCORE_PATH", str(score))
+    monkeypatch.setattr(emotion_model.os.path, "exists", lambda path: False)
+
+    emotion_model.make_expendable()
+
+    assert score.read_text(encoding="utf-8") == "0"

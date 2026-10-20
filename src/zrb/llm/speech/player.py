@@ -123,6 +123,10 @@ class Speaker:
         # The backend whose in-process renders are failing, and how many in a row.
         self._failing_backend: AnySpeechBackend | None = None
         self._failed_renders = 0
+        # Whether a warm-up is running, and whether this backend set was warmed
+        # once: the model behind it loads once, whatever asks again.
+        self._is_warming_up = False
+        self._is_warmed_up = False
         # Set when that backend is dead; the drop waits for the next sentence.
         self._is_restart_pending = False
         # Paused utterances wait on `_unpaused`.
@@ -412,7 +416,17 @@ class Speaker:
     def warm_up(self) -> None:
         """Load a local in-process backend's model on a thread of its own, so
         the first sentence does not wait for it. One word is made and never
-        played."""
+        played.
+
+        Asked for at the start of every turn and answered once per backend set:
+        a call made while one is loading, or after one has loaded, does nothing.
+        The model is what the wait was ever for — a thread per turn queued
+        behind the same load is how one chat ended up with 38 of them parked.
+        """
+        with self._lock:
+            if self._is_warmed_up or self._is_warming_up or self._is_closed:
+                return
+            self._is_warming_up = True
         threading.Thread(
             target=self._warm_up,
             name=f"{CFG.ROOT_GROUP_NAME}-speech-warm-up",
@@ -420,6 +434,16 @@ class Speaker:
         ).start()
 
     def _warm_up(self) -> None:
+        """Warm the backend set once, whatever the probe came to: a model that
+        did not load is the first sentence's to load."""
+        try:
+            self._warm_one_word()
+        finally:
+            with self._lock:
+                self._is_warming_up = False
+                self._is_warmed_up = True
+
+    def _warm_one_word(self) -> None:
         try:
             backend = self._get_backends()[0]
             # A remote voice would bill a word nobody hears; the fallback is
@@ -464,7 +488,10 @@ class Speaker:
 
         A backend whose service died (Pipecat marks it unusable) stays dead
         for as long as it is cached. One the caller supplied is dropped from the
-        cache but not closed: it is the caller's, and it speaks again."""
+        cache but not closed: it is the caller's, and it speaks again.
+
+        The fresh set is warmed again by the next `warm_up`: its models are
+        other models."""
         with self._lock:
             self._is_restart_pending = False
             if self._is_closed:
@@ -473,6 +500,7 @@ class Speaker:
             owned, self._owned_backends = self._owned_backends, []
             self._failing_backend = None
             self._failed_renders = 0
+            self._is_warmed_up = False
         for backend in owned:
             backend.close()
 

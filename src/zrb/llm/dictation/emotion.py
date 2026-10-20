@@ -5,17 +5,27 @@ it hears the tone whichever backend writes the words, and a streamed one too.
 The tone reaches the turn as metadata (`InputProvenance.tone`), never as text
 in the user's words. Why emotion2vec+ and not the transcriber's own tag:
 ADR-0112.
+
+The model is loaded on a thread of its own, without holding up the microphone
+(ADR-0115): a tone heard a couple of turns later is worth more than a
+microphone that opens twenty seconds late. An utterance spoken while it loads
+carries no tone, which is exactly what an utterance spoken before the model
+loaded always got.
 """
 
 from __future__ import annotations
 
-import importlib
 import logging
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from zrb.llm.dictation.hub import get_hub_path
+from zrb.llm.dictation.emotion_model import (
+    MODEL_ERRORS,
+    Classify,
+    EmotionWorker,
+    load_classifier,
+)
 from zrb.util.async_thread import run_in_daemon
 
 logger = logging.getLogger(__name__)
@@ -23,23 +33,6 @@ logger = logging.getLogger(__name__)
 #: The emotion2vec labels reported as a tone. Neutral, fearful, disgusted,
 #: other and unknown are not.
 _EMOTIONS = ("happy", "sad", "angry", "surprised")
-
-#: What funasr and torch raise loading the model or classifying a clip. Any of
-#: them costs only the tone, never the user's words.
-_MODEL_ERRORS = (
-    ImportError,
-    OSError,
-    RuntimeError,
-    ValueError,
-    KeyError,
-    IndexError,
-    TypeError,
-    AttributeError,
-    AssertionError,
-)
-
-#: Classifies one clip, returning emotion2vec's labels and their scores.
-Classify = Callable[[object], dict[str, list[object]]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,15 +45,29 @@ class Tone:
 
 class EmotionDetector:
     """emotion2vec+ (the Hugging Face repo *model*), reporting a tone it hears
-    with at least *min_score*; ``None`` takes the default of each."""
+    with at least *min_score*; ``None`` takes the default of each.
+
+    With *out_of_process*, the model loads in a child process of its own, where
+    its load spike cannot cost the chat its life (ADR-0115); without it, the
+    model loads in this process.
+    """
 
     def __init__(
-        self, model: str | None = None, min_score: float | None = None
+        self,
+        model: str | None = None,
+        min_score: float | None = None,
+        out_of_process: bool = False,
     ) -> None:
         self._model_repo = model or "emotion2vec/emotion2vec_plus_base"
         self._min_score = 0.5 if min_score is None else min_score
+        self._out_of_process = out_of_process
         self._classify: Classify | None = None
-        # Guards loading the model and every call into it.
+        self._worker: EmotionWorker | None = None
+        # Guards loading the model. Taken without waiting: an utterance heard
+        # while the model loads gets no tone rather than waiting for it.
+        self._loading = threading.Lock()
+        # Guards every call into the model, which is one model, one clip at a
+        # time.
         self._model_lock = threading.Lock()
         self._unavailable_reason = ""
 
@@ -77,10 +84,24 @@ class EmotionDetector:
         is loaded or not tried yet."""
         return self._unavailable_reason
 
+    @property
+    def is_loading(self) -> bool:
+        """Whether the model is loading right now: a tone asked for now is
+        none, rather than a wait for the load to finish."""
+        return self._loading.locked()
+
     async def hear(self, audio: bytes) -> Tone | None:
         """The tone of *audio* (16 kHz mono 16-bit PCM), or ``None`` when it
-        is not one reported, not confident, or the model cannot load."""
+        is not one reported, not confident, still loading, or the model cannot
+        load."""
         return await run_in_daemon(self._hear, audio, name="zrb-emotion")
+
+    def close(self) -> None:
+        """Stop the worker process that held the model, if there is one."""
+        worker, self._worker = self._worker, None
+        self._classify = None
+        if worker is not None:
+            worker.close()
 
     def _hear(self, audio: bytes) -> Tone | None:
         classify = self._get_classify()
@@ -96,7 +117,7 @@ class EmotionDetector:
             scores = [float(str(score)) for score in result["scores"]]
             best = max(range(len(scores)), key=scores.__getitem__)
             emotion = str(result["labels"][best]).split("/")[-1]
-        except _MODEL_ERRORS as exc:
+        except MODEL_ERRORS as exc:
             # Keep dictating; this utterance just has no tone.
             logger.warning(f"Hearing the tone failed: {exc}")
             return None
@@ -105,31 +126,45 @@ class EmotionDetector:
         return Tone(emotion, round(scores[best], 2))
 
     def _get_classify(self) -> Classify | None:
-        with self._model_lock:
+        """The model's classify callable, loading it when this thread is the
+        one to, and ``None`` when it is not loaded yet."""
+        if self._classify is not None or self._unavailable_reason:
+            return self._classify
+        if not self._loading.acquire(blocking=False):
+            # Another thread is loading it: no tone this time, no wait either.
+            return None
+        try:
             if self._classify is None and not self._unavailable_reason:
                 try:
-                    self._classify = _load(self._model_repo)
-                except _MODEL_ERRORS as exc:
+                    self._classify = self._create_classify()
+                except MODEL_ERRORS as exc:
                     # Keep dictating, without tones.
-                    self._unavailable_reason = (
-                        f"{exc or type(exc).__name__}. It needs funasr and "
-                        "torch: pip install funasr torch"
-                    )
+                    self._unavailable_reason = _why_unavailable(exc)
                     logger.warning(
                         f"Emotion detection is off: {self._unavailable_reason}"
                     )
             return self._classify
+        finally:
+            self._loading.release()
+
+    def _create_classify(self) -> Classify:
+        """The classify callable, from a child process or from this one."""
+        if not self._out_of_process:
+            return load_classifier(self._model_repo)
+        worker = EmotionWorker(self._model_repo)
+        try:
+            classify = worker.start()
+        except BaseException:
+            worker.close()
+            raise
+        self._worker = worker
+        return classify
 
 
-def _load(repo: str) -> Classify:
-    # lazy: heavy third-party — huggingface_hub. funasr and torch are not zrb
-    # dependencies, so funasr is imported by name.
-    from huggingface_hub import snapshot_download
-
-    auto_model = importlib.import_module("funasr").AutoModel
-    # A local directory, so funasr loads it as it is instead of looking the
-    # name up on its default hub, ModelScope.
-    model = auto_model(model=get_hub_path(snapshot_download, repo), disable_update=True)
-    return lambda samples: model.generate(
-        samples, granularity="utterance", extract_embedding=False
-    )[0]
+def _why_unavailable(exc: BaseException) -> str:
+    """Why the model is not there, in words that say what to install when the
+    package is what is missing."""
+    reason = str(exc) or type(exc).__name__
+    if isinstance(exc, ImportError):
+        return f"{reason}. It needs funasr and torch: pip install funasr torch"
+    return reason
