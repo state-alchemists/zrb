@@ -2,7 +2,7 @@
 
 import pytest
 
-from zrb.llm.ambient_state import input_provenance
+from zrb.llm.ambient_state import current_reply_emotion, input_provenance
 from zrb.llm.emotion import EmotionConfig, enable_emotion
 from zrb.llm.emotion.feature import EmotionSession
 from zrb.llm.hook.interface import HookContext, HookResult
@@ -76,6 +76,37 @@ async def test_the_users_tone_fires_as_the_reply_starts_then_the_replys(fired):
     await session.handle_reply_emotion("sad")
 
     assert _fired(fired) == [("user", "angry"), ("assistant", "sad")]
+
+
+@pytest.fixture
+def emotion_state():
+    """`current_reply_emotion`, put back as it was after the test."""
+    token = current_reply_emotion.set("")
+    yield current_reply_emotion
+    current_reply_emotion.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_a_new_turn_clears_the_emotion_the_last_one_left(fired, emotion_state):
+    session = EmotionSession(EmotionConfig(enabled=True))
+    emotion_state.set("happy")
+
+    await _submit(session, KEYBOARD_INPUT, "next question")
+    await session.handle_stream_start()
+
+    assert emotion_state.get() == ""
+
+
+@pytest.mark.asyncio
+async def test_a_later_round_of_the_same_turn_keeps_the_emotion(fired, emotion_state):
+    session = EmotionSession(EmotionConfig(enabled=True))
+    await _submit(session, KEYBOARD_INPUT, "what changed")
+    await session.handle_stream_start()
+    emotion_state.set("happy")
+
+    await session.handle_stream_start()
+
+    assert emotion_state.get() == "happy"
 
 
 @pytest.mark.asyncio

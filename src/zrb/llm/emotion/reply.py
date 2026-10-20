@@ -5,7 +5,9 @@ The model opens its reply with an emoji for how it feels (`emotion_live`).
 of the reply: the streamed events every UI, speech and observer read
 (`wrap_run_event_stream`), and the finished response the output, history and
 hooks are made from (`after_model_request`). The emotion is kept as state
-instead (`current_reply_emotion`), so the user never sees the emoji.
+instead (`current_reply_emotion`), so the user never sees the emoji. It is
+kept for the whole turn: a run whose text opens with no emoji leaves it
+alone, and the session clears it when the next turn starts.
 
 Imported only when a run builds the capability: it loads pydantic-ai.
 """
@@ -89,9 +91,13 @@ class ReplyEmotion(AbstractCapability[None]):
         return replace(response, parts=parts)
 
     async def _read(self, emotion: str) -> None:
+        # Read once per run, and a turn is more than one run: every round after
+        # a tool call carries no emoji. Clearing here would drop the turn's
+        # emotion mid-reply, so the session clears it when a turn starts.
+        if not emotion:
+            return
         current_reply_emotion.set(emotion)
-        if emotion:
-            await self._on_emotion(emotion)
+        await self._on_emotion(emotion)
 
 
 class _Opening:
@@ -100,7 +106,8 @@ class _Opening:
     leading emoji removed. Later text parts pass through untouched.
 
     `take` and `flush` return the events to pass on. A `str` among them is
-    the emotion read, ``""`` when the reply opens without one."""
+    the emotion read, ``""`` when the reply opens without one, which leaves
+    the turn's emotion as it is."""
 
     def __init__(self) -> None:
         self._held: list[AgentStreamEvent] = []
