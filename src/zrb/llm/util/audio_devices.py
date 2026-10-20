@@ -1,13 +1,20 @@
-"""PortAudio's view of the audio hardware, compared through a snapshot.
+"""PortAudio's view of the audio hardware, and the machine's own default
+output beside it.
 
 PortAudio has no portable callback for a device being plugged in, unplugged,
-or made the default, so the portable signal for a change is what
-`sd.query_devices()` and `sd.default.device` say now, next to what they said a
-moment ago. `DeviceWatcher` snapshots when asked and says whether that changed.
+or made the default, so the portable signal for a change is what it says now
+next to what it said a moment ago; `DeviceWatcher` snapshots that. It reaches
+only as far as PortAudio reads the devices again at all, which on macOS it does
+not: PortAudio 19.7 listed the one device it had found when it was started for
+four minutes, while a headset was plugged in and made the default. So the
+machine's own default output is read from CoreAudio
+(`read_system_default_output`), which is what moves on a plug or an unplug.
 """
 
 from __future__ import annotations
 
+import ctypes
+import functools
 import time
 
 # How often the snapshot is re-read at most, in `has_changed`.
@@ -94,3 +101,134 @@ class DeviceWatcher:
         changed = self._snapshot is not None and snapshot != self._snapshot
         self._snapshot = snapshot
         return changed
+
+
+def read_portaudio_default_output(sd: object) -> "str | None":
+    """The name of the output PortAudio plays on without being asked for a
+    device, or ``None`` when it cannot be read. What it answers is from when it
+    was started, so this is the output a stream would use now, not necessarily
+    the one the machine is set to play on."""
+    try:
+        return str(getattr(sd, "query_devices")(kind="output")["name"])
+    except _snapshot_errors(sd):
+        return None
+
+
+def read_system_default_output(sd: object) -> "str | None":
+    """The name of the output the machine itself is set to play on, or ``None``
+    when it cannot be told.
+
+    On macOS this is asked of CoreAudio, which moves when a device is plugged
+    in or made the default; PortAudio is no help there, since it keeps the
+    devices, and the default among them, that it read when it was started.
+    Anywhere else PortAudio's own word on the default is all there is, which
+    makes this agree with `read_portaudio_default_output` by construction."""
+    name = _read_the_system_default_output()
+    if name is not None:
+        return name
+    return read_portaudio_default_output(sd)
+
+
+# CoreAudio's system object, and the four-character selectors its properties
+# are addressed by, on the global scope and the main element.
+_SYSTEM_OBJECT = 1
+_GLOBAL_SCOPE = 0x676C6F62  # 'glob'
+_MAIN_ELEMENT = 0
+_DEFAULT_OUTPUT = 0x644F7574  # 'dOut'
+_OBJECT_NAME = 0x6C6E616D  # 'lnam'
+_DEVICE_ID_BYTES = 4
+_UTF8 = 0x08000100
+_CORE_AUDIO_PATH = "/System/Library/Frameworks/CoreAudio.framework/CoreAudio"
+_CORE_FOUNDATION_PATH = (
+    "/System/Library/Frameworks/CoreFoundation.framework/CoreFoundation"
+)
+
+
+class _PropertyAddress(ctypes.Structure):
+    _fields_ = [
+        ("selector", ctypes.c_uint32),
+        ("scope", ctypes.c_uint32),
+        ("element", ctypes.c_uint32),
+    ]
+
+
+@functools.cache
+def _core_audio() -> "tuple[ctypes.CDLL, ctypes.CDLL] | None":
+    """CoreAudio and CoreFoundation with the calls used here typed, or ``None``
+    where they are not there (anything but macOS). Read once: a machine's
+    frameworks do not change under the process.
+
+    The calls are typed rather than left to ctypes' guesses, because a wrong
+    guess about the arguments of a C function that returns a pointer reads a
+    register that was never written."""
+    try:
+        core_audio = ctypes.CDLL(_CORE_AUDIO_PATH)
+        core_foundation = ctypes.CDLL(_CORE_FOUNDATION_PATH)
+        get_property = core_audio.AudioObjectGetPropertyData
+        get_property.restype = ctypes.c_int32
+        get_property.argtypes = [
+            ctypes.c_uint32,
+            ctypes.POINTER(_PropertyAddress),
+            ctypes.c_uint32,
+            ctypes.c_void_p,
+            ctypes.POINTER(ctypes.c_uint32),
+            ctypes.c_void_p,
+        ]
+        get_name = core_foundation.CFStringGetCString
+        get_name.restype = ctypes.c_bool
+        get_name.argtypes = [
+            ctypes.c_void_p,
+            ctypes.c_char_p,
+            ctypes.c_long,
+            ctypes.c_uint32,
+        ]
+        get_length = core_foundation.CFStringGetLength
+        get_length.restype = ctypes.c_long
+        get_length.argtypes = [ctypes.c_void_p]
+    except (AttributeError, OSError):
+        return None
+    return core_audio, core_foundation
+
+
+def _read_property(owner: int, selector: int, size: int) -> "bytes | None":
+    """One CoreAudio property of *owner*, *size* bytes of it, or ``None`` when
+    it does not read as that."""
+    libraries = _core_audio()
+    if libraries is None:
+        return None
+    core_audio, _ = libraries
+    address = _PropertyAddress(selector, _GLOBAL_SCOPE, _MAIN_ELEMENT)
+    data = ctypes.create_string_buffer(size)
+    size_read = ctypes.c_uint32(size)
+    status = core_audio.AudioObjectGetPropertyData(
+        owner, ctypes.byref(address), 0, None, ctypes.byref(size_read), data
+    )
+    if status != 0 or size_read.value != size:
+        return None
+    return data.raw
+
+
+def _read_the_system_default_output() -> "str | None":
+    """The name of the output the machine plays on, read from CoreAudio, or
+    ``None`` where CoreAudio cannot be asked. The name is the device's own, in
+    UTF-8; the reference it comes as belongs to the system and is not freed."""
+    raw = _read_property(_SYSTEM_OBJECT, _DEFAULT_OUTPUT, _DEVICE_ID_BYTES)
+    if raw is None:
+        return None
+    device = int.from_bytes(raw, "little")
+    libraries = _core_audio()
+    if not device or libraries is None:
+        return None
+    _, core_foundation = libraries
+    raw = _read_property(device, _OBJECT_NAME, ctypes.sizeof(ctypes.c_void_p))
+    if raw is None:
+        return None
+    reference = int.from_bytes(raw, "little")
+    if not reference:
+        return None
+    length = core_foundation.CFStringGetLength(ctypes.c_void_p(reference))
+    name = ctypes.create_string_buffer(length * 4 + 1)
+    is_read = core_foundation.CFStringGetCString(
+        ctypes.c_void_p(reference), name, len(name), _UTF8
+    )
+    return name.value.decode(errors="replace") if is_read else None

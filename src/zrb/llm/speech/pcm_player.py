@@ -22,6 +22,10 @@ from zrb.config.config import CFG
 from zrb.llm.speech.any_output_stream import AnyOutputStream
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
+from zrb.llm.util.audio_devices import (
+    read_portaudio_default_output,
+    read_system_default_output,
+)
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 
 # How long playback waits for the source reader to see it has ended.
@@ -96,16 +100,25 @@ def wait_for_streams_to_close(timeout: float) -> None:
         _streams_changed.wait_for(lambda: _open_streams == 0, timeout)
 
 
+# The machine's default output when a sentence last opened a stream: PortAudio
+# opens the default it read when it was started, so a stream on the wrong device
+# is only noticed by comparing the two.
+_default_output: str | None = None
+
+
 def _start_portaudio_again(sd: object) -> None:
     """Start PortAudio again, so the devices and their defaults are read anew.
 
-    It holds what it found when it was started, which an unplugged headset
-    outdates: opening the default output then names a device that is gone.
-    Nothing is done while an output stream is open, since starting PortAudio
-    again stops every stream it has, nor when *sd* cannot do it (a fake, or a
-    sounddevice too old to be asked). A start that fails is the caller's to
-    report: it came to read the devices, and they were not read. A microphone
-    open through PortAudio stops with it, which dictation reopens."""
+    It holds what it found when it was started, and never reads it again, which
+    a headset plugged in or unplugged outdates: opening the default output then
+    names a device that is gone, or opens the one that was the default before.
+    The machine's default output at that moment is remembered as the one a
+    stream now opens on. Nothing is done while an output stream is open, since
+    starting PortAudio again stops every stream it has, nor when *sd* cannot do
+    it (a fake, or a sounddevice too old to be asked). A start that fails is the
+    caller's to report: it came to read the devices, and they were not read. A
+    microphone open through PortAudio stops with it, which dictation reopens."""
+    global _default_output
     terminate = getattr(sd, "_terminate", None)
     initialize = getattr(sd, "_initialize", None)
     if terminate is None or initialize is None:
@@ -115,6 +128,28 @@ def _start_portaudio_again(sd: object) -> None:
             return
     terminate()
     initialize()
+    _default_output = read_system_default_output(sd)
+
+
+def _follow_the_default_output(sd: object) -> None:
+    """Start PortAudio again when the machine's default output is not the one
+    PortAudio opens without being asked for a device.
+
+    A headset put back in is made the default output by macOS and is in no list
+    PortAudio has, so without this the next sentence plays on whatever was the
+    default when PortAudio started — the laptop speakers, say — for as long as
+    the process lasts. The machine's default is read for every sentence, and
+    the one a stream last opened on is remembered, so that a disagreement a
+    restart does not settle (PortAudio naming a device its own way) is read
+    again once, not for every sentence after."""
+    global _default_output
+    name = read_system_default_output(sd)
+    if name is None or name == _default_output:
+        return
+    if read_portaudio_default_output(sd) != name:
+        _start_portaudio_again(sd)
+        return
+    _default_output = name
 
 
 @functools.cache
@@ -152,7 +187,9 @@ class PcmUtterance(Utterance):
     same way, and the next one reopens on whatever is the output then. What
     PortAudio holds as its devices is from when it was started, so a device
     that rests is opened on a PortAudio started again, which reads the devices
-    the machine has now; an open that fails is tried once more the same way.
+    the machine has now; an open that fails is tried once more the same way,
+    and so is a sentence made while the machine's default output moved — a
+    headset put back in, say — which PortAudio would not have noticed.
 
     Blocks the device asks for before the audio arrives, or that arrive
     late (`underruns`, what the listener hears as stutter), are counted and
@@ -338,15 +375,18 @@ class PcmUtterance(Utterance):
         """The output stream, on the device the machine has now.
 
         PortAudio holds the devices, and the default output, that it found when
-        it was started: a headset unplugged after that can leave the default
-        naming a device that is gone, and every open then fails the same way
-        for as long as the process lasts. Reading the devices again is what
-        lets a sentence keep its own voice across a change of output instead of
-        going unsaid."""
+        it was started, and never reads them again: a headset unplugged after
+        that leaves the default naming a device that is gone, and one put back
+        in is not in its list at all. Reading them again is what lets a
+        sentence keep its own voice across a change of output, instead of going
+        unsaid or being said into the laptop speakers a headset was unplugged
+        from."""
         _, sd = _import_audio()
         is_resting = self._is_device_resting()
         if is_resting:
             _start_portaudio_again(sd)
+        else:
+            _follow_the_default_output(sd)
         try:
             return self._build_stream()
         except Exception:

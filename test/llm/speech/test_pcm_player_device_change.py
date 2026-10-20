@@ -4,16 +4,44 @@ has now rather than going unsaid."""
 
 import threading
 import time
+from contextlib import contextmanager
 from unittest.mock import patch
 
 import pytest
 
+from zrb.llm.speech import pcm_player
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.pcm_player import PcmUtterance
 
 from .test_pcm_player import RATE, FakeOutputStream, _pcm, _played
 
 np = pytest.importorskip("numpy")
+
+
+@pytest.fixture(autouse=True)
+def no_default_output_is_told_apart():
+    """The machine's default output is read from the system, which a test does
+    not have: nothing is told apart, and no sentence's device is remembered
+    from another test, unless a test says what to read."""
+    with (
+        patch.object(pcm_player, "read_system_default_output", lambda sd: None),
+        patch.object(pcm_player, "read_portaudio_default_output", lambda sd: None),
+        patch.object(pcm_player, "_default_output", None),
+    ):
+        yield
+
+
+@contextmanager
+def _the_machine_plays_on(system: "str | None", port_audio: "str | None"):
+    """The output the machine is set to play on, and the one PortAudio opens
+    without being asked for a device."""
+    with (
+        patch.object(pcm_player, "read_system_default_output", lambda sd: system),
+        patch.object(
+            pcm_player, "read_portaudio_default_output", lambda sd: port_audio
+        ),
+    ):
+        yield
 
 
 class StaleDevice:
@@ -196,3 +224,44 @@ def test_a_device_that_cannot_be_read_again_keeps_the_failure_it_had():
     with _patched(StaleDevice(is_restartable=False)):
         with pytest.raises(OSError, match="no default output device"):
             utterance.play(timeout=1)
+
+
+def test_a_stream_follows_the_output_the_machine_made_default_again(healthy):
+    """A headset put back in is made the default output again, and is in no
+    list PortAudio has: left alone there, the sentence plays on the output that
+    was the default when PortAudio started."""
+    with _the_machine_plays_on("soundcore R50i NC", "MacBook Pro Speakers"):
+        PcmUtterance(SpeechAudio(RATE, [_pcm([7] * 256)])).play(timeout=5)
+
+    assert (healthy.restarts, healthy.attempts) == (1, 1)
+    assert _played(FakeOutputStream.instances[0])[:256].tolist() == [7] * 256
+
+
+def test_an_output_the_machine_and_portaudio_agree_on_is_not_read_again(healthy):
+    """Nothing is started again where PortAudio already opens the output the
+    machine plays on: starting it again stops every stream it has, and any
+    microphone open through it."""
+    with _the_machine_plays_on("MacBook Pro Speakers", "MacBook Pro Speakers"):
+        PcmUtterance(SpeechAudio(RATE, [_pcm([7] * 256)])).play(timeout=5)
+
+    assert healthy.restarts == 0
+
+
+def test_a_default_output_that_cannot_be_read_is_not_followed(healthy):
+    """Where the machine's default cannot be told — not macOS, or a read that
+    fails — the sentence plays where it did."""
+    with _the_machine_plays_on(None, "MacBook Pro Speakers"):
+        PcmUtterance(SpeechAudio(RATE, [_pcm([7] * 256)])).play(timeout=5)
+
+    assert healthy.restarts == 0
+
+
+def test_a_disagreement_a_restart_does_not_settle_is_read_again_once(healthy):
+    """PortAudio naming a device its own way leaves the two readings different
+    after a restart: that is worth one restart, not one for every sentence
+    said afterwards."""
+    with _the_machine_plays_on("soundcore R50i NC", "MacBook Pro Speakers"):
+        for _ in range(2):
+            PcmUtterance(SpeechAudio(RATE, [_pcm([7] * 256)])).play(timeout=5)
+
+    assert (healthy.restarts, healthy.attempts) == (1, 2)
