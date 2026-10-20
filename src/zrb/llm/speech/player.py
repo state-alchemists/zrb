@@ -388,7 +388,9 @@ class Speaker:
 
     def _is_device_resting(self) -> bool:
         """Whether the output device failed too recently for a sentence to try
-        it again, the sentence then played by a player program instead."""
+        it again as it is: a player program speaks it instead where there is
+        one, and where there is not, the sentence opens a PortAudio started
+        again, which reads the devices the machine has now."""
         with self._lock:
             failed_at = self._device_failed_at
         if failed_at is None:
@@ -403,8 +405,8 @@ class Speaker:
         if is_first:
             logger.warning(
                 f"Could not use the audio device to play speech in process "
-                f"({exc}); a player program plays it for now, and the device is "
-                f"tried again {_DEVICE_RETRY_SECONDS:g}s later"
+                f"({exc}); it is left alone for {_DEVICE_RETRY_SECONDS:g}s, and "
+                "the devices are read again before it is tried"
             )
 
     def warm_up(self) -> None:
