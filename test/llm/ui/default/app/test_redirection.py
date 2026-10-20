@@ -300,6 +300,52 @@ time.sleep(0.3)
 )
 
 
+_PARTIAL_LINE_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+# Flushed before the stop, with no newline to announce it.
+os.write(sys.stdout.fileno(), b"progress before 50%")
+time.sleep(0.3)
+capture.stop()
+"""
+    + _TEARDOWN
+    + """
+# The snapshot is out, and the writer still holding the pipe sends another one.
+# It never closes the pipe, so no EOF can hand the line over.
+os.write(held, b"progress after 60%")
+deadline = time.monotonic() + 2.0
+while time.monotonic() < deadline:
+    sys.stdout.flush()
+    with open("out.txt", encoding="utf-8") as seen:
+        if "progress after 60%" in seen.read():
+            sys.exit(0)
+    time.sleep(0.05)
+sys.exit(1)
+"""
+)
+
+
+_TRAILING_PARTIAL_PROBE = """
+import sys
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+sys.stdout.write("trailing partial")
+sys.stdout.flush()
+capture.stop()
+""" + _TEARDOWN
+
+
 def _run_probe(probe, tmp_path, env=None):
     stdout_path = tmp_path / "out.txt"
     with open(stdout_path, "wb") as out:
@@ -341,6 +387,21 @@ def test_the_output_is_written_in_the_encoding_of_the_terminal(tmp_path):
     # the codec does not define included, so the capture is a pass-through.
     assert b"\x81 undefined\n" in shown
     assert "\u65e5\u672c\u8a9e\n".encode("utf-8") in shown
+
+
+def test_a_line_flushed_without_a_newline_is_not_kept_from_the_terminal(tmp_path):
+    """A writer that flushes a line and keeps its descriptor open sends no EOF:
+    the line cannot wait for one, whether it was written before the stop or
+    after it. Each line appears once, in the order it was written."""
+    assert _run_probe(_PARTIAL_LINE_PROBE, tmp_path) == (
+        b"progress before 50%progress after 60%"
+    )
+
+
+def test_a_trailing_partial_line_is_captured_when_the_pipe_closes(tmp_path):
+    """Reading by chunk must still keep the last line of a normal session,
+    which has no newline to end it."""
+    assert _run_probe(_TRAILING_PARTIAL_PROBE, tmp_path) == b"trailing partial"
 
 
 def test_a_reader_left_from_an_earlier_capture_writes_to_the_terminal(tmp_path):

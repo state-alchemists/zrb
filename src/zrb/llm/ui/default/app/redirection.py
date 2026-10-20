@@ -1,6 +1,8 @@
+import codecs
 import os
 import sys
 import threading
+from collections.abc import Iterable
 from contextlib import contextmanager
 from typing import TextIO
 
@@ -11,13 +13,19 @@ from zrb.util.cli.style import is_color_enabled, set_color_enabled
 # closes; a child spawned during the session holds one for its whole lifetime.
 _CAPTURE_CLOSE_WAIT_SECONDS = 0.5
 
+# Read whole as they arrive, not line by line: a writer can flush a line and
+# keep its descriptor open, and that line has to leave the pipe anyway.
+_READ_CHUNK_SIZE = 65536
+
 
 class _Handover:
     """Where a reader's output goes once `stop()` stops waiting for it.
 
     While the caller still has the buffered output to show, what the reader
     gets is held in `lines`: written straight out, it would overtake output
-    made while the session was still running.
+    made while the session was still running. `tail` is whatever has no newline
+    yet, held here so the snapshot can show it even when the writer never sends
+    one.
     """
 
     def __init__(self):
@@ -25,6 +33,7 @@ class _Handover:
         self.enabled = False
         self.released = False
         self.lines: list[str] = []
+        self.tail = ""
 
 
 class GlobalStreamCapture:
@@ -130,24 +139,65 @@ class GlobalStreamCapture:
                 os.dup2(self.pipe_w, sys.stderr.fileno())
 
     def _reader(self, pipe_r, handover: _Handover):
-        with os.fdopen(
-            pipe_r,
-            "r",
-            encoding=self.terminal_encoding,
-            errors="surrogateescape",
-            buffering=1,
-        ) as f:
-            for line in f:
-                if not line:
-                    continue
-                with handover.lock:
-                    if not handover.enabled:
-                        self._buffer.append(line.expandtabs(4))
-                        continue
-                    if not handover.released:
-                        handover.lines.append(line.expandtabs(4))
-                        continue
-                self._write_to_terminal(line)
+        # Bytes, not lines: `for line in f` holds a flushed line inside the text
+        # wrapper until its newline or EOF arrives, and a child that outlives the
+        # session sends neither.
+        decoder = codecs.getincrementaldecoder(self.terminal_encoding)(
+            "surrogateescape"
+        )
+        try:
+            while True:
+                chunk = os.read(pipe_r, _READ_CHUNK_SIZE)
+                if not chunk:
+                    break
+                self._route_lines(decoder.decode(chunk), handover)
+            self._route_last_line(decoder.decode(b"", final=True), handover)
+        finally:
+            os.close(pipe_r)
+
+    def _route_lines(self, text: str, handover: _Handover) -> None:
+        """Send every line *text* completes where it belongs. What has no
+        newline yet stays in `handover.tail`, where `show_buffered_output()`
+        finds it and where the next chunk continues it."""
+        with handover.lock:
+            *lines, tail = (handover.tail + text).split("\n")
+            shown = self._route(((line + "\n") for line in lines), handover)
+            if handover.released and tail:
+                # The snapshot is out; nothing will read `tail` again.
+                shown.append(tail)
+                handover.tail = ""
+            else:
+                handover.tail = tail
+        if shown:
+            self._write_to_terminal("".join(shown))
+
+    def _route_last_line(self, text: str, handover: _Handover) -> None:
+        """The pipe closed: a line with no newline ends here, so it goes where
+        the lines before it went instead of waiting for one that never comes."""
+        with handover.lock:
+            lines = (handover.tail + text).split("\n")
+            handover.tail = ""
+            pieces = [line + "\n" for line in lines[:-1]]
+            if lines[-1]:
+                pieces.append(lines[-1])
+            shown = self._route(pieces, handover)
+        if shown:
+            self._write_to_terminal("".join(shown))
+
+    def _route(self, pieces: Iterable[str], handover: _Handover) -> list[str]:
+        """Put each piece where it belongs now. What comes back is printed by
+        the caller, outside the lock: a stalled terminal must not hold the
+        snapshot."""
+        shown: list[str] = []
+        for piece in pieces:
+            piece = piece.expandtabs(4)
+            if not handover.enabled:
+                self._buffer.append(piece)
+            elif not handover.released:
+                handover.lines.append(piece)
+            else:
+                shown.append(piece)
+        return shown
 
     def _write_to_terminal(self, text: str) -> None:
         """Through the FD this capture was made against, not `sys.stdout`: after
@@ -194,6 +244,10 @@ class GlobalStreamCapture:
             return
         with handover.lock:
             text = "".join(self._buffer) + "".join(handover.lines)
+            # Any newline-free tail comes after the lines: a later line absorbs
+            # it, so when both exist the lines came first.
+            text += handover.tail.expandtabs(4)
+            handover.tail = ""
             handover.lines.clear()
             self._write_to_terminal(text)
             handover.released = True
