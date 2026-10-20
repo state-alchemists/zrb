@@ -39,6 +39,7 @@ from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.ui.multi_ui import resolve_ui
 from zrb.llm.util.attachment import get_attachments
 from zrb.llm.util.feature_config import close_feature_sessions
+from zrb.util.async_thread import run_in_daemon
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.xcom.xcom import Xcom
 
@@ -57,6 +58,9 @@ if TYPE_CHECKING:
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.history_config import HistoryConfig
     from zrb.llm.ui.any_ui import AnyUI
+
+# How long a feature gets to close at exit before it is left to the process.
+_FEATURE_CLOSE_SECONDS = 3.0
 
 
 def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
@@ -231,10 +235,8 @@ class ChatExecution:
             except Exception:
                 CFG.LOGGER.debug("SESSION_END hook raised at teardown", exc_info=True)
 
-        try:
-            close_feature_sessions(get_session_ownership_key())
-        except Exception:
-            CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
+        # A feature's close can block for good, so it runs off this thread.
+        await self._close_feature_sessions(deadline)
 
         try:
             await lsp_manager.shutdown_all()
@@ -269,6 +271,32 @@ class ChatExecution:
             shutdown_hook_executor(wait=False)
         except Exception as e:
             CFG.LOGGER.debug(f"Hook-executor shutdown at session end failed: {e}")
+
+    async def _close_feature_sessions(self, deadline: float) -> None:
+        """Close this session's features before the loop goes, off its thread.
+
+        Their closes are synchronous and block for good more readily than most
+        calls: a wedged audio device holds a stream's stop, a model being
+        unloaded holds the backend behind it. Run on the loop's thread, that
+        also freezes the rest of the quit, and Ctrl+C is only handled back in
+        Python, so the process reads as hung. One still going at the deadline is
+        logged and left to the process.
+        """
+        try:
+            await asyncio.wait_for(
+                run_in_daemon(
+                    close_feature_sessions,
+                    get_session_ownership_key(),
+                    name="zrb-close-features",
+                ),
+                timeout=min(_FEATURE_CLOSE_SECONDS, _seconds_left(deadline)),
+            )
+        except asyncio.TimeoutError:
+            CFG.LOGGER.warning(
+                "A feature was still closing at exit; leaving it to the process."
+            )
+        except Exception:
+            CFG.LOGGER.debug("Closing feature sessions failed", exc_info=True)
 
     async def teardown_background_hooks(
         self, drain_seconds: float | None = None
