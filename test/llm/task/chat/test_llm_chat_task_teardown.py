@@ -1,5 +1,6 @@
 import asyncio
 import os
+import threading
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -108,6 +109,37 @@ async def test_interactive_teardown_without_hook_manager_is_safe():
     """Teardown does not raise when no hook manager was set."""
     task = LLMChatTask(name="teardown-task-none")
     await task.teardown_interactive_resources()
+
+
+@pytest.mark.asyncio
+async def test_a_feature_that_will_not_close_does_not_hold_the_quit(
+    monkeypatch, caplog
+):
+    """Closing speech or dictation can block for good: a wedged audio device
+    holds a stream's stop, a model being unloaded holds its backend. The quit
+    waits a bounded time, says so, and keeps the loop free for Ctrl+C instead
+    of freezing on the close."""
+    from zrb.llm.task.chat import execution
+    from zrb.llm.util.feature_config import FeatureSessions
+
+    release = threading.Event()
+
+    def block(_value: object) -> None:
+        release.wait(5)
+
+    monkeypatch.setattr(execution, "_FEATURE_CLOSE_SECONDS", 0.2)
+    sessions = FeatureSessions(lambda: "speaker", block)
+    sessions.get("default")
+    task = LLMChatTask(name="teardown-stuck-feature")
+
+    started = time.monotonic()
+    try:
+        await task.teardown_interactive_resources()
+    finally:
+        release.set()
+
+    assert time.monotonic() - started < 1
+    assert "A feature was still closing at exit" in caplog.text
 
 
 def _register_sleeper(manager, name: str, event: str, *, is_async: bool) -> None:
