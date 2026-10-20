@@ -133,9 +133,10 @@ class LLMSpeechMixin:
             "without it says which package to install.\n"
             "A project may register its own under a name of its choosing "
             "(zrb.llm.voice).\n"
-            "If a cloud backend fails, the local engine speaks instead; one "
-            "that runs in process needs zrb to play its audio, so where zrb "
-            "cannot, the local engine speaks instead of it too."
+            "If a cloud backend fails, the local engine speaks instead. A local "
+            "voice that runs in process is not swapped for another voice: where "
+            "zrb can play its audio, a failure is reported instead, and only "
+            "where zrb cannot play it at all does the local engine speak instead."
         ),
     )
 
