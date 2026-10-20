@@ -176,22 +176,28 @@ class UIKeybindings:
             event.app.layout.focus(ui.input_field)
 
     def _on_copy_or_clear(self, event: Any) -> None:
-        """Ctrl+C / Esc,C — copy selection, clear the input, or exit.
+        """Ctrl+C / Esc,C — copy selection, clear the draft, or exit.
 
         The output buffer holds raw ANSI codes (e.g. muted tool-call
         detail); strip them so the clipboard gets plain text.
         """
         ui = self._ui
-        buffer = event.app.current_buffer
-        if buffer.selection_state:
-            data = buffer.copy_selection()
+        focused = event.app.current_buffer
+        if focused.selection_state:
+            data = focused.copy_selection()
             data.text = remove_style(data.text)
             if event.app.clipboard:
                 event.app.clipboard.set_data(data)
-            buffer.exit_selection()
+            focused.exit_selection()
+            CFG.LOGGER.info("Ctrl+C copied a selection; press it again to exit")
             return
-        if buffer.text.strip() != "":
-            buffer.reset()
+        # The draft lives in the input field, not in whichever pane has focus:
+        # the output pane is `focus_on_click`, and reading its transcript as a
+        # draft is what swallows the exit keypress.
+        draft = ui.input_field.buffer
+        if draft.text.strip() != "":
+            draft.reset()
+            CFG.LOGGER.info("Ctrl+C cleared the input draft; press it again to exit")
             return
         # No flush: the app is exiting.
         ui.cancel_pending_confirmations(flush=False)
@@ -205,13 +211,14 @@ class UIKeybindings:
         event.app.exit()
 
     def _on_exit_if_empty(self, event: Any) -> None:
-        """Ctrl+D — exit when the input buffer is empty."""
+        """Ctrl+D — exit when the input draft is empty."""
         ui = self._ui
-        if event.app.current_buffer.text == "":
-            ui.cancel_pending_confirmations(flush=False)
-            if ui.running_llm_task and not ui.running_llm_task.done():
-                ui.running_llm_task.cancel()
-            event.app.exit()
+        if ui.input_field.buffer.text != "":
+            return
+        ui.cancel_pending_confirmations(flush=False)
+        if ui.running_llm_task and not ui.running_llm_task.done():
+            ui.running_llm_task.cancel()
+        event.app.exit()
 
     async def _on_clipboard_paste(self, clipboard: Any) -> None:
         """Paste an image from the clipboard, or fall back to text."""
