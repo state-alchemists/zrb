@@ -177,7 +177,21 @@ def test_stop_returns_while_another_writer_still_holds_the_pipe():
         stopper.join(5.0)
 
 
-_LATE_OUTPUT_PROBE = """
+# The teardown sequence under either implementation: stop, take the snapshot,
+# print it. Probes replay it so a red run shows the wrong output, not an
+# AttributeError on a method the fix adds.
+_TEARDOWN = """
+if hasattr(capture, "show_buffered_output"):
+    capture.show_buffered_output()
+else:
+    buffered = capture.get_buffered_output()
+    if buffered:
+        sys.stdout.write(buffered)
+        sys.stdout.flush()
+"""
+
+_LATE_OUTPUT_PROBE = (
+    """
 import os
 import sys
 import time
@@ -190,6 +204,9 @@ held = os.dup(capture.pipe_w)
 capture.stop()
 os.write(held, b"late output\\n")
 os.close(held)
+"""
+    + _TEARDOWN
+    + """
 deadline = time.monotonic() + 2.0
 while time.monotonic() < deadline:
     sys.stdout.flush()
@@ -199,15 +216,65 @@ while time.monotonic() < deadline:
     time.sleep(0.05)
 sys.exit(1)
 """
+)
+
+_ORDERING_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+sys.stdout.write("before\\n")
+sys.stdout.flush()
+time.sleep(0.3)
+capture.stop()
+os.write(held, b"late\\n")
+time.sleep(0.5)
+"""
+    + _TEARDOWN
+    + """
+os.close(held)
+time.sleep(0.2)
+"""
+)
+
+_RESTART_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+capture.stop()
+"""
+    + _TEARDOWN
+    + """
+capture.start()
+os.write(held, b"old writer\\n")
+os.close(held)
+time.sleep(0.5)
+second = capture.get_buffered_output()
+capture.stop()
+with open("result.txt", "w", encoding="utf-8") as f:
+    f.write("captured again" if "old writer" in second else "on the terminal")
+"""
+)
 
 
-def test_output_written_after_the_stop_still_reaches_the_terminal(tmp_path):
-    """Late output from the writer stop() stopped waiting for must not vanish:
-    the exit print is a snapshot, so the reader shows the rest instead."""
+def _run_probe(probe, tmp_path):
     stdout_path = tmp_path / "out.txt"
     with open(stdout_path, "wb") as out:
         result = subprocess.run(
-            [sys.executable, "-c", _LATE_OUTPUT_PROBE],
+            [sys.executable, "-c", probe],
             cwd=tmp_path,
             stdin=subprocess.DEVNULL,
             stdout=out,
@@ -215,7 +282,29 @@ def test_output_written_after_the_stop_still_reaches_the_terminal(tmp_path):
             timeout=60,
         )
     assert result.returncode == 0, result.stderr.decode(errors="replace")
-    assert "late output" in stdout_path.read_text(encoding="utf-8")
+    return stdout_path.read_text(encoding="utf-8")
+
+
+def test_output_written_after_the_stop_still_reaches_the_terminal(tmp_path):
+    """Late output from the writer stop() stopped waiting for must not vanish:
+    the snapshot cannot hold it, so it follows the snapshot instead."""
+    assert "late output" in _run_probe(_LATE_OUTPUT_PROBE, tmp_path)
+
+
+def test_output_of_a_lingering_writer_follows_the_snapshot(tmp_path):
+    """`stop()` hands over while the caller still has the buffered output to
+    print, so a late line must wait for that print instead of overtaking it."""
+    shown = _run_probe(_ORDERING_PROBE, tmp_path)
+    assert "before" in shown and "late" in shown
+    assert shown.index("before") < shown.index("late")
+
+
+def test_a_reader_left_from_an_earlier_capture_writes_to_the_terminal(tmp_path):
+    """A later `start()` points FD 1 at a new pipe; the older reader still
+    holds the terminal it was made against, so its output is not captured
+    again as the new session's."""
+    _run_probe(_RESTART_PROBE, tmp_path)
+    assert (tmp_path / "result.txt").read_text(encoding="utf-8") == "on the terminal"
 
 
 if __name__ == "__main__":
