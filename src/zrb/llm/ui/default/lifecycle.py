@@ -109,9 +109,7 @@ class UILifecycle:
             try:
                 try:
                     ui.capture.stop()
-                    buffered_output = ui.capture.get_buffered_output()
-                    if buffered_output:
-                        print(buffered_output, end="")
+                    ui.capture.show_buffered_output()
                 finally:
                     await self.cleanup_background_tasks()
             finally:

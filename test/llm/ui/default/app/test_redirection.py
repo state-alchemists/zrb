@@ -159,6 +159,259 @@ def test_global_stream_capture_not_capturing_pause():
     capture.stop()
 
 
+def test_stop_returns_while_another_writer_still_holds_the_pipe():
+    """A child spawned while capturing inherits FD 1/2, so a copy of the pipe's
+    write end outlives stop(); the reader sees no EOF until that copy closes."""
+    capture = GlobalStreamCapture()
+    capture.start()
+    write_end = capture.pipe_w
+    assert write_end is not None
+    held_writer = os.dup(write_end)
+    stopper = threading.Thread(target=capture.stop)
+    try:
+        stopper.start()
+        stopper.join(2.0)
+        assert not stopper.is_alive(), "stop() waited for the other writer"
+    finally:
+        os.close(held_writer)
+        stopper.join(5.0)
+
+
+# The teardown sequence under either implementation: stop, take the snapshot,
+# print it. Probes replay it so a red run shows the wrong output, not an
+# AttributeError on a method the fix adds.
+_TEARDOWN = """
+if hasattr(capture, "show_buffered_output"):
+    capture.show_buffered_output()
+else:
+    buffered = capture.get_buffered_output()
+    if buffered:
+        sys.stdout.write(buffered)
+        sys.stdout.flush()
+"""
+
+_LATE_OUTPUT_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+capture.stop()
+os.write(held, b"late output\\n")
+os.close(held)
+"""
+    + _TEARDOWN
+    + """
+deadline = time.monotonic() + 2.0
+while time.monotonic() < deadline:
+    sys.stdout.flush()
+    with open("out.txt", encoding="utf-8") as seen:
+        if "late output" in seen.read():
+            sys.exit(0)
+    time.sleep(0.05)
+sys.exit(1)
+"""
+)
+
+_ORDERING_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+sys.stdout.write("before\\n")
+sys.stdout.flush()
+time.sleep(0.3)
+capture.stop()
+os.write(held, b"late\\n")
+time.sleep(0.5)
+"""
+    + _TEARDOWN
+    + """
+os.close(held)
+time.sleep(0.2)
+"""
+)
+
+_RESTART_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+capture.stop()
+"""
+    + _TEARDOWN
+    + """
+capture.start()
+os.write(held, b"old writer\\n")
+os.close(held)
+time.sleep(0.5)
+second = capture.get_buffered_output()
+capture.stop()
+with open("result.txt", "w", encoding="utf-8") as f:
+    f.write("captured again" if "old writer" in second else "on the terminal")
+"""
+)
+
+
+_ENCODING_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+sys.stdout.write("caf\\u00e9 captured\\n")
+sys.stdout.flush()
+# A byte cp1252 leaves undefined: only a byte-transparent capture keeps it.
+os.write(sys.stdout.fileno(), b"\\x81 undefined\\n")
+time.sleep(0.3)
+capture.stop()
+os.write(held, "caf\\u00e9 late\\n".encode("cp1252"))
+# A writer that picked UTF-8 for itself: its bytes must reach the terminal as
+# written, mojibake and all, because that is how they land there uncaptured.
+os.write(held, "\\u65e5\\u672c\\u8a9e\\n".encode("utf-8"))
+os.close(held)
+"""
+    + _TEARDOWN
+    + """
+time.sleep(0.3)
+"""
+)
+
+
+_PARTIAL_LINE_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+# Flushed before the stop, with no newline to announce it.
+os.write(sys.stdout.fileno(), b"progress before 50%")
+time.sleep(0.3)
+capture.stop()
+"""
+    + _TEARDOWN
+    + """
+# The snapshot is out, and the writer still holding the pipe sends another one.
+# It never closes the pipe, so no EOF can hand the line over.
+os.write(held, b"progress after 60%")
+deadline = time.monotonic() + 2.0
+while time.monotonic() < deadline:
+    sys.stdout.flush()
+    with open("out.txt", encoding="utf-8") as seen:
+        if "progress after 60%" in seen.read():
+            sys.exit(0)
+    time.sleep(0.05)
+sys.exit(1)
+"""
+)
+
+
+_TRAILING_PARTIAL_PROBE = """
+import sys
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+sys.stdout.write("trailing partial")
+sys.stdout.flush()
+capture.stop()
+""" + _TEARDOWN
+
+
+def _run_probe(probe, tmp_path, env=None):
+    stdout_path = tmp_path / "out.txt"
+    with open(stdout_path, "wb") as out:
+        result = subprocess.run(
+            [sys.executable, "-c", probe],
+            cwd=tmp_path,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=out,
+            stderr=subprocess.PIPE,
+            timeout=60,
+        )
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
+    return stdout_path.read_bytes()
+
+
+def test_output_written_after_the_stop_still_reaches_the_terminal(tmp_path):
+    """Late output from the writer stop() stopped waiting for must not vanish:
+    the snapshot cannot hold it, so it follows the snapshot instead."""
+    assert b"late output" in _run_probe(_LATE_OUTPUT_PROBE, tmp_path)
+
+
+def test_output_of_a_lingering_writer_follows_the_snapshot(tmp_path):
+    """`stop()` hands over while the caller still has the buffered output to
+    print, so a late line must wait for that print instead of overtaking it."""
+    shown = _run_probe(_ORDERING_PROBE, tmp_path)
+    assert b"before" in shown and b"late" in shown
+    assert shown.index(b"before") < shown.index(b"late")
+
+
+def test_the_output_is_written_in_the_encoding_of_the_terminal(tmp_path):
+    """The stream this capture renders back to decides the bytes, on the way in
+    from the pipe and on the way out: a cp1252 console gets cp1252, not UTF-8."""
+    env = dict(os.environ, PYTHONIOENCODING="cp1252:replace")
+    shown = _run_probe(_ENCODING_PROBE, tmp_path, env)
+    assert shown.count(b"caf\xe9") == 2
+    assert b"caf\xc3\xa9" not in shown
+    # Whatever encoding a writer chose, its bytes arrive as written: the one
+    # the codec does not define included, so the capture is a pass-through.
+    assert b"\x81 undefined\n" in shown
+    assert "\u65e5\u672c\u8a9e\n".encode("utf-8") in shown
+
+
+def test_a_line_flushed_without_a_newline_is_not_kept_from_the_terminal(tmp_path):
+    """A writer that flushes a line and keeps its descriptor open sends no EOF:
+    the line cannot wait for one, whether it was written before the stop or
+    after it. Each line appears once, in the order it was written."""
+    assert _run_probe(_PARTIAL_LINE_PROBE, tmp_path) == (
+        b"progress before 50%progress after 60%"
+    )
+
+
+def test_a_trailing_partial_line_is_captured_when_the_pipe_closes(tmp_path):
+    """Reading by chunk must still keep the last line of a normal session,
+    which has no newline to end it."""
+    assert _run_probe(_TRAILING_PARTIAL_PROBE, tmp_path) == b"trailing partial"
+
+
+def test_a_reader_left_from_an_earlier_capture_writes_to_the_terminal(tmp_path):
+    """A later `start()` points FD 1 at a new pipe; the older reader still
+    holds the terminal it was made against, so its output is not captured
+    again as the new session's."""
+    _run_probe(_RESTART_PROBE, tmp_path)
+    assert (tmp_path / "result.txt").read_text(encoding="utf-8") == "on the terminal"
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
 
