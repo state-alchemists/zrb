@@ -80,6 +80,22 @@ def _in_process(monkeypatch, available=True, options=None, fallbacks=None):
     return made
 
 
+def _with_local_voice(monkeypatch, voice, local):
+    """The configured *voice* for anything but 'auto', the local engine for it."""
+    monkeypatch.setattr(
+        "zrb.llm.speech.player.get_speech_backend",
+        lambda name, config: local if name == "auto" else voice,
+    )
+
+
+def _built_by_zrb(monkeypatch, backend):
+    """Hand the speaker a name, so what it speaks with is its own to close."""
+    monkeypatch.setattr(
+        "zrb.llm.speech.player.get_speech_backend", lambda name, config: backend
+    )
+    return backend
+
+
 def test_audio_that_fails_to_render_is_spoken_by_a_player_program(
     lock_file, monkeypatch, caplog
 ):
@@ -113,8 +129,8 @@ def test_a_backend_that_fails_to_render_three_times_in_a_row_is_dropped(
         def close(self):
             self.closed += 1
 
-    backend = DeadService()
-    speaker = Speaker(_config(backend, lock_file, player="auto"))
+    backend = _built_by_zrb(monkeypatch, DeadService())
+    speaker = Speaker(_config("dead", lock_file, player="auto"))
 
     for text in ("one", "two", "three"):
         speaker.speak(text)
@@ -156,11 +172,11 @@ def test_the_sentence_that_lost_its_backend_still_falls_back_with_it(
     assert seen == [0, 0, 0]
 
 
-def test_restarting_backends_closes_the_cached_ones(lock_file, monkeypatch):
+def test_restarting_backends_closes_the_ones_zrb_built(lock_file, monkeypatch):
     _in_process(monkeypatch)
-    backend = AudioBackend()
+    backend = _built_by_zrb(monkeypatch, AudioBackend())
     backend.close = lambda: backend.played.append("closed")
-    speaker = Speaker(_config(backend, lock_file, player="auto"))
+    speaker = Speaker(_config("configured", lock_file, player="auto"))
     speaker.speak("hello")
 
     speaker.restart_backends()
@@ -303,3 +319,103 @@ def test_a_made_sentence_asks_whether_the_device_rests_before_it_plays(
     assert told[0]() is True
     clock.advance(4)
     assert told[0]() is False
+
+
+class LocalVoice(AudioBackend):
+    """A local voice zrb renders and plays itself, recording what it made."""
+
+    def __init__(self):
+        super().__init__()
+        self.rendered: list[str] = []
+
+    @property
+    def name(self) -> str:
+        return "Pipecat (test)"
+
+    @property
+    def needs_zrb_playback(self) -> bool:
+        return True
+
+    @property
+    def is_local(self) -> bool:
+        return True
+
+    def create_utterance(self, text):
+        raise RuntimeError("plays in process only")
+
+    def create_audio(self, text):
+        self.rendered.append(text)
+        return super().create_audio(text)
+
+
+class RemoteVoice(LocalVoice):
+    """A paid voice whose audio zrb plays, like a registered cloud service."""
+
+    @property
+    def is_local(self) -> bool:
+        return False
+
+
+class QuietDevicePcm(Utterance):
+    """An in-process sentence whose output device cannot open, with no other
+    backend to speak it."""
+
+    def __init__(self, audio, fallback=None, on_device_error=None, **kwargs):
+        super().__init__([])
+        self.on_device_error = on_device_error
+
+    def play(self, timeout):
+        self.on_device_error(OSError("no default output device"))
+
+
+def test_a_local_voice_is_not_read_by_the_local_engine(lock_file, monkeypatch, caplog):
+    """`say` is another voice, not a worse take on this one: a local voice zrb
+    can play reports the failure instead of being replaced."""
+    _in_process(monkeypatch)
+    local = AudioBackend(renders=False)
+
+    class BrokenVoice(LocalVoice):
+        def create_audio(self, text):
+            raise RuntimeError("the model is not loaded")
+
+    _with_local_voice(monkeypatch, BrokenVoice(), local)
+    speaker = Speaker(_config("pocket", lock_file, player="auto"))
+
+    with pytest.raises(RuntimeError):
+        speaker.speak("hello")
+
+    assert local.played == []
+    assert "this sentence goes unsaid" in caplog.text
+
+
+def test_a_remote_voice_that_fails_is_read_by_the_local_engine(lock_file, monkeypatch):
+    """A paid voice that fails is read by the local engine, as documented."""
+    _in_process(monkeypatch)
+    local = AudioBackend(renders=False)
+
+    class BrokenRemote(RemoteVoice):
+        def create_audio(self, text):
+            raise RuntimeError("the service is down")
+
+    _with_local_voice(monkeypatch, BrokenRemote(), local)
+    speaker = Speaker(_config("remote", lock_file, player="auto"))
+
+    speaker.speak("hello")
+
+    assert local.played == ["hello"]
+
+
+def test_a_local_voice_keeps_its_voice_while_the_device_rests(lock_file, monkeypatch):
+    """Changing the output device costs a sentence its pause, not its voice:
+    the local voice is rendered again rather than handed to the local engine."""
+    _device_failing(monkeypatch)
+    monkeypatch.setattr("zrb.llm.speech.player.PcmUtterance", QuietDevicePcm)
+    voice, local = LocalVoice(), AudioBackend(renders=False)
+    _with_local_voice(monkeypatch, voice, local)
+    speaker = Speaker(_config(voice, lock_file, player="auto"))
+
+    speaker.speak("one")
+    speaker.speak("two")
+
+    assert voice.rendered == ["one", "two"]
+    assert local.played == []

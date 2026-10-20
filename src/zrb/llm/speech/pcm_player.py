@@ -19,8 +19,13 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.speech.any_output_stream import AnyOutputStream
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.backend.utterance import Utterance
+from zrb.llm.util.audio_devices import (
+    read_portaudio_default_output,
+    read_system_default_output,
+)
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
 
 # How long playback waits for the source reader to see it has ended.
@@ -95,6 +100,58 @@ def wait_for_streams_to_close(timeout: float) -> None:
         _streams_changed.wait_for(lambda: _open_streams == 0, timeout)
 
 
+# The machine's default output when a sentence last opened a stream: PortAudio
+# opens the default it read when it was started, so a stream on the wrong device
+# is only noticed by comparing the two.
+_default_output: str | None = None
+
+
+def _start_portaudio_again(sd: object) -> None:
+    """Start PortAudio again, so the devices and their defaults are read anew.
+
+    It holds what it found when it was started, and never reads it again, which
+    a headset plugged in or unplugged outdates: opening the default output then
+    names a device that is gone, or opens the one that was the default before.
+    The machine's default output at that moment is remembered as the one a
+    stream now opens on. Nothing is done while an output stream is open, since
+    starting PortAudio again stops every stream it has, nor when *sd* cannot do
+    it (a fake, or a sounddevice too old to be asked). A start that fails is the
+    caller's to report: it came to read the devices, and they were not read. A
+    microphone open through PortAudio stops with it, which dictation reopens."""
+    global _default_output
+    terminate = getattr(sd, "_terminate", None)
+    initialize = getattr(sd, "_initialize", None)
+    if terminate is None or initialize is None:
+        return
+    with _streams_changed:
+        if _open_streams:
+            return
+    terminate()
+    initialize()
+    _default_output = read_system_default_output(sd)
+
+
+def _follow_the_default_output(sd: object) -> None:
+    """Start PortAudio again when the machine's default output is not the one
+    PortAudio opens without being asked for a device.
+
+    A headset put back in is made the default output by macOS and is in no list
+    PortAudio has, so without this the next sentence plays on whatever was the
+    default when PortAudio started — the laptop speakers, say — for as long as
+    the process lasts. The machine's default is read for every sentence, and
+    the one a stream last opened on is remembered, so that a disagreement a
+    restart does not settle (PortAudio naming a device its own way) is read
+    again once, not for every sentence after."""
+    global _default_output
+    name = read_system_default_output(sd)
+    if name is None or name == _default_output:
+        return
+    if read_portaudio_default_output(sd) != name:
+        _start_portaudio_again(sd)
+        return
+    _default_output = name
+
+
 @functools.cache
 def is_available() -> bool:
     """Whether sounddevice and numpy import, so speech can play in process.
@@ -119,13 +176,20 @@ class PcmUtterance(Utterance):
     error logged. Audio that fails part-way is played as far as it came,
     and logged as cut off. *on_device_error*, when given, is told of a
     device that cannot open instead of it being logged, so a caller can keep
-    the next sentences off the device for a moment and say so once.
-    *device_is_resting*, when given, is asked just before the device is
-    opened: while it says the device rests, *fallback* speaks instead, so a
-    sentence made before the failure does not open the device either. A
-    device PortAudio stops playing on its own (it was unplugged, or stopped
+    the next sentences off the device for a moment and say so once; it is
+    told even when no fallback can take the sentence over. *device_is_resting*,
+    when given, is asked just before the device is opened: while it says the
+    device rests, *fallback* speaks instead, so a sentence made before the
+    failure does not open the device either.
+
+    A device PortAudio stops playing on its own (it was unplugged, or stopped
     being the output while its old stream was dropped) ends the sentence the
-    same way, and the next one reopens on whatever is the output then.
+    same way, and the next one reopens on whatever is the output then. What
+    PortAudio holds as its devices is from when it was started, so a device
+    that rests is opened on a PortAudio started again, which reads the devices
+    the machine has now; an open that fails is tried once more the same way,
+    and so is a sentence made while the machine's default output moved — a
+    headset put back in, say — which PortAudio would not have noticed.
 
     Blocks the device asks for before the audio arrives, or that arrive
     late (`underruns`, what the listener hears as stutter), are counted and
@@ -225,18 +289,25 @@ class PcmUtterance(Utterance):
         try:
             self._play_in_process(timeout)
         except Exception as exc:
+            # Said even where nothing takes the sentence over: it is the device
+            # that failed, and the sentence after it must not open that device
+            # as though it were still there.
+            self._report_device_error(
+                exc, "Could not open the audio device to play speech in process"
+            )
             if self._has_opened or self._fallback is None or self.is_stopped:
                 raise
-            if self._on_device_error is not None:
-                self._on_device_error(exc)
-            else:
-                logger.warning(
-                    f"Could not open the audio device to play speech in process "
-                    f"({exc}); a player program plays it instead"
-                )
             self._play_fallback(self._fallback, timeout)
             return
         self._handle_source_error(timeout)
+
+    def _report_device_error(self, exc: Exception, in_the_log: str) -> None:
+        """Tell the caller the device could not play this, or say it here, as
+        *in_the_log*."""
+        if self._on_device_error is not None:
+            self._on_device_error(exc)
+        else:
+            logger.warning(f"{in_the_log}: {exc}")
 
     def _is_device_resting(self) -> bool:
         """Whether the caller says the device is being left alone for now."""
@@ -276,29 +347,10 @@ class PcmUtterance(Utterance):
             utterance.cleanup()
 
     def _play_in_process(self, timeout: float | None) -> None:
-        np, sd = _import_audio()
         reader = threading.Thread(target=self._read_source, daemon=True)
         is_played = False
         try:
-            # Counted as open from before it is built (a constructed
-            # `OutputStream` is already an open PortAudio stream, so the exit
-            # handler must see it from the moment it exists) until it has
-            # actually been closed, which `_stop_stream` says.
-            _stream_opened()
-            try:
-                stream = sd.OutputStream(
-                    samplerate=self._audio.sample_rate,
-                    channels=1,
-                    dtype="int16",
-                    blocksize=self._block_frames,
-                    callback=lambda out, frames, info, status: self._fill(
-                        np, out, frames, status
-                    ),
-                    finished_callback=self._finished.set,
-                )
-            except BaseException:
-                _stream_closed()
-                raise
+            stream = self._open_stream()
             try:
                 # Only once there is a stream to play into: a device that
                 # cannot open must not leave a download running.
@@ -318,6 +370,54 @@ class PcmUtterance(Utterance):
                     self._buffer_changed.notify_all()
             if reader.is_alive():
                 reader.join(_READER_JOIN_SECONDS)
+
+    def _open_stream(self) -> "AnyOutputStream":
+        """The output stream, on the device the machine has now.
+
+        PortAudio holds the devices, and the default output, that it found when
+        it was started, and never reads them again: a headset unplugged after
+        that leaves the default naming a device that is gone, and one put back
+        in is not in its list at all. Reading them again is what lets a
+        sentence keep its own voice across a change of output, instead of going
+        unsaid or being said into the laptop speakers a headset was unplugged
+        from."""
+        _, sd = _import_audio()
+        is_resting = self._is_device_resting()
+        if is_resting:
+            _start_portaudio_again(sd)
+        else:
+            _follow_the_default_output(sd)
+        try:
+            return self._build_stream()
+        except Exception:
+            # The devices were read again before this attempt when the device
+            # rests: there is no older list left to correct.
+            if is_resting:
+                raise
+        _start_portaudio_again(sd)
+        return self._build_stream()
+
+    def _build_stream(self) -> "AnyOutputStream":
+        # Counted as open from before it is built (a constructed
+        # `OutputStream` is already an open PortAudio stream, so the exit
+        # handler must see it from the moment it exists) until it has actually
+        # been closed, which `_stop_stream` says.
+        np, sd = _import_audio()
+        _stream_opened()
+        try:
+            return sd.OutputStream(
+                samplerate=self._audio.sample_rate,
+                channels=1,
+                dtype="int16",
+                blocksize=self._block_frames,
+                callback=lambda out, frames, info, status: self._fill(
+                    np, out, frames, status
+                ),
+                finished_callback=self._finished.set,
+            )
+        except BaseException:
+            _stream_closed()
+            raise
 
     def _close_unplayed(self, close: Callable[[], object]) -> None:
         """Close a stream that was opened and never played."""
@@ -449,14 +549,18 @@ class PcmUtterance(Utterance):
         source is closed (`_is_abandoned`, not `stop`), which ends the read
         that would otherwise keep running behind a device that is gone.
         Said once: the monitor that saw it and the look after its wait can
-        both come here for the same dead stream."""
+        both come here for the same dead stream.
+
+        The caller hears of it too, even with nothing left to play: the next
+        sentence has to open the devices the machine has now, not the ones
+        PortAudio was started with."""
         if self._is_abandoned:
             return
         self._source_error = RuntimeError(
             "the output stream stopped playing on its own (the audio "
             "device may have been unplugged or changed)"
         )
-        logger.warning(f"Speech was cut off: {self._source_error}")
+        self._report_device_error(self._source_error, "Speech was cut off")
         self._is_abandoned = True
         self._audio.close()
         with self._buffer_changed:
