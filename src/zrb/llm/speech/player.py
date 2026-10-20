@@ -115,6 +115,9 @@ class Speaker:
         self._playing: Utterance | None = None
         # Cached backends may hold models or running pipelines.
         self._backends: list[AnySpeechBackend] | None = None
+        # Which of the cached ones zrb built itself: a backend the caller
+        # supplied is theirs to close, and outlives this speaker.
+        self._owned_backends: list[AnySpeechBackend] = []
         # The prepare thread and the warm-up thread may both build backends.
         self._building = threading.Lock()
         # The backend whose in-process renders are failing, and how many in a row.
@@ -296,11 +299,12 @@ class Speaker:
         backends = self._get_backends()
         failures: list[str] = []
         for index, backend in enumerate(backends):
-            if backend.needs_zrb_playback and not self._is_in_process_wanted():
+            later = backends[index + 1 :]
+            if backend.needs_zrb_playback and not self._should_speak_in_process(later):
                 # Without in-process playback, this backend cannot produce audio.
                 continue
             try:
-                return self._create_utterance(backend, text, backends[index + 1 :])
+                return self._create_utterance(backend, text, later)
             except Exception as exc:
                 logger.warning(f"Speech backend {backend.name} failed: {exc}")
                 failures.append(f"{backend.name}: {exc}")
@@ -314,14 +318,14 @@ class Speaker:
         later: "list[AnySpeechBackend]",
     ) -> Utterance:
         """Create an utterance, using a later backend if needed."""
-        if self._is_in_process_wanted():
+        if self._should_speak_in_process(later):
             try:
                 audio = backend.create_audio(text)
             except Exception as exc:
                 self._handle_render_failure(backend)
                 logger.warning(
-                    f"Speech backend {backend.name} could not render audio to "
-                    f"play in process ({exc}); a player program plays it instead"
+                    f"Speech backend {backend.name} could not render audio to play "
+                    f"in process ({exc}); {self._what_speaks_it(backend, later)}"
                 )
                 audio = None
             else:
@@ -337,6 +341,18 @@ class Speaker:
                 )
         return backend.create_utterance(text)
 
+    def _stand_ins(self, later: "list[AnySpeechBackend]") -> "list[AnySpeechBackend]":
+        """The later backends that can play a sentence through a program."""
+        return [other for other in later if not other.needs_zrb_playback]
+
+    def _what_speaks_it(
+        self, backend: AnySpeechBackend, later: "list[AnySpeechBackend]"
+    ) -> str:
+        """What speaks a sentence *backend* could not render."""
+        if not backend.needs_zrb_playback or self._stand_ins(later):
+            return "a player program plays it instead"
+        return "this sentence goes unsaid"
+
     def _program_fallback(
         self,
         backend: AnySpeechBackend,
@@ -346,22 +362,35 @@ class Speaker:
         """Return a player-program fallback for *text*, if available."""
         if not backend.needs_zrb_playback:
             return lambda: backend.create_utterance(text)
-        alternatives = [other for other in later if not other.needs_zrb_playback]
-        if not alternatives:
+        stand_ins = self._stand_ins(later)
+        if not stand_ins:
             return None
-        spoken_by = alternatives[0]
+        spoken_by = stand_ins[0]
         return lambda: spoken_by.create_utterance(text)
 
-    def _is_in_process_wanted(self) -> bool:
-        return (
-            self._player_mode != "command"
-            and not self._is_device_resting()
-            and is_in_process_available()
-        )
+    def _can_play_in_process(self) -> bool:
+        """Whether zrb may play a sentence itself at all."""
+        return self._player_mode != "command" and is_in_process_available()
+
+    def _should_speak_in_process(self, later: "list[AnySpeechBackend]") -> bool:
+        """Whether zrb plays a sentence's own audio rather than a stand-in
+        speaking it.
+
+        The device that just failed is left alone only while a later backend can
+        speak the sentence instead. A voice with no such stand-in keeps its own
+        audio, so changing the output device costs a reply its pause, never its
+        voice."""
+        if not self._can_play_in_process():
+            return False
+        if not self._is_device_resting():
+            return True
+        return not self._stand_ins(later)
 
     def _is_device_resting(self) -> bool:
         """Whether the output device failed too recently for a sentence to try
-        it again, the sentence then played by a player program instead."""
+        it again as it is: a player program speaks it instead where there is
+        one, and where there is not, the sentence opens a PortAudio started
+        again, which reads the devices the machine has now."""
         with self._lock:
             failed_at = self._device_failed_at
         if failed_at is None:
@@ -376,8 +405,8 @@ class Speaker:
         if is_first:
             logger.warning(
                 f"Could not use the audio device to play speech in process "
-                f"({exc}); a player program plays it for now, and the device is "
-                f"tried again {_DEVICE_RETRY_SECONDS:g}s later"
+                f"({exc}); it is left alone for {_DEVICE_RETRY_SECONDS:g}s, and "
+                "the devices are read again before it is tried"
             )
 
     def warm_up(self) -> None:
@@ -398,7 +427,7 @@ class Speaker:
             if not (
                 backend.is_local
                 and backend.needs_zrb_playback
-                and self._is_in_process_wanted()
+                and self._can_play_in_process()
             ):
                 return
             # A probe, not a sentence: no utterance, and a failure is not one
@@ -434,15 +463,17 @@ class Speaker:
         """Drop the cached backends, so the next sentence builds fresh ones.
 
         A backend whose service died (Pipecat marks it unusable) stays dead
-        for as long as it is cached."""
+        for as long as it is cached. One the caller supplied is dropped from the
+        cache but not closed: it is the caller's, and it speaks again."""
         with self._lock:
             self._is_restart_pending = False
             if self._is_closed:
                 return
-            backends, self._backends = self._backends, None
+            self._backends = None
+            owned, self._owned_backends = self._owned_backends, []
             self._failing_backend = None
             self._failed_renders = 0
-        for backend in backends or []:
+        for backend in owned:
             backend.close()
 
     def _get_backends(self) -> list[AnySpeechBackend]:
@@ -456,15 +487,39 @@ class Speaker:
         if is_restart_pending:
             self.restart_backends()
         if self._backends is None:
-            config = self._config
-            requested = get_speech_backend(config.backend or "auto", config)
+            backends = self._build_backends()
+            with self._lock:
+                self._backends = backends
+                self._owned_backends = [
+                    backend
+                    for backend in backends
+                    if backend is not self._config.backend
+                ]
+        return self._backends
+
+    def _build_backends(self) -> list[AnySpeechBackend]:
+        """The backends that speak a sentence, the configured one first."""
+        config = self._config
+        requested = get_speech_backend(config.backend or "auto", config)
+        backends = [requested]
+        if self._should_use_the_local_engine(requested):
             # Resolve the local fallback without the configured voice.
             local = get_speech_backend("auto", replace(config, voice=""))
-            if local.name == requested.name:
-                self._backends = [requested]
-            else:
-                self._backends = [requested, local]
-        return self._backends
+            if local.name != requested.name:
+                backends.append(local)
+        return backends
+
+    def _should_use_the_local_engine(self, backend: AnySpeechBackend) -> bool:
+        """Whether a sentence *backend* cannot make may be read by the local
+        engine instead.
+
+        A local voice rendered here has no second voice: `say` would be somebody
+        else reading the reply, so where zrb can play it, a failure is reported
+        rather than spoken in another voice. Where zrb cannot play it at all,
+        the local engine is the only way the reply is heard."""
+        if not self._can_play_in_process():
+            return True
+        return not (backend.is_local and backend.needs_zrb_playback)
 
     def _prepare_queue(self) -> None:
         """Make each queued text's audio, handing it to the player thread."""
@@ -563,10 +618,15 @@ class Speaker:
             self._close_backends()
 
     def _close_backends(self) -> None:
-        """Let the backends go for good; a closed speaker builds no more."""
+        """Let the backends go for good; a closed speaker builds no more.
+
+        Only the ones zrb built are closed. A backend the caller supplied is the
+        caller's to close: closing it left every later session of a chat reusing
+        a dead one, and each of its sentences falling back to another voice."""
         with self._lock:
-            backends, self._backends = self._backends, []
-        for backend in backends or []:
+            self._backends = []
+            owned, self._owned_backends = self._owned_backends, []
+        for backend in owned:
             backend.close()
 
 

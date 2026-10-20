@@ -133,9 +133,10 @@ class LLMSpeechMixin:
             "without it says which package to install.\n"
             "A project may register its own under a name of its choosing "
             "(zrb.llm.voice).\n"
-            "If a cloud backend fails, the local engine speaks instead; one "
-            "that runs in process needs zrb to play its audio, so where zrb "
-            "cannot, the local engine speaks instead of it too."
+            "If a cloud backend fails, the local engine speaks instead. A local "
+            "voice that runs in process is not swapped for another voice: where "
+            "zrb can play its audio, a failure is reported instead, and only "
+            "where zrb cannot play it at all does the local engine speak instead."
         ),
     )
 
@@ -437,8 +438,12 @@ class LLMSpeechMixin:
             "zrb's voice out of the microphone and pause it; else by a player "
             "program. A cloud backend with LLM_SPEECH_WAV_PLAYER set plays "
             "through that player, and an output device that cannot open sends "
-            "what follows to a player program until the device is tried again "
-            "a few seconds later.\n"
+            "what follows to a player program where there is one, until the "
+            "device is tried again a few seconds later. A voice zrb plays "
+            "itself keeps its own voice through that: the devices are read "
+            "again — and again whenever the machine's default output moves, "
+            "a headset put back in included — so the sentence plays on the "
+            "output the machine has now.\n"
             "- 'command': always by a player program (say, espeak-ng, "
             "termux-tts-speak, a WAV player).\n"
             "Any other value is logged and read as 'auto'."

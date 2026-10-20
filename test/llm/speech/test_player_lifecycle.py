@@ -61,6 +61,16 @@ def _config(backend, lock_file, **fields):
     ).resolve()
 
 
+def _built_by_zrb(monkeypatch, **by_name):
+    """Hand a speaker a name, so what it speaks with is its own to close."""
+    any_backend = next(iter(by_name.values()))
+    monkeypatch.setattr(
+        "zrb.llm.speech.player.get_speech_backend",
+        lambda name, config: by_name.get(name, any_backend),
+    )
+    return any_backend
+
+
 def test_a_closed_speaker_stops_being_probed_for_its_lock_file(lock_file):
     """A closed speaker is no longer reported by its lock file."""
     Speaker(_config(FakeBackend(), lock_file)).close()
@@ -124,12 +134,15 @@ def test_text_said_later_is_dropped_when_the_speaker_closes(lock_file):
     assert backend.played == []
 
 
-def test_a_backend_is_let_go_when_speech_never_started_a_thread(lock_file):
-    """Close and drain release backends even without worker threads."""
+def test_a_backend_zrb_built_is_let_go_when_speech_never_started_a_thread(
+    lock_file, monkeypatch
+):
+    """Close and drain release the backends zrb built, even without workers."""
     spoken = ClosingBackend()
-    speaker = Speaker(_config(spoken, lock_file))
     drained = ClosingBackend()
-    draining = Speaker(_config(drained, lock_file))
+    _built_by_zrb(monkeypatch, spoken=spoken, drained=drained)
+    speaker = Speaker(_config("spoken", lock_file))
+    draining = Speaker(_config("drained", lock_file))
 
     speaker.speak("one")
     speaker.close()
@@ -142,7 +155,9 @@ def test_a_backend_is_let_go_when_speech_never_started_a_thread(lock_file):
     assert drained.closed
 
 
-def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(lock_file):
+def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(
+    lock_file, monkeypatch
+):
     created = threading.Event()
     release = threading.Event()
     closed_while_synthesizing = []
@@ -154,8 +169,8 @@ def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(lock_file):
             closed_while_synthesizing.append(self.closed)
             return super().create_utterance(text)
 
-    backend = SlowClosingBackend()
-    speaker = Speaker(_config(backend, lock_file))
+    backend = _built_by_zrb(monkeypatch, slow=SlowClosingBackend())
+    speaker = Speaker(_config("slow", lock_file))
     speaker.say("slow")
     assert created.wait(5)
 
@@ -168,7 +183,9 @@ def test_a_backend_still_synthesizing_at_close_is_let_go_only_after(lock_file):
     assert backend.utterances[0].cleaned
 
 
-def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(lock_file):
+def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(
+    lock_file, monkeypatch
+):
     """A backend remains until the player finishes its final sentence."""
     let_go_while_playing: "list[bool]" = []
     let_go = threading.Event()
@@ -206,8 +223,8 @@ def test_a_backend_is_not_let_go_while_its_last_sentence_is_still_playing(lock_f
             super().close()
             let_go.set()
 
-    backend = WatchedBackend()
-    speaker = Speaker(_config(backend, lock_file))
+    backend = _built_by_zrb(monkeypatch, watched=WatchedBackend())
+    speaker = Speaker(_config("watched", lock_file))
     speaker.say("the last sentence")
     assert backend.playing.wait(5)
 
