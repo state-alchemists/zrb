@@ -110,7 +110,8 @@ class Speaker:
         self._backends: list[AnySpeechBackend] | None = None
         # The prepare thread and the warm-up thread may both build backends.
         self._building = threading.Lock()
-        # Consecutive in-process renders that failed; a dead service never recovers.
+        # The backend whose in-process renders are failing, and how many in a row.
+        self._failing_backend: AnySpeechBackend | None = None
         self._failed_renders = 0
         # Paused utterances wait on `_unpaused`.
         self._is_paused = False
@@ -307,14 +308,15 @@ class Speaker:
         if self._is_in_process_wanted():
             try:
                 audio = backend.create_audio(text)
-                self._failed_renders = 0
             except Exception as exc:
-                self._handle_render_failure()
+                self._handle_render_failure(backend)
                 logger.warning(
                     f"Speech backend {backend.name} could not render audio to "
                     f"play in process ({exc}); a player program plays it instead"
                 )
                 audio = None
+            else:
+                self._handle_render_success(backend)
             if audio is not None:
                 return PcmUtterance(
                     audio,
@@ -383,10 +385,23 @@ class Speaker:
             # The first sentence tries again and reports a failure itself.
             logger.debug(f"Speech warm-up failed: {exc}")
 
-    def _handle_render_failure(self) -> None:
-        self._failed_renders += 1
-        if self._failed_renders >= _RENDER_FAILURES_BEFORE_RESTART:
+    def _handle_render_failure(self, backend: AnySpeechBackend) -> None:
+        """Count *backend*'s failures in a row; only its own renders end them."""
+        with self._lock:
+            if backend is not self._failing_backend:
+                self._failing_backend = backend
+                self._failed_renders = 0
+            self._failed_renders += 1
+            is_dead = self._failed_renders >= _RENDER_FAILURES_BEFORE_RESTART
+        if is_dead:
             self.restart_backends()
+
+    def _handle_render_success(self, backend: AnySpeechBackend) -> None:
+        """Forget *backend*'s failures: it renders again."""
+        with self._lock:
+            if backend is self._failing_backend:
+                self._failing_backend = None
+                self._failed_renders = 0
 
     def restart_backends(self) -> None:
         """Drop the cached backends, so the next sentence builds fresh ones.
@@ -397,6 +412,7 @@ class Speaker:
             if self._is_closed:
                 return
             backends, self._backends = self._backends, None
+            self._failing_backend = None
             self._failed_renders = 0
         for backend in backends or []:
             backend.close()
