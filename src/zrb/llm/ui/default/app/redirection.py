@@ -21,6 +21,7 @@ class GlobalStreamCapture:
         self.pipe_r = None
         self.pipe_w = None
         self._buffer: list[str] = []
+        self._late_output: threading.Event | None = None
 
     def start(self):
         if self.capturing:
@@ -38,8 +39,11 @@ class GlobalStreamCapture:
         os.dup2(self.pipe_w, sys.stdout.fileno())
         os.dup2(self.pipe_w, sys.stderr.fileno())
 
+        # Per run: a reader left behind by an earlier run keeps its own event,
+        # so a later `start()` still buffers instead of printing straight out.
+        self._late_output = threading.Event()
         self.thread = threading.Thread(
-            target=self._reader, args=(self.pipe_r,), daemon=True
+            target=self._reader, args=(self.pipe_r, self._late_output), daemon=True
         )
         self.thread.start()
 
@@ -67,9 +71,14 @@ class GlobalStreamCapture:
             # join puts the whole quit behind its lifetime.
             self.thread.join(_CAPTURE_CLOSE_WAIT_SECONDS)
             if self.thread.is_alive():
+                # The caller prints the buffer as soon as this returns, so what
+                # the lingering writer emits afterwards goes to the terminal
+                # instead of to a buffer nothing reads again.
+                if self._late_output is not None:
+                    self._late_output.set()
                 CFG.LOGGER.info(
                     "A writer still held the captured pipe after %ss; "
-                    "leaving its reader behind.",
+                    "its later output goes to the terminal.",
                     _CAPTURE_CLOSE_WAIT_SECONDS,
                 )
             self.thread = None
@@ -96,11 +105,25 @@ class GlobalStreamCapture:
                 os.dup2(self.pipe_w, sys.stdout.fileno())
                 os.dup2(self.pipe_w, sys.stderr.fileno())
 
-    def _reader(self, pipe_r):
+    def _reader(self, pipe_r, late_output: threading.Event):
         with os.fdopen(pipe_r, "r", errors="replace", buffering=1) as f:
             for line in f:
-                if line:
+                if not line:
+                    continue
+                if late_output.is_set():
+                    self._show_late_output(line)
+                else:
                     self._buffer.append(line.expandtabs(4))
+
+    def _show_late_output(self, line: str) -> None:
+        """`stop()` put FD 1/2 back on the terminal before handing over, so this
+        lands where the exit print lands."""
+        try:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+        except (OSError, ValueError):
+            # Shutting down, with stdout already closed under us.
+            pass
 
     def get_original_stdout(self) -> TextIO:
         """Returns a file object connected to the original stdout (terminal)."""
@@ -121,5 +144,6 @@ class GlobalStreamCapture:
         )
 
     def get_buffered_output(self) -> str:
-        """Returns all buffered output as a single string."""
+        """Returns every line captured up to `stop()`; output a lingering writer
+        emits after that reaches the terminal instead."""
         return "".join(self._buffer)

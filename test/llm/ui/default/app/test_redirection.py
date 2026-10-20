@@ -177,6 +177,47 @@ def test_stop_returns_while_another_writer_still_holds_the_pipe():
         stopper.join(5.0)
 
 
+_LATE_OUTPUT_PROBE = """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+capture.stop()
+os.write(held, b"late output\\n")
+os.close(held)
+deadline = time.monotonic() + 2.0
+while time.monotonic() < deadline:
+    sys.stdout.flush()
+    with open("out.txt", encoding="utf-8") as seen:
+        if "late output" in seen.read():
+            sys.exit(0)
+    time.sleep(0.05)
+sys.exit(1)
+"""
+
+
+def test_output_written_after_the_stop_still_reaches_the_terminal(tmp_path):
+    """Late output from the writer stop() stopped waiting for must not vanish:
+    the exit print is a snapshot, so the reader shows the rest instead."""
+    stdout_path = tmp_path / "out.txt"
+    with open(stdout_path, "wb") as out:
+        result = subprocess.run(
+            [sys.executable, "-c", _LATE_OUTPUT_PROBE],
+            cwd=tmp_path,
+            stdin=subprocess.DEVNULL,
+            stdout=out,
+            stderr=subprocess.PIPE,
+            timeout=60,
+        )
+    assert result.returncode == 0, result.stderr.decode(errors="replace")
+    assert "late output" in stdout_path.read_text(encoding="utf-8")
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
 
