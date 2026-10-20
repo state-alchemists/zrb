@@ -270,33 +270,68 @@ with open("result.txt", "w", encoding="utf-8") as f:
 )
 
 
-def _run_probe(probe, tmp_path):
+_ENCODING_PROBE = (
+    """
+import os
+import sys
+import time
+
+from zrb.llm.ui.default.app.redirection import GlobalStreamCapture
+
+capture = GlobalStreamCapture()
+capture.start()
+held = os.dup(capture.pipe_w)
+sys.stdout.write("caf\\u00e9 captured\\n")
+sys.stdout.flush()
+time.sleep(0.3)
+capture.stop()
+os.write(held, "caf\\u00e9 late\\n".encode("cp1252"))
+os.close(held)
+"""
+    + _TEARDOWN
+    + """
+time.sleep(0.3)
+"""
+)
+
+
+def _run_probe(probe, tmp_path, env=None):
     stdout_path = tmp_path / "out.txt"
     with open(stdout_path, "wb") as out:
         result = subprocess.run(
             [sys.executable, "-c", probe],
             cwd=tmp_path,
+            env=env,
             stdin=subprocess.DEVNULL,
             stdout=out,
             stderr=subprocess.PIPE,
             timeout=60,
         )
     assert result.returncode == 0, result.stderr.decode(errors="replace")
-    return stdout_path.read_text(encoding="utf-8")
+    return stdout_path.read_bytes()
 
 
 def test_output_written_after_the_stop_still_reaches_the_terminal(tmp_path):
     """Late output from the writer stop() stopped waiting for must not vanish:
     the snapshot cannot hold it, so it follows the snapshot instead."""
-    assert "late output" in _run_probe(_LATE_OUTPUT_PROBE, tmp_path)
+    assert b"late output" in _run_probe(_LATE_OUTPUT_PROBE, tmp_path)
 
 
 def test_output_of_a_lingering_writer_follows_the_snapshot(tmp_path):
     """`stop()` hands over while the caller still has the buffered output to
     print, so a late line must wait for that print instead of overtaking it."""
     shown = _run_probe(_ORDERING_PROBE, tmp_path)
-    assert "before" in shown and "late" in shown
-    assert shown.index("before") < shown.index("late")
+    assert b"before" in shown and b"late" in shown
+    assert shown.index(b"before") < shown.index(b"late")
+
+
+def test_the_output_is_written_in_the_encoding_of_the_terminal(tmp_path):
+    """The stream this capture renders back to decides the bytes, on the way in
+    from the pipe and on the way out: a cp1252 console gets cp1252, not UTF-8."""
+    env = dict(os.environ, PYTHONIOENCODING="cp1252:replace")
+    shown = _run_probe(_ENCODING_PROBE, tmp_path, env)
+    assert shown.count(b"caf\xe9") == 2
+    assert b"caf\xc3\xa9" not in shown
 
 
 def test_a_reader_left_from_an_earlier_capture_writes_to_the_terminal(tmp_path):

@@ -31,6 +31,10 @@ class GlobalStreamCapture:
     def __init__(self):
         self.original_stdout_fd = os.dup(sys.stdout.fileno())
         self.original_stderr_fd = os.dup(sys.stderr.fileno())
+        # Both directions of the pipe belong to the stream this capture renders
+        # back to: a cp1252 console hands us cp1252 bytes and reads cp1252 back,
+        # so decoding or re-encoding as UTF-8 loses every character above 127.
+        self.terminal_encoding = sys.stdout.encoding or "utf-8"
         self.capturing = False
         self.thread: threading.Thread | None = None
         self.pipe_r = None
@@ -121,7 +125,13 @@ class GlobalStreamCapture:
                 os.dup2(self.pipe_w, sys.stderr.fileno())
 
     def _reader(self, pipe_r, handover: _Handover):
-        with os.fdopen(pipe_r, "r", errors="replace", buffering=1) as f:
+        with os.fdopen(
+            pipe_r,
+            "r",
+            encoding=self.terminal_encoding,
+            errors="replace",
+            buffering=1,
+        ) as f:
             for line in f:
                 if not line:
                     continue
@@ -137,7 +147,7 @@ class GlobalStreamCapture:
     def _write_to_terminal(self, text: str) -> None:
         """Through the FD this capture was made against, not `sys.stdout`: after
         a later `start()`, that points at the new capture's pipe."""
-        data = text.encode("utf-8", "replace")
+        data = text.encode(self.terminal_encoding, "replace")
         while data:
             try:
                 written = os.write(self.original_stdout_fd, data)
