@@ -120,6 +120,8 @@ class Speaker:
         # The backend whose in-process renders are failing, and how many in a row.
         self._failing_backend: AnySpeechBackend | None = None
         self._failed_renders = 0
+        # Set when that backend is dead; the drop waits for the next sentence.
+        self._is_restart_pending = False
         # Paused utterances wait on `_unpaused`.
         self._is_paused = False
         self._unpaused = threading.Condition(self._lock)
@@ -399,7 +401,11 @@ class Speaker:
                 and self._is_in_process_wanted()
             ):
                 return
-            self._create_utterance(backend, "Hi.", []).cleanup()
+            # A probe, not a sentence: no utterance, and a failure is not one
+            # of the failures that drop the backend the sentences are spoken by.
+            audio = backend.create_audio("Hi.")
+            if audio is not None:
+                audio.close()
         except (ImportError, OSError, RuntimeError, ValueError) as exc:
             # The first sentence tries again and reports a failure itself.
             logger.debug(f"Speech warm-up failed: {exc}")
@@ -411,9 +417,11 @@ class Speaker:
                 self._failing_backend = backend
                 self._failed_renders = 0
             self._failed_renders += 1
-            is_dead = self._failed_renders >= _RENDER_FAILURES_BEFORE_RESTART
-        if is_dead:
-            self.restart_backends()
+            if self._failed_renders < _RENDER_FAILURES_BEFORE_RESTART:
+                return
+            # Dropped before the next sentence, not under this one: the
+            # sentence still to be made from `backend` would find it closed.
+            self._is_restart_pending = True
 
     def _handle_render_success(self, backend: AnySpeechBackend) -> None:
         """Forget *backend*'s failures: it renders again."""
@@ -428,6 +436,7 @@ class Speaker:
         A backend whose service died (Pipecat marks it unusable) stays dead
         for as long as it is cached."""
         with self._lock:
+            self._is_restart_pending = False
             if self._is_closed:
                 return
             backends, self._backends = self._backends, None
@@ -442,6 +451,10 @@ class Speaker:
             return self._get_backends_unlocked()
 
     def _get_backends_unlocked(self) -> list[AnySpeechBackend]:
+        with self._lock:
+            is_restart_pending = self._is_restart_pending
+        if is_restart_pending:
+            self.restart_backends()
         if self._backends is None:
             config = self._config
             requested = get_speech_backend(config.backend or "auto", config)

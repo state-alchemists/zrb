@@ -121,6 +121,37 @@ def test_warm_up_waits_for_a_player_program_to_be_unwanted(lock_file):
     assert backend.made == []
 
 
+class ProbingBackend(WarmingBackend):
+    """A backend whose warm-up probe always fails."""
+
+    def __init__(self):
+        super().__init__()
+        self.probed = threading.Event()
+        self.let_go = 0
+
+    def create_audio(self, text):
+        self.probed.set()
+        raise RuntimeError("the model is not loaded")
+
+    def close(self):
+        self.let_go += 1
+
+
+def test_a_failed_warm_up_is_not_a_failed_sentence(lock_file):
+    """A warm-up runs at the start of every turn. A probe that fails must not
+    count toward dropping the backend the turn's sentences are spoken by, and
+    must not drop it from another thread while those sentences are made."""
+    backend = ProbingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    for _ in range(3):
+        backend.probed.clear()
+        speaker.warm_up()
+        assert backend.probed.wait(5)
+
+    assert backend.let_go == 0
+
+
 class FallbackBackend(CloudBackend):
     """The local voice a speaker falls back to."""
 
