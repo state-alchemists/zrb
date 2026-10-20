@@ -1,13 +1,11 @@
-"""Pin in-process playback selection, fallback, pause, and recall behavior."""
+"""Pin which backend speaks a sentence in process, and what plays it instead."""
 
 import threading
-import time
 
 import pytest
 
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.backend.audio import SpeechAudio
-from zrb.util.file_lock import hold_file_lock
 
 
 class RecordingUtterance(Utterance):
@@ -27,34 +25,6 @@ class FakeBackend(AnySpeechBackend):
 
     def create_utterance(self, text):
         return RecordingUtterance(text, self.played, threading.Event())
-
-
-class HangingUtterance(Utterance):
-    """An utterance that plays until stopped."""
-
-    def __init__(self, started):
-        super().__init__([])
-        self.started = started
-        self.stopped = threading.Event()
-
-    def play(self, timeout):
-        self.report_started()
-        self.started.set()
-        self.stopped.wait(5)
-
-    def stop(self):
-        self.stopped.set()
-
-
-class HangingBackend(AnySpeechBackend):
-    def __init__(self):
-        self.started = threading.Event()
-        self.utterances: list = []
-
-    def create_utterance(self, text):
-        utterance = HangingUtterance(self.started)
-        self.utterances.append(utterance)
-        return utterance
 
 
 @pytest.fixture
@@ -107,6 +77,28 @@ def _in_process(monkeypatch, available=True, options=None, fallbacks=None):
     return made
 
 
+class RendersOnlyBackend(AudioBackend):
+    """A renders-only backend with no player program."""
+
+    @property
+    def name(self):
+        return "Pipecat (test)"
+
+    @property
+    def needs_zrb_playback(self):
+        return True
+
+    def create_utterance(self, text):
+        raise RuntimeError("renders audio for zrb to play in process")
+
+
+def _with_local_voice(monkeypatch, service, local):
+    monkeypatch.setattr(
+        "zrb.llm.speech.player.get_speech_backend",
+        lambda name, config: local if name == "auto" else service,
+    )
+
+
 def test_audio_a_backend_renders_is_played_in_process(lock_file, monkeypatch):
     made = _in_process(monkeypatch)
     backend = AudioBackend()
@@ -153,198 +145,6 @@ def test_speech_is_played_by_a_program_otherwise(
     assert backend.played == ["hello"]
 
 
-class PausableUtterance(HangingUtterance):
-    def __init__(self, started):
-        super().__init__(started)
-        self.events: list[str] = []
-
-    @property
-    def is_pausable(self):
-        return True
-
-    def pause(self):
-        self.events.append("pause")
-
-    def resume(self):
-        self.events.append("resume")
-
-
-def test_pause_holds_a_pausable_utterance_and_resume_carries_on(lock_file):
-    backend = HangingBackend()
-    backend.create_utterance = (
-        lambda text: backend.utterances.append(PausableUtterance(backend.started))
-        or backend.utterances[-1]
-    )
-    speaker = Speaker(_config(backend, lock_file))
-    speaker.say("long")
-    assert backend.started.wait(5)
-
-    speaker.pause()
-    speaker.resume()
-
-    assert backend.utterances[0].events == ["pause", "resume"]
-    speaker.close()
-
-
-def test_pause_stops_only_the_sentence_that_cannot_pause(lock_file):
-    """A player program cannot hold, so its sentence stops; what follows is
-    held, not dropped, so a false alarm resumes with the next sentence."""
-    started, release = threading.Event(), threading.Event()
-    played: list[str] = []
-
-    class Backend(AnySpeechBackend):
-        def create_utterance(self, text):
-            if text == "first":
-                return HangingUtterance(started)
-            return RecordingUtterance(text, played, release)
-
-    speaker = Speaker(_config(Backend(), lock_file))
-    speaker.resume()
-    speaker.say("first")
-    speaker.say("second")
-    assert started.wait(5)
-
-    speaker.pause()
-    assert not release.wait(0.3)
-
-    speaker.resume()
-    assert release.wait(5)
-    assert played == ["second"]
-    speaker.close()
-
-
-def _slow_backend(created, release):
-    class SlowBackend(FakeBackend):
-        def create_utterance(self, text):
-            created.set()
-            release.wait(5)
-            return super().create_utterance(text)
-
-    return SlowBackend()
-
-
-@pytest.mark.parametrize("switch_off", [True, False])
-def test_speech_being_made_when_cleared_is_never_played(lock_file, switch_off):
-    """Clearing or disabling speech drops a sentence still being synthesized."""
-    created, release = threading.Event(), threading.Event()
-    backend = _slow_backend(created, release)
-    speaker = Speaker(_config(backend, lock_file))
-    speaker.say("in the making")
-    assert created.wait(5)
-
-    if switch_off:
-        speaker.is_enabled = False
-    speaker.clear()
-    release.set()
-    speaker.drain()
-
-    assert backend.played == []
-
-
-def test_audio_that_fails_to_render_is_spoken_by_a_player_program(
-    lock_file, monkeypatch, caplog
-):
-    made = _in_process(monkeypatch)
-
-    class BrokenRender(AudioBackend):
-        def create_audio(self, text):
-            raise RuntimeError("say could not write the WAV")
-
-    backend = BrokenRender()
-    speaker = Speaker(_config(backend, lock_file, player="auto"))
-
-    speaker.speak("hello")
-
-    assert made == []
-    assert backend.played == ["hello"]
-    assert "could not write the WAV" in caplog.text
-
-
-def test_a_backend_that_fails_to_render_three_times_in_a_row_is_dropped(
-    lock_file, monkeypatch
-):
-    _in_process(monkeypatch)
-
-    class DeadService(AudioBackend):
-        closed = 0
-
-        def create_audio(self, text):
-            raise RuntimeError("service no longer usable")
-
-        def close(self):
-            self.closed += 1
-
-    backend = DeadService()
-    speaker = Speaker(_config(backend, lock_file, player="auto"))
-
-    for text in ("one", "two"):
-        speaker.speak(text)
-    assert backend.closed == 0
-    speaker.speak("three")
-
-    assert backend.closed == 1
-
-
-def test_restarting_backends_closes_the_cached_ones(lock_file, monkeypatch):
-    _in_process(monkeypatch)
-    backend = AudioBackend()
-    backend.close = lambda: backend.played.append("closed")
-    speaker = Speaker(_config(backend, lock_file, player="auto"))
-    speaker.speak("hello")
-
-    speaker.restart_backends()
-
-    assert backend.played == ["closed"]
-
-
-class SignallingBackend(FakeBackend):
-    def __init__(self):
-        super().__init__()
-        self.done = threading.Event()
-
-    def create_utterance(self, text):
-        return RecordingUtterance(text, self.played, self.done)
-
-
-def test_speech_made_while_paused_waits_for_resume(lock_file):
-    backend = SignallingBackend()
-    speaker = Speaker(_config(backend, lock_file))
-    speaker.pause()
-
-    speaker.say("queued")
-    assert not backend.done.wait(0.3)
-
-    speaker.resume()
-    assert backend.done.wait(5)
-    assert backend.played == ["queued"]
-    speaker.close()
-
-
-def test_interrupting_a_pause_drops_what_waited_and_unpauses(lock_file):
-    backend = SignallingBackend()
-    speaker = Speaker(_config(backend, lock_file))
-    speaker.pause()
-    speaker.say("dropped")
-    assert not backend.done.wait(0.3)
-
-    speaker.interrupt()
-    speaker.say("next")
-
-    assert backend.done.wait(5)
-    assert backend.played == ["next"]
-    speaker.close()
-
-
-def test_closing_a_paused_speaker_does_not_hang(lock_file):
-    backend = SignallingBackend()
-    speaker = Speaker(_config(backend, lock_file))
-    speaker.pause()
-    speaker.say("never")
-    speaker.close()
-    assert not backend.done.wait(0.3)
-    assert backend.played == []
-
-
 def test_in_process_speech_falls_back_to_the_backends_own_utterance(
     lock_file, monkeypatch
 ):
@@ -355,44 +155,6 @@ def test_in_process_speech_falls_back_to_the_backends_own_utterance(
 
     fallbacks[0]().play(None)
     assert backend.played == ["hello"]
-
-
-class RendersOnlyBackend(AudioBackend):
-    """A renders-only backend with no player program."""
-
-    @property
-    def name(self):
-        return "Pipecat (test)"
-
-    @property
-    def needs_zrb_playback(self):
-        return True
-
-    def create_utterance(self, text):
-        raise RuntimeError("renders audio for zrb to play in process")
-
-
-def _with_local_voice(monkeypatch, service, local):
-    monkeypatch.setattr(
-        "zrb.llm.speech.player.get_speech_backend",
-        lambda name, config: local if name == "auto" else service,
-    )
-
-
-def test_a_device_that_fails_hands_a_service_s_sentence_to_the_local_voice(
-    lock_file, monkeypatch
-):
-    """Device failure sends rendered speech to the local voice."""
-    fallbacks = []
-    _in_process(monkeypatch, fallbacks=fallbacks)
-    service, local = RendersOnlyBackend(), AudioBackend()
-    _with_local_voice(monkeypatch, service, local)
-    Speaker(_config(service, lock_file, player="auto")).speak("hello")
-
-    fallbacks[0]().play(None)
-
-    assert local.played == ["hello"]
-    assert service.played == []
 
 
 def test_a_service_is_not_asked_to_play_when_zrb_cannot_play_it(
@@ -409,57 +171,20 @@ def test_a_service_is_not_asked_to_play_when_zrb_cannot_play_it(
     assert "failed" not in caplog.text
 
 
-def test_drain_does_not_wait_for_speech_a_pause_holds(lock_file):
-    backend = SignallingBackend()
-    config = SpeechConfig(
-        backend=backend,
-        lock_file=lock_file,
-        lock_timeout=0.05,
-        player="command",
-        drain_timeout=5,
-    ).resolve()
-    speaker = Speaker(config)
-    speaker.pause()
-    speaker.say("held")
-
-    started = time.monotonic()
-    speaker.drain()
-
-    assert time.monotonic() - started < 2
-    assert backend.played == []
-
-
-def test_an_output_device_that_cannot_open_is_not_tried_again(
-    lock_file, monkeypatch, caplog
+def test_a_device_that_fails_hands_a_service_s_sentence_to_the_local_voice(
+    lock_file, monkeypatch
 ):
-    """An unavailable output device is not retried for the same sentence."""
-    rendered: list[str] = []
+    """Device failure sends rendered speech to the local voice."""
+    fallbacks = []
+    _in_process(monkeypatch, fallbacks=fallbacks)
+    service, local = RendersOnlyBackend(), AudioBackend()
+    _with_local_voice(monkeypatch, service, local)
+    Speaker(_config(service, lock_file, player="auto")).speak("hello")
 
-    class FailingPcm(Utterance):
-        def __init__(self, audio, fallback=None, on_device_error=None, **kwargs):
-            super().__init__([])
-            self.fallback, self.on_device_error = fallback, on_device_error
+    fallbacks[0]().play(None)
 
-        def play(self, timeout):
-            self.on_device_error(OSError("no default output device"))
-            self.fallback().play(timeout)
-
-    class CountingBackend(AudioBackend):
-        def create_audio(self, text):
-            rendered.append(text)
-            return super().create_audio(text)
-
-    monkeypatch.setattr("zrb.llm.speech.player.is_in_process_available", lambda: True)
-    monkeypatch.setattr("zrb.llm.speech.player.PcmUtterance", FailingPcm)
-    backend = CountingBackend()
-    speaker = Speaker(_config(backend, lock_file, player="auto"))
-
-    speaker.speak("one")
-    speaker.speak("two")
-
-    assert rendered == ["one"]
-    assert backend.played == ["one", "two"]
-    assert caplog.text.count("Could not use the audio device") == 1
+    assert local.played == ["hello"]
+    assert service.played == []
 
 
 def test_an_unknown_player_is_logged_and_read_as_auto(lock_file, monkeypatch, caplog):

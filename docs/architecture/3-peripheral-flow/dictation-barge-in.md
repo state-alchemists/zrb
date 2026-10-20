@@ -188,7 +188,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Change utterance cutting, the bar over zrb's voice, or the bar under ordinary speech | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen_barge_in.py`, `test/llm/dictation/test_listen.py` |
 | Change the transcript guards or command routing | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py`, `test/llm/dictation/test_words.py` |
 | Change pause, stop or resume | `src/zrb/llm/dictation/feature.py` | `test/llm/dictation/test_feature_barge_in_pause.py` |
-| Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py` |
+| Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py`, `test/llm/speech/test_player_pause.py`, `test/llm/speech/test_player_render_failure.py` |
 | Change how a streamed reply is spoken | `src/zrb/llm/speech/streamed_reply.py`, `src/zrb/llm/speech/feature.py` | `test/llm/speech/test_feature_stream.py` |
 | Change how a spoken reply reaches a prompt | `src/zrb/llm/ui/base/triggers.py` | `test/llm/ui/base/` |
 | Change a dictation setting | `src/zrb/config/mixins/llm_dictation.py`, `src/zrb/llm/dictation/config.py` | `test/architecture/test_voice_config_documented.py` |
