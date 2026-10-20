@@ -283,9 +283,14 @@ capture.start()
 held = os.dup(capture.pipe_w)
 sys.stdout.write("caf\\u00e9 captured\\n")
 sys.stdout.flush()
+# A byte cp1252 leaves undefined: only a byte-transparent capture keeps it.
+os.write(sys.stdout.fileno(), b"\\x81 undefined\\n")
 time.sleep(0.3)
 capture.stop()
 os.write(held, "caf\\u00e9 late\\n".encode("cp1252"))
+# A writer that picked UTF-8 for itself: its bytes must reach the terminal as
+# written, mojibake and all, because that is how they land there uncaptured.
+os.write(held, "\\u65e5\\u672c\\u8a9e\\n".encode("utf-8"))
 os.close(held)
 """
     + _TEARDOWN
@@ -332,6 +337,10 @@ def test_the_output_is_written_in_the_encoding_of_the_terminal(tmp_path):
     shown = _run_probe(_ENCODING_PROBE, tmp_path, env)
     assert shown.count(b"caf\xe9") == 2
     assert b"caf\xc3\xa9" not in shown
+    # Whatever encoding a writer chose, its bytes arrive as written: the one
+    # the codec does not define included, so the capture is a pass-through.
+    assert b"\x81 undefined\n" in shown
+    assert "\u65e5\u672c\u8a9e\n".encode("utf-8") in shown
 
 
 def test_a_reader_left_from_an_earlier_capture_writes_to_the_terminal(tmp_path):

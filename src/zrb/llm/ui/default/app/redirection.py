@@ -34,6 +34,11 @@ class GlobalStreamCapture:
         # Both directions of the pipe belong to the stream this capture renders
         # back to: a cp1252 console hands us cp1252 bytes and reads cp1252 back,
         # so decoding or re-encoding as UTF-8 loses every character above 127.
+        #
+        # A writer that chose an encoding of its own is passed through instead:
+        # decoding and re-encoding with one codec is a round trip for bytes it
+        # defines, and `surrogateescape` carries the ones it does not, so the
+        # terminal sees exactly what the writer wrote.
         self.terminal_encoding = sys.stdout.encoding or "utf-8"
         self.capturing = False
         self.thread: threading.Thread | None = None
@@ -129,7 +134,7 @@ class GlobalStreamCapture:
             pipe_r,
             "r",
             encoding=self.terminal_encoding,
-            errors="replace",
+            errors="surrogateescape",
             buffering=1,
         ) as f:
             for line in f:
@@ -147,7 +152,7 @@ class GlobalStreamCapture:
     def _write_to_terminal(self, text: str) -> None:
         """Through the FD this capture was made against, not `sys.stdout`: after
         a later `start()`, that points at the new capture's pipe."""
-        data = text.encode(self.terminal_encoding, "replace")
+        data = text.encode(self.terminal_encoding, "surrogateescape")
         while data:
             try:
                 written = os.write(self.original_stdout_fd, data)
