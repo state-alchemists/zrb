@@ -109,9 +109,10 @@ async def _noop(*_):
 
 
 @pytest.mark.asyncio
-async def test_a_reply_without_an_emotion_does_not_keep_the_last_one():
-    """Even run without a stream handler: the capability makes every run
-    stream, and a text part opening with no emotion clears it."""
+async def test_a_run_without_an_emotion_keeps_the_turns():
+    """A turn is more than one run: the round after a tool call carries no
+    emoji, and clearing it there dropped the turn's voice mid-reply. Clearing
+    a turn's emotion is `EmotionSession`'s job, done when the turn starts."""
     replies = iter(["😊 Hello.", "Plain words."])
 
     def respond(messages, info):
@@ -133,7 +134,7 @@ async def test_a_reply_without_an_emotion_does_not_keep_the_last_one():
 
     assert first.output == "Hello."
     assert after_first == "happy"
-    assert after_second == ""
+    assert after_second == "happy"
 
 
 _TWO_TEXTS = [TextPart("Here is the result:"), TextPart("😊 literal content")]

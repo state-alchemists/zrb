@@ -18,7 +18,7 @@ from __future__ import annotations
 import weakref
 from typing import TYPE_CHECKING
 
-from zrb.llm.ambient_state import get_input_provenance
+from zrb.llm.ambient_state import current_reply_emotion, get_input_provenance
 from zrb.llm.emotion.config import EmotionConfig
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import get_run_hook_manager
@@ -75,6 +75,10 @@ class EmotionSession:
         # The user's tone, stored by the prompt hook (on a pool thread) and
         # fired when the reply starts streaming (on the event loop).
         self._pending: list[tuple[str, str]] = []
+        # Whether the next stream opens a turn. A turn is more than one run —
+        # every round after a tool call is a run of its own — so only the first
+        # stream of a turn clears the emotion the last one left.
+        self._starts_turn = True
 
     def register_hooks(self, manager: "HookManager") -> None:
         """Add this session's prompt hook to *manager*, once."""
@@ -114,11 +118,16 @@ class EmotionSession:
         provenance = get_input_provenance()
         tone = provenance.tone if provenance is not None else ""
         self._pending = [("user", tone)] if tone else []
+        self._starts_turn = True
         return HookResult()
 
     async def handle_stream_start(self) -> None:
-        """Fire the user's tone as the reply starts streaming."""
+        """Fire the user's tone as the reply starts streaming, clearing the
+        emotion the last turn left when this stream opens a new one."""
         pending, self._pending = self._pending, []
+        if self._starts_turn:
+            self._starts_turn = False
+            current_reply_emotion.set("")
         await _fire(pending)
 
     async def handle_reply_emotion(self, emotion: str) -> None:
