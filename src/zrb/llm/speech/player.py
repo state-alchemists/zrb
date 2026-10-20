@@ -35,6 +35,10 @@ _playing_count = 0
 _lock_files: dict[str, int] = {}
 _STALE_POLL_SECONDS = 0.1
 _PLAYERS = ("auto", "command")
+# How long an output device that failed to open is left alone before a sentence
+# tries it again: changing the output device fails the open while the system
+# hands the audio over, and the device works a moment later.
+_DEVICE_RETRY_SECONDS = 3.0
 # How long closing or exiting waits for a stopped output stream to finish
 # closing: long enough for the device to let go, short enough that a wedged one
 # cannot keep the process from ending.
@@ -86,8 +90,11 @@ class Speaker:
     def __init__(self, config: SpeechConfig) -> None:
         self._config = config
         self._player_mode = _resolve_player(config.player)
-        # Set after an output-device failure to avoid retrying.
-        self._is_device_unavailable = False
+        # When the output device last failed: no sentence goes to it for
+        # `_DEVICE_RETRY_SECONDS` after that, then one tries it again.
+        self._device_failed_at: float | None = None
+        # Said once, however often the device fails.
+        self._has_said_device_failed = False
         self._lock_file = config.lock_file or ""
         self._lock_file_held = bool(self._lock_file)
         if self._lock_file_held:
@@ -103,7 +110,7 @@ class Speaker:
         self._player_finished = threading.Event()
         self._worker: threading.Thread | None = None
         self._player: threading.Thread | None = None
-        # Guards worker startup and current playback.
+        # Guards worker startup, current playback and the last device failure.
         self._lock = threading.Lock()
         self._playing: Utterance | None = None
         # Cached backends may hold models or running pipelines.
@@ -324,6 +331,7 @@ class Speaker:
                     read_ahead=self._config.player_read_ahead,
                     fallback=self._program_fallback(backend, later, text),
                     on_device_error=self._handle_device_error,
+                    device_is_resting=self._is_device_resting,
                 )
         return backend.create_utterance(text)
 
@@ -345,18 +353,29 @@ class Speaker:
     def _is_in_process_wanted(self) -> bool:
         return (
             self._player_mode != "command"
-            and not self._is_device_unavailable
+            and not self._is_device_resting()
             and is_in_process_available()
         )
 
+    def _is_device_resting(self) -> bool:
+        """Whether the output device failed too recently for a sentence to try
+        it again, the sentence then played by a player program instead."""
+        with self._lock:
+            failed_at = self._device_failed_at
+        if failed_at is None:
+            return False
+        return time.monotonic() < failed_at + _DEVICE_RETRY_SECONDS
+
     def _handle_device_error(self, exc: Exception) -> None:
         with self._lock:
-            is_first = not self._is_device_unavailable
-            self._is_device_unavailable = True
+            is_first = not self._has_said_device_failed
+            self._has_said_device_failed = True
+            self._device_failed_at = time.monotonic()
         if is_first:
             logger.warning(
                 f"Could not use the audio device to play speech in process "
-                f"({exc}); a player program plays it for the rest of the session"
+                f"({exc}); a player program plays it for now, and the device is "
+                f"tried again {_DEVICE_RETRY_SECONDS:g}s later"
             )
 
     def warm_up(self) -> None:
