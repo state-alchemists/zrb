@@ -287,6 +287,22 @@ def test_a_device_that_cannot_open_hands_the_speech_to_a_player_program(fails_on
     assert closed  # the in-process source is released
 
 
+def test_a_sentence_made_before_the_device_failed_does_not_open_it(sd):
+    """The device may fail while a sentence is already made: it is asked when
+    the sentence plays, so that one goes to the player program as well."""
+    events, closed = [], []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1] * 256)], lambda: closed.append(True)),
+        fallback=lambda: ProgramUtterance(events),
+        device_is_resting=lambda: True,
+    )
+
+    utterance.play(timeout=1)
+
+    assert FakeOutputStream.instances == []
+    assert events == ["played", "cleaned"]
+
+
 def test_a_device_failing_after_it_opened_is_not_played_twice():
     events = []
     device = _broken_device("start", after_opening=True)

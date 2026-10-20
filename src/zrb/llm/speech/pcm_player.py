@@ -118,11 +118,14 @@ class PcmUtterance(Utterance):
     so it is not lost; without one, a device error is raised and a source
     error logged. Audio that fails part-way is played as far as it came,
     and logged as cut off. *on_device_error*, when given, is told of a
-    device that cannot open instead of it being logged, so a caller can
-    stop trying the device and say so once. A device PortAudio stops
-    playing on its own (it was unplugged, or stopped being the output while
-    its old stream was dropped) ends the sentence the same way, and the
-    next one reopens on whatever is the output then.
+    device that cannot open instead of it being logged, so a caller can keep
+    the next sentences off the device for a moment and say so once.
+    *device_is_resting*, when given, is asked just before the device is
+    opened: while it says the device rests, *fallback* speaks instead, so a
+    sentence made before the failure does not open the device either. A
+    device PortAudio stops playing on its own (it was unplugged, or stopped
+    being the output while its old stream was dropped) ends the sentence the
+    same way, and the next one reopens on whatever is the output then.
 
     Blocks the device asks for before the audio arrives, or that arrive
     late (`underruns`, what the listener hears as stutter), are counted and
@@ -138,10 +141,12 @@ class PcmUtterance(Utterance):
         read_ahead: int | None = None,
         fallback: Callable[[], Utterance] | None = None,
         on_device_error: Callable[[Exception], None] | None = None,
+        device_is_resting: Callable[[], bool] | None = None,
     ):
         super().__init__([])
         self._fallback = fallback
         self._on_device_error = on_device_error
+        self._resting_device_check = device_is_resting
         # Guards `_fallback_playing` against `pause` and `stop`, which may
         # come from another thread while the fallback starts.
         self._fallback_lock = threading.Lock()
@@ -208,8 +213,14 @@ class PcmUtterance(Utterance):
 
     def play(self, timeout: float | None) -> None:
         """Play to the end, or until *timeout* seconds or `stop`; through
-        the fallback when the device cannot be opened."""
+        the fallback when the device cannot be opened, or rests."""
         if self.is_stopped:
+            return
+        fallback = self._fallback
+        if fallback is not None and self._is_device_resting():
+            # The device failed moments ago: opening it again would fail the
+            # same way, however long ago this sentence was made.
+            self._play_fallback(fallback, timeout)
             return
         try:
             self._play_in_process(timeout)
@@ -226,6 +237,11 @@ class PcmUtterance(Utterance):
             self._play_fallback(self._fallback, timeout)
             return
         self._handle_source_error(timeout)
+
+    def _is_device_resting(self) -> bool:
+        """Whether the caller says the device is being left alone for now."""
+        is_resting = self._resting_device_check
+        return is_resting is not None and is_resting()
 
     def _handle_source_error(self, timeout: float | None) -> None:
         error = self._source_error
@@ -385,7 +401,7 @@ class PcmUtterance(Utterance):
         What was being said is not lost by this: the stream is only stopped once
         its audio has played to the end, or on purpose (`stop`, a timeout), so
         handing the sentence to a player program as well would say it twice.
-        Later sentences go to the program, once the device is reported unusable."""
+        Later sentences go to the program until the device is tried again."""
         error = TimeoutError(
             f"stopping the output stream took over {STREAM_STOP_TIMEOUT_SECONDS} "
             "seconds; the audio service is stuck"
