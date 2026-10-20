@@ -107,6 +107,29 @@ def test_the_audio_is_played(sd):
     assert _played(stream)[:2048].tolist() == samples
 
 
+def test_a_sentence_longer_than_the_read_ahead_is_played_in_full(sd):
+    """Audio arriving faster than it plays waits for room; it is not dropped."""
+
+    class RealtimeStream(FakeOutputStream):
+        def _run(self):
+            while self._running:
+                out = np.zeros((self.blocksize, 1), np.int16)
+                self.callback(out, self.blocksize, None, self.status)
+                self.played.append(out.copy())
+                time.sleep(0.02)
+            self.finished()
+
+    sd.OutputStream = RealtimeStream
+    samples = list(range(1, 1 + 20 * 1024))
+    chunks = [_pcm(samples[i : i + 1024]) for i in range(0, len(samples), 1024)]
+    utterance = PcmUtterance(SpeechAudio(RATE, chunks), block_frames=1024, read_ahead=2)
+
+    utterance.play(timeout=10)
+
+    [stream] = FakeOutputStream.instances
+    assert _played(stream)[: len(samples)].tolist() == samples
+
+
 def test_a_paused_utterance_plays_silence_and_holds_its_place(sd):
     chunks = [_pcm([5] * 1024)] * 3
     utterance = PcmUtterance(SpeechAudio(RATE, chunks))

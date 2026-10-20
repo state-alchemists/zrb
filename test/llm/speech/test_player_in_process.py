@@ -260,6 +260,43 @@ def test_audio_that_fails_to_render_is_spoken_by_a_player_program(
     assert "could not write the WAV" in caplog.text
 
 
+def test_a_backend_that_fails_to_render_three_times_in_a_row_is_dropped(
+    lock_file, monkeypatch
+):
+    _in_process(monkeypatch)
+
+    class DeadService(AudioBackend):
+        closed = 0
+
+        def create_audio(self, text):
+            raise RuntimeError("service no longer usable")
+
+        def close(self):
+            self.closed += 1
+
+    backend = DeadService()
+    speaker = Speaker(_config(backend, lock_file, player="auto"))
+
+    for text in ("one", "two"):
+        speaker.speak(text)
+    assert backend.closed == 0
+    speaker.speak("three")
+
+    assert backend.closed == 1
+
+
+def test_restarting_backends_closes_the_cached_ones(lock_file, monkeypatch):
+    _in_process(monkeypatch)
+    backend = AudioBackend()
+    backend.close = lambda: backend.played.append("closed")
+    speaker = Speaker(_config(backend, lock_file, player="auto"))
+    speaker.speak("hello")
+
+    speaker.restart_backends()
+
+    assert backend.played == ["closed"]
+
+
 class SignallingBackend(FakeBackend):
     def __init__(self):
         super().__init__()

@@ -487,14 +487,13 @@ class PcmUtterance(Utterance):
                 self._buffer_changed.notify_all()
 
     def _has_room_for_a_chunk(self) -> bool:
-        """Whether another chunk may be appended, past waiting for the read
-        ahead (`_read_ahead`) to have room; not, when playback was stopped."""
+        """Whether another chunk may be appended: waits for the read ahead
+        (`_read_ahead`) to have room, and is false only once playback was
+        stopped."""
         with self._buffer_changed:
-            self._buffer_changed.wait_for(
-                lambda: len(self._buffer) < self._read_ahead or self._is_done,
-                timeout=_BUFFER_POLL_SECONDS,
-            )
-            return len(self._buffer) < self._read_ahead and not self._is_done
+            while len(self._buffer) >= self._read_ahead and not self._is_done:
+                self._buffer_changed.wait(_BUFFER_POLL_SECONDS)
+            return not self._is_done
 
     @property
     def _is_done(self) -> bool:

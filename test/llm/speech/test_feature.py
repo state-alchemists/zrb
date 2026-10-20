@@ -69,6 +69,7 @@ class FakeSpeaker:
         self.said: list[str] = []
         self.cleared = 0
         self.closed = 0
+        self.restarted = 0
         self.is_enabled = True
 
     def say(self, text, is_stale=None, voice=""):
@@ -88,6 +89,9 @@ class FakeSpeaker:
 
     def close(self):
         self.closed += 1
+
+    def restart_backends(self):
+        self.restarted += 1
 
 
 def _session(**config) -> SpeechSession:
@@ -220,7 +224,9 @@ def test_the_speech_command_switches_speech_and_drops_the_queue():
 
     assert command.handle({}, None) == "🔊 Speech off"
     assert session.speaker.cleared == 1
+    assert session.speaker.restarted == 0
     assert command.handle({}, None) == "🔊 Speech on"
+    assert session.speaker.restarted == 1
     assert command.can_run_while_thinking
 
 
