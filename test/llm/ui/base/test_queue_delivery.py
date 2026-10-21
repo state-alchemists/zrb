@@ -197,6 +197,55 @@ def test_a_run_that_ends_mid_flush_stops_the_flush():
     assert len(queue.pending()) == 2
 
 
+def test_a_partial_flush_that_hits_a_finished_run_interrupts_the_turn():
+    # The first enqueue wins; the second fails because the run ended in between
+    # — exactly the race the fallback exists for. Reporting DELIVERED_EARLY here
+    # would claim success while the second message never reached the turn.
+    queue = MessageQueue()
+    queue.put_nowait(_entry("first"))
+    queue.put_nowait(_entry("second"))
+    run_context = MagicMock()
+    run_context.enqueue.side_effect = [None, RuntimeError("run finished")]
+
+    report, cancelled = _send(queue, run_context, is_turn_running=True)
+
+    assert report.outcome is DeliveryOutcome.FELL_BACK_TO_CANCEL
+    assert report.delivered == 1
+    assert cancelled == [True]
+    assert [entry.text for entry in queue.pending()] == ["second"]
+
+
+def test_a_full_flush_that_ends_the_run_does_not_interrupt():
+    # Every queued message was handed over, so the run ending on the last one
+    # is not a partial drain — there is nothing left for a cancel to free.
+    queue = MessageQueue()
+    queue.put_nowait(_entry("first"))
+    queue.put_nowait(_entry("second"))
+    run_context = MagicMock()
+
+    report, cancelled = _send(queue, run_context, is_turn_running=True)
+
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    assert report.delivered == 2
+    assert cancelled == []
+
+
+def test_a_partial_flush_with_no_running_turn_stays_delivered():
+    # Nothing to interrupt, so the delivered part stands and the rest waits.
+    queue = MessageQueue()
+    queue.put_nowait(_entry("first"))
+    queue.put_nowait(_entry("second"))
+    run_context = MagicMock()
+    run_context.enqueue.side_effect = [None, RuntimeError("run finished")]
+
+    report, cancelled = _send(queue, run_context)
+
+    assert report.outcome is DeliveryOutcome.NOTHING_MOVED
+    assert report.delivered == 1
+    assert cancelled == []
+    assert [entry.text for entry in queue.pending()] == ["second"]
+
+
 def test_an_exec_job_alone_falls_back_to_interrupting_the_turn():
     # Nothing steerable is queued, so the turn is interrupted and the exec job
     # runs as its own turn next.
@@ -216,6 +265,13 @@ def test_describe_delivery_says_what_happened():
     assert "interrupted the turn" in describe_delivery(
         DeliveryReport(DeliveryOutcome.FELL_BACK_TO_CANCEL, held=1)
     )
+    # A partial drain that fell back to a cancel names both halves, so the line
+    # is not read as a plain interrupt.
+    partial = describe_delivery(
+        DeliveryReport(DeliveryOutcome.FELL_BACK_TO_CANCEL, delivered=1, held=1)
+    )
+    assert "sent 1 queued message(s)" in partial
+    assert "interrupted the turn" in partial
     assert "waiting for your answer" in describe_delivery(
         DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=1)
     )

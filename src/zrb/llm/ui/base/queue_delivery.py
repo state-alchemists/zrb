@@ -80,28 +80,41 @@ def send_queued_messages_now(
     if is_waiting_for_answer:
         return DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=queue.qsize())
 
+    delivered = 0
+    run_ended = False
     if active_run_context is not None:
-        delivered = _steer_entries(queue, active_run_context, entries)
-        if delivered:
-            return DeliveryReport(
-                DeliveryOutcome.DELIVERED_EARLY,
-                delivered=delivered,
-                held=queue.qsize(),
-            )
+        delivered, run_ended = _steer_entries(queue, active_run_context, entries)
 
+    # Deliver what we could and stop while the turn is still alive; the rest
+    # wait for the next turn as they would have without the key.
+    if delivered and not run_ended:
+        return DeliveryReport(
+            DeliveryOutcome.DELIVERED_EARLY, delivered=delivered, held=queue.qsize()
+        )
+
+    # Nothing delivered, or the run ended mid-drain and left entries behind:
+    # interrupting the turn lets the message loop pick the remainder up right
+    # away — the same fallback the no-live-run case uses, and the one the
+    # failed enqueue is itself the signal for.
     if is_turn_running:
         cancel_turn()
         return DeliveryReport(
-            DeliveryOutcome.FELL_BACK_TO_CANCEL, held=queue.qsize()
+            DeliveryOutcome.FELL_BACK_TO_CANCEL, delivered=delivered, held=queue.qsize()
         )
 
-    return DeliveryReport(DeliveryOutcome.NOTHING_MOVED, held=queue.qsize())
+    return DeliveryReport(
+        DeliveryOutcome.NOTHING_MOVED, delivered=delivered, held=queue.qsize()
+    )
 
 
 def _steer_entries(
     queue: MessageQueue, run_context: object, entries: "tuple[QueuedMessage, ...]"
-) -> int:
-    """Steer the still-queued messages at the head of *entries*; return the count.
+) -> "tuple[int, bool]":
+    """Steer the still-queued messages at the head of *entries*.
+
+    Returns `(delivered, run_ended)`: the count handed to the live run, and
+    whether the drain stopped because `enqueue` failed — the run finished
+    between two calls — rather than because it reached the end or a barrier.
 
     An `/exec` job is not steerable (ADR-0078) and is an ordering barrier: it
     stops the drain rather than being skipped. The queue is FIFO and the
@@ -113,14 +126,16 @@ def _steer_entries(
     is removed.
     """
     delivered = 0
+    run_ended = False
     for entry in entries:
         if not entry.is_editable:
             break
         if not steer_into_live_run(run_context, entry.text, entry.attachments):
+            run_ended = True
             break
         queue.remove(entry)
         delivered += 1
-    return delivered
+    return delivered, run_ended
 
 
 def describe_delivery(report: DeliveryReport) -> str:
@@ -131,6 +146,11 @@ def describe_delivery(report: DeliveryReport) -> str:
             f" ({report.held} still waiting)"
         )
     if report.outcome is DeliveryOutcome.FELL_BACK_TO_CANCEL:
+        if report.delivered:
+            return (
+                f"sent {report.delivered} queued message(s), then the run ended —"
+                " interrupted the turn so the rest run next"
+            )
         return "interrupted the turn, so the queue runs next"
     if report.outcome is DeliveryOutcome.WAITING_ON_DIALOG:
         return "waiting for your answer, so the queue runs after it"
