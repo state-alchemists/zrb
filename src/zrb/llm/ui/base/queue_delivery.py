@@ -82,13 +82,17 @@ def send_queued_messages_now(
         return DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=queue.qsize())
 
     delivered = 0
-    run_ended = False
+    stopped_with_entries_left = False
     if active_run_context is not None:
-        delivered, run_ended = _steer_entries(queue, active_run_context, entries)
+        delivered, stopped_with_entries_left = _steer_entries(
+            queue, active_run_context, entries
+        )
 
-    # Deliver what we could and stop while the turn is still alive; the rest
-    # wait for the next turn as they would have without the key.
-    if delivered and not run_ended:
+    # Every message reached the live run (or the drain stopped on the last
+    # entry, which delivers everything and leaves nothing): the rest, if any,
+    # are entries the drain never reached, and wait for the next turn as they
+    # would have without the key.
+    if delivered and not stopped_with_entries_left:
         return DeliveryReport(
             DeliveryOutcome.DELIVERED_EARLY, delivered=delivered, held=queue.qsize()
         )
@@ -120,9 +124,12 @@ def _steer_entries(
 ) -> "tuple[int, bool]":
     """Steer the still-queued messages at the head of *entries*.
 
-    Returns `(delivered, run_ended)`: the count handed to the live run, and
-    whether the drain stopped because `enqueue` failed — the run finished
-    between two calls — rather than because it reached the end or a barrier.
+    Returns `(delivered, stopped_with_entries_left)`: the count handed to the
+    live run, and whether the drain stopped early — on a failed `enqueue` (the
+    run finished between two calls) — *and* left entries behind. A failed
+    `enqueue` on the last entry delivers everything and leaves nothing: that is
+    a complete drain, not a partial one, so the flag stays false and the caller
+    reports it as `DELIVERED_EARLY`.
 
     An `/exec` job is not steerable (ADR-0078) and is an ordering barrier: it
     stops the drain rather than being skipped. The queue is FIFO and the
@@ -134,16 +141,16 @@ def _steer_entries(
     is removed.
     """
     delivered = 0
-    run_ended = False
+    failed_enqueue = False
     for entry in entries:
         if not entry.is_editable:
             break
         if not steer_into_live_run(run_context, entry.text, entry.attachments):
-            run_ended = True
+            failed_enqueue = True
             break
         queue.remove(entry)
         delivered += 1
-    return delivered, run_ended
+    return delivered, failed_enqueue and queue.qsize() > 0
 
 
 def describe_delivery(report: DeliveryReport) -> str:

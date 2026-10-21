@@ -230,6 +230,39 @@ def test_a_full_flush_that_ends_the_run_does_not_interrupt():
     assert cancelled == []
 
 
+def test_a_failed_enqueue_on_the_only_entry_reports_nothing_moved():
+    # A one-entry queue whose enqueue fails delivers nothing and leaves the
+    # entry, so it is not a delivered drain at all — the queue is untouched.
+    queue = MessageQueue()
+    queue.put_nowait(_entry("only"))
+    run_context = MagicMock()
+    run_context.enqueue.side_effect = RuntimeError("run finished")
+
+    report, cancelled = _send(queue, run_context, is_turn_running=True)
+
+    assert report.outcome is DeliveryOutcome.FELL_BACK_TO_CANCEL
+    assert report.delivered == 0
+    assert cancelled == [True]
+    assert [entry.text for entry in queue.pending()] == ["only"]
+
+
+def test_a_full_drain_that_does_not_touch_the_run_context_is_not_partial():
+    # Every entry is steerable and succeeded, so the run context being dropped
+    # after the drain cannot turn a complete delivery into a partial one.
+    queue = MessageQueue()
+    queue.put_nowait(_entry("first"))
+    queue.put_nowait(_entry("second"))
+    run_context = MagicMock()
+
+    report, cancelled = _send(queue, run_context)
+
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    assert report.delivered == 2
+    assert report.held == 0
+    assert cancelled == []
+    assert queue.pending() == ()
+
+
 def test_a_partial_flush_with_no_running_turn_reports_the_partial_delivery():
     # Nothing to interrupt, so the delivered part stands and the rest waits —
     # and the report says so rather than "nothing was queued".
