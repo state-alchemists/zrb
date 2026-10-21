@@ -5,6 +5,7 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import QueuedMessage
+from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
 from zrb.llm.ui.multi_ui import MultiUI
 
 
@@ -235,3 +236,52 @@ async def test_quitting_ends_the_loop_when_the_job_absorbs_its_cancel(multi_ui):
 
     assert is_ended
     assert is_settled
+
+
+def test_the_multi_ui_delivers_the_shared_queue_into_the_live_run(
+    multi_ui, child_ui_1, child_ui_2
+):
+    """The children share one queue and the `MultiUI` runs the turn, so the
+    delivery happens on the wrapper. No child holds a prompt: a waiting dialog
+    outranks the live run, which the next test pins."""
+    for child in (child_ui_1, child_ui_2):
+        child.is_waiting_for_answer = False
+    run_context = MagicMock()
+    multi_ui.active_run_context = run_context
+
+    async def run():
+        pass
+
+    multi_ui.message_queue.put_nowait(
+        QueuedMessage(text="hello", attachments=[], kind="message", run=run)
+    )
+
+    report = multi_ui.send_queued_messages_now()
+
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    assert run_context.enqueue.call_count == 1
+    assert multi_ui.message_queue.qsize() == 0
+
+
+def test_the_multi_ui_waits_while_a_child_holds_a_prompt(
+    multi_ui, child_ui_1, child_ui_2
+):
+    """A turn suspended on a child's approval keeps its run context registered,
+    so the wrapper must not deliver through it."""
+    child_ui_1.is_waiting_for_answer = True
+    child_ui_2.is_waiting_for_answer = False
+    run_context = MagicMock()
+    multi_ui.active_run_context = run_context
+
+    async def run():
+        pass
+
+    multi_ui.message_queue.put_nowait(
+        QueuedMessage(text="hello", attachments=[], kind="message", run=run)
+    )
+
+    report = multi_ui.send_queued_messages_now()
+
+    assert report.outcome is DeliveryOutcome.WAITING_ON_DIALOG
+    assert run_context.enqueue.call_count == 0
+    assert multi_ui.message_queue.qsize() == 1

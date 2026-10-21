@@ -33,6 +33,10 @@ from zrb.llm.ui.base.message_queue import (
     settle_previous_job,
     submit_user_message_via_queue,
 )
+from zrb.llm.ui.base.queue_delivery import (
+    DeliveryReport,
+    send_queued_messages_now,
+)
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
@@ -738,6 +742,20 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def is_waiting_for_answer(self) -> bool:
         """Whether any child holds a prompt waiting for the user."""
         return any(ui.is_waiting_for_answer for ui in self._uis)
+
+    def send_queued_messages_now(self) -> DeliveryReport:
+        """Deliver the queued messages into the running turn, now.
+
+        The children share one queue and this wrapper runs the turn, so the
+        delivery happens here rather than in a child.
+        """
+        return send_queued_messages_now(
+            active_run_context=self.active_run_context,
+            queue=self._message_queue,
+            is_turn_running=self.is_turn_running,
+            is_waiting_for_answer=self.is_waiting_for_answer,
+            cancel_turn=lambda: self.cancel_current_turn("send_now"),
+        )
 
     def is_prompt_answered_since(self, asked_at: float) -> bool:
         """Whether any child has answered the first prompt asked at or after

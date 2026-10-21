@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.hook.interface import HookEvent
+from zrb.llm.ui.base.queue_delivery import describe_delivery
 from zrb.llm.util.attachment import (
     get_media_type,
     get_pasted_attachment_paths,
@@ -44,7 +45,7 @@ class UIKeybindings:
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
         # lazy: heavy third-party
-        from prompt_toolkit.filters import Condition, has_completions
+        from prompt_toolkit.filters import Condition, has_completions, has_selection
         from prompt_toolkit.keys import Keys
 
         ui = self._ui
@@ -139,6 +140,18 @@ class UIKeybindings:
         @app_keybindings.add("c-x")
         def _(event):
             self._on_delete_queued(event)
+
+        # Ctrl+G sends the queued messages into the running turn instead of
+        # waiting for it to end. An application binding outranks
+        # prompt_toolkit's own, so this takes the key from the default
+        # "cancel completion" binding — hence the completion and selection
+        # guards, which let those keep the key.
+        @app_keybindings.add(
+            "c-g",
+            filter=no_active_choice & ~has_completions & ~has_selection,
+        )
+        def _(event):
+            self._on_send_queued_now(event)
 
         if CFG.IS_TERMUX:
             # On Termux, Tab and Shift+Tab are indistinguishable (both byte 0x09),
@@ -325,6 +338,17 @@ class UIKeybindings:
         if not event.app.layout.has_focus(ui.input_field):
             return
         ui.handle_delete_queued(event)
+
+    def _on_send_queued_now(self, event: "KeyPressEvent") -> None:
+        """Ctrl+G sends the queued messages into the running turn, now.
+
+        The draft is left alone: Ctrl+G is not a submit, so a command in the
+        draft is not run and the text the user typed is not lost.
+        """
+        ui = self._ui
+        report = ui.send_queued_messages_now()
+        ui.append_to_output(stylize_muted(f"\n  ⏩ {describe_delivery(report)}\n"))
+        ui.invalidate_ui()
 
     def _on_escape(self, event: Any) -> None:
         ui = self._ui
