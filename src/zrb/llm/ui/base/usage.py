@@ -45,6 +45,13 @@ class BaseUIUsage:
                 getattr(context_usage, "output_tokens", 0) or 0
             )
 
+    def reset_context(self) -> None:
+        """Forget the context size (e.g. after compaction) until the next run.
+
+        Session totals are kept: compaction shrinks the window, not the spend.
+        """
+        self._context_tokens = 0
+
     def reset(self) -> None:
         """Zero the session token totals (e.g. when switching conversations)."""
         self._session_input_tokens = 0

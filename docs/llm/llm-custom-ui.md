@@ -652,6 +652,7 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 | Hook | Fired when |
 | --- | --- |
 | `accumulate_usage(usage, context_usage)` | A run reports token totals — needed for a session token meter |
+| `reset_context_usage()` | `/compress` compacted the history, so the meter's context size is stale until the next run |
 | `append_markdown(markdown_text)` | Markdown reaches the pane (the assistant's answer, or a markdownish user paste) — a child without it gets the pre-rendered text |
 | `mark_text_block_start()` | The assistant begins a text block |
 | `collapse_text_block(collapsed, full)` | That text block ends, with a short and a full form |

@@ -99,6 +99,14 @@ def test_ui_context_tokens_track_last_request(mock_ui_deps):
         text for _, text in ui.output_part.get_status_bar_text()
     )
 
+    # Compaction drops the context size but keeps the session's spend.
+    ui.reset_context_usage()
+    assert ui.usage.context_tokens == 0
+    assert ui.usage.session_token_usage == (2000, 20)
+    assert "ctx" not in "".join(
+        text for _, text in ui.output_part.get_status_bar_text()
+    )
+
     ui.usage.reset()
     assert ui.usage.context_tokens == 0
     assert ui.usage.session_cache_read_tokens == 0

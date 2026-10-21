@@ -741,6 +741,12 @@ class LLMTask(BaseTask):
             new_history = await summarize_history(message_history, force=True)
         history_manager.update(conversation_name, new_history)
         await asyncio.to_thread(history_manager.save, conversation_name)
+        # The status bar's context size predates the compaction; hide it until
+        # the next run reports the compacted window.
+        for ui in self._uis:
+            reset_context_usage = getattr(ui, "reset_context_usage", None)
+            if callable(reset_context_usage):
+                reset_context_usage()
         return True
 
     def _create_agent(

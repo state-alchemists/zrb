@@ -99,6 +99,18 @@ def test_multi_ui_accumulate_usage_forwards_to_children(
     child_ui_2.accumulate_usage.assert_called_once_with(usage, context_usage)
 
 
+def test_multi_ui_reset_context_usage_forwards_to_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.reset_context_usage = MagicMock()
+    child_ui_2.reset_context_usage = MagicMock()
+
+    multi_ui.reset_context_usage()
+
+    child_ui_1.reset_context_usage.assert_called_once_with()
+    child_ui_2.reset_context_usage.assert_called_once_with()
+
+
 def test_multi_ui_accumulate_usage_skips_children_without_method(multi_ui):
     # Children without accumulate_usage are silently skipped.
     no_method_child = MagicMock()
