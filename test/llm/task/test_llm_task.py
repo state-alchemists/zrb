@@ -325,3 +325,25 @@ async def test_compress_publishes_nothing_without_a_session_choice(session):
         await task.async_run(session)
 
     assert seen == [None]
+
+
+@pytest.mark.asyncio
+async def test_compress_hides_the_stale_context_size(session):
+    """`/compress` shrinks the window, so each UI drops its context size."""
+    ui = StdUI()
+    reset_context_usage = MagicMock()
+    setattr(ui, "reset_context_usage", reset_context_usage)
+    task = LLMTask(
+        name="compress-task",
+        message="/compress",
+        summarize_commands=["/compress"],
+        ui=ui,
+    )
+
+    async def fake_summarize(messages, **kwargs):
+        return messages
+
+    with patch("zrb.llm.task.llm_task.summarize_history", new=fake_summarize):
+        await task.async_run(session)
+
+    reset_context_usage.assert_called_once_with()

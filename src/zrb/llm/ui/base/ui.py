@@ -644,6 +644,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """Fold one run's usage into session totals and refresh context size."""
         self.usage.accumulate(usage, context_usage)
 
+    def reset_context_usage(self) -> None:
+        """Hide the now-stale context size after history is compacted."""
+        self.usage.reset_context()
+
     @property
     def tool_call_handler(self) -> Any:
         """Get the tool call handler for this UI."""

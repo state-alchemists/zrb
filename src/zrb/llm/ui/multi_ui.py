@@ -301,6 +301,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Forward one run's usage totals to every child UI."""
         self._fanout("accumulate_usage", usage, context_usage)
 
+    def reset_context_usage(self) -> None:
+        """Forward a context-size reset to every child UI."""
+        self._fanout("reset_context_usage")
+
     def append_markdown(self, markdown_text: str) -> None:
         """Render `markdown_text` on every child.
 
