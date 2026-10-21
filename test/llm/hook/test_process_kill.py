@@ -2,13 +2,17 @@
 
 import os
 import signal
+import subprocess
+import sys
 from unittest.mock import patch
 
 import pytest
 
+from zrb.llm.hook.process_io import has_exited, wait_for_exit
 from zrb.llm.hook.process_kill import (
     kill_process_group,
     kill_process_tree,
+    reap_killed_process,
     read_process_group,
 )
 
@@ -194,3 +198,41 @@ def test_kill_process_group_of_an_empty_group_signals_nothing_and_kills_no_pid()
 
 def test_kill_process_group_without_a_group_signals_nothing():
     assert kill_process_group(None) is None
+
+
+needs_waitid = pytest.mark.skipif(
+    not hasattr(os, "waitid"), reason="needs waitid to see an exit without reaping"
+)
+
+
+@posix_process_groups_only
+@needs_waitid
+def test_a_group_kill_leaves_an_exited_leader_unreaped():
+    "`Popen.kill` would poll first and reap it, freeing its pid for reuse."
+    process = subprocess.Popen([sys.executable, "-c", ""], start_new_session=True)
+    wait_for_exit(process)
+
+    with patch("os.killpg"):
+        kill_process_tree(process, pgid=process.pid)
+
+    assert process.returncode is None
+    process.wait()
+
+
+@posix_process_groups_only
+@needs_waitid
+def test_the_second_group_signal_goes_out_before_the_reap():
+    "While the leader is unreaped, its group id cannot be someone else's."
+    process = subprocess.Popen([sys.executable, "-c", ""], start_new_session=True)
+    signalled_while_unreaped = []
+
+    def killpg(group, sig):
+        signalled_while_unreaped.append(
+            has_exited(process) and process.returncode is None
+        )
+
+    with patch("os.killpg", side_effect=killpg):
+        reap_killed_process(process, process.pid)
+
+    assert signalled_while_unreaped == [True]
+    assert process.returncode == 0

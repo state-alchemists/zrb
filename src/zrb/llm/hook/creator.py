@@ -6,6 +6,7 @@ import logging
 import os
 import signal
 import subprocess
+import threading
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -14,8 +15,8 @@ from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.process_io import read_hook_output, run_detached
 from zrb.llm.hook.process_kill import (
-    kill_process_group,
     kill_process_tree,
+    reap_killed_process,
     read_process_group,
 )
 from zrb.llm.hook.schema import CommandHookConfig, PromptHookConfig
@@ -103,13 +104,10 @@ def create_command_hook(
                 )
             except asyncio.TimeoutError:
                 kill_process_tree(process, hook_pgid)
-                # A sync Popen's .wait() returns an int, so reap off-thread.
-                await run_detached(process.wait, name="zrb-hook-reap")
-                # A child the shell was forking as the signal landed can miss
-                # it (macOS does not hold a fork back for a pending kill, as
-                # Linux does). Reaped, the shell has no fork left in flight, so
-                # a second pass reaches every descendant.
-                kill_process_group(hook_pgid)
+                await run_detached(
+                    lambda: reap_killed_process(process, hook_pgid),
+                    name="zrb-hook-reap",
+                )
                 logger.warning(
                     f"Command hook timed out after {timeout}s and was killed: "
                     f"{config.command[:60]}"
@@ -120,7 +118,18 @@ def create_command_hook(
                 )
             except asyncio.CancelledError:
                 kill_process_tree(process, hook_pgid)
+                # The reap waits for the child to exit; this task is being
+                # cancelled, so it waits on a thread of its own.
+                threading.Thread(
+                    target=reap_killed_process,
+                    args=(process, hook_pgid),
+                    name="zrb-hook-reap",
+                    daemon=True,
+                ).start()
                 raise
+            # The output is read once the child exits, and left for this to
+            # reap, so `returncode` is set without waiting.
+            process.wait()
 
             return _interpret_exit(
                 exit_code=process.returncode,
