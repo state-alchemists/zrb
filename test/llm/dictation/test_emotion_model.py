@@ -16,6 +16,7 @@ import pytest
 
 from zrb.llm.dictation import emotion_model
 from zrb.llm.dictation.emotion_model import EmotionWorker
+from zrb.llm.util.model_load import heavy_model_load
 
 LABELS = ["happy", "sad"]
 SCORES = [0.9, 0.1]
@@ -359,6 +360,42 @@ def test_a_closed_worker_starts_nothing_more(in_threads):
 
     with pytest.raises(RuntimeError, match="closed"):
         worker.start()
+
+
+def test_a_load_in_the_chat_waits_while_the_child_loads(in_threads):
+    """The slot is a lock in the chat's process, and the child has a copy of its
+    own: what serializes the two loads is the chat holding its slot from the
+    spawn until the child says it is ready (ADR-0115)."""
+    loading = threading.Event()
+    release = threading.Event()
+    order: list[str] = []
+
+    def slow_load(repo):
+        loading.set()
+        release.wait(5)
+        order.append("emotion model loaded")
+        return _classify
+
+    in_threads.setattr(emotion_model, "load_classifier", slow_load)
+    worker = EmotionWorker("me/e2v")
+    starting = threading.Thread(target=worker.start, daemon=True)
+    starting.start()
+    assert loading.wait(5)
+
+    def load_speech():
+        with heavy_model_load("the speech service"):
+            order.append("speech service loading")
+
+    speech = threading.Thread(target=load_speech, daemon=True)
+    speech.start()
+    speech.join(0.2)
+    assert speech.is_alive()  # queued behind the child's load
+    release.set()
+    speech.join(5)
+    starting.join(5)
+    worker.close()
+
+    assert order == ["emotion model loaded", "speech service loading"]
 
 
 def test_close_does_not_wait_for_a_busy_child(in_threads):

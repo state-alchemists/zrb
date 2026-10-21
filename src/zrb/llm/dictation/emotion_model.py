@@ -102,7 +102,9 @@ def load_classifier(repo: str) -> Classify:
     # The slot is taken before the imports, not after: importing funasr brings
     # torch with it (517 MB measured), so an import outside the slot is half a
     # spike stacking on whatever else is loading. The local speech service
-    # takes it the same way, around its factory and its imports both.
+    # takes it the same way, around its factory and its imports both. In a
+    # worker's child the slot is the child's own and nothing contends for it:
+    # there, `EmotionWorker.start` holds the chat's slot for the whole load.
     with heavy_model_load("the emotion model"):
         # lazy: heavy third-party — huggingface_hub. funasr and torch are not zrb
         # dependencies, so funasr is imported by name.
@@ -162,6 +164,9 @@ class EmotionWorker:
                     f"the emotion worker was killed {deaths} times; this "
                     "machine has no room for it beside the chat"
                 )
+            # The slot is a lock in this process, and the child gets a copy of
+            # its own: held here from the spawn until the child is ready, it is
+            # what keeps a local speech service from loading beside the child.
             with heavy_model_load("the emotion model"):
                 process, connection = _spawn_child(self._repo)
                 try:
