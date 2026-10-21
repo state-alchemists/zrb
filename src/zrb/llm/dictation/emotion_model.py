@@ -97,6 +97,15 @@ MAX_DEATHS = 3
 OOM_SCORE_PATH = "/proc/self/oom_score_adj"
 
 
+class ChildDiedError(RuntimeError):
+    """The child went away or went silent, while loading or on a clip.
+
+    A death, counted against `MAX_DEATHS`: the worker may start another. An
+    error the child reports itself (`("error", reason)`) is not one: that model
+    will not load however often it is asked.
+    """
+
+
 def load_classifier(repo: str) -> Classify:
     """Load emotion2vec+ from the Hugging Face repo *repo*, in this process."""
     # The slot is taken before the imports, not after: importing funasr brings
@@ -171,6 +180,13 @@ class EmotionWorker:
                 process, connection = _spawn_child(self._repo)
                 try:
                     status, reason = self._wait_for_ready(connection)
+                except ChildDiedError:
+                    # Killed while it loaded, the moment its memory peaks and
+                    # the likeliest moment for the OOM killer to pick it.
+                    with self._state:
+                        self._deaths += 1
+                    _stop_child(process, connection)
+                    raise
                 except BaseException:
                     _stop_child(process, connection)
                     raise
@@ -210,7 +226,7 @@ class EmotionWorker:
                 )
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise RuntimeError(
+                raise ChildDiedError(
                     "the emotion worker said nothing for "
                     f"{READY_TIMEOUT_SECONDS:g}s while loading its model"
                 )
@@ -219,7 +235,7 @@ class EmotionWorker:
                     continue
                 reply = connection.recv()
             except (EOFError, OSError) as exc:
-                raise RuntimeError(
+                raise ChildDiedError(
                     f"the emotion worker stopped while loading its model ({exc})"
                 ) from exc
             return str(reply[0]), str(reply[1])
@@ -267,7 +283,7 @@ class EmotionWorker:
                     # again would cost every later utterance the whole timeout
                     # and keep its model resident for a worker nobody hears.
                     self._forget_child()
-                    raise RuntimeError(
+                    raise ChildDiedError(
                         "the emotion worker said nothing for "
                         f"{CLASSIFY_TIMEOUT_SECONDS:g}s"
                     )
@@ -276,7 +292,7 @@ class EmotionWorker:
                 # The child is gone (an out-of-memory kill, most likely). The
                 # next utterance starts another, up to `MAX_DEATHS`.
                 self._forget_child()
-                raise RuntimeError(f"the emotion worker stopped ({exc})") from exc
+                raise ChildDiedError(f"the emotion worker stopped ({exc})") from exc
             except _ChildSaidError:
                 # The child is alive and answered: it could not classify this
                 # clip. That is the clip's problem once, and the worker's when

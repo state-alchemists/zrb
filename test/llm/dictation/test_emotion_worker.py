@@ -9,6 +9,7 @@ import time
 import pytest
 
 from zrb.llm.dictation.emotion import EmotionDetector, Tone
+from zrb.llm.dictation.emotion_model import ChildDiedError
 
 from .test_emotion import LABELS, _wait_until
 
@@ -143,6 +144,48 @@ async def test_a_detector_gives_up_after_the_deaths_it_is_allowed(monkeypatch):
     [worker] = workers
     assert worker.deaths == 2  # the third attempt found the budget spent
     assert "no room for it" in detector.unavailable_reason
+
+
+@pytest.mark.asyncio
+async def test_a_child_killed_while_loading_is_started_again(monkeypatch):
+    """The load is where the child's memory peaks, so it is where the OOM killer
+    most likely takes it. That is a death like any other: the tone pauses, says
+    why, and the next clip starts another child beside its turn."""
+    workers: list[KilledOnceWorker] = []
+
+    class KilledOnceWorker:
+        def __init__(self, repo):
+            self.is_started = False
+            self.starts = 0
+            workers.append(self)
+
+        def start(self):
+            self.starts += 1
+            if self.starts == 1:
+                raise ChildDiedError("the emotion worker stopped while loading")
+            self.is_started = True
+            return lambda samples: {
+                "labels": LABELS,
+                "scores": [0.0, 0.9, 0.1, 0.0, 0.0],
+            }
+
+        def close(self):
+            self.is_started = False
+
+    monkeypatch.setattr("zrb.llm.dictation.emotion.EmotionWorker", KilledOnceWorker)
+    detector = EmotionDetector("me/e2v", out_of_process=True)
+    clip = b"\x00\x10" * 160
+
+    await detector.prepare(lambda message: None)
+    assert "the next utterance starts another" in detector.unavailable_reason
+
+    assert await _keep_hearing(detector, clip, lambda tone: tone is not None) == (
+        Tone("happy", 0.9)
+    )
+    [worker] = workers
+    assert worker.starts == 2
+    assert detector.unavailable_reason == ""
+    detector.close()
 
 
 async def _keep_hearing(detector, clip, until, timeout: float = 2.0):

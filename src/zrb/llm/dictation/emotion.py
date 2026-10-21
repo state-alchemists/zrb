@@ -22,6 +22,7 @@ from dataclasses import dataclass
 
 from zrb.llm.dictation.emotion_model import (
     MODEL_ERRORS,
+    ChildDiedError,
     Classify,
     EmotionWorker,
     load_classifier,
@@ -81,6 +82,9 @@ class EmotionDetector:
         # time.
         self._model_lock = threading.Lock()
         self._unavailable_reason = ""
+        # Why the last child died while it loaded, until another one loads: no
+        # tone is heard meanwhile, though the next clip starts another child.
+        self._death_reason = ""
 
     def begin_loading(self) -> None:
         """Say the model is about to load, before the task that loads it runs.
@@ -106,9 +110,10 @@ class EmotionDetector:
 
     @property
     def unavailable_reason(self) -> str:
-        """Why the model could not load, so no tone is heard; ``""`` while it
-        is loaded or not tried yet."""
-        return self._unavailable_reason
+        """Why no tone is heard: the model could not load, or its child died
+        while loading and the next clip starts another; ``""`` while it is
+        loaded or not tried yet."""
+        return self._unavailable_reason or self._death_reason
 
     async def hear(self, audio: bytes) -> Tone | None:
         """The tone of *audio* (16 kHz mono 16-bit PCM), or ``None`` when it
@@ -166,21 +171,28 @@ class EmotionDetector:
         return self._load()
 
     def _has_restarted_dead_child(self) -> bool:
-        """Whether the child behind the kept callable has died, in which case
-        its replacement starts loading on a thread of its own.
+        """Whether the worker's child has died, under a clip or while it
+        loaded, in which case its replacement starts loading on a thread of its
+        own.
 
         The callable a worker hands out talks to a pipe that is gone, so keeping
         it would cost every later clip a failure and never start another child.
         The worker stays: it carries the count of children it has lost, which
         is what stops the restarts at `MAX_DEATHS`."""
         with self._state:
-            classify, worker = self._classify, self._worker
-        if classify is None or worker is None or worker.is_started:
+            worker = self._worker
+        if worker is None or worker.is_started or self._loading.locked():
+            # No worker yet, a live child, or a load already under way.
             return False
         with self._state:
             # Marked in the same step that drops the callable, so a clip racing
             # this one finds the restart under way instead of taking it on.
-            if self._is_closed or self._classify is not classify:
+            if (
+                self._is_closed
+                or self._is_preparing
+                or self._unavailable_reason
+                or self._worker is not worker
+            ):
                 return False
             self._classify = None
             self._is_preparing = True
@@ -250,6 +262,7 @@ class EmotionDetector:
             if self._is_closed:
                 return None
             self._classify = classify
+            self._death_reason = ""
             return classify
 
     def _keep_worker(self, worker: EmotionWorker) -> EmotionWorker | None:
@@ -279,6 +292,12 @@ class EmotionDetector:
             return
         try:
             classify = worker.start()
+        except ChildDiedError as exc:
+            # The worker counted the death and stays, so the next clip starts
+            # another child through it, up to `MAX_DEATHS`.
+            self._death_reason = f"{exc}; the next utterance starts another"
+            logger.warning(f"Emotion detection paused: {self._death_reason}")
+            return
         except BaseException:
             # It could not start: `_load` turns the tone off for the session,
             # so nothing will ask this worker again.
