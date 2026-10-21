@@ -377,7 +377,7 @@ To store history somewhere else (a database, an object store), subclass `AnyHist
 | `load(conversation_name)` | Return the conversation's messages, or `[]` when there are none |
 | `update(conversation_name, messages)` | Replace the conversation's messages in memory. Called during and after a turn |
 | `save(conversation_name, write_backup=True)` | Persist what `update` staged. `write_backup` asks for a backup copy of the previous version |
-| `search(keyword)` | Return conversation names matching `keyword`, for `/load` completion |
+| `search(keyword, include_delegated=True, include_empty=True)` | Return conversation names matching `keyword`, for `/load` completion. `include_delegated=False` omits sub-agent transcripts, `include_empty=False` omits conversations holding no messages |
 
 ### Other public members
 

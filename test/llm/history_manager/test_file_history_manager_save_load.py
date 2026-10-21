@@ -104,6 +104,26 @@ def test_file_history_manager_search_empty_orders_by_mtime_desc(temp_history_dir
     assert manager.search("") == ["new", "mid", "old"]
 
 
+def test_file_history_manager_search_can_hide_conversations_with_no_messages(
+    temp_history_dir,
+):
+    """`/load` asks for this: a name reserved and never used leaves a file, and
+    those outnumber the sessions with something in them."""
+    from pydantic_ai.messages import ModelRequest
+
+    manager = FileHistoryManager(temp_history_dir)
+    manager.update("used", [ModelRequest(parts=[UserPromptPart(content="hello")])])
+    manager.save("used", write_backup=False)
+    # The manager's own writer, spelling an empty history `[]`.
+    manager.update("reserved", [])
+    manager.save("reserved", write_backup=False)
+    # A file the save path never wrote at all.
+    open(os.path.join(temp_history_dir, "blank.json"), "w").close()
+
+    assert manager.search("", include_empty=False) == ["used"]
+    assert set(manager.search("")) == {"used", "reserved", "blank"}
+
+
 def test_file_history_manager_load_empty(temp_history_dir):
     manager = FileHistoryManager(temp_history_dir)
     file_path = os.path.join(temp_history_dir, "empty.json")

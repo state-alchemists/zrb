@@ -38,6 +38,13 @@ _BACKUP_FILENAME_PATTERN = re.compile(
 # conversations.
 _MAX_CACHED_CONVERSATIONS = 8
 
+# A history file with no messages holds an empty list, which the writer
+# (`json.dump(messages, f, indent=2)`) spells `[]` — two bytes — while a name
+# reserved before anything was said is an empty file of zero. Anything larger
+# has at least one message, so `search` can drop the empties by size without
+# reading every file in the directory.
+_EMPTY_HISTORY_MAX_BYTES = 2
+
 
 def safe_segment(name: str) -> str:
     """A filesystem-safe single path segment for *name* (also used for the
@@ -154,6 +161,15 @@ class FileHistoryManager(AnyHistoryManager):
             return os.path.getmtime(file_path)
         except OSError:
             return None
+
+    @staticmethod
+    def _file_stat(file_path: str) -> "tuple[float, int] | None":
+        """The file's mtime and size, or None when it cannot be read."""
+        try:
+            stat = os.stat(file_path)
+        except OSError:
+            return None
+        return stat.st_mtime, stat.st_size
 
     def save(self, conversation_name: str, write_backup: bool = True):
         # lazy: heavy third-party
@@ -278,7 +294,19 @@ class FileHistoryManager(AnyHistoryManager):
         self._cache_mtime.pop(conversation_name, None)
         self._dirty.discard(conversation_name)
 
-    def search(self, keyword: str, include_delegated: bool = True) -> list[str]:
+    def search(
+        self,
+        keyword: str,
+        include_delegated: bool = True,
+        include_empty: bool = True,
+    ) -> list[str]:
+        """Conversation names matching *keyword*, newest first among equals.
+
+        `include_delegated=False` omits sub-agent transcripts.
+        `include_empty=False` omits conversations that hold no messages — a
+        name reserved and then never used leaves a file behind for every such
+        attempt, so they otherwise crowd out the ones with something to load.
+        """
         if not os.path.exists(self._history_dir):
             return []
 
@@ -299,9 +327,17 @@ class FileHistoryManager(AnyHistoryManager):
                 conversation_name = filename[:-5]
 
                 is_match, score = fuzzy_match(conversation_name, keyword)
-                if is_match:
-                    mtime = self._file_mtime(os.path.join(directory, filename))
-                    matches.append((conversation_name, score, mtime or 0.0))
+                if not is_match:
+                    continue
+                file_stat = self._file_stat(os.path.join(directory, filename))
+                if (
+                    not include_empty
+                    and file_stat is not None
+                    and file_stat[1] <= _EMPTY_HISTORY_MAX_BYTES
+                ):
+                    continue
+                mtime = file_stat[0] if file_stat is not None else None
+                matches.append((conversation_name, score, mtime or 0.0))
 
         # Sort by fuzzy score (lower is better), then most-recently-modified
         # first. With an empty keyword every score is 0.0, so the effective

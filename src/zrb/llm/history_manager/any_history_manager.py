@@ -19,7 +19,13 @@ class AnyHistoryManager(ABC):
         pass
 
     @abstractmethod
-    def search(self, keyword: str, include_delegated: bool = True) -> list[str]:
+    def search(
+        self,
+        keyword: str,
+        include_delegated: bool = True,
+        include_empty: bool = True,
+    ) -> list[str]:
         """Conversation names matching `keyword`; `include_delegated=False`
-        omits sub-agent transcripts (those stored under `subagent/`)."""
+        omits sub-agent transcripts (those stored under `subagent/`), and
+        `include_empty=False` omits conversations with no messages."""
         pass

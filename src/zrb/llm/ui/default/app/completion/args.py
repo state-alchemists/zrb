@@ -55,8 +55,12 @@ def complete_load_arg(
     arg_prefix: str,
     history_manager: AnyHistoryManager,
 ) -> Iterable[Completion]:
-    """Main-agent sessions matching `arg_prefix`; delegated ones are omitted."""
-    results = history_manager.search(arg_prefix, include_delegated=False)
+    """Main-agent sessions matching `arg_prefix`; delegated and empty ones are
+    omitted. An empty session has nothing to load, and one is left behind by
+    every conversation that was named but never used."""
+    results = history_manager.search(
+        arg_prefix, include_delegated=False, include_empty=False
+    )
     for res in results[:_LOAD_COMPLETION_LIMIT]:
         yield Completion(res, start_position=-len(arg_prefix))
 
