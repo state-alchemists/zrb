@@ -6,10 +6,8 @@ loading a two-gigabyte model into a test.
 """
 
 import multiprocessing
-import os
 import sys
 import threading
-from multiprocessing.connection import Connection
 from types import SimpleNamespace
 
 import pytest
@@ -22,15 +20,11 @@ SCORES = [0.9, 0.1]
 
 
 class ThreadProcess:
-    """A `multiprocessing.Process` that runs its target as a thread.
-
-    Every pipe end the target receives is duplicated up front, as a real spawn
-    gives the child a handle of its own: without that, the parent closing its
-    copy of the child's end would close the child's too."""
+    """A `multiprocessing.Process` that runs its target as a thread."""
 
     def __init__(self, target, args, daemon):
         self._target = target
-        self._args = tuple(_own_handle(arg) for arg in args)
+        self._args = args
         self._thread = None
         self.was_terminated = False
 
@@ -50,21 +44,33 @@ class ThreadProcess:
         self.was_terminated = True
 
 
+class ChildEnd:
+    """The child's end of the pipe as `_spawn_child` sees it: an object it
+    closes right after starting the child, holding the end the thread uses.
+
+    A real spawn can close that end, because the child has a handle of its own.
+    A thread shares the parent's, and the only portable way to give it a handle
+    of its own would be a platform-specific duplication (`os.dup` is a file
+    descriptor call; on Windows this holds a Win32 handle). So the close is a
+    no-op here and the thread keeps the real end."""
+
+    def __init__(self, connection):
+        self.connection = connection
+
+    def close(self):
+        pass
+
+
 class ThreadContext:
     """A `multiprocessing` context whose processes are threads."""
 
     def Pipe(self, duplex=True):
-        return multiprocessing.Pipe(duplex)
+        parent_connection, child_connection = multiprocessing.Pipe(duplex)
+        return parent_connection, ChildEnd(child_connection)
 
     def Process(self, target, args, daemon):
-        return ThreadProcess(target, args, daemon)
-
-
-def _own_handle(arg):
-    """*arg*, or a handle of its own when it is a pipe end."""
-    if isinstance(arg, Connection):
-        return Connection(os.dup(arg.fileno()))
-    return arg
+        child_end, *rest = args
+        return ThreadProcess(target, (child_end.connection, *rest), daemon)
 
 
 def _classify(samples):
@@ -159,6 +165,36 @@ def test_a_child_that_keeps_dying_is_given_up_on(in_threads):
             worker.start()
     finally:
         worker.close()
+
+
+def test_a_clip_that_gets_no_answer_stops_the_child(in_threads):
+    """A child that says nothing for a clip is wedged, not slow. It is stopped
+    like a dead one, so later clips do not each wait out the timeout, and its
+    model does not stay resident for a worker nothing can use."""
+    attempts = []
+
+    def wedged_once(repo):
+        attempts.append(repo)
+        if len(attempts) == 1:
+
+            def wedged(samples):
+                threading.Event().wait(0.3)
+                return {"labels": LABELS, "scores": SCORES}
+
+            return wedged
+        return _classify
+
+    in_threads.setattr(emotion_model, "load_classifier", wedged_once)
+    in_threads.setattr(emotion_model, "CLASSIFY_TIMEOUT_SECONDS", 0.05)
+    worker = EmotionWorker("me/e2v")
+    try:
+        with pytest.raises(RuntimeError, match="said nothing"):
+            worker.start()(b"\x00\x00")
+        assert not worker.is_started
+        assert worker.start()(b"\x00\x00") == {"labels": LABELS, "scores": SCORES}
+    finally:
+        worker.close()
+    assert len(attempts) == 2
 
 
 def test_a_closed_worker_starts_nothing_more(in_threads):

@@ -63,6 +63,12 @@ class EmotionDetector:
         self._out_of_process = out_of_process
         self._classify: Classify | None = None
         self._worker: EmotionWorker | None = None
+        # Guards the three fields around it. The load runs on a thread of its
+        # own, so `close` can land in the middle of it: without this, the thread
+        # publishes a child nobody will ask anything, and it stays resident for
+        # the rest of the chat.
+        self._state = threading.Lock()
+        self._is_closed = False
         # Guards loading the model. Taken without waiting: an utterance heard
         # while the model loads gets no tone rather than waiting for it.
         self._loading = threading.Lock()
@@ -74,6 +80,8 @@ class EmotionDetector:
     async def prepare(self, report: Callable[[str], None]) -> None:
         """Load the model before the first utterance, through *report*
         saying so when it is not loaded yet."""
+        if self._is_closed:
+            return
         if self._classify is None and not self._unavailable_reason:
             report("Loading the emotion model…")
         await run_in_daemon(self._get_classify, name="zrb-emotion")
@@ -97,13 +105,24 @@ class EmotionDetector:
         return await run_in_daemon(self._hear, audio, name="zrb-emotion")
 
     def close(self) -> None:
-        """Stop the worker process that held the model, if there is one."""
-        worker, self._worker = self._worker, None
-        self._classify = None
+        """Stop the worker process that held the model, if there is one.
+
+        A load still running is not waited for: it finds the detector closed
+        when it lands and closes the worker it made, rather than keeping a child
+        nobody can reach for the rest of the chat.
+        """
+        with self._state:
+            self._is_closed = True
+            worker, self._worker = self._worker, None
+            self._classify = None
         if worker is not None:
             worker.close()
 
     def _hear(self, audio: bytes) -> Tone | None:
+        if self._is_closed:
+            # A clip still arriving as the session ends: nothing to ask, and no
+            # failure to report for a worker that was stopped on purpose.
+            return None
         classify = self._get_classify()
         if classify is None or not audio:
             return None
@@ -128,37 +147,86 @@ class EmotionDetector:
     def _get_classify(self) -> Classify | None:
         """The model's classify callable, loading it when this thread is the
         one to, and ``None`` when it is not loaded yet."""
-        if self._classify is not None or self._unavailable_reason:
-            return self._classify
+        if self._is_closed:
+            return None
+        classify = self._loaded()
+        if classify is not None or self._unavailable_reason:
+            return classify
         if not self._loading.acquire(blocking=False):
             # Another thread is loading it: no tone this time, no wait either.
             return None
         try:
-            if self._classify is None and not self._unavailable_reason:
+            if self._is_closed:
+                return None
+            if self._loaded() is None and not self._unavailable_reason:
                 try:
-                    self._classify = self._create_classify()
+                    self._create_classify()
                 except MODEL_ERRORS as exc:
                     # Keep dictating, without tones.
                     self._unavailable_reason = _why_unavailable(exc)
                     logger.warning(
                         f"Emotion detection is off: {self._unavailable_reason}"
                     )
-            return self._classify
+            return self._loaded()
         finally:
             self._loading.release()
 
-    def _create_classify(self) -> Classify:
-        """The classify callable, from a child process or from this one."""
+    def _loaded(self) -> Classify | None:
+        """The callable kept for later clips, or ``None`` when there is none to
+        use — a closed detector, or a child that has died since.
+
+        A dead child is discovered here rather than in the call itself: the
+        callable a worker hands out talks to a pipe that is gone, so keeping it
+        would cost every later clip a failure and never start another child
+        (ADR-0115). Dropping it lets the next clip start one, up to
+        `MAX_DEATHS`."""
+        with self._state:
+            if self._is_closed:
+                return None
+            classify, worker = self._classify, self._worker
+        if classify is None:
+            return None
+        if worker is None or worker.is_started:
+            return classify
+        self._forget_loaded(classify)
+        return None
+
+    def _forget_loaded(self, classify: Classify) -> None:
+        """Drop *classify* unless a newer one replaced it meanwhile."""
+        with self._state:
+            if self._classify is not classify:
+                return
+            self._classify, self._worker = None, None
+
+    def _publish(
+        self, classify: Classify, worker: EmotionWorker | None
+    ) -> Classify | None:
+        """Keep *classify*, and *worker* when there is one, for later clips, or
+        ``None`` when this detector was closed while they were being made."""
+        with self._state:
+            if self._is_closed:
+                return None
+            self._classify, self._worker = classify, worker
+            return classify
+
+    def _create_classify(self) -> None:
+        """Load the model, here or in a child process, and keep it for later
+        clips unless the detector was closed while it loaded."""
         if not self._out_of_process:
-            return load_classifier(self._model_repo)
+            # Dropped when closed meanwhile: nothing was started to keep.
+            self._publish(load_classifier(self._model_repo), None)
+            return
         worker = EmotionWorker(self._model_repo)
         try:
             classify = worker.start()
         except BaseException:
             worker.close()
             raise
-        self._worker = worker
-        return classify
+        if self._publish(classify, worker) is None:
+            # Closed while the model loaded: nobody will ask this child
+            # anything, and leaving it running would keep its share of the
+            # machine alive after the session ended.
+            worker.close()
 
 
 def _why_unavailable(exc: BaseException) -> str:

@@ -141,15 +141,18 @@ class EmotionWorker:
                 _stop_child(process, connection)
                 raise RuntimeError(reason or "the emotion model did not load")
             with self._state:
-                if self._is_closed:
-                    # Closed while the model loaded: nobody wants this child.
-                    _stop_child(process, connection)
-                    raise RuntimeError(
-                        "the emotion worker was closed before its model finished "
-                        "loading, so no tone is heard"
-                    )
-                self._process, self._connection = process, connection
-                self._classify = self._request
+                is_closed = self._is_closed
+                if not is_closed:
+                    self._process, self._connection = process, connection
+                    self._classify = self._request
+            if is_closed:
+                # Closed while the model loaded: nobody wants this child. It is
+                # stopped outside the lock, since stopping one waits for it.
+                _stop_child(process, connection)
+                raise RuntimeError(
+                    "the emotion worker was closed before its model finished "
+                    "loading, so no tone is heard"
+                )
             return self._request
 
     def close(self) -> None:
@@ -165,24 +168,30 @@ class EmotionWorker:
         with self._requesting:
             with self._state:
                 connection = self._connection
-                if connection is None:
-                    raise RuntimeError(
-                        "the emotion worker is not running, so this clip's tone "
-                        "is not heard"
-                    )
+            if connection is None:
+                raise RuntimeError(
+                    "the emotion worker is not running, so this clip's tone "
+                    "is not heard"
+                )
             try:
                 connection.send(samples)
-                if not connection.poll(CLASSIFY_TIMEOUT_SECONDS):
-                    raise RuntimeError(
-                        "the emotion worker said nothing for "
-                        f"{CLASSIFY_TIMEOUT_SECONDS:g}s"
-                    )
-                return _read_reply(connection.recv())
+                if connection.poll(CLASSIFY_TIMEOUT_SECONDS):
+                    return _read_reply(connection.recv())
             except (EOFError, OSError) as exc:
                 # The child is gone (an out-of-memory kill, most likely). The
                 # next utterance starts another, up to `MAX_DEATHS`.
                 self._forget_child()
                 raise RuntimeError(f"the emotion worker stopped ({exc})") from exc
+            # A child that says nothing for a clip is wedged, not slow (the
+            # measurement is ~0.3 s), and it will not answer the next clip
+            # either. It is stopped like a dead one: asking it again would cost
+            # every later utterance the whole timeout and keep its model
+            # resident for a worker nobody hears.
+            self._forget_child()
+            raise RuntimeError(
+                "the emotion worker said nothing for "
+                f"{CLASSIFY_TIMEOUT_SECONDS:g}s"
+            )
 
     def _forget_child(self) -> None:
         with self._state:

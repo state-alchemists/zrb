@@ -304,9 +304,11 @@ async def test_out_of_process_classifies_through_a_worker(monkeypatch):
         def __init__(self, repo):
             self.repo = repo
             self.closed = False
+            self.is_started = False
             workers.append(self)
 
         def start(self):
+            self.is_started = True
             return lambda samples: {
                 "labels": LABELS,
                 "scores": [0.0, 0.9, 0.1, 0.0, 0.0],
@@ -314,6 +316,7 @@ async def test_out_of_process_classifies_through_a_worker(monkeypatch):
 
         def close(self):
             self.closed = True
+            self.is_started = False
 
     monkeypatch.setattr("zrb.llm.dictation.emotion.EmotionWorker", FakeWorker)
     detector = EmotionDetector("me/e2v", out_of_process=True)
@@ -324,6 +327,88 @@ async def test_out_of_process_classifies_through_a_worker(monkeypatch):
     [worker] = workers
     assert worker.repo == "me/e2v"
     assert worker.closed
+
+
+@pytest.mark.asyncio
+async def test_a_worker_whose_child_died_is_started_again(monkeypatch):
+    """One dead child costs the tones it would have heard, not every tone after
+    it: the next clip starts another, up to `MAX_DEATHS` (ADR-0115)."""
+    workers: list[DyingWorker] = []
+
+    class DyingWorker:
+        def __init__(self, repo):
+            self.closed = False
+            self.is_started = False
+            workers.append(self)
+
+        def start(self):
+            self.is_started = True
+            return self._classify
+
+        def _classify(self, samples):
+            if len(workers) == 1:
+                # The kernel picked this child, as `make_expendable` asked it to.
+                self.is_started = False
+                raise RuntimeError("the emotion worker stopped (killed)")
+            return {"labels": LABELS, "scores": [0.0, 0.9, 0.1, 0.0, 0.0]}
+
+        def close(self):
+            self.closed = True
+            self.is_started = False
+
+    monkeypatch.setattr("zrb.llm.dictation.emotion.EmotionWorker", DyingWorker)
+    detector = EmotionDetector("me/e2v", out_of_process=True)
+    clip = b"\x00\x10" * 160
+
+    assert await detector.hear(clip) is None
+    assert await detector.hear(clip) == Tone("happy", 0.9)
+
+    assert len(workers) == 2
+    detector.close()
+
+
+@pytest.mark.asyncio
+async def test_a_session_ending_mid_load_closes_the_worker_it_made(monkeypatch):
+    """The model loads on a thread of its own, so a session can end before it
+    lands. The child it made is then closed instead of kept: nothing can reach
+    it, and it would hold its share of the machine for the rest of the chat."""
+    started = threading.Event()
+    release = threading.Event()
+    workers: list[LoadingWorker] = []
+
+    class LoadingWorker:
+        def __init__(self, repo):
+            self.closed = False
+            self.is_started = False
+            workers.append(self)
+
+        def start(self):
+            started.set()
+            release.wait(5)
+            self.is_started = True
+            return lambda samples: {
+                "labels": LABELS,
+                "scores": [0.0, 0.9, 0.1, 0.0, 0.0],
+            }
+
+        def close(self):
+            self.closed = True
+            self.is_started = False
+
+    monkeypatch.setattr(
+        "zrb.llm.dictation.emotion.EmotionWorker", LoadingWorker
+    )
+    detector = EmotionDetector("me/e2v", out_of_process=True)
+    prepare = asyncio.create_task(detector.prepare(lambda message: None))
+    assert await asyncio.to_thread(started.wait, 5)
+
+    prepare.cancel()  # what `_close_emotion` does to a load still running
+    detector.close()
+    release.set()
+
+    assert await _wait_until(lambda: bool(workers) and workers[0].closed)
+    assert await detector.hear(b"\x00\x10" * 160) is None
+    assert len(workers) == 1
 
 
 @pytest.mark.asyncio
