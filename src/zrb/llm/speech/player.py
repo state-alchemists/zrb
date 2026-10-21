@@ -124,9 +124,12 @@ class Speaker:
         self._failing_backend: AnySpeechBackend | None = None
         self._failed_renders = 0
         # Whether a warm-up is running, and whether this backend set was warmed
-        # once: the model behind it loads once, whatever asks again.
+        # once: the model behind it loads once, whatever asks again. The
+        # generation tells a warm-up of a set that `restart_backends` has since
+        # replaced from the one that is current now.
         self._is_warming_up = False
         self._is_warmed_up = False
+        self._warm_up_generation = 0
         # Set when that backend is dead; the drop waits for the next sentence.
         self._is_restart_pending = False
         # Paused utterances wait on `_unpaused`.
@@ -427,21 +430,29 @@ class Speaker:
             if self._is_warmed_up or self._is_warming_up or self._is_closed:
                 return
             self._is_warming_up = True
+            generation = self._warm_up_generation
         threading.Thread(
             target=self._warm_up,
+            args=(generation,),
             name=f"{CFG.ROOT_GROUP_NAME}-speech-warm-up",
             daemon=True,
         ).start()
 
-    def _warm_up(self) -> None:
+    def _warm_up(self, generation: int) -> None:
         """Warm the backend set once, whatever the probe came to: a model that
-        did not load is the first sentence's to load."""
+        did not load is the first sentence's to load.
+
+        Only the warm-up of the current set says the set is warm. One that a
+        `restart_backends` overtook warmed models the fresh set does not hold,
+        so its completion leaves the flag down and the next `warm_up` warms the
+        set that is there now."""
         try:
             self._warm_one_word()
         finally:
             with self._lock:
-                self._is_warming_up = False
-                self._is_warmed_up = True
+                if generation == self._warm_up_generation:
+                    self._is_warming_up = False
+                    self._is_warmed_up = True
 
     def _warm_one_word(self) -> None:
         try:
@@ -500,6 +511,11 @@ class Speaker:
             owned, self._owned_backends = self._owned_backends, []
             self._failing_backend = None
             self._failed_renders = 0
+            # A warm-up still running is warming what `_backends` no longer
+            # holds: its completion must not mark the fresh set warm, and the
+            # set it leaves behind is a new generation's to warm.
+            self._warm_up_generation += 1
+            self._is_warming_up = False
             self._is_warmed_up = False
         for backend in owned:
             backend.close()

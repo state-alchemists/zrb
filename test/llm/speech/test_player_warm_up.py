@@ -200,6 +200,26 @@ def test_a_restarted_backend_set_is_warmed_again(lock_file):
     assert backend.made == ["Hi.", "Hi."]
 
 
+def test_a_warm_up_the_restart_overtook_does_not_mark_the_fresh_set_warm(lock_file):
+    """A warm-up still running when the set is dropped warmed models the fresh
+    set does not hold. Its completion must leave the flag down, or the turn
+    after it is the one that loads the model synchronously."""
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.warm_up()
+    assert backend.entered.wait(5)
+    speaker.restart_backends()
+    backend.release.set()
+    assert backend.closed.wait(5)  # the overtaken warm-up finished
+
+    backend.closed.clear()
+    speaker.warm_up()
+
+    assert backend.closed.wait(5)  # the fresh set was warmed after all
+    assert backend.made == ["Hi.", "Hi."]
+
+
 class FallbackBackend(CloudBackend):
     """The local voice a speaker falls back to."""
 

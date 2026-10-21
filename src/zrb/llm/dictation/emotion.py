@@ -162,6 +162,10 @@ class EmotionDetector:
                 try:
                     self._create_classify()
                 except MODEL_ERRORS as exc:
+                    if self._is_closed:
+                        # The session ended while the model loaded: nothing is
+                        # off, there is just no tone left to hear.
+                        return None
                     # Keep dictating, without tones.
                     self._unavailable_reason = _why_unavailable(exc)
                     logger.warning(
@@ -198,34 +202,43 @@ class EmotionDetector:
                 return
             self._classify, self._worker = None, None
 
-    def _publish(
-        self, classify: Classify, worker: EmotionWorker | None
-    ) -> Classify | None:
-        """Keep *classify*, and *worker* when there is one, for later clips, or
-        ``None`` when this detector was closed while they were being made."""
+    def _publish(self, classify: Classify) -> Classify | None:
+        """Keep *classify* for later clips, or ``None`` when this detector was
+        closed while the model loaded."""
         with self._state:
             if self._is_closed:
                 return None
-            self._classify, self._worker = classify, worker
+            self._classify = classify
             return classify
+
+    def _keep_worker(self, worker: EmotionWorker) -> EmotionWorker | None:
+        """Keep *worker* from before its model loads, so `close` can stop the
+        child a load in progress would otherwise leave behind, or ``None`` when
+        this detector was closed first."""
+        with self._state:
+            if self._is_closed:
+                return None
+            self._worker = worker
+            return worker
 
     def _create_classify(self) -> None:
         """Load the model, here or in a child process, and keep it for later
         clips unless the detector was closed while it loaded."""
         if not self._out_of_process:
-            # Dropped when closed meanwhile: nothing was started to keep.
-            self._publish(load_classifier(self._model_repo), None)
+            # Nothing to stop: a model built here goes with this call.
+            self._publish(load_classifier(self._model_repo))
             return
         worker = EmotionWorker(self._model_repo)
+        if self._keep_worker(worker) is None:
+            return
         try:
             classify = worker.start()
         except BaseException:
             worker.close()
             raise
-        if self._publish(classify, worker) is None:
-            # Closed while the model loaded: nobody will ask this child
-            # anything, and leaving it running would keep its share of the
-            # machine alive after the session ended.
+        if self._publish(classify) is None:
+            # Closed while the model loaded: `close` stopped this worker, and
+            # the second close is the no-op for a child already taken down.
             worker.close()
 
 

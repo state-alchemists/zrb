@@ -8,6 +8,7 @@ loading a two-gigabyte model into a test.
 import multiprocessing
 import sys
 import threading
+import time
 from types import SimpleNamespace
 
 import pytest
@@ -70,7 +71,13 @@ class ThreadContext:
 
     def Process(self, target, args, daemon):
         child_end, *rest = args
-        return ThreadProcess(target, (child_end.connection, *rest), daemon)
+        process = ThreadProcess(target, (child_end.connection, *rest), daemon)
+        STARTED.append(process)
+        return process
+
+
+#: Every thread standing in for a child, in the order they were started.
+STARTED: list[ThreadProcess] = []
 
 
 def _classify(samples):
@@ -80,6 +87,7 @@ def _classify(samples):
 @pytest.fixture
 def in_threads(monkeypatch):
     """`EmotionWorker` starts a thread instead of a process, with a fake model."""
+    STARTED.clear()
     monkeypatch.setattr(
         emotion_model,
         "multiprocessing",
@@ -195,6 +203,48 @@ def test_a_clip_that_gets_no_answer_stops_the_child(in_threads):
     finally:
         worker.close()
     assert len(attempts) == 2
+
+
+def test_a_close_while_the_model_loads_stops_the_child(in_threads):
+    """`start` waits for the model; `close` must not wait for `start`.
+
+    The wait is polled, so a close is seen while the child is still loading,
+    and the child it would otherwise leave behind is terminated instead of
+    staying resident after the session that asked for it is gone."""
+    loading = threading.Event()
+    release = threading.Event()
+
+    def slow_load(repo):
+        loading.set()
+        release.wait(10)
+        return _classify
+
+    in_threads.setattr(emotion_model, "load_classifier", slow_load)
+    worker = EmotionWorker("me/e2v")
+    failure: list[BaseException] = []
+
+    def start():
+        try:
+            worker.start()
+        except BaseException as exc:
+            failure.append(exc)
+
+    thread = threading.Thread(target=start, daemon=True)
+    thread.start()
+    assert loading.wait(5)
+
+    worker.close()
+
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and not STARTED[0].was_terminated:
+        time.sleep(0.01)
+    assert STARTED[0].was_terminated  # the child was taken down, not kept
+    release.set()
+    thread.join(5)
+
+    assert not thread.is_alive()
+    assert not worker.is_started
+    assert failure and "closed" in str(failure[0])
 
 
 def test_a_closed_worker_starts_nothing_more(in_threads):

@@ -404,6 +404,9 @@ async def test_a_session_ending_mid_load_closes_the_worker_it_made(monkeypatch):
 
     prepare.cancel()  # what `_close_emotion` does to a load still running
     detector.close()
+    # The worker was kept before its model loaded, so closing reaches it now
+    # rather than when the load lands.
+    assert workers[0].closed
     release.set()
 
     assert await _wait_until(lambda: bool(workers) and workers[0].closed)

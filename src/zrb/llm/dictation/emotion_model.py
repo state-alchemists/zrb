@@ -26,6 +26,7 @@ import logging
 import multiprocessing
 import os
 import threading
+import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, cast
 
@@ -62,6 +63,18 @@ MODEL_ERRORS = (
 #: ~20 s on a slow disk, and the number is generous so a slow machine is not
 #: mistaken for a broken one.
 READY_TIMEOUT_SECONDS = 120.0
+
+#: How long one readiness poll waits before the worker's closed flag is read
+#: again: short enough that a session ending mid-load stops its child at once,
+#: long enough not to spin. A child that is loading its model reads nothing from
+#: the pipe, so waiting on it in one long call is how the child outlived the
+#: session that closed it.
+READY_POLL_SECONDS = 0.2
+
+#: How long a child is given to end once it is asked to. One reading its pipe
+#: ends at once; one busy loading its model cannot answer at all, so a longer
+#: grace only keeps that model resident.
+STOP_GRACE_SECONDS = 1.0
 
 #: How long one clip's classification may take. Measured at ~0.3 s; this is a
 #: wedged child, not a slow one.
@@ -124,6 +137,11 @@ class EmotionWorker:
             with self._state:
                 if self._classify is not None:
                     return self._classify
+                if self._is_closed:
+                    raise RuntimeError(
+                        "the emotion worker was closed, so it starts no child "
+                        "and this clip's tone is not heard"
+                    )
                 deaths = self._deaths
             if deaths >= MAX_DEATHS:
                 raise RuntimeError(
@@ -133,7 +151,7 @@ class EmotionWorker:
             with heavy_model_load("the emotion model"):
                 process, connection = _spawn_child(self._repo)
                 try:
-                    status, reason = _wait_for_ready(connection)
+                    status, reason = self._wait_for_ready(connection)
                 except BaseException:
                     _stop_child(process, connection)
                     raise
@@ -155,8 +173,43 @@ class EmotionWorker:
                 )
             return self._request
 
+    def _wait_for_ready(self, connection: "Connection") -> "tuple[str, str]":
+        """The child's first message: ``("ready", "")`` or ``("error", reason)``.
+
+        Polled in slices rather than in one long wait, so a `close` landing
+        while the model loads is noticed: the child it would otherwise leave
+        behind is exactly what a session that ended must not keep."""
+        deadline = time.monotonic() + READY_TIMEOUT_SECONDS
+        while True:
+            if self._is_closed:
+                raise RuntimeError(
+                    "the emotion worker was closed while its model loaded, so "
+                    "no tone is heard"
+                )
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError(
+                    "the emotion worker said nothing for "
+                    f"{READY_TIMEOUT_SECONDS:g}s while loading its model"
+                )
+            try:
+                if not connection.poll(min(READY_POLL_SECONDS, remaining)):
+                    continue
+                reply = connection.recv()
+            except (EOFError, OSError) as exc:
+                raise RuntimeError(
+                    f"the emotion worker stopped while loading its model ({exc})"
+                ) from exc
+            return str(reply[0]), str(reply[1])
+
     def close(self) -> None:
-        """Stop the child; one already gone is nothing to do."""
+        """Stop the child; one already gone, and one still loading, is nothing
+        to do here.
+
+        A child that is loading its model reads nothing from the pipe, so this
+        cannot stop it: the wait is polled (`_wait_for_ready`), sees the closed
+        flag within `READY_POLL_SECONDS`, and stops the child it started.
+        """
         with self._state:
             self._is_closed = True
             process, connection = self._process, self._connection
@@ -215,22 +268,6 @@ def _spawn_child(repo: str) -> "tuple[BaseProcess, Connection]":
     return process, parent_connection
 
 
-def _wait_for_ready(connection: "Connection") -> "tuple[str, str]":
-    """The child's first message: ``("ready", "")`` or ``("error", reason)``."""
-    try:
-        if not connection.poll(READY_TIMEOUT_SECONDS):
-            raise RuntimeError(
-                "the emotion worker said nothing for "
-                f"{READY_TIMEOUT_SECONDS:g}s while loading its model"
-            )
-        reply = connection.recv()
-    except (EOFError, OSError) as exc:
-        raise RuntimeError(
-            f"the emotion worker stopped while loading its model ({exc})"
-        ) from exc
-    return str(reply[0]), str(reply[1])
-
-
 def _read_reply(reply: "tuple[str, object]") -> dict[str, list[object]]:
     """What the child answered: its verdict, or why the clip had none."""
     status, value = reply[0], reply[1]
@@ -254,7 +291,7 @@ def _stop_child(
             pass
     if process is None:
         return
-    process.join(5.0)
+    process.join(STOP_GRACE_SECONDS)
     if process.is_alive():
         process.terminate()
         process.join(5.0)
