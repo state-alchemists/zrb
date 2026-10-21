@@ -98,12 +98,16 @@ OOM_SCORE_PATH = "/proc/self/oom_score_adj"
 
 def load_classifier(repo: str) -> Classify:
     """Load emotion2vec+ from the Hugging Face repo *repo*, in this process."""
-    # lazy: heavy third-party — huggingface_hub. funasr and torch are not zrb
-    # dependencies, so funasr is imported by name.
-    from huggingface_hub import snapshot_download
-
-    auto_model = importlib.import_module("funasr").AutoModel
+    # The slot is taken before the imports, not after: importing funasr brings
+    # torch with it (517 MB measured), so an import outside the slot is half a
+    # spike stacking on whatever else is loading. The local speech service
+    # takes it the same way, around its factory and its imports both.
     with heavy_model_load("the emotion model"):
+        # lazy: heavy third-party — huggingface_hub. funasr and torch are not zrb
+        # dependencies, so funasr is imported by name.
+        from huggingface_hub import snapshot_download
+
+        auto_model = importlib.import_module("funasr").AutoModel
         # A local directory, so funasr loads it as it is instead of looking the
         # name up on its default hub, ModelScope.
         model = auto_model(

@@ -9,6 +9,7 @@ import multiprocessing
 import sys
 import threading
 import time
+from contextlib import contextmanager
 from types import SimpleNamespace
 
 import pytest
@@ -210,6 +211,47 @@ def test_a_clip_that_gets_no_answer_stops_the_child(in_threads):
     finally:
         worker.close()
     assert len(attempts) == 2
+
+
+def test_the_emotion_load_takes_the_shared_slot_before_it_imports(monkeypatch):
+    """funasr brings torch in with it, and that import is half the spike: the
+    slot has to be held before it, or it stacks on the speech warm-up's load,
+    which is the memory that cost a chat its life (ADR-0115)."""
+    events: list[str] = []
+
+    @contextmanager
+    def slot(purpose):
+        events.append("slot")
+        yield
+
+    class AutoModel:
+        def __init__(self, model, disable_update):
+            events.append("model")
+
+        def generate(self, samples, granularity, extract_embedding):
+            return [{"labels": LABELS, "scores": SCORES}]
+
+    def import_module(name):
+        events.append(f"import {name}")
+        return SimpleNamespace(AutoModel=AutoModel)
+
+    monkeypatch.setattr(emotion_model, "heavy_model_load", slot)
+    monkeypatch.setattr(
+        emotion_model, "importlib", SimpleNamespace(import_module=import_module)
+    )
+    monkeypatch.setattr(
+        emotion_model, "get_hub_path", lambda download, repo: f"/cache/{repo}"
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "huggingface_hub",
+        SimpleNamespace(snapshot_download=lambda repo: f"/cache/{repo}"),
+    )
+
+    classify = emotion_model.load_classifier("me/e2v")
+
+    assert events == ["slot", "import funasr", "model"]
+    assert classify(b"\x00\x00") == {"labels": LABELS, "scores": SCORES}
 
 
 def test_one_clip_the_child_cannot_classify_keeps_the_child(in_threads):
