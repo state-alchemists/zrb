@@ -16,36 +16,43 @@ machine with a few gigabytes.
 
 from __future__ import annotations
 
-import logging
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-logger = logging.getLogger(__name__)
-
-#: How long a load waits for the one in progress before going ahead without
-#: the slot. A load that wedges — a hung download, a model that never returns —
-#: must not cost the other feature its model for the rest of the session.
+#: How long a load waits for the one in progress before it gives up. Giving up
+#: fails this load rather than running it beside the other: two spikes stacked
+#: is what the slot exists to prevent, and a load that wedges (a hung download,
+#: a model that never returns) must not stall the other feature forever either.
 WAIT_SECONDS = 120.0
 
 _slot = threading.Lock()
 
 
+class ModelLoadBusyError(RuntimeError):
+    """Another model held the slot for longer than `WAIT_SECONDS`.
+
+    A `RuntimeError`, so each caller already treats it as a load that failed:
+    the tone is off for the session, a sentence goes unspoken and the next one
+    tries again, hands-free dictation stops and says why.
+    """
+
+
 @contextmanager
 def heavy_model_load(purpose: str) -> Iterator[None]:
     """Hold the slot every heavy local model load shares for the duration of
-    the block; *purpose* names the load in the log when the wait is given up on.
+    the block, or raise `ModelLoadBusyError` naming *purpose* when another load
+    keeps it past `WAIT_SECONDS`.
 
     The slot is a plain lock held only while a model loads, never while one is
     used, so two loaded models keep working side by side.
     """
     if not _slot.acquire(timeout=WAIT_SECONDS):
-        logger.warning(
-            f"Loading {purpose} without waiting for the model already loading: "
-            f"{WAIT_SECONDS:g}s passed"
+        raise ModelLoadBusyError(
+            f"{purpose} was not loaded: another model has been loading for "
+            f"{WAIT_SECONDS:g}s, and loading both at once could run this "
+            "machine out of memory"
         )
-        yield
-        return
     try:
         yield
     finally:

@@ -5,12 +5,11 @@ together is what the kernel's OOM killer picks the chat for.
 """
 
 import threading
-import time
 
 import pytest
 
 from zrb.llm.util import model_load
-from zrb.llm.util.model_load import heavy_model_load
+from zrb.llm.util.model_load import ModelLoadBusyError, heavy_model_load
 
 
 def test_two_loads_never_run_at_once():
@@ -41,9 +40,9 @@ def test_two_loads_never_run_at_once():
     assert second_inside.is_set()
 
 
-def test_a_wedged_load_does_not_hold_the_next_one_forever(monkeypatch):
-    """A load that never returns (a hung download) must not cost the other
-    feature its model for the rest of the session."""
+def test_a_load_behind_a_wedged_one_fails_instead_of_overlapping(monkeypatch):
+    """A load that never returns (a hung download) costs the load behind it
+    this attempt, not the machine: running both would stack their spikes."""
     monkeypatch.setattr(model_load, "WAIT_SECONDS", 0.05)
     wedged_inside = threading.Event()
     release_wedged = threading.Event()
@@ -54,21 +53,22 @@ def test_a_wedged_load_does_not_hold_the_next_one_forever(monkeypatch):
             wedged_inside.set()
             release_wedged.wait(5)
 
-    def next_load():
-        with heavy_model_load("the model behind it"):
-            next_inside.set()
-
     wedged_thread = threading.Thread(target=wedged)
     wedged_thread.start()
     assert wedged_inside.wait(5)
-    started = time.monotonic()
-    next_load()
     try:
-        assert next_inside.is_set()  # it went ahead
-        assert time.monotonic() - started < 2.0  # after waiting, not blocking
+        with pytest.raises(ModelLoadBusyError, match="the model behind it"):
+            with heavy_model_load("the model behind it"):
+                next_inside.set()
+        assert not next_inside.is_set()
     finally:
         release_wedged.set()
         wedged_thread.join(5)
+
+    # Once the wedged load ends, the slot is there for the next one.
+    with heavy_model_load("the model after it"):
+        next_inside.set()
+    assert next_inside.is_set()
 
 
 def test_the_slot_is_released_when_the_load_fails():
