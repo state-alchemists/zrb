@@ -2,6 +2,7 @@ import asyncio
 import codecs
 import os
 import re
+import shutil
 import signal
 import sys
 from collections import deque
@@ -106,9 +107,11 @@ def create_yielding_argv(argv: list[str]) -> list[str]:
     spawns) before zrb, and the scheduler runs zrb's TUI and speech first.
 
     An agent's test suite or build is the usual reason the machine runs out of
-    memory, and the chat is the process worth keeping. Unchanged on Windows.
+    memory, and the chat is the process worth keeping. Unchanged on Windows,
+    or when ``sh``, ``nice`` or the command itself is not found, so a missing
+    program still fails with its own "not found".
     """
-    if os.name == "nt":
+    if os.name == "nt" or not all(shutil.which(p) for p in ("sh", "nice", argv[0])):
         return argv
     return ["sh", "-c", _YIELD_TO_ZRB, "sh", *argv]
 

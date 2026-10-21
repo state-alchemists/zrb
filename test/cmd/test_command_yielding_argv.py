@@ -18,10 +18,16 @@ def test_the_command_is_the_oom_killers_first_pick_and_runs_niced():
         create_yielding_argv(argv), capture_output=True, text=True, check=True
     ).stdout.split()
 
-    assert out == ["1000", str(os.nice(0) + 10)]
+    assert out == ["1000", str(min(os.nice(0) + 10, 19))]
 
 
 def test_windows_runs_the_command_unchanged(monkeypatch):
     monkeypatch.setattr(command.os, "name", "nt")
 
     assert create_yielding_argv(["cmd", "/c", "dir"]) == ["cmd", "/c", "dir"]
+
+
+def test_a_missing_program_is_left_to_fail_on_its_own():
+    argv = ["no-such-program-xyz", "-c", "true"]
+
+    assert create_yielding_argv(argv) == argv
