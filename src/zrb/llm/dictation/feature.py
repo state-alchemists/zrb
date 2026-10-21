@@ -364,6 +364,10 @@ class DictationSession:
         emotion = self._emotion
         if emotion is None or self._emotion_load is not None:
             return
+        # Marked before the task is scheduled: the microphone opens before that
+        # task runs, so the first utterance could otherwise become the thread
+        # that loads the model and wait out the whole load (ADR-0115).
+        emotion.begin_loading()
         load = asyncio.ensure_future(self._prepare_emotion())
         load.add_done_callback(_say_emotion_load_failure)
         self._emotion_load = load

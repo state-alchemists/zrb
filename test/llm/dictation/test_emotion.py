@@ -162,6 +162,9 @@ class FakeDetector:
     def __init__(self, model, min_score, out_of_process=False):
         self.prepared = 0
 
+    def begin_loading(self):
+        pass
+
     async def prepare(self, report):
         self.prepared += 1
 
@@ -242,6 +245,49 @@ async def test_the_microphone_listens_before_the_emotion_model_loads(monkeypatch
     finally:
         finish.set()
         session.close()
+
+
+@pytest.mark.asyncio
+async def test_a_clip_heard_before_the_load_starts_takes_no_tone(classifier):
+    """The load is marked synchronously, because the session opens the
+    microphone before the load task runs: the first utterance must not become
+    the thread that loads the model and wait out the whole load (ADR-0115)."""
+    detector = EmotionDetector("me/e2v")
+    detector.begin_loading()
+
+    assert await detector.hear(b"\x00\x10" * 160) is None
+    assert classifier.loaded == []  # this clip loaded nothing
+
+    await detector.prepare(lambda message: None)
+
+    assert classifier.loaded == ["/cache/me/e2v"]
+
+
+@pytest.mark.asyncio
+async def test_the_load_is_marked_before_the_first_utterance_is_heard(monkeypatch):
+    """`_start_emotion_load` marks the load before scheduling it, so a session
+    whose first utterance arrives early does not load the model in that turn."""
+    events: list[str] = []
+
+    class MarkingDetector(FakeDetector):
+        def begin_loading(self):
+            events.append("marked")
+
+        async def hear(self, audio):
+            events.append("heard")
+            return None
+
+    _session_hearing(monkeypatch, "hello", detect_emotion=True)
+    monkeypatch.setattr("zrb.llm.dictation.feature.EmotionDetector", MarkingDetector)
+    session = DictationSession(
+        DictationConfig(
+            backend=WordsBackend(), mode="hands_free", detect_emotion=True
+        ).resolve()
+    )
+
+    assert await _sources(session, 1) == [("hello", DICTATION_INPUT)]
+    assert events[0] == "marked"
+    assert "heard" in events
 
 
 @pytest.mark.asyncio

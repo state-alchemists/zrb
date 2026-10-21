@@ -69,6 +69,10 @@ class EmotionDetector:
         # the rest of the chat.
         self._state = threading.Lock()
         self._is_closed = False
+        # Set by `begin_loading`, before the task that performs the load gets
+        # to run: a clip heard in that window is a clip heard while the model
+        # loads, so it takes no tone rather than taking on the load itself.
+        self._is_preparing = False
         # Guards loading the model. Taken without waiting: an utterance heard
         # while the model loads gets no tone rather than waiting for it.
         self._loading = threading.Lock()
@@ -77,14 +81,31 @@ class EmotionDetector:
         self._model_lock = threading.Lock()
         self._unavailable_reason = ""
 
+    def begin_loading(self) -> None:
+        """Say the model is about to load, before the task that loads it runs.
+
+        A session schedules the load and opens the microphone without waiting
+        for either, so the first utterance can arrive before the loading thread
+        exists. Without this mark, that utterance takes the load lock first and
+        waits out the whole 8–20 s load, which is what the microphone was moved
+        off in the first place (ADR-0115)."""
+        with self._state:
+            if not self._is_closed:
+                self._is_preparing = True
+
     async def prepare(self, report: Callable[[str], None]) -> None:
         """Load the model before the first utterance, through *report*
         saying so when it is not loaded yet."""
         if self._is_closed:
             return
-        if self._classify is None and not self._unavailable_reason:
-            report("Loading the emotion model…")
-        await run_in_daemon(self._get_classify, name="zrb-emotion")
+        self.begin_loading()
+        try:
+            if self._classify is None and not self._unavailable_reason:
+                report("Loading the emotion model…")
+            await run_in_daemon(self._load, name="zrb-emotion")
+        finally:
+            with self._state:
+                self._is_preparing = False
 
     @property
     def unavailable_reason(self) -> str:
@@ -96,7 +117,7 @@ class EmotionDetector:
     def is_loading(self) -> bool:
         """Whether the model is loading right now: a tone asked for now is
         none, rather than a wait for the load to finish."""
-        return self._loading.locked()
+        return self._loading.locked() or self._is_preparing
 
     async def hear(self, audio: bytes) -> Tone | None:
         """The tone of *audio* (16 kHz mono 16-bit PCM), or ``None`` when it
@@ -145,6 +166,14 @@ class EmotionDetector:
         return Tone(emotion, round(scores[best], 2))
 
     def _get_classify(self) -> Classify | None:
+        """What a clip uses: the model when it is loaded, and a load of its own
+        only when nobody asked for one — a clip heard while a load is on its way
+        takes no tone rather than taking the load on itself."""
+        if self._is_preparing:
+            return None
+        return self._load()
+
+    def _load(self) -> Classify | None:
         """The model's classify callable, loading it when this thread is the
         one to, and ``None`` when it is not loaded yet."""
         if self._is_closed:
