@@ -29,6 +29,7 @@ class DeliveryOutcome(str, Enum):
     """How a send-now attempt ended."""
 
     DELIVERED_EARLY = "delivered_early"
+    DELIVERED_PARTIAL = "delivered_partial"
     FELL_BACK_TO_CANCEL = "fell_back_to_cancel"
     NOTHING_MOVED = "nothing_moved"
     WAITING_ON_DIALOG = "waiting_on_dialog"
@@ -92,19 +93,26 @@ def send_queued_messages_now(
             DeliveryOutcome.DELIVERED_EARLY, delivered=delivered, held=queue.qsize()
         )
 
-    # Nothing delivered, or the run ended mid-drain and left entries behind:
-    # interrupting the turn lets the message loop pick the remainder up right
-    # away — the same fallback the no-live-run case uses, and the one the
-    # failed enqueue is itself the signal for.
+    # The run ended mid-drain and left entries behind: interrupting the turn
+    # lets the message loop pick the remainder up right away — the same
+    # fallback the no-live-run case uses, and the one the failed enqueue is
+    # itself the signal for. `FELL_BACK_TO_CANCEL` is reserved for the runs
+    # where the cancel was actually asked for.
     if is_turn_running:
         cancel_turn()
         return DeliveryReport(
             DeliveryOutcome.FELL_BACK_TO_CANCEL, delivered=delivered, held=queue.qsize()
         )
 
-    return DeliveryReport(
-        DeliveryOutcome.NOTHING_MOVED, delivered=delivered, held=queue.qsize()
-    )
+    # Nothing left to interrupt, but some messages did reach the turn. Say so:
+    # reporting `NOTHING_MOVED` here would contradict the delivered count the
+    # caller renders.
+    if delivered:
+        return DeliveryReport(
+            DeliveryOutcome.DELIVERED_PARTIAL, delivered=delivered, held=queue.qsize()
+        )
+
+    return DeliveryReport(DeliveryOutcome.NOTHING_MOVED, held=queue.qsize())
 
 
 def _steer_entries(
@@ -143,6 +151,11 @@ def describe_delivery(report: DeliveryReport) -> str:
     if report.outcome is DeliveryOutcome.DELIVERED_EARLY:
         return (
             f"sent {report.delivered} queued message(s) into this turn"
+            f" ({report.held} still waiting)"
+        )
+    if report.outcome is DeliveryOutcome.DELIVERED_PARTIAL:
+        return (
+            f"sent {report.delivered} queued message(s), then the run ended"
             f" ({report.held} still waiting)"
         )
     if report.outcome is DeliveryOutcome.FELL_BACK_TO_CANCEL:

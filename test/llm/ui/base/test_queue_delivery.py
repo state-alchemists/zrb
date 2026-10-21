@@ -230,8 +230,9 @@ def test_a_full_flush_that_ends_the_run_does_not_interrupt():
     assert cancelled == []
 
 
-def test_a_partial_flush_with_no_running_turn_stays_delivered():
-    # Nothing to interrupt, so the delivered part stands and the rest waits.
+def test_a_partial_flush_with_no_running_turn_reports_the_partial_delivery():
+    # Nothing to interrupt, so the delivered part stands and the rest waits —
+    # and the report says so rather than "nothing was queued".
     queue = MessageQueue()
     queue.put_nowait(_entry("first"))
     queue.put_nowait(_entry("second"))
@@ -240,8 +241,9 @@ def test_a_partial_flush_with_no_running_turn_stays_delivered():
 
     report, cancelled = _send(queue, run_context)
 
-    assert report.outcome is DeliveryOutcome.NOTHING_MOVED
+    assert report.outcome is DeliveryOutcome.DELIVERED_PARTIAL
     assert report.delivered == 1
+    assert report.held == 1
     assert cancelled == []
     assert [entry.text for entry in queue.pending()] == ["second"]
 
@@ -267,11 +269,19 @@ def test_describe_delivery_says_what_happened():
     )
     # A partial drain that fell back to a cancel names both halves, so the line
     # is not read as a plain interrupt.
-    partial = describe_delivery(
+    partial_cancel = describe_delivery(
         DeliveryReport(DeliveryOutcome.FELL_BACK_TO_CANCEL, delivered=1, held=1)
     )
+    assert "sent 1 queued message(s)" in partial_cancel
+    assert "interrupted the turn" in partial_cancel
+    # A partial drain with no turn left to cancel still says what was sent —
+    # never "nothing was queued".
+    partial = describe_delivery(
+        DeliveryReport(DeliveryOutcome.DELIVERED_PARTIAL, delivered=1, held=1)
+    )
     assert "sent 1 queued message(s)" in partial
-    assert "interrupted the turn" in partial
+    assert "still waiting" in partial
+    assert "nothing was queued" not in partial
     assert "waiting for your answer" in describe_delivery(
         DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=1)
     )
