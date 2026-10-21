@@ -423,3 +423,56 @@ def test_lex_document_text_without_escape():
     tokens = get_line(0)
     assert len(tokens) == 1
     assert tokens[0] == ("", "Just plain text here")
+
+
+# Incremental re-lexing: a reused lexer must match a fresh one exactly.
+
+
+def _all_lines(lexer, text):
+    document = Document(text=text)
+    get_line = lexer.lex_document(document)
+    return [get_line(n) for n in range(len(document.lines))]
+
+
+def test_lex_document_appended_text_matches_fresh_lexer():
+    """Style state from earlier text carries into lines appended later."""
+    lexer = CLIStyleLexer()
+    text = "\x1b[1mBold\nstill bold"
+    _all_lines(lexer, text)
+
+    text += " more\n\x1b[31mred\n\x1b[0mplain\n"
+    assert _all_lines(lexer, text) == _all_lines(CLIStyleLexer(), text)
+    assert _all_lines(lexer, text)[1] == [("bold", "still bold more")]
+
+
+def test_lex_document_escape_split_across_appends():
+    """An escape sequence cut by a chunk boundary is styled once complete."""
+    lexer = CLIStyleLexer()
+    _all_lines(lexer, "a\n\x1b[3")
+
+    text = "a\n\x1b[31mred\nnext"
+    assert _all_lines(lexer, text) == _all_lines(CLIStyleLexer(), text)
+    assert _all_lines(lexer, text)[2] == [("#ff0000", "next")]
+
+
+def test_lex_document_rewritten_text_is_lexed_from_scratch():
+    """Text that no longer extends the previous one is not reused."""
+    lexer = CLIStyleLexer()
+    _all_lines(lexer, "\x1b[31mred\nred\nred")
+
+    text = "plain\nplain\nplain"
+    assert _all_lines(lexer, text) == [[("", "plain")]] * 3
+
+
+def test_lex_document_unchanged_text_is_stable():
+    """Lexing the same document twice gives the same tokens."""
+    lexer = CLIStyleLexer()
+    text = "\x1b[2mfaint\n\x1b[4munder\n"
+    assert _all_lines(lexer, text) == _all_lines(lexer, text)
+
+
+def test_lex_document_style_attributes_are_sorted():
+    """The same attribute set always produces the same style string."""
+    lexer = CLIStyleLexer()
+    get_line = lexer.lex_document(Document(text="\x1b[4;1;3mText"))
+    assert get_line(0) == [("bold italic underline", "Text")]
