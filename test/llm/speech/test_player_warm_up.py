@@ -220,6 +220,34 @@ def test_a_warm_up_the_restart_overtook_does_not_mark_the_fresh_set_warm(lock_fi
     assert backend.made == ["Hi.", "Hi."]
 
 
+def test_a_warm_up_the_restart_overtook_does_not_warm_the_fresh_set(lock_file, monkeypatch):
+    """Warming the set that replaced it is the next `warm_up`'s work: doing it
+    here too would probe one backend from two threads and load its model
+    twice, which is what the warm-up was made once-per-set to avoid."""
+    built = WarmingBackend()
+    building, release = threading.Event(), threading.Event()
+
+    def build(name, config):
+        building.set()
+        release.wait(5)
+        return built
+
+    monkeypatch.setattr("zrb.llm.speech.player.get_speech_backend", build)
+    speaker = Speaker(_config("configured", lock_file))
+
+    speaker.warm_up()
+    assert building.wait(5)  # the warm-up is inside the build
+    speaker.restart_backends()  # ... and the set it was started for is gone
+    release.set()
+    time.sleep(0.2)  # let the overtaken warm-up finish
+
+    assert built.made == []  # it warmed nothing
+    speaker.warm_up()
+
+    assert built.closed.wait(5)
+    assert built.made == ["Hi."]  # warmed once, by the set that is current
+
+
 class FallbackBackend(CloudBackend):
     """The local voice a speaker falls back to."""
 

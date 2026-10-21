@@ -225,11 +225,23 @@ class EmotionDetector:
         return None
 
     def _forget_loaded(self, classify: Classify) -> None:
-        """Drop *classify* unless a newer one replaced it meanwhile."""
+        """Drop *classify* unless a newer one replaced it meanwhile.
+
+        The worker stays: it carries the count of children it has lost, and the
+        next clip starts another through it, up to `MAX_DEATHS`. Dropping the
+        worker too would reset that count and give a machine that cannot hold
+        the model a new child after every kill."""
         with self._state:
-            if self._classify is not classify:
-                return
-            self._classify, self._worker = None, None
+            if self._classify is classify:
+                self._classify = None
+
+    def _forget_worker(self, worker: EmotionWorker) -> EmotionWorker | None:
+        """Drop *worker* unless another replaced it meantime, and stop it."""
+        with self._state:
+            if self._worker is worker:
+                self._worker = None
+        worker.close()
+        return None
 
     def _publish(self, classify: Classify) -> Classify | None:
         """Keep *classify* for later clips, or ``None`` when this detector was
@@ -257,13 +269,20 @@ class EmotionDetector:
             # Nothing to stop: a model built here goes with this call.
             self._publish(load_classifier(self._model_repo))
             return
-        worker = EmotionWorker(self._model_repo)
+        # One worker for the detector's life, not one per attempt: the count of
+        # children it has lost is what stops a machine that cannot hold the
+        # model from loading it again after every kill (`MAX_DEATHS`).
+        worker = self._worker
+        if worker is None:
+            worker = EmotionWorker(self._model_repo)
         if self._keep_worker(worker) is None:
             return
         try:
             classify = worker.start()
         except BaseException:
-            worker.close()
+            # It could not start, so it says nothing about the next attempt:
+            # dropped, and the next clip builds another.
+            self._forget_worker(worker)
             raise
         if self._publish(classify) is None:
             # Closed while the model loaded: `close` stopped this worker, and

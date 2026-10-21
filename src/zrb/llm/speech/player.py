@@ -425,20 +425,27 @@ class Speaker:
         a call made while one is loading, or after one has loaded, does nothing.
         The model is what the wait was ever for — a thread per turn queued
         behind the same load is how one chat ended up with 38 of them parked.
+
+        The set this warm-up belongs to is read here, with the generation, when
+        it is already cached: a set built later is the thread's to build, and it
+        re-reads the generation before warming what it got.
         """
         with self._lock:
             if self._is_warmed_up or self._is_warming_up or self._is_closed:
                 return
             self._is_warming_up = True
             generation = self._warm_up_generation
+            backends = self._backends
         threading.Thread(
             target=self._warm_up,
-            args=(generation,),
+            args=(generation, backends),
             name=f"{CFG.ROOT_GROUP_NAME}-speech-warm-up",
             daemon=True,
         ).start()
 
-    def _warm_up(self, generation: int) -> None:
+    def _warm_up(
+        self, generation: int, backends: "list[AnySpeechBackend] | None"
+    ) -> None:
         """Warm the backend set once, whatever the probe came to: a model that
         did not load is the first sentence's to load.
 
@@ -447,16 +454,35 @@ class Speaker:
         so its completion leaves the flag down and the next `warm_up` warms the
         set that is there now."""
         try:
-            self._warm_one_word()
+            self._warm_one_word(generation, backends)
         finally:
             with self._lock:
                 if generation == self._warm_up_generation:
                     self._is_warming_up = False
                     self._is_warmed_up = True
 
-    def _warm_one_word(self) -> None:
+    def _is_stale(self, generation: int) -> bool:
+        """Whether `restart_backends` has replaced the set since *generation*."""
+        with self._lock:
+            return generation != self._warm_up_generation
+
+    def _warm_one_word(
+        self, generation: int, backends: "list[AnySpeechBackend] | None"
+    ) -> None:
         try:
-            backend = self._get_backends()[0]
+            if self._is_stale(generation):
+                # A restart replaced the set this warm-up was started for. The
+                # old one is not worth warming — it is closed — and the fresh
+                # one is the next `warm_up`'s, which would otherwise probe the
+                # same backend beside this thread and load its model twice.
+                return
+            if backends is None:
+                backends = self._get_backends()
+                if self._is_stale(generation):
+                    # Overtaken while it built the set: what it got is the
+                    # fresh generation's, and the next turn warms it.
+                    return
+            backend = backends[0]
             # A remote voice would bill a word nobody hears; the fallback is
             # never tried for the same reason.
             if not (
