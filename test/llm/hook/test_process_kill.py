@@ -6,7 +6,11 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.hook.process_kill import kill_process_tree, read_process_group
+from zrb.llm.hook.process_kill import (
+    kill_process_group,
+    kill_process_tree,
+    read_process_group,
+)
 
 posix_process_groups_only = pytest.mark.skipif(
     os.name != "posix", reason="process groups (getpgid/killpg) are POSIX-only"
@@ -161,3 +165,32 @@ def test_read_process_group_ignores_a_stale_getpgid_answer():
 
     mock_getpgid.assert_not_called()
     assert result == _DEAD_PID
+
+
+@posix_process_groups_only
+def test_kill_process_group_signals_the_group_and_names_it():
+    with patch("os.killpg") as mock_killpg:
+        assert kill_process_group(4242) == 4242
+
+    mock_killpg.assert_called_once_with(4242, signal.SIGKILL)
+
+
+@posix_process_groups_only
+def test_kill_process_group_refuses_our_own_group():
+    with patch("os.killpg") as mock_killpg:
+        assert kill_process_group(os.getpgid(0)) is None
+
+    mock_killpg.assert_not_called()
+
+
+@posix_process_groups_only
+def test_kill_process_group_of_an_empty_group_signals_nothing_and_kills_no_pid():
+    "Once every member is gone, the second pass is a no-op, not a pid kill."
+    with patch("zrb.cmd.command.kill_pid") as mock_kill_pid:
+        assert kill_process_group(_DEAD_PID) is None
+
+    mock_kill_pid.assert_not_called()
+
+
+def test_kill_process_group_without_a_group_signals_nothing():
+    assert kill_process_group(None) is None

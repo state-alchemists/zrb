@@ -4,6 +4,7 @@ is allowed, a session ending mid-load, and a worker that cannot start
 
 import asyncio
 import threading
+import time
 
 import pytest
 
@@ -46,10 +47,16 @@ async def test_out_of_process_classifies_through_a_worker(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_a_worker_whose_child_died_is_started_again(monkeypatch):
+async def test_a_worker_whose_child_died_is_started_again_beside_the_turn(
+    monkeypatch,
+):
     """One dead child costs the tones it would have heard, not every tone after
     it: the next clip starts another child through the same worker, which is
-    what counts the deaths against `MAX_DEATHS` (ADR-0115)."""
+    what counts the deaths against `MAX_DEATHS`. That clip does not wait for the
+    restart, which is a whole model load: the turn waits for its tone
+    (ADR-0115)."""
+    restarting = threading.Event()
+    release = threading.Event()
     workers: list[DyingWorker] = []
 
     class DyingWorker:
@@ -62,6 +69,9 @@ async def test_a_worker_whose_child_died_is_started_again(monkeypatch):
 
         def start(self):
             self.starts += 1
+            if self.starts > 1:
+                restarting.set()
+                release.wait(5)
             self.is_started = True
             return self._classify
 
@@ -82,8 +92,13 @@ async def test_a_worker_whose_child_died_is_started_again(monkeypatch):
     clip = b"\x00\x10" * 160
 
     assert await detector.hear(clip) is None
-    assert await detector.hear(clip) == Tone("happy", 0.9)
+    assert await asyncio.wait_for(detector.hear(clip), timeout=2) is None
+    assert await asyncio.to_thread(restarting.wait, 5)
+    release.set()
 
+    assert await _keep_hearing(detector, clip, lambda tone: tone is not None) == (
+        Tone("happy", 0.9)
+    )
     [worker] = workers
     assert worker.starts == 2
     detector.close()
@@ -118,15 +133,27 @@ async def test_a_detector_gives_up_after_the_deaths_it_is_allowed(monkeypatch):
 
     monkeypatch.setattr("zrb.llm.dictation.emotion.EmotionWorker", DoomedWorker)
     detector = EmotionDetector("me/e2v", out_of_process=True)
-    clip = b"\x00\x10" * 160
 
-    assert await detector.hear(clip) is None
-    assert await detector.hear(clip) is None
-    assert await detector.hear(clip) is None
-
+    assert (
+        await _keep_hearing(
+            detector, b"\x00\x10" * 160, lambda _: bool(detector.unavailable_reason)
+        )
+        is None
+    )
     [worker] = workers
     assert worker.deaths == 2  # the third attempt found the budget spent
     assert "no room for it" in detector.unavailable_reason
+
+
+async def _keep_hearing(detector, clip, until, timeout: float = 2.0):
+    """Hear *clip* as utterances keep arriving, until *until* holds for the
+    tone heard, and return that tone."""
+    deadline = time.monotonic() + timeout
+    while True:
+        tone = await detector.hear(clip)
+        if until(tone) or time.monotonic() > deadline:
+            return tone
+        await asyncio.sleep(0.01)
 
 
 @pytest.mark.asyncio

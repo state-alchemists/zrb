@@ -361,6 +361,43 @@ def test_a_closed_worker_starts_nothing_more(in_threads):
         worker.start()
 
 
+def test_close_does_not_wait_for_a_busy_child(in_threads):
+    """The session's teardown closes the worker: a child still classifying a
+    clip, which reads no stop request until it is done, is stopped on a thread
+    of its own instead of in the teardown."""
+    busy = threading.Event()
+    release = threading.Event()
+
+    def slow(samples):
+        busy.set()
+        release.wait(5)
+        return _classify(samples)
+
+    in_threads.setattr(emotion_model, "load_classifier", lambda repo: slow)
+    worker = EmotionWorker("me/e2v")
+    classify = worker.start()
+
+    def ask():
+        try:
+            classify(b"\x00\x00")
+        except RuntimeError:
+            pass  # the pipe was closed under it, as the session ended
+
+    threading.Thread(target=ask, daemon=True).start()
+    assert busy.wait(5)
+
+    started = time.monotonic()
+    worker.close()
+    elapsed = time.monotonic() - started
+    release.set()
+
+    assert elapsed < emotion_model.STOP_GRACE_SECONDS / 2
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and STARTED[0].is_alive():
+        time.sleep(0.01)
+    assert not STARTED[0].is_alive()
+
+
 def test_load_classifier_reads_the_cached_copy_first(monkeypatch):
     asked = []
 

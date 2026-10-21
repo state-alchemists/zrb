@@ -83,9 +83,10 @@ STOP_GRACE_SECONDS = 1.0
 #: session without tones until it ends.
 CLIP_ERRORS_BEFORE_RESTART = 2
 
-#: How long one clip's classification may take. Measured at ~0.3 s; this is a
-#: wedged child, not a slow one.
-CLASSIFY_TIMEOUT_SECONDS = 30.0
+#: How long one clip's classification may take. Measured at ~0.3 s, so a child
+#: silent this long is wedged, not slow. The turn waits for its tone, so this is
+#: also the longest a wedged child can hold a reply back.
+CLASSIFY_TIMEOUT_SECONDS = 5.0
 
 #: How many times a child may die before the tone is given up on for the
 #: session: restarting into the same out-of-memory over and over is worse than
@@ -219,18 +220,28 @@ class EmotionWorker:
             return str(reply[0]), str(reply[1])
 
     def close(self) -> None:
-        """Stop the child; one already gone, and one still loading, is nothing
-        to do here.
+        """Stop the child without waiting for it to end; one already gone, and
+        one still loading, is nothing to do here.
 
-        A child that is loading its model reads nothing from the pipe, so this
-        cannot stop it: the wait is polled (`_wait_for_ready`), sees the closed
-        flag within `READY_POLL_SECONDS`, and stops the child it started.
+        The session's teardown calls this, and a child that does not answer
+        costs `_stop_child` its grace and then a terminate: that wait is the
+        stopping thread's, not the teardown's. A child that is loading its model
+        reads nothing from the pipe, so this cannot stop it: the wait is polled
+        (`_wait_for_ready`), sees the closed flag within `READY_POLL_SECONDS`,
+        and stops the child it started.
         """
         with self._state:
             self._is_closed = True
             process, connection = self._process, self._connection
             self._process, self._connection, self._classify = None, None, None
-        _stop_child(process, connection)
+        if process is None and connection is None:
+            return
+        threading.Thread(
+            target=_stop_child,
+            args=(process, connection),
+            name="zrb-emotion-stop",
+            daemon=True,
+        ).start()
 
     def _request(self, samples: object) -> dict[str, list[object]]:
         """Send one clip to the child and wait for its verdict."""

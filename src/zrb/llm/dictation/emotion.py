@@ -63,15 +63,16 @@ class EmotionDetector:
         self._out_of_process = out_of_process
         self._classify: Classify | None = None
         self._worker: EmotionWorker | None = None
-        # Guards the three fields around it. The load runs on a thread of its
-        # own, so `close` can land in the middle of it: without this, the thread
+        # Guards the fields around it. The load runs on a thread of its own, so
+        # `close` can land in the middle of it: without this, the thread
         # publishes a child nobody will ask anything, and it stays resident for
         # the rest of the chat.
         self._state = threading.Lock()
         self._is_closed = False
         # Set by `begin_loading`, before the task that performs the load gets
-        # to run: a clip heard in that window is a clip heard while the model
-        # loads, so it takes no tone rather than taking on the load itself.
+        # to run, and by a restart: a clip heard in that window is a clip heard
+        # while the model loads, so it takes no tone rather than taking on the
+        # load itself.
         self._is_preparing = False
         # Guards loading the model. Taken without waiting: an utterance heard
         # while the model loads gets no tone rather than waiting for it.
@@ -98,26 +99,16 @@ class EmotionDetector:
         saying so when it is not loaded yet."""
         if self._is_closed:
             return
+        if self._classify is None and not self._unavailable_reason:
+            report("Loading the emotion model…")
         self.begin_loading()
-        try:
-            if self._classify is None and not self._unavailable_reason:
-                report("Loading the emotion model…")
-            await run_in_daemon(self._load, name="zrb-emotion")
-        finally:
-            with self._state:
-                self._is_preparing = False
+        await run_in_daemon(self._load_marked, name="zrb-emotion")
 
     @property
     def unavailable_reason(self) -> str:
         """Why the model could not load, so no tone is heard; ``""`` while it
         is loaded or not tried yet."""
         return self._unavailable_reason
-
-    @property
-    def is_loading(self) -> bool:
-        """Whether the model is loading right now: a tone asked for now is
-        none, rather than a wait for the load to finish."""
-        return self._loading.locked() or self._is_preparing
 
     async def hear(self, audio: bytes) -> Tone | None:
         """The tone of *audio* (16 kHz mono 16-bit PCM), or ``None`` when it
@@ -167,11 +158,45 @@ class EmotionDetector:
 
     def _get_classify(self) -> Classify | None:
         """What a clip uses: the model when it is loaded, and a load of its own
-        only when nobody asked for one — a clip heard while a load is on its way
-        takes no tone rather than taking the load on itself."""
-        if self._is_preparing:
+        only when nobody asked for one. A clip never waits for a load somebody
+        else started, nor for the restart of a child that died: the turn waits
+        for its tone, and a load is 8-20 s of it (ADR-0115)."""
+        if self._has_restarted_dead_child() or self._is_preparing:
             return None
         return self._load()
+
+    def _has_restarted_dead_child(self) -> bool:
+        """Whether the child behind the kept callable has died, in which case
+        its replacement starts loading on a thread of its own.
+
+        The callable a worker hands out talks to a pipe that is gone, so keeping
+        it would cost every later clip a failure and never start another child.
+        The worker stays: it carries the count of children it has lost, which
+        is what stops the restarts at `MAX_DEATHS`."""
+        with self._state:
+            classify, worker = self._classify, self._worker
+        if classify is None or worker is None or worker.is_started:
+            return False
+        with self._state:
+            # Marked in the same step that drops the callable, so a clip racing
+            # this one finds the restart under way instead of taking it on.
+            if self._is_closed or self._classify is not classify:
+                return False
+            self._classify = None
+            self._is_preparing = True
+        threading.Thread(
+            target=self._load_marked, name="zrb-emotion", daemon=True
+        ).start()
+        return True
+
+    def _load_marked(self) -> Classify | None:
+        """`_load`, for a load `begin_loading` announced: the mark comes down
+        once it is over, however it went."""
+        try:
+            return self._load()
+        finally:
+            with self._state:
+                self._is_preparing = False
 
     def _load(self) -> Classify | None:
         """The model's classify callable, loading it when this thread is the
@@ -205,35 +230,10 @@ class EmotionDetector:
             self._loading.release()
 
     def _loaded(self) -> Classify | None:
-        """The callable kept for later clips, or ``None`` when there is none to
-        use — a closed detector, or a child that has died since.
-
-        A dead child is discovered here rather than in the call itself: the
-        callable a worker hands out talks to a pipe that is gone, so keeping it
-        would cost every later clip a failure and never start another child
-        (ADR-0115). Dropping it lets the next clip start one, up to
-        `MAX_DEATHS`."""
+        """The callable kept for later clips, or ``None`` when there is none or
+        the detector was closed."""
         with self._state:
-            if self._is_closed:
-                return None
-            classify, worker = self._classify, self._worker
-        if classify is None:
-            return None
-        if worker is None or worker.is_started:
-            return classify
-        self._forget_loaded(classify)
-        return None
-
-    def _forget_loaded(self, classify: Classify) -> None:
-        """Drop *classify* unless a newer one replaced it meanwhile.
-
-        The worker stays: it carries the count of children it has lost, and the
-        next clip starts another through it, up to `MAX_DEATHS`. Dropping the
-        worker too would reset that count and give a machine that cannot hold
-        the model a new child after every kill."""
-        with self._state:
-            if self._classify is classify:
-                self._classify = None
+            return None if self._is_closed else self._classify
 
     def _forget_worker(self, worker: EmotionWorker) -> EmotionWorker | None:
         """Drop *worker* unless another replaced it meantime, and stop it."""
@@ -280,8 +280,8 @@ class EmotionDetector:
         try:
             classify = worker.start()
         except BaseException:
-            # It could not start, so it says nothing about the next attempt:
-            # dropped, and the next clip builds another.
+            # It could not start: `_load` turns the tone off for the session,
+            # so nothing will ask this worker again.
             self._forget_worker(worker)
             raise
         if self._publish(classify) is None:

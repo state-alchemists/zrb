@@ -13,7 +13,11 @@ from zrb.llm.agent_state import get_current_model
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.process_io import read_hook_output, run_detached
-from zrb.llm.hook.process_kill import kill_process_tree, read_process_group
+from zrb.llm.hook.process_kill import (
+    kill_process_group,
+    kill_process_tree,
+    read_process_group,
+)
 from zrb.llm.hook.schema import CommandHookConfig, PromptHookConfig
 from zrb.llm.hook.types import HookEvent
 
@@ -101,6 +105,11 @@ def create_command_hook(
                 kill_process_tree(process, hook_pgid)
                 # A sync Popen's .wait() returns an int, so reap off-thread.
                 await run_detached(process.wait, name="zrb-hook-reap")
+                # A child the shell was forking as the signal landed can miss
+                # it (macOS does not hold a fork back for a pending kill, as
+                # Linux does). Reaped, the shell has no fork left in flight, so
+                # a second pass reaches every descendant.
+                kill_process_group(hook_pgid)
                 logger.warning(
                     f"Command hook timed out after {timeout}s and was killed: "
                     f"{config.command[:60]}"
