@@ -30,7 +30,9 @@ def test_complete_load_arg_excludes_delegated_sessions_from_search():
     hm = MagicMock()
     hm.search.return_value = ["foo-sub-bar-deadbeef"]
     results = [c.text for c in complete_load_arg("foo", hm)]
-    hm.search.assert_called_once_with("foo", include_delegated=False)
+    hm.search.assert_called_once_with(
+        "foo", include_delegated=False, include_empty=False
+    )
     assert results == ["foo-sub-bar-deadbeef"]
 
 
