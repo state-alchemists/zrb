@@ -1,10 +1,12 @@
 "Direct tests for the hook pipe reader."
 
 import os
+import subprocess
+import sys
 
 import pytest
 
-from zrb.llm.hook.process_io import read_hook_output
+from zrb.llm.hook.process_io import has_exited, read_hook_output, wait_for_exit
 
 
 def _drain_fake_pipe(pipe: "_FakePipe | None") -> bytes:
@@ -176,3 +178,19 @@ def test_read_hook_output_survives_a_pipe_that_fails_to_close():
     assert stdout == b"fine"
     assert stderr == b""
     assert process.stderr.close_calls >= 1
+
+
+@pytest.mark.skipif(
+    not hasattr(os, "waitid"), reason="needs waitid to see an exit without reaping"
+)
+def test_an_exited_child_is_seen_but_left_unreaped():
+    """Unreaped, its pid, and with it the hook's process group id, cannot be
+    reused before a timed-out hook's group is signalled again."""
+    process = subprocess.Popen([sys.executable, "-c", ""])
+
+    wait_for_exit(process)
+
+    assert has_exited(process)
+    assert process.returncode is None  # nobody reaped it
+    assert process.wait() == 0
+    assert has_exited(process)  # and once reaped, it still reads as exited

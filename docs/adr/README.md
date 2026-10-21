@@ -187,6 +187,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0107** — [Voice runs on Pipecat's pipeline, and the meaning stays zrb's](adr-0107.md)
 - **ADR-0111** — [On macOS, dictation captures through the system's voice processing to take zrb's voice out](adr-0111.md)
 - **ADR-0112** — [Emotion travels as an emoji in the text and leaves zrb as the `Emotion` hook](adr-0112.md)
+- **ADR-0115** — [The microphone opens before the tone loads, and a heavy model's load spike lands outside the chat](adr-0115.md)
 
 ### Fleet administration
 

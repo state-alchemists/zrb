@@ -138,18 +138,114 @@ class ProbingBackend(WarmingBackend):
 
 
 def test_a_failed_warm_up_is_not_a_failed_sentence(lock_file):
-    """A warm-up runs at the start of every turn. A probe that fails must not
-    count toward dropping the backend the turn's sentences are spoken by, and
-    must not drop it from another thread while those sentences are made."""
+    """A warm-up runs at the start of every turn and loads the model once. A
+    probe that fails must not count toward dropping the backend the turn's
+    sentences are spoken by, and must not drop it from another thread while
+    those sentences are made."""
     backend = ProbingBackend()
     speaker = Speaker(_config(backend, lock_file))
 
     for _ in range(3):
-        backend.probed.clear()
         speaker.warm_up()
-        assert backend.probed.wait(5)
 
+    assert backend.probed.wait(5)
     assert backend.let_go == 0
+
+
+class SlowBackend(WarmingBackend):
+    """A backend whose model is loading: `create_audio` is where it waits."""
+
+    def __init__(self):
+        super().__init__()
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def create_audio(self, text):
+        self.entered.set()
+        self.release.wait(5)
+        return super().create_audio(text)
+
+
+def test_a_warm_up_already_loading_is_not_started_again(lock_file):
+    """Every turn asks for one, and the model loads once: a turn asking while
+    it loads waits for nothing and starts nothing — one chat had 38 of these
+    threads parked behind the same load."""
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.warm_up()
+    assert backend.entered.wait(5)
+    speaker.warm_up()
+    speaker.warm_up()
+    backend.release.set()
+
+    assert backend.closed.wait(5)
+    time.sleep(0.2)
+    assert backend.made == ["Hi."]
+
+
+def test_a_restarted_backend_set_is_warmed_again(lock_file):
+    """A set of backends dropped and built again holds other models, so the
+    turn after the restart warms them."""
+    backend = WarmingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.warm_up()
+    assert backend.closed.wait(5)
+    backend.closed.clear()
+    speaker.restart_backends()
+    speaker.warm_up()
+
+    assert backend.closed.wait(5)
+    assert backend.made == ["Hi.", "Hi."]
+
+
+def test_a_warm_up_the_restart_overtook_does_not_mark_the_fresh_set_warm(lock_file):
+    """A warm-up still running when the set is dropped warmed models the fresh
+    set does not hold. Its completion must leave the flag down, or the turn
+    after it is the one that loads the model synchronously."""
+    backend = SlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.warm_up()
+    assert backend.entered.wait(5)
+    speaker.restart_backends()
+    backend.release.set()
+    assert backend.closed.wait(5)  # the overtaken warm-up finished
+
+    backend.closed.clear()
+    speaker.warm_up()
+
+    assert backend.closed.wait(5)  # the fresh set was warmed after all
+    assert backend.made == ["Hi.", "Hi."]
+
+
+def test_a_warm_up_the_restart_overtook_does_not_warm_the_fresh_set(lock_file, monkeypatch):
+    """Warming the set that replaced it is the next `warm_up`'s work: doing it
+    here too would probe one backend from two threads and load its model
+    twice, which is what the warm-up was made once-per-set to avoid."""
+    built = WarmingBackend()
+    building, release = threading.Event(), threading.Event()
+
+    def build(name, config):
+        building.set()
+        release.wait(5)
+        return built
+
+    monkeypatch.setattr("zrb.llm.speech.player.get_speech_backend", build)
+    speaker = Speaker(_config("configured", lock_file))
+
+    speaker.warm_up()
+    assert building.wait(5)  # the warm-up is inside the build
+    speaker.restart_backends()  # ... and the set it was started for is gone
+    release.set()
+    time.sleep(0.2)  # let the overtaken warm-up finish
+
+    assert built.made == []  # it warmed nothing
+    speaker.warm_up()
+
+    assert built.closed.wait(5)
+    assert built.made == ["Hi."]  # warmed once, by the set that is current
 
 
 class FallbackBackend(CloudBackend):

@@ -51,5 +51,6 @@ def test_a_field_added_after_barge_in_hold_leaves_every_earlier_position_alone()
         "sensevoice_threads",
         "emotion_model",
         "emotion_min_score",
+        "emotion_out_of_process",
     ]
     assert names.index("interrupt_judge_model") == 20

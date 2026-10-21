@@ -10,6 +10,8 @@ import os
 import signal
 import subprocess
 
+from zrb.llm.hook.process_io import wait_for_exit
+
 logger = logging.getLogger(__name__)
 
 
@@ -40,15 +42,8 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
     if pgid is None:
         pgid = read_process_group(process)
     pgid = _verify_process_group(process, pgid)
-    group = _safe_tree_kill_group(pgid)
-    group_killed = False
-    if group is not None and hasattr(os, "killpg"):
-        try:
-            os.killpg(group, signal.SIGKILL)
-            group_killed = True
-        except Exception as e:
-            logger.debug(f"killpg failed for hook group {group}: {e}")
-    if pid is not None and not group_killed:
+    group = kill_process_group(pgid)
+    if pid is not None and group is None:
         try:
             # lazy: heavy third-party — zrb.cmd.command imports psutil;
             # inside the try so an ImportError cannot escape.
@@ -57,12 +52,54 @@ def kill_process_tree(process: subprocess.Popen, pgid: int | None = None) -> Non
             kill_pid(pid, print_method=logger.debug)
         except Exception as e:
             logger.debug(f"Failed to kill hook process tree {pid}: {e}")
-    # Always kill the direct child too: the only handle on Windows, and the
-    # last resort if both tree kills failed.
+    if group is not None:
+        # The group signal reached the child, a member of it. `Popen.kill`
+        # would poll first and reap a child that already exited, freeing the
+        # pid that keeps the group id from being reused before
+        # `reap_killed_process` signals the group again.
+        return
+    # The only handle on Windows, and the last resort if both tree kills failed.
     try:
         process.kill()
     except Exception as e:
         logger.debug(f"Failed to kill hook process: {e}")
+
+
+def reap_killed_process(process: subprocess.Popen, pgid: int | None) -> None:
+    """Reap a process `kill_process_tree` killed, signalling its group once
+    more first. Blocks until the process exits; never raises.
+
+    A child the process was forking as the first signal landed can miss it
+    (macOS does not hold a fork back for a pending kill, as Linux does). Once
+    the process has exited it has no fork in flight, and while it is unreaped
+    its pid, and so the group id, cannot be reused: the second signal reaches
+    the hook's own descendants and nobody else's.
+    """
+    try:
+        wait_for_exit(process)
+        kill_process_group(pgid)
+        process.wait()
+    except OSError as e:
+        logger.debug(f"Failed to reap hook process: {e}")
+
+
+def kill_process_group(pgid: int | None) -> int | None:
+    """SIGKILL the whole group *pgid*, returning it, or ``None`` when nothing
+    was signalled. Refused for our own group, never per pid, never raises.
+
+    The per-pid fallback is `kill_process_tree`'s alone: once the leader is
+    reaped its pid can be reused, while a group id stays reserved for as long
+    as any member is alive.
+    """
+    group = _safe_tree_kill_group(pgid)
+    if group is None or not hasattr(os, "killpg"):
+        return None
+    try:
+        os.killpg(group, signal.SIGKILL)
+    except Exception as e:
+        logger.debug(f"killpg failed for hook group {group}: {e}")
+        return None
+    return group
 
 
 def _verify_process_group(process: subprocess.Popen, pgid: int | None) -> int | None:

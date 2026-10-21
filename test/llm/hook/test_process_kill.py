@@ -2,11 +2,19 @@
 
 import os
 import signal
+import subprocess
+import sys
 from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.hook.process_kill import kill_process_tree, read_process_group
+from zrb.llm.hook.process_io import has_exited, wait_for_exit
+from zrb.llm.hook.process_kill import (
+    kill_process_group,
+    kill_process_tree,
+    reap_killed_process,
+    read_process_group,
+)
 
 posix_process_groups_only = pytest.mark.skipif(
     os.name != "posix", reason="process groups (getpgid/killpg) are POSIX-only"
@@ -161,3 +169,70 @@ def test_read_process_group_ignores_a_stale_getpgid_answer():
 
     mock_getpgid.assert_not_called()
     assert result == _DEAD_PID
+
+
+@posix_process_groups_only
+def test_kill_process_group_signals_the_group_and_names_it():
+    with patch("os.killpg") as mock_killpg:
+        assert kill_process_group(4242) == 4242
+
+    mock_killpg.assert_called_once_with(4242, signal.SIGKILL)
+
+
+@posix_process_groups_only
+def test_kill_process_group_refuses_our_own_group():
+    with patch("os.killpg") as mock_killpg:
+        assert kill_process_group(os.getpgid(0)) is None
+
+    mock_killpg.assert_not_called()
+
+
+@posix_process_groups_only
+def test_kill_process_group_of_an_empty_group_signals_nothing_and_kills_no_pid():
+    "Once every member is gone, the second pass is a no-op, not a pid kill."
+    with patch("zrb.cmd.command.kill_pid") as mock_kill_pid:
+        assert kill_process_group(_DEAD_PID) is None
+
+    mock_kill_pid.assert_not_called()
+
+
+def test_kill_process_group_without_a_group_signals_nothing():
+    assert kill_process_group(None) is None
+
+
+needs_waitid = pytest.mark.skipif(
+    not hasattr(os, "waitid"), reason="needs waitid to see an exit without reaping"
+)
+
+
+@posix_process_groups_only
+@needs_waitid
+def test_a_group_kill_leaves_an_exited_leader_unreaped():
+    "`Popen.kill` would poll first and reap it, freeing its pid for reuse."
+    process = subprocess.Popen([sys.executable, "-c", ""], start_new_session=True)
+    wait_for_exit(process)
+
+    with patch("os.killpg"):
+        kill_process_tree(process, pgid=process.pid)
+
+    assert process.returncode is None
+    process.wait()
+
+
+@posix_process_groups_only
+@needs_waitid
+def test_the_second_group_signal_goes_out_before_the_reap():
+    "While the leader is unreaped, its group id cannot be someone else's."
+    process = subprocess.Popen([sys.executable, "-c", ""], start_new_session=True)
+    signalled_while_unreaped = []
+
+    def killpg(group, sig):
+        signalled_while_unreaped.append(
+            has_exited(process) and process.returncode is None
+        )
+
+    with patch("os.killpg", side_effect=killpg):
+        reap_killed_process(process, process.pid)
+
+    assert signalled_while_unreaped == [True]
+    assert process.returncode == 0

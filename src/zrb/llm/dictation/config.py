@@ -75,6 +75,7 @@ class DictationConfig:
     sensevoice_threads: int | None = None
     emotion_model: str | None = None
     emotion_min_score: float | None = None
+    emotion_out_of_process: bool | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:

@@ -123,6 +123,13 @@ class Speaker:
         # The backend whose in-process renders are failing, and how many in a row.
         self._failing_backend: AnySpeechBackend | None = None
         self._failed_renders = 0
+        # Whether a warm-up is running, and whether this backend set was warmed
+        # once: the model behind it loads once, whatever asks again. The
+        # generation tells a warm-up of a set that `restart_backends` has since
+        # replaced from the one that is current now.
+        self._is_warming_up = False
+        self._is_warmed_up = False
+        self._warm_up_generation = 0
         # Set when that backend is dead; the drop waits for the next sentence.
         self._is_restart_pending = False
         # Paused utterances wait on `_unpaused`.
@@ -412,16 +419,70 @@ class Speaker:
     def warm_up(self) -> None:
         """Load a local in-process backend's model on a thread of its own, so
         the first sentence does not wait for it. One word is made and never
-        played."""
+        played.
+
+        Asked for at the start of every turn and answered once per backend set:
+        a call made while one is loading, or after one has loaded, does nothing.
+        The model is what the wait was ever for — a thread per turn queued
+        behind the same load is how one chat ended up with 38 of them parked.
+
+        The set this warm-up belongs to is read here, with the generation, when
+        it is already cached: a set built later is the thread's to build, and it
+        re-reads the generation before warming what it got.
+        """
+        with self._lock:
+            if self._is_warmed_up or self._is_warming_up or self._is_closed:
+                return
+            self._is_warming_up = True
+            generation = self._warm_up_generation
+            backends = self._backends
         threading.Thread(
             target=self._warm_up,
+            args=(generation, backends),
             name=f"{CFG.ROOT_GROUP_NAME}-speech-warm-up",
             daemon=True,
         ).start()
 
-    def _warm_up(self) -> None:
+    def _warm_up(
+        self, generation: int, backends: "list[AnySpeechBackend] | None"
+    ) -> None:
+        """Warm the backend set once, whatever the probe came to: a model that
+        did not load is the first sentence's to load.
+
+        Only the warm-up of the current set says the set is warm. One that a
+        `restart_backends` overtook warmed models the fresh set does not hold,
+        so its completion leaves the flag down and the next `warm_up` warms the
+        set that is there now."""
         try:
-            backend = self._get_backends()[0]
+            self._warm_one_word(generation, backends)
+        finally:
+            with self._lock:
+                if generation == self._warm_up_generation:
+                    self._is_warming_up = False
+                    self._is_warmed_up = True
+
+    def _is_stale(self, generation: int) -> bool:
+        """Whether `restart_backends` has replaced the set since *generation*."""
+        with self._lock:
+            return generation != self._warm_up_generation
+
+    def _warm_one_word(
+        self, generation: int, backends: "list[AnySpeechBackend] | None"
+    ) -> None:
+        try:
+            if self._is_stale(generation):
+                # A restart replaced the set this warm-up was started for. The
+                # old one is not worth warming — it is closed — and the fresh
+                # one is the next `warm_up`'s, which would otherwise probe the
+                # same backend beside this thread and load its model twice.
+                return
+            if backends is None:
+                backends = self._get_backends()
+                if self._is_stale(generation):
+                    # Overtaken while it built the set: what it got is the
+                    # fresh generation's, and the next turn warms it.
+                    return
+            backend = backends[0]
             # A remote voice would bill a word nobody hears; the fallback is
             # never tried for the same reason.
             if not (
@@ -464,7 +525,10 @@ class Speaker:
 
         A backend whose service died (Pipecat marks it unusable) stays dead
         for as long as it is cached. One the caller supplied is dropped from the
-        cache but not closed: it is the caller's, and it speaks again."""
+        cache but not closed: it is the caller's, and it speaks again.
+
+        The fresh set is warmed again by the next `warm_up`: its models are
+        other models."""
         with self._lock:
             self._is_restart_pending = False
             if self._is_closed:
@@ -473,6 +537,12 @@ class Speaker:
             owned, self._owned_backends = self._owned_backends, []
             self._failing_backend = None
             self._failed_renders = 0
+            # A warm-up still running is warming what `_backends` no longer
+            # holds: its completion must not mark the fresh set warm, and the
+            # set it leaves behind is a new generation's to warm.
+            self._warm_up_generation += 1
+            self._is_warming_up = False
+            self._is_warmed_up = False
         for backend in owned:
             backend.close()
 

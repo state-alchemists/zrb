@@ -18,12 +18,17 @@ _PIPE_WRITE_CHUNK = 32768
 def read_hook_output(
     process: subprocess.Popen, stdin_payload: bytes
 ) -> tuple[bytes, bytes]:
-    """Feed stdin and collect stdout/stderr, returning once the *child* exits.
+    """Feed stdin and collect stdout/stderr, returning once the *child* exits,
+    left unreaped for the caller to reap.
 
     ``Popen.communicate`` waits for pipe EOF, which never comes when a hook
     backgrounds work (``cmd & disown``) and a descendant keeps the pipes open.
     Output written by descendants after the child exits is dropped. Pipes are
     drained throughout so a hook writing more than a pipe buffer cannot block.
+
+    The child is not reaped here: until it is, its pid, and so the hook's
+    process group id, cannot be reused, which is what lets a timed-out hook's
+    group be signalled again safely (`process_kill.reap_killed_process`).
 
     POSIX only; Windows cannot poll pipes, so it falls back to ``communicate``.
     """
@@ -58,7 +63,7 @@ def read_hook_output(
                     pending = _write_stdin(sel, process.stdin, pending)
                 else:
                     _read_pipe(sel, key, collected[key.fd])
-            if process.poll() is None:
+            if not has_exited(process):
                 continue
             # The child is gone: leave after one poll that returned no events.
             # "No events", not "read nothing": a poll that only saw stdin
@@ -72,10 +77,38 @@ def read_hook_output(
         sel.close()
         for pipe in (process.stdin, process.stdout, process.stderr):
             _close_pipe(pipe)
-    # Match communicate(), which ends with wait(), so returncode is set.
-    if process.poll() is None:
-        process.wait()
+    # The pipes can all close before the child exits.
+    wait_for_exit(process)
     return b"".join(stdout_chunks), b"".join(stderr_chunks)
+
+
+def has_exited(process: subprocess.Popen) -> bool:
+    """Whether *process* has exited, without reaping it where the OS allows.
+
+    A process with no pid to wait on (a stand-in) is asked through ``poll``.
+    """
+    pid = getattr(process, "pid", None)
+    if not isinstance(pid, int) or not hasattr(os, "waitid"):
+        return process.poll() is not None
+    try:
+        state = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+    except ChildProcessError:
+        # Reaped already, by whoever owns it.
+        return True
+    return state is not None
+
+
+def wait_for_exit(process: subprocess.Popen) -> None:
+    """Block until *process* exits, leaving it unreaped where the OS allows."""
+    pid = getattr(process, "pid", None)
+    if not isinstance(pid, int) or not hasattr(os, "waitid"):
+        process.wait()
+        return
+    try:
+        os.waitid(os.P_PID, pid, os.WEXITED | os.WNOWAIT)
+    except ChildProcessError:
+        # Reaped already, by whoever owns it.
+        return
 
 
 def _read_pipe(sel: "selectors.BaseSelector", key: Any, chunks: list[bytes]) -> None:

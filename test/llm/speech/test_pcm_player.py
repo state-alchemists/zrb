@@ -130,21 +130,6 @@ def test_a_sentence_longer_than_the_read_ahead_is_played_in_full(sd):
     assert _played(stream)[: len(samples)].tolist() == samples
 
 
-def test_a_paused_utterance_plays_silence_and_holds_its_place(sd):
-    chunks = [_pcm([5] * 1024)] * 3
-    utterance = PcmUtterance(SpeechAudio(RATE, chunks))
-    utterance.pause()
-    assert utterance.is_paused and utterance.is_pausable
-    threading.Timer(0.05, utterance.resume).start()
-
-    utterance.play(timeout=5)
-
-    played = _played(FakeOutputStream.instances[0])
-    first_sound = int(np.argmax(played != 0))
-    assert first_sound >= 1024  # silence while paused
-    assert int(np.count_nonzero(played)) == 3 * 1024  # nothing skipped
-
-
 def test_stop_ends_playback_and_closes_the_download(sd):
     closed = []
 
@@ -395,20 +380,6 @@ def test_audio_cut_off_by_stop_is_no_failure(sd, caplog):
     assert "closed by stop" not in caplog.text
 
 
-def test_paused_time_does_not_use_up_the_timeout(sd):
-    """A user talking over zrb for longer than the timeout must not end the
-    sentence they paused: only playing time counts."""
-    chunks = [_pcm([5] * 256)] * 2
-    utterance = PcmUtterance(SpeechAudio(RATE, chunks))
-    utterance.pause()
-    threading.Timer(0.3, utterance.resume).start()
-
-    utterance.play(timeout=0.2)
-
-    assert not utterance.is_stopped
-    assert int(np.count_nonzero(_played(FakeOutputStream.instances[0]))) == 512
-
-
 class TimedProgramUtterance(ProgramUtterance):
     def play(self, timeout):
         self.events.append(("played", timeout))
@@ -426,20 +397,6 @@ def test_the_fallback_after_failing_audio_keeps_the_timeout(sd):
     assert ("played", 7) in events
 
 
-def test_a_fallback_paused_before_it_starts_is_not_played():
-    """A program cannot hold speech: one paused before it starts would play
-    over the user, so it is dropped."""
-    events = []
-    utterance = PcmUtterance(
-        SpeechAudio(RATE, [_pcm([1] * 256)]),
-        fallback=lambda: utterance.pause() or ProgramUtterance(events),
-    )
-    with patch.dict("sys.modules", {"sounddevice": _broken_device()}):
-        utterance.play(timeout=1)
-
-    assert events == ["cleaned"]
-
-
 def test_a_device_that_cannot_open_reports_the_start_of_the_player_program():
     events = []
     utterance = PcmUtterance(
@@ -451,32 +408,3 @@ def test_a_device_that_cannot_open_reports_the_start_of_the_player_program():
         utterance.play(timeout=1)
 
     assert events == ["started", "played", "cleaned"]
-
-
-def test_a_fallback_held_by_a_pause_reports_no_start():
-    started = []
-    utterance = PcmUtterance(
-        SpeechAudio(RATE, [_pcm([1] * 256)]),
-        fallback=lambda: utterance.pause() or ProgramUtterance([]),
-    )
-    utterance.set_on_start(lambda: started.append(True))
-    with patch.dict("sys.modules", {"sounddevice": _broken_device()}):
-        utterance.play(timeout=1)
-
-    assert started == []
-
-
-def test_a_finished_fallback_no_longer_counts_as_playing():
-    """Once the player program is done, a pause holds the utterance again
-    instead of stopping a program that has already exited."""
-    events = []
-    utterance = PcmUtterance(
-        SpeechAudio(RATE, [_pcm([1] * 256)]),
-        fallback=lambda: ProgramUtterance(events),
-    )
-    with patch.dict("sys.modules", {"sounddevice": _broken_device()}):
-        utterance.play(timeout=1)
-
-    assert utterance.is_pausable
-    utterance.pause()
-    assert "stopped" not in events

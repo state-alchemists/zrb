@@ -105,10 +105,17 @@ class DictationSession:
     def __init__(self, config: DictationConfig) -> None:
         self._config = config
         self._emotion = (
-            EmotionDetector(config.emotion_model, config.emotion_min_score)
+            EmotionDetector(
+                config.emotion_model,
+                config.emotion_min_score,
+                out_of_process=bool(config.emotion_out_of_process),
+            )
             if config.detect_emotion
             else None
         )
+        # The emotion model loads on a task of its own, beside the microphone
+        # rather than in front of it.
+        self._emotion_load: asyncio.Task[None] | None = None
         self._backend: AnyDictationBackend | None = None
         # `close` ends the session; no backend or transcript is created after it.
         self._is_closed = False
@@ -178,7 +185,21 @@ class DictationSession:
         if self._stop_recording is not None:
             self._stop_recording.set()
         self._close_backend()
+        self._close_emotion()
         self._show(None)
+
+    def _close_emotion(self) -> None:
+        """Stop the tone, and the child process that holds its model.
+
+        A load still running is cancelled; the worker is closed either way, so a
+        session that ends does not leave a model resident in a process of its
+        own for the rest of the chat."""
+        load, self._emotion_load = self._emotion_load, None
+        if load is not None and not load.done():
+            load.cancel()
+        emotion, self._emotion = self._emotion, None
+        if emotion is not None:
+            emotion.close()
 
     def _close_backend(self) -> None:
         """Release the backend without blocking this teardown.
@@ -328,12 +349,28 @@ class DictationSession:
         return (await backend.transcribe(audio)).strip()
 
     async def _prepare_models(self, backend: AnyDictationBackend) -> None:
-        """Load the transcriber and, when tones are heard, the emotion model
-        at the same time: each load waits on disk or network, not on the other."""
-        await asyncio.gather(
-            prepare_reported(backend.name, backend.prepare, self._get_output_ui),
-            self._prepare_emotion(),
-        )
+        """Load the transcriber before the microphone opens, and the emotion
+        model beside it rather than in front of it.
+
+        The microphone waits for the transcriber alone: it loads in about two
+        seconds, while emotion2vec+ takes eight to twenty and hears nothing the
+        transcriber needs. A tone that arrives a couple of utterances late is
+        worth more than a microphone that opens late (ADR-0115)."""
+        await prepare_reported(backend.name, backend.prepare, self._get_output_ui)
+        self._start_emotion_load()
+
+    def _start_emotion_load(self) -> None:
+        """Load the emotion model on a task of its own, once per session."""
+        emotion = self._emotion
+        if emotion is None or self._emotion_load is not None:
+            return
+        # Marked before the task is scheduled: the microphone opens before that
+        # task runs, so the first utterance could otherwise become the thread
+        # that loads the model and wait out the whole load (ADR-0115).
+        emotion.begin_loading()
+        load = asyncio.ensure_future(self._prepare_emotion())
+        load.add_done_callback(_say_emotion_load_failure)
+        self._emotion_load = load
 
     async def _prepare_emotion(self) -> None:
         emotion = self._emotion
@@ -821,6 +858,19 @@ async def _wait_for_turn_to_end(ui: "AnyUI") -> None:
     deadline = asyncio.get_running_loop().time() + _TURN_END_WAIT_SECONDS
     while ui.is_turn_running and asyncio.get_running_loop().time() < deadline:
         await asyncio.sleep(0.05)
+
+
+def _say_emotion_load_failure(load: "asyncio.Task[None]") -> None:
+    """Say a background emotion-model load that failed, so the task's failure
+    is read instead of reported as never retrieved.
+
+    The load already said so on the UI (`prepare_reported`); this is the log's
+    copy, for a session whose output has moved on by then."""
+    if load.cancelled():
+        return
+    error = load.exception()
+    if error is not None:
+        logger.warning(f"Loading the emotion model failed: {error}")
 
 
 def _quote(text: str) -> str:
