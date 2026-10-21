@@ -1,5 +1,6 @@
 import re
 
+from prompt_toolkit.formatted_text import StyleAndTextTuples
 from prompt_toolkit.lexers import Lexer
 
 # ANSI palette indices 0-7 for SGR 30-37/40-47 and 90-97.
@@ -25,9 +26,19 @@ _BRIGHT_FG = [
 ]
 
 
+_ANSI_ESCAPE = re.compile(r"(?:\x1B|\\033)\[([0-9;]*)m")
+
+# The SGR state in force at the start of a line: (attributes, fg, bg).
+_LineState = tuple[frozenset[str], str, str]
+_INITIAL_STATE: _LineState = (frozenset(), "", "")
+
+
 def _build_style(attrs: set[str], fg: str, bg: str) -> str:
-    """Compose a space-joined prompt_toolkit style string."""
-    parts = list(attrs)
+    """Compose a space-joined prompt_toolkit style string.
+
+    Attributes are sorted so the same state always yields the same string.
+    """
+    parts = sorted(attrs)
     if fg:
         parts.append(fg)
     if bg:
@@ -41,54 +52,97 @@ class CLIStyleLexer(Lexer):
     Supports bold/faint/italic/underline attributes, 8 standard + 8 bright
     foreground/background colors, 24-bit RGB (38;2;R;G;B / 48;2;R;G;B),
     256-color palette (38;5;N / 48;5;N), and state persistence across lines.
+
+    `lex_document` runs on every redraw of the whole transcript, so it does
+    the least it can: one pass records only the style state each line starts
+    in, and a line is tokenized when prompt_toolkit asks for it — normally
+    just the visible ones. The transcript almost always grows by appending,
+    so the start states of the previous document are reused when the new
+    text extends it, and only the lines past the old last line are scanned.
     """
+
+    def __init__(self) -> None:
+        self._previous_text = ""
+        self._previous_starts: list[_LineState] = [_INITIAL_STATE]
 
     def lex_document(self, document):
         lines = document.lines
-        line_tokens = {}
+        starts = self._get_line_starts(document.text, lines)
 
-        attrs: set[str] = set()
-        fg = ""
-        bg = ""
-
-        ansi_escape = re.compile(r"(?:\x1B|\\033)\[([0-9;]*)m")
-
-        for lineno, line in enumerate(lines):
-            tokens = []
-            last_end = 0
-
-            for match in ansi_escape.finditer(line):
-                start, end = match.span()
-
-                if start > last_end:
-                    tokens.append((_build_style(attrs, fg, bg), line[last_end:start]))
-
-                codes = match.group(1).split(";")
-                if not codes or codes == [""]:
-                    codes = ["0"]
-
-                int_codes = [int(c) for c in codes if c.isdigit()]
-
-                i = 0
-                while i < len(int_codes):
-                    code = int_codes[i]
-                    i += 1
-                    result, consumed = _dispatch_code(code, int_codes, i, attrs, fg, bg)
-                    if result is not None:
-                        fg, bg = result
-                    i += consumed
-
-                last_end = end
-
-            if last_end < len(line):
-                tokens.append((_build_style(attrs, fg, bg), line[last_end:]))
-
-            line_tokens[lineno] = tokens
-
-        def get_line(lineno):
-            return line_tokens.get(lineno, [])
+        def get_line(lineno: int) -> StyleAndTextTuples:
+            if not 0 <= lineno < len(lines):
+                return []
+            return _tokenize_line(lines[lineno], starts[lineno])
 
         return get_line
+
+    def _get_line_starts(self, text: str, lines: list[str]) -> list[_LineState]:
+        """The style state each of `lines` starts in.
+
+        Every line of the previous text but its last is unchanged when `text`
+        extends it, so the start state of each previous line still holds;
+        scanning resumes from the previous last line, which may have grown.
+        """
+        if text.startswith(self._previous_text):
+            starts = self._previous_starts[:]
+        else:
+            starts = [_INITIAL_STATE]
+        state = starts[-1]
+        for line in lines[len(starts) - 1 : -1]:
+            state = _advance_state(line, state)
+            starts.append(state)
+        self._previous_text = text
+        self._previous_starts = starts
+        return starts
+
+
+def _advance_state(line: str, state: _LineState) -> _LineState:
+    """The style state in force after `line`, given the one it starts in."""
+    if "\x1b" not in line and "\\033" not in line:
+        return state
+    attrs = set(state[0])
+    fg, bg = state[1], state[2]
+    for match in _ANSI_ESCAPE.finditer(line):
+        fg, bg = _apply_escape(match, attrs, fg, bg)
+    new_state = (frozenset(attrs), fg, bg)
+    # Keep sharing the old tuple when nothing changed.
+    return state if new_state == state else new_state
+
+
+def _tokenize_line(line: str, state: _LineState) -> StyleAndTextTuples:
+    """Split `line` into (style, text) tokens, starting in `state`."""
+    attrs = set(state[0])
+    fg, bg = state[1], state[2]
+    tokens: StyleAndTextTuples = []
+    last_end = 0
+    for match in _ANSI_ESCAPE.finditer(line):
+        start, end = match.span()
+        if start > last_end:
+            tokens.append((_build_style(attrs, fg, bg), line[last_end:start]))
+        fg, bg = _apply_escape(match, attrs, fg, bg)
+        last_end = end
+    if last_end < len(line):
+        tokens.append((_build_style(attrs, fg, bg), line[last_end:]))
+    return tokens
+
+
+def _apply_escape(
+    match: re.Match[str], attrs: set[str], fg: str, bg: str
+) -> tuple[str, str]:
+    """Apply one SGR escape: mutates `attrs`, returns the new (fg, bg)."""
+    codes = match.group(1).split(";")
+    if not codes or codes == [""]:
+        codes = ["0"]
+    int_codes = [int(c) for c in codes if c.isdigit()]
+    i = 0
+    while i < len(int_codes):
+        code = int_codes[i]
+        i += 1
+        result, consumed = _dispatch_code(code, int_codes, i, attrs, fg, bg)
+        if result is not None:
+            fg, bg = result
+        i += consumed
+    return fg, bg
 
 
 # SGR codes that set one attribute, and those that clear a group of them.
