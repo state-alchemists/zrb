@@ -68,6 +68,10 @@ def send_queued_messages_now(
     the run context (`agent/run/runner.py`), so a live run is present even
     though the user has not answered the prompt; delivering there would put
     the queue ahead of the answer the turn is blocked on.
+
+    An `/exec` job at the head is an ordering barrier (see `_steer_entries`):
+    when it delivers nothing, the attempt falls through to the cancel below,
+    which runs the whole queue in its original order — the `/exec` job first.
     """
     entries = queue.pending()
     if not entries:
@@ -97,16 +101,21 @@ def send_queued_messages_now(
 def _steer_entries(
     queue: MessageQueue, run_context: object, entries: "tuple[QueuedMessage, ...]"
 ) -> int:
-    """Steer every still-queued message into `run_context`; return the count.
+    """Steer the still-queued messages at the head of *entries*; return the count.
 
-    An `/exec` job is not steerable (ADR-0078): it stays queued. The snapshot
-    is taken from the queue itself and nothing awaits while it is drained, so
-    every entry is still queued when it is removed.
+    An `/exec` job is not steerable (ADR-0078) and is an ordering barrier: it
+    stops the drain rather than being skipped. The queue is FIFO and the
+    message loop drains it head-first, so steering a message past an `/exec`
+    job would run that message before a command the user queued first — and a
+    follow-up like "report the command's result" most needs the command it
+    refers to to have run. The snapshot is taken from the queue itself and
+    nothing awaits while it is drained, so every entry is still queued when it
+    is removed.
     """
     delivered = 0
     for entry in entries:
         if not entry.is_editable:
-            continue
+            break
         if not steer_into_live_run(run_context, entry.text, entry.attachments):
             break
         queue.remove(entry)

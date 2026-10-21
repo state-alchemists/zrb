@@ -95,6 +95,41 @@ def test_an_exec_job_is_not_steerable_and_stays_queued():
     assert report.held == 1
 
 
+def test_an_exec_job_is_an_ordering_barrier():
+    # A later message must not jump an earlier shell command: the queue is
+    # FIFO, and "report the command's result" needs the command to have run.
+    queue = MessageQueue()
+    exec_job = _entry("ls", kind="exec")
+    message = _entry("report the command's result")
+    queue.put_nowait(exec_job)
+    queue.put_nowait(message)
+    run_context = MagicMock()
+
+    report, cancelled = _send(queue, run_context, is_turn_running=True)
+
+    assert run_context.enqueue.call_count == 0
+    assert queue.pending() == (exec_job, message)
+    assert report.outcome is DeliveryOutcome.FELL_BACK_TO_CANCEL
+    assert cancelled == [True]
+
+
+def test_messages_before_an_exec_job_are_delivered_and_it_stops_the_drain():
+    queue = MessageQueue()
+    first = _entry("first")
+    exec_job = _entry("ls", kind="exec")
+    later = _entry("later")
+    for entry in (first, exec_job, later):
+        queue.put_nowait(entry)
+    run_context = MagicMock()
+
+    report, _ = _send(queue, run_context)
+
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    assert report.delivered == 1
+    assert [call.args[0] for call in run_context.enqueue.call_args_list] == ["first"]
+    assert queue.pending() == (exec_job, later)
+
+
 def test_a_dialog_outranks_a_live_run():
     # The streaming handler keeps re-registering the run context while a turn
     # is suspended on an approval or a question, so a live run is present even
