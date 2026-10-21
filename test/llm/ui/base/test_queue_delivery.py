@@ -95,6 +95,26 @@ def test_an_exec_job_is_not_steerable_and_stays_queued():
     assert report.held == 1
 
 
+def test_a_dialog_outranks_a_live_run():
+    # The streaming handler keeps re-registering the run context while a turn
+    # is suspended on an approval or a question, so a live run is present even
+    # though the user has not answered. Delivering there would put the queue
+    # ahead of the answer the turn is blocked on.
+    queue = MessageQueue()
+    queue.put_nowait(_entry("hello"))
+    run_context = MagicMock()
+
+    report, cancelled = _send(
+        queue, run_context, is_waiting=True, is_turn_running=True
+    )
+
+    assert report.outcome is DeliveryOutcome.WAITING_ON_DIALOG
+    assert run_context.enqueue.call_count == 0
+    assert len(queue.pending()) == 1
+    assert report.held == 1
+    assert cancelled == []
+
+
 def test_a_dialog_holding_the_input_waits():
     queue = MessageQueue()
     queue.put_nowait(_entry("hello"))

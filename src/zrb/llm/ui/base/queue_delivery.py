@@ -7,6 +7,9 @@ hands them to the live run instead, so the model reads them within this turn.
 The ladder mirrors the one Claude Code drives its send-now key with: deliver
 into the live run when there is one, wait when a dialog owns the input, and
 fall back to interrupting the turn when there is no live run to steer into.
+The dialog is checked *before* the live run: the run context stays registered
+while a turn is suspended on an approval or a question, so a live run is no
+proof the model is ready to read anything.
 """
 
 from __future__ import annotations
@@ -59,10 +62,19 @@ def send_queued_messages_now(
     next model request). Without a live run there is nothing to steer into:
     a turn that is running is interrupted so the message loop picks the queue
     up right away, and a turn waiting on the user is left alone.
+
+    A dialog outranks the live run, and is checked first. While a tool
+    approval or a question waits, the streaming handler keeps re-registering
+    the run context (`agent/run/runner.py`), so a live run is present even
+    though the user has not answered the prompt; delivering there would put
+    the queue ahead of the answer the turn is blocked on.
     """
     entries = queue.pending()
     if not entries:
         return DeliveryReport(DeliveryOutcome.NOTHING_MOVED)
+
+    if is_waiting_for_answer:
+        return DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=queue.qsize())
 
     if active_run_context is not None:
         delivered = _steer_entries(queue, active_run_context, entries)
@@ -72,9 +84,6 @@ def send_queued_messages_now(
                 delivered=delivered,
                 held=queue.qsize(),
             )
-
-    if is_waiting_for_answer:
-        return DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=queue.qsize())
 
     if is_turn_running:
         cancel_turn()

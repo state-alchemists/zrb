@@ -100,7 +100,7 @@ The echoed `💬` line stays in the transcript above, so the whole of a queued m
  ⏩ sent 2 queued message(s) into this turn (1 still waiting)
 ```
 
-The queued messages are handed to the live turn when there is one, so the model reads them at its next request. Without a live turn to hand them to, a running turn is interrupted and the queue runs as its own turn right after (`⏩ interrupted the turn, so the queue runs next`); while an approval or a question is waiting for you the queue waits with it (`⏩ waiting for your answer, so the queue runs after it`); and with nothing queued the key does nothing (`⏩ nothing was queued`). A queued `/exec` job is never handed to the model — it stays queued and is counted in the "still waiting" total. `Ctrl+G` is not a submit: what you are typing stays in the input box for you to edit or send with `Enter`.
+The queued messages are handed to the live turn when there is one, so the model reads them at its next request. While an approval or a question is waiting for you the queue waits with it (`⏩ waiting for your answer, so the queue runs after it`) — the turn is blocked on your answer, so it does not matter that a turn is still running. Without a live turn to hand them to, a running turn is interrupted and the queue runs as its own turn right after (`⏩ interrupted the turn, so the queue runs next`); and with nothing queued the key does nothing (`⏩ nothing was queued`). A queued `/exec` job is never handed to the model — it stays queued and is counted in the "still waiting" total. `Ctrl+G` is not a submit: what you are typing stays in the input box for you to edit or send with `Enter`.
 
 ### Session Token Tracking
 
