@@ -84,6 +84,13 @@ def _classify(samples):
     return {"labels": LABELS, "scores": SCORES}
 
 
+def _fails_on_bad(samples):
+    """A model that reads `b"bad"` and nothing else wrong: a per-clip failure."""
+    if samples == b"bad":
+        raise ValueError("bad clip")
+    return _classify(samples)
+
+
 @pytest.fixture
 def in_threads(monkeypatch):
     """`EmotionWorker` starts a thread instead of a process, with a fake model."""
@@ -203,6 +210,63 @@ def test_a_clip_that_gets_no_answer_stops_the_child(in_threads):
     finally:
         worker.close()
     assert len(attempts) == 2
+
+
+def test_one_clip_the_child_cannot_classify_keeps_the_child(in_threads):
+    """A clip the model cannot read is the clip's problem: the next clip is
+    other audio, and the child that can read it is already loaded."""
+    in_threads.setattr(emotion_model, "load_classifier", lambda repo: _fails_on_bad)
+    worker = EmotionWorker("me/e2v")
+    try:
+        classify = worker.start()
+        with pytest.raises(RuntimeError, match="bad clip"):
+            classify(b"bad")
+        assert worker.is_started
+        assert classify(b"\x00\x00") == {"labels": LABELS, "scores": SCORES}
+    finally:
+        worker.close()
+    assert len(STARTED) == 1
+
+
+def test_a_child_that_cannot_classify_any_clip_is_restarted(in_threads):
+    """The second clip in a row failing is the worker's problem, not the
+    clip's: the child is forgotten like a dead one, so the next clip starts
+    another instead of asking the same broken model for the rest of the
+    session."""
+    in_threads.setattr(emotion_model, "load_classifier", lambda repo: _fails_on_bad)
+    worker = EmotionWorker("me/e2v")
+    try:
+        classify = worker.start()
+        for _ in range(2):
+            with pytest.raises(RuntimeError, match="bad clip"):
+                classify(b"bad")
+        assert not worker.is_started
+        assert len(STARTED) == 1
+        assert not STARTED[0].is_alive()  # the broken child is gone
+
+        worker.start()
+        assert len(STARTED) == 2
+    finally:
+        worker.close()
+
+
+def test_a_clip_the_child_reads_clears_the_count(in_threads):
+    """The count is of clips failing in a row: a clip the child reads ends it,
+    so a rare bad one never adds up to a reload of the model."""
+    in_threads.setattr(emotion_model, "load_classifier", lambda repo: _fails_on_bad)
+    worker = EmotionWorker("me/e2v")
+    try:
+        classify = worker.start()
+        for samples in (b"bad", b"\x00\x00", b"bad"):
+            if samples == b"bad":
+                with pytest.raises(RuntimeError, match="bad clip"):
+                    classify(samples)
+            else:
+                assert classify(samples) == {"labels": LABELS, "scores": SCORES}
+        assert worker.is_started
+    finally:
+        worker.close()
+    assert len(STARTED) == 1
 
 
 def test_a_close_while_the_model_loads_stops_the_child(in_threads):

@@ -76,6 +76,13 @@ READY_POLL_SECONDS = 0.2
 #: grace only keeps that model resident.
 STOP_GRACE_SECONDS = 1.0
 
+#: How many clips in a row a child may fail to classify before its worker is
+#: restarted. One unreadable clip is the clip's — the next one is other audio,
+#: and reloading a 1 GB model for it costs more than the tone — while a child
+#: that fails on every clip is the worker's, and keeping it would leave the
+#: session without tones until it ends.
+CLIP_ERRORS_BEFORE_RESTART = 2
+
 #: How long one clip's classification may take. Measured at ~0.3 s; this is a
 #: wedged child, not a slow one.
 CLASSIFY_TIMEOUT_SECONDS = 30.0
@@ -122,6 +129,8 @@ class EmotionWorker:
         # Serializes requests into the child, which classifies one clip at a time.
         self._requesting = threading.Lock()
         self._deaths = 0
+        # Clips in a row the child could not classify, held with `_deaths`.
+        self._clip_errors = 0
         self._is_closed = False
 
     @property
@@ -163,6 +172,9 @@ class EmotionWorker:
                 if not is_closed:
                     self._process, self._connection = process, connection
                     self._classify = self._request
+                    # A fresh child starts from none: the count is of clips one
+                    # child failed in a row.
+                    self._clip_errors = 0
             if is_closed:
                 # Closed while the model loaded: nobody wants this child. It is
                 # stopped outside the lock, since stopping one waits for it.
@@ -228,23 +240,49 @@ class EmotionWorker:
                 )
             try:
                 connection.send(samples)
-                if connection.poll(CLASSIFY_TIMEOUT_SECONDS):
-                    return _read_reply(connection.recv())
+                if not connection.poll(CLASSIFY_TIMEOUT_SECONDS):
+                    # A child that says nothing for a clip is wedged, not slow
+                    # (the measurement is ~0.3 s), and it will not answer the
+                    # next clip either. It is stopped like a dead one: asking it
+                    # again would cost every later utterance the whole timeout
+                    # and keep its model resident for a worker nobody hears.
+                    self._forget_child()
+                    raise RuntimeError(
+                        "the emotion worker said nothing for "
+                        f"{CLASSIFY_TIMEOUT_SECONDS:g}s"
+                    )
+                verdict = _read_reply(connection.recv())
             except (EOFError, OSError) as exc:
                 # The child is gone (an out-of-memory kill, most likely). The
                 # next utterance starts another, up to `MAX_DEATHS`.
                 self._forget_child()
                 raise RuntimeError(f"the emotion worker stopped ({exc})") from exc
-            # A child that says nothing for a clip is wedged, not slow (the
-            # measurement is ~0.3 s), and it will not answer the next clip
-            # either. It is stopped like a dead one: asking it again would cost
-            # every later utterance the whole timeout and keep its model
-            # resident for a worker nobody hears.
+            except _ChildSaidError:
+                # The child is alive and answered: it could not classify this
+                # clip. That is the clip's problem once, and the worker's when
+                # it happens again.
+                self._note_clip_error()
+                raise
+            with self._state:
+                self._clip_errors = 0
+            return verdict
+
+    def _note_clip_error(self) -> None:
+        """Count a clip the child could not classify, and restart the worker
+        once every clip fails.
+
+        A child that answers an error is alive and holding its model, so the
+        clip, not the worker, is what went wrong — the next clip is other
+        audio. A second failure in a row is the worker's, and it is forgotten
+        like a dead one: a model that fails on everything must not leave the
+        session without tones, nor hold its share of the machine, until it
+        ends. A fresh child starts from none, so each one gets the same two
+        clips before it is suspected."""
+        with self._state:
+            self._clip_errors += 1
+            is_worn_out = self._clip_errors >= CLIP_ERRORS_BEFORE_RESTART
+        if is_worn_out:
             self._forget_child()
-            raise RuntimeError(
-                "the emotion worker said nothing for "
-                f"{CLASSIFY_TIMEOUT_SECONDS:g}s"
-            )
 
     def _forget_child(self) -> None:
         with self._state:
@@ -268,11 +306,15 @@ def _spawn_child(repo: str) -> "tuple[BaseProcess, Connection]":
     return process, parent_connection
 
 
+class _ChildSaidError(RuntimeError):
+    """The child was alive and answered: it could not classify that clip."""
+
+
 def _read_reply(reply: "tuple[str, object]") -> dict[str, list[object]]:
     """What the child answered: its verdict, or why the clip had none."""
     status, value = reply[0], reply[1]
     if status != "tone":
-        raise RuntimeError(str(value))
+        raise _ChildSaidError(str(value))
     return cast("dict[str, list[object]]", value)
 
 
