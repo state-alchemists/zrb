@@ -66,7 +66,10 @@ FACADE_BUDGETS = {
     # -21 (1210->1179): the status-bar state (working-period timer, running
     # tools, badges) moved into `BaseUIStatusBar` behind the same delegators
     # -- no public surface moved.
-    "llm/ui/base/ui.py": 1179,
+    # +14 (1179->1193): `send_queued_messages_now`, the send-now action
+    # `AnyUI` declares (ADR-0116) -- new surface; the ladder itself lives in
+    # the `queue_delivery` module the method calls.
+    "llm/ui/base/ui.py": 1193,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

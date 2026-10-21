@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any, TextIO, TypedDict
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.message_queue import QueuedMessage
+    from zrb.llm.ui.base.queue_delivery import DeliveryReport
 
 
 class ChoiceOption(TypedDict, total=False):
@@ -283,4 +284,13 @@ class AnyUI(ABC):
         """Write anything buffered here out to the delegating parent UI.
 
         A no-op for UIs that stream directly rather than buffering.
+        """
+
+    @abstractmethod
+    def send_queued_messages_now(self) -> "DeliveryReport":
+        """Deliver the queued messages into the running turn, now.
+
+        The report says what the attempt did: delivered into the live run,
+        fell back to interrupting the turn, or moved nothing. A UI with no
+        queue of its own moves nothing.
         """

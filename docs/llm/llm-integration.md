@@ -88,10 +88,19 @@ A message submitted while the assistant is thinking does not interrupt the turn.
 | `↓` | Walk back toward the newest, then restore whatever you were typing before the first recall |
 | `Enter` | Replace the queued message with the edited text, in place — rather than submitting a new one |
 | `Ctrl+X` | Drop the recalled message: it leaves the queue and its echoed line is taken out of every transcript. The input goes back to whatever you were typing before the recall |
+| `Ctrl+G` | Send the queued messages into the running turn now, instead of waiting for it to finish |
 
 The echoed `💬` line stays in the transcript above, so the whole of a queued message is always readable; the panel repeats only its first line. A multi-line paste in a terminal without bracketed paste arrives as one submit per Enter keystroke: lines submitted within `ZRB_LLM_UI_PASTE_MERGE_WINDOW` (default 100 ms) of a still-queued message are appended to it, so the model reads one message instead of a turn per line.
 
 `Ctrl+X` reaches every transcript. In a `MultiUI` — the terminal plus a Telegram bot, say — the queue entry is shared but each UI keeps its own echo, so all of them lose the line; if the message's turn started while you had it recalled, it is left running and only the recall is dropped. Either way the input goes back to your pre-recall draft, so a recalled message you dropped cannot be sent again by a later `Enter`.
+
+`Ctrl+G` flushes the queue into the turn that is running now instead of waiting for it to finish, and one muted line under the transcript says which of four things happened:
+
+```text
+ ⏩ sent 2 queued message(s) into this turn (1 still waiting)
+```
+
+The queued messages are handed to the live turn when there is one, so the model reads them at its next request. Without a live turn to hand them to, a running turn is interrupted and the queue runs as its own turn right after (`⏩ interrupted the turn, so the queue runs next`); while an approval or a question is waiting for you the queue waits with it (`⏩ waiting for your answer, so the queue runs after it`); and with nothing queued the key does nothing (`⏩ nothing was queued`). A queued `/exec` job is never handed to the model — it stays queued and is counted in the "still waiting" total. `Ctrl+G` is not a submit: what you are typing stays in the input box for you to edit or send with `Enter`.
 
 ### Session Token Tracking
 

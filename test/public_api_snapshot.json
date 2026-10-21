@@ -274,6 +274,7 @@
         "remove_echo",
         "run_async",
         "run_interactive_command",
+        "send_queued_messages_now",
         "set_status_badge",
         "small_model",
         "snapshot_manager",

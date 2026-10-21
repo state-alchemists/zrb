@@ -60,6 +60,10 @@ from zrb.llm.ui.base.message_queue import (
     submit_user_message_via_queue,
 )
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
+from zrb.llm.ui.base.queue_delivery import (
+    DeliveryReport,
+    send_queued_messages_now,
+)
 from zrb.llm.ui.base.replay import BaseUIReplay
 from zrb.llm.ui.base.status_bar import BaseUIStatusBar, RunningTool
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
@@ -917,6 +921,22 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def queued_message_count(self) -> int:
         """Messages waiting for the current turn to finish."""
         return self.effective_message_queue.qsize()
+
+    def send_queued_messages_now(self) -> DeliveryReport:
+        """Deliver the queued messages into the running turn, now.
+
+        A `MultiUI` parent runs the turn, so the parent does the delivering.
+        """
+        parent = self.multi_ui_parent
+        if parent is not None:
+            return parent.send_queued_messages_now()
+        return send_queued_messages_now(
+            active_run_context=self.active_run_context,
+            queue=self.effective_message_queue,
+            is_turn_running=self.is_turn_running,
+            is_waiting_for_answer=self.is_waiting_for_answer,
+            cancel_turn=lambda: self.cancel_current_turn("send_now"),
+        )
 
     def edit_queued_message(self, entry: QueuedMessage, new_text: str) -> bool:
         """Replace a still-queued message's text and redraw its echoes.

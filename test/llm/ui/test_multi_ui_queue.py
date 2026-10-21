@@ -5,6 +5,7 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import QueuedMessage
+from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
 from zrb.llm.ui.multi_ui import MultiUI
 
 
@@ -235,3 +236,23 @@ async def test_quitting_ends_the_loop_when_the_job_absorbs_its_cancel(multi_ui):
 
     assert is_ended
     assert is_settled
+
+
+def test_the_multi_ui_delivers_the_shared_queue_into_the_live_run(multi_ui):
+    """The children share one queue and the `MultiUI` runs the turn, so the
+    delivery happens on the wrapper."""
+    run_context = MagicMock()
+    multi_ui.active_run_context = run_context
+
+    async def run():
+        pass
+
+    multi_ui.message_queue.put_nowait(
+        QueuedMessage(text="hello", attachments=[], kind="message", run=run)
+    )
+
+    report = multi_ui.send_queued_messages_now()
+
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    assert run_context.enqueue.call_count == 1
+    assert multi_ui.message_queue.qsize() == 0

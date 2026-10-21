@@ -314,6 +314,7 @@ _KEYBOARD_SHORTCUTS: list[tuple[str, str]] = [
     ("Ctrl+Y", "Toggle YOLO mode"),
     ("Ctrl+O", "Expand/collapse tool call/thinking at cursor"),
     ("Ctrl+X", "Drop the queued message recalled with ↑"),
+    ("Ctrl+G", "Send the queued messages into the running turn now"),
     ("Ctrl+C", "Copy selection, clear input, or exit"),
     ("↑ / ↓", "Navigate input history, or the queued messages it recalls"),
 ]

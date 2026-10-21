@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
+from zrb.llm.ui.base.queue_delivery import DeliveryOutcome, DeliveryReport
+
 if TYPE_CHECKING:
     from zrb.llm.ui.base.message_queue import QueuedMessage
 
@@ -165,3 +167,7 @@ class UIStateDefaultsMixin:
 
     def flush_to_parent(self) -> None:
         """Nothing buffered, so nothing to hand upward."""
+
+    def send_queued_messages_now(self) -> DeliveryReport:
+        """No queue of its own, so nothing to deliver."""
+        return DeliveryReport(DeliveryOutcome.NOTHING_MOVED)

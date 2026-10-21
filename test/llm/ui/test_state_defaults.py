@@ -5,6 +5,7 @@ import asyncio
 import pytest
 
 from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
 from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 
 
@@ -139,3 +140,13 @@ def test_a_host_implementing_a_member_for_real_wins_over_the_default():
             return True
 
     assert _RealThinking().is_thinking is True
+
+
+def test_a_ui_without_a_queue_has_nothing_to_send():
+    """A UI that owns no queue answers with a report of nothing moved rather
+    than a fake success."""
+    report = _MinimalUI().send_queued_messages_now()
+
+    assert report.outcome is DeliveryOutcome.NOTHING_MOVED
+    assert report.delivered == 0
+    assert report.held == 0
