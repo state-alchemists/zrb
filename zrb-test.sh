@@ -35,6 +35,9 @@ export COVERAGE_FILE="${COVERAGE_DIR}/.coverage"
 # variable a developer exported — `ZRB_INIT_SCRIPTS` included — can reach a test.
 # That holds for every entry point (this script, a bare `pytest`, and each xdist
 # worker), which is why nothing is neutralized here.
+# `-n auto` reads this; one per core (10 here) at ~300 MB each ran a 6.6 GB WSL
+# out of memory, and the OOM killer took the zrb chat beside it.
+export PYTEST_XDIST_AUTO_NUM_WORKERS="${PYTEST_XDIST_AUTO_NUM_WORKERS:-4}"
 pytest \
     -n auto \
     --ignore-glob="**/template/**" \

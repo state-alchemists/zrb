@@ -94,6 +94,25 @@ def get_shell_flag(shell: str) -> str:
     return _SHELL_FLAGS.get(get_shell_name(shell), "-c")
 
 
+# The redirect fails quietly where /proc does not exist (macOS); `exec` keeps
+# the pid, so the process group the caller kills is still this one.
+_YIELD_TO_ZRB = (
+    '{ echo 1000 > /proc/self/oom_score_adj; } 2>/dev/null; exec nice -n 10 "$@"'
+)
+
+
+def create_yielding_argv(argv: list[str]) -> list[str]:
+    """Wrap *argv* so it yields to zrb: the OOM killer takes it (and what it
+    spawns) before zrb, and the scheduler runs zrb's TUI and speech first.
+
+    An agent's test suite or build is the usual reason the machine runs out of
+    memory, and the chat is the process worth keeping. Unchanged on Windows.
+    """
+    if os.name == "nt":
+        return argv
+    return ["sh", "-c", _YIELD_TO_ZRB, "sh", *argv]
+
+
 def _process_tree_pids(pid: int) -> list[int]:
     """Snapshot a process and its descendants' PIDs (best effort)."""
     try:
