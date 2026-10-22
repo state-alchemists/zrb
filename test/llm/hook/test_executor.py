@@ -86,7 +86,12 @@ async def test_executor_uses_at_most_max_workers_threads_for_a_burst():
         for thread in threading.enumerate()
         if thread.name.startswith("zrb-hook-")
     }
-    assert len(hook_threads - existing_hook_threads) == 2
+    # Two hooks ran at once above, so the pool did its job; this counts the
+    # threads it made for it. A worker beyond the pool's width would show here,
+    # while one the sampler catches mid-start only makes the count smaller —
+    # which is why it is a bound and not an equality: the equality failed on CI
+    # when a worker had not registered yet, though `started` proved it ran.
+    assert len(hook_threads - existing_hook_threads) <= 2
 
     release.set()
     results = await asyncio.gather(*calls)
