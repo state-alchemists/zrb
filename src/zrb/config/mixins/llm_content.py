@@ -46,6 +46,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SELF_REVIEW_TIMEOUT: str = "240"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_TRACKED_TURNS: str = "64"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "300"
+        self.DEFAULT_LLM_SUMMARY_MAX_TOKENS: str = "2000"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD: str = ""
@@ -389,6 +390,16 @@ class LLMContentMixin:
             "Most messages kept verbatim after summarization. A backstop for "
             "histories of many small messages: token pressure is what normally "
             "triggers summarization and bounds the kept tail."
+        ),
+    )
+
+    LLM_SUMMARY_MAX_TOKENS = EnvField(
+        int,
+        fallback=0,
+        doc=(
+            "Token cap for one conversation summary, which the summarizer prompt "
+            "asks the model to stay under. A summary over the cap is shortened "
+            "before it replaces the history; 0 disables the cap."
         ),
     )
 
