@@ -578,7 +578,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             recorder(user_message)
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,
-            active_run_context=self.active_run_context,
             stream_ai_response=self.stream_ai_response,
             queue=self._message_queue,
             attachment_sources=self._uis,
@@ -595,8 +594,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         source: InputProvenance | None = None,
     ) -> None:
-        """Queue *user_message* for the shared agent turn, or steer it into
-        the live run."""
+        """Queue *user_message* for the shared agent turn (Ctrl+G sends sooner)."""
         self.submit_user_message(self._llm_task, user_message, source)
 
     async def process_messages_loop(self):
@@ -749,13 +747,18 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         The children share one queue and this wrapper runs the turn, so the
         delivery happens here rather than in a child.
         """
-        return send_queued_messages_now(
+        report = send_queued_messages_now(
             active_run_context=self.active_run_context,
             queue=self._message_queue,
             is_turn_running=self.is_turn_running,
             is_waiting_for_answer=self.is_waiting_for_answer,
             cancel_turn=lambda: self.cancel_current_turn("send_now"),
         )
+        main_ui = self.main_ui
+        redraw = getattr(main_ui, "redraw_echoes", None)
+        if callable(redraw):
+            redraw(report.delivered_entries)
+        return report
 
     def is_prompt_answered_since(self, asked_at: float) -> bool:
         """Whether any child has answered the first prompt asked at or after

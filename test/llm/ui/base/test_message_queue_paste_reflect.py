@@ -1,5 +1,3 @@
-from unittest.mock import MagicMock
-
 import pytest
 
 from zrb.config.config import CFG
@@ -48,7 +46,6 @@ class BurstTarget:
 def submit_burst(queue, target, text):
     submit_user_message_via_queue(
         append_to_output=target.append_to_output,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[target],
@@ -120,28 +117,23 @@ class SpliceableTarget:
         return self._splice_echo(entry, entry.text.strip())
 
 
-def test_submit_user_message_via_queue_echoes_a_steered_live_run_message():
-    """A message steered into a live run never reaches the queue, so the shared
-    echo below the steer would not run for it — it must be echoed explicitly or
-    the user's line disappears from the UI while the model still receives it."""
-    run_context = MagicMock()
+def test_submit_user_message_via_queue_echoes_the_queued_line():
+    """The echo is written before the entry is queued, whatever is running."""
     outputs: list[str] = []
 
     submit_user_message_via_queue(
         append_to_output=outputs.append,
-        active_run_context=run_context,
         stream_ai_response=_stub_stream_ai_response,
         queue=MessageQueue(),
         attachment_sources=[],
         echo_targets=[],
         llm_task=object(),
-        user_message="steer me",
+        user_message="edit me later",
         marker="💬",
     )
 
-    run_context.enqueue.assert_called_once_with("steer me", priority="asap")
     assert len(outputs) == 1
-    assert "💬" in outputs[0] and "steer me" in outputs[0]
+    assert "💬" in outputs[0] and "edit me later" in outputs[0]
 
 
 def test_submit_via_queue_falls_back_to_echo_when_merge_cannot_redraw(monkeypatch):
@@ -177,7 +169,6 @@ def test_submit_via_queue_reflects_merged_line_per_multiui_child(monkeypatch):
 
     submit_user_message_via_queue(
         append_to_output=broadcast,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[tui, telegram],
@@ -188,7 +179,6 @@ def test_submit_via_queue_reflects_merged_line_per_multiui_child(monkeypatch):
     )
     submit_user_message_via_queue(
         append_to_output=broadcast,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[tui, telegram],
@@ -225,7 +215,6 @@ def test_submit_via_queue_replaces_echo_with_full_rendered_merged_markdown(monke
     def submit(text):
         submit_user_message_via_queue(
             append_to_output=target.append_to_output,
-            active_run_context=None,
             stream_ai_response=_stub_stream_ai_response,
             queue=queue,
             attachment_sources=[target],
@@ -288,7 +277,6 @@ def test_submit_via_queue_echoes_merged_markdown_line_verbatim_without_splice(
     def submit(text):
         submit_user_message_via_queue(
             append_to_output=target.append_to_output,
-            active_run_context=None,
             stream_ai_response=_stub_stream_ai_response,
             queue=queue,
             attachment_sources=[target],
@@ -329,7 +317,6 @@ def test_submit_via_queue_survives_a_child_redraw_failure(monkeypatch):
 
     submit_user_message_via_queue(
         append_to_output=broadcast,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[broken, healthy],
@@ -340,7 +327,6 @@ def test_submit_via_queue_survives_a_child_redraw_failure(monkeypatch):
     )
     submit_user_message_via_queue(
         append_to_output=broadcast,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[broken, healthy],
@@ -381,7 +367,6 @@ def test_submit_via_queue_merge_keeps_each_childs_own_echo_span(monkeypatch):
     for message in ("git status", "git add ."):
         submit_user_message_via_queue(
             append_to_output=broadcast,
-            active_run_context=None,
             stream_ai_response=_stub_stream_ai_response,
             queue=queue,
             attachment_sources=[child_a, child_b],
@@ -422,7 +407,6 @@ def test_submit_via_queue_merge_echoes_line_when_attachment_collection_fails(
 
     submit_user_message_via_queue(
         append_to_output=broadcast,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[tui],
@@ -439,7 +423,6 @@ def test_submit_via_queue_merge_echoes_line_when_attachment_collection_fails(
     with pytest.raises(RuntimeError, match="camera unavailable"):
         submit_user_message_via_queue(
             append_to_output=broadcast,
-            active_run_context=None,
             stream_ai_response=_stub_stream_ai_response,
             queue=queue,
             attachment_sources=[BrokenSource()],

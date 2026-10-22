@@ -224,7 +224,6 @@ def test_submit_user_message_via_queue_single_target_echoes_and_queues():
 
     submit_user_message_via_queue(
         append_to_output=outputs.append,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[target],
@@ -266,7 +265,6 @@ def test_submit_user_message_via_queue_fans_out_to_multiple_targets():
 
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=children,
@@ -281,34 +279,37 @@ def test_submit_user_message_via_queue_fans_out_to_multiple_targets():
     assert tracked_by == ["a", "b"]
 
 
-def test_submit_user_message_via_queue_steers_into_live_run_instead_of_queuing():
-    run_context = MagicMock()
+def test_submit_user_message_via_queue_queues_instead_of_steering():
+    """A submission is always queued, so it stays editable until its turn runs.
+
+    Steering at submit time is what Ctrl+G now does on request
+    (`send_queued_messages_now`); the submit path never reaches into a live run.
+    """
     queue = MessageQueue()
 
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
-        active_run_context=run_context,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[],
         echo_targets=[],
         llm_task=object(),
-        user_message="steer me",
-        marker="💬",
+        user_message="edit me later",
+        marker="⏳",
     )
 
-    run_context.enqueue.assert_called_once_with("steer me", priority="asap")
-    assert queue.qsize() == 0
+    entry = queue.peek_latest()
+    assert entry is not None
+    assert entry.text == "edit me later"
+    assert entry.echo_marker == "⏳"
 
 
-def test_known_input_source_is_queued_instead_of_steering():
-    run_context = MagicMock()
+def test_known_input_source_keeps_its_provenance_on_the_queued_entry():
     queue = MessageQueue()
     source = InputProvenance("Telegram")
 
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
-        active_run_context=run_context,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[],
@@ -319,7 +320,6 @@ def test_known_input_source_is_queued_instead_of_steering():
         source=source,
     )
 
-    run_context.enqueue.assert_not_called()
     assert queue.peek_latest().source == source
 
 
@@ -329,7 +329,6 @@ def test_non_keyboard_source_does_not_merge_with_keyboard_burst():
     target.take_pending_attachments.return_value = []
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[target],
@@ -342,7 +341,6 @@ def test_non_keyboard_source_does_not_merge_with_keyboard_burst():
     source = InputProvenance("Telegram")
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[target],
@@ -370,7 +368,6 @@ def test_submit_user_message_via_queue_ignores_sources_without_attachments():
 
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[object()],
@@ -411,7 +408,6 @@ def test_submit_user_message_via_queue_renders_markdownish_echo():
 
     submit_user_message_via_queue(
         append_to_output=lambda *v, **k: outputs.append((v, k)),
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[Target()],
@@ -452,7 +448,6 @@ def test_submit_user_message_via_queue_keeps_raw_echo_for_plain_single_line():
         append_to_output=lambda *v, **k: outputs.append(
             "".join(str(x) for x in v) + k.get("end", "")
         ),
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[Target()],
@@ -482,7 +477,6 @@ def test_submit_user_message_via_queue_echoes_the_line_before_attachment_failure
     with pytest.raises(RuntimeError, match="camera unavailable"):
         submit_user_message_via_queue(
             append_to_output=outputs.append,
-            active_run_context=None,
             stream_ai_response=_stub_stream_ai_response,
             queue=MessageQueue(),
             attachment_sources=[BrokenSource()],

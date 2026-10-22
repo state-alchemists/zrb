@@ -69,14 +69,18 @@ FACADE_BUDGETS = {
     # +14 (1179->1193): `send_queued_messages_now`, the send-now action
     # `AnyUI` declares (ADR-0116) -- new surface; the ladder itself lives in
     # the `queue_delivery` module the method calls.
-    # +29 (1193->1222): the `/btw` display contract -- `begin_side_question`,
+    # +11 (1193->1204): `redraw_echoes`, the one place a delivered message's
+    # echo is rewritten on every UI that holds one (`_broadcast_echo` guarded),
+    # which `send_queued_messages_now` and a `MultiUI`'s main child both need --
+    # new surface, not a delegator: the loop and its guard live here.
+    # +29 (1204->1233): the `/btw` display contract -- `begin_side_question`,
     # `end_side_question`, `fail_side_question` and `cancel_side_question`
     # default to the transcript, so a UI with a panel of its own overrides only
     # the destination -- new surface.
-    # +7 (1222->1229): the same four hooks take the request token `begin`
+    # +7 (1233->1240): the same four hooks take the request token `begin`
     # returns, so a late answer cannot fill a newer question's panel; the
     # docstring that says why is part of the contract, not boilerplate.
-    "llm/ui/base/ui.py": 1229,
+    "llm/ui/base/ui.py": 1240,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

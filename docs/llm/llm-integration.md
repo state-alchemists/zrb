@@ -76,13 +76,15 @@ The cross-session list is kept in `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_DIR` (defaul
 
 ### Queued Messages
 
-A message submitted while the assistant is thinking does not interrupt the turn. It waits in the queue, and runs when the turn finishes. What is waiting is listed above the input box, oldest first, with the one recalled for editing marked `▸`:
+A submitted message never goes straight into the model's context: it joins the queue and runs when the turn ahead of it finishes. That holds mid-turn too, so a correction typed while the assistant is thinking stays in the queue where you can still edit or drop it. What is waiting is listed above the input box, oldest first, with the one recalled for editing marked `▸`:
 
 ```text
- 📥 2 queued · ↑ to edit
+ 📥 2 queued · ↑ edit · Ctrl+X drop · Ctrl+G send now
   1. fix the parser bug
  ▸2. and run the tests
 ```
+
+The panel names the three keys that act on the queue, so the accelerator is visible exactly when it matters. `Ctrl+G` is the only way a queued message reaches the running turn early.
 
 | Key | What it does |
 |-----|--------------|
@@ -103,6 +105,8 @@ The echoed `💬` line stays in the transcript above, so the whole of a queued m
 ```
 
 The queued messages are handed to the live turn when there is one, so the model reads them at its next request. While an approval or a question is waiting for you the queue waits with it (`⏩ waiting for your answer, so the queue runs after it`) — the turn is blocked on your answer, so it does not matter that a turn is still running. Without a live turn to hand them to, a running turn is interrupted and the queue runs as its own turn right after (`⏩ interrupted the turn, so the queue runs next`); and with nothing queued the key does nothing (`⏩ nothing was queued`). If the turn ends partway through — the run finished between two messages — the ones already sent stay sent and the rest wait, which the line names: `⏩ sent 1 queued message(s), then the run ended (1 still waiting)` when no turn is left, or `⏩ sent 1 queued message(s), then the run ended — interrupted the turn so the rest run next` when a turn was still running and got interrupted for the remainder. A queued `/exec` job is never handed to the model, and it holds the queue's order: only the messages *before* it are sent, so a follow-up like "report the command's result" cannot jump ahead of the command it refers to. With an `/exec` job at the head nothing is sent and the turn is interrupted instead, so the queue runs first to last. `Ctrl+G` is not a submit: what you are typing stays in the input box for you to edit or send with `Enter`.
+
+A delivered message leaves the panel, and its echo line changes marker from `⏳` to `⏩` in every transcript, so what the model actually read stays on screen while what is still waiting stays in the list.
 
 ### Session Token Tracking
 
