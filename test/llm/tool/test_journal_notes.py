@@ -33,7 +33,7 @@ def test_log_activity_builds_the_whole_tree_on_a_cold_journal(writable_journal):
     # missing-index: every level down to the day file has one.
     root_index = _read(writable_journal, "index.md")
     assert "## Directories" in root_index
-    for name in ("user", "preferences", "projects", "technical", "activity-log"):
+    for name in ("user", "agent", "preferences", "projects", "technical", "activity-log"):
         # orphan: each directory is reachable from the root index.
         assert f"{name}/index.md" in root_index
         assert os.path.isfile(os.path.join(writable_journal, name, "index.md"))
@@ -431,3 +431,65 @@ def test_writers_refuse_when_the_journal_dir_is_unset():
         with pytest.raises(ValueError) as excinfo:
             log_activity("anything")
     assert "not configured" in str(excinfo.value)
+
+
+def test_an_agent_note_pins_under_the_agent_section(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="agent",
+        slug="avatar-wardrobe",
+        title="Avatar: tactical is my pick",
+        context="Choosing what I wear in zrb's face window",
+        finding="tara-tactical for a working day, tara-kimono for quiet evenings",
+        source="FaceLook, 2026-10-22",
+        hud_line="Avatar: tactical is my standing pick.",
+    )
+
+    index = _read(writable_journal, "index.md")
+    agent = index.split("## Agent", 1)[1].split("\n## ", 1)[0]
+    preferences = index.split("## Preferences", 1)[1].split("\n## ", 1)[0]
+    assert "Avatar: tactical is my standing pick." in agent
+    assert "([note](agent/avatar-wardrobe.md))" in agent
+    assert "Avatar" not in preferences
+    # Durable sections stay ahead of the capped tail.
+    assert index.index("## Agent") < index.index("## Active Constraints")
+
+
+def test_an_index_written_before_the_agent_section_gains_it_in_place(
+    writable_journal,
+):
+    """A journal created earlier keeps its skeleton; the new section goes where
+    it belongs rather than after the unbounded one, where the cap would evict
+    it first."""
+    from zrb.llm.tool.journal_write import log_activity
+
+    os.makedirs(writable_journal, exist_ok=True)
+    with open(
+        os.path.join(writable_journal, "index.md"), "w", encoding="utf-8"
+    ) as f:
+        f.write(
+            "# Journal\n\n"
+            "## User\n\n- Goes by Go.\n\n"
+            "## Preferences\n\n- Prefers terse replies.\n\n"
+            "## Active Constraints\n\n- Tests stay public-API only.\n\n"
+            "## Directories\n\n- [user](user/index.md)\n\n"
+            "## Recent Insights\n\n- [A note](technical/a-note.md)\n"
+        )
+
+    log_activity("wrote a note")
+
+    index = _read(writable_journal, "index.md")
+    assert "## Agent" in index
+    assert index.index("## Preferences") < index.index("## Agent")
+    assert index.index("## Agent") < index.index("## Active Constraints")
+    assert index.index("## Active Constraints") < index.index("## Recent Insights")
+    # Nothing that was already in the index is lost or rewritten.
+    for kept in (
+        "- Goes by Go.",
+        "- Prefers terse replies.",
+        "- Tests stay public-API only.",
+        "- [A note](technical/a-note.md)",
+    ):
+        assert kept in index
+

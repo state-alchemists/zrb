@@ -26,7 +26,7 @@ from zrb.config.config import CFG
 from zrb.util.file_lock import hold_file_lock
 from zrb.util.markdown import get_first_heading
 
-NOTE_CATEGORIES = ("user", "preferences", "projects", "technical")
+NOTE_CATEGORIES = ("user", "agent", "preferences", "projects", "technical")
 ACTIVITY_DIR = "activity-log"
 _HISTORY_HEADING = "## History"
 _HISTORY_MAX_ENTRIES = 3
@@ -34,10 +34,15 @@ _HISTORY_MAX_ENTRIES = 3
 # Which HUD section a note's one-line summary lands in.
 _HUD_SECTION = {
     "user": "User",
+    "agent": "Agent",
     "preferences": "Preferences",
     "projects": "Active Constraints",
     "technical": "Active Constraints",
 }
+# Their order in the index. The snapshot is capped and overflows from the end, so
+# the durable sections come first; a journal written before a section existed is
+# migrated into this order rather than appended after the unbounded one.
+_HUD_ORDER = ("User", "Preferences", "Agent", "Active Constraints")
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _BACKLINKS_HEADING = "## Backlinks"
 
@@ -85,7 +90,15 @@ log_activity.__name__ = "LogActivity"
 
 def write_journal_note(
     category: Annotated[
-        str, Field(description="One of: user, preferences, projects, technical.")
+        str,
+        Field(
+            description=(
+                f"One of: {', '.join(NOTE_CATEGORIES)}. `user` and `agent` are "
+                "who the two parties are; `preferences` is how the user wants "
+                "to be worked with, and an agent's own standing choices go "
+                "under `agent`, not here."
+            )
+        ),
     ],
     slug: Annotated[
         str,
@@ -202,7 +215,15 @@ write_journal_note.__name__ = "WriteJournalNote"
 
 def delete_journal_note(
     category: Annotated[
-        str, Field(description="One of: user, preferences, projects, technical.")
+        str,
+        Field(
+            description=(
+                f"One of: {', '.join(NOTE_CATEGORIES)}. `user` and `agent` are "
+                "who the two parties are; `preferences` is how the user wants "
+                "to be worked with, and an agent's own standing choices go "
+                "under `agent`, not here."
+            )
+        ),
     ],
     slug: Annotated[
         str, Field(description="The note's existing filename, without `.md`.")
@@ -297,7 +318,7 @@ def _check_category(category: str) -> None:
 
 
 def ensure_journal_tree() -> str:
-    """Create the journal root, its five directories, and their indexes."""
+    """Create the journal root, its six directories, and their indexes."""
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:
         raise ValueError(
@@ -313,6 +334,11 @@ def ensure_journal_tree() -> str:
             f"# {name.replace('-', ' ').title()}\n",
         )
     _write_if_absent(os.path.join(root, "index.md"), _root_index_skeleton())
+    root_index = os.path.join(root, "index.md")
+    current = _read_text(root_index)
+    migrated = _ensure_hud_sections(current)
+    if migrated != current:
+        _write_text(root_index, migrated)
     return root
 
 
@@ -377,14 +403,43 @@ def _root_index_skeleton() -> str:
     )
     # Order is load-bearing: the injected snapshot is capped and overflows from
     # the end, so the unbounded section goes last and evicts only itself.
+    sections = "".join(f"## {name}\n\n" for name in _HUD_ORDER)
     return (
         "# Journal\n\n"
-        "## User\n\n"
-        "## Preferences\n\n"
-        "## Active Constraints\n\n"
+        f"{sections}"
         f"## Directories\n\n- {directories}\n\n"
         "## Recent Insights\n"
     )
+
+
+def _ensure_hud_sections(text: str) -> str:
+    """Add any HUD section this index predates, at its place in `_HUD_ORDER`.
+
+    A journal created before a category existed keeps its old skeleton —
+    `_write_if_absent` never rewrites an index — and appending the new heading at
+    the end would put it after `## Recent Insights`, where the capped snapshot
+    evicts it first.
+    """
+    for name in _HUD_ORDER:
+        if f"## {name}" not in text.splitlines():
+            text = _insert_section_in_order(text, name)
+    return text
+
+
+def _insert_section_in_order(text: str, name: str) -> str:
+    """Insert an empty ``## name`` before the next heading that must follow it."""
+    heading = f"## {name}"
+    later = [f"## {other}" for other in _HUD_ORDER]
+    later += ["## Directories", "## Recent Insights"]
+    stop = later[later.index(heading) + 1 :] if heading in later else later
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line in stop:
+            head = lines[:index]
+            if head and head[-1].strip():
+                head = [*head, ""]
+            return "\n".join([*head, heading, "", *lines[index:]])
+    return f"{text.rstrip()}\n\n{heading}\n"
 
 
 def _ensure_activity_path(root: str, now: datetime) -> str:
