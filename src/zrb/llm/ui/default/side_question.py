@@ -4,8 +4,9 @@ A side question is answered off to the side and never saved to history, so its
 answer must not scroll the transcript the user is reading. `UISideQuestion`
 shows it in the same full-width framed float the choice widget uses, just above
 the input: the question, then the answer once it arrives, at a fixed height that
-scrolls instead of swallowing the screen. Esc closes it and gives the input box
-its focus back.
+scrolls instead of swallowing the screen. The panel never takes the focus: the
+input stays usable while the answer is on its way, so a second `/btw` (or any
+message) can be typed without closing it, and Esc closes it from anywhere.
 
 * `begin(question)` — open the panel and say the answer is coming. Returns a
   token naming that question.
@@ -75,11 +76,10 @@ class UISideQuestion:
         self._is_active = True
         self._request = request = object()
         self._fill(self._echo(_PENDING))
-        # A prompt waiting for the user owns the input; a side question asked
-        # over it (Enter routes `/btw` ahead of everything else) must not take
-        # the focus away from the answer the turn is blocked on.
-        if not self._ui.is_waiting_for_answer:
-            focus_widget(self._window, "Side-question")
+        # The panel deliberately does not take the focus: the input stays
+        # usable while the answer arrives, so another `/btw` (or any message)
+        # can be typed without closing it. Esc is handled at application level
+        # while the panel is active, so it needs no focus of its own.
         self._invalidate()
         return request
 

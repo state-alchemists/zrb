@@ -79,9 +79,19 @@ def test_dismiss_closes_the_panel_and_gives_the_input_its_focus_back():
     focus.assert_called_once_with(ui.input_field, "Input-field")
 
 
-def test_begin_does_not_take_focus_from_a_pending_prompt():
-    """`/btw` runs ahead of a pending approval; the panel must not steal the
-    focus from the answer the turn is blocked on."""
+def test_begin_does_not_take_the_focus_from_the_input(part):
+    """The panel is read-only; keeping the input focused lets the user type a
+    second `/btw` (or any message) while the first answer is on its way."""
+    with patch("zrb.llm.ui.default.side_question.focus_widget") as focus:
+        part.begin("why?")
+
+    focus.assert_not_called()
+    assert part.is_active is True
+
+
+def test_a_pending_prompt_also_keeps_the_focus():
+    """Even over a pending approval, `/btw` must not move the focus: the answer
+    field is what the turn is blocked on."""
     panel = UISideQuestion(_FakeUI(is_waiting_for_answer=True))
     panel.init_side_question_state()
     with patch("zrb.llm.ui.default.side_question.focus_widget") as focus:
