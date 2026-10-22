@@ -114,8 +114,13 @@ async def _compress(agent, history, **kwargs) -> list:
 
 
 def _summary_text(history: list) -> str:
-    """Everything the summary turn carries: the block, the journal, the archive."""
+    """Every part of the summary turn: the block, then the user's own words."""
     return "\n".join(str(getattr(part, "content", "")) for part in history[0].parts)
+
+
+def _block(history: list) -> str:
+    """Only what zrb inserted: framing, snapshot, journal index, archive note."""
+    return str(getattr(history[0].parts[0], "content", ""))
 
 
 @pytest.mark.asyncio
@@ -194,7 +199,23 @@ async def test_the_journal_and_archive_notes_count_against_the_cap(monkeypatch):
     # The summary alone fits; with the journal index and the archive note beside
     # it, it does not, so it is asked to shrink.
     assert agent.run.await_count == 2
-    assert CharLimiter().count_tokens(_summary_text(history)) <= cap
+    assert CharLimiter().count_tokens(_block(history)) <= cap
+
+
+@pytest.mark.asyncio
+async def test_a_cap_below_the_notes_drops_the_snapshot_instead_of_keeping_it(
+    monkeypatch,
+):
+    """An over-cap block is the failure the cap exists to prevent."""
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 60, raising=False)
+    agent = _agent(_padded("long", 600), _padded("long", 600), _padded("long", 600))
+
+    with patch(JOURNAL_PATCH, return_value="J" * 200 * CHARS_PER_TOKEN):
+        history = await _compress(agent, _history())
+
+    text = _block(history)
+    assert "PADMARK" not in text  # the snapshot went, not the cap
+    assert "J" * 200 * CHARS_PER_TOKEN in text  # the notes zrb cannot recompute stay
 
 
 @pytest.mark.asyncio

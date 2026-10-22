@@ -365,81 +365,96 @@ async def _build_summary_text(
             ),
             plain=True,
         )
-    # The journal index and the archive pointer are written by zrb, appended
-    # below, and count against the same cap: measuring the model's text alone
-    # would let the block inserted into the conversation run past it.
-    journal_block = render_journal_index()
+    # The block is measured and capped as it will be inserted: the framing zrb
+    # writes, the journal index and the archive pointer all count against the
+    # same cap, or the turn it lands in can run past it.
+    journal_block = render_journal_index() or ""
     archive_note = _render_archive_note(archive_path) if archive_path else ""
-    reserved = llm_limiter.count_tokens(journal_block) + llm_limiter.count_tokens(
-        archive_note
-    )
-    summary_text = await _enforce_summary_cap(
+    summary_text = await _fit_summary_block(
         summary_text,
         summarizer_agent,
         llm_limiter,
         conversational_token_threshold,
-        reserved,
+        journal_block,
+        archive_note,
     )
-    # Baked into the summary so no extra turn breaks role alternation.
-    if journal_block:
-        summary_text = f"{summary_text}\n\n{journal_block}"
-    if archive_note:
-        summary_text = f"{summary_text}\n\n{archive_note}"
-    return summary_text
+    return _render_summary_content(summary_text, journal_block, archive_note)
 
 
-async def _enforce_summary_cap(
-    summary_text: str,
+def _render_summary_content(
+    model_text: str, journal_block: str, archive_note: str
+) -> str:
+    """The summary turn's text: zrb's framing, then the body, then the end marker."""
+    body = "\n\n".join(
+        part.strip() for part in (model_text, journal_block, archive_note) if part.strip()
+    )
+    return make_markdown_section(
+        _SUMMARY_HEADER,
+        f"{_SUMMARY_PREAMBLE}\n\n{body}\n\n{_SUMMARY_END_MARKER}",
+    )
+
+
+async def _fit_summary_block(
+    model_text: str,
     agent: "Agent[None, str]",
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
-    reserved: int = 0,
+    journal_block: str,
+    archive_note: str,
 ) -> str:
-    """Keep the whole inserted block under `LLM_SUMMARY_MAX_TOKENS`.
+    """The model's part of the block, shrunk until the whole block fits the cap.
 
     Applies to every non-empty summary, schema or not: a malformed one cannot be
     rewritten into a snapshot, but it can still be too large. Two shortening
-    attempts, then a deterministic truncation — a bulky summary costs tokens,
-    where a history left over the budget fails the request outright, and the
-    archive holds whatever the truncation drops.
+    attempts, then a deterministic truncation sized from what the complete block
+    overflows by. When the framing and notes fill the cap on their own the
+    snapshot is dropped rather than kept — an over-cap block is the failure the
+    cap exists to prevent, and it is zrb's own text that would have to go instead.
     """
     cap = CFG.LLM_SUMMARY_MAX_TOKENS
     if cap <= 0:
-        return summary_text
-    budget = cap - reserved
-    if budget <= 0:
+        return model_text
+
+    def size(text: str) -> int:
+        return limiter.count_tokens(
+            _render_summary_content(text, journal_block, archive_note)
+        )
+
+    overhead = size("")
+    if overhead >= cap:
         zrb_print(
             stylize_warning(
-                f"  Warning: the journal index and archive note fill the "
-                f"{cap}-token summary cap on their own; the summary is left as it is."
+                f"  Warning: the summary framing, journal index and archive note "
+                f"already use {overhead} of the {cap}-token cap, so the state "
+                "snapshot is dropped. Raise LLM_SUMMARY_MAX_TOKENS to keep it."
             ),
             plain=True,
         )
-        return summary_text
+        return ""
     for _ in range(_SUMMARY_SHORTEN_ATTEMPTS):
-        if limiter.count_tokens(summary_text) <= budget:
-            return summary_text
+        if size(model_text) <= cap:
+            return model_text
         zrb_print(
             stylize_warning(
-                f"  Summary over its {cap}-token cap "
-                f"({limiter.count_tokens(summary_text)} + {reserved} reserved); "
+                f"  Summary block over its {cap}-token cap ({size(model_text)}); "
                 "shortening..."
             ),
             plain=True,
         )
-        summary_text = await _shorten_summary(
-            summary_text, agent, limiter, conversational_token_threshold, budget
+        model_text = await _shorten_summary(
+            model_text, agent, limiter, conversational_token_threshold, cap - overhead
         )
-    if limiter.count_tokens(summary_text) > budget:
+    if size(model_text) > cap:
+        keep = max(0, limiter.count_tokens(model_text) - (size(model_text) - cap))
         zrb_print(
             stylize_warning(
-                f"  Warning: summary still over the cap "
-                f"({limiter.count_tokens(summary_text)} > {budget}); truncating it."
+                f"  Warning: summary block still over the cap ({size(model_text)} > "
+                f"{cap}); truncating the snapshot to {keep} tokens."
             ),
             plain=True,
         )
-        summary_text = limiter.truncate_text(summary_text, budget)
-    return summary_text
+        model_text = limiter.truncate_text(model_text, keep)
+    return model_text
 
 
 async def _shorten_summary(
@@ -648,28 +663,18 @@ def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
     return None
 
 
-def _create_summary_model_request(summary_text: str) -> Any:
-    """Construct a ModelRequest message from summary text.
+def _create_summary_model_request(summary_content: str) -> Any:
+    """Wrap the finished summary block in the user turn that carries it.
 
-    The block is fenced with an end marker and says what it is, because role
-    alternation merges it into the same user turn as the real user messages that
-    follow: without both, the reader cannot tell the automation from the user.
+    The framing — header, derived-data preamble, end marker — is written by
+    `_render_summary_content`, which measures it against the cap as well;
+    rebuilding it here would count it twice and change the text the cap approved.
     """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
     try:
-        return ModelRequest(
-            parts=[
-                UserPromptPart(
-                    content=make_markdown_section(
-                        _SUMMARY_HEADER,
-                        f"{_SUMMARY_PREAMBLE}\n\n{summary_text}\n\n"
-                        f"{_SUMMARY_END_MARKER}",
-                    )
-                )
-            ]
-        )
+        return ModelRequest(parts=[UserPromptPart(content=summary_content)])
     except Exception as e:
         zrb_print(stylize_error(f"  Failed to create summary message: {e}"), plain=True)
         return None
