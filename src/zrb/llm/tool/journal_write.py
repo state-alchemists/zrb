@@ -304,9 +304,24 @@ def _open_journal() -> Iterator[str]:
     root = ensure_journal_tree()
     # One root lock makes the multi-file update atomic against concurrent writers.
     with hold_file_lock(os.path.join(root, ".lock")):
+        _migrate_root_index(root)
         if CFG.LLM_JOURNAL_GIT_ENABLED:
             _ensure_journal_git(root)
         yield root
+
+
+def _migrate_root_index(root: str) -> None:
+    """Add any HUD section the root index predates, with the lock held.
+
+    A read-modify-write, so it belongs where the lock is: reading the index
+    before `hold_file_lock` let a writer write back a copy taken before another
+    writer added its line, losing that line on both sides of a successful call.
+    """
+    root_index = os.path.join(root, "index.md")
+    current = _read_text(root_index)
+    migrated = _ensure_hud_sections(current)
+    if migrated != current:
+        _write_text(root_index, migrated)
 
 
 def _check_category(category: str) -> None:
@@ -318,7 +333,11 @@ def _check_category(category: str) -> None:
 
 
 def ensure_journal_tree() -> str:
-    """Create the journal root, its six directories, and their indexes."""
+    """Create the journal root, its six directories, and their indexes.
+
+    Only what is missing: an existing index is never rewritten here, since the
+    lock is not held yet. `_migrate_root_index` does the rewriting, under it.
+    """
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:
         raise ValueError(
@@ -334,11 +353,6 @@ def ensure_journal_tree() -> str:
             f"# {name.replace('-', ' ').title()}\n",
         )
     _write_if_absent(os.path.join(root, "index.md"), _root_index_skeleton())
-    root_index = os.path.join(root, "index.md")
-    current = _read_text(root_index)
-    migrated = _ensure_hud_sections(current)
-    if migrated != current:
-        _write_text(root_index, migrated)
     return root
 
 
