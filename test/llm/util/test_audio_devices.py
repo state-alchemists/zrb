@@ -189,12 +189,16 @@ def test_a_break_reads_no_snapshot_when_there_never_was_one():
 def test_it_is_not_read_more_often_than_asked_for():
     """`has_changed` asks for a fresh view at most once per *poll_seconds*:
     a change within the wait is not seen, and one to it, once it is due, is."""
+    # A generous poll window: a tight one can itself elapse between the two
+    # calls below under a slow/contended CI runner, making the "sooner than
+    # asked for" check falsely see the poll as due.
+    poll_seconds = 2.0
     devices = FakeSoundDevice([_builtin()])
-    watcher = DeviceWatcher(devices, poll_seconds=0.05)
+    watcher = DeviceWatcher(devices, poll_seconds=poll_seconds)
     assert watcher.has_changed() is False
 
     devices.devices.append(_airpods())
     assert watcher.has_changed() is False  # sooner than asked for
 
-    time.sleep(0.05)  # the wait, and the change is seen
+    time.sleep(poll_seconds)  # the wait, and the change is seen
     assert watcher.has_changed() is True
