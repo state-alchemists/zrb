@@ -2,6 +2,7 @@ import asyncio
 import codecs
 import os
 import re
+import shutil
 import signal
 import sys
 from collections import deque
@@ -92,6 +93,27 @@ def get_shell_flag(shell: str) -> str:
     absolute path such as `C:\\...\\pwsh.exe` still gets `-Command`; `-c`
     for anything unlisted."""
     return _SHELL_FLAGS.get(get_shell_name(shell), "-c")
+
+
+# The redirect fails quietly where /proc does not exist (macOS); `exec` keeps
+# the pid, so the process group the caller kills is still this one.
+_YIELD_TO_ZRB = (
+    '{ echo 1000 > /proc/self/oom_score_adj; } 2>/dev/null; exec nice -n 10 "$@"'
+)
+
+
+def create_yielding_argv(argv: list[str]) -> list[str]:
+    """Wrap *argv* so it yields to zrb: the OOM killer takes it (and what it
+    spawns) before zrb, and the scheduler runs zrb's TUI and speech first.
+
+    An agent's test suite or build is the usual reason the machine runs out of
+    memory, and the chat is the process worth keeping. Unchanged on Windows,
+    or when ``sh``, ``nice`` or the command itself is not found, so a missing
+    program still fails with its own "not found".
+    """
+    if os.name == "nt" or not all(shutil.which(p) for p in ("sh", "nice", argv[0])):
+        return argv
+    return ["sh", "-c", _YIELD_TO_ZRB, "sh", *argv]
 
 
 def _process_tree_pids(pid: int) -> list[int]:

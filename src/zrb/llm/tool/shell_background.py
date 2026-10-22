@@ -14,7 +14,12 @@ from typing import Annotated
 
 from pydantic import Field
 
-from zrb.cmd.command import kill_pid, resolve_shell, terminate_process
+from zrb.cmd.command import (
+    create_yielding_argv,
+    kill_pid,
+    resolve_shell,
+    terminate_process,
+)
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_current_chat_session_id
 from zrb.llm.permission import Capability, tag
@@ -66,7 +71,7 @@ class _ShellBackgroundRegistry:
         )
         # Own process group; DEVNULL stdin prevents hangs on stdin reads.
         proc = await asyncio.create_subprocess_exec(
-            *argv,
+            *create_yielding_argv(argv),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             stdin=asyncio.subprocess.DEVNULL,
