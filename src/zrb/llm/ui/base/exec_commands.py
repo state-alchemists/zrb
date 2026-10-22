@@ -149,7 +149,9 @@ class BaseUIExecCommands:
         fill its `/btw` panel instead — a side answer never scrolls the
         conversation the user is reading.
         """
-        self._base_ui.begin_side_question(question)
+        # Answers arrive in their own background task; the token is how a late
+        # one tells the UI it no longer belongs to what is on screen.
+        request = self._base_ui.begin_side_question(question)
         try:
             # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent
             from zrb.llm.agent import create_agent
@@ -190,13 +192,13 @@ class BaseUIExecCommands:
 
             result = await agent.run(question, message_history=btw_history)
             answer = result.output if hasattr(result, "output") else str(result)
-            self._base_ui.end_side_question(answer)
+            self._base_ui.end_side_question(answer, request)
 
         except asyncio.CancelledError:
-            self._base_ui.cancel_side_question()
+            self._base_ui.cancel_side_question(request)
             raise
         except Exception as e:
-            self._base_ui.fail_side_question(exception_summary(e))
+            self._base_ui.fail_side_question(exception_summary(e), request)
         finally:
             self._base_ui.invalidate_ui()
 

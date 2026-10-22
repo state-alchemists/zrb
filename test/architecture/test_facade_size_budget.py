@@ -73,7 +73,10 @@ FACADE_BUDGETS = {
     # `end_side_question`, `fail_side_question` and `cancel_side_question`
     # default to the transcript, so a UI with a panel of its own overrides only
     # the destination -- new surface.
-    "llm/ui/base/ui.py": 1222,
+    # +7 (1222->1229): the same four hooks take the request token `begin`
+    # returns, so a late answer cannot fill a newer question's panel; the
+    # docstring that says why is part of the contract, not boilerplate.
+    "llm/ui/base/ui.py": 1229,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

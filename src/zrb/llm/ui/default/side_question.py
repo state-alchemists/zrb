@@ -7,9 +7,16 @@ the input: the question, then the answer once it arrives, at a fixed height that
 scrolls instead of swallowing the screen. Esc closes it and gives the input box
 its focus back.
 
-* `begin(question)` — open the panel and say the answer is coming.
-* `end(answer)` / `fail(message)` — fill it in.
+* `begin(question)` — open the panel and say the answer is coming. Returns a
+  token naming that question.
+* `end(answer, request)` / `fail(message, request)` — fill it in, but only when
+  `request` is still the panel's current question.
 * `dismiss()` — close it.
+
+One panel serves every `/btw`, and answers arrive in their own background
+tasks, so an older question's answer can finish after a newer one opened the
+panel. The token is how a late answer recognizes that the panel has moved on
+and stays out of it.
 """
 
 from __future__ import annotations
@@ -37,11 +44,14 @@ class UISideQuestion:
         self._question = ""
         self._is_active = False
         self._window: "TextArea | None" = None
+        # Identifies the question the panel currently shows; None once closed.
+        self._request: object | None = None
 
     def init_side_question_state(self) -> None:
         """Initialize the panel state and build its (hidden) widget."""
         self._question = ""
         self._is_active = False
+        self._request = None
         self._window = self._create_window()
 
     @property
@@ -54,10 +64,16 @@ class UISideQuestion:
         """Whether the panel is currently shown."""
         return self._is_active
 
-    def begin(self, question: str) -> None:
-        """Open the panel for *question*, replacing any previous answer."""
+    def begin(self, question: str) -> object:
+        """Open the panel for *question*, replacing any previous answer.
+
+        Returns the token that `end`, `fail` and `cancel` must present: a
+        token from an earlier question no longer matches, so its answer is
+        dropped instead of being shown under this question.
+        """
         self._question = question.strip()
         self._is_active = True
+        self._request = request = object()
         self._fill(self._echo(_PENDING))
         # A prompt waiting for the user owns the input; a side question asked
         # over it (Enter routes `/btw` ahead of everything else) must not take
@@ -65,20 +81,44 @@ class UISideQuestion:
         if not self._ui.is_waiting_for_answer:
             focus_widget(self._window, "Side-question")
         self._invalidate()
+        return request
 
-    def end(self, answer: str) -> None:
-        """Show the finished answer, rendered at the pane's width."""
+    def is_current(self, request: object | None) -> bool:
+        """Whether *request* is the question the panel is showing now."""
+        return request is None or request is self._request
+
+    def end(self, answer: str, request: object | None = None) -> None:
+        """Show the finished answer, rendered at the pane's width.
+
+        An answer whose question the panel has moved past (a newer `/btw`, or
+        Esc) is dropped: the panel belongs to the newer question.
+        """
+        if not self.is_current(request):
+            return
         self._fill(self._echo(self._render(answer)))
 
-    def fail(self, message: str) -> None:
+    def fail(self, message: str, request: object | None = None) -> None:
         """Show why the side question could not be answered."""
+        if not self.is_current(request):
+            return
         self._fill(self._echo(f"  ❌ {message}\n"))
+
+    def cancel(self, request: object | None = None) -> None:
+        """Close the panel if *request* is the question it is showing.
+
+        Cancelling an older background task must not close a panel a newer
+        `/btw` opened.
+        """
+        if not self.is_current(request):
+            return
+        self.dismiss()
 
     def dismiss(self) -> None:
         """Close the panel and return focus to the input box."""
         if not self._is_active:
             return
         self._is_active = False
+        self._request = None
         self._fill("")
         focus_widget(self._ui.input_field, "Input-field")
         self._invalidate()

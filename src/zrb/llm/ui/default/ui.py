@@ -672,21 +672,21 @@ class UI(BaseUI):
         """Whether the `/btw` panel is on screen."""
         return self._side_question.is_active
 
-    def begin_side_question(self, question: str) -> None:
+    def begin_side_question(self, question: str) -> object:
         """Open the `/btw` panel instead of echoing into the transcript."""
-        self._side_question.begin(question)
+        return self._side_question.begin(question)
 
-    def end_side_question(self, answer: str) -> None:
-        """Fill the panel with the rendered answer."""
-        self._side_question.end(answer)
+    def end_side_question(self, answer: str, request: object | None = None) -> None:
+        """Fill the panel with the rendered answer, if its question is current."""
+        self._side_question.end(answer, request)
 
-    def fail_side_question(self, message: str) -> None:
+    def fail_side_question(self, message: str, request: object | None = None) -> None:
         """Say in the panel why the side question failed."""
-        self._side_question.fail(message)
+        self._side_question.fail(message, request)
 
-    def cancel_side_question(self) -> None:
+    def cancel_side_question(self, request: object | None = None) -> None:
         """Close the panel when the side question was cancelled."""
-        self._side_question.dismiss()
+        self._side_question.cancel(request)
 
     def dismiss_side_question(self) -> None:
         """Close the `/btw` panel (Esc)."""

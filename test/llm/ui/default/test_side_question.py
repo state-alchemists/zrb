@@ -101,3 +101,62 @@ def test_a_long_answer_scrolls_inside_a_fixed_height(part):
     assert window is not None
     # A `TextArea` forwards its height to the `Window` it renders through.
     assert window.window.height == PANEL_HEIGHT
+
+
+def test_an_answer_for_a_replaced_question_is_dropped(part):
+    """A slower first `/btw` must not overwrite the panel a newer one opened."""
+    first = part.begin("first question")
+    part.begin("second question")
+
+    part.end("the first answer", first)
+
+    assert _text(part).startswith("💭 second question")
+    assert "the first answer" not in _text(part)
+    assert "thinking" in _text(part)
+
+
+def test_a_failure_for_a_replaced_question_is_dropped(part):
+    first = part.begin("first question")
+    part.begin("second question")
+
+    part.fail("RuntimeError: provider down", first)
+
+    assert "❌" not in _text(part)
+    assert _text(part).startswith("💭 second question")
+
+
+def test_the_current_questions_answer_is_shown(part):
+    request = part.begin("why?")
+
+    part.end("because", request)
+
+    assert "<md width=80>because</md>" in _text(part)
+
+
+def test_cancelling_an_earlier_question_leaves_the_newer_panel_open(part):
+    first = part.begin("first question")
+    part.begin("second question")
+
+    part.cancel(first)
+
+    assert part.is_active is True
+    assert _text(part).startswith("💭 second question")
+
+
+def test_cancelling_the_current_question_closes_the_panel(part):
+    request = part.begin("why?")
+
+    part.cancel(request)
+
+    assert part.is_active is False
+    assert _text(part) == ""
+
+
+def test_an_answer_arriving_after_esc_is_dropped(part):
+    request = part.begin("why?")
+    part.dismiss()
+
+    part.end("an answer nobody is waiting for", request)
+
+    assert part.is_active is False
+    assert _text(part) == ""
