@@ -225,6 +225,14 @@ def submit_user_message_via_queue(
         if echo:
             for target in echo_targets:
                 target.track_echo_span(entry, echo)
+        else:
+            # A Markdown body was rendered, so nothing landed verbatim; a target
+            # that can track a rendered echo (the default UI) is handed the
+            # header and recovers the span from the block the renderer wrote.
+            for target in echo_targets:
+                track_rendered = getattr(target, "track_rendered_echo", None)
+                if callable(track_rendered):
+                    track_rendered(entry, header)
         queue.put_nowait(entry)
         return
 

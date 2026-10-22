@@ -262,3 +262,44 @@ def test_deleting_from_one_child_of_a_multi_ui_clears_every_transcript(
     assert first.output_text == ""
     assert second.output_text == ""
     assert entry.echo_spans == {}
+
+
+# --- echoes rendered as Markdown ---------------------------------------------
+
+
+def test_a_markdown_echo_is_tracked_and_its_marker_can_change(editing_ui):
+    """A Markdown body writes no verbatim echo, so the span is recovered from
+    the block the renderer registered -- without it, Ctrl+G leaves a stale `⏳`
+    and an edit cannot reach the transcript at all."""
+    entry = make_entry(text="**bold** answer", marker="⏳")
+    header = "\n⏳ 10:00 >> "
+    editing_ui.append_to_output(header, end="")
+    editing_ui.append_markdown(entry.text)
+
+    editing_ui.track_rendered_echo(entry, header)
+
+    span = entry.echo_spans[editing_ui]
+    assert span.text == editing_ui.output_text
+    # One block covers the whole echo; the body's own block was taken over.
+    assert len(editing_ui.rendered_blocks) == 1
+    entry.echo_marker = "⏩"
+    redrawn = editing_ui.redraw_echo(entry)
+    assert redrawn is not None and "⏩" in redrawn
+    assert "⏳" not in editing_ui.output_text
+
+
+def test_a_markdown_echo_that_will_not_re_render_is_left_to_its_renderer(
+    editing_ui,
+):
+    """The span is only taken over when re-rendering reproduces the written
+    line; a mismatch leaves the body block alone rather than risk a rewrite."""
+    entry = make_entry(text="**bold** answer", marker="⏳")
+    header = "\n⏳ 10:00 >> "
+    editing_ui.append_to_output(header, end="")
+    editing_ui.append_markdown(entry.text)
+    block = editing_ui.rendered_blocks[0]
+
+    editing_ui.track_rendered_echo(entry, header + " (shifted)")
+
+    assert entry.echo_spans == {}
+    assert editing_ui.rendered_blocks == [block]
