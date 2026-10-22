@@ -107,7 +107,11 @@ FACADE_BUDGETS = {
     # init, its float, and the display overrides plus `is_side_question_active`/
     # `dismiss_side_question` that the Esc binding calls -- new surface; the
     # panel's own state and rendering live in `side_question.py`.
-    "llm/ui/default/ui.py": 720,
+    # +10 (720->730): `side_question_window` and
+    # `handle_side_question_typed_text`, the focus target and the typed-text
+    # seam the application-level catch-all needs while the panel holds the
+    # focus -- new surface.
+    "llm/ui/default/ui.py": 730,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.
