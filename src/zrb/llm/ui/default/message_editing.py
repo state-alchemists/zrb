@@ -300,6 +300,42 @@ class UIMessageEditing:
         self._ui.delete_queued_message(entry)
         self._load_edit_text(event.current_buffer, self._queued_edit_draft)
 
+    def track_rendered_echo(self, entry: QueuedMessage, header: str) -> None:
+        """Record the span of an echo whose body was rendered as Markdown.
+
+        `echo_user_message` writes such an echo in two pieces — the header
+        verbatim, then the body through the Markdown renderer, which registers a
+        re-renderable block for the body alone — and returns no echo text for
+        it, so `track_echo_span` has nothing to match. This widens that block to
+        the whole echo, header and trailing newline included, and registers the
+        echo as its block: an edit or a delivered marker can then splice it, and
+        a resize still re-renders the body exactly once.
+
+        A heuristic, but a guarded one: the block is only taken over when
+        re-rendering reproduces the written line, so a mismatch (a buffered
+        write, a text the renderer would lay out differently) leaves the body
+        block with its own renderer rather than risking a corrupted transcript.
+        """
+        text = self._ui.output_text
+        body = entry.text.strip()
+        block = None
+        for candidate in reversed(self._ui.rendered_blocks):
+            if candidate[2] == body:
+                block = candidate
+                break
+        if block is None:
+            return
+        start, end = block[0] - len(header), block[1] + 1
+        if start < 0 or end > len(text) or not text[end - 1 : end] == "\n":
+            return
+        echo = text[start:end]
+        source = self._create_echo_source(entry)
+        if self.render_echo(source, self._ui.output_field_width) != echo:
+            return
+        self._ui.rendered_blocks.remove(block)
+        self._ui.set_rendered_block(start, end, source, self.render_echo)
+        entry.echo_spans[self._ui] = EchoSpan(start=start, end=end, text=echo)
+
     def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
         """Record where `echo` landed so an edit can rewrite it in place.
 

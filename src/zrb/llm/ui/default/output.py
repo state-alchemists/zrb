@@ -677,7 +677,9 @@ class UIOutput:
         if not entries:
             return []
         recalled = getattr(self._ui, "queued_edit_entry", None)
-        rows: list[tuple[str, str]] = [("", f" 📥 {len(entries)} queued · ↑ to edit")]
+        rows: list[tuple[str, str]] = [
+            ("", f" 📥 {len(entries)} queued · ↑ edit · Ctrl+X drop · Ctrl+G send now")
+        ]
         for index, entry in enumerate(entries[:_MAX_QUEUED_LINES], start=1):
             is_recalled = entry is recalled
             rows.append(
