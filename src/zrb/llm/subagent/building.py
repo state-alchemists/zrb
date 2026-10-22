@@ -51,6 +51,22 @@ class _ResolvedAgentBuild:
     yolo: "bool | Callable[..., bool]"
 
 
+def _subagent_archive_name(name: str) -> "Callable[[], str | None]":
+    """The archive key of a sub-agent run, resolved when compaction runs.
+
+    Keyed by the delegation it belongs to, so a resumed roster entry is a new
+    conversation. With no delegation in scope there is nothing to tell two runs
+    apart, so the name is left to the summarizer's opening-message key rather
+    than making every run of `name` append to one file.
+    """
+
+    def resolve() -> str | None:
+        session = get_current_tool_session()
+        return f"subagent-{session}-{name}" if session else None
+
+    return resolve
+
+
 class SubAgentBuilding:
     """Builds a runnable sub-agent from a definition in the roster.
 
@@ -101,11 +117,10 @@ class SubAgentBuilding:
                 create_summarizer_history_processor(
                     # Resolved per request and per delegation: two runs of the
                     # same sub-agent are different conversations and must not
-                    # share an archive.
-                    session_name=lambda: (
-                        "subagent-"
-                        f"{get_current_tool_session() or 'default'}-{name}"
-                    )
+                    # share an archive. No session to name means no name at
+                    # all, so the archive is keyed by the opening message
+                    # instead of every run sharing one.
+                    session_name=_subagent_archive_name(name)
                 )
             ],
             yolo=resolved.yolo,

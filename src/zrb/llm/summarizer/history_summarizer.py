@@ -35,10 +35,6 @@ if TYPE_CHECKING:
 else:
     ModelMessage = Any
 
-_DEFAULT_SESSION_NAME = "default"
-"""Archive name for a caller that does not know its conversation."""
-
-
 def create_summarizer_history_processor(
     conversational_agent: Any = None,
     message_agent: Any = None,
@@ -46,14 +42,16 @@ def create_summarizer_history_processor(
     conversational_token_threshold: int | None = None,
     message_token_threshold: int | None = None,
     summary_window: int | None = None,
-    session_name: "str | Callable[[], str] | None" = _DEFAULT_SESSION_NAME,
+    session_name: "str | Callable[[], str | None] | None" = None,
     history_dir: str | None = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """Create a history processor that auto-summarizes history past its thresholds.
 
     `session_name` names the conversation's verbatim archive, so what a
     compaction replaces stays readable afterwards; a callable is resolved per
-    call so a rename is followed. `history_dir` is the directory the history
+    call so a rename is followed. Left as `None`, the name is derived from the
+    conversation's opening message, so callers that cannot say who they are
+    still do not share one archive. `history_dir` is the directory the history
     manager stores conversations in, so the archive sits beside them.
     """
     llm_limiter = limiter or default_llm_limiter
@@ -86,6 +84,10 @@ def create_summarizer_history_processor(
             )
             return messages
 
+        # Snapshot first: fat tool results are replaced by summaries in the
+        # pass below, and an archive of those would record the summary where
+        # the tool wrote its output. This is the text the conversation had.
+        verbatim_source: "list[ModelMessage]" = list(messages)
         messages = await _summarize_fat_messages(
             messages,
             agent=active_message_agent,
@@ -103,6 +105,7 @@ def create_summarizer_history_processor(
             system_prompt_overhead=system_prompt_overhead,
             session_name=session_name,
             history_dir=history_dir,
+            verbatim_source=verbatim_source,
         )
 
     return process_history
@@ -139,8 +142,9 @@ async def _maybe_compress_history(
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
     system_prompt_overhead: int,
-    session_name: "str | Callable[[], str] | None" = _DEFAULT_SESSION_NAME,
+    session_name: "str | Callable[[], str | None] | None" = None,
     history_dir: str | None = None,
+    verbatim_source: "list[ModelMessage] | None" = None,
 ) -> "list[ModelMessage]":
     """Compress history when it exceeds the token/window threshold."""
     try:
@@ -179,6 +183,8 @@ async def _maybe_compress_history(
             limiter=limiter,
             conversational_token_threshold=adjusted_threshold,
             session_name=session_name,
+            history_dir=history_dir,
+            verbatim_source=verbatim_source,
         )
         if result != messages:
             new_tokens = limiter.count_tokens(result)
@@ -246,8 +252,9 @@ async def summarize_history(
     limiter: "LLMLimiter | None" = None,
     conversational_token_threshold: int | None = None,
     force: bool = False,
-    session_name: "str | Callable[[], str] | None" = _DEFAULT_SESSION_NAME,
+    session_name: "str | Callable[[], str | None] | None" = None,
     history_dir: str | None = None,
+    verbatim_source: "list[ModelMessage] | None" = None,
 ) -> "list[ModelMessage]":
     """Replace older messages with a chunked summary, keeping a recent tail.
 
@@ -257,7 +264,9 @@ async def summarize_history(
 
     The replaced messages are archived verbatim once the replacement is ready,
     and the summary names the archive: a summary is a lossy view, the archive is
-    not.
+    not. `verbatim_source` is the history as it stood before the caller's own
+    fat-message pass, so the archive keeps the tool's output rather than the
+    summary of it; it is used only when it lines up with `messages`.
     """
     try:
         llm_limiter = limiter or default_llm_limiter
@@ -292,10 +301,11 @@ async def summarize_history(
         # Only now, with a summary that replaces the messages in hand: an
         # archive written before a failed summarization would claim messages
         # were replaced while they are still in the history.
+        archived = _verbatim_prefix(to_summarize, messages, verbatim_source)
         archive_verbatim_history(
-            _without_prior_summaries(to_summarize),
+            _without_prior_summaries(archived),
             path=archive_path,
-            tokens=llm_limiter.count_tokens(to_summarize),
+            tokens=llm_limiter.count_tokens(archived),
         )
         return result
     except Exception as e:
@@ -341,7 +351,7 @@ async def _build_summary_text(
 
 
 def _resolve_session_name(
-    session_name: "str | Callable[[], str] | None",
+    session_name: "str | Callable[[], str | None] | None",
     messages: "list[ModelMessage]",
 ) -> str:
     """The conversation name to key the archive by, resolved now.
@@ -384,6 +394,23 @@ def _render_archive_note(archive_path: str) -> str:
         "original text of every compacted message (attachment bytes are named "
         "there, not copied), and later compactions append to the same file."
     )
+
+
+def _verbatim_prefix(
+    to_summarize: "list[ModelMessage]",
+    messages: "list[ModelMessage]",
+    verbatim_source: "list[ModelMessage] | None",
+) -> "list[ModelMessage]":
+    """The text of the replaced messages as the conversation actually held it.
+
+    `split_history` only ever cuts a prefix, so the same count of
+    `verbatim_source` is the same messages before fat tool results were
+    replaced by summaries. A source that does not line up is ignored: archiving
+    the wrong slice would be worse than archiving the summarized one.
+    """
+    if verbatim_source is None or len(verbatim_source) != len(messages):
+        return to_summarize
+    return verbatim_source[: len(to_summarize)]
 
 
 def _without_prior_summaries(messages: "list[ModelMessage]") -> "list[ModelMessage]":

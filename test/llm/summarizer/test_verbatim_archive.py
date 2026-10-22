@@ -271,3 +271,126 @@ def test_the_archive_follows_the_history_manager_directory(tmp_path):
     assert verbatim_archive_path("s", manager.storage_dir).startswith(
         os.path.join(str(tmp_path), "custom-history", "verbatim")
     )
+
+
+@pytest.mark.asyncio
+async def test_the_processor_archives_beside_the_configured_history(tmp_path, monkeypatch):
+    """Automatic compaction must not drop the history directory it was given:
+    a conversation stored under a custom directory archives there, not under the
+    global default."""
+    global_history = tmp_path / "global"
+    custom_history = tmp_path / "custom"
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(global_history), raising=False)
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
+
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.summarizer import create_summarizer_history_processor
+
+    processor = create_summarizer_history_processor(
+        conversational_agent=agent,
+        message_agent=agent,
+        summary_window=1,
+        conversational_token_threshold=10,
+        session_name="custom-session",
+        history_dir=str(custom_history),
+    )
+    await processor(_messages(), 0)
+
+    assert os.path.exists(
+        os.path.join(str(custom_history), "verbatim", "custom-session.md")
+    )
+    assert not os.path.exists(os.path.join(str(global_history), "verbatim"))
+
+
+@pytest.mark.asyncio
+async def test_two_unnamed_conversations_do_not_share_an_archive(tmp_path, monkeypatch):
+    """A caller that passes no session name still gets one archive per
+    conversation; a shared default file would mix two transcripts."""
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
+
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.summarizer import summarize_history
+
+    def conversation(opening, reply):
+        return [
+            ModelRequest(parts=[UserPromptPart(content=opening)]),
+            ModelResponse(parts=[TextPart(content=reply)]),
+            ModelRequest(parts=[UserPromptPart(content="and now?")]),
+            ModelResponse(parts=[TextPart(content="Done.")]),
+        ]
+
+    for opening, reply in (("fix the parser", "Looking."), ("write the docs", "Sure.")):
+        await summarize_history(
+            conversation(opening, reply),
+            agent=agent,
+            summary_window=1,
+            conversational_token_threshold=10,
+        )
+
+    archives = sorted(os.listdir(os.path.join(str(tmp_path), "verbatim")))
+    assert len(archives) == 2
+    text = "".join(
+        open(os.path.join(str(tmp_path), "verbatim", name), encoding="utf-8").read()
+        for name in archives
+    )
+    assert "fix the parser" in text and "write the docs" in text
+
+
+@pytest.mark.asyncio
+async def test_the_archive_keeps_the_tool_output_not_its_summary(tmp_path, monkeypatch):
+    """Fat tool results are summarized before compaction runs. The archive is
+    the record of what the tool said, so it must hold the output, not the
+    summary that replaced it in the model's view."""
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    tool_output = "".join(f"line {i} of the log\n" for i in range(40))
+    message_agent = MagicMock()
+    message_agent.run = AsyncMock(return_value=MagicMock(output="condensed output"))
+    conversational_agent = MagicMock()
+    conversational_agent.run = AsyncMock(return_value=MagicMock(output="Summary"))
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="read the log")]),
+        ModelResponse(parts=[TextPart(content="Reading the log.")]),
+        ModelResponse(
+            parts=[
+                ToolCallPart(
+                    tool_name="read_file", args={"path": "a.log"}, tool_call_id="1"
+                )
+            ]
+        ),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name="read_file", content=tool_output, tool_call_id="1"
+                )
+            ]
+        ),
+        ModelRequest(parts=[UserPromptPart(content="what did it say?")]),
+    ]
+
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.summarizer import create_summarizer_history_processor
+
+    processor = create_summarizer_history_processor(
+        conversational_agent=conversational_agent,
+        message_agent=message_agent,
+        summary_window=1,
+        message_token_threshold=50,
+        conversational_token_threshold=60,
+        session_name="fat-tool-result",
+    )
+    await processor(messages, 0)
+
+    archived = open(
+        verbatim_archive_path("fat-tool-result", str(tmp_path)), encoding="utf-8"
+    ).read()
+    assert "line 39 of the log" in archived
+    assert "condensed output" not in archived
+    assert "SUMMARY OF TOOL RESULT" not in archived
+    # The summarizer really did see the summary, not the tool's output: this
+    # test would pass trivially if the fat pass had left the message alone.
+    summarized_prompts = [call.args[0] for call in conversational_agent.run.await_args_list]
+    assert any("condensed output" in prompt for prompt in summarized_prompts)
+

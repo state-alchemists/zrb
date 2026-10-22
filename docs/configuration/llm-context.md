@@ -27,8 +27,12 @@ Zrb summarizes in the background when history or a single message grows too larg
 Summarization keeps the newest turns that fit 40% of the trigger threshold, so the
 rest of the window remains for the conversation that follows; the message window is a
 backstop for histories of many small messages. What a summary replaces is also written
-word for word, append-only, to `<LLM_HISTORY_DIR>/verbatim/<session>.md`, and the
-summary names that file so the agent can read back the detail the summary dropped.
+word for word, append-only, to `<history dir>/verbatim/<session>.md` — the history
+directory the conversation is actually stored in, `ZRB_LLM_HISTORY_DIR` unless a
+custom history manager says otherwise — and the summary names that file so the agent
+can read back the detail the summary dropped. The archived text is the history as the
+conversation held it, before oversized tool results are reduced to summaries, so a
+tool's output can be read back even after two rounds of lossy rewriting.
 
 The same mechanism keeps one large repo or file read from blowing the context window; like the two above, each threshold is clamped to a fraction of the smaller of `MAX_TOKEN_PER_MINUTE` and `MAX_TOKEN_PER_REQUEST` (75% for the two above, 40% here):
 
