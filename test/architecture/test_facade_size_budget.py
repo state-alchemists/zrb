@@ -69,7 +69,11 @@ FACADE_BUDGETS = {
     # +14 (1179->1193): `send_queued_messages_now`, the send-now action
     # `AnyUI` declares (ADR-0116) -- new surface; the ladder itself lives in
     # the `queue_delivery` module the method calls.
-    "llm/ui/base/ui.py": 1193,
+    # +29 (1193->1222): the `/btw` display contract -- `begin_side_question`,
+    # `end_side_question`, `fail_side_question` and `cancel_side_question`
+    # default to the transcript, so a UI with a panel of its own overrides only
+    # the destination -- new surface.
+    "llm/ui/base/ui.py": 1222,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
@@ -86,7 +90,11 @@ FACADE_BUDGETS = {
     # calls after a submit or a command so a submitted recall does not leave the
     # input unable to start a fresh Up-arrow recall (PR #562 round-3) -- new
     # surface, not a delegator-only line.
-    "llm/ui/default/ui.py": 672,
+    # +48 (672->720): the `/btw` panel -- `UISideQuestion` construction and
+    # init, its float, and the display overrides plus `is_side_question_active`/
+    # `dismiss_side_question` that the Esc binding calls -- new surface; the
+    # panel's own state and rendering live in `side_question.py`.
+    "llm/ui/default/ui.py": 720,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

@@ -615,6 +615,35 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     async def stream_btw_response(self, llm_task: LLMTask, question: str) -> None:
         await self._base_commands.stream_btw_response(llm_task, question)
 
+    def begin_side_question(self, question: str) -> None:
+        """[OPTIONAL] Show a side question while its answer is on the way.
+
+        Default: echo it into the transcript, flagged as not saved to history.
+        A UI with room for a panel of its own overrides this and the three
+        methods below to fill that panel instead, so a `/btw` answer never
+        scrolls the conversation the user is reading.
+        """
+        timestamp = datetime.now().strftime("%H:%M")
+        self.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
+        self.append_to_output(
+            stylize_muted("  (side question — not saved to history)\n")
+        )
+
+    def end_side_question(self, answer: str) -> None:
+        """[OPTIONAL] Show the answer. Default: render it into the transcript."""
+        timestamp = datetime.now().strftime("%H:%M")
+        self.append_to_output(f"\n🤖 {timestamp} >>\n")
+        self.append_to_output("\n")
+        self.append_markdown(answer)
+
+    def fail_side_question(self, message: str) -> None:
+        """[OPTIONAL] Report a side question that could not be answered."""
+        self.append_to_output(f"\n[Error: {message}]\n")
+
+    def cancel_side_question(self) -> None:
+        """[OPTIONAL] Note that a side question was cancelled."""
+        self.append_to_output("\n[Cancelled]\n")
+
     def handle_custom_command(self, text: str) -> bool:
         return self._exec.handle_custom_command(text)
 

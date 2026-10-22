@@ -28,6 +28,7 @@ from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
 from zrb.llm.ui.default.selection import UISelection
+from zrb.llm.ui.default.side_question import UISideQuestion
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.util.history_formatter import extract_user_message_texts
 from zrb.util.cli.help_panel import render_help_panel
@@ -110,6 +111,7 @@ class UI(BaseUI):
         self._selection = UISelection(self, confirmation=self._confirmation)
         self._message_editing = UIMessageEditing(self)
         self._agent_picker = UIAgentPicker(self)
+        self._side_question = UISideQuestion(self)
         self._keybindings = UIKeybindings(self)
 
         self._refresh_task: asyncio.Task | None = None
@@ -162,6 +164,10 @@ class UI(BaseUI):
         self._agent_picker.init_agent_picker_state()
         agent_picker_float = self._create_agent_picker_float()
 
+        # `/btw` panel (hidden until a side question is asked).
+        self._side_question.init_side_question_state()
+        side_question_float = self._create_side_question_float()
+
         self._layout = create_layout(
             title=self._assistant_name,
             jargon=self.ui_config.jargon,
@@ -170,7 +176,7 @@ class UI(BaseUI):
             info_bar_text=self._output.get_info_bar_text,
             status_bar_text=self._output.get_status_bar_text,
             badge_bar_text=self._output.get_badge_bar_text,
-            extra_floats=[choice_float, agent_picker_float],
+            extra_floats=[choice_float, agent_picker_float, side_question_float],
             agent_activity_text=self._output.get_agent_activity_text,
             queued_messages_text=self._output.get_queued_messages_text,
         )
@@ -322,6 +328,21 @@ class UI(BaseUI):
             title="Talk to a sub-agent",
             style="class:agent-picker-frame",
             is_active=self._agent_picker.has_active_agent_picker,
+        )
+
+    def _create_side_question_float(self):
+        """Float hosting the `/btw` panel, shown only while a side answer is up."""
+        window = self._side_question.side_question_window
+        if window is None:
+            raise RuntimeError(
+                "init_side_question_state was not called before "
+                "_create_side_question_float"
+            )
+        return _create_frame_float(
+            window,
+            title="Side question · esc closes",
+            style="class:side-question-frame",
+            is_active=lambda: self._side_question.is_active,
         )
 
     def _create_application(
@@ -643,6 +664,33 @@ class UI(BaseUI):
 
     def begin_choice(self, spec: Any) -> None:
         self._selection.begin_choice(spec)
+
+    # --- `/btw`: the side-question panel -------------------------------------
+
+    @property
+    def is_side_question_active(self) -> bool:
+        """Whether the `/btw` panel is on screen."""
+        return self._side_question.is_active
+
+    def begin_side_question(self, question: str) -> None:
+        """Open the `/btw` panel instead of echoing into the transcript."""
+        self._side_question.begin(question)
+
+    def end_side_question(self, answer: str) -> None:
+        """Fill the panel with the rendered answer."""
+        self._side_question.end(answer)
+
+    def fail_side_question(self, message: str) -> None:
+        """Say in the panel why the side question failed."""
+        self._side_question.fail(message)
+
+    def cancel_side_question(self) -> None:
+        """Close the panel when the side question was cancelled."""
+        self._side_question.dismiss()
+
+    def dismiss_side_question(self) -> None:
+        """Close the `/btw` panel (Esc)."""
+        self._side_question.dismiss()
 
     def end_choice(self) -> None:
         self._selection.end_choice()

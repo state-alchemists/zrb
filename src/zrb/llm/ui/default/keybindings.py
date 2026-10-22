@@ -352,6 +352,11 @@ class UIKeybindings:
 
     def _on_escape(self, event: Any) -> None:
         ui = self._ui
+        # The `/btw` panel is the topmost thing on screen: Esc closes it, and
+        # only the next Esc reaches the turn or a pending prompt underneath.
+        if getattr(ui, "is_side_question_active", False):
+            ui.dismiss_side_question()
+            return
         ui.cancel_pending_confirmations()
         # In agent view, Esc cancels the sub-agent's work only; Left leaves
         # the view and the main task is untouched.

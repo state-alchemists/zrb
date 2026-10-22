@@ -27,9 +27,10 @@ def create_style() -> Style:
             f"bg:{CFG.LLM_UI_STYLE_TITLE_BAR_BG} {CFG.LLM_UI_STYLE_TITLE_BAR}"
         ),
     }
-    # The AskUserQuestion widget and the sub-agent picker share one panel look.
-    # The opaque background stops streaming output bleeding through the float.
-    for panel in ("choice", "agent-picker"):
+    # The AskUserQuestion widget, the sub-agent picker and the `/btw` panel
+    # share one panel look. The opaque background stops streaming output
+    # bleeding through the float.
+    for panel in ("choice", "agent-picker", "side-question"):
         styles.update(
             {
                 f"{panel}-frame": f"bg:{choice_bg} {CFG.LLM_UI_STYLE_INPUT_FRAME}",

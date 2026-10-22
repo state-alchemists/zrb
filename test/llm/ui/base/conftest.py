@@ -8,6 +8,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.persona_state import BaseUIPersonaState
+from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.ui_config import UIConfig
 
@@ -102,6 +103,13 @@ class MockUI:
 
     def submit_message(self, prompt):
         self.submitted_prompt = prompt
+
+    # `/btw`: the transcript-rendering half of the side-question contract that
+    # `BaseUI` provides; a UI that shows a panel overrides these instead.
+    begin_side_question = BaseUI.begin_side_question
+    end_side_question = BaseUI.end_side_question
+    fail_side_question = BaseUI.fail_side_question
+    cancel_side_question = BaseUI.cancel_side_question
 
 
 @pytest.fixture
