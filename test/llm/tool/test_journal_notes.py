@@ -33,7 +33,7 @@ def test_log_activity_builds_the_whole_tree_on_a_cold_journal(writable_journal):
     # missing-index: every level down to the day file has one.
     root_index = _read(writable_journal, "index.md")
     assert "## Directories" in root_index
-    for name in ("user", "preferences", "projects", "technical", "activity-log"):
+    for name in ("user", "agent", "preferences", "projects", "technical", "activity-log"):
         # orphan: each directory is reachable from the root index.
         assert f"{name}/index.md" in root_index
         assert os.path.isfile(os.path.join(writable_journal, name, "index.md"))
@@ -431,3 +431,4 @@ def test_writers_refuse_when_the_journal_dir_is_unset():
         with pytest.raises(ValueError) as excinfo:
             log_activity("anything")
     assert "not configured" in str(excinfo.value)
+

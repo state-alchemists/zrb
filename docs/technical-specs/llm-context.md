@@ -24,7 +24,7 @@ The journal is a directory of Markdown files organized hierarchically by topic o
 | Property | Value |
 |----------|-------|
 | Storage | Directory of Markdown files |
-| Organization | Four note categories plus a dated activity log |
+| Organization | Five note categories plus a dated activity log |
 | Entry point | `index.md`, the only file injected into a session |
 | Written by | `LogActivity`, `WriteJournalNote` and `DeleteJournalNote`, which own the on-disk format |
 
@@ -42,12 +42,13 @@ Every journal knob (directory, index file, injection cap, HUD cap, first-turn au
 
 ### Directory Organization
 
-The writers create a fixed layout (`ensure_journal_tree` in `src/zrb/llm/tool/journal_write.py`): four note categories and an activity log, each with its own `index.md`.
+The writers create a fixed layout (`ensure_journal_tree` in `src/zrb/llm/tool/journal_write.py`): five note categories and an activity log, each with its own `index.md`.
 
 ```mermaid
 flowchart LR
     Root["~/.zrb/llm-notes/"] --> Index["index.md — root index, auto-injected"]
     Root --> U["user/ — notes + index.md"]
+    Root --> AG["agent/ — notes + index.md"]
     Root --> P["preferences/ — notes + index.md"]
     Root --> PR["projects/ — notes + index.md"]
     Root --> T["technical/ — notes + index.md"]
@@ -58,7 +59,7 @@ flowchart LR
 
 ### Index File Structure
 
-The root index is created with this skeleton; `WriteJournalNote` adds a one-line summary of each note under `User`, `Preferences` or `Active Constraints` (for `projects` and `technical` notes):
+The root index is created with this skeleton; `WriteJournalNote` adds a one-line summary of each note under `User`, `Preferences`, `Agent` or `Active Constraints` (for `projects` and `technical` notes). `agent` holds what is true of the assistant itself — standing choices, working style, how it wants to be treated — and `preferences` holds what the user stated about how *they* want to be worked with, so a fact about the agent never lands in the user's section by default:
 
 ```markdown
 # Journal
@@ -67,11 +68,13 @@ The root index is created with this skeleton; `WriteJournalNote` adds a one-line
 
 ## Preferences
 
+## Agent
+
 ## Active Constraints
 
 ## Directories
 
-- [user](user/index.md) · [preferences](preferences/index.md) · [projects](projects/index.md) · [technical](technical/index.md) · [activity-log](activity-log/index.md)
+- [user](user/index.md) · [agent](agent/index.md) · [preferences](preferences/index.md) · [projects](projects/index.md) · [technical](technical/index.md) · [activity-log](activity-log/index.md)
 
 ## Recent Insights
 ```
