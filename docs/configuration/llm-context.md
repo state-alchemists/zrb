@@ -23,6 +23,7 @@ Zrb summarizes in the background when history or a single message grows too larg
 | `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering full history summarization | 75% of `MAX_TOKEN_PER_REQUEST` |
 | `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering individual message summarization | 50% of conversational threshold |
 | `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` | Most messages kept verbatim after summarization | `300` |
+| `ZRB_LLM_SUMMARY_MAX_TOKENS` | Token cap for one conversation summary; a summary over it is shortened before it replaces the history | `2000` |
 
 Summarization keeps the newest turns that fit 40% of the trigger threshold, so the
 rest of the window remains for the conversation that follows; the message window is a
@@ -33,6 +34,20 @@ custom history manager says otherwise — and the summary names that file so the
 can read back the detail the summary dropped. The archived text is the history as the
 conversation held it, before oversized tool results are reduced to summaries, so a
 tool's output can be read back even after two rounds of lossy rewriting.
+
+The summary reaches the next model as a fenced block that names itself: it opens with
+`# SYSTEM: Automated Context Restoration`, says in as many words that it is derived data
+rather than the user speaking, and closes with an explicit end marker. Both are load
+bearing, because role alternation merges the summary into the same user turn as the real
+user messages that follow it, and without them the reader cannot tell the automation from
+the user. Its size is bounded by `ZRB_LLM_SUMMARY_MAX_TOKENS`, which the summarizer prompt
+already asked for in prose, and the bound is measured on the block as it will be inserted —
+zrb's own framing, the snapshot, the journal index and the archive pointer. A block over the
+cap is shortened at most twice and then truncated by what it overflows by, and a summary
+that arrived without the schema is capped on the same rule rather than dropped, since an
+over-budget history fails the request where a bulky summary only costs tokens. If the
+framing and notes fill the cap on their own, the snapshot is dropped and the warning says to
+raise the cap. A summary that comes back empty leaves the history untouched instead.
 
 The same mechanism keeps one large repo or file read from blowing the context window; like the two above, each threshold is clamped to a fraction of the smaller of `MAX_TOKEN_PER_MINUTE` and `MAX_TOKEN_PER_REQUEST` (75% for the two above, 40% here):
 
