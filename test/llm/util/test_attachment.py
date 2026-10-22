@@ -251,14 +251,36 @@ def test_get_pasted_attachment_paths_accepts_a_file_uri(tmp_path):
     assert get_pasted_attachment_paths(localhost_uri) == [path]
 
 
+def _windows_url2pathname(path: str) -> str:
+    """Stand in for Windows' `urllib.request.url2pathname`.
+
+    That name is `nturl2path.url2pathname` on Windows and `unquote` elsewhere, so
+    this runs the Windows half on any platform. It is not `nturl2path` imported
+    directly because the module is deprecated and slated for removal in 3.19 —
+    and it is not the stdlib converter on the test machine, which is `unquote`
+    and would leave `/C:/x` alone. What the test pins is zrb's own side of the
+    conversion: the `/C:/x` and `//server/share/x` it hands over, and nothing
+    else.
+    """
+    # lazy: only this test needs the decoder
+    from urllib.parse import unquote
+
+    path = unquote(path)
+    if path.startswith("//"):
+        return "\\\\" + path[2:].replace("/", "\\")
+    if len(path) > 2 and path[0] == "/" and path[2] == ":":
+        return path[1:].replace("/", "\\")
+    return path.replace("/", "\\")
+
+
 def test_get_pasted_attachment_paths_reads_a_drive_letter_uri_on_windows(
     tmp_path, monkeypatch
 ):
-    import nturl2path
-
     import zrb.llm.util.attachment as attachment_module
 
-    monkeypatch.setattr(attachment_module, "url2pathname", nturl2path.url2pathname)
+    monkeypatch.setattr(
+        attachment_module, "url2pathname", _windows_url2pathname
+    )
     monkeypatch.setattr(attachment_module.os.path, "isfile", lambda path: True)
     monkeypatch.setattr(attachment_module.os.path, "abspath", lambda path: path)
 
