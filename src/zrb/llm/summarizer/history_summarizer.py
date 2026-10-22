@@ -497,16 +497,37 @@ async def _fit_summary_block(
             model_text, agent, limiter, conversational_token_threshold, cap - overhead
         )
     if size(model_text) > cap:
-        keep = max(0, limiter.count_tokens(model_text) - (size(model_text) - cap))
         zrb_print(
             stylize_warning(
                 f"  Warning: summary block still over the cap ({size(model_text)} > "
-                f"{cap}); truncating the snapshot to {keep} tokens."
+                f"{cap}); truncating the snapshot until it fits."
             ),
             plain=True,
         )
-        model_text = limiter.truncate_text(model_text, keep)
+        model_text = _truncate_snapshot(model_text, limiter, cap, size)
+
     return model_text
+
+
+def _truncate_snapshot(
+    text: str, limiter: "LLMLimiter", cap: int, size: "Callable[[str], int]"
+) -> str:
+    """Cut *text* until the block it lands in fits, not the text on its own.
+
+    A token count is not additive across a concatenation: the same words
+    tokenize differently once the framing and the notes sit around them, so
+    subtracting the block's overflow from the text's own count can leave the
+    block a token or two over. Every pass measures the block again and takes
+    what is left of the overflow off the next cut; `keep` only falls and a
+    zero-length snapshot ends it, so the loop terminates.
+    """
+    keep = max(0, limiter.count_tokens(text) - (size(text) - cap))
+    while True:
+        truncated = limiter.truncate_text(text, keep)
+        overflow = size(truncated) - cap
+        if overflow <= 0 or keep <= 0:
+            return truncated
+        keep = max(0, keep - overflow)
 
 
 async def _shorten_summary(

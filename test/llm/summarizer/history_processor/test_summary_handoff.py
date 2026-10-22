@@ -22,6 +22,13 @@ from pydantic_ai.messages import (
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer import summarize_history
+# The one test below is about the cut itself, which the public API only reaches
+# through a model that answers badly twice; the helpers are the subject there.
+from zrb.llm.summarizer.history_summarizer import (
+    _render_archive_note,
+    _render_summary_content,
+    _truncate_snapshot,
+)
 
 JOURNAL_PATCH = "zrb.llm.summarizer.history_summarizer.render_journal_index"
 CHARS_PER_TOKEN = 4
@@ -184,6 +191,28 @@ async def test_a_summary_that_will_not_fit_is_truncated_to_the_cap(monkeypatch):
 
     assert agent.run.await_count == 3  # the summary, then two shortening attempts
     assert len(_summary_text(history)) < len(overflowing)
+
+
+def test_the_cut_is_measured_on_the_block_after_every_cut(monkeypatch):
+    """tiktoken charges the same words differently inside the block.
+
+    Sizing the cut as "the snapshot's tokens minus the block's overflow" leaves
+    the block a token over, because the framing changes where the snapshot's own
+    token boundaries fall: 21 tokens of text inside a 146-token block against a
+    150-token cap. The helper cuts again from what the block still overflows by.
+    """
+    monkeypatch.setattr(CFG, "ENABLE_TIKTOKEN", True, raising=False)
+    limiter = LLMLimiter()
+    note = _render_archive_note("/tmp/session.md")
+    cap = 150
+    text = "hello world " * 10
+
+    def size(candidate: str) -> int:
+        return limiter.count_tokens(_render_summary_content(candidate, "", note))
+
+    truncated = _truncate_snapshot(text, limiter, cap, size)
+
+    assert size(truncated) <= cap
 
 
 @pytest.mark.asyncio
