@@ -108,6 +108,35 @@ def test_an_index_written_before_the_agent_section_gains_it_in_place(
         assert kept in index
 
 
+def test_a_migrated_index_keeps_a_directory_link_it_does_not_own(writable_journal):
+    """A hand-written label and a link to something outside the journal are the
+    user's, not the migration's: only the missing category links are added."""
+    from zrb.llm.tool.journal_write import log_activity
+
+    _write(
+        writable_journal,
+        "# Journal\n\n"
+        "## Directories\n\n"
+        "- [My notes](user/index.md) · [external](other/index.md)\n\n"
+        "## Recent Insights\n\n",
+    )
+
+    log_activity("wrote a note")
+
+    directories = [
+        line
+        for line in _read(writable_journal, "index.md").splitlines()
+        if line.startswith("- [")
+    ][0]
+    assert "[My notes](user/index.md)" in directories
+    assert "[external](other/index.md)" in directories
+    assert "[agent](agent/index.md)" in directories
+    for category in ("preferences", "projects", "technical", "activity-log"):
+        assert f"[{category}]({category}/index.md)" in directories
+    # Added, not reordered: the two the journal already had stay in front.
+    assert directories.index("[My notes]") < directories.index("[agent]")
+
+
 def test_a_migrated_index_links_the_new_category_in_directories(writable_journal):
     """A section nobody links to is a section nobody reads: the migration adds
     `agent/index.md` to `## Directories` too, in its place among the others."""

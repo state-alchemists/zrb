@@ -44,7 +44,7 @@ _HUD_SECTION = {
 # migrated into this order rather than appended after the unbounded one.
 _HUD_ORDER = ("User", "Preferences", "Agent", "Active Constraints")
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-_DIRECTORY_LINK_RE = re.compile(r"\[([a-z0-9-]+)\]\(\1/index\.md\)")
+_DIRECTORY_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]*)/index\.md\)")
 _BACKLINKS_HEADING = "## Backlinks"
 
 
@@ -448,9 +448,11 @@ def _ensure_directory_links(text: str) -> str:
 
     The link is what makes a category reachable from the injected root index, so
     a migrated journal that gains `## Agent` but not `[agent](agent/index.md)`
-    hides every agent note behind an index nobody links to. Existing links keep
-    their text and their order; a missing one is slotted where `NOTE_CATEGORIES`
-    puts it, so the line reads the same as a journal created now.
+    hides every agent note behind an index nobody links to. A missing link is
+    inserted where `NOTE_CATEGORIES` puts it; every line is otherwise left
+    untouched, so a hand-written label (`[My notes](user/index.md)`) or a link to
+    something zrb does not own survives, where rebuilding the line from the
+    canonical names would have dropped both.
     """
     expected = [*NOTE_CATEGORIES, ACTIVITY_DIR]
     lines = text.splitlines()
@@ -469,29 +471,31 @@ def _ensure_directory_links(text: str) -> str:
             # A heading with no list under it is not a shape this writer makes;
             # leave it rather than inventing a line above someone's own text.
             return text
-        present = _DIRECTORY_LINK_RE.findall(lines[bullet_at])
-        if all(name in present for name in expected):
+        linked = [match.group(2) for match in _DIRECTORY_LINK_RE.finditer(lines[bullet_at])]
+        missing = [name for name in expected if name not in linked]
+        if not missing:
             return text
-        order = list(present)
-        for name in expected:
-            if name in order:
-                continue
-            # Slot it before the first link that must follow it, else at the end.
-            followers = [
-                other
-                for other in expected[expected.index(name) + 1 :]
-                if other in order
-            ]
-            if followers:
-                order.insert(order.index(followers[0]), name)
-            else:
-                order.append(name)
-        lines[bullet_at] = "- " + " · ".join(
-            f"[{name}]({name}/index.md)" for name in order
-        )
+        rewritten = lines[bullet_at]
+        for name in missing:
+            rewritten = _insert_directory_link(rewritten, name, expected)
+        lines[bullet_at] = rewritten
         rebuilt = "\n".join(lines)
         return rebuilt + "\n" if text.endswith("\n") else rebuilt
     return text
+
+
+def _insert_directory_link(line: str, name: str, expected: list[str]) -> str:
+    """Add `[name](name/index.md)` before the first link that must follow it."""
+    token = f"[{name}]({name}/index.md)"
+    for match in _DIRECTORY_LINK_RE.finditer(line):
+        target = match.group(2)
+        if target not in expected:
+            continue
+        if expected.index(target) > expected.index(name):
+            return f"{line[: match.start()]}{token} · {line[match.start() :]}"
+    if line.strip() == "-":
+        return f"- {token}"
+    return f"{line} · {token}"
 
 
 def _insert_section_in_order(text: str, name: str) -> str:
