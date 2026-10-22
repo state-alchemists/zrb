@@ -176,6 +176,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0081** — [Web chat renders markdown/math/diagrams client-side; the non-interactive loop finalizes its output](adr-0081.md)
 - **ADR-0093** — [A slash command is always offered; an unavailable one explains itself](adr-0093.md)
 - **ADR-0106** — [A side question runs without tools, and its prompt says so](adr-0106.md)
+- **ADR-0117** — [The `/btw` panel holds the focus while it is shown, and a typed character still starts a message](adr-0117.md)
 
 ### Voice and media
 
