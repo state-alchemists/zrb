@@ -76,7 +76,7 @@ The cross-session list is kept in `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_DIR` (defaul
 
 ### Queued Messages
 
-A submitted message never goes straight into the model's context: it joins the queue and runs when the turn ahead of it finishes. That holds mid-turn too, so a correction typed while the assistant is thinking stays in the queue where you can still edit or drop it. What is waiting is listed above the input box, oldest first, with the one recalled for editing marked `▸`:
+A submitted message never goes straight into the model's context: it joins the queue and runs when the turn ahead of it finishes. That holds mid-turn too, so a correction typed while the assistant is thinking stays in the queue where you can still edit or drop it — and once it is neither being edited nor younger than one second, the running turn takes it at its next model request, so an instruction given mid-turn is read inside that turn rather than after it. What is waiting is listed above the input box, oldest first, with the one recalled for editing marked `▸`:
 
 ```text
  📥 2 queued · ↑ edit · Ctrl+X drop · Ctrl+G send now
@@ -84,7 +84,7 @@ A submitted message never goes straight into the model's context: it joins the q
  ▸2. and run the tests
 ```
 
-The panel names the three keys that act on the queue, so the accelerator is visible exactly when it matters. `Ctrl+G` is the only way a queued message reaches the running turn early.
+The panel names the three keys that act on the queue, so the accelerator is visible exactly when it matters. `Ctrl+G` skips both waits: it sends everything queued into the running turn at once.
 
 | Key | What it does |
 |-----|--------------|
@@ -92,7 +92,9 @@ The panel names the three keys that act on the queue, so the accelerator is visi
 | `↓` | Walk back toward the newest, then restore whatever you were typing before the first recall |
 | `Enter` | Replace the queued message with the edited text, in place — rather than submitting a new one |
 | `Ctrl+X` | Drop the recalled message: it leaves the queue and its echoed line is taken out of every transcript. The input goes back to whatever you were typing before the recall |
-| `Ctrl+G` | Send the queued messages into the running turn now, instead of waiting for it to finish |
+| `Ctrl+G` | Send the queued messages into the running turn now, without waiting for the rest of the turn or for the grace window |
+
+A message is delivered by the run itself at each clean boundary — the start of its next model request — with two exceptions. One is the message you are editing: while it sits in the input box after `↑`, it is held back, and the messages queued behind it still go; press `Enter` and it rejoins the queue at the next boundary. The other is a message younger than one second, so that a typo can still be caught with `↑` after `Enter`. `Ctrl+G` ignores both rules, because it is you asking.
 
 The echoed `💬` line stays in the transcript above, so the whole of a queued message is always readable; the panel repeats only its first line. A multi-line paste in a terminal without bracketed paste arrives as one submit per Enter keystroke: lines submitted within `ZRB_LLM_UI_PASTE_MERGE_WINDOW` (default 100 ms) of a still-queued message are appended to it, so the model reads one message instead of a turn per line.
 

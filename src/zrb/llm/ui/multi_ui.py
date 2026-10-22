@@ -751,7 +751,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Whether any child holds a prompt waiting for the user."""
         return any(ui.is_waiting_for_answer for ui in self._uis)
 
-    def send_queued_messages_now(self, may_interrupt: bool = True) -> DeliveryReport:
+    def send_queued_messages_now(
+        self, may_interrupt: bool = True, only_ready: bool = False
+    ) -> DeliveryReport:
         """Deliver the queued messages into the running turn, now.
 
         The children share one queue and this wrapper runs the turn, so the
@@ -764,12 +766,21 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             is_waiting_for_answer=self.is_waiting_for_answer,
             cancel_turn=lambda: self.cancel_current_turn("send_now"),
             may_interrupt=may_interrupt,
+            only_ready=only_ready,
         )
         main_ui = self.main_ui
         redraw = getattr(main_ui, "redraw_echoes", None)
         if callable(redraw):
             redraw(report.delivered_entries)
         return report
+
+    def deliver_queued_messages_early(self) -> DeliveryReport:
+        """Hand the ready queued messages to the running turn at a checkpoint.
+
+        Same rule as `BaseUI.deliver_queued_messages_early`: only the entries
+        the queue calls ready, and no interruption.
+        """
+        return self.send_queued_messages_now(may_interrupt=False, only_ready=True)
 
     def is_prompt_answered_since(self, asked_at: float) -> bool:
         """Whether any child has answered the first prompt asked at or after

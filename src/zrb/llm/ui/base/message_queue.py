@@ -1,9 +1,13 @@
 """Message queue shared by every chat UI.
 
 Every submission lands here — a message typed mid-turn included — and the
-message loop runs one entry at a time. Nothing is handed to a live run before
-the user asks for it (`send_queued_messages_now`, Ctrl+G), so a queued message
-is always still editable.
+message loop runs one entry at a time. A queued message is handed to the
+running turn as soon as that turn reaches a safe checkpoint (the start of its
+next model request), so an instruction given mid-turn is read without waiting
+for the turn to end; an entry the user is editing, and one younger than
+`EARLY_DELIVERY_GRACE_SECONDS`, is left until the next checkpoint so Up Arrow
+can still catch it (ADR-0078, revised). `Ctrl+G` (`send_queued_messages_now`)
+skips both waits, for a user who wants the words in now.
 
 Entries are mutable and `run` reads `entry.text` at execution time, so
 editing a queued message is a field write. Anything still in the queue has not
@@ -13,6 +17,7 @@ started running.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import deque
 from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from dataclasses import dataclass
@@ -31,6 +36,17 @@ from zrb.llm.ui.base.user_echo import (
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
+
+
+EARLY_DELIVERY_GRACE_SECONDS = 1.0
+"""How long a queued message is kept before a checkpoint may deliver it.
+
+A submission reaches the running turn at its next safe checkpoint, which can
+be a fraction of a second after Enter. Without a pause nothing could be taken
+back — Up Arrow would have to be pressed before the user finished letting go
+of the key — so a message waits this long first, and `Ctrl+G` skips the wait
+for a user who means it now.
+"""
 
 
 @dataclass
@@ -68,6 +84,12 @@ class QueuedMessage:
         self.source = source
         # For paste-burst merging; None (e.g. `/exec` jobs) never merges.
         self.submitted_at: datetime | None = None
+        # `time.monotonic()` at submission, refreshed when a paste merges into
+        # this entry: early delivery waits out `EARLY_DELIVERY_GRACE_SECONDS`.
+        self.queued_at: float = 0.0
+        # True while the user holds this entry in the input field (Up Arrow).
+        # A checkpoint leaves it be, so an edit is never cut short by delivery.
+        self.is_being_edited: bool = False
         # Kept so an edit can rebuild the echoed line in the same style.
         self.echo_marker: str = ""
         self.echo_timestamp: str = ""
@@ -136,6 +158,21 @@ class MessageQueue(asyncio.Queue):
     def contains(self, entry: QueuedMessage) -> bool:
         """Whether `entry` is still queued (not yet consumed by `get()`)."""
         return entry in self._queue
+
+    def deliverable(
+        self, now: float, grace: float = EARLY_DELIVERY_GRACE_SECONDS
+    ) -> "tuple[QueuedMessage, ...]":
+        """Entries a checkpoint may hand to the running turn, oldest first.
+
+        Two are held back: the one the user is editing, and any younger than
+        `grace`. Holding one is not a barrier — the entries behind it still go,
+        so an edit in progress cannot stop the queue (ADR-0078, revised).
+        """
+        return tuple(
+            entry
+            for entry in self._queue
+            if not entry.is_being_edited and now - entry.queued_at >= grace
+        )
 
     def remove(self, entry: QueuedMessage) -> None:
         """Remove `entry` from the queue without running it.
@@ -222,6 +259,7 @@ def submit_user_message_via_queue(
         entry.echo_marker = marker
         entry.echo_timestamp = timestamp
         entry.submitted_at = now
+        entry.queued_at = time.monotonic()
         if echo:
             for target in echo_targets:
                 target.track_echo_span(entry, echo)
@@ -280,6 +318,8 @@ def _merge_into(
     entry.text = combined
     entry.attachments += attachments
     entry.submitted_at = now
+    # A line just typed is as young as a fresh submission: the grace restarts.
+    entry.queued_at = time.monotonic()
     # Selects the fallback for a target that cannot splice its echo.
     rendered = append_markdown is not None and should_render_user_markdown(combined)
     for target in echo_targets:

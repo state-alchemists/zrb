@@ -885,16 +885,19 @@ def _build_event_stream_handler(
             partial_run.latest_history = ctx.messages
             if effective_event_handler:
                 await effective_event_handler(event)
-            if checkpoint_fn is not None and _is_checkpoint_boundary(
-                ctx.messages, last_checkpoint_len
-            ):
+            if _is_checkpoint_boundary(ctx.messages, last_checkpoint_len):
                 last_checkpoint_len = len(ctx.messages)
-                # Copy now: the source list keeps growing.
-                snapshot = list(ctx.messages)
-                assert pending_checkpoint_tasks is not None
-                pending_checkpoint_tasks.append(
-                    asyncio.create_task(checkpoint_fn(snapshot))
-                )
+                # A structurally complete history: the moment a message held in
+                # the queue can join this turn and be read by its next request
+                # (ADR-0078, revised).
+                _deliver_queued_messages(effective_ui)
+                if checkpoint_fn is not None:
+                    # Copy now: the source list keeps growing.
+                    snapshot = list(ctx.messages)
+                    assert pending_checkpoint_tasks is not None
+                    pending_checkpoint_tasks.append(
+                        asyncio.create_task(checkpoint_fn(snapshot))
+                    )
 
     return _handler
 
@@ -906,6 +909,26 @@ def _is_checkpoint_boundary(messages: list[Any], last_checkpoint_len: int) -> bo
     return len(messages) > last_checkpoint_len and isinstance(
         messages[-1], ModelRequest
     )
+
+
+def _deliver_queued_messages(effective_ui: AnyUI | None) -> None:
+    """Hand the ready queued messages to this run, on a checkpoint boundary.
+
+    A message typed while a turn runs joins that turn here instead of waiting
+    for it to end: the history is complete, so the request being assembled reads
+    it. Only entries the queue calls ready go — not the one the user is editing,
+    and none inside its grace window — and nothing is interrupted, since the
+    model is asking again anyway. A UI that cannot deliver (a custom one, or one
+    with no queue) simply skips it.
+
+    Nothing is caught here: delivering is queue bookkeeping plus a UI's echo
+    redraw, and each of those guards its own failure — swallowing a new class of
+    error to keep the turn alive would hide the reason it was thrown.
+    """
+    deliver = getattr(effective_ui, "deliver_queued_messages_early", None)
+    if not callable(deliver):
+        return
+    deliver()
 
 
 def _set_active_run_context(effective_ui: AnyUI | None, ctx: Any) -> None:

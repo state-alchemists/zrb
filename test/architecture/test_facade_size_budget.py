@@ -86,7 +86,12 @@ FACADE_BUDGETS = {
     # +6 (1253->1259): `may_interrupt` on both delivery entry points: speech
     # asks for the earliest safe delivery and must never stop the turn to get
     # it, which is a policy the caller has to be able to state.
-    "llm/ui/base/ui.py": 1259,
+    # +16 (1259->1275): `deliver_queued_messages_early`, the checkpoint's own
+    # entry point — only the ready entries, never an interrupt — plus
+    # `only_ready` on `send_queued_messages_now` and its parent forwarding. The
+    # rule it carries (no edit cut short, no fresh message taken before the
+    # grace) is the feature, not delegation.
+    "llm/ui/base/ui.py": 1275,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
