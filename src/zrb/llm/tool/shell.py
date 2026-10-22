@@ -10,6 +10,7 @@ from pydantic import Field
 
 from zrb.cmd.command import (
     close_transport,
+    create_yielding_argv,
     resolve_shell,
     terminate_process,
     wait_for_exit_and_drain,
@@ -380,7 +381,7 @@ async def start_process(argv: list[str], cwd: str) -> asyncio.subprocess.Process
     # `pgrep -g` and kill reach the whole tree, and survives the sandbox
     # wrappers, which exec in place. DEVNULL stdin fails a stdin read fast.
     return await asyncio.create_subprocess_exec(
-        *argv,
+        *create_yielding_argv(argv),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         stdin=asyncio.subprocess.DEVNULL,
