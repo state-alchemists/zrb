@@ -22,6 +22,11 @@ from zrb.llm.summarizer.chunk_processor import (
 )
 from zrb.llm.summarizer.history_splitter import split_history
 from zrb.llm.summarizer.message_processor import process_message_for_summarization
+from zrb.llm.summarizer.verbatim_archive import (
+    archive_verbatim_history,
+    conversation_key,
+    verbatim_archive_path,
+)
 from zrb.util.cli.style import stylize_error, stylize_warning
 from zrb.util.markdown import make_markdown_section
 
@@ -30,7 +35,6 @@ if TYPE_CHECKING:
 else:
     ModelMessage = Any
 
-
 def create_summarizer_history_processor(
     conversational_agent: Any = None,
     message_agent: Any = None,
@@ -38,8 +42,18 @@ def create_summarizer_history_processor(
     conversational_token_threshold: int | None = None,
     message_token_threshold: int | None = None,
     summary_window: int | None = None,
+    session_name: "str | Callable[[], str | None] | None" = None,
+    history_dir: str | None = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
-    """Create a history processor that auto-summarizes history past its thresholds."""
+    """Create a history processor that auto-summarizes history past its thresholds.
+
+    `session_name` names the conversation's verbatim archive, so what a
+    compaction replaces stays readable afterwards; a callable is resolved per
+    call so a rename is followed. Left as `None`, the name is derived from the
+    conversation's opening message, so callers that cannot say who they are
+    still do not share one archive. `history_dir` is the directory the history
+    manager stores conversations in, so the archive sits beside them.
+    """
     llm_limiter = limiter or default_llm_limiter
     if conversational_token_threshold is None:
         conversational_token_threshold = (
@@ -70,6 +84,10 @@ def create_summarizer_history_processor(
             )
             return messages
 
+        # Snapshot first: fat tool results are replaced by summaries in the
+        # pass below, and an archive of those would record the summary where
+        # the tool wrote its output. This is the text the conversation had.
+        verbatim_source: "list[ModelMessage]" = list(messages)
         messages = await _summarize_fat_messages(
             messages,
             agent=active_message_agent,
@@ -85,6 +103,9 @@ def create_summarizer_history_processor(
             limiter=llm_limiter,
             conversational_token_threshold=conversational_token_threshold,
             system_prompt_overhead=system_prompt_overhead,
+            session_name=session_name,
+            history_dir=history_dir,
+            verbatim_source=verbatim_source,
         )
 
     return process_history
@@ -121,6 +142,9 @@ async def _maybe_compress_history(
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
     system_prompt_overhead: int,
+    session_name: "str | Callable[[], str | None] | None" = None,
+    history_dir: str | None = None,
+    verbatim_source: "list[ModelMessage] | None" = None,
 ) -> "list[ModelMessage]":
     """Compress history when it exceeds the token/window threshold."""
     try:
@@ -158,6 +182,9 @@ async def _maybe_compress_history(
             summary_window=summary_window,
             limiter=limiter,
             conversational_token_threshold=adjusted_threshold,
+            session_name=session_name,
+            history_dir=history_dir,
+            verbatim_source=verbatim_source,
         )
         if result != messages:
             new_tokens = limiter.count_tokens(result)
@@ -225,11 +252,21 @@ async def summarize_history(
     limiter: "LLMLimiter | None" = None,
     conversational_token_threshold: int | None = None,
     force: bool = False,
+    session_name: "str | Callable[[], str | None] | None" = None,
+    history_dir: str | None = None,
+    verbatim_source: "list[ModelMessage] | None" = None,
 ) -> "list[ModelMessage]":
-    """Replace older messages with a chunked summary, keeping the last `summary_window`.
+    """Replace older messages with a chunked summary, keeping a recent tail.
 
-    `force=True` compresses even within limits (``/compress``). The journal
-    index is re-seeded into the summary.
+    The tail is the newest turns that fit the summarizer's token budget, capped
+    by `summary_window` messages. `force=True` compresses even within limits
+    (``/compress``). The journal index is re-seeded into the summary.
+
+    The replaced messages are archived verbatim once the replacement is ready,
+    and the summary names the archive: a summary is a lossy view, the archive is
+    not. `verbatim_source` is the history as it stood before the caller's own
+    fat-message pass, so the archive keeps the tool's output rather than the
+    summary of it; it is used only when it lines up with `messages`.
     """
     try:
         llm_limiter = limiter or default_llm_limiter
@@ -246,17 +283,31 @@ async def summarize_history(
             if not force:
                 return messages
             to_summarize, to_keep = messages, []
+        archive_path = verbatim_archive_path(
+            _resolve_session_name(session_name, messages), history_dir
+        )
         summary_text = await _build_summary_text(
             to_summarize,
             to_keep,
             agent or create_conversational_summarizer_agent(),
             llm_limiter,
             conversational_token_threshold,
+            archive_path=archive_path,
         )
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
-        return _assemble_summarized_history(summary_message, messages, to_keep)
+        result = _assemble_summarized_history(summary_message, messages, to_keep)
+        # Only now, with a summary that replaces the messages in hand: an
+        # archive written before a failed summarization would claim messages
+        # were replaced while they are still in the history.
+        archived = _verbatim_prefix(to_summarize, messages, verbatim_source)
+        archive_verbatim_history(
+            _without_prior_summaries(archived),
+            path=archive_path,
+            tokens=llm_limiter.count_tokens(archived),
+        )
+        return result
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
@@ -268,6 +319,7 @@ async def _build_summary_text(
     summarizer_agent: Any,
     llm_limiter: "LLMLimiter",
     conversational_token_threshold: int,
+    archive_path: str | None = None,
 ) -> str:
     """Summarize `to_summarize`, consolidating and re-seeding the journal index."""
     summary_text = await chunk_and_summarize(
@@ -292,8 +344,91 @@ async def _build_summary_text(
     # Baked into the summary so no extra turn breaks role alternation.
     journal_block = render_journal_index()
     if journal_block:
-        return f"{summary_text}\n\n{journal_block}"
+        summary_text = f"{summary_text}\n\n{journal_block}"
+    if archive_path:
+        summary_text = f"{summary_text}\n\n{_render_archive_note(archive_path)}"
     return summary_text
+
+
+def _resolve_session_name(
+    session_name: "str | Callable[[], str | None] | None",
+    messages: "list[ModelMessage]",
+) -> str:
+    """The conversation name to key the archive by, resolved now.
+
+    A callable is resolved on every call so a conversation renamed after the
+    task was built (`/save`) archives under its current name. A caller that
+    cannot name the conversation at all gets a key derived from its opening
+    message, which survives renames and resumes.
+    """
+    name = session_name() if callable(session_name) else session_name
+    if name:
+        return name
+    opening = _find_first_user_message(messages)
+    return conversation_key(_opening_text(opening) if opening is not None else "")
+
+
+def _opening_text(message: object) -> str:
+    """The text of the first real user prompt in a request, or ``""``."""
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import UserPromptPart
+
+    for part in getattr(message, "parts", []):
+        if isinstance(part, UserPromptPart):
+            content = getattr(part, "content", "")
+            return content if isinstance(content, str) else str(content)
+    return ""
+
+
+def _render_archive_note(archive_path: str) -> str:
+    """The deterministic pointer to the verbatim archive.
+
+    Written here, never by the summarizer model: the path must be the real one
+    on this machine, and a model asked to repeat it can mangle or invent it.
+    """
+    return (
+        "## Verbatim history archive\n\n"
+        "The messages this summary replaced are archived word for word, "
+        f"append-only, at:\n\n`{archive_path}`\n\n"
+        "Read that file when this summary is not detailed enough; it holds the "
+        "original text of every compacted message (attachment bytes are named "
+        "there, not copied), and later compactions append to the same file."
+    )
+
+
+def _verbatim_prefix(
+    to_summarize: "list[ModelMessage]",
+    messages: "list[ModelMessage]",
+    verbatim_source: "list[ModelMessage] | None",
+) -> "list[ModelMessage]":
+    """The text of the replaced messages as the conversation actually held it.
+
+    `split_history` only ever cuts a prefix, so the same count of
+    `verbatim_source` is the same messages before fat tool results were
+    replaced by summaries. A source that does not line up is ignored: archiving
+    the wrong slice would be worse than archiving the summarized one.
+    """
+    if verbatim_source is None or len(verbatim_source) != len(messages):
+        return to_summarize
+    return verbatim_source[: len(to_summarize)]
+
+
+def _without_prior_summaries(messages: "list[ModelMessage]") -> "list[ModelMessage]":
+    """Drop earlier compactions' synthetic summaries from an archive section.
+
+    The archive records what the conversation actually said. A summary is a
+    derived retelling that the next summary already folds in, and archiving it
+    would leave the reader sifting model prose out of verbatim text.
+    """
+    result: "list[ModelMessage]" = []
+    for message in messages:
+        if getattr(message, "parts", None) is None:
+            result.append(message)
+            continue
+        stripped = _drop_summary_parts(message)
+        if stripped.parts:
+            result.append(stripped)
+    return result
 
 
 def _assemble_summarized_history(

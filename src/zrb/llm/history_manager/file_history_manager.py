@@ -73,6 +73,11 @@ class FileHistoryManager(AnyHistoryManager):
         if not os.path.exists(self._history_dir):
             os.makedirs(self._history_dir, exist_ok=True)
 
+    @property
+    def storage_dir(self) -> str:
+        """The directory this manager stores conversation files in."""
+        return self._history_dir
+
     def is_dirty(self, conversation_name: str) -> bool:
         """Whether *conversation_name* has in-memory updates not yet persisted."""
         return conversation_name in self._dirty

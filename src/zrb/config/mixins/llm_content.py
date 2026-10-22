@@ -45,7 +45,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SELF_REVIEW_MODEL: str = ""
         self.DEFAULT_LLM_SELF_REVIEW_TIMEOUT: str = "240"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_TRACKED_TURNS: str = "64"
-        self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "100"
+        self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "300"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD: str = ""
@@ -385,7 +385,11 @@ class LLMContentMixin:
     LLM_HISTORY_SUMMARIZATION_WINDOW = EnvField(
         int,
         fallback=0,
-        doc="Messages kept verbatim before older history is summarized.",
+        doc=(
+            "Most messages kept verbatim after summarization. A backstop for "
+            "histories of many small messages: token pressure is what normally "
+            "triggers summarization and bounds the kept tail."
+        ),
     )
 
     LLM_HISTORY_MAX_DISPLAY_CHARS = EnvField(
@@ -403,13 +407,13 @@ class LLMContentMixin:
     LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD = EnvField(
         int,
         transform=lambda v, cfg: limit_token_threshold(
-            v, 0.6, cfg.LLM_MAX_TOKEN_PER_MINUTE, cfg.LLM_MAX_TOKEN_PER_REQUEST
+            v, 0.75, cfg.LLM_MAX_TOKEN_PER_MINUTE, cfg.LLM_MAX_TOKEN_PER_REQUEST
         ),
         default_factory=lambda cfg: (
             cfg.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
             or str(
                 get_max_token_threshold(
-                    0.6,
+                    0.75,
                     cfg.LLM_MAX_TOKEN_PER_MINUTE,
                     cfg.LLM_MAX_TOKEN_PER_REQUEST,
                 )

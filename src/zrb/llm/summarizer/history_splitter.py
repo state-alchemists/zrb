@@ -1,52 +1,135 @@
-from typing import Any
+from typing import TYPE_CHECKING
 
 from zrb.context.any_context import zrb_print
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 from zrb.llm.message import get_tool_pairs
 from zrb.util.cli.style import stylize_warning
 
+if TYPE_CHECKING:
+    from zrb.llm.agent.types import ModelMessage
+
+TAIL_BUDGET_RATIO = 0.4
+"""Share of the trigger threshold the kept tail may fill.
+
+Compaction runs when the history reaches the trigger threshold. Keeping 40% of
+it leaves the rest of the window for the turns that follow, so the summarizer
+does not run again on the very next request — the old 70% left so little room
+that a compaction could be followed by another almost at once.
+"""
+
+TURN_START_MIN_SHARE = 0.5
+"""How much of the budget a turn boundary must keep to be preferred.
+
+A turn start is the cleanest place to split, but not at any price: if reaching
+one would keep less than this share of the budget, the earliest safe split wins
+instead, so a single huge turn is not summarized whole just to land on a user
+message.
+"""
+
 
 def split_history(
-    messages: list[Any],
+    messages: "list[ModelMessage]",
     summary_window: int,
     limiter: LLMLimiter,
     conversational_token_threshold: int,
-) -> tuple[list[Any], list[Any]]:
+    tail_budget_ratio: float = TAIL_BUDGET_RATIO,
+) -> "tuple[list[ModelMessage], list[ModelMessage]]":
     """
     Split history into messages to summarize and messages to keep.
 
     Strategy:
-    1. Retain latest `summary_window` messages (or fewer if token limit forces).
-    2. Find a SAFE split point near the target that respects tool pairs and turn boundaries.
-    3. If no safe split at target, adjust while staying close to the retention policy.
-    4. Fallback to best-effort if no safe split exists.
+    1. Keep the newest turns that fit a tail budget of `tail_budget_ratio` of
+       the threshold — token-first, since tokens are what overflow.
+    2. Never keep more than `summary_window` messages; that count is a backstop
+       for histories of many small messages, not the thing that decides.
+    3. Never break a tool call/return pair or split mid-turn where avoidable.
+    4. Fall back to the safe-split and best-effort searches when no split fits
+       the tail budget at all (one message larger than the budget, say).
     """
     if not messages:
         return [], []
-
     tool_pairs = get_tool_pairs(messages)
-    target_idx = len(messages) - min(summary_window, len(messages))
-    budget = conversational_token_threshold * 0.7
+    budget = conversational_token_threshold * tail_budget_ratio
+    count_cap = max(0, len(messages) - summary_window) if summary_window > 0 else 0
+    budget_split = (
+        0
+        if limiter.count_tokens(messages) <= budget
+        else _split_within_budget(messages, limiter, budget, tool_pairs)
+    )
+    if budget_split is None:
+        return _fallback_split(messages, limiter, conversational_token_threshold, tool_pairs)
+    split_idx = budget_split
+    if count_cap > split_idx:
+        split_idx = _first_safe_from(messages, count_cap, tool_pairs) or split_idx
+    if split_idx == 0:
+        return [], list(messages)
+    return messages[:split_idx], messages[split_idx:]
 
-    for search in (_search_back_from_target, _search_forward_from_target):
-        split_idx = search(messages, target_idx, limiter, budget, tool_pairs)
-        if split_idx is not None:
-            return messages[:split_idx], messages[split_idx:]
 
-    # 4. Fallbacks: the earliest safe split under 80% of the threshold, then
-    # a best-effort split that may lose incomplete pairs.
+def _split_within_budget(
+    messages: "list[ModelMessage]",
+    limiter: LLMLimiter,
+    budget: float,
+    tool_pairs: dict,
+) -> int | None:
+    """The earliest split whose kept tail fits `budget`, preferring a turn start.
+
+    Walking forward from the start finds the *smallest* index that fits, which
+    keeps the most history: the tail lands as close to the budget as the turn
+    boundaries allow. Returns ``None`` when even the newest message alone is
+    over budget.
+    """
+    first_safe = None
+    for split_idx in range(1, len(messages)):
+        tail_tokens = limiter.count_tokens(messages[split_idx:])
+        if tail_tokens > budget:
+            continue
+        if not is_split_safe(messages, split_idx, tool_pairs):
+            continue
+        if first_safe is None:
+            first_safe = split_idx
+        if is_turn_start(messages[split_idx]):
+            if tail_tokens >= budget * TURN_START_MIN_SHARE:
+                return split_idx
+            break
+    return first_safe
+
+
+def _first_safe_from(
+    messages: "list[ModelMessage]", start: int, tool_pairs: dict
+) -> int | None:
+    """The first split at or after *start* that keeps tool pairs intact.
+
+    A turn start is preferred; a merely safe split is the fallback.
+    """
+    first_safe = None
+    for split_idx in range(start, len(messages)):
+        if not is_split_safe(messages, split_idx, tool_pairs):
+            continue
+        if first_safe is None:
+            first_safe = split_idx
+        if is_turn_start(messages[split_idx]):
+            return split_idx
+    return first_safe
+
+
+def _fallback_split(
+    messages: "list[ModelMessage]",
+    limiter: LLMLimiter,
+    conversational_token_threshold: int,
+    tool_pairs: dict,
+) -> "tuple[list[ModelMessage], list[ModelMessage]]":
+    """Split without a usable tail budget: safe splits first, then best effort."""
     split_idx = find_safe_split_index(
         messages, limiter, conversational_token_threshold, tool_pairs
     )
     if split_idx >= 0:
         return messages[:split_idx], messages[split_idx:]
-
     to_summarize, to_keep = find_best_effort_split(
         messages, limiter, conversational_token_threshold, tool_pairs
     )
     if to_summarize or to_keep:
         return to_summarize, to_keep
-
     # Absolute last resort: keep as few messages as possible while still
     # respecting tool pairs. Walk backwards until we find a safe split.
     for split_idx in range(len(messages) - 1, 0, -1):
@@ -56,55 +139,8 @@ def split_history(
     return messages, []
 
 
-def _search_back_from_target(
-    messages: list[Any],
-    target_idx: int,
-    limiter: LLMLimiter,
-    budget: float,
-    tool_pairs: dict,
-) -> int | None:
-    """Walk back from the target for a turn start, keeping MORE messages.
-
-    Stops as soon as the retained side outgrows `budget`, since walking
-    further back only makes it larger.
-    """
-    for split_idx in range(min(target_idx, len(messages) - 1), 0, -1):
-        if limiter.count_tokens(messages[split_idx:]) > budget:
-            return None
-        if is_split_safe(messages, split_idx, tool_pairs) and is_turn_start(
-            messages[split_idx]
-        ):
-            return split_idx
-    return None
-
-
-def _search_forward_from_target(
-    messages: list[Any],
-    target_idx: int,
-    limiter: LLMLimiter,
-    budget: float,
-    tool_pairs: dict,
-) -> int | None:
-    """Walk forward from the target, keeping FEWER messages.
-
-    Prefers the first turn start that fits the budget, and falls back to the
-    earliest merely-safe split when no turn start does.
-    """
-    best_safe_idx = None
-    for split_idx in range(target_idx, len(messages)):
-        if limiter.count_tokens(messages[split_idx:]) > budget:
-            continue
-        if not is_split_safe(messages, split_idx, tool_pairs):
-            continue
-        if best_safe_idx is None:
-            best_safe_idx = split_idx
-        if is_turn_start(messages[split_idx]):
-            return split_idx
-    return best_safe_idx
-
-
 def find_safe_split_index(
-    messages: list[Any],
+    messages: "list[ModelMessage]",
     limiter: "LLMLimiter",
     token_threshold: int,
     tool_pairs: dict | None = None,
@@ -174,11 +210,11 @@ def _classify_split(
 
 
 def find_best_effort_split(
-    messages: list[Any],
+    messages: "list[ModelMessage]",
     limiter: "LLMLimiter",
     token_threshold: int,
     tool_pairs: dict | None = None,
-) -> tuple[list[Any], list[Any]]:
+) -> "tuple[list[ModelMessage], list[ModelMessage]]":
     """
     Find the best possible split when no perfectly safe split exists.
 
@@ -237,7 +273,7 @@ def find_best_effort_split(
 
 
 def is_split_safe(
-    messages: list[Any], split_idx: int, tool_pairs: dict[str, dict[str, int | None]]
+    messages: "list[ModelMessage]", split_idx: int, tool_pairs: dict[str, dict[str, int | None]]
 ) -> bool:
     """Check if splitting at the given index would break tool call/return pairs.
 
