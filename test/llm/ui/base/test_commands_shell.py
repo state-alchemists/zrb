@@ -136,6 +136,23 @@ async def test_stream_btw_response_survives_agent_failure(ui):
     assert "[Error: RuntimeError: provider down]" in "".join(ui.outputs)
 
 
+@pytest.mark.asyncio
+async def test_stream_btw_response_ties_the_answer_to_its_question(ui):
+    """The answer carries the token `begin_side_question` handed out, so a UI
+    showing one question at a time can drop an answer that arrives late."""
+    ui.history_manager.load.return_value = []
+    request = object()
+    ui.begin_side_question = MagicMock(return_value=request)
+    ui.end_side_question = MagicMock()
+    fake_agent = MagicMock()
+    fake_agent.run = AsyncMock(return_value=MagicMock(output="side answer"))
+
+    with patch("zrb.llm.agent.create_agent", return_value=fake_agent):
+        await ui.stream_btw_response(ui.llm_task, "quick question")
+
+    ui.end_side_question.assert_called_once_with("side answer", request)
+
+
 def test_handle_custom_command_ignored_while_thinking_or_blank(ui):
     custom_cmd = MagicMock()
     custom_cmd.command = "/mycmd"

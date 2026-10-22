@@ -55,7 +55,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/copy` (bare) | Copy full conversation transcript to clipboard |
 | `/copy <file_path>` | Save full conversation transcript to file |
 | `!` or `/exec <shell_cmd>` | Execute shell command |
-| `/btw <question>` | Ask a side question answered by a separate agent that sees the conversation but has **no tools** — it cannot read a file or run a command, so it answers from what is already in context. The exchange is not saved to history. Works while the assistant is thinking |
+| `/btw <question>` | Ask a side question answered by a separate agent that sees the conversation but has **no tools** — it cannot read a file or run a command, so it answers from what is already in context. The exchange is not saved to history, and it is shown in a panel above the input (`Esc` closes it) rather than scrolled into the transcript. Works while the assistant is thinking |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
 | `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-context.md#rewind--snapshots) (on by default; `ZRB_LLM_ENABLE_REWIND`) |
 | `/voice`, `/v` | Record speech: a pause or `/voice` again stops, and the transcript lands in the input box. Needs `zrb[voice]` |
@@ -65,6 +65,8 @@ This launches a full-screen chat application where you can have a conversation w
 > 💡 **Tip:** Any `/command` that matches a loaded skill will be executed as a skill.
 >
 > The token(s) that trigger each command are configurable — see [Slash Command Aliases](../configuration/llm-tui.md#slash-command-aliases). `/photo`, `/screenshot`, `/voice`, `/handsfree` and `/speech` come from [Voice and camera](voice-camera.md) and are configured there.
+
+A `/btw` answer arrives in a full-width panel docked above the input, the same place a question or the sub-agent picker appears: the question first, then the answer, at twelve rows that scroll instead of pushing the conversation away. `Esc` closes it and returns focus to the input box; a second `/btw` replaces what the panel holds. Nothing from the exchange enters the transcript or the saved history, which is the point of asking on the side — and if the assistant is mid-turn when you ask, the answer does not disturb it.
 
 ### Recalling Previous Messages
 

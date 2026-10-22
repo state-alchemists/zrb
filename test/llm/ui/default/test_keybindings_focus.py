@@ -284,6 +284,24 @@ def test_escape_cancels_a_turn_the_multi_ui_parent_runs(mock_ui, setup_bindings)
     assert "\n<Esc> Canceled" in mock_ui.outputs
 
 
+def test_escape_closes_the_side_question_panel_first(mock_ui, setup_bindings):
+    """The `/btw` panel is the topmost thing on screen: Esc closes it and the
+    running turn is left alone."""
+    event = create_mock_event()
+    mock_task = MagicMock()
+    mock_task.done.return_value = False
+    mock_ui.running_llm_task = mock_task
+    mock_ui.is_side_question_active = True
+    mock_ui.dismiss_side_question = MagicMock()
+
+    trigger_binding(setup_bindings, "escape", event)
+
+    mock_ui.dismiss_side_question.assert_called_once_with()
+    mock_ui.cancel_pending_confirmations.assert_not_called()
+    mock_ui.cancel_current_turn.assert_not_called()
+    assert "\n<Esc> Canceled" not in mock_ui.outputs
+
+
 def test_escape_with_no_turn_running_cancels_nothing(mock_ui, setup_bindings):
     event = create_mock_event()
 
