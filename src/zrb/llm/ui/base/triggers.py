@@ -12,7 +12,7 @@ import logging
 from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any, cast
 
-from zrb.llm.input_source import InputProvenance
+from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
 from zrb.util.cli.style import stylize_error
 from zrb.util.exception import exception_summary
@@ -110,11 +110,17 @@ class BaseUITriggers:
             if answer.strip():
                 owner.submit_answer(answer)
             return
-        if reply.text.strip():
-            if reply.source is None:
-                owner.submit_user_message(owner.llm_task, reply.text)
-            else:
-                owner.submit_user_message(owner.llm_task, reply.text, reply.source)
+        if not reply.text.strip():
+            return
+        if reply.send_now:
+            # A trigger that speaks for the user has no key to press behind it,
+            # so its words submit and go into the running turn at once.
+            owner.submit_message_now(reply.text, reply.source or KEYBOARD_INPUT)
+            return
+        if reply.source is None:
+            owner.submit_user_message(owner.llm_task, reply.text)
+        else:
+            owner.submit_user_message(owner.llm_task, reply.text, reply.source)
 
     def _is_said_to_pending(self, reply: TriggerReply) -> bool:
         if reply.started_at is None:

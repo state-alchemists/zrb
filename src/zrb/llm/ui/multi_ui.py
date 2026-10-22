@@ -597,6 +597,15 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Queue *user_message* for the shared agent turn (Ctrl+G sends sooner)."""
         self.submit_user_message(self._llm_task, user_message, source)
 
+    def submit_message_now(
+        self,
+        user_message: str,
+        source: InputProvenance | None = None,
+    ) -> DeliveryReport:
+        """Submit *user_message* and hand it to the shared turn, now (ADR-0076)."""
+        self.submit_message(user_message, source)
+        return self.send_queued_messages_now()
+
     async def process_messages_loop(self):
         """Process jobs from shared queue sequentially."""
         while True:

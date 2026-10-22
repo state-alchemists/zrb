@@ -7,7 +7,8 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.input_source import InputProvenance
+from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.ui.base.queue_delivery import DeliveryOutcome, DeliveryReport
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
 
@@ -275,6 +276,45 @@ async def test_a_plain_string_never_answers_a_pending_question(monkeypatch):
 
     assert ui.answers == []
     assert submitted == [("yes", [])]
+
+
+@pytest.mark.asyncio
+async def test_a_send_now_reply_is_submitted_and_sent_in_one_step(monkeypatch):
+    """A trigger that speaks for the user has no key to press behind it, so its
+    words enter the queue and leave it for the running turn at once (ADR-0076)."""
+    ui = _create_ui(AnsweringUI)
+    ui.waiting = False
+    spoken = InputProvenance("microphone", modality="dictation", transcription=True)
+    sent: list[tuple[str, object]] = []
+
+    def fake_send_now(text, source=None):
+        sent.append((text, source))
+        return DeliveryReport(DeliveryOutcome.DELIVERED_EARLY)
+
+    monkeypatch.setattr(ui, "submit_message_now", fake_send_now)
+    reply = TriggerReply("open the file", send_now=True)
+    object.__setattr__(reply, "source", spoken)
+
+    await ui.trigger_loop(trigger_yielding(reply))
+
+    assert sent == [("open the file", spoken)]
+
+
+@pytest.mark.asyncio
+async def test_a_send_now_reply_without_a_source_is_keyboard_input(monkeypatch):
+    ui = _create_ui(AnsweringUI)
+    ui.waiting = False
+    sent: list[tuple[str, object]] = []
+
+    def fake_send_now(text, source=None):
+        sent.append((text, source))
+        return DeliveryReport(DeliveryOutcome.NOTHING_MOVED)
+
+    monkeypatch.setattr(ui, "submit_message_now", fake_send_now)
+
+    await ui.trigger_loop(trigger_yielding(TriggerReply("open the file", send_now=True)))
+
+    assert sent == [("open the file", KEYBOARD_INPUT)]
 
 
 def test_base_ui_holds_no_pending_answer_and_submits_instead(base_ui, monkeypatch):

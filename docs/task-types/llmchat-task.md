@@ -278,7 +278,9 @@ An action may also:
 - **Be async.** It then runs as one of the UI's background tasks, cancelled
   when the session ends, and its result is shown when it finishes.
 - **Reach the UI.** `ui.pending_attachments.append(...)` attaches to the next
-  message, `ui.insert_input_text(text)` types at the cursor, and
+  message, `ui.insert_input_text(text)` types at the cursor,
+  `ui.submit_message_now(text)` submits a message and sends it into the
+  running turn at once (for words spoken rather than typed), and
   `ui.append_to_output(text)` prints.
 - **Run mid-turn**, with `can_run_while_thinking=True`. Otherwise a command
   waits for the model to finish.

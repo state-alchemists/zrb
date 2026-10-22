@@ -6,7 +6,9 @@ import pytest
 from zrb.config.config import CFG
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.input_source import DICTATION_INPUT
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
+from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
 from zrb.llm.ui.base.ui import BaseUI
 
 
@@ -228,6 +230,30 @@ def test_submit_message_uses_own_llm_task(base_ui):
     with patch.object(base_ui, "submit_user_message") as mock_submit:
         base_ui.submit_message("report text")
     mock_submit.assert_called_once_with(base_ui.llm_task, "report text", None)
+
+
+def test_submit_message_now_queues_the_message_and_sends_it_into_the_live_run(
+    base_ui,
+):
+    """Voice has no key to press behind it: the words are submitted and sent in
+    one step, as Enter then Ctrl+G do from the keyboard (ADR-0076)."""
+    live_run = MagicMock()
+    base_ui.active_run_context = live_run
+    with patch.object(base_ui, "append_to_output"):
+        report = base_ui.submit_message_now("spoken", DICTATION_INPUT)
+
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    live_run.enqueue.assert_called_once_with("spoken", priority="asap")
+    assert base_ui.queued_message_count == 0
+
+
+def test_submit_message_now_leaves_the_message_queued_when_no_turn_runs(base_ui):
+    """With nothing to steer into, the words still become the next turn."""
+    with patch.object(base_ui, "append_to_output"):
+        report = base_ui.submit_message_now("spoken")
+
+    assert report.outcome is DeliveryOutcome.NOTHING_MOVED
+    assert base_ui.queued_message_count == 1
 
 
 @pytest.mark.asyncio

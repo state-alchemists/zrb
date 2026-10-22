@@ -1115,6 +1115,19 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """Queue *user_message* for the next turn (Ctrl+G sends it sooner)."""
         self.submit_user_message(self.llm_task, user_message, source)
 
+    def submit_message_now(
+        self, user_message: str, source: InputSource = None
+    ) -> DeliveryReport:
+        """Submit *user_message* and hand it to the running turn, now.
+
+        What `Enter` followed by `Ctrl+G` does from the keyboard, in one step,
+        for a submission with no keyboard behind it: a spoken message (ADR-0076).
+        The message is queued first, so it stays a `QueuedMessage` that a dialog
+        or an ending run can hold as long as it needs to.
+        """
+        self.submit_message(user_message, source)
+        return self.send_queued_messages_now()
+
     def set_status_badge(self, key: str, text: str | None) -> None:
         self._base_status_bar.set_badge(key, text)
         self.invalidate_ui()

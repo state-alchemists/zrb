@@ -1,7 +1,8 @@
 """`enable_dictation`: speech-to-text input for chat sessions.
 
 ``ptt`` mode: the dictation command starts recording, and the same command
-or a pause stops it; the transcript lands in the input box to edit and send.
+or a pause stops it; the transcript is submitted and sent at once, unless an
+approval or question is waiting, which it answers once the user presses Enter.
 ``hands_free`` mode: the microphone stays open and each utterance becomes a
 turn, or answers the approval or question being asked. The hands-free
 command switches between the two.
@@ -36,6 +37,7 @@ from zrb.llm.dictation.words import (
 )
 from zrb.llm.input_source import DICTATION_INPUT
 from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
+from zrb.llm.ui.base.queue_delivery import DeliveryOutcome, DeliveryReport
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import (
     current_session_key,
@@ -332,8 +334,12 @@ class DictationSession:
             self._show(None, ui)
         if not text:
             return "🎤 Heard nothing."
-        ui.insert_input_text(text)
-        return "🎤 Transcribed: edit it or press Enter to send."
+        if ui.is_waiting_for_answer:
+            # A dictated answer to an approval must be read before it is sent,
+            # so the words wait in the input box and Enter answers the prompt.
+            ui.insert_input_text(text)
+            return "🎤 Transcribed: edit it, then press Enter to answer."
+        return _sent_status(ui.submit_message_now(text, DICTATION_INPUT))
 
     async def _transcribe_recording(
         self, backend: AnyDictationBackend, audio: bytes
@@ -591,6 +597,9 @@ class DictationSession:
                 command, self._approve_words, self._deny_words, self._polite_words
             ),
             started_at=utterance.started_at,
+            # Nobody presses a key behind spoken words, so they submit and go
+            # into the running turn at once instead of waiting in the queue.
+            send_now=True,
         )
         source = DICTATION_INPUT
         if tone is not None:
@@ -871,6 +880,19 @@ def _say_emotion_load_failure(load: "asyncio.Task[None]") -> None:
     error = load.exception()
     if error is not None:
         logger.warning(f"Loading the emotion model failed: {error}")
+
+
+def _sent_status(report: DeliveryReport) -> str:
+    """What one spoken message did, for the badge."""
+    if report.outcome is DeliveryOutcome.DELIVERED_EARLY:
+        return "🎤 sent into this turn"
+    if report.outcome is DeliveryOutcome.DELIVERED_PARTIAL:
+        return "🎤 sent, then the run ended"
+    if report.outcome is DeliveryOutcome.FELL_BACK_TO_CANCEL:
+        return "🎤 sent — the running turn was interrupted, so it runs next"
+    if report.outcome is DeliveryOutcome.WAITING_ON_DIALOG:
+        return "🎤 queued — it runs once you answer"
+    return "🎤 sent"
 
 
 def _quote(text: str) -> str:
