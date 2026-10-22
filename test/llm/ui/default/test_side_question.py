@@ -1,7 +1,8 @@
 """The `/btw` panel: one question, one answer, closed by Esc.
 
 The panel owns only its own state and text; where it sits on screen is the
-`Float` the default `UI` builds around `side_question_window`.
+`Float` the default `UI` builds around `side_question_window`. The keys it
+receives while it holds the focus are pinned in `test_side_question_keys.py`.
 """
 
 from unittest.mock import MagicMock, patch
@@ -18,9 +19,18 @@ class _FakeUI:
         self.input_field = MagicMock(name="input_field")
         self.output_field_width = 80
         self.is_waiting_for_answer = is_waiting_for_answer
+        self.insert_input_text = MagicMock(name="insert_input_text")
 
     def render_markdown(self, text: str, width: int | None = None) -> str:
         return f"<md width={width}>{text}</md>"
+
+
+@pytest.fixture(autouse=True)
+def no_application():
+    """A unit test runs without a prompt_toolkit application to move the focus
+    in. The tests that care which widget it names patch the same seam again."""
+    with patch("zrb.llm.ui.default.side_question.focus_widget"):
+        yield
 
 
 @pytest.fixture
@@ -30,10 +40,14 @@ def part() -> UISideQuestion:
     return panel
 
 
-def _text(part: UISideQuestion) -> str:
+def _window(part: UISideQuestion):
     window = part.side_question_window
     assert window is not None
-    return window.buffer.text
+    return window
+
+
+def _text(part: UISideQuestion) -> str:
+    return _window(part).buffer.text
 
 
 def test_nothing_is_shown_before_a_question_is_asked(part):
@@ -70,8 +84,9 @@ def test_dismiss_closes_the_panel_and_gives_the_input_its_focus_back():
     ui = _FakeUI()
     part = UISideQuestion(ui)
     part.init_side_question_state()
-    part.begin("why?")
     with patch("zrb.llm.ui.default.side_question.focus_widget") as focus:
+        part.begin("why?")
+        focus.reset_mock()
         part.dismiss()
 
     assert part.is_active is False
@@ -79,19 +94,22 @@ def test_dismiss_closes_the_panel_and_gives_the_input_its_focus_back():
     focus.assert_called_once_with(ui.input_field, "Input-field")
 
 
-def test_begin_does_not_take_the_focus_from_the_input(part):
-    """The panel is read-only; keeping the input focused lets the user type a
-    second `/btw` (or any message) while the first answer is on its way."""
+def test_begin_moves_the_focus_to_the_panel():
+    """Every key the user presses then reaches the panel's own bindings, so
+    Up/Down scroll the answer instead of recalling a message into the input."""
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
     with patch("zrb.llm.ui.default.side_question.focus_widget") as focus:
         part.begin("why?")
 
-    focus.assert_not_called()
+    focus.assert_called_once_with(part.side_question_window, "Side-question")
     assert part.is_active is True
 
 
 def test_a_pending_prompt_also_keeps_the_focus():
-    """Even over a pending approval, `/btw` must not move the focus: the answer
-    field is what the turn is blocked on."""
+    """`/btw` is routed ahead of a pending approval, so the panel can open over
+    one. That field is what the turn is blocked on and keeps the focus."""
     panel = UISideQuestion(_FakeUI(is_waiting_for_answer=True))
     panel.init_side_question_state()
     with patch("zrb.llm.ui.default.side_question.focus_widget") as focus:
@@ -170,3 +188,5 @@ def test_an_answer_arriving_after_esc_is_dropped(part):
 
     assert part.is_active is False
     assert _text(part) == ""
+
+

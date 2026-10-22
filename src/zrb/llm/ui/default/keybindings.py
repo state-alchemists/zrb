@@ -45,10 +45,17 @@ class UIKeybindings:
         self, app_keybindings: "KeyBindings", llm_task: "AnyTask"
     ):
         # lazy: heavy third-party
+        from prompt_toolkit.application import get_app
         from prompt_toolkit.filters import Condition, has_completions, has_selection
         from prompt_toolkit.keys import Keys
 
         ui = self._ui
+
+        def is_side_question_focused() -> bool:
+            window = getattr(ui, "side_question_window", None)
+            return window is not None and get_app().layout.has_focus(window)
+
+        side_question_focused = Condition(is_side_question_focused)
 
         # A choice widget owns Enter/space/Up/Down while active; the handlers
         # below apply when focus has moved to another pane, and the pane-local
@@ -113,6 +120,16 @@ class UIKeybindings:
         @app_keybindings.add("escape")
         def _(event):
             self._on_escape(event)
+
+        # While the `/btw` panel holds the focus, a typed character starts a
+        # message: the panel is a read-only answer view, so it forwards the text
+        # to the input. This is an application-level binding, not a key binding
+        # on the panel, so the exact bindings above and below (Enter, Ctrl+X,
+        # Ctrl+G) still win — and it is a catch-all, so characters outside ASCII
+        # reach it too.
+        @app_keybindings.add(Keys.Any, filter=side_question_focused)
+        def _(event):
+            self._on_side_question_typed(event)
 
         @app_keybindings.add("left", filter=viewing_sub_agent)
         def _(event):
@@ -349,6 +366,10 @@ class UIKeybindings:
         report = ui.send_queued_messages_now()
         ui.append_to_output(stylize_muted(f"\n  ⏩ {describe_delivery(report)}\n"))
         ui.invalidate_ui()
+
+    def _on_side_question_typed(self, event: "KeyPressEvent") -> None:
+        """Send a character typed while the `/btw` panel has focus to the input."""
+        self._ui.handle_side_question_typed_text(event.data)
 
     def _on_escape(self, event: Any) -> None:
         ui = self._ui

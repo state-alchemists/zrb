@@ -4,9 +4,16 @@ A side question is answered off to the side and never saved to history, so its
 answer must not scroll the transcript the user is reading. `UISideQuestion`
 shows it in the same full-width framed float the choice widget uses, just above
 the input: the question, then the answer once it arrives, at a fixed height that
-scrolls instead of swallowing the screen. The panel never takes the focus: the
-input stays usable while the answer is on its way, so a second `/btw` (or any
-message) can be typed without closing it, and Esc closes it from anywhere.
+scrolls instead of swallowing the screen.
+
+The panel takes the focus while it is shown, so the movement keys walk the
+answer instead of the input: Up/Down (with PageUp/PageDown/Home/End) scroll the
+panel rather than recalling a queued message, and Esc closes it and gives the
+input its focus back. It is a read-only answer view, so typing still starts a
+message — a printable key lands in the input without the focus leaving the
+panel, keeping the movement keys on the answer for as long as it is up. A panel
+that opens while a prompt is waiting for the user keeps the focus where it is:
+that field is what the turn is blocked on.
 
 * `begin(question)` — open the panel and say the answer is coming. Returns a
   token naming that question.
@@ -27,12 +34,17 @@ from typing import TYPE_CHECKING
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
 
 if TYPE_CHECKING:
+    from prompt_toolkit.key_binding import KeyBindings
     from prompt_toolkit.widgets import TextArea
 
     from zrb.llm.ui.default.ui import UI
 
 PANEL_HEIGHT = 12
 """Rows the panel shows before its own text scrolls."""
+
+PANEL_PAGE_ROWS = PANEL_HEIGHT - 2
+"""Rows PageUp/PageDown move, leaving two lines of the previous text in view."""
+
 
 _PENDING = "  … thinking\n"
 
@@ -76,10 +88,12 @@ class UISideQuestion:
         self._is_active = True
         self._request = request = object()
         self._fill(self._echo(_PENDING))
-        # The panel deliberately does not take the focus: the input stays
-        # usable while the answer arrives, so another `/btw` (or any message)
-        # can be typed without closing it. Esc is handled at application level
-        # while the panel is active, so it needs no focus of its own.
+        # The panel takes the focus while it is shown, so Up/Down scroll the
+        # answer instead of recalling a message into the input. A prompt that is
+        # waiting for the user keeps it: that field is what the turn is blocked
+        # on, and `/btw` is routed ahead of a pending approval rather than after.
+        if not self._ui.is_waiting_for_answer:
+            focus_widget(self._window, "Side-question")
         self._invalidate()
         return request
 
@@ -123,6 +137,21 @@ class UISideQuestion:
         focus_widget(self._ui.input_field, "Input-field")
         self._invalidate()
 
+    def handle_typed_text(self, data: str) -> None:
+        """Type *data* into the input while the panel has the focus.
+
+        The panel is a read-only answer view: a character typed into it starts a
+        message instead. A selected passage is being read or copied, not typed
+        over, and a key's own encoding (an escape sequence, a control character)
+        is not message text.
+        """
+        window = self._window
+        if window is not None and window.buffer.selection_state:
+            return
+        if not is_message_text(data):
+            return
+        self._ui.insert_input_text(data)
+
     def _echo(self, body: str) -> str:
         return f"💭 {self._question}\n\n{body}"
 
@@ -146,17 +175,10 @@ class UISideQuestion:
 
     def _create_window(self) -> "TextArea":
         # lazy: heavy third-party
-        from prompt_toolkit.key_binding import KeyBindings
         from prompt_toolkit.widgets import TextArea
 
         # lazy: heavy third-party — the ANSI lexer the output pane also uses
         from zrb.llm.ui.default.app.lexer import CLIStyleLexer
-
-        kb = KeyBindings()
-
-        @kb.add("escape")
-        def _(event):
-            self.dismiss()
 
         panel = TextArea(
             text="",
@@ -169,8 +191,64 @@ class UISideQuestion:
             style="class:side-question",
         )
         # TextArea takes no `key_bindings` argument; attach them to its control.
-        panel.control.key_bindings = kb
+        panel.control.key_bindings = self._create_keybindings()
         return panel
+
+    def _create_keybindings(self) -> "KeyBindings":
+        """Bind the keys a focused panel receives — the panel holds the focus.
+
+        Up/Down (with PageUp/PageDown/Home/End) move the panel's cursor, which
+        scrolls the answer: `up` here must not reach the input field's own `up`,
+        which recalls a queued message. Typing is not bound here: the
+        application-level catch-all forwards it while the panel is focused, so
+        every other key still reaches the application's own bindings.
+        """
+        # lazy: heavy third-party
+        from prompt_toolkit.key_binding import KeyBindings
+
+        kb = KeyBindings()
+
+        @kb.add("escape")
+        def _(event):
+            self.dismiss()
+
+        @kb.add("up")
+        def _(event):
+            event.current_buffer.cursor_up()
+
+        @kb.add("down")
+        def _(event):
+            event.current_buffer.cursor_down()
+
+        @kb.add("pageup")
+        def _(event):
+            event.current_buffer.cursor_up(count=PANEL_PAGE_ROWS)
+
+        @kb.add("pagedown")
+        def _(event):
+            event.current_buffer.cursor_down(count=PANEL_PAGE_ROWS)
+
+        @kb.add("home")
+        def _(event):
+            event.current_buffer.cursor_position = 0
+
+        @kb.add("end")
+        def _(event):
+            event.current_buffer.cursor_position = len(event.current_buffer.text)
+
+        return kb
 
     def _invalidate(self) -> None:
         invalidate_app("Side-question")
+
+
+def is_message_text(data: str) -> bool:
+    """Whether *data* is text the user typed rather than a key's own encoding.
+
+    A terminal sends a movement key as an escape sequence (`\\x1b[B` for Down),
+    a control key as a control character (`\\x01` for Ctrl+A), and a bare
+    modifier as nothing at all; none of those is a character of a message.
+    """
+    if not data or data.startswith("\x1b"):
+        return False
+    return data.isprintable()

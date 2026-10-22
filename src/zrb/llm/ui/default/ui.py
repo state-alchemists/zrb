@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from prompt_toolkit.layout import Layout
     from prompt_toolkit.lexers import Lexer
     from prompt_toolkit.styles import Style
+    from prompt_toolkit.widgets import TextArea
     from rich.theme import Theme
 
     from zrb.llm.agent.types import Model, UserContent
@@ -672,6 +673,11 @@ class UI(BaseUI):
         """Whether the `/btw` panel is on screen."""
         return self._side_question.is_active
 
+    @property
+    def side_question_window(self) -> "TextArea | None":
+        """The `/btw` panel's window, while the application-level keys need it."""
+        return self._side_question.side_question_window
+
     def begin_side_question(self, question: str) -> object:
         """Open the `/btw` panel instead of echoing into the transcript."""
         return self._side_question.begin(question)
@@ -691,6 +697,10 @@ class UI(BaseUI):
     def dismiss_side_question(self) -> None:
         """Close the `/btw` panel (Esc)."""
         self._side_question.dismiss()
+
+    def handle_side_question_typed_text(self, data: str) -> None:
+        """Type *data* into the input while the `/btw` panel has focus."""
+        self._side_question.handle_typed_text(data)
 
     def end_choice(self) -> None:
         self._selection.end_choice()
