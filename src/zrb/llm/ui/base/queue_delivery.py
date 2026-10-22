@@ -14,6 +14,7 @@ proof the model is ready to read anything.
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -65,6 +66,7 @@ def send_queued_messages_now(
     is_waiting_for_answer: bool,
     cancel_turn: Callable[[], None],
     may_interrupt: bool = True,
+    only_ready: bool = False,
 ) -> DeliveryReport:
     """Hand the queued messages to the running turn, now.
 
@@ -88,10 +90,15 @@ def send_queued_messages_now(
     stop: hands-free speech is delivered at the earliest safe model request,
     and otherwise waits for the next turn. Interrupting is the user's call
     (Esc, Ctrl+G, a stop word), not a side effect of talking.
+
+    `only_ready=True` is the checkpoint's own call: it takes the entries the
+    queue says are ready — not the one being edited, and none younger than the
+    grace — and leaves the rest for a later checkpoint. An explicit Ctrl+G
+    passes neither, because the user asked for everything now.
     """
-    entries = queue.pending()
+    entries = queue.deliverable(time.monotonic()) if only_ready else queue.pending()
     if not entries:
-        return DeliveryReport(DeliveryOutcome.NOTHING_MOVED)
+        return DeliveryReport(DeliveryOutcome.NOTHING_MOVED, held=queue.qsize())
 
     if is_waiting_for_answer:
         return DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=queue.qsize())

@@ -958,7 +958,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """Messages waiting for the current turn to finish."""
         return self.effective_message_queue.qsize()
 
-    def send_queued_messages_now(self, may_interrupt: bool = True) -> DeliveryReport:
+    def send_queued_messages_now(
+        self, may_interrupt: bool = True, only_ready: bool = False
+    ) -> DeliveryReport:
         """Deliver the queued messages into the running turn, now.
 
         A `MultiUI` parent runs the turn, so the parent does the delivering.
@@ -967,7 +969,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """
         parent = self.multi_ui_parent
         if parent is not None:
-            return parent.send_queued_messages_now(may_interrupt=may_interrupt)
+            return parent.send_queued_messages_now(
+                may_interrupt=may_interrupt, only_ready=only_ready
+            )
         report = send_queued_messages_now(
             active_run_context=self.active_run_context,
             queue=self.effective_message_queue,
@@ -975,9 +979,21 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             is_waiting_for_answer=self.is_waiting_for_answer,
             cancel_turn=lambda: self.cancel_current_turn("send_now"),
             may_interrupt=may_interrupt,
+            only_ready=only_ready,
         )
         self.redraw_echoes(report.delivered_entries)
         return report
+
+    def deliver_queued_messages_early(self) -> DeliveryReport:
+        """Hand the ready queued messages to the running turn at a checkpoint.
+
+        Called by the run loop as it builds its next model request, so a
+        message typed mid-turn is read within that turn instead of after it.
+        Only the entries the queue calls ready go — not one being edited, and
+        none inside its grace window — and nothing is interrupted (ADR-0078,
+        revised).
+        """
+        return self.send_queued_messages_now(may_interrupt=False, only_ready=True)
 
     def redraw_echoes(self, entries: "Sequence[QueuedMessage]") -> None:
         """Rewrite the echoes of `entries` on every UI that holds one.

@@ -63,7 +63,15 @@ class UIMessageEditing:
 
     @queued_edit_entry.setter
     def queued_edit_entry(self, value: QueuedMessage | None) -> None:
+        # The entry carries the flag, not this helper: a checkpoint delivers
+        # from the turn's own thread, where this object is not in hand, and it
+        # has to see that the message is being edited (ADR-0078, revised).
+        current = self._queued_edit_entry
+        if current is not None and current is not value:
+            current.is_being_edited = False
         self._queued_edit_entry = value
+        if value is not None:
+            value.is_being_edited = True
 
     @property
     def queued_edit_draft(self) -> str:
@@ -146,11 +154,11 @@ class UIMessageEditing:
             if not queue.contains(entry):
                 # The recalled message's turn started: recall afresh, keeping
                 # the saved pre-recall draft.
-                self._queued_edit_entry = None
+                self.queued_edit_entry = None
                 return self._recall_latest(buffer)
             older = queue.editable_before(entry)
             if older is not None:
-                self._queued_edit_entry = older
+                self.queued_edit_entry = older
                 self._load_edit_text(buffer, older.text)
             return True
 
@@ -191,7 +199,7 @@ class UIMessageEditing:
             return False
         if save_draft:
             self._queued_edit_draft = buffer.text
-        self._queued_edit_entry = newest
+        self.queued_edit_entry = newest
         self._load_edit_text(buffer, newest.text)
         return True
 
@@ -235,21 +243,21 @@ class UIMessageEditing:
         if not self.recall_navigation_active():
             return False
         if not queue.contains(entry):
-            self._queued_edit_entry = None
+            self.queued_edit_entry = None
             return False
         newer = queue.editable_after(entry)
         if newer is not None:
-            self._queued_edit_entry = newer
+            self.queued_edit_entry = newer
             self._load_edit_text(buffer, newer.text)
             return True
         # Past the newest queued message: exit edit mode, restore the draft.
-        self._queued_edit_entry = None
+        self.queued_edit_entry = None
         self._load_edit_text(buffer, self._queued_edit_draft)
         return True
 
     def _note_uneditable_recall(self) -> None:
         """Explain why a recalled message needs a second Enter to submit."""
-        self._queued_edit_entry = None
+        self.queued_edit_entry = None
         self.reset_previous_recall()
         self._ui.append_to_output(
             stylize_warning(
@@ -271,7 +279,7 @@ class UIMessageEditing:
         entry = self._queued_edit_entry
         if entry is None:
             return False
-        self._queued_edit_entry = None
+        self.queued_edit_entry = None
         text = event.current_buffer.text
         if not text.strip():
             # An empty edit cancels and restores the pre-edit draft.
@@ -296,7 +304,7 @@ class UIMessageEditing:
         entry = self._queued_edit_entry
         if entry is None:
             return
-        self._queued_edit_entry = None
+        self.queued_edit_entry = None
         self._ui.delete_queued_message(entry)
         self._load_edit_text(event.current_buffer, self._queued_edit_draft)
 
