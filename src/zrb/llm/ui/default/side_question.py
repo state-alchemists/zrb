@@ -29,7 +29,6 @@ and stays out of it.
 
 from __future__ import annotations
 
-import string
 from typing import TYPE_CHECKING
 
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
@@ -185,14 +184,36 @@ class UISideQuestion:
 
         Up/Down (with PageUp/PageDown/Home/End) move the panel's cursor, which
         scrolls the answer: `up` here must not reach the input field's own `up`,
-        which recalls a queued message. A printable key starts a message
+        which recalls a queued message. A typed character starts a message
         instead — it goes into the input while the focus stays on the panel, so
         the movement keys keep scrolling the answer until the user closes it.
         """
         # lazy: heavy third-party
         from prompt_toolkit.key_binding import KeyBindings
 
+        # lazy: heavy third-party — the wildcard key the catch-all below binds
+        from prompt_toolkit.keys import Keys
+
         kb = KeyBindings()
+
+        def send_to_input(event):
+            # A selected passage is being read or copied, not typed over.
+            if event.current_buffer.selection_state:
+                return
+            if not _is_message_text(event.data):
+                return
+            # A paste, or a dead-key sequence, arrives as one data string: it is
+            # forwarded whole rather than a character at a time.
+            self._ui.insert_input_text(event.data)
+
+        # `Keys.Any`, not a list of the characters to accept: `string.printable`
+        # is ASCII-only, so every character outside it — `é`, `ü`, `🙂` — matched
+        # no binding of its own, fell through to the application's `Keys.Any`
+        # self-insert and rang the bell on a read-only panel instead of reaching
+        # the input. prompt_toolkit sorts an `Any` binding after the exact ones
+        # and calls the last match, so the keys bound below still win; it is
+        # registered first so that they remain the later of the two.
+        kb.add(Keys.Any)(send_to_input)
 
         @kb.add("escape")
         def _(event):
@@ -222,16 +243,19 @@ class UISideQuestion:
         def _(event):
             event.current_buffer.cursor_position = len(event.current_buffer.text)
 
-        def send_to_input(event):
-            # A selected passage is being read or copied, not typed over.
-            if event.current_buffer.selection_state:
-                return
-            self._ui.insert_input_text(event.data)
-
-        for character in string.printable:
-            if character not in "\t\n\r\x0b\x0c":
-                kb.add(character)(send_to_input)
         return kb
 
     def _invalidate(self) -> None:
         invalidate_app("Side-question")
+
+
+def _is_message_text(data: str) -> bool:
+    """Whether *data* is text the user typed rather than a key's own encoding.
+
+    A terminal sends a movement key as an escape sequence (`\\x1b[B` for Down),
+    a control key as a control character (`\\x01` for Ctrl+A), and a bare
+    modifier as nothing at all; none of those is a character of a message.
+    """
+    if not data or data.startswith("\x1b"):
+        return False
+    return data.isprintable()

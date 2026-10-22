@@ -62,15 +62,17 @@ def _last_row(part: UISideQuestion) -> int:
     return _text(part).count("\n")
 
 
-def _press(part: UISideQuestion, key: str) -> None:
+def _press(part: UISideQuestion, key: str, data: str | None = None) -> None:
     """Deliver *key* the way the running application does.
 
     The panel holds the focus while it is shown, so its own control bindings
     answer the keypress; the last matching binding wins, as in prompt_toolkit.
+    *data* is what the key carries — `\\x1b[B` for Down, the character itself for
+    a letter — and defaults to the key's own name.
     """
     window = _window(part)
     event = MagicMock(name="event")
-    event.data = key
+    event.data = key if data is None else data
     event.current_buffer = window.buffer
     for binding in reversed(window.control.key_bindings.get_bindings_for_keys((key,))):
         if binding.filter():
@@ -296,6 +298,64 @@ def test_a_printable_key_starts_a_message_in_the_input():
     assert LONG_ANSWER in _text(panel)
 
 
+def _asking_panel():
+    """A panel showing the answer to "why?", plus the UI it types into."""
+    ui = _FakeUI()
+    panel = UISideQuestion(ui)
+    panel.init_side_question_state()
+    panel.begin("why?")
+    return ui, panel
+
+
+@pytest.mark.parametrize("key", ["é", "ü", "🙂"])
+def test_a_non_ascii_key_starts_a_message_too(key):
+    """`string.printable` is ASCII-only, so `é` matched no binding at all."""
+    ui, panel = _asking_panel()
+
+    _press(panel, key)
+
+    ui.insert_input_text.assert_called_once_with(key)
+    assert panel.is_active is True
+
+
+def test_a_control_key_is_not_message_text():
+    """Ctrl+A carries a control character, not the character it stands for."""
+    ui, panel = _asking_panel()
+
+    _press(panel, "c-a", "\x01")
+
+    ui.insert_input_text.assert_not_called()
+
+
+def test_the_down_escape_sequence_scrolls_and_types_nothing():
+    """Down arrives as `\\x1b[B`: the exact binding takes it, not the catch-all."""
+    ui, panel = _asking_panel()
+    panel.end(LONG_ANSWER)
+
+    _press(panel, "down", "\x1b[B")
+
+    assert _cursor_row(panel) == 1
+    ui.insert_input_text.assert_not_called()
+
+
+def test_an_escape_sequence_for_a_key_the_panel_never_binds_is_not_typed():
+    """The catch-all sees escape sequences too, and a sequence is not text."""
+    ui, panel = _asking_panel()
+
+    _press(panel, "left", "\x1b[D")
+
+    ui.insert_input_text.assert_not_called()
+
+
+def test_a_paste_reaches_the_input_whole():
+    """A paste, or a dead-key sequence, is one data string — not a keypress each."""
+    ui, panel = _asking_panel()
+
+    _press(panel, "v", "héllo 🙂")
+
+    ui.insert_input_text.assert_called_once_with("héllo 🙂")
+
+
 def test_a_printable_key_leaves_a_selected_passage_alone():
     """Text selected for copying is not typed over."""
     ui = _FakeUI()
@@ -416,6 +476,14 @@ async def _drive_live_application() -> None:
                 app.key_processor.process_keys()
                 assert input_field.buffer.text == "h"
                 assert app.layout.current_buffer is window.buffer
+
+                # A character outside ASCII has no binding of its own: without the
+                # catch-all it reaches the application's self-insert, which types
+                # into a read-only panel and only rings a bell.
+                for key in ("é", "🙂"):
+                    app.key_processor.feed(KeyPress(key, key))
+                    app.key_processor.process_keys()
+                assert input_field.buffer.text == "hé🙂"
 
                 # Closing it hands the focus to the input, so the next keystroke
                 # is message text rather than a scroll.
