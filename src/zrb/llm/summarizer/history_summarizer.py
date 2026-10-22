@@ -367,9 +367,13 @@ async def _build_summary_text(
         )
     # The block is measured and capped as it will be inserted: the framing zrb
     # writes, the journal index and the archive pointer all count against the
-    # same cap, or the turn it lands in can run past it.
+    # same cap, or the turn it lands in can run past it. The notes come first,
+    # so the snapshot is not dropped to make room for text zrb can leave out.
     journal_block = render_journal_index() or ""
     archive_note = _render_archive_note(archive_path) if archive_path else ""
+    journal_block, archive_note = _fit_note_blocks(
+        llm_limiter, journal_block, archive_note
+    )
     summary_text = await _fit_summary_block(
         summary_text,
         summarizer_agent,
@@ -378,7 +382,64 @@ async def _build_summary_text(
         journal_block,
         archive_note,
     )
-    return _render_summary_content(summary_text, journal_block, archive_note)
+    block = _render_summary_content(summary_text, journal_block, archive_note)
+    cap = CFG.LLM_SUMMARY_MAX_TOKENS
+    if cap > 0 and llm_limiter.count_tokens(block) > cap:
+        # Nothing optional is left to drop, so the framing alone is over the cap.
+        # Replacing the history with a turn that breaks the cap would be the
+        # failure the cap exists to prevent, so the history stays as it is.
+        zrb_print(
+            stylize_warning(
+                f"  Warning: no summary block fits the {cap}-token cap, so the "
+                "history is kept as it is. Raise LLM_SUMMARY_MAX_TOKENS to "
+                "compact it."
+            ),
+            plain=True,
+        )
+        return ""
+    return block
+
+
+def _fit_note_blocks(
+    limiter: "LLMLimiter", journal_block: str, archive_note: str
+) -> "tuple[str, str]":
+    """The notes that fit beside the framing, dropping the least useful first.
+
+    The snapshot is what compaction is for, so the notes yield to it. The
+    journal index goes first: the notes it lists are still on disk and the agent
+    can read them, while the snapshot is the only thing left of the messages
+    being replaced. The archive pointer goes next, and last of all the notes go
+    together. A cap the framing alone cannot fit is left to the caller, which
+    keeps the history instead of inserting an over-cap turn.
+    """
+    cap = CFG.LLM_SUMMARY_MAX_TOKENS
+    if cap <= 0:
+        return journal_block, archive_note
+
+    def is_within_cap(journal: str, archive: str) -> bool:
+        return limiter.count_tokens(_render_summary_content("", journal, archive)) <= cap
+
+    if is_within_cap(journal_block, archive_note):
+        return journal_block, archive_note
+    if journal_block:
+        zrb_print(
+            stylize_warning(
+                f"  Warning: the journal index does not fit beside the summary in "
+                f"a {cap}-token cap; leaving it out."
+            ),
+            plain=True,
+        )
+    if is_within_cap("", archive_note):
+        return "", archive_note
+    if archive_note:
+        zrb_print(
+            stylize_warning(
+                f"  Warning: the archive note does not fit beside the summary in "
+                f"a {cap}-token cap; leaving it out."
+            ),
+            plain=True,
+        )
+    return "", ""
 
 
 def _render_summary_content(
@@ -407,9 +468,8 @@ async def _fit_summary_block(
     Applies to every non-empty summary, schema or not: a malformed one cannot be
     rewritten into a snapshot, but it can still be too large. Two shortening
     attempts, then a deterministic truncation sized from what the complete block
-    overflows by. When the framing and notes fill the cap on their own the
-    snapshot is dropped rather than kept — an over-cap block is the failure the
-    cap exists to prevent, and it is zrb's own text that would have to go instead.
+    overflows by. The framing alone can be over the cap too; the caller skips
+    the compaction then rather than insert a turn that breaks it.
     """
     cap = CFG.LLM_SUMMARY_MAX_TOKENS
     if cap <= 0:
@@ -421,15 +481,7 @@ async def _fit_summary_block(
         )
 
     overhead = size("")
-    if overhead >= cap:
-        zrb_print(
-            stylize_warning(
-                f"  Warning: the summary framing, journal index and archive note "
-                f"already use {overhead} of the {cap}-token cap, so the state "
-                "snapshot is dropped. Raise LLM_SUMMARY_MAX_TOKENS to keep it."
-            ),
-            plain=True,
-        )
+    if overhead > cap:
         return ""
     for _ in range(_SUMMARY_SHORTEN_ATTEMPTS):
         if size(model_text) <= cap:

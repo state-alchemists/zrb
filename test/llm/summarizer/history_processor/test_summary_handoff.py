@@ -203,19 +203,36 @@ async def test_the_journal_and_archive_notes_count_against_the_cap(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_a_cap_below_the_notes_drops_the_snapshot_instead_of_keeping_it(
+async def test_a_cap_the_notes_alone_would_break_drops_the_notes_not_the_summary(
     monkeypatch,
 ):
-    """An over-cap block is the failure the cap exists to prevent."""
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 60, raising=False)
+    """The snapshot is what compaction is for; the journal index is on disk."""
+    cap = 130  # the framing alone is about 104 of these
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", cap, raising=False)
+    journal_index = "J" * 200 * CHARS_PER_TOKEN
     agent = _agent(_padded("long", 600), _padded("long", 600), _padded("long", 600))
 
-    with patch(JOURNAL_PATCH, return_value="J" * 200 * CHARS_PER_TOKEN):
+    with patch(JOURNAL_PATCH, return_value=journal_index):
         history = await _compress(agent, _history())
 
     text = _block(history)
-    assert "PADMARK" not in text  # the snapshot went, not the cap
-    assert "J" * 200 * CHARS_PER_TOKEN in text  # the notes zrb cannot recompute stay
+    assert CharLimiter().count_tokens(text) <= cap  # the cap holds, whatever fits
+    assert journal_index not in text  # the index went, so the snapshot could stay
+    assert "ship long" in text
+
+
+@pytest.mark.asyncio
+async def test_a_cap_below_the_framing_keeps_the_history_instead(tmp_path, monkeypatch):
+    """An over-cap turn is the failure the cap exists to prevent; skip instead."""
+    messages = _history()
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 5, raising=False)
+
+    history = await _compress(
+        _agent(_padded("long", 600)), messages, history_dir=str(tmp_path)
+    )
+
+    assert history == messages
+    assert list(tmp_path.iterdir()) == []  # nothing replaced, so nothing archived
 
 
 @pytest.mark.asyncio
