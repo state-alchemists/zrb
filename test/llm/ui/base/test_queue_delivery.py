@@ -13,6 +13,7 @@ from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.queue_delivery import (
+    DELIVERED_MARKER,
     DeliveryOutcome,
     DeliveryReport,
     describe_delivery,
@@ -290,9 +291,26 @@ def test_an_exec_job_alone_falls_back_to_interrupting_the_turn():
     assert cancelled == [True]
 
 
+def test_a_delivered_entry_is_marked_before_it_leaves_the_queue():
+    queue = MessageQueue()
+    entry = _entry("hello")
+    queue.put_nowait(entry)
+
+    report, _ = _send(queue, MagicMock())
+
+    assert report.delivered_entries == (entry,)
+    assert entry.delivered_at is not None
+    assert entry.echo_marker == DELIVERED_MARKER
+    assert queue.qsize() == 0
+
+
 def test_describe_delivery_says_what_happened():
     assert "sent 2 queued message(s)" in describe_delivery(
-        DeliveryReport(DeliveryOutcome.DELIVERED_EARLY, delivered=2, held=1)
+        DeliveryReport(
+            DeliveryOutcome.DELIVERED_EARLY,
+            delivered_entries=(_entry("one"), _entry("two")),
+            held=1,
+        )
     )
     assert "interrupted the turn" in describe_delivery(
         DeliveryReport(DeliveryOutcome.FELL_BACK_TO_CANCEL, held=1)
@@ -300,14 +318,22 @@ def test_describe_delivery_says_what_happened():
     # A partial drain that fell back to a cancel names both halves, so the line
     # is not read as a plain interrupt.
     partial_cancel = describe_delivery(
-        DeliveryReport(DeliveryOutcome.FELL_BACK_TO_CANCEL, delivered=1, held=1)
+        DeliveryReport(
+            DeliveryOutcome.FELL_BACK_TO_CANCEL,
+            delivered_entries=(_entry("one"),),
+            held=1,
+        )
     )
     assert "sent 1 queued message(s)" in partial_cancel
     assert "interrupted the turn" in partial_cancel
     # A partial drain with no turn left to cancel still says what was sent —
     # never "nothing was queued".
     partial = describe_delivery(
-        DeliveryReport(DeliveryOutcome.DELIVERED_PARTIAL, delivered=1, held=1)
+        DeliveryReport(
+            DeliveryOutcome.DELIVERED_PARTIAL,
+            delivered_entries=(_entry("one"),),
+            held=1,
+        )
     )
     assert "sent 1 queued message(s)" in partial
     assert "still waiting" in partial
@@ -352,11 +378,27 @@ def test_the_ui_delivers_its_queue_into_the_live_run():
     assert run_context.enqueue.call_count == 1
 
 
+def test_the_ui_redraws_the_echo_of_a_delivered_message():
+    """The panel row goes away with the queue entry; the transcript line stays
+    and changes marker, so what the model read is still on screen."""
+    ui = _make_ui()
+    redrawn = []
+    ui.redraw_echo = lambda entry: redrawn.append(entry) or "⏩ echo"
+    ui.active_run_context = MagicMock()
+    entry = _entry("hello")
+    ui.effective_message_queue.put_nowait(entry)
+
+    ui.send_queued_messages_now()
+
+    assert redrawn == [entry]
+    assert entry.echo_marker == DELIVERED_MARKER
+
+
 def test_a_child_ui_lets_its_multi_ui_parent_deliver():
     ui = _make_ui()
     parent = MagicMock()
     parent.send_queued_messages_now.return_value = DeliveryReport(
-        DeliveryOutcome.DELIVERED_EARLY, delivered=1
+        DeliveryOutcome.DELIVERED_EARLY, delivered_entries=(_entry("hello"),)
     )
     ui.multi_ui_parent = parent
     ui.effective_message_queue.put_nowait(_entry("hello"))

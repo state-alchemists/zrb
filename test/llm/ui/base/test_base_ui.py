@@ -184,17 +184,18 @@ def test_submit_user_message_marks_queued_while_thinking(base_ui, monkeypatch):
     assert "even later" in outputs[1]
 
 
-def test_submit_user_message_steers_into_live_run_context(base_ui):
-    """A message sent while a turn is live is delivered into that turn instead
-    of queuing (ADR-0078)."""
+def test_submit_user_message_queues_even_with_a_live_run_context(base_ui):
+    """A message sent while a turn is live is queued, so Up Arrow can recall it.
+
+    Ctrl+G is what hands the queue to the live run; the submit path no longer
+    reaches into it (ADR-0078 as rewritten).
+    """
     base_ui.active_run_context = MagicMock()
     with patch.object(base_ui, "append_to_output"):
-        base_ui.submit_user_message(base_ui.llm_task, "steer me")
+        base_ui.submit_user_message(base_ui.llm_task, "edit me")
 
-    base_ui.active_run_context.enqueue.assert_called_once_with(
-        "steer me", priority="asap"
-    )
-    assert base_ui.queued_message_count == 0
+    base_ui.active_run_context.enqueue.assert_not_called()
+    assert base_ui.queued_message_count == 1
 
 
 def test_submit_user_message_falls_back_to_queue_without_active_run_context(

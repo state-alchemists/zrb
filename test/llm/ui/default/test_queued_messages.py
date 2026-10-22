@@ -55,7 +55,7 @@ def test_the_queued_messages_are_listed_oldest_first(editing_ui):
 
     rendered = _panel(editing_ui)
 
-    assert " 📥 2 queued · ↑ to edit" in rendered
+    assert " 📥 2 queued · ↑ edit · Ctrl+X drop · Ctrl+G send now" in rendered
     assert " 1. fix the parser" in rendered
     assert " 2. run the tests" in rendered
 

@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import AsyncIterable, Callable
+from collections.abc import AsyncIterable, Callable, Sequence
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
@@ -930,13 +930,25 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         parent = self.multi_ui_parent
         if parent is not None:
             return parent.send_queued_messages_now()
-        return send_queued_messages_now(
+        report = send_queued_messages_now(
             active_run_context=self.active_run_context,
             queue=self.effective_message_queue,
             is_turn_running=self.is_turn_running,
             is_waiting_for_answer=self.is_waiting_for_answer,
             cancel_turn=lambda: self.cancel_current_turn("send_now"),
         )
+        self.redraw_echoes(report.delivered_entries)
+        return report
+
+    def redraw_echoes(self, entries: "Sequence[QueuedMessage]") -> None:
+        """Rewrite the echoes of `entries` on every UI that holds one.
+
+        A delivered message leaves the queue, so its panel row disappears at
+        once; its echo line keeps its place in the transcript and changes marker
+        (`DELIVERED_MARKER`), the only record of what the model actually read.
+        """
+        for entry in entries:
+            _broadcast_echo(self, lambda ui: ui.redraw_echo(entry))
 
     def edit_queued_message(self, entry: QueuedMessage, new_text: str) -> bool:
         """Replace a still-queued message's text and redraw its echoes.
@@ -1050,7 +1062,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         marker = "⏳" if self.is_thinking else "💬"
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,
-            active_run_context=self.active_run_context,
             stream_ai_response=lambda task, text, attachments: self.stream_ai_response(
                 cast("LLMTask", task), text, attachments
             ),
@@ -1065,7 +1076,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         )
 
     def submit_message(self, user_message: str, source: InputSource = None) -> None:
-        """Steer *user_message* into the live turn, or queue it for the next."""
+        """Queue *user_message* for the next turn (Ctrl+G sends it sooner)."""
         self.submit_user_message(self.llm_task, user_message, source)
 
     def set_status_badge(self, key: str, text: str | None) -> None:

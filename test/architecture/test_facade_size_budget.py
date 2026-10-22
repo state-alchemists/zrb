@@ -69,7 +69,11 @@ FACADE_BUDGETS = {
     # +14 (1179->1193): `send_queued_messages_now`, the send-now action
     # `AnyUI` declares (ADR-0116) -- new surface; the ladder itself lives in
     # the `queue_delivery` module the method calls.
-    "llm/ui/base/ui.py": 1193,
+    # +11 (1193->1204): `redraw_echoes`, the one place a delivered message's
+    # echo is rewritten on every UI that holds one (`_broadcast_echo` guarded),
+    # which `send_queued_messages_now` and a `MultiUI`'s main child both need --
+    # new surface, not a delegator: the loop and its guard live here.
+    "llm/ui/base/ui.py": 1204,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

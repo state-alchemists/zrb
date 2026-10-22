@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -23,6 +24,9 @@ from zrb.llm.ui.base.message_queue import MessageQueue, steer_into_live_run
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.message_queue import QueuedMessage
+
+DELIVERED_MARKER = "⏩"
+"""The echo marker of a message a send-now call handed to the live run."""
 
 
 class DeliveryOutcome(str, Enum):
@@ -39,13 +43,18 @@ class DeliveryOutcome(str, Enum):
 class DeliveryReport:
     """What one send-now attempt did.
 
-    `delivered` counts the messages handed to the live run; `held` counts the
-    entries still waiting in the queue.
+    `delivered_entries` are the messages handed to the live run, in queue
+    order; `held` counts the entries still waiting in the queue.
     """
 
     outcome: DeliveryOutcome
-    delivered: int = 0
+    delivered_entries: "tuple[QueuedMessage, ...]" = ()
     held: int = 0
+
+    @property
+    def delivered(self) -> int:
+        """How many messages this attempt handed to the live run."""
+        return len(self.delivered_entries)
 
 
 def send_queued_messages_now(
@@ -81,7 +90,7 @@ def send_queued_messages_now(
     if is_waiting_for_answer:
         return DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=queue.qsize())
 
-    delivered = 0
+    delivered: "tuple[QueuedMessage, ...]" = ()
     stopped_with_entries_left = False
     if active_run_context is not None:
         delivered, stopped_with_entries_left = _steer_entries(
@@ -94,7 +103,9 @@ def send_queued_messages_now(
     # would have without the key.
     if delivered and not stopped_with_entries_left:
         return DeliveryReport(
-            DeliveryOutcome.DELIVERED_EARLY, delivered=delivered, held=queue.qsize()
+            DeliveryOutcome.DELIVERED_EARLY,
+            delivered_entries=delivered,
+            held=queue.qsize(),
         )
 
     # The run ended mid-drain and left entries behind: interrupting the turn
@@ -105,7 +116,9 @@ def send_queued_messages_now(
     if is_turn_running:
         cancel_turn()
         return DeliveryReport(
-            DeliveryOutcome.FELL_BACK_TO_CANCEL, delivered=delivered, held=queue.qsize()
+            DeliveryOutcome.FELL_BACK_TO_CANCEL,
+            delivered_entries=delivered,
+            held=queue.qsize(),
         )
 
     # Nothing left to interrupt, but some messages did reach the turn. Say so:
@@ -113,7 +126,9 @@ def send_queued_messages_now(
     # caller renders.
     if delivered:
         return DeliveryReport(
-            DeliveryOutcome.DELIVERED_PARTIAL, delivered=delivered, held=queue.qsize()
+            DeliveryOutcome.DELIVERED_PARTIAL,
+            delivered_entries=delivered,
+            held=queue.qsize(),
         )
 
     return DeliveryReport(DeliveryOutcome.NOTHING_MOVED, held=queue.qsize())
@@ -121,15 +136,19 @@ def send_queued_messages_now(
 
 def _steer_entries(
     queue: MessageQueue, run_context: object, entries: "tuple[QueuedMessage, ...]"
-) -> "tuple[int, bool]":
+) -> "tuple[tuple[QueuedMessage, ...], bool]":
     """Steer the still-queued messages at the head of *entries*.
 
-    Returns `(delivered, stopped_with_entries_left)`: the count handed to the
-    live run, and whether the drain stopped early — on a failed `enqueue` (the
-    run finished between two calls) — *and* left entries behind. A failed
-    `enqueue` on the last entry delivers everything and leaves nothing: that is
-    a complete drain, not a partial one, so the flag stays false and the caller
-    reports it as `DELIVERED_EARLY`.
+    Returns `(delivered_entries, stopped_with_entries_left)`: the messages
+    handed to the live run, in queue order, and whether the drain stopped
+    early — on a failed `enqueue` (the run finished between two calls) — *and*
+    left entries behind. A failed `enqueue` on the last entry delivers
+    everything and leaves nothing: that is a complete drain, not a partial one,
+    so the flag stays false and the caller reports it as `DELIVERED_EARLY`.
+
+    Each delivered entry is marked (`delivered_at`, `DELIVERED_MARKER`) here,
+    where the entry leaves the queue, so the echo a caller redraws afterwards
+    says what the model read rather than what was still waiting.
 
     An `/exec` job is not steerable (ADR-0078) and is an ordering barrier: it
     stops the drain rather than being skipped. The queue is FIFO and the
@@ -140,7 +159,7 @@ def _steer_entries(
     nothing awaits while it is drained, so every entry is still queued when it
     is removed.
     """
-    delivered = 0
+    delivered: list[QueuedMessage] = []
     failed_enqueue = False
     for entry in entries:
         if not entry.is_editable:
@@ -149,8 +168,10 @@ def _steer_entries(
             failed_enqueue = True
             break
         queue.remove(entry)
-        delivered += 1
-    return delivered, failed_enqueue and queue.qsize() > 0
+        entry.delivered_at = datetime.now()
+        entry.echo_marker = DELIVERED_MARKER
+        delivered.append(entry)
+    return tuple(delivered), failed_enqueue and queue.qsize() > 0
 
 
 def describe_delivery(report: DeliveryReport) -> str:

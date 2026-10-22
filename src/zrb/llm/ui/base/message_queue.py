@@ -1,5 +1,10 @@
 """Message queue shared by every chat UI.
 
+Every submission lands here — a message typed mid-turn included — and the
+message loop runs one entry at a time. Nothing is handed to a live run before
+the user asks for it (`send_queued_messages_now`, Ctrl+G), so a queued message
+is always still editable.
+
 Entries are mutable and `run` reads `entry.text` at execution time, so
 editing a queued message is a field write. Anything still in the queue has not
 started running.
@@ -66,6 +71,8 @@ class QueuedMessage:
         # Kept so an edit can rebuild the echoed line in the same style.
         self.echo_marker: str = ""
         self.echo_timestamp: str = ""
+        # Set when Ctrl+G hands the entry to the live run; None while it waits.
+        self.delivered_at: datetime | None = None
         # Keyed by target UI: a `MultiUI` echoes into every child.
         self.echo_spans: dict[Any, EchoSpan] = {}
 
@@ -158,7 +165,6 @@ async def _run_queued_message(
 def submit_user_message_via_queue(
     *,
     append_to_output: AppendOutputFunc,
-    active_run_context: Any,
     stream_ai_response: Callable[[object, str, list], Awaitable[None]],
     queue: MessageQueue,
     attachment_sources: list[Any],
@@ -170,15 +176,23 @@ def submit_user_message_via_queue(
     source: InputProvenance | None = KEYBOARD_INPUT,
 ) -> None:
     """Shared mechanics behind `BaseUI.submit_user_message` and
-    `MultiUI.submit_user_message`: echo, collect attachments, then steer into a
-    live run or queue a `QueuedMessage`.
+    `MultiUI.submit_user_message`: echo, collect attachments, then queue a
+    `QueuedMessage`.
+
+    Every submission is queued, whether or not a turn is running. A message
+    typed mid-turn therefore waits where the user can see it, edit it
+    (Up/Enter), delete it (Ctrl+X) or send it into the live run on demand
+    (Ctrl+G, `send_queued_messages_now`). Handing it to the live run at submit
+    time — what this did before — made that message uneditable the moment it
+    was sent, and made Up Arrow's meaning depend on whether a run context
+    happened to be registered.
 
     A standalone UI passes `[self]` as `attachment_sources` and `echo_targets`;
     a `MultiUI` passes its children.
 
     A terminal without bracketed paste submits a paste one line per Enter; a
     line arriving within `CFG.LLM_UI_PASTE_MERGE_WINDOW` of the newest queued
-    entry is appended to it. Steering into a live run outranks merging.
+    entry is appended to it.
     """
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
@@ -198,10 +212,6 @@ def submit_user_message_via_queue(
     if previous is None:
         echo = emit_echo()
         attachments = _collect_attachments(attachment_sources)
-        if source in (None, KEYBOARD_INPUT) and steer_into_live_run(
-            active_run_context, user_message, attachments
-        ):
-            return
         entry = QueuedMessage(
             text=user_message,
             attachments=attachments,
@@ -225,11 +235,6 @@ def submit_user_message_via_queue(
     except Exception:
         emit_echo()
         raise
-    if source in (None, KEYBOARD_INPUT) and steer_into_live_run(
-        active_run_context, user_message, attachments
-    ):
-        emit_echo()
-        return
     _merge_into(
         previous,
         text=user_message,

@@ -26,7 +26,10 @@ class MockUI:
         self.outputs = []
 
         self.send_queued_messages_now = MagicMock(
-            return_value=DeliveryReport(DeliveryOutcome.DELIVERED_EARLY, delivered=2)
+            return_value=DeliveryReport(
+                DeliveryOutcome.DELIVERED_EARLY,
+                delivered_entries=(MagicMock(), MagicMock()),
+            )
         )
         self.submit_user_message = MagicMock()
         self.invalidate_ui = MagicMock()

@@ -10,8 +10,9 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
-# Baseline history: -2 queue types, -1 dead `_admits`, -4 daemon-thread hooks.
-ANY_ANNOTATIONS = 1088
+# Baseline history: -2 queue types, -1 dead `_admits`, -4 daemon-thread hooks,
+# -1 steering context (`submit_user_message_via_queue` no longer takes one).
+ANY_ANNOTATIONS = 1087
 
 
 def _count_any(annotation: ast.expr | None) -> int:
