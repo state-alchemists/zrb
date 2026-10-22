@@ -2,6 +2,7 @@
 in time is counted as (`underruns`), the prebuffer keeping the first block
 from silence, and a device PortAudio stops mid-sentence."""
 
+import re
 import threading
 import time
 import types
@@ -105,7 +106,12 @@ def test_a_block_the_device_says_it_got_early_counts_as_an_underrun(sd, caplog):
     [stream] = FakeOutputStream.instances
     assert stream.played and utterance.underruns >= len(stream.played) - 1
     assert caplog.text.count("stuttered") == 1  # said once, not per block
-    assert f"{utterance.underruns} block(s) of audio" in caplog.text
+    # The line is written at the first stutter heard, and never again, so it
+    # names the count at that moment — a block counted after it was logged is
+    # not in the sentence. Reading the final count here was a race.
+    logged = re.search(r"Speech stuttered: (\d+) block", caplog.text)
+    assert logged is not None
+    assert 1 <= int(logged.group(1)) <= utterance.underruns
 
 
 def test_audio_arriving_too_late_is_counted_as_an_underrun(sd, caplog):
