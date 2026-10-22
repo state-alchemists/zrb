@@ -58,7 +58,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/btw <question>` | Ask a side question answered by a separate agent that sees the conversation but has **no tools** — it cannot read a file or run a command, so it answers from what is already in context. The exchange is not saved to history, and it is shown in a panel above the input (`Esc` closes it) rather than scrolled into the transcript. Works while the assistant is thinking |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
 | `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-context.md#rewind--snapshots) (on by default; `ZRB_LLM_ENABLE_REWIND`) |
-| `/voice`, `/v` | Record speech: a pause or `/voice` again stops, and the transcript is submitted and sent at once (a pending approval or question keeps it in the input box to answer with Enter). Needs `zrb[voice]` |
+| `/voice`, `/v` | Record speech: a pause or `/voice` again stops, and the transcript is submitted like typed text — it queues for the next turn (or answers a prompt already on screen). Needs `zrb[voice]` |
 | `/handsfree` | Switch hands-free voice input on or off: every utterance becomes a turn, or answers the pending approval |
 | `/speech` | Switch reading replies aloud on or off |
 

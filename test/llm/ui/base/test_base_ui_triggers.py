@@ -281,14 +281,15 @@ async def test_a_plain_string_never_answers_a_pending_question(monkeypatch):
 @pytest.mark.asyncio
 async def test_a_send_now_reply_is_submitted_and_sent_in_one_step(monkeypatch):
     """A trigger that speaks for the user has no key to press behind it, so its
-    words enter the queue and leave it for the running turn at once (ADR-0076)."""
+    words enter the queue and are offered to the running turn at once — without
+    interrupting it to do so (ADR-0076)."""
     ui = _create_ui(AnsweringUI)
     ui.waiting = False
     spoken = InputProvenance("microphone", modality="dictation", transcription=True)
-    sent: list[tuple[str, object]] = []
+    sent: list[tuple[str, object, bool]] = []
 
-    def fake_send_now(text, source=None):
-        sent.append((text, source))
+    def fake_send_now(text, source=None, may_interrupt=True):
+        sent.append((text, source, may_interrupt))
         return DeliveryReport(DeliveryOutcome.DELIVERED_EARLY)
 
     monkeypatch.setattr(ui, "submit_message_now", fake_send_now)
@@ -297,24 +298,24 @@ async def test_a_send_now_reply_is_submitted_and_sent_in_one_step(monkeypatch):
 
     await ui.trigger_loop(trigger_yielding(reply))
 
-    assert sent == [("open the file", spoken)]
+    assert sent == [("open the file", spoken, False)]
 
 
 @pytest.mark.asyncio
 async def test_a_send_now_reply_without_a_source_is_keyboard_input(monkeypatch):
     ui = _create_ui(AnsweringUI)
     ui.waiting = False
-    sent: list[tuple[str, object]] = []
+    sent: list[tuple[str, object, bool]] = []
 
-    def fake_send_now(text, source=None):
-        sent.append((text, source))
+    def fake_send_now(text, source=None, may_interrupt=True):
+        sent.append((text, source, may_interrupt))
         return DeliveryReport(DeliveryOutcome.NOTHING_MOVED)
 
     monkeypatch.setattr(ui, "submit_message_now", fake_send_now)
 
     await ui.trigger_loop(trigger_yielding(TriggerReply("open the file", send_now=True)))
 
-    assert sent == [("open the file", KEYBOARD_INPUT)]
+    assert sent == [("open the file", KEYBOARD_INPUT, False)]
 
 
 def test_base_ui_holds_no_pending_answer_and_submits_instead(base_ui, monkeypatch):

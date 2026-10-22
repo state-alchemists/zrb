@@ -1,11 +1,12 @@
 """`enable_dictation`: speech-to-text input for chat sessions.
 
 ``ptt`` mode: the dictation command starts recording, and the same command
-or a pause stops it; the transcript is submitted and sent at once, unless an
-approval or question is waiting, which it answers once the user presses Enter.
-``hands_free`` mode: the microphone stays open and each utterance becomes a
-turn, or answers the approval or question being asked. The hands-free
-command switches between the two.
+or a pause stops it; the transcript is submitted through the path a typed
+message takes, so it queues as typed words do — with no change of delivery
+policy for having been spoken. ``hands_free`` mode: the microphone stays open
+and each utterance becomes a turn, or answers the approval or question being
+asked; no key stands behind it, so it is delivered at the earliest safe model
+request. The hands-free command switches between the two.
 """
 
 from __future__ import annotations
@@ -37,7 +38,6 @@ from zrb.llm.dictation.words import (
 )
 from zrb.llm.input_source import DICTATION_INPUT
 from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
-from zrb.llm.ui.base.queue_delivery import DeliveryOutcome, DeliveryReport
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import (
     current_session_key,
@@ -290,7 +290,9 @@ class DictationSession:
             return f"🎤 {e}"
         stop = asyncio.Event()
         self._stop_recording = stop
-        recording = asyncio.ensure_future(self._record_into(ui, stop))
+        recording = asyncio.ensure_future(
+            self._record_into(ui, stop, asyncio.get_running_loop().time())
+        )
         # A done callback also handles cancellation before the coroutine starts.
         recording.add_done_callback(lambda _: self._release_recording(stop))
         return recording
@@ -319,7 +321,9 @@ class DictationSession:
             self._stop_recording.set()
         return f"🎤 Hands-free {'on' if self.is_hands_free else 'off'}"
 
-    async def _record_into(self, ui: "BaseUI", stop: asyncio.Event) -> str:
+    async def _record_into(
+        self, ui: "BaseUI", stop: asyncio.Event, started_at: float
+    ) -> str:
         # Use one backend for recording and transcription; session teardown must
         # not start a replacement backend.
         backend = self.backend
@@ -334,12 +338,14 @@ class DictationSession:
             self._show(None, ui)
         if not text:
             return "🎤 Heard nothing."
-        if ui.is_waiting_for_answer:
-            # A dictated answer to an approval must be read before it is sent,
-            # so the words wait in the input box and Enter answers the prompt.
-            ui.insert_input_text(text)
-            return "🎤 Transcribed: edit it, then press Enter to answer."
-        return _sent_status(ui.submit_message_now(text, DICTATION_INPUT))
+        # Push-to-talk is another way of typing (ADR-0076): the words go
+        # through the submission the keyboard uses, so they queue exactly as
+        # typed ones do — no separate delivery policy for having been spoken.
+        if ui.is_waiting_for_answer and _is_pending_since(ui, started_at):
+            ui.submit_answer(text)
+            return "🎤 Transcribed and sent as the answer."
+        ui.submit_message(text, DICTATION_INPUT)
+        return "🎤 Transcribed and queued."
 
     async def _transcribe_recording(
         self, backend: AnyDictationBackend, audio: bytes
@@ -882,17 +888,16 @@ def _say_emotion_load_failure(load: "asyncio.Task[None]") -> None:
         logger.warning(f"Loading the emotion model failed: {error}")
 
 
-def _sent_status(report: DeliveryReport) -> str:
-    """What one spoken message did, for the badge."""
-    if report.outcome is DeliveryOutcome.DELIVERED_EARLY:
-        return "🎤 sent into this turn"
-    if report.outcome is DeliveryOutcome.DELIVERED_PARTIAL:
-        return "🎤 sent, then the run ended"
-    if report.outcome is DeliveryOutcome.FELL_BACK_TO_CANCEL:
-        return "🎤 sent — the running turn was interrupted, so it runs next"
-    if report.outcome is DeliveryOutcome.WAITING_ON_DIALOG:
-        return "🎤 queued — it runs once you answer"
-    return "🎤 sent"
+def _is_pending_since(ui: "BaseUI", started_at: float) -> bool:
+    """Whether the prompt on screen was already waiting when the user spoke.
+
+    A prompt that appeared while the words were being recorded and transcribed
+    gets no answer from them: a "yes" said to nothing must not approve a tool
+    call that showed up meanwhile (ADR-0076). A UI that cannot date its prompt
+    gets no timed answers either.
+    """
+    since = ui.pending_answer_since
+    return since is not None and since <= started_at
 
 
 def _quote(text: str) -> str:

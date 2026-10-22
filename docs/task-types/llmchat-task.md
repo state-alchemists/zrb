@@ -280,7 +280,7 @@ An action may also:
 - **Reach the UI.** `ui.pending_attachments.append(...)` attaches to the next
   message, `ui.insert_input_text(text)` types at the cursor,
   `ui.submit_message_now(text)` submits a message and sends it into the
-  running turn at once (for words spoken rather than typed), and
+  running turn at once (for hands-free words, which no key stands behind), and
   `ui.append_to_output(text)` prints.
 - **Run mid-turn**, with `can_run_while_thinking=True`. Otherwise a command
   waits for the model to finish.

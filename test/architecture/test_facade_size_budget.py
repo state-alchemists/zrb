@@ -83,7 +83,10 @@ FACADE_BUDGETS = {
     # +13 (1240->1253): `submit_message_now`, the one-step submit-and-send a
     # spoken message needs, since no key stands behind it (ADR-0076) -- a new
     # entry point beside `submit_message`, not a delegator.
-    "llm/ui/base/ui.py": 1253,
+    # +6 (1253->1259): `may_interrupt` on both delivery entry points: speech
+    # asks for the earliest safe delivery and must never stop the turn to get
+    # it, which is a policy the caller has to be able to state.
+    "llm/ui/base/ui.py": 1259,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

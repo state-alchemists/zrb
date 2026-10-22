@@ -10,7 +10,6 @@ from zrb.llm.dictation import AnyDictationBackend, DictationConfig, enable_dicta
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import MicState, Utterance
 from zrb.llm.input_source import DICTATION_INPUT
-from zrb.llm.ui.base.queue_delivery import DeliveryOutcome, DeliveryReport
 from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
 
@@ -33,14 +32,15 @@ class FakeBackend(AnyDictationBackend):
 
 
 class FakeUI:
-    def __init__(self, outcome: DeliveryOutcome = DeliveryOutcome.NOTHING_MOVED):
+    def __init__(self):
         self.background_tasks: set = set()
         self.outputs: list[str] = []
         self.inserted: list[str] = []
-        self.sent: list[tuple[str, object]] = []
+        self.submitted: list[tuple[str, object]] = []
+        self.answers: list[str] = []
         self.badges: list[tuple[str, str | None]] = []
         self.is_waiting_for_answer = False
-        self.outcome = outcome
+        self.pending_answer_since: float | None = None
 
     def set_status_badge(self, key, text):
         self.badges.append((key, text))
@@ -51,9 +51,11 @@ class FakeUI:
     def insert_input_text(self, text):
         self.inserted.append(text)
 
-    def submit_message_now(self, text, source=None):
-        self.sent.append((text, source))
-        return DeliveryReport(self.outcome)
+    def submit_message(self, text, source=None):
+        self.submitted.append((text, source))
+
+    def submit_answer(self, text):
+        self.answers.append(text)
 
 
 @contextmanager
@@ -104,25 +106,26 @@ async def _trigger_replies(session: DictationSession, count: int) -> list[Trigge
 
 
 @pytest.mark.asyncio
-async def test_push_to_talk_submits_the_transcript_and_sends_it(monkeypatch):
+async def test_push_to_talk_submits_through_the_typing_path(monkeypatch):
+    """Push-to-talk is another way of typing (ADR-0076): the words are
+    submitted the way typed ones are, so they queue as they do — the fact that
+    they were spoken changes nothing about delivery."""
     heard = _fake_listen(monkeypatch, ("run the tests", 0.0, 1.0))
     session = _session(commands=["/voice"])
-    ui = FakeUI(outcome=DeliveryOutcome.DELIVERED_EARLY)
+    ui = FakeUI()
 
     session.create_commands()[0].handle({}, ui)
     assert session.is_recording
     await asyncio.gather(*ui.background_tasks)
     await asyncio.sleep(0)
 
-    # Spoken words have no key to press behind them, so they are submitted and
-    # sent in one step rather than left in the input box (ADR-0076).
-    assert ui.sent == [("run the tests", DICTATION_INPUT)]
+    assert ui.submitted == [("run the tests", DICTATION_INPUT)]
     assert ui.inserted == []
     assert heard == [True]  # speech cut off by the stop is kept
     assert not session.is_recording
     assert any("getting ready" in output for output in ui.outputs)
     assert any("✅ FakeBackend ready" in output for output in ui.outputs)
-    assert any("sent into this turn" in output for output in ui.outputs)
+    assert any("Transcribed and queued" in output for output in ui.outputs)
     assert [text for _, text in ui.badges] == [
         "🔴 recording… (/voice or a pause to stop)",
         "📝 transcribing…",
@@ -131,44 +134,42 @@ async def test_push_to_talk_submits_the_transcript_and_sends_it(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_push_to_talk_leaves_a_dictated_answer_in_the_input_box(monkeypatch):
-    """Words said to a pending approval are read before they are sent: they
-    wait in the input box, where Enter answers the prompt."""
+async def test_push_to_talk_answers_a_prompt_that_was_already_waiting(monkeypatch):
+    """A prompt already on screen when the user pressed /voice is the prompt
+    the words answer, the way Enter answers it."""
     _fake_listen(monkeypatch, ("yes", 0.0, 1.0))
     session = _session(commands=["/voice"])
     ui = FakeUI()
     ui.is_waiting_for_answer = True
 
     session.create_commands()[0].handle({}, ui)
+    # The prompt predates the recording: it is what the words are said to.
+    ui.pending_answer_since = asyncio.get_running_loop().time() - 5
     await asyncio.gather(*ui.background_tasks)
     await asyncio.sleep(0)
 
-    assert ui.inserted == ["yes"]
-    assert ui.sent == []
-    assert any("press Enter to answer" in output for output in ui.outputs)
+    assert ui.answers == ["yes"]
+    assert ui.submitted == []
+    assert any("sent as the answer" in output for output in ui.outputs)
 
 
-@pytest.mark.parametrize(
-    "outcome, expected",
-    [
-        (DeliveryOutcome.DELIVERED_EARLY, "sent into this turn"),
-        (DeliveryOutcome.DELIVERED_PARTIAL, "sent, then the run ended"),
-        (DeliveryOutcome.FELL_BACK_TO_CANCEL, "the running turn was interrupted"),
-        (DeliveryOutcome.WAITING_ON_DIALOG, "runs once you answer"),
-        (DeliveryOutcome.NOTHING_MOVED, "🎤 sent"),
-    ],
-)
 @pytest.mark.asyncio
-async def test_a_spoken_message_says_where_it_landed(monkeypatch, outcome, expected):
-    _fake_listen(monkeypatch, ("run the tests", 0.0, 1.0))
+async def test_words_said_before_a_prompt_appeared_do_not_answer_it(monkeypatch):
+    """A prompt that showed up while the words were transcribed is not
+    something those words can approve (ADR-0076)."""
+    _fake_listen(monkeypatch, ("yes", 0.0, 1.0))
     session = _session(commands=["/voice"])
-    ui = FakeUI(outcome=outcome)
+    ui = FakeUI()
 
     session.create_commands()[0].handle({}, ui)
+    # A tool approval appears a second after recording began, still running.
+    ui.is_waiting_for_answer = True
+    ui.pending_answer_since = asyncio.get_running_loop().time() + 60
     await asyncio.gather(*ui.background_tasks)
     await asyncio.sleep(0)
 
-    assert any(expected in output for output in ui.outputs)
+    assert ui.answers == []
+    assert ui.submitted == [("yes", DICTATION_INPUT)]
 
 
 @pytest.mark.parametrize("said", ["Thank you.", "test test test", "you"])
@@ -190,7 +191,7 @@ async def test_push_to_talk_keeps_what_hands_free_takes_for_noise(monkeypatch, s
     await asyncio.gather(*ui.background_tasks)
     await asyncio.sleep(0)
 
-    assert ui.sent == [(said, DICTATION_INPUT)]
+    assert ui.submitted == [(said, DICTATION_INPUT)]
 
 
 @pytest.mark.asyncio
@@ -279,7 +280,7 @@ async def test_the_command_again_stops_the_recording(monkeypatch):
     await asyncio.gather(*ui.background_tasks)
 
     assert stopped.is_set()
-    assert ui.sent == [("half a sentence", DICTATION_INPUT)]
+    assert ui.submitted == [("half a sentence", DICTATION_INPUT)]
 
 
 @pytest.mark.asyncio

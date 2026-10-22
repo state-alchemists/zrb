@@ -1962,7 +1962,8 @@
       "init": [
         "text:POSITIONAL_OR_KEYWORD:0",
         "approval:POSITIONAL_OR_KEYWORD:1",
-        "started_at:POSITIONAL_OR_KEYWORD:1"
+        "started_at:POSITIONAL_OR_KEYWORD:1",
+        "send_now:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": []
     },

@@ -113,9 +113,15 @@ class BaseUITriggers:
         if not reply.text.strip():
             return
         if reply.send_now:
-            # A trigger that speaks for the user has no key to press behind it,
-            # so its words submit and go into the running turn at once.
-            owner.submit_message_now(reply.text, reply.source or KEYBOARD_INPUT)
+            # A trigger that speaks for the user has no key to press behind it:
+            # its words are submitted and handed to the running turn at the
+            # earliest safe model request. They never interrupt that turn —
+            # stopping it is the user's call (Esc, Ctrl+G, a stop word).
+            owner.submit_message_now(
+                reply.text,
+                reply.source or KEYBOARD_INPUT,
+                may_interrupt=False,
+            )
             return
         if reply.source is None:
             owner.submit_user_message(owner.llm_task, reply.text)
