@@ -22,7 +22,11 @@ from zrb.llm.summarizer.chunk_processor import (
 )
 from zrb.llm.summarizer.history_splitter import split_history
 from zrb.llm.summarizer.message_processor import process_message_for_summarization
-from zrb.llm.summarizer.verbatim_archive import archive_verbatim_history
+from zrb.llm.summarizer.verbatim_archive import (
+    archive_verbatim_history,
+    conversation_key,
+    verbatim_archive_path,
+)
 from zrb.util.cli.style import stylize_error, stylize_warning
 from zrb.util.markdown import make_markdown_section
 
@@ -42,12 +46,15 @@ def create_summarizer_history_processor(
     conversational_token_threshold: int | None = None,
     message_token_threshold: int | None = None,
     summary_window: int | None = None,
-    session_name: str = _DEFAULT_SESSION_NAME,
+    session_name: "str | Callable[[], str] | None" = _DEFAULT_SESSION_NAME,
+    history_dir: str | None = None,
 ) -> "Callable[[list[ModelMessage]], Awaitable[list[ModelMessage]]]":
     """Create a history processor that auto-summarizes history past its thresholds.
 
     `session_name` names the conversation's verbatim archive, so what a
-    compaction replaces stays readable afterwards.
+    compaction replaces stays readable afterwards; a callable is resolved per
+    call so a rename is followed. `history_dir` is the directory the history
+    manager stores conversations in, so the archive sits beside them.
     """
     llm_limiter = limiter or default_llm_limiter
     if conversational_token_threshold is None:
@@ -95,6 +102,7 @@ def create_summarizer_history_processor(
             conversational_token_threshold=conversational_token_threshold,
             system_prompt_overhead=system_prompt_overhead,
             session_name=session_name,
+            history_dir=history_dir,
         )
 
     return process_history
@@ -131,7 +139,8 @@ async def _maybe_compress_history(
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
     system_prompt_overhead: int,
-    session_name: str = _DEFAULT_SESSION_NAME,
+    session_name: "str | Callable[[], str] | None" = _DEFAULT_SESSION_NAME,
+    history_dir: str | None = None,
 ) -> "list[ModelMessage]":
     """Compress history when it exceeds the token/window threshold."""
     try:
@@ -237,7 +246,8 @@ async def summarize_history(
     limiter: "LLMLimiter | None" = None,
     conversational_token_threshold: int | None = None,
     force: bool = False,
-    session_name: str = _DEFAULT_SESSION_NAME,
+    session_name: "str | Callable[[], str] | None" = _DEFAULT_SESSION_NAME,
+    history_dir: str | None = None,
 ) -> "list[ModelMessage]":
     """Replace older messages with a chunked summary, keeping a recent tail.
 
@@ -245,8 +255,9 @@ async def summarize_history(
     by `summary_window` messages. `force=True` compresses even within limits
     (``/compress``). The journal index is re-seeded into the summary.
 
-    The replaced messages are archived verbatim first, and the summary names
-    the archive: a summary is a lossy view, the archive is not.
+    The replaced messages are archived verbatim once the replacement is ready,
+    and the summary names the archive: a summary is a lossy view, the archive is
+    not.
     """
     try:
         llm_limiter = limiter or default_llm_limiter
@@ -263,10 +274,8 @@ async def summarize_history(
             if not force:
                 return messages
             to_summarize, to_keep = messages, []
-        archive_path = archive_verbatim_history(
-            _without_prior_summaries(to_summarize),
-            session_name=session_name,
-            tokens=llm_limiter.count_tokens(to_summarize),
+        archive_path = verbatim_archive_path(
+            _resolve_session_name(session_name, messages), history_dir
         )
         summary_text = await _build_summary_text(
             to_summarize,
@@ -279,7 +288,16 @@ async def summarize_history(
         summary_message = _create_summary_model_request(summary_text)
         if summary_message is None:
             return messages
-        return _assemble_summarized_history(summary_message, messages, to_keep)
+        result = _assemble_summarized_history(summary_message, messages, to_keep)
+        # Only now, with a summary that replaces the messages in hand: an
+        # archive written before a failed summarization would claim messages
+        # were replaced while they are still in the history.
+        archive_verbatim_history(
+            _without_prior_summaries(to_summarize),
+            path=archive_path,
+            tokens=llm_limiter.count_tokens(to_summarize),
+        )
+        return result
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
@@ -322,6 +340,36 @@ async def _build_summary_text(
     return summary_text
 
 
+def _resolve_session_name(
+    session_name: "str | Callable[[], str] | None",
+    messages: "list[ModelMessage]",
+) -> str:
+    """The conversation name to key the archive by, resolved now.
+
+    A callable is resolved on every call so a conversation renamed after the
+    task was built (`/save`) archives under its current name. A caller that
+    cannot name the conversation at all gets a key derived from its opening
+    message, which survives renames and resumes.
+    """
+    name = session_name() if callable(session_name) else session_name
+    if name:
+        return name
+    opening = _find_first_user_message(messages)
+    return conversation_key(_opening_text(opening) if opening is not None else "")
+
+
+def _opening_text(message: object) -> str:
+    """The text of the first real user prompt in a request, or ``""``."""
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import UserPromptPart
+
+    for part in getattr(message, "parts", []):
+        if isinstance(part, UserPromptPart):
+            content = getattr(part, "content", "")
+            return content if isinstance(content, str) else str(content)
+    return ""
+
+
 def _render_archive_note(archive_path: str) -> str:
     """The deterministic pointer to the verbatim archive.
 
@@ -333,8 +381,8 @@ def _render_archive_note(archive_path: str) -> str:
         "The messages this summary replaced are archived word for word, "
         f"append-only, at:\n\n`{archive_path}`\n\n"
         "Read that file when this summary is not detailed enough; it holds the "
-        "original text of every compacted message, and later compactions append "
-        "to the same file."
+        "original text of every compacted message (attachment bytes are named "
+        "there, not copied), and later compactions append to the same file."
     )
 
 

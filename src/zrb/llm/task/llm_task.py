@@ -739,7 +739,10 @@ class LLMTask(BaseTask):
         # this scope the summarizer resolves against `CFG` and ignores `/model`.
         with session_model_scope(self._uis):
             new_history = await summarize_history(
-                message_history, force=True, session_name=conversation_name
+                message_history,
+                force=True,
+                session_name=conversation_name,
+                history_dir=history_manager.storage_dir,
             )
         history_manager.update(conversation_name, new_history)
         await asyncio.to_thread(history_manager.save, conversation_name)

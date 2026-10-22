@@ -14,6 +14,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import create_agent
+from zrb.llm.ambient_state import get_current_tool_session
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.prompt.live_context import render_journal_index
@@ -98,9 +99,13 @@ class SubAgentBuilding:
             toolsets=resolved.toolsets,
             history_processors=[
                 create_summarizer_history_processor(
-                    # Sub-agent histories land in a per-type directory; the
-                    # archive mirrors that with a per-type file.
-                    session_name=f"subagent-{name}"
+                    # Resolved per request and per delegation: two runs of the
+                    # same sub-agent are different conversations and must not
+                    # share an archive.
+                    session_name=lambda: (
+                        "subagent-"
+                        f"{get_current_tool_session() or 'default'}-{name}"
+                    )
                 )
             ],
             yolo=resolved.yolo,
@@ -133,11 +138,8 @@ class SubAgentBuilding:
             toolsets=resolved.toolsets,
             # Already final: resolve_configured_model ran above.
             model=resolved.model,
-            history_processors=[
-                create_summarizer_history_processor(
-                    session_name=f"subagent-{definition.name}"
-                )
-            ],
+            # The chat task's core appends the summarizer, keyed by the
+            # delegated session name; adding one here would summarize twice.
             # Mirrors builtin/llm/chat.py: the web chat runner passes these
             # per message via ctx.input.
             message=Tpl("{ctx.input.message}"),

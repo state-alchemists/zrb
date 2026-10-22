@@ -13,9 +13,10 @@ can read back what the summary left out.
 
 from __future__ import annotations
 
+import hashlib
 import os
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.file_history_manager import safe_segment
@@ -31,10 +32,11 @@ ARCHIVE_DIR_NAME = "verbatim"
 def verbatim_archive_path(session_name: str, history_dir: str | None = None) -> str:
     """The archive file for *session_name*.
 
-    `history_dir` defaults to `CFG.LLM_HISTORY_DIR`, so the archive follows the
-    configured history location (``~/.zrb/llm-history`` by default) and moves
-    with it. The path is absolute: it is handed to the model, which reads what
-    its working directory would otherwise make ambiguous.
+    `history_dir` is the directory the history manager stores conversations in,
+    so the archive follows the same storage configuration; it defaults to
+    `CFG.LLM_HISTORY_DIR` (``~/.zrb/llm-history``). The path is absolute: it is
+    handed to the model, which reads what its working directory would otherwise
+    make ambiguous.
     """
     base = os.path.expanduser(history_dir or CFG.LLM_HISTORY_DIR)
     return os.path.abspath(
@@ -42,28 +44,38 @@ def verbatim_archive_path(session_name: str, history_dir: str | None = None) -> 
     )
 
 
+def conversation_key(opening_text: str) -> str:
+    """A stable archive name derived from a conversation's opening message.
+
+    The fallback when the caller cannot name the conversation: a rename or a
+    resume does not change it, and two conversations that open differently do
+    not share a file. The readable prefix makes the file findable; the digest
+    keeps two similar openings apart.
+    """
+    readable = " ".join(opening_text.split())[:48].strip() or "conversation"
+    digest = hashlib.sha1(opening_text.encode("utf-8")).hexdigest()[:8]
+    return f"{safe_segment(readable)}-{digest}"
+
+
 def archive_verbatim_history(
     messages: "list[ModelMessage]",
     *,
-    session_name: str,
-    history_dir: str | None = None,
+    path: str,
     tokens: int | None = None,
 ) -> str | None:
-    """Append *messages* to the conversation's archive; return the path.
+    """Append *messages* to the archive at *path*; return the path when written.
 
     Never raises: failing to archive must not fail the turn that needed the
-    summary. Returns ``None`` when there was nothing to write or the write
-    failed.
+    summary. ``None`` means nothing was written (no messages, write failure).
     """
     if not messages:
         return None
-    path = verbatim_archive_path(session_name, history_dir)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         is_new = not os.path.exists(path)
         with open(path, "a", encoding="utf-8") as stream:
             if is_new:
-                stream.write(_file_header(session_name))
+                stream.write(_file_header(os.path.basename(path)[: -len(".md")]))
             stream.write(_render_section(messages, tokens))
         return path
     except OSError as e:
@@ -77,8 +89,8 @@ def _file_header(session_name: str) -> str:
         "\n"
         "Every message a compaction replaced with a summary, word for word.\n"
         "Append-only: a later compaction adds a section below; nothing here is\n"
-        "rewritten or removed. Read this file when a summary lacks the detail you\n"
-        "need.\n"
+        "rewritten or removed. Attachment bytes are named, not copied. Read this\n"
+        "file when a summary lacks the detail you need.\n"
         "\n"
     )
 
@@ -91,8 +103,43 @@ def _render_section(messages: "list[ModelMessage]", tokens: int | None) -> str:
         lines.append(f"### {index}. {_role_label(message)}")
         lines.append("")
         lines.append(message_to_text(message).rstrip() or "[empty message]")
+        note = _non_text_note(message)
+        if note:
+            lines.append("")
+            lines.append(note)
         lines.append("")
     return "\n".join(lines)
+
+
+def _non_text_note(message: object) -> str:
+    """Say that a message's attachment bytes are not in the archive.
+
+    The rendering names an attachment but cannot carry its bytes; saying so
+    keeps the archive's promise ("word for word") honest.
+    """
+    parts = getattr(message, "parts", None) or []
+    has_binary = any(_has_binary_content(part) for part in parts)
+    if has_binary:
+        return "[attachment content is named here, not copied into this archive]"
+    return ""
+
+
+def _has_binary_content(part: object) -> bool:
+    """Whether a part carries attachment bytes, directly or in its content list."""
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import FilePart
+
+    def is_binary(item: object) -> bool:
+        return isinstance(item, FilePart) or isinstance(
+            getattr(item, "data", None), bytes
+        )
+
+    if is_binary(part):
+        return True
+    content = getattr(part, "content", None)
+    if isinstance(content, (list, tuple)):
+        return any(is_binary(item) for item in content)
+    return False
 
 
 def _role_label(message: object) -> str:

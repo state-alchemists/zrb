@@ -380,13 +380,7 @@ class ChatExecution:
             active_skills=llm_chat_task.active_skills,
             tools=resolved_tools,
             toolsets=resolved_toolsets,
-            history_processors=llm_chat_task.history_processors
-            + [
-                create_summarizer_history_processor(
-                    # Names the verbatim archive this conversation reads back.
-                    session_name=self._get_initial_conversation_name(ctx)
-                )
-            ],
+            history_processors=llm_chat_task.history_processors,
             capabilities=capabilities,
             llm_limiter=llm_chat_task.llm_limiter,
             history_manager=resolved.history.history_manager,
@@ -408,6 +402,20 @@ class ChatExecution:
             summarize_commands=summarize_commands,
         )
         llm_task.set_stream_observers(llm_chat_task.stream_observers)
+        archive_manager = resolved.history.history_manager
+        llm_task.append_history_processor(
+            create_summarizer_history_processor(
+                # Resolved per request, not captured here: `/save` can rename
+                # the conversation while this task is still running.
+                session_name=lambda: llm_task.get_conversation_name(ctx),
+                # Beside the history files this manager writes, not a fixed dir.
+                history_dir=(
+                    archive_manager.storage_dir
+                    if archive_manager is not None
+                    else None
+                ),
+            )
+        )
         return llm_task
 
     def _resolve_inner_task_config(

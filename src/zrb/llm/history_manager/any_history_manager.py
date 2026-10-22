@@ -6,6 +6,16 @@ if TYPE_CHECKING:
 
 
 class AnyHistoryManager(ABC):
+    @property
+    def storage_dir(self) -> str | None:
+        """The directory this manager stores conversations in, or ``None``.
+
+        A store that keeps conversations somewhere else (a database, a remote
+        service) has no directory; callers that need a file beside the history
+        — the verbatim archive — then fall back to the configured history dir.
+        """
+        return None
+
     @abstractmethod
     def load(self, conversation_name: str) -> "list[ModelMessage]":
         pass
