@@ -12,8 +12,8 @@ from zrb.llm.hook.process_io import has_exited, wait_for_exit
 from zrb.llm.hook.process_kill import (
     kill_process_group,
     kill_process_tree,
-    reap_killed_process,
     read_process_group,
+    reap_killed_process,
 )
 
 posix_process_groups_only = pytest.mark.skipif(

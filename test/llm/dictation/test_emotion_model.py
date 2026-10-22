@@ -138,9 +138,7 @@ def test_a_model_that_will_not_load_says_why(in_threads):
     assert not worker.is_started
 
 
-@pytest.mark.filterwarnings(
-    "ignore::pytest.PytestUnhandledThreadExceptionWarning"
-)
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def test_a_child_that_died_is_forgotten_and_the_next_one_starts(in_threads):
     attempts = []
 
@@ -165,9 +163,7 @@ def test_a_child_that_died_is_forgotten_and_the_next_one_starts(in_threads):
     assert len(attempts) == 2
 
 
-@pytest.mark.filterwarnings(
-    "ignore::pytest.PytestUnhandledThreadExceptionWarning"
-)
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def test_a_child_that_keeps_dying_is_given_up_on(in_threads):
     def dies(samples):
         raise SystemExit("killed")

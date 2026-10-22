@@ -334,9 +334,7 @@ def _spawn_child(repo: str) -> "tuple[BaseProcess, Connection]":
     # process with native threads is the shape that crashes.
     context = multiprocessing.get_context("spawn")
     parent_connection, child_connection = context.Pipe(duplex=True)
-    process = context.Process(
-        target=_serve, args=(child_connection, repo), daemon=True
-    )
+    process = context.Process(target=_serve, args=(child_connection, repo), daemon=True)
     process.start()
     child_connection.close()
     return process, parent_connection
@@ -354,9 +352,7 @@ def _read_reply(reply: "tuple[str, object]") -> dict[str, list[object]]:
     return cast("dict[str, list[object]]", value)
 
 
-def _stop_child(
-    process: "BaseProcess | None", connection: "Connection | None"
-) -> None:
+def _stop_child(process: "BaseProcess | None", connection: "Connection | None") -> None:
     """Ask the child to end, and take it down if it does not."""
     if connection is not None:
         try:

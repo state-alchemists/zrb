@@ -220,7 +220,9 @@ def test_a_warm_up_the_restart_overtook_does_not_mark_the_fresh_set_warm(lock_fi
     assert backend.made == ["Hi.", "Hi."]
 
 
-def test_a_warm_up_the_restart_overtook_does_not_warm_the_fresh_set(lock_file, monkeypatch):
+def test_a_warm_up_the_restart_overtook_does_not_warm_the_fresh_set(
+    lock_file, monkeypatch
+):
     """Warming the set that replaced it is the next `warm_up`'s work: doing it
     here too would probe one backend from two threads and load its model
     twice, which is what the warm-up was made once-per-set to avoid."""

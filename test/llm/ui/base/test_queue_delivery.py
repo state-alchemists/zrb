@@ -65,8 +65,7 @@ def test_a_live_run_receives_the_queued_messages():
         "second",
     ]
     assert all(
-        call.kwargs["priority"] == "asap"
-        for call in run_context.enqueue.call_args_list
+        call.kwargs["priority"] == "asap" for call in run_context.enqueue.call_args_list
     )
 
 
@@ -139,9 +138,7 @@ def test_a_dialog_outranks_a_live_run():
     queue.put_nowait(_entry("hello"))
     run_context = MagicMock()
 
-    report, cancelled = _send(
-        queue, run_context, is_waiting=True, is_turn_running=True
-    )
+    report, cancelled = _send(queue, run_context, is_waiting=True, is_turn_running=True)
 
     assert report.outcome is DeliveryOutcome.WAITING_ON_DIALOG
     assert run_context.enqueue.call_count == 0

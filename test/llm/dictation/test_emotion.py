@@ -323,9 +323,7 @@ async def test_an_utterance_heard_while_the_model_loads_gets_no_tone(monkeypatch
         def generate(self, input, granularity, extract_embedding):
             return [{"labels": LABELS, "scores": [0.0, 0.9, 0.1, 0.0, 0.0]}]
 
-    monkeypatch.setitem(
-        sys.modules, "funasr", SimpleNamespace(AutoModel=SlowAutoModel)
-    )
+    monkeypatch.setitem(sys.modules, "funasr", SimpleNamespace(AutoModel=SlowAutoModel))
     monkeypatch.setitem(
         sys.modules,
         "huggingface_hub",

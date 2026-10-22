@@ -16,8 +16,8 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.process_io import read_hook_output, run_detached
 from zrb.llm.hook.process_kill import (
     kill_process_tree,
-    reap_killed_process,
     read_process_group,
+    reap_killed_process,
 )
 from zrb.llm.hook.schema import CommandHookConfig, PromptHookConfig
 from zrb.llm.hook.types import HookEvent

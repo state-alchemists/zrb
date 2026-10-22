@@ -66,9 +66,7 @@ def test_a_remote_service_does_not_wait_for_a_local_model():
     built = []
     with heavy_model_load("a local model"):
         thread = threading.Thread(
-            target=lambda: built.append(
-                manager.create_service("cloud", SpeechConfig())
-            )
+            target=lambda: built.append(manager.create_service("cloud", SpeechConfig()))
         )
         thread.start()
         thread.join(1.0)
