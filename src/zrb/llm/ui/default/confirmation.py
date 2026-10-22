@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.tool_call.choice_spec_format import get_option_label
+from zrb.llm.ui.default.app.focus import focus_widget
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI
@@ -75,6 +76,19 @@ class UIConfirmation:
             self._ui.begin_choice(spec)
         elif prompt:
             self._ui.append_to_output(prompt, end="")
+            self._take_input_focus()
+
+    def _take_input_focus(self) -> None:
+        """Make the input field the focused widget for a free-text answer.
+
+        A pending prompt answers into the input field, and typing goes to the
+        field only while it has the focus. Another widget may have taken it —
+        the `/btw` panel focuses itself when it opens — so the prompt claims it
+        back; otherwise the answer would land in a read-only pane.
+        """
+        input_field = getattr(self._ui, "input_field", None)
+        if input_field is not None:
+            focus_widget(input_field, "Input-field")
 
     def _save_and_clear_input_draft(self) -> None:
         """Save and clear the input draft while awaiting an answer."""
