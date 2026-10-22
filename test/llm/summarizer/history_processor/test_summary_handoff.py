@@ -23,13 +23,16 @@ from zrb.config.config import CFG
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer import summarize_history
 
+JOURNAL_PATCH = "zrb.llm.summarizer.history_summarizer.render_journal_index"
+CHARS_PER_TOKEN = 4
+
 
 class CharLimiter(LLMLimiter):
-    """One token per character of text, ten per message: a cap is easy to read."""
+    """Four characters per token, so a cap in tokens reads as a size in text."""
 
     def count_tokens(self, content) -> int:
         if isinstance(content, str):
-            return len(content)
+            return len(content) // CHARS_PER_TOKEN
         if hasattr(content, "parts"):
             return 10
         if isinstance(content, list):
@@ -37,7 +40,7 @@ class CharLimiter(LLMLimiter):
         return 0
 
     def truncate_text(self, text: str, max_tokens: int) -> str:
-        return text[:max_tokens]
+        return text[: max_tokens * CHARS_PER_TOKEN]
 
 
 async def _unchanged(summary_text, *_args, **_kwargs) -> str:
@@ -45,11 +48,18 @@ async def _unchanged(summary_text, *_args, **_kwargs) -> str:
 
 
 @pytest.fixture(autouse=True)
-def _no_consolidation():
-    """Consolidation has its own tests, and here it would spend the fake outputs."""
-    with patch(
-        "zrb.llm.summarizer.history_summarizer.consolidate_summaries",
-        new=AsyncMock(side_effect=_unchanged),
+def _quiet_dependencies():
+    """Consolidation and the journal index have their own tests.
+
+    Consolidation would spend the fake outputs here, and a real journal index
+    would eat the cap these tests are about.
+    """
+    with (
+        patch(
+            "zrb.llm.summarizer.history_summarizer.consolidate_summaries",
+            new=AsyncMock(side_effect=_unchanged),
+        ),
+        patch(JOURNAL_PATCH, return_value=""),
     ):
         yield
 
@@ -69,6 +79,12 @@ def _snapshot(tag: str = "", padding: str = "") -> str:
     )
 
 
+def _padded(tag: str, tokens: int) -> str:
+    """A schema-valid summary of roughly *tokens* tokens, padded with `PADMARK`."""
+    room = max(0, tokens * CHARS_PER_TOKEN - len(_snapshot(tag)))
+    return _snapshot(tag, padding="PADMARK" * (room // len("PADMARK")))
+
+
 def _history() -> list:
     return [
         ModelRequest(parts=[UserPromptPart(content="User 1")]),
@@ -85,21 +101,20 @@ def _agent(*outputs: str):
 
 
 async def _compress(agent, history, **kwargs) -> list:
-    # Threshold 2000 -> tail budget 800 tokens, so the 2-message window is what
-    # decides the split here: the newest turn stays verbatim. The threshold is
-    # also the summarizer's own truncation budget, so it stays above the fake
-    # outputs or the fake snapshot is cut mid-tag.
+    # Threshold 8000 tokens, so the summarizer never chunks these fakes and the
+    # message window is what decides the split: the newest turn stays verbatim.
     return await summarize_history(
         history,
         agent=agent,
         summary_window=2,
         limiter=CharLimiter(),
-        conversational_token_threshold=2000,
+        conversational_token_threshold=8000,
         **kwargs,
     )
 
 
 def _summary_text(history: list) -> str:
+    """Everything the summary turn carries: the block, the journal, the archive."""
     return "\n".join(str(getattr(part, "content", "")) for part in history[0].parts)
 
 
@@ -128,9 +143,8 @@ async def test_the_users_own_words_follow_the_summary_in_the_same_turn():
 
 @pytest.mark.asyncio
 async def test_a_summary_over_the_cap_is_shortened_before_it_is_used(monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 400, raising=False)
-    overflowing = _snapshot("long", padding="PADMARK" * 100)
-    agent = _agent(overflowing, _snapshot("short"))
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 600, raising=False)
+    agent = _agent(_padded("long", 600), _snapshot("short"))
 
     history = await _compress(agent, _history())
 
@@ -141,17 +155,46 @@ async def test_a_summary_over_the_cap_is_shortened_before_it_is_used(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_a_summary_that_will_not_fit_is_kept_anyway(monkeypatch):
-    """A bulky summary costs tokens; a history over budget fails the request."""
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 60, raising=False)
-    overflowing = _snapshot("long", padding="PADMARK" * 100)
+async def test_a_malformed_summary_is_capped_too(monkeypatch):
+    """No rewriting makes prose into a snapshot, but too much prose still costs."""
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 600, raising=False)
+    agent = _agent("Summary content\n" + "y" * 2400, "shorter prose")
+
+    history = await _compress(agent, _history())
+
+    assert agent.run.await_count == 2
+    text = _summary_text(history)
+    assert "shorter prose" in text
+    assert "y" * 2400 not in text
+
+
+@pytest.mark.asyncio
+async def test_a_summary_that_will_not_fit_is_truncated_to_the_cap(monkeypatch):
+    """Two attempts bound the effort; the size bound itself still has to hold."""
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 300, raising=False)
+    overflowing = _padded("long", 600)
     agent = _agent(overflowing, overflowing, overflowing)
 
     history = await _compress(agent, _history())
 
     assert agent.run.await_count == 3  # the summary, then two shortening attempts
-    assert len(history) < len(_history())
-    assert "PADMARK" in _summary_text(history)
+    assert len(_summary_text(history)) < len(overflowing)
+
+
+@pytest.mark.asyncio
+async def test_the_journal_and_archive_notes_count_against_the_cap(monkeypatch):
+    """The cap bounds the whole inserted block, not just the model's text."""
+    cap = 600
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", cap, raising=False)
+    agent = _agent(_padded("long", 500), _snapshot("short"))
+
+    with patch(JOURNAL_PATCH, return_value="J" * 200 * CHARS_PER_TOKEN):
+        history = await _compress(agent, _history())
+
+    # The summary alone fits; with the journal index and the archive note beside
+    # it, it does not, so it is asked to shrink.
+    assert agent.run.await_count == 2
+    assert CharLimiter().count_tokens(_summary_text(history)) <= cap
 
 
 @pytest.mark.asyncio

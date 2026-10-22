@@ -354,14 +354,10 @@ async def _build_summary_text(
         )
     if not summary_text.strip():
         return ""
-    if _is_state_snapshot_well_formed(summary_text):
-        summary_text = await _enforce_summary_cap(
-            summary_text, summarizer_agent, llm_limiter, conversational_token_threshold
-        )
-    else:
+    if not _is_state_snapshot_well_formed(summary_text):
         # A summary that lost its schema still beats no summary: a history left
         # over the budget fails the next request outright, and the archive holds
-        # the text the summary replaced either way.
+        # the text the summary replaced either way. It is still capped below.
         zrb_print(
             stylize_warning(
                 "  Warning: summary is missing part of the <state_snapshot> "
@@ -369,12 +365,26 @@ async def _build_summary_text(
             ),
             plain=True,
         )
-    # Baked into the summary so no extra turn breaks role alternation.
+    # The journal index and the archive pointer are written by zrb, appended
+    # below, and count against the same cap: measuring the model's text alone
+    # would let the block inserted into the conversation run past it.
     journal_block = render_journal_index()
+    archive_note = _render_archive_note(archive_path) if archive_path else ""
+    reserved = llm_limiter.count_tokens(journal_block) + llm_limiter.count_tokens(
+        archive_note
+    )
+    summary_text = await _enforce_summary_cap(
+        summary_text,
+        summarizer_agent,
+        llm_limiter,
+        conversational_token_threshold,
+        reserved,
+    )
+    # Baked into the summary so no extra turn breaks role alternation.
     if journal_block:
         summary_text = f"{summary_text}\n\n{journal_block}"
-    if archive_path:
-        summary_text = f"{summary_text}\n\n{_render_archive_note(archive_path)}"
+    if archive_note:
+        summary_text = f"{summary_text}\n\n{archive_note}"
     return summary_text
 
 
@@ -383,37 +393,52 @@ async def _enforce_summary_cap(
     agent: "Agent[None, str]",
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
+    reserved: int = 0,
 ) -> str:
-    """Shorten a summary over `LLM_SUMMARY_MAX_TOKENS`, then accept it as it is.
+    """Keep the whole inserted block under `LLM_SUMMARY_MAX_TOKENS`.
 
-    A bulky summary costs tokens; a history left over the budget fails the whole
-    request. So the cap bounds effort, not correctness: two shortening attempts,
-    then a warning and the shorter of what we have.
+    Applies to every non-empty summary, schema or not: a malformed one cannot be
+    rewritten into a snapshot, but it can still be too large. Two shortening
+    attempts, then a deterministic truncation — a bulky summary costs tokens,
+    where a history left over the budget fails the request outright, and the
+    archive holds whatever the truncation drops.
     """
     cap = CFG.LLM_SUMMARY_MAX_TOKENS
     if cap <= 0:
         return summary_text
+    budget = cap - reserved
+    if budget <= 0:
+        zrb_print(
+            stylize_warning(
+                f"  Warning: the journal index and archive note fill the "
+                f"{cap}-token summary cap on their own; the summary is left as it is."
+            ),
+            plain=True,
+        )
+        return summary_text
     for _ in range(_SUMMARY_SHORTEN_ATTEMPTS):
-        if limiter.count_tokens(summary_text) <= cap:
+        if limiter.count_tokens(summary_text) <= budget:
             return summary_text
         zrb_print(
             stylize_warning(
                 f"  Summary over its {cap}-token cap "
-                f"({limiter.count_tokens(summary_text)}); shortening..."
+                f"({limiter.count_tokens(summary_text)} + {reserved} reserved); "
+                "shortening..."
             ),
             plain=True,
         )
         summary_text = await _shorten_summary(
-            summary_text, agent, limiter, conversational_token_threshold, cap
+            summary_text, agent, limiter, conversational_token_threshold, budget
         )
-    if limiter.count_tokens(summary_text) > cap:
+    if limiter.count_tokens(summary_text) > budget:
         zrb_print(
             stylize_warning(
-                f"  Warning: summary still over {cap} tokens "
-                f"({limiter.count_tokens(summary_text)}); keeping it as it is."
+                f"  Warning: summary still over the cap "
+                f"({limiter.count_tokens(summary_text)} > {budget}); truncating it."
             ),
             plain=True,
         )
+        summary_text = limiter.truncate_text(summary_text, budget)
     return summary_text
 
 

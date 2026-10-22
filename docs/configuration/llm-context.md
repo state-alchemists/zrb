@@ -41,10 +41,12 @@ rather than the user speaking, and closes with an explicit end marker. Both are 
 bearing, because role alternation merges the summary into the same user turn as the real
 user messages that follow it, and without them the reader cannot tell the automation from
 the user. Its size is bounded by `ZRB_LLM_SUMMARY_MAX_TOKENS`, which the summarizer prompt
-already asked for in prose: a summary over the cap is shortened at most twice before it
-is used, and one that will not fit is kept anyway — a bulky summary costs tokens, where an
-over-budget history fails the request. A summary that comes back empty leaves the history
-untouched instead.
+already asked for in prose: the cap covers the whole inserted block — the model's snapshot
+plus the journal index and the archive pointer that zrb appends — a summary over what is
+left of it is shortened at most twice and then truncated, and a summary that arrived
+without the schema is capped too rather than dropped, since an over-budget history fails
+the request where a bulky summary only costs tokens. A summary that comes back empty
+leaves the history untouched instead.
 
 The same mechanism keeps one large repo or file read from blowing the context window; like the two above, each threshold is clamped to a fraction of the smaller of `MAX_TOKEN_PER_MINUTE` and `MAX_TOKEN_PER_REQUEST` (75% for the two above, 40% here):
 
