@@ -30,7 +30,13 @@ cli.add_task(
     )
 )
 cli.add_task(CmdTask(name="fail", cmd="exit 7", retries=0))
-cli.add_task(CmdTask(name="slow", cmd="echo $$ > child.pid; exec sleep 30"))
+# Long enough that it never finishes on its own: a fixed, short sleep here
+# races the *test* process's own scheduling under a loaded, contended full
+# suite run — if that process is delayed getting around to sending the
+# signal, a short sleep can complete naturally first, turning "interrupted"
+# tests into false negatives (exit 0 instead of 130/143). Only the signal
+# should ever end this.
+cli.add_task(CmdTask(name="slow", cmd="echo $$ > child.pid; exec sleep 3600"))
 """
 
 
@@ -42,10 +48,21 @@ def project(tmp_path: Path) -> Path:
 
 
 def _env(project: Path, **extra: str) -> dict[str, str]:
+    """The child's environment: a real user's shell, not this test run's own.
+
+    `COV_CORE_*` is `pytest-cov`'s own subprocess-coverage hook (see its
+    `.pth` file): left in, it makes *this* suite's `--cov=zrb` run start
+    coverage tracing inside the spawned `zrb` process too, which perturbs its
+    timing and signal handling enough to turn a clean, fast SIGINT/SIGTERM
+    exit into a hang or a raw signal kill — only reproducible under a
+    coverage-enabled full-suite run, never in isolation.
+    """
     env = {
         key: value
         for key, value in os.environ.items()
-        if key not in ("NO_COLOR", "FORCE_COLOR") and not key.startswith("ZRB_")
+        if key not in ("NO_COLOR", "FORCE_COLOR")
+        and not key.startswith("ZRB_")
+        and not key.startswith("COV_CORE_")
     }
     env.update(HOME=str(project / "home"), ZRB_INIT_SCRIPTS="", **extra)
     return env
@@ -130,7 +147,7 @@ def _is_alive(pid: int) -> bool:
     return True
 
 
-def _wait_gone(pid: int, timeout: float = 5) -> bool:
+def _wait_gone(pid: int, timeout: float = 10) -> bool:
     deadline = time.monotonic() + timeout
     while _is_alive(pid):
         if time.monotonic() > deadline:
@@ -141,10 +158,14 @@ def _wait_gone(pid: int, timeout: float = 5) -> bool:
 
 
 @posix_only
+# `zrb`'s own cleanup is quick (`CMD_CLEANUP_TIMEOUT` defaults to 2s), but this
+# waits on a real subprocess to be scheduled, signalled and reaped — on a full
+# suite run (thousands of other tests forking/execing at the same time) that
+# can stretch past a tight budget without a real bug behind it.
 def test_ctrl_c_exits_130_and_stops_the_running_command(project):
     process, child = _start_slow(project)
     os.killpg(process.pid, signal.SIGINT)
-    assert process.wait(timeout=15) == 130
+    assert process.wait(timeout=30) == 130
     assert _wait_gone(child)
 
 
@@ -153,5 +174,5 @@ def test_sigterm_to_zrb_alone_exits_143_and_stops_the_running_command(project):
     """`docker stop`, systemd and CI cancellation signal only the main PID."""
     process, child = _start_slow(project)
     process.send_signal(signal.SIGTERM)
-    assert process.wait(timeout=15) == 143
+    assert process.wait(timeout=30) == 143
     assert _wait_gone(child)

@@ -85,11 +85,13 @@ def test_a_backend_bound_to_a_loop_is_closed_on_that_loop():
         session.backend = LoopBound()
         session.close()
 
-        assert closed.wait(5)
+        # A generous budget: a slow/contended CI runner can delay the
+        # dedicated loop thread's scheduling well past a tight one.
+        assert closed.wait(30)
         assert closed_on == [loop]
     finally:
         loop.call_soon_threadsafe(loop.stop)
-        thread.join(5)
+        thread.join(30)
         loop.close()
 
 

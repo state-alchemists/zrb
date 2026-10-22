@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-from unittest.mock import MagicMock
 
 from zrb.config.config import CFG
 from zrb.llm.ui.base.message_queue import (
@@ -59,7 +58,6 @@ class BurstTarget:
 def submit_burst(queue, target, text):
     submit_user_message_via_queue(
         append_to_output=target.append_to_output,
-        active_run_context=None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
         attachment_sources=[target],
@@ -159,69 +157,6 @@ def test_submit_via_queue_does_not_merge_across_a_queued_exec_job(monkeypatch):
     first = queue.editable_before(second)
     assert first is not None and first.text == "first"
     assert len(target.outputs) == 2
-
-
-def test_submit_via_queue_steers_live_run_even_inside_the_merge_window(monkeypatch):
-    """A live run owns the submission even when an editable message is still
-    inside the paste window: the burst check must not run before the live-run
-    steers, or the new line (and its attachments) would fold into the older
-    queued message the run never reads. Steering wins, and the queued message
-    stays untouched."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
-    run_context = MagicMock()
-    target = BurstTarget()
-    queue = MessageQueue()
-
-    submit_burst(queue, target, "first")
-    submit_user_message_via_queue(
-        append_to_output=target.append_to_output,
-        active_run_context=run_context,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[target],
-        echo_targets=[target],
-        llm_task=object(),
-        user_message="second",
-        marker="💬",
-    )
-
-    run_context.enqueue.assert_called_once_with("second", "img-2", priority="asap")
-    assert queue.qsize() == 1
-    assert queue.peek_latest().text == "first"
-
-
-def test_submit_via_queue_merges_when_steering_a_finished_run_fails(monkeypatch):
-    """A run context that goes stale between the caller reading it and the
-    `enqueue` call falls back to the queue — the documented normal case — so
-    the line is still part of the burst and merges. Gating the merge on
-    `active_run_context is None` would instead split a paste into one queued
-    turn per line the moment a run finished mid-burst."""
-    monkeypatch.setattr(CFG, "LLM_UI_PASTE_MERGE_WINDOW", 60_000, raising=False)
-    finished_run = MagicMock()
-    finished_run.enqueue.side_effect = RuntimeError("run already finished")
-    target = BurstTarget()
-    queue = MessageQueue()
-
-    submit_burst(queue, target, "first")
-    submit_user_message_via_queue(
-        append_to_output=target.append_to_output,
-        active_run_context=finished_run,
-        stream_ai_response=_stub_stream_ai_response,
-        queue=queue,
-        attachment_sources=[target],
-        echo_targets=[target],
-        llm_task=object(),
-        user_message="second",
-        marker="💬",
-    )
-
-    assert queue.qsize() == 1
-    entry = queue.peek_latest()
-    assert entry.text == "first\nsecond"
-    assert entry.attachments == ["img-1", "img-2"]
-    # Merged like any queued line: the opening echo is redrawn, not doubled.
-    assert len(target.outputs) == 1
-    assert target.redrawn == [entry]
 
 
 def test_submit_via_queue_merge_preserves_pasted_whitespace(monkeypatch):
