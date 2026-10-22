@@ -64,6 +64,7 @@ def send_queued_messages_now(
     is_turn_running: bool,
     is_waiting_for_answer: bool,
     cancel_turn: Callable[[], None],
+    may_interrupt: bool = True,
 ) -> DeliveryReport:
     """Hand the queued messages to the running turn, now.
 
@@ -82,6 +83,11 @@ def send_queued_messages_now(
     An `/exec` job at the head is an ordering barrier (see `_steer_entries`):
     when it delivers nothing, the attempt falls through to the cancel below,
     which runs the whole queue in its original order — the `/exec` job first.
+
+    `may_interrupt=False` is for a caller that did not ask for the turn to
+    stop: hands-free speech is delivered at the earliest safe model request,
+    and otherwise waits for the next turn. Interrupting is the user's call
+    (Esc, Ctrl+G, a stop word), not a side effect of talking.
     """
     entries = queue.pending()
     if not entries:
@@ -113,7 +119,7 @@ def send_queued_messages_now(
     # fallback the no-live-run case uses, and the one the failed enqueue is
     # itself the signal for. `FELL_BACK_TO_CANCEL` is reserved for the runs
     # where the cancel was actually asked for.
-    if is_turn_running:
+    if is_turn_running and may_interrupt:
         cancel_turn()
         return DeliveryReport(
             DeliveryOutcome.FELL_BACK_TO_CANCEL,

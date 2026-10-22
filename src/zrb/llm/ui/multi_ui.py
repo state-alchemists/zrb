@@ -597,6 +597,16 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Queue *user_message* for the shared agent turn (Ctrl+G sends sooner)."""
         self.submit_user_message(self._llm_task, user_message, source)
 
+    def submit_message_now(
+        self,
+        user_message: str,
+        source: InputProvenance | None = None,
+        may_interrupt: bool = True,
+    ) -> DeliveryReport:
+        """Submit *user_message* and hand it to the shared turn, now (ADR-0076)."""
+        self.submit_message(user_message, source)
+        return self.send_queued_messages_now(may_interrupt=may_interrupt)
+
     async def process_messages_loop(self):
         """Process jobs from shared queue sequentially."""
         while True:
@@ -741,7 +751,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Whether any child holds a prompt waiting for the user."""
         return any(ui.is_waiting_for_answer for ui in self._uis)
 
-    def send_queued_messages_now(self) -> DeliveryReport:
+    def send_queued_messages_now(self, may_interrupt: bool = True) -> DeliveryReport:
         """Deliver the queued messages into the running turn, now.
 
         The children share one queue and this wrapper runs the turn, so the
@@ -753,6 +763,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             is_turn_running=self.is_turn_running,
             is_waiting_for_answer=self.is_waiting_for_answer,
             cancel_turn=lambda: self.cancel_current_turn("send_now"),
+            may_interrupt=may_interrupt,
         )
         main_ui = self.main_ui
         redraw = getattr(main_ui, "redraw_echoes", None)

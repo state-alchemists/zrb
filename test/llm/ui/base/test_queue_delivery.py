@@ -29,7 +29,14 @@ def _entry(text, kind="message"):
     return QueuedMessage(text=text, attachments=[], kind=kind, run=run)
 
 
-def _send(queue, run_context=None, *, is_turn_running=False, is_waiting=False):
+def _send(
+    queue,
+    run_context=None,
+    *,
+    is_turn_running=False,
+    is_waiting=False,
+    may_interrupt=True,
+):
     """Run the ladder; return the report and the cancel calls it made."""
     cancelled = []
     report = send_queued_messages_now(
@@ -38,6 +45,7 @@ def _send(queue, run_context=None, *, is_turn_running=False, is_waiting=False):
         is_turn_running=is_turn_running,
         is_waiting_for_answer=is_waiting,
         cancel_turn=lambda: cancelled.append(True),
+        may_interrupt=may_interrupt,
     )
     return report, cancelled
 
@@ -168,6 +176,19 @@ def test_a_running_turn_without_a_live_run_is_interrupted():
     assert report.outcome is DeliveryOutcome.FELL_BACK_TO_CANCEL
     assert report.held == 1
     assert cancelled == [True]
+
+
+def test_speech_delivery_never_interrupts_a_running_turn():
+    """A spoken message that cannot be delivered safely waits, it does not stop
+    the work: interrupting is the user's call (Esc, Ctrl+G, a stop word)."""
+    queue = MessageQueue()
+    queue.put_nowait(_entry("hello"))
+
+    report, cancelled = _send(queue, is_turn_running=True, may_interrupt=False)
+
+    assert cancelled == []
+    assert report.outcome is DeliveryOutcome.NOTHING_MOVED
+    assert report.held == 1
 
 
 def test_nothing_running_moves_nothing():
@@ -405,7 +426,7 @@ def test_a_child_ui_lets_its_multi_ui_parent_deliver():
 
     report = ui.send_queued_messages_now()
 
-    parent.send_queued_messages_now.assert_called_once_with()
+    parent.send_queued_messages_now.assert_called_once_with(may_interrupt=True)
     assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
 
 

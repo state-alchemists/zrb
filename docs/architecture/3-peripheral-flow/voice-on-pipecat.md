@@ -95,7 +95,7 @@ Each of these carries behaviour Pipecat has no notion of. Moving one into Pipeca
 | `UtteranceCutter` | The echo-aware bar: the room under ordinary speech and zrb's own voice are measured separately, and speech is held on loudness before the words are known |
 | `DictationSession`'s guards | A stop, an approval, a denial, a wake word, a minimum word count |
 | `TriggerReply` and the trigger adapter | A transcript that answers the pending prompt instead of steering the turn |
-| Push-to-talk's input path | A transcript that lands in the editable input box, unsent |
+| Push-to-talk's input path | A transcript submitted through the keyboard's own path, so it queues as typed words do |
 | vosk | Offline transcription with partials and per-word confidence; it stays zrb's own backend because Pipecat ships no vosk service |
 | `Speaker` and `PcmUtterance` | Pause, resume, interrupt, an external-player fallback, and per-session isolation |
 

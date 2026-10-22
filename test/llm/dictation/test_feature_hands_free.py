@@ -115,8 +115,9 @@ async def test_hands_free_turns_each_utterance_into_a_reply(monkeypatch):
             "open the file",
             approval="open the file",
             started_at=0,
+            send_now=True,
         ),
-        TriggerReply("Yes.", approval="yes", started_at=2),
+        TriggerReply("Yes.", approval="yes", started_at=2, send_now=True),
     ]
 
 
@@ -130,11 +131,13 @@ async def test_a_command_opening_with_an_approve_word_is_sent_as_said(monkeypatc
             "ok run the tests",
             approval="ok run the tests",
             started_at=0,
+            send_now=True,
         ),
         TriggerReply(
             "Okay, no, stop.",
             approval="Okay, no, stop.",
             started_at=2,
+            send_now=True,
         ),
     ]
 

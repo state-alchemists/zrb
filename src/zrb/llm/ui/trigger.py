@@ -57,6 +57,13 @@ class TriggerReply:
     that appeared later gets `text` as a user turn instead, so a "yes" said to
     nothing cannot approve a tool call shown while it was being transcribed.
 
+    `send_now` asks the trigger loop to submit `text` as a message and hand it
+    to the running turn in one step (`submit_message_now`), which is what
+    `Enter` and then `Ctrl+G` do from the keyboard. A trigger that speaks for
+    the user sets it: there is no key to press behind a spoken message, and
+    leaving it queued would make speech wait for a turn the user cannot see
+    end (ADR-0076).
+
     Only a trigger that speaks for the user (dictation) should yield one: a
     scheduled or remote source must not be able to approve a tool call.
     """
@@ -64,4 +71,5 @@ class TriggerReply:
     text: str
     approval: str | None = None
     started_at: float | None = None
+    send_now: bool = False
     source: InputProvenance | None = field(default=None, init=False, compare=False)

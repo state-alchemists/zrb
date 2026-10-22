@@ -177,7 +177,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Wake words set | `DictationConfig.wake_words` | Only words starting with a wake word count; one heard in the live partial transcript stops zrb early |
 | The interrupt judge | `DictationConfig.interrupt_judge_enabled` | What an interrupting utterance asks of zrb is put to the small model when the word lists cannot read it and it is at most `interrupt_judge_max_words` long; a stop or a hush the lists read never reaches the model, and a request is the answer when the judge is off, slow or unsure |
 | Speech not enabled | `interrupt_speech` and siblings | Find no speech session for the key and do nothing; dictation works the same |
-| Push-to-talk (`/voice`) | `DictationSession.toggle_recording` | Every word is kept; the transcript goes into the input box for the user to edit, not sent |
+| Push-to-talk (`/voice`) | `DictationSession.toggle_recording` | Every word is kept; the transcript is submitted through the keyboard's own path, so it queues as typed words do |
 | A sentence played by an external program | `Speaker.pause` | It cannot be held, so it is stopped and speech carries on with the next sentence |
 | The web runner | `close_feature_sessions` in `src/zrb/runner/chat/chat_session_manager.py` | Each connection is its own chat session, with its own microphone and speaker state |
 
