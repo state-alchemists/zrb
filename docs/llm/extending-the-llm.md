@@ -329,18 +329,30 @@ if model_capabilities.supports_modality("openai:gpt-4o", "image"):
 | **Message-level** | Single tool output too large | Summarize before adding to history |
 | **Conversational** | Overall history grows too large | Compress older messages to `<state_snapshot>` |
 
-### Message-Count-Based Retention
+### Token-First Retention
 
-When summarization triggers, the system splits history by message count, not by percentage: `target_keep_count = min(summary_window, len(messages))`, where `summary_window` defaults to 100 messages (`LLM_HISTORY_SUMMARIZATION_WINDOW`). Everything older than that target split point is compressed into a state snapshot; the rest is retained verbatim.
+Summarization triggers when total tokens cross 75% of the prompt budget
+(`LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`) or the history holds more than
+`LLM_HISTORY_SUMMARIZATION_WINDOW` messages (300 by default). The token trigger is the
+real one; the message count is a backstop for conversations of many small messages.
+
+When it triggers, the split is token-first: keep the newest turns that fit 40% of the
+trigger threshold, which leaves the rest of the window for the turns that follow. The
+message window only caps that tail — it never decides the split on its own.
 
 | Action | Description |
 |--------|-------------|
-| Compress | Messages older than the target split point → state snapshot |
-| Retain | Newest `summary_window` messages (default 100) verbatim |
+| Compress | Messages older than the budget boundary → state snapshot |
+| Retain | Newest turns within 40% of the trigger threshold, at most 300 messages |
 | Preserve | Tool call/return pairs never separated |
-| Split | At conversation turn boundaries |
+| Split | At a conversation turn boundary when one keeps at least half the budget |
+| Archive | The replaced messages, word for word, appended to `<LLM_HISTORY_DIR>/verbatim/<session>.md` |
 
-The actual split point is adjusted by a backward/forward search that looks for a safe turn boundary near that target — it won't cut a tool call away from its return. Within that search, a token-based safety valve prevents the retained slice from growing too large: if keeping messages back to a candidate split point would exceed 70% of the conversational token threshold, the search stops extending further back. That 70%/token figure is an internal bound on the search, not the primary retention rule.
+A turn boundary is preferred, but not at any price: if reaching one would keep less than
+half the budget, the earliest safe split wins instead, so a single long tool loop is not
+summarized whole just to land on a user message. The archive is append-only and
+human-readable, and the summary names its path — written by zrb, never by the summarizer
+model — so the agent can read back what the summary compressed.
 
 ### Summarization in your own task
 

@@ -142,14 +142,17 @@ class BaseUIExecCommands:
         return False
 
     async def stream_btw_response(self, llm_task: "LLMTask", question: str):
-        """Answer *question* with a fresh tool-less agent, unsaved to history."""
-        try:
-            timestamp = datetime.now().strftime("%H:%M")
-            self._base_ui.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
-            self._base_ui.append_to_output(
-                stylize_muted("  (side question — not saved to history)\n")
-            )
+        """Answer *question* with a fresh tool-less agent, unsaved to history.
 
+        Where the exchange appears is the UI's call: the three `*_side_question`
+        methods default to the transcript, and the terminal UI overrides them to
+        fill its `/btw` panel instead — a side answer never scrolls the
+        conversation the user is reading.
+        """
+        # Answers arrive in their own background task; the token is how a late
+        # one tells the UI it no longer belongs to what is on screen.
+        request = self._base_ui.begin_side_question(question)
+        try:
             # lazy: heavy transitive (pydantic_ai) via zrb.llm.agent
             from zrb.llm.agent import create_agent
             from zrb.llm.agent.types import ModelRequest, SystemPromptPart
@@ -187,18 +190,15 @@ class BaseUIExecCommands:
                 resolve_model=False,
             )
 
-            self._base_ui.append_to_output(f"\n🤖 {timestamp} >>\n")
             result = await agent.run(question, message_history=btw_history)
             answer = result.output if hasattr(result, "output") else str(result)
-
-            self._base_ui.append_to_output("\n")
-            self._base_ui.append_markdown(answer)
+            self._base_ui.end_side_question(answer, request)
 
         except asyncio.CancelledError:
-            self._base_ui.append_to_output("\n[Cancelled]\n")
+            self._base_ui.cancel_side_question(request)
             raise
         except Exception as e:
-            self._base_ui.append_to_output(f"\n[Error: {exception_summary(e)}]\n")
+            self._base_ui.fail_side_question(exception_summary(e), request)
         finally:
             self._base_ui.invalidate_ui()
 

@@ -121,6 +121,44 @@ async def test_draft_restored_on_cancel():
 
 
 @pytest.mark.asyncio
+async def test_a_free_text_prompt_takes_the_focus_back_from_a_panel():
+    """Regression: `/btw` grabs the focus when it opens. A free-text approval
+    that arrives afterwards must claim it back for the input, or the answer
+    would be typed into the read-only panel and never submitted."""
+    ui = DraftConfirmationUI()
+
+    with (
+        patch("prompt_toolkit.application.get_app"),
+        patch("zrb.llm.ui.default.confirmation.focus_widget") as focus,
+    ):
+        task = asyncio.create_task(ui.ask_user("approve?"))
+        await asyncio.sleep(0.01)
+
+        focus.assert_called_once_with(ui.input_field, "Input-field")
+
+        ui.submit_user_answer("y")
+        assert await task == "y"
+
+
+@pytest.mark.asyncio
+async def test_a_choice_prompt_leaves_the_focus_to_the_choice_widget():
+    """`begin_choice` focuses its own window; the input must not steal it back."""
+    ui = DraftConfirmationUI()
+
+    with (
+        patch("prompt_toolkit.application.get_app"),
+        patch("zrb.llm.ui.default.confirmation.focus_widget") as focus,
+    ):
+        task = asyncio.create_task(ui.ask_user_choice({"question": "pick"}))
+        await asyncio.sleep(0.01)
+
+        focus.assert_not_called()
+
+        ui.submit_user_answer("a")
+        assert await task == "a"
+
+
+@pytest.mark.asyncio
 async def test_no_input_field_skips_draft_stash():
     """UIs without an input field (e.g. other BaseUI subclasses) are unaffected."""
     ui = MockConfirmationUI()

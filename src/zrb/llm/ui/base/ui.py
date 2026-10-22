@@ -615,6 +615,42 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     async def stream_btw_response(self, llm_task: LLMTask, question: str) -> None:
         await self._base_commands.stream_btw_response(llm_task, question)
 
+    def begin_side_question(self, question: str) -> object:
+        """[OPTIONAL] Show a side question while its answer is on the way.
+
+        Default: echo it into the transcript, flagged as not saved to history.
+        A UI with room for a panel of its own overrides this and the three
+        methods below to fill that panel instead, so a `/btw` answer never
+        scrolls the conversation the user is reading.
+
+        Returns a token identifying this question. `end_side_question`,
+        `fail_side_question` and `cancel_side_question` take it back so a UI
+        showing one question at a time can drop an answer whose question it
+        has moved past. The default does not care: each answer is appended
+        where it arrives, in order.
+        """
+        timestamp = datetime.now().strftime("%H:%M")
+        self.append_to_output(f"\n💭 {timestamp} >> {question.strip()}\n")
+        self.append_to_output(
+            stylize_muted("  (side question — not saved to history)\n")
+        )
+        return object()
+
+    def end_side_question(self, answer: str, request: object | None = None) -> None:
+        """[OPTIONAL] Show the answer. Default: render it into the transcript."""
+        timestamp = datetime.now().strftime("%H:%M")
+        self.append_to_output(f"\n🤖 {timestamp} >>\n")
+        self.append_to_output("\n")
+        self.append_markdown(answer)
+
+    def fail_side_question(self, message: str, request: object | None = None) -> None:
+        """[OPTIONAL] Report a side question that could not be answered."""
+        self.append_to_output(f"\n[Error: {message}]\n")
+
+    def cancel_side_question(self, request: object | None = None) -> None:
+        """[OPTIONAL] Note that a side question was cancelled."""
+        self.append_to_output("\n[Cancelled]\n")
+
     def handle_custom_command(self, text: str) -> bool:
         return self._exec.handle_custom_command(text)
 
