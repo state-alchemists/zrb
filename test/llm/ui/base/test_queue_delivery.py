@@ -36,6 +36,7 @@ def _send(
     is_turn_running=False,
     is_waiting=False,
     may_interrupt=True,
+    only_ready=False,
 ):
     """Run the ladder; return the report and the cancel calls it made."""
     cancelled = []
@@ -46,8 +47,38 @@ def _send(
         is_waiting_for_answer=is_waiting,
         cancel_turn=lambda: cancelled.append(True),
         may_interrupt=may_interrupt,
+        only_ready=only_ready,
     )
     return report, cancelled
+
+
+def test_a_checkpoint_takes_what_is_ready_and_leaves_the_rest():
+    """The checkpoint's own call: the entry being edited and one inside its
+    grace stay queued, and the one behind them still goes — an edit in progress
+    must not hold the queue (ADR-0078, revised)."""
+    queue = MessageQueue()
+    old = _entry("old")
+    old.queued_at = 0.0
+    edited = _entry("edited")
+    edited.queued_at = 0.0
+    edited.is_being_edited = True
+    too_young = _entry("young")
+    too_young.queued_at = 10**9
+    behind = _entry("behind")
+    behind.queued_at = 0.0
+    for entry in (old, edited, too_young, behind):
+        queue.put_nowait(entry)
+    run_context = MagicMock()
+
+    report, cancelled = _send(
+        queue, run_context, may_interrupt=False, only_ready=True
+    )
+
+    assert report.delivered_entries == (old, behind)
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    assert report.held == 2
+    assert cancelled == []
+    assert [entry.text for entry in queue.pending()] == ["edited", "young"]
 
 
 def test_an_empty_queue_moves_nothing():
@@ -426,7 +457,9 @@ def test_a_child_ui_lets_its_multi_ui_parent_deliver():
 
     report = ui.send_queued_messages_now()
 
-    parent.send_queued_messages_now.assert_called_once_with(may_interrupt=True)
+    parent.send_queued_messages_now.assert_called_once_with(
+        may_interrupt=True, only_ready=False
+    )
     assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
 
 
