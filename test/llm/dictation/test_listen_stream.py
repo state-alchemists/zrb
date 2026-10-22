@@ -128,10 +128,24 @@ async def _collect(
         patch("zrb.llm.dictation.listen.is_speaking", return_value=speaking),
     ):
         task = asyncio.create_task(consume())
-        await asyncio.sleep(0)
+        # `_open_microphone` hands `sd.InputStream(...)` off to a real daemon
+        # thread (`run_in_daemon`), so `captured["callback"]` lands on that
+        # thread's own schedule, not necessarily within one event-loop tick:
+        # poll for it instead of assuming a single `sleep(0)` suffices.
+        await _wait_for(lambda: "callback" in captured)
         for block in blocks:
             captured["callback"](block, len(block), None, None)
         return await task
+
+
+async def _wait_for(predicate, timeout=5.0):
+    """Poll for a condition set from another thread."""
+
+    async def _poll():
+        while not predicate():
+            await asyncio.sleep(0.001)
+
+    await asyncio.wait_for(_poll(), timeout=timeout)
 
 
 @pytest.mark.asyncio

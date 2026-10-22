@@ -311,11 +311,13 @@ async def main():
 asyncio.run(main())
 """
     env = os.environ | {"PYTHONPATH": str(Path(__file__).parents[3] / "src")}
+    # What this checks is "does not hang forever", not speed: a generous
+    # budget tolerates a slow/contended CI runner without weakening the check.
     subprocess.run(
         [sys.executable, "-c", script],
         check=True,
         capture_output=True,
         text=True,
-        timeout=5,
+        timeout=30,
         env=env,
     )
