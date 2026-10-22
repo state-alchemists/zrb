@@ -106,3 +106,35 @@ def test_an_index_written_before_the_agent_section_gains_it_in_place(
         "- [A note](technical/a-note.md)",
     ):
         assert kept in index
+
+
+def test_a_migrated_index_links_the_new_category_in_directories(writable_journal):
+    """A section nobody links to is a section nobody reads: the migration adds
+    `agent/index.md` to `## Directories` too, in its place among the others."""
+    from zrb.llm.tool.journal_write import log_activity
+
+    _write(
+        writable_journal,
+        "# Journal\n\n"
+        "## User\n\n- Goes by Go.\n\n"
+        "## Preferences\n\n- Prefers terse replies.\n\n"
+        "## Active Constraints\n\n- Tests stay public-API only.\n\n"
+        "## Directories\n\n"
+        "- [user](user/index.md) · [preferences](preferences/index.md)\n\n"
+        "## Recent Insights\n\n",
+    )
+
+    log_activity("wrote a note")
+
+    directories = [
+        line
+        for line in _read(writable_journal, "index.md").splitlines()
+        if line.startswith("- [")
+    ][0]
+    # Every category, in the order a journal created now writes them.
+    assert directories == (
+        "- [user](user/index.md) · [agent](agent/index.md) · "
+        "[preferences](preferences/index.md) · "
+        "[projects](projects/index.md) · [technical](technical/index.md) · "
+        "[activity-log](activity-log/index.md)"
+    )

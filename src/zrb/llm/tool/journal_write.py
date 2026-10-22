@@ -44,6 +44,7 @@ _HUD_SECTION = {
 # migrated into this order rather than appended after the unbounded one.
 _HUD_ORDER = ("User", "Preferences", "Agent", "Active Constraints")
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_DIRECTORY_LINK_RE = re.compile(r"\[([a-z0-9-]+)\]\(\1/index\.md\)")
 _BACKLINKS_HEADING = "## Backlinks"
 
 
@@ -311,15 +312,17 @@ def _open_journal() -> Iterator[str]:
 
 
 def _migrate_root_index(root: str) -> None:
-    """Add any HUD section the root index predates, with the lock held.
+    """Bring the root index up to the skeleton this version writes, lock held.
 
-    A read-modify-write, so it belongs where the lock is: reading the index
-    before `hold_file_lock` let a writer write back a copy taken before another
-    writer added its line, losing that line on both sides of a successful call.
+    Two things an older journal is missing: a HUD section for a category that
+    did not exist, and the category's link in `## Directories`. A read-modify-
+    write, so it belongs where the lock is: reading the index before
+    `hold_file_lock` let a writer write back a copy taken before another writer
+    added its line, losing that line on both sides of a successful call.
     """
     root_index = os.path.join(root, "index.md")
     current = _read_text(root_index)
-    migrated = _ensure_hud_sections(current)
+    migrated = _ensure_directory_links(_ensure_hud_sections(current))
     if migrated != current:
         _write_text(root_index, migrated)
 
@@ -437,6 +440,57 @@ def _ensure_hud_sections(text: str) -> str:
     for name in _HUD_ORDER:
         if f"## {name}" not in text.splitlines():
             text = _insert_section_in_order(text, name)
+    return text
+
+
+def _ensure_directory_links(text: str) -> str:
+    """Add any category link the `## Directories` line predates, in its order.
+
+    The link is what makes a category reachable from the injected root index, so
+    a migrated journal that gains `## Agent` but not `[agent](agent/index.md)`
+    hides every agent note behind an index nobody links to. Existing links keep
+    their text and their order; a missing one is slotted where `NOTE_CATEGORIES`
+    puts it, so the line reads the same as a journal created now.
+    """
+    expected = [*NOTE_CATEGORIES, ACTIVITY_DIR]
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.strip() != "## Directories":
+            continue
+        bullet_at = next(
+            (
+                offset
+                for offset in range(index + 1, len(lines))
+                if lines[offset].startswith("- ")
+            ),
+            None,
+        )
+        if bullet_at is None:
+            # A heading with no list under it is not a shape this writer makes;
+            # leave it rather than inventing a line above someone's own text.
+            return text
+        present = _DIRECTORY_LINK_RE.findall(lines[bullet_at])
+        if all(name in present for name in expected):
+            return text
+        order = list(present)
+        for name in expected:
+            if name in order:
+                continue
+            # Slot it before the first link that must follow it, else at the end.
+            followers = [
+                other
+                for other in expected[expected.index(name) + 1 :]
+                if other in order
+            ]
+            if followers:
+                order.insert(order.index(followers[0]), name)
+            else:
+                order.append(name)
+        lines[bullet_at] = "- " + " · ".join(
+            f"[{name}]({name}/index.md)" for name in order
+        )
+        rebuilt = "\n".join(lines)
+        return rebuilt + "\n" if text.endswith("\n") else rebuilt
     return text
 
 
