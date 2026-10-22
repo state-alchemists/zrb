@@ -96,7 +96,13 @@ class SubAgentBuilding:
             system_prompt=resolved.system_prompt,
             tools=[*resolved.tools, send_message_to_parent],
             toolsets=resolved.toolsets,
-            history_processors=[create_summarizer_history_processor()],
+            history_processors=[
+                create_summarizer_history_processor(
+                    # Sub-agent histories land in a per-type directory; the
+                    # archive mirrors that with a per-type file.
+                    session_name=f"subagent-{name}"
+                )
+            ],
             yolo=resolved.yolo,
             resolve_model=False,
         )
@@ -127,7 +133,11 @@ class SubAgentBuilding:
             toolsets=resolved.toolsets,
             # Already final: resolve_configured_model ran above.
             model=resolved.model,
-            history_processors=[create_summarizer_history_processor()],
+            history_processors=[
+                create_summarizer_history_processor(
+                    session_name=f"subagent-{definition.name}"
+                )
+            ],
             # Mirrors builtin/llm/chat.py: the web chat runner passes these
             # per message via ctx.input.
             message=Tpl("{ctx.input.message}"),

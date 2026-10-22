@@ -11,7 +11,11 @@ REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
 # Baseline history: -2 queue types, -1 dead `_admits`, -4 daemon-thread hooks.
-ANY_ANNOTATIONS = 1088
+# -10 (1088->1078): the history splitter's message lists are typed
+# `list[ModelMessage]` now that the split is planned over real messages rather
+# than counted indices, and the archive's role label takes `object` (it only
+# asks the message what it is).
+ANY_ANNOTATIONS = 1078
 
 
 def _count_any(annotation: ast.expr | None) -> int:

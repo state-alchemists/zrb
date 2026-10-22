@@ -43,8 +43,10 @@ async def test_summarize_history_consecutive_user_messages():
             messages,
             agent=agent,
             summary_window=2,
+            # The tail budget is 40% of the threshold: 24 tokens here, so the
+            # last turn (m3, m4 — 20 tokens) is what stays verbatim.
             limiter=limiter,
-            conversational_token_threshold=30,
+            conversational_token_threshold=60,
         )
 
     assert len(new_history) == 2

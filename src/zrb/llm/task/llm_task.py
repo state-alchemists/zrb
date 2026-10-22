@@ -738,7 +738,9 @@ class LLMTask(BaseTask):
         # `/compress` runs before any agent publishes model bindings; without
         # this scope the summarizer resolves against `CFG` and ignores `/model`.
         with session_model_scope(self._uis):
-            new_history = await summarize_history(message_history, force=True)
+            new_history = await summarize_history(
+                message_history, force=True, session_name=conversation_name
+            )
         history_manager.update(conversation_name, new_history)
         await asyncio.to_thread(history_manager.save, conversation_name)
         # The status bar's context size predates the compaction; hide it until

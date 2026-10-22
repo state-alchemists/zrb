@@ -381,7 +381,12 @@ class ChatExecution:
             tools=resolved_tools,
             toolsets=resolved_toolsets,
             history_processors=llm_chat_task.history_processors
-            + [create_summarizer_history_processor()],
+            + [
+                create_summarizer_history_processor(
+                    # Names the verbatim archive this conversation reads back.
+                    session_name=self._get_initial_conversation_name(ctx)
+                )
+            ],
             capabilities=capabilities,
             llm_limiter=llm_chat_task.llm_limiter,
             history_manager=resolved.history.history_manager,
