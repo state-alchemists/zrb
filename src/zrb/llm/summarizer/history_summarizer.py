@@ -19,6 +19,7 @@ from zrb.llm.message import (
     validate_tool_pair_integrity,
 )
 from zrb.llm.prompt.live_context import render_journal_index
+from zrb.llm.skill.reattach import build_reattach_message
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
@@ -361,7 +362,12 @@ async def summarize_history(
         if summary_message is None:
             return messages
         result = _assemble_summarized_history(
-            summary_message, messages, to_keep, verbatim_tail_message, structured_tail
+            summary_message,
+            messages,
+            to_keep,
+            verbatim_tail_message,
+            structured_tail,
+            llm_limiter,
         )
         # Only now, with a summary that replaces the messages in hand: an
         # archive written before a failed summarization would claim messages
@@ -373,7 +379,12 @@ async def summarize_history(
             # Nothing but prior summaries here, which the archive does not
             # repeat: there is no file to point at.
             return _without_archive_pointer(
-                fitted, messages, to_keep, verbatim_tail_message, structured_tail
+                fitted,
+                messages,
+                to_keep,
+                verbatim_tail_message,
+                structured_tail,
+                llm_limiter,
             )
         # The size is counted on `archived`, the list the section renders, so
         # the section's message and token counts describe the same messages.
@@ -392,7 +403,12 @@ async def summarize_history(
             plain=True,
         )
         return _without_archive_pointer(
-            fitted, messages, to_keep, verbatim_tail_message, structured_tail
+            fitted,
+            messages,
+            to_keep,
+            verbatim_tail_message,
+            structured_tail,
+            llm_limiter,
         )
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
@@ -438,6 +454,7 @@ def _without_archive_pointer(
     to_keep: "list[ModelMessage]",
     verbatim_tail_message: "ModelMessage | None",
     structured_tail: "list[ModelMessage]",
+    limiter: "LLMLimiter",
 ) -> "list[ModelMessage]":
     """The replacement the cap approved, minus the pointer to an unwritten archive.
 
@@ -449,7 +466,12 @@ def _without_archive_pointer(
     if summary_message is None:
         return messages
     return _assemble_summarized_history(
-        summary_message, messages, to_keep, verbatim_tail_message, structured_tail
+        summary_message,
+        messages,
+        to_keep,
+        verbatim_tail_message,
+        structured_tail,
+        limiter,
     )
 
 
@@ -856,13 +878,19 @@ def _assemble_summarized_history(
     to_keep: list[Any],
     verbatim_tail_message: "ModelMessage | None",
     structured_tail: "list[ModelMessage]",
+    limiter: "LLMLimiter",
 ) -> list[Any]:
-    """Join the summary, the opening user turn, the rendered recent tail, and
-    any still-unresolved tool call.
+    """Join the summary, the opening user turn, the re-attached skills, the
+    rendered recent tail, and any still-unresolved tool call.
 
     The opening user turn is kept verbatim (it holds the original goal);
     `to_keep` is only consulted here to decide whether that turn already
     appears further down, in `verbatim_tail_message` or `structured_tail`.
+    Skill bodies that `to_summarize` carried do not survive as messages, and a
+    summary that only names them is not the instructions, so the newest block
+    per skill is re-attached (see `zrb.llm.skill.reattach`). *limiter* is the
+    run's own, so the caps are measured with the tokenizer the caller budgeted
+    against.
     `structured_tail` stays in native message form — a trailing deferred tool
     call pydantic-ai must still be able to resume — everything else that
     `split_history` chose to keep was already rendered into
@@ -870,10 +898,20 @@ def _assemble_summarized_history(
     """
     first_user_message = _find_first_user_message(messages)
     result: list[Any] = [summary_message]
+    # The opening turn is re-appended on its own, so it survives even when the
+    # split left it outside `to_keep`. It therefore counts as present for the
+    # re-attach scan: a skill block inside it is still in the history, and
+    # re-attaching it would send the same instructions twice.
+    kept = list(to_keep)
     if first_user_message is not None and all(
         m is not first_user_message for m in to_keep
     ):
         result.append(first_user_message)
+        kept.append(first_user_message)
+    dropped = [m for m in messages if all(m is not surviving for surviving in kept)]
+    reattached = build_reattach_message(dropped, kept, limiter)
+    if reattached is not None:
+        result.append(reattached)
     if verbatim_tail_message is not None:
         result.append(verbatim_tail_message)
     if structured_tail:

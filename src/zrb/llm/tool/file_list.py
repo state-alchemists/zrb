@@ -1,12 +1,12 @@
 import glob
 import os
-import subprocess
 from typing import Annotated, Any
 
 from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.tool.file_observation import record_listed
+from zrb.llm.tool.git_visible import without_gitignored
 from zrb.util.file import matches_any_pattern, walk_files
 from zrb.util.truncate import truncate_items
 
@@ -54,46 +54,6 @@ def _truncate_file_list(
     """Head-keep within the output budget; ``(files, omitted_count or None)``."""
     kept, omitted = truncate_items(sorted_files, CFG.LLM_MAX_OUTPUT_CHARS)
     return kept, (omitted or None)
-
-
-def _git_visible_files(abs_path: str) -> set[str] | None:
-    """Files git would show under *abs_path* (tracked + untracked, not ignored).
-
-    ``None`` when this is not a git checkout or git is unavailable, so the
-    caller keeps the unfiltered walk instead of hiding everything.
-    """
-    try:
-        result = subprocess.run(
-            [
-                "git",
-                "-C",
-                abs_path,
-                "ls-files",
-                "--cached",
-                "--others",
-                "--exclude-standard",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if result.returncode != 0:
-        return None
-    return {
-        os.path.normpath(line.replace("/", os.sep))
-        for line in result.stdout.splitlines()
-        if line
-    }
-
-
-def _without_gitignored(abs_path: str, files: list[str]) -> list[str]:
-    """Drop files `.gitignore` hides, when *abs_path* is inside a checkout."""
-    visible = _git_visible_files(abs_path)
-    if visible is None:
-        return files
-    return [path for path in files if os.path.normpath(path) in visible]
 
 
 def _summarize_by_top_level(files: list[str]) -> list[dict[str, str | int]]:
@@ -183,7 +143,7 @@ def list_files(
         excluded_patterns=patterns_to_exclude,
     )
     if gitignore:
-        sorted_files = _without_gitignored(abs_path, sorted_files)
+        sorted_files = without_gitignored(abs_path, sorted_files)
     if summary:
         return {
             "path": abs_path,
@@ -209,12 +169,25 @@ def glob_files(
     include_hidden: Annotated[
         bool, Field(description="False (default) skips dotfiles; True matches them.")
     ] = False,
+    gitignore: Annotated[
+        bool,
+        Field(
+            description=(
+                "True (default) hides files .gitignore excludes, matching LS. "
+                "False returns them, which is useful only when the ignored tree "
+                "is the target."
+            )
+        ),
+    ] = True,
 ) -> dict[str, Any]:
     """
     Finds files by name or extension, anywhere under a directory.
 
     This searches paths, not contents — use Grep to search what is inside the
     files, and LS when you do not yet know what you are looking for.
+
+    A git checkout hides what `.gitignore` excludes, so the result is the same
+    set of files LS would list rather than a different answer for the same tree.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))
@@ -253,5 +226,7 @@ def glob_files(
         found_files.append(rel_path)
 
     sorted_files = sorted(found_files)
+    if gitignore:
+        sorted_files = without_gitignored(abs_path, sorted_files)
 
     return _listing_result(abs_path, sorted_files)
