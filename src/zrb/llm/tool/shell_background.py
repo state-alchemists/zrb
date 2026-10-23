@@ -41,6 +41,9 @@ class _BackgroundProcess:
     description: str = ""
     returncode: int | None = None
     tasks: list[asyncio.Task] = field(default_factory=list)
+    # Set only for a process moved here after its timeout: its time in the
+    # background is bounded. A process started with `background=True` has none.
+    deadline: asyncio.TimerHandle | None = None
     # The unique `ChatSessionManager` session_id (not the display name); ""
     # outside a web chat run.
     owner_session_id: str = ""
@@ -93,6 +96,76 @@ class _ShellBackgroundRegistry:
             asyncio.ensure_future(self._wait_exit(handle, proc)),
         ]
         return handle
+
+    async def adopt(
+        self,
+        process: asyncio.subprocess.Process,
+        command: str,
+        stdout_cap: StreamCapture,
+        stderr_cap: StreamCapture,
+    ) -> str:
+        """Take over a process its caller stopped waiting on, under a new handle.
+
+        The pipes and the captures are the caller's, still open: whatever the
+        process writes from here lands where the timeout report left off, so
+        the model can pick the output up without losing what came before it.
+        The caller has already cancelled its own readers, which is why this
+        starts new ones rather than reusing them.
+
+        The returned handle expires after
+        ``LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS``; a caller that disables
+        adoption never gets here.
+        """
+        handle = get_random_name(separator="-", add_random_digit=True)
+        bp = _BackgroundProcess(
+            process=process,
+            stdout_cap=stdout_cap,
+            stderr_cap=stderr_cap,
+            description=command,
+            owner_session_id=get_current_chat_session_id(),
+        )
+        self._procs[handle] = bp
+        bp.tasks = [
+            asyncio.ensure_future(self._read_pipe(handle, process.stdout, "stdout")),
+            asyncio.ensure_future(self._read_pipe(handle, process.stderr, "stderr")),
+            asyncio.ensure_future(self._wait_exit(handle, process)),
+        ]
+        self._arm_deadline(handle, bp)
+        return handle
+
+    def _arm_deadline(self, handle: str, bp: _BackgroundProcess) -> None:
+        seconds = CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS
+        if seconds <= 0:
+            return
+        loop = asyncio.get_running_loop()
+        bp.deadline = loop.call_later(seconds, self._expire, handle)
+
+    def _expire(self, handle: str) -> None:
+        """Stop an adopted process that has used up its time in the background.
+
+        The entry stays registered and says why, so a poll that arrives after
+        the kill explains itself instead of reporting an unknown handle.
+        """
+        bp = self._procs.get(handle)
+        if bp is None or bp.process.returncode is not None:
+            return
+        bp.deadline = None
+        seconds = CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS
+        bp.stderr_cap.feed(
+            f"\n[zrb] killed after {seconds}s in the background "
+            f"({CFG.ENV_PREFIX}_LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS). Start it "
+            "again with background=True if it needs longer.\n"
+        )
+        asyncio.ensure_future(self._stop_adopted(handle))
+
+    async def _stop_adopted(self, handle: str) -> None:
+        bp = self._procs.get(handle)
+        if bp is None:
+            return
+        await _stop_process(bp)
+        # `_stop_process` cancels the wait task, so the exit code it would have
+        # recorded is set here; a poll after the kill must not read "running".
+        bp.returncode = bp.process.returncode
 
     async def _read_pipe(
         self, handle: str, stream: asyncio.StreamReader | None, name: str
@@ -266,6 +339,9 @@ def _release_process(bp: _BackgroundProcess) -> None:
         if not task.done():
             task.cancel()
     bp.tasks = []
+    if bp.deadline is not None:
+        bp.deadline.cancel()
+        bp.deadline = None
     bp.stdout_cap.close()
     bp.stderr_cap.close()
     transport = getattr(bp.process, "_transport", None)

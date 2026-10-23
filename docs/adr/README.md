@@ -134,6 +134,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0059** — [Tool output is capped at the source; global overflow is separate](adr-0059.md)
 - **ADR-0060** — [Tools carry a capability tag](adr-0060.md)
 - **ADR-0066** — [`Shell` is the only shell tool; background is a flag](adr-0066.md)
+- **ADR-0121** — [A command that outruns its timeout moves to the background instead of dying](adr-0121.md)
 - **ADR-0067** — [MCP servers are first-class tool sources](adr-0067.md)
 - **ADR-0084** — [`write_file(mode="w")` refuses to overwrite a file this run hasn't observed](adr-0084.md)
 - **ADR-0089** — [Oversized tool results spill to a queryable store instead of being truncated](adr-0089.md)
