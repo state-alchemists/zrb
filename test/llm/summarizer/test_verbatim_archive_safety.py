@@ -126,6 +126,25 @@ def test_a_new_archive_is_private_to_its_owner(tmp_path):
 
 
 @needs_posix_modes
+def test_every_level_a_fresh_archive_creates_is_owner_only(tmp_path):
+    """`os.makedirs(mode=...)`'s mode argument only reaches the directory it
+    was given -- an intermediate level it creates along the way (here, the
+    configured history directory itself, which does not exist yet either)
+    used to be made with Python's default 0o777, masked only by the umask."""
+    history_dir = tmp_path / "nested" / "history"
+    path = verbatim_archive_path("private", str(history_dir))
+    old_umask = os.umask(0o022)
+    try:
+        assert archive_verbatim_history(_messages(), path=path) == path
+    finally:
+        os.umask(old_umask)
+
+    assert stat.S_IMODE(os.stat(history_dir).st_mode) == 0o700
+    assert stat.S_IMODE(os.stat(os.path.dirname(path)).st_mode) == 0o700
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+
+
+@needs_posix_modes
 def test_an_existing_archive_is_narrowed_once(tmp_path):
     """An archive written before the private-mode rule was readable by others.
     It is narrowed in place on first use, and the marker keeps that from being

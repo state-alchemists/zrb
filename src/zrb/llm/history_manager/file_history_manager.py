@@ -649,6 +649,14 @@ class FileHistoryManager(AnyHistoryManager):
         kept by retention, so its archive is too, and a session with no history
         file of its own (the opening-message key) survives as long as the
         summary that names it does.
+
+        A compaction can write the archive and leave the conversation dirty —
+        its save deferred or still pending — well before this call's own
+        trigger, for a *different* conversation, runs the one-time prune: that
+        archive would otherwise be the only unreferenced-looking one on disk,
+        even though an in-memory summary still points to it. Every dirty
+        conversation is kept for exactly the same reason `current` already is,
+        not only the one triggering this save.
         """
         archives_dir = os.path.join(self._history_dir, ARCHIVE_DIR_NAME)
         try:
@@ -659,8 +667,9 @@ class FileHistoryManager(AnyHistoryManager):
         if not archives:
             return
         referenced = self._referenced_archives()
-        # The session being saved is live even before its history file lands.
-        keep = {f"{safe_segment(current)}.md"}
+        # Live even before its history file lands: the session being saved,
+        # and any other conversation whose own save is still pending.
+        keep = {f"{safe_segment(name)}.md" for name in (current, *self._dirty)}
         for name in archives:
             if name in referenced or name in keep:
                 continue

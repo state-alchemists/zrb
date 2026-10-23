@@ -7,6 +7,7 @@ migration, and must not be written through.
 
 import os
 import stat
+from unittest.mock import patch
 
 import pytest
 
@@ -14,6 +15,7 @@ import zrb.util.owner_only as owner_only
 from zrb.util.owner_only import (
     FILE_MODE,
     DIR_MODE,
+    makedirs_owner_only,
     marker_path,
     reject_symlinked_ancestors,
     tighten_once,
@@ -201,6 +203,28 @@ def test_owned_entries_leaves_the_root_and_unlisted_content_alone(tmp_path):
     assert stat.S_IMODE(os.stat(owned_file).st_mode) == FILE_MODE
     assert stat.S_IMODE(os.stat(unrelated_dir).st_mode) == 0o755
     assert stat.S_IMODE(os.stat(unrelated_file).st_mode) == 0o644
+
+
+@needs_posix_modes
+def test_a_symlink_planted_between_the_check_and_mkdir_is_caught(tmp_path):
+    """`FileExistsError` from `os.mkdir` means something now occupies the path
+    that did not a moment ago — treating that as success without looking at
+    it would trust whatever got planted there in that window."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    target = tmp_path / "notes"
+    real_mkdir = os.mkdir
+
+    def racy_mkdir(path, mode):
+        if path == str(target):
+            # A symlink lands exactly where the real directory was about to.
+            os.symlink(str(outside), path)
+            raise FileExistsError(f"[simulated race] {path}")
+        return real_mkdir(path, mode)
+
+    with patch("os.mkdir", side_effect=racy_mkdir):
+        with pytest.raises(PermissionError, match="symlink"):
+            makedirs_owner_only(str(target))
 
 
 @needs_posix_modes

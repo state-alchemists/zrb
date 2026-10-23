@@ -21,7 +21,6 @@ directory's permissions.
 from __future__ import annotations
 
 import os
-import stat
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -34,7 +33,7 @@ from zrb.llm.history_manager.archive_layout import (
 )
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
-from zrb.util.owner_only import reject_symlinked_ancestors, tighten_once
+from zrb.util.owner_only import makedirs_owner_only, tighten_once
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
@@ -47,10 +46,8 @@ __all__ = [
     "verbatim_archive_path",
 ]
 
-# The modes are applied after creation, not passed to `makedirs`/`open` alone: a
-# umask can only clear bits, so a umask that clears one of these would otherwise
-# leave the archive readable by others.
-_ARCHIVE_DIR_MODE = 0o700
+# Narrowed again after creation, in `_make_owner_only`: a umask that clears one
+# of these bits would otherwise leave the archive readable by others.
 _ARCHIVE_FILE_MODE = 0o600
 
 # `O_APPEND` is the append-only promise: the kernel puts every write at the end,
@@ -159,30 +156,23 @@ def _open_archive(path: str) -> "tuple[int, int]":
 
 
 def _ensure_archive_directory(directory: str) -> None:
-    """Create *directory* owner-only; refuse a symlink or another user's directory.
+    """Create *directory* owner-only; refuse another user's directory.
 
     Raises `OSError` (`PermissionError` for the refusals) so a failed write is
     reported instead of appending into whatever the path points at. A directory
     that already exists keeps the mode it has: it may predate this rule, and
     changing a directory zrb does not exclusively own is not this call's to do.
 
-    `reject_symlinked_ancestors` runs first because the checks below it only
-    ever looked at *directory* itself: `os.makedirs()` happily creates a
-    missing leaf beneath an existing ancestor without inspecting that
-    ancestor's type, so a symlinked configured history directory — above
-    *directory*, never *directory* itself — used to be followed silently,
-    landing every archive write wherever that link pointed.
+    `makedirs_owner_only` already refuses a symlink anywhere from *directory*
+    up to its nearest existing ancestor (including one planted in the race
+    between its own check and the `mkdir` that follows), and creates every
+    missing level at the right mode instead of `os.makedirs()`'s mode
+    argument, which only ever reaches the leaf. Ownership is the one check
+    specific to the archive: a *directory* that already exists, is a real
+    directory, and is not a symlink can still belong to someone else.
     """
-    reject_symlinked_ancestors(directory)
-    try:
-        os.makedirs(directory, mode=_ARCHIVE_DIR_MODE)
-    except FileExistsError:
-        pass
-    else:
-        os.chmod(directory, _ARCHIVE_DIR_MODE)
+    makedirs_owner_only(directory)
     info = os.lstat(directory)
-    if os.path.islink(directory) or not stat.S_ISDIR(info.st_mode):
-        raise PermissionError(f"Archive path is not a directory: {directory}")
     if hasattr(os, "getuid") and info.st_uid != os.getuid():
         raise PermissionError(
             f"Archive directory is not owned by the current user: {directory}"

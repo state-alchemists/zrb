@@ -221,6 +221,13 @@ def makedirs_owner_only(path: str) -> None:
     reappear in a different file. Raises `PermissionError` (an `OSError`) when
     an existing level is a symlink or not a directory; a caller that wants a
     different exception type or message catches and re-raises it.
+
+    Checked again after creating it, not only before: a `FileExistsError` from
+    `os.mkdir` means something now occupies *path* that did not a moment ago,
+    and treating that as success without looking at what it is would trust
+    whatever got planted there between the check above and this call. The
+    first check still runs, so a *missing* path is validated all the way up
+    before anything is created; this one closes the window right at the leaf.
     """
     reject_symlinked_ancestors(path)
     if os.path.isdir(path):
@@ -232,6 +239,7 @@ def makedirs_owner_only(path: str) -> None:
         os.mkdir(path, DIR_MODE)
     except FileExistsError:
         pass
+    reject_symlinked_ancestors(path)
 
 
 def write_text_owner_only(path: str, content: str) -> None:
