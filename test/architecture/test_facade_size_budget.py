@@ -116,7 +116,11 @@ FACADE_BUDGETS = {
     # `handle_side_question_typed_text`, the focus target and the typed-text
     # seam the application-level catch-all needs while the panel holds the
     # focus -- new surface.
-    "llm/ui/default/ui.py": 730,
+    # +3 (730->733): `_on_render` also calls the `/btw` panel's own
+    # `rewrap()` on every frame, so a resize re-renders its markdown answer at
+    # the new width instead of leaving it wrapped for the old one -- new
+    # behavior, not a delegator.
+    "llm/ui/default/ui.py": 733,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

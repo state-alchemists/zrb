@@ -25,6 +25,27 @@ class _FakeUI:
         return f"<md width={width}>{text}</md>"
 
 
+class _ReflowingFakeUI(_FakeUI):
+    """A narrower width renders *more* output, the way real re-wrapping does
+    for markdown whose line count grows as it narrows (e.g. a code block) —
+    needed to reproduce a stale end-of-buffer cursor after a resize."""
+
+    def render_markdown(self, text: str, width: int | None = None) -> str:
+        wraps = max(1, 80 // (width or 80))
+        return "\n".join([text] * wraps)
+
+
+class _WordWrappingFakeUI(_FakeUI):
+    """Wraps the answer every `width` characters, the way real markdown
+    rendering reflows a long line onto more of them as it narrows — needed to
+    show a mid-buffer cursor landing on the wrong line when a raw offset is
+    carried over instead of a (line, column) pair."""
+
+    def render_markdown(self, text: str, width: int | None = None) -> str:
+        w = width or 80
+        return "\n".join(text[i : i + w] for i in range(0, len(text), w))
+
+
 @pytest.fixture(autouse=True)
 def no_application():
     """A unit test runs without a prompt_toolkit application to move the focus
@@ -190,3 +211,126 @@ def test_an_answer_arriving_after_esc_is_dropped(part):
     assert _text(part) == ""
 
 
+def test_rewrap_re_renders_the_shown_answer_at_the_new_width():
+    """A resize must not leave the answer wrapped for the old width."""
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("because of Rayleigh scattering")
+
+    ui.output_field_width = 40
+    part.rewrap()
+
+    assert "<md width=40>because of Rayleigh scattering</md>" in _text(part)
+
+
+def test_rewrap_does_nothing_when_the_width_is_unchanged():
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("because")
+    before = _text(part)
+
+    part.rewrap()
+
+    assert _text(part) == before
+
+
+def test_rewrap_does_nothing_while_the_panel_is_closed():
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("because")
+    part.dismiss()
+
+    ui.output_field_width = 40
+    part.rewrap()
+
+    assert _text(part) == ""
+
+
+def test_rewrap_does_nothing_while_the_panel_shows_a_pending_or_failure_message():
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+
+    ui.output_field_width = 40
+    part.rewrap()
+    assert "thinking" in _text(part)
+
+    part.fail("boom")
+    ui.output_field_width = 20
+    part.rewrap()
+    assert "❌ boom" in _text(part)
+
+
+def test_rewrap_keeps_the_readers_scroll_position():
+    """Unlike a fresh answer, a resize must not jump the reader back to the top."""
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("because")
+    window = part.side_question_window
+    assert window is not None
+    window.buffer.cursor_position = 3
+
+    ui.output_field_width = 40
+    part.rewrap()
+
+    assert window.buffer.cursor_position == 3
+
+
+def test_rewrap_keeps_a_reader_at_the_end_when_the_rewrap_grows_the_text():
+    """A reader scrolled to the bottom (e.g. watching a long answer stream in)
+    must stay at the bottom, even though re-wrapping narrower makes the
+    rendered answer longer and the old cursor offset would land mid-buffer."""
+    ui = _ReflowingFakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("short answer")
+    window = part.side_question_window
+    assert window is not None
+    window.buffer.cursor_position = len(window.buffer.text)
+
+    ui.output_field_width = 10
+    part.rewrap()
+
+    assert window.buffer.cursor_position == len(window.buffer.text)
+
+
+def test_rewrap_keeps_a_mid_buffer_reader_on_the_same_line_index():
+    """A resize that re-wraps the answer onto more lines must not let a
+    mid-buffer cursor drift onto an unrelated line just because the raw
+    character count before it changed: it should stay anchored to the same
+    line index (and as much of its column as the new, shorter line has)
+    instead of a stale offset landing on whatever now sits at that count."""
+    ui = _WordWrappingFakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("AAAAABBBBBCCCCCDDDDD")
+    window = part.side_question_window
+    assert window is not None
+    old_lines = window.buffer.text.split("\n")
+    assert old_lines[2] == "AAAAABBBBBCCCCCDDDDD"
+    # Column 15 of that line: the start of the run of "D"s.
+    window.buffer.cursor_position = len(old_lines[0]) + 1 + len(old_lines[1]) + 1 + 15
+
+    ui.output_field_width = 10
+    part.rewrap()
+
+    new_text = window.buffer.text
+    before_cursor = new_text[: window.buffer.cursor_position]
+    new_lines = new_text.split("\n")
+    assert new_lines[2] == "AAAAABBBBB"
+    assert new_lines[3] == "CCCCCDDDDD"
+    # Still on line index 2 — the reflow split that one line in two, so a raw
+    # offset would have overshot onto line 3 ("CCCCCDDDDD") instead.
+    assert before_cursor.count("\n") == 2
+    assert before_cursor.endswith("AAAAABBBBB")

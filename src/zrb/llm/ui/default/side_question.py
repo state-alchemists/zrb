@@ -60,12 +60,18 @@ class UISideQuestion:
         self._window: "TextArea | None" = None
         # Identifies the question the panel currently shows; None once closed.
         self._request: object | None = None
+        # The raw markdown of the answer currently shown, for `rewrap`; None
+        # while the panel shows a pending/failure message or nothing at all.
+        self._last_answer: str | None = None
+        self._rendered_width: int | None = None
 
     def init_side_question_state(self) -> None:
         """Initialize the panel state and build its (hidden) widget."""
         self._question = ""
         self._is_active = False
         self._request = None
+        self._last_answer = None
+        self._rendered_width = None
         self._window = self._create_window()
 
     @property
@@ -88,6 +94,7 @@ class UISideQuestion:
         self._question = question.strip()
         self._is_active = True
         self._request = request = object()
+        self._last_answer = None
         self._fill(self._echo(_PENDING))
         # The panel takes the focus while it is shown, so Up/Down scroll the
         # answer instead of recalling a message into the input. A prompt that is
@@ -110,12 +117,53 @@ class UISideQuestion:
         """
         if not self.is_current(request):
             return
-        self._fill(self._echo(self._render(answer)))
+        self._last_answer = answer
+        self._render_and_fill(answer)
+
+    def rewrap(self) -> None:
+        """Re-render the shown answer at the current width (public API).
+
+        `end` renders markdown to plain styled lines once; without this, a
+        resize after the answer lands would leave it wrapped for the old
+        width. Called from the app's after-render hook, so it runs on every
+        frame — a no-op unless an answer is showing and the width changed.
+
+        A raw character offset is not a stable anchor across a re-wrap: the
+        same number of characters can now precede different content once the
+        line lengths change. `_cursor_for_rewrap` resolves the reader's
+        position to something that survives that — the end of the buffer, or
+        a (line, column) pair — before the new text exists to re-measure it
+        against.
+        """
+        if not self._is_active or self._last_answer is None:
+            return
+        if self._ui.output_field_width == self._rendered_width:
+            return
+        self._render_and_fill(self._last_answer, self._cursor_for_rewrap())
+
+    def _cursor_for_rewrap(self) -> "int | tuple[int, int] | None":
+        """The reader's position, anchored for `_fill` to re-find in the new text.
+
+        `None` (the new end) when they were at the old text's end — the
+        common case of watching a long answer stream in. Otherwise a
+        (line, column) pair: not an exact character match (a word that moves
+        lines still lands at the start of wherever its line went), but close
+        enough that a resize leaves the reader on the content they were
+        reading rather than wherever a stale raw offset now falls.
+        """
+        window = self._window
+        if window is None:
+            return 0
+        text, cursor = window.buffer.text, window.buffer.cursor_position
+        if cursor >= len(text):
+            return None
+        return _line_and_column(text, cursor)
 
     def fail(self, message: str, request: object | None = None) -> None:
         """Show why the side question could not be answered."""
         if not self.is_current(request):
             return
+        self._last_answer = None
         self._fill(self._echo(f"  ❌ {message}\n"))
 
     def cancel(self, request: object | None = None) -> None:
@@ -134,6 +182,7 @@ class UISideQuestion:
             return
         self._is_active = False
         self._request = None
+        self._last_answer = None
         self._fill("")
         focus_widget(self._ui.input_field, "Input-field")
         self._invalidate()
@@ -160,17 +209,45 @@ class UISideQuestion:
         """Render markdown to what the panel's lexer expects: styled lines."""
         return self._ui.render_markdown(answer, self._ui.output_field_width)
 
-    def _fill(self, text: str) -> None:
-        """Replace the panel's text and scroll back to its first line."""
+    def _render_and_fill(
+        self, answer: str, cursor_position: "int | tuple[int, int] | None" = 0
+    ) -> None:
+        """Render `answer` at the current width and fill the panel with it.
+
+        Records the width it rendered at, so `rewrap` can tell a stale render
+        from a current one.
+        """
+        self._rendered_width = self._ui.output_field_width
+        self._fill(self._echo(self._render(answer)), cursor_position)
+
+    def _fill(
+        self, text: str, cursor_position: "int | tuple[int, int] | None" = 0
+    ) -> None:
+        """Replace the panel's text, placing the cursor at `cursor_position`.
+
+        Defaults to the first line — the read naturally starts there for a
+        new question's answer, failure, or pending message. `rewrap` instead
+        passes `None` for the new text's end (a reader who was at the old
+        text's end), a `(line, column)` pair resolved against the *new* text
+        (a reader who was elsewhere — a raw offset from the old text could
+        now land on different content), or an int for its own non-rewrap
+        defaults.
+        """
         window = self._window
         if window is None:
             return
         # lazy: heavy third-party
         from prompt_toolkit.document import Document
 
+        if cursor_position is None:
+            position = len(text)
+        elif isinstance(cursor_position, tuple):
+            position = _offset_of(text, *cursor_position)
+        else:
+            position = min(cursor_position, len(text))
         # The panel is read-only: only the panel itself writes its text.
         window.buffer.set_document(
-            Document(text, cursor_position=0), bypass_readonly=True
+            Document(text, cursor_position=position), bypass_readonly=True
         )
         self._invalidate()
 
@@ -256,3 +333,24 @@ def is_message_text(data: str) -> bool:
     belongs in the input field too.
     """
     return bool(data) and all(unicodedata.category(char) != "Cc" for char in data)
+
+
+def _line_and_column(text: str, offset: int) -> tuple[int, int]:
+    """The 0-indexed (line, column) `offset` falls on within `text`."""
+    before = text[:offset]
+    line = before.count("\n")
+    column = len(before) - (before.rfind("\n") + 1)
+    return line, column
+
+
+def _offset_of(text: str, line: int, column: int) -> int:
+    """The character offset of `(line, column)` within `text`, clamped to it.
+
+    An out-of-range line or column lands on `text`'s nearest edge instead of
+    raising — the caller resolved the pair against a different (older) text,
+    so a shorter new one is expected, not a bug to surface here.
+    """
+    lines = text.split("\n")
+    line = max(0, min(line, len(lines) - 1))
+    column = max(0, min(column, len(lines[line])))
+    return sum(len(earlier) + 1 for earlier in lines[:line]) + column
