@@ -1100,6 +1100,7 @@
         "calculate_wait_time",
         "can_proceed",
         "count_tokens",
+        "effective_context_window",
         "fit_context_window",
         "get_limit_reason",
         "max_request_per_minute",

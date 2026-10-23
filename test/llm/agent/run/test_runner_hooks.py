@@ -223,6 +223,7 @@ async def test_run_agent_session_start_context_prepending():
     limiter = MagicMock(spec=LLMLimiter)
     limiter.count_tokens.return_value = 10
     limiter.max_token_per_request = 1000
+    limiter.effective_context_window.return_value = 1000
     limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
     limiter.acquire = AsyncMock()
 
@@ -269,6 +270,7 @@ async def test_run_agent_user_prompt_context_prepending():
     limiter = MagicMock(spec=LLMLimiter)
     limiter.count_tokens.return_value = 10
     limiter.max_token_per_request = 1000
+    limiter.effective_context_window.return_value = 1000
     limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
     limiter.acquire = AsyncMock()
 
