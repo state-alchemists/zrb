@@ -277,7 +277,11 @@ _CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
     (_DEEPSEEK_FLASH, 1_000_000),
     (r"kimi-k3", 1_000_000),
     (r"kimi-k2\.[67]", 256_000),
-    (r"qwen", 1_000_000),
+    # Only the flagship cloud tier is verified at 1M; other Qwen releases
+    # (Qwen2.5, open-weight Qwen3 sizes run via Ollama, etc.) vary widely and
+    # fall back to the configured default rather than risk an unpruned,
+    # provider-rejected request.
+    (r"qwen3\.[5-8]-(?:max|plus|flash|omni)", 1_000_000),
 )
 
 

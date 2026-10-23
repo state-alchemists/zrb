@@ -44,6 +44,11 @@ else:
 # model instead of that CFG field's model-blind fallback.
 _CONVERSATIONAL_TRIGGER_RATIO = 0.75
 
+# Mirrors LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
+# against the conversational threshold (half of it), recomputed here from the
+# model-aware conversational threshold instead of the model-blind CFG default.
+_MESSAGE_THRESHOLD_RATIO = 0.5
+
 
 def create_summarizer_history_processor(
     conversational_agent: Any = None,
@@ -77,6 +82,9 @@ def create_summarizer_history_processor(
         conversational_token_threshold = (
             CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         )
+    auto_message_threshold = message_token_threshold is None and (
+        not CFG.is_env_set("LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD")
+    )
     if message_token_threshold is None:
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
     if summary_window is None:
@@ -110,6 +118,12 @@ def create_summarizer_history_processor(
                 * llm_limiter.effective_context_window(model)
             )
 
+        active_message_token_threshold = message_token_threshold
+        if auto_message_threshold:
+            active_message_token_threshold = round(
+                _MESSAGE_THRESHOLD_RATIO * active_conversational_threshold
+            )
+
         # Snapshot first: fat tool results are replaced by summaries in the
         # pass below, and an archive of those would record the summary where
         # the tool wrote its output. This is the text the conversation had.
@@ -118,7 +132,7 @@ def create_summarizer_history_processor(
             messages,
             agent=active_message_agent,
             limiter=llm_limiter,
-            message_token_threshold=message_token_threshold,
+            message_token_threshold=active_message_token_threshold,
             conversational_token_threshold=active_conversational_threshold,
         )
 
