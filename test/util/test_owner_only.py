@@ -114,6 +114,23 @@ def test_a_marker_owned_by_someone_else_does_not_skip_the_narrowing(
 
 
 @needs_posix_modes
+def test_a_symlinked_root_is_not_narrowed_or_followed(tmp_path):
+    """`os.walk(directory, followlinks=False)` still visits a symlinked *top*
+    directory — `followlinks` only governs recursion into a symlink found
+    during the walk — so a symlink planted at the configured path used to have
+    its target's tree silently narrowed instead of being refused."""
+    outside, outside_file = _legacy_tree(tmp_path)
+    link = tmp_path / "configured-root"
+    os.symlink(str(outside), str(link))
+
+    tighten_once(str(link))
+
+    assert stat.S_IMODE(os.stat(outside).st_mode) == 0o755
+    assert stat.S_IMODE(os.stat(outside_file).st_mode) == 0o644
+    assert not os.path.exists(marker_path(str(link)))
+
+
+@needs_posix_modes
 def test_a_second_call_leaves_a_reopened_file_alone(tmp_path):
     """The marker is a promise not to keep changing modes behind the user."""
     root, note = _legacy_tree(tmp_path)

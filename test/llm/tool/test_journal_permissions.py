@@ -15,6 +15,8 @@ from zrb.llm.tool.journal_write import (
     ACTIVITY_DIR,
     NOTE_CATEGORIES,
     ensure_journal_tree,
+    log_activity,
+    write_journal_note,
 )
 from zrb.util.owner_only import DIR_MODE, FILE_MODE
 
@@ -29,6 +31,9 @@ def writable_journal(tmp_path):
     with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = str(root)
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
+        mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
+        mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         yield str(root)
 
 
@@ -47,3 +52,34 @@ def test_a_first_time_tree_is_created_owner_only(writable_journal):
         index = os.path.join(category_dir, "index.md")
         assert stat.S_IMODE(os.stat(index).st_mode) == FILE_MODE
     assert stat.S_IMODE(os.stat(os.path.join(root, "index.md")).st_mode) == FILE_MODE
+
+
+@needs_posix_modes
+def test_files_created_after_the_marker_stay_owner_only(writable_journal):
+    """The one-time `tighten_once` marker is written on the first call; every
+    day file, month/year index and note created on a *later* call used to be
+    created under the process umask instead, since nothing ever revisits
+    them."""
+    old_umask = os.umask(0o022)
+    try:
+        ensure_journal_tree()
+        log_activity("did a thing")
+        write_journal_note(
+            "technical", "a-slug", "A title", "context", "finding", "source"
+        )
+    finally:
+        os.umask(old_umask)
+
+    root = writable_journal
+    note = os.path.join(root, "technical", "a-slug.md")
+    assert stat.S_IMODE(os.stat(note).st_mode) == FILE_MODE
+    activity = os.path.join(root, ACTIVITY_DIR)
+    for dirpath, dirnames, filenames in os.walk(activity):
+        for name in dirnames:
+            assert (
+                stat.S_IMODE(os.stat(os.path.join(dirpath, name)).st_mode) == DIR_MODE
+            )
+        for name in filenames:
+            assert (
+                stat.S_IMODE(os.stat(os.path.join(dirpath, name)).st_mode) == FILE_MODE
+            )

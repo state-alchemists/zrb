@@ -44,8 +44,20 @@ def tighten_once(directory: str) -> None:
     cannot fake a migration that never happened. Anything else at the path
     (a symlink, or a regular file that fails that check) is unlinked and
     replaced once narrowing finishes.
+
+    *directory* itself is checked first: `os.walk(directory, followlinks=False)`
+    still visits a symlinked top directory — `followlinks` only governs whether
+    it recurses into a symlink found *during* the walk — so a symlink planted at
+    the configured journal or archive path would otherwise have its target's
+    tree silently narrowed instead.
     """
     if os.name != "posix":
+        return
+    if _is_symlink(directory):
+        logging.getLogger(__name__).warning(
+            f"Not restricting permissions under {directory}: it is a symlink, "
+            "and narrowing would have followed it onto whatever it points at."
+        )
         return
     if _has_marker(directory):
         return
@@ -59,6 +71,13 @@ def tighten_once(directory: str) -> None:
         logging.getLogger(__name__).warning(
             f"Could not restrict permissions under {directory}: {e}"
         )
+
+
+def _is_symlink(path: str) -> bool:
+    try:
+        return stat.S_ISLNK(os.lstat(path).st_mode)
+    except OSError:
+        return False
 
 
 def _has_marker(directory: str) -> bool:

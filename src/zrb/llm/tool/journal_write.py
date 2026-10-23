@@ -26,7 +26,7 @@ from zrb.config.config import CFG
 from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.markdown import get_first_heading
-from zrb.util.owner_only import tighten_once
+from zrb.util.owner_only import DIR_MODE, FILE_MODE, tighten_once
 
 NOTE_CATEGORIES = ("user", "agent", "preferences", "projects", "technical")
 ACTIVITY_DIR = "activity-log"
@@ -367,10 +367,10 @@ def ensure_journal_tree() -> str:
             "(LLM_JOURNAL_DIR is unset). Report this rather than retrying."
         )
     root = os.path.abspath(os.path.expanduser(journal_dir))
-    os.makedirs(root, exist_ok=True)
+    _makedirs_owner_only(root)
     index_name = _index_name()
     for name in (*NOTE_CATEGORIES, ACTIVITY_DIR):
-        os.makedirs(os.path.join(root, name), exist_ok=True)
+        _makedirs_owner_only(os.path.join(root, name))
         _write_if_absent(
             os.path.join(root, name, index_name),
             f"# {name.replace('-', ' ').title()}\n",
@@ -552,7 +552,7 @@ def _ensure_activity_path(root: str, now: datetime) -> str:
     activity = os.path.join(root, ACTIVITY_DIR)
     year_dir = os.path.join(activity, year)
     month_dir = os.path.join(year_dir, month)
-    os.makedirs(month_dir, exist_ok=True)
+    _makedirs_owner_only(month_dir)
     _write_if_absent(os.path.join(year_dir, index_name), f"# {year}\n")
     _write_if_absent(os.path.join(month_dir, index_name), f"# {month}\n")
     _register_link(os.path.join(activity, index_name), f"{year}/{index_name}", year)
@@ -848,6 +848,27 @@ def _title_of(path: str) -> str:
     )
 
 
+def _makedirs_owner_only(path: str) -> None:
+    """Like `os.makedirs(path, mode=DIR_MODE, exist_ok=True)`, but every level
+    this creates gets `DIR_MODE` — not just *path* itself.
+
+    `os.makedirs`'s `mode` argument only reaches the directory it was given;
+    an intermediate directory it creates along the way is made with Python's
+    default `0o777`, masked only by the process umask, so a journal whose
+    parent did not exist yet still gained a `0o755` ancestor under a typical
+    umask.
+    """
+    if os.path.isdir(path):
+        return
+    parent = os.path.dirname(path)
+    if parent and parent != path:
+        _makedirs_owner_only(parent)
+    try:
+        os.mkdir(path, DIR_MODE)
+    except FileExistsError:
+        pass
+
+
 def _write_if_absent(path: str, content: str) -> None:
     if not os.path.exists(path):
         _write_text(path, content)
@@ -862,6 +883,21 @@ def _read_text(path: str) -> str:
 
 
 def _write_text(path: str, content: str) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
+    """Write *content* to *path*, creating any missing directory owner-only.
+
+    `tighten_once` only runs once, at `ensure_journal_tree`; every note, day
+    file and month/year index this module creates afterwards goes through
+    here, so the mode is set explicitly at creation (`os.open`, not the
+    builtin `open`, which has no way to pass one) instead of relying on a
+    later pass that will never revisit it.
+    """
+    _makedirs_owner_only(os.path.dirname(path))
+    descriptor = os.open(
+        path,
+        os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0),
+        FILE_MODE,
+    )
+    try:
+        os.write(descriptor, content.encode("utf-8"))
+    finally:
+        os.close(descriptor)
