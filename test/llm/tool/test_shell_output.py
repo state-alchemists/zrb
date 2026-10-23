@@ -24,6 +24,15 @@ class _MockStreamReader:
             return line
         return b""
 
+    def at_eof(self) -> bool:
+        return self._pos >= len(self._lines)
+
+    async def read(self) -> bytes:
+        """The rest of the stream, as the background registry reads it."""
+        remaining = b"".join(self._lines[self._pos :])
+        self._pos = len(self._lines)
+        return remaining
+
 
 def _make_mock_process(
     stdout_lines: list[str] | None = None,
@@ -132,12 +141,27 @@ async def test_two_parallel_shell_calls_each_get_their_own_collapsible_block(
     ), "cat's own lines must all be in the OTHER block, not swallowed by dog's"
 
 
-@pytest.mark.asyncio
-async def test_timeout_after_flooding_is_not_diagnosed_as_a_hang(monkeypatch):
-    """A command killed mid-write was not waiting on stdin.
+async def _cancel_mock_background(monkeypatch) -> None:
+    """Release what a mock process left in the registry, without signalling.
 
-    The old suggestion sent the model to `ps aux | grep` for a process that was
-    already dead, and never named the actual remedy — bounding the output.
+    The mocked process shares a fake pid with every other mock here, so the
+    real kill path must not run.
+    """
+    # lazy: only the backgrounded-timeout tests need the registry
+    from zrb.llm.tool import shell_background
+
+    monkeypatch.setattr(shell_background, "terminate_process", AsyncMock())
+    await shell_background.get_shell_background_registry().cancel_all()
+
+
+@pytest.mark.asyncio
+async def test_a_flooded_command_that_times_out_is_moved_not_called_hung(monkeypatch):
+    """A command cut off mid-write was not waiting on stdin.
+
+    The old suggestion sent the model to `ps aux | grep` for a process that had
+    been killed, and never named the actual remedy — bounding the output. Now
+    nothing is killed at the timeout: the command is neither hung nor dead, it
+    is still writing, in the background, and the report says so.
     """
     monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 50)
 
@@ -154,11 +178,14 @@ async def test_timeout_after_flooding_is_not_diagnosed_as_a_hang(monkeypatch):
     )
     monkeypatch.setattr(shell_mod, "terminate_process", AsyncMock())
 
-    res = await run_shell_command("emit", shell="node", timeout=1)
+    try:
+        res = await run_shell_command("emit", shell="node", timeout=1)
+    finally:
+        await _cancel_mock_background(monkeypatch)
 
-    assert "(timed out)" in res
-    assert "still writing, not waiting on input" in res
-    assert "--stat" in res
+    assert "(moved to background after 1s)" in res
+    assert "kept the beginning and the end" in res
+    assert "still writing, not waiting on input" not in res
     assert "ps aux" not in res
 
 

@@ -1,0 +1,113 @@
+"""A command that outruns its timeout keeps running, under a handle.
+
+The timeout used to kill the process, so everything it had already done was
+lost and the model was told to run it again — a second copy of the work. It is
+now moved to the background instead, and these tests hold that shape.
+"""
+
+import asyncio
+import re
+import shlex
+import sys
+from pathlib import Path
+
+import pytest
+
+from zrb.config.config import CFG
+from zrb.llm.tool.shell import run_shell_command
+from zrb.llm.tool.shell_background import get_shell_background_registry
+
+_PYTHON = shlex.quote(Path(sys.executable).as_posix())
+
+
+def _ticker_command(tmp_path, seconds: float = 30.0) -> str:
+    """A script that prints while it runs: nothing to wait for, just work."""
+    script = tmp_path / "ticker.py"
+    script.write_text(
+        "import time\n"
+        f"deadline = time.monotonic() + {seconds}\n"
+        "index = 0\n"
+        "while time.monotonic() < deadline:\n"
+        "    print('TICK', index, flush=True)\n"
+        "    index += 1\n"
+        "    time.sleep(0.1)\n",
+        encoding="utf-8",
+    )
+    return f"{_PYTHON} {shlex.quote(script.as_posix())}"
+
+
+def _handle(text: str) -> str:
+    match = re.search(r"Handle: (\S+)", text)
+    assert match is not None, text
+    return match.group(1)
+
+
+def _highest_tick(text: str) -> int:
+    ticks = [int(index) for index in re.findall(r"TICK (\d+)", text)]
+    assert ticks, text
+    return max(ticks)
+
+
+@pytest.mark.asyncio
+async def test_a_timed_out_command_keeps_running_under_a_handle(tmp_path):
+    result = await run_shell_command(_ticker_command(tmp_path), timeout=1)
+    handle = _handle(result)
+    try:
+        assert "(moved to background after 1s)" in result
+        assert "NOT killed" in result
+        assert f"MonitorProcess(handle='{handle}')" in result
+
+        before = _highest_tick(result)
+        await asyncio.sleep(0.5)
+        status = await get_shell_background_registry().collect(handle)
+
+        assert "Status: running" in status
+        assert _highest_tick(status) > before, "output after the timeout is lost"
+    finally:
+        await get_shell_background_registry().kill(handle)
+
+
+@pytest.mark.asyncio
+async def test_the_report_never_tells_the_model_to_run_it_again(tmp_path):
+    """Re-running is what the old message asked for, and it starts the work
+    over: the advice now points at the handle."""
+    result = await run_shell_command(_ticker_command(tmp_path), timeout=1)
+    handle = _handle(result)
+    try:
+        assert "background=True" not in result
+        assert "Do not run the command again" in result
+    finally:
+        await get_shell_background_registry().kill(handle)
+
+
+@pytest.mark.asyncio
+async def test_a_sleep_still_dies_at_its_timeout():
+    """A delay is the work: backgrounding it would let the next command run
+    before the wait it was waiting for was over."""
+    result = await run_shell_command("sleep 30", timeout=1)
+
+    assert "(timed out)" in result
+    assert "Handle:" not in result
+
+
+@pytest.mark.asyncio
+async def test_adoption_can_be_switched_off(tmp_path, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS", 0)
+
+    result = await run_shell_command(_ticker_command(tmp_path), timeout=1)
+
+    assert "(timed out)" in result
+    assert "Handle:" not in result
+
+
+@pytest.mark.asyncio
+async def test_an_adopted_process_is_stopped_at_its_deadline(tmp_path, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS", 1)
+    result = await run_shell_command(_ticker_command(tmp_path), timeout=1)
+    handle = _handle(result)
+
+    await asyncio.sleep(2)
+    status = await get_shell_background_registry().collect(handle)
+
+    assert "killed after 1s in the background" in status
+    assert "Status: exited" in status
