@@ -136,15 +136,25 @@ def test_glob_hides_nothing_it_should_keep_in_a_non_ascii_name(tmp_path):
 
 @pytest.mark.skipif(
     sys.platform == "win32",
-    reason="a Windows filename is UTF-16 and cannot hold a byte that is not valid UTF-8",
+    reason="a Windows filename is UTF-16, so the bytes cannot reach the filesystem",
 )
 def test_a_name_that_is_not_valid_utf8_does_not_break_the_filter(tmp_path):
-    """A filename is not required to be valid UTF-8; git must not crash the tool."""
+    """A filename is not required to be valid UTF-8; git must not crash the tool.
+
+    Created through ``os.open`` with a bytes path: `pathlib` encodes through
+    UTF-8 and refuses the name before the filesystem ever sees it. Where the
+    filesystem itself refuses it (some do, at the API boundary) there is
+    nothing to assert, so the test skips rather than guessing platform rules.
+    """
     _init_checkout(tmp_path)
-    name = os.fsdecode(b"bad-\xff.py")
-    (tmp_path / name).write_text("x", encoding="utf-8")
+    raw_path = os.path.join(os.fsencode(tmp_path), b"bad-\xff.py")
+    try:
+        descriptor = os.open(raw_path, os.O_CREAT | os.O_WRONLY, 0o644)
+    except OSError:
+        pytest.skip("this filesystem refuses a name that is not valid UTF-8")
+    os.close(descriptor)
 
     visible = git_visible_files(str(tmp_path))
 
     assert visible is not None
-    assert os.path.normpath(name) in visible
+    assert os.path.normpath(os.fsdecode(b"bad-\xff.py")) in visible
