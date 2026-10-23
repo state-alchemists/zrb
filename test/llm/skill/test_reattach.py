@@ -5,6 +5,8 @@ instructions: without the body the next turn keeps the role and loses the
 procedure it came with.
 """
 
+import logging
+
 import pytest
 
 from zrb.llm.agent.types import ModelRequest, UserPromptPart
@@ -178,6 +180,39 @@ def test_a_cap_that_fits_nothing_re_attaches_nothing(monkeypatch):
     monkeypatch.setattr(reattach, "TOTAL_TOKEN_CAP", 0)
 
     assert build_reattach_message(dropped, [], llm_limiter) is None
+
+
+def test_the_decision_is_logged_with_the_attached_names(caplog):
+    """A compaction leaves no other trace, and the transcript cannot be read
+    for one: this repo's own tests and ADRs quote `ACTIVATED_SKILL`."""
+    dropped = _request(_block("core-coding"))
+
+    with caplog.at_level(logging.DEBUG):
+        build_reattach_message(dropped, [], llm_limiter)
+
+    assert "attached=['core-coding']" in caplog.text
+
+
+def test_a_skill_whose_newer_block_survives_is_logged_as_skipped(caplog):
+    """The case that must not re-attach: an older activation was dropped, but a
+    newer copy is still in the kept tail, so attaching it would double it."""
+    dropped = _request(_block("core-coding", "OLD BODY"))
+    kept = _request(_block("core-coding", "NEW BODY"))
+
+    with caplog.at_level(logging.DEBUG):
+        assert build_reattach_message(dropped, kept, llm_limiter) is None
+
+    assert "attached=none" in caplog.text
+    assert "skipped_kept=['core-coding']" in caplog.text
+
+
+def test_a_history_without_skills_logs_nothing(caplog):
+    """Compaction runs on every long session; a session that never used a
+    skill must not start writing a line per compaction."""
+    with caplog.at_level(logging.DEBUG):
+        assert build_reattach_message(_request("just a question"), [], llm_limiter) is None
+
+    assert "compaction re-attach" not in caplog.text
 
 
 @pytest.mark.asyncio
