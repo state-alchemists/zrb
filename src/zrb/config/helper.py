@@ -161,10 +161,14 @@ def get_log_level(level: str) -> int:
     return logging.WARNING
 
 
+def scale_token_threshold(factor: float, tokens: int) -> int:
+    return round(factor * tokens)
+
+
 def get_max_token_threshold(
     factor: float, max_tokens_per_minute: int, max_tokens_per_request: int
 ) -> int:
-    return round(factor * min(max_tokens_per_minute, max_tokens_per_request))
+    return scale_token_threshold(factor, min(max_tokens_per_minute, max_tokens_per_request))
 
 
 def limit_token_threshold(

@@ -60,21 +60,28 @@ class ModelCapabilityRegistry:
 
     def __init__(self) -> None:
         self._overrides: list[tuple[str, dict[str, Any]]] = []
+        self._cache: dict[str, ModelCapabilities] = {}
 
     def get(self, model: "str | Model | None") -> ModelCapabilities:
         """Resolve capabilities for *model*.
 
         Returns defaults when *model* is ``None`` or has no extractable name;
-        treat those as unknown, not unsupported.
+        treat those as unknown, not unsupported. Resolved per bare name: the
+        pattern table is matched against every field on the first call for a
+        name and the result is cached, since the same model is often resolved
+        several times within one turn.
         """
         name = _bare_name(model)
         if not name:
             return ModelCapabilities()
+        cached = self._cache.get(name)
+        if cached is not None:
+            return cached
         base = _resolve_from_patterns(name)
         override = self._find_override(name)
-        if override is None:
-            return base
-        return dataclasses.replace(base, **override)
+        resolved = base if override is None else dataclasses.replace(base, **override)
+        self._cache[name] = resolved
+        return resolved
 
     def register(self, pattern: str, **overrides: Any) -> None:
         """Override capabilities for models whose bare name matches *pattern*.
@@ -86,10 +93,12 @@ class ModelCapabilityRegistry:
         """
         _validate_overrides(overrides)
         self._overrides.insert(0, (pattern, dict(overrides)))
+        self._cache.clear()
 
     def clear(self) -> None:
         """Drop all user-registered overrides (built-in patterns stay)."""
         self._overrides.clear()
+        self._cache.clear()
 
     def supports_modality(
         self, model: "str | Model | None", modality: Modality
@@ -149,6 +158,10 @@ def media_type_modality(media_type: str) -> Modality | None:
 # V4.1-Flash, and a wrong "reads images" would send it a photo it rejects.
 _DEEPSEEK_FLASH = r"deepseek-(?:v4\.1-|v4-)?flash"
 
+# Only the flagship cloud tier is verified for these capabilities; other Qwen
+# releases (Qwen2.5, open-weight Qwen3 sizes run via Ollama, etc.) vary widely.
+_QWEN3_FLAGSHIP_CLOUD = r"qwen3\.[5-8]-(?:max|plus|flash|omni)"
+
 # Patterns that support image input, matched case-insensitively.
 _IMAGE_PATTERNS = (
     r"gpt-?4o",
@@ -174,7 +187,7 @@ _IMAGE_PATTERNS = (
     r"bakllava",
     r"pixtral",
     r"qwen.*-?vl",
-    r"qwen3\.[5-8]-(?:max|plus|flash|omni)",  # natively multimodal, no "-vl" suffix
+    _QWEN3_FLAGSHIP_CLOUD,  # natively multimodal, no "-vl" suffix
     r"moondream",
     r"minicpm-?v",
     r"internvl",
@@ -232,7 +245,7 @@ _VIDEO_PATTERNS = (
     r"gemini-2",
     r"gemini-3",
     r"gemini-4",
-    r"qwen3\.[5-8]-(?:max|plus|flash|omni)",
+    _QWEN3_FLAGSHIP_CLOUD,
 )
 
 # See the `supports_document_input` docstring: same providers, same image list,
@@ -277,11 +290,9 @@ _CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
     (_DEEPSEEK_FLASH, 1_000_000),
     (r"kimi-k3", 1_000_000),
     (r"kimi-k2\.[67]", 256_000),
-    # Only the flagship cloud tier is verified at 1M; other Qwen releases
-    # (Qwen2.5, open-weight Qwen3 sizes run via Ollama, etc.) vary widely and
-    # fall back to the configured default rather than risk an unpruned,
-    # provider-rejected request.
-    (r"qwen3\.[5-8]-(?:max|plus|flash|omni)", 1_000_000),
+    # Other Qwen releases fall back to the configured default rather than risk
+    # an unpruned, provider-rejected request.
+    (_QWEN3_FLAGSHIP_CLOUD, 1_000_000),
 )
 
 

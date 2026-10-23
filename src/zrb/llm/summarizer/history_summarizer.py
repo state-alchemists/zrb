@@ -3,13 +3,14 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.config.helper import scale_token_threshold
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
     create_message_summarizer_agent,
 )
 from zrb.llm.agent_state import get_current_model
-from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.config.limiter import LLMLimiter, is_pinned
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.message import (
     ensure_alternating_roles,
@@ -75,15 +76,16 @@ def create_summarizer_history_processor(
     # deliberate choice and stays fixed. Otherwise the trigger is recomputed
     # on every call against the run's actual model (`/model` included)
     # rather than baked in once here from a model-blind CFG default.
-    auto_conversational_threshold = conversational_token_threshold is None and (
-        not CFG.is_env_set("LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD")
+    auto_conversational_threshold = not is_pinned(
+        conversational_token_threshold,
+        "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
     )
     if conversational_token_threshold is None:
         conversational_token_threshold = (
             CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         )
-    auto_message_threshold = message_token_threshold is None and (
-        not CFG.is_env_set("LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD")
+    auto_message_threshold = not is_pinned(
+        message_token_threshold, "LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD"
     )
     if message_token_threshold is None:
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
@@ -113,15 +115,15 @@ def create_summarizer_history_processor(
         active_conversational_threshold = conversational_token_threshold
         if auto_conversational_threshold:
             model = get_current_model() or CFG.LLM_MODEL
-            active_conversational_threshold = round(
-                _CONVERSATIONAL_TRIGGER_RATIO
-                * llm_limiter.effective_context_window(model)
+            context_window = llm_limiter.effective_context_window(model)
+            active_conversational_threshold = scale_token_threshold(
+                _CONVERSATIONAL_TRIGGER_RATIO, context_window
             )
 
         active_message_token_threshold = message_token_threshold
         if auto_message_threshold:
-            active_message_token_threshold = round(
-                _MESSAGE_THRESHOLD_RATIO * active_conversational_threshold
+            active_message_token_threshold = scale_token_threshold(
+                _MESSAGE_THRESHOLD_RATIO, active_conversational_threshold
             )
 
         # Snapshot first: fat tool results are replaced by summaries in the
