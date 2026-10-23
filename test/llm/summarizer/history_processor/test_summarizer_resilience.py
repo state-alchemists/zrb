@@ -157,8 +157,13 @@ async def test_auto_conversational_threshold_follows_the_runs_actual_model(
     import zrb.llm.summarizer.history_summarizer as hs
 
     monkeypatch.setattr(hs, "summarize_history", AsyncMock(return_value=["COMPACTED"]))
+    # Set well above both models' windows so the per-minute budget never binds
+    # here; test_auto_conversational_threshold_is_still_capped_by_the_per_minute_budget
+    # covers that bound on its own.
+    limiter = HeavyLimiter()
+    limiter.max_token_per_minute = 2_000_000
     processor = create_summarizer_history_processor(
-        conversational_agent=object(), message_agent=object(), limiter=HeavyLimiter()
+        conversational_agent=object(), message_agent=object(), limiter=limiter
     )
 
     monkeypatch.setattr(hs, "get_current_model", lambda: "openai-chat:gpt-4o")
@@ -167,6 +172,30 @@ async def test_auto_conversational_threshold_follows_the_runs_actual_model(
     monkeypatch.setattr(hs, "get_current_model", lambda: "deepseek:deepseek-flash")
     messages = _ten_user_messages()
     assert await processor(list(messages)) == messages
+
+
+@pytest.mark.asyncio
+async def test_auto_conversational_threshold_is_still_capped_by_the_per_minute_budget(
+    monkeypatch,
+):
+    """The rate-limit budget must still cap the auto trigger, same as the old
+    model-blind CFG default did -- a model's real context window only replaces
+    the model-blind request cap, it doesn't drop the per-minute cap entirely.
+    """
+    import zrb.llm.summarizer.history_summarizer as hs
+
+    monkeypatch.setattr(hs, "summarize_history", AsyncMock(return_value=["COMPACTED"]))
+    limiter = HeavyLimiter()
+    limiter.max_token_per_minute = 50_000  # well under deepseek-flash's 1M window
+    processor = create_summarizer_history_processor(
+        conversational_agent=object(), message_agent=object(), limiter=limiter
+    )
+
+    monkeypatch.setattr(hs, "get_current_model", lambda: "deepseek:deepseek-flash")
+    # 4 messages (40,000 tokens) already exceeds 75% of the 50,000-token budget
+    # (37,500), even though it is nowhere near 75% of the model's real window.
+    messages = [ModelRequest(parts=[UserPromptPart(content=f"q{i}")]) for i in range(4)]
+    assert await processor(messages) == ["COMPACTED"]
 
 
 @pytest.mark.asyncio
@@ -211,8 +240,13 @@ async def test_auto_message_threshold_follows_the_runs_actual_model(monkeypatch)
 
     monkeypatch.setattr(hs, "summarize_messages", fake_summarize_messages)
     monkeypatch.setattr(hs, "summarize_history", AsyncMock(return_value=["COMPACTED"]))
+    # Set well above both models' windows so the per-minute budget never binds
+    # here; the per-minute bound itself is covered on the conversational
+    # threshold directly, which the message threshold derives from.
+    limiter = HeavyLimiter()
+    limiter.max_token_per_minute = 2_000_000
     processor = create_summarizer_history_processor(
-        conversational_agent=object(), message_agent=object(), limiter=HeavyLimiter()
+        conversational_agent=object(), message_agent=object(), limiter=limiter
     )
 
     monkeypatch.setattr(hs, "get_current_model", lambda: "openai-chat:gpt-4o")
@@ -257,3 +291,45 @@ async def test_an_explicit_message_threshold_ignores_the_model(monkeypatch):
     await processor(_ten_user_messages())
 
     assert captured_thresholds == [12_345]
+
+
+@pytest.mark.asyncio
+async def test_auto_message_threshold_follows_a_pinned_conversational_threshold(
+    monkeypatch,
+):
+    """The message threshold must derive from whichever conversational value is
+    active, pinned or not -- not independently recompute itself from the live
+    model window. This is the one pin combination the other model-aware tests
+    above don't exercise: conversational pinned, message auto.
+    """
+    import zrb.llm.summarizer.history_summarizer as hs
+
+    captured_thresholds = []
+
+    async def fake_summarize_messages(
+        messages,
+        *,
+        agent,
+        limiter,
+        message_token_threshold,
+        conversational_token_threshold,
+    ):
+        captured_thresholds.append(message_token_threshold)
+        return messages
+
+    monkeypatch.setattr(hs, "summarize_messages", fake_summarize_messages)
+    monkeypatch.setattr(hs, "summarize_history", AsyncMock(return_value=["COMPACTED"]))
+    processor = create_summarizer_history_processor(
+        conversational_agent=object(),
+        message_agent=object(),
+        limiter=HeavyLimiter(),
+        conversational_token_threshold=750_000,
+    )
+
+    # gpt-4o's own auto conversational trigger would be nowhere near 750,000,
+    # so a wrong recompute-from-the-live-model-window would show up here.
+    monkeypatch.setattr(hs, "get_current_model", lambda: "openai-chat:gpt-4o")
+    await processor(_ten_user_messages())
+
+    # Half of the *pinned* 750,000, not half of gpt-4o's own auto trigger.
+    assert captured_thresholds == [375_000]

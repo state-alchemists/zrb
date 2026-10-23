@@ -201,28 +201,28 @@ def test_fit_context_window_honors_a_known_model_cap():
     assert limiter.fit_context_window(history, "next", model="local:unknown") == history
 
 
-def test_effective_context_window_prefers_a_known_models_real_window_by_default():
+def test_get_effective_context_window_prefers_a_known_models_real_window_by_default():
     "Unset LLM_MAX_TOKEN_PER_REQUEST must not silently throttle a bigger model."
     limiter = LLMLimiter()
-    assert limiter.effective_context_window("deepseek-v4.1-flash") == 1_000_000
+    assert limiter.get_effective_context_window("deepseek-v4.1-flash") == 1_000_000
 
 
-def test_effective_context_window_still_caps_once_explicitly_set():
+def test_get_effective_context_window_still_caps_once_explicitly_set():
     limiter = LLMLimiter()
     limiter.max_token_per_request = 50_000
-    assert limiter.effective_context_window("deepseek-v4.1-flash") == 50_000
+    assert limiter.get_effective_context_window("deepseek-v4.1-flash") == 50_000
 
 
-def test_effective_context_window_honors_an_explicit_env_override(monkeypatch):
+def test_get_effective_context_window_honors_an_explicit_env_override(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "50000")
     limiter = LLMLimiter()
-    assert limiter.effective_context_window("deepseek-v4.1-flash") == 50_000
+    assert limiter.get_effective_context_window("deepseek-v4.1-flash") == 50_000
 
 
-def test_effective_context_window_falls_back_to_the_cap_for_unknown_models():
+def test_get_effective_context_window_falls_back_to_the_cap_for_unknown_models():
     limiter = LLMLimiter()
     assert (
-        limiter.effective_context_window("local:unknown")
+        limiter.get_effective_context_window("local:unknown")
         == limiter.max_token_per_request
     )
 

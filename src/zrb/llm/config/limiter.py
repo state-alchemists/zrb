@@ -89,7 +89,7 @@ class LLMLimiter:
         """Override the per-request token cap for this limiter."""
         self._max_token_per_request = value
 
-    def effective_context_window(self, model: Any = None) -> int:
+    def get_effective_context_window(self, model: Any = None) -> int:
         """Return *model*'s known context window, or the configured cap.
 
         `max_token_per_request` defaults to 128,000 as a free-tier-safe rate
@@ -143,7 +143,7 @@ class LLMLimiter:
         if not history:
             return history
 
-        context_limit = int(self.effective_context_window(model) * 0.90)
+        context_limit = int(self.get_effective_context_window(model) * 0.90)
         # Always subtract reserved_tokens: it reflects the current system
         # prompt, while a usage anchor reflects an earlier, possibly smaller one.
         available = max(0, context_limit - reserved_tokens)
