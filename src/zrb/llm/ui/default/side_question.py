@@ -59,12 +59,18 @@ class UISideQuestion:
         self._window: "TextArea | None" = None
         # Identifies the question the panel currently shows; None once closed.
         self._request: object | None = None
+        # The raw markdown of the answer currently shown, for `rewrap`; None
+        # while the panel shows a pending/failure message or nothing at all.
+        self._last_answer: str | None = None
+        self._rendered_width: int | None = None
 
     def init_side_question_state(self) -> None:
         """Initialize the panel state and build its (hidden) widget."""
         self._question = ""
         self._is_active = False
         self._request = None
+        self._last_answer = None
+        self._rendered_width = None
         self._window = self._create_window()
 
     @property
@@ -87,6 +93,7 @@ class UISideQuestion:
         self._question = question.strip()
         self._is_active = True
         self._request = request = object()
+        self._last_answer = None
         self._fill(self._echo(_PENDING))
         # The panel takes the focus while it is shown, so Up/Down scroll the
         # answer instead of recalling a message into the input. A prompt that is
@@ -109,12 +116,30 @@ class UISideQuestion:
         """
         if not self.is_current(request):
             return
-        self._fill(self._echo(self._render(answer)))
+        self._last_answer = answer
+        self._render_and_fill(answer)
+
+    def rewrap(self) -> None:
+        """Re-render the shown answer at the current width (public API).
+
+        `end` renders markdown to plain styled lines once; without this, a
+        resize after the answer lands would leave it wrapped for the old
+        width. Called from the app's after-render hook, so it runs on every
+        frame — a no-op unless an answer is showing and the width changed.
+        """
+        if not self._is_active or self._last_answer is None:
+            return
+        if self._ui.output_field_width == self._rendered_width:
+            return
+        window = self._window
+        cursor = window.buffer.cursor_position if window is not None else 0
+        self._render_and_fill(self._last_answer, cursor)
 
     def fail(self, message: str, request: object | None = None) -> None:
         """Show why the side question could not be answered."""
         if not self.is_current(request):
             return
+        self._last_answer = None
         self._fill(self._echo(f"  ❌ {message}\n"))
 
     def cancel(self, request: object | None = None) -> None:
@@ -133,6 +158,7 @@ class UISideQuestion:
             return
         self._is_active = False
         self._request = None
+        self._last_answer = None
         self._fill("")
         focus_widget(self._ui.input_field, "Input-field")
         self._invalidate()
@@ -159,8 +185,23 @@ class UISideQuestion:
         """Render markdown to what the panel's lexer expects: styled lines."""
         return self._ui.render_markdown(answer, self._ui.output_field_width)
 
-    def _fill(self, text: str) -> None:
-        """Replace the panel's text and scroll back to its first line."""
+    def _render_and_fill(self, answer: str, cursor_position: int = 0) -> None:
+        """Render `answer` at the current width and fill the panel with it.
+
+        Records the width it rendered at, so `rewrap` can tell a stale render
+        from a current one.
+        """
+        self._rendered_width = self._ui.output_field_width
+        self._fill(self._echo(self._render(answer)), cursor_position)
+
+    def _fill(self, text: str, cursor_position: int = 0) -> None:
+        """Replace the panel's text, placing the cursor at `cursor_position`.
+
+        Defaults to the first line — the read naturally starts there for a
+        new question's answer, failure, or pending message; `rewrap` passes
+        the reader's current position instead, so a resize doesn't jump them
+        back to the top.
+        """
         window = self._window
         if window is None:
             return
@@ -169,7 +210,8 @@ class UISideQuestion:
 
         # The panel is read-only: only the panel itself writes its text.
         window.buffer.set_document(
-            Document(text, cursor_position=0), bypass_readonly=True
+            Document(text, cursor_position=min(cursor_position, len(text))),
+            bypass_readonly=True,
         )
         self._invalidate()
 

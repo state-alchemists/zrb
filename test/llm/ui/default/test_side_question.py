@@ -190,3 +190,75 @@ def test_an_answer_arriving_after_esc_is_dropped(part):
     assert _text(part) == ""
 
 
+def test_rewrap_re_renders_the_shown_answer_at_the_new_width():
+    """A resize must not leave the answer wrapped for the old width."""
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("because of Rayleigh scattering")
+
+    ui.output_field_width = 40
+    part.rewrap()
+
+    assert "<md width=40>because of Rayleigh scattering</md>" in _text(part)
+
+
+def test_rewrap_does_nothing_when_the_width_is_unchanged():
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("because")
+    before = _text(part)
+
+    part.rewrap()
+
+    assert _text(part) == before
+
+
+def test_rewrap_does_nothing_while_the_panel_is_closed():
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("because")
+    part.dismiss()
+
+    ui.output_field_width = 40
+    part.rewrap()
+
+    assert _text(part) == ""
+
+
+def test_rewrap_does_nothing_while_the_panel_shows_a_pending_or_failure_message():
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+
+    ui.output_field_width = 40
+    part.rewrap()
+    assert "thinking" in _text(part)
+
+    part.fail("boom")
+    ui.output_field_width = 20
+    part.rewrap()
+    assert "❌ boom" in _text(part)
+
+
+def test_rewrap_keeps_the_readers_scroll_position():
+    """Unlike a fresh answer, a resize must not jump the reader back to the top."""
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("because")
+    window = part.side_question_window
+    assert window is not None
+    window.buffer.cursor_position = 3
+
+    ui.output_field_width = 40
+    part.rewrap()
+
+    assert window.buffer.cursor_position == 3
