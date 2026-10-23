@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 from zrb.llm.custom_command.skill_command_factory import (
     get_skill_custom_command,
 )
-from zrb.llm.skill.manager import Skill
+from zrb.llm.skill.manager import Skill, SkillManager
 
 
 class TestGetSkillCustomCommand:
@@ -119,6 +119,26 @@ class TestGetSkillCustomCommand:
         assert "---" in prompt
 
         assert "Skill content" in prompt
+
+
+class TestSkillCommandPreload:
+    "A slash command carries its `preload:` dependency in the same prompt."
+
+    def test_preloaded_dependency_is_in_the_prompt(self, tmp_path):
+        (tmp_path / "core.skill.md").write_text(
+            "---\nname: core-coding\ndescription: Core\n---\nCore body"
+        )
+        (tmp_path / "refactor.skill.md").write_text(
+            "---\nname: refactor\ndescription: Refactor\n"
+            "preload: [core-coding]\n---\nRefactor body"
+        )
+        manager = SkillManager(root_dir=str(tmp_path), search_dirs=[tmp_path])
+
+        commands = get_skill_custom_command(manager)()
+        prompt = next(c.get_prompt({}) for c in commands if c.command == "/refactor")
+
+        assert 'name="core-coding" preloaded-by="refactor"' in prompt
+        assert prompt.index("Core body") < prompt.index("Refactor body")
 
 
 class TestExtractArgs:

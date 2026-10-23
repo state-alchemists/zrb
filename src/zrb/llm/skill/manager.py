@@ -37,6 +37,7 @@ class Skill:
         content: str | None = None,
         content_factory: Callable[[], str] | None = None,
         companion_files: list[str] | None = None,
+        preload: list[str] | None = None,
     ):
         """Define a skill programmatically: `skill_registry.add_skill(Skill(...))`.
 
@@ -63,6 +64,9 @@ class Skill:
                 be built at activation time rather than at registration.
             companion_files: Paths, relative to `path`, that the skill's content
                 refers to and that travel with it.
+            preload: Skill names whose bodies render with this skill, ahead of
+                its own. A dependency loads in the same response, so activating
+                it costs no extra round trip.
         """
         self.name = name
         self.path = path
@@ -77,6 +81,7 @@ class Skill:
         self.content = content
         self.content_factory = content_factory
         self.companion_files = companion_files or []
+        self.preload = preload or []
 
 
 class SkillManager:
@@ -409,6 +414,7 @@ def _parse_skill_frontmatter(content: str, full_path: str) -> dict:
         "model": None,
         "context": None,
         "agent": None,
+        "preload": [],
     }
     if not content.startswith("---"):
         return fields
@@ -429,6 +435,7 @@ def _parse_skill_frontmatter(content: str, full_path: str) -> dict:
         fields["user_invocable"] = frontmatter.get("user-invocable", True)
         fields["argument_hint"] = frontmatter.get("argument-hint")
         fields["allowed_tools"] = _parse_allowed_tools(frontmatter.get("allowed-tools"))
+        fields["preload"] = _parse_name_list(frontmatter.get("preload"))
         for key in ("model", "context", "agent"):
             fields[key] = frontmatter.get(key)
         apply_skill_frontmatter_hooks(hook_manager, frontmatter.get("hooks"), full_path)
@@ -445,4 +452,13 @@ def _parse_allowed_tools(raw: "str | list[str] | None") -> list[str]:
         return [tool.strip() for tool in raw.split(",")]
     if isinstance(raw, list):
         return raw
+    return []
+
+
+def _parse_name_list(raw: "str | list[str] | None") -> list[str]:
+    """`preload` as a list of skill names, from a comma-separated string or a list."""
+    if isinstance(raw, str):
+        return [name.strip() for name in raw.split(",") if name.strip()]
+    if isinstance(raw, list):
+        return [str(name).strip() for name in raw if str(name).strip()]
     return []

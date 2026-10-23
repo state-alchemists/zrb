@@ -1,11 +1,11 @@
 import re
 from collections.abc import Callable
-from pathlib import Path
 
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.custom_command.custom_command import CustomCommand
-from zrb.llm.skill.manager import SkillManager
-from zrb.llm.skill.util import format_companion_file_lines
+from zrb.llm.skill.activation import build_activation_block
+from zrb.llm.skill.manager import Skill, SkillManager
+from zrb.llm.skill.preload import format_preload_problems, resolve_preload
 
 
 def get_skill_custom_command(
@@ -31,18 +31,7 @@ def _get_skill_custom_commands(skill_manager: SkillManager) -> list[AnyCustomCom
         description = skill.description
         if skill.argument_hint:
             description = f"{skill.description} {skill.argument_hint}"
-        # Prepend skill context header (directory path + companion files)
-        skill_dir = str(Path(skill.path).parent)
-        context_lines = [
-            f"Skill directory (working directory): {skill_dir}",
-            "",
-            "All file paths in the instructions below are relative to this directory.",
-            "Use companion files (scripts, tools, references) by resolving them against this path.",
-        ]
-        context_lines.extend(format_companion_file_lines(skill.companion_files))
-        context_lines.append("")
-        context_lines.append("---")
-        prompt_with_companions = "\n".join(context_lines) + "\n\n" + content
+        prompt_with_companions = _build_prompt(skill_manager, skill, content)
         commands.append(
             CustomCommand(
                 command=f"/{skill.name}",
@@ -52,6 +41,23 @@ def _get_skill_custom_commands(skill_manager: SkillManager) -> list[AnyCustomCom
             )
         )
     return commands
+
+
+def _build_prompt(skill_manager: SkillManager, skill: Skill, content: str) -> str:
+    """The skill body with any `preload:` dependencies ahead of it."""
+    preloaded, problems = resolve_preload(skill_manager, skill)
+    blocks = [
+        build_activation_block(
+            dependency,
+            skill_manager.get_skill_content(dependency.name) or dependency.description,
+            preloaded_by=skill.name,
+        )
+        for dependency in preloaded
+    ]
+    blocks.append(build_activation_block(skill, content))
+    if problems:
+        blocks.append(format_preload_problems(problems))
+    return "\n\n".join(blocks)
 
 
 # Claude Code spec: $ARGUMENTS, $ARGUMENTS[N], $N.
