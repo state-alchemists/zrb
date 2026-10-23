@@ -367,9 +367,6 @@ def ensure_journal_tree() -> str:
         )
     root = os.path.abspath(os.path.expanduser(journal_dir))
     os.makedirs(root, exist_ok=True)
-    # A journal written before the private-mode rule keeps its old modes; this
-    # narrows it once, and is a no-op on every later call.
-    tighten_once(root)
     index_name = _index_name()
     for name in (*NOTE_CATEGORIES, ACTIVITY_DIR):
         os.makedirs(os.path.join(root, name), exist_ok=True)
@@ -378,6 +375,11 @@ def ensure_journal_tree() -> str:
             f"# {name.replace('-', ' ').title()}\n",
         )
     _write_if_absent(os.path.join(root, index_name), _root_index_skeleton())
+    # A journal written before the private-mode rule keeps its old modes; this
+    # narrows it once, and is a no-op on every later call. Run last, so a
+    # first-time tree is narrowed only once every descendant it creates above
+    # already exists — the marker it writes never claims a half-hardened tree.
+    tighten_once(root)
     return root
 
 

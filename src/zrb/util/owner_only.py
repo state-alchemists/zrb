@@ -38,9 +38,12 @@ def tighten_once(directory: str) -> None:
     The marker decides whether the work is already done, so it is read with
     `lstat` and created exclusively: one planted at its path cannot stand in for
     a migration that never ran, and cannot redirect the write that records one.
-    A directory whose parent someone else can write to is still bounded by that
-    parent — a *regular* file left at the marker path is indistinguishable from
-    zrb's own, which is why the marker sits beside a directory the user owns.
+    A regular file only counts as that marker when it is owned by the caller and
+    carries exactly `FILE_MODE` — another local user sharing the parent
+    directory can create a file at that path, but cannot make it theirs, so it
+    cannot fake a migration that never happened. Anything else at the path
+    (a symlink, or a regular file that fails that check) is unlinked and
+    replaced once narrowing finishes.
     """
     if os.name != "posix":
         return
@@ -62,14 +65,18 @@ def _has_marker(directory: str) -> bool:
     """Whether a marker this function can trust is already in place.
 
     `lstat`, not `stat`: a symlink at the marker path must not read as a finished
-    migration, or the narrowing it stands for would be skipped. Only a regular
-    file counts, which is what `_write_marker` creates.
+    migration, or the narrowing it stands for would be skipped. A regular file
+    only counts when it is ours (owner and mode match what `_write_marker`
+    creates) — anyone else's parent-writable plant fails one of those checks and
+    is treated as no marker at all.
     """
     try:
         info = os.lstat(marker_path(directory))
     except OSError:
         return False
-    return stat.S_ISREG(info.st_mode)
+    if not stat.S_ISREG(info.st_mode):
+        return False
+    return info.st_uid == os.geteuid() and stat.S_IMODE(info.st_mode) == FILE_MODE
 
 
 def _narrow_tree(directory: str) -> None:
@@ -109,18 +116,16 @@ def _write_marker(directory: str) -> None:
     marker can be truncated or written through. `O_NOFOLLOW` is added where the
     platform has it, for the reader's benefit as much as the kernel's.
 
-    Something at the path that is not a regular file is not a marker: a symlink
-    is unlinked (which removes the link, never its target) and the marker is
-    created in its place. A regular file there is left alone — it may be zrb's
-    own from an earlier run, and either way replacing it is not necessary to
-    finish the work this call already did.
+    `tighten_once` only calls this after `_has_marker` already rejected whatever
+    is at the path, so anything found here — a symlink, or a regular file owned
+    by someone else, or one with the wrong mode — is untrusted. `unlink` removes
+    only that directory entry, never a symlink's target, before the marker is
+    created in its place.
     """
     target = marker_path(directory)
     try:
         _create_marker(target)
     except FileExistsError:
-        if not stat.S_ISLNK(os.lstat(target).st_mode):
-            return
         os.unlink(target)
         _create_marker(target)
 

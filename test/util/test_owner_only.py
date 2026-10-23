@@ -10,6 +10,7 @@ import stat
 
 import pytest
 
+import zrb.util.owner_only as owner_only
 from zrb.util.owner_only import FILE_MODE, DIR_MODE, marker_path, tighten_once
 
 needs_posix_modes = pytest.mark.skipif(
@@ -72,6 +73,44 @@ def test_a_dangling_marker_symlink_is_not_written_through(tmp_path):
     assert not os.path.exists(target)
     assert stat.S_IMODE(os.stat(root).st_mode) == DIR_MODE
     assert stat.S_ISREG(os.lstat(marker_path(str(root))).st_mode)
+
+
+@needs_posix_modes
+def test_a_marker_with_the_wrong_mode_does_not_skip_the_narrowing(tmp_path):
+    """A regular file at the marker path proves nothing by itself — the mode
+    must match too, or a stray file reads as a finished migration."""
+    root, note = _legacy_tree(tmp_path)
+    marker = marker_path(str(root))
+    with open(marker, "wb"):
+        pass
+    os.chmod(marker, 0o644)
+
+    tighten_once(str(root))
+
+    assert stat.S_IMODE(os.stat(root).st_mode) == DIR_MODE
+    assert stat.S_IMODE(os.stat(note).st_mode) == FILE_MODE
+    assert stat.S_IMODE(os.lstat(marker).st_mode) == FILE_MODE
+
+
+@needs_posix_modes
+def test_a_marker_owned_by_someone_else_does_not_skip_the_narrowing(
+    tmp_path, monkeypatch
+):
+    """The threat this guards against: another local user, sharing a writable
+    parent directory, plants a marker before zrb ever runs. Only ownership
+    tells that file apart from one `_write_marker` actually created."""
+    root, note = _legacy_tree(tmp_path)
+    marker = marker_path(str(root))
+    with open(marker, "wb"):
+        pass
+    os.chmod(marker, FILE_MODE)
+    real_euid = os.geteuid()
+    monkeypatch.setattr(owner_only.os, "geteuid", lambda: real_euid + 1)
+
+    tighten_once(str(root))
+
+    assert stat.S_IMODE(os.stat(root).st_mode) == DIR_MODE
+    assert stat.S_IMODE(os.stat(note).st_mode) == FILE_MODE
 
 
 @needs_posix_modes
