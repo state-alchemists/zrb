@@ -13,6 +13,7 @@ import subprocess
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from html import escape
 from typing import Any
 
 from zrb.config.config import CFG
@@ -438,7 +439,12 @@ def _background_process_lines() -> list[str]:
     for row in rows:
         code = row["returncode"]
         status = "running" if code is None else f"exited, code {code}"
-        description = (row["description"] or "unnamed").replace("\n", " ")[:80]
+        # The description is a command line, or whatever the caller wrote: it
+        # must not be able to close this block early. `escape` leaves a normal
+        # command untouched and renders `</live-context>` as text.
+        description = escape(
+            (row["description"] or "unnamed").replace("\n", " ")[:80], quote=False
+        )
         lines.append(
             f"  - {row['handle']} ({status}, {_format_elapsed(row['seconds'])}): "
             f"{description}"
