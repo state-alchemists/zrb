@@ -57,7 +57,10 @@ def test_the_tail_is_the_newest_turns_that_fit_the_budget():
     messages = _turns(5)  # 10 messages, 100 tokens
     # Trigger 100 -> tail budget 40 tokens -> 4 messages.
     to_summarize, to_keep = split_history(
-        messages, summary_window=300, limiter=limiter, conversational_token_threshold=100
+        messages,
+        summary_window=300,
+        limiter=limiter,
+        conversational_token_threshold=100,
     )
 
     assert len(to_keep) == 4
@@ -71,10 +74,15 @@ def test_the_split_lands_on_a_turn_start_when_one_fits_the_budget():
     limiter = FixedLimiter(per_message=10)
     messages = _turns(5)
     # Only the user prompts start a turn; the assistant replies do not.
-    with_turn_starts = [i for i, m in enumerate(messages) if isinstance(m, ModelRequest)]
+    with_turn_starts = [
+        i for i, m in enumerate(messages) if isinstance(m, ModelRequest)
+    ]
 
     _, to_keep = split_history(
-        messages, summary_window=300, limiter=limiter, conversational_token_threshold=100
+        messages,
+        summary_window=300,
+        limiter=limiter,
+        conversational_token_threshold=100,
     )
 
     split = len(messages) - len(to_keep)
@@ -92,7 +100,10 @@ def test_a_giant_single_turn_is_not_summarized_whole():
     # Trigger 100 -> budget 40: the budget boundary is index 6 (4 messages),
     # but the only turn start in reach keeps 10 tokens, under half the budget.
     _, to_keep = split_history(
-        messages, summary_window=300, limiter=limiter, conversational_token_threshold=100
+        messages,
+        summary_window=300,
+        limiter=limiter,
+        conversational_token_threshold=100,
     )
 
     assert len(to_keep) == 4

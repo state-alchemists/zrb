@@ -23,14 +23,13 @@ from zrb.llm.history_manager.conversation_naming import (
     suggest_slug,
     with_slug,
 )
-from zrb.util.string.name import safe_segment
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.subagent_session_naming import (
     parse_delegated_agent_id,
     parse_delegated_session,
 )
 from zrb.util.cli.style import stylize_error, stylize_muted, stylize_warning
-from zrb.util.string.name import get_conversation_key
+from zrb.util.string.name import get_conversation_key, safe_segment
 
 if TYPE_CHECKING:
     from zrb.llm.snapshot.manager import SnapshotManager

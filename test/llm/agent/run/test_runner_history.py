@@ -358,7 +358,9 @@ async def test_run_agent_force_prune_uses_the_models_real_window():
         assert result == "Result"
 
         # get_effective_context_window was consulted with the run's own model...
-        limiter.get_effective_context_window.assert_called_with("deepseek:deepseek-flash")
+        limiter.get_effective_context_window.assert_called_with(
+            "deepseek:deepseek-flash"
+        )
         # ...and the history reached agent.run intact (not force-pruned to 1
         # message).
         passed_history = mock_run.call_args[1]["message_history"]

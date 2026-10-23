@@ -278,9 +278,7 @@ def test_get_pasted_attachment_paths_reads_a_drive_letter_uri_on_windows(
 ):
     import zrb.llm.util.attachment as attachment_module
 
-    monkeypatch.setattr(
-        attachment_module, "url2pathname", _windows_url2pathname
-    )
+    monkeypatch.setattr(attachment_module, "url2pathname", _windows_url2pathname)
     monkeypatch.setattr(attachment_module.os.path, "isfile", lambda path: True)
     monkeypatch.setattr(attachment_module.os.path, "abspath", lambda path: path)
 

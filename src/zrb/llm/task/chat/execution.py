@@ -410,9 +410,7 @@ class ChatExecution:
                 session_name=lambda: llm_task.get_conversation_name(ctx),
                 # Beside the history files this manager writes, not a fixed dir.
                 history_dir=(
-                    archive_manager.storage_dir
-                    if archive_manager is not None
-                    else None
+                    archive_manager.storage_dir if archive_manager is not None else None
                 ),
             )
         )

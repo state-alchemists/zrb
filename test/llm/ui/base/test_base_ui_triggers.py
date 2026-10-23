@@ -313,7 +313,9 @@ async def test_a_send_now_reply_without_a_source_is_keyboard_input(monkeypatch):
 
     monkeypatch.setattr(ui, "submit_message_now", fake_send_now)
 
-    await ui.trigger_loop(trigger_yielding(TriggerReply("open the file", send_now=True)))
+    await ui.trigger_loop(
+        trigger_yielding(TriggerReply("open the file", send_now=True))
+    )
 
     assert sent == [("open the file", KEYBOARD_INPUT, False)]
 

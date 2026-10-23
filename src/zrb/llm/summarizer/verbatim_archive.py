@@ -298,8 +298,12 @@ def _has_binary_content(part: object) -> bool:
 def _role_label(message: object) -> str:
     """Who spoke: `User`, `Tool result`, `Assistant`, or the type name."""
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest, ModelResponse, ToolReturnPart
-    from zrb.llm.agent.types import UserPromptPart
+    from zrb.llm.agent.types import (
+        ModelRequest,
+        ModelResponse,
+        ToolReturnPart,
+        UserPromptPart,
+    )
 
     if isinstance(message, ModelRequest):
         parts = getattr(message, "parts", [])

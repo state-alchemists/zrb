@@ -12,7 +12,10 @@ import pytest
 from pydantic_ai.messages import ModelRequest, ModelResponse
 
 from zrb.llm.agent.run.partial_run import PartialRunAccumulator
-from zrb.llm.agent.run.runner import _build_event_stream_handler, _deliver_queued_messages
+from zrb.llm.agent.run.runner import (
+    _build_event_stream_handler,
+    _deliver_queued_messages,
+)
 
 
 def _handler(ui):

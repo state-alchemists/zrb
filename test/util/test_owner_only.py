@@ -13,8 +13,8 @@ import pytest
 
 import zrb.util.owner_only as owner_only
 from zrb.util.owner_only import (
-    FILE_MODE,
     DIR_MODE,
+    FILE_MODE,
     makedirs_owner_only,
     marker_path,
     reject_symlinked_ancestors,
