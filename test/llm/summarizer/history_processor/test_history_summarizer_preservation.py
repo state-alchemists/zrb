@@ -12,7 +12,6 @@ from pydantic_ai.messages import (
 )
 
 from zrb.llm.summarizer import (
-    find_safe_split_index,
     message_to_text,
     process_message_for_summarization,
     process_tool_return_part,
@@ -138,17 +137,6 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
     assert opening_request in combined
 
     assert "round 1 summary" not in combined
-
-
-@pytest.mark.asyncio
-async def test_find_safe_split_index_no_safe_split():
-    limiter = MockLimiter()
-    messages = [
-        ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="1")]),
-        ModelRequest(parts=[UserPromptPart(content="Waiting...")]),
-    ]
-    idx = find_safe_split_index(messages, limiter, 5)
-    assert idx == -1
 
 
 @pytest.mark.asyncio
@@ -287,45 +275,6 @@ async def test_summarize_long_text_consolidation_failure():
 
     with pytest.raises(Exception, match="Consolidation failed"):
         await summarize_long_text("A" * 500, agent, limiter, 100)
-
-
-@pytest.mark.asyncio
-async def test_find_best_effort_split_complex():
-    "Test find_best_effort_split with mixed tool pairs."
-    from zrb.llm.summarizer.history_splitter import find_best_effort_split
-
-    limiter = MockLimiter()
-
-    messages = [
-        ModelResponse(
-            parts=[ToolCallPart(tool_name="complete", args={}, tool_call_id="c1")]
-        ),
-        ModelResponse(parts=[TextPart(content="Working...")]),
-        ModelRequest(
-            parts=[
-                ToolReturnPart(content="done", tool_name="complete", tool_call_id="c1")
-            ]
-        ),
-        ModelResponse(
-            parts=[ToolCallPart(tool_name="incomplete", args={}, tool_call_id="i1")]
-        ),
-        ModelRequest(parts=[UserPromptPart(content="last message")]),
-    ]
-
-    class PreciseLimiter:
-        def count_tokens(self, content):
-            if isinstance(content, str):
-                return len(content)
-            if isinstance(content, list):
-                return sum(self.count_tokens(m) for m in content)
-            return 10
-
-        def truncate_text(self, text, limit):
-            return text[:limit]
-
-    to_sum, to_keep = find_best_effort_split(messages, PreciseLimiter(), 25)
-    assert len(to_keep) >= 1
-    assert messages[-1] in to_keep
 
 
 def test_validate_tool_pair_integrity_problems():

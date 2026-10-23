@@ -1,6 +1,9 @@
 from collections.abc import Generator
 from dataclasses import replace
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from zrb.llm.agent.types import ModelMessage
 
 # Placeholders for parts that would otherwise be empty or text-less. Readable so
 # the model can tell a missing payload from a terse reply and not imitate it.
@@ -177,6 +180,24 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
         else:
             result.append(msg)
     return result
+
+
+def pending_tail_start(messages: "list[ModelMessage]") -> int | None:
+    """The index where an unresolved (deferred) tool call's turn begins.
+
+    A call with no return anywhere in *messages* may be a pending deferred
+    tool result awaiting resumption (e.g. a permission approval in flight);
+    from its message onward the tail must stay in native message form, not
+    flattened text, so pydantic-ai can still resume it. Returns ``None`` when
+    every call in *messages* already has its return.
+    """
+    tool_pairs = get_tool_pairs(messages)
+    pending_indices = [
+        indices["call_idx"]
+        for indices in tool_pairs.values()
+        if indices["call_idx"] is not None and indices["return_idx"] is None
+    ]
+    return min(pending_indices) if pending_indices else None
 
 
 def get_tool_pairs(messages: list[Any]) -> dict[str, dict[str, int | None]]:

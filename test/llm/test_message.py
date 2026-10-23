@@ -13,6 +13,7 @@ from zrb.llm.message import (
     TOOL_CALL_PLACEHOLDER,
     ensure_alternating_roles,
     get_tool_pairs,
+    pending_tail_start,
     sanitize_orphaned_tool_calls,
     strip_orphaned_returns,
     validate_tool_pair_integrity,
@@ -413,6 +414,48 @@ def test_orphaned_tool_retry_is_stripped():
         result = fn([req])
         assert len(result) == 1
         assert [type(p).__name__ for p in result[0].parts] == ["UserPromptPart"]
+
+
+# ── pending_tail_start ──────────────────────────────────────────────────────
+
+
+def test_pending_tail_start_no_pending_call():
+    """Every call has its return: nothing needs to stay in native message form."""
+    call_part = ToolCallPart(tool_name="t", args={}, tool_call_id="id-40")
+    return_part = ToolReturnPart(tool_name="t", content="ok", tool_call_id="id-40")
+    messages = [
+        ModelResponse(parts=[call_part], timestamp=datetime.now()),
+        ModelRequest(parts=[return_part]),
+    ]
+
+    assert pending_tail_start(messages) is None
+
+
+def test_pending_tail_start_at_a_trailing_unresolved_call():
+    """A call with no return yet is where the native-form tail begins."""
+    call_part = ToolCallPart(tool_name="t", args={}, tool_call_id="id-41")
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="go")]),
+        ModelResponse(parts=[call_part], timestamp=datetime.now()),
+    ]
+
+    assert pending_tail_start(messages) == 1
+
+
+def test_pending_tail_start_earliest_of_several_unresolved_calls():
+    """With more than one unresolved call, the tail begins at the earliest."""
+    messages = [
+        ModelResponse(
+            parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="a")],
+            timestamp=datetime.now(),
+        ),
+        ModelResponse(
+            parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="b")],
+            timestamp=datetime.now(),
+        ),
+    ]
+
+    assert pending_tail_start(messages) == 0
 
 
 def test_tool_less_retry_is_ignored_by_pairing():
