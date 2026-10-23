@@ -17,6 +17,7 @@ from collections.abc import Iterable, Iterator
 from types import ModuleType
 from typing import TYPE_CHECKING, NamedTuple, cast
 
+from zrb.config.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group, TaskReplacement
 from zrb.task.any_task import AnyTask
@@ -121,8 +122,9 @@ def find_task_diagnostics(
                 problem="unregistered",
                 detail=(
                     f"task {task.name!r} (declared as {symbol!r}) is not registered "
-                    f"and no task references it, so `zrb {task.name}` cannot reach "
-                    f"it. Register it with cli.add_task(...), or make it an "
+                    f"and no task references it, so "
+                    f"`{CFG.ROOT_GROUP_NAME} {task.name}` cannot reach it. Register "
+                    f"it with cli.add_task(...), or make it an "
                     f"upstream, fallback, successor, readiness check, or a "
                     f"trigger's callback."
                 ),

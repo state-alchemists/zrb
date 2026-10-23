@@ -198,8 +198,8 @@ async def wait_for_exit_and_drain(
         else:
             if reporter is not None:
                 reporter(
-                    "[zrb] output not fully captured: a background child kept "
-                    "the pipe open past the drain grace."
+                    f"[{CFG.ROOT_GROUP_NAME}] output not fully captured: a "
+                    "background child kept the pipe open past the drain grace."
                 )
             await _cancel_and_wait(readers)
             close_transport(process)
@@ -593,8 +593,9 @@ def __report_dropped(
         if dropped <= 0:
             continue
         print_method(
-            f"[zrb] dropped {dropped} {stream} line(s), keeping the last "
-            f"{states[stream].max_line}. Pass {keyword}=0 to keep every line."
+            f"[{CFG.ROOT_GROUP_NAME}] dropped {dropped} {stream} line(s), "
+            f"keeping the last {states[stream].max_line}. Pass {keyword}=0 to "
+            "keep every line."
         )
 
 
