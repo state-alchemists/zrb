@@ -268,6 +268,7 @@ def test_a_write_that_cannot_be_rolled_back_keeps_the_partial_section(
     assert "Could not roll back a partial archive write" in caplog.text
 
 
+@needs_no_follow
 @pytest.mark.asyncio
 async def test_a_refused_write_gives_the_summary_no_pointer(tmp_path, monkeypatch):
     """The end-to-end contract, driven by a real refusal rather than a patched
