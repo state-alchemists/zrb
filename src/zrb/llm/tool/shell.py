@@ -28,6 +28,10 @@ from zrb.util.cli.ansi import strip_ansi
 # Minimum seconds between live shell-output repaints.
 _LIVE_UPDATE_INTERVAL = 0.5
 
+# Share of a failed stream's retained text given back to its beginning: a
+# failing command announces its cause first and only summarizes it last.
+_HEAD_SHARE_OF_FAILED_OUTPUT = 0.4
+
 
 async def run_shell_command(
     command: Annotated[
@@ -93,8 +97,9 @@ async def run_shell_command(
     that asks for ``Bash`` is mapped to Shell; pass ``shell="bash"`` for bash.
 
     stdin is closed — pass ``-y``, ``--yes``, or ``CI=true`` for prompts.
-    Output is truncated from the TOP (keeping the tail); full output is saved
-    to a temp file whose path is reported — Grep/Read it.
+    Output is truncated: a successful command keeps its tail, a failed one
+    keeps its beginning and its end. Full output is saved to a temp file whose
+    path is reported — Grep/Read it.
 
     Prefer the bounded form: ``git diff --stat`` before ``git diff``,
     ``--name-only`` before full contents, ``head``/``wc -l`` before a raw dump.
@@ -457,18 +462,21 @@ def _format_output(
 ) -> str:
     """Formats the command execution result into a readable string."""
     exit_code_str = str(returncode) if returncode is not None else "(none)"
-    stdout_str, stderr_str = stdout_cap.text, stderr_cap.text
+    failed = timed_out or (returncode is not None and returncode != 0)
+    stdout_str = _display_text(stdout_cap, failed)
+    stderr_str = _display_text(stderr_cap, failed)
     if timed_out:
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
 
     flooded = stdout_cap.truncated or stderr_cap.truncated
     total_chars = stdout_cap.total_chars + stderr_cap.total_chars
-    dump_path = None
+    note = ""
     if flooded:
         dump_path = _dump_full_output(
             command, cwd, stdout_cap, stderr_cap, exit_code_str
         )
+        note = _overflow_note(dump_path, failed)
     if drain_notice:
         stderr_str += f"\n{drain_notice}"
     stdout_cap.discard()
@@ -484,8 +492,48 @@ def _format_output(
         stderr_str,
         exit_code_str,
         bg_pids,
-        dump_path,
+        note,
         suggestion,
+    )
+
+
+def _display_text(capture: StreamCapture, failed: bool) -> str:
+    """The stream as the model sees it: whole when it fits, else the useful end.
+
+    A command that succeeded ends with its result, so its tail is the part
+    worth keeping. A failed one announces its cause at the top — the first
+    traceback line, the first compiler error — and only summarizes it at the
+    bottom, so it keeps both.
+    """
+    if failed and capture.truncated:
+        return _head_and_tail(capture)
+    return capture.text
+
+
+def _head_and_tail(capture: StreamCapture) -> str:
+    """A failed stream's beginning and end, within the text already retained."""
+    budget = len(capture.text)
+    head = capture.head_text(int(budget * _HEAD_SHARE_OF_FAILED_OUTPUT))
+    tail = capture.text[-(budget - len(head)) :] if budget > len(head) else ""
+    elided = capture.total_chars - len(head) - len(tail)
+    if elided <= 0:
+        return capture.text
+    return f"{head}\n… [{elided} characters elided] …\n{tail}"
+
+
+def _overflow_note(dump_path: str | None, failed: bool) -> str:
+    """What the model is told about output that did not fit."""
+    if not dump_path:
+        return ""
+    kept = (
+        "the beginning and the end of a failed command"
+        if failed
+        else "the tail"
+    )
+    return (
+        f"[SYSTEM SUGGESTION]: Output truncated (kept {kept}). Full "
+        f"stdout/stderr saved to {dump_path} — Grep it to locate sections, "
+        "then Read."
     )
 
 
@@ -496,7 +544,7 @@ def _assemble_output(
     stderr_str: str,
     exit_code_str: str,
     bg_pids: list[int],
-    dump_path: str | None,
+    overflow_note: str,
     suggestion: str,
 ) -> str:
     output_parts = [
@@ -507,12 +555,8 @@ def _assemble_output(
         f"Exit Code: {exit_code_str}",
         f"Background PIDs: {', '.join(map(str, bg_pids)) if bg_pids else '(none)'}",
     ]
-    if dump_path:
-        output_parts.append(
-            f"\n[SYSTEM SUGGESTION]: Output truncated (kept the tail). Full "
-            f"stdout/stderr saved to {dump_path} — Grep it to locate sections, "
-            "then Read."
-        )
+    if overflow_note:
+        output_parts.append(f"\n{overflow_note}")
     if suggestion:
         output_parts.append(f"\n{suggestion}")
     return "\n".join(output_parts)

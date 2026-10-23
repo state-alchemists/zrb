@@ -62,7 +62,38 @@ def test_echoed_text_stops_growing_past_the_echo_budget():
     assert "more text" not in cap.echoed_text
 
 
+def test_head_text_is_empty_when_nothing_was_dropped():
+    """`text` is the whole stream then; there is no discarded head to report."""
+    cap = StreamCapture(retain=1000, echo=0)
+    cap.feed("short")
+
+    assert cap.head_text(10) == ""
+
+
 def test_echoed_text_empty_when_echo_budget_is_zero():
     cap = StreamCapture(retain=1000, echo=0)
     cap.echo("hello")
     assert cap.echoed_text == ""
+
+
+def test_head_text_reads_the_dropped_beginning_back_from_the_spill():
+    cap = StreamCapture(retain=5, echo=0)
+    cap.feed("FIRST-LINE ")
+    cap.feed("x" * 100)
+
+    assert cap.head_text(6) == "FIRST-"
+    cap.discard()
+
+
+def test_head_text_of_an_unavailable_spill_is_empty_not_an_error(monkeypatch):
+    """A missing head costs the caller an excerpt, never the output."""
+
+    def _boom(*args, **kwargs):
+        raise OSError("no temp for you")
+
+    monkeypatch.setattr("zrb.llm.tool.stream_capture.tempfile.mkstemp", _boom)
+    cap = StreamCapture(retain=5, echo=0)
+    cap.feed("x" * 50)
+
+    assert cap.text != ""
+    assert cap.head_text(10) == ""
