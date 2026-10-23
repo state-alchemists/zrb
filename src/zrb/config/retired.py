@@ -5,6 +5,8 @@ replacement settings omit the environment prefix.
 """
 
 RETIRED_SETTINGS: dict[str, str] = {
+    # 3.26.0: the fixed cap became a share of the summarization threshold.
+    "LLM_SUMMARY_MAX_TOKENS": "LLM_SUMMARY_MAX_TOKEN_RATIO",
     # 3.15.0: the stage-1 input tap and its unused Pipecat pipeline were removed.
     "LLM_DICTATION_PIPECAT_ENABLED": (
         "nothing: the Pipecat input tap is gone; the service a session listens "

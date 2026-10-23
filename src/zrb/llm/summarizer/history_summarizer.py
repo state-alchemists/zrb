@@ -529,21 +529,22 @@ async def _build_summary_parts(
     # so the snapshot is not shrunk to make room for text zrb can leave out. The
     # pointer's room is reserved here because the write that decides it happens
     # only after the cap has approved the block.
+    cap = _summary_cap(conversational_token_threshold)
     journal_block = render_journal_index() or ""
     archive_note = _render_archive_note(archive_path) if archive_path else ""
     journal_block, archive_note = _fit_note_blocks(
-        llm_limiter, journal_block, archive_note
+        llm_limiter, cap, journal_block, archive_note
     )
     summary_text = await _fit_summary_block(
         summary_text,
         summarizer_agent,
         llm_limiter,
         conversational_token_threshold,
+        cap,
         journal_block,
         archive_note,
     )
     block = _render_summary_content(summary_text, journal_block, archive_note)
-    cap = CFG.LLM_SUMMARY_MAX_TOKENS
     if cap > 0 and llm_limiter.count_tokens(block) > cap:
         # Nothing optional is left to drop, so the framing alone is over the cap.
         # Replacing the history with a turn that breaks the cap would be the
@@ -551,7 +552,7 @@ async def _build_summary_parts(
         zrb_print(
             stylize_warning(
                 f"  Warning: no summary block fits the {cap}-token cap, so the "
-                "history is kept as it is. Raise LLM_SUMMARY_MAX_TOKENS to "
+                "history is kept as it is. Raise LLM_SUMMARY_MAX_TOKEN_RATIO to "
                 "compact it."
             ),
             plain=True,
@@ -562,8 +563,23 @@ async def _build_summary_parts(
     )
 
 
+def _summary_cap(conversational_token_threshold: int) -> int:
+    """The token cap for one summary, from `LLM_SUMMARY_MAX_TOKEN_RATIO`.
+
+    ``0`` (or a negative ratio) means no cap. The share is taken of the trigger
+    threshold the run is actually using, so the bound follows a `/model` switch
+    and a registered context window the same way the trigger itself does. The
+    floor keeps a six-section snapshot viable on a small window, where the
+    default share would be a few hundred tokens.
+    """
+    ratio = CFG.LLM_SUMMARY_MAX_TOKEN_RATIO
+    if ratio <= 0:
+        return 0
+    return max(_SUMMARY_CAP_FLOOR, int(conversational_token_threshold * ratio))
+
+
 def _fit_note_blocks(
-    limiter: "LLMLimiter", journal_block: str, archive_note: str
+    limiter: "LLMLimiter", cap: int, journal_block: str, archive_note: str
 ) -> "tuple[str, str]":
     """The notes that fit beside the framing, dropping the least useful first.
 
@@ -574,7 +590,6 @@ def _fit_note_blocks(
     together. A cap the framing alone cannot fit is left to the caller, which
     keeps the history instead of inserting an over-cap turn.
     """
-    cap = CFG.LLM_SUMMARY_MAX_TOKENS
     if cap <= 0:
         return journal_block, archive_note
 
@@ -626,6 +641,7 @@ async def _fit_summary_block(
     agent: "Agent[None, str]",
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
+    cap: int,
     journal_block: str,
     archive_note: str,
 ) -> str:
@@ -637,7 +653,6 @@ async def _fit_summary_block(
     overflows by. The framing alone can be over the cap too; the caller skips
     the compaction then rather than insert a turn that breaks it.
     """
-    cap = CFG.LLM_SUMMARY_MAX_TOKENS
     if cap <= 0:
         return model_text
 
@@ -678,22 +693,46 @@ async def _fit_summary_block(
 def _truncate_snapshot(
     text: str, limiter: "LLMLimiter", cap: int, size: "Callable[[str], int]"
 ) -> str:
-    """Cut *text* until the block it lands in fits, not the text on its own.
+    """Make the snapshot fit, losing whole sections before it loses words.
 
-    A token count is not additive across a concatenation: the same words
+    A plain token cut severs a section mid-word, and `<task_state>` is last in
+    the schema, so the tail is exactly what the next agent needs most. The
+    least durable sections go whole first; only then is what remains cut, and
+    the closing tag is put back so the block stays readable.
+
+    A token count is not additive across a concatenation either: the same words
     tokenize differently once the framing and the notes sit around them, so
-    subtracting the block's overflow from the text's own count can leave the
-    block a token or two over. Every pass measures the block again and takes
-    what is left of the overflow off the next cut; `keep` only falls and a
-    zero-length snapshot ends it, so the loop terminates.
+    every pass measures the block again and takes what is left of the overflow
+    off the next cut. `keep` only falls, so the loop terminates.
     """
+    for section in _SUMMARY_DROP_ORDER:
+        if size(text) <= cap:
+            return text
+        text = _without_section(text, section)
+    if size(text) <= cap:
+        return text
+    closing = "</state_snapshot>"
+    body = text[: text.rfind(closing)] if closing in text else text
     keep = max(0, limiter.count_tokens(text) - (size(text) - cap))
-    while True:
-        truncated = limiter.truncate_text(text, keep)
-        overflow = size(truncated) - cap
-        if overflow <= 0 or keep <= 0:
-            return truncated
+    while keep > 0:
+        candidate = limiter.truncate_text(body, keep).rstrip()
+        if closing in text:
+            candidate = f"{candidate}\n{closing}"
+        overflow = size(candidate) - cap
+        if overflow <= 0:
+            return candidate
         keep = max(0, keep - overflow)
+    return closing if closing in text else ""
+
+
+def _without_section(text: str, section: str) -> str:
+    """*text* without one whole `<section>…</section>` block, when it holds one."""
+    opening, closing = f"<{section}>", f"</{section}>"
+    start = text.find(opening)
+    end = text.find(closing, start + len(opening)) if start >= 0 else -1
+    if start < 0 or end < 0:
+        return text
+    return text[:start] + text[end + len(closing) :]
 
 
 async def _shorten_summary(
@@ -866,7 +905,9 @@ def _create_verbatim_tail_model_request(text: str) -> "ModelMessage":
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
     return ModelRequest(
-        parts=[UserPromptPart(content=make_markdown_section(_VERBATIM_TAIL_HEADER, text))]
+        parts=[
+            UserPromptPart(content=make_markdown_section(_VERBATIM_TAIL_HEADER, text))
+        ]
     )
 
 
@@ -903,6 +944,18 @@ _SUMMARY_SECTIONS = (
     "task_state",
 )
 _SUMMARY_SHORTEN_ATTEMPTS = 2
+_SUMMARY_CAP_FLOOR = 1_000
+"""Smallest cap a configured ratio may produce, in tokens.
+
+Six sections of anything useful do not fit in less, and on a small window the
+default share of the threshold is a few hundred tokens.
+"""
+_SUMMARY_DROP_ORDER = ("work_log", "key_knowledge", "active_skills")
+"""Sections a snapshot gives up, in order, when it has to get smaller.
+
+The goal, the constraints and the task state are what the next agent cannot
+re-derive; the work log and the accumulated knowledge are bulk by comparison.
+"""
 _SUMMARY_PREAMBLE = (
     "This is an automated summary of the preceding conversation history, kept so the "
     "conversation fits the token limit. It is derived data, not the user speaking: "
