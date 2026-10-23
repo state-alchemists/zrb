@@ -79,20 +79,76 @@ def split_live_context(content: str) -> tuple[str, str | None]:
     return content[: match.start()].rstrip(), match.group(1)
 
 
+#: How many earlier blocks to merge before treating a missing section as absent.
+BASELINE_BLOCK_LIMIT = 5
+
+
 def last_live_context(message_history: "Sequence[object]") -> str | None:
-    """The newest ``<live-context>`` block in *message_history*, or ``None``.
+    """The git baseline from the newest blocks in *message_history*, or ``None``.
+
+    A block may be a delta that omitted unchanged sections, so the newest one
+    alone is not a baseline: diffing against it would report the omitted old
+    commits as new. Merge backwards until every section is known.
 
     Read from the history the run is actually using, never from a side cache:
-    ``/rewind`` and ``/load`` replace that history, so the block found here is
-    the one the next turn should diff against.
+    ``/rewind`` and ``/load`` replace that history, so the blocks found here
+    are the ones the next turn should diff against.
     """
+    blocks = _recent_live_contexts(message_history)
+    if not blocks:
+        return None
+    merged = _merge_git_blocks(blocks)
+    return merged if merged is not None else blocks[0]
+
+
+def _recent_live_contexts(
+    message_history: "Sequence[object]", limit: int = BASELINE_BLOCK_LIMIT
+) -> list[str]:
+    """Unwrapped live-context blocks, newest first, capped at *limit*."""
+    blocks: list[str] = []
     for message in reversed(message_history):
         parts = getattr(message, "parts", None) or []
         for part in reversed(parts):
             block = _live_context_in(getattr(part, "content", None))
             if block:
-                return _unwrap_live_context(block)
-    return None
+                blocks.append(_unwrap_live_context(block))
+                if len(blocks) >= limit:
+                    return blocks
+    return blocks
+
+
+def _merge_git_blocks(blocks: list[str]) -> str | None:
+    """One block holding the newest known status/worktrees and every known commit."""
+    status: list[str] = []
+    commits: list[str] = []
+    worktrees: list[str] = []
+    seen: set[str] = set()
+    for block in blocks:
+        parsed = _git_state(_flatten(_previous_git_lines(block)))
+        if not status and parsed["status"]:
+            status = parsed["status"]
+        if not worktrees and parsed["worktrees"]:
+            worktrees = parsed["worktrees"]
+        for commit in parsed["commits"]:
+            key = _commit_key(commit)
+            if key not in seen:
+                seen.add(key)
+                commits.append(commit)
+        if status and worktrees and commits:
+            break
+    # Without both a status and a commit list, this is not a baseline: a
+    # partial one would label old commits as new, so the caller renders the
+    # full state instead.
+    if not (status and commits):
+        return None
+    lines = list(status)
+    if commits:
+        lines.append("- Recent commits:")
+        lines.extend(f"  {commit}" for commit in commits)
+    if worktrees:
+        lines.append("- Worktrees:")
+        lines.extend(f"  {worktree}" for worktree in worktrees)
+    return "\n".join(lines)
 
 
 def _unwrap_live_context(block: str) -> str:

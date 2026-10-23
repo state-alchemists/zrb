@@ -88,6 +88,32 @@ def test_a_branch_change_is_shown(tmp_path, monkeypatch):
     assert "- Git: feature" in second
 
 
+def _message(block: str):
+    message = MagicMock()
+    part = MagicMock()
+    part.content = f"question\n\n<live-context>{block}</live-context>"
+    message.parts = [part]
+    return message
+
+
+def test_a_partial_delta_does_not_replay_old_commits(tmp_path, monkeypatch):
+    """A delta block omits the sections that did not change, so the next turn
+    must merge it with the older blocks before diffing. Otherwise every old
+    commit reads as new."""
+    repo = _repo(tmp_path)
+    monkeypatch.chdir(repo)
+    first = render_live_context(_ctx())
+    (repo / "a.txt").write_text("dirty")
+    second = render_live_context(_ctx(), previous_live_context=first)
+    assert "- Recent commits" not in second
+
+    baseline = last_live_context([_message(first), _message(second)])
+    third = render_live_context(_ctx(), previous_live_context=baseline)
+
+    assert "- Git: unchanged since the last turn." in third
+    assert "- Recent commits (new since the last turn):" not in third
+
+
 def test_last_live_context_reads_a_string_prompt():
     message = MagicMock()
     part = MagicMock()
