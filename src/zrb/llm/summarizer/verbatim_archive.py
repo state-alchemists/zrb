@@ -91,8 +91,17 @@ def archive_verbatim_history(
     if not messages:
         return None
     # Rendered before the file is touched: a message that cannot be rendered
-    # must not leave a header-only archive behind.
-    body = _render_section(messages, tokens)
+    # must not leave a header-only archive behind. Its own try/except, not
+    # folded into the one below: an unexpected message shape is this
+    # function's to swallow too, not only the I/O that follows it -- letting
+    # it escape broke the "never raises" contract and took the whole
+    # compaction down with it (summarize_history's own broad handler discards
+    # the replacement summary and returns the original history unchanged).
+    try:
+        body = _render_section(messages, tokens)
+    except Exception as e:
+        CFG.LOGGER.warning(f"Could not render verbatim history for {path}: {e}")
+        return None
     try:
         # The lock makes the rollback exact: no other appender's section can land
         # between the size read and the truncate that undoes a failed write. The

@@ -335,3 +335,20 @@ def test_the_append_waits_the_configured_lock_timeout(tmp_path, monkeypatch):
         archive_verbatim_history(_messages(), path=path)
 
     assert lock.call_args.kwargs["timeout"] == 7.5
+
+
+def test_a_rendering_failure_returns_none_instead_of_raising(tmp_path, caplog):
+    """`archive_verbatim_history` promises never to raise: an unexpected
+    message shape must fail the archive, not escape and take the whole
+    compaction down with it (the caller's own broad handler discards the
+    replacement summary and returns the original history unchanged)."""
+    path = verbatim_archive_path("unrenderable", str(tmp_path))
+
+    with patch.object(
+        verbatim_archive, "_render_section", side_effect=ValueError("malformed part")
+    ):
+        with caplog.at_level(logging.WARNING):
+            assert archive_verbatim_history(_messages(), path=path) is None
+
+    assert not os.path.exists(path)
+    assert "Could not render verbatim history" in caplog.text
