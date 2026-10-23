@@ -13,12 +13,14 @@ import subprocess
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from html import escape
 from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.ambient_state import (
     get_active_worktree,
+    get_current_chat_session_id,
     get_input_provenance,
     set_active_worktree,
     set_current_tool_session,
@@ -398,6 +400,59 @@ def _safe_get_todos(todo_manager, session_name: str):
         return None
 
 
+def _format_elapsed(seconds: float) -> str:
+    """`38s`, `4m12s`, `1h02m` — short enough for one line per process."""
+    total = int(seconds)
+    if total < 60:
+        return f"{total}s"
+    if total < 3600:
+        return f"{total // 60}m{total % 60:02d}s"
+    return f"{total // 3600}h{(total % 3600) // 60:02d}m"
+
+
+def _background_process_lines() -> list[str]:
+    """One line per background process this session still owns, if any.
+
+    A handle is otherwise named exactly once — in the tool result that created
+    it — and a later turn has only that message to go on, which compaction can
+    replace. Reporting the live set here makes "there is a process running" a
+    standing fact rather than a memory, which is what stops a second copy of it
+    being started.
+
+    Reads the registry without consuming it: this is a question, not the poll
+    that retires a handle.
+    """
+    try:
+        # lazy: transitively heavy via internal — the shell tool pulls
+        # pydantic (~50ms on every `import zrb`).
+        from zrb.llm.tool.shell_background import get_shell_background_registry
+
+        rows = get_shell_background_registry().summary(get_current_chat_session_id())
+    except (ImportError, RuntimeError) as e:
+        # Unimportable here, or the registry mutated mid-read: a missing
+        # section is better than a failed turn.
+        CFG.LOGGER.debug(f"Failed to read background processes for live context: {e}")
+        return []
+    if not rows:
+        return []
+    lines = ["- Background processes (Shell handles this session still owns):"]
+    for row in rows:
+        code = row["returncode"]
+        status = "running" if code is None else f"exited, code {code}"
+        # The description is a command line, or whatever the caller wrote: it
+        # must not be able to close this block early. `escape` leaves a normal
+        # command untouched and renders `</live-context>` as text.
+        description = escape(
+            (row["description"] or "unnamed").replace("\n", " ")[:80], quote=False
+        )
+        lines.append(
+            f"  - {row['handle']} ({status}, {_format_elapsed(row['seconds'])}): "
+            f"{description}"
+        )
+    lines.append("  MonitorProcess(handle) reads one; kill=True stops it.")
+    return lines
+
+
 def _format_mode_line() -> str | None:
     """Render the agent-mode line, or None outside PLAN mode."""
     if get_current_agent_mode() != AgentMode.PLAN:
@@ -644,6 +699,8 @@ def _render_parts(
             parts.extend(_format_todo_lines(todos_data))
         except Exception as e:
             CFG.LOGGER.debug(f"Failed to format todo lines for live context: {e}")
+
+    parts.extend(_background_process_lines())
 
     if inject_journal_index:
         journal_block = render_journal_index(first_message)

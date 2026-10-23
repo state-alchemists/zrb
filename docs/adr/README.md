@@ -117,6 +117,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0049** — [Three explicit profiles, one optional auto ladder](adr-0049.md)
 - **ADR-0050** — [The prompt states the risky runtime state, never its absence](adr-0050.md)
 - **ADR-0099** — [Factual-claim hardening against generative-engine-optimized content](adr-0099.md)
+- **ADR-0122** — [Live context reports the background processes this session owns](adr-0122.md)
 
 ### Skills, agents and the journal
 
