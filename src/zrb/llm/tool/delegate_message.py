@@ -42,4 +42,5 @@ def create_send_message_to_subagent_tool():
         return f"Message sent to sub-agent {agent_id}."
 
     setattr(send_message_to_subagent, "zrb_is_delegate_tool", True)
+    send_message_to_subagent.__name__ = "SendMessageToSubagent"
     return send_message_to_subagent

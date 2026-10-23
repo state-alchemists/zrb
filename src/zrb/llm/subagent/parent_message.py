@@ -42,4 +42,5 @@ async def send_message_to_parent(
     return "Message sent to the main agent."
 
 
+send_message_to_parent.__name__ = "SendMessageToParent"
 tag(send_message_to_parent, Capability.META)
