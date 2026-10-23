@@ -4,7 +4,7 @@ import subprocess
 from unittest.mock import MagicMock
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.live_context import last_live_context, render_live_context
+from zrb.llm.prompt.live_context import previous_git_baseline, render_live_context
 
 
 def _git(repo, *args: str) -> None:
@@ -108,43 +108,82 @@ def test_a_partial_delta_does_not_replay_old_commits(tmp_path, monkeypatch):
     second = render_live_context(_ctx(), previous_live_context=first)
     assert "- Recent commits" not in second
 
-    baseline = last_live_context([_message(first), _message(second)])
+    baseline = previous_git_baseline([_message(first), _message(second)])
     third = render_live_context(_ctx(), previous_live_context=baseline)
 
     assert "- Git: unchanged since the last turn." in third
     assert "- Recent commits (new since the last turn):" not in third
 
 
-def test_last_live_context_reads_a_string_prompt():
+_GIT_BLOCK = (
+    "- Git: {branch} (Clean)\n"
+    "- Recent commits:\n"
+    "  aaa111 one\n"
+    "- Worktrees:\n"
+    "  - main @ /repo"
+)
+
+
+def test_previous_git_baseline_reads_a_string_prompt():
+    baseline = previous_git_baseline([_message(_GIT_BLOCK.format(branch="main"))])
+
+    assert baseline is not None
+    assert "aaa111 one" in baseline
+
+
+def test_previous_git_baseline_reads_a_multimodal_prompt():
     message = MagicMock()
     part = MagicMock()
-    part.content = "question\n\n<live-context>- Time: now</live-context>"
+    part.content = [
+        "describe this",
+        f"<live-context>{_GIT_BLOCK.format(branch='main')}</live-context>",
+    ]
     message.parts = [part]
 
-    assert last_live_context([message]) == "- Time: now"
+    baseline = previous_git_baseline([message])
+
+    assert baseline is not None
+    assert "aaa111 one" in baseline
 
 
-def test_last_live_context_reads_a_multimodal_prompt():
-    message = MagicMock()
-    part = MagicMock()
-    part.content = ["describe this", "<live-context>- Time: now</live-context>"]
-    message.parts = [part]
+def test_previous_git_baseline_follows_a_rewind():
+    """After /rewind the history is truncated, so the baseline is the one at
+    the rewound point, not the block the user had before rewinding."""
+    old = _message(_GIT_BLOCK.format(branch="old"))
+    new = _message(_GIT_BLOCK.format(branch="new"))
 
-    assert last_live_context([message]) == "- Time: now"
+    newest = previous_git_baseline([old, new])
+    older = previous_git_baseline([old])
+
+    assert newest is not None and "- Git: new" in newest
+    assert older is not None and "- Git: old" in older
+    assert previous_git_baseline([]) is None
 
 
-def test_last_live_context_follows_a_rewind():
-    """After /rewind the history is truncated, so the newest block is the one
-    at the rewound point, not the block the user had before rewinding."""
-    old = MagicMock()
-    old_part = MagicMock()
-    old_part.content = "q1\n\n<live-context>- Time: old</live-context>"
-    old.parts = [old_part]
-    new = MagicMock()
-    new_part = MagicMock()
-    new_part.content = "q2\n\n<live-context>- Time: new</live-context>"
-    new.parts = [new_part]
+def test_previous_git_baseline_is_none_without_a_complete_block():
+    """A block with no commit list cannot be a baseline; the caller must render
+    the full state rather than a delta that might label old commits as new."""
+    message = _message("- Git: main (Clean)")
 
-    assert last_live_context([old, new]) == "- Time: new"
-    assert last_live_context([old]) == "- Time: old"
-    assert last_live_context([]) is None
+    assert previous_git_baseline([message]) is None
+
+
+def test_a_complete_baseline_is_found_beyond_five_delta_turns(tmp_path, monkeypatch):
+    """A run of delta-only turns must not push the last complete block out of
+    the scan and replay old commits as new."""
+    repo = _repo(tmp_path)
+    monkeypatch.chdir(repo)
+    first = render_live_context(_ctx())
+    blocks = [_message(first)]
+    previous = first
+    for turn in range(6):
+        (repo / "a.txt").write_text(str(turn))
+        previous = render_live_context(_ctx(), previous_live_context=previous)
+        blocks.append(_message(previous))
+
+    baseline = previous_git_baseline(blocks)
+    assert baseline is not None
+    final = render_live_context(_ctx(), previous_live_context=baseline)
+
+    assert "alpha-commit" in baseline
+    assert "- Recent commits (new since the last turn):" not in final

@@ -79,32 +79,28 @@ def split_live_context(content: str) -> tuple[str, str | None]:
     return content[: match.start()].rstrip(), match.group(1)
 
 
-#: How many earlier blocks to merge before treating a missing section as absent.
-BASELINE_BLOCK_LIMIT = 5
-
-
-def last_live_context(message_history: "Sequence[object]") -> str | None:
-    """The git baseline from the newest blocks in *message_history*, or ``None``.
+def previous_git_baseline(message_history: "Sequence[object]") -> str | None:
+    """The git baseline reconstructed from the blocks in *message_history*.
 
     A block may be a delta that omitted unchanged sections, so the newest one
     alone is not a baseline: diffing against it would report the omitted old
-    commits as new. Merge backwards until every section is known.
+    commits as new. Scan back to the last block that had every section. The
+    scan is not windowed — after a run of deltas the last complete block can
+    sit arbitrarily far back, and a bounded one would silently fall past it.
+
+    ``None`` means no complete baseline exists (a fresh repository, or the
+    blocks were compacted away), and the caller renders the full state instead
+    of a delta that might label old commits as new.
 
     Read from the history the run is actually using, never from a side cache:
     ``/rewind`` and ``/load`` replace that history, so the blocks found here
     are the ones the next turn should diff against.
     """
-    blocks = _recent_live_contexts(message_history)
-    if not blocks:
-        return None
-    merged = _merge_git_blocks(blocks)
-    return merged if merged is not None else blocks[0]
+    return _merge_git_blocks(_recent_live_contexts(message_history))
 
 
-def _recent_live_contexts(
-    message_history: "Sequence[object]", limit: int = BASELINE_BLOCK_LIMIT
-) -> list[str]:
-    """Unwrapped live-context blocks, newest first, capped at *limit*."""
+def _recent_live_contexts(message_history: "Sequence[object]") -> list[str]:
+    """Unwrapped live-context blocks, newest first."""
     blocks: list[str] = []
     for message in reversed(message_history):
         parts = getattr(message, "parts", None) or []
@@ -112,8 +108,6 @@ def _recent_live_contexts(
             block = _live_context_in(getattr(part, "content", None))
             if block:
                 blocks.append(_unwrap_live_context(block))
-                if len(blocks) >= limit:
-                    return blocks
     return blocks
 
 

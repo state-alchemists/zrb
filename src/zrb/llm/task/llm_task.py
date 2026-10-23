@@ -27,7 +27,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.permission import PermissionPolicyInput, resolve_policy
-from zrb.llm.prompt.live_context import last_live_context
+from zrb.llm.prompt.live_context import previous_git_baseline
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.stream_observer import StreamObserver
@@ -647,7 +647,7 @@ class LLMTask(BaseTask):
             ctx,
             inject_journal_index=not message_history,
             first_message=user_message,
-            previous_live_context=last_live_context(message_history),
+            previous_live_context=previous_git_baseline(message_history),
         )
         agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
         effective_message, effective_attachments = self.get_effective_prompt(
