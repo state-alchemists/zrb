@@ -14,6 +14,7 @@ import re
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
+from zrb.config.config import CFG
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.util.markdown import make_markdown_section
 
@@ -135,18 +136,47 @@ def _truncate_block(block: str, limiter: LLMLimiter) -> str:
 
 def _within_caps(
     blocks: list[tuple[str, str]], limiter: LLMLimiter
-) -> list[str]:
-    """Blocks rendered within the per-skill and total token caps."""
-    rendered: list[str] = []
+) -> "tuple[list[tuple[str, str]], int]":
+    """Blocks rendered within the per-skill and total token caps, and their cost."""
+    rendered: list[tuple[str, str]] = []
     total = 0
-    for _, block in blocks:
+    for name, block in blocks:
         text = _truncate_block(block, limiter)
         tokens = limiter.count_tokens(text)
         if total + tokens > TOTAL_TOKEN_CAP:
             break
-        rendered.append(text)
+        rendered.append((name, text))
         total += tokens
-    return rendered
+    return rendered, total
+
+
+def _log_decision(
+    dropped: "Sequence[ModelMessage]",
+    present: set[str],
+    candidates: list[tuple[str, str]],
+    rendered: list[tuple[str, str]],
+    total: int,
+) -> None:
+    """Record what compaction decided, where it decided it.
+
+    The transcript cannot answer "did the skill body survive compaction?": an
+    `ACTIVATED_SKILL` tag appears in this repo's own tests, ADRs and code
+    samples too, so a search for one proves nothing. One line here does, and it
+    is the only record of a decision that otherwise leaves no trace.
+    """
+    dropped_names = {
+        name for message in dropped for name, _ in _blocks(_message_text(message))
+    }
+    if not dropped_names and not present:
+        return
+    attached = [name for name, _ in rendered]
+    CFG.LOGGER.debug(
+        "compaction re-attach: attached=%s tokens=%d skipped_kept=%s skipped_cap=%s",
+        attached or "none",
+        total,
+        sorted(dropped_names & present),
+        sorted({name for name, _ in candidates} - set(attached)),
+    )
 
 
 def build_reattach_message(
@@ -162,10 +192,14 @@ def build_reattach_message(
     present = {
         name for message in kept for name, _ in _blocks(_message_text(message))
     }
-    rendered = _within_caps(_newest_per_skill(dropped, present), limiter)
+    candidates = _newest_per_skill(dropped, present)
+    rendered, total = _within_caps(candidates, limiter)
+    _log_decision(dropped, present, candidates, rendered, total)
     if not rendered:
         return None
-    content = make_markdown_section(REATTACH_HEADER, "\n\n".join(rendered))
+    content = make_markdown_section(
+        REATTACH_HEADER, "\n\n".join(text for _, text in rendered)
+    )
     if not content.strip():
         return None
     # lazy: zrb internal (heavy via transitive)
