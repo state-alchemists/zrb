@@ -5,6 +5,7 @@ built from the skill. A `preload:` dependency renders first, in its own
 `<ACTIVATED_SKILL>` block, so it arrives without a second round trip.
 """
 
+from html import escape
 from pathlib import Path
 
 from zrb.llm.skill.manager import Skill
@@ -42,7 +43,9 @@ def build_activation_block(
     if announce:
         lines.extend(["Skill activated. The following context applies:", ""])
     if preloaded_by:
-        lines.extend([f"Preloaded by `{preloaded_by}`.", ""])
+        # Also escaped here: the body is model-visible markup, and an
+        # unescaped `<...>` would read as a tag.
+        lines.extend([f"Preloaded by `{escape(preloaded_by)}`.", ""])
     lines.extend(
         [
             f"Skill directory (working directory): {skill_dir}",
@@ -55,8 +58,10 @@ def build_activation_block(
     )
     lines.extend(format_companion_file_lines(companions))
     lines.extend(["", "---"])
-    attrs = f' name="{skill.name}"'
+    # A name comes from project frontmatter, so it is untrusted in the XML
+    # attribute: an unescaped quote would close the tag and inject markup.
+    attrs = f' name="{escape(skill.name, quote=True)}"'
     if preloaded_by:
-        attrs += f' preloaded-by="{preloaded_by}"'
+        attrs += f' preloaded-by="{escape(preloaded_by, quote=True)}"'
     body = skill_body(content)
     return f"<ACTIVATED_SKILL{attrs}>\n" + "\n".join(lines) + f"\n\n{body}\n</ACTIVATED_SKILL>"
