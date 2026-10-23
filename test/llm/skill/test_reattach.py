@@ -91,6 +91,21 @@ def test_an_oversized_skill_is_truncated_to_its_own_cap(monkeypatch):
     assert "TAIL_MARKER" not in content
 
 
+def test_a_truncated_skill_keeps_its_closing_marker(monkeypatch):
+    """A fragment without `</ACTIVATED_SKILL>` is not recognisable as a skill."""
+    body = "start " + ("filler " * 400)
+    dropped = _request(_block("core-coding", body))
+    cap = llm_limiter.count_tokens(_block("core-coding", body)) // 2
+    monkeypatch.setattr(reattach, "SKILL_TOKEN_CAP", cap)
+
+    message = build_reattach_message(dropped, [], llm_limiter)
+
+    assert message is not None
+    content = _content(message)
+    assert content.count("<ACTIVATED_SKILL") == 1
+    assert content.count("</ACTIVATED_SKILL>") == 1
+
+
 def test_the_total_cap_stops_after_the_newest_skills(monkeypatch):
     newest = _block("core-research")
     dropped = _request(_block("core-coding"), newest)
@@ -125,11 +140,12 @@ async def test_compaction_keeps_the_skill_body_in_the_history(tmp_path, monkeypa
     monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
     agent = MagicMock()
     agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
+    opening = ModelRequest(parts=[UserPromptPart(content="start the task")])
     dropped = ModelRequest(parts=[UserPromptPart(content=_block("core-coding"))])
     kept = ModelRequest(parts=[UserPromptPart(content="the latest question")])
 
     history = await summarize_history(
-        [dropped, kept],
+        [opening, dropped, kept],
         agent=agent,
         summary_window=1,
         conversational_token_threshold=10,
@@ -144,3 +160,36 @@ async def test_compaction_keeps_the_skill_body_in_the_history(tmp_path, monkeypa
     assert "Summary content" in text
     assert '<ACTIVATED_SKILL name="core-coding">' in text
     assert "Follow the procedure." in text
+
+
+@pytest.mark.asyncio
+async def test_an_opening_turn_that_survives_is_not_re_attached(
+    tmp_path, monkeypatch
+):
+    """The opening user turn is kept verbatim; a skill block inside it is
+    already in the history, and a second copy would double the instructions."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from zrb.config.config import CFG
+    from zrb.llm.summarizer import summarize_history
+
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
+    opening = ModelRequest(parts=[UserPromptPart(content=_block("core-coding"))])
+    kept = ModelRequest(parts=[UserPromptPart(content="the latest question")])
+
+    history = await summarize_history(
+        [opening, kept],
+        agent=agent,
+        summary_window=1,
+        conversational_token_threshold=10,
+        session_name="reattach-opening-test",
+    )
+
+    text = "\n".join(
+        str(getattr(part, "content", ""))
+        for message in history
+        for part in message.parts
+    )
+    assert text.count('<ACTIVATED_SKILL name="core-coding">') == 1

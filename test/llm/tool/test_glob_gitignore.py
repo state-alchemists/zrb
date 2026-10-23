@@ -131,3 +131,15 @@ def test_glob_hides_nothing_it_should_keep_in_a_non_ascii_name(tmp_path):
 
     assert "café.py" in files
     assert os.path.join("generated", "artifact.py") not in files
+
+
+def test_a_name_that_is_not_valid_utf8_does_not_break_the_filter(tmp_path):
+    """A filename is not required to be valid UTF-8; git must not crash the tool."""
+    _init_checkout(tmp_path)
+    name = os.fsdecode(b"bad-\xff.py")
+    (tmp_path / name).write_text("x", encoding="utf-8")
+
+    visible = git_visible_files(str(tmp_path))
+
+    assert visible is not None
+    assert os.path.normpath(name) in visible

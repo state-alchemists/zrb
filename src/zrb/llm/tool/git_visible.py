@@ -35,19 +35,25 @@ def git_visible_files(dir_path: str) -> set[str] | None:
                 "-z",
             ],
             capture_output=True,
-            text=True,
             timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
         )
     except (OSError, subprocess.SubprocessError):
         return None
     if result.returncode != 0:
         return None
-    # `-z` gives the raw path, NUL-terminated. The line-oriented default
+    # `-z` gives each path raw and NUL-terminated. The line-oriented default
     # C-quotes anything unusual, so `café.py` would arrive as
     # `"caf\303\251.py"` and never match the name on disk.
+    #
+    # Bytes are decoded with `os.fsdecode` rather than by the subprocess: a
+    # filename is not required to be valid UTF-8, and `text=True` would raise
+    # on one, turning an unusual name into a broken tool. `fsdecode` applies
+    # the same surrogateescape the walk's own names carry, so the two sides
+    # compare equal.
+    stdout = os.fsdecode(result.stdout)
     return {
         os.path.normpath(path.replace("/", os.sep))
-        for path in result.stdout.split("\x00")
+        for path in stdout.split("\x00")
         if path
     }
 

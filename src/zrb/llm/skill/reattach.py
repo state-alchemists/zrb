@@ -34,6 +34,7 @@ TOTAL_TOKEN_CAP = 25_000
 _BLOCK_PATTERN = re.compile(
     r"<ACTIVATED_SKILL\b[^>]*>.*?</ACTIVATED_SKILL>", re.DOTALL
 )
+_CLOSING_TAG = "</ACTIVATED_SKILL>"
 _NAME_PATTERN = re.compile(r'\bname="([^"]*)"')
 
 
@@ -81,6 +82,24 @@ def _newest_per_skill(
     return ordered
 
 
+def _truncate_block(block: str, limiter: LLMLimiter) -> str:
+    """Cut an oversized block's body, keeping the block a block.
+
+    Truncating the rendered text would cut the closing marker and leave the
+    model a fragment it cannot recognise as an active skill; the wrapper stays
+    and only the body between it and the marker is shortened.
+    """
+    if limiter.count_tokens(block) <= SKILL_TOKEN_CAP:
+        return block
+    opening_end = block.find(">")
+    if opening_end < 0 or not block.endswith(_CLOSING_TAG):
+        return limiter.truncate_text(block, SKILL_TOKEN_CAP)
+    opening = block[: opening_end + 1]
+    body = block[opening_end + 1 : -len(_CLOSING_TAG)]
+    budget = max(SKILL_TOKEN_CAP - limiter.count_tokens(opening + _CLOSING_TAG), 1)
+    return f"{opening}{limiter.truncate_text(body, budget)}{_CLOSING_TAG}"
+
+
 def _within_caps(
     blocks: list[tuple[str, str]], limiter: LLMLimiter
 ) -> list[str]:
@@ -88,9 +107,7 @@ def _within_caps(
     rendered: list[str] = []
     total = 0
     for _, block in blocks:
-        text = block
-        if limiter.count_tokens(text) > SKILL_TOKEN_CAP:
-            text = limiter.truncate_text(text, SKILL_TOKEN_CAP)
+        text = _truncate_block(block, limiter)
         tokens = limiter.count_tokens(text)
         if total + tokens > TOTAL_TOKEN_CAP:
             break

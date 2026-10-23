@@ -874,12 +874,18 @@ def _assemble_summarized_history(
     """
     first_user_message = _find_first_user_message(messages)
     result: list[Any] = [summary_message]
+    # The opening turn is re-appended on its own, so it survives even when the
+    # split left it outside `to_keep`. It therefore counts as present for the
+    # re-attach scan: a skill block inside it is still in the history, and
+    # re-attaching it would send the same instructions twice.
+    kept = list(to_keep)
     if first_user_message is not None and all(
         m is not first_user_message for m in to_keep
     ):
         result.append(first_user_message)
-    dropped = [m for m in messages if all(m is not kept for kept in to_keep)]
-    reattached = build_reattach_message(dropped, to_keep, default_llm_limiter)
+        kept.append(first_user_message)
+    dropped = [m for m in messages if all(m is not surviving for surviving in kept)]
+    reattached = build_reattach_message(dropped, kept, default_llm_limiter)
     if reattached is not None:
         result.append(reattached)
     if verbatim_tail_message is not None:
