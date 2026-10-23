@@ -39,6 +39,9 @@ _LIVE_CONTEXT_BLOCK_RE = re.compile(
     r"\n\n(<live-context>.*</live-context>)\s*\Z", re.DOTALL
 )
 
+# A journal index entry: `[title](category/note.md)`.
+_INDEX_LINK = re.compile(r"\[([^\]]+)\]\(([a-z0-9_-]+)/[^)]*\)")
+
 
 def append_live_context(prompt_content: Any, live_context: str) -> Any:
     """Append the ``<live-context>`` block to the end of the current user turn.
@@ -372,10 +375,13 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     hint = ""
     if limit > 0 and len(content) > limit:
         # Cut on a line boundary: half a fact is worse than none. Overflow
-        # drops from the end, where WriteJournalNote keeps Recent Insights.
+        # drops from the end, so the summary says which categories were lost
+        # and names the newest note in each — otherwise the model cannot tell
+        # whether the missing part matters.
         head = content[:limit]
         cut = head.rfind("\n")
-        content = (head[:cut] if cut > 0 else head) + "\n (...more)"
+        kept = head[:cut] if cut > 0 else head
+        content = kept + "\n" + _overflow_summary(content[len(kept) :])
         hint = "Truncated at `(...more)`. "
     possibly_related = ""
     if first_message and CFG.LLM_JOURNAL_AUTO_SEARCH_ENABLED:
@@ -394,6 +400,36 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         f"{possibly_related}"
         f"</journal-index>"
     )
+
+
+def _overflow_summary(dropped: str) -> str:
+    """One line per note category the cap hid, plus the newest title in it."""
+    counts: dict[str, int] = {}
+    newest: dict[str, str] = {}
+    for line in dropped.splitlines():
+        seen_here: set[str] = set()
+        for title, category in _INDEX_LINK.findall(line):
+            if category in seen_here:
+                continue
+            seen_here.add(category)
+            counts[category] = counts.get(category, 0) + 1
+            newest[category] = title if title != "note" else _title_before_link(line)
+    if not counts:
+        return "(...more)"
+    lines = []
+    for category in sorted(counts):
+        detail = f"; newest \"{newest[category]}\"" if newest.get(category) else ""
+        lines.append(
+            f"- Hidden {category} notes ({counts[category]}{detail}) — "
+            "use SearchJournal."
+        )
+    lines.append("(...more)")
+    return "\n".join(lines)
+
+
+def _title_before_link(line: str) -> str:
+    """The entry text before a `([note](...))` link, which is its title."""
+    return line.split(" ([note]", 1)[0].lstrip("- ").strip()
 
 
 def _render_possibly_related(first_message: str) -> str:
