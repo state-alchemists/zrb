@@ -14,7 +14,7 @@ import stat
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Collection
+    from collections.abc import Callable, Collection
 
 DIR_MODE = 0o700
 FILE_MODE = 0o600
@@ -31,7 +31,8 @@ def marker_path(directory: str) -> str:
 
 
 def tighten_once(
-    directory: str, owned_entries: "Collection[str] | None" = None
+    directory: str,
+    owned_entries: "Collection[str] | Callable[[str], bool] | None" = None,
 ) -> None:
     """Make *directory* and everything under it owner-only, once.
 
@@ -41,13 +42,16 @@ def tighten_once(
     prune and the journal write that call this must not fail over permissions.
     Windows has no mode bits to narrow, so there it does nothing.
 
-    *owned_entries*, when given, narrows only those direct children of
-    *directory* (each one's own mode, and everything beneath it) — *directory*
-    itself is left exactly as it is, and anything inside it that is not named
-    is never touched. Without it, *directory* and every descendant of it are
-    narrowed, which is only safe when *directory* is a leaf zrb exclusively
-    created and names itself (the archive's ``verbatim`` subdirectory): a
-    directory a user configures directly — the journal root — may already hold
+    *owned_entries*, when given, narrows only the direct children of
+    *directory* it accepts (each one's own mode, and everything beneath it) —
+    *directory* itself is left exactly as it is, and anything inside it it
+    rejects is never touched. A fixed set of names (the journal's categories)
+    is given as a collection; an open-ended set (every ``.json`` history file,
+    whatever conversations happen to be named) is given as a predicate over a
+    name. Without it, *directory* and every descendant of it are narrowed,
+    which is only safe when *directory* is a leaf zrb exclusively created and
+    names itself (the archive's ``verbatim`` subdirectory): a directory a user
+    configures directly — the journal or history root — may already hold
     content from somewhere else entirely, and narrowing all of it, root
     included, would make that content inaccessible to whatever else reads it.
 
@@ -81,7 +85,12 @@ def tighten_once(
         if owned_entries is None:
             _narrow_tree(directory)
         else:
-            _narrow_named_entries(directory, owned_entries)
+            owns_entry = (
+                owned_entries
+                if callable(owned_entries)
+                else frozenset(owned_entries).__contains__
+            )
+            _narrow_owned_entries(directory, owns_entry)
         _write_marker(directory)
     except OSError as e:
         # A partial pass leaves no marker, so the next call tries again. The
@@ -168,28 +177,88 @@ def _narrow_tree(directory: str) -> None:
     _chmod(directory, DIR_MODE)
 
 
-def _narrow_named_entries(directory: str, names: "Collection[str]") -> None:
-    """Narrow only *names* — direct children of *directory* — leaving
-    *directory* itself, and anything inside it that is not one of *names*,
-    untouched.
+def _narrow_owned_entries(directory: str, owns_entry: "Callable[[str], bool]") -> None:
+    """Narrow only the direct children of *directory* `owns_entry` accepts by
+    name, leaving *directory* itself, and anything it rejects, untouched.
 
-    A named entry that is a directory gets its full subtree narrowed too
+    An accepted entry that is a directory gets its full subtree narrowed too
     (`_narrow_tree`), since that subtree is a namespace zrb exclusively owns —
-    a category directory or the activity log, never something shared. A named
-    entry that is a file (the root index) is narrowed on its own, since
-    `_narrow_tree` assumes a directory. A name with nothing at that path is
-    silently skipped: nothing has been created there (yet) to narrow.
+    a category directory, the activity log, or a backup, never something
+    shared. An accepted entry that is a file is narrowed on its own, since
+    `_narrow_tree` assumes a directory.
     """
-    for name in names:
-        path = os.path.join(directory, name)
+    try:
+        entries = list(os.scandir(directory))
+    except OSError:
+        return
+    for entry in entries:
+        if not owns_entry(entry.name):
+            continue
         try:
-            info = os.lstat(path)
+            info = entry.stat(follow_symlinks=False)
         except OSError:
             continue
         if stat.S_ISDIR(info.st_mode):
-            _narrow_tree(path)
+            _narrow_tree(entry.path)
         elif stat.S_ISREG(info.st_mode):
-            _chmod(path, FILE_MODE)
+            _chmod(entry.path, FILE_MODE)
+
+
+def makedirs_owner_only(path: str) -> None:
+    """Create *path*, and any missing ancestor, owner-only.
+
+    `os.makedirs`'s `mode` argument only reaches the directory it was given;
+    an intermediate directory it creates along the way is made with Python's
+    default `0o777`, masked only by the process umask. `reject_symlinked_
+    ancestors` closes the matching permission gap: `os.path.isdir()` follows a
+    symlink, so a symlink planted at *path*, or an ancestor on the way to it,
+    would otherwise read as "the directory is already there," and every later
+    write would land through it.
+
+    Shared by every subsystem that creates a directory beneath a root the user
+    configures directly — the journal, the conversation history manager —
+    instead of each hand-rolling the same check and inviting the same gap to
+    reappear in a different file. Raises `PermissionError` (an `OSError`) when
+    an existing level is a symlink or not a directory; a caller that wants a
+    different exception type or message catches and re-raises it.
+    """
+    reject_symlinked_ancestors(path)
+    if os.path.isdir(path):
+        return
+    parent = os.path.dirname(path)
+    if parent and parent != path:
+        makedirs_owner_only(parent)
+    try:
+        os.mkdir(path, DIR_MODE)
+    except FileExistsError:
+        pass
+
+
+def write_text_owner_only(path: str, content: str) -> None:
+    """Write *content* to *path* as UTF-8 text, creating it, and any missing
+    directory above it, owner-only.
+
+    A symlink planted at *path* (dangling or not) is refused via `O_NOFOLLOW`
+    rather than truncated and written through. The descriptor is wrapped in a
+    buffered file object rather than written with one raw `os.write()` call,
+    which may write fewer bytes than given without raising — a buffered
+    writer retries until everything is written. Shared by every subsystem
+    that persists private text to a user-configured directory, so this
+    guarantee lives in one place instead of being reimplemented, and
+    potentially forgotten, per module.
+    """
+    makedirs_owner_only(os.path.dirname(path))
+    descriptor = os.open(
+        path,
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_TRUNC
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_BINARY", 0),
+        FILE_MODE,
+    )
+    with os.fdopen(descriptor, "w", encoding="utf-8") as f:
+        f.write(content)
 
 
 def _chmod(path: str, mode: int) -> None:

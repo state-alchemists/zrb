@@ -27,10 +27,9 @@ from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.markdown import get_first_heading
 from zrb.util.owner_only import (
-    DIR_MODE,
-    FILE_MODE,
-    reject_symlinked_ancestors,
+    makedirs_owner_only,
     tighten_once,
+    write_text_owner_only,
 )
 
 NOTE_CATEGORIES = ("user", "agent", "preferences", "projects", "technical")
@@ -859,38 +858,20 @@ def _title_of(path: str) -> str:
 
 
 def _makedirs_owner_only(path: str) -> None:
-    """Like `os.makedirs(path, mode=DIR_MODE, exist_ok=True)`, but every level
-    this creates gets `DIR_MODE` — not just *path* itself — and a symlink
-    anywhere in *path*, or above it, fails closed instead of being written
-    through.
+    """`makedirs_owner_only`, with a journal-specific, model-facing message.
 
-    `os.makedirs`'s `mode` argument only reaches the directory it was given;
-    an intermediate directory it creates along the way is made with Python's
-    default `0o777`, masked only by the process umask, so a journal whose
-    parent did not exist yet still gained a `0o755` ancestor under a typical
-    umask. `reject_symlinked_ancestors` catches the matching permission gap:
-    `os.path.isdir()` follows a symlink, so a symlink planted at the
-    configured journal root — or any directory above it, not only *path*
-    itself — would otherwise read as "the directory is already there" and
-    every later write would land through it.
+    The shared helper raises a bare `PermissionError` naming the offending
+    path; this translates it into the `[SYSTEM SUGGESTION]` convention every
+    other configuration error in this module already uses.
     """
     try:
-        reject_symlinked_ancestors(path)
+        makedirs_owner_only(path)
     except PermissionError as e:
         raise ValueError(
             f"[SYSTEM SUGGESTION]: {e} The journal directory and every "
             "directory above it must be a real directory, not a link to one "
             "— reconfigure LLM_JOURNAL_DIR or remove the link."
         ) from e
-    if os.path.isdir(path):
-        return
-    parent = os.path.dirname(path)
-    if parent and parent != path:
-        _makedirs_owner_only(parent)
-    try:
-        os.mkdir(path, DIR_MODE)
-    except FileExistsError:
-        pass
 
 
 def _write_if_absent(path: str, content: str) -> None:
@@ -907,28 +888,11 @@ def _read_text(path: str) -> str:
 
 
 def _write_text(path: str, content: str) -> None:
-    """Write *content* to *path*, creating any missing directory owner-only.
+    """Write *content* to *path* owner-only; see `write_text_owner_only`.
 
     `tighten_once` only runs once, at `ensure_journal_tree`; every note, day
     file and month/year index this module creates afterwards goes through
-    here, so the mode is set explicitly at creation (`os.open`, not the
-    builtin `open`, which has no way to pass one) instead of relying on a
-    later pass that will never revisit it. `O_NOFOLLOW` refuses a symlink
-    planted at a note or index path instead of truncating whatever it points
-    at — including a dangling one, which `O_NOFOLLOW` also rejects. The
-    descriptor is wrapped in a buffered text file rather than one raw
-    `os.write()`: `os.write()` may write fewer bytes than given without
-    raising, which would leave a truncated note or index reporting success.
+    here, so the owner-only guarantee has to come from the write itself
+    instead of relying on a later pass that will never revisit it.
     """
-    _makedirs_owner_only(os.path.dirname(path))
-    descriptor = os.open(
-        path,
-        os.O_WRONLY
-        | os.O_CREAT
-        | os.O_TRUNC
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_BINARY", 0),
-        FILE_MODE,
-    )
-    with os.fdopen(descriptor, "w", encoding="utf-8") as f:
-        f.write(content)
+    write_text_owner_only(path, content)

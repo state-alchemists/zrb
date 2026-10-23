@@ -108,7 +108,7 @@ def test_a_rename_is_refused_when_the_unsaved_history_cannot_be_written(history_
         "bold-arch-1234", [ModelRequest(parts=[UserPromptPart(content="hi")])]
     )
 
-    with patch("builtins.open", side_effect=OSError("disk full")):
+    with patch("os.open", side_effect=OSError("disk full")):
         with pytest.raises(OSError):
             manager.rename("bold-arch-1234", "bold-arch-1234-greetings")
 

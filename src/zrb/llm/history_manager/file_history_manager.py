@@ -23,6 +23,7 @@ from zrb.llm.util.subagent_session_naming import (
     subagent_history_directories,
 )
 from zrb.util.match import fuzzy_match
+from zrb.util.owner_only import FILE_MODE, makedirs_owner_only, tighten_once
 from zrb.util.string.conversion import to_string
 from zrb.util.string.name import has_random_name_prefix, safe_segment
 from zrb.util.todo.duration import parse_duration
@@ -52,7 +53,10 @@ _EMPTY_HISTORY_MAX_BYTES = 2
 # The archive filename as a summary's archive pointer spells it: the path in
 # backticks ends in `verbatim/<name>.md` (a backslash on Windows). Capturing the
 # name alone lets a referenced archive be matched whatever directory it sits in.
-_ARCHIVE_REFERENCE_PATTERN = re.compile(r"verbatim[/\\]([^`\s)'\"]+\.md)")
+# A space is a valid character in that name -- safe_segment() keeps one from a
+# session name -- so only the markdown/quoting delimiters the pointer could be
+# wrapped in are excluded, not whitespace in general.
+_ARCHIVE_REFERENCE_PATTERN = re.compile(r"verbatim[/\\]([^`)'\"\n]+\.md)")
 
 
 def default_history_manager() -> "FileHistoryManager":
@@ -87,6 +91,18 @@ def _archives_named_in(directory: str) -> "set[str]":
     return names
 
 
+def _is_zrb_owned_history_entry(name: str) -> bool:
+    """Whether *name*, a direct child of the history directory, is zrb's own.
+
+    A conversation's live file and its timestamped backups all end in
+    `.json`; sub-agent transcripts and verbatim archives sit in their own
+    dedicated, zrb-named subdirectories. Used both to create new entries
+    owner-only and to narrow a pre-existing history directory without
+    touching whatever else a user-configured path might already hold.
+    """
+    return name.endswith(".json") or name in (SUBAGENT_HISTORY_SUBDIR, ARCHIVE_DIR_NAME)
+
+
 class FileHistoryManager(AnyHistoryManager):
     def __init__(self, history_dir: str):
         self._history_dir = os.path.expanduser(history_dir)
@@ -98,8 +114,11 @@ class FileHistoryManager(AnyHistoryManager):
         self._dirty: set[str] = set()
         # Prune expired auto-named conversations on the first save.
         self._has_pruned = False
-        if not os.path.exists(self._history_dir):
-            os.makedirs(self._history_dir, exist_ok=True)
+        makedirs_owner_only(self._history_dir)
+        # A history directory written before the private-mode rule keeps its
+        # old modes; this narrows only zrb's own entries in it, once, and is a
+        # no-op on every later call.
+        tighten_once(self._history_dir, owned_entries=_is_zrb_owned_history_entry)
 
     @property
     def storage_dir(self) -> str:
@@ -556,11 +575,29 @@ class FileHistoryManager(AnyHistoryManager):
                 return f"{base_path}-{ts_str_with_us}.json"
 
     def _save_data_to_file(self, file_path: str, data: Any) -> bool:
-        """Atomically save filtered data; return whether the write succeeded."""
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        """Atomically save filtered data; return whether the write succeeded.
+
+        The temporary file is created owner-only and refuses a symlink planted
+        at its path (`O_NOFOLLOW`) instead of the builtin `open`, which has no
+        way to request either; `os.replace` then carries that mode onto
+        *file_path* itself, whatever mode it had before. `makedirs_owner_only`
+        can raise `PermissionError` (an `OSError`) for a symlinked directory,
+        caught by the same handler as any other failed write: a transcript
+        this call cannot place safely is a failed save, not a crash.
+        """
         tmp_path = f"{file_path}.tmp"
         try:
-            with open(tmp_path, "w", encoding="utf-8") as f:
+            makedirs_owner_only(os.path.dirname(file_path))
+            descriptor = os.open(
+                tmp_path,
+                os.O_WRONLY
+                | os.O_CREAT
+                | os.O_TRUNC
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_BINARY", 0),
+                FILE_MODE,
+            )
+            with os.fdopen(descriptor, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
             os.replace(tmp_path, file_path)
             return True

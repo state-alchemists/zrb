@@ -188,3 +188,20 @@ def test_a_sub_agent_archive_no_transcript_names_is_still_pruned(
     _save(FileHistoryManager(str(history_dir)), "fresh-session")
 
     assert not os.path.exists(path)
+
+
+def test_an_archive_for_a_session_name_with_spaces_is_kept(history_dir, retention):
+    """`safe_segment` keeps a space from a session name, so the archive is
+    literally named `verbatim/my session.md` -- the reference pattern used to
+    exclude whitespace from the captured filename and never matched it."""
+    path = verbatim_archive_path("my session", str(history_dir))
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write("## Compacted earlier — 1 message(s)\n")
+    stamp = time.time() - OLD
+    os.utime(path, (stamp, stamp))
+    _history(history_dir, "mine", _pointer_to(history_dir, "my session"))
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert os.path.exists(path)
