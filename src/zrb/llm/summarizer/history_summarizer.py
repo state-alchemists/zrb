@@ -3,7 +3,7 @@ from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.config.helper import scale_token_threshold
+from zrb.config.helper import get_max_token_threshold, scale_token_threshold
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
@@ -41,8 +41,10 @@ else:
     ModelMessage = Any
 
 # Mirrors LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
-# (`config/mixins/llm_content.py`), applied here against the run's actual
-# model instead of that CFG field's model-blind fallback.
+# AND its two-bound shape (`config/mixins/llm_content.py`'s
+# get_max_token_threshold(ratio, max_token_per_minute, max_token_per_request)):
+# the rate-limit budget still caps the trigger, same as before, with the
+# model's real context window standing in for the model-blind request cap.
 _CONVERSATIONAL_TRIGGER_RATIO = 0.75
 
 # Mirrors LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
@@ -115,9 +117,11 @@ def create_summarizer_history_processor(
         active_conversational_threshold = conversational_token_threshold
         if auto_conversational_threshold:
             model = get_current_model() or CFG.LLM_MODEL
-            context_window = llm_limiter.effective_context_window(model)
-            active_conversational_threshold = scale_token_threshold(
-                _CONVERSATIONAL_TRIGGER_RATIO, context_window
+            context_window = llm_limiter.get_effective_context_window(model)
+            active_conversational_threshold = get_max_token_threshold(
+                _CONVERSATIONAL_TRIGGER_RATIO,
+                llm_limiter.max_token_per_minute,
+                context_window,
             )
 
         active_message_token_threshold = message_token_threshold

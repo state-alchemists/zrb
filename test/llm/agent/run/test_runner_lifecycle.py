@@ -410,7 +410,7 @@ async def test_run_agent_multi_ui_resolution():
     limiter = MagicMock(spec=LLMLimiter)
     limiter.acquire = AsyncMock()
     limiter.max_token_per_request = 1000
-    limiter.effective_context_window.return_value = 1000
+    limiter.get_effective_context_window.return_value = 1000
     limiter.count_tokens.return_value = 10
     limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
 

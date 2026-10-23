@@ -409,7 +409,7 @@ async def _prepare_history(
 
     effective_limit = max(
         0,
-        limiter.effective_context_window(getattr(agent, "model", None))
+        limiter.get_effective_context_window(getattr(agent, "model", None))
         - reserved_tokens,
     )
     # ensure_alternating_roles is a no-op on well-formed history, so reusing
