@@ -80,6 +80,61 @@ async def test_the_report_never_tells_the_model_to_run_it_again(tmp_path):
         await get_shell_background_registry().kill(handle)
 
 
+def _flooding_command(tmp_path, seconds: float = 30.0) -> str:
+    """A script that overflows the cap, both before and after a timeout."""
+    script = tmp_path / "flood.py"
+    script.write_text(
+        "import time\n"
+        f"deadline = time.monotonic() + {seconds}\n"
+        "index = 0\n"
+        "while time.monotonic() < deadline:\n"
+        "    print('LINE', index, 'x' * 60, flush=True)\n"
+        "    index += 1\n"
+        "    time.sleep(0.02)\n",
+        encoding="utf-8",
+    )
+    return f"{_PYTHON} {shlex.quote(script.as_posix())}"
+
+
+def _spill_path(text: str) -> str:
+    """The overflow spill file a `Shell` report or a poll points at."""
+    match = re.search(r"(\S*zrb_shell_part_\S*\.log)", text)
+    assert match is not None, text
+    return match.group(1)
+
+
+def _highest_line(path: str) -> int:
+    with open(path, "r", encoding="utf-8", errors="replace") as spilled:
+        numbers = [int(n) for n in re.findall(r"^LINE (\d+)", spilled.read(), re.MULTILINE)]
+    assert numbers, "nothing of the command's output is in the file"
+    return max(numbers)
+
+
+@pytest.mark.asyncio
+async def test_an_adopted_flood_keeps_one_complete_spill_file(tmp_path):
+    """The file the report names must hold the command's whole output.
+
+    Dumping the overflow closes the capture's spill; the next overflow then
+    opens a new file holding only what was written after adoption — a path that
+    claims to be the command's output while starting mid-stream.
+    """
+    result = await run_shell_command(
+        _flooding_command(tmp_path), timeout=1, max_chars=400
+    )
+    handle = _handle(result)
+    try:
+        spill = _spill_path(result)
+        before = _highest_line(spill)
+        await asyncio.sleep(0.4)
+        status = await get_shell_background_registry().collect(handle)
+
+        assert "LINE 0 " in open(spill, encoding="utf-8").read()
+        assert _highest_line(spill) > before, "the file stopped growing"
+        assert _spill_path(status) == spill, "a second spill file claimed the output"
+    finally:
+        await get_shell_background_registry().kill(handle)
+
+
 @pytest.mark.asyncio
 async def test_a_sleep_still_dies_at_its_timeout():
     """A delay is the work: backgrounding it would let the next command run

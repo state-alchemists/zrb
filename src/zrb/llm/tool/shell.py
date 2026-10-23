@@ -591,7 +591,13 @@ def _format_output(
     flooded = stdout_cap.truncated or stderr_cap.truncated
     total_chars = stdout_cap.total_chars + stderr_cap.total_chars
     note = ""
-    if flooded:
+    if flooded and moved:
+        # A dump would close the spill files, and the capture's next overflow
+        # would open a *new* one holding only what was written after adoption —
+        # a file that claims to be the command's output while starting
+        # mid-stream. The live spill is already complete and keeps growing.
+        note = _live_overflow_note(stdout_cap, stderr_cap)
+    elif flooded:
         dump_path = _dump_full_output(
             command, cwd, stdout_cap, stderr_cap, exit_code_str
         )
@@ -661,6 +667,30 @@ def _overflow_note(dump_path: str | None, failed: bool) -> str:
         f"[SYSTEM SUGGESTION]: Output truncated (kept {kept}). Full "
         f"stdout/stderr saved to {dump_path} — Grep it to locate sections, "
         "then Read."
+    )
+
+
+def _live_overflow_note(
+    stdout_cap: StreamCapture, stderr_cap: StreamCapture
+) -> str:
+    """Name the spill files a command that is still running keeps writing into.
+
+    Unlike `_overflow_note`'s dump, these files are not a snapshot: the capture
+    appends to them for as long as the process lives, so they hold the output
+    from the start of the command, not from the moment it was adopted.
+    """
+    live = []
+    for name, capture in (("stdout", stdout_cap), ("stderr", stderr_cap)):
+        if capture.truncated and capture.spill_path:
+            capture.flush()
+            live.append(f"{name} in {capture.spill_path}")
+    if not live:
+        return ""
+    return (
+        "[SYSTEM SUGGESTION]: Output truncated (kept the beginning and the "
+        f"end). The complete output is still being appended to {'; '.join(live)} "
+        "— the same path MonitorProcess reports. Grep it to locate a section, "
+        "then Read that range."
     )
 
 
