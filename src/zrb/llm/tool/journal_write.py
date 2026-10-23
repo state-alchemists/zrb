@@ -25,6 +25,7 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.markdown import get_first_heading
+from zrb.util.owner_only import tighten_once
 
 NOTE_CATEGORIES = ("user", "agent", "preferences", "projects", "technical")
 ACTIVITY_DIR = "activity-log"
@@ -317,8 +318,12 @@ def _open_journal() -> Iterator[str]:
             yield root
     except FileLockTimeout as exc:
         raise ValueError(
-            "[SYSTEM SUGGESTION]: journal is busy; retry later or report that "
-            "another writer held the journal lock too long."
+            "[SYSTEM SUGGESTION]: journal is busy; another writer held "
+            f"{os.path.join(root, '.lock')} for the whole "
+            f"{max(0.0, CFG.LLM_JOURNAL_LOCK_TIMEOUT)}s allowed by "
+            "LLM_JOURNAL_LOCK_TIMEOUT, so this call wrote nothing. Retry once "
+            "the other writer is done, or raise that setting if journal writes "
+            "are legitimately slow here."
         ) from exc
 
 
@@ -362,6 +367,9 @@ def ensure_journal_tree() -> str:
         )
     root = os.path.abspath(os.path.expanduser(journal_dir))
     os.makedirs(root, exist_ok=True)
+    # A journal written before the private-mode rule keeps its old modes; this
+    # narrows it once, and is a no-op on every later call.
+    tighten_once(root)
     index_name = _index_name()
     for name in (*NOTE_CATEGORIES, ACTIVITY_DIR):
         os.makedirs(os.path.join(root, name), exist_ok=True)

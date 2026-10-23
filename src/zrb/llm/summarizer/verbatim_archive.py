@@ -20,22 +20,32 @@ directory's permissions.
 
 from __future__ import annotations
 
-import hashlib
 import os
 import stat
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.history_manager.file_history_manager import safe_segment
+from zrb.llm.history_manager.archive_layout import (
+    ARCHIVE_DIR_NAME,
+    archive_lock_path,
+    conversation_key,
+    verbatim_archive_path,
+)
 from zrb.llm.summarizer.message_converter import message_to_text
-from zrb.util.file_lock import hold_file_lock
+from zrb.util.file_lock import FileLockTimeout, hold_file_lock
+from zrb.util.owner_only import tighten_once
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
 
-ARCHIVE_DIR_NAME = "verbatim"
-"""Subdirectory of `LLM_HISTORY_DIR` holding the archives."""
+__all__ = [
+    "ARCHIVE_DIR_NAME",
+    "archive_lock_path",
+    "archive_verbatim_history",
+    "conversation_key",
+    "verbatim_archive_path",
+]
 
 # The modes are applied after creation, not passed to `makedirs`/`open` alone: a
 # umask can only clear bits, so a umask that clears one of these would otherwise
@@ -55,34 +65,6 @@ _APPEND_FLAGS = (
     | getattr(os, "O_NOFOLLOW", 0)
     | getattr(os, "O_BINARY", 0)
 )
-
-
-def verbatim_archive_path(session_name: str, history_dir: str | None = None) -> str:
-    """The archive file for *session_name*.
-
-    `history_dir` is the directory the history manager stores conversations in,
-    so the archive follows the same storage configuration; it defaults to
-    `CFG.LLM_HISTORY_DIR` (``~/.zrb/llm-history``). The path is absolute: it is
-    handed to the model, which reads what its working directory would otherwise
-    make ambiguous.
-    """
-    base = os.path.expanduser(history_dir or CFG.LLM_HISTORY_DIR)
-    return os.path.abspath(
-        os.path.join(base, ARCHIVE_DIR_NAME, f"{safe_segment(session_name)}.md")
-    )
-
-
-def conversation_key(opening_text: str) -> str:
-    """A stable archive name derived from a conversation's opening message.
-
-    The fallback when the caller cannot name the conversation: a rename or a
-    resume does not change it, and two conversations that open differently do
-    not share a file. The readable prefix makes the file findable; the digest
-    keeps two similar openings apart.
-    """
-    readable = " ".join(opening_text.split())[:48].strip() or "conversation"
-    digest = hashlib.sha1(opening_text.encode("utf-8")).hexdigest()[:8]
-    return f"{safe_segment(readable)}-{digest}"
 
 
 def archive_verbatim_history(
@@ -116,23 +98,23 @@ def archive_verbatim_history(
         # between the size read and the truncate that undoes a failed write. The
         # directory has to exist before the lock file can sit in it.
         _ensure_archive_directory(os.path.dirname(path))
-        with hold_file_lock(_lock_path(path), timeout=CFG.LLM_ARCHIVE_LOCK_TIMEOUT):
+        tighten_once(os.path.dirname(path))
+        with hold_file_lock(
+            archive_lock_path(path), timeout=CFG.LLM_ARCHIVE_LOCK_TIMEOUT
+        ):
             _append_new_section(path, body)
+    except FileLockTimeout:
+        CFG.LOGGER.warning(
+            f"No verbatim archive at {path}: another writer held its lock for "
+            f"{CFG.LLM_ARCHIVE_LOCK_TIMEOUT}s (LLM_ARCHIVE_LOCK_TIMEOUT). This "
+            "summary therefore carries no archive pointer, and the text it "
+            "replaced survives only in that summary."
+        )
+        return None
     except OSError as e:
         CFG.LOGGER.warning(f"Could not archive verbatim history at {path}: {e}")
         return None
     return path
-
-
-def _lock_path(path: str) -> str:
-    """The sidecar file the archive's lock sits on.
-
-    Nothing is written to it and it is never removed: the lock is the operating
-    system's, released when its holder exits, so this file is only a handle. The
-    leading dot keeps it out of a casual listing of the archives beside it.
-    """
-    directory, name = os.path.split(path)
-    return os.path.join(directory, f".{name}.lock")
 
 
 def _append_new_section(path: str, body: str) -> None:

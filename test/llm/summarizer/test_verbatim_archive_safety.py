@@ -126,21 +126,42 @@ def test_a_new_archive_is_private_to_its_owner(tmp_path):
 
 
 @needs_posix_modes
-def test_an_archive_that_already_exists_keeps_its_mode(tmp_path):
-    """Privacy is a promise about what zrb creates. Tightening a path that is
-    already there is a blanket permission change on files zrb did not write in
-    this call, and it is not made behind the user's back."""
+def test_an_existing_archive_is_narrowed_once(tmp_path):
+    """An archive written before the private-mode rule was readable by others.
+    It is narrowed in place on first use, and the marker keeps that from being
+    a blanket permission change on every later run."""
+    from zrb.util.owner_only import marker_path
+
     path = verbatim_archive_path("old", str(tmp_path))
     os.makedirs(os.path.dirname(path))
     os.chmod(os.path.dirname(path), 0o755)
     with open(path, "w", encoding="utf-8") as stream:
         stream.write("## Compacted earlier — 1 message(s)\n")
     os.chmod(path, 0o644)
+    assert not os.path.exists(marker_path(os.path.dirname(path)))
 
     assert archive_verbatim_history(_messages(), path=path) == path
 
-    assert stat.S_IMODE(os.stat(os.path.dirname(path)).st_mode) == 0o755
+    assert stat.S_IMODE(os.stat(os.path.dirname(path)).st_mode) == 0o700
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+    assert os.path.exists(marker_path(os.path.dirname(path)))
+
+
+@needs_posix_modes
+def test_a_narrowed_archive_is_not_walked_again(tmp_path):
+    """The marker is the whole point: a file the user made readable again after
+    the migration stays as they left it, because zrb is not entitled to change
+    a mode on every run."""
+    from zrb.util.owner_only import marker_path
+
+    path = verbatim_archive_path("again", str(tmp_path))
+    assert archive_verbatim_history(_messages(), path=path) == path
+    os.chmod(path, 0o644)
+
+    assert archive_verbatim_history(_messages(), path=path) == path
+
     assert stat.S_IMODE(os.stat(path).st_mode) == 0o644
+    assert os.path.exists(marker_path(os.path.dirname(path)))
 
 
 @needs_no_follow
@@ -259,9 +280,11 @@ async def test_a_refused_write_gives_the_summary_no_pointer(tmp_path, monkeypatc
     assert victim.read_text(encoding="utf-8") == "untouched"
 
 
-def test_a_busy_archive_returns_no_pointer(tmp_path):
+def test_a_busy_archive_returns_no_pointer(tmp_path, caplog):
     """Another process holding the archive's lock must not cost the caller an
-    exception, and must not produce a pointer to a section never written."""
+    exception, and must not produce a pointer to a section never written. The
+    warning names the lock and the setting, so a human and the log can tell a
+    busy archive from a broken one."""
     from zrb.util.file_lock import FileLockTimeout
 
     path = verbatim_archive_path("busy", str(tmp_path))
@@ -270,9 +293,13 @@ def test_a_busy_archive_returns_no_pointer(tmp_path):
         "zrb.llm.summarizer.verbatim_archive.hold_file_lock",
         side_effect=FileLockTimeout("held elsewhere"),
     ):
-        assert archive_verbatim_history(_messages(), path=path) is None
+        with caplog.at_level(logging.WARNING):
+            assert archive_verbatim_history(_messages(), path=path) is None
 
     assert not os.path.exists(path)
+    assert "another writer held its lock" in caplog.text
+    assert "LLM_ARCHIVE_LOCK_TIMEOUT" in caplog.text
+    assert "carries no archive pointer" in caplog.text
 
 
 def test_the_append_waits_the_configured_lock_timeout(tmp_path, monkeypatch):

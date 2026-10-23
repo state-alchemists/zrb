@@ -12,6 +12,10 @@ if TYPE_CHECKING:
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.history_manager.archive_layout import (
+    ARCHIVE_DIR_NAME,
+    archive_lock_path,
+)
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.util.subagent_session_naming import (
     SUBAGENT_HISTORY_SUBDIR,
@@ -20,7 +24,7 @@ from zrb.llm.util.subagent_session_naming import (
 )
 from zrb.util.match import fuzzy_match
 from zrb.util.string.conversion import to_string
-from zrb.util.string.name import has_random_name_prefix
+from zrb.util.string.name import has_random_name_prefix, safe_segment
 from zrb.util.todo.duration import parse_duration
 
 # Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
@@ -45,12 +49,10 @@ _MAX_CACHED_CONVERSATIONS = 8
 # reading every file in the directory.
 _EMPTY_HISTORY_MAX_BYTES = 2
 
-
-def safe_segment(name: str) -> str:
-    """A filesystem-safe single path segment for *name* (also used for the
-    per-agent-type subdirectory, which is the agent name)."""
-    safe = "".join(c for c in name if c.isalnum() or c in (" ", ".", "_", "-")).strip()
-    return safe or "default"
+# The archive filename as a summary's archive pointer spells it: the path in
+# backticks ends in `verbatim/<name>.md` (a backslash on Windows). Capturing the
+# name alone lets a referenced archive be matched whatever directory it sits in.
+_ARCHIVE_REFERENCE_PATTERN = re.compile(r"verbatim[/\\]([^`\s)'\"]+\.md)")
 
 
 def default_history_manager() -> "FileHistoryManager":
@@ -571,6 +573,64 @@ class FileHistoryManager(AnyHistoryManager):
                     os.remove(entry.path)
             except OSError:
                 continue
+        self._prune_unreferenced_archives(cutoff, current)
+
+    def _prune_unreferenced_archives(self, cutoff: float, current: str) -> None:
+        """Delete archives no history refers to any more, and their lock files.
+
+        An archive is the only copy of the text a summary dropped, so it goes
+        only when nothing points at it: no history file in this directory — the
+        live one or a backup of it — carries its pointer. Age is required too,
+        so an archive written moments ago for a conversation whose history has
+        not been saved yet is never collected. A conversation the user named is
+        kept by retention, so its archive is too, and a session with no history
+        file of its own (the opening-message key) survives as long as the
+        summary that names it does.
+        """
+        archives_dir = os.path.join(self._history_dir, ARCHIVE_DIR_NAME)
+        try:
+            names = os.listdir(archives_dir)
+        except OSError:
+            return
+        archives = [n for n in names if n.endswith(".md") and not n.startswith(".")]
+        if not archives:
+            return
+        referenced = self._referenced_archives()
+        # The session being saved is live even before its history file lands.
+        keep = {f"{safe_segment(current)}.md"}
+        for name in archives:
+            if name in referenced or name in keep:
+                continue
+            path = os.path.join(archives_dir, name)
+            try:
+                if os.stat(path).st_mtime >= cutoff:
+                    continue
+                os.remove(path)
+            except OSError:
+                continue
+            try:
+                os.remove(archive_lock_path(path))
+            except OSError:
+                pass
+
+    def _referenced_archives(self) -> "set[str]":
+        """Archive filenames named by any history file in this directory."""
+        referenced: set[str] = set()
+        try:
+            entries = list(os.scandir(self._history_dir))
+        except OSError:
+            return referenced
+        for entry in entries:
+            if not entry.name.endswith(".json"):
+                continue
+            try:
+                if not entry.is_file():
+                    continue
+                with open(entry.path, encoding="utf-8", errors="ignore") as stream:
+                    referenced.update(_ARCHIVE_REFERENCE_PATTERN.findall(stream.read()))
+            except OSError:
+                continue
+        return referenced
 
     def _rotate_backups(
         self, base_name: str, keep: int, main_file_name: str | None = None

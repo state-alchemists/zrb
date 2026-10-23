@@ -169,8 +169,13 @@ class MessageQueue(asyncio.Queue):
 
         Hold an entry being edited, and give other recent entries their grace.
         A hands-free utterance may skip only its own grace; it cannot send a
-        different draft before the user finishes editing it. A queued `/exec`
-        is an ordering barrier: later messages must wait for the command.
+        different draft before the user finishes editing it.
+
+        A held entry is not a barrier: it stays in the queue, and the entries
+        after it still go. Stopping the scan at an edit would let an open draft
+        stall the turn indefinitely — and speech, having no `Ctrl+G` behind it,
+        would then never arrive. A queued `/exec` is a barrier, because later
+        messages must wait for the command itself.
         """
         ready: list[QueuedMessage] = []
         for entry in self._queue:

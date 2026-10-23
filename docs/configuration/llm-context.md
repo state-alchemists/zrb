@@ -35,11 +35,18 @@ summary names that file so the agent can read back the detail it dropped. The ar
 holds the history as the conversation held it, before oversized tool results were
 reduced to summaries, so a tool's output remains available after compaction.
 
-Verbatim archives are **not pruned** by `ZRB_LLM_HISTORY_RETENTION`: that setting
-only removes expired conversation JSON files. Archives can therefore grow without
-bound and may contain sensitive text. Protect access to the history directory and
-back it up as needed; review and remove old archives manually only when their detail
-is no longer needed. Removing an archive leaves earlier summaries' pointers stale.
+An archive is pruned, with its lock sidecar, only once **no history refers to it**: no
+conversation file in the history directory — live or backup — carries its pointer, and
+it is older than `ZRB_LLM_HISTORY_RETENTION` (so an archive written just before its
+history is saved is never mistaken for an orphan, and `0` keeps every archive). That
+keeps the directory bounded without leaving a summary pointing at text that is gone.
+Archives may still contain sensitive text: protect access to the history directory and
+back it up as needed.
+
+A directory written before these permissions existed is narrowed **once**, on first use,
+with a marker (`<dir>.owner-only`) beside it so later runs leave it alone — a mode you
+change back after that stays as you set it. This applies to both the history and the
+journal directory.
 
 The summary reaches the next model as a fenced block that names itself: it opens with
 `# SYSTEM: Automated Context Restoration`, says in as many words that it is derived data

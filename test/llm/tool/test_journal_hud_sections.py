@@ -55,6 +55,8 @@ def test_an_absolute_index_name_is_rejected(tmp_path, writable_journal):
 
 
 def test_a_busy_journal_returns_an_actionable_error(writable_journal):
+    """The message has to say a lock held the write, for how long, and which
+    setting raises the wait — an agent that only reads "busy" retries blindly."""
     from zrb.llm.tool.journal_write import log_activity
     from zrb.util.file_lock import FileLockTimeout
 
@@ -62,8 +64,15 @@ def test_a_busy_journal_returns_an_actionable_error(writable_journal):
         "zrb.llm.tool.journal_write.hold_file_lock",
         side_effect=FileLockTimeout("lock held"),
     ):
-        with pytest.raises(ValueError, match=r"\[SYSTEM SUGGESTION\].*busy"):
+        with pytest.raises(ValueError) as raised:
             log_activity("checked lock behavior")
+
+    message = str(raised.value)
+    assert "[SYSTEM SUGGESTION]" in message
+    assert "busy" in message
+    assert "another writer held" in message
+    assert "LLM_JOURNAL_LOCK_TIMEOUT" in message
+    assert "wrote nothing" in message
 
 
 def test_a_journal_write_passes_its_configured_lock_timeout(writable_journal):
