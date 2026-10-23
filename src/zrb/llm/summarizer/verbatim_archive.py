@@ -98,6 +98,11 @@ def archive_verbatim_history(
         # between the size read and the truncate that undoes a failed write. The
         # directory has to exist before the lock file can sit in it.
         _ensure_archive_directory(os.path.dirname(path))
+        # No owned_entries restriction: unlike the journal root, "verbatim" is
+        # never user-configured directly -- zrb names and creates it itself
+        # beneath whatever LLM_HISTORY_DIR is, and only ever puts its own
+        # archives and lock sidecars there, so narrowing the whole
+        # subdirectory cannot reach content that belongs to something else.
         tighten_once(os.path.dirname(path))
         with hold_file_lock(
             archive_lock_path(path), timeout=CFG.LLM_ARCHIVE_LOCK_TIMEOUT

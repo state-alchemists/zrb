@@ -11,7 +11,13 @@ import stat
 import pytest
 
 import zrb.util.owner_only as owner_only
-from zrb.util.owner_only import FILE_MODE, DIR_MODE, marker_path, tighten_once
+from zrb.util.owner_only import (
+    FILE_MODE,
+    DIR_MODE,
+    marker_path,
+    reject_symlinked_ancestors,
+    tighten_once,
+)
 
 needs_posix_modes = pytest.mark.skipif(
     os.name != "posix", reason="POSIX mode bits (the mode under test)"
@@ -128,6 +134,73 @@ def test_a_symlinked_root_is_not_narrowed_or_followed(tmp_path):
     assert stat.S_IMODE(os.stat(outside).st_mode) == 0o755
     assert stat.S_IMODE(os.stat(outside_file).st_mode) == 0o644
     assert not os.path.exists(marker_path(str(link)))
+
+
+@needs_posix_modes
+def test_a_symlink_above_an_existing_leaf_does_not_block_it(tmp_path):
+    """The climb that refuses a symlinked configured root must not keep
+    climbing into infrastructure above it once it reaches something that
+    already exists: on macOS `/var` is itself a symlink to `/private/var`,
+    and a configured path that resolves through it (as a temp-directory-based
+    one typically does) must not be refused for a reason that has nothing to
+    do with the path zrb was actually given."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = tmp_path / "benign-ancestor-link"
+    os.symlink(str(outside), str(link))
+    root = link / "notes"
+    root.mkdir()
+
+    reject_symlinked_ancestors(str(root))  # must not raise
+
+
+@needs_posix_modes
+def test_a_symlinked_ancestor_above_a_missing_leaf_is_still_refused(tmp_path):
+    """Climbing stops at the first *existing* level, not the first level
+    checked — a symlink there must still be caught even though the leaf
+    itself, and its immediate parent, do not exist yet."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = tmp_path / "malicious-ancestor-link"
+    os.symlink(str(outside), str(link))
+
+    with pytest.raises(PermissionError, match="symlink"):
+        reject_symlinked_ancestors(str(link / "journal" / "notes"))
+
+
+@needs_posix_modes
+def test_owned_entries_leaves_the_root_and_unlisted_content_alone(tmp_path):
+    """A journal root is a directory the user configures directly, and may
+    already hold content that belongs to something else — narrowing must
+    touch only the names it is told are zrb's own, never the root's own mode
+    or anything beside them."""
+    root = tmp_path / "notes"
+    root.mkdir()
+    os.chmod(root, 0o755)
+    owned_dir = root / "technical"
+    owned_dir.mkdir()
+    owned_note = owned_dir / "note.md"
+    owned_note.write_text("owned", encoding="utf-8")
+    os.chmod(owned_dir, 0o755)
+    os.chmod(owned_note, 0o644)
+    owned_file = root / "index.md"
+    owned_file.write_text("owned index", encoding="utf-8")
+    os.chmod(owned_file, 0o644)
+    unrelated_dir = root / "unrelated-project"
+    unrelated_dir.mkdir()
+    unrelated_file = unrelated_dir / "config.yaml"
+    unrelated_file.write_text("shared: true\n", encoding="utf-8")
+    os.chmod(unrelated_dir, 0o755)
+    os.chmod(unrelated_file, 0o644)
+
+    tighten_once(str(root), owned_entries=("technical", "index.md"))
+
+    assert stat.S_IMODE(os.stat(root).st_mode) == 0o755
+    assert stat.S_IMODE(os.stat(owned_dir).st_mode) == DIR_MODE
+    assert stat.S_IMODE(os.stat(owned_note).st_mode) == FILE_MODE
+    assert stat.S_IMODE(os.stat(owned_file).st_mode) == FILE_MODE
+    assert stat.S_IMODE(os.stat(unrelated_dir).st_mode) == 0o755
+    assert stat.S_IMODE(os.stat(unrelated_file).st_mode) == 0o644
 
 
 @needs_posix_modes

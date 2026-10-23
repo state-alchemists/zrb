@@ -11,6 +11,10 @@ from __future__ import annotations
 import logging
 import os
 import stat
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Collection
 
 DIR_MODE = 0o700
 FILE_MODE = 0o600
@@ -26,7 +30,9 @@ def marker_path(directory: str) -> str:
     return os.path.abspath(directory).rstrip(os.sep) + MARKER_SUFFIX
 
 
-def tighten_once(directory: str) -> None:
+def tighten_once(
+    directory: str, owned_entries: "Collection[str] | None" = None
+) -> None:
     """Make *directory* and everything under it owner-only, once.
 
     Only for a directory zrb owns: a symlink is skipped rather than followed, so
@@ -34,6 +40,16 @@ def tighten_once(directory: str) -> None:
     refuses the change is left as it is instead of failing the caller — the
     prune and the journal write that call this must not fail over permissions.
     Windows has no mode bits to narrow, so there it does nothing.
+
+    *owned_entries*, when given, narrows only those direct children of
+    *directory* (each one's own mode, and everything beneath it) — *directory*
+    itself is left exactly as it is, and anything inside it that is not named
+    is never touched. Without it, *directory* and every descendant of it are
+    narrowed, which is only safe when *directory* is a leaf zrb exclusively
+    created and names itself (the archive's ``verbatim`` subdirectory): a
+    directory a user configures directly — the journal root — may already hold
+    content from somewhere else entirely, and narrowing all of it, root
+    included, would make that content inaccessible to whatever else reads it.
 
     The marker decides whether the work is already done, so it is read with
     `lstat` and created exclusively: one planted at its path cannot stand in for
@@ -62,7 +78,10 @@ def tighten_once(directory: str) -> None:
     if _has_marker(directory):
         return
     try:
-        _narrow_tree(directory)
+        if owned_entries is None:
+            _narrow_tree(directory)
+        else:
+            _narrow_named_entries(directory, owned_entries)
         _write_marker(directory)
     except OSError as e:
         # A partial pass leaves no marker, so the next call tries again. The
@@ -81,35 +100,44 @@ def _is_symlink(path: str) -> bool:
 
 
 def reject_symlinked_ancestors(path: str) -> None:
-    """Raise `PermissionError` if *path*, or any existing ancestor of it, is a
-    symlink or not a directory.
+    """Raise `PermissionError` if *path*, or its nearest *existing* ancestor,
+    is a symlink or not a directory.
 
     Both the journal and the archive create a leaf beneath a configured root
     that usually already exists (`os.makedirs`, or a hand-rolled walk that
     stops at the first existing level) — and neither one ever used to look at
-    that root's own type. A symlink planted at the configured path (or any
-    directory above the leaf) was therefore followed silently by the OS, and
-    everything written beneath the leaf landed wherever that link pointed,
-    even though the leaf itself was never a symlink. This walks from *path* up
-    to the filesystem root, `lstat`-ing every level that currently exists; a
-    level that does not exist yet is skipped, since there is nothing there yet
-    to be a symlink — the caller is the one that creates it.
+    that root's own type. A symlink planted at the configured path (or an
+    intermediate zrb creates on the way to the leaf) was therefore followed
+    silently by the OS, and everything written beneath the leaf landed
+    wherever that link pointed, even though the leaf itself was never a
+    symlink.
+
+    Climbs from *path* only until it finds something already there — a
+    missing level is skipped, since there is nothing yet to be a symlink, and
+    the first existing level is exactly where a planted symlink would have to
+    sit, because an attacker cannot plant anything deeper than a path that
+    does not exist yet. It does not climb past that: a real, valid directory
+    found there is not re-examined by climbing into *its* parents too, which
+    would reach infrastructure no local attacker controls through zrb's own
+    configuration — on macOS, `/var` is itself a symlink to `/private/var`,
+    and a configured path under a system temp directory would otherwise be
+    refused for a reason that has nothing to do with the path zrb was given.
     """
     current = os.path.abspath(path)
     while True:
         try:
             info = os.lstat(current)
         except OSError:
-            pass
-        else:
-            if stat.S_ISLNK(info.st_mode):
-                raise PermissionError(f"{current!r} is a symlink, not a directory.")
-            if not stat.S_ISDIR(info.st_mode):
-                raise PermissionError(f"{current!r} exists and is not a directory.")
-        parent = os.path.dirname(current)
-        if parent == current:
-            return
-        current = parent
+            parent = os.path.dirname(current)
+            if parent == current:
+                return
+            current = parent
+            continue
+        if stat.S_ISLNK(info.st_mode):
+            raise PermissionError(f"{current!r} is a symlink, not a directory.")
+        if not stat.S_ISDIR(info.st_mode):
+            raise PermissionError(f"{current!r} exists and is not a directory.")
+        return
 
 
 def _has_marker(directory: str) -> bool:
@@ -138,6 +166,30 @@ def _narrow_tree(directory: str) -> None:
         for name in subdirs:
             _chmod(os.path.join(root, name), DIR_MODE)
     _chmod(directory, DIR_MODE)
+
+
+def _narrow_named_entries(directory: str, names: "Collection[str]") -> None:
+    """Narrow only *names* — direct children of *directory* — leaving
+    *directory* itself, and anything inside it that is not one of *names*,
+    untouched.
+
+    A named entry that is a directory gets its full subtree narrowed too
+    (`_narrow_tree`), since that subtree is a namespace zrb exclusively owns —
+    a category directory or the activity log, never something shared. A named
+    entry that is a file (the root index) is narrowed on its own, since
+    `_narrow_tree` assumes a directory. A name with nothing at that path is
+    silently skipped: nothing has been created there (yet) to narrow.
+    """
+    for name in names:
+        path = os.path.join(directory, name)
+        try:
+            info = os.lstat(path)
+        except OSError:
+            continue
+        if stat.S_ISDIR(info.st_mode):
+            _narrow_tree(path)
+        elif stat.S_ISREG(info.st_mode):
+            _chmod(path, FILE_MODE)
 
 
 def _chmod(path: str, mode: int) -> None:

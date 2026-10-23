@@ -120,3 +120,28 @@ def test_a_symlinked_note_path_is_refused_not_overwritten(writable_journal, tmp_
         )
 
     assert secret.read_text(encoding="utf-8") == "do not touch\n"
+
+
+@needs_posix_modes
+def test_an_existing_journal_dir_does_not_narrow_unrelated_content(writable_journal):
+    """LLM_JOURNAL_DIR is configured by the user, not created exclusively by
+    zrb -- the permission migration for a pre-existing directory must narrow
+    only the journal's own entries, never the root's own mode or any other
+    content the configured directory already held."""
+    root = writable_journal
+    unrelated_dir = os.path.join(root, "unrelated-project")
+    os.makedirs(unrelated_dir)
+    unrelated_file = os.path.join(unrelated_dir, "config.yaml")
+    with open(unrelated_file, "w", encoding="utf-8") as f:
+        f.write("shared: true\n")
+    os.chmod(unrelated_file, 0o644)
+    os.chmod(unrelated_dir, 0o755)
+    os.chmod(root, 0o755)
+
+    log_activity("first thing")
+
+    assert stat.S_IMODE(os.stat(root).st_mode) == 0o755
+    assert stat.S_IMODE(os.stat(unrelated_dir).st_mode) == 0o755
+    assert stat.S_IMODE(os.stat(unrelated_file).st_mode) == 0o644
+    assert stat.S_IMODE(os.stat(os.path.join(root, "technical")).st_mode) == DIR_MODE
+    assert stat.S_IMODE(os.stat(os.path.join(root, "index.md")).st_mode) == FILE_MODE

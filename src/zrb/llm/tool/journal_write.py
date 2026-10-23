@@ -385,7 +385,12 @@ def ensure_journal_tree() -> str:
     # narrows it once, and is a no-op on every later call. Run last, so a
     # first-time tree is narrowed only once every descendant it creates above
     # already exists — the marker it writes never claims a half-hardened tree.
-    tighten_once(root)
+    # Only the entries this function itself just created or confirmed are
+    # named: LLM_JOURNAL_DIR is a directory the user configures directly, and
+    # may already hold content that belongs to something else entirely — the
+    # root's own mode, and anything in it zrb did not just account for, are
+    # left exactly as they are.
+    tighten_once(root, owned_entries=(*NOTE_CATEGORIES, ACTIVITY_DIR, index_name))
     return root
 
 
