@@ -96,7 +96,7 @@ def _without_gitignored(abs_path: str, files: list[str]) -> list[str]:
     return [path for path in files if os.path.normpath(path) in visible]
 
 
-def _summarize_by_top_level(files: list[str]) -> list[dict[str, Any]]:
+def _summarize_by_top_level(files: list[str]) -> list[dict[str, str | int]]:
     """File counts per immediate child (`.` for files directly in the root)."""
     counts: dict[str, int] = {}
     for path in files:

@@ -78,7 +78,7 @@ def split_live_context(content: str) -> tuple[str, str | None]:
     return content[: match.start()].rstrip(), match.group(1)
 
 
-def last_live_context(message_history: "list[Any]") -> str | None:
+def last_live_context(message_history: "list[object]") -> str | None:
     """The newest ``<live-context>`` block in *message_history*, or ``None``.
 
     Read from the history the run is actually using, never from a side cache:
@@ -104,7 +104,7 @@ def _unwrap_live_context(block: str) -> str:
     return text.strip()
 
 
-def _live_context_in(content: Any) -> str | None:
+def _live_context_in(content: object) -> str | None:
     """The block in a string prompt, or in the trailing item of a multimodal one."""
     if isinstance(content, str):
         return split_live_context(content)[1]

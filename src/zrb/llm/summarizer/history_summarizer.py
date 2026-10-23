@@ -529,7 +529,7 @@ async def _build_summary_parts(
     # so the snapshot is not shrunk to make room for text zrb can leave out. The
     # pointer's room is reserved here because the write that decides it happens
     # only after the cap has approved the block.
-    cap = _summary_cap(conversational_token_threshold)
+    cap = summary_cap(conversational_token_threshold)
     journal_block = render_journal_index() or ""
     archive_note = _render_archive_note(archive_path) if archive_path else ""
     journal_block, archive_note = _fit_note_blocks(
@@ -563,7 +563,7 @@ async def _build_summary_parts(
     )
 
 
-def _summary_cap(conversational_token_threshold: int) -> int:
+def summary_cap(conversational_token_threshold: int) -> int:
     """The token cap for one summary, from `LLM_SUMMARY_MAX_TOKEN_RATIO`.
 
     ``0`` (or a negative ratio) means no cap. The share is taken of the trigger
