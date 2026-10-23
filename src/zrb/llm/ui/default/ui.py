@@ -198,6 +198,9 @@ class UI(BaseUI):
                 self._agent_picker.sync_output_to_viewed_agent()
             else:
                 self.rewrap_output()
+            # The `/btw` panel has its own buffer, independent of the main
+            # transcript, so it needs its own resize-time re-render.
+            self._side_question.rewrap()
         except Exception as e:
             # Runs every frame: never kill the paint, and log each distinct
             # failure once instead of once per redraw.
