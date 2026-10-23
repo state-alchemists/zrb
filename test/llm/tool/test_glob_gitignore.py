@@ -7,6 +7,7 @@ which tool asked.
 
 import os
 import subprocess
+import sys
 
 import pytest
 
@@ -133,6 +134,10 @@ def test_glob_hides_nothing_it_should_keep_in_a_non_ascii_name(tmp_path):
     assert os.path.join("generated", "artifact.py") not in files
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="a Windows filename is UTF-16 and cannot hold a byte that is not valid UTF-8",
+)
 def test_a_name_that_is_not_valid_utf8_does_not_break_the_filter(tmp_path):
     """A filename is not required to be valid UTF-8; git must not crash the tool."""
     _init_checkout(tmp_path)
