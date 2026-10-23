@@ -63,6 +63,10 @@ dependencies = [
     # Security fix: CVE-2026-40192 - Decompression bomb via unlimited GZIP read in FITS decoding.
     # Security fix: CVE-2026-59204 - DoS via memory-allocation state accumulation in the JPEG2000 decoder. We pin >=12.3.0.
     # Pillow is a transitive dependency via pdfplumber. We pin >=12.3.0 to ensure the patched version is used.
+    # 39 advisories are open against 12.3.0 and every one of them is closed only by 13.0.0 — including
+    # CVE-2026-112900 (argument injection into the Ghostscript call, RCE), CVE-2026-112902 (TIFF
+    # encoder memory disclosure) and CVE-2026-112403 (JPEG heap overflow). The floor cannot move:
+    # pipecat-ai 1.12.0 requires `Pillow>=11.1.0,<13`, so the resolver rejects 13.0.0 outright.
     "Pillow>=12.3.0",
     # Security fix: CVE-2026-4539 - ReDoS vulnerability in AdlLexer (GUID regex).
     # pygments is a transitive dependency via rich and pytest. We pin >=2.20.0.
@@ -71,6 +75,10 @@ dependencies = [
     # (pulled in by pdfplumber) and google-auth. We pin >=46.0.7.
     # Security fix: GHSA-537c-gmf6-5ccf - Out-of-bounds read via statically linked OpenSSL. We pin >=48.0.1.
     "cryptography>=48.0.1",
+    # Security fix: certifi ships emSign root CAs whose intermediate keys are compromised, so a TLS
+    # peer built on them can be impersonated. certifi is transitive via requests, httpx and boto3.
+    # We pin >=2026.10.19.
+    "certifi>=2026.10.19",
     # Security fix: CVE-2026-42561 (GHSA-pp6c-gr5w-3c5g) - CPU exhaustion via unlimited multipart
     # header count and size in form-data submissions. python-multipart is transitive via mcp. We pin >=0.0.27.
     # Security fix: GHSA-5rvq-cxj2-64vf (CVE-2026-53539) - quadratic-time DoS via ; separators in url-encoded bodies. We pin >=0.0.30.
@@ -109,7 +117,9 @@ documentation = "https://github.com/state-alchemists/zrb"
 # - poetry install -E voice
 # - pip install "zrb[voice]"
 python = [
-    "black>=26.3.1,<27.0.0",
+    # Security fix: CVE-2026-114134 - the GitHub Action installed an unvalidated `required-version`
+    # from pyproject.toml. Patched in 26.10.1.
+    "black>=26.10.1,<27.0.0",
     "isort>=7.0.0,<8.0.0",
 ]
 #
@@ -121,7 +131,12 @@ rag = [
     # GHSA-xpv3-w29h-x7cv (timing attack in PKCE code_verifier comparison), patched
     # in 4.0.0. oauthlib is transitive via chromadb → kubernetes → requests-oauthlib.
     # No chromadb fix exists for its own advisories, so the pin is on oauthlib alone.
+    # Four chromadb advisories (2 critical, 2 high) are still open against 1.5.9 with no
+    # patched release; they are accepted, not fixed, and recorded in the 3.26.0 changelog.
     "oauthlib>=4.0.0",
+    # Security fix: CVE-2026-114603 - unbounded tracestate parsing in opentelemetry-api.
+    # It arrives via chromadb's OTLP exporter; we pin >=1.45.1.
+    "opentelemetry-api>=1.45.1",
 ]
 playwright = ["playwright>=1.56.0,<2.0.0"]
 cohere = ["cohere>=5.20.6"]
@@ -147,8 +162,13 @@ xai = [
     # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits.
     # Security fix: GHSA-mfx4-hv73-q22v (CVE-2026-69243) - HTTP request smuggling via WebSocket upgrade.
     # Security fix: GHSA-mq44-7p77-q5h7 (CVE-2026-59881) - WebSocket client accepts compressed frames without negotiated permessage-deflate.
-    # Security fix: GHSA-cq5v-8q36-5273 (CVE-2026-69244) - out-of-bounds heap read in the C response parser. We pin >=3.14.3.
-    "aiohttp>=3.14.3",
+    # Security fix: GHSA-cq5v-8q36-5273 (CVE-2026-69244) - out-of-bounds heap read in the C response parser. We pin >=3.14.4.
+    # Security fixes, patched in 3.14.4: CVE-2026-111750 (pure-Python parser request smuggling),
+    # CVE-2026-111066 (file-descriptor exhaustion in multipart), CVE-2026-111064 (no initial
+    # request/header timeout), CVE-2026-111065 (connector pool exhaustion via Max-Age overflow),
+    # CVE-2026-111063 and CVE-2026-111749 (cookie scope and Host-Only bypass) and CVE-2026-111748
+    # (absolute-form request target spoofs Request.scheme).
+    "aiohttp>=3.14.4",
 ]
 bedrock = ["boto3>=1.42.63"]
 huggingface = [
@@ -165,8 +185,13 @@ voyageai = [
     # Security fix: GHSA-xcgm-r5h9-7989 (CVE-2026-54274) - incomplete WebSocket frame payloads bypass memory limits.
     # Security fix: GHSA-mfx4-hv73-q22v (CVE-2026-69243) - HTTP request smuggling via WebSocket upgrade.
     # Security fix: GHSA-mq44-7p77-q5h7 (CVE-2026-59881) - WebSocket client accepts compressed frames without negotiated permessage-deflate.
-    # Security fix: GHSA-cq5v-8q36-5273 (CVE-2026-69244) - out-of-bounds heap read in the C response parser. We pin >=3.14.3.
-    "aiohttp>=3.14.3",
+    # Security fix: GHSA-cq5v-8q36-5273 (CVE-2026-69244) - out-of-bounds heap read in the C response parser. We pin >=3.14.4.
+    # Security fixes, patched in 3.14.4: CVE-2026-111750 (pure-Python parser request smuggling),
+    # CVE-2026-111066 (file-descriptor exhaustion in multipart), CVE-2026-111064 (no initial
+    # request/header timeout), CVE-2026-111065 (connector pool exhaustion via Max-Age overflow),
+    # CVE-2026-111063 and CVE-2026-111749 (cookie scope and Host-Only bypass) and CVE-2026-111748
+    # (absolute-form request target spoofs Request.scheme).
+    "aiohttp>=3.14.4",
     # Security fix: GHSA-fv5p-p927-qmxr - SSRF via redirect bypass in HTMLHeaderTextSplitter.split_text_from_url().
     "langchain-text-splitters>=1.1.2",
     # Security fix: GHSA-3644-q5cj-c5c7 (CVE-2026-45134) - unsafe prompt-manifest deserialization.
