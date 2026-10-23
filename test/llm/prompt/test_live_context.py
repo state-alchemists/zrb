@@ -32,6 +32,35 @@ def test_the_injected_index_is_the_configured_filename(tmp_path):
     assert "technical/notes-index.md" in result
 
 
+def test_returns_none_for_a_traversal_index_name(tmp_path):
+    """`LLM_JOURNAL_INDEX_FILE` is config, not a sandboxed value — a path like
+    `../../secrets.md` must never be joined under the journal directory and
+    injected into the prompt, same as the writers already refuse it."""
+    journal_dir = tmp_path / "notes"
+    journal_dir.mkdir()
+    secret = tmp_path / "secrets.md"
+    secret.write_text("sk-super-secret\n", encoding="utf-8")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = str(journal_dir)
+        cfg.LLM_JOURNAL_INDEX_FILE = "../secrets.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+
+        assert render_journal_index() is None
+
+
+def test_returns_none_for_an_absolute_index_name(tmp_path):
+    journal_dir = tmp_path / "notes"
+    journal_dir.mkdir()
+    secret = tmp_path / "secrets.md"
+    secret.write_text("sk-super-secret\n", encoding="utf-8")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = str(journal_dir)
+        cfg.LLM_JOURNAL_INDEX_FILE = str(secret)
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+
+        assert render_journal_index() is None
+
+
 def test_returns_none_when_index_is_missing(tmp_path):
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = str(tmp_path)

@@ -23,6 +23,7 @@ from zrb.llm.ambient_state import (
     set_current_tool_session,
     set_interactive_mode,
 )
+from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
@@ -227,13 +228,17 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     first turn and at each summarization, never into the cached system prompt
     (journaling would invalidate it). *first_message* adds an auto-search
     ``## Possibly Related`` section. Returns ``None`` when the journal is
-    disabled, the index is missing or empty, or
-    ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0.
+    disabled, the index is missing or empty, ``LLM_JOURNAL_INDEX_MAX_CHARS`` is
+    0, or ``LLM_JOURNAL_INDEX_FILE`` is not a bare filename — the same check
+    the writers apply, so this can never be pointed outside the journal.
     """
     if not CFG.LLM_JOURNAL_ENABLED:
         return None
     journal_dir = CFG.LLM_JOURNAL_DIR
-    index_name = CFG.LLM_JOURNAL_INDEX_FILE
+    try:
+        index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
+    except ValueError:
+        return None
     index_file = os.path.abspath(
         os.path.expanduser(os.path.join(journal_dir, index_name))
     )

@@ -23,6 +23,7 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.markdown import get_first_heading
 from zrb.util.owner_only import tighten_once
@@ -668,21 +669,11 @@ def _index_name() -> str:
     """Filename of every index this module writes: the root's and each category's.
 
     The reader (`render_journal_index`) resolves the root index from the same
-    knob, so a name that only one side honored left the written index
-    uninjectable — every later session started without the journal.
+    knob through the same `resolve_journal_index_name` check, so a name that
+    only one side honored or validated left the written index uninjectable —
+    or, unvalidated, let the reader be pointed outside the journal entirely.
     """
-    name = CFG.LLM_JOURNAL_INDEX_FILE
-    if (
-        not name
-        or name in (".", "..")
-        or os.path.basename(name) != name
-        or "\\" in name
-    ):
-        raise ValueError(
-            "[SYSTEM SUGGESTION]: LLM_JOURNAL_INDEX_FILE must be a filename "
-            "without directory components."
-        )
-    return name
+    return resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
 
 
 def _directory_link_re() -> re.Pattern[str]:
