@@ -198,6 +198,25 @@ def test_a_symlinked_archive_directory_is_refused(tmp_path, caplog):
     assert "not a directory" in caplog.text
 
 
+def test_a_symlinked_history_directory_is_refused(tmp_path, caplog):
+    """A symlinked *configured history directory* must redirect nothing, even
+    though `verbatim` itself — the only directory the old check `lstat`ed — is
+    never a symlink: `os.makedirs(exist_ok=True)` creates a missing leaf
+    beneath an existing ancestor without ever looking at that ancestor's own
+    type, so the archive landed under whatever the link pointed at."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = tmp_path / "history-link"
+    _symlink(str(link), str(outside))
+    path = verbatim_archive_path("hijacked", str(link))
+
+    with caplog.at_level(logging.WARNING):
+        assert archive_verbatim_history(_messages(), path=path) is None
+
+    assert list(outside.iterdir()) == []
+    assert "symlink" in caplog.text
+
+
 def test_a_failed_append_leaves_the_archive_as_it_was(tmp_path, monkeypatch):
     """The bytes past the pre-write size are this call's own, so cutting back
     there removes exactly the half-written section and nothing else."""

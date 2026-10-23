@@ -34,7 +34,7 @@ from zrb.llm.history_manager.archive_layout import (
 )
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
-from zrb.util.owner_only import tighten_once
+from zrb.util.owner_only import reject_symlinked_ancestors, tighten_once
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
@@ -151,7 +151,15 @@ def _ensure_archive_directory(directory: str) -> None:
     reported instead of appending into whatever the path points at. A directory
     that already exists keeps the mode it has: it may predate this rule, and
     changing a directory zrb does not exclusively own is not this call's to do.
+
+    `reject_symlinked_ancestors` runs first because the checks below it only
+    ever looked at *directory* itself: `os.makedirs()` happily creates a
+    missing leaf beneath an existing ancestor without inspecting that
+    ancestor's type, so a symlinked configured history directory — above
+    *directory*, never *directory* itself — used to be followed silently,
+    landing every archive write wherever that link pointed.
     """
+    reject_symlinked_ancestors(directory)
     try:
         os.makedirs(directory, mode=_ARCHIVE_DIR_MODE)
     except FileExistsError:

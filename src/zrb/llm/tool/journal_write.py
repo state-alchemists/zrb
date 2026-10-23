@@ -14,7 +14,6 @@ entries and backlinks, which upholds these invariants by construction:
 
 import os
 import re
-import stat
 import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -27,7 +26,12 @@ from zrb.config.config import CFG
 from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.markdown import get_first_heading
-from zrb.util.owner_only import DIR_MODE, FILE_MODE, tighten_once
+from zrb.util.owner_only import (
+    DIR_MODE,
+    FILE_MODE,
+    reject_symlinked_ancestors,
+    tighten_once,
+)
 
 NOTE_CATEGORIES = ("user", "agent", "preferences", "projects", "technical")
 ACTIVITY_DIR = "activity-log"
@@ -852,33 +856,28 @@ def _title_of(path: str) -> str:
 def _makedirs_owner_only(path: str) -> None:
     """Like `os.makedirs(path, mode=DIR_MODE, exist_ok=True)`, but every level
     this creates gets `DIR_MODE` — not just *path* itself — and a symlink
-    anywhere in *path* fails closed instead of being written through.
+    anywhere in *path*, or above it, fails closed instead of being written
+    through.
 
     `os.makedirs`'s `mode` argument only reaches the directory it was given;
     an intermediate directory it creates along the way is made with Python's
     default `0o777`, masked only by the process umask, so a journal whose
     parent did not exist yet still gained a `0o755` ancestor under a typical
-    umask. Each existing level is `lstat`ed, not `stat`ed, for the same reason:
-    `os.path.isdir()` follows a symlink, so a symlink planted at the configured
-    journal root (or any ancestor along its path) would otherwise read as "the
-    directory is already there" and every later write would land through it.
+    umask. `reject_symlinked_ancestors` catches the matching permission gap:
+    `os.path.isdir()` follows a symlink, so a symlink planted at the
+    configured journal root — or any directory above it, not only *path*
+    itself — would otherwise read as "the directory is already there" and
+    every later write would land through it.
     """
     try:
-        info = os.lstat(path)
-    except OSError:
-        pass
-    else:
-        if stat.S_ISLNK(info.st_mode):
-            raise ValueError(
-                f"[SYSTEM SUGGESTION]: {path!r} is a symlink. The journal "
-                "directory and every directory above it must be a real "
-                "directory, not a link to one — reconfigure LLM_JOURNAL_DIR "
-                "or remove the link."
-            )
-        if not stat.S_ISDIR(info.st_mode):
-            raise ValueError(
-                f"[SYSTEM SUGGESTION]: {path!r} exists and is not a directory."
-            )
+        reject_symlinked_ancestors(path)
+    except PermissionError as e:
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: {e} The journal directory and every "
+            "directory above it must be a real directory, not a link to one "
+            "— reconfigure LLM_JOURNAL_DIR or remove the link."
+        ) from e
+    if os.path.isdir(path):
         return
     parent = os.path.dirname(path)
     if parent and parent != path:

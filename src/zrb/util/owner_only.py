@@ -80,6 +80,38 @@ def _is_symlink(path: str) -> bool:
         return False
 
 
+def reject_symlinked_ancestors(path: str) -> None:
+    """Raise `PermissionError` if *path*, or any existing ancestor of it, is a
+    symlink or not a directory.
+
+    Both the journal and the archive create a leaf beneath a configured root
+    that usually already exists (`os.makedirs`, or a hand-rolled walk that
+    stops at the first existing level) — and neither one ever used to look at
+    that root's own type. A symlink planted at the configured path (or any
+    directory above the leaf) was therefore followed silently by the OS, and
+    everything written beneath the leaf landed wherever that link pointed,
+    even though the leaf itself was never a symlink. This walks from *path* up
+    to the filesystem root, `lstat`-ing every level that currently exists; a
+    level that does not exist yet is skipped, since there is nothing there yet
+    to be a symlink — the caller is the one that creates it.
+    """
+    current = os.path.abspath(path)
+    while True:
+        try:
+            info = os.lstat(current)
+        except OSError:
+            pass
+        else:
+            if stat.S_ISLNK(info.st_mode):
+                raise PermissionError(f"{current!r} is a symlink, not a directory.")
+            if not stat.S_ISDIR(info.st_mode):
+                raise PermissionError(f"{current!r} exists and is not a directory.")
+        parent = os.path.dirname(current)
+        if parent == current:
+            return
+        current = parent
+
+
 def _has_marker(directory: str) -> bool:
     """Whether a marker this function can trust is already in place.
 
