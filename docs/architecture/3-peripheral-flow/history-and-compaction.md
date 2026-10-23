@@ -30,7 +30,7 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 
 ### Principles
 
-1. **The summary is part of the history, not beside it.** Compaction replaces the old part of the list with one restoration message, keeps the opening user goal and the recent tail word for word, and that new list is what gets saved. The next turn loads it like any other history. → [ADR-0041](../../adr/adr-0041.md)
+1. **The summary is part of the history, not beside it.** Compaction replaces the old part of the list with one restoration message, keeps the opening user goal word for word and the recent tail as a rendered-to-text copy (not resent as separate structured messages), and that new list is what gets saved. The next turn loads it like any other history. → [ADR-0041](../../adr/adr-0041.md)
 
 2. **Shrink the cheapest thing first, and fail open.** First, an oversized tool result is summarized on its own. Only when the whole conversation is still over the threshold is the old part condensed into a state snapshot. If summarizing fails, the history goes through unchanged rather than failing the turn. → [ADR-0041](../../adr/adr-0041.md)
 
@@ -44,7 +44,7 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| A compaction split never separates a tool call from its result | The provider rejects the next request with an orphaned call or result | `test/llm/summarizer/history_processor/test_tool_pair_safety_pairs.py::test_is_split_safe_complete_pair` |
+| A tool call still awaiting its result survives compaction in native, resumable form | pydantic-ai cannot match the deferred result to a `ToolCallPart` that was flattened away | `test/llm/summarizer/history_processor/test_verbatim_tail.py::test_a_trailing_deferred_call_stays_in_native_message_form` |
 | The real opening user message survives every compaction round | The model loses the task's goal; a later round keeps an old summary instead | `test/llm/summarizer/history_processor/test_history_summarizer_preservation.py::test_summarize_history_second_round_preserves_the_true_first_user_message` |
 | A summarizer that cannot be built leaves the history unchanged | A missing API key for the small model kills every turn | `test/llm/summarizer/history_processor/test_summarizer_resilience.py::test_processor_survives_unbuildable_summarizer` |
 | Repair keeps a tool call whose approved result is pending | The approved call is deleted and its result has nothing to answer | `test/llm/agent/run/test_history_utils_strip_to_text.py::test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call` |
@@ -75,7 +75,7 @@ flowchart TD
 | `create_summarizer_history_processor` | `src/zrb/llm/summarizer/history_summarizer.py` | Builds the processor that runs both tiers: first per-message, then the whole conversation |
 | `process_message_for_summarization` | `src/zrb/llm/summarizer/message_processor.py` | Tier one: shrinks one oversized tool result, or truncates it if summarizing fails |
 | `summarize_history` | `src/zrb/llm/summarizer/history_summarizer.py` | Tier two: splits the list, summarizes the old part, rebuilds the list |
-| `split_history` | `src/zrb/llm/summarizer/history_splitter.py` | Finds a cut that keeps tool pairs whole and prefers the start of a turn |
+| `split_history` | `src/zrb/llm/summarizer/history_splitter.py` | Finds a token-budget cut, preferring the start of a turn |
 | `sanitize_history` | `src/zrb/llm/agent/run/history_utils.py` | The provider-boundary repair pipeline: a fixed tuple of steps, run in order |
 | `PartialRunAccumulator` | `src/zrb/llm/agent/run/partial_run.py` | Records what a turn did as it streams, so a failed turn can be saved honestly |
 
@@ -106,7 +106,7 @@ sequenceDiagram
 1. splits the list with `split_history` into an old part and a kept tail;
 2. summarizes the old part in chunks, consolidating the snapshots if there are many;
 3. adds the journal index to the summary text;
-4. returns the restoration message, then the first real user message, then the kept tail, with orphaned tool results dropped and same-role neighbours merged.
+4. returns the restoration message, then the first real user message, then the kept tail rendered as text, then any still-unresolved tool call kept in native message form (orphaned tool results dropped from that native tail, same-role neighbours merged).
 
 **Saving.** `save` serializes the list, validates it, writes a sibling `.tmp` file and renames it over the live one. The final save of a turn may also write a timestamped backup; mid-turn checkpoints pass `write_backup=False`.
 

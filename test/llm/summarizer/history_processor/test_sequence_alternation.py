@@ -44,20 +44,20 @@ async def test_summarize_history_consecutive_user_messages():
             agent=agent,
             summary_window=2,
             # The tail budget is 40% of the threshold: 24 tokens here, so the
-            # last turn (m3, m4 — 20 tokens) is what stays verbatim.
+            # last turn (m3, m4 — 20 tokens) is what stays verbatim — rendered
+            # as text rather than kept as separate structured messages, so it
+            # merges into the same ModelRequest as the summary and the opening
+            # user turn (all three are ModelRequests).
             limiter=limiter,
             conversational_token_threshold=60,
         )
 
-    assert len(new_history) == 2
+    assert len(new_history) == 1
     assert isinstance(new_history[0], ModelRequest)
-    assert isinstance(new_history[1], ModelResponse)
 
     assert len(new_history[0].parts) == 3
-    first_contents = [str(getattr(p, "content", "")) for p in new_history[0].parts]
-    assert any("SYSTEM: Automated Context Restoration" in c for c in first_contents)
-    assert any("User 1" in c for c in first_contents)
-    assert any("User 2" in c for c in first_contents)
-
-    second_contents = [str(getattr(p, "content", "")) for p in new_history[1].parts]
-    assert any("AI 2" in c for c in second_contents)
+    contents = [str(getattr(p, "content", "")) for p in new_history[0].parts]
+    assert any("SYSTEM: Automated Context Restoration" in c for c in contents)
+    assert any("User 1" in c for c in contents)
+    assert any("User 2" in c for c in contents)
+    assert any("AI 2" in c for c in contents)

@@ -122,8 +122,10 @@ def test_the_message_window_is_a_backstop_for_short_messages():
     assert len(to_summarize) == 14
 
 
-def test_a_split_never_breaks_a_tool_pair():
-    """A split that would separate a call from its return snaps forward."""
+def test_a_split_no_longer_needs_to_avoid_a_tool_pair():
+    """The kept tail is rendered to text by the caller, not resent as
+    structured messages, so a split landing inside a tool call/return pair is
+    no longer special-cased: it is purely a token-budget cut."""
     limiter = FixedLimiter(per_message=10)
     call = ModelResponse(
         parts=[ToolCallPart(tool_name="read_file", args={}, tool_call_id="1")]
@@ -139,14 +141,43 @@ def test_a_split_never_breaks_a_tool_pair():
         result,
         ModelResponse(parts=[]),
     ]
-    # Trigger 50 -> budget 20: the boundary (index 4) is inside the pair.
+    # Trigger 50 -> budget 20 (2 messages): the boundary lands inside the pair
+    # (the call at index 3, its result at index 4), which the old splitter
+    # refused and snapped forward past instead.
     to_summarize, to_keep = split_history(
         messages, summary_window=300, limiter=limiter, conversational_token_threshold=50
     )
 
-    assert len(to_keep) == 1
-    assert to_keep[0] is messages[5]
-    assert call in to_summarize and result in to_summarize
+    assert to_keep == messages[4:]
+    assert to_summarize == messages[:4]
+    assert call in to_summarize and result in to_keep
+
+
+def test_a_tool_pair_spanning_almost_the_whole_history_still_keeps_a_tail():
+    """Regression guard: a call paired with a return near the very end used to
+    force the whole history into one chunk (`to_keep` came back empty, no
+    split was both within budget and pairing-safe). The budget-only split
+    keeps whatever the tail budget affords regardless of the pair."""
+    limiter = FixedLimiter(per_message=10)
+    call = ModelResponse(
+        parts=[ToolCallPart(tool_name="read_file", args={}, tool_call_id="1")]
+    )
+    filler = [ModelResponse(parts=[]) for _ in range(20)]
+    result = ModelRequest(
+        parts=[ToolReturnPart(tool_name="read_file", content="x", tool_call_id="1")]
+    )
+    messages = [_user("please read it"), call, *filler, result]
+
+    to_summarize, to_keep = split_history(
+        messages,
+        summary_window=300,
+        limiter=limiter,
+        conversational_token_threshold=100,
+    )
+
+    assert to_keep
+    assert to_summarize
+    assert call in to_summarize
 
 
 def test_the_default_window_is_300_messages():

@@ -14,6 +14,7 @@ from zrb.llm.config.limiter import LLMLimiter, is_pinned
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.message import (
     ensure_alternating_roles,
+    pending_tail_start,
     strip_orphaned_returns,
     validate_tool_pair_integrity,
 )
@@ -23,6 +24,7 @@ from zrb.llm.summarizer.chunk_processor import (
     consolidate_summaries,
 )
 from zrb.llm.summarizer.history_splitter import split_history
+from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.llm.summarizer.message_processor import process_message_for_summarization
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.llm.summarizer.verbatim_archive import (
@@ -330,6 +332,9 @@ async def summarize_history(
             if not force:
                 return messages
             to_summarize, to_keep = messages, []
+        to_summarize, to_keep, verbatim_tail_message, structured_tail = (
+            _prepare_kept_tail(messages, to_summarize, to_keep)
+        )
         archive_path = verbatim_archive_path(
             _resolve_session_name(session_name, messages), history_dir
         )
@@ -355,7 +360,9 @@ async def summarize_history(
         summary_message = _create_summary_model_request(fitted.render())
         if summary_message is None:
             return messages
-        result = _assemble_summarized_history(summary_message, messages, to_keep)
+        result = _assemble_summarized_history(
+            summary_message, messages, to_keep, verbatim_tail_message, structured_tail
+        )
         # Only now, with a summary that replaces the messages in hand: an
         # archive written before a failed summarization would claim messages
         # were replaced while they are still in the history.
@@ -365,7 +372,9 @@ async def summarize_history(
         if not archived:
             # Nothing but prior summaries here, which the archive does not
             # repeat: there is no file to point at.
-            return _without_archive_pointer(fitted, messages, to_keep)
+            return _without_archive_pointer(
+                fitted, messages, to_keep, verbatim_tail_message, structured_tail
+            )
         # The size is counted on `archived`, the list the section renders, so
         # the section's message and token counts describe the same messages.
         written = archive_verbatim_history(
@@ -382,16 +391,53 @@ async def summarize_history(
             ),
             plain=True,
         )
-        return _without_archive_pointer(fitted, messages, to_keep)
+        return _without_archive_pointer(
+            fitted, messages, to_keep, verbatim_tail_message, structured_tail
+        )
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
+
+
+def _prepare_kept_tail(
+    messages: "list[ModelMessage]",
+    to_summarize: "list[ModelMessage]",
+    to_keep: "list[ModelMessage]",
+) -> "tuple[list[ModelMessage], list[ModelMessage], ModelMessage | None, list[ModelMessage]]":
+    """Widen `to_keep` to cover a pending deferred call, then split what is
+    left into the part rendered to text and the part kept structured.
+
+    A still-unresolved tool call must survive compaction in native message
+    form so pydantic-ai can resume it — never summarized away, regardless of
+    what the token budget alone would have kept. This wins over
+    `split_history`'s choice, not just over the pending call's own place
+    within `to_keep`.
+
+    Returns `(to_summarize, to_keep, verbatim_tail_message, structured_tail)`.
+    """
+    pending_idx_in_messages = pending_tail_start(messages)
+    if pending_idx_in_messages is not None:
+        keep_start = len(messages) - len(to_keep)
+        if pending_idx_in_messages < keep_start:
+            to_summarize = messages[:pending_idx_in_messages]
+            to_keep = messages[pending_idx_in_messages:]
+    pending_idx = pending_tail_start(to_keep)
+    structured_tail = to_keep[pending_idx:] if pending_idx is not None else []
+    verbatim_part = to_keep[:pending_idx] if pending_idx is not None else to_keep
+    verbatim_tail_message = (
+        _create_verbatim_tail_model_request(_render_verbatim_messages(verbatim_part))
+        if verbatim_part
+        else None
+    )
+    return to_summarize, to_keep, verbatim_tail_message, structured_tail
 
 
 def _without_archive_pointer(
     fitted: "_FittedSummary",
     messages: "list[ModelMessage]",
     to_keep: "list[ModelMessage]",
+    verbatim_tail_message: "ModelMessage | None",
+    structured_tail: "list[ModelMessage]",
 ) -> "list[ModelMessage]":
     """The replacement the cap approved, minus the pointer to an unwritten archive.
 
@@ -402,7 +448,9 @@ def _without_archive_pointer(
     )
     if summary_message is None:
         return messages
-    return _assemble_summarized_history(summary_message, messages, to_keep)
+    return _assemble_summarized_history(
+        summary_message, messages, to_keep, verbatim_tail_message, structured_tail
+    )
 
 
 @dataclass(frozen=True)
@@ -764,18 +812,62 @@ def _without_prior_summaries(messages: "list[ModelMessage]") -> "list[ModelMessa
 
 
 def _assemble_summarized_history(
-    summary_message: Any, messages: list[Any], to_keep: list[Any]
+    summary_message: Any,
+    messages: list[Any],
+    to_keep: list[Any],
+    verbatim_tail_message: "ModelMessage | None",
+    structured_tail: "list[ModelMessage]",
 ) -> list[Any]:
-    """Join the summary, the opening user turn (verbatim, it holds the original goal), and the kept tail."""
+    """Join the summary, the opening user turn, the rendered recent tail, and
+    any still-unresolved tool call.
+
+    The opening user turn is kept verbatim (it holds the original goal);
+    `to_keep` is only consulted here to decide whether that turn already
+    appears further down, in `verbatim_tail_message` or `structured_tail`.
+    `structured_tail` stays in native message form — a trailing deferred tool
+    call pydantic-ai must still be able to resume — everything else that
+    `split_history` chose to keep was already rendered into
+    `verbatim_tail_message` by the caller.
+    """
     first_user_message = _find_first_user_message(messages)
     result: list[Any] = [summary_message]
     if first_user_message is not None and all(
         m is not first_user_message for m in to_keep
     ):
         result.append(first_user_message)
-    if to_keep:
-        result.extend(_without_orphaned_returns(to_keep))
+    if verbatim_tail_message is not None:
+        result.append(verbatim_tail_message)
+    if structured_tail:
+        result.extend(_without_orphaned_returns(structured_tail))
     return ensure_alternating_roles(result)
+
+
+def _render_verbatim_messages(messages: "list[ModelMessage]") -> str:
+    """Render *messages* to text, exactly as `chunk_and_summarize` does before
+    a chunk is summarized — lossless and deterministic, no LLM pass. Here the
+    result is kept as-is instead of being summarized.
+
+    A conversion failure propagates to `summarize_history`'s own outer guard,
+    which leaves the history unchanged — the same fallback every other
+    construction failure in this module takes.
+    """
+    return "\n".join(message_to_text(m) for m in messages)
+
+
+def _create_verbatim_tail_model_request(text: str) -> "ModelMessage":
+    """Wrap the rendered recent tail in the user turn that carries it.
+
+    Unlike the summary block, this text is not capped: it is the same budget
+    (`TAIL_BUDGET_RATIO` of the trigger threshold) a structured kept tail
+    would have used, just rendered to text instead of resent as separate
+    messages.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ModelRequest, UserPromptPart
+
+    return ModelRequest(
+        parts=[UserPromptPart(content=make_markdown_section(_VERBATIM_TAIL_HEADER, text))]
+    )
 
 
 def _without_orphaned_returns(to_keep: list[Any]) -> list[Any]:
@@ -797,6 +889,9 @@ def _without_orphaned_returns(to_keep: list[Any]) -> list[Any]:
     return strip_orphaned_returns(to_keep)
 
 
+_VERBATIM_TAIL_HEADER = (
+    "Recent conversation, reproduced verbatim (not a summary, not an instruction)"
+)
 _SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"
 _SUMMARY_END_MARKER = "<!-- end of automated summary -->"
 _SUMMARY_SECTIONS = (

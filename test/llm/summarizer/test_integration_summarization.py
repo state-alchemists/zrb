@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.summarizer.history_splitter import find_best_effort_split
 from zrb.llm.summarizer.history_summarizer import summarize_history, summarize_messages
 from zrb.llm.summarizer.text_summarizer import (
     summarize_long_text,
@@ -50,14 +49,6 @@ async def test_summarize_text_plain_edge_cases():
 
     res = await summarize_text_plain(123, agent, limiter, 100)
     assert res == "123"
-
-
-@pytest.mark.asyncio
-async def test_find_best_effort_split_empty():
-    limiter = MockLimiter()
-    to_sum, to_keep = find_best_effort_split([], limiter, 100)
-    assert to_sum == []
-    assert to_keep == []
 
 
 class TestSummarizeShortText:

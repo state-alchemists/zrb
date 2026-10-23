@@ -14,13 +14,10 @@ from pydantic_ai.usage import RequestUsage
 
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
-from zrb.llm.message import get_tool_pairs
 from zrb.llm.summarizer.history_splitter import (
+    FALLBACK_BUDGET_RATIO,
     TAIL_BUDGET_RATIO,
     TURN_START_MIN_SHARE,
-    find_best_effort_split,
-    find_safe_split_index,
-    is_split_safe,
     split_history,
 )
 
@@ -40,67 +37,6 @@ def limiter():
     return DummyLimiter()
 
 
-def test_is_split_safe_complete_pair():
-    messages = [
-        ModelRequest(parts=[UserPromptPart(content="0")]),
-        ModelResponse(parts=[ToolCallPart(tool_name="a", args={}, tool_call_id="1")]),
-        ModelRequest(
-            parts=[ToolReturnPart(tool_name="a", content="done", tool_call_id="1")]
-        ),
-        ModelRequest(parts=[UserPromptPart(content="3")]),
-    ]
-    from zrb.llm.message import get_tool_pairs
-
-    tool_pairs = get_tool_pairs(messages)
-
-    assert is_split_safe(messages, 1, tool_pairs)
-
-    assert not is_split_safe(messages, 2, tool_pairs)
-
-    assert is_split_safe(messages, 3, tool_pairs)
-
-
-def test_find_safe_split_index(limiter):
-    messages = [
-        ModelRequest(parts=[UserPromptPart(content="0")]),
-        ModelResponse(parts=[ToolCallPart(tool_name="a", args={}, tool_call_id="1")]),
-        ModelRequest(
-            parts=[ToolReturnPart(tool_name="a", content="done", tool_call_id="1")]
-        ),
-        ModelRequest(parts=[UserPromptPart(content="3")]),
-    ]
-
-    idx = find_safe_split_index(messages, limiter, 100)
-    assert idx == 3
-
-    messages_no_turn_start = [
-        ModelRequest(parts=[UserPromptPart(content="0")]),
-        ModelResponse(parts=[ToolCallPart(tool_name="a", args={}, tool_call_id="1")]),
-        ModelRequest(
-            parts=[ToolReturnPart(tool_name="a", content="done", tool_call_id="1")]
-        ),
-        ModelResponse(parts=[ToolCallPart(tool_name="b", args={}, tool_call_id="2")]),
-    ]
-    idx_no_turn = find_safe_split_index(messages_no_turn_start, limiter, 100)
-    assert idx_no_turn == 1
-
-    idx = find_safe_split_index(messages, limiter, 2)
-    assert idx == 3
-
-
-def test_find_best_effort_split(limiter):
-    messages = [
-        ModelRequest(parts=[UserPromptPart(content="0")]),
-        ModelResponse(parts=[ToolCallPart(tool_name="a", args={}, tool_call_id="1")]),
-        ModelRequest(parts=[UserPromptPart(content="2")]),
-    ]
-
-    to_sum, to_keep = find_best_effort_split(messages, limiter, 100)
-
-    assert len(to_sum) == 1
-    assert len(to_keep) == 2
-
-
 def test_split_history_near_window(limiter):
     messages = [ModelRequest(parts=[UserPromptPart(content=str(i))]) for i in range(10)]
 
@@ -109,6 +45,39 @@ def test_split_history_near_window(limiter):
 
     to_sum, to_keep = split_history(messages, 3, limiter, 2)
     assert len(to_keep) == 1
+
+
+def test_split_history_falls_back_to_the_looser_budget(limiter):
+    """When even the newest message alone breaks the tight tail budget, a
+    second attempt against `FALLBACK_BUDGET_RATIO` still keeps something."""
+    messages = [ModelRequest(parts=[UserPromptPart(content=str(i))]) for i in range(5)]
+    # 1 token/message: tight tail budget is 0.8 (nothing fits), loose is 1.6.
+    threshold = 2
+
+    to_sum, to_keep = split_history(messages, 0, limiter, threshold)
+
+    assert len(to_keep) > 0
+    assert to_sum + to_keep == messages
+
+
+def test_split_history_keeps_nothing_when_even_the_loose_budget_cannot_fit():
+    """A single message bigger than `FALLBACK_BUDGET_RATIO` of the threshold
+    is summarized, not kept — there is no third, looser tier."""
+    messages = [ModelRequest(parts=[UserPromptPart(content=str(i))]) for i in range(5)]
+
+    class HugeLastMessageLimiter(LLMLimiter):
+        def count_tokens(self, obj) -> int:
+            if not isinstance(obj, list):
+                return 1
+            return sum(1000 if m is messages[-1] else 1 for m in obj)
+
+        def truncate_text(self, text: str, max_tokens: int) -> str:
+            return text
+
+    to_sum, to_keep = split_history(messages, 0, HugeLastMessageLimiter(), 10)
+
+    assert to_keep == []
+    assert to_sum == messages
 
 
 class _CallCounter:
@@ -147,7 +116,7 @@ class _SpikyLimiter(LLMLimiter):
 
 
 def _plain_history(size: int) -> list:
-    """A history with no turn starts and no tool pairs, so every index is safe."""
+    """A history with no turn starts, so every index lands past the turn-start check."""
     messages = []
     for index in range(size):
         if index % 2 == 0:
@@ -240,67 +209,46 @@ def _thresholds(rng: random.Random, limiter: LLMLimiter, messages: list) -> list
     return [1, total // 8, total // 3, total // 2, total, total * 2, total * 8]
 
 
-def _linear_budget_split(messages, limiter, budget, tool_pairs):
+def _linear_budget_split(messages, limiter, budget):
     """The pre-shortcut scan: the earliest split whose tail fits, counting each.
 
     Verbatim from the code the bisected scan replaced, kept as the oracle.
+    Returns `len(messages)` (keep nothing) rather than ``None`` when nothing
+    fits, matching `_earliest_split_within_budget`'s own contract.
     """
-    first_safe = None
+    first_fit = None
     for split_idx in range(1, len(messages)):
         tail_tokens = limiter.count_tokens(messages[split_idx:])
         if tail_tokens > budget:
             continue
-        if not is_split_safe(messages, split_idx, tool_pairs):
-            continue
-        if first_safe is None:
-            first_safe = split_idx
+        if first_fit is None:
+            first_fit = split_idx
         if is_turn_start(messages[split_idx]):
             if tail_tokens >= budget * TURN_START_MIN_SHARE:
                 return split_idx
             break
-    return first_safe
-
-
-def _linear_first_safe_from(messages, start, tool_pairs):
-    """The pre-shortcut scan for the first safe split at or after *start*."""
-    first_safe = None
-    for split_idx in range(start, len(messages)):
-        if not is_split_safe(messages, split_idx, tool_pairs):
-            continue
-        if first_safe is None:
-            first_safe = split_idx
-        if is_turn_start(messages[split_idx]):
-            return split_idx
-    return first_safe
+    return first_fit if first_fit is not None else len(messages)
 
 
 def _reference_split_history(messages, summary_window, limiter, threshold):
     """`split_history` as it stood before the bisected scan, end to end.
 
-    The oracle for the differential tests: the same algorithm, with both budget
-    scans counting every candidate in order. `_fallback_split`'s last-resort
-    backward walk is left out because a non-empty history never reaches it —
-    `find_best_effort_split` always answers.
+    The oracle for the differential tests: the same algorithm, with the
+    budget scan counting every candidate in order instead of bisecting.
     """
     if not messages:
         return [], []
-    tool_pairs = get_tool_pairs(messages)
     budget = threshold * TAIL_BUDGET_RATIO
-    count_cap = max(0, len(messages) - summary_window) if summary_window > 0 else 0
     if limiter.count_tokens(messages) <= budget:
-        budget_split = 0
+        split_idx = 0
     else:
-        budget_split = _linear_budget_split(messages, limiter, budget, tool_pairs)
-    if budget_split is None:
-        fallback = find_safe_split_index(messages, limiter, threshold, tool_pairs)
-        if fallback >= 0:
-            return messages[:fallback], messages[fallback:]
-        return find_best_effort_split(messages, limiter, threshold, tool_pairs)
-    split_idx = budget_split
-    if count_cap > split_idx:
-        split_idx = (
-            _linear_first_safe_from(messages, count_cap, tool_pairs) or split_idx
-        )
+        split_idx = _linear_budget_split(messages, limiter, budget)
+    if split_idx == len(messages):
+        loose_budget = threshold * FALLBACK_BUDGET_RATIO
+        if loose_budget > budget:
+            split_idx = _linear_budget_split(messages, limiter, loose_budget)
+    count_cap = max(0, len(messages) - summary_window) if summary_window > 0 else 0
+    split_idx = min(max(split_idx, count_cap), len(messages))
     if split_idx == 0:
         return [], list(messages)
     return messages[:split_idx], messages[split_idx:]
