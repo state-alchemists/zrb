@@ -32,6 +32,7 @@ def git_visible_files(dir_path: str) -> set[str] | None:
                 "--cached",
                 "--others",
                 "--exclude-standard",
+                "-z",
             ],
             capture_output=True,
             text=True,
@@ -41,10 +42,13 @@ def git_visible_files(dir_path: str) -> set[str] | None:
         return None
     if result.returncode != 0:
         return None
+    # `-z` gives the raw path, NUL-terminated. The line-oriented default
+    # C-quotes anything unusual, so `café.py` would arrive as
+    # `"caf\303\251.py"` and never match the name on disk.
     return {
-        os.path.normpath(line.replace("/", os.sep))
-        for line in result.stdout.splitlines()
-        if line
+        os.path.normpath(path.replace("/", os.sep))
+        for path in result.stdout.split("\x00")
+        if path
     }
 
 

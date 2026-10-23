@@ -108,3 +108,26 @@ def test_without_gitignored_passes_through_outside_a_checkout(tmp_path):
     _write(tmp_path / "plain.txt")
 
     assert without_gitignored(str(tmp_path), ["plain.txt"]) == ["plain.txt"]
+
+
+def test_git_visible_files_reports_a_non_ascii_name_unquoted(tmp_path):
+    """`git ls-files` C-quotes unusual names; the raw path is what is on disk."""
+    _init_checkout(tmp_path)
+    _write(tmp_path / "café.py")
+
+    visible = git_visible_files(str(tmp_path))
+
+    assert visible is not None
+    assert "café.py" in visible
+
+
+def test_glob_hides_nothing_it_should_keep_in_a_non_ascii_name(tmp_path):
+    _init_checkout(tmp_path)
+    _write(tmp_path / ".gitignore", "generated/\n")
+    _write(tmp_path / "café.py")
+    _write(tmp_path / "generated" / "artifact.py")
+
+    files = glob_files("*.py", path=str(tmp_path)).get("files", [])
+
+    assert "café.py" in files
+    assert os.path.join("generated", "artifact.py") not in files
