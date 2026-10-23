@@ -25,6 +25,16 @@ class _FakeUI:
         return f"<md width={width}>{text}</md>"
 
 
+class _ReflowingFakeUI(_FakeUI):
+    """A narrower width renders *more* output, the way real re-wrapping does
+    for markdown whose line count grows as it narrows (e.g. a code block) —
+    needed to reproduce a stale end-of-buffer cursor after a resize."""
+
+    def render_markdown(self, text: str, width: int | None = None) -> str:
+        wraps = max(1, 80 // (width or 80))
+        return "\n".join([text] * wraps)
+
+
 @pytest.fixture(autouse=True)
 def no_application():
     """A unit test runs without a prompt_toolkit application to move the focus
@@ -262,3 +272,22 @@ def test_rewrap_keeps_the_readers_scroll_position():
     part.rewrap()
 
     assert window.buffer.cursor_position == 3
+
+
+def test_rewrap_keeps_a_reader_at_the_end_when_the_rewrap_grows_the_text():
+    """A reader scrolled to the bottom (e.g. watching a long answer stream in)
+    must stay at the bottom, even though re-wrapping narrower makes the
+    rendered answer longer and the old cursor offset would land mid-buffer."""
+    ui = _ReflowingFakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("short answer")
+    window = part.side_question_window
+    assert window is not None
+    window.buffer.cursor_position = len(window.buffer.text)
+
+    ui.output_field_width = 10
+    part.rewrap()
+
+    assert window.buffer.cursor_position == len(window.buffer.text)

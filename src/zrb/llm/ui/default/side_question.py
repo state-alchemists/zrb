@@ -126,14 +126,26 @@ class UISideQuestion:
         resize after the answer lands would leave it wrapped for the old
         width. Called from the app's after-render hook, so it runs on every
         frame — a no-op unless an answer is showing and the width changed.
+
+        A reader scrolled to the end stays at the end: a raw character offset
+        would land mid-buffer once re-wrapping changes the text's length, so
+        a cursor at the old end asks `_fill` for the new end instead of
+        carrying the stale offset over.
         """
         if not self._is_active or self._last_answer is None:
             return
         if self._ui.output_field_width == self._rendered_width:
             return
+        self._render_and_fill(self._last_answer, self._cursor_for_rewrap())
+
+    def _cursor_for_rewrap(self) -> int | None:
+        """Where `rewrap` should put the cursor: `None` (the new end) when the
+        reader was at the old text's end, else its current offset."""
         window = self._window
-        cursor = window.buffer.cursor_position if window is not None else 0
-        self._render_and_fill(self._last_answer, cursor)
+        if window is None:
+            return 0
+        text, cursor = window.buffer.text, window.buffer.cursor_position
+        return None if cursor >= len(text) else cursor
 
     def fail(self, message: str, request: object | None = None) -> None:
         """Show why the side question could not be answered."""
@@ -185,7 +197,7 @@ class UISideQuestion:
         """Render markdown to what the panel's lexer expects: styled lines."""
         return self._ui.render_markdown(answer, self._ui.output_field_width)
 
-    def _render_and_fill(self, answer: str, cursor_position: int = 0) -> None:
+    def _render_and_fill(self, answer: str, cursor_position: "int | None" = 0) -> None:
         """Render `answer` at the current width and fill the panel with it.
 
         Records the width it rendered at, so `rewrap` can tell a stale render
@@ -194,13 +206,15 @@ class UISideQuestion:
         self._rendered_width = self._ui.output_field_width
         self._fill(self._echo(self._render(answer)), cursor_position)
 
-    def _fill(self, text: str, cursor_position: int = 0) -> None:
+    def _fill(self, text: str, cursor_position: "int | None" = 0) -> None:
         """Replace the panel's text, placing the cursor at `cursor_position`.
 
         Defaults to the first line — the read naturally starts there for a
-        new question's answer, failure, or pending message; `rewrap` passes
-        the reader's current position instead, so a resize doesn't jump them
-        back to the top.
+        new question's answer, failure, or pending message. `rewrap` passes
+        either the reader's current offset or, when they were at the old
+        text's end, `None` for the new text's end — so a reader scrolled to
+        the bottom (watching a long answer stream in) stays there across a
+        resize instead of landing on a stale offset.
         """
         window = self._window
         if window is None:
@@ -208,10 +222,12 @@ class UISideQuestion:
         # lazy: heavy third-party
         from prompt_toolkit.document import Document
 
+        position = (
+            len(text) if cursor_position is None else min(cursor_position, len(text))
+        )
         # The panel is read-only: only the panel itself writes its text.
         window.buffer.set_document(
-            Document(text, cursor_position=min(cursor_position, len(text))),
-            bypass_readonly=True,
+            Document(text, cursor_position=position), bypass_readonly=True
         )
         self._invalidate()
 
