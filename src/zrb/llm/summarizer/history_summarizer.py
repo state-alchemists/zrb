@@ -19,6 +19,7 @@ from zrb.llm.message import (
     validate_tool_pair_integrity,
 )
 from zrb.llm.prompt.live_context import render_journal_index
+from zrb.llm.skill.reattach import build_reattach_message
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
@@ -857,12 +858,15 @@ def _assemble_summarized_history(
     verbatim_tail_message: "ModelMessage | None",
     structured_tail: "list[ModelMessage]",
 ) -> list[Any]:
-    """Join the summary, the opening user turn, the rendered recent tail, and
-    any still-unresolved tool call.
+    """Join the summary, the opening user turn, the re-attached skills, the
+    rendered recent tail, and any still-unresolved tool call.
 
     The opening user turn is kept verbatim (it holds the original goal);
     `to_keep` is only consulted here to decide whether that turn already
     appears further down, in `verbatim_tail_message` or `structured_tail`.
+    Skill bodies that `to_summarize` carried do not survive as messages, and a
+    summary that only names them is not the instructions, so the newest block
+    per skill is re-attached (see `zrb.llm.skill.reattach`).
     `structured_tail` stays in native message form — a trailing deferred tool
     call pydantic-ai must still be able to resume — everything else that
     `split_history` chose to keep was already rendered into
@@ -874,6 +878,10 @@ def _assemble_summarized_history(
         m is not first_user_message for m in to_keep
     ):
         result.append(first_user_message)
+    dropped = [m for m in messages if all(m is not kept for kept in to_keep)]
+    reattached = build_reattach_message(dropped, to_keep, default_llm_limiter)
+    if reattached is not None:
+        result.append(reattached)
     if verbatim_tail_message is not None:
         result.append(verbatim_tail_message)
     if structured_tail:
