@@ -140,6 +140,7 @@ def test_context_window_is_known_for_current_model_families():
     assert model_capabilities.get("deepseek:deepseek-flash").context_window == 1_000_000
     assert model_capabilities.get("moonshotai:kimi-k3").context_window == 1_000_000
     assert model_capabilities.get("moonshotai:kimi-k2.6").context_window == 256_000
+    assert model_capabilities.get("alibaba:qwen3.5-max").context_window == 1_000_000
 
 
 def test_parallel_tool_calls_unknown_for_general_models():

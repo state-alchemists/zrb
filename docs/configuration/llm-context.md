@@ -20,7 +20,7 @@ Zrb summarizes in the background when history or a single message grows too larg
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering full history summarization | 75% of `MAX_TOKEN_PER_REQUEST` |
+| `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering full history summarization. Left unset, it is recomputed on every request from the run's actual model (`/model` included): 75% of the model's known context window, or of `MAX_TOKEN_PER_REQUEST` for a model zrb doesn't recognize. Set explicitly, it is a fixed value instead | 75% of the effective context window |
 | `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering individual message summarization | 50% of conversational threshold |
 | `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` | Most messages kept verbatim after summarization | `300` |
 | `ZRB_LLM_SUMMARY_MAX_TOKENS` | Token cap for one conversation summary; a summary over it is shortened before it replaces the history | `2000` |

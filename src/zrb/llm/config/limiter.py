@@ -84,12 +84,24 @@ class LLMLimiter:
         """Override the per-request token cap for this limiter."""
         self._max_token_per_request = value
 
-    def _effective_context_window(self, model: Any = None) -> int:
-        """Return the configured cap, reduced when *model* has a known window."""
+    def effective_context_window(self, model: Any = None) -> int:
+        """Return *model*'s known context window, or the configured cap.
+
+        `max_token_per_request` defaults to 128,000 as a free-tier-safe rate
+        limit, not a context-window estimate: for a model with a larger known
+        window, that default would otherwise silently throttle every
+        conversation back down to 128k. It still wins as a real ceiling once
+        the caller (env var or `max_token_per_request` setter) has actually
+        chosen it, cost control included.
+        """
         model_window = model_capabilities.get(model).context_window
         if model_window is None or model_window <= 0:
             return self.max_token_per_request
-        return min(self.max_token_per_request, model_window)
+        if self._max_token_per_request is not None or CFG.is_env_set(
+            "LLM_MAX_TOKEN_PER_REQUEST"
+        ):
+            return min(self.max_token_per_request, model_window)
+        return model_window
 
     @property
     def throttle_check_interval(self) -> float:
@@ -128,7 +140,7 @@ class LLMLimiter:
         if not history:
             return history
 
-        context_limit = int(self._effective_context_window(model) * 0.90)
+        context_limit = int(self.effective_context_window(model) * 0.90)
         # Always subtract reserved_tokens: it reflects the current system
         # prompt, while a usage anchor reflects an earlier, possibly smaller one.
         available = max(0, context_limit - reserved_tokens)

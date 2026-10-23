@@ -277,6 +277,7 @@ _CONTEXT_WINDOW_PATTERNS: tuple[tuple[str, int], ...] = (
     (_DEEPSEEK_FLASH, 1_000_000),
     (r"kimi-k3", 1_000_000),
     (r"kimi-k2\.[67]", 256_000),
+    (r"qwen", 1_000_000),
 )
 
 
