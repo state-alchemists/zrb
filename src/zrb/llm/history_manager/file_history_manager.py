@@ -61,6 +61,32 @@ def default_history_manager() -> "FileHistoryManager":
     return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
 
 
+def _archives_named_in(directory: str) -> "set[str]":
+    """Archive filenames the `.json` files directly in *directory* mention.
+
+    Read as text with `errors="ignore"` and searched, rather than parsed: the
+    pointer is a sentence in a summary, and a file that is not valid JSON any
+    more still names the archive it was written against. Skipping it would turn
+    a corrupt transcript into a deleted archive.
+    """
+    names: set[str] = set()
+    try:
+        entries = list(os.scandir(directory))
+    except OSError:
+        return names
+    for entry in entries:
+        if not entry.name.endswith(".json"):
+            continue
+        try:
+            if not entry.is_file():
+                continue
+            with open(entry.path, encoding="utf-8", errors="ignore") as stream:
+                names.update(_ARCHIVE_REFERENCE_PATTERN.findall(stream.read()))
+        except OSError:
+            continue
+    return names
+
+
 class FileHistoryManager(AnyHistoryManager):
     def __init__(self, history_dir: str):
         self._history_dir = os.path.expanduser(history_dir)
@@ -614,22 +640,17 @@ class FileHistoryManager(AnyHistoryManager):
                 pass
 
     def _referenced_archives(self) -> "set[str]":
-        """Archive filenames named by any history file in this directory."""
+        """Archive filenames named by any transcript this manager can write.
+
+        Every directory a transcript can live in, not just the root: a
+        sub-agent's summary points at the same shared `verbatim/` directory as
+        its parent's, so a pointer inside `subagent/<agent-type>/` is just as
+        load-bearing. Backups sit beside their main file and are read here too,
+        because a backup still names the archive it was written against.
+        """
         referenced: set[str] = set()
-        try:
-            entries = list(os.scandir(self._history_dir))
-        except OSError:
-            return referenced
-        for entry in entries:
-            if not entry.name.endswith(".json"):
-                continue
-            try:
-                if not entry.is_file():
-                    continue
-                with open(entry.path, encoding="utf-8", errors="ignore") as stream:
-                    referenced.update(_ARCHIVE_REFERENCE_PATTERN.findall(stream.read()))
-            except OSError:
-                continue
+        for directory in subagent_history_directories(self._history_dir):
+            referenced.update(_archives_named_in(directory))
         return referenced
 
     def _rotate_backups(

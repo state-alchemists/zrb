@@ -51,6 +51,16 @@ def _history(history_dir, name: str, body: str = "[]") -> str:
     return path
 
 
+def _subagent_history(history_dir, agent_type: str, name: str, body: str) -> str:
+    """A delegated transcript, which lives one level below the history root."""
+    directory = os.path.join(str(history_dir), "subagent", agent_type)
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, f"{name}.json")
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write(body)
+    return path
+
+
 def _pointer_to(history_dir, name: str) -> str:
     """The archive pointer a summary carries, as the history file stores it."""
     path = verbatim_archive_path(name, str(history_dir))
@@ -120,3 +130,36 @@ def test_retention_off_keeps_every_archive(history_dir, retention):
     _save(FileHistoryManager(str(history_dir)), "fresh-session")
 
     assert os.path.exists(path)
+
+
+def test_a_sub_agent_summary_keeps_its_archive(history_dir, retention):
+    """A delegated transcript sits in `subagent/<agent-type>/` but writes into
+    the same shared `verbatim/` directory, so a pruner that read only the root
+    deleted an archive a sub-agent's summary still pointed at — silent loss of
+    the only copy of what that summary dropped."""
+    path = _archive(history_dir, "delegated")
+    _subagent_history(
+        history_dir,
+        "generalist",
+        "bold-arch-1234-sub-generalist-0000abcd",
+        _pointer_to(history_dir, "delegated"),
+    )
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert os.path.exists(path)
+
+
+def test_a_sub_agent_archive_no_transcript_names_is_still_pruned(
+    history_dir, retention
+):
+    """The sub-agent directories widen what counts as a reference, not what
+    survives: an archive nothing names anywhere still goes."""
+    path = _archive(history_dir, "forgotten")
+    _subagent_history(
+        history_dir, "generalist", "bold-arch-1234-sub-generalist-0000abcd", "[]"
+    )
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert not os.path.exists(path)

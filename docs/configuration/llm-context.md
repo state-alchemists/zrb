@@ -36,12 +36,14 @@ holds the history as the conversation held it, before oversized tool results wer
 reduced to summaries, so a tool's output remains available after compaction.
 
 An archive is pruned, with its lock sidecar, only once **no history refers to it**: no
-conversation file in the history directory — live or backup — carries its pointer, and
-it is older than `ZRB_LLM_HISTORY_RETENTION` (so an archive written just before its
-history is saved is never mistaken for an orphan, and `0` keeps every archive). That
-keeps the directory bounded without leaving a summary pointing at text that is gone.
-Archives may still contain sensitive text: protect access to the history directory and
-back it up as needed.
+transcript anywhere in the history tree — the conversation's own file, a backup of it,
+or a delegated sub-agent's transcript under `subagent/<agent-type>/` — carries its
+pointer, and it is older than `ZRB_LLM_HISTORY_RETENTION` (so an archive written just
+before its history is saved is never mistaken for an orphan, and `0` keeps every
+archive). Sub-agent transcripts are searched because they point at the same shared
+`verbatim/` directory. That keeps the directory bounded without leaving a summary
+pointing at text that is gone. Archives may still contain sensitive text: protect access
+to the history directory and back it up as needed.
 
 A directory written before these permissions existed is narrowed **once**, on first use,
 with a marker (`<dir>.owner-only`) beside it so later runs leave it alone — a mode you

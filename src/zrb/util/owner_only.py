@@ -34,10 +34,17 @@ def tighten_once(directory: str) -> None:
     refuses the change is left as it is instead of failing the caller — the
     prune and the journal write that call this must not fail over permissions.
     Windows has no mode bits to narrow, so there it does nothing.
+
+    The marker decides whether the work is already done, so it is read with
+    `lstat` and created exclusively: one planted at its path cannot stand in for
+    a migration that never ran, and cannot redirect the write that records one.
+    A directory whose parent someone else can write to is still bounded by that
+    parent — a *regular* file left at the marker path is indistinguishable from
+    zrb's own, which is why the marker sits beside a directory the user owns.
     """
     if os.name != "posix":
         return
-    if os.path.exists(marker_path(directory)):
+    if _has_marker(directory):
         return
     try:
         _narrow_tree(directory)
@@ -49,6 +56,20 @@ def tighten_once(directory: str) -> None:
         logging.getLogger(__name__).warning(
             f"Could not restrict permissions under {directory}: {e}"
         )
+
+
+def _has_marker(directory: str) -> bool:
+    """Whether a marker this function can trust is already in place.
+
+    `lstat`, not `stat`: a symlink at the marker path must not read as a finished
+    migration, or the narrowing it stands for would be skipped. Only a regular
+    file counts, which is what `_write_marker` creates.
+    """
+    try:
+        info = os.lstat(marker_path(directory))
+    except OSError:
+        return False
+    return stat.S_ISREG(info.st_mode)
 
 
 def _narrow_tree(directory: str) -> None:
@@ -81,8 +102,38 @@ def _chmod(path: str, mode: int) -> None:
 
 
 def _write_marker(directory: str) -> None:
-    """Record that *directory* has been narrowed, so this never runs again."""
+    """Record that *directory* has been narrowed, so this never runs again.
+
+    Created exclusively (`O_EXCL`), which refuses a path that already exists — a
+    symlink included, without having to resolve it — so nothing standing at the
+    marker can be truncated or written through. `O_NOFOLLOW` is added where the
+    platform has it, for the reader's benefit as much as the kernel's.
+
+    Something at the path that is not a regular file is not a marker: a symlink
+    is unlinked (which removes the link, never its target) and the marker is
+    created in its place. A regular file there is left alone — it may be zrb's
+    own from an earlier run, and either way replacing it is not necessary to
+    finish the work this call already did.
+    """
+    target = marker_path(directory)
+    try:
+        _create_marker(target)
+    except FileExistsError:
+        if not stat.S_ISLNK(os.lstat(target).st_mode):
+            return
+        os.unlink(target)
+        _create_marker(target)
+
+
+def _create_marker(target: str) -> None:
+    """Create *target* empty, failing if anything is already at that path."""
     descriptor = os.open(
-        marker_path(directory), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, FILE_MODE
+        target,
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_EXCL
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_BINARY", 0),
+        FILE_MODE,
     )
     os.close(descriptor)
