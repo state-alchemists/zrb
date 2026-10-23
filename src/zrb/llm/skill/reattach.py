@@ -31,9 +31,7 @@ SKILL_TOKEN_CAP = 5_000
 TOTAL_TOKEN_CAP = 25_000
 """Most tokens all re-attached skills together may cost."""
 
-_BLOCK_PATTERN = re.compile(
-    r"<ACTIVATED_SKILL\b[^>]*>.*?</ACTIVATED_SKILL>", re.DOTALL
-)
+_OPEN_PATTERN = re.compile(r"<ACTIVATED_SKILL\b[^>]*>")
 _CLOSING_TAG = "</ACTIVATED_SKILL>"
 _NAME_PATTERN = re.compile(r'\bname="([^"]*)"')
 
@@ -54,12 +52,27 @@ def _message_text(message: "ModelMessage") -> str:
 
 
 def _blocks(text: str) -> list[tuple[str, str]]:
-    """`(name, block)` for every activation block in *text*, in text order."""
+    """`(name, block)` for every activation block in *text*, in text order.
+
+    The body is model-authored and embedded unescaped, so it may itself contain
+    the literal closing tag — a skill that teaches this markup, for instance. A
+    block therefore ends at the *last* closing tag before the next opening one,
+    not at the first to appear, which would cut the body short.
+    """
+    openings = list(_OPEN_PATTERN.finditer(text))
     found: list[tuple[str, str]] = []
-    for match in _BLOCK_PATTERN.finditer(text):
-        block = match.group(0)
-        name_match = _NAME_PATTERN.search(block)
-        found.append((name_match.group(1) if name_match else "", block))
+    for index, opening in enumerate(openings):
+        limit = openings[index + 1].start() if index + 1 < len(openings) else len(text)
+        close_at = text.rfind(_CLOSING_TAG, opening.end(), limit)
+        if close_at < 0:
+            continue
+        name_match = _NAME_PATTERN.search(opening.group(0))
+        found.append(
+            (
+                name_match.group(1) if name_match else "",
+                text[opening.start() : close_at + len(_CLOSING_TAG)],
+            )
+        )
     return found
 
 

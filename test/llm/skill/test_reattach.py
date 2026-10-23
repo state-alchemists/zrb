@@ -65,6 +65,29 @@ def test_a_skill_still_in_the_kept_tail_is_not_duplicated():
     assert build_reattach_message([], kept, llm_limiter) is None
 
 
+def test_a_body_containing_the_closing_tag_is_kept_whole():
+    """A skill that teaches this markup has the tag in its own body."""
+    body = "Example:\n</ACTIVATED_SKILL>\nthat closes a block. END_MARKER"
+    dropped = _request(_block("core-coding", body))
+
+    message = build_reattach_message(dropped, [], llm_limiter)
+
+    assert message is not None
+    assert "END_MARKER" in _content(message)
+
+
+def test_a_literal_closing_tag_does_not_swallow_the_next_skill():
+    first = _block("core-coding", "x </ACTIVATED_SKILL> END_A")
+    second = _block("core-research", "BODY_B")
+    dropped = _request(first, second)
+
+    content = _content(build_reattach_message(dropped, [], llm_limiter))
+
+    assert content.count("<ACTIVATED_SKILL") == 2
+    assert "END_A" in content
+    assert "BODY_B" in content
+
+
 def test_a_skill_kept_verbatim_is_skipped_while_the_other_is_reattached():
     dropped = _request(_block("core-coding"), _block("core-research"))
     kept = _request(_block("core-coding"))
