@@ -171,6 +171,7 @@ async def test_run_agent_passes_system_prompt_overhead_to_processors():
 
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 1000
+    limiter.effective_context_window.return_value = 1000
     limiter.acquire = AsyncMock()
     limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
     # count_tokens("sys prompt") returns 42; subsequent calls return 0
@@ -288,6 +289,7 @@ async def test_run_agent_emergency_pruning():
 
     limiter = MagicMock(spec=LLMLimiter)
     limiter.max_token_per_request = 100
+    limiter.effective_context_window.return_value = 100
     limiter.acquire = AsyncMock()
     limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
 
@@ -310,6 +312,60 @@ async def test_run_agent_emergency_pruning():
 
 
 @pytest.mark.asyncio
+async def test_run_agent_force_prune_uses_the_models_real_window():
+    """A history that exceeds the flat 128k-style cap but fits a recognized
+    large-context model's real window must NOT be force-pruned.
+
+    Regression for a PR review finding: `_prepare_history`'s final safety net
+    used to compare against `limiter.max_token_per_request` directly, so a
+    200k-token history valid for a 1M-window model was still discarded down
+    to its last message.
+    """
+    agent = MagicMock()
+    agent.model = "deepseek:deepseek-flash"
+    mock_result = MagicMock()
+    mock_result.output = "Result"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.max_token_per_request = 100
+    # A recognized large-context model's real window, as effective_context_window
+    # would compute it -- far above the flat max_token_per_request cap.
+    limiter.effective_context_window.return_value = 1_000_000
+    limiter.acquire = AsyncMock()
+    limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
+
+    def _count_tokens(x):
+        return 200 if isinstance(x, list) else 50
+
+    limiter.count_tokens.side_effect = _count_tokens
+
+    history = [MagicMock() for _ in range(3)]
+
+    with (
+        patch.object(agent, "run") as mock_run,
+        patch(
+            "zrb.llm.agent.run.runner.ensure_alternating_roles", side_effect=lambda x: x
+        ),
+    ):
+        mock_run.side_effect = _run_from(_gen)
+        result, _ = await run_agent(
+            agent=agent, message="Hi", message_history=history, limiter=limiter
+        )
+        assert result == "Result"
+
+        # effective_context_window was consulted with the run's own model...
+        limiter.effective_context_window.assert_called_with("deepseek:deepseek-flash")
+        # ...and the history reached agent.run intact (not force-pruned to 1
+        # message).
+        passed_history = mock_run.call_args[1]["message_history"]
+        assert len(passed_history) == 3
+
+
+@pytest.mark.asyncio
 async def test_run_agent_merge_consecutive_model_requests():
     from pydantic_ai.messages import ModelRequest, UserPromptPart
 
@@ -329,6 +385,7 @@ async def test_run_agent_merge_consecutive_model_requests():
     limiter = MagicMock(spec=LLMLimiter)
     limiter.acquire = AsyncMock()
     limiter.max_token_per_request = 1000
+    limiter.effective_context_window.return_value = 1000
     limiter.count_tokens.return_value = 10
     limiter.fit_context_window.side_effect = lambda h, m, r, *args, **kwargs: h
 

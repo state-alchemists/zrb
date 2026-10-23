@@ -140,6 +140,12 @@ def test_context_window_is_known_for_current_model_families():
     assert model_capabilities.get("deepseek:deepseek-flash").context_window == 1_000_000
     assert model_capabilities.get("moonshotai:kimi-k3").context_window == 1_000_000
     assert model_capabilities.get("moonshotai:kimi-k2.6").context_window == 256_000
+    assert model_capabilities.get("alibaba:qwen3.5-max").context_window == 1_000_000
+    # Only the flagship cloud tier is verified at 1M -- a normal open-weight
+    # Qwen release must not inherit that window and skip pruning it cannot
+    # actually fit.
+    assert model_capabilities.get("ollama:qwen2.5:7b").context_window is None
+    assert model_capabilities.get("ollama:qwen3:30b").context_window is None
 
 
 def test_parallel_tool_calls_unknown_for_general_models():

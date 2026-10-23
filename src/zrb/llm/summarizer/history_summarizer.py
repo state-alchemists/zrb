@@ -8,6 +8,7 @@ from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
     create_message_summarizer_agent,
 )
+from zrb.llm.agent_state import get_current_model
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.message import (
@@ -38,6 +39,16 @@ if TYPE_CHECKING:
 else:
     ModelMessage = Any
 
+# Mirrors LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
+# (`config/mixins/llm_content.py`), applied here against the run's actual
+# model instead of that CFG field's model-blind fallback.
+_CONVERSATIONAL_TRIGGER_RATIO = 0.75
+
+# Mirrors LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
+# against the conversational threshold (half of it), recomputed here from the
+# model-aware conversational threshold instead of the model-blind CFG default.
+_MESSAGE_THRESHOLD_RATIO = 0.5
+
 
 def create_summarizer_history_processor(
     conversational_agent: Any = None,
@@ -60,10 +71,20 @@ def create_summarizer_history_processor(
     beside them.
     """
     llm_limiter = limiter or default_llm_limiter
+    # A threshold passed in, or the knob pinned by its own env var, is a
+    # deliberate choice and stays fixed. Otherwise the trigger is recomputed
+    # on every call against the run's actual model (`/model` included)
+    # rather than baked in once here from a model-blind CFG default.
+    auto_conversational_threshold = conversational_token_threshold is None and (
+        not CFG.is_env_set("LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD")
+    )
     if conversational_token_threshold is None:
         conversational_token_threshold = (
             CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         )
+    auto_message_threshold = message_token_threshold is None and (
+        not CFG.is_env_set("LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD")
+    )
     if message_token_threshold is None:
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
     if summary_window is None:
@@ -89,6 +110,20 @@ def create_summarizer_history_processor(
             )
             return messages
 
+        active_conversational_threshold = conversational_token_threshold
+        if auto_conversational_threshold:
+            model = get_current_model() or CFG.LLM_MODEL
+            active_conversational_threshold = round(
+                _CONVERSATIONAL_TRIGGER_RATIO
+                * llm_limiter.effective_context_window(model)
+            )
+
+        active_message_token_threshold = message_token_threshold
+        if auto_message_threshold:
+            active_message_token_threshold = round(
+                _MESSAGE_THRESHOLD_RATIO * active_conversational_threshold
+            )
+
         # Snapshot first: fat tool results are replaced by summaries in the
         # pass below, and an archive of those would record the summary where
         # the tool wrote its output. This is the text the conversation had.
@@ -97,8 +132,8 @@ def create_summarizer_history_processor(
             messages,
             agent=active_message_agent,
             limiter=llm_limiter,
-            message_token_threshold=message_token_threshold,
-            conversational_token_threshold=conversational_token_threshold,
+            message_token_threshold=active_message_token_threshold,
+            conversational_token_threshold=active_conversational_threshold,
         )
 
         return await _maybe_compress_history(
@@ -106,7 +141,7 @@ def create_summarizer_history_processor(
             agent=active_conversational_agent,
             summary_window=summary_window,
             limiter=llm_limiter,
-            conversational_token_threshold=conversational_token_threshold,
+            conversational_token_threshold=active_conversational_threshold,
             system_prompt_overhead=system_prompt_overhead,
             session_name=session_name,
             history_dir=history_dir,
