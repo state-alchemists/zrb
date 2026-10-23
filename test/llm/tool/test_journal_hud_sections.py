@@ -35,7 +35,19 @@ def _write(root, text: str) -> None:
         f.write(text)
 
 
-@pytest.mark.parametrize("index_name", ["../escape.md", "nested/index.md", ""])
+@pytest.mark.parametrize(
+    "index_name",
+    [
+        "../escape.md",
+        "nested/index.md",
+        "",
+        "notes)index.md",
+        "notes(index.md",
+        "notes[index.md",
+        "notes]index.md",
+        "notes`index.md",
+    ],
+)
 def test_configured_index_name_must_be_a_filename(writable_journal, index_name):
     from zrb.llm.tool.journal_write import ensure_journal_tree
 

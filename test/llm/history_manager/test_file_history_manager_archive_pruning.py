@@ -51,6 +51,16 @@ def _history(history_dir, name: str, body: str = "[]") -> str:
     return path
 
 
+def _backup(history_dir, base_name: str, body: str) -> str:
+    """A retained timestamped backup, named the way `_get_backup_file_path`
+    actually spells one: `<base>-YYYY-MM-DD-HH-MM-SS.json`, not a numbered
+    `.json.N` suffix — it still ends in `.json`, like the live file."""
+    path = os.path.join(str(history_dir), f"{base_name}-2020-01-01-00-00-00.json")
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write(body)
+    return path
+
+
 def _subagent_history(history_dir, agent_type: str, name: str, body: str) -> str:
     """A delegated transcript, which lives one level below the history root."""
     directory = os.path.join(str(history_dir), "subagent", agent_type)
@@ -126,6 +136,21 @@ def test_retention_off_keeps_every_archive(history_dir, retention):
     history might point at may be deleted either."""
     retention.LLM_HISTORY_RETENTION = "0"
     path = _archive(history_dir, "orphan")
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert os.path.exists(path)
+
+
+def test_an_archive_named_only_by_a_retained_backup_is_kept(history_dir, retention):
+    """The live history for a conversation can be gone — renamed, or itself
+    already pruned — while a retained backup beside it still names the
+    archive. `_archives_named_in` reads every `.json` file in the directory,
+    not just ones matching the live-file naming shape, so this already works;
+    pinned here since a backup file ends in plain `.json` in this codebase,
+    not the `.json.N` shape a reviewer once assumed it would."""
+    path = _archive(history_dir, "kept")
+    _backup(history_dir, "mine", _pointer_to(history_dir, "kept"))
 
     _save(FileHistoryManager(str(history_dir)), "fresh-session")
 

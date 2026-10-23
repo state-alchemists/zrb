@@ -10,22 +10,33 @@ neither package has to import the other to share it.
 
 import os
 
+# The writers splice this name, unescaped, into generated Markdown link
+# syntax (`[label](category/<name>)`). `_directory_link_re()` happens to
+# recover the right category even when `<name>` carries one of these — Python's
+# backtracking regex engine retries shorter spans until the escaped literal
+# suffix matches — but that correctness rides on a regex implementation detail
+# a future rewrite could drop. Rejected outright instead of relied upon.
+_MARKDOWN_DELIMITERS = frozenset("()[]`")
+
 
 def resolve_journal_index_name(name: str) -> str:
     """Return *name* if it is a bare filename, else raise ``ValueError``.
 
-    Rejects an empty value, ``.``/``..``, a backslash, and anything with a
-    directory component — including an absolute path or a ``../`` escape —
-    since `os.path.basename` of either differs from the value itself.
+    Rejects an empty value, ``.``/``..``, a backslash, a directory component
+    — including an absolute path or a ``../`` escape, since `os.path.basename`
+    of either differs from the value itself — and a Markdown link delimiter,
+    since every writer splices this name straight into `[label](...)` syntax.
     """
     if (
         not name
         or name in (".", "..")
         or os.path.basename(name) != name
         or "\\" in name
+        or not _MARKDOWN_DELIMITERS.isdisjoint(name)
     ):
         raise ValueError(
             "[SYSTEM SUGGESTION]: LLM_JOURNAL_INDEX_FILE must be a filename "
-            "without directory components."
+            "without directory components or Markdown link delimiters "
+            "((, ), [, ], `)."
         )
     return name
