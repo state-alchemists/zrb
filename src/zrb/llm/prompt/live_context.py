@@ -10,6 +10,7 @@ import asyncio
 import os
 import re
 import subprocess
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
@@ -78,7 +79,7 @@ def split_live_context(content: str) -> tuple[str, str | None]:
     return content[: match.start()].rstrip(), match.group(1)
 
 
-def last_live_context(message_history: "list[object]") -> str | None:
+def last_live_context(message_history: "Sequence[object]") -> str | None:
     """The newest ``<live-context>`` block in *message_history*, or ``None``.
 
     Read from the history the run is actually using, never from a side cache:
