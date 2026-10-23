@@ -83,3 +83,40 @@ def test_files_created_after_the_marker_stay_owner_only(writable_journal):
             assert (
                 stat.S_IMODE(os.stat(os.path.join(dirpath, name)).st_mode) == FILE_MODE
             )
+
+
+@needs_posix_modes
+def test_a_symlinked_journal_root_is_refused(tmp_path):
+    """`os.path.isdir()` follows a symlink; a symlinked configured root used to
+    read as "the directory is already there" and every write that followed
+    landed in whatever it pointed at instead."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = tmp_path / "notes"
+    os.symlink(str(outside), str(link))
+    with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = str(link)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+
+        with pytest.raises(ValueError, match="symlink"):
+            ensure_journal_tree()
+
+    assert list(outside.iterdir()) == []
+
+
+@needs_posix_modes
+def test_a_symlinked_note_path_is_refused_not_overwritten(writable_journal, tmp_path):
+    """`O_TRUNC | O_CREAT` without `O_NOFOLLOW` followed a symlink planted at a
+    note's path and overwrote whatever it pointed at."""
+    ensure_journal_tree()
+    secret = tmp_path / "secret.md"
+    secret.write_text("do not touch\n", encoding="utf-8")
+    note_path = os.path.join(writable_journal, "technical", "a-slug.md")
+    os.symlink(str(secret), note_path)
+
+    with pytest.raises(OSError):
+        write_journal_note(
+            "technical", "a-slug", "A title", "context", "finding", "source"
+        )
+
+    assert secret.read_text(encoding="utf-8") == "do not touch\n"

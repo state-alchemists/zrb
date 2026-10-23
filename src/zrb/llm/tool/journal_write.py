@@ -14,6 +14,7 @@ entries and backlinks, which upholds these invariants by construction:
 
 import os
 import re
+import stat
 import subprocess
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -850,15 +851,34 @@ def _title_of(path: str) -> str:
 
 def _makedirs_owner_only(path: str) -> None:
     """Like `os.makedirs(path, mode=DIR_MODE, exist_ok=True)`, but every level
-    this creates gets `DIR_MODE` — not just *path* itself.
+    this creates gets `DIR_MODE` — not just *path* itself — and a symlink
+    anywhere in *path* fails closed instead of being written through.
 
     `os.makedirs`'s `mode` argument only reaches the directory it was given;
     an intermediate directory it creates along the way is made with Python's
     default `0o777`, masked only by the process umask, so a journal whose
     parent did not exist yet still gained a `0o755` ancestor under a typical
-    umask.
+    umask. Each existing level is `lstat`ed, not `stat`ed, for the same reason:
+    `os.path.isdir()` follows a symlink, so a symlink planted at the configured
+    journal root (or any ancestor along its path) would otherwise read as "the
+    directory is already there" and every later write would land through it.
     """
-    if os.path.isdir(path):
+    try:
+        info = os.lstat(path)
+    except OSError:
+        pass
+    else:
+        if stat.S_ISLNK(info.st_mode):
+            raise ValueError(
+                f"[SYSTEM SUGGESTION]: {path!r} is a symlink. The journal "
+                "directory and every directory above it must be a real "
+                "directory, not a link to one — reconfigure LLM_JOURNAL_DIR "
+                "or remove the link."
+            )
+        if not stat.S_ISDIR(info.st_mode):
+            raise ValueError(
+                f"[SYSTEM SUGGESTION]: {path!r} exists and is not a directory."
+            )
         return
     parent = os.path.dirname(path)
     if parent and parent != path:
@@ -889,15 +909,22 @@ def _write_text(path: str, content: str) -> None:
     file and month/year index this module creates afterwards goes through
     here, so the mode is set explicitly at creation (`os.open`, not the
     builtin `open`, which has no way to pass one) instead of relying on a
-    later pass that will never revisit it.
+    later pass that will never revisit it. `O_NOFOLLOW` refuses a symlink
+    planted at a note or index path instead of truncating whatever it points
+    at — including a dangling one, which `O_NOFOLLOW` also rejects. The
+    descriptor is wrapped in a buffered text file rather than one raw
+    `os.write()`: `os.write()` may write fewer bytes than given without
+    raising, which would leave a truncated note or index reporting success.
     """
     _makedirs_owner_only(os.path.dirname(path))
     descriptor = os.open(
         path,
-        os.O_WRONLY | os.O_CREAT | os.O_TRUNC | getattr(os, "O_BINARY", 0),
+        os.O_WRONLY
+        | os.O_CREAT
+        | os.O_TRUNC
+        | getattr(os, "O_NOFOLLOW", 0)
+        | getattr(os, "O_BINARY", 0),
         FILE_MODE,
     )
-    try:
-        os.write(descriptor, content.encode("utf-8"))
-    finally:
-        os.close(descriptor)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as f:
+        f.write(content)
