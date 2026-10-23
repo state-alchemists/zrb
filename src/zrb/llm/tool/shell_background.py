@@ -9,8 +9,9 @@ from __future__ import annotations
 import asyncio
 import atexit
 import os
+import time
 from dataclasses import dataclass, field
-from typing import Annotated
+from typing import Annotated, Any
 
 from pydantic import Field
 
@@ -47,6 +48,8 @@ class _BackgroundProcess:
     # The unique `ChatSessionManager` session_id (not the display name); ""
     # outside a web chat run.
     owner_session_id: str = ""
+    # Monotonic start, so a live-context summary can say how long it has run.
+    started_at: float = field(default_factory=time.monotonic)
 
 
 class _ShellBackgroundRegistry:
@@ -239,6 +242,28 @@ class _ShellBackgroundRegistry:
                     "collected — poll once more for the final output."
                 )
         return "\n".join(lines)
+
+    def summary(self, session_id: str | None = None) -> "list[dict[str, Any]]":
+        """A read-only view of the handles this registry holds.
+
+        Unlike `poll`, this never retires an entry: asking what is running is
+        not the consumption that releases a handle. *session_id* filters to one
+        owner — a live-context line must not name another chat's processes.
+        """
+        now = time.monotonic()
+        rows: "list[dict[str, Any]]" = []
+        for handle, bp in self._procs.items():
+            if session_id is not None and bp.owner_session_id != session_id:
+                continue
+            rows.append(
+                {
+                    "handle": handle,
+                    "description": bp.description,
+                    "returncode": bp.returncode,
+                    "seconds": max(now - bp.started_at, 0.0),
+                }
+            )
+        return rows
 
     async def kill(self, handle: str) -> str:
         bp = self._procs.get(handle)
