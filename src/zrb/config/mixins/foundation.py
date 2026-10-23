@@ -124,11 +124,12 @@ class FoundationMixin:
         serialize=comma_join,
         doc=(
             "Env var names in your namespace that belong to your project "
-            "rather than to a zrb setting (e.g. 'LLM_PLUGIN_DIR,LLM_PROXY_*', "
+            "rather than to a setting (e.g. 'LLM_PLUGIN_DIR,LLM_PROXY_*', "
             'or `["LLM_PLUGIN_DIR", "LLM_PROXY_*"]`, in code). '
-            "zrb reads nothing from them; naming them here only keeps the "
-            "startup warning from calling them typos of a setting. Each entry "
-            "is the name without ENV_PREFIX, either exact ('LLM_PLUGIN_DIR') "
+            "The CLI reads nothing from them; naming them here only keeps "
+            "the startup warning from calling them typos of a setting. Each "
+            "entry is the name without ENV_PREFIX, either exact "
+            "('LLM_PLUGIN_DIR') "
             "or a '*' glob covering every name it matches ('LLM_PROXY_*'). "
             "The retired-setting report honors the same list. Most useful to a "
             "white-label distribution that reuses its ENV_PREFIX for its own "
@@ -152,7 +153,7 @@ class FoundationMixin:
         serialize=on_off,
         default_factory=lambda c: on_off(is_termux()),
         doc=(
-            "Whether zrb runs under Termux. Auto-detected; override to force "
+            "Whether the CLI runs under Termux. Auto-detected; override to force "
             "Termux-specific behavior such as Tab-to-cycle-mode keybindings."
         ),
     )
@@ -173,7 +174,7 @@ class FoundationMixin:
         comma_or_colon_list,
         serialize=comma_join,
         doc=(
-            "Comma-separated importable module names zrb imports on startup so "
+            "Comma-separated importable module names the CLI imports on startup so "
             "their task definitions register (e.g. a shared team task package). "
             "Colon-separated values are still accepted."
         ),
@@ -189,7 +190,7 @@ class FoundationMixin:
         path_list,
         serialize=path_list_join,
         doc=(
-            "Colon-separated (semicolon on Windows) Python script paths zrb "
+            "Colon-separated (semicolon on Windows) Python script paths the CLI "
             "runs on startup (in addition "
             "to the discovered INIT_FILE_NAME files) to register task definitions."
         ),
@@ -198,7 +199,7 @@ class FoundationMixin:
     INIT_FILE_NAME = EnvField(
         str,
         doc=(
-            "Name of the task-definition file zrb auto-loads. On startup zrb walks "
+            "Name of the task-definition file the CLI auto-loads. On startup the CLI walks "
             "from the current directory up to the filesystem root and loads every "
             "file with this name it finds."
         ),
@@ -278,7 +279,7 @@ class FoundationMixin:
         str,
         doc=(
             "How often SESSION_LOG_RETENTION is enforced per log directory "
-            "(e.g. 1d, 6h). Every zrb command is its own process, so this "
+            "(e.g. 1d, 6h). Every CLI invocation is its own process, so this "
             "keeps each from walking the whole session timeline. 0 prunes on "
             "every process's first log write."
         ),

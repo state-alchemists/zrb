@@ -135,8 +135,8 @@ class LLMSpeechMixin:
             "(zrb.llm.voice).\n"
             "If a cloud backend fails, the local engine speaks instead. A local "
             "voice that runs in process is not swapped for another voice: where "
-            "zrb can play its audio, a failure is reported instead, and only "
-            "where zrb cannot play it at all does the local engine speak instead."
+            "the CLI can play its audio, a failure is reported instead, and only "
+            "where the CLI cannot play it at all does the local engine speak instead."
         ),
     )
 
@@ -342,7 +342,7 @@ class LLMSpeechMixin:
         fallback=60.0,
         doc=(
             "Seconds 'say' or 'espeak-ng' may take to render a sentence for "
-            "zrb to play; it only bounds one that hangs. 0 means no limit. Default: 60."
+            "the CLI to play; it only bounds one that hangs. 0 means no limit. Default: 60."
         ),
     )
 
@@ -360,7 +360,7 @@ class LLMSpeechMixin:
         int,
         fallback=1024,
         doc=(
-            "Samples per block when zrb plays speech itself; smaller pauses "
+            "Samples per block when the CLI plays speech itself; smaller pauses "
             "and stops sooner, larger is kinder to a slow machine. Default: "
             "1024."
         ),
@@ -432,14 +432,15 @@ class LLMSpeechMixin:
         str,
         doc=(
             "How speech is played. One of:\n"
-            "- 'auto' (default): by zrb itself through sounddevice when the "
+            "- 'auto' (default): by the CLI itself through sounddevice when the "
             "zrb[voice] extra is installed and the backend can render audio "
             "('say', 'espeak-ng', 'openai', 'gemini'), so dictation can cancel "
-            "zrb's voice out of the microphone and pause it; else by a player "
+            "the assistant's voice out of the microphone and pause it; else "
+            "by a player "
             "program. A cloud backend with LLM_SPEECH_WAV_PLAYER set plays "
             "through that player, and an output device that cannot open sends "
             "what follows to a player program where there is one, until the "
-            "device is tried again a few seconds later. A voice zrb plays "
+            "device is tried again a few seconds later. A voice the CLI plays "
             "itself keeps its own voice through that: the devices are read "
             "again — and again whenever the machine's default output moves, "
             "a headset put back in included — so the sentence plays on the "
@@ -467,8 +468,8 @@ class LLMSpeechMixin:
             tempfile.gettempdir(), f"{host.ROOT_GROUP_NAME}-speech.lock"
         ),
         doc=(
-            "File locked while speech plays, so zrb sessions on this machine "
-            "take turns and dictation ignores zrb's own voice. "
+            "File locked while speech plays, so sessions on this machine "
+            "take turns and dictation ignores the assistant's own voice. "
             "Default: <tmp>/<root group name>-speech.lock."
         ),
     )

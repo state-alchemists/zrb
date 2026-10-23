@@ -232,7 +232,7 @@ class LLMDictationMixin:
         fallback=1,
         doc=(
             "Fewest words a hands-free utterance needs to reach the model when "
-            "it is not interrupting zrb; over zrb or a running turn, "
+            "it is not interrupting the assistant; over the assistant or a running turn, "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_MIN_WORDS applies instead. "
             "Raise it in a public place, where a stranger's single word would "
             "otherwise open a turn. A stop word, or an answer to the prompt "
@@ -274,15 +274,15 @@ class LLMDictationMixin:
             c, "LLM_DICTATION_BARGE_IN_ENABLED"
         ),
         doc=(
-            "'on' lets hands-free hear you while zrb speaks, so you can talk "
-            "over it: zrb pauses at once, and stops if what you said is "
-            "words meant for it. On speakers the microphone hears zrb too, "
-            "so speech over it must be "
+            "'on' lets hands-free hear you while the assistant speaks, so "
+            "you can talk over it: it pauses at once, and stops if what you "
+            "said is words meant for it. On speakers the microphone hears "
+            "the assistant too, so speech over it must reach the microphone "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_MARGIN times louder than "
-            "zrb's voice reaches the microphone, and at least "
+            "the assistant's voice does, and be at least "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_MIN_WORDS words. 'off' "
-            "keeps the microphone deaf while zrb speaks: zrb and you take "
-            "turns. Default: off, or as {ENV_PREFIX}_LLM_VOICE sets it."
+            "keeps the microphone deaf while the assistant speaks: you and "
+            "it take turns. Default: off, or as {ENV_PREFIX}_LLM_VOICE sets it."
         ),
     )
 
@@ -290,16 +290,16 @@ class LLMDictationMixin:
         to_boolean,
         serialize=on_off,
         doc=(
-            "With barge-in on, whether speech heard over zrb holds its voice "
+            "With barge-in on, whether speech heard over the assistant holds its voice "
             "at once, before anything about it is known. 'on' (the default) "
-            "pauses zrb as soon as the microphone hears loud speech over it, "
+            "pauses the assistant as soon as the microphone hears loud speech over it, "
             "and the words then stop it or give the pause back — on speakers, "
-            "zrb's own voice crossing the bar is heard as a brief stutter. "
+            "the assistant's own voice crossing the bar is heard as a brief stutter. "
             "'off' never pauses on loudness: a stop word or a wake word seen "
             "in the live transcript of a backend that transcribes while you "
-            "speak stops zrb as soon as it is heard, and anything else stops "
+            "speak stops the assistant as soon as it is heard, and anything else stops "
             "it once the utterance is transcribed. A room loud enough to keep "
-            "crossing the bar can no longer make zrb stutter, at the cost of "
+            "crossing the bar can no longer make the assistant stutter, at the cost of "
             "speaking until the words arrive. Default: on."
         ),
     )
@@ -308,10 +308,10 @@ class LLMDictationMixin:
         float,
         fallback=3.0,
         doc=(
-            "With barge-in on, how many times louder than zrb's own voice, "
-            "as the microphone hears it, speech over zrb must be to count "
+            "With barge-in on, how many times louder than the assistant's own voice, "
+            "as the microphone hears it, speech over the assistant must be to count "
             "(3 is about 10 dB). It follows the volume and the room; on "
-            "headphones zrb is not heard, and the usual "
+            "headphones the assistant is not heard, and the usual "
             "{ENV_PREFIX}_LLM_DICTATION_THRESHOLD applies. Default: 3."
         ),
     )
@@ -320,9 +320,9 @@ class LLMDictationMixin:
         int,
         fallback=2,
         doc=(
-            "With barge-in on, the fewest words said over zrb, or while a "
-            "turn runs, that reach it: fewer are taken for zrb's own voice "
-            "or noise, and zrb carries on. A stop word, or an answer to the "
+            "With barge-in on, the fewest words said over the assistant, or while a "
+            "turn runs, that reach it: fewer are taken for the assistant's own voice "
+            "or noise, and the assistant carries on. A stop word, or an answer to the "
             "prompt being asked, always counts. Default: 2."
         ),
     )
@@ -331,9 +331,9 @@ class LLMDictationMixin:
         float,
         fallback=0.3,
         doc=(
-            "Seconds of speech over zrb's voice that pause it, so a click "
+            "Seconds of speech over the assistant's voice that pause it, so a click "
             "does not; it then stops if what was said has words. Shorter "
-            "words over zrb (a crisp 'stop') do not pause it but still stop "
+            "words over the assistant (a crisp 'stop') do not pause it but still stop "
             "it once transcribed. Default: 0.3."
         ),
     )
@@ -344,8 +344,8 @@ class LLMDictationMixin:
         doc=(
             "'on' asks the small model "
             "({ENV_PREFIX}_LLM_DICTATION_INTERRUPT_JUDGE_MODEL) what the words "
-            "said over zrb ask of it, so 'please fucking stop', the same stop "
-            "said twice, or a stop in another language stops zrb, not only a "
+            "said over the assistant ask of it, so 'please fucking stop', the same stop "
+            "said twice, or a stop in another language stops the assistant, not only a "
             "stop word ({ENV_PREFIX}_LLM_DICTATION_STOP_WORDS) said alone. It "
             "never decides alone: the word lists answer first and stand when "
             "the model is slow, unconfigured or unsure. 'off': the word lists "
@@ -356,10 +356,10 @@ class LLMDictationMixin:
     LLM_DICTATION_INTERRUPT_JUDGE_MODEL = EnvField(
         str,
         doc=(
-            "Model that decides what the words said over zrb ask of it. Empty "
+            "Model that decides what the words said over the assistant ask of it. Empty "
             "uses the small model ({ENV_PREFIX}_LLM_SMALL_MODEL, else the main "
             "model). A cloud model costs a round trip on the words that stop "
-            "zrb, so a fast local one answers sooner. "
+            "the assistant, so a fast local one answers sooner. "
             "{ENV_PREFIX}_LLM_DICTATION_INTERRUPT_JUDGE_ENABLED=off turns the "
             "judge off."
         ),
@@ -369,7 +369,7 @@ class LLMDictationMixin:
         int,
         fallback=5,
         doc=(
-            "Most words said over zrb that the judge "
+            "Most words said over the assistant that the judge "
             "({ENV_PREFIX}_LLM_DICTATION_INTERRUPT_JUDGE_MODEL) is asked "
             "about, once the word lists could not read them. Longer is a "
             "request and steers the turn without waiting on a model; a stop "
@@ -382,8 +382,8 @@ class LLMDictationMixin:
         fallback=2.0,
         doc=(
             "Seconds the judge ({ENV_PREFIX}_LLM_DICTATION_INTERRUPT_JUDGE_MODEL) "
-            "has to read what was said over zrb. A verdict later than this is "
-            "dropped and the word lists decide, which only quiets zrb's voice "
+            "has to read what was said over the assistant. A verdict later than this is "
+            "dropped and the word lists decide, which only quiets the assistant's voice "
             "and lets the turn go on, so raise it for a slow model or link. "
             "Default: 2.0."
         ),
@@ -415,10 +415,10 @@ class LLMDictationMixin:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Comma-separated phrases that, said alone over zrb or while a "
+            "Comma-separated phrases that, said alone over the assistant or while a "
             "turn runs with "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED=on, stop "
-            "zrb speaking and cancel the turn instead of reaching the "
+            "the assistant speaking and cancel the turn instead of reaching the "
             "model. Said first and followed by more words ('hold on, use "
             "postgres'), one cancels the turn and the words are sent as a new "
             "message. A list of their own, so 'no' can deny an approval "
@@ -433,10 +433,10 @@ class LLMDictationMixin:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Comma-separated phrases that, said alone over zrb or while a "
+            "Comma-separated phrases that, said alone over the assistant or while a "
             "turn runs with "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED=on, only quiet "
-            "zrb's voice: the turn goes on and the words are sent nowhere "
+            "the assistant's voice: the turn goes on and the words are sent nowhere "
             "('okay', 'I got it'). A stop word outranks one in both lists. "
             "Default: okay, ok, alright, got it, i got it, understood, "
             "i see, enough, that's enough."
@@ -483,13 +483,13 @@ class LLMDictationMixin:
             c, "LLM_DICTATION_ENABLE_ECHO_CANCEL"
         ),
         doc=(
-            "'on' asks macOS to take zrb's own voice out of the microphone "
-            "(its voice processing, as calls use), so what you say over zrb "
-            "is transcribed without zrb's words in it. It also evens out "
+            "'on' asks macOS to take the assistant's own voice out of the microphone "
+            "(its voice processing, as calls use), so what you say over the assistant "
+            "is transcribed without the assistant's words in it. It also evens out "
             "your level and quiets the room. macOS only, on the default "
             "microphone: with {ENV_PREFIX}_LLM_DICTATION_DEVICE set, or "
             "without pyobjc-framework-AVFoundation (zrb[voice]), the "
-            "microphone opens as usual and zrb says why. On Linux, load "
+            "microphone opens as usual and the assistant says why. On Linux, load "
             "PulseAudio's or PipeWire's echo-cancel module instead. Default: "
             "off, or as {ENV_PREFIX}_LLM_VOICE sets it."
         ),
