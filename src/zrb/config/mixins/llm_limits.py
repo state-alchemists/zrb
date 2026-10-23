@@ -152,7 +152,7 @@ class LLMLimitsMixin:
         int,
         doc=(
             "Seconds a command that outran its Shell timeout keeps running in "
-            "the background before zrb kills it. The command is not killed at "
+            "the background before the CLI kills it. The command is not killed at "
             "the timeout itself, so the work it already did survives and the "
             "model gets a handle to monitor. 0 disables this and restores the "
             "kill-at-timeout behaviour. A command whose first word is `sleep` "

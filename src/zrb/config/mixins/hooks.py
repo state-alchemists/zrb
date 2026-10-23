@@ -50,7 +50,7 @@ class HooksMixin:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Name allowlist for the hooks zrb dispatches, the env twin of "
+            "Name allowlist for the hooks the CLI dispatches, the env twin of "
             "`hook_registry`. Empty means all registered hooks. "
             "Non-empty restricts dispatch to the named hooks. Finer edits live "
             "in zrb_init.py via `hook_registry` mutation."

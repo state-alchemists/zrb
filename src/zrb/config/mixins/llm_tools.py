@@ -14,7 +14,7 @@ class LLMToolsMixin:
         comma_list,
         serialize=comma_join,
         doc=(
-            "Name allowlist for the tools zrb agents may call, the env twin of "
+            "Name allowlist for the tools the agents may call, the env twin of "
             "`tool_registry`. Empty means all built-in tools. Set it "
             "to a comma-separated list of registered tool names (e.g. "
             "'Shell,Read,Write,Grep') to expose only those. Finer edits live in "

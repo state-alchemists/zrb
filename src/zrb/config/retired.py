@@ -15,21 +15,21 @@ RETIRED_SETTINGS: dict[str, str] = {
     ),
     # 3.14.0: stop handling moved to word lists and a small model.
     "LLM_DICTATION_BARGE_IN_ACTION": (
-        "nothing: anything said over zrb steers the turn, and a stop cancels it"
+        "nothing: anything said over the assistant steers the turn, and a stop cancels it"
     ),
     "LLM_DICTATION_TURN_END_TIMEOUT": (
         "nothing: only barge_in_action=cancel waited for a cancelled turn"
     ),
     "LLM_DICTATION_ECHO_COOLDOWN": (
-        "nothing: the microphone no longer goes deaf after zrb stops speaking; "
+        "nothing: the microphone no longer goes deaf after the assistant stops speaking; "
         "what it hears then is held by loudness instead, against the barge-in "
         "margin"
     ),
     "LLM_DICTATION_SELF_ECHO_MATCH": (
-        "nothing: barge-in holds zrb's own voice by loudness instead"
+        "nothing: barge-in holds the assistant's own voice by loudness instead"
     ),
     "LLM_DICTATION_SELF_ECHO_TAIL": (
-        "nothing: barge-in holds zrb's own voice by loudness instead"
+        "nothing: barge-in holds the assistant's own voice by loudness instead"
     ),
     "LLM_DICTATION_TRAILING_WORDS": (
         "nothing: an utterance now ends after LLM_DICTATION_MIN_SILENCE "

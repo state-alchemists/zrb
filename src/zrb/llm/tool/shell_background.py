@@ -152,7 +152,7 @@ class _ShellBackgroundRegistry:
         bp.deadline = None
         seconds = CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS
         bp.stderr_cap.feed(
-            f"\n[zrb] killed after {seconds}s in the background "
+            f"\n[{CFG.ROOT_GROUP_NAME}] killed after {seconds}s in the background "
             f"({CFG.ENV_PREFIX}_LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS). Start it "
             "again with background=True if it needs longer.\n"
         )

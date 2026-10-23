@@ -53,10 +53,10 @@ class LLMVoiceMixin:
             "still wins when set on its own). One of:\n"
             "- 'off' (default): typing; /speech and /voice switch voice on.\n"
             "- 'speak': replies are read aloud.\n"
-            "- 'turns': read aloud and always listening; you and zrb take "
+            "- 'turns': read aloud and always listening; you and the assistant take "
             "turns.\n"
-            "- 'conversation': as 'turns', and you can talk over zrb to "
-            "interrupt it; on macOS, zrb's voice is cancelled out of the "
+            "- 'conversation': as 'turns', and you can talk over the assistant to "
+            "interrupt it; on macOS, the assistant's voice is cancelled out of the "
             "microphone."
         ),
     )

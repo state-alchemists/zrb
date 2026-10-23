@@ -166,3 +166,19 @@ async def test_an_adopted_process_is_stopped_at_its_deadline(tmp_path, monkeypat
 
     assert "killed after 1s in the background" in status
     assert "Status: exited" in status
+    assert "[zrb]" in status
+
+
+@pytest.mark.asyncio
+async def test_the_deadline_notice_names_the_configured_cli(tmp_path, monkeypatch):
+    """A white-labeled build does not tell its user that `zrb` stopped it."""
+    monkeypatch.setattr(CFG, "LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS", 1)
+    monkeypatch.setattr(CFG, "ROOT_GROUP_NAME", "acme")
+    result = await run_shell_command(_ticker_command(tmp_path), timeout=1)
+    handle = _handle(result)
+
+    await asyncio.sleep(2)
+    status = await get_shell_background_registry().collect(handle)
+
+    assert "[acme] killed after 1s in the background" in status
+    assert "[zrb]" not in status
