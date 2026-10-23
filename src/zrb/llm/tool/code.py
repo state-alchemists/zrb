@@ -14,6 +14,7 @@ from zrb.llm.lsp.manager import lsp_manager
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.code_constants import DEFAULT_EXTENSIONS, LSP_SUPPORTED_EXTENSIONS
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
+from zrb.llm.tool.git_visible import git_visible_files
 from zrb.util.file import matches_any_pattern
 
 
@@ -93,6 +94,15 @@ async def analyze_code(
             )
         ),
     ] = True,
+    gitignore: Annotated[
+        bool,
+        Field(
+            description=(
+                "True (default) skips files .gitignore excludes, so a run does "
+                "not read or bill for output the repository refuses to track."
+            )
+        ),
+    ] = True,
 ) -> str:
     """
     Answers a question about a whole directory by reading it with an LLM
@@ -136,19 +146,20 @@ async def analyze_code(
             include_patterns = [file_pattern]
 
     available_servers = lsp_manager.list_available_servers() if use_lsp else None
+    visible = git_visible_files(abs_path) if gitignore else None
     if available_servers:
         zrb_print(
             f"  🔍 LSP enabled (servers: {list(available_servers.keys())})",
             plain=True,
         )
         file_metadatas = await _get_file_metadatas_with_lsp(
-            abs_path, extensions, include_patterns, exclude_patterns
+            abs_path, extensions, include_patterns, exclude_patterns, visible=visible
         )
     else:
         if use_lsp:
             zrb_print("  📄 LSP not available, using file reading", plain=True)
         file_metadatas = get_file_metadatas(
-            abs_path, extensions, include_patterns, exclude_patterns
+            abs_path, extensions, include_patterns, exclude_patterns, visible=visible
         )
 
     if not file_metadatas:
@@ -188,9 +199,15 @@ def _collect_matching_files(
     extensions: list[str],
     include_patterns: list[str] | None,
     exclude_patterns: list[str],
+    visible: set[str] | None = None,
 ) -> list[tuple[str, str]]:
     """Return `(file_path, rel_path)` for every file passing the
-    extension/include/exclude filters; filter errors are logged and skipped."""
+    extension/include/exclude filters; filter errors are logged and skipped.
+
+    *visible* is git's view of the tree (`git_visible_files`), relative to
+    *dir_path*; ``None`` means the directory is not a checkout and nothing is
+    filtered on it.
+    """
     matches: list[tuple[str, str]] = []
     for root, dirs, files in os.walk(dir_path):
         dirs[:] = [
@@ -203,6 +220,10 @@ def _collect_matching_files(
             file_path = os.path.join(root, file)
             try:
                 rel_path = os.path.relpath(file_path, dir_path)
+                if visible is not None and (
+                    os.path.normpath(rel_path) not in visible
+                ):
+                    continue
                 if matches_any_pattern(rel_path, exclude_patterns):
                     continue
                 if include_patterns and not matches_any_pattern(
@@ -220,11 +241,12 @@ def get_file_metadatas(
     extensions: list[str],
     include_patterns: list[str] | None,
     exclude_patterns: list[str],
+    visible: set[str] | None = None,
 ) -> list[dict[str, str]]:
     """Return `{path, content}` for every matching file, sorted by path."""
     metadata_list = []
     for file_path, rel_path in _collect_matching_files(
-        dir_path, extensions, include_patterns, exclude_patterns
+        dir_path, extensions, include_patterns, exclude_patterns, visible=visible
     ):
         try:
             with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -240,6 +262,7 @@ async def _get_file_metadatas_with_lsp(
     extensions: list[str],
     include_patterns: list[str] | None,
     exclude_patterns: list[str],
+    visible: set[str] | None = None,
 ) -> list[dict[str, str | dict]]:
     """Like `get_file_metadatas`, but uses LSP symbols where available and
     falls back to file content otherwise."""
@@ -248,7 +271,7 @@ async def _get_file_metadatas_with_lsp(
     file_paths = []
 
     for file_path, rel_path in _collect_matching_files(
-        dir_path, extensions, include_patterns, exclude_patterns
+        dir_path, extensions, include_patterns, exclude_patterns, visible=visible
     ):
         try:
             file_ext = os.path.splitext(file_path)[1].lower()
