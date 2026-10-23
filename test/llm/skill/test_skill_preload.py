@@ -1,7 +1,5 @@
 """`preload:` — a skill naming other skills to render with it."""
 
-import pytest
-
 from zrb.llm.skill.activation import build_activation_block, skill_body
 from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.llm.skill.preload import resolve_preload
@@ -83,7 +81,7 @@ def test_resolve_drops_duplicates(tmp_path):
 def test_resolve_reports_a_cycle_without_looping(tmp_path):
     manager = _manager(tmp_path)
     a = _add(manager, "a", [])
-    b = _add(manager, "b", ["a"])
+    _add(manager, "b", ["a"])
     a.preload = ["b"]
 
     resolved, problems = resolve_preload(manager, a)
