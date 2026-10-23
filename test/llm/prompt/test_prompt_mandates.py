@@ -54,5 +54,14 @@ def test_side_question_prompt_denies_the_tools_it_does_not_have():
     assert "batch independent tool calls" not in prompt
 
 
+def test_side_question_prompt_is_explicitly_unvoiced():
+    """The main reply opens with an emoji that drives voice and avatar state;
+    a side answer has neither, so its prompt says so instead of leaving the
+    absence to be guessed."""
+    prompt = get_prompt("side_question").lower()
+    assert "no emoji" in prompt
+    assert "never voiced" in prompt
+
+
 def test_unknown_prompt_is_empty():
     assert get_prompt("not-a-prompt-section") == ""
