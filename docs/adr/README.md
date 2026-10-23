@@ -105,6 +105,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0043** — [A tool result reaches the model once, via `return_value`](adr-0043.md)
 - **ADR-0094** — [`LLM_API_KEY` reaches only the provider it was configured for](adr-0094.md)
 - **ADR-0101** — [Working-directory snapshots are git trees in a private store, listed repository by repository](adr-0101.md)
+- **ADR-0119** — [Compaction re-attaches the newest skill bodies, bounded per skill and in total](adr-0119.md)
 
 ### Prompt
 
@@ -136,6 +137,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0067** — [MCP servers are first-class tool sources](adr-0067.md)
 - **ADR-0084** — [`write_file(mode="w")` refuses to overwrite a file this run hasn't observed](adr-0084.md)
 - **ADR-0089** — [Oversized tool results spill to a queryable store instead of being truncated](adr-0089.md)
+- **ADR-0120** — [LS, Glob and AnalyzeCode agree about `.gitignore`, and the default is to hide](adr-0120.md)
 
 ### Permissions and approval
 
