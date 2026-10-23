@@ -18,6 +18,11 @@ ATTACHMENT_TOKEN_ESTIMATE = 1600
 _ATTACHMENT_STAND_IN = " the" * ATTACHMENT_TOKEN_ESTIMATE
 
 
+def is_pinned(value: Any, env_key: str) -> bool:
+    """Whether a value was explicitly chosen: set directly, or pinned by its own env var."""
+    return value is not None or CFG.is_env_set(env_key)
+
+
 def is_turn_start(msg: Any) -> bool:
     """Identify start of a new user interaction (User Prompt without Tool Return)."""
     # lazy: zrb internal (heavy via transitive)
@@ -97,9 +102,7 @@ class LLMLimiter:
         model_window = model_capabilities.get(model).context_window
         if model_window is None or model_window <= 0:
             return self.max_token_per_request
-        if self._max_token_per_request is not None or CFG.is_env_set(
-            "LLM_MAX_TOKEN_PER_REQUEST"
-        ):
+        if is_pinned(self._max_token_per_request, "LLM_MAX_TOKEN_PER_REQUEST"):
             return min(self.max_token_per_request, model_window)
         return model_window
 
