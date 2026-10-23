@@ -7,7 +7,6 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.tool import shell as shell_mod
-from zrb.llm.tool import stream_capture as capture_mod
 from zrb.llm.tool.shell import run_shell_command
 
 
@@ -196,3 +195,58 @@ async def test_a_timed_out_command_leaves_no_unclosed_transport():
 
     leaked = [str(w.message) for w in caught if "unclosed transport" in str(w.message)]
     assert leaked == []
+
+
+def _noisy_lines(first: str, last: str, filler: int = 60) -> list[str]:
+    return [first] + [f"line-{index:04d}\n" for index in range(filler)] + [last]
+
+
+async def _run_noisy(monkeypatch, lines: list[str], returncode: int, max_chars: int):
+    monkeypatch.setattr(
+        shell_mod.asyncio,
+        "create_subprocess_exec",
+        AsyncMock(
+            return_value=_make_mock_process(stdout_lines=lines, returncode=returncode)
+        ),
+    )
+    return await run_shell_command("noisy", shell="node", max_chars=max_chars)
+
+
+@pytest.mark.asyncio
+async def test_a_failed_command_shows_its_first_line_and_its_last(monkeypatch):
+    """A failure announces its cause first and summarizes it last, so the
+    tail-only excerpt — right for a result — hides why it failed."""
+    res = await _run_noisy(
+        monkeypatch, _noisy_lines("FIRST-CAUSE\n", "LAST-SUMMARY\n"), 1, 200
+    )
+
+    assert "FIRST-CAUSE" in res
+    assert "LAST-SUMMARY" in res
+    assert "characters elided" in res
+    assert "kept the beginning and the end" in res
+
+
+@pytest.mark.asyncio
+async def test_a_successful_command_still_keeps_only_its_tail(monkeypatch):
+    """The result of a command that worked is at its end; the beginning is
+    progress chatter nobody needs to read again."""
+    res = await _run_noisy(
+        monkeypatch, _noisy_lines("FIRST-LINE\n", "LAST-RESULT\n"), 0, 200
+    )
+
+    assert "LAST-RESULT" in res
+    assert "FIRST-LINE" not in res
+    assert "characters elided" not in res
+    assert "kept the tail" in res
+
+
+@pytest.mark.asyncio
+async def test_a_failure_that_fits_is_shown_whole(monkeypatch):
+    res = await _run_noisy(
+        monkeypatch, _noisy_lines("FIRST-CAUSE\n", "LAST-SUMMARY\n", filler=2), 1, 10_000
+    )
+
+    assert "FIRST-CAUSE" in res
+    assert "LAST-SUMMARY" in res
+    assert "characters elided" not in res
+    assert "Output truncated" not in res

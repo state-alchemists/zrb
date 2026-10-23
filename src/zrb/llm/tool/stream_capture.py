@@ -53,6 +53,23 @@ class StreamCapture:
     def truncated(self) -> bool:
         return self.total_chars > self._held
 
+    def head_text(self, limit: int) -> str:
+        """The first *limit* characters of the stream, read back from the spill.
+
+        Empty when nothing was dropped — ``text`` is already the whole stream —
+        or when the spill is unavailable: a missing head costs the caller an
+        excerpt, never the output.
+        """
+        if limit <= 0 or not self.truncated or self.spill_path is None:
+            return ""
+        self.flush()
+        try:
+            with open(self.spill_path, "r", encoding="utf-8", errors="replace") as src:
+                return src.read(limit)
+        except OSError as e:
+            CFG.LOGGER.debug(f"Failed to read the head of the stream: {e}")
+            return ""
+
     def feed(self, chunk: str) -> None:
         self.total_chars += len(chunk)
         if self._spill is not None:
