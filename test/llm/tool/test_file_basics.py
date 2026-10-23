@@ -1,5 +1,6 @@
 import asyncio
 import os
+import subprocess
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -89,6 +90,74 @@ def test_list_files(temp_dir):
     files = res.get("files", [])
     assert "file1.txt" in files
     assert os.path.join("subdir", "file2.txt") in files
+
+
+def _init_checkout(path: str) -> None:
+    subprocess.run(["git", "init", "-q", path], check=True)
+
+
+def _write(path: str, content: str = "x") -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(content)
+
+
+def test_list_files_hides_gitignored(temp_dir):
+    """Generated trees (htmlcov, dist) must not bury the repository's shape."""
+    _init_checkout(temp_dir)
+    _write(os.path.join(temp_dir, ".gitignore"), "ignored/\n")
+    _write(os.path.join(temp_dir, "ignored", "artifact.html"))
+    _write(os.path.join(temp_dir, "kept.txt"))
+
+    files = list_files(temp_dir).get("files", [])
+
+    assert "kept.txt" in files
+    assert os.path.join("ignored", "artifact.html") not in files
+
+
+def test_list_files_gitignore_false_lists_ignored(temp_dir):
+    _init_checkout(temp_dir)
+    _write(os.path.join(temp_dir, ".gitignore"), "ignored/\n")
+    _write(os.path.join(temp_dir, "ignored", "artifact.html"))
+
+    files = list_files(temp_dir, gitignore=False).get("files", [])
+
+    assert os.path.join("ignored", "artifact.html") in files
+
+
+def test_list_files_outside_a_checkout_still_lists(temp_dir):
+    """No repository above the directory: the git filter must not hide it all."""
+    _write(os.path.join(temp_dir, "plain.txt"))
+
+    files = list_files(temp_dir).get("files", [])
+
+    assert "plain.txt" in files
+
+
+def test_list_files_depth_limits_the_walk(temp_dir):
+    _write(os.path.join(temp_dir, "root.txt"))
+    _write(os.path.join(temp_dir, "sub", "one.txt"))
+    _write(os.path.join(temp_dir, "sub", "deep", "two.txt"))
+
+    shallow = list_files(temp_dir, depth=1).get("files", [])
+    deeper = list_files(temp_dir, depth=2).get("files", [])
+
+    assert "root.txt" in shallow
+    assert os.path.join("sub", "one.txt") not in shallow
+    assert os.path.join("sub", "one.txt") in deeper
+    assert os.path.join("sub", "deep", "two.txt") not in deeper
+
+
+def test_list_files_summary_counts_by_top_level(temp_dir):
+    _write(os.path.join(temp_dir, "root.txt"))
+    _write(os.path.join(temp_dir, "sub", "one.txt"))
+    _write(os.path.join(temp_dir, "sub", "two.txt"))
+
+    result = list_files(temp_dir, summary=True)
+
+    assert result["total_files"] == 3
+    assert {"path": ".", "files": 1} in result["directories"]
+    assert {"path": "sub", "files": 2} in result["directories"]
 
 
 def test_glob_files(temp_dir):
@@ -255,6 +324,7 @@ def test_list_files_truncation(tmp_path):
     # Tiny char budget so the file list overflows and head-keep truncates.
     with patch("zrb.llm.tool.file_list.CFG") as mock_cfg:
         mock_cfg.LLM_MAX_OUTPUT_CHARS = 200
+        mock_cfg.LLM_GIT_CMD_TIMEOUT = 5000
         res = list_files(str(tmp_path))
     assert "truncation_notice" in res
     assert "TRUNCATED" in res["truncation_notice"]

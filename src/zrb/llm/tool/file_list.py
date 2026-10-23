@@ -1,5 +1,6 @@
 import glob
 import os
+import subprocess
 from typing import Annotated, Any
 
 from pydantic import Field
@@ -55,6 +56,55 @@ def _truncate_file_list(
     return kept, (omitted or None)
 
 
+def _git_visible_files(abs_path: str) -> set[str] | None:
+    """Files git would show under *abs_path* (tracked + untracked, not ignored).
+
+    ``None`` when this is not a git checkout or git is unavailable, so the
+    caller keeps the unfiltered walk instead of hiding everything.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                abs_path,
+                "ls-files",
+                "--cached",
+                "--others",
+                "--exclude-standard",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    return {
+        os.path.normpath(line.replace("/", os.sep))
+        for line in result.stdout.splitlines()
+        if line
+    }
+
+
+def _without_gitignored(abs_path: str, files: list[str]) -> list[str]:
+    """Drop files `.gitignore` hides, when *abs_path* is inside a checkout."""
+    visible = _git_visible_files(abs_path)
+    if visible is None:
+        return files
+    return [path for path in files if os.path.normpath(path) in visible]
+
+
+def _summarize_by_top_level(files: list[str]) -> list[dict[str, Any]]:
+    """File counts per immediate child (`.` for files directly in the root)."""
+    counts: dict[str, int] = {}
+    for path in files:
+        top = path.split(os.sep, 1)[0] if os.sep in path else "."
+        counts[top] = counts.get(top, 0) + 1
+    return [{"path": top, "files": count} for top, count in sorted(counts.items())]
+
+
 def list_files(
     path: Annotated[
         str, Field(description="Directory to list, recursively up to 3 levels deep.")
@@ -71,6 +121,34 @@ def list_files(
     include_hidden: Annotated[
         bool, Field(description="False (default) hides dotfiles; True surfaces them.")
     ] = False,
+    depth: Annotated[
+        int,
+        Field(
+            description=(
+                "How many directory levels below `path` to descend (default 3; "
+                "1 lists only the direct children)."
+            )
+        ),
+    ] = 3,
+    gitignore: Annotated[
+        bool,
+        Field(
+            description=(
+                "True (default) hides files .gitignore excludes. False lists "
+                "them, which is useful only when the ignored tree is the target."
+            )
+        ),
+    ] = True,
+    summary: Annotated[
+        bool,
+        Field(
+            description=(
+                "False (default) returns every path. True returns per-directory "
+                "file counts instead, which is the cheap way to orient in a "
+                "large tree."
+            )
+        ),
+    ] = False,
 ) -> dict[str, Any]:
     """
     Lists a directory tree, for orienting in an unfamiliar area of a project.
@@ -78,6 +156,11 @@ def list_files(
     When you already know the name or extension you want, Glob is narrower;
     when you want what is *inside* the files, Grep. Listing a large tree to
     locate one file you could have named is the expensive way to find it.
+
+    A git checkout hides what `.gitignore` excludes (generated coverage HTML,
+    build output), so the listing is the repository's real shape rather than
+    every artifact on disk. `summary=True` returns counts per top-level
+    directory instead of every path.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -96,9 +179,17 @@ def list_files(
     sorted_files = walk_files(
         abs_path,
         include_hidden=include_hidden,
-        depth=3,
+        depth=depth,
         excluded_patterns=patterns_to_exclude,
     )
+    if gitignore:
+        sorted_files = _without_gitignored(abs_path, sorted_files)
+    if summary:
+        return {
+            "path": abs_path,
+            "total_files": len(sorted_files),
+            "directories": _summarize_by_top_level(sorted_files),
+        }
 
     return _listing_result(abs_path, sorted_files)
 
