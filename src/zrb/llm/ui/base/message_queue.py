@@ -160,19 +160,27 @@ class MessageQueue(asyncio.Queue):
         return entry in self._queue
 
     def deliverable(
-        self, now: float, grace: float = EARLY_DELIVERY_GRACE_SECONDS
+        self,
+        now: float,
+        grace: float = EARLY_DELIVERY_GRACE_SECONDS,
+        immediate_entry: QueuedMessage | None = None,
     ) -> "tuple[QueuedMessage, ...]":
-        """Entries a checkpoint may hand to the running turn, oldest first.
+        """Entries safe to hand to a live run, oldest first.
 
-        Two are held back: the one the user is editing, and any younger than
-        `grace`. Holding one is not a barrier — the entries behind it still go,
-        so an edit in progress cannot stop the queue (ADR-0078, revised).
+        Hold an entry being edited, and give other recent entries their grace.
+        A hands-free utterance may skip only its own grace; it cannot send a
+        different draft before the user finishes editing it. A queued `/exec`
+        is an ordering barrier: later messages must wait for the command.
         """
-        return tuple(
-            entry
-            for entry in self._queue
-            if not entry.is_being_edited and now - entry.queued_at >= grace
-        )
+        ready: list[QueuedMessage] = []
+        for entry in self._queue:
+            if not entry.is_editable:
+                break
+            if not entry.is_being_edited and (
+                entry is immediate_entry or now - entry.queued_at >= grace
+            ):
+                ready.append(entry)
+        return tuple(ready)
 
     def remove(self, entry: QueuedMessage) -> None:
         """Remove `entry` from the queue without running it.

@@ -603,9 +603,13 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         source: InputProvenance | None = None,
         may_interrupt: bool = True,
     ) -> DeliveryReport:
-        """Submit *user_message* and hand it to the shared turn, now (ADR-0076)."""
+        """Send this message promptly without flushing other queued drafts."""
         self.submit_message(user_message, source)
-        return self.send_queued_messages_now(may_interrupt=may_interrupt)
+        return self.send_queued_messages_now(
+            may_interrupt=may_interrupt,
+            only_ready=True,
+            immediate_entry=self._message_queue.peek_latest(),
+        )
 
     async def process_messages_loop(self):
         """Process jobs from shared queue sequentially."""
@@ -752,7 +756,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         return any(ui.is_waiting_for_answer for ui in self._uis)
 
     def send_queued_messages_now(
-        self, may_interrupt: bool = True, only_ready: bool = False
+        self,
+        may_interrupt: bool = True,
+        only_ready: bool = False,
+        immediate_entry: QueuedMessage | None = None,
     ) -> DeliveryReport:
         """Deliver the queued messages into the running turn, now.
 
@@ -767,6 +774,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             cancel_turn=lambda: self.cancel_current_turn("send_now"),
             may_interrupt=may_interrupt,
             only_ready=only_ready,
+            immediate_entry=immediate_entry,
         )
         main_ui = self.main_ui
         redraw = getattr(main_ui, "redraw_echoes", None)

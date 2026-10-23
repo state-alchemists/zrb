@@ -57,7 +57,9 @@ def split_history(
         else _split_within_budget(messages, limiter, budget, tool_pairs)
     )
     if budget_split is None:
-        return _fallback_split(messages, limiter, conversational_token_threshold, tool_pairs)
+        return _fallback_split(
+            messages, limiter, conversational_token_threshold, tool_pairs
+        )
     split_idx = budget_split
     if count_cap > split_idx:
         split_idx = _first_safe_from(messages, count_cap, tool_pairs) or split_idx
@@ -78,9 +80,20 @@ def _split_within_budget(
     keeps the most history: the tail lands as close to the budget as the turn
     boundaries allow. Returns ``None`` when even the newest message alone is
     over budget.
+
+    Only candidates at or after the first one that fits can be selected, so
+    when the counter allows it that first index is bisected instead of walked
+    (`_earliest_fitting_split`); every candidate from there still gets the
+    tool-pair and turn-start checks below.
     """
+    start = 1
+    if _can_binary_search(limiter):
+        earliest = _earliest_fitting_split(messages, limiter, budget)
+        if earliest is None:
+            return None
+        start = earliest
     first_safe = None
-    for split_idx in range(1, len(messages)):
+    for split_idx in range(start, len(messages)):
         tail_tokens = limiter.count_tokens(messages[split_idx:])
         if tail_tokens > budget:
             continue
@@ -93,6 +106,43 @@ def _split_within_budget(
                 return split_idx
             break
     return first_safe
+
+
+def _can_binary_search(limiter: LLMLimiter) -> bool:
+    """Whether suffix counts fall monotonically, so the first fit is bisectable.
+
+    Only the shipped counter carries that guarantee. It measures flattened
+    text with the char/4 estimate, so dropping the oldest message can only
+    shorten what is counted: a usage anchor pins the count for every suffix
+    that still holds it, and the trailing `instructions` term can only
+    disappear as the suffix shrinks. A subclass may count anything at all,
+    and tiktoken re-tokenizes across the dropped boundary, so both keep the
+    linear walk — correctness there rests on visiting every index.
+    """
+    return type(limiter) is LLMLimiter and not limiter.use_tiktoken
+
+
+def _earliest_fitting_split(
+    messages: "list[ModelMessage]", limiter: LLMLimiter, budget: float
+) -> int | None:
+    """The lowest split whose kept tail fits `budget`, found by bisection.
+
+    Relies on `_can_binary_search(limiter)`: counts never rise as the kept
+    tail shrinks, so the first index that fits can be found without visiting
+    the indices before it. Returns ``None`` when even the newest message
+    alone is over budget.
+    """
+    highest = len(messages) - 1
+    if highest < 1 or limiter.count_tokens(messages[highest:]) > budget:
+        return None
+    lowest = 1
+    while lowest < highest:
+        middle = (lowest + highest) // 2
+        if limiter.count_tokens(messages[middle:]) <= budget:
+            highest = middle
+        else:
+            lowest = middle + 1
+    return lowest
 
 
 def _first_safe_from(
@@ -273,7 +323,9 @@ def find_best_effort_split(
 
 
 def is_split_safe(
-    messages: "list[ModelMessage]", split_idx: int, tool_pairs: dict[str, dict[str, int | None]]
+    messages: "list[ModelMessage]",
+    split_idx: int,
+    tool_pairs: dict[str, dict[str, int | None]],
 ) -> bool:
     """Check if splitting at the given index would break tool call/return pairs.
 

@@ -22,6 +22,7 @@ from pydantic_ai.messages import (
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer import summarize_history
+
 # The one test below is about the cut itself, which the public API only reaches
 # through a model that answers badly twice; the helpers are the subject there.
 from zrb.llm.summarizer.history_summarizer import (
@@ -281,6 +282,46 @@ async def test_a_summary_without_the_schema_is_still_used():
 
     assert len(history) < len(_history())
     assert "Summary content" in _summary_text(history)
+
+
+@pytest.mark.asyncio
+async def test_the_schema_warning_promises_nothing_about_the_archive():
+    """It is printed before the archive write is attempted, so it must not tell
+    the reader the originals were kept."""
+    with (
+        patch(
+            "zrb.llm.summarizer.history_summarizer.archive_verbatim_history",
+            return_value=None,
+        ),
+        patch("zrb.llm.summarizer.history_summarizer.zrb_print") as printed,
+    ):
+        await _compress(_agent("Summary content"), _history())
+
+    warnings = [str(call.args[0]) for call in printed.call_args_list]
+    schema_warning = next(w for w in warnings if "<state_snapshot>" in w)
+    assert "holds the originals" not in schema_warning
+
+
+@pytest.mark.asyncio
+async def test_a_compaction_with_nothing_to_archive_points_nowhere():
+    """Every summarized message was a prior summary, which the archive does not
+    repeat: there is no file to point at, and no failure to report."""
+    prior = [
+        ModelRequest(
+            parts=[
+                UserPromptPart(content="# SYSTEM: Automated Context Restoration\nold")
+            ]
+        )
+        for _ in range(3)
+    ]
+
+    with patch("zrb.llm.summarizer.history_summarizer.zrb_print") as printed:
+        history = await _compress(_agent("Summary content"), [*prior, *_history()[2:]])
+
+    assert "Summary content" in _summary_text(history)  # still compacted
+    assert "## Verbatim history archive" not in _block(history)
+    warnings = [str(call.args[0]) for call in printed.call_args_list]
+    assert not any("could not be written" in warning for warning in warnings)
 
 
 def test_the_summary_cap_defaults_to_the_prompt_budget():

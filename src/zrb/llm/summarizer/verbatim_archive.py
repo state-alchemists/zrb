@@ -7,26 +7,54 @@ is gone unless something kept it. This module is that something.
 The archive lives beside the history files, under
 ``<LLM_HISTORY_DIR>/verbatim/``, one markdown file per conversation. Each
 compaction appends a section; nothing is ever rewritten or removed, so a later
-compaction cannot lose an earlier one. The summary names the file, so the agent
-can read back what the summary left out.
+compaction cannot lose an earlier one. A written section is named in the
+summary, so the agent can read back what the summary left out. A failed append
+is cut back to the size it started at and returns ``None``, so the summary
+carries no pointer to a partial record.
+
+A transcript is private: on POSIX the directory is created ``0700`` and the file
+``0600``, and neither is written through a symlink. Windows has neither mode
+bits nor an equivalent open flag, so there the archive inherits the profile
+directory's permissions.
 """
 
 from __future__ import annotations
 
 import hashlib
 import os
+import stat
 from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.history_manager.file_history_manager import safe_segment
 from zrb.llm.summarizer.message_converter import message_to_text
+from zrb.util.file_lock import hold_file_lock
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
 
 ARCHIVE_DIR_NAME = "verbatim"
 """Subdirectory of `LLM_HISTORY_DIR` holding the archives."""
+
+# The modes are applied after creation, not passed to `makedirs`/`open` alone: a
+# umask can only clear bits, so a umask that clears one of these would otherwise
+# leave the archive readable by others.
+_ARCHIVE_DIR_MODE = 0o700
+_ARCHIVE_FILE_MODE = 0o600
+
+# `O_APPEND` is the append-only promise: the kernel puts every write at the end,
+# so two writers interleave sections instead of overwriting each other's.
+# `O_NOFOLLOW` refuses a symlink standing where the archive belongs; Windows has
+# no such flag, and creating a symlink there needs a privilege the caller of a
+# hijack would not have.
+_APPEND_FLAGS = (
+    os.O_WRONLY
+    | os.O_CREAT
+    | os.O_APPEND
+    | getattr(os, "O_NOFOLLOW", 0)
+    | getattr(os, "O_BINARY", 0)
+)
 
 
 def verbatim_archive_path(session_name: str, history_dir: str | None = None) -> str:
@@ -67,20 +95,151 @@ def archive_verbatim_history(
 
     Never raises: failing to archive must not fail the turn that needed the
     summary. ``None`` means nothing was written (no messages, write failure).
+    `tokens` is the size of *messages* as given, so a section's message count and
+    its token count describe the same list — the caller drops anything it does
+    not archive (prior summaries) before counting.
+
+    The archive is private and symlink-proof on POSIX: the file is created
+    ``0600`` inside a ``0700`` directory and opened ``O_NOFOLLOW``, so a link
+    planted at either path cannot redirect the append to a file of the planter's
+    choosing. A write that fails partway is cut back to its pre-write length, so
+    no half-written section survives; on the ``None`` that follows, a caller must
+    never point at the archive.
     """
     if not messages:
         return None
+    # Rendered before the file is touched: a message that cannot be rendered
+    # must not leave a header-only archive behind.
+    body = _render_section(messages, tokens)
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        is_new = not os.path.exists(path)
-        with open(path, "a", encoding="utf-8") as stream:
-            if is_new:
-                stream.write(_file_header(os.path.basename(path)[: -len(".md")]))
-            stream.write(_render_section(messages, tokens))
-        return path
+        # The lock makes the rollback exact: no other appender's section can land
+        # between the size read and the truncate that undoes a failed write. The
+        # directory has to exist before the lock file can sit in it.
+        _ensure_archive_directory(os.path.dirname(path))
+        with hold_file_lock(_lock_path(path), timeout=CFG.LLM_ARCHIVE_LOCK_TIMEOUT):
+            _append_new_section(path, body)
     except OSError as e:
         CFG.LOGGER.warning(f"Could not archive verbatim history at {path}: {e}")
         return None
+    return path
+
+
+def _lock_path(path: str) -> str:
+    """The sidecar file the archive's lock sits on.
+
+    Nothing is written to it and it is never removed: the lock is the operating
+    system's, released when its holder exits, so this file is only a handle. The
+    leading dot keeps it out of a casual listing of the archives beside it.
+    """
+    directory, name = os.path.split(path)
+    return os.path.join(directory, f".{name}.lock")
+
+
+def _append_new_section(path: str, body: str) -> None:
+    """Append *body* under the held lock, with the file header if it is empty."""
+    descriptor, size_before = _open_archive(path)
+    # Zero bytes means created here, or an earlier attempt rolled back to
+    # nothing: either way this section is the first one the file will hold.
+    header = "" if size_before else _file_header(os.path.basename(path)[: -len(".md")])
+    _append_section(descriptor, size_before, header + body)
+
+
+def _open_archive(path: str) -> "tuple[int, int]":
+    """Open the archive for appending; return its descriptor and current size.
+
+    The caller has already made the directory owner-only. A symlink standing
+    where the file belongs is refused rather than followed, through `O_NOFOLLOW`,
+    which only POSIX has.
+    """
+    descriptor = os.open(path, _APPEND_FLAGS, _ARCHIVE_FILE_MODE)
+    try:
+        size_before = os.fstat(descriptor).st_size
+        if size_before == 0:
+            _make_owner_only(descriptor)
+    except OSError:
+        _close_quietly(descriptor)
+        raise
+    return descriptor, size_before
+
+
+def _ensure_archive_directory(directory: str) -> None:
+    """Create *directory* owner-only; refuse a symlink or another user's directory.
+
+    Raises `OSError` (`PermissionError` for the refusals) so a failed write is
+    reported instead of appending into whatever the path points at. A directory
+    that already exists keeps the mode it has: it may predate this rule, and
+    changing a directory zrb does not exclusively own is not this call's to do.
+    """
+    try:
+        os.makedirs(directory, mode=_ARCHIVE_DIR_MODE)
+    except FileExistsError:
+        pass
+    else:
+        os.chmod(directory, _ARCHIVE_DIR_MODE)
+    info = os.lstat(directory)
+    if os.path.islink(directory) or not stat.S_ISDIR(info.st_mode):
+        raise PermissionError(f"Archive path is not a directory: {directory}")
+    if hasattr(os, "getuid") and info.st_uid != os.getuid():
+        raise PermissionError(
+            f"Archive directory is not owned by the current user: {directory}"
+        )
+
+
+def _make_owner_only(descriptor: int) -> None:
+    """Narrow a file this call created to ``0600``, whatever the umask.
+
+    Only for a file created here: a mode left on an existing archive — one
+    written before this rule, say — is not this call's to change. Windows has no
+    `fchmod`, and its permission bits would not express ``0600`` anyway.
+    """
+    if hasattr(os, "fchmod"):
+        os.fchmod(descriptor, _ARCHIVE_FILE_MODE)
+
+
+def _append_section(descriptor: int, size_before: int, text: str) -> None:
+    """Append *text*; cut the file back to *size_before* when the write fails.
+
+    Everything past *size_before* is this call's own bytes, so truncating
+    removes exactly what a failed write left behind without reading the archive
+    into memory. A concurrent appender's section that landed in the same window
+    goes too: two zrb processes on one archive are the residual risk.
+    """
+    try:
+        # `closefd=False`: the descriptor must outlive a flush that fails on
+        # close, so the rollback below still has a file to cut back.
+        with os.fdopen(descriptor, "a", encoding="utf-8", closefd=False) as stream:
+            stream.write(text)
+    except OSError:
+        _cut_back(descriptor, size_before)
+        raise
+    finally:
+        _close_quietly(descriptor)
+
+
+def _cut_back(descriptor: int, size_before: int) -> None:
+    """Truncate the open archive back to *size_before*; best effort.
+
+    When this fails too the partial section stays on disk. It is logged, not
+    repaired: repairing it means rewriting a file whose whole promise is that it
+    is only ever appended to.
+    """
+    try:
+        os.ftruncate(descriptor, size_before)
+    except OSError as e:
+        CFG.LOGGER.warning(f"Could not roll back a partial archive write: {e}")
+
+
+def _close_quietly(descriptor: int) -> None:
+    """Close *descriptor*, swallowing an error: there is nothing left to repair.
+
+    The bytes were flushed by the stream's own close, and the module's contract
+    is never to raise, so a failure at this last step is dropped rather than
+    turned into an exception.
+    """
+    try:
+        os.close(descriptor)
+    except OSError:
+        pass
 
 
 def _file_header(session_name: str) -> str:

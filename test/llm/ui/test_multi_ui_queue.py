@@ -250,6 +250,26 @@ def test_the_multi_ui_delivers_the_shared_queue_into_the_live_run(
     assert multi_ui.message_queue.qsize() == 0
 
 
+def test_multi_ui_speech_does_not_flush_a_draft(multi_ui, child_ui_1, child_ui_2):
+    for child in (child_ui_1, child_ui_2):
+        child.is_waiting_for_answer = False
+    run = MagicMock()
+    multi_ui.active_run_context = run
+
+    async def run_entry():
+        pass
+
+    draft = QueuedMessage(text="draft", attachments=[], kind="message", run=run_entry)
+    draft.is_being_edited = True
+    multi_ui.message_queue.put_nowait(draft)
+
+    report = multi_ui.submit_message_now("spoken", may_interrupt=False)
+
+    assert [entry.text for entry in report.delivered_entries] == ["spoken"]
+    assert multi_ui.message_queue.pending() == (draft,)
+    run.enqueue.assert_called_once_with("spoken", priority="asap")
+
+
 def test_the_multi_ui_waits_while_a_child_holds_a_prompt(
     multi_ui, child_ui_1, child_ui_2
 ):
