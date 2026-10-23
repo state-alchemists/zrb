@@ -88,6 +88,17 @@ def test_a_literal_closing_tag_does_not_swallow_the_next_skill():
     assert "BODY_B" in content
 
 
+def test_a_quoted_opening_tag_does_not_start_a_second_block():
+    """Text written before the body was neutralised can still hold one."""
+    body = 'To activate, write:\n<ACTIVATED_SKILL name="example">\nEND_MARKER'
+    dropped = _request(_block("core-coding", body))
+
+    content = _content(build_reattach_message(dropped, [], llm_limiter))
+
+    assert 'name="core-coding"' in content
+    assert "END_MARKER" in content
+
+
 def test_a_skill_kept_verbatim_is_skipped_while_the_other_is_reattached():
     dropped = _request(_block("core-coding"), _block("core-research"))
     kept = _request(_block("core-coding"))

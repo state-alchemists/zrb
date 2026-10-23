@@ -54,25 +54,37 @@ def _message_text(message: "ModelMessage") -> str:
 def _blocks(text: str) -> list[tuple[str, str]]:
     """`(name, block)` for every activation block in *text*, in text order.
 
-    The body is model-authored and embedded unescaped, so it may itself contain
-    the literal closing tag — a skill that teaches this markup, for instance. A
-    block therefore ends at the *last* closing tag before the next opening one,
-    not at the first to appear, which would cut the body short.
+    A body is model-authored and may quote this markup, so the tags are paired
+    by position rather than by the first match: an opening that falls inside a
+    block already read is an example, not a block, and a block ends at the last
+    closing tag before the next opening one — or, when that window holds no
+    closing tag at all, at the last one in the text.
+
+    New text no longer needs this: the rendering side neutralises the
+    delimiters inside a body (`zrb.llm.skill.activation`). The heuristics are
+    for history written before that, where the tags are genuinely ambiguous.
     """
     openings = list(_OPEN_PATTERN.finditer(text))
     found: list[tuple[str, str]] = []
+    consumed_until = 0
     for index, opening in enumerate(openings):
+        if opening.start() < consumed_until:
+            continue
         limit = openings[index + 1].start() if index + 1 < len(openings) else len(text)
         close_at = text.rfind(_CLOSING_TAG, opening.end(), limit)
         if close_at < 0:
+            close_at = text.rfind(_CLOSING_TAG)
+        if close_at < opening.end():
             continue
+        end = close_at + len(_CLOSING_TAG)
         name_match = _NAME_PATTERN.search(opening.group(0))
         found.append(
             (
                 name_match.group(1) if name_match else "",
-                text[opening.start() : close_at + len(_CLOSING_TAG)],
+                text[opening.start() : end],
             )
         )
+        consumed_until = end
     return found
 
 

@@ -11,6 +11,22 @@ from pathlib import Path
 from zrb.llm.skill.manager import Skill
 from zrb.llm.skill.util import discover_companion_files, format_companion_file_lines
 
+_DELIMITERS = ("<ACTIVATED_SKILL", "</ACTIVATED_SKILL>")
+
+
+def _neutralize_delimiters(body: str) -> str:
+    """Stop a body from faking the tag that wraps it.
+
+    The body is model-authored and rendered inside `<ACTIVATED_SKILL>`; a skill
+    documenting this markup would otherwise close or reopen the block it lives
+    in — for the model reading it, and for the reader that re-attaches the block
+    after compaction. Only the tag literals change, so markdown and code fences
+    stay exactly as written.
+    """
+    for delimiter in _DELIMITERS:
+        body = body.replace(delimiter, delimiter.replace("<", "&lt;"))
+    return body
+
 
 def skill_body(content: str) -> str:
     """The skill's markdown body, without the YAML frontmatter it may open with.
@@ -63,5 +79,5 @@ def build_activation_block(
     attrs = f' name="{escape(skill.name, quote=True)}"'
     if preloaded_by:
         attrs += f' preloaded-by="{escape(preloaded_by, quote=True)}"'
-    body = skill_body(content)
+    body = _neutralize_delimiters(skill_body(content))
     return f"<ACTIVATED_SKILL{attrs}>\n" + "\n".join(lines) + f"\n\n{body}\n</ACTIVATED_SKILL>"

@@ -362,7 +362,12 @@ async def summarize_history(
         if summary_message is None:
             return messages
         result = _assemble_summarized_history(
-            summary_message, messages, to_keep, verbatim_tail_message, structured_tail
+            summary_message,
+            messages,
+            to_keep,
+            verbatim_tail_message,
+            structured_tail,
+            llm_limiter,
         )
         # Only now, with a summary that replaces the messages in hand: an
         # archive written before a failed summarization would claim messages
@@ -374,7 +379,12 @@ async def summarize_history(
             # Nothing but prior summaries here, which the archive does not
             # repeat: there is no file to point at.
             return _without_archive_pointer(
-                fitted, messages, to_keep, verbatim_tail_message, structured_tail
+                fitted,
+                messages,
+                to_keep,
+                verbatim_tail_message,
+                structured_tail,
+                llm_limiter,
             )
         # The size is counted on `archived`, the list the section renders, so
         # the section's message and token counts describe the same messages.
@@ -393,7 +403,12 @@ async def summarize_history(
             plain=True,
         )
         return _without_archive_pointer(
-            fitted, messages, to_keep, verbatim_tail_message, structured_tail
+            fitted,
+            messages,
+            to_keep,
+            verbatim_tail_message,
+            structured_tail,
+            llm_limiter,
         )
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
@@ -439,6 +454,7 @@ def _without_archive_pointer(
     to_keep: "list[ModelMessage]",
     verbatim_tail_message: "ModelMessage | None",
     structured_tail: "list[ModelMessage]",
+    limiter: "LLMLimiter",
 ) -> "list[ModelMessage]":
     """The replacement the cap approved, minus the pointer to an unwritten archive.
 
@@ -450,7 +466,12 @@ def _without_archive_pointer(
     if summary_message is None:
         return messages
     return _assemble_summarized_history(
-        summary_message, messages, to_keep, verbatim_tail_message, structured_tail
+        summary_message,
+        messages,
+        to_keep,
+        verbatim_tail_message,
+        structured_tail,
+        limiter,
     )
 
 
@@ -857,6 +878,7 @@ def _assemble_summarized_history(
     to_keep: list[Any],
     verbatim_tail_message: "ModelMessage | None",
     structured_tail: "list[ModelMessage]",
+    limiter: "LLMLimiter",
 ) -> list[Any]:
     """Join the summary, the opening user turn, the re-attached skills, the
     rendered recent tail, and any still-unresolved tool call.
@@ -866,7 +888,9 @@ def _assemble_summarized_history(
     appears further down, in `verbatim_tail_message` or `structured_tail`.
     Skill bodies that `to_summarize` carried do not survive as messages, and a
     summary that only names them is not the instructions, so the newest block
-    per skill is re-attached (see `zrb.llm.skill.reattach`).
+    per skill is re-attached (see `zrb.llm.skill.reattach`). *limiter* is the
+    run's own, so the caps are measured with the tokenizer the caller budgeted
+    against.
     `structured_tail` stays in native message form — a trailing deferred tool
     call pydantic-ai must still be able to resume — everything else that
     `split_history` chose to keep was already rendered into
@@ -885,7 +909,7 @@ def _assemble_summarized_history(
         result.append(first_user_message)
         kept.append(first_user_message)
     dropped = [m for m in messages if all(m is not surviving for surviving in kept)]
-    reattached = build_reattach_message(dropped, kept, default_llm_limiter)
+    reattached = build_reattach_message(dropped, kept, limiter)
     if reattached is not None:
         result.append(reattached)
     if verbatim_tail_message is not None:
