@@ -1602,7 +1602,8 @@
         "agent:POSITIONAL_OR_KEYWORD:1",
         "content:POSITIONAL_OR_KEYWORD:1",
         "content_factory:POSITIONAL_OR_KEYWORD:1",
-        "companion_files:POSITIONAL_OR_KEYWORD:1"
+        "companion_files:POSITIONAL_OR_KEYWORD:1",
+        "preload:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": []
     },

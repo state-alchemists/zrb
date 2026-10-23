@@ -202,6 +202,7 @@ class PromptManager:
         ctx: AnyContext,
         inject_journal_index: bool = False,
         first_message: str | None = None,
+        previous_live_context: str | None = None,
     ) -> str:
         """Render per-turn state as a ``<live-context>`` block for the latest user message.
 
@@ -214,6 +215,7 @@ class PromptManager:
             self._model,
             inject_journal_index=inject_journal_index,
             first_message=first_message,
+            previous_live_context=previous_live_context,
         )
         return self._finish_live_context(body, ctx)
 
@@ -222,6 +224,7 @@ class PromptManager:
         ctx: AnyContext,
         inject_journal_index: bool = False,
         first_message: str | None = None,
+        previous_live_context: str | None = None,
     ) -> str:
         """``create_live_context`` with git subprocesses run off the event loop."""
         body = await render_live_context_async(
@@ -229,6 +232,7 @@ class PromptManager:
             self._model,
             inject_journal_index=inject_journal_index,
             first_message=first_message,
+            previous_live_context=previous_live_context,
         )
         return self._finish_live_context(body, ctx)
 

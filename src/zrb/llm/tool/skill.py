@@ -1,12 +1,12 @@
-from pathlib import Path
 from typing import Annotated
 
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.skill.activation import build_activation_block
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
-from zrb.llm.skill.util import discover_companion_files, format_companion_file_lines
+from zrb.llm.skill.preload import format_preload_problems, resolve_preload
 from zrb.llm.util.roster import cap_items, search_roster
 
 
@@ -43,23 +43,20 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
         if not content:
             return _skill_not_found_message(skill, skill_manager)
 
-        skill_dir = str(Path(found.path).parent)
-        companion_files = found.companion_files or discover_companion_files(found.path)
-
-        header_lines = [
-            "Skill activated. The following context applies:",
-            "",
-            f"Skill directory (working directory): {skill_dir}",
-            "",
-            "All file paths in the skill instructions below are relative to this directory.",
-            "Use companion files (scripts, tools, references) by resolving them against this path.",
+        preloaded, problems = resolve_preload(skill_manager, found)
+        blocks = [
+            build_activation_block(
+                dependency,
+                skill_manager.get_skill_content(dependency.name)
+                or dependency.description,
+                preloaded_by=found.name,
+            )
+            for dependency in preloaded
         ]
-        header_lines.extend(format_companion_file_lines(companion_files))
-        header_lines.append("")
-        header_lines.append("---")
-
-        header = "\n".join(header_lines)
-        return f"<ACTIVATED_SKILL>\n{header}\n\n{content}\n</ACTIVATED_SKILL>"
+        blocks.append(build_activation_block(found, content, announce=True))
+        if problems:
+            blocks.append(format_preload_problems(problems))
+        return "\n\n".join(blocks)
 
     activate_skill_impl.__name__ = "ActivateSkill"
     # No roster here: the prompt's skill catalogue already lists the names, and

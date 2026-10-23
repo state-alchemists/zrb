@@ -10,6 +10,7 @@ import asyncio
 import os
 import re
 import subprocess
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from typing import Any
@@ -38,6 +39,9 @@ LIVE_CONTEXT_ANCHOR = (
 _LIVE_CONTEXT_BLOCK_RE = re.compile(
     r"\n\n(<live-context>.*</live-context>)\s*\Z", re.DOTALL
 )
+
+# A journal index entry: `[title](category/note.md)`.
+_INDEX_LINK = re.compile(r"\[([^\]]+)\]\(([a-z0-9_-]+)/[^)]*\)")
 
 
 def append_live_context(prompt_content: Any, live_context: str) -> Any:
@@ -73,6 +77,116 @@ def split_live_context(content: str) -> tuple[str, str | None]:
             return content[:idx].rstrip(), content[idx:].rstrip()
         return content, None
     return content[: match.start()].rstrip(), match.group(1)
+
+
+def previous_git_baseline(message_history: "Sequence[object]") -> str | None:
+    """The git baseline reconstructed from the blocks in *message_history*.
+
+    A block may be a delta that omitted unchanged sections, so the newest one
+    alone is not a baseline: diffing against it would report the omitted old
+    commits as new. Scan back to the last block that had every section. The
+    scan is not windowed — after a run of deltas the last complete block can
+    sit arbitrarily far back, and a bounded one would silently fall past it.
+
+    ``None`` means no complete baseline exists (a fresh repository, or the
+    blocks were compacted away), and the caller renders the full state instead
+    of a delta that might label old commits as new.
+
+    Read from the history the run is actually using, never from a side cache:
+    ``/rewind`` and ``/load`` replace that history, so the blocks found here
+    are the ones the next turn should diff against.
+    """
+    return _merge_git_blocks(_recent_live_contexts(message_history))
+
+
+def _recent_live_contexts(message_history: "Sequence[object]") -> list[str]:
+    """Unwrapped live-context blocks, newest first."""
+    blocks: list[str] = []
+    for message in reversed(message_history):
+        parts = getattr(message, "parts", None) or []
+        for part in reversed(parts):
+            block = _live_context_in(getattr(part, "content", None))
+            if block:
+                blocks.append(_unwrap_live_context(block))
+    return blocks
+
+
+def _merge_git_blocks(blocks: list[str]) -> str | None:
+    """One block holding the newest known status/worktrees and every known commit."""
+    status, commits, worktrees = _baseline_sections(blocks)
+    # Without both a status and a commit list, this is not a baseline: a
+    # partial one would label old commits as new, so the caller renders the
+    # full state instead.
+    if not (status and commits):
+        return None
+    return _render_git_baseline(status, commits, worktrees)
+
+
+def _baseline_sections(
+    blocks: list[str],
+) -> tuple[list[str], list[str], list[str]]:
+    """(status, commits, worktrees) merged from the newest block to the oldest."""
+    status: list[str] = []
+    commits: list[str] = []
+    worktrees: list[str] = []
+    seen: set[str] = set()
+    for block in blocks:
+        parsed = _git_state(_flatten(_previous_git_lines(block)))
+        status = status or parsed["status"]
+        worktrees = worktrees or parsed["worktrees"]
+        _extend_new_commits(commits, seen, parsed["commits"])
+        if status and worktrees and commits:
+            break
+    return status, commits, worktrees
+
+
+def _extend_new_commits(
+    commits: list[str], seen: set[str], found: list[str]
+) -> None:
+    """Append commits not already in *seen*, preserving render order."""
+    for commit in found:
+        key = _commit_key(commit)
+        if key in seen:
+            continue
+        seen.add(key)
+        commits.append(commit)
+
+
+def _render_git_baseline(
+    status: list[str], commits: list[str], worktrees: list[str]
+) -> str:
+    """A block `_git_delta` can parse: status, then commits, then worktrees."""
+    lines = list(status)
+    if commits:
+        lines.append("- Recent commits:")
+        lines.extend(f"  {commit}" for commit in commits)
+    if worktrees:
+        lines.append("- Worktrees:")
+        lines.extend(f"  {worktree}" for worktree in worktrees)
+    return "\n".join(lines)
+
+
+def _unwrap_live_context(block: str) -> str:
+    """The block's content, without the wrapper tags the prompt carries."""
+    text = block.strip()
+    if text.startswith("<live-context>"):
+        text = text[len("<live-context>") :]
+    if text.endswith("</live-context>"):
+        text = text[: -len("</live-context>")]
+    return text.strip()
+
+
+def _live_context_in(content: object) -> str | None:
+    """The block in a string prompt, or in the trailing item of a multimodal one."""
+    if isinstance(content, str):
+        return split_live_context(content)[1]
+    if isinstance(content, list):
+        for item in reversed(content):
+            if isinstance(item, str):
+                block = split_live_context(item)[1]
+                if block:
+                    return block
+    return None
 
 
 def _collect_worktree_lines(timeout: float) -> list[str]:
@@ -175,6 +289,80 @@ def _collect_git_info(
     return git_lines, todos_data
 
 
+def _commit_key(line: str) -> str:
+    """The hash prefix that identifies a rendered commit line."""
+    parts = line.split()
+    return parts[0] if parts else ""
+
+
+def _flatten(lines: list[str]) -> list[str]:
+    """One entry per rendered line: git log and worktrees arrive as blocks."""
+    flattened: list[str] = []
+    for line in lines:
+        flattened.extend(line.splitlines())
+    return flattened
+
+
+def _git_state(lines: list[str]) -> dict[str, list[str]]:
+    """Split rendered git lines into status, commits and worktrees."""
+    state: dict[str, list[str]] = {"status": [], "commits": [], "worktrees": []}
+    section: str | None = None
+    for line in lines:
+        if line.startswith("- Git:"):
+            state["status"] = [line]
+            section = None
+        elif line.startswith("- Recent commits"):
+            section = "commits"
+        elif line.startswith("- Worktrees:"):
+            section = "worktrees"
+        elif section and line.startswith("  "):
+            state[section].append(line.strip())
+        else:
+            section = None
+    return state
+
+
+def _previous_git_lines(block: str) -> list[str]:
+    """The git lines of a previous live-context block, in render order."""
+    lines: list[str] = []
+    active = False
+    for line in block.splitlines():
+        if line.startswith(("- Git:", "- Recent commits", "- Worktrees:")):
+            active = True
+        elif not line.startswith("  "):
+            active = False
+        if active:
+            lines.append(line)
+    return lines
+
+
+def _git_delta(current: list[str], previous_block: str | None) -> list[str]:
+    """What changed in git since *previous_block*, or the full state without one.
+
+    Time always renders in full; only the git section shrinks to a delta.
+    """
+    if not current or previous_block is None:
+        return current
+    before = _git_state(_previous_git_lines(previous_block))
+    now = _git_state(_flatten(current))
+    if now == before:
+        return ["- Git: unchanged since the last turn."]
+    lines: list[str] = []
+    if now["status"] != before["status"]:
+        lines.extend(now["status"])
+    known = {_commit_key(commit) for commit in before["commits"]}
+    new_commits = [
+        commit for commit in now["commits"] if _commit_key(commit) not in known
+    ]
+    if new_commits:
+        lines.append("- Recent commits (new since the last turn):")
+        lines.extend(f"  {commit}" for commit in new_commits)
+    if now["worktrees"] != before["worktrees"]:
+        lines.append("- Worktrees:")
+        lines.extend(f"  {worktree}" for worktree in now["worktrees"])
+    return lines or ["- Git: unchanged since the last turn."]
+
+
 def _format_todo_lines(todos_data: "dict[str, Any]") -> list[str]:
     """Format pending/in-progress todos into display lines."""
     lines: list[str] = []
@@ -259,10 +447,13 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     hint = ""
     if limit > 0 and len(content) > limit:
         # Cut on a line boundary: half a fact is worse than none. Overflow
-        # drops from the end, where WriteJournalNote keeps Recent Insights.
+        # drops from the end, so the summary says which categories were lost
+        # and names the newest note in each — otherwise the model cannot tell
+        # whether the missing part matters.
         head = content[:limit]
         cut = head.rfind("\n")
-        content = (head[:cut] if cut > 0 else head) + "\n (...more)"
+        kept = head[:cut] if cut > 0 else head
+        content = kept + "\n" + _overflow_summary(content[len(kept) :])
         hint = "Truncated at `(...more)`. "
     possibly_related = ""
     if first_message and CFG.LLM_JOURNAL_AUTO_SEARCH_ENABLED:
@@ -281,6 +472,36 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         f"{possibly_related}"
         f"</journal-index>"
     )
+
+
+def _overflow_summary(dropped: str) -> str:
+    """One line per note category the cap hid, plus the newest title in it."""
+    counts: dict[str, int] = {}
+    newest: dict[str, str] = {}
+    for line in dropped.splitlines():
+        seen_here: set[str] = set()
+        for title, category in _INDEX_LINK.findall(line):
+            if category in seen_here:
+                continue
+            seen_here.add(category)
+            counts[category] = counts.get(category, 0) + 1
+            newest[category] = title if title != "note" else _title_before_link(line)
+    if not counts:
+        return "(...more)"
+    lines = []
+    for category in sorted(counts):
+        detail = f"; newest \"{newest[category]}\"" if newest.get(category) else ""
+        lines.append(
+            f"- Hidden {category} notes ({counts[category]}{detail}) — "
+            "use SearchJournal."
+        )
+    lines.append("(...more)")
+    return "\n".join(lines)
+
+
+def _title_before_link(line: str) -> str:
+    """The entry text before a `([note](...))` link, which is its title."""
+    return line.split(" ([note]", 1)[0].lstrip("- ").strip()
 
 
 def _render_possibly_related(first_message: str) -> str:
@@ -308,6 +529,7 @@ def render_live_context(
     model: "Any" = None,
     inject_journal_index: bool = False,
     first_message: str | None = None,
+    previous_live_context: str | None = None,
 ) -> str:
     """Render the per-turn runtime state for ``<live-context>``, wiring ambient state.
 
@@ -324,6 +546,7 @@ def render_live_context(
         inject_journal_index,
         model,
         first_message,
+        previous_live_context,
     )
 
 
@@ -332,6 +555,7 @@ async def render_live_context_async(
     model: "Any" = None,
     inject_journal_index: bool = False,
     first_message: str | None = None,
+    previous_live_context: str | None = None,
 ) -> str:
     """``render_live_context`` with git and todo fetch offloaded to a thread.
 
@@ -349,6 +573,7 @@ async def render_live_context_async(
         inject_journal_index,
         model,
         first_message,
+        previous_live_context,
     )
 
 
@@ -376,6 +601,7 @@ def _render_parts(
     inject_journal_index: bool,
     model: "Any" = None,
     first_message: str | None = None,
+    previous_live_context: str | None = None,
 ) -> str:
     """Assemble the live-context lines (ContextVar reads stay on the caller)."""
     active_wt = get_active_worktree()
@@ -386,7 +612,7 @@ def _render_parts(
     parts: list[str] = [
         f"- Time: {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z (UTC%z)')}",
     ]
-    parts.extend(git_lines)
+    parts.extend(_git_delta(git_lines, previous_live_context))
     if active_wt:
         parts.append(
             "- Active worktree: "

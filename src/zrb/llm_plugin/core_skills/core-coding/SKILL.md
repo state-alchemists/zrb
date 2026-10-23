@@ -1,6 +1,6 @@
 ---
 name: core-coding
-description: "Activate when the turn changes source, test, or config files. Provides the Research → Strategy → Execution workflow, the complexity budget, and deep-dive companions (testing, debug, observability, refactor, review)."
+description: "Activate for any coding work — reading, writing, editing, debugging, reviewing, testing, or refactoring source, test, or config files. Provides the Research → Strategy → Execution workflow, the complexity budget, and deep-dive companions (testing, debug, observability, refactor, review)."
 user-invocable: false
 ---
 # Skill: core-coding
@@ -29,7 +29,7 @@ Follow the **Scientific Method**: form a hypothesis → test it → analyze resu
 
 ### a.  **High-Level Reconnaissance:**
 
-- Use `LS` with limited depth for initial structure mapping.
+- Use `LS` with `summary=True` (or a small `depth`) for initial structure mapping.
 - Identify: source directories, test directories, config files, entry points, and utility modules.
 - Skip if you already know specific file paths — use targeted `Glob` instead.
 

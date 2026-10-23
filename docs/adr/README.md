@@ -123,6 +123,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0053** — [Claude-compatible skills; catalogue from the live scan](adr-0053.md)
 - **ADR-0054** — [Built-in plugin split into core-skills, skills, agents](adr-0054.md)
 - **ADR-0055** — [The journal is a markdown graph that only tools write](adr-0055.md)
+- **ADR-0118** — [A skill declares the skills it preloads, and one activation renders them together](adr-0118.md)
 
 ### Tools
 

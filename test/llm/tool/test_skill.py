@@ -330,3 +330,52 @@ class TestSearchSkillTool:
                 asyncio.run(tool(query="x"))
                 == "No skills match 'x'. [SYSTEM SUGGESTION]: retry with broader terms — matching covers skill names and descriptions."
             )
+
+
+class TestActivateSkillPreload:
+    """A `preload:` dependency arrives in the same response, not a second call."""
+
+    def _manager(self, tmp_path):
+        from zrb.llm.skill.manager import SkillManager
+
+        return SkillManager(root_dir=str(tmp_path), search_dirs=[tmp_path])
+
+    @pytest.mark.asyncio
+    async def test_dependency_renders_before_the_skill(self, tmp_path):
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        (tmp_path / "core.skill.md").write_text(
+            "---\nname: core-coding\ndescription: Core\n---\nCore body"
+        )
+        (tmp_path / "refactor.skill.md").write_text(
+            "---\nname: refactor\ndescription: Refactor\n"
+            "preload: [core-coding]\n---\nRefactor body"
+        )
+        manager = self._manager(tmp_path)
+        manager.scan()
+
+        result = await create_activate_skill_tool(skill_manager=manager)(
+            skill="refactor"
+        )
+
+        assert 'name="core-coding" preloaded-by="refactor"' in result
+        assert result.index("Core body") < result.index("Refactor body")
+
+    @pytest.mark.asyncio
+    async def test_unresolved_preload_warns_but_still_activates(self, tmp_path):
+        from zrb.llm.tool.skill import create_activate_skill_tool
+
+        (tmp_path / "refactor.skill.md").write_text(
+            "---\nname: refactor\ndescription: Refactor\n"
+            "preload: [missing]\n---\nRefactor body"
+        )
+        manager = self._manager(tmp_path)
+        manager.scan()
+
+        result = await create_activate_skill_tool(skill_manager=manager)(
+            skill="refactor"
+        )
+
+        assert "Refactor body" in result
+        assert "'missing' is not a registered skill" in result
+        assert "[SYSTEM SUGGESTION]" in result

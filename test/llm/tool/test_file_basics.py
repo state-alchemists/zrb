@@ -255,6 +255,7 @@ def test_list_files_truncation(tmp_path):
     # Tiny char budget so the file list overflows and head-keep truncates.
     with patch("zrb.llm.tool.file_list.CFG") as mock_cfg:
         mock_cfg.LLM_MAX_OUTPUT_CHARS = 200
+        mock_cfg.LLM_GIT_CMD_TIMEOUT = 5000
         res = list_files(str(tmp_path))
     assert "truncation_notice" in res
     assert "TRUNCATED" in res["truncation_notice"]

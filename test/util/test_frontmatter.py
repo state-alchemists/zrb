@@ -52,6 +52,17 @@ def test_a_scalar_frontmatter_yields_an_empty_mapping():
     assert body == "body"
 
 
+def test_a_delimiter_inside_a_quoted_value_does_not_close_the_block():
+    """Only a line that is exactly `---` ends the block; a YAML value may
+    contain that text, and splitting on the substring cut mid-value."""
+    content = '---\ndescription: "Use --- in examples"\n---\n# Body\n'
+
+    frontmatter, body = parse_frontmatter(content)
+
+    assert frontmatter == {"description": "Use --- in examples"}
+    assert body == "# Body"
+
+
 def test_malformed_yaml_raises_rather_than_reading_as_absent():
     """A syntax error is reported, not silently treated as "no frontmatter".
 

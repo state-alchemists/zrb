@@ -27,6 +27,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.permission import PermissionPolicyInput, resolve_policy
+from zrb.llm.prompt.live_context import previous_git_baseline
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.stream_observer import StreamObserver
@@ -476,19 +477,23 @@ class LLMTask(BaseTask):
         ctx: AnyContext,
         inject_journal_index: bool = False,
         first_message: str | None = None,
+        previous_live_context: str | None = None,
     ) -> str:
         """Render the per-turn ``<live-context>`` block injected into the user turn."""
-        return self._building.get_live_context(ctx, inject_journal_index, first_message)
+        return self._building.get_live_context(
+            ctx, inject_journal_index, first_message, previous_live_context
+        )
 
     async def get_live_context_async(
         self,
         ctx: AnyContext,
         inject_journal_index: bool = False,
         first_message: str | None = None,
+        previous_live_context: str | None = None,
     ) -> str:
         """``get_live_context`` for async callers."""
         return await self._building.get_live_context_async(
-            ctx, inject_journal_index, first_message
+            ctx, inject_journal_index, first_message, previous_live_context
         )
 
     def get_model_settings(self, ctx: AnyContext) -> "ModelSettings | None":
@@ -639,7 +644,10 @@ class LLMTask(BaseTask):
         # per-turn ambient state. summarize_history re-seeds the journal index
         # after compaction.
         live_context = await self.get_live_context_async(
-            ctx, inject_journal_index=not message_history, first_message=user_message
+            ctx,
+            inject_journal_index=not message_history,
+            first_message=user_message,
+            previous_live_context=previous_git_baseline(message_history),
         )
         agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
         effective_message, effective_attachments = self.get_effective_prompt(

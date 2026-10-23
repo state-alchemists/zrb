@@ -120,7 +120,32 @@ def test_head_survives_so_ordering_decides_what_is_kept(tmp_path):
 
     assert result is not None
     assert "- Name: Go" in result
-    assert "insight 199" not in result
+    # The entry itself is not kept, but the summary names it as the newest
+    # hidden one so the model knows what it is missing.
+    assert "- [insight 199]" not in result
+    assert 'newest "insight 199"' in result
+
+
+def test_overflow_names_each_hidden_category(tmp_path):
+    """A cut that drops Technical and Projects must say so: '(...more)' alone
+    reads as 'nothing important', and the model re-derives what is already
+    recorded."""
+    lines = [f"- [tech {i}](technical/n{i}.md)" for i in range(40)]
+    lines += [f"- [proj {i}](projects/p{i}.md)" for i in range(10)]
+    journal_dir = _write_index(tmp_path, "# Journal\n" + "\n".join(lines) + "\n")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = journal_dir
+        cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 300
+
+        result = render_journal_index()
+
+    assert result is not None
+    assert "Hidden technical notes" in result
+    assert "Hidden projects notes" in result
+    assert 'newest "tech 39"' in result
+    assert 'newest "proj 9"' in result
+    assert "use SearchJournal" in result
 
 
 def test_zero_suppresses_the_injection(tmp_path):
