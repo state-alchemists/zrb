@@ -75,6 +75,45 @@ def split_live_context(content: str) -> tuple[str, str | None]:
     return content[: match.start()].rstrip(), match.group(1)
 
 
+def last_live_context(message_history: "list[Any]") -> str | None:
+    """The newest ``<live-context>`` block in *message_history*, or ``None``.
+
+    Read from the history the run is actually using, never from a side cache:
+    ``/rewind`` and ``/load`` replace that history, so the block found here is
+    the one the next turn should diff against.
+    """
+    for message in reversed(message_history):
+        parts = getattr(message, "parts", None) or []
+        for part in reversed(parts):
+            block = _live_context_in(getattr(part, "content", None))
+            if block:
+                return _unwrap_live_context(block)
+    return None
+
+
+def _unwrap_live_context(block: str) -> str:
+    """The block's content, without the wrapper tags the prompt carries."""
+    text = block.strip()
+    if text.startswith("<live-context>"):
+        text = text[len("<live-context>") :]
+    if text.endswith("</live-context>"):
+        text = text[: -len("</live-context>")]
+    return text.strip()
+
+
+def _live_context_in(content: Any) -> str | None:
+    """The block in a string prompt, or in the trailing item of a multimodal one."""
+    if isinstance(content, str):
+        return split_live_context(content)[1]
+    if isinstance(content, list):
+        for item in reversed(content):
+            if isinstance(item, str):
+                block = split_live_context(item)[1]
+                if block:
+                    return block
+    return None
+
+
 def _collect_worktree_lines(timeout: float) -> list[str]:
     """Render linked worktrees from the current repository, best effort."""
     try:
@@ -173,6 +212,80 @@ def _collect_git_info(
         todos_data = f_todos.result()
 
     return git_lines, todos_data
+
+
+def _commit_key(line: str) -> str:
+    """The hash prefix that identifies a rendered commit line."""
+    parts = line.split()
+    return parts[0] if parts else ""
+
+
+def _flatten(lines: list[str]) -> list[str]:
+    """One entry per rendered line: git log and worktrees arrive as blocks."""
+    flattened: list[str] = []
+    for line in lines:
+        flattened.extend(line.splitlines())
+    return flattened
+
+
+def _git_state(lines: list[str]) -> dict[str, list[str]]:
+    """Split rendered git lines into status, commits and worktrees."""
+    state: dict[str, list[str]] = {"status": [], "commits": [], "worktrees": []}
+    section: str | None = None
+    for line in lines:
+        if line.startswith("- Git:"):
+            state["status"] = [line]
+            section = None
+        elif line.startswith("- Recent commits"):
+            section = "commits"
+        elif line.startswith("- Worktrees:"):
+            section = "worktrees"
+        elif section and line.startswith("  "):
+            state[section].append(line.strip())
+        else:
+            section = None
+    return state
+
+
+def _previous_git_lines(block: str) -> list[str]:
+    """The git lines of a previous live-context block, in render order."""
+    lines: list[str] = []
+    active = False
+    for line in block.splitlines():
+        if line.startswith(("- Git:", "- Recent commits", "- Worktrees:")):
+            active = True
+        elif not line.startswith("  "):
+            active = False
+        if active:
+            lines.append(line)
+    return lines
+
+
+def _git_delta(current: list[str], previous_block: str | None) -> list[str]:
+    """What changed in git since *previous_block*, or the full state without one.
+
+    Time always renders in full; only the git section shrinks to a delta.
+    """
+    if not current or previous_block is None:
+        return current
+    before = _git_state(_previous_git_lines(previous_block))
+    now = _git_state(_flatten(current))
+    if now == before:
+        return ["- Git: unchanged since the last turn."]
+    lines: list[str] = []
+    if now["status"] != before["status"]:
+        lines.extend(now["status"])
+    known = {_commit_key(commit) for commit in before["commits"]}
+    new_commits = [
+        commit for commit in now["commits"] if _commit_key(commit) not in known
+    ]
+    if new_commits:
+        lines.append("- Recent commits (new since the last turn):")
+        lines.extend(f"  {commit}" for commit in new_commits)
+    if now["worktrees"] != before["worktrees"]:
+        lines.append("- Worktrees:")
+        lines.extend(f"  {worktree}" for worktree in now["worktrees"])
+    return lines or ["- Git: unchanged since the last turn."]
 
 
 def _format_todo_lines(todos_data: "dict[str, Any]") -> list[str]:
@@ -308,6 +421,7 @@ def render_live_context(
     model: "Any" = None,
     inject_journal_index: bool = False,
     first_message: str | None = None,
+    previous_live_context: str | None = None,
 ) -> str:
     """Render the per-turn runtime state for ``<live-context>``, wiring ambient state.
 
@@ -324,6 +438,7 @@ def render_live_context(
         inject_journal_index,
         model,
         first_message,
+        previous_live_context,
     )
 
 
@@ -332,6 +447,7 @@ async def render_live_context_async(
     model: "Any" = None,
     inject_journal_index: bool = False,
     first_message: str | None = None,
+    previous_live_context: str | None = None,
 ) -> str:
     """``render_live_context`` with git and todo fetch offloaded to a thread.
 
@@ -349,6 +465,7 @@ async def render_live_context_async(
         inject_journal_index,
         model,
         first_message,
+        previous_live_context,
     )
 
 
@@ -376,6 +493,7 @@ def _render_parts(
     inject_journal_index: bool,
     model: "Any" = None,
     first_message: str | None = None,
+    previous_live_context: str | None = None,
 ) -> str:
     """Assemble the live-context lines (ContextVar reads stay on the caller)."""
     active_wt = get_active_worktree()
@@ -386,7 +504,7 @@ def _render_parts(
     parts: list[str] = [
         f"- Time: {datetime.now().astimezone().strftime('%Y-%m-%d %H:%M:%S %Z (UTC%z)')}",
     ]
-    parts.extend(git_lines)
+    parts.extend(_git_delta(git_lines, previous_live_context))
     if active_wt:
         parts.append(
             "- Active worktree: "

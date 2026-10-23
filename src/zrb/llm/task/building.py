@@ -221,12 +221,15 @@ class LLMTaskBuilding:
         ctx: AnyContext,
         inject_journal_index: bool = False,
         first_message: str | None = None,
+        previous_live_context: str | None = None,
     ) -> str:
         """Render the per-turn ``<live-context>`` block, or "" without a prompt manager.
 
         ``inject_journal_index`` appends the journal index snapshot; callers set
         it only when the index is absent from history. ``first_message`` feeds
-        the journal's first-turn auto-search.
+        the journal's first-turn auto-search. ``previous_live_context`` is the
+        block from the run's current history, which the git section diffs
+        against; ``None`` renders the full state.
         """
         if self._llm_task.prompt_manager_attr is None:
             return ""
@@ -234,6 +237,7 @@ class LLMTaskBuilding:
             ctx,
             inject_journal_index=inject_journal_index,
             first_message=first_message,
+            previous_live_context=previous_live_context,
         )
 
     async def get_live_context_async(
@@ -241,6 +245,7 @@ class LLMTaskBuilding:
         ctx: AnyContext,
         inject_journal_index: bool = False,
         first_message: str | None = None,
+        previous_live_context: str | None = None,
     ) -> str:
         """``get_live_context`` with git collection off-loop, for async callers."""
         if self._llm_task.prompt_manager_attr is None:
@@ -249,6 +254,7 @@ class LLMTaskBuilding:
             ctx,
             inject_journal_index=inject_journal_index,
             first_message=first_message,
+            previous_live_context=previous_live_context,
         )
 
     def get_model_settings(self, ctx: AnyContext) -> ModelSettings | None:
