@@ -18,7 +18,7 @@ ATTACHMENT_TOKEN_ESTIMATE = 1600
 _ATTACHMENT_STAND_IN = " the" * ATTACHMENT_TOKEN_ESTIMATE
 
 
-def is_pinned(value: Any, env_key: str) -> bool:
+def is_pinned(value: int | None, env_key: str) -> bool:
     """Whether a value was explicitly chosen: set directly, or pinned by its own env var."""
     return value is not None or CFG.is_env_set(env_key)
 
