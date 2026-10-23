@@ -88,8 +88,26 @@ def test_a_literal_closing_tag_does_not_swallow_the_next_skill():
     assert "BODY_B" in content
 
 
-def test_a_quoted_opening_tag_does_not_start_a_second_block():
-    """Text written before the body was neutralised can still hold one."""
+def test_a_quoted_opening_tag_does_not_swallow_the_next_skill():
+    """Legacy text: a body quoting an opening tag must not merge the blocks
+    that follow it, or the later skills are lost at compaction."""
+    text = (
+        '<ACTIVATED_SKILL name="a">\n'
+        'write <ACTIVATED_SKILL name="example">\n'
+        "</ACTIVATED_SKILL>\n"
+        '<ACTIVATED_SKILL name="b">\nBODY_B\n'
+        "</ACTIVATED_SKILL>"
+    )
+    dropped = _request(text)
+
+    content = _content(build_reattach_message(dropped, [], llm_limiter))
+
+    assert 'name="a"' in content
+    assert 'name="b"' in content
+    assert "BODY_B" in content
+
+
+def test_a_quoted_opening_tag_keeps_the_outer_body():
     body = 'To activate, write:\n<ACTIVATED_SKILL name="example">\nEND_MARKER'
     dropped = _request(_block("core-coding", body))
 

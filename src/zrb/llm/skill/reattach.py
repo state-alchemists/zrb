@@ -51,25 +51,34 @@ def _message_text(message: "ModelMessage") -> str:
     )
 
 
+def _is_line_start(text: str, position: int) -> bool:
+    """True when *position* opens a line, which is where a real block starts."""
+    return position == 0 or text[position - 1] == "\n"
+
+
 def _blocks(text: str) -> list[tuple[str, str]]:
     """`(name, block)` for every activation block in *text*, in text order.
 
-    A body is model-authored and may quote this markup, so the tags are paired
-    by position rather than by the first match: an opening that falls inside a
-    block already read is an example, not a block, and a block ends at the last
-    closing tag before the next opening one — or, when that window holds no
-    closing tag at all, at the last one in the text.
+    A body is model-authored and may quote this markup, so the tags cannot be
+    paired by pure syntax: closing at the first tag truncates a body that
+    quotes a closing tag, and closing at the last one merges the blocks after a
+    body that quotes an opening tag. What tells them apart is position — a real
+    block starts at the beginning of a line, an example sits inside a sentence
+    or a blockquote — so only a line-opening tag bounds a block, and the block
+    ends at the last closing tag before the next such boundary (or at the last
+    one in the text when that window is empty).
 
-    New text no longer needs this: the rendering side neutralises the
-    delimiters inside a body (`zrb.llm.skill.activation`). The heuristics are
-    for history written before that, where the tags are genuinely ambiguous.
+    New text needs none of this: the rendering side neutralises the delimiters
+    inside a body (`zrb.llm.skill.activation`). This is for history written
+    before that, where the tags are genuinely ambiguous.
     """
-    openings = list(_OPEN_PATTERN.finditer(text))
+    openings = [
+        match
+        for match in _OPEN_PATTERN.finditer(text)
+        if _is_line_start(text, match.start())
+    ]
     found: list[tuple[str, str]] = []
-    consumed_until = 0
     for index, opening in enumerate(openings):
-        if opening.start() < consumed_until:
-            continue
         limit = openings[index + 1].start() if index + 1 < len(openings) else len(text)
         close_at = text.rfind(_CLOSING_TAG, opening.end(), limit)
         if close_at < 0:
@@ -84,7 +93,6 @@ def _blocks(text: str) -> list[tuple[str, str]]:
                 text[opening.start() : end],
             )
         )
-        consumed_until = end
     return found
 
 
