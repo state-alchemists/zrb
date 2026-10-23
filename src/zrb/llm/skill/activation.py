@@ -15,14 +15,17 @@ def skill_body(content: str) -> str:
     """The skill's markdown body, without the YAML frontmatter it may open with.
 
     Frontmatter is metadata for the loader, not instructions for the model;
-    re-sending it wastes tokens and repeats the description as prose.
+    re-sending it wastes tokens and repeats the description as prose. Only a
+    line that is exactly `---` closes the block: a quoted YAML value may
+    contain that text without ending it.
     """
-    if not content.startswith("---"):
+    lines = content.splitlines()
+    if not lines or lines[0].strip() != "---":
         return content
-    parts = content.split("---", 2)
-    if len(parts) < 3:
-        return content
-    return parts[2].strip()
+    for index in range(1, len(lines)):
+        if lines[index].strip() == "---":
+            return "\n".join(lines[index + 1 :]).strip()
+    return content
 
 
 def build_activation_block(

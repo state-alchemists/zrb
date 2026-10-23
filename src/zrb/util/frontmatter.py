@@ -20,12 +20,15 @@ def parse_frontmatter(content: str) -> tuple[dict[str, Any], str]:
     # lazy: heavy third-party — yaml; imported at discovery, not startup.
     import yaml
 
-    if not content.startswith("---"):
+    lines = content.splitlines()
+    if not lines or lines[0].strip() != "---":
         return {}, content
-    parts = content.split("---", 2)
-    if len(parts) < 3:
-        return {}, content
-    frontmatter = yaml.safe_load(parts[1])
-    if not isinstance(frontmatter, dict):
-        return {}, parts[2].strip()
-    return frontmatter, parts[2].strip()
+    for index in range(1, len(lines)):
+        if lines[index].strip() != "---":
+            continue
+        body = "\n".join(lines[index + 1 :]).strip()
+        frontmatter = yaml.safe_load("\n".join(lines[1:index]))
+        if not isinstance(frontmatter, dict):
+            return {}, body
+        return frontmatter, body
+    return {}, content

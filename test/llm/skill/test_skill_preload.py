@@ -146,6 +146,16 @@ def test_skill_body_passes_content_without_frontmatter_through():
     assert skill_body("plain body") == "plain body"
 
 
+def test_skill_body_ignores_a_delimiter_inside_a_value():
+    """A quoted description may spell `---`; only a delimiter line closes it."""
+    content = '---\ndescription: "Use --- in examples"\n---\nBody text'
+
+    body = skill_body(content)
+
+    assert body == "Body text"
+    assert "in examples" not in body
+
+
 def test_activation_block_names_the_preloading_skill():
     skill = Skill(name="core-coding", path="/tmp/x/SKILL.md", description="d")
 
