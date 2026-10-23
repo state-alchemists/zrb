@@ -119,28 +119,49 @@ def _recent_live_contexts(
 
 def _merge_git_blocks(blocks: list[str]) -> str | None:
     """One block holding the newest known status/worktrees and every known commit."""
+    status, commits, worktrees = _baseline_sections(blocks)
+    # Without both a status and a commit list, this is not a baseline: a
+    # partial one would label old commits as new, so the caller renders the
+    # full state instead.
+    if not (status and commits):
+        return None
+    return _render_git_baseline(status, commits, worktrees)
+
+
+def _baseline_sections(
+    blocks: list[str],
+) -> tuple[list[str], list[str], list[str]]:
+    """(status, commits, worktrees) merged from the newest block to the oldest."""
     status: list[str] = []
     commits: list[str] = []
     worktrees: list[str] = []
     seen: set[str] = set()
     for block in blocks:
         parsed = _git_state(_flatten(_previous_git_lines(block)))
-        if not status and parsed["status"]:
-            status = parsed["status"]
-        if not worktrees and parsed["worktrees"]:
-            worktrees = parsed["worktrees"]
-        for commit in parsed["commits"]:
-            key = _commit_key(commit)
-            if key not in seen:
-                seen.add(key)
-                commits.append(commit)
+        status = status or parsed["status"]
+        worktrees = worktrees or parsed["worktrees"]
+        _extend_new_commits(commits, seen, parsed["commits"])
         if status and worktrees and commits:
             break
-    # Without both a status and a commit list, this is not a baseline: a
-    # partial one would label old commits as new, so the caller renders the
-    # full state instead.
-    if not (status and commits):
-        return None
+    return status, commits, worktrees
+
+
+def _extend_new_commits(
+    commits: list[str], seen: set[str], found: list[str]
+) -> None:
+    """Append commits not already in *seen*, preserving render order."""
+    for commit in found:
+        key = _commit_key(commit)
+        if key in seen:
+            continue
+        seen.add(key)
+        commits.append(commit)
+
+
+def _render_git_baseline(
+    status: list[str], commits: list[str], worktrees: list[str]
+) -> str:
+    """A block `_git_delta` can parse: status, then commits, then worktrees."""
     lines = list(status)
     if commits:
         lines.append("- Recent commits:")

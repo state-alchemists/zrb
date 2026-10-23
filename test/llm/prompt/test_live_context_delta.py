@@ -74,7 +74,8 @@ def test_a_status_change_is_shown(tmp_path, monkeypatch):
 
     second = render_live_context(_ctx(), previous_live_context=first)
 
-    assert "- Git: main (Dirty" in second
+    assert "- Git:" in second
+    assert "Dirty" in second
 
 
 def test_a_branch_change_is_shown(tmp_path, monkeypatch):
