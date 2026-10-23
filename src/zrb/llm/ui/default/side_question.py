@@ -127,10 +127,12 @@ class UISideQuestion:
         width. Called from the app's after-render hook, so it runs on every
         frame — a no-op unless an answer is showing and the width changed.
 
-        A reader scrolled to the end stays at the end: a raw character offset
-        would land mid-buffer once re-wrapping changes the text's length, so
-        a cursor at the old end asks `_fill` for the new end instead of
-        carrying the stale offset over.
+        A raw character offset is not a stable anchor across a re-wrap: the
+        same number of characters can now precede different content once the
+        line lengths change. `_cursor_for_rewrap` resolves the reader's
+        position to something that survives that — the end of the buffer, or
+        a (line, column) pair — before the new text exists to re-measure it
+        against.
         """
         if not self._is_active or self._last_answer is None:
             return
@@ -138,14 +140,23 @@ class UISideQuestion:
             return
         self._render_and_fill(self._last_answer, self._cursor_for_rewrap())
 
-    def _cursor_for_rewrap(self) -> int | None:
-        """Where `rewrap` should put the cursor: `None` (the new end) when the
-        reader was at the old text's end, else its current offset."""
+    def _cursor_for_rewrap(self) -> "int | tuple[int, int] | None":
+        """The reader's position, anchored for `_fill` to re-find in the new text.
+
+        `None` (the new end) when they were at the old text's end — the
+        common case of watching a long answer stream in. Otherwise a
+        (line, column) pair: not an exact character match (a word that moves
+        lines still lands at the start of wherever its line went), but close
+        enough that a resize leaves the reader on the content they were
+        reading rather than wherever a stale raw offset now falls.
+        """
         window = self._window
         if window is None:
             return 0
         text, cursor = window.buffer.text, window.buffer.cursor_position
-        return None if cursor >= len(text) else cursor
+        if cursor >= len(text):
+            return None
+        return _line_and_column(text, cursor)
 
     def fail(self, message: str, request: object | None = None) -> None:
         """Show why the side question could not be answered."""
@@ -197,7 +208,9 @@ class UISideQuestion:
         """Render markdown to what the panel's lexer expects: styled lines."""
         return self._ui.render_markdown(answer, self._ui.output_field_width)
 
-    def _render_and_fill(self, answer: str, cursor_position: "int | None" = 0) -> None:
+    def _render_and_fill(
+        self, answer: str, cursor_position: "int | tuple[int, int] | None" = 0
+    ) -> None:
         """Render `answer` at the current width and fill the panel with it.
 
         Records the width it rendered at, so `rewrap` can tell a stale render
@@ -206,15 +219,18 @@ class UISideQuestion:
         self._rendered_width = self._ui.output_field_width
         self._fill(self._echo(self._render(answer)), cursor_position)
 
-    def _fill(self, text: str, cursor_position: "int | None" = 0) -> None:
+    def _fill(
+        self, text: str, cursor_position: "int | tuple[int, int] | None" = 0
+    ) -> None:
         """Replace the panel's text, placing the cursor at `cursor_position`.
 
         Defaults to the first line — the read naturally starts there for a
-        new question's answer, failure, or pending message. `rewrap` passes
-        either the reader's current offset or, when they were at the old
-        text's end, `None` for the new text's end — so a reader scrolled to
-        the bottom (watching a long answer stream in) stays there across a
-        resize instead of landing on a stale offset.
+        new question's answer, failure, or pending message. `rewrap` instead
+        passes `None` for the new text's end (a reader who was at the old
+        text's end), a `(line, column)` pair resolved against the *new* text
+        (a reader who was elsewhere — a raw offset from the old text could
+        now land on different content), or an int for its own non-rewrap
+        defaults.
         """
         window = self._window
         if window is None:
@@ -222,9 +238,12 @@ class UISideQuestion:
         # lazy: heavy third-party
         from prompt_toolkit.document import Document
 
-        position = (
-            len(text) if cursor_position is None else min(cursor_position, len(text))
-        )
+        if cursor_position is None:
+            position = len(text)
+        elif isinstance(cursor_position, tuple):
+            position = _offset_of(text, *cursor_position)
+        else:
+            position = min(cursor_position, len(text))
         # The panel is read-only: only the panel itself writes its text.
         window.buffer.set_document(
             Document(text, cursor_position=position), bypass_readonly=True
@@ -310,3 +329,24 @@ def is_message_text(data: str) -> bool:
     if not data or data.startswith("\x1b"):
         return False
     return data.isprintable()
+
+
+def _line_and_column(text: str, offset: int) -> tuple[int, int]:
+    """The 0-indexed (line, column) `offset` falls on within `text`."""
+    before = text[:offset]
+    line = before.count("\n")
+    column = len(before) - (before.rfind("\n") + 1)
+    return line, column
+
+
+def _offset_of(text: str, line: int, column: int) -> int:
+    """The character offset of `(line, column)` within `text`, clamped to it.
+
+    An out-of-range line or column lands on `text`'s nearest edge instead of
+    raising — the caller resolved the pair against a different (older) text,
+    so a shorter new one is expected, not a bug to surface here.
+    """
+    lines = text.split("\n")
+    line = max(0, min(line, len(lines) - 1))
+    column = max(0, min(column, len(lines[line])))
+    return sum(len(earlier) + 1 for earlier in lines[:line]) + column

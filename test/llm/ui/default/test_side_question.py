@@ -35,6 +35,17 @@ class _ReflowingFakeUI(_FakeUI):
         return "\n".join([text] * wraps)
 
 
+class _WordWrappingFakeUI(_FakeUI):
+    """Wraps the answer every `width` characters, the way real markdown
+    rendering reflows a long line onto more of them as it narrows — needed to
+    show a mid-buffer cursor landing on the wrong line when a raw offset is
+    carried over instead of a (line, column) pair."""
+
+    def render_markdown(self, text: str, width: int | None = None) -> str:
+        w = width or 80
+        return "\n".join(text[i : i + w] for i in range(0, len(text), w))
+
+
 @pytest.fixture(autouse=True)
 def no_application():
     """A unit test runs without a prompt_toolkit application to move the focus
@@ -291,3 +302,35 @@ def test_rewrap_keeps_a_reader_at_the_end_when_the_rewrap_grows_the_text():
     part.rewrap()
 
     assert window.buffer.cursor_position == len(window.buffer.text)
+
+
+def test_rewrap_keeps_a_mid_buffer_reader_on_the_same_line_index():
+    """A resize that re-wraps the answer onto more lines must not let a
+    mid-buffer cursor drift onto an unrelated line just because the raw
+    character count before it changed: it should stay anchored to the same
+    line index (and as much of its column as the new, shorter line has)
+    instead of a stale offset landing on whatever now sits at that count."""
+    ui = _WordWrappingFakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    part.end("AAAAABBBBBCCCCCDDDDD")
+    window = part.side_question_window
+    assert window is not None
+    old_lines = window.buffer.text.split("\n")
+    assert old_lines[2] == "AAAAABBBBBCCCCCDDDDD"
+    # Column 15 of that line: the start of the run of "D"s.
+    window.buffer.cursor_position = len(old_lines[0]) + 1 + len(old_lines[1]) + 1 + 15
+
+    ui.output_field_width = 10
+    part.rewrap()
+
+    new_text = window.buffer.text
+    before_cursor = new_text[: window.buffer.cursor_position]
+    new_lines = new_text.split("\n")
+    assert new_lines[2] == "AAAAABBBBB"
+    assert new_lines[3] == "CCCCCDDDDD"
+    # Still on line index 2 — the reflow split that one line in two, so a raw
+    # offset would have overshot onto line 3 ("CCCCCDDDDD") instead.
+    assert before_cursor.count("\n") == 2
+    assert before_cursor.endswith("AAAAABBBBB")
