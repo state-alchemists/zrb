@@ -23,6 +23,7 @@ from zrb.llm.ambient_state import (
     set_current_tool_session,
     set_interactive_mode,
 )
+from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
@@ -222,16 +223,22 @@ def _format_mode_line() -> str | None:
 def render_journal_index(first_message: str | None = None) -> str | None:
     """Read and format the journal index snapshot for context injection.
 
-    Injected on the first turn and at each summarization, never into the
-    cached system prompt (journaling would invalidate it). *first_message*
-    adds an auto-search ``## Possibly Related`` section. Returns ``None`` when
-    the journal is disabled, the index is missing or empty, or
-    ``LLM_JOURNAL_INDEX_MAX_CHARS`` is 0.
+    The index is ``LLM_JOURNAL_INDEX_FILE`` under ``LLM_JOURNAL_DIR`` — the same
+    knob the writers name the root and category indexes with. Injected on the
+    first turn and at each summarization, never into the cached system prompt
+    (journaling would invalidate it). *first_message* adds an auto-search
+    ``## Possibly Related`` section. Returns ``None`` when the journal is
+    disabled, the index is missing or empty, ``LLM_JOURNAL_INDEX_MAX_CHARS`` is
+    0, or ``LLM_JOURNAL_INDEX_FILE`` is not a bare filename — the same check
+    the writers apply, so this can never be pointed outside the journal.
     """
     if not CFG.LLM_JOURNAL_ENABLED:
         return None
     journal_dir = CFG.LLM_JOURNAL_DIR
-    index_name = CFG.LLM_JOURNAL_INDEX_FILE
+    try:
+        index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
+    except ValueError:
+        return None
     index_file = os.path.abspath(
         os.path.expanduser(os.path.join(journal_dir, index_name))
     )
@@ -264,8 +271,8 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         f"<journal-index>\n"
         f"Your persistent memory (index file: {index_file}). "
         f"{hint}"
-        f"Use SearchJournal for full entries; a category's index.md (e.g. "
-        f"technical/index.md) lists every note ever written in it, uncapped. "
+        f"Use SearchJournal for full entries; a category's {index_name} (e.g. "
+        f"technical/{index_name}) lists every note ever written in it, uncapped. "
         f"Change the journal only through LogActivity, WriteJournalNote, or "
         f"DeleteJournalNote — a direct file edit breaks the indexes, "
         f"backlinks, and git history they maintain. Search for these tools "

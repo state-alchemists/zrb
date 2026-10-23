@@ -70,15 +70,36 @@ def test_a_checkpoint_takes_what_is_ready_and_leaves_the_rest():
         queue.put_nowait(entry)
     run_context = MagicMock()
 
-    report, cancelled = _send(
-        queue, run_context, may_interrupt=False, only_ready=True
-    )
+    report, cancelled = _send(queue, run_context, may_interrupt=False, only_ready=True)
 
     assert report.delivered_entries == (old, behind)
     assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
     assert report.held == 2
     assert cancelled == []
     assert [entry.text for entry in queue.pending()] == ["edited", "young"]
+
+
+def test_voice_sends_its_own_entry_but_preserves_an_edit_and_other_grace():
+    queue = MessageQueue()
+    edited, young, spoken = (_entry(text) for text in ("edit", "young", "voice"))
+    edited.is_being_edited = True
+    young.queued_at = spoken.queued_at = 10**9
+    for entry in (edited, young, spoken):
+        queue.put_nowait(entry)
+
+    report = send_queued_messages_now(
+        active_run_context=MagicMock(),
+        queue=queue,
+        is_turn_running=True,
+        is_waiting_for_answer=False,
+        cancel_turn=lambda: None,
+        may_interrupt=False,
+        only_ready=True,
+        immediate_entry=spoken,
+    )
+
+    assert report.delivered_entries == (spoken,)
+    assert queue.pending() == (edited, young)
 
 
 def test_an_empty_queue_moves_nothing():
@@ -458,7 +479,7 @@ def test_a_child_ui_lets_its_multi_ui_parent_deliver():
     report = ui.send_queued_messages_now()
 
     parent.send_queued_messages_now.assert_called_once_with(
-        may_interrupt=True, only_ready=False
+        may_interrupt=True, only_ready=False, immediate_entry=None
     )
     assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
 

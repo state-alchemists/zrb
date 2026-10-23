@@ -286,16 +286,16 @@ def test_save_handles_os_error(temp_history_dir):
     manager.update("os-error-session", messages)
     mtime_before = manager.cache_sync_mtime("os-error-session")
 
-    original_open = open
+    original_os_open = os.open
 
-    def mock_open_selective(*args, **kwargs):
-        if args and "os-error-session" in str(args[0]):
+    def mock_os_open_selective(path, *args, **kwargs):
+        if "os-error-session" in str(path):
             raise OSError("disk full")
-        return original_open(*args, **kwargs)
+        return original_os_open(path, *args, **kwargs)
 
     from unittest.mock import patch
 
-    with patch("builtins.open", side_effect=mock_open_selective):
+    with patch("os.open", side_effect=mock_os_open_selective):
 
         manager.save("os-error-session")
 

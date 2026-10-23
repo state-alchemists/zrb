@@ -55,3 +55,16 @@ def test_deliverable_holds_a_paste_that_is_still_arriving():
     entry.queued_at = 100.4
     assert queue.deliverable(100.5) == ()
     assert queue.deliverable(101.5) == (entry,)
+
+
+def test_speech_does_not_pass_a_young_exec_ordering_barrier():
+    queue = MessageQueue()
+    command = _entry("/exec build")
+    command.kind = "exec"
+    command.queued_at = 110.0
+    spoken = _entry("report the build")
+    spoken.queued_at = 110.1
+    queue.put_nowait(command)
+    queue.put_nowait(spoken)
+
+    assert queue.deliverable(110.2, immediate_entry=spoken) == ()

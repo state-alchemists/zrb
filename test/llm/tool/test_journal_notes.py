@@ -10,6 +10,8 @@ def writable_journal(tmp_path):
     root = tmp_path / "notes"
     with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = str(root)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
         # A real int, matching the shipped default — tests that care about
         # eviction override this explicitly to a small cap.
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
@@ -33,8 +35,14 @@ def test_log_activity_builds_the_whole_tree_on_a_cold_journal(writable_journal):
     # missing-index: every level down to the day file has one.
     root_index = _read(writable_journal, "index.md")
     assert "## Directories" in root_index
-    for name in ("user", "agent", "preferences", "projects", "technical", "activity-log"):
-        # orphan: each directory is reachable from the root index.
+    for name in (
+        "user",
+        "agent",
+        "preferences",
+        "projects",
+        "technical",
+        "activity-log",
+    ):
         assert f"{name}/index.md" in root_index
         assert os.path.isfile(os.path.join(writable_journal, name, "index.md"))
 
@@ -431,4 +439,3 @@ def test_writers_refuse_when_the_journal_dir_is_unset():
         with pytest.raises(ValueError) as excinfo:
             log_activity("anything")
     assert "not configured" in str(excinfo.value)
-

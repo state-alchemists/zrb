@@ -153,17 +153,26 @@ def _format_results(
 
 def _suggest_similar(query: str, abs_dir: str) -> list[str]:
     """Fuzzy-match *query* against note titles in the category directories,
-    so a zero-hit search doesn't read as "never documented"."""
+    skipping each directory's index, so a zero-hit search doesn't read as
+    "never documented"."""
     candidates: list[str] = []
+    index_name = CFG.LLM_JOURNAL_INDEX_FILE
     for name in NOTE_CATEGORIES:
         category_dir = os.path.join(abs_dir, name)
         if not os.path.isdir(category_dir):
             continue
         for filename in os.listdir(category_dir):
-            if not filename.endswith(".md") or filename == "index.md":
+            if not filename.endswith(".md") or filename == index_name:
                 continue
             try:
-                with open(os.path.join(category_dir, filename), encoding="utf-8") as f:
+                # A note holding bytes that are not UTF-8 must not turn a
+                # zero-hit search into a crash: suggesting titles is a courtesy,
+                # and the search itself already reads these files leniently.
+                with open(
+                    os.path.join(category_dir, filename),
+                    encoding="utf-8",
+                    errors="ignore",
+                ) as f:
                     heading = get_first_heading(f.read())
                 if heading:
                     candidates.append(heading)

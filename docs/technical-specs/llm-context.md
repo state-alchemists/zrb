@@ -25,7 +25,7 @@ The journal is a directory of Markdown files organized hierarchically by topic o
 |----------|-------|
 | Storage | Directory of Markdown files |
 | Organization | Five note categories plus a dated activity log |
-| Entry point | `index.md`, the only file injected into a session |
+| Entry point | The root index file — `ZRB_LLM_JOURNAL_INDEX_FILE`, `index.md` by default — the only file injected into a session |
 | Written by | `LogActivity`, `WriteJournalNote` and `DeleteJournalNote`, which own the on-disk format |
 
 ---
@@ -34,7 +34,7 @@ The journal is a directory of Markdown files organized hierarchically by topic o
 
 Journal entries are stored in a directory structure with a central index file.
 
-Every journal knob (directory, index file, injection cap, HUD cap, first-turn auto-search, git backing) is listed in [LLM Configuration → Journal & Context Storage](../configuration/llm-context.md#journal--context-storage); the directory defaults to `~/.zrb/llm-notes/` and the index file to `index.md`.
+Every journal knob (directory, index file, injection cap, HUD cap, first-turn auto-search, git backing) is listed in [LLM Configuration → Journal & Context Storage](../configuration/llm-context.md#journal--context-storage); the directory defaults to `~/.zrb/llm-notes/` and every index to `index.md`. The `~/.zrb/` path and the `ZRB_` prefix are the stock build's: a white-labeled build reads its own `<PREFIX>_LLM_JOURNAL_…` variables and puts the directory under its root group name (`~/.<ROOT_GROUP_NAME>/llm-notes/`).
 
 `ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its four tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`, `DeleteJournalNote`), so the flag drops them from the per-run tool factories in `common_tools.py`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
 
@@ -42,7 +42,7 @@ Every journal knob (directory, index file, injection cap, HUD cap, first-turn au
 
 ### Directory Organization
 
-The writers create a fixed layout (`ensure_journal_tree` in `src/zrb/llm/tool/journal_write.py`): five note categories and an activity log, each with its own `index.md`.
+The writers create a fixed layout (`ensure_journal_tree` in `src/zrb/llm/tool/journal_write.py`): five note categories and an activity log, each with its own index. The layout below shows the default `index.md`; every index carries the configured `ZRB_LLM_JOURNAL_INDEX_FILE` name instead when you set one.
 
 ```mermaid
 flowchart LR
@@ -83,7 +83,7 @@ The root index is created with this skeleton; `WriteJournalNote` adds a one-line
 
 ## 3. Prompt Injection
 
-The `index.md` snapshot is deliberately kept **out of** the cached system prompt (`src/zrb/llm/prompt/live_context.py::render_journal_index`). Embedding the mutable index in the cached prefix would invalidate that cache every time the agent journaled mid-session (ADR-0042), so instead it travels through the conversation itself, as part of the `<live-context>` block appended to the latest **user** message — never the system prompt.
+The root-index snapshot is deliberately kept **out of** the cached system prompt (`src/zrb/llm/prompt/live_context.py::render_journal_index`). Embedding the mutable index in the cached prefix would invalidate that cache every time the agent journaled mid-session (ADR-0042), so instead it travels through the conversation itself, as part of the `<live-context>` block appended to the latest **user** message — never the system prompt.
 
 The index is only injected at the two moments it could otherwise be missing from context:
 
@@ -92,12 +92,12 @@ The index is only injected at the two moments it could otherwise be missing from
 
 On every other turn, the block is simply omitted — the agent is expected to already have it from earlier in the conversation.
 
-When present, the block is wrapped as its own tag inside the live-context payload:
+When present, the block is wrapped as its own tag inside the live-context payload (shown with the default index name — the header and the category hint both carry whatever `ZRB_LLM_JOURNAL_INDEX_FILE` says):
 
 ```
 <journal-index>
 Your persistent memory (index file: /abs/path/to/index.md). Use SearchJournal for full entries; a category's index.md (e.g. technical/index.md) lists every note ever written in it, uncapped. Change the journal only through LogActivity, WriteJournalNote, or DeleteJournalNote — ...
-[content of index.md, capped at ZRB_LLM_JOURNAL_INDEX_MAX_CHARS]
+[content of the root index, capped at ZRB_LLM_JOURNAL_INDEX_MAX_CHARS]
 [on the first turn, notes possibly related to the opening message, when ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED is on]
 </journal-index>
 ```
@@ -122,7 +122,7 @@ Nothing is injected at all when the index file is missing, unreadable, or empty;
 
 That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note. An unwritten journal is *empty*, not broken.
 
-**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the five directory indexes (four categories plus `activity-log`) on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0055).
+**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the six directory indexes (five categories plus `activity-log`) on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0055).
 
 ---
 

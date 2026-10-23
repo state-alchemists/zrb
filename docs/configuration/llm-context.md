@@ -30,10 +30,25 @@ rest of the window remains for the conversation that follows; the message window
 backstop for histories of many small messages. What a summary replaces is also written
 word for word, append-only, to `<history dir>/verbatim/<session>.md` — the history
 directory the conversation is actually stored in, `ZRB_LLM_HISTORY_DIR` unless a
-custom history manager says otherwise — and the summary names that file so the agent
-can read back the detail the summary dropped. The archived text is the history as the
-conversation held it, before oversized tool results are reduced to summaries, so a
-tool's output can be read back even after two rounds of lossy rewriting.
+custom history manager says otherwise — and, if the archive write succeeds, the
+summary names that file so the agent can read back the detail it dropped. The archive
+holds the history as the conversation held it, before oversized tool results were
+reduced to summaries, so a tool's output remains available after compaction.
+
+An archive is pruned, with its lock sidecar, only once **no history refers to it**: no
+transcript anywhere in the history tree — the conversation's own file, a backup of it,
+or a delegated sub-agent's transcript under `subagent/<agent-type>/` — carries its
+pointer, and it is older than `ZRB_LLM_HISTORY_RETENTION` (so an archive written just
+before its history is saved is never mistaken for an orphan, and `0` keeps every
+archive). Sub-agent transcripts are searched because they point at the same shared
+`verbatim/` directory. That keeps the directory bounded without leaving a summary
+pointing at text that is gone. Archives may still contain sensitive text: protect access
+to the history directory and back it up as needed.
+
+A directory written before these permissions existed is narrowed **once**, on first use,
+with a marker (`<dir>.owner-only`) beside it so later runs leave it alone — a mode you
+change back after that stays as you set it. This applies to both the history and the
+journal directory.
 
 The summary reaches the next model as a fenced block that names itself: it opens with
 `# SYSTEM: Automated Context Restoration`, says in as many words that it is derived data
@@ -61,16 +76,19 @@ The same mechanism keeps one large repo or file read from blowing the context wi
 
 How the journal works (storage layout, when the index is injected, how truncation behaves) is explained once, in [LLM Journal System](../technical-specs/llm-context.md). This section lists the knobs.
 
+> **Note on White-labeling:** the `ZRB_` prefix and the `~/.zrb/` paths below are the stock build's. A white-labeled build reads its own `<PREFIX>_LLM_…` variables and derives the journal directory from its root group name (`~/.<ROOT_GROUP_NAME>/llm-notes/`, e.g. `~/.acme/llm-notes/`). See [White-labeling](../advanced-topics/white-labeling.md).
+
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_JOURNAL_ENABLED` | Master switch. `false` unregisters the journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`) and the `<journal-index>` injection. Clearing `ZRB_LLM_JOURNAL_DIR` does not disable it — that falls back to the default path | `on` |
+| `ZRB_LLM_JOURNAL_ENABLED` | Master switch. `false` unregisters the journal tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`, `DeleteJournalNote`) and the `<journal-index>` injection. Clearing `ZRB_LLM_JOURNAL_DIR` does not disable it — that falls back to the default path | `on` |
 | `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
-| `ZRB_LLM_JOURNAL_INDEX_FILE` | Main index file name | `index.md` |
+| `ZRB_LLM_JOURNAL_INDEX_FILE` | Filename of every journal index: the root one — the index injected into context — and one in each category and `activity-log` directory. The writers and `render_journal_index` both resolve it here, so the injected index and the catalogs behind it always agree. Set it before the first write: an existing journal keeps the indexes it already has under their old name, so a changed value starts fresh ones instead of renaming the old | `index.md` |
 | `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context. Overflow is dropped from the **end** on a line boundary, so write the index most-durable-first. `0` suppresses the injection; a negative value injects it uncapped | `2500` |
-| `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` | Max `hud_line` entries per root-index HUD section (User, Preferences, Active Constraints); oldest evicted first. `<= 0` disables the cap | `20` |
+| `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` | Max `hud_line` entries per root-index HUD section (User, Preferences, Agent, Active Constraints); oldest evicted first. `<= 0` disables the cap | `20` |
 | `ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED` | On a session's first turn, run one `SearchJournal` against the opening message and fold hits into `<journal-index>` under an unverified "Possibly Related" section. Costs one search subprocess per session | `on` |
 | `ZRB_LLM_JOURNAL_AUTO_SEARCH_MAX_HITS` | Max `SearchJournal` hits folded into the first-turn auto-search | `3` |
 | `ZRB_LLM_JOURNAL_GIT_ENABLED` | Git-back the journal directory: `git init` on first use, commit after every `LogActivity`/`WriteJournalNote`/`DeleteJournalNote`. Gives unbounded, diffable history, so a human can recover a delete or bad overwrite (the in-file History block keeps only 3 revisions). Best-effort: a missing `git` or failed commit only skips the commit | `on` |
+| `ZRB_LLM_JOURNAL_LOCK_TIMEOUT` | Seconds to wait for another journal writer's lock before returning a busy-journal error; `<= 0` fails immediately. Does not limit git work *after* acquiring the lock | `30` |
 | `ZRB_LLM_SELF_REVIEW_ENABLED` | Built-in self-review Stop hook. On a turn that changed files, a fresh-context reviewer reads the working directory's diff since the turn started (every repository under it, nested ones and worktrees included; shell edits and mid-turn commits included; earlier uncommitted work excluded) plus read-only surrounding code. A `Request changes` verdict extends the turn so the agent fixes the findings. Snapshots go to a private temporary git store, never your `.git/objects`. Costs two snapshots per turn (start and Stop) and one reviewer run per turn that changed files | `off` |
 | `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` | Consecutive blocking reviews in one turn before it ends anyway; a non-blocking review resets the count | `2` |
 | `ZRB_LLM_SELF_REVIEW_MODEL` | Reviewer model. Empty uses the run's model; a different model shares fewer blind spots | (empty) |
@@ -81,6 +99,7 @@ How the journal works (storage layout, when the index is injected, how truncatio
 | `ZRB_LLM_AUTO_NAME_ENABLED` | Rename a conversation that still has its generated name, after its first message, to `<generated-name>-<topic>` (e.g. `bold-arch-1234-greetings`) using the small model. A name you chose is never renamed. Sub-agent transcripts and live sessions keep the generated name as their key, and each new sub-agent gets a topic title in the picker | `on` |
 | `ZRB_LLM_AUTO_NAME_MODEL` | Model that names a conversation. Empty uses the small model (`ZRB_LLM_SMALL_MODEL`, else the main model) | empty |
 | `ZRB_LLM_HISTORY_BACKUP_RETAIN` | Number of timestamped history backups to keep per conversation (`-1` = keep all, `0` = disable) | `3` |
+| `ZRB_LLM_ARCHIVE_LOCK_TIMEOUT` | Seconds a verbatim archive append waits for another writer, so a rollback truncates only its own bytes. On timeout nothing is written and the summary carries no pointer (`0` = fail at once) | `30` |
 | `ZRB_LLM_AGENT_MESSAGE_LIMIT` | Max messages the main agent and one delegated sub-agent may send each other (both directions together) before `send_message_to_subagent` / `send_message_to_parent` refuse, so two agents cannot answer each other forever. Human messages do not count | `20` |
 | `ZRB_LLM_SUBAGENT_HISTORY_RETAIN` | Max sub-agent transcripts kept across all agent types (`-1` = keep all); oldest pruned on each new delegation. Transcripts live under `ZRB_LLM_HISTORY_DIR/subagent/<agent-type>/` | `50` |
 | `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_DIR` | Directory of the cross-session history of submitted messages that `↑`/`↓` recall in the chat input box | `~/.zrb/llm-previous-message-history/` |

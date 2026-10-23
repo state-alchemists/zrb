@@ -959,18 +959,18 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         return self.effective_message_queue.qsize()
 
     def send_queued_messages_now(
-        self, may_interrupt: bool = True, only_ready: bool = False
+        self,
+        may_interrupt: bool = True,
+        only_ready: bool = False,
+        immediate_entry: QueuedMessage | None = None,
     ) -> DeliveryReport:
-        """Deliver the queued messages into the running turn, now.
-
-        A `MultiUI` parent runs the turn, so the parent does the delivering.
-        `may_interrupt=False` delivers at the earliest safe model request and
-        otherwise leaves the messages queued for the next turn.
-        """
+        """Ask the owning UI to deliver queued messages; see `queue_delivery`."""
         parent = self.multi_ui_parent
         if parent is not None:
             return parent.send_queued_messages_now(
-                may_interrupt=may_interrupt, only_ready=only_ready
+                may_interrupt=may_interrupt,
+                only_ready=only_ready,
+                immediate_entry=immediate_entry,
             )
         report = send_queued_messages_now(
             active_run_context=self.active_run_context,
@@ -980,6 +980,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             cancel_turn=lambda: self.cancel_current_turn("send_now"),
             may_interrupt=may_interrupt,
             only_ready=only_ready,
+            immediate_entry=immediate_entry,
         )
         self.redraw_echoes(report.delivered_entries)
         return report
@@ -1140,15 +1141,13 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         source: InputSource = None,
         may_interrupt: bool = True,
     ) -> DeliveryReport:
-        """Submit *user_message* and hand it to the running turn, now.
-
-        What `Enter` followed by `Ctrl+G` does from the keyboard, in one step,
-        for a submission with no keyboard behind it: hands-free speech
-        (ADR-0076). The message is queued first, so it stays a `QueuedMessage`
-        that a dialog or an ending run can hold as long as it needs to.
-        """
+        """Send this message promptly without flushing other queued drafts."""
         self.submit_message(user_message, source)
-        return self.send_queued_messages_now(may_interrupt=may_interrupt)
+        return self.send_queued_messages_now(
+            may_interrupt=may_interrupt,
+            only_ready=True,
+            immediate_entry=self.effective_message_queue.peek_latest(),
+        )
 
     def set_status_badge(self, key: str, text: str | None) -> None:
         self._base_status_bar.set_badge(key, text)

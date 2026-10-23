@@ -12,6 +12,55 @@ def _write_index(tmp_path, content: str) -> str:
     return str(tmp_path)
 
 
+def test_the_injected_index_is_the_configured_filename(tmp_path):
+    """The writers name every index from `LLM_JOURNAL_INDEX_FILE`, so the reader
+    must resolve the same knob — and say the same name to the model, which
+    otherwise looks for `index.md` in a category that has none."""
+    (tmp_path / "notes-index.md").write_text(
+        "# Journal\n\n- Name: Go\n", encoding="utf-8"
+    )
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = str(tmp_path)
+        cfg.LLM_JOURNAL_INDEX_FILE = "notes-index.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+
+        result = render_journal_index()
+
+    assert result is not None
+    assert "- Name: Go" in result
+    assert "a category's notes-index.md" in result
+    assert "technical/notes-index.md" in result
+
+
+def test_returns_none_for_a_traversal_index_name(tmp_path):
+    """`LLM_JOURNAL_INDEX_FILE` is config, not a sandboxed value — a path like
+    `../../secrets.md` must never be joined under the journal directory and
+    injected into the prompt, same as the writers already refuse it."""
+    journal_dir = tmp_path / "notes"
+    journal_dir.mkdir()
+    secret = tmp_path / "secrets.md"
+    secret.write_text("sk-super-secret\n", encoding="utf-8")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = str(journal_dir)
+        cfg.LLM_JOURNAL_INDEX_FILE = "../secrets.md"
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+
+        assert render_journal_index() is None
+
+
+def test_returns_none_for_an_absolute_index_name(tmp_path):
+    journal_dir = tmp_path / "notes"
+    journal_dir.mkdir()
+    secret = tmp_path / "secrets.md"
+    secret.write_text("sk-super-secret\n", encoding="utf-8")
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = str(journal_dir)
+        cfg.LLM_JOURNAL_INDEX_FILE = str(secret)
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 2500
+
+        assert render_journal_index() is None
+
+
 def test_returns_none_when_index_is_missing(tmp_path):
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = str(tmp_path)

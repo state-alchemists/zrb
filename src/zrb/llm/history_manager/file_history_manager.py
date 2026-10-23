@@ -12,6 +12,10 @@ if TYPE_CHECKING:
 
 from zrb.config.config import CFG
 from zrb.context.any_context import zrb_print
+from zrb.llm.history_manager.archive_layout import (
+    ARCHIVE_DIR_NAME,
+    archive_lock_path,
+)
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.util.subagent_session_naming import (
     SUBAGENT_HISTORY_SUBDIR,
@@ -19,8 +23,9 @@ from zrb.llm.util.subagent_session_naming import (
     subagent_history_directories,
 )
 from zrb.util.match import fuzzy_match
+from zrb.util.owner_only import FILE_MODE, makedirs_owner_only, tighten_once
 from zrb.util.string.conversion import to_string
-from zrb.util.string.name import has_random_name_prefix
+from zrb.util.string.name import has_random_name_prefix, safe_segment
 from zrb.util.todo.duration import parse_duration
 
 # Pattern to match timestamp suffix like -2024-03-18-10-30-00 or -2024-03-18-10-30
@@ -45,18 +50,57 @@ _MAX_CACHED_CONVERSATIONS = 8
 # reading every file in the directory.
 _EMPTY_HISTORY_MAX_BYTES = 2
 
-
-def safe_segment(name: str) -> str:
-    """A filesystem-safe single path segment for *name* (also used for the
-    per-agent-type subdirectory, which is the agent name)."""
-    safe = "".join(c for c in name if c.isalnum() or c in (" ", ".", "_", "-")).strip()
-    return safe or "default"
+# The archive filename as a summary's archive pointer spells it: the path in
+# backticks ends in `verbatim/<name>.md` (a backslash on Windows). Capturing the
+# name alone lets a referenced archive be matched whatever directory it sits in.
+# A space is a valid character in that name -- safe_segment() keeps one from a
+# session name -- so only the markdown/quoting delimiters the pointer could be
+# wrapped in are excluded, not whitespace in general.
+_ARCHIVE_REFERENCE_PATTERN = re.compile(r"verbatim[/\\]([^`)'\"\n]+\.md)")
 
 
 def default_history_manager() -> "FileHistoryManager":
     """The file-backed history manager used wherever no explicit one is
     configured."""
     return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
+
+
+def _archives_named_in(directory: str) -> "set[str]":
+    """Archive filenames the `.json` files directly in *directory* mention.
+
+    Read as text with `errors="ignore"` and searched, rather than parsed: the
+    pointer is a sentence in a summary, and a file that is not valid JSON any
+    more still names the archive it was written against. Skipping it would turn
+    a corrupt transcript into a deleted archive.
+    """
+    names: set[str] = set()
+    try:
+        entries = list(os.scandir(directory))
+    except OSError:
+        return names
+    for entry in entries:
+        if not entry.name.endswith(".json"):
+            continue
+        try:
+            if not entry.is_file():
+                continue
+            with open(entry.path, encoding="utf-8", errors="ignore") as stream:
+                names.update(_ARCHIVE_REFERENCE_PATTERN.findall(stream.read()))
+        except OSError:
+            continue
+    return names
+
+
+def _is_zrb_owned_history_entry(name: str) -> bool:
+    """Whether *name*, a direct child of the history directory, is zrb's own.
+
+    A conversation's live file and its timestamped backups all end in
+    `.json`; sub-agent transcripts and verbatim archives sit in their own
+    dedicated, zrb-named subdirectories. Used both to create new entries
+    owner-only and to narrow a pre-existing history directory without
+    touching whatever else a user-configured path might already hold.
+    """
+    return name.endswith(".json") or name in (SUBAGENT_HISTORY_SUBDIR, ARCHIVE_DIR_NAME)
 
 
 class FileHistoryManager(AnyHistoryManager):
@@ -70,8 +114,11 @@ class FileHistoryManager(AnyHistoryManager):
         self._dirty: set[str] = set()
         # Prune expired auto-named conversations on the first save.
         self._has_pruned = False
-        if not os.path.exists(self._history_dir):
-            os.makedirs(self._history_dir, exist_ok=True)
+        makedirs_owner_only(self._history_dir)
+        # A history directory written before the private-mode rule keeps its
+        # old modes; this narrows only zrb's own entries in it, once, and is a
+        # no-op on every later call.
+        tighten_once(self._history_dir, owned_entries=_is_zrb_owned_history_entry)
 
     @property
     def storage_dir(self) -> str:
@@ -528,11 +575,29 @@ class FileHistoryManager(AnyHistoryManager):
                 return f"{base_path}-{ts_str_with_us}.json"
 
     def _save_data_to_file(self, file_path: str, data: Any) -> bool:
-        """Atomically save filtered data; return whether the write succeeded."""
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        """Atomically save filtered data; return whether the write succeeded.
+
+        The temporary file is created owner-only and refuses a symlink planted
+        at its path (`O_NOFOLLOW`) instead of the builtin `open`, which has no
+        way to request either; `os.replace` then carries that mode onto
+        *file_path* itself, whatever mode it had before. `makedirs_owner_only`
+        can raise `PermissionError` (an `OSError`) for a symlinked directory,
+        caught by the same handler as any other failed write: a transcript
+        this call cannot place safely is a failed save, not a crash.
+        """
         tmp_path = f"{file_path}.tmp"
         try:
-            with open(tmp_path, "w", encoding="utf-8") as f:
+            makedirs_owner_only(os.path.dirname(file_path))
+            descriptor = os.open(
+                tmp_path,
+                os.O_WRONLY
+                | os.O_CREAT
+                | os.O_TRUNC
+                | getattr(os, "O_NOFOLLOW", 0)
+                | getattr(os, "O_BINARY", 0),
+                FILE_MODE,
+            )
+            with os.fdopen(descriptor, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
             os.replace(tmp_path, file_path)
             return True
@@ -571,6 +636,68 @@ class FileHistoryManager(AnyHistoryManager):
                     os.remove(entry.path)
             except OSError:
                 continue
+        self._prune_unreferenced_archives(cutoff, current)
+
+    def _prune_unreferenced_archives(self, cutoff: float, current: str) -> None:
+        """Delete archives no history refers to any more, and their lock files.
+
+        An archive is the only copy of the text a summary dropped, so it goes
+        only when nothing points at it: no history file in this directory — the
+        live one or a backup of it — carries its pointer. Age is required too,
+        so an archive written moments ago for a conversation whose history has
+        not been saved yet is never collected. A conversation the user named is
+        kept by retention, so its archive is too, and a session with no history
+        file of its own (the opening-message key) survives as long as the
+        summary that names it does.
+
+        A compaction can write the archive and leave the conversation dirty —
+        its save deferred or still pending — well before this call's own
+        trigger, for a *different* conversation, runs the one-time prune: that
+        archive would otherwise be the only unreferenced-looking one on disk,
+        even though an in-memory summary still points to it. Every dirty
+        conversation is kept for exactly the same reason `current` already is,
+        not only the one triggering this save.
+        """
+        archives_dir = os.path.join(self._history_dir, ARCHIVE_DIR_NAME)
+        try:
+            names = os.listdir(archives_dir)
+        except OSError:
+            return
+        archives = [n for n in names if n.endswith(".md") and not n.startswith(".")]
+        if not archives:
+            return
+        referenced = self._referenced_archives()
+        # Live even before its history file lands: the session being saved,
+        # and any other conversation whose own save is still pending.
+        keep = {f"{safe_segment(name)}.md" for name in (current, *self._dirty)}
+        for name in archives:
+            if name in referenced or name in keep:
+                continue
+            path = os.path.join(archives_dir, name)
+            try:
+                if os.stat(path).st_mtime >= cutoff:
+                    continue
+                os.remove(path)
+            except OSError:
+                continue
+            try:
+                os.remove(archive_lock_path(path))
+            except OSError:
+                pass
+
+    def _referenced_archives(self) -> "set[str]":
+        """Archive filenames named by any transcript this manager can write.
+
+        Every directory a transcript can live in, not just the root: a
+        sub-agent's summary points at the same shared `verbatim/` directory as
+        its parent's, so a pointer inside `subagent/<agent-type>/` is just as
+        load-bearing. Backups sit beside their main file and are read here too,
+        because a backup still names the archive it was written against.
+        """
+        referenced: set[str] = set()
+        for directory in subagent_history_directories(self._history_dir):
+            referenced.update(_archives_named_in(directory))
+        return referenced
 
     def _rotate_backups(
         self, base_name: str, keep: int, main_file_name: str | None = None

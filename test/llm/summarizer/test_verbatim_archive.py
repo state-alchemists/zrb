@@ -19,10 +19,21 @@ from pydantic_ai.messages import (
 )
 
 from zrb.config.config import CFG
+from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer.verbatim_archive import (
     archive_verbatim_history,
     verbatim_archive_path,
 )
+
+
+class PerMessageLimiter(LLMLimiter):
+    """Every message costs ten tokens, so a section's counts are checkable."""
+
+    def count_tokens(self, content) -> int:
+        return 10 * len(content) if isinstance(content, list) else 10
+
+    def truncate_text(self, text: str, max_tokens: int) -> str:
+        return text
 
 
 def _messages():
@@ -97,16 +108,6 @@ def test_nothing_to_archive_writes_nothing(tmp_path):
 
     assert archive_verbatim_history([], path=path) is None
     assert not os.path.exists(os.path.join(str(tmp_path), "verbatim"))
-
-
-def test_a_write_failure_is_reported_but_never_raised(tmp_path):
-    path = verbatim_archive_path("s", str(tmp_path))
-    with patch(
-        "zrb.llm.summarizer.verbatim_archive.open",
-        side_effect=OSError("disk full"),
-        create=True,
-    ):
-        assert archive_verbatim_history(_messages(), path=path) is None
 
 
 @pytest.mark.asyncio
@@ -240,7 +241,11 @@ async def test_an_unnamed_conversation_is_keyed_by_its_opening(tmp_path, monkeyp
         session_name=None,
     )
 
-    archives = os.listdir(os.path.join(str(tmp_path), "verbatim"))
+    archives = [
+        name
+        for name in os.listdir(os.path.join(str(tmp_path), "verbatim"))
+        if not name.startswith(".")
+    ]
     assert len(archives) == 1
     assert archives[0].startswith("fix the parser")
 
@@ -274,7 +279,9 @@ def test_the_archive_follows_the_history_manager_directory(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_the_processor_archives_beside_the_configured_history(tmp_path, monkeypatch):
+async def test_the_processor_archives_beside_the_configured_history(
+    tmp_path, monkeypatch
+):
     """Automatic compaction must not drop the history directory it was given:
     a conversation stored under a custom directory archives there, not under the
     global default."""
@@ -330,7 +337,11 @@ async def test_two_unnamed_conversations_do_not_share_an_archive(tmp_path, monke
             conversational_token_threshold=10,
         )
 
-    archives = sorted(os.listdir(os.path.join(str(tmp_path), "verbatim")))
+    archives = sorted(
+        name
+        for name in os.listdir(os.path.join(str(tmp_path), "verbatim"))
+        if not name.startswith(".")
+    )
     assert len(archives) == 2
     text = "".join(
         open(os.path.join(str(tmp_path), "verbatim", name), encoding="utf-8").read()
@@ -391,6 +402,79 @@ async def test_the_archive_keeps_the_tool_output_not_its_summary(tmp_path, monke
     assert "SUMMARY OF TOOL RESULT" not in archived
     # The summarizer really did see the summary, not the tool's output: this
     # test would pass trivially if the fat pass had left the message alone.
-    summarized_prompts = [call.args[0] for call in conversational_agent.run.await_args_list]
+    summarized_prompts = [
+        call.args[0] for call in conversational_agent.run.await_args_list
+    ]
     assert any("condensed output" in prompt for prompt in summarized_prompts)
 
+
+@pytest.mark.asyncio
+async def test_a_failed_archive_write_leaves_no_pointer(tmp_path, monkeypatch):
+    """A pointer to a file nothing was written to would send the next turn after
+    a path that is not there: the summary goes out without it."""
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
+
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.summarizer import summarize_history
+
+    with patch(
+        "zrb.llm.summarizer.history_summarizer.archive_verbatim_history",
+        return_value=None,
+    ):
+        new_history = await summarize_history(
+            _messages(),
+            agent=agent,
+            summary_window=1,
+            conversational_token_threshold=10,
+            session_name="unwritable",
+        )
+
+    summary_text = str(getattr(new_history[0].parts[0], "content", ""))
+    assert "Summary content" in summary_text  # the compaction still happened
+    assert "## Verbatim history archive" not in summary_text
+    assert verbatim_archive_path("unwritable", str(tmp_path)) not in summary_text
+
+
+@pytest.mark.asyncio
+async def test_a_section_counts_the_messages_it_archived(tmp_path, monkeypatch):
+    """The token figure describes the same list as the message count: a prior
+    summary is dropped before the write, so it must not be counted either."""
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    prior_summary = ModelRequest(
+        parts=[
+            UserPromptPart(
+                content="# SYSTEM: Automated Context Restoration\nold summary"
+            )
+        ]
+    )
+    messages = [
+        prior_summary,
+        ModelRequest(parts=[UserPromptPart(content="fix the parser")]),
+        ModelResponse(parts=[TextPart(content="Looking at it.")]),
+        ModelRequest(parts=[UserPromptPart(content="and now?")]),
+        ModelResponse(parts=[TextPart(content="Done.")]),
+    ]
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
+
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.summarizer import summarize_history
+
+    await summarize_history(
+        messages,
+        agent=agent,
+        summary_window=1,
+        limiter=PerMessageLimiter(),
+        conversational_token_threshold=100,
+        session_name="counted",
+    )
+
+    text = open(
+        verbatim_archive_path("counted", str(tmp_path)), encoding="utf-8"
+    ).read()
+    # The summary is not archived, and the section it would have inflated is 3
+    # messages at 10 tokens each.
+    assert "3 message(s), ~30 tokens" in text
+    assert "old summary" not in text

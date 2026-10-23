@@ -80,12 +80,6 @@ def _press(part: UISideQuestion, key: str, data: str | None = None) -> None:
     raise AssertionError(f"the panel binds no {key!r}")
 
 
-# --- The keys the focused panel receives ------------------------------------
-#
-# The panel holds the focus while it is shown, so these bindings are what a
-# keypress reaches first: the movement keys must walk the answer rather than the
-# input's queue recall, and a printable key must still start a message.
-
 LONG_ANSWER = "\n".join(f"line {i}" for i in range(40))
 
 
@@ -175,7 +169,7 @@ def _asking_panel():
     return ui, panel
 
 
-@pytest.mark.parametrize("key", ["é", "ü", "🙂"])
+@pytest.mark.parametrize("key", ["é", "ü", "🙂", "\u00a0", "\u3000", "\u200d"])
 def test_a_non_ascii_key_starts_a_message_too(key):
     """Self-insert delivers the character, not an ASCII-only binding table."""
     ui, panel = _asking_panel()
@@ -184,6 +178,22 @@ def test_a_non_ascii_key_starts_a_message_too(key):
 
     ui.insert_input_text.assert_called_once_with(key)
     assert panel.is_active is True
+
+
+def test_a_non_breaking_space_does_not_drop_the_whole_text_chunk():
+    ui, panel = _asking_panel()
+
+    _type(panel, "a\u00a0b")
+
+    ui.insert_input_text.assert_called_once_with("a\u00a0b")
+
+
+def test_a_control_character_in_a_text_chunk_is_not_forwarded():
+    ui, panel = _asking_panel()
+
+    _type(panel, "a\x01b")
+
+    ui.insert_input_text.assert_not_called()
 
 
 def test_a_control_key_is_not_message_text():
@@ -206,13 +216,13 @@ def test_the_down_escape_sequence_scrolls_and_types_nothing():
     ui.insert_input_text.assert_not_called()
 
 
-def test_the_panel_binds_no_catch_all_so_application_keys_stay_free():
-    """A `Keys.Any` binding would answer Enter, Ctrl+X and Ctrl+G before the
-    application's own handlers; the panel must leave them unbound."""
+def test_the_panel_binds_no_catch_all_so_other_application_keys_stay_free():
+    """Enter closes the panel; Ctrl+X and Ctrl+G retain their handlers."""
     _, panel = _asking_panel()
     bindings = _window(panel).control.key_bindings
 
-    for key in ("enter", "c-x", "c-g"):
+    assert bindings.get_bindings_for_keys(("c-m",))
+    for key in ("c-x", "c-g"):
         assert bindings.get_bindings_for_keys((key,)) == []
 
 
@@ -256,6 +266,16 @@ def test_escape_closes_the_panel_from_its_own_keys():
     focus.assert_called_once_with(ui.input_field, "Input-field")
 
 
+def test_enter_closes_the_panel_without_submitting_the_input():
+    ui, panel = _asking_panel()
+    with patch("zrb.llm.ui.default.side_question.focus_widget") as focus:
+        _press(panel, "c-m")
+
+    assert panel.is_active is False
+    focus.assert_called_once_with(ui.input_field, "Input-field")
+    ui.insert_input_text.assert_not_called()
+
+
 def test_the_default_ui_hands_the_focus_to_its_own_panel(mock_ui_deps):
     """The real layout, not a stand-in: the panel lives in a conditional float
     behind a frame, and focusing it has to work through those layers."""
@@ -271,8 +291,9 @@ def test_the_default_ui_hands_the_focus_to_its_own_panel(mock_ui_deps):
         "prompt_toolkit.output.create_output", side_effect=lambda **_: DummyOutput()
     ):
         app = ui.application
-    with set_app(app), patch(
-        "zrb.llm.ui.default.side_question.focus_widget", focus_widget
+    with (
+        set_app(app),
+        patch("zrb.llm.ui.default.side_question.focus_widget", focus_widget),
     ):
         ui.begin_side_question("why is the sky blue?")
 
@@ -346,8 +367,9 @@ async def _drive_live_application() -> None:
     with create_pipe_input() as pipe_input:
         with create_app_session(input=pipe_input, output=DummyOutput()):
             app = Application(layout=layout, key_bindings=app_keybindings)
-            with set_app(app), patch(
-                "zrb.llm.ui.default.side_question.focus_widget", focus_widget
+            with (
+                set_app(app),
+                patch("zrb.llm.ui.default.side_question.focus_widget", focus_widget),
             ):
                 panel.begin("why?")
                 panel.end(LONG_ANSWER)
@@ -369,6 +391,10 @@ async def _drive_live_application() -> None:
                     app.key_processor.feed(KeyPress(key, key))
                     app.key_processor.process_keys()
                 assert input_field.buffer.text == "hé🙂"
+                for key in ("\u00a0", "👨", "\u200d", "👩"):
+                    app.key_processor.feed(KeyPress(key, key))
+                    app.key_processor.process_keys()
+                assert input_field.buffer.text == "hé🙂\u00a0👨\u200d👩"
 
                 # Keys the panel does not bind reach the application's handlers.
                 app.key_processor.feed(KeyPress(Keys.ControlG, "\x07"))
@@ -378,8 +404,14 @@ async def _drive_live_application() -> None:
 
                 app.key_processor.feed(KeyPress(Keys.Enter, "\r"))
                 app.key_processor.process_keys()
-                handled.assert_called_with("enter")
+                assert panel.is_active is False
                 assert app.layout.current_buffer is input_field.buffer
+                assert input_field.buffer.text == "hé🙂\u00a0👨\u200d👩"
+                handled.assert_called_once_with("c-g")
+
+                app.key_processor.feed(KeyPress(Keys.Enter, "\r"))
+                app.key_processor.process_keys()
+                handled.assert_called_with("enter")
 
 
 def _recall_queued_message(event, recalled: MagicMock) -> bool:

@@ -23,7 +23,7 @@ from zrb.llm.history_manager.conversation_naming import (
     suggest_slug,
     with_slug,
 )
-from zrb.llm.history_manager.file_history_manager import safe_segment
+from zrb.util.string.name import safe_segment
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.subagent_session_naming import (
     parse_delegated_agent_id,

@@ -8,10 +8,10 @@ scrolls instead of swallowing the screen.
 
 The panel takes the focus while it is shown, so the movement keys walk the
 answer instead of the input: Up/Down (with PageUp/PageDown/Home/End) scroll the
-panel rather than recalling a queued message, and Esc closes it and gives the
-input its focus back. It is a read-only answer view, so typing still starts a
-message — a printable key lands in the input without the focus leaving the
-panel, keeping the movement keys on the answer for as long as it is up. A panel
+panel rather than recalling a queued message. Enter closes it without submitting
+an input draft; Esc also closes it. Both return focus to the input. It is a read-only answer view, so typing still starts a
+message — text keys land in the input without the focus leaving the panel,
+keeping the movement keys on the answer for as long as it is up. A panel
 that opens while a prompt is waiting for the user keeps the focus where it is:
 that field is what the turn is blocked on.
 
@@ -29,6 +29,7 @@ and stays out of it.
 
 from __future__ import annotations
 
+import unicodedata
 from typing import TYPE_CHECKING
 
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
@@ -111,8 +112,8 @@ class UISideQuestion:
     def end(self, answer: str, request: object | None = None) -> None:
         """Show the finished answer, rendered at the pane's width.
 
-        An answer whose question the panel has moved past (a newer `/btw`, or
-        Esc) is dropped: the panel belongs to the newer question.
+        An answer whose panel was replaced or dismissed is dropped; the token
+        belongs only to the question that opened it.
         """
         if not self.is_current(request):
             return
@@ -277,13 +278,18 @@ class UISideQuestion:
         Up/Down (with PageUp/PageDown/Home/End) move the panel's cursor, which
         scrolls the answer: `up` here must not reach the input field's own `up`,
         which recalls a queued message. Typing is not bound here: the
-        application-level catch-all forwards it while the panel is focused, so
-        every other key still reaches the application's own bindings.
+        application-level catch-all forwards it while the panel is focused.
+        Enter closes the panel without submitting the draft; Esc also closes it.
+        Other exact application bindings still win over the catch-all.
         """
         # lazy: heavy third-party
         from prompt_toolkit.key_binding import KeyBindings
 
         kb = KeyBindings()
+
+        @kb.add("enter")
+        def _(event):
+            self.dismiss()
 
         @kb.add("escape")
         def _(event):
@@ -322,13 +328,11 @@ class UISideQuestion:
 def is_message_text(data: str) -> bool:
     """Whether *data* is text the user typed rather than a key's own encoding.
 
-    A terminal sends a movement key as an escape sequence (`\\x1b[B` for Down),
-    a control key as a control character (`\\x01` for Ctrl+A), and a bare
-    modifier as nothing at all; none of those is a character of a message.
+    Reject terminal controls (including escape sequences), not all characters
+    `str.isprintable()` rejects: a typed non-breaking space or emoji joiner
+    belongs in the input field too.
     """
-    if not data or data.startswith("\x1b"):
-        return False
-    return data.isprintable()
+    return bool(data) and all(unicodedata.category(char) != "Cc" for char in data)
 
 
 def _line_and_column(text: str, offset: int) -> tuple[int, int]:

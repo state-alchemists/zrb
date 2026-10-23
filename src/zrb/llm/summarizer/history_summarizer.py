@@ -1,5 +1,5 @@
 from collections.abc import Awaitable, Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -38,6 +38,7 @@ if TYPE_CHECKING:
 else:
     ModelMessage = Any
 
+
 def create_summarizer_history_processor(
     conversational_agent: Any = None,
     message_agent: Any = None,
@@ -51,11 +52,12 @@ def create_summarizer_history_processor(
     """Create a history processor that auto-summarizes history past its thresholds.
 
     `session_name` names the conversation's verbatim archive, so what a
-    compaction replaces stays readable afterwards; a callable is resolved per
-    call so a rename is followed. Left as `None`, the name is derived from the
-    conversation's opening message, so callers that cannot say who they are
-    still do not share one archive. `history_dir` is the directory the history
-    manager stores conversations in, so the archive sits beside them.
+    compaction replaces stays readable afterwards when that write succeeds; a
+    callable is resolved per call so a rename is followed. Left as `None`, the
+    name is derived from the conversation's opening message, so callers that
+    cannot say who they are still do not share one archive. `history_dir` is the
+    directory the history manager stores conversations in, so the archive sits
+    beside them.
     """
     llm_limiter = limiter or default_llm_limiter
     if conversational_token_threshold is None:
@@ -266,10 +268,11 @@ async def summarize_history(
     (``/compress``). The journal index is re-seeded into the summary.
 
     The replaced messages are archived verbatim once the replacement is ready,
-    and the summary names the archive: a summary is a lossy view, the archive is
-    not. `verbatim_source` is the history as it stood before the caller's own
-    fat-message pass, so the archive keeps the tool's output rather than the
-    summary of it; it is used only when it lines up with `messages`.
+    and the summary names the archive when it was written: a summary is a lossy
+    view, the archive is not. `verbatim_source` is the history as it stood
+    before the caller's own fat-message pass, so the archive keeps the tool's
+    output rather than the summary of it; it is used only when it lines up with
+    `messages`.
     """
     try:
         llm_limiter = limiter or default_llm_limiter
@@ -289,7 +292,7 @@ async def summarize_history(
         archive_path = verbatim_archive_path(
             _resolve_session_name(session_name, messages), history_dir
         )
-        summary_text = await _build_summary_text(
+        fitted = await _build_summary_parts(
             to_summarize,
             to_keep,
             agent or create_conversational_summarizer_agent(),
@@ -297,7 +300,10 @@ async def summarize_history(
             conversational_token_threshold,
             archive_path=archive_path,
         )
-        if not summary_text:
+        if fitted is None:
+            # Nothing fits the cap; _build_summary_parts said so.
+            return messages
+        if not fitted.model_text:
             zrb_print(
                 stylize_warning(
                     "  Warning: summary came back empty; keeping the history as it is."
@@ -305,34 +311,95 @@ async def summarize_history(
                 plain=True,
             )
             return messages
-        summary_message = _create_summary_model_request(summary_text)
+        summary_message = _create_summary_model_request(fitted.render())
         if summary_message is None:
             return messages
         result = _assemble_summarized_history(summary_message, messages, to_keep)
         # Only now, with a summary that replaces the messages in hand: an
         # archive written before a failed summarization would claim messages
         # were replaced while they are still in the history.
-        archived = _verbatim_prefix(to_summarize, messages, verbatim_source)
-        archive_verbatim_history(
-            _without_prior_summaries(archived),
-            path=archive_path,
-            tokens=llm_limiter.count_tokens(archived),
+        archived = _without_prior_summaries(
+            _verbatim_prefix(to_summarize, messages, verbatim_source)
         )
-        return result
+        if not archived:
+            # Nothing but prior summaries here, which the archive does not
+            # repeat: there is no file to point at.
+            return _without_archive_pointer(fitted, messages, to_keep)
+        # The size is counted on `archived`, the list the section renders, so
+        # the section's message and token counts describe the same messages.
+        written = archive_verbatim_history(
+            archived, path=archive_path, tokens=llm_limiter.count_tokens(archived)
+        )
+        if written is not None:
+            return result
+        # A pointer to a file nothing was written to would send the next turn
+        # after a path that is not there, so the block goes out without it.
+        zrb_print(
+            stylize_warning(
+                "  Warning: the verbatim archive could not be written; the summary "
+                "goes out without a pointer to it."
+            ),
+            plain=True,
+        )
+        return _without_archive_pointer(fitted, messages, to_keep)
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
 
 
-async def _build_summary_text(
+def _without_archive_pointer(
+    fitted: "_FittedSummary",
+    messages: "list[ModelMessage]",
+    to_keep: "list[ModelMessage]",
+) -> "list[ModelMessage]":
+    """The replacement the cap approved, minus the pointer to an unwritten archive.
+
+    Dropping the pointer can only make the block smaller than the cap measured.
+    """
+    summary_message = _create_summary_model_request(
+        _render_summary_content(fitted.model_text, fitted.journal_block, "")
+    )
+    if summary_message is None:
+        return messages
+    return _assemble_summarized_history(summary_message, messages, to_keep)
+
+
+@dataclass(frozen=True)
+class _FittedSummary:
+    """A summary's parts once the cap has approved the block they land in.
+
+    Kept apart from the framing so the archive pointer can be left out when
+    nothing was written: whether the archive exists is known only after the
+    write, which happens after the cap has measured the pointer. The pointer is
+    measured there so the turn it lands in cannot run past the cap; dropping it
+    can only make the block smaller than the cap approved. `archive_note` is the
+    note that survived the fit, empty when it did not fit.
+    """
+
+    model_text: str
+    journal_block: str
+    archive_note: str
+
+    def render(self) -> str:
+        """The summary turn's text, as the cap approved it."""
+        return _render_summary_content(
+            self.model_text, self.journal_block, self.archive_note
+        )
+
+
+async def _build_summary_parts(
     to_summarize: list[Any],
     to_keep: list[Any],
     summarizer_agent: Any,
     llm_limiter: "LLMLimiter",
     conversational_token_threshold: int,
     archive_path: str | None = None,
-) -> str:
-    """Summarize `to_summarize`, capping it and re-seeding the journal index."""
+) -> "_FittedSummary | None":
+    """Summarize `to_summarize`, capping it and re-seeding the journal index.
+
+    Returns the parts the cap approved, or ``None`` when not even the framing
+    fits the cap. An empty `model_text` means the model answered with nothing.
+    """
     summary_text = await chunk_and_summarize(
         to_summarize,
         summarizer_agent,
@@ -353,22 +420,26 @@ async def _build_summary_text(
             limiter=llm_limiter,
         )
     if not summary_text.strip():
-        return ""
+        return _FittedSummary(model_text="", journal_block="", archive_note="")
     if not _is_state_snapshot_well_formed(summary_text):
         # A summary that lost its schema still beats no summary: a history left
-        # over the budget fails the next request outright, and the archive holds
-        # the text the summary replaced either way. It is still capped below.
+        # over the budget fails the next request outright. It is still capped
+        # below. The caller archives the replaced messages, and that write can
+        # fail, so nothing here promises the archive holds them.
         zrb_print(
             stylize_warning(
                 "  Warning: summary is missing part of the <state_snapshot> "
-                "schema; keeping it, the verbatim archive holds the originals."
+                "schema; keeping it. The messages it replaces reach the verbatim "
+                "archive only if that write succeeds."
             ),
             plain=True,
         )
     # The block is measured and capped as it will be inserted: the framing zrb
     # writes, the journal index and the archive pointer all count against the
-    # same cap, or the turn it lands in can run past it. The notes come first,
-    # so the snapshot is not dropped to make room for text zrb can leave out.
+    # same cap, or the turn it lands in can run past it. The notes yield first,
+    # so the snapshot is not shrunk to make room for text zrb can leave out. The
+    # pointer's room is reserved here because the write that decides it happens
+    # only after the cap has approved the block.
     journal_block = render_journal_index() or ""
     archive_note = _render_archive_note(archive_path) if archive_path else ""
     journal_block, archive_note = _fit_note_blocks(
@@ -396,8 +467,10 @@ async def _build_summary_text(
             ),
             plain=True,
         )
-        return ""
-    return block
+        return None
+    return _FittedSummary(
+        model_text=summary_text, journal_block=journal_block, archive_note=archive_note
+    )
 
 
 def _fit_note_blocks(
@@ -417,7 +490,9 @@ def _fit_note_blocks(
         return journal_block, archive_note
 
     def is_within_cap(journal: str, archive: str) -> bool:
-        return limiter.count_tokens(_render_summary_content("", journal, archive)) <= cap
+        return (
+            limiter.count_tokens(_render_summary_content("", journal, archive)) <= cap
+        )
 
     if is_within_cap(journal_block, archive_note):
         return journal_block, archive_note
@@ -447,7 +522,9 @@ def _render_summary_content(
 ) -> str:
     """The summary turn's text: zrb's framing, then the body, then the end marker."""
     body = "\n\n".join(
-        part.strip() for part in (model_text, journal_block, archive_note) if part.strip()
+        part.strip()
+        for part in (model_text, journal_block, archive_note)
+        if part.strip()
     )
     return make_markdown_section(
         _SUMMARY_HEADER,
@@ -553,7 +630,10 @@ async def _shorten_summary(
 
 def _is_state_snapshot_well_formed(summary_text: str) -> bool:
     """Whether *summary_text* holds a `<state_snapshot>` with every section the prompt asks for."""
-    if "<state_snapshot>" not in summary_text or "</state_snapshot>" not in summary_text:
+    if (
+        "<state_snapshot>" not in summary_text
+        or "</state_snapshot>" not in summary_text
+    ):
         return False
     return all(
         f"<{section}>" in summary_text and f"</{section}>" in summary_text

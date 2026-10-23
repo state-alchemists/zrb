@@ -111,7 +111,7 @@ sequenceDiagram
 Inside `run_agent`, each round of the loop does the same steps:
 
 1. `sanitize_history` repairs the history, and `TurnCursor.begin_round` installs it.
-2. `agent.run` streams the round. The event handler sends each event to the UI and any stream observers. It also saves a checkpoint in the background each time a tool round trip completes.
+2. `agent.run` streams the round. The event handler sends each event to the UI and any stream observers. On a checkpoint boundary — the history has grown and ends in a model request, so the next request is about to be assembled — it asks the UI to hand the ready queued messages to this run (`BaseUI.deliver_queued_messages_early`), and saves a checkpoint in the background.
 3. The round ends one of four ways. A stream error goes to `handle_stream_error`. Tool calls that need approval go to `process_deferred_requests`, and the loop goes round again with their results. An empty answer is regenerated, up to `max_empty_completion_retries` times. A real answer goes to the `Stop` hook.
 4. `Stop` either ends the turn or, when a hook blocks it, starts one more round with the hook's reason as the message.
 
@@ -127,7 +127,7 @@ When the run returns, `LLMTask` saves the new history. On an error or a cancel, 
 | Approval arrives later through a channel | `process_deferred_requests` returns nothing | The turn suspends: the pending requests and history return, and `Stop` does not fire |
 | A `Stop` hook blocks | `apply_turn_end_extension` in `src/zrb/llm/agent/run/session_extension.py` | Another round runs with the reason injected, up to `STOP_HOOK_BLOCK_CAP` times in a row |
 | A sub-agent's run | `run_agent(nested=...)` | No turn snapshot is taken, and the `Stop` payload marks `nested_run` — see [Sub-agents](../2-extension-surface/sub-agents.md) |
-| A message typed mid-turn | `steer_into_live_run` | Steers into the live run instead of queuing ([ADR-0078](../../adr/adr-0078.md)) |
+| A message typed mid-turn | `MessageQueue.deliverable`, `BaseUI.deliver_queued_messages_early` | Queues like every submission; the running turn takes the ready entries at its next checkpoint, holding the one being edited and any inside their grace, and `Ctrl+G` sends everything now ([ADR-0078](../../adr/adr-0078.md), [ADR-0116](../../adr/adr-0116.md)) |
 
 ### Change it here
 

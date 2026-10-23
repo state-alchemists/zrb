@@ -33,6 +33,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SNAPSHOT_OPERATION_TIMEOUT: str = "120"
         self.DEFAULT_LLM_SNAPSHOT_LOCK_TIMEOUT: str = "60"
         self.DEFAULT_LLM_HISTORY_RETENTION: str = "30d"
+        self.DEFAULT_LLM_ARCHIVE_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_AUTO_NAME_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
@@ -40,6 +41,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
         self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_GIT_ENABLED: str = "on"
+        self.DEFAULT_LLM_JOURNAL_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SELF_REVIEW_ENABLED: str = "off"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_ROUNDS: str = "2"
         self.DEFAULT_LLM_SELF_REVIEW_MODEL: str = ""
@@ -140,13 +142,14 @@ class LLMContentMixin:
         serialize=on_off,
         doc=(
             "Master switch for the cross-session journal. Off unregisters the "
-            "three journal tools (SearchJournal, LogActivity, "
-            "WriteJournalNote) and suppresses the <journal-index> injection. "
-            "Those tools are the whole interface — there is no prompt section "
-            "describing a journal protocol — so off means the model is never "
-            "told a journal exists, and neither reads nor writes one. "
-            "LLM_JOURNAL_DIR has no 'unset' value that achieves this (it falls "
-            "back to ~/<root>/llm-notes), which is why this knob exists."
+            "four journal tools (SearchJournal, LogActivity, "
+            "WriteJournalNote, DeleteJournalNote) and suppresses the "
+            "<journal-index> injection. Those tools are the whole interface — "
+            "there is no prompt section describing a journal protocol — so off "
+            "means the model is never told a journal exists, and neither reads "
+            "nor writes one. LLM_JOURNAL_DIR has no 'unset' value that achieves "
+            "this (it falls back to ~/<root>/llm-notes), which is why this knob "
+            "exists."
         ),
     )
 
@@ -164,7 +167,15 @@ class LLMContentMixin:
 
     LLM_JOURNAL_INDEX_FILE = EnvField(
         str,
-        doc="Filename of the journal index file.",
+        doc=(
+            "Filename of every journal index: the one at the journal root — "
+            "the index injected into context — and one in each category and "
+            "activity-log directory. The reader and every writer resolve it "
+            "from here. Set it before the first write: an existing journal "
+            "keeps the indexes it already has under their old name, so a "
+            "changed value starts fresh indexes rather than renaming the old "
+            "ones."
+        ),
     )
 
     LLM_JOURNAL_INDEX_MAX_CHARS = EnvField(
@@ -184,9 +195,9 @@ class LLMContentMixin:
         fallback=20,
         doc=(
             "Maximum hud_line entries kept per root-index HUD section (User, "
-            "Preferences, Active Constraints). Oldest entries are evicted first "
-            "so a stale preference does not sit in the always-injected index "
-            "forever. `<= 0` disables the cap (uncapped)."
+            "Preferences, Agent, Active Constraints). Oldest entries are evicted "
+            "first so a stale preference does not sit in the always-injected "
+            "index forever. `<= 0` disables the cap (uncapped)."
         ),
     )
 
@@ -218,6 +229,14 @@ class LLMContentMixin:
             "tools (the in-file History block only keeps the last 3 "
             "revisions). Best-effort: a missing `git` binary or a failed "
             "commit never breaks journaling, it just forgoes the commit."
+        ),
+    )
+
+    LLM_JOURNAL_LOCK_TIMEOUT = EnvField(
+        float,
+        doc=(
+            "Seconds a journal write waits for another writer's root lock before "
+            "failing with a busy-journal error. Zero or negative fails immediately."
         ),
     )
 
@@ -371,6 +390,14 @@ class LLMContentMixin:
             "forever; an auto-generated name (like bold-arch-1234) is what "
             "marks one as disposable. Pruned on the first save of each "
             "session. 0 keeps every history."
+        ),
+    )
+
+    LLM_ARCHIVE_LOCK_TIMEOUT = EnvField(
+        float,
+        doc=(
+            "Seconds a verbatim archive append waits for another writer before "
+            "returning no archive pointer. Zero or negative fails immediately."
         ),
     )
 

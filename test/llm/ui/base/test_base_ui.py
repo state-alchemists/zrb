@@ -235,8 +235,7 @@ def test_submit_message_uses_own_llm_task(base_ui):
 def test_submit_message_now_queues_the_message_and_sends_it_into_the_live_run(
     base_ui,
 ):
-    """Voice has no key to press behind it: the words are submitted and sent in
-    one step, as Enter then Ctrl+G do from the keyboard (ADR-0076)."""
+    """Voice skips its own grace, without interrupting or flushing drafts."""
     live_run = MagicMock()
     base_ui.active_run_context = live_run
     with patch.object(base_ui, "append_to_output"):
@@ -245,6 +244,23 @@ def test_submit_message_now_queues_the_message_and_sends_it_into_the_live_run(
     assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
     live_run.enqueue.assert_called_once_with("spoken", priority="asap")
     assert base_ui.queued_message_count == 0
+
+
+def test_speech_leaves_an_edited_message_queued(base_ui):
+    edited = make_entry("draft")
+    edited.is_being_edited = True
+    base_ui.message_queue.put_nowait(edited)
+    run = MagicMock()
+    base_ui.active_run_context = run
+
+    with patch.object(base_ui, "append_to_output"):
+        report = base_ui.submit_message_now(
+            "spoken", DICTATION_INPUT, may_interrupt=False
+        )
+
+    assert [entry.text for entry in report.delivered_entries] == ["spoken"]
+    assert base_ui.message_queue.pending() == (edited,)
+    run.enqueue.assert_called_once_with("spoken", priority="asap")
 
 
 def test_submit_message_now_leaves_the_message_queued_when_no_turn_runs(base_ui):

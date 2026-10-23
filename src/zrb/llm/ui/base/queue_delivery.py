@@ -67,6 +67,7 @@ def send_queued_messages_now(
     cancel_turn: Callable[[], None],
     may_interrupt: bool = True,
     only_ready: bool = False,
+    immediate_entry: QueuedMessage | None = None,
 ) -> DeliveryReport:
     """Hand the queued messages to the running turn, now.
 
@@ -91,12 +92,16 @@ def send_queued_messages_now(
     and otherwise waits for the next turn. Interrupting is the user's call
     (Esc, Ctrl+G, a stop word), not a side effect of talking.
 
-    `only_ready=True` is the checkpoint's own call: it takes the entries the
-    queue says are ready — not the one being edited, and none younger than the
-    grace — and leaves the rest for a later checkpoint. An explicit Ctrl+G
-    passes neither, because the user asked for everything now.
+    `only_ready=True` takes entries past their grace, leaving edits in progress
+    untouched. Hands-free speech can also include `immediate_entry`, its own
+    newly queued utterance, without flushing anyone else's draft. An explicit
+    Ctrl+G takes everything: that is the user's decision.
     """
-    entries = queue.deliverable(time.monotonic()) if only_ready else queue.pending()
+    entries = (
+        queue.deliverable(time.monotonic(), immediate_entry=immediate_entry)
+        if only_ready
+        else queue.pending()
+    )
     if not entries:
         return DeliveryReport(DeliveryOutcome.NOTHING_MOVED, held=queue.qsize())
 

@@ -23,8 +23,14 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.util.file_lock import hold_file_lock
+from zrb.llm.journal_index_name import resolve_journal_index_name
+from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.markdown import get_first_heading
+from zrb.util.owner_only import (
+    makedirs_owner_only,
+    tighten_once,
+    write_text_owner_only,
+)
 
 NOTE_CATEGORIES = ("user", "agent", "preferences", "projects", "technical")
 ACTIVITY_DIR = "activity-log"
@@ -44,7 +50,6 @@ _HUD_SECTION = {
 # migrated into this order rather than appended after the unbounded one.
 _HUD_ORDER = ("User", "Preferences", "Agent", "Active Constraints")
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-_DIRECTORY_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]*)/index\.md\)")
 _BACKLINKS_HEADING = "## Backlinks"
 
 
@@ -96,8 +101,9 @@ def write_journal_note(
             description=(
                 f"One of: {', '.join(NOTE_CATEGORIES)}. `user` and `agent` are "
                 "who the two parties are; `preferences` is how the user wants "
-                "to be worked with, and an agent's own standing choices go "
-                "under `agent`, not here."
+                "to be worked with (the agent's own choices go under `agent`). "
+                "`projects` records project context; `technical` records "
+                "reusable technical findings."
             )
         ),
     ],
@@ -151,11 +157,11 @@ def write_journal_note(
         str | None,
         Field(
             description=(
-                "One-line compression pinned to the always-injected index, "
-                "so the fact survives without a search — use it for anything "
-                "about the user themselves or how they want to be worked with. "
-                "Revising the note replaces the earlier line that ends in its "
-                "`([note](…))` link."
+                "One-line compression pinned to the injected index, under the "
+                "section for this category. Pin durable identity, preferences or "
+                "active constraints; the index is capped. On revision pass an "
+                "updated line if the fact changed — omission retains the old "
+                "pinned line. A supplied line replaces the one for this note."
             )
         ),
     ] = None,
@@ -193,9 +199,11 @@ def write_journal_note(
         _write_note_file(note_path, slug, title, context, finding, source, targets)
         for target in targets:
             _add_backlink(target, note_path, title)
-        _register_in_index(os.path.join(root, category, "index.md"), note_path, title)
         _register_in_index(
-            os.path.join(root, "index.md"),
+            os.path.join(root, category, _index_name()), note_path, title
+        )
+        _register_in_index(
+            os.path.join(root, _index_name()),
             note_path,
             title,
             heading="## Recent Insights",
@@ -304,11 +312,24 @@ def _open_journal() -> Iterator[str]:
     initialized when `LLM_JOURNAL_GIT_ENABLED`."""
     root = ensure_journal_tree()
     # One root lock makes the multi-file update atomic against concurrent writers.
-    with hold_file_lock(os.path.join(root, ".lock")):
-        _migrate_root_index(root)
-        if CFG.LLM_JOURNAL_GIT_ENABLED:
-            _ensure_journal_git(root)
-        yield root
+    try:
+        with hold_file_lock(
+            os.path.join(root, ".lock"),
+            timeout=max(0.0, CFG.LLM_JOURNAL_LOCK_TIMEOUT),
+        ):
+            _migrate_root_index(root)
+            if CFG.LLM_JOURNAL_GIT_ENABLED:
+                _ensure_journal_git(root)
+            yield root
+    except FileLockTimeout as exc:
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: journal is busy; another writer held "
+            f"{os.path.join(root, '.lock')} for the whole "
+            f"{max(0.0, CFG.LLM_JOURNAL_LOCK_TIMEOUT)}s allowed by "
+            "LLM_JOURNAL_LOCK_TIMEOUT, so this call wrote nothing. Retry once "
+            "the other writer is done, or raise that setting if journal writes "
+            "are legitimately slow here."
+        ) from exc
 
 
 def _migrate_root_index(root: str) -> None:
@@ -320,7 +341,7 @@ def _migrate_root_index(root: str) -> None:
     `hold_file_lock` let a writer write back a copy taken before another writer
     added its line, losing that line on both sides of a successful call.
     """
-    root_index = os.path.join(root, "index.md")
+    root_index = os.path.join(root, _index_name())
     current = _read_text(root_index)
     migrated = _ensure_directory_links(_ensure_hud_sections(current))
     if migrated != current:
@@ -340,6 +361,8 @@ def ensure_journal_tree() -> str:
 
     Only what is missing: an existing index is never rewritten here, since the
     lock is not held yet. `_migrate_root_index` does the rewriting, under it.
+    A configured `LLM_JOURNAL_INDEX_FILE` names the indexes created here, so a
+    journal written under a different name keeps its files and gains fresh ones.
     """
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:
@@ -348,14 +371,25 @@ def ensure_journal_tree() -> str:
             "(LLM_JOURNAL_DIR is unset). Report this rather than retrying."
         )
     root = os.path.abspath(os.path.expanduser(journal_dir))
-    os.makedirs(root, exist_ok=True)
+    _makedirs_owner_only(root)
+    index_name = _index_name()
     for name in (*NOTE_CATEGORIES, ACTIVITY_DIR):
-        os.makedirs(os.path.join(root, name), exist_ok=True)
+        _makedirs_owner_only(os.path.join(root, name))
         _write_if_absent(
-            os.path.join(root, name, "index.md"),
+            os.path.join(root, name, index_name),
             f"# {name.replace('-', ' ').title()}\n",
         )
-    _write_if_absent(os.path.join(root, "index.md"), _root_index_skeleton())
+    _write_if_absent(os.path.join(root, index_name), _root_index_skeleton())
+    # A journal written before the private-mode rule keeps its old modes; this
+    # narrows it once, and is a no-op on every later call. Run last, so a
+    # first-time tree is narrowed only once every descendant it creates above
+    # already exists — the marker it writes never claims a half-hardened tree.
+    # Only the entries this function itself just created or confirmed are
+    # named: LLM_JOURNAL_DIR is a directory the user configures directly, and
+    # may already hold content that belongs to something else entirely — the
+    # root's own mode, and anything in it zrb did not just account for, are
+    # left exactly as they are.
+    tighten_once(root, owned_entries=(*NOTE_CATEGORIES, ACTIVITY_DIR, index_name))
     return root
 
 
@@ -415,8 +449,9 @@ def _git_commit(root: str, message: str) -> None:
 
 
 def _root_index_skeleton() -> str:
+    index_name = _index_name()
     directories = " · ".join(
-        f"[{name}]({name}/index.md)" for name in (*NOTE_CATEGORIES, ACTIVITY_DIR)
+        f"[{name}]({name}/{index_name})" for name in (*NOTE_CATEGORIES, ACTIVITY_DIR)
     )
     # Order is load-bearing: the injected snapshot is capped and overflows from
     # the end, so the unbounded section goes last and evicts only itself.
@@ -447,14 +482,15 @@ def _ensure_directory_links(text: str) -> str:
     """Add any category link the `## Directories` line predates, in its order.
 
     The link is what makes a category reachable from the injected root index, so
-    a migrated journal that gains `## Agent` but not `[agent](agent/index.md)`
-    hides every agent note behind an index nobody links to. A missing link is
-    inserted where `NOTE_CATEGORIES` puts it; every line is otherwise left
-    untouched, so a hand-written label (`[My notes](user/index.md)`) or a link to
-    something zrb does not own survives, where rebuilding the line from the
-    canonical names would have dropped both.
+    a migrated journal that gains `## Agent` but not the `agent` link in `##
+    Directories` hides every agent note behind an index nobody links to. A
+    missing link is inserted where `NOTE_CATEGORIES` puts it; every line is
+    otherwise left untouched, so a hand-written label (`[My notes](user/…)`) or a
+    link to something zrb does not own survives, where rebuilding the line from
+    the canonical names would have dropped both.
     """
     expected = [*NOTE_CATEGORIES, ACTIVITY_DIR]
+    link_re = _directory_link_re()
     lines = text.splitlines()
     for index, line in enumerate(lines):
         if line.strip() != "## Directories":
@@ -471,7 +507,7 @@ def _ensure_directory_links(text: str) -> str:
             # A heading with no list under it is not a shape this writer makes;
             # leave it rather than inventing a line above someone's own text.
             return text
-        linked = [match.group(2) for match in _DIRECTORY_LINK_RE.finditer(lines[bullet_at])]
+        linked = [match.group(2) for match in link_re.finditer(lines[bullet_at])]
         missing = [name for name in expected if name not in linked]
         if not missing:
             return text
@@ -485,9 +521,9 @@ def _ensure_directory_links(text: str) -> str:
 
 
 def _insert_directory_link(line: str, name: str, expected: list[str]) -> str:
-    """Add `[name](name/index.md)` before the first link that must follow it."""
-    token = f"[{name}]({name}/index.md)"
-    for match in _DIRECTORY_LINK_RE.finditer(line):
+    """Add the category's index link before the first link that must follow it."""
+    token = f"[{name}]({name}/{_index_name()})"
+    for match in _directory_link_re().finditer(line):
         target = match.group(2)
         if target not in expected:
             continue
@@ -521,18 +557,20 @@ def _ensure_activity_path(root: str, now: datetime) -> str:
         now.strftime("%Y-%m"),
         now.strftime("%Y-%m-%d"),
     )
+    index_name = _index_name()
     activity = os.path.join(root, ACTIVITY_DIR)
     year_dir = os.path.join(activity, year)
     month_dir = os.path.join(year_dir, month)
-    os.makedirs(month_dir, exist_ok=True)
-    _write_if_absent(os.path.join(year_dir, "index.md"), f"# {year}\n")
-    _write_if_absent(os.path.join(month_dir, "index.md"), f"# {month}\n")
-    _register_link(os.path.join(activity, "index.md"), f"{year}/index.md", year)
-    _register_link(os.path.join(year_dir, "index.md"), f"{month}/index.md", month)
-    _register_link(os.path.join(month_dir, "index.md"), f"{day}.md", day)
+    _makedirs_owner_only(month_dir)
+    _write_if_absent(os.path.join(year_dir, index_name), f"# {year}\n")
+    _write_if_absent(os.path.join(month_dir, index_name), f"# {month}\n")
+    _register_link(os.path.join(activity, index_name), f"{year}/{index_name}", year)
+    _register_link(os.path.join(year_dir, index_name), f"{month}/{index_name}", month)
+    _register_link(os.path.join(month_dir, index_name), f"{day}.md", day)
     day_file = os.path.join(month_dir, f"{day}.md")
     _write_if_absent(
-        day_file, f"# {day}\n\n{_BACKLINKS_HEADING}\n\n- [month index](index.md)\n"
+        day_file,
+        f"# {day}\n\n{_BACKLINKS_HEADING}\n\n- [month index]({index_name})\n",
     )
     return day_file
 
@@ -564,7 +602,8 @@ def _write_note_file(
     )
     # The directory index is always the first backlink.
     backlinks = _merge_entries(
-        _entries_under(note_path, _BACKLINKS_HEADING), ["- [index](index.md)"]
+        _entries_under(note_path, _BACKLINKS_HEADING),
+        [f"- [index]({_index_name()})"],
     )
     lines = [
         "---",
@@ -633,6 +672,22 @@ def _resolve_links(root: str, links: list[str]) -> list[str]:
 
 def _is_inside(path: str, parent: str) -> bool:
     return path == parent or path.startswith(f"{parent}{os.sep}")
+
+
+def _index_name() -> str:
+    """Filename of every index this module writes: the root's and each category's.
+
+    The reader (`render_journal_index`) resolves the root index from the same
+    knob through the same `resolve_journal_index_name` check, so a name that
+    only one side honored or validated left the written index uninjectable —
+    or, unvalidated, let the reader be pointed outside the journal entirely.
+    """
+    return resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
+
+
+def _directory_link_re() -> re.Pattern[str]:
+    """`[label](<category>/<index file>)`, the links `## Directories` carries."""
+    return re.compile(rf"\[([^\]]*)\]\(([^)]*)/{re.escape(_index_name())}\)")
 
 
 def _posix_relpath(path: str, start: str) -> str:
@@ -713,14 +768,16 @@ def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
     """Pin *line* under *section*, replacing any earlier line from the same note.
 
     Lines are keyed by their trailing note link; an unlinked line is replaced
-    only when identical to the new one.
+    only when identical to the new one. A supplied line that already carries a
+    note link — a revision may repeat the line as it was read in the index —
+    has it stripped first, so the note is pinned once.
     """
     own = f" ([note]({note_rel}))"
-    base = f"- {line.removeprefix('- ')}"
+    base = _hud_line_base(line, own)
     entry = f"{base}{own}"
-    index_path = os.path.join(root, "index.md")
+    index_path = os.path.join(root, _index_name())
     text = _read_text(index_path)
-    if entry in text:
+    if entry in text.splitlines():
         return
     heading = f"## {section}"
     lines = text.splitlines()
@@ -733,6 +790,14 @@ def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
         text, heading, CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
     )
     _write_text(index_path, text)
+
+
+def _hud_line_base(line: str, own: str) -> str:
+    """Strip only this note's trailing link, leaving links to other notes intact."""
+    text = line.strip().removeprefix("- ").strip()
+    while text.endswith(own):
+        text = text.removesuffix(own).rstrip()
+    return f"- {text}"
 
 
 def _cap_section_entries(text: str, heading: str, max_entries: int) -> str:
@@ -792,6 +857,23 @@ def _title_of(path: str) -> str:
     )
 
 
+def _makedirs_owner_only(path: str) -> None:
+    """`makedirs_owner_only`, with a journal-specific, model-facing message.
+
+    The shared helper raises a bare `PermissionError` naming the offending
+    path; this translates it into the `[SYSTEM SUGGESTION]` convention every
+    other configuration error in this module already uses.
+    """
+    try:
+        makedirs_owner_only(path)
+    except PermissionError as e:
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: {e} The journal directory and every "
+            "directory above it must be a real directory, not a link to one "
+            "— reconfigure LLM_JOURNAL_DIR or remove the link."
+        ) from e
+
+
 def _write_if_absent(path: str, content: str) -> None:
     if not os.path.exists(path):
         _write_text(path, content)
@@ -806,6 +888,11 @@ def _read_text(path: str) -> str:
 
 
 def _write_text(path: str, content: str) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
+    """Write *content* to *path* owner-only; see `write_text_owner_only`.
+
+    `tighten_once` only runs once, at `ensure_journal_tree`; every note, day
+    file and month/year index this module creates afterwards goes through
+    here, so the owner-only guarantee has to come from the write itself
+    instead of relying on a later pass that will never revisit it.
+    """
+    write_text_owner_only(path, content)

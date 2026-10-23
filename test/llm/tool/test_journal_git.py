@@ -26,6 +26,8 @@ def git_journal(tmp_path):
     root = tmp_path / "notes"
     with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = str(root)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = True
         mock_cfg.LLM_GIT_CMD_TIMEOUT = 5000
@@ -56,6 +58,8 @@ def test_git_disabled_creates_no_git_repo(tmp_path):
     root = tmp_path / "notes"
     with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = str(root)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         ensure_journal_tree()

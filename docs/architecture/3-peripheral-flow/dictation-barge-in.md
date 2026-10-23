@@ -150,7 +150,7 @@ Before any of that, the words are normalised: fillers ("uh", "hey"), polite word
 
 The lists answer without a model, so a stop word, a hush, and a stop that carries on cost nothing. A model is asked only for short words (at most `interrupt_judge_max_words`) the lists could not read; longer ones are requests, since a stop in other words is short. The judge's budget is `interrupt_judge_timeout` (2 seconds by default). Cancelling a turn loses work and carrying on costs a repeat or an Esc, so every uncertain path ends at Request. That is also why the same word can cancel the turn once and only silence the voice the next time: a list match is a string comparison, the judge races a clock.
 
-A stop cancels the running turn through `AnyUI.cancel_current_turn` and is sent nowhere. A request becomes a `TriggerReply`. `BaseUITriggers` sends it as an answer if a prompt is waiting and the utterance began after the prompt appeared; otherwise it becomes a new message, which steers the running turn by default.
+A stop cancels the running turn through `AnyUI.cancel_current_turn` and is sent nowhere. A request becomes a `TriggerReply`. `BaseUITriggers` sends it as an answer if a prompt is waiting and the utterance began after the prompt appeared; otherwise it queues a new message and offers only that utterance to the running turn at its next safe model request, without interrupting the turn or flushing another draft (ADR-0076, ADR-0078).
 
 **Reading the reply.** Speech sees the same events as the UI:
 

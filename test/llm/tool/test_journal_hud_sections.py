@@ -17,6 +17,8 @@ def writable_journal(tmp_path):
     root = tmp_path / "notes"
     with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = str(root)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         yield str(root)
@@ -31,6 +33,70 @@ def _write(root, text: str) -> None:
     os.makedirs(root, exist_ok=True)
     with open(os.path.join(root, "index.md"), "w", encoding="utf-8") as f:
         f.write(text)
+
+
+@pytest.mark.parametrize(
+    "index_name",
+    [
+        "../escape.md",
+        "nested/index.md",
+        "",
+        "notes)index.md",
+        "notes(index.md",
+        "notes[index.md",
+        "notes]index.md",
+        "notes`index.md",
+    ],
+)
+def test_configured_index_name_must_be_a_filename(writable_journal, index_name):
+    from zrb.llm.tool.journal_write import ensure_journal_tree
+
+    with patch("zrb.llm.tool.journal_write.CFG.LLM_JOURNAL_INDEX_FILE", index_name):
+        with pytest.raises(ValueError, match="LLM_JOURNAL_INDEX_FILE"):
+            ensure_journal_tree()
+
+
+def test_an_absolute_index_name_is_rejected(tmp_path, writable_journal):
+    from zrb.llm.tool.journal_write import ensure_journal_tree
+
+    index_name = str(tmp_path / "escape.md")
+    with patch("zrb.llm.tool.journal_write.CFG.LLM_JOURNAL_INDEX_FILE", index_name):
+        with pytest.raises(ValueError, match="LLM_JOURNAL_INDEX_FILE"):
+            ensure_journal_tree()
+    assert not (tmp_path / "escape.md").exists()
+
+
+def test_a_busy_journal_returns_an_actionable_error(writable_journal):
+    """The message has to say a lock held the write, for how long, and which
+    setting raises the wait — an agent that only reads "busy" retries blindly."""
+    from zrb.llm.tool.journal_write import log_activity
+    from zrb.util.file_lock import FileLockTimeout
+
+    with patch(
+        "zrb.llm.tool.journal_write.hold_file_lock",
+        side_effect=FileLockTimeout("lock held"),
+    ):
+        with pytest.raises(ValueError) as raised:
+            log_activity("checked lock behavior")
+
+    message = str(raised.value)
+    assert "[SYSTEM SUGGESTION]" in message
+    assert "busy" in message
+    assert "another writer held" in message
+    assert "LLM_JOURNAL_LOCK_TIMEOUT" in message
+    assert "wrote nothing" in message
+
+
+def test_a_journal_write_passes_its_configured_lock_timeout(writable_journal):
+    from zrb.llm.tool.journal_write import log_activity
+    from zrb.util.file_lock import hold_file_lock
+
+    with patch(
+        "zrb.llm.tool.journal_write.hold_file_lock", wraps=hold_file_lock
+    ) as lock:
+        log_activity("checked lock timeout")
+
+    assert lock.call_args.kwargs["timeout"] == 0.1
 
 
 def test_an_agent_note_pins_under_the_agent_section(writable_journal):
@@ -167,3 +233,86 @@ def test_a_migrated_index_links_the_new_category_in_directories(writable_journal
         "[projects](projects/index.md) · [technical](technical/index.md) · "
         "[activity-log](activity-log/index.md)"
     )
+
+
+def test_hud_line_preserves_a_link_to_a_different_note(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="main",
+        title="Main",
+        context="c",
+        finding="f",
+        source="s",
+        hud_line="See also ([note](technical/other.md))",
+    )
+
+    index = _read(writable_journal, "index.md")
+    assert "See also ([note](technical/other.md)) ([note](technical/main.md))" in index
+
+
+def test_repeating_a_pinned_line_with_its_link_does_not_pin_it_twice(
+    writable_journal,
+):
+    """The tool's own output is in the model's context, so a revision can hand
+    the line back verbatim, `([note](…))` included. Appending a second link to
+    that pinned the same note twice on one line."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="retry-policy",
+        title="Retry policy",
+        context="writing a retry",
+        finding="not concurrency-safe",
+        source="src/retry.py:12",
+        hud_line="Retry is not concurrency-safe.",
+    )
+    write_journal_note(
+        category="technical",
+        slug="retry-policy",
+        title="Retry policy",
+        context="writing a retry",
+        finding="not concurrency-safe",
+        source="src/retry.py:12",
+        hud_line="- Retry is not concurrency-safe. ([note](technical/retry-policy.md))",
+    )
+
+    pinned = [
+        line
+        for line in _read(writable_journal, "index.md").splitlines()
+        if "Retry is not" in line
+    ]
+    assert pinned == [
+        "- Retry is not concurrency-safe. ([note](technical/retry-policy.md))"
+    ]
+
+
+def test_a_line_an_earlier_version_pinned_twice_is_written_once(writable_journal):
+    """A journal written before the fix carries a doubled link; the next write of
+    that note replaces the line rather than leaving the duplicate in place."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    _write(
+        writable_journal,
+        "# Journal\n\n"
+        "## Active Constraints\n\n"
+        "- Retry is not concurrency-safe. ([note](technical/retry-policy.md)) "
+        "([note](technical/retry-policy.md))\n\n"
+        "## Directories\n\n- [technical](technical/index.md)\n\n"
+        "## Recent Insights\n\n",
+    )
+
+    write_journal_note(
+        category="technical",
+        slug="retry-policy",
+        title="Retry policy",
+        context="writing a retry",
+        finding="not concurrency-safe",
+        source="src/retry.py:12",
+        hud_line="Retry is not concurrency-safe.",
+    )
+
+    pinned = _read(writable_journal, "index.md")
+    assert pinned.count("([note](technical/retry-policy.md))") == 1

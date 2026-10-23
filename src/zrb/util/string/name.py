@@ -107,5 +107,12 @@ def get_conversation_key(name: str) -> str:
     return name
 
 
+def safe_segment(name: str) -> str:
+    """A filesystem-safe single path segment for *name* (also used for the
+    per-agent-type subdirectory, which is the agent name)."""
+    safe = "".join(c for c in name if c.isalnum() or c in (" ", ".", "_", "-")).strip()
+    return safe or "default"
+
+
 _RANDOM_NAME = re.compile(rf"(?:{'|'.join(PREFIXES)})-(?:{'|'.join(SUFFIXES)})-\d{{4}}")
 _RANDOM_NAME_PREFIX = re.compile(_RANDOM_NAME.pattern + r"(?:-.+)?")

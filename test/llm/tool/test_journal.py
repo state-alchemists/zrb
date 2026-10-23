@@ -275,3 +275,39 @@ def test_python_search_swallows_file_open_errors(journal_dir):
             result = search_journal("findme")
     # No crash; just no matches
     assert result.get("results") == []
+
+
+def test_zero_hit_survives_a_note_that_is_not_utf8(tmp_path):
+    """Decoding a note strictly made the zero-hit suggestion pass raise, so a
+    search that found nothing crashed instead of saying so."""
+    journal_dir = tmp_path / "journal"
+    (journal_dir / "technical").mkdir(parents=True)
+    (journal_dir / "technical" / "latin-1-note.md").write_bytes(b"# Caf\xe9 policy\n")
+    (journal_dir / "technical" / "retry-policy.md").write_text(
+        "# Retry policy is not concurrency-safe\n\nbody\n", encoding="utf-8"
+    )
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = str(journal_dir)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
+            result = search_journal("Retry policy is not concurrency safe")
+    assert result["results"] == []
+    assert any("Retry policy" in title for title in result.get("did_you_mean", []))
+
+
+def test_zero_hit_does_not_offer_a_category_index_as_a_title(tmp_path):
+    """A directory index is a catalog, not a note: its `# Technical` heading is
+    nobody's finding. Skipping it by the literal `index.md` missed a journal
+    whose index is named by configuration."""
+    journal_dir = tmp_path / "journal"
+    (journal_dir / "technical").mkdir(parents=True)
+    (journal_dir / "technical" / "notes-index.md").write_text(
+        "# Technical\n", encoding="utf-8"
+    )
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = str(journal_dir)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "notes-index.md"
+        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
+            result = search_journal("Technical notes")
+    assert result["results"] == []
+    assert "Technical" not in result.get("did_you_mean", [])

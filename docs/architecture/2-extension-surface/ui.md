@@ -73,7 +73,7 @@ flowchart TD
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
 | `AnyUI` | `src/zrb/llm/ui/any_ui.py` | The contract: `ask_user`, `ask_user_choice`, `append_to_output`, `stream_to_parent`, `run_interactive_command`, `run_async`, plus the run-state properties (`is_thinking`, `yolo`, `model`, ...) and cancellation |
-| `BaseUI` | `src/zrb/llm/ui/base/ui.py` | Shared chat logic: the message queue, running a turn (`stream_ai_response`), slash commands, history replay, snapshots, and the text fallback for `ask_user_choice` |
+| `BaseUI` | `src/zrb/llm/ui/base/ui.py` | Shared chat logic: the message queue, running a turn (`stream_ai_response`), slash commands, history replay, snapshots, the side-question destination (`begin_side_question` and the three methods that end it), and the text fallback for `ask_user_choice` |
 | `UI` | `src/zrb/llm/ui/default/ui.py` | The full-screen prompt_toolkit terminal, built from parts: `UIOutput` (rendering), `UIConfirmation` (the approval queue), selection and keybindings |
 | `SimpleUI`, `EventDrivenUI` | `src/zrb/llm/ui/simple_ui_base.py`, `src/zrb/llm/ui/event_driven_ui.py` | The small extension levels: write `print` and `get_input`, or `print` and `start_event_loop` |
 | `StdUI` | `src/zrb/llm/ui/std_ui.py` | Plain terminal output and input; the fallback when nothing else is configured |
@@ -93,7 +93,7 @@ flowchart TD
 
 A non-interactive run (the web chat posts each message this way) attaches factory UIs to the task instead, and the run falls back to `StdUI` when there is none.
 
-**Running a turn.** The user's message goes through the UI's queue, so turns run one at a time. A message submitted while a turn runs is steered into the live run by `steer_into_live_run` when a run context exists ([ADR-0078](../../adr/adr-0078.md)); otherwise it waits in the queue, where the terminal shows it above the input and lets the user edit or drop it before it is sent ([ADR-0077](../../adr/adr-0077.md)).
+**Running a turn.** The user's message goes through the UI's queue, so turns run one at a time. Every submission joins that queue and stays there while it is still editable — the terminal lists what is waiting above the input, where `↑` recalls it for editing and `Ctrl+X` drops it ([ADR-0077](../../adr/adr-0077.md)). The running turn then hands itself the ready entries at its next checkpoint, leaving behind the one being edited and any younger than its grace; `Ctrl+G` sends everything now, into the live run or by interrupting the turn that has none ([ADR-0078](../../adr/adr-0078.md), [ADR-0116](../../adr/adr-0116.md)).
 
 ```mermaid
 sequenceDiagram
@@ -124,6 +124,7 @@ sequenceDiagram
 | The web chat | `create_http_ui_factory` | Output becomes server-sent events; the final answer is sent as raw markdown for the browser to render |
 | A sub-agent | `BufferedUI`, created in `src/zrb/llm/tool/delegate.py` | Output stays in the child's buffer until flushed; the lock covers only the write to the parent, not the wait for the answer |
 | A choice question | `ask_user_choice` | The terminals show an arrow-key picker; every other UI gets numbered text from `BaseUI` |
+| A `/btw` side question | `BaseUI` side-question methods, overridden by the terminal | The terminal shows the question and its answer in a panel above the input, holding the focus so `↑`/`↓` scroll the answer, and `Enter` or `Esc` closes it; every other UI renders both into the transcript ([ADR-0117](../../adr/adr-0117.md)) |
 | A shell command from the UI | `UI.run_interactive_command` | Hands the real terminal to the subprocess, then takes the screen back |
 | A custom backend | `create_ui_factory` | Pick a level (`SimpleUI`, `EventDrivenUI` or `BaseUI`) and write only that level's methods — see [Custom UI](../../llm/llm-custom-ui.md) |
 
