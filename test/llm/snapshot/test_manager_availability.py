@@ -1,6 +1,7 @@
 "When SnapshotManager turns rewind off for the session, and how it says"
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -147,6 +148,10 @@ print(sha if sha else f"failed: {errors}")
 """
 
 
+def _is_commit_sha(output: str) -> bool:
+    return re.fullmatch(r"[0-9a-f]{40}", output) is not None
+
+
 def test_processes_setting_up_one_store_at_once_all_get_rewind(tmp_path):
     snapshot_dir, workdir = tmp_path / "snapshots", tmp_path / "work"
     go = tmp_path / "go"
@@ -157,16 +162,31 @@ def test_processes_setting_up_one_store_at_once_all_get_rewind(tmp_path):
             [sys.executable, "-c", _SET_UP_AND_SNAPSHOT]
             + [str(snapshot_dir), str(workdir), f"conversation-{i}", str(go)],
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            # A child that dies before printing its sha says why on stderr, and
+            # this test is the one that runs under the heaviest contention: a
+            # discarded stderr makes its rare failure impossible to explain.
+            stderr=subprocess.PIPE,
             text=True,
         )
         for i in range(16)
     ]
     time.sleep(1)
     go.touch()
-    outputs = [process.communicate(timeout=60)[0].strip() for process in starts]
+    results = [process.communicate(timeout=60) for process in starts]
 
-    assert all(len(output) == 40 for output in outputs), outputs
+    # Report the processes that did not get rewind, not all sixteen outputs: the
+    # reason is in the output that failed, and a 16-item list is truncated to
+    # the middle of itself before a reader ever reaches it.
+    failures = [
+        f"process {index}: stdout={stdout.strip()!r} stderr={stderr.strip()!r}"
+        for index, (stdout, stderr) in enumerate(results)
+        if not _is_commit_sha(stdout.strip())
+    ]
+
+    assert not failures, (
+        f"{len(failures)} of {len(results)} processes setting up one store at "
+        "once did not get rewind: " + "; ".join(failures)
+    )
 
 
 @pytest.mark.asyncio
