@@ -2,8 +2,9 @@
 
 A summary is injected as a user turn, and role alternation merges the real user
 messages into that same turn, so the block has to say what it is and where it
-ends. It is also capped: the summarizer prompt asks for 2000 tokens, and until
-now nothing measured the answer.
+ends. It is also bounded: `LLM_SUMMARY_MAX_TOKEN_RATIO` gives a summary a share
+of the trigger threshold rather than a fixed count, so the bound follows the
+model's window instead of meaning something different on every model.
 
 Behaviour, not helpers: every test drives `summarize_history` and asserts on the
 history it returns.
@@ -28,6 +29,7 @@ from zrb.llm.summarizer import summarize_history
 from zrb.llm.summarizer.history_summarizer import (
     _render_archive_note,
     _render_summary_content,
+    _summary_cap,
     _truncate_snapshot,
 )
 
@@ -155,9 +157,10 @@ async def test_the_users_own_words_follow_the_summary_in_the_same_turn():
 
 
 @pytest.mark.asyncio
-async def test_a_summary_over_the_cap_is_shortened_before_it_is_used(monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 600, raising=False)
-    agent = _agent(_padded("long", 600), _snapshot("short"))
+async def test_a_summary_over_the_cap_is_shortened_before_it_is_used():
+    # `_compress` runs at a threshold of 8000, so the 0.05 share lands on the
+    # 1000-token floor.
+    agent = _agent(_padded("long", 1200), _snapshot("short"))
 
     history = await _compress(agent, _history())
 
@@ -168,30 +171,33 @@ async def test_a_summary_over_the_cap_is_shortened_before_it_is_used(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_a_malformed_summary_is_capped_too(monkeypatch):
+async def test_a_malformed_summary_is_capped_too():
     """No rewriting makes prose into a snapshot, but too much prose still costs."""
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 600, raising=False)
-    agent = _agent("Summary content\n" + "y" * 2400, "shorter prose")
+    agent = _agent("Summary content\n" + "y" * 4800, "shorter prose")
 
     history = await _compress(agent, _history())
 
     assert agent.run.await_count == 2
     text = _summary_text(history)
     assert "shorter prose" in text
-    assert "y" * 2400 not in text
+    assert "y" * 4800 not in text
 
 
 @pytest.mark.asyncio
-async def test_a_summary_that_will_not_fit_is_truncated_to_the_cap(monkeypatch):
-    """Two attempts bound the effort; the size bound itself still has to hold."""
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 300, raising=False)
-    overflowing = _padded("long", 600)
+async def test_a_summary_that_will_not_fit_is_truncated_to_the_cap():
+    """Two attempts bound the effort; the size bound itself still has to hold.
+
+    The cut leaves a readable block: the closing tag survives it.
+    """
+    overflowing = _padded("long", 1200)
     agent = _agent(overflowing, overflowing, overflowing)
 
     history = await _compress(agent, _history())
 
     assert agent.run.await_count == 3  # the summary, then two shortening attempts
-    assert len(_summary_text(history)) < len(overflowing)
+    block = _block(history)
+    assert CharLimiter().count_tokens(block) <= _summary_cap(8000)
+    assert "</state_snapshot>" in block
 
 
 def test_the_cut_is_measured_on_the_block_after_every_cut(monkeypatch):
@@ -217,11 +223,10 @@ def test_the_cut_is_measured_on_the_block_after_every_cut(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_the_journal_and_archive_notes_count_against_the_cap(monkeypatch):
+async def test_the_journal_and_archive_notes_count_against_the_cap():
     """The cap bounds the whole inserted block, not just the model's text."""
-    cap = 600
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", cap, raising=False)
-    agent = _agent(_padded("long", 500), _snapshot("short"))
+    cap = _summary_cap(8000)
+    agent = _agent(_padded("long", 900), _snapshot("short"))
 
     with patch(JOURNAL_PATCH, return_value="J" * 200 * CHARS_PER_TOKEN):
         history = await _compress(agent, _history())
@@ -233,14 +238,11 @@ async def test_the_journal_and_archive_notes_count_against_the_cap(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_a_cap_the_notes_alone_would_break_drops_the_notes_not_the_summary(
-    monkeypatch,
-):
+async def test_a_cap_the_notes_alone_would_break_drops_the_notes_not_the_summary():
     """The snapshot is what compaction is for; the journal index is on disk."""
-    cap = 130  # the framing alone is about 104 of these
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", cap, raising=False)
-    journal_index = "J" * 200 * CHARS_PER_TOKEN
-    agent = _agent(_padded("long", 600), _padded("long", 600), _padded("long", 600))
+    cap = _summary_cap(8000)
+    journal_index = "J" * 2000 * CHARS_PER_TOKEN
+    agent = _agent(_padded("long", 1200), _padded("long", 1200), _padded("long", 1200))
 
     with patch(JOURNAL_PATCH, return_value=journal_index):
         history = await _compress(agent, _history())
@@ -255,10 +257,12 @@ async def test_a_cap_the_notes_alone_would_break_drops_the_notes_not_the_summary
 async def test_a_cap_below_the_framing_keeps_the_history_instead(tmp_path, monkeypatch):
     """An over-cap turn is the failure the cap exists to prevent; skip instead."""
     messages = _history()
-    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKENS", 5, raising=False)
+    monkeypatch.setattr(
+        "zrb.llm.summarizer.history_summarizer._summary_cap", lambda _threshold: 5
+    )
 
     history = await _compress(
-        _agent(_padded("long", 600)), messages, history_dir=str(tmp_path)
+        _agent(_padded("long", 1200)), messages, history_dir=str(tmp_path)
     )
 
     assert history == messages
@@ -324,5 +328,13 @@ async def test_a_compaction_with_nothing_to_archive_points_nowhere():
     assert not any("could not be written" in warning for warning in warnings)
 
 
-def test_the_summary_cap_defaults_to_the_prompt_budget():
-    assert CFG.DEFAULT_LLM_SUMMARY_MAX_TOKENS == "2000"
+def test_the_summary_cap_is_a_share_of_the_threshold(monkeypatch):
+    """The bound scales with the window instead of fixing a token count."""
+    assert CFG.DEFAULT_LLM_SUMMARY_MAX_TOKEN_RATIO == "0.05"
+    assert _summary_cap(400_000) == 20_000
+    # Below a 20,000-token threshold the share is under the floor, which is what
+    # keeps a six-section snapshot possible on a small window.
+    assert _summary_cap(10_000) == 1_000
+
+    monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKEN_RATIO", 0.0, raising=False)
+    assert _summary_cap(400_000) == 0
