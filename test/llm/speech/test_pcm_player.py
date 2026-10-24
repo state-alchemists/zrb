@@ -408,3 +408,45 @@ def test_a_device_that_cannot_open_reports_the_start_of_the_player_program():
         utterance.play(timeout=1)
 
     assert events == ["started", "played", "cleaned"]
+
+
+def test_a_lower_volume_plays_the_samples_quieter(sd):
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1000] * 400)]), block_frames=100, volume=50
+    )
+
+    utterance.play(timeout=5)
+
+    assert _played(FakeOutputStream.instances[0]).max() == 500
+
+
+def test_full_volume_plays_the_samples_exactly_as_they_were_rendered(sd):
+    """The level the backend rendered is the level, not a rounding of it."""
+    utterance = PcmUtterance(SpeechAudio(RATE, [_pcm([1000] * 400)]), block_frames=100)
+
+    utterance.play(timeout=5)
+
+    assert _played(FakeOutputStream.instances[0]).max() == 1000
+
+
+def test_a_volume_above_full_clips_rather_than_wrapping(sd):
+    """200% of a loud sample has nowhere to go; a wrap is heard as a crackle."""
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([30000] * 400)]), block_frames=100, volume=200
+    )
+
+    utterance.play(timeout=5)
+
+    played = _played(FakeOutputStream.instances[0])
+    assert played.max() == 32767
+    assert played.min() >= 0
+
+
+def test_silence_is_a_level_like_any_other(sd):
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1000] * 400)]), block_frames=100, volume=0
+    )
+
+    utterance.play(timeout=5)
+
+    assert set(_played(FakeOutputStream.instances[0])) == {0}

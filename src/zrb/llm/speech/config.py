@@ -22,6 +22,9 @@ class SpeechConfig:
     longer than that, once it is finished, and speaks the summary instead; it
     also turns off sentence streaming of the reply, which cannot be summarized
     while it is still being written.
+
+    *volume* is a percentage of the speech's own level, 0-200, and applies
+    where zrb plays the audio itself — a player program keeps its own.
     """
 
     enabled: bool | None = None
@@ -30,6 +33,7 @@ class SpeechConfig:
     voice: str | None = None
     style: str | None = None
     rate: int | None = None
+    volume: int | None = None
     stream: bool | None = None
     summarize_above_chars: int | None = None
     summary_model: str | None = None

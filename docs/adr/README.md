@@ -197,6 +197,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0103** — [Speech reads a reply aloud as it streams or at the end, whole or summarized, and stops when talked over, written to, or answered](adr-0103.md)
 - **ADR-0105** — [Barge-in guards against zrb's own voice instead of cancelling it](adr-0105.md)
 - **ADR-0107** — [Voice runs on Pipecat's pipeline, and the meaning stays zrb's](adr-0107.md)
+- **ADR-0128** — [Speech volume is a gain zrb applies to the samples it plays, moved by a count of `+` and `-`](adr-0128.md)
 - **ADR-0111** — [On macOS, dictation captures through the system's voice processing to take zrb's voice out](adr-0111.md)
 - **ADR-0112** — [Emotion travels as an emoji in the text and leaves zrb as the `Emotion` hook](adr-0112.md)
 - **ADR-0115** — [The microphone opens before the tone loads, and a heavy model's load spike lands outside the chat](adr-0115.md)

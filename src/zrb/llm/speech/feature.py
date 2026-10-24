@@ -46,6 +46,36 @@ logger = logging.getLogger(__name__)
 _QUESTION_NOTIFICATIONS = ("elicitation_dialog",)
 # The names the `LLM_HOOKS` allowlist knows speech's hooks by.
 _HOOK_NAMES = ("handle_stop", "handle_permission_request", "handle_notification")
+# What one `+` or `-` moves the speech volume by, in percentage points.
+_VOLUME_STEP_PERCENT = 10
+
+
+def _volume_delta(argument: str) -> int | None:
+    """The percentage points *argument* asks for, or ``None`` if it asks nothing.
+
+    `+++` is three steps up and `--` two down: the count is the amount. Mixed
+    signs (`+-`) ask for opposite things at once, so they are read as a typo
+    rather than as a request.
+    """
+    if not argument:
+        return None
+    sign = argument[0]
+    if sign not in "+-" or argument != sign * len(argument):
+        return None
+    step = _VOLUME_STEP_PERCENT * len(argument)
+    return step if sign == "+" else -step
+
+
+def _volume_reply(speaker: "Speaker") -> str:
+    """The level, and where it cannot apply, why.
+
+    A player program plays at its own volume: zrb never sees those samples, so
+    reporting a level without saying so would promise something the next
+    sentence does not do.
+    """
+    if speaker.is_playing_in_process:
+        return f"🔊 Volume {speaker.volume}%"
+    return f"🔊 Volume {speaker.volume}% (a player program keeps its own volume)"
 
 
 def enable_speech(
@@ -229,7 +259,7 @@ class SpeechSession:
         self.streamed_reply.mute_response()
 
     def create_commands(self) -> "list[AnyCustomCommand]":
-        return [
+        commands: "list[AnyCustomCommand]" = [
             ActionCommand(
                 command,
                 self.toggle,
@@ -238,6 +268,38 @@ class SpeechSession:
             )
             for command in self._config.commands or []
         ]
+        commands.extend(
+            ActionCommand(
+                command,
+                self.change_volume,
+                args=["level"],
+                description=(
+                    "Change the voice's volume: +++ raises three steps, -- lowers "
+                    "two, and no argument reports the level"
+                ),
+                can_run_while_thinking=True,
+            )
+            for command in CFG.LLM_UI_COMMAND_VOLUME
+        )
+        return commands
+
+    def change_volume(self, kwargs: dict[str, str], ui: "BaseUI | None") -> str:
+        """Move the volume by the number of signs given, or report it.
+
+        `+++` is three steps up and `--` two down; a step is a percentage
+        point, and the speaker holds the result inside 0-200%. Silence is a
+        level like any other, so `-` at 0 stays there rather than wrapping.
+        """
+        argument = (kwargs.get("level") or "").strip()
+        delta = _volume_delta(argument)
+        if argument and delta is None:
+            return (
+                "  Use a run of + or -: `+++` raises the volume three steps, "
+                "`--` lowers two"
+            )
+        if delta is not None:
+            self.speaker.set_volume(self.speaker.volume + delta)
+        return _volume_reply(self.speaker)
 
     def toggle(self, kwargs: dict[str, str], ui: "BaseUI | None") -> str:
         self.speaker.is_enabled = not self.speaker.is_enabled

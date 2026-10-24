@@ -17,7 +17,9 @@ from zrb.llm.speech.backend.builtin import get_speech_backend
 from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.pcm_player import (
+    FULL_VOLUME,
     PcmUtterance,
+    clamp_volume,
     guard_exit_handler,
 )
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
@@ -141,6 +143,47 @@ class Speaker:
         # Generation invalidates interrupted queue entries.
         self._generation = 0
         self.is_enabled = True
+        # Percentage of the speech's own level; a sentence keeps the one it was
+        # made with, so this only steers the next.
+        self._volume = clamp_volume(
+            FULL_VOLUME if config.volume is None else config.volume
+        )
+        # Whether the last sentence made was one zrb plays itself, or None
+        # before anything has been made: what `is_playing_in_process` reports.
+        self._played_in_process: bool | None = None
+
+    @property
+    def volume(self) -> int:
+        """The level sentences are made at, as a percentage of the speech's own."""
+        return self._volume
+
+    def set_volume(self, percent: int) -> None:
+        """Change the level for sentences made from now on.
+
+        One already being spoken keeps the level it started with: scaling it
+        mid-word would be heard as a fade rather than as an adjustment, and the
+        samples it is playing are already handed to the device in blocks.
+        """
+        self._volume = clamp_volume(percent)
+
+    @property
+    def is_playing_in_process(self) -> bool:
+        """Whether zrb plays the audio itself, which is what a volume applies to.
+
+        Observed, not predicted: the last sentence zrb made was either a
+        `PcmUtterance` — the samples this scales — or a player program's, which
+        zrb never sees. A backend's ``needs_zrb_playback`` is the wrong question
+        to ask: a local engine says no to it and still renders a WAV for zrb to
+        play (`LocalCommandBackend.create_audio`), so the audio is zrb's to
+        scale however the backend would have played it.
+
+        Nothing has been made yet in a fresh session, so the answer is yes: the
+        level is what that first sentence gets if zrb plays it, and answering no
+        would deny a volume before anything could show otherwise.
+        """
+        if not self._can_play_in_process():
+            return False
+        return self._played_in_process is not False
 
     def say(self, text: str, is_stale: "IsStale" = None, voice: str = "") -> None:
         """Queue *text* unless it is blank, disabled, or stale, to be said in
@@ -338,6 +381,7 @@ class Speaker:
             else:
                 self._handle_render_success(backend)
             if audio is not None:
+                self._played_in_process = True
                 return PcmUtterance(
                     audio,
                     block_frames=self._config.player_block_frames,
@@ -345,7 +389,9 @@ class Speaker:
                     fallback=self._program_fallback(backend, later, text),
                     on_device_error=self._handle_device_error,
                     device_is_resting=self._is_device_resting,
+                    volume=self._volume,
                 )
+        self._played_in_process = False
         return backend.create_utterance(text)
 
     def _stand_ins(self, later: "list[AnySpeechBackend]") -> "list[AnySpeechBackend]":
@@ -368,12 +414,22 @@ class Speaker:
     ) -> Callable[[], Utterance] | None:
         """Return a player-program fallback for *text*, if available."""
         if not backend.needs_zrb_playback:
-            return lambda: backend.create_utterance(text)
+            return lambda: self._program_speaks(backend, text)
         stand_ins = self._stand_ins(later)
         if not stand_ins:
             return None
         spoken_by = stand_ins[0]
-        return lambda: spoken_by.create_utterance(text)
+        return lambda: self._program_speaks(spoken_by, text)
+
+    def _program_speaks(self, backend: AnySpeechBackend, text: str) -> Utterance:
+        """A program is speaking this sentence after all.
+
+        It is made when the fallback runs, not when the sentence was created,
+        so this also covers a device that failed mid-sentence: what played came
+        from a program, and a volume would not have reached it.
+        """
+        self._played_in_process = False
+        return backend.create_utterance(text)
 
     def _can_play_in_process(self) -> bool:
         """Whether zrb may play a sentence itself at all."""

@@ -25,6 +25,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_PLAN_TOGGLE: str = "/plan"
         self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
         self.DEFAULT_LLM_UI_COMMAND_USAGE: str = "/usage"
+        self.DEFAULT_LLM_UI_COMMAND_VOLUME: str = "/volume"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(
@@ -134,5 +135,15 @@ class LLMUICommandsMixin:
             "Comma-separated command aliases to show what the session, the day or "
             "the week consumed (`<alias> [session|today|week|all]`): tokens, "
             "prompt-cache hits and cost where the model is priced."
+        ),
+    )
+
+    LLM_UI_COMMAND_VOLUME = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated command aliases to change the speech volume "
+            "(`<alias> +++` raises it three steps, `<alias> --` lowers two, and "
+            "`<alias>` alone reports the level)."
         ),
     )

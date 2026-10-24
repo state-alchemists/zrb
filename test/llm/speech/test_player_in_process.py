@@ -52,10 +52,11 @@ class AudioBackend(FakeBackend):
         return SpeechAudio(16000, [text.encode()])
 
 
-def _in_process(monkeypatch, available=True, options=None, fallbacks=None):
+def _in_process(monkeypatch, available=True, options=None, fallbacks=None, volumes=None):
     made = []
     options = [] if options is None else options
     fallbacks = [] if fallbacks is None else fallbacks
+    seen_volumes: list[int | None] = [] if volumes is None else volumes
 
     class FakePcm(RecordingUtterance):
         def __init__(
@@ -66,10 +67,12 @@ def _in_process(monkeypatch, available=True, options=None, fallbacks=None):
             fallback=None,
             on_device_error=None,
             device_is_resting=None,
+            volume=None,
         ):
             super().__init__(b"".join(audio.chunks).decode(), made, threading.Event())
             options.append((block_frames, read_ahead))
             fallbacks.append(fallback)
+            seen_volumes.append(volume)
 
     monkeypatch.setattr(
         "zrb.llm.speech.player.is_in_process_available", lambda: available
@@ -196,3 +199,87 @@ def test_an_unknown_player_is_logged_and_read_as_auto(lock_file, monkeypatch, ca
 
     assert "Unknown speech player 'commands'" in caplog.text
     assert made == ["hello"]
+
+
+def test_a_sentence_is_played_at_the_speakers_volume(lock_file, monkeypatch):
+    volumes = []
+    _in_process(monkeypatch, volumes=volumes)
+    speaker = Speaker(_config(AudioBackend(), lock_file, player="auto", volume=60))
+
+    speaker.speak("hello")
+
+    assert volumes == [60]
+
+
+def test_a_volume_change_steers_the_next_sentence(lock_file, monkeypatch):
+    volumes = []
+    _in_process(monkeypatch, volumes=volumes)
+    speaker = Speaker(_config(AudioBackend(), lock_file, player="auto"))
+
+    speaker.set_volume(150)
+    speaker.speak("hello")
+
+    assert volumes == [150]
+
+
+@pytest.mark.parametrize("asked, held", [(500, 200), (-20, 0), (60, 60)])
+def test_the_volume_is_held_inside_what_zrb_speaks_at(lock_file, asked, held):
+    speaker = Speaker(_config(AudioBackend(), lock_file))
+
+    speaker.set_volume(asked)
+
+    assert speaker.volume == held
+
+
+def test_audio_zrb_plays_itself_is_where_a_volume_applies(lock_file, monkeypatch):
+    _in_process(monkeypatch)
+    speaker = Speaker(_config(AudioBackend(), lock_file, player="auto"))
+
+    assert speaker.is_playing_in_process is True
+
+
+def test_a_player_program_is_not_where_a_volume_applies(lock_file):
+    speaker = Speaker(_config(AudioBackend(), lock_file, player="command"))
+
+    assert speaker.is_playing_in_process is False
+
+
+def test_a_cloud_voice_that_hands_its_audio_to_a_player_keeps_its_own_volume(
+    lock_file, monkeypatch
+):
+    """A backend that renders nothing leaves the playing to a program, so zrb
+    never sees the samples a volume would scale."""
+    _in_process(monkeypatch)
+    speaker = Speaker(_config(AudioBackend(renders=False), lock_file, player="auto"))
+
+    speaker.speak("hello")
+
+    assert speaker.is_playing_in_process is False
+
+
+def test_a_local_engine_that_renders_for_zrb_is_where_a_volume_applies(
+    lock_file, monkeypatch
+):
+    """`say` and `espeak-ng` say no to `needs_zrb_playback` and still render a
+    WAV for zrb to play, so what matters is the sentence that was made."""
+    _in_process(monkeypatch)
+    speaker = Speaker(_config(AudioBackend(), lock_file, player="auto"))
+
+    speaker.speak("hello")
+
+    assert speaker.is_playing_in_process is True
+
+
+def test_a_sentence_a_program_takes_over_is_not_where_a_volume_applies(
+    lock_file, monkeypatch
+):
+    """The device failed and a program spoke instead: what was heard did not
+    pass through the volume, so the next answer must not promise it did."""
+    fallbacks = []
+    _in_process(monkeypatch, fallbacks=fallbacks)
+    speaker = Speaker(_config(AudioBackend(), lock_file, player="auto"))
+
+    speaker.speak("hello")
+    fallbacks[0]().play(None)
+
+    assert speaker.is_playing_in_process is False

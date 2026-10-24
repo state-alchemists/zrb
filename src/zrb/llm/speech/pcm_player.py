@@ -49,6 +49,22 @@ _TIMEOUT_POLL_SECONDS = 0.02
 # speaker and the exit of the process.
 STREAM_STOP_TIMEOUT_SECONDS = 2.0
 
+# The volume zrb speaks at, as a percentage of the speech's own level.
+# `FULL_VOLUME` is the level the backend rendered; a lower one is quieter, a
+# higher one louder until a sample no longer fits and has to clip.
+MIN_VOLUME = 0
+MAX_VOLUME = 200
+FULL_VOLUME = 100
+# What a 16-bit sample can hold, the ends a scaled one is clipped to.
+_SAMPLE_MIN = -32768
+_SAMPLE_MAX = 32767
+
+
+def clamp_volume(percent: int) -> int:
+    """*percent* held inside what zrb speaks at, ``MIN_VOLUME``-``MAX_VOLUME``."""
+    return max(MIN_VOLUME, min(MAX_VOLUME, percent))
+
+
 logger = logging.getLogger(__name__)
 
 # Output streams between being created and being closed. PortAudio's own exit
@@ -195,6 +211,10 @@ class PcmUtterance(Utterance):
     late (`underruns`, what the listener hears as stutter), are counted and
     said once.
 
+    *volume* is a percentage of the audio's own level, 0-200, fixed when the
+    utterance is made: what plays is the backend's samples scaled, clipped at
+    the ends a 16-bit sample has.
+
     The play timeout counts playing time only: a pause does not use it up.
     """
 
@@ -206,11 +226,15 @@ class PcmUtterance(Utterance):
         fallback: Callable[[], Utterance] | None = None,
         on_device_error: Callable[[Exception], None] | None = None,
         device_is_resting: Callable[[], bool] | None = None,
+        volume: int = FULL_VOLUME,
     ):
         super().__init__([])
         self._fallback = fallback
         self._on_device_error = on_device_error
         self._resting_device_check = device_is_resting
+        # Fixed when the utterance is made: a sentence already being spoken
+        # keeps the level it started with, rather than fading mid-word.
+        self._volume = clamp_volume(volume)
         # Guards `_fallback_playing` against `pause` and `stop`, which may
         # come from another thread while the fallback starts.
         self._fallback_lock = threading.Lock()
@@ -648,6 +672,15 @@ class PcmUtterance(Utterance):
             data, self._pending = self._pending[:wanted], self._pending[wanted:]
             is_source_done = self._is_source_done
         samples = np.frombuffer(data, np.int16)
+        if self._volume != FULL_VOLUME:
+            # Integer, not float: a sample at FULL_VOLUME must come back
+            # bit-identical rather than re-rounded, and this runs in PortAudio's
+            # real-time callback. Clipped, because above FULL_VOLUME a loud
+            # sample has nowhere to go, and wrapping it into the opposite sign is
+            # heard as a crackle.
+            scaled = samples.astype(np.int32) * self._volume // FULL_VOLUME
+            np.clip(scaled, _SAMPLE_MIN, _SAMPLE_MAX, out=scaled)
+            samples = scaled.astype(np.int16)
         out[: len(samples), 0] = samples
         out[len(samples) :, 0] = 0
         if len(samples):
