@@ -31,7 +31,7 @@ def _entry(text):
     return QueuedMessage(text=text, attachments=[], kind="message", run=run)
 
 
-def _send(queue, run_context, *, is_waiting=False, may_interrupt=True):
+def _send(queue, run_context, *, is_waiting=False, may_interrupt=True, move_shell=None):
     signal = ShellCutSignal()
     report = send_queued_messages_now(
         active_run_context=run_context,
@@ -41,8 +41,35 @@ def _send(queue, run_context, *, is_waiting=False, may_interrupt=True):
         cancel_turn=lambda: None,
         may_interrupt=may_interrupt,
         cut_signal=signal,
+        move_shell=move_shell,
     )
     return report, signal
+
+
+def test_a_caller_can_move_the_shell_without_asking_to_interrupt():
+    """The two are separate policies: a command steps aside and keeps running,
+    while interrupting the turn is the user's call alone."""
+    queue = MessageQueue()
+    queue.put_nowait(_entry("look at this"))
+
+    report, signal = _send(queue, _RunContext(), may_interrupt=False, move_shell=True)
+
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    assert signal.generation == 1
+
+
+def test_a_caller_can_interrupt_without_moving_the_shell():
+    """`may_interrupt` still lets the fallback cancel a turn whose delivery
+    failed; `move_shell=False` keeps the running command where it is."""
+    queue = MessageQueue()
+    queue.put_nowait(_entry("next turn"))
+
+    report, signal = _send(
+        queue, _RunContext(), may_interrupt=True, move_shell=False
+    )
+
+    assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
+    assert signal.generation == 0
 
 
 def test_delivering_now_cuts_the_shell_in_the_way():

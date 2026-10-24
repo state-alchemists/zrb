@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.input_source import DICTATION_INPUT
@@ -17,6 +18,7 @@ from zrb.llm.shell_cut import ShellCutSignal
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
 from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.trigger import TriggerReply
 
 
 class _CutUI(BaseUI):
@@ -79,3 +81,73 @@ def test_speech_does_not_cut_the_runs_shell(cut_ui):
         cut_ui.submit_message_now("spoken", DICTATION_INPUT, may_interrupt=False)
 
     assert signal.generation == 0
+
+
+def test_a_voice_first_session_can_let_speech_move_the_shell(cut_ui):
+    """`LLM_VOICE_MOVES_SHELL` is what a hands-free session turns on; the turn
+    is still never interrupted."""
+    signal = ShellCutSignal()
+    cut_ui.active_run_context = MagicMock()
+    cut_ui.shell_cut_signal = signal
+    cancelled = []
+    with patch.object(cut_ui, "append_to_output"), patch.object(
+        cut_ui, "cancel_current_turn", side_effect=cancelled.append
+    ):
+        cut_ui.submit_message_now(
+            "spoken", DICTATION_INPUT, may_interrupt=False, move_shell=True
+        )
+
+    assert signal.generation == 1
+    assert cancelled == [], "moving a command must not cancel the turn"
+
+
+def _trigger_yielding(*items):
+    async def factory():
+        for item in items:
+            yield item
+
+    return factory
+
+
+@pytest.mark.asyncio
+async def test_a_spoken_reply_moves_the_shell_only_when_the_setting_says_so(
+    cut_ui, monkeypatch
+):
+    """The trigger is where the setting becomes a decision."""
+    moved: list[object] = []
+
+    def fake_send_now(text, source=None, may_interrupt=True, move_shell=None):
+        moved.append(move_shell)
+
+    monkeypatch.setattr(cut_ui, "submit_message_now", fake_send_now)
+    await cut_ui.trigger_loop(
+        _trigger_yielding(TriggerReply("open the file", send_now=True))
+    )
+    assert moved == [None], "the keyword is only passed when it is asked for"
+
+    monkeypatch.setattr(CFG, "LLM_VOICE_MOVES_SHELL", True, raising=False)
+    await cut_ui.trigger_loop(
+        _trigger_yielding(TriggerReply("open the file", send_now=True))
+    )
+    assert moved == [None, True]
+
+
+@pytest.mark.asyncio
+async def test_an_override_of_the_older_signature_still_receives_a_spoken_message(
+    cut_ui, monkeypatch
+):
+    """A custom UI that predates `move_shell` overrides `submit_message_now`
+    with the old signature; with the feature off it must still get the words
+    rather than a `TypeError` the trigger loop swallows."""
+    sent: list[tuple[str, bool]] = []
+
+    def older_send_now(text, source=None, may_interrupt=True):
+        sent.append((text, may_interrupt))
+
+    monkeypatch.setattr(cut_ui, "submit_message_now", older_send_now)
+
+    await cut_ui.trigger_loop(
+        _trigger_yielding(TriggerReply("open the file", send_now=True))
+    )
+
+    assert sent == [("open the file", False)]

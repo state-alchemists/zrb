@@ -48,6 +48,24 @@ def _highest_tick(text: str) -> int:
     return max(ticks)
 
 
+async def _highest_tick_soon(handle: str, timeout: float = 15.0) -> int:
+    """The highest tick the adopted command has printed, once it has printed one.
+
+    A report is assembled the instant the command moves, and on a loaded runner
+    the interpreter may not have written its first line yet — so "the report has
+    a tick" is not a property of the move. "The command is still producing
+    output after it moved" is.
+    """
+    deadline = asyncio.get_running_loop().time() + timeout
+    while True:
+        status = await get_shell_background_registry().collect(handle)
+        ticks = [int(index) for index in re.findall(r"TICK (\d+)", status)]
+        if ticks:
+            return max(ticks)
+        assert asyncio.get_running_loop().time() < deadline, status
+        await asyncio.sleep(0.2)
+
+
 @pytest.mark.asyncio
 async def test_a_cut_moves_the_running_command_to_the_background(tmp_path):
     signal = ShellCutSignal()
@@ -66,7 +84,7 @@ async def test_a_cut_moves_the_running_command_to_the_background(tmp_path):
     try:
         assert "NOT killed" in result
         assert f"MonitorProcess(handle='{handle}')" in result
-        before = _highest_tick(result)
+        before = await _highest_tick_soon(handle)
         await asyncio.sleep(0.5)
         status = await get_shell_background_registry().collect(handle)
 

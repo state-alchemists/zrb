@@ -69,3 +69,14 @@ def get_run_shell_cut_signal() -> "ShellCutSignal | None":
     a tool sees the run it belongs to rather than a process-wide flag.
     """
     return current_shell_cut_signal.get()
+
+
+def signal_for_run() -> ShellCutSignal:
+    """The signal a starting run should bind: its parent's, else a new one.
+
+    A delegated sub-agent, a code analysis helper and a file-reading helper all
+    run inside the turn the user is trying to steer, so they share its signal
+    instead of replacing it. Without this a `Shell` running inside a sub-agent
+    would listen to a signal nothing ever cuts, and the key would move nothing.
+    """
+    return get_run_shell_cut_signal() or ShellCutSignal()

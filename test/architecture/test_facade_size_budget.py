@@ -96,7 +96,12 @@ FACADE_BUDGETS = {
     # the turn moves its command to the background instead of delaying the
     # message until the command ends (ADR-0123) -- state, not a delegator, and
     # the delivery ladder stays in `queue_delivery`.
-    "llm/ui/base/ui.py": 1276,
+    # +10 (1276->1286): `move_shell` on both delivery entry points. Cutting a
+    # command out of the way and interrupting the turn are separate policies
+    # (a misheard word must be able to do the first without the second), so the
+    # permission is its own documented parameter rather than a reuse of
+    # `may_interrupt` (ADR-0123, revised).
+    "llm/ui/base/ui.py": 1286,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

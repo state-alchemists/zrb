@@ -964,6 +964,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         may_interrupt: bool = True,
         only_ready: bool = False,
         immediate_entry: QueuedMessage | None = None,
+        move_shell: bool | None = None,
     ) -> DeliveryReport:
         """Ask the owning UI to deliver queued messages; see `queue_delivery`."""
         parent = self.multi_ui_parent
@@ -972,6 +973,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 may_interrupt=may_interrupt,
                 only_ready=only_ready,
                 immediate_entry=immediate_entry,
+                move_shell=move_shell,
             )
         report = send_queued_messages_now(
             active_run_context=self.active_run_context,
@@ -983,6 +985,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             only_ready=only_ready,
             immediate_entry=immediate_entry,
             cut_signal=self.shell_cut_signal,
+            move_shell=move_shell,
         )
         self.redraw_echoes(report.delivered_entries)
         return report
@@ -1142,13 +1145,20 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         source: InputSource = None,
         may_interrupt: bool = True,
+        move_shell: bool | None = None,
     ) -> DeliveryReport:
-        """Send this message promptly without flushing other queued drafts."""
+        """Send this message promptly without flushing other queued drafts.
+
+        *move_shell* says whether a running command may step aside for it; a
+        spoken message passes the run's `LLM_VOICE_MOVES_SHELL` setting here
+        rather than asking for the interrupt it deliberately does not do.
+        """
         self.submit_message(user_message, source)
         return self.send_queued_messages_now(
             may_interrupt=may_interrupt,
             only_ready=True,
             immediate_entry=self.effective_message_queue.peek_latest(),
+            move_shell=move_shell,
         )
 
     def set_status_badge(self, key: str, text: str | None) -> None:

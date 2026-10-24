@@ -32,6 +32,9 @@ class LLMLimitsMixin:
         # 30 minutes: the reference harness's allowance for a foreground command
         # that hit its timeout and was moved to the background.
         self.DEFAULT_LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS: str = "1800"
+        # Off: a spoken message waits for a running command rather than moving
+        # it, because a misheard word must not disturb a build.
+        self.DEFAULT_LLM_VOICE_MOVES_SHELL: str = "0"
         self.DEFAULT_LLM_BACKGROUND_WAIT_MAX: str = "300"
         self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
@@ -157,6 +160,19 @@ class LLMLimitsMixin:
             "model gets a handle to monitor. 0 disables this and restores the "
             "kill-at-timeout behaviour. A command whose first word is `sleep` "
             "is always killed: a delay is the work, not a job to finish later."
+        ),
+    )
+
+    LLM_VOICE_MOVES_SHELL = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Let a dictated message move a running Shell command to the "
+            "background, the way Ctrl+G does, so the words are read in the same "
+            "turn instead of after the command. Off (the default) keeps speech "
+            "waiting for the command: a misheard word must not take a build out "
+            "of the foreground. Speech never interrupts the turn either way — "
+            "this only decides whether a command steps aside."
         ),
     )
 
