@@ -12,7 +12,7 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.speech import SpeechConfig, enable_speech
-from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
+from zrb.llm.speech.feature import SpeechSession, describe_tool_call
 from zrb.llm.speech.pcm_player import clamp_volume
 from zrb.llm.util.feature_config import close_feature_sessions
 
