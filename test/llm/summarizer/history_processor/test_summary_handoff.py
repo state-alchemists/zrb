@@ -185,6 +185,26 @@ async def test_a_previous_compactions_turn_is_not_the_users_opening_message():
 
 
 @pytest.mark.asyncio
+async def test_a_user_message_that_quotes_the_tail_heading_is_not_mistaken_for_one():
+    """The heading is text a user can paste. Only a turn that also carries a
+    compaction summary can hold a tail compaction wrote, so a message the user
+    typed keeps its words even when it opens with that line."""
+    quoted = (
+        f"# {_VERBATIM_TAIL_HEADER}\nplease investigate the parser failure"
+    )
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content=quoted)]),
+        ModelResponse(parts=[TextPart(content="Looking at it.")]),
+        ModelRequest(parts=[UserPromptPart(content="and now?")]),
+        ModelResponse(parts=[TextPart(content="Done.")]),
+    ]
+
+    new_history = await _compress(_agent(_snapshot("it")), messages)
+
+    assert "please investigate the parser failure" in _summary_text(new_history)
+
+
+@pytest.mark.asyncio
 async def test_a_summary_over_the_cap_is_shortened_before_it_is_used():
     # `_compress` runs at a threshold of 8000, so the 0.05 share lands on the
     # 1000-token floor.

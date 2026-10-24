@@ -1076,27 +1076,42 @@ def _is_summary_part(part: Any) -> bool:
     )
 
 
-def _is_verbatim_tail_part(part: object) -> bool:
-    """Whether *part* is a prior round's rendered tail, matched by its header."""
+def _is_verbatim_tail_part(part: object, msg: object) -> bool:
+    """Whether *part* is the rendered tail a previous compaction wrote.
+
+    The header alone does not decide it: a user may paste that heading, and
+    dropping their message would lose the request the summary is supposed to
+    carry. Compaction writes the tail into the same turn as its own summary
+    (`ensure_alternating_roles` merges them), so a part counts as synthetic only
+    beside a summary part — a shape a message a user typed does not have. When
+    the evidence is missing the part is treated as the user's, because the cost
+    of that guess is extra text, and the cost of the other is their words gone.
+    """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import UserPromptPart
 
-    return (
+    if not (
         isinstance(part, UserPromptPart)
         and isinstance(part.content, str)
         and part.content.startswith(f"# {_VERBATIM_TAIL_HEADER}")
+    ):
+        return False
+    return any(
+        _is_summary_part(other) for other in getattr(msg, "parts", ()) or ()
     )
 
 
-def _is_synthetic_part(part: object) -> bool:
+def _is_synthetic_part(part: object, msg: object) -> bool:
     """Whether compaction wrote *part*: a prior summary, or a prior rendered tail."""
-    return _is_summary_part(part) or _is_verbatim_tail_part(part)
+    return _is_summary_part(part) or _is_verbatim_tail_part(part, msg)
 
 
 def _drop_synthetic_parts(msg: "ModelMessage") -> "ModelMessage":
     """*msg* without the parts compaction wrote."""
     parts = [
-        part for part in getattr(msg, "parts", []) if not _is_synthetic_part(part)
+        part
+        for part in getattr(msg, "parts", [])
+        if not _is_synthetic_part(part, msg)
     ]
     if len(parts) == len(msg.parts):
         return msg
@@ -1119,7 +1134,7 @@ def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
         if not isinstance(msg, ModelRequest):
             continue
         if any(
-            isinstance(part, UserPromptPart) and not _is_synthetic_part(part)
+            isinstance(part, UserPromptPart) and not _is_synthetic_part(part, msg)
             for part in getattr(msg, "parts", [])
         ):
             return _drop_synthetic_parts(msg)
