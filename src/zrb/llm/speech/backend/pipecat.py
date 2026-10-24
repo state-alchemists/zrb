@@ -16,6 +16,11 @@ if TYPE_CHECKING:
     from zrb.llm.speech.config import SpeechConfig
     from zrb.llm.speech.pipecat_tts import TTSPipeline
 
+# How long a sentence waits for another thread's model load before giving up
+# and letting the speaker fall back. A first local load downloads its model, so
+# this is generous: what it is here to prevent is silence, not slowness.
+PIPELINE_START_TIMEOUT_SECONDS = 120.0
+
 
 class PipecatSpeechBackend(AnySpeechBackend):
     """A cached Pipecat service whose audio zrb plays."""
@@ -69,8 +74,20 @@ class PipecatSpeechBackend(AnySpeechBackend):
             pipeline.close()
 
     def _get_pipeline(self) -> "TTSPipeline":
-        """Return the cached pipeline, starting it on first use."""
-        with self._starting:
+        """Return the cached pipeline, starting it on first use.
+
+        The start is where a local service loads its model, and waiting for it
+        used to be unbounded: a load that never finished parked every sentence
+        behind it and the session went silent with no error at all. A start
+        that overruns is given up on instead, so the speaker falls back to a
+        voice that is audible.
+        """
+        if not self._starting.acquire(timeout=PIPELINE_START_TIMEOUT_SECONDS):
+            raise RuntimeError(
+                f"the {self._service_name} speech service is still starting "
+                f"after {PIPELINE_START_TIMEOUT_SECONDS:g}s"
+            )
+        try:
             with self._state:
                 pipeline, is_closed = self._pipeline, self._is_closed
             if is_closed:
@@ -78,6 +95,8 @@ class PipecatSpeechBackend(AnySpeechBackend):
             if pipeline is None:
                 pipeline = self._start_pipeline()
             return pipeline
+        finally:
+            self._starting.release()
 
     def _start_pipeline(self) -> "TTSPipeline":
         # lazy: circular — defer the pipeline import until first use.
