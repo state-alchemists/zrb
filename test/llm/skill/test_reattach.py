@@ -96,18 +96,18 @@ def test_a_quoted_opening_tag_does_not_swallow_the_next_skill():
     """Legacy text: a body quoting an opening tag must not merge the blocks
     that follow it, or the later skills are lost at compaction."""
     text = (
-        '<ACTIVATED_SKILL name="a">\n'
+        '<ACTIVATED_SKILL name="core-coding">\n'
         'write <ACTIVATED_SKILL name="example">\n'
         "</ACTIVATED_SKILL>\n"
-        '<ACTIVATED_SKILL name="b">\nBODY_B\n'
+        '<ACTIVATED_SKILL name="core-research">\nBODY_B\n'
         "</ACTIVATED_SKILL>"
     )
     dropped = _request(text)
 
     content = _content(build_reattach_message(dropped, [], llm_limiter))
 
-    assert 'name="a"' in content
-    assert 'name="b"' in content
+    assert 'name="core-coding"' in content
+    assert 'name="core-research"' in content
     assert "BODY_B" in content
 
 
@@ -131,6 +131,37 @@ def test_a_skill_kept_verbatim_is_skipped_while_the_other_is_reattached():
     content = _content(message)
     assert 'name="core-research"' in content
     assert 'name="core-coding"' not in content
+
+
+def test_a_transcript_quoting_the_markup_is_not_a_skill():
+    """Message text quotes this markup — this repo's own fixtures do it — and a
+    tool result is such text. No skill answers to a quoted name, so attaching
+    it puts a transcript's prose in the history as if it were instructions, and
+    the re-attached copy carries the tag too: it would be found again at every
+    later compaction."""
+    transcript = (
+        '<ACTIVATED_SKILL name="example">\n'
+        "During compaction, `_blocks()` sees the quoted opening as the next "
+        "block opening.\n</ACTIVATED_SKILL>"
+    )
+    dropped = _request(_block("core-coding"), transcript)
+
+    content = _content(build_reattach_message(dropped, [], llm_limiter))
+
+    assert 'name="core-coding"' in content
+    assert 'name="example"' not in content
+    assert "_blocks() sees" not in content
+
+
+def test_an_unknown_skill_name_is_logged_as_skipped(caplog):
+    """The decision has to be visible: a fabricated block in the history is
+    otherwise indistinguishable from a real one that the caps dropped."""
+    dropped = _request(_block("core-coding"), _block("example", "NOT_A_SKILL"))
+
+    with caplog.at_level(logging.DEBUG):
+        build_reattach_message(dropped, [], llm_limiter)
+
+    assert "skipped_unknown=['example']" in caplog.text
 
 
 def test_an_oversized_skill_is_truncated_to_its_own_cap(monkeypatch):

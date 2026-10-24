@@ -83,23 +83,45 @@ def _blocks(text: str) -> list[tuple[str, str]]:
     return found
 
 
+def _is_real_skill(name: str) -> bool:
+    """True when *name* is a skill this process can load.
+
+    Message text is scanned for activation blocks, and message text quotes this
+    markup: a tool result that prints a test fixture, an ADR, or a skill
+    documenting the markup has the tag at the start of a line, which is exactly
+    where a real block starts. A name no skill answers to is such a quote, not
+    an activation, and re-attaching it would put a transcript's prose into the
+    history as if it were instructions — once, and then again at every later
+    compaction, because the re-attached copy carries the tag as well.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.skill.manager import skill_manager
+
+    return skill_manager.get_skill(name) is not None
+
+
 def _newest_per_skill(
     messages: "Sequence[ModelMessage]", already_present: set[str]
-) -> list[tuple[str, str]]:
-    """The newest block for each skill name, newest skill first.
+) -> "tuple[list[tuple[str, str]], set[str]]":
+    """The newest block for each real skill, newest first, and the names no
+    skill answers to.
 
     Names in *already_present* are skipped: when a block survives in the kept
     tail, re-attaching it would send the same instructions twice.
     """
     seen = set(already_present)
     ordered: list[tuple[str, str]] = []
+    unknown: set[str] = set()
     for message in reversed(list(messages)):
         for name, block in reversed(_blocks(message_content_text(message))):
             if not name or name in seen:
                 continue
             seen.add(name)
+            if not _is_real_skill(name):
+                unknown.add(name)
+                continue
             ordered.append((name, block))
-    return ordered
+    return ordered, unknown
 
 
 def _truncate_block(block: str, limiter: LLMLimiter) -> str:
@@ -142,6 +164,7 @@ def _log_decision(
     candidates: list[tuple[str, str]],
     rendered: list[tuple[str, str]],
     total: int,
+    unknown: set[str],
 ) -> None:
     """Record what compaction decided, where it decided it.
 
@@ -159,11 +182,13 @@ def _log_decision(
         return
     attached = [name for name, _ in rendered]
     CFG.LOGGER.debug(
-        "compaction re-attach: attached=%s tokens=%d skipped_kept=%s skipped_cap=%s",
+        "compaction re-attach: attached=%s tokens=%d skipped_kept=%s "
+        "skipped_cap=%s skipped_unknown=%s",
         attached or "none",
         total,
         sorted(dropped_names & present),
         sorted({name for name, _ in candidates} - set(attached)),
+        sorted(unknown),
     )
 
 
@@ -180,9 +205,9 @@ def build_reattach_message(
     present = {
         name for message in kept for name, _ in _blocks(message_content_text(message))
     }
-    candidates = _newest_per_skill(dropped, present)
+    candidates, unknown = _newest_per_skill(dropped, present)
     rendered, total = _within_caps(candidates, limiter)
-    _log_decision(dropped, present, candidates, rendered, total)
+    _log_decision(dropped, present, candidates, rendered, total, unknown)
     if not rendered:
         return None
     content = make_markdown_section(
