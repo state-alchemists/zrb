@@ -60,7 +60,7 @@ class UI(BaseUI):
     `BaseUI` owns the chat loop and command handling. This class adds the
     terminal application, width-aware and collapsible output, stream capture,
     and composed parts for lifecycle, output, confirmations, selection,
-    message editing, agent picking, and keybindings.
+    message editing, agent picking, side question, keybindings, previous-message history.
     """
 
     def __init__(
