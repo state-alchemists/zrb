@@ -100,6 +100,87 @@ async def test_a_resolved_tool_pair_spanning_almost_the_whole_history_is_still_k
 
 
 @pytest.mark.asyncio
+async def test_a_huge_tool_result_is_shortened_in_the_kept_tail():
+    """The tail is a handover, not evidence.
+
+    The replaced messages are archived in full, so 40,000 characters of tool
+    output kept here would spend the next turn's window on text nobody reads
+    again — and the summary would lose that room for saying what the work was.
+    Only the tool result is cut: the turn after it survives whole.
+    """
+    huge = "y" * 40_000
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="run the suite")]),
+        ModelResponse(
+            parts=[ToolCallPart(tool_name="Shell", args={}, tool_call_id="1")]
+        ),
+        ModelRequest(parts=[UserPromptPart(content="filler")]),
+        ModelResponse(parts=[TextPart(content="filler")]),
+        ModelRequest(
+            parts=[ToolReturnPart(tool_name="Shell", content=huge, tool_call_id="1")]
+        ),
+        ModelRequest(parts=[UserPromptPart(content="now what?")]),
+    ]
+
+    with patch(
+        "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
+        AsyncMock(return_value="<state_snapshot>Summary</state_snapshot>"),
+    ):
+        new_history = await summarize_history(
+            messages,
+            agent=_summarizer_agent(),
+            summary_window=300,
+            limiter=FixedLimiter(),
+            conversational_token_threshold=100,
+        )
+
+    combined = "\n".join(
+        str(getattr(p, "content", "")) for m in new_history for p in m.parts
+    )
+    assert "[truncated:" in combined
+    assert huge not in combined
+    assert "now what?" in combined
+
+
+@pytest.mark.asyncio
+async def test_a_small_tool_result_is_kept_word_for_word():
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="run it")]),
+        ModelResponse(
+            parts=[ToolCallPart(tool_name="Shell", args={}, tool_call_id="1")]
+        ),
+        ModelRequest(parts=[UserPromptPart(content="filler")]),
+        ModelResponse(parts=[TextPart(content="filler")]),
+        ModelRequest(
+            parts=[
+                ToolReturnPart(
+                    tool_name="Shell", content="3 passed in 0.10s", tool_call_id="1"
+                )
+            ]
+        ),
+        ModelRequest(parts=[UserPromptPart(content="now what?")]),
+    ]
+
+    with patch(
+        "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
+        AsyncMock(return_value="<state_snapshot>Summary</state_snapshot>"),
+    ):
+        new_history = await summarize_history(
+            messages,
+            agent=_summarizer_agent(),
+            summary_window=300,
+            limiter=FixedLimiter(),
+            conversational_token_threshold=100,
+        )
+
+    combined = "\n".join(
+        str(getattr(p, "content", "")) for m in new_history for p in m.parts
+    )
+    assert "3 passed in 0.10s" in combined
+    assert "[truncated:" not in combined
+
+
+@pytest.mark.asyncio
 async def test_a_trailing_deferred_call_stays_in_native_message_form():
     """A tool call with no return yet (pending a deferred result) must still
     be resumable, so it is excluded from the text rendering and kept as a

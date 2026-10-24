@@ -360,3 +360,65 @@ def test_a_suffix_counting_exactly_the_budget_still_fits():
     assert (to_summarize, to_keep) == _reference_split_history(
         messages, 0, limiter, threshold
     )
+
+
+def test_the_absolute_ceiling_shrinks_the_tail(limiter):
+    """A share of a large window is still a lot of transcript, so the ceiling
+    wins when it is the smaller of the two: the ratio alone would keep all 40
+    one-token messages here, the ceiling keeps 10."""
+    messages = [ModelRequest(parts=[UserPromptPart(content=str(i))]) for i in range(40)]
+
+    to_summarize, to_keep = split_history(messages, 0, limiter, 100, tail_max_tokens=10)
+
+    assert len(to_keep) == 10
+    assert to_summarize == messages[:30]
+
+
+def test_a_ceiling_above_the_budget_changes_nothing(limiter):
+    messages = [ModelRequest(parts=[UserPromptPart(content=str(i))]) for i in range(10)]
+
+    without_ceiling = split_history(messages, 0, limiter, 100)
+    with_ceiling = split_history(messages, 0, limiter, 100, tail_max_tokens=10_000)
+
+    assert with_ceiling == without_ceiling
+
+
+def test_a_ceiling_of_zero_means_no_ceiling(limiter):
+    messages = [ModelRequest(parts=[UserPromptPart(content=str(i))]) for i in range(40)]
+
+    assert split_history(
+        messages, 0, limiter, 100, tail_max_tokens=0
+    ) == split_history(messages, 0, limiter, 100)
+
+
+class _CharLimiter(LLMLimiter):
+    """One token per character, so a message can be given a size in a test."""
+
+    def count_tokens(self, content) -> int:
+        return len(str(content))
+
+    def truncate_text(self, text: str, max_tokens: int) -> str:
+        return text[:max_tokens]
+
+
+def test_a_message_over_the_ceiling_is_summarized_rather_than_kept():
+    """The ceiling bounds the retry too, and that is the trade it makes.
+
+    Without a ceiling the loose retry budget (0.8 of the threshold) is wide
+    enough to keep a message that the tight 0.4 budget could not; with one, both
+    budgets are capped to the same number, so a newest message over the ceiling
+    is summarized instead of being kept whole.
+    """
+    limiter = _CharLimiter()
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="x" * 50)]),
+        ModelRequest(parts=[UserPromptPart(content="x" * 50)]),
+        ModelRequest(parts=[UserPromptPart(content="x" * 500)]),
+    ]
+    threshold = 2_000
+
+    uncapped = split_history(messages, 0, limiter, threshold)
+    capped = split_history(messages, 0, limiter, threshold, tail_max_tokens=100)
+
+    assert len(uncapped[1]) == 1  # the 500-character message, kept by the retry
+    assert capped[1] == []

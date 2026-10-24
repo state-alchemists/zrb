@@ -284,8 +284,10 @@ async def test_the_configured_tail_budget_reaches_the_split(tmp_path, monkeypatc
         limiter,
         threshold,
         tail_budget_ratio=TAIL_BUDGET_RATIO,
+        tail_max_tokens=None,
     ):
         captured["tail_budget_ratio"] = tail_budget_ratio
+        captured["tail_max_tokens"] = tail_max_tokens
         return messages, []
 
     monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
@@ -330,3 +332,31 @@ def test_a_configured_trigger_is_clamped_to_three_quarters(monkeypatch):
     assert CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == (
         get_max_token_threshold(0.75, cap, cap)
     )
+
+
+@pytest.mark.asyncio
+async def test_the_split_is_printed_so_a_tail_is_never_a_guess(tmp_path, monkeypatch):
+    """The old banner printed the limits and the result, and neither said
+    whether a tail had been kept: `chunk 1/1 (366 messages)` only means "no
+    tail" if you already know that count is the summarized half. The split is
+    printed when it is decided, on both sides of it."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    agent = MagicMock()
+    agent.run = AsyncMock(
+        return_value=MagicMock(output="<state_snapshot>s</state_snapshot>")
+    )
+
+    with patch("zrb.llm.summarizer.history_summarizer.zrb_print") as printed:
+        await history_summarizer.summarize_history(
+            _turns(6),  # 12 messages, 10 tokens each; a 100-token trigger
+            agent=agent,
+            summary_window=300,
+            limiter=FixedLimiter(per_message=10),
+            conversational_token_threshold=100,
+        )
+
+    banner = " ".join(str(call) for call in printed.call_args_list)
+    assert "Summarizing 8 messages (80 tokens)" in banner
+    assert "keeping 4 verbatim (40 tokens)" in banner

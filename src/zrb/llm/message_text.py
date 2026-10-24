@@ -22,19 +22,34 @@ else:
     ModelResponse = Any
 
 
-def message_to_text(msg: Any) -> str:
-    """A message as a reader sees it — `User: …`, `AI: …` — for a summary."""
+def message_to_text(msg: Any, tool_output_limit: int | None = None) -> str:
+    """A message as a reader sees it — `User: …`, `AI: …` — for a summary.
+
+    *tool_output_limit* shortens each tool result to that many characters. It is
+    for a caller that keeps the message as a handover rather than as evidence: a
+    verbatim tail carrying an unchecked 40,000-character test log spends the next
+    turn's window on output nobody will read again.
+    """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, ModelResponse
 
     if isinstance(msg, ModelRequest):
-        return model_request_to_text(msg)
+        return model_request_to_text(msg, tool_output_limit)
     if isinstance(msg, ModelResponse):
-        return model_response_to_text(msg)
+        return model_response_to_text(msg, tool_output_limit)
     try:
         return str(msg)
     except Exception:
         return f"[Unconvertible message of type: {type(msg).__name__}]"
+
+
+def _clip_tool_output(content: object, limit: int | None) -> str:
+    """*content* as text, shortened to *limit* characters when one is set."""
+    text = content if isinstance(content, str) else str(content)
+    if limit is None or limit <= 0 or len(text) <= limit:
+        return text
+    omitted = len(text) - limit
+    return f"{text[:limit]}\n[truncated: {omitted} of {len(text)} characters omitted]"
 
 
 def message_content_text(msg: object) -> str:
@@ -51,7 +66,7 @@ def message_content_text(msg: object) -> str:
     )
 
 
-def model_request_to_text(msg: ModelRequest) -> str:
+def model_request_to_text(msg: ModelRequest, tool_output_limit: int | None = None) -> str:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import SystemPromptPart, ToolReturnPart, UserPromptPart
     from zrb.llm.util.history_formatter import format_multimodal_item
@@ -75,7 +90,8 @@ def model_request_to_text(msg: ModelRequest) -> str:
             tool_name = getattr(p, "tool_name", "unknown_tool")
             content = getattr(p, "content", None)
             if content is not None:
-                parts.append(f"Tool Result ({tool_name}): {content}")
+                clipped = _clip_tool_output(content, tool_output_limit)
+                parts.append(f"Tool Result ({tool_name}): {clipped}")
             else:
                 parts.append(f"Tool Result ({tool_name}): [No content]")
         elif isinstance(p, SystemPromptPart):
@@ -87,7 +103,7 @@ def model_request_to_text(msg: ModelRequest) -> str:
     return "\n".join(parts) if parts else "[Empty ModelRequest]"
 
 
-def model_response_to_text(msg: ModelResponse) -> str:
+def model_response_to_text(msg: ModelResponse, tool_output_limit: int | None = None) -> str:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
 
@@ -114,7 +130,8 @@ def model_response_to_text(msg: ModelResponse) -> str:
             tool_name = getattr(p, "tool_name", "unknown_tool")
             content = getattr(p, "content", None)
             if content is not None:
-                parts.append(f"AI Tool Result ({tool_name}): {content}")
+                clipped = _clip_tool_output(content, tool_output_limit)
+                parts.append(f"AI Tool Result ({tool_name}): {clipped}")
         else:
             parts.append(f"[Unknown response part: {type(p).__name__}]")
     return "\n".join(parts) if parts else "[Empty ModelResponse]"

@@ -219,6 +219,7 @@ async def _maybe_compress_history(
             limiter,
             adjusted_threshold,
             tail_budget_ratio=tail_budget_ratio,
+            tail_max_tokens=CFG.LLM_HISTORY_TAIL_MAX_TOKENS,
         )
         if (
             is_within_tokens
@@ -349,6 +350,7 @@ async def summarize_history(
             llm_limiter,
             conversational_token_threshold,
             tail_budget_ratio=tail_budget_ratio,
+            tail_max_tokens=CFG.LLM_HISTORY_TAIL_MAX_TOKENS,
         )
         if not to_summarize:
             if not force:
@@ -356,6 +358,15 @@ async def summarize_history(
             to_summarize, to_keep = messages, []
         to_summarize, to_keep, verbatim_tail_message, structured_tail = (
             _prepare_kept_tail(messages, to_summarize, to_keep)
+        )
+        zrb_print(
+            stylize_warning(
+                f"  Summarizing {len(to_summarize)} messages "
+                f"({llm_limiter.count_tokens(to_summarize)} tokens); keeping "
+                f"{len(to_keep)} verbatim "
+                f"({llm_limiter.count_tokens(to_keep)} tokens)."
+            ),
+            plain=True,
         )
         archive_path = verbatim_archive_path(
             _resolve_session_name(session_name, messages), history_dir
@@ -738,10 +749,10 @@ def _truncate_snapshot(
 ) -> str:
     """Make the snapshot fit, losing whole sections before it loses words.
 
-    A plain token cut severs a section mid-word, and `<task_state>` is last in
-    the schema, so the tail is exactly what the next agent needs most. The
-    least durable sections go whole first; only then is what remains cut, and
-    the closing tag is put back so the block stays readable.
+    A plain token cut severs a section mid-word wherever it lands, and the
+    sections after the cut are gone outright. So the least durable sections go
+    whole first (`_SUMMARY_DROP_ORDER`), and only then is what remains cut, with
+    the closing tag put back so the block stays readable.
 
     A token count is not additive across a concatenation either: the same words
     tokenize differently once the framing and the notes sit around them, so
@@ -787,10 +798,11 @@ async def _shorten_summary(
 ) -> str:
     """Ask the summarizer for the same snapshot in fewer than *cap* tokens."""
     prompt = (
-        f"Rewrite this <state_snapshot> to fit under {cap} tokens. Keep all six "
-        "sections and the current task state; drop the least durable detail first "
-        "(resolved side questions, old work-log entries, superseded decisions). "
-        "Output only the <state_snapshot> block.\n\n"
+        f"Rewrite this <state_snapshot> to fit under {cap} tokens. Keep every "
+        "section it has, and keep <where_we_are>, <now>, <next> and "
+        "<open_questions> intact: shrink the record instead — finished work, "
+        "superseded decisions, files that are one grep away. Output only the "
+        "<state_snapshot> block.\n\n"
         f"{summary_text}"
     )
     shortened = await summarize_text_plain(
@@ -876,18 +888,20 @@ def _verbatim_prefix(
 
 
 def _without_prior_summaries(messages: "list[ModelMessage]") -> "list[ModelMessage]":
-    """Drop earlier compactions' synthetic summaries from an archive section.
+    """Drop earlier compactions' synthetic parts from an archive section.
 
     The archive records what the conversation actually said. A summary is a
-    derived retelling that the next summary already folds in, and archiving it
-    would leave the reader sifting model prose out of verbatim text.
+    derived retelling that the next summary already folds in, and a rendered
+    tail is a handover of turns the archive already holds word for word;
+    archiving either would leave the reader sifting model prose out of verbatim
+    text, and a second compaction would append the first one's tail again.
     """
     result: "list[ModelMessage]" = []
     for message in messages:
         if getattr(message, "parts", None) is None:
             result.append(message)
             continue
-        stripped = _drop_summary_parts(message)
+        stripped = _drop_synthetic_parts(message)
         if stripped.parts:
             result.append(stripped)
     return result
@@ -940,16 +954,29 @@ def _assemble_summarized_history(
     return ensure_alternating_roles(result)
 
 
-def _render_verbatim_messages(messages: "list[ModelMessage]") -> str:
-    """Render *messages* to text, exactly as `chunk_and_summarize` does before
-    a chunk is summarized — lossless and deterministic, no LLM pass. Here the
-    result is kept as-is instead of being summarized.
+_TAIL_TOOL_OUTPUT_LIMIT = 2_000
+"""Characters of one tool result the verbatim tail keeps.
 
-    A conversion failure propagates to `summarize_history`'s own outer guard,
-    which leaves the history unchanged — the same fallback every other
-    construction failure in this module takes.
+The tail is a handover, not evidence: the messages it replaces are archived in
+full, so a 40,000-character test log kept here would spend the next turn's
+window on output nobody reads again — while costing the summary the room it
+needs to say what the work actually was.
+"""
+
+
+def _render_verbatim_messages(messages: "list[ModelMessage]") -> str:
+    """Render *messages* to text, as `chunk_and_summarize` does before a chunk
+    is summarized — deterministic, no LLM pass. Here the result is kept as-is
+    instead of being summarized.
+
+    Tool results are shortened to `_TAIL_TOOL_OUTPUT_LIMIT` characters each; the
+    rest of the message is rendered whole. A conversion failure propagates to
+    `summarize_history`'s own outer guard, which leaves the history unchanged —
+    the same fallback every other construction failure in this module takes.
     """
-    return "\n".join(message_to_text(m) for m in messages)
+    return "\n".join(
+        message_to_text(m, _TAIL_TOOL_OUTPUT_LIMIT) for m in messages
+    )
 
 
 def _create_verbatim_tail_model_request(text: str) -> "ModelMessage":
@@ -995,25 +1022,38 @@ _VERBATIM_TAIL_HEADER = (
 _SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"
 _SUMMARY_END_MARKER = "<!-- end of automated summary -->"
 _SUMMARY_SECTIONS = (
-    "overall_goal",
-    "active_constraints",
+    "where_we_are",
+    "now",
+    "next",
+    "open_questions",
+    "done",
+    "decisions",
+    "landmines",
+    "constraints",
+    "files",
     "active_skills",
-    "key_knowledge",
-    "work_log",
-    "task_state",
 )
+"""Every section the summarizer prompt asks for, in the order it asks for them.
+
+`test/llm/summarizer/test_summary_schema_contract.py` reads the prompt file and
+fails when this tuple and its schema disagree, because a section the prompt
+asks for but nothing validates (or the reverse) is invisible drift.
+"""
 _SUMMARY_SHORTEN_ATTEMPTS = 2
 _SUMMARY_CAP_FLOOR = 1_000
 """Smallest cap a configured ratio may produce, in tokens.
 
-Six sections of anything useful do not fit in less, and on a small window the
+Ten sections of anything useful do not fit in less, and on a small window the
 default share of the threshold is a few hundred tokens.
 """
-_SUMMARY_DROP_ORDER = ("work_log", "key_knowledge", "active_skills")
+_SUMMARY_DROP_ORDER = ("active_skills", "files", "done", "landmines", "decisions")
 """Sections a snapshot gives up, in order, when it has to get smaller.
 
-The goal, the constraints and the task state are what the next agent cannot
-re-derive; the work log and the accumulated knowledge are bulk by comparison.
+What resumes the work is the last thing to go: where the world stands, what was
+in flight, what comes next and what is still being waited on are never dropped.
+The skill names are rebuilt by the re-attach pass, a file list is one grep
+away, finished work is in the git log, and a decision keeps its ADR pointer
+longer than either.
 """
 _SUMMARY_PREAMBLE = (
     "This is an automated summary of the preceding conversation history, kept so the "
@@ -1036,20 +1076,57 @@ def _is_summary_part(part: Any) -> bool:
     )
 
 
-def _drop_summary_parts(msg: Any) -> Any:
-    """*msg* without synthetic summary parts.
+def _is_verbatim_tail_part(part: object, msg: object) -> bool:
+    """Whether *part* is the rendered tail a previous compaction wrote.
 
-    `ensure_alternating_roles` can merge a prior summary part with a real user
-    part into one message; this keeps the summary from carrying forward.
+    The header alone does not decide it: a user may paste that heading, and
+    dropping their message would lose the request the summary is supposed to
+    carry. Compaction writes the tail into the same turn as its own summary
+    (`ensure_alternating_roles` merges them), so a part counts as synthetic only
+    beside a summary part — a shape a message a user typed does not have. When
+    the evidence is missing the part is treated as the user's, because the cost
+    of that guess is extra text, and the cost of the other is their words gone.
     """
-    parts = [part for part in getattr(msg, "parts", []) if not _is_summary_part(part)]
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import UserPromptPart
+
+    if not (
+        isinstance(part, UserPromptPart)
+        and isinstance(part.content, str)
+        and part.content.startswith(f"# {_VERBATIM_TAIL_HEADER}")
+    ):
+        return False
+    return any(
+        _is_summary_part(other) for other in getattr(msg, "parts", ()) or ()
+    )
+
+
+def _is_synthetic_part(part: object, msg: object) -> bool:
+    """Whether compaction wrote *part*: a prior summary, or a prior rendered tail."""
+    return _is_summary_part(part) or _is_verbatim_tail_part(part, msg)
+
+
+def _drop_synthetic_parts(msg: "ModelMessage") -> "ModelMessage":
+    """*msg* without the parts compaction wrote."""
+    parts = [
+        part
+        for part in getattr(msg, "parts", [])
+        if not _is_synthetic_part(part, msg)
+    ]
     if len(parts) == len(msg.parts):
         return msg
     return replace(msg, parts=parts)
 
 
 def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
-    """Return the first ModelRequest with a real user part, summary parts stripped."""
+    """The first ModelRequest with a real user part, synthetic parts stripped.
+
+    Compaction's own output does not count as the user speaking. A summary and a
+    rendered tail are one turn in the history (`ensure_alternating_roles` merges
+    them), so a naive "first user message" match finds the *previous compaction*
+    and carries its whole tail forward — 88,000 tokens of it on a real session —
+    while the summary that replaced it is re-derived right beside it.
+    """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
@@ -1057,10 +1134,10 @@ def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
         if not isinstance(msg, ModelRequest):
             continue
         if any(
-            isinstance(part, UserPromptPart) and not _is_summary_part(part)
+            isinstance(part, UserPromptPart) and not _is_synthetic_part(part, msg)
             for part in getattr(msg, "parts", [])
         ):
-            return _drop_summary_parts(msg)
+            return _drop_synthetic_parts(msg)
     return None
 
 
