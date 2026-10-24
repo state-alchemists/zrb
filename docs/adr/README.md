@@ -87,6 +87,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0088** — [A shared leaf module lives outside the package that happens to write it, not nested inside it](adr-0088.md)
 - **ADR-0096** — [The agent barrel resolves lazily, and import safety is asserted per module](adr-0096.md)
 - **ADR-0098** — [A fixed action vocabulary, and boolean names that read as questions](adr-0098.md)
+- **ADR-0129** — [A lazy registration holds the configuration it was given until it loads](adr-0129.md)
 
 ### Testing
 

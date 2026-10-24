@@ -10,6 +10,11 @@ its name and description, and `Group.extract_node` imports the real module the
 moment a command line addresses it. `name` and `description` are copies of
 `zrb/builtin/llm/chat.py`'s declaration, pinned by
 `test/architecture/test_builtin_lazy_llm_task.py`.
+
+An init script that customizes the chat imports `llm_chat` from here and hands
+`on_resolve` the work — `llm_chat.on_resolve(lambda task: task.append_tool(...))`
+— rather than writing `from zrb.builtin import llm_chat`, which resolves the
+stand-in and pays the import this module defers (ADR-0129).
 """
 
 from zrb.builtin.group import llm_group
