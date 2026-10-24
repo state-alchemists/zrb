@@ -209,8 +209,18 @@ def _classify_untyped_error(e: Exception) -> str:
         response = getattr(e, "response", None)
         status_code = getattr(response, "status_code", None)
     msg = str(e).lower()
-    # Transient statuses win over keywords (Ollama's 500 "Maximum context
-    # length exceeded" is transient), matching `handle_stream_error`'s order.
+    token = _token_for_status(e, status_code, msg)
+    if token is not None:
+        return token
+    return _token_for_keywords(msg) or "unknown"
+
+
+def _token_for_status(e: Exception, status_code: int | None, msg: str) -> str | None:
+    """The token an HTTP status implies, or None when it decides nothing.
+
+    Transient statuses win over keywords (Ollama's 500 "Maximum context length
+    exceeded" is transient), matching `handle_stream_error`'s order.
+    """
     if status_code == 429:
         return "rate_limit"
     if status_code is not None and status_code >= 500:
@@ -225,11 +235,16 @@ def _classify_untyped_error(e: Exception) -> str:
         return "model_not_found"
     if status_code == 400:
         return "invalid_request"
+    return None
+
+
+def _token_for_keywords(msg: str) -> str | None:
+    """The token the error text implies, for an error with no decisive status."""
     if "overloaded" in msg or "529" in msg:
         return "overloaded"
     if "rate limit" in msg or "rate_limit" in msg:
         return "rate_limit"
-    return "unknown"
+    return None
 
 
 def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:

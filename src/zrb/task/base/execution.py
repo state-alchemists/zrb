@@ -94,7 +94,6 @@ class BaseTaskExecution:
         """Run the action alongside its readiness checks and defer it."""
         task = self._task
         ctx = task.get_ctx(session)
-        readiness_checks = task.readiness_checks
         readiness_check_delay = task.readiness_check_delay
         monitor_readiness = bool(task.monitor_readiness)
 
@@ -111,57 +110,10 @@ class BaseTaskExecution:
         try:
             await asyncio.sleep(readiness_check_delay)
 
-            readiness_check_coros = [
-                run_readiness_check(session, check) for check in readiness_checks
-            ]
-
             ctx.log_info("Waiting for readiness checks")
-            readiness_passed = False
-            readiness_error: BaseException | None = None
-            readiness_timeout = task.readiness_timeout
-            try:
-                # Aggregate cap (defaults to CFG.TASK_READINESS_TIMEOUT); the same
-                # knob bounds each monitoring round. Non-positive disables it.
-                async with asyncio.timeout(
-                    readiness_timeout if readiness_timeout > 0 else None
-                ):
-                    action_failed = await _has_action_failed_by_readiness(
-                        readiness_check_coros, action_coro
-                    )
-                if action_failed:
-                    ctx.log_error("Action failed before readiness checks passed")
-                elif all(
-                    session.get_task_status(check).is_completed
-                    for check in readiness_checks
-                ):
-                    ctx.log_info("Readiness checks completed successfully")
-                    readiness_passed = True
-                    # Gate on permanent failure only: `is_failed` is transient
-                    # between retry attempts, and readiness is never re-evaluated,
-                    # so gating on it could skip mark_as_ready forever.
-                    if not session.get_task_status(task).is_permanently_failed:
-                        ctx.log_info("Marked as ready")
-                        session.get_task_status(task).mark_as_ready()
-                else:
-                    ctx.log_warning(
-                        "One or more readiness checks did not complete successfully."
-                    )
-
-            except asyncio.TimeoutError as e:
-                # A check can raise TimeoutError itself; only blame the cap
-                # when one is set.
-                if readiness_timeout > 0:
-                    ctx.log_error(
-                        f"Readiness checks exceeded the {readiness_timeout}s aggregate "
-                        "timeout (readiness_timeout / TASK_READINESS_TIMEOUT); "
-                        "failing task"
-                    )
-                else:
-                    ctx.log_error(f"Readiness check timed out: {e}")
-                readiness_error = e
-            except Exception as e:
-                ctx.log_error(f"Readiness check failed with exception: {e}")
-                readiness_error = e
+            readiness_passed, readiness_error = await self._await_readiness(
+                session, action_coro, task.readiness_timeout
+            )
 
             if not readiness_passed:
                 await self._handle_readiness_failure(
@@ -186,6 +138,68 @@ class BaseTaskExecution:
         except (asyncio.CancelledError, KeyboardInterrupt, GeneratorExit):
             action_coro.cancel()
             raise
+
+    async def _await_readiness(
+        self,
+        session: AnySession,
+        action_coro: "asyncio.Task",
+        readiness_timeout: float,
+    ) -> tuple[bool, BaseException | None]:
+        """Wait for the readiness checks under the aggregate cap.
+
+        Returns whether they passed and the error that stopped them. A check
+        that raises is reported rather than propagated: `_handle_readiness_failure`
+        decides what the run does about it, and it needs the original error.
+        """
+        task = self._task
+        ctx = task.get_ctx(session)
+        try:
+            # Aggregate cap (defaults to CFG.TASK_READINESS_TIMEOUT); the same
+            # knob bounds each monitoring round. Non-positive disables it.
+            async with asyncio.timeout(
+                readiness_timeout if readiness_timeout > 0 else None
+            ):
+                action_failed = await _has_action_failed_by_readiness(
+                    [
+                        run_readiness_check(session, check)
+                        for check in task.readiness_checks
+                    ],
+                    action_coro,
+                )
+            if action_failed:
+                ctx.log_error("Action failed before readiness checks passed")
+                return False, None
+            if not all(
+                session.get_task_status(check).is_completed
+                for check in task.readiness_checks
+            ):
+                ctx.log_warning(
+                    "One or more readiness checks did not complete successfully."
+                )
+                return False, None
+            ctx.log_info("Readiness checks completed successfully")
+            # Gate on permanent failure only: `is_failed` is transient between
+            # retry attempts, and readiness is never re-evaluated, so gating on
+            # it could skip mark_as_ready forever.
+            if not session.get_task_status(task).is_permanently_failed:
+                ctx.log_info("Marked as ready")
+                session.get_task_status(task).mark_as_ready()
+            return True, None
+        except asyncio.TimeoutError as e:
+            # A check can raise TimeoutError itself; only blame the cap when one
+            # is set.
+            if readiness_timeout > 0:
+                ctx.log_error(
+                    f"Readiness checks exceeded the {readiness_timeout}s aggregate "
+                    "timeout (readiness_timeout / TASK_READINESS_TIMEOUT); "
+                    "failing task"
+                )
+            else:
+                ctx.log_error(f"Readiness check timed out: {e}")
+            return False, e
+        except Exception as e:
+            ctx.log_error(f"Readiness check failed with exception: {e}")
+            return False, e
 
     async def _handle_readiness_failure(
         self,

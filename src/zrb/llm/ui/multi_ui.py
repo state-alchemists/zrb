@@ -854,6 +854,20 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         main_task = asyncio.create_task(main_ui.run_async())
 
         try:
+            await self._await_main_task(main_task)
+        finally:
+            await self._shut_down_tasks()
+
+        self.last_output = (
+            self._last_result_data
+            if self._last_result_data is not None
+            else (self.main_ui.last_output if self.main_ui is not None else "")
+        )
+        return self.last_output
+
+    async def _await_main_task(self, main_task: asyncio.Task) -> None:
+        """Await the main UI, unwinding it on cancellation without masking that."""
+        try:
             await main_task
         except asyncio.CancelledError:
             main_task.cancel()
@@ -869,30 +883,25 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             raise
         except Exception as e:
             CFG.LOGGER.debug(f"Main UI task ended with error: {e}")
-        finally:
-            if self._process_messages_task:
-                self._process_messages_task.cancel()
-                try:
-                    await self._process_messages_task
-                except asyncio.CancelledError:
-                    pass
 
-            for task in self._child_tasks:
+    async def _shut_down_tasks(self) -> None:
+        """Cancel the message loop and child tasks, then wait for them to exit."""
+        if self._process_messages_task:
+            self._process_messages_task.cancel()
+            try:
+                await self._process_messages_task
+            except asyncio.CancelledError:
+                pass
+
+        for task in self._child_tasks:
+            task.cancel()
+        await asyncio.gather(*self._child_tasks, return_exceptions=True)
+        self._child_tasks = []
+
+        for task in self._pending_input_tasks:
+            if not task.done():
                 task.cancel()
-            await asyncio.gather(*self._child_tasks, return_exceptions=True)
-            self._child_tasks = []
-
-            for task in self._pending_input_tasks:
-                if not task.done():
-                    task.cancel()
-            self._pending_input_tasks = []
-
-        self.last_output = (
-            self._last_result_data
-            if self._last_result_data is not None
-            else (self.main_ui.last_output if self.main_ui is not None else "")
-        )
-        return self.last_output
+        self._pending_input_tasks = []
 
     def on_exit(self):
         if self._shutdown_event:

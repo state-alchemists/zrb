@@ -274,16 +274,7 @@ class Group(AnyGroup):
         node_path: list[str] = []
         residual_args: list[str] = []
         for index, name in enumerate(args):
-            task = node.get_task_by_alias(name)
-            if web_only and task is not None and task.is_cli_only:
-                task = None
-            group = node.get_group_by_alias(name)
-            if (
-                group is not None
-                and web_only
-                and len(group.get_all_subtasks(web_only)) == 0
-            ):
-                group = None
+            task, group = _match_task_and_group(node, name, web_only)
             if task is None and group is None:
                 candidates: list[str] = sorted([*node.subtasks, *node.subgroups])
                 raise NodeNotFoundError(
@@ -305,6 +296,24 @@ class Group(AnyGroup):
         if isinstance(node, AnyTask):
             node = resolve_task(node)
         return node, node_path, residual_args
+
+
+def _match_task_and_group(
+    node: "AnyGroup", name: str, web_only: bool
+) -> "tuple[AnyTask | None, AnyGroup | None]":
+    """The task and group *node* offers under *name*, with the web-only filter applied.
+
+    *node* is always a group: looking a name up is what turns the command line
+    into the next node. Either result may be None: a name can be a task, a
+    group, both, or neither.
+    """
+    task = node.get_task_by_alias(name)
+    if web_only and task is not None and task.is_cli_only:
+        task = None
+    group = node.get_group_by_alias(name)
+    if group is not None and web_only and len(group.get_all_subtasks(web_only)) == 0:
+        group = None
+    return task, group
 
 
 def _wrong_task_type_message(task: Any) -> str:

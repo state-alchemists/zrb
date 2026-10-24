@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.hook_result_extractor import (
+    PreToolDecision,
     extract_permission_decision,
     extract_pre_tool_decision,
 )
@@ -82,28 +83,12 @@ async def process_deferred_requests(
     for call in all_requests:
         # PreToolUse may deny, allow, or rewrite args. Auto-approved tools never
         # reach here and fire it at execution time instead (no double-fire).
-        hook_results = await hook_manager.execute_hooks(
-            HookEvent.PRE_TOOL_USE,
-            {
-                "tool": call.tool_name,
-                "args": call.args,
-                "call_id": call.tool_call_id,
-            },
-            tool_name=call.tool_name,
-            tool_input=_as_tool_input(call.args),
-        )
-        pre = extract_pre_tool_decision(hook_results)
-        if pre.updated_input and isinstance(call.args, dict):
-            call.args.update(pre.updated_input)
+        pre = await _apply_pre_tool_use_hook(call, hook_manager)
         if pre.deny:
             current_results.approvals[call.tool_call_id] = ToolDenied(
                 pre.reason or "Tool execution blocked by PreToolUse hook"
             )
-            if (
-                hasattr(current_results, "calls")
-                and call.tool_call_id in current_results.calls
-            ):
-                del current_results.calls[call.tool_call_id]
+            _discard_denied_call(current_results, call.tool_call_id)
             continue
 
         if pre.allow:
@@ -121,16 +106,41 @@ async def process_deferred_requests(
         _record_override_if_edited(call, result)
 
         if isinstance(result, ToolDenied):
-            if (
-                hasattr(current_results, "calls")
-                and call.tool_call_id in current_results.calls
-            ):
-                del current_results.calls[call.tool_call_id]
+            _discard_denied_call(current_results, call.tool_call_id)
             CFG.LOGGER.debug("Tool denied, removed from calls")
 
         # PostToolUse fires at execution, not approval.
 
     return current_results
+
+
+async def _apply_pre_tool_use_hook(call, hook_manager: HookManager) -> PreToolDecision:
+    """Fire PreToolUse for *call* and apply the argument rewrite it asks for."""
+    hook_results = await hook_manager.execute_hooks(
+        HookEvent.PRE_TOOL_USE,
+        {
+            "tool": call.tool_name,
+            "args": call.args,
+            "call_id": call.tool_call_id,
+        },
+        tool_name=call.tool_name,
+        tool_input=_as_tool_input(call.args),
+    )
+    pre = extract_pre_tool_decision(hook_results)
+    if pre.updated_input and isinstance(call.args, dict):
+        call.args.update(pre.updated_input)
+    return pre
+
+
+def _discard_denied_call(
+    current_results: "DeferredToolResults", tool_call_id: str
+) -> None:
+    """Drop the call slot a denied call would have executed from."""
+    if not hasattr(current_results, "calls"):
+        return
+    if tool_call_id not in current_results.calls:
+        return
+    del current_results.calls[tool_call_id]
 
 
 def rebuild_for_denials(

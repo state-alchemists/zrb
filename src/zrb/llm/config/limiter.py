@@ -2,6 +2,7 @@ import asyncio
 import time
 from collections import deque
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 
 from zrb.config.config import CFG
@@ -34,6 +35,29 @@ def is_turn_start(msg: Any) -> bool:
     has_user = any(isinstance(p, UserPromptPart) for p in msg.parts)
     has_return = any(isinstance(p, ToolReturnPart) for p in msg.parts)
     return has_user and not has_return
+
+
+@dataclass(frozen=True)
+class _HistoryTokenCosts:
+    """Per-message token costs of a history, plus its movable instruction window.
+
+    ``last_instruction[i]`` is the index of the instruction a request at ``i``
+    would carry, or -1 when none is left; the active instruction's cost moves
+    as old messages are pruned from the front.
+    """
+
+    body: list[int]
+    instruction: list[int]
+    last_instruction: list[int]
+
+    def body_total(self, start: int) -> int:
+        """Body cost of every message from *start* on."""
+        return sum(self.body[start:])
+
+    def instruction_cost_at(self, from_index: int) -> int:
+        """Cost of the instruction window that is active from *from_index* on."""
+        last = self.last_instruction[from_index]
+        return self.instruction[last] if last >= 0 else 0
 
 
 class LLMLimiter:
@@ -152,29 +176,38 @@ class LLMLimiter:
         if new_msg_tokens > available:
             return []
 
+        costs = self._history_token_costs(history)
+        start = self._first_fitting_turn(history, costs, new_msg_tokens, available)
+        return history[start:]
+
+    def _first_fitting_turn(
+        self,
+        history: list[object],
+        costs: _HistoryTokenCosts,
+        new_msg_tokens: int,
+        available: int,
+    ) -> int:
+        """Index of the oldest message to keep so history plus the new message fits.
+
+        Returns ``len(history)`` when no turn boundary can make it fit. Turns are
+        dropped whole from the front, so the running total is recomputed whenever
+        a drop crosses the usage anchor or moves the active instruction window.
+        """
         n = len(history)
-
-        msg_body_tokens, msg_instr_tokens, last_instr_from = self._history_token_costs(
-            history
-        )
-
-        def _instr_cost(from_idx: int) -> int:
-            li = last_instr_from[from_idx]
-            return msg_instr_tokens[li] if li >= 0 else 0
 
         usage_anchor = self._usage_anchor(history)
         if usage_anchor is not None:
             anchor_index, anchor_tokens = usage_anchor
             total_tokens = (
                 anchor_tokens
-                + sum(msg_body_tokens[anchor_index + 1 :])
-                + _instr_cost(anchor_index + 1)
+                + costs.body_total(anchor_index + 1)
+                + costs.instruction_cost_at(anchor_index + 1)
             )
         else:
-            total_tokens = sum(msg_body_tokens) + _instr_cost(0)
+            total_tokens = costs.body_total(0) + costs.instruction_cost_at(0)
 
         if total_tokens + new_msg_tokens <= available:
-            return list(history)
+            return 0
 
         start = 0
         while start < n:
@@ -193,33 +226,37 @@ class LLMLimiter:
                     # The anchor is in the final turn. It cannot shrink while
                     # retained, so assess that turn locally before dropping it.
                     usage_anchor = None
-                    total_tokens = sum(msg_body_tokens[start:]) + _instr_cost(start)
+                    total_tokens = costs.body_total(start) + costs.instruction_cost_at(
+                        start
+                    )
                     if total_tokens + new_msg_tokens <= available:
                         break
                 # No remaining safe turn boundary can make this fit.
-                total_tokens = 0
-                start = n
-                break
+                return n
 
             if usage_anchor is not None and next_turn > usage_anchor[0]:
                 # The anchor's provider-reported input covered the older slice.
                 # Once that response is dropped, resume local accounting for the
                 # remaining messages rather than treating stale usage as current.
                 usage_anchor = None
-                total_tokens = sum(msg_body_tokens[next_turn:]) + _instr_cost(next_turn)
+                total_tokens = costs.body_total(next_turn) + costs.instruction_cost_at(
+                    next_turn
+                )
             else:
                 # Dropped turns precede any usage anchor, so their per-message
                 # estimate is the only measure of the saving.
                 for i in range(start, next_turn):
-                    total_tokens -= msg_body_tokens[i]
+                    total_tokens -= costs.body[i]
 
                 # Adjust for the instruction-window shift: the "active last instruction"
                 # may change as old messages are pruned from the front.
-                total_tokens += _instr_cost(next_turn) - _instr_cost(start)
+                total_tokens += costs.instruction_cost_at(
+                    next_turn
+                ) - costs.instruction_cost_at(start)
 
             start = next_turn
 
-        return history[start:]
+        return start
 
     async def acquire(self, content: Any, notifier: Callable[[str], Any] | None = None):
         """Wait until *content* fits the current rate limits, then record it."""
@@ -279,9 +316,7 @@ class LLMLimiter:
             return text[:estimated_chars]
         return text
 
-    def _history_token_costs(
-        self, history: list[Any]
-    ) -> tuple[list[int], list[int], list[int]]:
+    def _history_token_costs(self, history: list[Any]) -> _HistoryTokenCosts:
         """Precompute body and active-instruction costs for each history suffix."""
         body_tokens = [
             self._count_tokens(self.to_str(message, skip_instructions=True))
@@ -293,7 +328,7 @@ class LLMLimiter:
             last_instruction[index] = (
                 index if instruction_tokens[index] > 0 else last_instruction[index + 1]
             )
-        return body_tokens, instruction_tokens, last_instruction
+        return _HistoryTokenCosts(body_tokens, instruction_tokens, last_instruction)
 
     def _instruction_tokens(self, message: Any) -> int:
         """Return *message*'s instruction cost, excluding it when absent."""
