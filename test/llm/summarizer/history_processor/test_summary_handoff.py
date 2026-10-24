@@ -27,6 +27,8 @@ from zrb.llm.summarizer import summarize_history
 # The one test below is about the cut itself, which the public API only reaches
 # through a model that answers badly twice; the helpers are the subject there.
 from zrb.llm.summarizer.history_summarizer import (
+    _SUMMARY_HEADER,
+    _VERBATIM_TAIL_HEADER,
     _render_archive_note,
     _render_summary_content,
     _truncate_snapshot,
@@ -78,12 +80,16 @@ def _snapshot(tag: str = "", padding: str = "") -> str:
     """A summary shaped the way `conversational_summarizer.md` asks for."""
     return (
         "<state_snapshot>\n"
-        f"<overall_goal>ship {tag}</overall_goal>\n"
-        "<active_constraints>none</active_constraints>\n"
+        f"<where_we_are>branch fix/{tag}</where_we_are>\n"
+        f"<now>ship {tag}</now>\n"
+        "<next>1. [READY] run the split tests</next>\n"
+        "<open_questions>(none)</open_questions>\n"
+        f"<done>PR #{tag} merged</done>\n"
+        "<decisions>the split is token-first, ADR-0041</decisions>\n"
+        "<landmines>the changelog has two footers</landmines>\n"
+        "<constraints>never merge without a word</constraints>\n"
+        "<files>history_splitter.py: the split</files>\n"
         "<active_skills>core-coding</active_skills>\n"
-        "<key_knowledge>the split is token-first</key_knowledge>\n"
-        "<work_log>edited the summarizer</work_log>\n"
-        "<task_state>[DONE] split</task_state>\n"
         "</state_snapshot>"
         f"{padding}"
     )
@@ -154,6 +160,28 @@ async def test_the_users_own_words_follow_the_summary_in_the_same_turn():
 
     assert "<!-- end of automated summary -->" in parts[0]
     assert any("User 1" in part for part in parts[1:])
+
+
+@pytest.mark.asyncio
+async def test_a_previous_compactions_turn_is_not_the_users_opening_message():
+    """The summary and the rendered tail are one user turn once roles alternate,
+    so a plain "first user message" match finds the *last* compaction and carries
+    its whole tail forward — 88,000 tokens of it on a real session, right beside
+    the summary that had already replaced it."""
+    stale = "PREVIOUS-TAIL-MARKER " * 200
+    previous = ModelRequest(
+        parts=[
+            UserPromptPart(content=f"# {_SUMMARY_HEADER}\nold summary\n"),
+            UserPromptPart(content=f"# {_VERBATIM_TAIL_HEADER}\n{stale}"),
+        ]
+    )
+
+    new_history = await _compress(_agent(_snapshot("it")), [previous, *_history()])
+
+    text = _summary_text(new_history)
+    assert "PREVIOUS-TAIL-MARKER" not in text
+    # The user's real opening turn is still carried forward.
+    assert "User 1" in text
 
 
 @pytest.mark.asyncio

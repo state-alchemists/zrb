@@ -71,6 +71,7 @@ def split_history(
     conversational_token_threshold: int,
     tail_budget_ratio: float = TAIL_BUDGET_RATIO,
     fallback_budget_ratio: float | None = None,
+    tail_max_tokens: int | None = None,
 ) -> "tuple[list[ModelMessage], list[ModelMessage]]":
     """
     Split history into messages to summarize and messages to keep.
@@ -87,7 +88,10 @@ def split_history(
 
     `tail_budget_ratio` is clamped into `MIN_TAIL_BUDGET_RATIO` to
     `MAX_TAIL_BUDGET_RATIO`, so a configured `0` still leaves a tail and a
-    value past the ceiling still leaves headroom.
+    value past the ceiling still leaves headroom. *tail_max_tokens* is an
+    absolute ceiling on the tail as well, whichever of the two is smaller: a
+    share of a large window can still be more transcript than the next turn
+    wants to re-read.
 
     Strategy:
     1. Keep the newest turns that fit a tail budget of `tail_budget_ratio` of
@@ -106,14 +110,18 @@ def split_history(
     budget_ratio = _clamp_tail_budget_ratio(tail_budget_ratio)
     if fallback_budget_ratio is None:
         fallback_budget_ratio = _retry_budget_ratio(budget_ratio)
-    budget = conversational_token_threshold * budget_ratio
+    budget = _capped_budget(
+        conversational_token_threshold * budget_ratio, tail_max_tokens
+    )
     split_idx = (
         0
         if limiter.count_tokens(messages) <= budget
         else _earliest_split_within_budget(messages, limiter, budget)
     )
     if split_idx == len(messages):
-        loose_budget = conversational_token_threshold * fallback_budget_ratio
+        loose_budget = _capped_budget(
+            conversational_token_threshold * fallback_budget_ratio, tail_max_tokens
+        )
         if loose_budget > budget:
             split_idx = _earliest_split_within_budget(messages, limiter, loose_budget)
     count_cap = max(0, len(messages) - summary_window) if summary_window > 0 else 0
@@ -121,6 +129,18 @@ def split_history(
     if split_idx == 0:
         return [], list(messages)
     return messages[:split_idx], messages[split_idx:]
+
+
+def _capped_budget(budget: float, tail_max_tokens: int | None) -> float:
+    """*budget* held under the absolute ceiling, when one is set and positive.
+
+    The ceiling applies to the retry budget too: a cap that a looser retry could
+    walk straight past would not be a cap, and the retry exists to keep *some*
+    tail, not a bigger one.
+    """
+    if tail_max_tokens is None or tail_max_tokens <= 0:
+        return budget
+    return min(budget, float(tail_max_tokens))
 
 
 def _clamp_tail_budget_ratio(ratio: float) -> float:
