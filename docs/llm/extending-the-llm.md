@@ -79,25 +79,6 @@ The `Lsp*` tools are registered only when a supported language server is install
 | `EnterPlanMode` | `enter_plan_mode` | Switch to read-only plan mode: edits, shell commands and delegation are blocked; reading, searching and web research stay available. Interactive sessions only. |
 | `ExitPlanMode` | `exit_plan_mode` | Present the plan to the user for approval before any edits are made. Interactive sessions only. |
 
-### Knowledge Base (RAG)
-
-| Tool factory | Description |
-|---|---|
-| `create_rag_from_directory` | Creates a semantic search tool over a local directory of documents (ChromaDB + OpenAI embeddings). Returns a callable tool you register with `append_tool()`. Requires the `rag` extra (`pip install "zrb[rag]"`, which adds `chromadb`; `openai` is already a core dependency). |
-
-```python
-from zrb.llm.tool.rag import create_rag_from_directory
-
-search_docs = create_rag_from_directory(
-    tool_name="SearchDocs",
-    tool_description="Search project documentation.",
-    document_dir_path="./docs",
-    vector_db_path="./.chroma",
-)
-
-my_chat_task.append_tool(search_docs)
-```
-
 ### MCP (Model Context Protocol)
 
 The assistant can connect to external MCP servers defined in `mcp-config.json`. See [MCP Support](mcp-support.md) for setup.

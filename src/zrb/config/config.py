@@ -50,7 +50,6 @@ from zrb.config.mixins.llm_speech import LLMSpeechMixin
 from zrb.config.mixins.llm_tools import LLMToolsMixin
 from zrb.config.mixins.llm_ui import LLMUIMixin
 from zrb.config.mixins.llm_voice import LLMVoiceMixin
-from zrb.config.mixins.rag import RAGMixin
 from zrb.config.mixins.task_runtime import TaskRuntimeMixin
 from zrb.config.mixins.theme import ThemeMixin
 from zrb.config.mixins.web import WebMixin
@@ -109,7 +108,6 @@ class Config(
     LLMSandboxMixin,
     LLMSearchMixin,
     LLMToolsMixin,
-    RAGMixin,
     InternetSearchMixin,
     HooksMixin,
     TaskRuntimeMixin,

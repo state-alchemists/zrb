@@ -2,11 +2,10 @@
 
 # LLM Tools & Extensions
 
-The agent's tools and what feeds them: RAG, web search, hooks, skill and agent discovery, language servers, and the sandbox.
+The agent's tools and what feeds them: web search, hooks, skill and agent discovery, language servers, and the sandbox.
 
 ## Table of Contents
 
-- [RAG (Retrieval-Augmented Generation) Configuration](#rag-retrieval-augmented-generation-configuration)
 - [Search Engine Configuration](#search-engine-configuration)
   - [Google News RSS (Default)](#google-news-rss-default)
   - [SerpAPI (Google)](#serpapi-google)
@@ -20,19 +19,6 @@ The agent's tools and what feeds them: RAG, web search, hooks, skill and agent d
 - [Sandbox Configuration](#sandbox-configuration)
 
 ---
-
-## RAG (Retrieval-Augmented Generation) Configuration
-
-For RAG with vector databases such as ChromaDB.
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ZRB_RAG_EMBEDDING_API_KEY` | API key for embedding service | None |
-| `ZRB_RAG_EMBEDDING_BASE_URL` | Embedding API URL | None |
-| `ZRB_RAG_EMBEDDING_MODEL` | Embedding model | `text-embedding-ada-002` |
-| `ZRB_RAG_CHUNK_SIZE` | Text chunk size | `1024` |
-| `ZRB_RAG_OVERLAP` | Chunk overlap size | `128` |
-| `ZRB_RAG_MAX_RESULT_COUNT` | Max search results | `5` |
 
 ## Search Engine Configuration
 

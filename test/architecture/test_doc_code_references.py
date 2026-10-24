@@ -54,6 +54,11 @@ _NOT_OURS = re.compile(r"^(rich|parser|models)/|^(X|acme\w*|your_\w*)/|path/to|[
 # sentence explaining that it moved — is not drift; rewriting it to the new
 # path would make the sentence say the opposite of what happened.
 REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
+    "docs/adr/adr-0124.md": {
+        # The record says this module was deleted; naming where it lived is the
+        # subject of the ADR, and there is no post-removal path to point at.
+        "src/zrb/llm/tool/rag.py",
+    },
     "docs/adr/adr-0088.md": {
         # The Context and Decision paragraphs name both modules at their
         # pre-move locations, which is the whole subject of the record. The

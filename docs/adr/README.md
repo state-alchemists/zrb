@@ -140,6 +140,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0084** — [`write_file(mode="w")` refuses to overwrite a file this run hasn't observed](adr-0084.md)
 - **ADR-0089** — [Oversized tool results spill to a queryable store instead of being truncated](adr-0089.md)
 - **ADR-0120** — [LS, Glob and AnalyzeCode agree about `.gitignore`, and the default is to hide](adr-0120.md)
+- **ADR-0124** — [The RAG tool is removed, and the `chromadb` extra with it](adr-0124.md)
 
 ### Permissions and approval
 

@@ -12,7 +12,8 @@ SRC = REPO_ROOT / "src" / "zrb"
 
 _BROAD = {"Exception", "BaseException"}
 
-SWALLOWED_BROAD_EXCEPTS = 312
+# -9 (312->303): the RAG tool's registration loop and its config mixin were removed.
+SWALLOWED_BROAD_EXCEPTS = 303
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:

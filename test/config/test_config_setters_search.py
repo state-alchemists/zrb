@@ -8,48 +8,6 @@ class TestSearchConfigSetters:
 
     _original_env: dict[str, str] = {}
 
-    def test_rag_embedding_api_key_setter_with_value(self, monkeypatch):
-        config = Config()
-        config.RAG_EMBEDDING_API_KEY = "rag-key"
-        assert os.environ["ZRB_RAG_EMBEDDING_API_KEY"] == "rag-key"
-
-    def test_rag_embedding_api_key_setter_with_none(self, monkeypatch):
-        config = Config()
-        config.RAG_EMBEDDING_API_KEY = "rag-key"
-        config.RAG_EMBEDDING_API_KEY = None
-        assert "ZRB_RAG_EMBEDDING_API_KEY" not in os.environ
-
-    def test_rag_embedding_base_url_setter_with_value(self, monkeypatch):
-        config = Config()
-        config.RAG_EMBEDDING_BASE_URL = "http://localhost:8081"
-        assert os.environ["ZRB_RAG_EMBEDDING_BASE_URL"] == "http://localhost:8081"
-
-    def test_rag_embedding_base_url_setter_with_none(self, monkeypatch):
-        config = Config()
-        config.RAG_EMBEDDING_BASE_URL = "http://localhost:8081"
-        config.RAG_EMBEDDING_BASE_URL = None
-        assert "ZRB_RAG_EMBEDDING_BASE_URL" not in os.environ
-
-    def test_rag_embedding_model_setter(self, monkeypatch):
-        config = Config()
-        config.RAG_EMBEDDING_MODEL = "text-embedding-3-small"
-        assert os.environ["ZRB_RAG_EMBEDDING_MODEL"] == "text-embedding-3-small"
-
-    def test_rag_chunk_size_setter(self, monkeypatch):
-        config = Config()
-        config.RAG_CHUNK_SIZE = 2048
-        assert os.environ["ZRB_RAG_CHUNK_SIZE"] == "2048"
-
-    def test_rag_overlap_setter(self, monkeypatch):
-        config = Config()
-        config.RAG_OVERLAP = 256
-        assert os.environ["ZRB_RAG_OVERLAP"] == "256"
-
-    def test_rag_max_result_count_setter(self, monkeypatch):
-        config = Config()
-        config.RAG_MAX_RESULT_COUNT = 10
-        assert os.environ["ZRB_RAG_MAX_RESULT_COUNT"] == "10"
-
     def test_search_internet_method_setter(self, monkeypatch):
         config = Config()
         config.SEARCH_INTERNET_METHOD = "searxng"
