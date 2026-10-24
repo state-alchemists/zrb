@@ -1,3 +1,4 @@
+import ast
 import os
 import re
 from typing import Annotated
@@ -54,8 +55,11 @@ async def replace_in_file(
     level. If either is not what you expected, Read the file before doing
     anything else.
 
-    Keep the result structurally valid — if the change would break indentation,
-    imports, or syntax, widen old_text or use Write to rewrite the file instead.
+    Keep the result structurally valid — indentation, imports, syntax. A
+    result the tool cannot parse is refused: nothing is written, and the
+    error is returned. A trailing newline dropped from `new_text` is
+    restored and reported.
+
     LSP/static checks run after the write. When they find errors, the result
     opens with `FAILED` and a `[DIAGNOSTIC]` list: the replacement did reach
     disk, so do not re-issue it. Read the file and make a targeted fix — the
@@ -101,11 +105,16 @@ async def _replace_in_file_locked(
     if actual_old is None:
         return _describe_missing_match(content, old_text, path)
 
+    new_text, newline_note = _keep_line_break(actual_old, new_text)
     match_count = content.count(actual_old)
     new_content = content.replace(actual_old, new_text, count)
 
     if content == new_content:
         return _describe_noop(path, old_text, new_text, count)
+
+    refused = _describe_unparsable_result(path, abs_path, content, new_content)
+    if refused is not None:
+        return refused
 
     try:
         with open(abs_path, "w", encoding="utf-8") as f:
@@ -120,7 +129,8 @@ async def _replace_in_file_locked(
 
     replacements = match_count if count == -1 else min(match_count, count)
     return compose_write_result(
-        f"Successfully updated {path} ({replacements} replacement(s)){fuzzy_note}",
+        f"Successfully updated {path} ({replacements} replacement(s))"
+        f"{fuzzy_note}{newline_note}",
         await format_post_write_diagnostics(abs_path),
     )
 
@@ -189,6 +199,26 @@ def _locate_match(
     return None, old_text, new_text, ""
 
 
+def _keep_line_break(actual_old: str, new_text: str) -> tuple[str, str]:
+    """Give `new_text` back the line break `actual_old` ended with.
+
+    `str.replace` splices text and knows nothing about lines: replacing
+    `"first = 1\\n"` with `"first = 100"` yields `"first = 100second = 2"`, a
+    file that no longer parses, broken by an edit that looked local. Almost
+    every such call means to keep the break, so it is restored and the result
+    says so rather than leaving the caller to notice.
+    """
+    if new_text == actual_old or not new_text:
+        return new_text, ""
+    ending = "\r\n" if actual_old.endswith("\r\n") else "\n"
+    if not actual_old.endswith(ending) or new_text.endswith(("\n", "\r")):
+        return new_text, ""
+    return new_text + ending, (
+        " — new_text had no trailing newline; old_text's line break was kept, "
+        "so the line after it is not joined onto the replacement."
+    )
+
+
 def _describe_missing_match(content: str, old_text: str, path: str) -> str:
     """Explain a failed match, pointing at near-misses when there are any."""
     lines = content.splitlines()
@@ -246,6 +276,41 @@ def _describe_noop(path: str, old_text: str, new_text: str, count: int) -> str:
         "returning this. Read the file to confirm its current state, then "
         "move on or edit a different region."
     )
+
+
+def _describe_unparsable_result(
+    path: str, abs_path: str, before: str, after: str
+) -> str | None:
+    """Refuse a result that would break a file which parsed before.
+
+    `post_write_check` reports this too, but only once the bytes are on disk,
+    so the caller's next move is repairing a file it never meant to break.
+    Checking the candidate first makes the failure atomic. A file that did not
+    parse before is left alone: refusing there would trap a caller who is
+    fixing the breakage, and a template holding placeholders is not broken.
+    """
+    if not abs_path.endswith(".py"):
+        return None
+    reason = _parse_error(after, abs_path)
+    if reason is None or _parse_error(before, abs_path) is not None:
+        return None
+    return (
+        f"Error: this edit was not applied to {path}: the result would not "
+        f"parse ({reason}). The file is unchanged.\n"
+        "[SYSTEM SUGGESTION]: Widen old_text to include the structure the "
+        "replacement has to sit in, or fix new_text. Nothing was written, so "
+        "what you read earlier is still current — Read again only if you need "
+        "to see the exact surrounding text."
+    )
+
+
+def _parse_error(source: str, abs_path: str) -> str | None:
+    """Where *source* fails to parse, or None when it parses."""
+    try:
+        ast.parse(source, filename=abs_path)
+    except SyntaxError as e:
+        return f"{type(e).__name__}: line {e.lineno}: {e.msg}"
+    return None
 
 
 def _strip_read_line_numbers(text: str) -> str | None:
