@@ -334,6 +334,12 @@ def _normalize_for_request(part: Any) -> Any:
         # 2.60; it maps to the user role rather than the tool role, so it keeps
         # no tool_call_id, and `_tool_return_to_text` words it as feedback.
         return UserPromptPart(content=_tool_return_to_text(part))
+    if getattr(part, "part_kind", None) == "retry-prompt":
+        # History written before 2.60 carries the deprecated `RetryPromptPart`.
+        # It must still be flattened rather than passed through to a provider
+        # mapper that no longer knows it; the kind string identifies it without
+        # this module importing the deprecated class.
+        return UserPromptPart(content=_legacy_retry_to_text(part))
     if isinstance(part, (UserPromptPart, SystemPromptPart)):
         return _sanitize_content(part)
     return part
@@ -373,6 +379,15 @@ def _tool_return_to_text(part: Any) -> str:
     if getattr(part, "outcome", "success") == "retried":
         return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
     return f'(sanitized-history) previous result from tool "{name}": ' f"{content}"
+
+
+def _legacy_retry_to_text(part: object) -> str:
+    """A pre-2.60 `RetryPromptPart` as prose, read without importing the class."""
+    name = getattr(part, "tool_name", None) or "(unnamed)"
+    raw = getattr(part, "content", None)
+    content = str(raw) if raw not in (None, "") else "(no value)"
+    content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
+    return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
 
 
 def _thinking_part_content(part: Any) -> str:

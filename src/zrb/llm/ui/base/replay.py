@@ -7,7 +7,12 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.prompt.live_context import split_live_context
 from zrb.llm.ui.base.user_echo import echo_user_message
-from zrb.llm.util.history_formatter import format_args, format_timestamp, truncate
+from zrb.llm.util.history_formatter import (
+    format_args,
+    format_timestamp,
+    outcome_icon,
+    truncate,
+)
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
@@ -115,7 +120,9 @@ class BaseUIReplay:
             or "unknown"
         )
         outcome = getattr(part, "outcome", "success")
-        status_icon = "✅" if str(outcome) == "success" else "❌"
+        # Shared with the history formatter, so a reloaded transcript and a live
+        # one cannot disagree about what a retried call looked like.
+        status_icon = outcome_icon(outcome)
         content = str(getattr(part, "content", "") or "")
         self._base_ui.append_to_output(
             f"\n  🔠 {tool_call_id} | {tool_name} {status_icon}",

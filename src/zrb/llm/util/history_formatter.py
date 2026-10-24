@@ -16,6 +16,17 @@ from zrb.util.truncate import truncate_display
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
 
+_OUTCOME_ICONS = {"success": "✅", "retried": "🔄"}
+
+
+def outcome_icon(outcome: object) -> str:
+    """The icon for a tool outcome, shared so the transcript and its replay agree.
+
+    A retried call did not fail — the model was asked to make it again — so it
+    must not read as an error in either place. Anything unrecognized does.
+    """
+    return _OUTCOME_ICONS.get(str(outcome), "❌")
+
 
 def extract_last_response_text(messages: "Sequence[ModelMessage]") -> str:
     """Return the text of the most recent assistant response with any text,
@@ -293,7 +304,7 @@ def _format_tool_return(
 
     # A retried call did not fail — the model was asked to make it again — so it
     # gets its own icon rather than reading as an error.
-    status_icon = {"success": "✅", "retried": "🔄"}.get(outcome, "❌")
+    status_icon = outcome_icon(outcome)
 
     id_display = tool_call_id or "?"
 
