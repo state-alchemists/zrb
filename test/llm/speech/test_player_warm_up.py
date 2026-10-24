@@ -184,6 +184,36 @@ def test_a_warm_up_already_loading_is_not_started_again(lock_file):
     assert backend.made == ["Hi."]
 
 
+class CountingSlowBackend(SlowBackend):
+    """A backend whose load parks, counting how many probes were asked for."""
+
+    def __init__(self):
+        super().__init__()
+        self.starts = 0
+
+    def create_audio(self, text):
+        self.starts += 1
+        return super().create_audio(text)
+
+
+def test_a_restart_while_a_warm_up_is_parked_starts_no_second_one(lock_file):
+    """A restart re-armed the guard, so a load that never finished cost a
+    thread per turn: 38 parked threads on one chat, which is what the guard
+    was written for. The set it is warming is gone, but the thread is not."""
+    backend = CountingSlowBackend()
+    speaker = Speaker(_config(backend, lock_file))
+
+    speaker.warm_up()
+    assert backend.entered.wait(5)
+    for _ in range(3):
+        speaker.restart_backends()
+        speaker.warm_up()
+    time.sleep(0.2)
+
+    assert backend.starts == 1
+    backend.release.set()
+
+
 def test_a_restarted_backend_set_is_warmed_again(lock_file):
     """A set of backends dropped and built again holds other models, so the
     turn after the restart warms them."""

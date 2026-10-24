@@ -457,8 +457,13 @@ class Speaker:
             self._warm_one_word(generation, backends)
         finally:
             with self._lock:
+                # The thread is over, whatever generation it served. A restart
+                # that cleared this flag instead is what let every turn park
+                # another thread behind a load that never finished; leaving it
+                # up here only costs the next `warm_up`, which the turn after
+                # the restart makes.
+                self._is_warming_up = False
                 if generation == self._warm_up_generation:
-                    self._is_warming_up = False
                     self._is_warmed_up = True
 
     def _is_stale(self, generation: int) -> bool:
@@ -539,9 +544,10 @@ class Speaker:
             self._failed_renders = 0
             # A warm-up still running is warming what `_backends` no longer
             # holds: its completion must not mark the fresh set warm, and the
-            # set it leaves behind is a new generation's to warm.
+            # set it leaves behind is a new generation's to warm. The guard
+            # stays up until that thread ends — clearing it here is what let
+            # every turn park another one behind the same stuck load.
             self._warm_up_generation += 1
-            self._is_warming_up = False
             self._is_warmed_up = False
         for backend in owned:
             backend.close()

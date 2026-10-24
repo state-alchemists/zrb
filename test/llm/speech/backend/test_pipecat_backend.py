@@ -116,6 +116,44 @@ def test_a_service_that_cannot_be_built_is_reported_to_the_speaker(monkeypatch):
         backend.create_audio(SENTENCE)
 
 
+def test_a_start_that_never_returns_is_given_up_on(monkeypatch):
+    """A model load that never finishes used to park every sentence behind it,
+    and the session went silent with no error. The waiting side now gives up,
+    so the speaker falls back to a voice that is audible."""
+    entered, release = threading.Event(), threading.Event()
+
+    def create_service(name: str, config: SpeechConfig) -> TTSService:
+        entered.set()
+        release.wait(5)
+        return FakeSpeechService()
+
+    monkeypatch.setattr(
+        "zrb.llm.speech.backend.pipecat.tts_manager.create_service", create_service
+    )
+    monkeypatch.setattr(
+        "zrb.llm.speech.backend.pipecat.PIPELINE_START_TIMEOUT_SECONDS", 0.2
+    )
+    backend = PipecatSpeechBackend("piper", SpeechConfig().resolve())
+    starter = threading.Thread(target=_drain, args=(backend,), daemon=True)
+    starter.start()
+    try:
+        assert entered.wait(5)  # one thread is inside the start
+        with pytest.raises(RuntimeError, match="still starting"):
+            backend.create_audio(SENTENCE)
+    finally:
+        release.set()
+        starter.join(5)
+        backend.close()
+
+
+def _drain(backend: PipecatSpeechBackend) -> None:
+    """Ask *backend* for a sentence and read it, ignoring how it went."""
+    try:
+        list(backend.create_audio(SENTENCE).chunks)
+    except Exception:
+        pass
+
+
 def test_the_backend_refuses_to_play_the_audio_itself(factory):
     """A renders-only service refuses direct utterance playback."""
     backend = PipecatSpeechBackend("kokoro", SpeechConfig().resolve())
