@@ -21,7 +21,6 @@ from zrb.config.config import CFG
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group, TaskReplacement
 from zrb.task.any_task import AnyTask
-from zrb.task.lazy_task import LazyTask
 
 if TYPE_CHECKING:
     from zrb.callback.any_callback import AnyCallback
@@ -108,7 +107,6 @@ def find_task_diagnostics(
     """
     builtin_ids = frozenset(builtin_task_ids)
     reachable = _reachable_tasks(root)
-    reachable_names = {task.name for task in reachable.values()}
     declared_by_id = {id(task): (origin, symbol) for origin, symbol, task in declared}
     collisions, replaced_ids = _collisions(root, builtin_ids, declared_by_id)
     diagnostics = list(collisions)
@@ -116,11 +114,13 @@ def find_task_diagnostics(
         # A displaced task is already named by its collision diagnostic.
         if id(task) in reachable or id(task) in replaced_ids:
             continue
-        # A `LazyTask` stands in for the task its module declares, and a
-        # dispatch swaps the real one into the tree. An init script that holds
-        # the stand-in then refers to a different object than the tree does,
-        # though both are the same CLI word (ADR-0129).
-        if isinstance(task, LazyTask) and task.name in reachable_names:
+        # A built-in registration, frozen in the snapshot before any init source
+        # ran. `zrb.builtin.llm.deferred` registers the chat stand-in that way,
+        # and a dispatch replaces it with the real task, so an init module that
+        # imported the stand-in holds an object the tree no longer does
+        # (ADR-0129). It was registered by zrb, not declared by the project --
+        # unlike a project's own `LazyTask`, whose id the snapshot never saw.
+        if id(task) in builtin_ids:
             continue
         diagnostics.append(
             TaskDiagnostic(
@@ -227,19 +227,19 @@ def _walk_groups(group: Group, path: list[str]) -> Iterator[tuple[str, Group]]:
             yield from _walk_groups(subgroup, path + [alias])
 
 
-def _reachable_tasks(root: AnyGroup) -> dict[int, AnyTask]:
-    """Every task the CLI can run, by id: registered, or an edge of one."""
-    reachable: dict[int, AnyTask] = {}
+def _reachable_tasks(root: AnyGroup) -> set[int]:
+    """Ids of every task the CLI can run: registered, or transitively an edge of one."""
+    ids: set[int] = set()
     pending = list(root.get_all_subtasks())
     while pending:
         task = pending.pop()
-        if id(task) in reachable:
+        if id(task) in ids:
             continue
-        reachable[id(task)] = task
+        ids.add(id(task))
         for edge in _TASK_EDGES:
             pending.extend(getattr(task, edge, None) or [])
         pending.extend(_callback_tasks(task))
-    return reachable
+    return ids
 
 
 def _callback_tasks(task: AnyTask) -> Iterator[AnyTask]:

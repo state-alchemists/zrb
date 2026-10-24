@@ -294,15 +294,28 @@ class TestALazyStandIn:
             attribute="llm_chat",
         )
 
-    def test_a_stand_in_the_tree_resolved_is_not_reported(self):
+    def test_a_built_in_stand_in_the_tree_resolved_is_not_reported(self):
         """The dispatch swapped the real task into the tree, so the init
-        module's stand-in is a different object with the same CLI word."""
+        module's stand-in is an object the tree no longer holds. The snapshot
+        taken before any init ran is what says it was registered."""
+        stand_in = self._stand_in("chat")
         root = _root_with(BaseTask(name="chat"))
-        module = _module(llm_chat=self._stand_in("chat"))
+        module = _module(llm_chat=stand_in)
 
         declared = collect_declared_tasks([("init", module)])
 
-        assert find_task_diagnostics(declared, root, []) == []
+        assert find_task_diagnostics(declared, root, [id(stand_in)]) == []
+
+    def test_a_projects_own_lazy_task_is_reported_even_when_the_name_is_taken(self):
+        """Matching names would hide this: the tree holds a different `same`."""
+        lazy = self._stand_in("same")
+        root = _root_with(BaseTask(name="same"))
+        module = _module(lazy_task=lazy)
+
+        declared = collect_declared_tasks([("init", module)])
+
+        problems = [d.problem for d in find_task_diagnostics(declared, root, [])]
+        assert problems == ["unregistered"]
 
     def test_a_stand_in_nothing_registers_is_still_reported(self):
         root = _root_with(BaseTask(name="deploy"))
