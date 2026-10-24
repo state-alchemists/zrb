@@ -13,6 +13,7 @@ from zrb.group.task_diagnostics import (
 )
 from zrb.task.base.base_task import BaseTask
 from zrb.task.base_trigger import BaseTrigger
+from zrb.task.lazy_task import LazyTask
 
 
 def _module(**attributes) -> ModuleType:
@@ -279,3 +280,35 @@ class TestFormatDiagnostic:
             format_diagnostic(diagnostic)
             == "/project/zrb_init.py: nothing registers it."
         )
+
+
+class TestALazyStandIn:
+    """An init script may hold the stand-in instead of the task (ADR-0129)."""
+
+    @staticmethod
+    def _stand_in(name: str) -> LazyTask:
+        return LazyTask(
+            name=name,
+            description="🤖 Chat with your AI Assistant",
+            module="zrb.builtin.llm.chat",
+            attribute="llm_chat",
+        )
+
+    def test_a_stand_in_the_tree_resolved_is_not_reported(self):
+        """The dispatch swapped the real task into the tree, so the init
+        module's stand-in is a different object with the same CLI word."""
+        root = _root_with(BaseTask(name="chat"))
+        module = _module(llm_chat=self._stand_in("chat"))
+
+        declared = collect_declared_tasks([("init", module)])
+
+        assert find_task_diagnostics(declared, root, []) == []
+
+    def test_a_stand_in_nothing_registers_is_still_reported(self):
+        root = _root_with(BaseTask(name="deploy"))
+        module = _module(llm_chat=self._stand_in("ghost"))
+
+        declared = collect_declared_tasks([("init", module)])
+
+        problems = [d.problem for d in find_task_diagnostics(declared, root, [])]
+        assert problems == ["unregistered"]
