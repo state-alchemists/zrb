@@ -128,6 +128,29 @@ def test_a_failing_callback_is_retried_rather_than_cached():
     assert attempts == [1, 2], "The callback was dropped after raising once."
 
 
+def test_a_callback_that_succeeded_is_not_replayed_after_a_later_failure():
+    """Replaying it would append the same tool to the task twice."""
+    calls: list[str] = []
+
+    def first(_task) -> None:
+        calls.append("first")
+
+    def second(_task) -> None:
+        calls.append("second")
+        if calls.count("second") == 1:
+            raise RuntimeError("misconfigured")
+
+    stand_in = _stand_in().on_resolve(first).on_resolve(second)
+
+    # Act
+    with pytest.raises(RuntimeError, match="misconfigured"):
+        stand_in.resolve()
+    stand_in.resolve()
+
+    # Assert
+    assert calls == ["first", "second", "second"]
+
+
 def test_configuring_the_chat_stand_in_does_not_import_its_module():
     """The whole point: the customization costs what the deferral saved."""
     state = _probe(

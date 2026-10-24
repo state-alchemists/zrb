@@ -97,12 +97,14 @@ class LazyTask(BaseTask):
         if self._resolved is None:
             task = _load_task(self._module_path, self._attribute)
             # Configured before it is published, so no caller observes the task
-            # in the state its declaring module left it in. A callback that
-            # raises leaves nothing cached: the next caller retries the whole
-            # thing rather than using a half-configured task.
-            for configure in self._configure:
+            # in the state its declaring module left it in. Each callback is
+            # dropped as it succeeds: a later one that raises must be retried,
+            # but replaying the ones that already ran would apply the same tool
+            # or policy to the task a second time.
+            while self._configure:
+                configure = self._configure[0]
                 configure(task)
-            self._configure.clear()
+                self._configure.pop(0)
             self._resolved = task
         return self._resolved
 
