@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.message_text import message_content_text
 from zrb.util.markdown import make_markdown_section
 
 if TYPE_CHECKING:
@@ -35,21 +36,6 @@ TOTAL_TOKEN_CAP = 25_000
 _OPEN_PATTERN = re.compile(r"<ACTIVATED_SKILL\b[^>]*>")
 _CLOSING_TAG = "</ACTIVATED_SKILL>"
 _NAME_PATTERN = re.compile(r'\bname="([^"]*)"')
-
-
-def _message_text(message: "ModelMessage") -> str:
-    """The text a message carries, part by part.
-
-    Read directly instead of through the summarizer's converter: compaction is
-    what calls this module, so depending on the summarizer package here would
-    close an import cycle.
-    """
-    parts = getattr(message, "parts", None) or ()
-    return "\n".join(
-        str(part.content)
-        for part in parts
-        if getattr(part, "content", None) is not None
-    )
 
 
 def _is_line_start(text: str, position: int) -> bool:
@@ -108,7 +94,7 @@ def _newest_per_skill(
     seen = set(already_present)
     ordered: list[tuple[str, str]] = []
     for message in reversed(list(messages)):
-        for name, block in reversed(_blocks(_message_text(message))):
+        for name, block in reversed(_blocks(message_content_text(message))):
             if not name or name in seen:
                 continue
             seen.add(name)
@@ -165,7 +151,7 @@ def _log_decision(
     is the only record of a decision that otherwise leaves no trace.
     """
     dropped_names = {
-        name for message in dropped for name, _ in _blocks(_message_text(message))
+        name for message in dropped for name, _ in _blocks(message_content_text(message))
     }
     if not dropped_names and not present:
         return
@@ -190,7 +176,7 @@ def build_reattach_message(
     compacts exactly as it did before.
     """
     present = {
-        name for message in kept for name, _ in _blocks(_message_text(message))
+        name for message in kept for name, _ in _blocks(message_content_text(message))
     }
     candidates = _newest_per_skill(dropped, present)
     rendered, total = _within_caps(candidates, limiter)

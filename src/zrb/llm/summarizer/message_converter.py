@@ -1,92 +1,19 @@
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+"""Compatibility surface: the converter now lives in `zrb.llm.message_text`.
 
-if TYPE_CHECKING:
-    from zrb.llm.agent.types import ModelRequest, ModelResponse
-else:
-    ModelRequest = Any
-    ModelResponse = Any
+Kept as its own module because the summarizer package re-exports from this
+path, and a patch written against it must still take effect.
+"""
 
+from zrb.llm.message_text import (
+    message_content_text,
+    message_to_text,
+    model_request_to_text,
+    model_response_to_text,
+)
 
-def message_to_text(msg: Any) -> str:
-    """Convert a pydantic_ai message to a readable text representation for summarization."""
-    # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import ModelRequest, ModelResponse
-
-    if isinstance(msg, ModelRequest):
-        return model_request_to_text(msg)
-    if isinstance(msg, ModelResponse):
-        return model_response_to_text(msg)
-    try:
-        return str(msg)
-    except Exception:
-        return f"[Unconvertible message of type: {type(msg).__name__}]"
-
-
-def model_request_to_text(msg: ModelRequest) -> str:
-    # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import SystemPromptPart, ToolReturnPart, UserPromptPart
-    from zrb.llm.util.history_formatter import format_multimodal_item
-
-    parts = []
-    msg_parts = getattr(msg, "parts", [])
-    for p in msg_parts:
-        if isinstance(p, UserPromptPart):
-            content = getattr(p, "content", "")
-            if isinstance(content, str):
-                parts.append(f"User: {content}")
-            elif isinstance(content, Sequence):
-                for item in content:
-                    if isinstance(item, str):
-                        parts.append(f"User: {item}")
-                    else:
-                        parts.append(format_multimodal_item(item))
-            else:
-                parts.append(f"User: {str(content)}")
-        elif isinstance(p, ToolReturnPart):
-            tool_name = getattr(p, "tool_name", "unknown_tool")
-            content = getattr(p, "content", None)
-            if content is not None:
-                parts.append(f"Tool Result ({tool_name}): {content}")
-            else:
-                parts.append(f"Tool Result ({tool_name}): [No content]")
-        elif isinstance(p, SystemPromptPart):
-            content = getattr(p, "content", "")
-            if content is not None:
-                parts.append(f"System: {content}")
-        else:
-            parts.append(f"[Unknown part type: {type(p).__name__}]")
-    return "\n".join(parts) if parts else "[Empty ModelRequest]"
-
-
-def model_response_to_text(msg: ModelResponse) -> str:
-    # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
-
-    parts = []
-    msg_parts = getattr(msg, "parts", [])
-    for p in msg_parts:
-        if isinstance(p, TextPart):
-            content = getattr(p, "content", "")
-            if content is not None:
-                parts.append(f"AI: {content}")
-        elif isinstance(p, ToolCallPart):
-            tool_name = getattr(p, "tool_name", "unknown_tool")
-            args = getattr(p, "args", {})
-            args_str = str(args) if args is not None else "{}"
-            tool_call_id = getattr(p, "tool_call_id", "unknown_id")
-            parts.append(f"AI Tool Call [{tool_call_id}]: {tool_name}({args_str})")
-        elif isinstance(p, FilePart):
-            content = getattr(p, "content", None)
-            media_type = "unknown"
-            if content:
-                media_type = getattr(content, "media_type", "unknown")
-            parts.append(f"[AI Generated File: {media_type}]")
-        elif isinstance(p, ToolReturnPart):
-            tool_name = getattr(p, "tool_name", "unknown_tool")
-            content = getattr(p, "content", None)
-            if content is not None:
-                parts.append(f"AI Tool Result ({tool_name}): {content}")
-        else:
-            parts.append(f"[Unknown response part: {type(p).__name__}]")
-    return "\n".join(parts) if parts else "[Empty ModelResponse]"
+__all__ = [
+    "message_content_text",
+    "message_to_text",
+    "model_request_to_text",
+    "model_response_to_text",
+]
