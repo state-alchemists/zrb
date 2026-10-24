@@ -53,6 +53,8 @@ Run `poetry lock` only after editing dependencies in `pyproject.toml`; it re-res
 
 Pass nothing for the full suite, or a file / directory / `file::test_function` path to scope a run. CI runs the same script (`poetry run bash zrb-test.sh`), but more widely than one local run: Ubuntu on Python 3.11, 3.12, 3.13 and 3.14, plus Windows and macOS on 3.13 (`.github/workflows/test.yml`). The Windows and macOS jobs pass `test` as the path, so they skip pyright and the coverage gate. A green local run on one Python version does not guarantee a green CI run; version- and OS-specific failures only show up there.
 
+The loop to use while changing code is `./zrb-test.sh ratchet`: a name for `test/architecture`, about ninety seconds, running every fitness test without pyright or the coverage floor. A convention you are about to break is reported there long before the full suite finishes.
+
 `zrb-test.sh` runs three steps, in this order:
 
 | Step | What it checks | If it fails |
@@ -71,7 +73,7 @@ The architecture tests are ordinary pytest files; each one's docstring states th
 | `test_test_file_size_ratchet.py` | No test file exceeds 500 lines | Split the file by feature group (see `AGENTS.md` → Test Guidelines) |
 | `test_sys_modules_patch_allowlist.py` | Every module shadowed by `patch.dict("sys.modules", ...)` is on a reviewed allowlist | `patch.dict` restores `sys.modules` by clear-and-update, which *deletes* anything first imported inside the block — unrecoverably for a C extension. Warm the module in `test/conftest.py`, then list it (see the test's docstring) |
 | `test_mutation_surface.py`, `test_boundaries.py`, `test_deferred_config_reads.py` | The enforced framework rules | See [Framework Conventions (R1–R12)](framework-conventions.md) |
-| `test_doc_code_references.py`, `test_architecture_docs.py`, `test_architecture_doc_symbols.py`, `test_recipes_run.py` | Docs name real code and real files, and the recipes run | Fix the doc |
+| `test_doc_code_references.py`, `test_architecture_docs.py`, `test_architecture_doc_symbols.py`, `test_doc_indices.py`, `test_recipes_run.py` | Docs name real code and real files, every ADR and changelog file is listed in its index, and the recipes run | Fix the doc |
 
 **Not a gate, but bites often:** a new test file sharing a basename with another (e.g. two `test_manager.py`) fails pytest *collection*. Add an empty `__init__.py` to the new test directory (see `AGENTS.md` → Test Guidelines).
 

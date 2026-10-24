@@ -16,7 +16,7 @@ Use when: new feature, new function, or bug needing a regression test.
 1. **Identify the next smallest behavior.** What is the input? What is the expected output? What errors should be raised? Do not think about implementation yet.
 2. **Discover conventions.** Use `Grep` to find existing test files. Issue parallel `Read` calls on a sample to understand assertion style, fixture patterns, and naming.
 3. **Write the test.** Name it `test_should_<behavior>_when_<condition>`. One behavior per test.
-4. **Run it and confirm it FAILS.** If it passes without any implementation, it is a bad test — stop and fix it. The failure message guides implementation.
+4. **Run it and confirm it FAILS.** If it passes without any implementation, it is a bad test — stop and fix it. The failure message guides implementation. The gap is widest where the value comes from outside the code under test — another tool, another process, another platform — and where "it is there" is weaker than the property you mean ("there exactly once").
 
 ### Step 2 — GREEN: Write Minimal Implementation
 
