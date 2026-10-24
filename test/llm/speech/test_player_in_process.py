@@ -255,3 +255,31 @@ def test_a_cloud_voice_that_hands_its_audio_to_a_player_keeps_its_own_volume(
     speaker.speak("hello")
 
     assert speaker.is_playing_in_process is False
+
+
+def test_a_local_engine_that_renders_for_zrb_is_where_a_volume_applies(
+    lock_file, monkeypatch
+):
+    """`say` and `espeak-ng` say no to `needs_zrb_playback` and still render a
+    WAV for zrb to play, so what matters is the sentence that was made."""
+    _in_process(monkeypatch)
+    speaker = Speaker(_config(AudioBackend(), lock_file, player="auto"))
+
+    speaker.speak("hello")
+
+    assert speaker.is_playing_in_process is True
+
+
+def test_a_sentence_a_program_takes_over_is_not_where_a_volume_applies(
+    lock_file, monkeypatch
+):
+    """The device failed and a program spoke instead: what was heard did not
+    pass through the volume, so the next answer must not promise it did."""
+    fallbacks = []
+    _in_process(monkeypatch, fallbacks=fallbacks)
+    speaker = Speaker(_config(AudioBackend(), lock_file, player="auto"))
+
+    speaker.speak("hello")
+    fallbacks[0]().play(None)
+
+    assert speaker.is_playing_in_process is False

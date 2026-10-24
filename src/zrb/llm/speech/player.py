@@ -148,6 +148,9 @@ class Speaker:
         self._volume = clamp_volume(
             FULL_VOLUME if config.volume is None else config.volume
         )
+        # Whether the last sentence made was one zrb plays itself, or None
+        # before anything has been made: what `is_playing_in_process` reports.
+        self._played_in_process: bool | None = None
 
     @property
     def volume(self) -> int:
@@ -167,18 +170,20 @@ class Speaker:
     def is_playing_in_process(self) -> bool:
         """Whether zrb plays the audio itself, which is what a volume applies to.
 
-        A backend that speaks through a program of its own — a local engine, or
-        a cloud voice handing its WAV to a player — plays at that program's
-        volume, and zrb never sees those samples. Nothing has been built before
-        the first sentence, so an unspoken session answers yes: building the
-        backends just to answer would load a model to say nothing.
+        Observed, not predicted: the last sentence zrb made was either a
+        `PcmUtterance` — the samples this scales — or a player program's, which
+        zrb never sees. A backend's ``needs_zrb_playback`` is the wrong question
+        to ask: a local engine says no to it and still renders a WAV for zrb to
+        play (`LocalCommandBackend.create_audio`), so the audio is zrb's to
+        scale however the backend would have played it.
+
+        Nothing has been made yet in a fresh session, so the answer is yes: the
+        level is what that first sentence gets if zrb plays it, and answering no
+        would deny a volume before anything could show otherwise.
         """
         if not self._can_play_in_process():
             return False
-        backends = self._backends
-        if backends is None:
-            return True
-        return any(backend.needs_zrb_playback for backend in backends)
+        return self._played_in_process is not False
 
     def say(self, text: str, is_stale: "IsStale" = None, voice: str = "") -> None:
         """Queue *text* unless it is blank, disabled, or stale, to be said in
@@ -376,6 +381,7 @@ class Speaker:
             else:
                 self._handle_render_success(backend)
             if audio is not None:
+                self._played_in_process = True
                 return PcmUtterance(
                     audio,
                     block_frames=self._config.player_block_frames,
@@ -385,6 +391,7 @@ class Speaker:
                     device_is_resting=self._is_device_resting,
                     volume=self._volume,
                 )
+        self._played_in_process = False
         return backend.create_utterance(text)
 
     def _stand_ins(self, later: "list[AnySpeechBackend]") -> "list[AnySpeechBackend]":
@@ -407,12 +414,22 @@ class Speaker:
     ) -> Callable[[], Utterance] | None:
         """Return a player-program fallback for *text*, if available."""
         if not backend.needs_zrb_playback:
-            return lambda: backend.create_utterance(text)
+            return lambda: self._program_speaks(backend, text)
         stand_ins = self._stand_ins(later)
         if not stand_ins:
             return None
         spoken_by = stand_ins[0]
-        return lambda: spoken_by.create_utterance(text)
+        return lambda: self._program_speaks(spoken_by, text)
+
+    def _program_speaks(self, backend: AnySpeechBackend, text: str) -> Utterance:
+        """A program is speaking this sentence after all.
+
+        It is made when the fallback runs, not when the sentence was created,
+        so this also covers a device that failed mid-sentence: what played came
+        from a program, and a volume would not have reached it.
+        """
+        self._played_in_process = False
+        return backend.create_utterance(text)
 
     def _can_play_in_process(self) -> bool:
         """Whether zrb may play a sentence itself at all."""
