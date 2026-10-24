@@ -169,7 +169,7 @@ When **renaming** a released knob, preserve the old env key via `EnvField(aliase
 
 Default to module-level imports. An in-function import must justify itself with a `# lazy: <reason>` comment matching one of:
 
-1. **Heavy third-party deferral** — `pydantic_ai`, `prompt_toolkit`, `mcp`, `fastapi`, `boto3`, `anthropic`, `openai`, `chromadb`, `playwright`, and other extras-marked packages.
+1. **Heavy third-party deferral** — `pydantic_ai`, `prompt_toolkit`, `mcp`, `fastapi`, `boto3`, `anthropic`, `openai`, `playwright`, and other extras-marked packages.
 2. **Transitively heavy via internal** — an internal `zrb.*` module that eagerly imports a heavy package inherits the rule. Hoisting silently re-introduces the slow load.
 3. **Circular import** — name the cycle: `# lazy: circular — tool → ui → llm_task → here`.
 4. **Test patch seam** — tests patch at the source path and rely on the patch taking effect inside a consumer; hoisting binds the name at consumer-load time and bypasses the mock. Tag: `# lazy: tests patch <path>; hoisting bypasses the mock`.

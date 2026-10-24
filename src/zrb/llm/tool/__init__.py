@@ -28,7 +28,6 @@ if TYPE_CHECKING:
     from zrb.llm.tool.journal_write import log_activity, write_journal_note
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan import create_plan_tools, get_todos, write_todos
-    from zrb.llm.tool.rag import create_rag_from_directory
     from zrb.llm.tool.shell import run_shell_command
     from zrb.llm.tool.shell_background import create_monitor_process_tool
     from zrb.llm.tool.skill import create_activate_skill_tool, create_search_skill_tool
@@ -57,7 +56,6 @@ __all__ = [
     "log_activity",
     "write_journal_note",
     "load_mcp_config",
-    "create_rag_from_directory",
     "create_activate_skill_tool",
     "create_search_skill_tool",
     "open_web_page",
@@ -77,7 +75,6 @@ _SOURCES = {
     "create_list_zrb_task_tool": "zrb.llm.tool.zrb_task",
     "create_monitor_process_tool": "zrb.llm.tool.shell_background",
     "create_plan_tools": "zrb.llm.tool.plan",
-    "create_rag_from_directory": "zrb.llm.tool.rag",
     "create_run_zrb_task_tool": "zrb.llm.tool.zrb_task",
     "create_search_skill_tool": "zrb.llm.tool.skill",
     "get_todos": "zrb.llm.tool.plan",

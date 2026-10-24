@@ -265,14 +265,6 @@ def test_config_properties_access():
     _ = CFG.LLM_JOURNAL_DIR
     _ = CFG.LLM_JOURNAL_INDEX_FILE
 
-    # RAG properties
-    _ = CFG.RAG_EMBEDDING_API_KEY
-    _ = CFG.RAG_EMBEDDING_BASE_URL
-    _ = CFG.RAG_EMBEDDING_MODEL
-    _ = CFG.RAG_CHUNK_SIZE
-    _ = CFG.RAG_OVERLAP
-    _ = CFG.RAG_MAX_RESULT_COUNT
-
     # Web properties
     _ = CFG.WEB_CSS_PATH
     _ = CFG.WEB_JS_PATH

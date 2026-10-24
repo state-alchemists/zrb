@@ -16,7 +16,8 @@ SRC = REPO_ROOT / "src" / "zrb"
 # `list[ModelMessage]` now that the split is planned over real messages rather
 # than counted indices, and the archive's role label takes `object` (it only
 # asks the message what it is).
-ANY_ANNOTATIONS = 1077
+# -18 (1077->1059): the RAG tool and its config mixin were removed.
+ANY_ANNOTATIONS = 1059
 
 
 def _count_any(annotation: ast.expr | None) -> int:

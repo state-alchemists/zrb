@@ -93,7 +93,6 @@ The core install covers the task engine, the web UI, and `zrb llm chat` with Ope
 | `anthropic`, `google`, `groq`, `mistral`, `xai`, `cohere`, `bedrock`, `huggingface` | That LLM provider's SDK (see [Supported Providers](../configuration/llm-models.md#supported-providers)) |
 | `vertexai` | Google Vertex auth (`google-auth`); use with `google` |
 | `voyageai` | Voyage AI SDK (Python < 3.14 only) |
-| `rag` | ChromaDB, for the RAG tool ([RAG configuration](../configuration/llm-tools.md#rag-retrieval-augmented-generation-configuration)) |
 | `playwright` | Headless Chromium for `WebFetch`, so JavaScript-rendered pages load. Also download the browser with the zrb venv's `playwright install chromium`; without it, `WebFetch` falls back to plain HTTP |
 | `voice` | `vosk`, `sounddevice`, `numpy` for dictation and local speech playback |
 | `python` | `black` and `isort` |
@@ -101,7 +100,7 @@ The core install covers the task engine, the web UI, and `zrb llm chat` with Ope
 ```bash
 pipx install "zrb[anthropic,voice]"            # pick extras at install time
 pipx inject zrb "zrb[anthropic]"               # or add one to an existing install
-pipx install "zrb[rag,playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"   # everything
+pipx install "zrb[playwright,cohere,vertexai,google,anthropic,groq,mistral,xai,bedrock,huggingface,voyageai,voice,python]"   # everything
 ```
 
 The installation scripts below offer to install every extra for you.

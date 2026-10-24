@@ -67,7 +67,7 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| Tool functions | `src/zrb/llm/tool/` | One module per family: file, shell, web, delegate, plan, journal, skill, worktree, MCP, RAG |
+| Tool functions | `src/zrb/llm/tool/` | One module per family: file, shell, web, delegate, plan, journal, skill, worktree, MCP |
 | `common_tools` | `src/zrb/llm/common_tools.py` | The single list of built-in tools, each `tag()`-ed with a capability, plus the per-run factories |
 | `ToolRegistry` | `src/zrb/llm/tool_registry.py` | Ordered static tools, per-run tool factories and toolset factories; the default list is loaded on first use |
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Gives `LLMChatTask`, `LLMTask` and `SubAgentManager` the same tool providers |

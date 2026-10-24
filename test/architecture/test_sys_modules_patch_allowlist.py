@@ -54,9 +54,6 @@ REVIEWED_SYS_MODULES_SHADOWS = {
     "google.genai.types": "mock-only",
     "pyperclip": "mock-only",
     "tiktoken": "mock-only",
-    # mock-only: the RAG tool reads `PersistentClient` / `OpenAI` off the fakes.
-    "chromadb": "mock-only",
-    "chromadb.config": "mock-only",
 }
 
 # The dict literal passed to `patch.dict("sys.modules", {...})`. Non-greedy to
@@ -67,7 +64,8 @@ _PATCH_DICT_BODY = re.compile(
     re.DOTALL,
 )
 # Every quoted key inside that literal — a call may shadow several at once
-# (`test/llm/tool/test_rag.py` shadows chromadb, chromadb.config and openai).
+# (`test/llm/dictation/backend/test_google.py` shadows `google`,
+# `google.genai` and `google.genai.types` in one `patch.dict`).
 _DICT_KEY = re.compile(r"""["']([\w.]+)["']\s*:""")
 
 

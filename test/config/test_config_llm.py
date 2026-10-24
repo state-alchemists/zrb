@@ -138,17 +138,6 @@ def test_llm_configs_types():
     assert isinstance(config.LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD, int)
     assert isinstance(config.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD, int)
 
-    assert config.RAG_EMBEDDING_API_KEY is None or isinstance(
-        config.RAG_EMBEDDING_API_KEY, str
-    )
-    assert config.RAG_EMBEDDING_BASE_URL is None or isinstance(
-        config.RAG_EMBEDDING_BASE_URL, str
-    )
-    assert isinstance(config.RAG_EMBEDDING_MODEL, str)
-    assert isinstance(config.RAG_CHUNK_SIZE, int)
-    assert isinstance(config.RAG_OVERLAP, int)
-    assert isinstance(config.RAG_MAX_RESULT_COUNT, int)
-
     assert isinstance(config.SEARCH_INTERNET_METHOD, str)
     assert isinstance(config.BRAVE_API_KEY, str)
     assert isinstance(config.BRAVE_API_SAFE, str)

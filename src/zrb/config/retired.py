@@ -5,6 +5,13 @@ replacement settings omit the environment prefix.
 """
 
 RETIRED_SETTINGS: dict[str, str] = {
+    # 3.26.0: the RAG tool, its extra and the mixin that configured it were removed.
+    "RAG_EMBEDDING_API_KEY": "nothing: the RAG tool was removed",
+    "RAG_EMBEDDING_BASE_URL": "nothing: the RAG tool was removed",
+    "RAG_EMBEDDING_MODEL": "nothing: the RAG tool was removed",
+    "RAG_CHUNK_SIZE": "nothing: the RAG tool was removed",
+    "RAG_OVERLAP": "nothing: the RAG tool was removed",
+    "RAG_MAX_RESULT_COUNT": "nothing: the RAG tool was removed",
     # 3.26.0: the fixed cap became a share of the summarization threshold.
     "LLM_SUMMARY_MAX_TOKENS": "LLM_SUMMARY_MAX_TOKEN_RATIO",
     # 3.15.0: the stage-1 input tap and its unused Pipecat pipeline were removed.

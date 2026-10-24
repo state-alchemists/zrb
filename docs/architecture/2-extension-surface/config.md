@@ -23,7 +23,7 @@ Config is every setting zrb reads that is not part of a task: the model, the web
 
 ### The problem
 
-- **There are hundreds of settings**, across LLM, web, RAG, hooks, search, theme and limits. One class that holds them all is unreadable, and nested groups (`CFG.llm.model`) break every caller when a setting moves.
+- **There are hundreds of settings**, across LLM, web, hooks, search, theme and limits. One class that holds them all is unreadable, and nested groups (`CFG.llm.model`) break every caller when a setting moves.
 - **Values arrive two ways.** A user exports an environment variable, or a `zrb_init.py` assigns `CFG.X = ...` after zrb has already started. A reader must see the same answer either way.
 - **Some defaults depend on other settings.** A directory sits under the root group's name; a colour follows the active theme. Computing them once at import would freeze the wrong value.
 - **Released names live in users' shells and CI files.** Renaming or dropping one must not quietly turn a user's setting into a no-op.
