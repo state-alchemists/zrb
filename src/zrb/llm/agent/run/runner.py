@@ -514,9 +514,7 @@ async def _execution_loop(
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
-    # Gathered in `finally` so a lagging write cannot land after the caller's
-    # end-of-turn save.
-    pending_checkpoint_tasks: list[asyncio.Task] = []
+    checkpoint_writer = _checkpoint_writer(checkpoint_fn)
 
     try:
         await _take_turn_snapshot(cursor.snapshot)
@@ -533,8 +531,7 @@ async def _execution_loop(
                 partial_run,
                 effective_ui,
                 effective_event_handler,
-                checkpoint_fn,
-                pending_checkpoint_tasks,
+                checkpoint_writer,
                 sandbox_deps,
             )
 
@@ -592,7 +589,9 @@ async def _execution_loop(
             )
         raise e
     finally:
-        await _await_pending_checkpoints(pending_checkpoint_tasks)
+        # Drained here so a lagging write cannot land after the caller's
+        # end-of-turn save.
+        await _drain_checkpoints(checkpoint_writer)
         if cursor.snapshot is not None:
             cursor.snapshot.close()
 
@@ -603,8 +602,7 @@ async def _stream_one_round(
     partial_run: PartialRunAccumulator,
     effective_ui: AnyUI | None,
     effective_event_handler: Callable[[Any], Any] | None,
-    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None,
-    pending_checkpoint_tasks: "list[asyncio.Task]",
+    checkpoint_writer: "_CheckpointWriter | None",
     sandbox_deps: Any,
 ) -> Exception | None:
     """Run the agent once, recording its output on `cursor`.
@@ -619,8 +617,7 @@ async def _stream_one_round(
         effective_ui,
         effective_event_handler,
         partial_run,
-        checkpoint_fn=checkpoint_fn,
-        pending_checkpoint_tasks=pending_checkpoint_tasks,
+        checkpoint_writer=checkpoint_writer,
         baseline_len=cursor.round_baseline,
     )
     started_at = time.monotonic()
@@ -889,33 +886,77 @@ def _resolve_crash_history(
     return run_history
 
 
-async def _await_pending_checkpoints(
-    pending_checkpoint_tasks: list[asyncio.Task],
-) -> None:
-    """Drain in-flight checkpoint writes before the run ends."""
-    if not pending_checkpoint_tasks:
+class _CheckpointWriter:
+    """Persist mid-turn history, newest snapshot wins.
+
+    A checkpoint is a recovery boundary, not a journal: a snapshot a newer one
+    has already replaced holds nothing a resumed process would want, and it
+    costs a full serialization of the history to write — 19 ms and 4.3 MB on a
+    406-message history, once per tool round. So one write runs at a time, and a
+    boundary that arrives behind it replaces the snapshot waiting instead of
+    queueing behind it: a twenty-round turn writes the history twice, not
+    twenty times, and the last snapshot still goes out before `drain` returns.
+    """
+
+    def __init__(
+        self, checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]]
+    ) -> None:
+        self._checkpoint_fn = checkpoint_fn
+        self._latest: list[object] | None = None
+        self._in_flight: asyncio.Task | None = None
+
+    def submit(self, snapshot: list[object]) -> None:
+        """Offer *snapshot*, replacing one that is still waiting to be written."""
+        self._latest = snapshot
+        if self._in_flight is None:
+            self._in_flight = asyncio.create_task(self._write_until_caught_up())
+
+    async def _write_until_caught_up(self) -> None:
+        try:
+            while self._latest is not None:
+                snapshot, self._latest = self._latest, None
+                for result in await asyncio.gather(
+                    self._checkpoint_fn(snapshot), return_exceptions=True
+                ):
+                    if isinstance(result, Exception):
+                        CFG.LOGGER.warning(f"Checkpoint save failed: {result}")
+        finally:
+            self._in_flight = None
+
+    async def drain(self) -> None:
+        """Wait for every write this writer owes, the last snapshot included."""
+        if self._in_flight is not None:
+            await asyncio.gather(self._in_flight, return_exceptions=True)
+
+
+def _checkpoint_writer(
+    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None,
+) -> "_CheckpointWriter | None":
+    """One writer per turn, or none when the caller asked for no checkpoints."""
+    if checkpoint_fn is None:
+        return None
+    return _CheckpointWriter(checkpoint_fn)
+
+
+async def _drain_checkpoints(writer: "_CheckpointWriter | None") -> None:
+    """Wait for this turn's writes, so none lands after the end-of-turn save."""
+    if writer is None:
         return
-    checkpoint_results = await asyncio.gather(
-        *pending_checkpoint_tasks, return_exceptions=True
-    )
-    for checkpoint_result in checkpoint_results:
-        if isinstance(checkpoint_result, Exception):
-            CFG.LOGGER.warning(f"Checkpoint save failed: {checkpoint_result}")
+    await writer.drain()
 
 
 def _build_event_stream_handler(
     effective_ui: AnyUI | None,
     effective_event_handler: Callable[[Any], Any] | None,
     partial_run: PartialRunAccumulator,
-    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
-    pending_checkpoint_tasks: list[asyncio.Task] | None = None,
+    checkpoint_writer: _CheckpointWriter | None = None,
     baseline_len: int = 0,
 ) -> Callable[[Any, Any], Awaitable[None]]:
     """Build the `event_stream_handler` for one `agent.run()` call.
 
     Registers the live `RunContext` on the UI so a mid-turn message can be
     steered into this run; the caller clears it after `agent.run()`.
-    `checkpoint_fn` fires in the background whenever `ctx.messages` grows and
+    `checkpoint_writer` is offered a snapshot whenever `ctx.messages` grows and
     ends in a `ModelRequest` — a structurally complete history.
     """
     last_checkpoint_len = baseline_len
@@ -935,13 +976,9 @@ def _build_event_stream_handler(
                 # the queue can join this turn and be read by its next request
                 # (ADR-0078, revised).
                 _deliver_queued_messages(effective_ui)
-                if checkpoint_fn is not None:
+                if checkpoint_writer is not None:
                     # Copy now: the source list keeps growing.
-                    snapshot = list(ctx.messages)
-                    assert pending_checkpoint_tasks is not None
-                    pending_checkpoint_tasks.append(
-                        asyncio.create_task(checkpoint_fn(snapshot))
-                    )
+                    checkpoint_writer.submit(list(ctx.messages))
 
     return _handler
 

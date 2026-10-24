@@ -194,6 +194,13 @@ async def test_run_agent_checkpoint_fires_at_tool_round_trip_boundaries():
     async def _gen(*args, **kwargs):
         # Mirrors pydantic-ai's own append timing: the user's ModelRequest
         # lands before the model is even asked to respond.
+        #
+        # The `sleep(0)`s are the delivery latency a real stream has: without
+        # them this generator never suspends, the event loop never runs the
+        # checkpoint writer between boundaries, and every snapshot coalesces
+        # into the last one (see test_runner_checkpoint_coalescing.py for that
+        # case, which is the intended behaviour when writes fall behind).
+        await asyncio.sleep(0)
         ctx.messages.append(ModelRequest(parts=[UserPromptPart(content="hi")]))
         yield _marker()
 
@@ -203,6 +210,7 @@ async def test_run_agent_checkpoint_fires_at_tool_round_trip_boundaries():
                 parts=[ToolCallPart(tool_name="t", args="{}", tool_call_id="c1")]
             )
         )
+        await asyncio.sleep(0)
         yield _marker()
 
         # Tool result lands, folded into the next request: safe boundary again.
@@ -211,6 +219,7 @@ async def test_run_agent_checkpoint_fires_at_tool_round_trip_boundaries():
                 parts=[ToolReturnPart(tool_name="t", content="ok", tool_call_id="c1")]
             )
         )
+        await asyncio.sleep(0)
         yield _marker()
 
         yield AgentRunResultEvent(result=mock_result)
@@ -285,3 +294,74 @@ async def test_run_agent_checkpoint_awaited_before_run_agent_returns():
     )
 
     assert checkpoint_finished
+
+
+@pytest.mark.asyncio
+async def test_a_stream_that_never_suspends_writes_only_the_final_history():
+    """Coalescing, end to end.
+
+    A fast tool loop gives the writer no chance to run between boundaries, so
+    the turn produces one write instead of one per round — and it is the newest
+    history, which is the one a resumed process needs. The next test's `sleep(0)`
+    generator is the mirror case: a stream with real delivery latency, where
+    every boundary is written.
+    """
+    from types import SimpleNamespace
+
+    from pydantic_ai import PartStartEvent
+    from pydantic_ai.messages import (
+        ModelRequest,
+        ModelResponse,
+        TextPart,
+        ToolCallPart,
+        ToolReturnPart,
+        UserPromptPart,
+    )
+
+    agent = MagicMock()
+    ctx = SimpleNamespace(messages=[])
+    mock_result = MagicMock()
+    mock_result.output = "done"
+    mock_result.all_messages.return_value = ctx.messages
+
+    def _marker():
+        return PartStartEvent(
+            index=0, part=TextPart(content=""), previous_part_kind=None
+        )
+
+    async def _gen(*args, **kwargs):
+        ctx.messages.append(ModelRequest(parts=[UserPromptPart(content="hi")]))
+        yield _marker()
+        ctx.messages.append(
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="t", args="{}", tool_call_id="c1")]
+            )
+        )
+        yield _marker()
+        ctx.messages.append(
+            ModelRequest(
+                parts=[ToolReturnPart(tool_name="t", content="ok", tool_call_id="c1")]
+            )
+        )
+        yield _marker()
+        yield AgentRunResultEvent(result=mock_result)
+
+    agent.run = _run_from_with_ctx(_gen, ctx)
+
+    checkpoints = []
+
+    async def checkpoint_fn(snapshot):
+        checkpoints.append(snapshot)
+
+    await run_agent(
+        agent=agent,
+        message="hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        checkpoint_fn=checkpoint_fn,
+    )
+
+    assert len(checkpoints) == 1
+    # The whole turn, not the one-message history the first boundary saw.
+    assert len(checkpoints[0]) == 3
+    assert isinstance(checkpoints[0][-1], ModelRequest)
