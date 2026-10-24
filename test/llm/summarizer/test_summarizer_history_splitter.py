@@ -18,6 +18,7 @@ from zrb.llm.summarizer.history_splitter import (
     FALLBACK_BUDGET_RATIO,
     TAIL_BUDGET_RATIO,
     TURN_START_MIN_SHARE,
+    count_history_tokens,
     count_tail_tokens,
     split_history,
 )
@@ -143,8 +144,13 @@ def _spiky_history() -> list:
 
 
 def _only_newest_fits(limiter: LLMLimiter, messages: list) -> int:
-    """A threshold whose tail budget only the newest message fits."""
-    return int(limiter.count_tokens(messages[-1:]) / TAIL_BUDGET_RATIO) + 1
+    """A threshold whose tail budget only the newest message fits.
+
+    Measured with `count_tail_tokens`, the currency the split itself uses: the
+    rendered form is larger than the messages, so a threshold derived from the
+    raw count would fit nothing and send the split to its retry budget.
+    """
+    return int(count_tail_tokens(limiter, messages[-1:]) / TAIL_BUDGET_RATIO) + 1
 
 
 def _random_history(rng: random.Random, with_anchors: bool, size: int) -> list:
@@ -208,7 +214,7 @@ def _random_history(rng: random.Random, with_anchors: bool, size: int) -> list:
 
 def _thresholds(rng: random.Random, limiter: LLMLimiter, messages: list) -> list:
     """Thresholds spanning no fit at all through keeping the whole history."""
-    total = max(1, count_tail_tokens(limiter, messages))
+    total = max(1, count_history_tokens(limiter, messages))
     return [1, total // 8, total // 3, total // 2, total, total * 2, total * 8]
 
 
@@ -244,7 +250,7 @@ def _reference_split_history(messages, summary_window, limiter, threshold):
     if not messages:
         return [], []
     budget = threshold * TAIL_BUDGET_RATIO
-    if count_tail_tokens(limiter, messages) <= budget:
+    if count_history_tokens(limiter, messages) <= budget:
         split_idx = 0
     else:
         split_idx = _linear_budget_split(messages, limiter, budget)
@@ -312,12 +318,17 @@ def test_tiktoken_keeps_the_linear_scan(monkeypatch):
 
 @pytest.mark.parametrize("with_anchors", [False, True])
 def test_the_default_limiter_never_counts_a_shorter_suffix_higher(with_anchors):
-    """The shortcut's precondition, stated as a test: counts fall as tails shrink."""
+    """The shortcut's precondition, stated as a test: counts fall as tails shrink.
+
+    Counted the way the split counts — the rendered tail, `count_tail_tokens` —
+    not the raw messages: bisecting on one currency and fitting on another is
+    how a tail gets chosen that does not actually fit.
+    """
     rng = random.Random(6006 + int(with_anchors))
     limiter = LLMLimiter()
     for _ in range(40):
         messages = _random_history(rng, with_anchors, rng.randint(2, 20))
-        counts = [limiter.count_tokens(messages[i:]) for i in range(len(messages))]
+        counts = [count_tail_tokens(limiter, messages[i:]) for i in range(len(messages))]
         assert counts == sorted(counts, reverse=True)
 
 
@@ -344,21 +355,23 @@ def test_split_history_matches_the_pre_shortcut_algorithm(limiter_kind, with_anc
 def test_a_suffix_counting_exactly_the_budget_still_fits():
     """The fit test is `tail <= budget`: a tail equal to it is kept, not skipped.
 
-    Twelve identical messages counting 10 tokens each, and a 125-token
-    threshold whose tail budget is exactly 50.0: the suffix from index 7 counts
-    precisely that, so index 7 is the split to keep. A strict comparison would
-    settle on index 8 instead.
+    Twelve identical messages, and a threshold whose tail budget is exactly the
+    rendered size of the last five: that suffix fits on the boundary, so index 7
+    is the split to keep. A strict comparison would settle on index 8 instead.
     """
     messages = [
         ModelResponse(parts=[TextPart(content=f"{index:02d}" * 20)])
         for index in range(12)
     ]
     limiter = LLMLimiter()
-    threshold = 125
+    tail = count_tail_tokens(limiter, messages[7:])
+    threshold = tail / TAIL_BUDGET_RATIO
 
-    assert limiter.count_tokens(messages) > threshold * TAIL_BUDGET_RATIO
-    assert limiter.count_tokens(messages[7:]) == threshold * TAIL_BUDGET_RATIO
-    assert limiter.count_tokens(messages[6:]) > threshold * TAIL_BUDGET_RATIO
+    # Exact, not approximate: a float hair under `tail` would let the boundary
+    # case pass for the wrong reason.
+    assert threshold * TAIL_BUDGET_RATIO == tail
+    assert count_tail_tokens(limiter, messages) > threshold * TAIL_BUDGET_RATIO
+    assert count_tail_tokens(limiter, messages[6:]) > threshold * TAIL_BUDGET_RATIO
 
     to_summarize, to_keep = split_history(messages, 0, limiter, threshold)
 

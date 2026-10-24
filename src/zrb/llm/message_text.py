@@ -21,6 +21,14 @@ else:
     ModelRequest = Any
     ModelResponse = Any
 
+TAIL_TOOL_OUTPUT_LIMIT = 2_000
+"""Characters of a tool result kept in a handover tail.
+
+A tail is recency, not evidence: the messages it replaces are archived in full,
+so 40,000 characters of test log left whole here spend the next turn's window on
+output nobody will read again.
+"""
+
 
 def message_to_text(msg: Any, tool_output_limit: int | None = None) -> str:
     """A message as a reader sees it — `User: …`, `AI: …` — for a summary.
@@ -41,6 +49,20 @@ def message_to_text(msg: Any, tool_output_limit: int | None = None) -> str:
         return str(msg)
     except Exception:
         return f"[Unconvertible message of type: {type(msg).__name__}]"
+
+
+def render_verbatim_messages(
+    messages: Sequence[object], tool_output_limit: int = TAIL_TOOL_OUTPUT_LIMIT
+) -> str:
+    """*messages* as one block of text, each tool result clipped to the limit.
+
+    This is the form a compaction's kept tail is sent in, and so the form its
+    size is measured in: a budget spent on the unclipped messages leaves most of
+    itself unspent once the clipping happens. The two callers that matter are
+    the renderer that sends the tail and the measurement that decides how much
+    of it fits, which is why the conversion lives here rather than beside either.
+    """
+    return "\n".join(message_to_text(m, tool_output_limit) for m in messages)
 
 
 def _clip_tool_output(content: object, limit: int | None) -> str:

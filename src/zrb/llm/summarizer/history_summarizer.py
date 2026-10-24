@@ -18,14 +18,19 @@ from zrb.llm.message import (
     strip_orphaned_returns,
     validate_tool_pair_integrity,
 )
+from zrb.llm.message_text import render_verbatim_messages
 from zrb.llm.prompt.live_context import render_journal_index
 from zrb.llm.skill.reattach import build_reattach_message
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
 )
-from zrb.llm.summarizer.history_splitter import count_tail_tokens, split_history
-from zrb.llm.summarizer.message_converter import message_to_text
+from zrb.llm.summarizer.history_splitter import (
+    count_history_tokens,
+    count_tail_tokens,
+    split_history,
+    tail_budgets,
+)
 from zrb.llm.summarizer.message_processor import process_message_for_summarization
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.llm.summarizer.verbatim_archive import (
@@ -352,6 +357,13 @@ async def summarize_history(
             tail_budget_ratio=tail_budget_ratio,
             tail_max_tokens=CFG.LLM_HISTORY_TAIL_MAX_TOKENS,
         )
+        _warn_when_the_split_kept_nothing(
+            messages,
+            to_keep,
+            llm_limiter,
+            conversational_token_threshold,
+            tail_budget_ratio,
+        )
         if not to_summarize:
             if not force:
                 return messages
@@ -362,7 +374,7 @@ async def summarize_history(
         zrb_print(
             stylize_warning(
                 f"  Summarizing {len(to_summarize)} messages "
-                f"({llm_limiter.count_tokens(to_summarize)} tokens); keeping "
+                f"({count_history_tokens(llm_limiter, to_summarize)} tokens); keeping "
                 f"{len(to_keep)} verbatim "
                 f"({count_tail_tokens(llm_limiter, to_keep)} tokens)."
             ),
@@ -447,6 +459,44 @@ async def summarize_history(
         return messages
 
 
+def _warn_when_the_split_kept_nothing(
+    messages: "list[ModelMessage]",
+    to_keep: "list[ModelMessage]",
+    limiter: "LLMLimiter",
+    conversational_token_threshold: float,
+    tail_budget_ratio: float,
+) -> None:
+    """Say so when the split kept nothing although the newest message fits.
+
+    Keeping nothing is the right answer when the newest message alone overruns
+    even the looser retry budget. It is impossible otherwise, and impossible is
+    what a broken measurement looks like: compaction runs only once the history
+    is over the threshold, so a tail measured against a request-sized usage
+    anchor overflows the budget for every suffix and keeps nothing every time —
+    silently, because a zero printed in the banner's own style is otherwise
+    indistinguishable from a deliberately small tail. Measured with the content
+    counter directly, so a regression inside the tail measurement cannot hide
+    here as well.
+    """
+    if to_keep or not messages or type(limiter) is not LLMLimiter:
+        return
+    _, retry_budget = tail_budgets(
+        conversational_token_threshold,
+        tail_budget_ratio,
+        CFG.LLM_HISTORY_TAIL_MAX_TOKENS,
+    )
+    if limiter.count_content_tokens(messages[-1:]) > retry_budget:
+        return
+    zrb_print(
+        stylize_warning(
+            "  Warning: no tail was kept although the newest message alone fits "
+            "the budget; the tail measurement is reporting a size the tail does "
+            "not have."
+        ),
+        plain=True,
+    )
+
+
 def _prepare_kept_tail(
     messages: "list[ModelMessage]",
     to_summarize: "list[ModelMessage]",
@@ -473,7 +523,7 @@ def _prepare_kept_tail(
     structured_tail = to_keep[pending_idx:] if pending_idx is not None else []
     verbatim_part = to_keep[:pending_idx] if pending_idx is not None else to_keep
     verbatim_tail_message = (
-        _create_verbatim_tail_model_request(_render_verbatim_messages(verbatim_part))
+        _create_verbatim_tail_model_request(render_verbatim_messages(verbatim_part))
         if verbatim_part
         else None
     )
@@ -952,31 +1002,6 @@ def _assemble_summarized_history(
     if structured_tail:
         result.extend(_without_orphaned_returns(structured_tail))
     return ensure_alternating_roles(result)
-
-
-_TAIL_TOOL_OUTPUT_LIMIT = 2_000
-"""Characters of one tool result the verbatim tail keeps.
-
-The tail is a handover, not evidence: the messages it replaces are archived in
-full, so a 40,000-character test log kept here would spend the next turn's
-window on output nobody reads again — while costing the summary the room it
-needs to say what the work actually was.
-"""
-
-
-def _render_verbatim_messages(messages: "list[ModelMessage]") -> str:
-    """Render *messages* to text, as `chunk_and_summarize` does before a chunk
-    is summarized — deterministic, no LLM pass. Here the result is kept as-is
-    instead of being summarized.
-
-    Tool results are shortened to `_TAIL_TOOL_OUTPUT_LIMIT` characters each; the
-    rest of the message is rendered whole. A conversion failure propagates to
-    `summarize_history`'s own outer guard, which leaves the history unchanged —
-    the same fallback every other construction failure in this module takes.
-    """
-    return "\n".join(
-        message_to_text(m, _TAIL_TOOL_OUTPUT_LIMIT) for m in messages
-    )
 
 
 def _create_verbatim_tail_model_request(text: str) -> "ModelMessage":
