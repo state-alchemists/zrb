@@ -61,13 +61,13 @@ dependencies = [
     # (<0.9.0): termaid is pre-1.0.
     "termaid>=0.8.0,<0.9.0",
     # Security fix: CVE-2026-40192 - Decompression bomb via unlimited GZIP read in FITS decoding.
-    # Security fix: CVE-2026-59204 - DoS via memory-allocation state accumulation in the JPEG2000 decoder. We pin >=12.3.0.
-    # Pillow is a transitive dependency via pdfplumber. We pin >=12.3.0 to ensure the patched version is used.
-    # 39 advisories are open against 12.3.0 and every one of them is closed only by 13.0.0 — including
-    # CVE-2026-112900 (argument injection into the Ghostscript call, RCE), CVE-2026-112902 (TIFF
-    # encoder memory disclosure) and CVE-2026-112403 (JPEG heap overflow). The floor cannot move:
-    # pipecat-ai 1.12.0 requires `Pillow>=11.1.0,<13`, so the resolver rejects 13.0.0 outright.
-    "Pillow>=12.3.0",
+    # Security fix: CVE-2026-59204 - DoS via memory-allocation state accumulation in the JPEG2000 decoder.
+    # Pillow is a transitive dependency via pdfplumber. 39 advisories are open against 12.3.0 and every
+    # one of them is closed only by 13.0.0 -- including CVE-2026-112900 (argument injection into the
+    # Ghostscript call, RCE), CVE-2026-112902 (TIFF encoder memory disclosure) and CVE-2026-112403
+    # (JPEG heap overflow) -- so the floor is 13.0.0. It could not move earlier: pipecat-ai 1.12.0
+    # required `Pillow>=11.1.0,<13` and the resolver rejected 13.0.0 outright; 1.14.0 allows `<14`.
+    "Pillow>=13.0.0",
     # Security fix: CVE-2026-4539 - ReDoS vulnerability in AdlLexer (GUID regex).
     # pygments is a transitive dependency via rich and pytest. We pin >=2.20.0.
     "pygments>=2.20.0",
@@ -209,8 +209,10 @@ voice = [
     # pipecat is pre-2.0 and moving under its users — `PipelineTask` is
     # deprecated in favour of `PipelineWorker`, which no longer starts itself,
     # and `WakeCheckFilter` goes away in 2.0.0 — so a minor bump is a migration
-    # rather than an upgrade. Note it also caps `onnxruntime` below 1.25.
-    "pipecat-ai>=1.12.0,<1.13.0",
+    # rather than an upgrade. 1.14.0 is the first minor whose Pillow ceiling
+    # (`<14`) admits Pillow 13; it also lifts the onnxruntime cap from
+    # `~=1.24.3` to `<2`.
+    "pipecat-ai>=1.14.0,<1.15.0",
 ]
 
 [project.scripts]
