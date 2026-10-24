@@ -115,7 +115,7 @@ def split_history(
     )
     split_idx = (
         0
-        if limiter.count_tokens(messages) <= budget
+        if count_tail_tokens(limiter, messages) <= budget
         else _earliest_split_within_budget(messages, limiter, budget)
     )
     if split_idx == len(messages):
@@ -161,6 +161,28 @@ def _retry_budget_ratio(tail_budget_ratio: float) -> float:
     return min(FALLBACK_BUDGET_RATIO, tail_budget_ratio * FALLBACK_BUDGET_MULTIPLIER)
 
 
+def count_tail_tokens(limiter: LLMLimiter, messages: "list[ModelMessage]") -> int:
+    """Tokens in a candidate tail, counted as the content it is.
+
+    A tail is measured to decide what to keep, and what is kept is rendered to
+    text and sent as one message, so its own size is the quantity that matters.
+    The shipped counter would otherwise answer with the usage anchor on the
+    newest response: the size of the request that produced it, which covered
+    the *whole* history. No tail that includes that response could then ever
+    fit a budget below the history's size, and compaction — which only runs
+    once the history is at the threshold — would keep nothing every time. On a
+    real 414-message history that was 0 kept against 62 messages / 23,977
+    tokens counted as content.
+
+    Only the shipped counter is measured this way. A subclass may count
+    anything at all, and `_can_binary_search` already declines to assume its
+    numbers behave, so its own counter is asked instead.
+    """
+    if type(limiter) is LLMLimiter:
+        return limiter.count_content_tokens(messages)
+    return limiter.count_tokens(messages)
+
+
 def _earliest_split_within_budget(
     messages: "list[ModelMessage]", limiter: LLMLimiter, budget: float
 ) -> int:
@@ -183,7 +205,7 @@ def _earliest_split_within_budget(
         start = earliest
     first_fit = None
     for split_idx in range(start, len(messages)):
-        tail_tokens = limiter.count_tokens(messages[split_idx:])
+        tail_tokens = count_tail_tokens(limiter, messages[split_idx:])
         if tail_tokens > budget:
             continue
         if first_fit is None:
@@ -198,13 +220,11 @@ def _earliest_split_within_budget(
 def _can_binary_search(limiter: LLMLimiter) -> bool:
     """Whether suffix counts fall monotonically, so the first fit is bisectable.
 
-    Only the shipped counter carries that guarantee. It measures flattened
-    text with the char/4 estimate, so dropping the oldest message can only
-    shorten what is counted: a usage anchor pins the count for every suffix
-    that still holds it, and the trailing `instructions` term can only
-    disappear as the suffix shrinks. A subclass may count anything at all,
-    and tiktoken re-tokenizes across the dropped boundary, so both keep the
-    linear walk — correctness there rests on visiting every index.
+    Only the shipped counter carries that guarantee. `count_tail_tokens`
+    measures flattened text, and dropping the oldest message can only shorten
+    what is counted. A subclass may count anything at all, and tiktoken
+    re-tokenizes across the dropped boundary, so both keep the linear walk —
+    correctness there rests on visiting every index.
     """
     return type(limiter) is LLMLimiter and not limiter.use_tiktoken
 
@@ -220,12 +240,12 @@ def _earliest_fitting_split(
     alone is over budget.
     """
     highest = len(messages) - 1
-    if highest < 1 or limiter.count_tokens(messages[highest:]) > budget:
+    if highest < 1 or count_tail_tokens(limiter, messages[highest:]) > budget:
         return None
     lowest = 1
     while lowest < highest:
         middle = (lowest + highest) // 2
-        if limiter.count_tokens(messages[middle:]) <= budget:
+        if count_tail_tokens(limiter, messages[middle:]) <= budget:
             highest = middle
         else:
             lowest = middle + 1

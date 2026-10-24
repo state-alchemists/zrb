@@ -24,7 +24,7 @@ from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
 )
-from zrb.llm.summarizer.history_splitter import split_history
+from zrb.llm.summarizer.history_splitter import count_tail_tokens, split_history
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.llm.summarizer.message_processor import process_message_for_summarization
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
@@ -364,7 +364,7 @@ async def summarize_history(
                 f"  Summarizing {len(to_summarize)} messages "
                 f"({llm_limiter.count_tokens(to_summarize)} tokens); keeping "
                 f"{len(to_keep)} verbatim "
-                f"({llm_limiter.count_tokens(to_keep)} tokens)."
+                f"({count_tail_tokens(llm_limiter, to_keep)} tokens)."
             ),
             plain=True,
         )
