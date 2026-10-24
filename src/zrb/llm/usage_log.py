@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RunUsage
@@ -73,6 +74,20 @@ class UsageRecord:
         if not self.input_tokens:
             return 0.0
         return self.cache_read_tokens / self.input_tokens
+
+    @property
+    def session_key(self) -> str:
+        """The conversation this run belongs to, stable across a rename.
+
+        A conversation is renamed after its first message
+        (`bold-arch-1234` -> `bold-arch-1234-greetings`, ADR-0109), so the
+        display name in `session` cannot identify it: the first turn's row
+        would be filed under a name the session no longer answers to.
+        `get_conversation_key` strips the topic slug a rename appends, which
+        is the same identity sub-agent transcripts and session ownership
+        already key on. A run with no session name has an empty key.
+        """
+        return get_conversation_key(self.session)
 
     def to_dict(self) -> dict[str, object]:
         raw = dataclasses.asdict(self)
@@ -148,17 +163,21 @@ def read_records(
     *,
     since: datetime | None = None,
     until: datetime | None = None,
-    session: str | None = None,
+    session_key: str | None = None,
     directory: str | None = None,
 ) -> list[UsageRecord]:
     """Every record in the window, oldest first.
+
+    *session_key* selects one conversation by its stable key rather than its
+    display name, so a conversation renamed after its first turn still
+    answers for that turn (`UsageRecord.session_key`).
 
     A line that cannot be parsed is skipped rather than raised: one corrupt byte
     from a killed process must not make the whole history unreadable.
     """
     records: list[UsageRecord] = []
     for path in _month_files(since, until, directory):
-        records.extend(_read_file(path, since, until, session))
+        records.extend(_read_file(path, since, until, session_key))
     records.sort(key=lambda record: record.timestamp)
     return records
 
@@ -205,7 +224,7 @@ def _read_file(
     path: str,
     since: datetime | None,
     until: datetime | None,
-    session: str | None,
+    session_key: str | None,
 ) -> list[UsageRecord]:
     """The records in one month file that fall inside the window."""
     try:
@@ -222,7 +241,7 @@ def _read_file(
             continue
         if until is not None and record.timestamp > _as_datetime(until):
             continue
-        if session is not None and record.session != session:
+        if session_key is not None and record.session_key != session_key:
             continue
         records.append(record)
     return records

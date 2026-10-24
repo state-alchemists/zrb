@@ -652,6 +652,16 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """[OPTIONAL] Note that a side question was cancelled."""
         self.append_to_output("\n[Cancelled]\n")
 
+    def show_panel(self, title: str, body: str) -> None:
+        """[OPTIONAL] Show a command's reply in a panel instead of the transcript.
+
+        Default: print it under its title, which is the same content in the
+        same place an ordinary reply goes. The default `UI` overrides this to
+        fill its float above the input, so a table a user is reading does not
+        scroll away with the next turn — the same reason `/btw` has one.
+        """
+        self.append_to_output(stylize_muted(f"\n  {title}\n{body}\n"))
+
     def handle_custom_command(self, text: str) -> bool:
         return self._exec.handle_custom_command(text)
 

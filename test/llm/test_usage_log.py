@@ -12,7 +12,9 @@ from pydantic_ai.usage import RunUsage
 from zrb.config.config import CFG
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.history_manager.conversation_naming import with_slug
 from zrb.llm.usage_log import read_records, record_usage, usage_store_path
+from zrb.util.string.name import get_conversation_key, get_random_name
 
 JANUARY = datetime(2026, 1, 15, 9, 30, tzinfo=timezone.utc)
 FEBRUARY = datetime(2026, 2, 15, 9, 30, tzinfo=timezone.utc)
@@ -136,9 +138,20 @@ def test_reading_can_restrict_itself_to_one_session(usage_dir):
     record_usage(RunUsage(input_tokens=1), model="m", session="wanted", when=JANUARY)
     record_usage(RunUsage(input_tokens=1), model="m", session="other", when=JANUARY)
 
-    records = read_records(session="wanted")
+    records = read_records(session_key="wanted")
 
     assert [record.session for record in records] == ["wanted"]
+
+
+def test_a_run_belongs_to_its_conversation_across_the_rename(usage_dir):
+    """Auto-naming renames the conversation after its first turn, so the row
+    written under the generated name must still answer for it (ADR-0109)."""
+    name = get_random_name()
+    record_usage(RunUsage(input_tokens=1), model="early", session=name, when=JANUARY)
+
+    records = read_records(session_key=get_conversation_key(with_slug(name, "topic")))
+
+    assert [record.model for record in records] == ["early"]
 
 
 def test_a_malformed_line_is_skipped_rather_than_raised(usage_dir):

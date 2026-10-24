@@ -697,6 +697,19 @@ class UI(BaseUI):
         """Close the panel when the side question was cancelled."""
         self._side_question.cancel(request)
 
+    def show_panel(self, title: str, body: str) -> None:
+        """Draw a command's reply in the float, above the input.
+
+        The float is the one `/btw` uses: a reply worth its own panel is a
+        reply the user reads while the conversation keeps scrolling under it.
+        Before the layout builds the float there is nothing to fill, so the
+        reply is printed instead of being lost.
+        """
+        if self._side_question.side_question_window is None:
+            super().show_panel(title, body)
+            return
+        self._side_question.show(title, body)
+
     def dismiss_side_question(self) -> None:
         """Close the `/btw` panel (Esc)."""
         self._side_question.dismiss()

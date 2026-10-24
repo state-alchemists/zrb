@@ -1,9 +1,13 @@
-"""`/usage`: what this session, today or this week consumed.
+"""`/usage`: what the local log has consumed, accumulated by default.
 
 Reads the local usage log (`zrb.llm.usage_log`) rather than asking a provider,
 the way Claude Code's own `/usage` is computed from local session history. The
 numbers are pydantic-ai's, recorded at the end of each run: tokens, prompt-cache
 reads, request and tool-call counts, and a cost when the model is priced.
+
+No argument means every recorded run, not just this conversation — "what have I
+spent" is asked far more often than "what did this conversation spend", and
+`session` is one word away.
 """
 
 from __future__ import annotations
@@ -15,11 +19,13 @@ from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.usage_log import UsageRecord, read_records
+from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI
 
 PERIODS = ("session", "today", "week", "all")
+_DEFAULT_PERIOD = "all"
 _WEEK_DAYS = 7
 _MODEL_WIDTH = 32
 _UNPRICED = "—"
@@ -35,6 +41,9 @@ def create_usage_commands() -> list[AnyCustomCommand]:
     `/usage`. An empty list would mean "off", as it does for every other UI
     command — though today the env knob cannot express it, because an empty
     value is read as unset (see `EnvField`), so the knob keeps its default.
+
+    The reply is a table, and a table in the transcript scrolls away the moment
+    the next turn starts, so it is drawn in a panel where the UI has one.
     """
     aliases = CFG.LLM_UI_COMMAND_USAGE
     return [
@@ -43,20 +52,26 @@ def create_usage_commands() -> list[AnyCustomCommand]:
             _handle_usage,
             args=["period"],
             description=(
-                "/usage [session|today|week|all] — tokens, cache and cost so far"
+                "/usage [session|today|week|all] — tokens, cache and cost "
+                "(default: every recorded run)"
             ),
             can_run_while_thinking=True,
+            panel_title="Usage",
         )
         for alias in aliases
     ]
 
 
 def render_usage(records: list[UsageRecord], label: str) -> str:
-    """The whole reply for one window."""
+    """The body for one window: its label, the table, the footer.
+
+    The panel draws the title, so the body opens with the window it covers
+    rather than repeating the word "Usage".
+    """
     if not records:
         return f"  No usage recorded for {label}."
     sections = [
-        f"  Usage — {label}",
+        f"  {label}",
         "",
         _table(records),
         "",
@@ -66,7 +81,7 @@ def render_usage(records: list[UsageRecord], label: str) -> str:
 
 
 def _handle_usage(kwargs: dict[str, str], ui: "AnyUI | None") -> str:
-    period = (kwargs.get("period") or "").strip().lower() or "session"
+    period = (kwargs.get("period") or "").strip().lower() or _DEFAULT_PERIOD
     if period not in PERIODS:
         return f"  /usage takes one of: {', '.join(PERIODS)}"
     records, label = _select(period, ui)
@@ -85,7 +100,12 @@ def _select(period: str, ui: "AnyUI | None") -> tuple[list[UsageRecord], str]:
         return read_records(), "every recorded run"
     session = _session_of(ui)
     if session:
-        return read_records(session=session), f"session {session}"
+        # The stable key, not the display name: a conversation is renamed after
+        # its first message, and the first turn's row keeps the earlier name.
+        return (
+            read_records(session_key=get_conversation_key(session)),
+            f"session {session}",
+        )
     # A headless run records no session name, so "this session" would select
     # nothing; the day is the smallest window that still means something.
     return read_records(since=_midnight(now)), "today (no session name)"

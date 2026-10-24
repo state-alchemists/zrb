@@ -120,6 +120,24 @@ class UISideQuestion:
         self._last_answer = answer
         self._render_and_fill(answer)
 
+    def show(self, title: str, body: str) -> None:
+        """Show *title* and *body* until dismissed — a command's reply panel.
+
+        The body is laid out by its writer (`/usage` draws a fixed-width
+        table), so it is shown as written: no markdown pass, and nothing for
+        `rewrap` to redo. The panel is shared with `/btw`, and whatever asked
+        for it last owns it — a side answer still on its way is dropped rather
+        than painted over this, because its token no longer matches.
+        """
+        self._question = title.strip()
+        self._is_active = True
+        self._request = None
+        self._last_answer = None
+        self._fill(f"  {self._question}\n{body}")
+        if not self._ui.is_waiting_for_answer:
+            focus_widget(self._window, "Panel")
+        self._invalidate()
+
     def rewrap(self) -> None:
         """Re-render the shown answer at the current width (public API).
 
