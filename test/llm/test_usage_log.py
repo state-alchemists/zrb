@@ -1,6 +1,7 @@
 """The usage log keeps what `RunUsage` reports, and keeps it readable later."""
 
 import json
+import os
 import pathlib
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
@@ -123,6 +124,41 @@ def test_reading_a_window_skips_other_months(usage_dir):
     )
 
     assert [record.model for record in records] == ["january"]
+
+
+def test_a_zone_ahead_of_utc_reads_the_previous_utc_month(usage_dir):
+    """Local midnight on the 1st can still be the previous UTC month, which is
+    the file the record is in: UTC+14 asking for January while the row sits in
+    December must not lose it."""
+    record_usage(
+        RunUsage(input_tokens=1),
+        model="boundary",
+        when=datetime(2025, 12, 31, 23, 0, tzinfo=timezone.utc),
+    )
+    local_midnight = datetime(2026, 1, 1, 0, 0, tzinfo=timezone(timedelta(hours=14)))
+
+    records = read_records(since=local_midnight)
+
+    assert [record.model for record in records] == ["boundary"]
+
+
+def test_an_upper_bound_alone_does_not_probe_every_month(usage_dir, monkeypatch):
+    """`until` without `since` reads the directory: a month range from year 1
+    would build and probe tens of thousands of paths that cannot exist."""
+    record_usage(RunUsage(input_tokens=1), model="any", when=JANUARY)
+    probed: list[str] = []
+    real_exists = os.path.exists
+
+    def _record_the_probe(path):
+        probed.append(str(path))
+        return real_exists(path)
+
+    monkeypatch.setattr(os.path, "exists", _record_the_probe)
+
+    records = read_records(until=FEBRUARY)
+
+    assert [record.model for record in records] == ["any"]
+    assert probed == []
 
 
 def test_reading_without_a_window_returns_every_record_oldest_first(usage_dir):

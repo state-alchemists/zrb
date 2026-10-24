@@ -185,14 +185,26 @@ def read_records(
 def _month_files(
     since: datetime | None, until: datetime | None, directory: str | None
 ) -> list[str]:
-    """The month files that can hold a record inside the window."""
+    """The month files that can hold a record inside the window.
+
+    A bound is read as an instant, then named in UTC: files are named by the
+    UTC month of the record, so local midnight on the 1st in a zone ahead of
+    UTC can still belong to the previous UTC month's file (UTC+14 asks for
+    January while the record sits in December).
+
+    With no lower bound every file in the directory is a candidate and the
+    upper bound is applied per record — walking forward from year 1 instead
+    would build tens of thousands of month paths that cannot exist.
+    """
     base = directory if directory is not None else CFG.LLM_USAGE_DIR
-    if since is None and until is None:
+    if since is None:
         return _files_in(base)
-    start = _as_datetime(since) if since is not None else datetime.min.replace(
-        tzinfo=timezone.utc
+    start = _as_datetime(since).astimezone(timezone.utc)
+    end = (
+        _as_datetime(until).astimezone(timezone.utc)
+        if until is not None
+        else datetime.now(timezone.utc)
     )
-    end = _as_datetime(until) if until is not None else datetime.now(timezone.utc)
     candidates = [usage_store_path(month, base) for month in _months_between(start, end)]
     return [path for path in candidates if os.path.exists(path)]
 
