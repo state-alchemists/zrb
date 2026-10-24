@@ -29,8 +29,14 @@ _CACHE_READ = "cache_read_tokens"
 
 
 def create_usage_commands() -> list[AnyCustomCommand]:
-    """One command per configured alias."""
-    aliases = CFG.LLM_UI_COMMAND_USAGE or ["/usage"]
+    """One command per configured alias.
+
+    No fallback to a default alias: `CFG.LLM_UI_COMMAND_USAGE` already carries
+    `/usage`. An empty list would mean "off", as it does for every other UI
+    command — though today the env knob cannot express it, because an empty
+    value is read as unset (see `EnvField`), so the knob keeps its default.
+    """
+    aliases = CFG.LLM_UI_COMMAND_USAGE
     return [
         ActionCommand(
             alias,
