@@ -14,9 +14,37 @@ class FakeUI:
         self.outputs.append(text)
 
 
+class PanelUI(FakeUI):
+    """A UI that can hold a panel, as the default one does."""
+
+    def __init__(self):
+        super().__init__()
+        self.panels: list[tuple[str, str]] = []
+
+    def show_panel(self, title: str, body: str) -> None:
+        self.panels.append((title, body))
+
+
 def test_sync_action_reply_is_returned():
     cmd = ActionCommand("/hi", lambda kwargs, ui: "hello")
     assert cmd.handle({}, None) == "hello"
+
+
+def test_a_panel_reply_is_shown_by_the_ui_and_not_returned():
+    """Returning it as well would print the same table twice."""
+    cmd = ActionCommand("/usage", lambda kwargs, ui: "the table", panel_title="Usage")
+    ui = PanelUI()
+
+    assert cmd.handle({}, ui) == ""
+    assert ui.panels == [("Usage", "the table")]
+    assert ui.outputs == []
+
+
+def test_a_panel_reply_without_a_ui_comes_back_as_text():
+    """Headless: there is no panel to fill, so the text is all there is."""
+    cmd = ActionCommand("/usage", lambda kwargs, ui: "the table", panel_title="Usage")
+
+    assert cmd.handle({}, None) == "the table"
 
 
 def test_sync_action_returning_none_shows_nothing():
@@ -39,6 +67,22 @@ async def test_async_action_runs_in_the_background_and_shows_its_reply():
 
     assert ui.background_tasks == set()
     assert any("done" in output for output in ui.outputs)
+
+
+@pytest.mark.asyncio
+async def test_an_async_panel_reply_reaches_the_panel_when_it_finishes():
+    async def action(kwargs, ui):
+        await asyncio.sleep(0)
+        return "the table"
+
+    ui = PanelUI()
+    assert ActionCommand("/usage", action, panel_title="Usage").handle({}, ui) == ""
+
+    await asyncio.gather(*ui.background_tasks)
+    await asyncio.sleep(0)
+
+    assert ui.panels == [("Usage", "the table")]
+    assert ui.outputs == []
 
 
 @pytest.mark.asyncio

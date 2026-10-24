@@ -24,6 +24,7 @@ class LLMUICommandsMixin:
         self.DEFAULT_LLM_UI_COMMAND_BTW: str = "/btw"
         self.DEFAULT_LLM_UI_COMMAND_PLAN_TOGGLE: str = "/plan"
         self.DEFAULT_LLM_UI_COMMAND_COPY: str = "/copy"
+        self.DEFAULT_LLM_UI_COMMAND_USAGE: str = "/usage"
         super().__init__()
 
     LLM_UI_COMMAND_SUMMARIZE = EnvField(
@@ -123,5 +124,15 @@ class LLMUICommandsMixin:
         doc=(
             "Comma-separated command aliases to copy the full conversation "
             "transcript to the clipboard."
+        ),
+    )
+
+    LLM_UI_COMMAND_USAGE = EnvField(
+        comma_list,
+        serialize=comma_join,
+        doc=(
+            "Comma-separated command aliases to show what the session, the day or "
+            "the week consumed (`<alias> [session|today|week|all]`): tokens, "
+            "prompt-cache hits and cost where the model is priced."
         ),
     )

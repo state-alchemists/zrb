@@ -334,3 +334,43 @@ def test_rewrap_keeps_a_mid_buffer_reader_on_the_same_line_index():
     # offset would have overshot onto line 3 ("CCCCCDDDDD") instead.
     assert before_cursor.count("\n") == 2
     assert before_cursor.endswith("AAAAABBBBB")
+
+
+def test_show_puts_a_command_reply_in_the_panel_under_its_title(part):
+    part.show("Usage", "  every recorded run\n\n  model  runs")
+
+    assert part.is_active is True
+    assert _text(part).startswith("  Usage")
+    assert "every recorded run" in _text(part)
+    assert "model  runs" in _text(part)
+
+
+def test_a_shown_table_is_not_put_through_the_markdown_renderer(part):
+    """`/usage` lays its columns out itself; re-wrapping would break them."""
+    part.show("Usage", "  model    runs\n  gpt-4o      3")
+
+    assert "<md" not in _text(part)
+    assert "  gpt-4o      3" in _text(part)
+
+
+def test_show_replaces_a_pending_side_question(part):
+    part.begin("why is the sky blue?")
+    token = part.begin("something else")
+
+    part.show("Usage", "  every recorded run")
+
+    assert "Usage" in _text(part)
+    assert "thinking" not in _text(part)
+    # The side answer still on its way no longer owns the panel.
+    part.end("because of Rayleigh scattering", token)
+    assert "Rayleigh" not in _text(part)
+
+
+def test_show_keeps_the_focus_where_a_waiting_prompt_needs_it():
+    ui = _FakeUI(is_waiting_for_answer=True)
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    with patch("zrb.llm.ui.default.side_question.focus_widget") as focus:
+        part.show("Usage", "  every recorded run")
+
+    focus.assert_not_called()

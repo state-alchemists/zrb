@@ -101,7 +101,11 @@ FACADE_BUDGETS = {
     # (a misheard word must be able to do the first without the second), so the
     # permission is its own documented parameter rather than a reuse of
     # `may_interrupt` (ADR-0123, revised).
-    "llm/ui/base/ui.py": 1286,
+    # +10 (1286->1296): `show_panel`, the panel destination a command's reply
+    # can ask for (the `/btw` display contract's sibling): the default prints
+    # the reply under its title, so every UI shows the same content and only
+    # one with a float overrides the destination -- new surface (ADR-0127).
+    "llm/ui/base/ui.py": 1296,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
@@ -130,7 +134,11 @@ FACADE_BUDGETS = {
     # `rewrap()` on every frame, so a resize re-renders its markdown answer at
     # the new width instead of leaving it wrapped for the old one -- new
     # behavior, not a delegator.
-    "llm/ui/default/ui.py": 733,
+    # +13 (733->746): `show_panel`, which fills that same float instead of the
+    # transcript, so a command's table stays readable while the conversation
+    # scrolls under it -- new surface; the panel's own state and rendering
+    # still live in `side_question.py` (ADR-0127).
+    "llm/ui/default/ui.py": 746,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

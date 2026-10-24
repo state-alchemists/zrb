@@ -49,25 +49,36 @@ async def test_scheduler_triggers_on_match(mock_match_cron, mock_session):
 @pytest.mark.asyncio
 @mock.patch("zrb.task.scheduler.match_cron", return_value=False)
 async def test_scheduler_does_not_trigger_on_no_match(mock_match_cron, mock_session):
+    import datetime
+
     scheduler = Scheduler(name="test_scheduler", schedule="* * * * *")
     mock_session.register_task(scheduler)
 
     with mock.patch.object(scheduler, "push_exchange_xcom") as mock_push_exchange_xcom:
-        scheduler_task = asyncio.create_task(scheduler.exec(mock_session))
+        # Pin the clock, as `test_scheduler_triggers_on_match` does: the loop
+        # sleeps to the next minute boundary, so on a real clock this window can
+        # straddle one and sample two minutes — two `match_cron` calls, which is
+        # correct for `* * * * *` and makes the count assertion flake.
+        with mock.patch("zrb.task.scheduler.datetime") as mock_datetime:
+            mock_datetime.datetime.now.return_value = datetime.datetime(
+                2026, 1, 1, 10, 0, 30
+            )
 
-        await asyncio.sleep(0.01)
+            scheduler_task = asyncio.create_task(scheduler.exec(mock_session))
 
-        scheduler_task.cancel()
+            await asyncio.sleep(0.01)
 
-        try:
-            await scheduler_task
-        except asyncio.CancelledError:
-            pass
+            scheduler_task.cancel()
 
-        await asyncio.sleep(0.01)
+            try:
+                await scheduler_task
+            except asyncio.CancelledError:
+                pass
 
-        mock_match_cron.assert_called_once()
-        mock_push_exchange_xcom.assert_not_called()
+            await asyncio.sleep(0.01)
+
+            mock_match_cron.assert_called_once()
+            mock_push_exchange_xcom.assert_not_called()
 
 
 @pytest.mark.asyncio

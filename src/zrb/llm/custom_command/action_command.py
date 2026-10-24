@@ -29,7 +29,9 @@ class ActionCommand(AnyCustomCommand):
 
     ``can_run_while_thinking=True`` lets the command run while the model is
     mid-response. *complete_arg* maps what the user has typed of the first
-    argument to the values to offer.
+    argument to the values to offer. ``panel_title`` shows the reply in a panel
+    instead of the transcript, under that title, where the UI has one — a table
+    or a long report would otherwise scroll away with the next turn.
     """
 
     def __init__(
@@ -40,6 +42,7 @@ class ActionCommand(AnyCustomCommand):
         description: str | None = None,
         can_run_while_thinking: bool = False,
         complete_arg: Callable[[str], Iterable[str]] | None = None,
+        panel_title: str | None = None,
     ):
         self._command = command
         self._action = action
@@ -47,6 +50,7 @@ class ActionCommand(AnyCustomCommand):
         self._description = description
         self._can_run_while_thinking = can_run_while_thinking
         self._complete_arg = complete_arg
+        self._panel_title = panel_title
 
     @property
     def command(self) -> str:
@@ -77,7 +81,7 @@ class ActionCommand(AnyCustomCommand):
     def handle(self, kwargs: dict[str, str], ui: "BaseUI | None") -> str | None:
         result = self._action(kwargs, ui)
         if not inspect.isawaitable(result):
-            return result or ""
+            return self._deliver(result or "", ui)
         if ui is None:
             close = getattr(result, "close", None)
             if callable(close):
@@ -85,11 +89,25 @@ class ActionCommand(AnyCustomCommand):
             return f"{self.command} needs an interactive chat session."
         task = asyncio.ensure_future(result)
         ui.background_tasks.add(task)
-        task.add_done_callback(lambda done: _show_result(done, ui))
+        task.add_done_callback(lambda done: _show_result(done, ui, self._panel_title))
+        return ""
+
+    def _deliver(self, reply: str, ui: "BaseUI | None") -> str:
+        """Hand *reply* to the UI, or return it for the caller to print.
+
+        A panel reply must not also be returned: the caller prints what comes
+        back, so the same table would appear twice. With no UI there is no
+        panel to fill, and the text comes back as any other reply.
+        """
+        if not reply or self._panel_title is None or ui is None:
+            return reply
+        ui.show_panel(self._panel_title, reply)
         return ""
 
 
-def _show_result(task: "asyncio.Future[Any]", ui: "BaseUI") -> None:
+def _show_result(
+    task: "asyncio.Future[Any]", ui: "BaseUI", panel_title: str | None = None
+) -> None:
     ui.background_tasks.discard(task)  # type: ignore[arg-type]
     if task.cancelled():
         return
@@ -99,5 +117,9 @@ def _show_result(task: "asyncio.Future[Any]", ui: "BaseUI") -> None:
         ui.append_to_output(stylize_error(f"\n  ❌ {exception_summary(exc)}\n"))
         return
     reply = task.result()
-    if reply:
+    if not reply:
+        return
+    if panel_title is None:
         ui.append_to_output(stylize_muted(f"\n  {reply}\n"))
+        return
+    ui.show_panel(panel_title, reply)

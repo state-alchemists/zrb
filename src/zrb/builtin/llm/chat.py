@@ -16,6 +16,7 @@ from zrb.input.str_input import StrInput
 from zrb.llm.camera import enable_camera
 from zrb.llm.common_tools import apply_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
+from zrb.llm.custom_command.usage_command import create_usage_commands
 from zrb.llm.dictation import enable_dictation
 from zrb.llm.emotion import enable_emotion
 from zrb.llm.prompt.manager import PromptManager
@@ -209,6 +210,7 @@ enable_speech(llm_chat)
 enable_emotion(llm_chat)
 
 llm_chat.append_custom_command(get_skill_custom_command(skill_manager))
+llm_chat.append_custom_command(create_usage_commands)
 
 # `zrb.builtin` registers a `LazyTask` stand-in for this task, and the snapshot
 # `zrb/__main__.py` takes at import time holds the stand-in's identity.
