@@ -152,6 +152,7 @@ def create_summarizer_history_processor(
             limiter=llm_limiter,
             conversational_token_threshold=active_conversational_threshold,
             system_prompt_overhead=system_prompt_overhead,
+            tail_budget_ratio=CFG.LLM_HISTORY_TAIL_BUDGET_RATIO,
             session_name=session_name,
             history_dir=history_dir,
             verbatim_source=verbatim_source,
@@ -191,11 +192,17 @@ async def _maybe_compress_history(
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
     system_prompt_overhead: int,
+    tail_budget_ratio: float,
     session_name: "str | Callable[[], str | None] | None" = None,
     history_dir: str | None = None,
     verbatim_source: "list[ModelMessage] | None" = None,
 ) -> "list[ModelMessage]":
-    """Compress history when it exceeds the token/window threshold."""
+    """Compress history when it exceeds the token/window threshold.
+
+    *tail_budget_ratio* is the share of the threshold the kept tail may fill;
+    it is what `LLM_HISTORY_TAIL_BUDGET_RATIO` sets, and `split_history` clamps
+    it into a range that still leaves a tail and still leaves headroom.
+    """
     try:
         adjusted_threshold = max(
             1, conversational_token_threshold - system_prompt_overhead
@@ -207,7 +214,11 @@ async def _maybe_compress_history(
         if is_short_enough and is_within_tokens:
             return messages
         to_summarize, _ = split_history(
-            messages, summary_window, limiter, adjusted_threshold
+            messages,
+            summary_window,
+            limiter,
+            adjusted_threshold,
+            tail_budget_ratio=tail_budget_ratio,
         )
         if (
             is_within_tokens
@@ -233,6 +244,7 @@ async def _maybe_compress_history(
             conversational_token_threshold=adjusted_threshold,
             session_name=session_name,
             history_dir=history_dir,
+            tail_budget_ratio=tail_budget_ratio,
             verbatim_source=verbatim_source,
         )
         if result != messages:
@@ -304,12 +316,15 @@ async def summarize_history(
     session_name: "str | Callable[[], str | None] | None" = None,
     history_dir: str | None = None,
     verbatim_source: "list[ModelMessage] | None" = None,
+    tail_budget_ratio: float | None = None,
 ) -> "list[ModelMessage]":
     """Replace older messages with a chunked summary, keeping a recent tail.
 
-    The tail is the newest turns that fit the summarizer's token budget, capped
-    by `summary_window` messages. `force=True` compresses even within limits
-    (``/compress``). The journal index is re-seeded into the summary.
+    The tail is the newest turns that fit the summarizer's token budget — the
+    share `LLM_HISTORY_TAIL_BUDGET_RATIO` sets, overridable per call through
+    `tail_budget_ratio` — capped by `summary_window` messages. `force=True`
+    compresses even within limits (``/compress``). The journal index is
+    re-seeded into the summary.
 
     The replaced messages are archived verbatim once the replacement is ready,
     and the summary names the archive when it was written: a summary is a lossy
@@ -326,8 +341,14 @@ async def summarize_history(
             )
         if summary_window is None:
             summary_window = CFG.LLM_HISTORY_SUMMARIZATION_WINDOW
+        if tail_budget_ratio is None:
+            tail_budget_ratio = CFG.LLM_HISTORY_TAIL_BUDGET_RATIO
         to_summarize, to_keep = split_history(
-            messages, summary_window, llm_limiter, conversational_token_threshold
+            messages,
+            summary_window,
+            llm_limiter,
+            conversational_token_threshold,
+            tail_budget_ratio=tail_budget_ratio,
         )
         if not to_summarize:
             if not force:

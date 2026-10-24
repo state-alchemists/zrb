@@ -1,3 +1,4 @@
+import math
 from typing import TYPE_CHECKING
 
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
@@ -24,13 +25,42 @@ user message.
 """
 
 FALLBACK_BUDGET_RATIO = 0.8
-"""The looser budget tried when nothing fits `TAIL_BUDGET_RATIO`.
+"""The loosest budget the retry may reach, as a share of the threshold.
 
 A tail budget this tight can fail outright when even the newest message alone
 is bigger than it (one huge tool result, say). Before giving up and keeping
-nothing, a second attempt is made against 80% of the full threshold — still
-under budget, just not the headroom-preserving target — so a compaction still
-keeps something whenever the history can afford it at all.
+nothing, a second attempt is made against a looser budget, which stays under
+this ceiling — still under the threshold, just not the headroom-preserving
+target — so a compaction still keeps something whenever the history can afford
+it at all.
+"""
+
+FALLBACK_BUDGET_MULTIPLIER = 2
+"""How much looser than the configured budget the retry is.
+
+The retry follows the configured ratio instead of holding a fixed 80%, so
+lowering the tail budget cannot be defeated by a retry several times its size:
+twice the ratio, capped at `FALLBACK_BUDGET_RATIO`. The default 0.4 therefore
+still retries at 0.8, exactly as before.
+"""
+
+MIN_TAIL_BUDGET_RATIO = 0.05
+"""Smallest tail a setting may ask for.
+
+Below this the tail stops being a conversation — and `0` is not a way to
+disable the tail, because it would summarize every message including the
+newest, which the tail exists to keep. A caller that wants no verbatim tail
+has `LLM_SUMMARY_MAX_TOKEN_RATIO`'s territory; here the floor stands.
+"""
+
+MAX_TAIL_BUDGET_RATIO = 0.8
+"""Largest tail a setting may ask for.
+
+A tail that fills the threshold leaves no headroom: the history would be back
+at the trigger on the very next request, and at exactly 1.0 the split keeps
+everything and the summarizer runs on nothing. Capping at the retry ceiling
+keeps a compaction worth running — it always frees at least a fifth of the
+threshold — and keeps a configured number from silently disabling compaction.
 """
 
 
@@ -40,7 +70,7 @@ def split_history(
     limiter: LLMLimiter,
     conversational_token_threshold: int,
     tail_budget_ratio: float = TAIL_BUDGET_RATIO,
-    fallback_budget_ratio: float = FALLBACK_BUDGET_RATIO,
+    fallback_budget_ratio: float | None = None,
 ) -> "tuple[list[ModelMessage], list[ModelMessage]]":
     """
     Split history into messages to summarize and messages to keep.
@@ -55,11 +85,16 @@ def split_history(
     (deferred) tool call, is a narrower one the caller handles separately via
     `zrb.llm.message.pending_tail_start`.
 
+    `tail_budget_ratio` is clamped into `MIN_TAIL_BUDGET_RATIO` to
+    `MAX_TAIL_BUDGET_RATIO`, so a configured `0` still leaves a tail and a
+    value past the ceiling still leaves headroom.
+
     Strategy:
     1. Keep the newest turns that fit a tail budget of `tail_budget_ratio` of
        the threshold — token-first, since tokens are what overflow.
     2. If nothing fits that budget (the newest message alone is bigger than
-       it), retry against the looser `fallback_budget_ratio`.
+       it), retry against the looser `fallback_budget_ratio`, which defaults to
+       twice the budget and never exceeds `FALLBACK_BUDGET_RATIO`.
     3. Never keep more than `summary_window` messages; that count is a
        backstop for histories of many small messages, not the thing that
        decides.
@@ -68,7 +103,10 @@ def split_history(
     """
     if not messages:
         return [], []
-    budget = conversational_token_threshold * tail_budget_ratio
+    budget_ratio = _clamp_tail_budget_ratio(tail_budget_ratio)
+    if fallback_budget_ratio is None:
+        fallback_budget_ratio = _retry_budget_ratio(budget_ratio)
+    budget = conversational_token_threshold * budget_ratio
     split_idx = (
         0
         if limiter.count_tokens(messages) <= budget
@@ -83,6 +121,24 @@ def split_history(
     if split_idx == 0:
         return [], list(messages)
     return messages[:split_idx], messages[split_idx:]
+
+
+def _clamp_tail_budget_ratio(ratio: float) -> float:
+    """*ratio* held inside the range a tail budget can mean.
+
+    See `MIN_TAIL_BUDGET_RATIO` and `MAX_TAIL_BUDGET_RATIO` for why the ends
+    are where they are. A NaN — an unparsable setting — keeps the shipped
+    default rather than producing a NaN budget that compares false against
+    every message.
+    """
+    if math.isnan(ratio):
+        return TAIL_BUDGET_RATIO
+    return max(MIN_TAIL_BUDGET_RATIO, min(MAX_TAIL_BUDGET_RATIO, ratio))
+
+
+def _retry_budget_ratio(tail_budget_ratio: float) -> float:
+    """The looser budget tried when nothing fits the configured one."""
+    return min(FALLBACK_BUDGET_RATIO, tail_budget_ratio * FALLBACK_BUDGET_MULTIPLIER)
 
 
 def _earliest_split_within_budget(
