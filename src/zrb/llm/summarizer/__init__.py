@@ -4,7 +4,11 @@ from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
     consolidate_summaries,
 )
-from zrb.llm.summarizer.history_splitter import count_tail_tokens, split_history
+from zrb.llm.summarizer.history_splitter import (
+    count_history_tokens,
+    count_tail_tokens,
+    split_history,
+)
 from zrb.llm.summarizer.history_summarizer import (
     create_summarizer_history_processor,
     summarize_history,
@@ -32,6 +36,7 @@ __all__ = [
     "summarize_messages",
     "split_history",
     "count_tail_tokens",
+    "count_history_tokens",
     "message_to_text",
     "model_request_to_text",
     "model_response_to_text",

@@ -2,6 +2,7 @@ import math
 from typing import TYPE_CHECKING
 
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
+from zrb.llm.message_text import render_verbatim_messages
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
@@ -77,7 +78,7 @@ def split_history(
     Split history into messages to summarize and messages to keep.
 
     The kept tail is rendered to plain text by the caller
-    (`history_summarizer._render_verbatim_messages`), not resent as structured
+    (`message_text.render_verbatim_messages`), not resent as structured
     API messages, so — unlike earlier versions of this function — the split
     does not need to avoid landing inside a tool call/return pair: that
     constraint only binds structured messages, and nothing this function
@@ -107,23 +108,19 @@ def split_history(
     """
     if not messages:
         return [], []
-    budget_ratio = _clamp_tail_budget_ratio(tail_budget_ratio)
-    if fallback_budget_ratio is None:
-        fallback_budget_ratio = _retry_budget_ratio(budget_ratio)
-    budget = _capped_budget(
-        conversational_token_threshold * budget_ratio, tail_max_tokens
+    budget, loose_budget = tail_budgets(
+        conversational_token_threshold,
+        tail_budget_ratio,
+        tail_max_tokens,
+        fallback_budget_ratio,
     )
     split_idx = (
         0
-        if count_tail_tokens(limiter, messages) <= budget
+        if count_history_tokens(limiter, messages) <= budget
         else _earliest_split_within_budget(messages, limiter, budget)
     )
-    if split_idx == len(messages):
-        loose_budget = _capped_budget(
-            conversational_token_threshold * fallback_budget_ratio, tail_max_tokens
-        )
-        if loose_budget > budget:
-            split_idx = _earliest_split_within_budget(messages, limiter, loose_budget)
+    if split_idx == len(messages) and loose_budget > budget:
+        split_idx = _earliest_split_within_budget(messages, limiter, loose_budget)
     count_cap = max(0, len(messages) - summary_window) if summary_window > 0 else 0
     split_idx = min(max(split_idx, count_cap), len(messages))
     if split_idx == 0:
@@ -161,26 +158,78 @@ def _retry_budget_ratio(tail_budget_ratio: float) -> float:
     return min(FALLBACK_BUDGET_RATIO, tail_budget_ratio * FALLBACK_BUDGET_MULTIPLIER)
 
 
-def count_tail_tokens(limiter: LLMLimiter, messages: "list[ModelMessage]") -> int:
-    """Tokens in a candidate tail, counted as the content it is.
+def tail_budgets(
+    conversational_token_threshold: float,
+    tail_budget_ratio: float | None = None,
+    tail_max_tokens: int | None = None,
+    fallback_budget_ratio: float | None = None,
+) -> "tuple[float, float]":
+    """The `(budget, retry budget)` a split is held under.
 
-    A tail is measured to decide what to keep, and what is kept is rendered to
-    text and sent as one message, so its own size is the quantity that matters.
-    The shipped counter would otherwise answer with the usage anchor on the
-    newest response: the size of the request that produced it, which covered
-    the *whole* history. No tail that includes that response could then ever
-    fit a budget below the history's size, and compaction — which only runs
-    once the history is at the threshold — would keep nothing every time. On a
-    real 414-message history that was 0 kept against 62 messages / 23,977
-    tokens counted as content.
+    Exposed so a caller can ask what keeping nothing means without repeating the
+    arithmetic: a split that kept nothing is only correct when even the newest
+    message alone overruns the looser of the two.
+    """
+    ratio = _clamp_tail_budget_ratio(
+        TAIL_BUDGET_RATIO if tail_budget_ratio is None else tail_budget_ratio
+    )
+    if fallback_budget_ratio is None:
+        fallback_budget_ratio = _retry_budget_ratio(ratio)
+    return (
+        _capped_budget(conversational_token_threshold * ratio, tail_max_tokens),
+        _capped_budget(
+            conversational_token_threshold * fallback_budget_ratio, tail_max_tokens
+        ),
+    )
+
+
+def count_history_tokens(limiter: LLMLimiter, messages: "list[ModelMessage]") -> int:
+    """Tokens in a history kept as it is, counted as content.
+
+    The counterweight to `count_tail_tokens`: at split zero nothing is rendered,
+    so the clip does not apply and the messages cost what they cost. Asking the
+    rendered question here would answer yes far too often — a tool-heavy history
+    renders to a small fraction of itself — and a compaction that summarized
+    nothing leaves the next turn over the threshold with the same work to do,
+    every turn, while each attempt reports success.
+    """
+    if type(limiter) is LLMLimiter:
+        return limiter.count_content_tokens(messages)
+    return limiter.count_tokens(messages)
+
+
+def count_tail_tokens(limiter: LLMLimiter, messages: "list[ModelMessage]") -> int:
+    """Tokens in a candidate tail, counted as the text it will be sent as.
+
+    Two things the obvious measurement gets wrong. The shipped counter answers
+    with the usage anchor on the newest response — the size of the request that
+    produced it, which covered the *whole* history — so no tail including that
+    response could fit a budget below the history's size, and compaction, which
+    only runs once the history is at the threshold, kept nothing every time. On
+    a real 414-message history that was 0 kept against 62 messages / 23,977
+    tokens.
+
+    The other is the clip. A kept tail is rendered to text with each tool result
+    cut to `TAIL_TOOL_OUTPUT_LIMIT` characters, so the unclipped messages are not
+    what the next request pays for: budgeting on them left a tail that measured
+    22,614 tokens in hand and sent 5,358, on a history whose kept fraction could
+    have been much larger for the same cost. Measuring the rendered form makes
+    the budget and the banner describe the handover itself.
+
+    A still-unresolved tool call comes along in native form so pydantic-ai can
+    resume it, and is counted here through the same rendering. The difference is
+    a few tokens on one message, and the alternative — switching currency inside
+    a suffix — breaks the one property the bisected scan relies on: a shorter
+    suffix can then count *higher*, and the scan and the linear walk disagree
+    about where the split goes.
 
     Only the shipped counter is measured this way. A subclass may count
     anything at all, and `_can_binary_search` already declines to assume its
     numbers behave, so its own counter is asked instead.
     """
-    if type(limiter) is LLMLimiter:
-        return limiter.count_content_tokens(messages)
-    return limiter.count_tokens(messages)
+    if type(limiter) is not LLMLimiter:
+        return limiter.count_tokens(messages)
+    return limiter.count_content_tokens(render_verbatim_messages(messages))
 
 
 def _earliest_split_within_budget(
