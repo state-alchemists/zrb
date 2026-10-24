@@ -20,6 +20,7 @@ class LLMContentMixin:
 
     def __init__(self) -> None:
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
+        self.DEFAULT_LLM_USAGE_DIR: str = ""
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_MAX_ENTRIES: str = "1000"
@@ -69,6 +70,24 @@ class LLMContentMixin:
             )
         ),
         doc="Directory for LLM conversation history files.",
+    )
+
+    LLM_USAGE_DIR = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_USAGE_DIR
+            if cfg.DEFAULT_LLM_USAGE_DIR
+            else os.path.expanduser(
+                os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-usage")
+            )
+        ),
+        doc=(
+            "Directory for the local LLM usage log: one JSON line per completed "
+            "run, holding token counts, request and tool-call counts, the run's "
+            "duration and its cost when the model is priced. Numbers only — no "
+            "prompt text, no tool arguments — which is what lets `/usage` work "
+            "without an opt-in."
+        ),
     )
 
     LLM_PREVIOUS_MESSAGE_HISTORY_DIR = EnvField(

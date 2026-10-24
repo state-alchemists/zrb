@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time
 import uuid
 from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from contextlib import ExitStack
@@ -89,11 +90,13 @@ from zrb.llm.shell_cut import (
 )
 from zrb.llm.snapshot.command import run_in_worker
 from zrb.llm.stream_observer import StreamObserver, create_observed_event_handler
+from zrb.llm.usage_log import record_usage
 from zrb.llm.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
 
+    from zrb.llm.agent.types import RunUsage
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.ui.any_ui import AnyUI
 
@@ -620,6 +623,7 @@ async def _stream_one_round(
         pending_checkpoint_tasks=pending_checkpoint_tasks,
         baseline_len=cursor.round_baseline,
     )
+    started_at = time.monotonic()
     try:
         # Docs: https://ai.pydantic.dev/agents/#streaming-all-events
         CFG.LOGGER.debug(f"Run started, current_results={cursor.results}")
@@ -633,6 +637,9 @@ async def _stream_one_round(
         # `agent.run()`'s stream handler never gets the trailing result event
         # (`run_stream_events()` synthesizes it); usage accounting needs it.
         partial_run.record_event(AgentRunResultEvent(result=result))
+        _record_run_usage(
+            result.response.model_name, result.usage, effective_ui, started_at
+        )
         if effective_event_handler:
             await effective_event_handler(AgentRunResultEvent(result=result))
         return None
@@ -640,6 +647,29 @@ async def _stream_one_round(
         return _explain_usage_limit(stream_exc)
     finally:
         _set_active_run_context(effective_ui, None)
+
+
+def _record_run_usage(
+    model_name: str,
+    usage: "RunUsage",
+    effective_ui: "AnyUI | None",
+    started_at: float,
+) -> None:
+    """Write one usage-log line for the round that just finished.
+
+    The session name is the UI's, because that is where a conversation's
+    identity lives; a headless run records an empty one and `/usage` still sees
+    its tokens in the day and week windows.
+    """
+    session = ""
+    if effective_ui is not None:
+        session = effective_ui.conversation_session_name or ""
+    record_usage(
+        usage,
+        model=model_name if isinstance(model_name, str) else "",
+        session=session,
+        duration_ms=int((time.monotonic() - started_at) * 1000),
+    )
 
 
 async def _recover_from_stream_error(

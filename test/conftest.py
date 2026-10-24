@@ -61,6 +61,11 @@ _TEST_ENV = {
     "ZRB_LLM_SPEECH_LOCK_FILE": os.path.join(
         tempfile.gettempdir(), f"zrb-test-speech-{os.getpid()}.lock"
     ),
+    # Keep the usage log out of the developer's home: every real run appends a
+    # line, and a suite run would otherwise leave its own usage behind.
+    "ZRB_LLM_USAGE_DIR": os.path.join(
+        tempfile.gettempdir(), f"zrb-test-usage-{os.getpid()}"
+    ),
 }
 
 
