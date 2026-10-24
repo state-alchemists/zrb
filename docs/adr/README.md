@@ -190,7 +190,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0082** — [Photo capture is a one-shot command with a pluggable backend, and carries no enable gate](adr-0082.md)
 - **ADR-0113** — [Screen capture is a one-shot command plus an opt-in tool that always asks, through each platform's own capture program](adr-0113.md)
 - **ADR-0114** — [Listening follows a change in the audio devices, and speech prebuffers against its own stutter](adr-0114.md)
-- **ADR-0103** — [Speech reads a reply aloud as it streams or at the end, whole or summarized, and stops when talked over or written to](adr-0103.md)
+- **ADR-0103** — [Speech reads a reply aloud as it streams or at the end, whole or summarized, and stops when talked over, written to, or answered](adr-0103.md)
 - **ADR-0105** — [Barge-in guards against zrb's own voice instead of cancelling it](adr-0105.md)
 - **ADR-0107** — [Voice runs on Pipecat's pipeline, and the meaning stays zrb's](adr-0107.md)
 - **ADR-0111** — [On macOS, dictation captures through the system's voice processing to take zrb's voice out](adr-0111.md)

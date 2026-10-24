@@ -108,7 +108,7 @@ The `multimodal` backend's system prompt is the `multimodal_audio` prompt file, 
 
 Reads the reply a sentence at a time as it streams, tool approvals, questions, and a tool call that starts after a silence aloud. `/speech` switches it off and on during a session, dropping anything not yet said.
 
-The same reply is on screen while it is being read, so it can be answered before the voice has finished it. Sending a message — typed, dictated, or from another channel — hushes the voice: the sentence in flight is cut and anything queued is dropped, while the turn itself goes on. It is the hush a spoken barge-in does, reached from the keyboard, and it means speech is never allowed to describe a turn you have already moved past. Nothing else shortens a reply: a long one is read in full, unless `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` asks for the small model's summary instead.
+The same reply is on screen while it is being read, so it can be answered before the voice has finished it. Sending a message — typed, dictated, or from another channel — hushes the voice: the sentence in flight is cut and anything queued is dropped, while the turn itself goes on. It is the hush a spoken barge-in does, reached from the keyboard, and it means speech is never allowed to describe a turn you have already moved past. Answering a prompt hushes it too, without your sending anything: a question is spoken before its dialog appears, and whether you pick an option with the arrow keys or type an answer, the question being read stops there. Nothing else shortens a reply: a long one is read in full, unless `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` asks for the small model's summary instead.
 
 | Variable | Description | Default |
 |----------|-------------|---------|

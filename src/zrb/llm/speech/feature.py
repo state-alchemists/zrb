@@ -352,7 +352,14 @@ class SpeechSession:
             and context.notification_type in _QUESTION_NOTIFICATIONS
         ):
             question = clean_for_speech(context.message or "")
-            self._say(question or self._config.question_message or "")
+            # The prompt appears after this hook, so `asked_at` has to be taken
+            # now: the UI dates the request it asks next, and either way of
+            # answering it — a highlighted option or a typed one — resolves the
+            # same future, which is what this watches.
+            self._say(
+                question or self._config.question_message or "",
+                is_stale=is_answered_since(get_session_ui(), time.monotonic()),
+            )
         return HookResult(success=True)
 
     def _is_own_session(self) -> bool:
