@@ -48,6 +48,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_SELF_REVIEW_TIMEOUT: str = "240"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_TRACKED_TURNS: str = "64"
         self.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW: str = "300"
+        self.DEFAULT_LLM_HISTORY_TAIL_BUDGET_RATIO: str = "0.4"
         self.DEFAULT_LLM_SUMMARY_MAX_TOKEN_RATIO: str = "0.05"
         self.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
         self.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD: str = ""
@@ -417,6 +418,22 @@ class LLMContentMixin:
             "Most messages kept verbatim after summarization. A backstop for "
             "histories of many small messages: token pressure is what normally "
             "triggers summarization and bounds the kept tail."
+        ),
+    )
+
+    LLM_HISTORY_TAIL_BUDGET_RATIO = EnvField(
+        float,
+        fallback=0.4,
+        doc=(
+            "Share of the summarization threshold the verbatim tail may fill: "
+            "the newest messages that fit it are kept word for word instead of "
+            "being summarized, so the rest of the window remains for the "
+            "conversation that follows. 0.4 is 150,000 tokens on a 500,000-token "
+            "window. The ratio is a budget and not a target: the split usually "
+            "keeps less, because it prefers a turn boundary and the message "
+            "window caps the count. Values outside 0.05-0.8 are clamped, since 0 "
+            "would keep no recent conversation at all and a tail filling the "
+            "threshold would make a compaction free nothing."
         ),
     )
 

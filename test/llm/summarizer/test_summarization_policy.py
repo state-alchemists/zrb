@@ -17,6 +17,7 @@ from pydantic_ai.messages import (
 from zrb.config.config import CFG
 from zrb.config.helper import get_max_token_threshold
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.summarizer import history_summarizer
 from zrb.llm.summarizer.history_splitter import TAIL_BUDGET_RATIO, split_history
 
 
@@ -31,6 +32,21 @@ class FixedLimiter(LLMLimiter):
         if isinstance(content, list):
             return len(content) * self.per_message
         return self.per_message
+
+    def truncate_text(self, text: str, max_tokens: int) -> str:
+        return text
+
+
+class TextLimiter(LLMLimiter):
+    """A message costs one token per character of its parts, so sizes are exact."""
+
+    def count_tokens(self, content) -> int:
+        if isinstance(content, list):
+            return sum(self.count_tokens(message) for message in content)
+        parts = getattr(content, "parts", None)
+        if parts is None:
+            return len(str(content))
+        return sum(len(str(getattr(part, "content", ""))) for part in parts)
 
     def truncate_text(self, text: str, max_tokens: int) -> str:
         return text
@@ -182,6 +198,108 @@ def test_a_tool_pair_spanning_almost_the_whole_history_still_keeps_a_tail():
 
 def test_the_default_window_is_300_messages():
     assert CFG.DEFAULT_LLM_HISTORY_SUMMARIZATION_WINDOW == "300"
+
+
+def test_the_tail_budget_is_configurable_and_defaults_to_the_constant(monkeypatch):
+    monkeypatch.delenv(f"{CFG.ENV_PREFIX}_LLM_HISTORY_TAIL_BUDGET_RATIO", raising=False)
+
+    assert CFG.DEFAULT_LLM_HISTORY_TAIL_BUDGET_RATIO == str(TAIL_BUDGET_RATIO)
+    assert CFG.LLM_HISTORY_TAIL_BUDGET_RATIO == TAIL_BUDGET_RATIO
+
+
+def test_a_smaller_budget_also_shrinks_the_retry():
+    """The retry follows the setting instead of a fixed 80%, so lowering the
+    tail budget cannot be undone by a retry several times its size.
+
+    Threshold 100 and ratio 0.2 give a budget of 20, while the newest message
+    alone is 25: the split therefore falls to the retry. Twice the ratio is 40
+    and keeps that one message; the old fixed 80% would have kept the 55-token
+    message before it as well.
+    """
+    limiter = TextLimiter()
+    messages: list = [_user("a" * 30), _user("b" * 55), _user("c" * 25)]
+
+    _, to_keep = split_history(
+        messages,
+        summary_window=300,
+        limiter=limiter,
+        conversational_token_threshold=100,
+        tail_budget_ratio=0.2,
+    )
+
+    assert to_keep == [messages[-1]]
+
+
+def test_a_zero_budget_still_keeps_a_tail():
+    """`0` would summarize every message including the newest, so it is clamped
+    up to the floor rather than obeyed."""
+    limiter = FixedLimiter(per_message=10)
+    messages = _turns(5)  # 10 messages, 100 tokens
+
+    to_summarize, to_keep = split_history(
+        messages, 300, limiter, 100, tail_budget_ratio=0.0
+    )
+
+    assert to_keep
+    assert to_summarize
+
+
+def test_a_budget_past_the_ceiling_still_leaves_headroom():
+    """A tail that filled the threshold would disable compaction, so the
+    setting is clamped to the retry ceiling, not obeyed."""
+    limiter = FixedLimiter(per_message=10)
+    messages = _turns(5)  # 100 tokens
+
+    to_summarize, to_keep = split_history(
+        messages, 300, limiter, 100, tail_budget_ratio=5.0
+    )
+
+    assert len(to_keep) == 8  # 0.8 of 100 tokens
+    assert len(to_summarize) == 2
+
+
+def test_an_unparsable_budget_falls_back_to_the_default():
+    limiter = FixedLimiter(per_message=10)
+    messages = _turns(5)
+
+    default = split_history(messages, 300, limiter, 100)
+    unparsable = split_history(
+        messages, 300, limiter, 100, tail_budget_ratio=float("nan")
+    )
+
+    assert unparsable == default
+
+
+@pytest.mark.asyncio
+async def test_the_configured_tail_budget_reaches_the_split(tmp_path, monkeypatch):
+    """The setting is read on every call, so `/set` takes effect without a
+    restart, and the number that reaches the splitter is the configured one."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    captured = {}
+
+    def capture_split(
+        messages, summary_window, limiter, threshold, tail_budget_ratio=TAIL_BUDGET_RATIO
+    ):
+        captured["tail_budget_ratio"] = tail_budget_ratio
+        return messages, []
+
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    monkeypatch.setattr(CFG, "LLM_HISTORY_TAIL_BUDGET_RATIO", 0.25, raising=False)
+    monkeypatch.setattr(history_summarizer, "split_history", capture_split)
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
+    processor = history_summarizer.create_summarizer_history_processor(
+        conversational_agent=agent,
+        message_agent=agent,
+        limiter=FixedLimiter(per_message=10),
+        conversational_token_threshold=100,
+        summary_window=300,
+    )
+
+    await processor(_turns(6))  # 12 messages, 120 tokens: over the threshold
+
+    assert captured["tail_budget_ratio"] == 0.25
 
 
 def test_the_trigger_defaults_to_three_quarters_of_the_prompt_budget(monkeypatch):
