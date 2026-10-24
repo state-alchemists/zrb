@@ -243,7 +243,14 @@ def submit_user_message_via_queue(
     A terminal without bracketed paste submits a paste one line per Enter; a
     line arriving within `CFG.LLM_UI_PASTE_MERGE_WINDOW` of the newest queued
     entry is appended to it.
+
+    The voice stops first. A reply still being read aloud describes a turn the
+    user has just moved past, so a reply that arrives as text *and* as voice
+    cannot outlive the text being answered: what is queued is dropped and the
+    sentence in flight is cut. It is the hush a barge-in does from the
+    microphone, reached from the keyboard too; the turn itself is untouched.
     """
+    _hush_speech()
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
     header = f"\n{marker} {timestamp} >> "
@@ -303,6 +310,20 @@ def submit_user_message_via_queue(
         echo_targets=echo_targets,
         append_markdown=append_markdown,
     )
+
+
+def _hush_speech() -> None:
+    """Quiet what this session is saying, if anything, and drop what it queued.
+
+    Imported here rather than at module level: the queue is shared by every UI
+    and by their tests, while the speech stack drags in the hook manager, the
+    prompt and the speech backends. `interrupt_speech` is a no-op when the
+    session has nothing speaking, so a UI with speech off pays only the import.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.speech.feature import interrupt_speech
+
+    interrupt_speech()
 
 
 def _merge_candidate(queue: MessageQueue, now: datetime) -> "QueuedMessage | None":
