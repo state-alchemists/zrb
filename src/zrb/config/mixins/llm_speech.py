@@ -44,6 +44,7 @@ class LLMSpeechMixin:
             "theatrical."
         )
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
+        self.DEFAULT_LLM_SPEECH_VOLUME: str = "100"
         self.DEFAULT_LLM_SPEECH_STREAM: str = "true"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS: str = "0"
         self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
@@ -162,6 +163,16 @@ class LLMSpeechMixin:
         int,
         fallback=165,
         doc="Words per minute for 'say' and 'espeak-ng'. Default: 165.",
+    )
+
+    LLM_SPEECH_VOLUME = EnvField(
+        int,
+        fallback=100,
+        doc=(
+            "Output volume as a percentage of the speech's own level, 0-200. "
+            "It applies where zrb plays the audio itself; a player program, or a "
+            "backend that speaks through one, keeps its own volume. Default: 100."
+        ),
     )
 
     LLM_SPEECH_STREAM = EnvField(

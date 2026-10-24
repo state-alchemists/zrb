@@ -13,6 +13,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
+from zrb.llm.speech.pcm_player import clamp_volume
 from zrb.llm.util.feature_config import close_feature_sessions
 
 
@@ -65,12 +66,18 @@ def _as_session(name: str):
 
 
 class FakeSpeaker:
+    is_playing_in_process = True
+
     def __init__(self):
         self.said: list[str] = []
         self.cleared = 0
         self.closed = 0
         self.restarted = 0
+        self.volume = 100
         self.is_enabled = True
+
+    def set_volume(self, percent):
+        self.volume = clamp_volume(percent)
 
     def say(self, text, is_stale=None, voice=""):
         self.said.append(text)
@@ -99,6 +106,11 @@ def _session(**config) -> SpeechSession:
     session = SpeechSession(SpeechConfig(**config).resolve())
     session.speaker = FakeSpeaker()
     return session
+
+
+def _by_alias(commands, alias: str):
+    """The command registered under *alias*; a session offers more than one."""
+    return next(command for command in commands if command.command == alias)
 
 
 def _stop(message: str, nested: bool = False) -> HookContext:
@@ -220,7 +232,7 @@ async def test_a_progress_only_session_does_not_speak_the_reply():
 
 def test_the_speech_command_switches_speech_and_drops_the_queue():
     session = _session(commands=["/speech"])
-    (command,) = session.create_commands()
+    command = _by_alias(session.create_commands(), "/speech")
 
     assert command.handle({}, None) == "🔊 Speech off"
     assert session.speaker.cleared == 1
@@ -228,6 +240,58 @@ def test_the_speech_command_switches_speech_and_drops_the_queue():
     assert command.handle({}, None) == "🔊 Speech on"
     assert session.speaker.restarted == 1
     assert command.can_run_while_thinking
+
+
+def test_the_volume_command_moves_the_level_by_the_sign_count():
+    session = _session()
+    command = _by_alias(session.create_commands(), "/volume")
+
+    assert command.handle({"level": "+++"}, None) == "🔊 Volume 130%"
+    assert command.handle({"level": "-"}, None) == "🔊 Volume 120%"
+    assert command.handle({"level": "--"}, None) == "🔊 Volume 100%"
+
+
+def test_the_volume_command_reports_the_level_with_no_argument():
+    session = _session()
+
+    command = _by_alias(session.create_commands(), "/volume")
+
+    assert command.handle({}, None) == "🔊 Volume 100%"
+
+
+def test_the_volume_command_holds_the_level_between_silence_and_the_ceiling():
+    session = _session()
+    command = _by_alias(session.create_commands(), "/volume")
+
+    command.handle({"level": "+" * 30}, None)
+    assert session.speaker.volume == 200
+
+    command.handle({"level": "-" * 30}, None)
+    assert session.speaker.volume == 0
+
+
+@pytest.mark.parametrize("argument", ["+-", "-+", "loud", "3"])
+def test_the_volume_command_reads_anything_else_as_a_typo(argument):
+    """Mixed signs ask for opposite things at once; a word asks for nothing."""
+    session = _session()
+    command = _by_alias(session.create_commands(), "/volume")
+
+    reply = command.handle({"level": argument}, None)
+
+    assert reply.startswith("  Use a run of + or -")
+    assert session.speaker.volume == 100
+
+
+def test_a_player_program_says_the_volume_it_keeps():
+    """zrb never sees those samples, so a level alone would promise something
+    the next sentence does not do."""
+    session = _session()
+    session.speaker.is_playing_in_process = False
+    command = _by_alias(session.create_commands(), "/volume")
+
+    assert command.handle({"level": "+"}, None) == (
+        "🔊 Volume 110% (a player program keeps its own volume)"
+    )
 
 
 @pytest.mark.parametrize("enabled", [True, False])
@@ -241,7 +305,7 @@ def test_enable_speech_reads_cfg_when_a_session_starts(monkeypatch, enabled):
     monkeypatch.setattr(CFG, "LLM_SPEECH_ENABLED", enabled)
     monkeypatch.setattr(CFG, "LLM_SPEECH_COMMANDS", ["/talk"])
     register_hooks(manager)
-    (command,) = create_commands()
+    command = _by_alias(create_commands(), "/talk")
 
     # Offered either way, so speech that starts off can be switched on.
     events = {call.kwargs["events"][0] for call in manager.add_hook.call_args_list}
@@ -286,9 +350,9 @@ def test_two_sessions_get_a_speaker_each():
     (create_commands,) = chat.append_custom_command.call_args.args
 
     with _as_session("first"):
-        (first,) = create_commands()
+        first = _by_alias(create_commands(), "/speech")
     with _as_session("second"):
-        (second,) = create_commands()
+        second = _by_alias(create_commands(), "/speech")
 
     # Interleaved, so a shared speaker shows up: each session's own first press
     # reads its own state, still enabled, and switches off.
@@ -316,11 +380,12 @@ def test_enabling_speech_again_uses_the_new_config():
 
     enable_speech(task, SpeechConfig(commands=["/first"]))
     (first_commands,) = task.append_custom_command.call_args.args
-    assert [c.command for c in first_commands()] == ["/first"]
+    # The toggle aliases follow the config; `/volume` is offered either way.
+    assert [c.command for c in first_commands() if c.command != "/volume"] == ["/first"]
 
     enable_speech(task, SpeechConfig(commands=["/second"]))
     (second_commands,) = task.append_custom_command.call_args.args
-    assert [c.command for c in second_commands()] == ["/second"]
+    assert [c.command for c in second_commands() if c.command != "/volume"] == ["/second"]
 
 
 def test_a_task_reusing_one_manager_never_gains_a_second_set_of_hooks():
@@ -345,9 +410,9 @@ def test_a_closed_session_is_dropped_so_the_next_one_starts_fresh():
     (create_commands,) = chat.append_custom_command.call_args.args
 
     with _as_session("first"):
-        (before,) = create_commands()
+        before = _by_alias(create_commands(), "/speech")
         close_feature_sessions("first")
-        (after,) = create_commands()
+        after = _by_alias(create_commands(), "/speech")
 
     assert before is not after
 

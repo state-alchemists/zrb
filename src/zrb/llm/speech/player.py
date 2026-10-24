@@ -17,7 +17,9 @@ from zrb.llm.speech.backend.builtin import get_speech_backend
 from zrb.llm.speech.backend.utterance import Utterance
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.pcm_player import (
+    FULL_VOLUME,
     PcmUtterance,
+    clamp_volume,
     guard_exit_handler,
 )
 from zrb.llm.speech.pcm_player import is_available as is_in_process_available
@@ -141,6 +143,42 @@ class Speaker:
         # Generation invalidates interrupted queue entries.
         self._generation = 0
         self.is_enabled = True
+        # Percentage of the speech's own level; a sentence keeps the one it was
+        # made with, so this only steers the next.
+        self._volume = clamp_volume(
+            FULL_VOLUME if config.volume is None else config.volume
+        )
+
+    @property
+    def volume(self) -> int:
+        """The level sentences are made at, as a percentage of the speech's own."""
+        return self._volume
+
+    def set_volume(self, percent: int) -> None:
+        """Change the level for sentences made from now on.
+
+        One already being spoken keeps the level it started with: scaling it
+        mid-word would be heard as a fade rather than as an adjustment, and the
+        samples it is playing are already handed to the device in blocks.
+        """
+        self._volume = clamp_volume(percent)
+
+    @property
+    def is_playing_in_process(self) -> bool:
+        """Whether zrb plays the audio itself, which is what a volume applies to.
+
+        A backend that speaks through a program of its own — a local engine, or
+        a cloud voice handing its WAV to a player — plays at that program's
+        volume, and zrb never sees those samples. Nothing has been built before
+        the first sentence, so an unspoken session answers yes: building the
+        backends just to answer would load a model to say nothing.
+        """
+        if not self._can_play_in_process():
+            return False
+        backends = self._backends
+        if backends is None:
+            return True
+        return any(backend.needs_zrb_playback for backend in backends)
 
     def say(self, text: str, is_stale: "IsStale" = None, voice: str = "") -> None:
         """Queue *text* unless it is blank, disabled, or stale, to be said in
@@ -345,6 +383,7 @@ class Speaker:
                     fallback=self._program_fallback(backend, later, text),
                     on_device_error=self._handle_device_error,
                     device_is_resting=self._is_device_resting,
+                    volume=self._volume,
                 )
         return backend.create_utterance(text)
 
