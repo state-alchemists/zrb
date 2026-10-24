@@ -266,3 +266,18 @@ def test_create_agent_chains_a_hinted_missing_key_error_to_the_original():
 
     assert raised.value is not original
     assert raised.value.__cause__ is original
+
+
+def test_create_agent_keeps_pydantic_ais_banner_out_of_the_output(monkeypatch):
+    """The banner advertises Logfire above the first run, and zrb prints its
+    own header for the turn — so the advert lands in the middle of it, saying
+    what the header already said. pydantic-ai's own switch, not the
+    environment: nobody should have to export a variable to silence zrb."""
+    import pydantic_ai
+
+    monkeypatch.setattr(pydantic_ai, "BANNER_ENABLED", True)
+
+    with patch("pydantic_ai.Agent", MagicMock()):
+        create_agent(model="openai:gpt-4o", system_prompt="test")
+
+    assert pydantic_ai.BANNER_ENABLED is False

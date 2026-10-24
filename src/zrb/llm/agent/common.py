@@ -479,6 +479,26 @@ def _with_tool_args(decide: "Callable[..., bool]") -> "Callable[..., bool]":
     return lambda tool_def, args: decide(tool_def)
 
 
+def _own_the_output() -> None:
+    """Keep pydantic-ai's first-run banner out of zrb's output.
+
+    The banner advertises Logfire above the first agent run in a process. zrb
+    prints its own header for the turn — the model, the tool count, the same
+    facts — so what reaches the user here is the advertisement alone, dropped
+    into the middle of a conversation zrb owns. `BANNER_ENABLED` is
+    pydantic-ai's own switch for a program that would rather own its output;
+    setting it in the process leaves the environment alone, unlike
+    `PYDANTIC_AI_NO_BANNER`, which a user would have to export themselves.
+
+    It is process-wide: an agent the user builds with pydantic-ai directly is
+    silent too, which is the point — one process, one output.
+    """
+    # lazy: heavy third-party
+    import pydantic_ai
+
+    pydantic_ai.BANNER_ENABLED = False
+
+
 def create_agent(
     model: "Model | str | None" = None,
     system_prompt: str = "",
@@ -494,6 +514,8 @@ def create_agent(
 ) -> "Agent[None, Any]":
     # lazy: heavy third-party
     from pydantic_ai import Agent, DeferredToolRequests
+
+    _own_the_output()
 
     effective_system_prompt = expand_prompt(system_prompt)
     effective_toolsets = _assemble_toolsets(tools, toolsets, yolo)
