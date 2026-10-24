@@ -16,11 +16,17 @@ asked to pay for it.
 The action raises because a stand-in that reaches execution means a dispatch
 path skipped `extract_node`; running nothing would be the silent version of that
 bug.
+
+A registration site that wants to add to the task — a tool, a hook, a policy —
+cannot reach it before it loads, and importing it defeats the deferral.
+`on_resolve` takes the work instead, and runs it when the module loads, before
+anyone else sees the task.
 """
 
 from __future__ import annotations
 
 import importlib
+from collections.abc import Callable
 from typing import NoReturn
 
 from zrb.context.any_context import AnyContext
@@ -58,6 +64,7 @@ class LazyTask(BaseTask):
         self._module_path = module
         self._attribute = attribute
         self._resolved: AnyTask | None = None
+        self._configure: list[Callable[[AnyTask], None]] = []
         super().__init__(
             name=name,
             description=description,
@@ -66,10 +73,37 @@ class LazyTask(BaseTask):
             retries=0,
         )
 
+    def on_resolve(self, configure: Callable[[AnyTask], None]) -> "LazyTask":
+        """Run *configure* on the real task: now if it is loaded, else when it is.
+
+        A registration site that adds a tool, a hook or a policy to a built-in
+        task needs the task to exist, and importing it is the cost this
+        stand-in defers. Handing over a callable defers the work with it: the
+        callback runs once, in registration order, before the first caller sees
+        the task. ``on_resolve`` is chainable so an init script reads as a list
+        of declarations.
+
+        Args:
+            configure: Called with the real task, exactly once.
+        """
+        if self._resolved is not None:
+            configure(self._resolved)
+        else:
+            self._configure.append(configure)
+        return self
+
     def resolve(self) -> AnyTask:
-        """Import the declaring module and return the task it declares."""
+        """Import the declaring module and return the configured task it declares."""
         if self._resolved is None:
-            self._resolved = _load_task(self._module_path, self._attribute)
+            task = _load_task(self._module_path, self._attribute)
+            # Configured before it is published, so no caller observes the task
+            # in the state its declaring module left it in. A callback that
+            # raises leaves nothing cached: the next caller retries the whole
+            # thing rather than using a half-configured task.
+            for configure in self._configure:
+                configure(task)
+            self._configure.clear()
+            self._resolved = task
         return self._resolved
 
     def _refuse_unresolved(self, _ctx: AnyContext) -> NoReturn:
