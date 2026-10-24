@@ -272,3 +272,59 @@ def test_add_credential_hint_leaves_other_user_errors_alone():
 
     error = UserError("Unknown model: foo:bar")
     assert add_credential_hint(error) is error
+
+
+def _typed(category, status_code: int):
+    """A pydantic-ai error that is both an HTTP error and its own category."""
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import ModelHTTPError
+
+    return ModelHTTPError.for_category(
+        category, status_code=status_code, model_name="m"
+    )
+
+
+def test_a_typed_context_window_error_is_not_read_as_a_bare_400():
+    """OpenRouter and vLLM report an overflow as a 400 with no distinguishing
+    code, so the message is all there is — pydantic-ai reads it, and its type is
+    the answer where the status alone says "invalid request"."""
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import ModelContextWindowExceededError
+
+    e = _typed(ModelContextWindowExceededError, 400)
+
+    assert is_prompt_too_long_error(e) is True
+    assert classify_error_type(e) == "context_length"
+
+
+def test_a_typed_overloaded_error_is_not_read_as_a_generic_5xx():
+    """A 503 and an overloaded model share a status; only the type separates them."""
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import ModelOverloadedError
+
+    e = _typed(ModelOverloadedError, 503)
+
+    assert classify_error_type(e) == "overloaded"
+
+
+def test_an_exhausted_quota_is_not_retried_although_it_arrives_as_a_429():
+    """The 429 is exactly why the status branch gets this wrong: a rate limit
+    clears on its own, an exhausted quota or spend limit does not, and retrying
+    it burns the turn against a wall."""
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai.exceptions import ModelQuotaExceededError
+
+    e = _typed(ModelQuotaExceededError, 429)
+
+    assert is_retryable_error(e) is False
+    assert is_permanent_error(e) is True
+    assert classify_error_type(e) == "rate_limit"
+
+
+def test_an_untyped_429_is_still_retried():
+    """The fallback is unchanged for an error pydantic-ai did not classify."""
+    e = Exception("Rate limit exceeded")
+    e.status_code = 429
+
+    assert is_retryable_error(e) is True
+    assert is_permanent_error(e) is False

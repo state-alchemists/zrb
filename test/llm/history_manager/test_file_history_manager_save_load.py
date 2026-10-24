@@ -46,8 +46,8 @@ def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
     from pydantic_ai.messages import (
         ModelRequest,
         ModelResponse,
-        RetryPromptPart,
         ThinkingPart,
+        ToolReturnPart,
     )
 
     messages = [
@@ -56,8 +56,11 @@ def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
         ),
         ModelRequest(
             parts=[
-                RetryPromptPart(
-                    content="bad", tool_name="mytool", tool_call_id="call-9"
+                ToolReturnPart(
+                    tool_name="mytool",
+                    content="bad",
+                    tool_call_id="call-9",
+                    outcome="retried",
                 )
             ]
         ),
@@ -76,7 +79,8 @@ def test_clean_corrupted_content_preserves_structural_fields(temp_history_dir):
     assert thinking.id == "th-1"
 
     retry = loaded[1].parts[0]
-    assert isinstance(retry, RetryPromptPart)
+    assert isinstance(retry, ToolReturnPart)
+    assert retry.outcome == "retried"
     assert retry.tool_name == "mytool"
     assert retry.tool_call_id == "call-9"
 

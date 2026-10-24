@@ -373,16 +373,20 @@ def test_strip_orphaned_returns_drops_emptied_request():
     assert result == []
 
 
-def _retry_part(tool_call_id: str, tool_name: str | None = "t"):
-    from pydantic_ai.messages import RetryPromptPart
+def _retry_part(tool_call_id: str, tool_name: str = "t"):
+    """A retry that answers a tool call: the call's own return, marked retried."""
+    from pydantic_ai.messages import ToolReturnPart
 
-    return RetryPromptPart(
-        content="validation failed", tool_name=tool_name, tool_call_id=tool_call_id
+    return ToolReturnPart(
+        tool_name=tool_name,
+        content="validation failed",
+        tool_call_id=tool_call_id,
+        outcome="retried",
     )
 
 
 def test_retry_answered_call_is_a_complete_pair():
-    """A ToolCallPart answered by a tool-linked RetryPromptPart is NOT orphaned.
+    """A ToolCallPart answered by a retried ToolReturnPart is NOT orphaned.
 
     Providers serialize the retry as the tool-role response, so sanitizing must
     keep both sides; deleting the call while keeping the retry produces a
@@ -407,7 +411,7 @@ def test_retry_answered_call_is_a_complete_pair():
 
 
 def test_orphaned_tool_retry_is_stripped():
-    """A tool-linked RetryPromptPart whose call was summarized away is removed."""
+    """A retried ToolReturnPart whose call was summarized away is removed."""
     req = ModelRequest(parts=[_retry_part("gone"), UserPromptPart(content="hi")])
 
     for fn in (sanitize_orphaned_tool_calls, strip_orphaned_returns):
@@ -459,10 +463,14 @@ def test_pending_tail_start_earliest_of_several_unresolved_calls():
 
 
 def test_tool_less_retry_is_ignored_by_pairing():
-    """A RetryPromptPart without tool_name maps to a user message: despite its
-    auto-generated tool_call_id it must not register as a tool return nor be
-    stripped as an orphan."""
-    req = ModelRequest(parts=[_retry_part("auto-id", tool_name=None)])
+    """A retry that answers no tool call is a `RetryFeedbackPart` now — it has no
+    tool fields at all, so pairing cannot mistake it for a tool return."""
+    from pydantic_ai.messages import RetryFeedbackPart, RetryInfo
+
+    part = RetryFeedbackPart(
+        content="validation failed", retry=RetryInfo(cause="model_retry")
+    )
+    req = ModelRequest(parts=[part])
 
     assert get_tool_pairs([req]) == {}
     assert sanitize_orphaned_tool_calls([req]) == [req]

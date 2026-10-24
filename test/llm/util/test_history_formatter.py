@@ -5,7 +5,8 @@ from datetime import datetime
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
-    RetryPromptPart,
+    RetryFeedbackPart,
+    RetryInfo,
     SystemPromptPart,
     TextPart,
     ThinkingPart,
@@ -293,26 +294,34 @@ class TestTruncate:
         assert result.endswith("...")
 
 
-def test_retry_prompt_part_with_tool_name():
-    "RetryPromptPart with tool_name set should show the tool name (lines 83-84, 107-112)."
+def test_a_retried_tool_return_shows_the_tool_name():
+    """A retried call is a `ToolReturnPart` with `outcome='retried'`, and it is
+    rendered as the retry it was, not as an error."""
     messages = [
         ModelRequest(
             parts=[
-                RetryPromptPart(content="Please retry the call", tool_name="my_tool"),
+                ToolReturnPart(
+                    tool_name="my_tool",
+                    content="Please retry the call",
+                    tool_call_id="c1",
+                    outcome="retried",
+                ),
             ]
         ),
     ]
     result = format_history_as_text(messages)
-    assert "Retry Prompt" in result
+
+    assert "🔄" in result
     assert "my_tool" in result
+    assert "Please retry the call" in result
 
 
-def test_retry_prompt_part_without_tool_name():
-    "RetryPromptPart without tool_name should still format correctly."
+def test_retry_feedback_without_a_tool_call_formats():
+    "A tool-less retry is `RetryFeedbackPart`, and still formats."
     messages = [
         ModelRequest(
             parts=[
-                RetryPromptPart(content="Generic retry"),
+                RetryFeedbackPart(content="Generic retry", retry=RetryInfo(cause="model_retry")),
             ]
         ),
     ]

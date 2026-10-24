@@ -106,6 +106,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0094** — [`LLM_API_KEY` reaches only the provider it was configured for](adr-0094.md)
 - **ADR-0101** — [Working-directory snapshots are git trees in a private store, listed repository by repository](adr-0101.md)
 - **ADR-0119** — [Compaction re-attaches the newest skill bodies, bounded per skill and in total](adr-0119.md)
+- **ADR-0125** — [pydantic-ai's typed model errors answer first, and zrb's classifier answers for the rest](adr-0125.md)
 
 ### Prompt
 

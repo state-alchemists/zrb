@@ -63,7 +63,9 @@ class BaseUIReplay:
                         f"\n  🌐 {truncate(live_context, 500)}\n",
                         kind="live_context",
                     )
-            elif pkind == "retry-prompt":
+            elif pkind in ("retry-prompt", "retry-feedback"):
+                # `retry-prompt` is the deprecated part, kept so history written
+                # before pydantic-ai 2.60 still replays.
                 content = str(getattr(part, "content", "") or "")
                 self._base_ui.append_to_output(
                     f"\n  🔄 Retry: {truncate(content, 200)}\n",

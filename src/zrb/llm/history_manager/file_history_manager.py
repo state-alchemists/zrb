@@ -454,7 +454,13 @@ class FileHistoryManager(AnyHistoryManager):
             part_kind = data.get("part_kind")
             if part_kind == "user-prompt":
                 return self._clean_user_prompt_part(data)
-            if part_kind in ("text", "system-prompt", "thinking", "retry-prompt"):
+            if part_kind in (
+                "text",
+                "system-prompt",
+                "thinking",
+                "retry-prompt",
+                "retry-feedback",
+            ):
                 return self._clean_text_like_part(part_kind, data)
             if part_kind == "tool-return":
                 return self._clean_tool_return_part(data)

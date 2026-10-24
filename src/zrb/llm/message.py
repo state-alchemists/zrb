@@ -104,7 +104,6 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     from zrb.llm.agent.types import (
         ModelRequest,
         ModelResponse,
-        RetryPromptPart,
         ToolCallPart,
         ToolReturnPart,
     )
@@ -133,7 +132,7 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
                 result.append(patched)
         elif isinstance(msg, ModelRequest) and orphaned_returns:
             patched = _strip_orphaned_parts(
-                msg, orphaned_returns, (ToolReturnPart, RetryPromptPart)
+                msg, orphaned_returns, ToolReturnPart
             )
             if patched is not None:
                 result.append(patched)
@@ -153,7 +152,6 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import (
         ModelRequest,
-        RetryPromptPart,
         ToolReturnPart,
     )
 
@@ -173,7 +171,7 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     for msg in messages:
         if isinstance(msg, ModelRequest) and orphaned_returns:
             patched = _strip_orphaned_parts(
-                msg, orphaned_returns, (ToolReturnPart, RetryPromptPart)
+                msg, orphaned_returns, ToolReturnPart
             )
             if patched is not None:
                 result.append(patched)
@@ -251,12 +249,12 @@ def _iter_tool_events(
     """Yield ``(msg_index, tool_call_id, kind)`` for every tool part in *messages*.
 
     *kind* is ``"call"`` for ``ToolCallPart`` and ``"return"`` for
-    ``ToolReturnPart`` or a tool-linked ``RetryPromptPart`` (providers serialize
-    it as a ``role='tool'`` message). Tool-less retries map to user messages and
-    are skipped, as are parts without a ``tool_call_id``.
+    ``ToolReturnPart``, which is also what a retry is since pydantic-ai 2.60
+    (``outcome='retried'``; providers serialize it as a ``role='tool'``
+    message). Parts without a ``tool_call_id`` are skipped.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import RetryPromptPart, ToolCallPart, ToolReturnPart
+    from zrb.llm.agent.types import ToolCallPart, ToolReturnPart
 
     for msg_idx, msg in enumerate(messages):
         for part in getattr(msg, "parts", []):
@@ -266,6 +264,4 @@ def _iter_tool_events(
             if isinstance(part, ToolCallPart):
                 yield msg_idx, tool_call_id, "call"
             elif isinstance(part, ToolReturnPart):
-                yield msg_idx, tool_call_id, "return"
-            elif isinstance(part, RetryPromptPart) and part.tool_name:
                 yield msg_idx, tool_call_id, "return"

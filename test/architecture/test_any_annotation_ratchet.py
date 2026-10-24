@@ -17,7 +17,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 # than counted indices, and the archive's role label takes `object` (it only
 # asks the message what it is).
 # -18 (1077->1059): the RAG tool and its config mixin were removed.
-ANY_ANNOTATIONS = 1059
+# -1 (1059->1058): `_retry_prompt_to_text(part: Any)` merged into
+# `_tool_return_to_text`, which already takes an `Any` part.
+ANY_ANNOTATIONS = 1058
 
 
 def _count_any(annotation: ast.expr | None) -> int:

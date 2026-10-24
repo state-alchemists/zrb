@@ -366,14 +366,17 @@ def test_close_dangling_tool_calls_noop_when_response_has_no_tool_calls():
 
 def test_strip_to_text_only_truncates_long_retry_prompt():
     """Oversized retry prompts are converted and truncated."""
-    from pydantic_ai.messages import RetryPromptPart
+    from pydantic_ai.messages import ToolReturnPart
 
     long_content = "E" * 700
     history = [
         ModelRequest(
             parts=[
-                RetryPromptPart(
-                    content=long_content, tool_name="bad_tool", tool_call_id="c1"
+                ToolReturnPart(
+                    tool_name="bad_tool",
+                    content=long_content,
+                    tool_call_id="c1",
+                    outcome="retried",
                 )
             ]
         )

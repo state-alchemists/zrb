@@ -407,7 +407,7 @@ def test_filter_nil_content_uses_null_for_builtin_tool_return():
 
 def test_strip_to_text_only_never_puts_textpart_in_modelrequest():
     """ModelRequests contain only parts accepted by the OpenAI mapper."""
-    from pydantic_ai.messages import RetryPromptPart, SystemPromptPart
+    from pydantic_ai.messages import SystemPromptPart, ToolReturnPart
 
     history = [
         ModelRequest(
@@ -417,10 +417,11 @@ def test_strip_to_text_only_never_puts_textpart_in_modelrequest():
                 ToolReturnPart(
                     tool_name="ActivateSkill", content="ok", tool_call_id="c1"
                 ),
-                RetryPromptPart(
-                    content="malformed args",
+                ToolReturnPart(
                     tool_name="ActivateSkill",
+                    content="malformed args",
                     tool_call_id="c2",
+                    outcome="retried",
                 ),
             ]
         ),
@@ -429,9 +430,9 @@ def test_strip_to_text_only_never_puts_textpart_in_modelrequest():
 
     result = strip_to_text_only(history)
 
-    # Every part of the resulting ModelRequest must be one of the four
-    # part types the OpenAI mapper accepts.
-    allowed = (SystemPromptPart, UserPromptPart, ToolReturnPart, RetryPromptPart)
+    # Every part of the resulting ModelRequest must be one of the parts the
+    # OpenAI mapper accepts.
+    allowed = (SystemPromptPart, UserPromptPart, ToolReturnPart)
     for msg in result:
         if isinstance(msg, ModelRequest):
             for p in msg.parts:
