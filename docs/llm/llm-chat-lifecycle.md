@@ -192,7 +192,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | OpenAI serializer patch | `src/zrb/llm/agent/run/openai_patch.py` |
 | Retry / error classification | `src/zrb/llm/agent/run/{retry_loop,error_classifier}.py` |
 | Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |
-| Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 7 parts: lifecycle, output, confirmation, selection, message editing, agent picker, keybindings) |
+| Default TUI | `src/zrb/llm/ui/default/ui.py` (composes `base/ui.py` + 9 parts: lifecycle, output, confirmation, selection, message editing, agent picker, side question, keybindings, previous message history) |
 | HTTP chat UI | `src/zrb/runner/chat/http_ui.py` + SSE backend |
 | Hooks | `src/zrb/llm/hook/manager.py`, `creator.py`, `process_{io,kill}.py`, `matcher.py`, `agent_hook_registry.py`, `journal_compliance.py` |
 | Sub-agents | `src/zrb/llm/subagent/` |
