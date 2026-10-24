@@ -1099,6 +1099,7 @@
         "acquire",
         "calculate_wait_time",
         "can_proceed",
+        "count_content_tokens",
         "count_tokens",
         "fit_context_window",
         "get_effective_context_window",
