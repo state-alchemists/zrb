@@ -5,6 +5,15 @@ if [ "$#" -eq 0 ] && [ -n "$TEST" ]; then
     set -- "$TEST"
 fi
 
+# `./zrb-test.sh ratchet` is the quick loop to use while changing code: the
+# architecture ratchets are ordinary pytest tests under test/architecture/, so
+# this is a name for a path, not a second mode. A scoped run already skips
+# pyright and the coverage floor below, and the flake8 pass above still runs.
+if [ "$#" -gt 0 ] && [ "$1" = "ratchet" ]; then
+    shift
+    set -- test/architecture "$@"
+fi
+
 # Pyflakes-class checks only (unused imports/vars, redefinitions); src only,
 # test/ carries unused-import noise. Complexity and other shape ratchets run as
 # pytest tests under test/architecture/.
