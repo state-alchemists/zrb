@@ -293,6 +293,19 @@ class LLMLimiter:
         """Public alias for internal counter."""
         return self._count_tokens(content)
 
+    def count_content_tokens(self, content: object) -> int:
+        """Tokens in *content* itself, ignoring a usage anchor inside it.
+
+        `count_tokens` prefers a provider-reported usage count when the content
+        holds one, because that is what the request it describes really cost.
+        That request covered every message up to the response carrying it, so
+        the number says nothing about a window cut out of that history: used on
+        a suffix it returns the unsplit history's size however much the suffix
+        dropped. This counts the content alone, which is the question to ask
+        when the answer is about the content rather than about a past request.
+        """
+        return self._count_text_tokens(self.to_str(content))
+
     def truncate_text(self, text: str, max_tokens: int) -> str:
         """Truncates a string to a maximum number of tokens."""
         if self.use_tiktoken:

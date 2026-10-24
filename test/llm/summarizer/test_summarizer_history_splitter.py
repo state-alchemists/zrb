@@ -18,6 +18,7 @@ from zrb.llm.summarizer.history_splitter import (
     FALLBACK_BUDGET_RATIO,
     TAIL_BUDGET_RATIO,
     TURN_START_MIN_SHARE,
+    count_tail_tokens,
     split_history,
 )
 
@@ -83,18 +84,20 @@ def test_split_history_keeps_nothing_when_even_the_loose_budget_cannot_fit():
 class _CallCounter:
     """A limiter's public counter, counting its own calls.
 
-    Assigned over `limiter.count_tokens` on the instance, so the splitter keeps
+    Assigned over `limiter.<name>` on the instance, so the splitter keeps
     seeing an instance of its own class (the shortcut's gate reads the type) and
-    the counting wraps the real counter rather than replacing it.
+    the counting wraps the real counter rather than replacing it. *name* is the
+    measurement under test: `count_tail_tokens` asks the shipped limiter for
+    `count_content_tokens`, and a subclass for `count_tokens`.
     """
 
-    def __init__(self, limiter: LLMLimiter) -> None:
-        self._count_tokens = limiter.count_tokens
+    def __init__(self, limiter: LLMLimiter, name: str) -> None:
+        self._measure = getattr(limiter, name)
         self.total = 0
 
     def __call__(self, content) -> int:
         self.total += 1
-        return self._count_tokens(content)
+        return self._measure(content)
 
 
 class _SpikyLimiter(LLMLimiter):
@@ -205,20 +208,22 @@ def _random_history(rng: random.Random, with_anchors: bool, size: int) -> list:
 
 def _thresholds(rng: random.Random, limiter: LLMLimiter, messages: list) -> list:
     """Thresholds spanning no fit at all through keeping the whole history."""
-    total = max(1, limiter.count_tokens(messages))
+    total = max(1, count_tail_tokens(limiter, messages))
     return [1, total // 8, total // 3, total // 2, total, total * 2, total * 8]
 
 
 def _linear_budget_split(messages, limiter, budget):
     """The pre-shortcut scan: the earliest split whose tail fits, counting each.
 
-    Verbatim from the code the bisected scan replaced, kept as the oracle.
+    Verbatim from the code the bisected scan replaced, kept as the oracle — with
+    the measurement the splitter makes (`count_tail_tokens`), so an anchor on
+    the newest response cannot make the two disagree about what fits.
     Returns `len(messages)` (keep nothing) rather than ``None`` when nothing
     fits, matching `_earliest_split_within_budget`'s own contract.
     """
     first_fit = None
     for split_idx in range(1, len(messages)):
-        tail_tokens = limiter.count_tokens(messages[split_idx:])
+        tail_tokens = count_tail_tokens(limiter, messages[split_idx:])
         if tail_tokens > budget:
             continue
         if first_fit is None:
@@ -239,7 +244,7 @@ def _reference_split_history(messages, summary_window, limiter, threshold):
     if not messages:
         return [], []
     budget = threshold * TAIL_BUDGET_RATIO
-    if limiter.count_tokens(messages) <= budget:
+    if count_tail_tokens(limiter, messages) <= budget:
         split_idx = 0
     else:
         split_idx = _linear_budget_split(messages, limiter, budget)
@@ -261,11 +266,12 @@ def test_the_default_limiter_bisects_for_its_first_fitting_split():
     threshold = _only_newest_fits(limiter, messages)
     expected = _reference_split_history(messages, 0, limiter, threshold)
 
-    counter = _CallCounter(limiter)
-    limiter.count_tokens = counter
+    counter = _CallCounter(limiter, "count_content_tokens")
+    setattr(limiter, "count_content_tokens", counter)
     split = split_history(messages, 0, limiter, threshold)
 
     assert split == expected
+    assert counter.total > 0, "the counter never ran: this test measures nothing"
     assert counter.total <= 2 * len(messages).bit_length()
     assert counter.total < len(messages)
 
@@ -280,7 +286,7 @@ def test_a_subclass_limiter_keeps_the_linear_scan():
     limiter = _SpikyLimiter()
     threshold = 125  # tail budget 50: index 3 fits, indices 1 and 2 do not
 
-    counter = _CallCounter(limiter)
+    counter = _CallCounter(limiter, "count_tokens")
     limiter.count_tokens = counter
     to_summarize, to_keep = split_history(messages, 0, limiter, threshold)
 
@@ -296,8 +302,8 @@ def test_tiktoken_keeps_the_linear_scan(monkeypatch):
     threshold = _only_newest_fits(limiter, messages)
     expected = _reference_split_history(messages, 0, limiter, threshold)
 
-    counter = _CallCounter(limiter)
-    limiter.count_tokens = counter
+    counter = _CallCounter(limiter, "count_content_tokens")
+    setattr(limiter, "count_content_tokens", counter)
     split = split_history(messages, 0, limiter, threshold)
 
     assert split == expected
@@ -422,3 +428,54 @@ def test_a_message_over_the_ceiling_is_summarized_rather_than_kept():
 
     assert len(uncapped[1]) == 1  # the 500-character message, kept by the retry
     assert capped[1] == []
+
+
+def _history_with_whole_history_usage(size: int, usage_tokens: int) -> list:
+    """Alternating request/response messages, the newest carrying a usage count.
+
+    *usage_tokens* is what a provider reports on the last response at
+    compaction time: the input of the request that produced it, which carried
+    the whole history.
+    """
+    messages = []
+    for index in range(size):
+        body = "x" * 400
+        if index % 2 == 0:
+            messages.append(ModelRequest(parts=[UserPromptPart(content=body)]))
+        else:
+            messages.append(ModelResponse(parts=[TextPart(content=body)]))
+    messages[-1] = ModelResponse(
+        parts=[TextPart(content="x" * 400)],
+        usage=RequestUsage(input_tokens=usage_tokens, output_tokens=10),
+    )
+    return messages
+
+
+def test_a_usage_anchor_does_not_zero_the_tail():
+    """A compaction must keep a verbatim tail even though the newest response
+    reports the whole history's input tokens.
+
+    That report is the request the provider charged for, so it covers every
+    message before it; read as the size of a *suffix* it means no suffix ever
+    fits a budget that the history itself exceeded, and every compaction
+    replaced everything with its summary. On a real 414-message history that
+    was keep 0 versus keep 62 messages / 23,977 tokens.
+    """
+    limiter = LLMLimiter()
+    messages = _history_with_whole_history_usage(12, usage_tokens=100_000)
+    threshold = 2_000  # tail budget 800: about eight of these messages
+
+    to_summarize, to_keep = split_history(messages, 0, limiter, threshold)
+
+    assert to_keep, "compaction kept nothing, so only the summary would resume it"
+    assert to_summarize + to_keep == messages
+    assert limiter.count_content_tokens(to_keep) <= threshold * TAIL_BUDGET_RATIO
+
+
+def test_the_content_measure_ignores_a_usage_anchor():
+    """The anchor answers "what did this request cost", not "how big is this"."""
+    limiter = LLMLimiter()
+    anchored = _history_with_whole_history_usage(2, usage_tokens=100_000)
+
+    assert limiter.count_tokens(anchored) > 100_000
+    assert limiter.count_content_tokens(anchored) < 1_000
