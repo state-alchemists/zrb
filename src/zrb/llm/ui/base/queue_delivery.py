@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING
 from zrb.llm.ui.base.message_queue import MessageQueue, steer_into_live_run
 
 if TYPE_CHECKING:
+    from zrb.llm.shell_cut import ShellCutSignal
     from zrb.llm.ui.base.message_queue import QueuedMessage
 
 DELIVERED_MARKER = "⏩"
@@ -68,6 +69,7 @@ def send_queued_messages_now(
     may_interrupt: bool = True,
     only_ready: bool = False,
     immediate_entry: QueuedMessage | None = None,
+    cut_signal: "ShellCutSignal | None" = None,
 ) -> DeliveryReport:
     """Hand the queued messages to the running turn, now.
 
@@ -96,6 +98,11 @@ def send_queued_messages_now(
     untouched. Hands-free speech can also include `immediate_entry`, its own
     newly queued utterance, without flushing anyone else's draft. An explicit
     Ctrl+G takes everything: that is the user's decision.
+
+    *cut_signal* is the run's own (see `zrb.llm.shell_cut`). An explicit
+    send-now cuts it before steering, so a `Shell` call still holding the turn
+    moves its command to the background instead of delaying the message until
+    the command ends.
     """
     entries = (
         queue.deliverable(time.monotonic(), immediate_entry=immediate_entry)
@@ -107,6 +114,14 @@ def send_queued_messages_now(
 
     if is_waiting_for_answer:
         return DeliveryReport(DeliveryOutcome.WAITING_ON_DIALOG, held=queue.qsize())
+
+    # A running `Shell` call is the one thing that can still keep the model
+    # from reading this message: the request that would carry it is assembled
+    # after the tool returns, and a long command returns when it is done. Ask
+    # the run's shells to step aside first. Only an explicit send-now does it:
+    # `may_interrupt` is exactly "the user asked for this turn to move now".
+    if may_interrupt and active_run_context is not None and cut_signal is not None:
+        cut_signal.cut()
 
     delivered: "tuple[QueuedMessage, ...]" = ()
     stopped_with_entries_left = False

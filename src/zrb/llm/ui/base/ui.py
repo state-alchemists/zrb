@@ -226,6 +226,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self.usage = BaseUIUsage()
         self._message_queue: MessageQueue = MessageQueue()
         self._active_run_context: Any = None
+        self.shell_cut_signal = None  # the turn's cut signal, set by the runner
         self._process_messages_task: asyncio.Task | None = None
         self._last_result_data: str | None = None
         self._base_status_bar = BaseUIStatusBar()
@@ -981,6 +982,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             may_interrupt=may_interrupt,
             only_ready=only_ready,
             immediate_entry=immediate_entry,
+            cut_signal=self.shell_cut_signal,
         )
         self.redraw_echoes(report.delivered_entries)
         return report

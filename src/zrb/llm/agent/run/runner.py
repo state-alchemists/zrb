@@ -82,6 +82,11 @@ from zrb.llm.permission.state import (
 )
 from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
+from zrb.llm.shell_cut import (
+    ShellCutSignal,
+    current_shell_cut_signal,
+    get_run_shell_cut_signal,
+)
 from zrb.llm.snapshot.command import run_in_worker
 from zrb.llm.stream_observer import StreamObserver, create_observed_event_handler
 from zrb.llm.util.prompt import expand_prompt
@@ -191,6 +196,9 @@ async def run_agent(
         # `CFG.LLM_MODEL`, which after a `/model` switch may lack credentials.
         bind_contextvar(stack, current_model, getattr(agent, "model", None))
         bind_contextvar(stack, current_llm_limiter, limiter)
+        # The turn's "step aside" flag: a send-now cuts it, and the shell call
+        # that is holding the turn moves its command to the background.
+        bind_contextvar(stack, current_shell_cut_signal, ShellCutSignal())
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
@@ -936,13 +944,20 @@ def _deliver_queued_messages(effective_ui: AnyUI | None) -> None:
 
 
 def _set_active_run_context(effective_ui: AnyUI | None, ctx: Any) -> None:
-    """Best-effort: not every `AnyUI` implementer supports steering."""
+    """Best-effort: not every `AnyUI` implementer supports steering.
+
+    The run's cut signal is published beside it, and both are read through the
+    same UI the keybinding handler already has — the handler runs in the UI's
+    task, where the run's context variables are not visible.
+    """
     if effective_ui is None:
         return
-    try:
-        setattr(effective_ui, "active_run_context", ctx)
-    except AttributeError:
-        pass
+    signal = get_run_shell_cut_signal() if ctx is not None else None
+    for name, value in (("active_run_context", ctx), ("shell_cut_signal", signal)):
+        try:
+            setattr(effective_ui, name, value)
+        except AttributeError:
+            pass
 
 
 def _request_limit() -> int | None:

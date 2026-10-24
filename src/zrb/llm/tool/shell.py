@@ -23,6 +23,7 @@ from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
+from zrb.llm.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
 
@@ -169,10 +170,10 @@ async def run_shell_command(
             else None
         )
 
-        timed_out = False
+        moved = ""
         drain_notices: list[str] = []
         try:
-            timed_out, handle = await _wait_for_exit_or_adopt(
+            moved, handle = await _wait_for_exit_or_adopt(
                 process,
                 command,
                 stdout_cap,
@@ -194,12 +195,12 @@ async def run_shell_command(
             stderr_cap,
             process.returncode,
             bg_pids,
-            timed_out,
+            moved,
             timeout,
             drain_notices[0] if drain_notices else None,
             handle,
         )
-        return _present_result(result, sandbox_note, handle, timeout)
+        return _present_result(result, sandbox_note, handle, timeout, moved)
 
     except asyncio.CancelledError:
         # Kill + reap while the loop is alive, else the orphan logs "Loop ...
@@ -459,6 +460,13 @@ def _cleanup_temp_file(temp_pid_file: str | None):
             CFG.LOGGER.debug(f"Failed to remove temp PID file: {e}")
 
 
+MOVE_TIMEOUT = "timeout"
+"""The command's own timeout ran out."""
+
+MOVE_CUT = "cut"
+"""The user's send-now key needed the turn back."""
+
+
 async def _wait_for_exit_or_adopt(
     process: "asyncio.subprocess.Process",
     command: str,
@@ -467,11 +475,13 @@ async def _wait_for_exit_or_adopt(
     on_chunk: "Callable[[], None] | None",
     timeout: int,
     drain_notices: list[str],
-) -> "tuple[bool, str | None]":
-    """Wait for the command, then report whether it timed out and its handle.
+) -> "tuple[str, str | None]":
+    """Wait for the command; report what ended the wait and its handle.
 
-    A timeout either moves the process to the background (returning its
-    handle) or kills it — see `_adopt_timed_out` for which, and why.
+    An empty first element means the command finished on its own. Otherwise it
+    is `MOVE_TIMEOUT` or `MOVE_CUT`, and either may have moved the process to
+    the background (returning its handle) or left it where it is — see
+    `_adopt_or_none` and `_can_adopt` for which, and why.
     """
     # No return_exceptions: a broken reader should abort immediately.
     assert process.stdout is not None and process.stderr is not None
@@ -479,37 +489,103 @@ async def _wait_for_exit_or_adopt(
         _read_stream(process.stdout, stdout_cap, on_chunk),
         _read_stream(process.stderr, stderr_cap, on_chunk),
     )
+    drain = asyncio.ensure_future(
+        wait_for_exit_and_drain(process, readers, reporter=drain_notices.append)
+    )
+    # Wait for a cut newer than this run has seen: the one that arrived before
+    # this command started belongs to a tool call that has already returned.
+    cut = get_run_shell_cut_signal()
+    cut_wait = (
+        asyncio.ensure_future(cut.wait_for_cut(cut.generation))
+        if cut is not None
+        else None
+    )
+    deadline = asyncio.get_running_loop().time() + timeout
     try:
-        async with asyncio.timeout(timeout):
-            await wait_for_exit_and_drain(
-                process, readers, reporter=drain_notices.append
+        while True:
+            remaining = deadline - asyncio.get_running_loop().time()
+            waiters = {drain} if cut_wait is None else {drain, cut_wait}
+            done, _ = await asyncio.wait(
+                waiters, timeout=max(remaining, 0), return_when=asyncio.FIRST_COMPLETED
             )
-    except asyncio.TimeoutError:
-        handle = await _adopt_timed_out(process, command, stdout_cap, stderr_cap)
-        if handle is None:
-            await terminate_process(
-                process,
-                CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
-                print_method=CFG.LOGGER.warning,
-            )
-        return True, handle
-    return False, None
+            if drain in done:
+                drain.result()
+                return "", None
+            if not done:
+                await _stop(drain)
+                handle = await _adopt_or_none(process, command, stdout_cap, stderr_cap)
+                if handle is None:
+                    await terminate_process(
+                        process,
+                        CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
+                        print_method=CFG.LOGGER.warning,
+                    )
+                return MOVE_TIMEOUT, handle
+            if not _can_adopt(command):
+                # Nothing to step aside for: the wait is the work, or adoption
+                # is off. Killing it is not what the user asked for, so keep
+                # waiting — the deadline still applies.
+                assert cut_wait is not None
+                await _stop(cut_wait)
+                cut_wait = None
+                continue
+            await _stop(drain)
+            handle = await _adopt_process(process, command, stdout_cap, stderr_cap)
+            return MOVE_CUT, handle
+    finally:
+        await _stop(cut_wait)
+        await _stop(drain)
 
 
-async def _adopt_timed_out(
+async def _stop(task: "asyncio.Future[Any] | None") -> None:
+    """Cancel *task* if it is still running, and never let its outcome escape.
+
+    A drain that ends this way is expected: its own `finally` cancels the
+    readers, which is exactly what handing the pipes to the registry needs.
+    """
+    if task is None:
+        return
+    if not task.done():
+        task.cancel()
+    await asyncio.gather(task, return_exceptions=True)
+
+
+def _can_adopt(command: str) -> bool:
+    """Whether this command may be moved out of the foreground.
+
+    Adoption turned off (``LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS`` is 0) leaves
+    nowhere to move it. A `sleep` is a delay the caller wrote on purpose: it is
+    the work, so moving it aside would let the next command run before the wait
+    it was waiting for was over.
+    """
+    return CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS > 0 and not _is_deliberate_wait(
+        command
+    )
+
+
+async def _adopt_or_none(
     process: "asyncio.subprocess.Process",
     command: str,
     stdout_cap: StreamCapture,
     stderr_cap: StreamCapture,
 ) -> "str | None":
-    """Keep a process that outran its timeout, under a background handle.
-
-    ``None`` means the caller kills it: either adoption is turned off
-    (``LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS`` is 0), or the command is a wait
-    the caller wrote on purpose.
-    """
-    if CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS <= 0 or _is_deliberate_wait(command):
+    """Move the process to the background, unless `_can_adopt` says no."""
+    if not _can_adopt(command):
         return None
+    return await _adopt_process(process, command, stdout_cap, stderr_cap)
+
+
+async def _adopt_process(
+    process: "asyncio.subprocess.Process",
+    command: str,
+    stdout_cap: StreamCapture,
+    stderr_cap: StreamCapture,
+) -> str:
+    """Keep a process the caller stopped waiting for, under a background handle.
+
+    The pipes and the captures are the caller's and still open, so the output
+    the process has already produced stays where the report left off.
+    """
     # lazy: zrb internal — keeps the background registry off the hot
     # path most Shell calls take (foreground, non-adopted).
     from zrb.llm.tool.shell_background import get_shell_background_registry
@@ -533,29 +609,44 @@ def _is_deliberate_wait(command: str) -> bool:
     return bool(tokens) and os.path.basename(tokens[0]) == "sleep"
 
 
-def _moved_to_background_note(handle: str, timeout: int) -> str:
+def _moved_to_background_note(handle: str, timeout: int, reason: str) -> str:
     """Report a command that is still alive, and how to reach it."""
     call = f"MonitorProcess(handle='{handle}'"
-    return (
-        f"Handle: {handle}\n"
-        f"[SYSTEM SUGGESTION]: The command did not finish within {timeout}s, so "
-        f"it is still running in the background as '{handle}'. It was NOT "
-        "killed, and the work it has already done is not lost. "
+    tail = (
         f"Call {call}) to read the output it has produced since, "
         f"{call}, wait=30) to block for it, or {call}, kill=True) to stop it. "
         "Do not run the command again: that starts a second copy. zrb kills it "
         f"after {CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS}s in the background."
     )
+    if reason == MOVE_CUT:
+        return (
+            f"Handle: {handle}\n"
+            "[SYSTEM SUGGESTION]: The user sent a message that needs this turn "
+            "while the command was running, so the command was moved to the "
+            f"background as '{handle}' instead of holding the turn. Read the "
+            "message first. It was NOT killed, and the work it has already done "
+            f"is not lost. {tail}"
+        )
+    return (
+        f"Handle: {handle}\n"
+        f"[SYSTEM SUGGESTION]: The command did not finish within {timeout}s, so "
+        f"it is still running in the background as '{handle}'. It was NOT "
+        "killed, and the work it has already done is not lost. " + tail
+    )
 
 
 def _present_result(
-    result: str, sandbox_note: "str | None", handle: "str | None", timeout: int
+    result: str,
+    sandbox_note: "str | None",
+    handle: "str | None",
+    timeout: int,
+    reason: str = "",
 ) -> str:
     """The sandbox note above the report, the background handle below it."""
     if sandbox_note:
         result = f"{sandbox_note}\n{result}"
     if handle is not None:
-        result = f"{result}\n{_moved_to_background_note(handle, timeout)}"
+        result = f"{result}\n{_moved_to_background_note(handle, timeout, reason)}"
     return result
 
 
@@ -566,24 +657,30 @@ def _format_output(
     stderr_cap: StreamCapture,
     returncode: int | None,
     bg_pids: list[int],
-    timed_out: bool,
+    reason: str,
     timeout: int,
     drain_notice: str | None = None,
     handle: "str | None" = None,
 ) -> str:
     """Formats the command execution result into a readable string.
 
-    *handle* is set when the timeout moved the command to the background
-    instead of killing it: it did not fail, so its output keeps the captures
-    that the background entry now feeds.
+    *reason* is what ended the wait early — ``""`` when the command finished on
+    its own — and *handle* is set when the command was moved to the background
+    instead of being killed. Its captures outlive this call and the entry in
+    the registry keeps feeding them.
     """
+    timed_out = reason == MOVE_TIMEOUT
+    still_running = handle is not None
     exit_code_str = str(returncode) if returncode is not None else "(none)"
     failed = timed_out or (returncode is not None and returncode != 0)
-    moved = timed_out and handle is not None
     stdout_str = _display_text(stdout_cap, failed)
     stderr_str = _display_text(stderr_cap, failed)
-    if moved:
-        exit_code_str = f"(moved to background after {timeout}s)"
+    if still_running:
+        exit_code_str = (
+            "(moved to background so the turn could continue)"
+            if reason == MOVE_CUT
+            else f"(moved to background after {timeout}s)"
+        )
     elif timed_out:
         exit_code_str = "(timed out)"
         stderr_str += f"\nError: Command timed out after {timeout} seconds."
@@ -591,7 +688,7 @@ def _format_output(
     flooded = stdout_cap.truncated or stderr_cap.truncated
     total_chars = stdout_cap.total_chars + stderr_cap.total_chars
     note = ""
-    if flooded and moved:
+    if flooded and still_running:
         # A dump would close the spill files, and the capture's next overflow
         # would open a *new* one holding only what was written after adoption —
         # a file that claims to be the command's output while starting
@@ -604,7 +701,7 @@ def _format_output(
         note = _overflow_note(dump_path, failed)
     if drain_notice:
         stderr_str += f"\n{drain_notice}"
-    if not moved:
+    if not still_running:
         # The captures outlive this call when the command is still running.
         stdout_cap.discard()
         stderr_cap.discard()
@@ -613,7 +710,7 @@ def _format_output(
         command,
         stdout_str,
         stderr_str,
-        timed_out and not moved,
+        timed_out and not still_running,
         timeout,
         flooded,
         total_chars,

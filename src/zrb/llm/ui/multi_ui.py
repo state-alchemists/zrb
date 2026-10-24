@@ -72,6 +72,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self._pending_input_tasks: list[asyncio.Task] = []
         self._message_queue: MessageQueue = MessageQueue()
         self._active_run_context: Any = None
+        self.shell_cut_signal = None  # the turn's cut signal, set by the runner
         self._process_messages_task: asyncio.Task | None = None
         self._running_llm_task: asyncio.Task | None = None
         self._is_thinking: bool = False
@@ -775,6 +776,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             may_interrupt=may_interrupt,
             only_ready=only_ready,
             immediate_entry=immediate_entry,
+            cut_signal=self.shell_cut_signal,
         )
         main_ui = self.main_ui
         redraw = getattr(main_ui, "redraw_echoes", None)
