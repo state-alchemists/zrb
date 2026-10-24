@@ -65,7 +65,7 @@ def _is_tool_call(part: object) -> bool:
     return isinstance(part, ToolCallPart)
 
 
-def _is_tool_return(part: object) -> bool:
+def is_tool_return_part(part: object) -> bool:
     """True when *part* answers a tool call.
 
     Since pydantic-ai 2.60 that is a `ToolReturnPart` — a retry included, since a
@@ -156,7 +156,7 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
                 result.append(patched)
         elif isinstance(msg, ModelRequest) and orphaned_returns:
             patched = _strip_orphaned_parts(
-                msg, orphaned_returns, _is_tool_return
+                msg, orphaned_returns, is_tool_return_part
             )
             if patched is not None:
                 result.append(patched)
@@ -192,7 +192,7 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     for msg in messages:
         if isinstance(msg, ModelRequest) and orphaned_returns:
             patched = _strip_orphaned_parts(
-                msg, orphaned_returns, _is_tool_return
+                msg, orphaned_returns, is_tool_return_part
             )
             if patched is not None:
                 result.append(patched)
@@ -281,5 +281,5 @@ def _iter_tool_events(
                 continue
             if _is_tool_call(part):
                 yield msg_idx, tool_call_id, "call"
-            elif _is_tool_return(part):
+            elif is_tool_return_part(part):
                 yield msg_idx, tool_call_id, "return"

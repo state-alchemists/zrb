@@ -472,14 +472,16 @@ def history_through_deferred_returns(
     tools, whatever failed after. `None` when the round never ran them.
     """
     from pydantic_ai.messages import ModelRequest  # lazy: heavy third-party
-    from pydantic_ai.messages import ToolReturnPart
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.message import is_tool_return_part
 
     deferred_ids = {*results.approvals, *results.calls}
     request_indexes = [
         i for i, msg in enumerate(messages) if isinstance(msg, ModelRequest)
     ]
     has_deferred_return = any(
-        isinstance(part, ToolReturnPart) and part.tool_call_id in deferred_ids
+        is_tool_return_part(part)
+        and getattr(part, "tool_call_id", None) in deferred_ids
         for i in request_indexes
         for part in messages[i].parts
     )
