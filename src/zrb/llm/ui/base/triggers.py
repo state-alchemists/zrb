@@ -118,14 +118,21 @@ class BaseUITriggers:
             # its words are submitted and handed to the running turn at the
             # earliest safe model request. They never interrupt that turn —
             # stopping it is the user's call (Esc, Ctrl+G, a stop word).
-            # Moving a running command aside is a separate question, and the
-            # setting decides it: a misheard word must not disturb a build.
-            owner.submit_message_now(
-                reply.text,
-                reply.source or KEYBOARD_INPUT,
-                may_interrupt=False,
-                move_shell=CFG.LLM_VOICE_MOVES_SHELL,
-            )
+            #
+            # `move_shell` is passed only when the setting asks for it, so a UI
+            # that overrides `submit_message_now` with the older signature keeps
+            # receiving spoken messages; only the opt-in needs the new keyword.
+            if CFG.LLM_VOICE_MOVES_SHELL:
+                owner.submit_message_now(
+                    reply.text,
+                    reply.source or KEYBOARD_INPUT,
+                    may_interrupt=False,
+                    move_shell=True,
+                )
+            else:
+                owner.submit_message_now(
+                    reply.text, reply.source or KEYBOARD_INPUT, may_interrupt=False
+                )
             return
         if reply.source is None:
             owner.submit_user_message(owner.llm_task, reply.text)

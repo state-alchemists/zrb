@@ -288,7 +288,7 @@ async def test_a_send_now_reply_is_submitted_and_sent_in_one_step(monkeypatch):
     spoken = InputProvenance("microphone", modality="dictation", transcription=True)
     sent: list[tuple[str, object, bool]] = []
 
-    def fake_send_now(text, source=None, may_interrupt=True, move_shell=None):
+    def fake_send_now(text, source=None, may_interrupt=True):
         sent.append((text, source, may_interrupt))
         return DeliveryReport(DeliveryOutcome.DELIVERED_EARLY)
 
@@ -302,41 +302,12 @@ async def test_a_send_now_reply_is_submitted_and_sent_in_one_step(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_a_spoken_message_moves_the_shell_only_when_the_setting_says_so(
-    monkeypatch,
-):
-    """Speech never interrupts, but whether it moves a running command aside is
-    the user's call — `LLM_VOICE_MOVES_SHELL`, on by default off."""
-    ui = _create_ui(AnsweringUI)
-    ui.waiting = False
-    moved: list[object] = []
-
-    def fake_send_now(text, source=None, may_interrupt=True, move_shell=None):
-        moved.append(move_shell)
-        return DeliveryReport(DeliveryOutcome.DELIVERED_EARLY)
-
-    monkeypatch.setattr(ui, "submit_message_now", fake_send_now)
-    await ui.trigger_loop(
-        trigger_yielding(TriggerReply("open the file", send_now=True))
-    )
-    assert moved == [False], "speech moved a command with the setting off"
-
-    from zrb.config.config import CFG
-
-    monkeypatch.setattr(CFG, "LLM_VOICE_MOVES_SHELL", True, raising=False)
-    await ui.trigger_loop(
-        trigger_yielding(TriggerReply("open the file", send_now=True))
-    )
-    assert moved == [False, True]
-
-
-@pytest.mark.asyncio
 async def test_a_send_now_reply_without_a_source_is_keyboard_input(monkeypatch):
     ui = _create_ui(AnsweringUI)
     ui.waiting = False
     sent: list[tuple[str, object, bool]] = []
 
-    def fake_send_now(text, source=None, may_interrupt=True, move_shell=None):
+    def fake_send_now(text, source=None, may_interrupt=True):
         sent.append((text, source, may_interrupt))
         return DeliveryReport(DeliveryOutcome.NOTHING_MOVED)
 
