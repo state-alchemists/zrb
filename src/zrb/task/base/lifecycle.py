@@ -37,43 +37,45 @@ class BaseTaskLifecycle:
         main_task_coro = asyncio.create_task(
             self.run_task_async(session, print_fn, str_kwargs, kwargs)
         )
-
-        ctx = None
         try:
-            result = await main_task_coro
-            return result
+            return await main_task_coro
         except (asyncio.CancelledError, KeyboardInterrupt) as e:
-            ctx = task.get_ctx(session)
-            ctx.log_warning(f"Run cancelled/interrupted: {e}")
+            task.get_ctx(session).log_warning(f"Run cancelled/interrupted: {e}")
             raise
         finally:
+            await self._terminate_and_cancel(session, main_task_coro)
+
+    async def _terminate_and_cancel(
+        self, session: AnySession, main_task_coro: "asyncio.Task"
+    ) -> None:
+        """Terminate the session, then cancel whatever the run left running."""
+        task = self._task
+        ctx = None
+        try:
             if session and not session.is_terminated:
                 ctx = task.get_ctx(session)
                 ctx.log_info("Terminating session after run completion/error.")
                 session.terminate()
-            try:
-                pending = [
-                    t
-                    for t in asyncio.all_tasks()
-                    if t is not main_task_coro and not t.done()
-                ]
-                if pending:
-                    ctx = task.get_ctx(session)
-                    ctx.log_debug(
-                        f"Cleaning up {len(pending)} pending asyncio tasks..."
-                    )
-                    for t in pending:
-                        t.cancel()
-                    try:
-                        await asyncio.wait(pending, timeout=1.0)
-                    except asyncio.CancelledError:
-                        pass
-                    except Exception as cleanup_exc:
-                        if ctx is not None:
-                            ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
-            except RuntimeError as cleanup_exc:
-                if ctx is not None:
-                    ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
+            pending = [
+                t
+                for t in asyncio.all_tasks()
+                if t is not main_task_coro and not t.done()
+            ]
+            if pending:
+                ctx = task.get_ctx(session)
+                ctx.log_debug(f"Cleaning up {len(pending)} pending asyncio tasks...")
+                for t in pending:
+                    t.cancel()
+                try:
+                    await asyncio.wait(pending, timeout=1.0)
+                except asyncio.CancelledError:
+                    pass
+                except Exception as cleanup_exc:
+                    if ctx is not None:
+                        ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
+        except RuntimeError as cleanup_exc:
+            if ctx is not None:
+                ctx.log_warning(f"Error during task cleanup: {cleanup_exc}")
 
     async def run_task_async(
         self,
