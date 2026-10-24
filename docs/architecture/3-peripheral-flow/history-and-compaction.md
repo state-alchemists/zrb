@@ -108,6 +108,8 @@ sequenceDiagram
 3. adds the journal index to the summary text;
 4. returns the restoration message, then the first real user message, then the kept tail rendered as text, then any still-unresolved tool call kept in native message form (orphaned tool results dropped from that native tail, same-role neighbours merged).
 
+The cut in step 1 is chosen by budget, not by count: `LLM_HISTORY_TAIL_BUDGET_RATIO` of the trigger threshold, held under `LLM_HISTORY_TAIL_MAX_TOKENS`, landing on a turn boundary when one still keeps half of it, and retried at twice the ratio when the newest message alone overflows. The tail is measured as content (`count_tail_tokens`), not with the provider's usage count on its newest response — that count covers the whole history before it, so read as the size of a suffix it reports the unsplit list and no tail ever fits. A counting subclass keeps its own counter, the same reason the bisected scan declines to trust one. → [ADR-0130](../../adr/adr-0130.md)
+
 **Saving.** `save` serializes the list, validates it, writes a sibling `.tmp` file and renames it over the live one. The final save of a turn may also write a timestamped backup; mid-turn checkpoints pass `write_backup=False`.
 
 ### Variations

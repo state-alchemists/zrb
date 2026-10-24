@@ -7,6 +7,12 @@ How long conversations are summarized, what the journal keeps across sessions, a
 ## Table of Contents
 
 - [Summarization Thresholds](#summarization-thresholds)
+  - [What happens when a conversation gets long](#what-happens-when-a-conversation-gets-long)
+  - [The knobs](#the-knobs)
+  - [Why the tail is smaller than the ratio it was given](#why-the-tail-is-smaller-than-the-ratio-it-was-given)
+  - [The archive](#the-archive)
+  - [The summary itself](#the-summary-itself)
+  - [Other oversized content](#other-oversized-content)
 - [Journal & Context Storage](#journal--context-storage)
 - [Rewind & Snapshots](#rewind--snapshots)
   - [Python API](#python-api)
@@ -16,7 +22,31 @@ How long conversations are summarized, what the journal keeps across sessions, a
 
 ## Summarization Thresholds
 
-Zrb summarizes in the background when history or a single message grows too large.
+Zrb summarizes in the background when history or a single message grows too large, so a long conversation keeps going instead of failing against the model's context window. Three things happen, in this order:
+
+1. **A message too big is shrunk on its own.** An oversized tool result is summarized in place before anything else is considered, so one large output never costs the whole conversation.
+2. **A conversation over the threshold is compacted.** The older part is replaced by a briefing — where the work stands, what was in flight, what comes next, the decisions and the landmines — and whatever a resumed agent needs beyond prose is carried over beside it.
+3. **What was replaced is archived.** Every replaced message is written word for word to a file, append-only, and the summary names that file, so detail dropped from context is still readable later.
+
+A compacted history is therefore not just a summary. This is what the next turn loads:
+
+```mermaid
+flowchart TD
+    Hist[History over the threshold] --> Cut[Split on the tail budget]
+    Cut -->|older messages| Sum[Briefing summary]
+    Cut -->|opening user message| Open[Kept word for word]
+    Cut -->|recent messages| Tail[Kept as rendered text]
+    Cut -->|pending tool call| Pend[Kept native and resumable]
+    Sum -.->|also written in full| Arch[(Verbatim archive)]
+    Sum --> Next[The list the next turn loads]
+    Open --> Next
+    Tail --> Next
+    Pend --> Next
+```
+
+Two details of that picture are easy to miss. The recent tail is rendered back into the request as text rather than resent as separate structured messages, and each tool result inside it is cut to 2,000 characters with the omitted count stated in its place — the tail is a handover, not evidence. A tool call still waiting for its result is the exception, kept as a real call so it can be resumed rather than flattened away.
+
+### The knobs
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -27,17 +57,19 @@ Zrb summarizes in the background when history or a single message grows too larg
 | `ZRB_LLM_HISTORY_TAIL_MAX_TOKENS` | Absolute ceiling on the verbatim tail, in tokens, applied on top of the ratio: whichever is smaller wins, including on the retry that fires when the newest message alone overflows. `0` leaves the ratio in charge | `24000` |
 | `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO` | Share of the summarization threshold one summary may fill; a summary over it is shortened before it replaces the history. `0` disables the cap | `0.05` |
 
-Compaction has two halves, and each half is bounded differently. The summary is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`; the kept tail — the newest messages, rendered back into the request as text rather than as structured messages — is bounded by `ZRB_LLM_HISTORY_TAIL_BUDGET_RATIO`, a share of the trigger threshold that leaves the rest of the window for the conversation that follows. On a 500,000-token window that share alone would come to 18,750 tokens for the summary and 150,000 for the tail, which is why the tail also carries an absolute ceiling: `ZRB_LLM_HISTORY_TAIL_MAX_TOKENS`, 24,000 tokens by default, and whichever of the two is smaller wins. Each tool result inside the tail is cut to 2,000 characters with the omitted count stated in its place — the tail is a handover, not evidence, and the messages it replaces reach the verbatim archive in full.
+Compaction has two halves, and each is bounded differently. The summary is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`; the kept tail by `ZRB_LLM_HISTORY_TAIL_BUDGET_RATIO`, held under `ZRB_LLM_HISTORY_TAIL_MAX_TOKENS`, whichever of the two is smaller. The ratio on its own would allow 150,000 tokens of tail on a 500,000-token window — nearly a third of it, re-read on every later turn — which is what the ceiling is there to prevent. The summary's share on the same window is 18,750.
 
-Within its budget the tail is usually smaller than the ratio allows, for three reasons worth knowing before you change the number:
+### Why the tail is smaller than the ratio it was given
+
+The ratio is a budget, not a target, and the tail usually comes in under it, for three reasons worth knowing before you change the number:
 
 - **It prefers a turn boundary.** The splitter walks back from the newest message to the earliest point that fits, and prefers a user message when that boundary still keeps at least half the budget. A budget of 0.3 and one of 0.4 can therefore produce the very same tail, because the boundary binds first.
 - **The message window caps the count.** `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` stops the tail at 300 messages regardless of tokens, which is what bounds a long session of small messages.
 - **If nothing fits, the retry follows the ratio.** When even the newest message alone is bigger than the budget — one huge tool result, say — the splitter retries at twice the ratio, capped at 0.8. That retry is the only case where the tail can exceed your setting, and never by more than that factor. Only when neither budget fits is nothing kept.
 
-The tail is measured as the content it is, not against the request a usage count describes. A response carries the input its provider charged for, which covers every message before it, so measuring a suffix that way would report the whole unsplit history however much the suffix dropped — and since compaction only runs once the history is over the threshold, that reading kept nothing on every compaction. What the banner prints as kept is therefore the handover's own size.
+Lowering the ratio makes compaction more lossy by design: the tail exists to carry recency, so a smaller tail means more of the recent conversation reaches the next request only as summary. Counting follows `ZRB_ENABLE_TIKTOKEN`; the default `char/4` estimate runs about a tenth low against a real tokenizer on code- and path-heavy text, so treat these numbers as a budget rather than a bill. The count the banner reports for the kept tail is the tail's own size, not the history it was cut from.
 
-Lowering the ratio makes compaction more lossy by design: the tail exists to carry recency, so a smaller tail means more of the recent conversation reaches the next request only as summary. Counting follows `ZRB_ENABLE_TIKTOKEN`; the default `char/4` estimate runs about a tenth low against a real tokenizer on code- and path-heavy text, so treat these numbers as a budget rather than a bill.
+### The archive
 
 What a summary replaces is also written word for word, append-only, to `<history dir>/verbatim/<session>.md` — the history directory the conversation is actually stored in, `ZRB_LLM_HISTORY_DIR` unless a custom history manager says otherwise — and, if the archive write succeeds, the summary names that file so the agent can read back the detail it dropped. The archive holds the history as the conversation held it, before oversized tool results were reduced to summaries, so a tool's output remains available after compaction.
 
@@ -45,9 +77,13 @@ An archive is pruned, with its lock sidecar, only once **no history refers to it
 
 A directory written before these permissions existed is narrowed **once**, on first use, with a marker (`<dir>.owner-only`) beside it so later runs leave it alone — a mode you change back after that stays as you set it. This applies to both the history and the journal directory.
 
+### The summary itself
+
 The summary reaches the next model as a fenced block that names itself: it opens with `# SYSTEM: Automated Context Restoration`, says in as many words that it is derived data rather than the user speaking, and closes with an explicit end marker. Both are load bearing, because role alternation merges the summary into the same user turn as the real user messages that follow it, and without them the reader cannot tell the automation from the user. Its size is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`, a share of the trigger threshold rather than a fixed count, so the bound follows the model's window: 0.05 is 18,750 tokens on a 500,000-token window, with a 1,000-token floor below that. The bound is measured on the block as it will be inserted — zrb's own framing, the snapshot, the journal index and the archive pointer. A block over it is shortened at most twice and then cut, losing whole sections from the least durable end first and keeping the closing tag; a summary that arrived without the schema is bounded on the same rule rather than dropped, since an over-budget history fails the request where a bulky summary only costs tokens. If the framing and notes fill the cap on their own, the snapshot is dropped and the warning names the setting to raise. A summary that comes back empty leaves the history untouched instead.
 
-The same mechanism keeps one large repo or file read from blowing the context window; like the two above, each threshold is clamped to a fraction of the smaller of `MAX_TOKEN_PER_MINUTE` and `MAX_TOKEN_PER_REQUEST` (75% for the two above, 40% here):
+### Other oversized content
+
+The same mechanism keeps one large repo or file read from blowing the context window; like the conversation thresholds above, each of these is clamped to a fraction of the smaller of `MAX_TOKEN_PER_MINUTE` and `MAX_TOKEN_PER_REQUEST` (75% for those two, 40% here):
 
 | Variable | Description | Default |
 |----------|-------------|---------|
