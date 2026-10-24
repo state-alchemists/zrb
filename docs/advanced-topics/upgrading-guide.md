@@ -166,12 +166,7 @@ Only code that reads snapshot progress or restores snapshots directly is affecte
 
 ## Upgrading to 3.3.0
 
-3.3.0 replaces thirteen flattened state accessors on `BaseUI` with the four
-objects that already held the state. Only a UI that subclasses `BaseUI` and
-reads or writes these names is affected: `AnyUI` is unchanged, and so are
-`SimpleUI` and `EventDrivenUI`, the two levels the [custom UI
-guide](../llm/llm-custom-ui.md) recommends. Every removal fails loudly with
-`AttributeError`, so a green run means you are done.
+3.3.0 replaces thirteen flattened state accessors on `BaseUI` with the four objects that already held the state. Only a UI that subclasses `BaseUI` and reads or writes these names is affected: `AnyUI` is unchanged, and so are `SimpleUI` and `EventDrivenUI`, the two levels the [custom UI guide](../llm/llm-custom-ui.md) recommends. Every removal fails loudly with `AttributeError`, so a green run means you are done.
 
 ### `BaseUI` state lives on its parts
 
@@ -188,20 +183,11 @@ guide](../llm/llm-custom-ui.md) recommends. Every removal fails loudly with
 | `ui.context_tokens` | `ui.usage.context_tokens` |
 | `ui.reset_session_token_usage()` | `ui.usage.reset()` |
 
-Each was a getter (and often a setter) whose whole body reached one field on
-one part, so the part is the shorter name for the same state. Reads and writes
-both move with it — `ui.confirmation.current = future` replaces
-`ui.current_confirmation = future`. The token counters under `ui.usage` are
-read-only and updated through `ui.usage.accumulate(...)`.
+Each was a getter (and often a setter) whose whole body reached one field on one part, so the part is the shorter name for the same state. Reads and writes both move with it — `ui.confirmation.current = future` replaces `ui.current_confirmation = future`. The token counters under `ui.usage` are read-only and updated through `ui.usage.accumulate(...)`.
 
-`accumulate_usage` is deliberately not in the table. It stays a method on
-`BaseUI` because the custom UI guide lists it as an enrichment hook and
-`MultiUI`/`BufferedUI` implement it too.
+`accumulate_usage` is deliberately not in the table. It stays a method on `BaseUI` because the custom UI guide lists it as an enrichment hook and `MultiUI`/`BufferedUI` implement it too.
 
-A UI that tolerates hosts other than `BaseUI` should reach the part, not the
-field: `getattr(ui, "usage", None)` in place of
-`getattr(ui, "session_token_usage", 0)`. `StdUI` and `MultiUI` keep none of
-this state, exactly as before.
+A UI that tolerates hosts other than `BaseUI` should reach the part, not the field: `getattr(ui, "usage", None)` in place of `getattr(ui, "session_token_usage", 0)`. `StdUI` and `MultiUI` keep none of this state, exactly as before.
 
 ---
 

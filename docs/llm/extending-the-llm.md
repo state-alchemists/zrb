@@ -310,20 +310,13 @@ if model_capabilities.supports_modality("openai:gpt-4o", "image"):
 | **Message-level** | One tool result is too large | Replaced in place by its own summary, in the same pass |
 | **Conversational** | Overall history grows too large | Compress older messages to `<state_snapshot>` |
 
-Both tiers run in the turn's one history-processor pass, before its first model request:
-the oversized result is already in the history by then, so it is replaced there rather
-than caught on the way in.
+Both tiers run in the turn's one history-processor pass, before its first model request: the oversized result is already in the history by then, so it is replaced there rather than caught on the way in.
 
 ### Token-First Retention
 
-Summarization triggers when total tokens cross 75% of the prompt budget
-(`LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`) or the history holds more than
-`LLM_HISTORY_SUMMARIZATION_WINDOW` messages (300 by default). The token trigger is the
-real one; the message count is a backstop for conversations of many small messages.
+Summarization triggers when total tokens cross 75% of the prompt budget (`LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`) or the history holds more than `LLM_HISTORY_SUMMARIZATION_WINDOW` messages (300 by default). The token trigger is the real one; the message count is a backstop for conversations of many small messages.
 
-When it triggers, the split is token-first: keep the newest turns that fit 40% of the
-trigger threshold, which leaves the rest of the window for the turns that follow. The
-message window only caps that tail — it never decides the split on its own.
+When it triggers, the split is token-first: keep the newest turns that fit 40% of the trigger threshold, which leaves the rest of the window for the turns that follow. The message window only caps that tail — it never decides the split on its own.
 
 | Action | Description |
 |--------|-------------|
@@ -333,12 +326,7 @@ message window only caps that tail — it never decides the split on its own.
 | Split | At a conversation turn boundary when one keeps at least half the budget |
 | Archive | The replaced messages, word for word, appended to `<LLM_HISTORY_DIR>/verbatim/<session>.md` |
 
-A turn boundary is preferred, but not at any price: if reaching one would keep less than
-half the budget, the earliest safe split wins instead, so a single long tool loop is not
-summarized whole just to land on a user message. The archive is append-only and
-human-readable, and the paragraph naming its path is written by zrb, never by the
-summarizer model — so the agent can read back what the summary compressed when that write
-succeeded, which is the only time the pointer goes out.
+A turn boundary is preferred, but not at any price: if reaching one would keep less than half the budget, the earliest safe split wins instead, so a single long tool loop is not summarized whole just to land on a user message. The archive is append-only and human-readable, and the paragraph naming its path is written by zrb, never by the summarizer model — so the agent can read back what the summary compressed when that write succeeded, which is the only time the pointer goes out.
 
 ### Summarization in your own task
 

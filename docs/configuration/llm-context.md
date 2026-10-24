@@ -26,75 +26,23 @@ Zrb summarizes in the background when history or a single message grows too larg
 | `ZRB_LLM_HISTORY_TAIL_BUDGET_RATIO` | Share of the summarization threshold the verbatim tail may fill. The newest messages that fit it are kept word for word instead of summarized. It is a budget, not a target: the splitter usually keeps less. Values outside `0.05`–`0.8` are clamped | `0.4` |
 | `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO` | Share of the summarization threshold one summary may fill; a summary over it is shortened before it replaces the history. `0` disables the cap | `0.05` |
 
-Compaction has two halves, and each half is bounded differently. The summary is
-bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`; the kept tail — the newest messages,
-rendered back into the request as text rather than as structured messages — is
-bounded by `ZRB_LLM_HISTORY_TAIL_BUDGET_RATIO`, a share of the trigger threshold
-that leaves the rest of the window for the conversation that follows. On a
-500,000-token window the defaults come to 18,750 tokens for the summary and
-150,000 for the tail.
+Compaction has two halves, and each half is bounded differently. The summary is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`; the kept tail — the newest messages, rendered back into the request as text rather than as structured messages — is bounded by `ZRB_LLM_HISTORY_TAIL_BUDGET_RATIO`, a share of the trigger threshold that leaves the rest of the window for the conversation that follows. On a 500,000-token window the defaults come to 18,750 tokens for the summary and 150,000 for the tail.
 
-Within its budget the tail is usually smaller than the ratio allows, for three
-reasons worth knowing before you change the number:
+Within its budget the tail is usually smaller than the ratio allows, for three reasons worth knowing before you change the number:
 
-- **It prefers a turn boundary.** The splitter walks back from the newest message
-  to the earliest point that fits, and prefers a user message when that boundary
-  still keeps at least half the budget. A budget of 0.3 and one of 0.4 can
-  therefore produce the very same tail, because the boundary binds first.
-- **The message window caps the count.** `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW`
-  stops the tail at 300 messages regardless of tokens, which is what bounds a
-  long session of small messages.
-- **If nothing fits, the retry follows the ratio.** When even the newest message
-  alone is bigger than the budget — one huge tool result, say — the splitter
-  retries at twice the ratio, capped at 0.8. That retry is the only case where
-  the tail can exceed your setting, and never by more than that factor. Only
-  when neither budget fits is nothing kept.
+- **It prefers a turn boundary.** The splitter walks back from the newest message to the earliest point that fits, and prefers a user message when that boundary still keeps at least half the budget. A budget of 0.3 and one of 0.4 can therefore produce the very same tail, because the boundary binds first.
+- **The message window caps the count.** `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` stops the tail at 300 messages regardless of tokens, which is what bounds a long session of small messages.
+- **If nothing fits, the retry follows the ratio.** When even the newest message alone is bigger than the budget — one huge tool result, say — the splitter retries at twice the ratio, capped at 0.8. That retry is the only case where the tail can exceed your setting, and never by more than that factor. Only when neither budget fits is nothing kept.
 
-Lowering the ratio makes compaction more lossy by design: the tail exists to
-carry recency, so a smaller tail means more of the recent conversation reaches
-the next request only as summary. Counting follows `ZRB_ENABLE_TIKTOKEN`; the
-default `char/4` estimate runs about a tenth low against a real tokenizer on
-code- and path-heavy text, so treat these numbers as a budget rather than a bill.
+Lowering the ratio makes compaction more lossy by design: the tail exists to carry recency, so a smaller tail means more of the recent conversation reaches the next request only as summary. Counting follows `ZRB_ENABLE_TIKTOKEN`; the default `char/4` estimate runs about a tenth low against a real tokenizer on code- and path-heavy text, so treat these numbers as a budget rather than a bill.
 
-What a summary replaces is also written
-word for word, append-only, to `<history dir>/verbatim/<session>.md` — the history
-directory the conversation is actually stored in, `ZRB_LLM_HISTORY_DIR` unless a
-custom history manager says otherwise — and, if the archive write succeeds, the
-summary names that file so the agent can read back the detail it dropped. The archive
-holds the history as the conversation held it, before oversized tool results were
-reduced to summaries, so a tool's output remains available after compaction.
+What a summary replaces is also written word for word, append-only, to `<history dir>/verbatim/<session>.md` — the history directory the conversation is actually stored in, `ZRB_LLM_HISTORY_DIR` unless a custom history manager says otherwise — and, if the archive write succeeds, the summary names that file so the agent can read back the detail it dropped. The archive holds the history as the conversation held it, before oversized tool results were reduced to summaries, so a tool's output remains available after compaction.
 
-An archive is pruned, with its lock sidecar, only once **no history refers to it**: no
-transcript anywhere in the history tree — the conversation's own file, a backup of it,
-or a delegated sub-agent's transcript under `subagent/<agent-type>/` — carries its
-pointer, and it is older than `ZRB_LLM_HISTORY_RETENTION` (so an archive written just
-before its history is saved is never mistaken for an orphan, and `0` keeps every
-archive). Sub-agent transcripts are searched because they point at the same shared
-`verbatim/` directory. That keeps the directory bounded without leaving a summary
-pointing at text that is gone. Archives may still contain sensitive text: protect access
-to the history directory and back it up as needed.
+An archive is pruned, with its lock sidecar, only once **no history refers to it**: no transcript anywhere in the history tree — the conversation's own file, a backup of it, or a delegated sub-agent's transcript under `subagent/<agent-type>/` — carries its pointer, and it is older than `ZRB_LLM_HISTORY_RETENTION` (so an archive written just before its history is saved is never mistaken for an orphan, and `0` keeps every archive). Sub-agent transcripts are searched because they point at the same shared `verbatim/` directory. That keeps the directory bounded without leaving a summary pointing at text that is gone. Archives may still contain sensitive text: protect access to the history directory and back it up as needed.
 
-A directory written before these permissions existed is narrowed **once**, on first use,
-with a marker (`<dir>.owner-only`) beside it so later runs leave it alone — a mode you
-change back after that stays as you set it. This applies to both the history and the
-journal directory.
+A directory written before these permissions existed is narrowed **once**, on first use, with a marker (`<dir>.owner-only`) beside it so later runs leave it alone — a mode you change back after that stays as you set it. This applies to both the history and the journal directory.
 
-The summary reaches the next model as a fenced block that names itself: it opens with
-`# SYSTEM: Automated Context Restoration`, says in as many words that it is derived data
-rather than the user speaking, and closes with an explicit end marker. Both are load
-bearing, because role alternation merges the summary into the same user turn as the real
-user messages that follow it, and without them the reader cannot tell the automation from
-the user. Its size is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`, a share of the
-trigger threshold rather than a fixed count, so the bound follows the model's window: 0.05
-is 18,750 tokens on a 500,000-token window, with a 1,000-token floor below that. The bound
-is measured on the block as it will be inserted — zrb's own framing, the snapshot, the
-journal index and the archive pointer. A block over it is shortened at most twice and then
-cut, losing whole sections from the least durable end first and keeping the closing tag; a
-summary that arrived without the schema is bounded on the same rule rather than dropped,
-since an over-budget history fails the request where a bulky summary only costs tokens. If
-the framing and notes fill the cap on their own, the snapshot is dropped and the warning
-names the setting to raise. A summary that comes back empty leaves the history untouched
-instead.
+The summary reaches the next model as a fenced block that names itself: it opens with `# SYSTEM: Automated Context Restoration`, says in as many words that it is derived data rather than the user speaking, and closes with an explicit end marker. Both are load bearing, because role alternation merges the summary into the same user turn as the real user messages that follow it, and without them the reader cannot tell the automation from the user. Its size is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`, a share of the trigger threshold rather than a fixed count, so the bound follows the model's window: 0.05 is 18,750 tokens on a 500,000-token window, with a 1,000-token floor below that. The bound is measured on the block as it will be inserted — zrb's own framing, the snapshot, the journal index and the archive pointer. A block over it is shortened at most twice and then cut, losing whole sections from the least durable end first and keeping the closing tag; a summary that arrived without the schema is bounded on the same rule rather than dropped, since an over-budget history fails the request where a bulky summary only costs tokens. If the framing and notes fill the cap on their own, the snapshot is dropped and the warning names the setting to raise. A summary that comes back empty leaves the history untouched instead.
 
 The same mechanism keeps one large repo or file read from blowing the context window; like the two above, each threshold is clamped to a fraction of the smaller of `MAX_TOKEN_PER_MINUTE` and `MAX_TOKEN_PER_REQUEST` (75% for the two above, 40% here):
 

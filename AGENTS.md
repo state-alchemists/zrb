@@ -92,6 +92,8 @@ Record a decision as an ADR in `docs/adr/` when it is non-trivial, consequential
 
 Lives under `docs/changelog/`: `README.md` (index), `v1.md` (1.x archive), `v2/` (per-minor files for the 2.x line, e.g. `2.54.0.md`, `2.50.0-2.50.9.md`), `v3/` (per-minor files for the 3.x line). Entry format and the compaction procedure are in [Maintainer Guide → Changelog](docs/contributing/maintainer-guide.md#changelog).
 
+**Prose is one line per paragraph.** Markdown renders a wrapped paragraph and a single-line one identically, so write each paragraph and list item as one line: a one-word edit should be a one-line diff, not a re-wrapped block. Nothing checks this — no script, no CI gate — so the guard is a review comment. Fenced blocks, tables, headings, blockquotes, frontmatter and a line ending in two spaces (a hard break) are left exactly as written, and `git diff -w` shows what text actually changed. Prompt text under `src/zrb/llm/prompt/markdown/` and skill bodies under `src/zrb/llm_plugin/` are model-facing, so they are out of scope: their wording is pinned by ADR-0049 and their bytes are the cached prefix (ADR-0042).
+
 ## Development Conventions
 
 > New here? Start at the [Contributing guide](docs/contributing/README.md), then [Which pattern do I reach for?](docs/contributing/which-pattern.md).
@@ -134,25 +136,11 @@ Review guidance only: the ~30-line function target, the Mixin-vs-part compositio
 
 ### Task Constructors
 
-A task subclass spells out only the keywords it adds and takes its parent's as
-`**kwargs: Unpack[BaseTaskParams]` (`task/base/params.py`). Call sites are
-unaffected — `CmdTask(name="build", cmd="make", retries=0)` binds as it reads,
-and pyright completes every forwarded keyword and rejects a misspelled one —
-so a keyword added to `BaseTask` reaches every subclass through one `TypedDict`.
+A task subclass spells out only the keywords it adds and takes its parent's as `**kwargs: Unpack[BaseTaskParams]` (`task/base/params.py`). Call sites are unaffected — `CmdTask(name="build", cmd="make", retries=0)` binds as it reads, and pyright completes every forwarded keyword and rejects a misspelled one — so a keyword added to `BaseTask` reaches every subclass through one `TypedDict`.
 
-A subclass that accepts **fewer** keywords than its parent forwards a narrower
-`TypedDict` (`CheckTaskParams` for `HttpCheck`/`TcpCheck`) **and** calls a
-`reject_*_params` guard, because a hand-written `zrb_init.py` is not
-type-checked and `**kwargs` would otherwise pass an excluded keyword through
-to the parent, where it is accepted and then ignored. State the exclusion in
-the constructor docstring too; `test_a_forwarding_constructor_names_the_set_it_forwards`
-requires a forwarding docstring to name the class its keywords come from,
-since `help()` shows only `**kwargs`.
+A subclass that accepts **fewer** keywords than its parent forwards a narrower `TypedDict` (`CheckTaskParams` for `HttpCheck`/`TcpCheck`) **and** calls a `reject_*_params` guard, because a hand-written `zrb_init.py` is not type-checked and `**kwargs` would otherwise pass an excluded keyword through to the parent, where it is accepted and then ignored. State the exclusion in the constructor docstring too; `test_a_forwarding_constructor_names_the_set_it_forwards` requires a forwarding docstring to name the class its keywords come from, since `help()` shows only `**kwargs`.
 
-Shadowing a parent's default (`LLMChatTask` drops `retries` to 0) is
-`kwargs.setdefault(...)` plus an entry in `test_constructor_surface.py`'s
-`deliberate_shadowing` — pyright rejects a keyword parameter that also appears
-in the unpacked `TypedDict`.
+Shadowing a parent's default (`LLMChatTask` drops `retries` to 0) is `kwargs.setdefault(...)` plus an entry in `test_constructor_surface.py`'s `deliberate_shadowing` — pyright rejects a keyword parameter that also appears in the unpacked `TypedDict`.
 
 ### Config Conventions
 

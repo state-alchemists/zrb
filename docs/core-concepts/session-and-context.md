@@ -69,10 +69,7 @@ def demo(ctx):
 
 ### Rendering is opt-in
 
-`ctx.render()` above is an explicit call, so it always renders. Task *attributes*
-work the other way round: a bare `str` is a **literal** and is never rendered, so
-braces meant for the shell (`${VAR}`, `awk '{print}'`) pass through untouched.
-Wrap the string in `Tpl` to ask for rendering:
+`ctx.render()` above is an explicit call, so it always renders. Task *attributes* work the other way round: a bare `str` is a **literal** and is never rendered, so braces meant for the shell (`${VAR}`, `awk '{print}'`) pass through untouched. Wrap the string in `Tpl` to ask for rendering:
 
 ```python
 from zrb import CmdTask, StrInput, Tpl, cli
@@ -88,14 +85,9 @@ cli.add_task(
 )
 ```
 
-`Tpl` is accepted anywhere an attribute is typed `StrAttr`, `BoolAttr`, `IntAttr`
-or `FloatAttr` — it renders to text, and the attribute's own type coerces the
-result (`BoolAttr` through `to_boolean`, `IntAttr` through `int`).
+`Tpl` is accepted anywhere an attribute is typed `StrAttr`, `BoolAttr`, `IntAttr` or `FloatAttr` — it renders to text, and the attribute's own type coerces the result (`BoolAttr` through `to_boolean`, `IntAttr` through `int`).
 
-A callable `(ctx) -> value` is the third option, and the one to reach for when the
-value needs branching or a call into your own code. Prefer `Tpl` inside a loop,
-though: `Tpl(f"echo {n}")` binds `n` eagerly, while `lambda ctx: f"echo {n}"`
-captures the *variable* and hands every task the last value.
+A callable `(ctx) -> value` is the third option, and the one to reach for when the value needs branching or a call into your own code. Prefer `Tpl` inside a loop, though: `Tpl(f"echo {n}")` binds `n` eagerly, while `lambda ctx: f"echo {n}"` captures the *variable* and hands every task the last value.
 
 ---
 

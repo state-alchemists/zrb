@@ -61,9 +61,7 @@ When a user runs `zrb create-project --project_name my-cool-app`, Zrb creates th
 
 ### Per-File Transforms with `ContentTransformer`
 
-The dict shorthand above rewrites every copied file the same way. To limit a
-transform to specific files, pass `ContentTransformer` instance(s) to
-`transform_content` instead of a dict:
+The dict shorthand above rewrites every copied file the same way. To limit a transform to specific files, pass `ContentTransformer` instance(s) to `transform_content` instead of a dict:
 
 ```python
 from zrb import ContentTransformer, Scaffolder, StrInput, Tpl, cli
@@ -85,16 +83,7 @@ create_project = cli.add_task(
 )
 ```
 
-`match` accepts a glob, a list of globs, or a predicate `(ctx, file_path) -> bool`
-(`file_path` is the copied file's absolute path). By default (`match_mode="auto"`)
-a string pattern is first tried as a regex against the **whole absolute path**
-(`re.fullmatch`), then falls back to a glob — matched against the basename when the
-pattern has no path separator, otherwise against the full path. So `"*.py"` and
-`"config.json"` behave as globs in practice, while a regex must span the path
-(`r".*/src/.*\.py"`). Because regex is tried first, a pattern such as
-`".*config.json"` also matches `configXjson` (`.` is a regex wildcard). Pass
-`match_mode="glob"` to force plain glob matching, or `match_mode="regex"` to force
-regex-only.
+`match` accepts a glob, a list of globs, or a predicate `(ctx, file_path) -> bool` (`file_path` is the copied file's absolute path). By default (`match_mode="auto"`) a string pattern is first tried as a regex against the **whole absolute path** (`re.fullmatch`), then falls back to a glob — matched against the basename when the pattern has no path separator, otherwise against the full path. So `"*.py"` and `"config.json"` behave as globs in practice, while a regex must span the path (`r".*/src/.*\.py"`). Because regex is tried first, a pattern such as `".*config.json"` also matches `configXjson` (`.` is a regex wildcard). Pass `match_mode="glob"` to force plain glob matching, or `match_mode="regex"` to force regex-only.
 
 ---
 

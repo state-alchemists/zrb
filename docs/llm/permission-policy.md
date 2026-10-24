@@ -116,8 +116,7 @@ When pydantic-ai requests a tool call, Zrb resolves the outcome using this prior
 
 0.  **Always-Approve:** Tools that *are* the user interaction (e.g. `AskUserQuestion`) are auto-approved unconditionally — gating them behind a prompt is meaningless, since approval would render *before* the question itself. A tool opts in by self-registering via `register_always_auto_approve(...)`, so the guarantee travels with the tool and holds in every path (main agent, sub-agents, web), independent of any policy list below.
 1.  **Tool Policy:** Argument-level rules registered in code (`auto_approve("Read")`, command validators). A match is final. Writing your own: [Customizing Tool Approval](tool-approval.md#skipping-the-prompt-tool-policies).
-2.  **Permission Policy:** If a rule matches, its action is final — `ALLOW` approves, `DENY` blocks, and `ASK` is a *hard* ask: it does not prompt here, it removes the YOLO shortcut below so the call must reach a human.
-    In a non-interactive run (`--interactive false`) a hard `ASK` cannot reach a human, so it is settled here: `ExitPlanMode` is approved and any other `ASK`ed tool is denied.
+2.  **Permission Policy:** If a rule matches, its action is final — `ALLOW` approves, `DENY` blocks, and `ASK` is a *hard* ask: it does not prompt here, it removes the YOLO shortcut below so the call must reach a human. In a non-interactive run (`--interactive false`) a hard `ASK` cannot reach a human, so it is settled here: `ExitPlanMode` is approved and any other `ASK`ed tool is denied.
 3.  **YOLO Toggle:** If YOLO is ON, the call is approved.
 4.  **`PermissionRequest` hook:** fires now that the call will prompt; a [hook](hooks.md) may allow or deny it.
 5.  **Approval Channel:** Remote/multi-channel handlers.

@@ -180,8 +180,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 
 **Flags:** `-Yes` answers yes to every prompt; `-Pre` installs the latest pre-release instead of the latest stable.
 
-<details>
-<summary>📝 Manual Windows Installation</summary>
+<details> <summary>📝 Manual Windows Installation</summary>
 
 ```powershell
 # Install pipx first
@@ -221,8 +220,7 @@ docker run \
     -it --rm stalchmst/zrb:latest-dind docker ps
 ```
 
-<details>
-<summary>🔧 Docker Options Explained</summary>
+<details> <summary>🔧 Docker Options Explained</summary>
 
 | Option | Purpose |
 |--------|---------|
@@ -267,8 +265,7 @@ pipx install zrb
 zrb version
 ```
 
-<details>
-<summary>📖 Detailed Android Setup</summary>
+<details> <summary>📖 Detailed Android Setup</summary>
 
 **Optional Termux Packages:** `Termux-Styling`, `Termux-API`, `Termux-Storage` (from F-Droid)
 

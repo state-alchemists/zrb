@@ -129,20 +129,11 @@ See **[Programming the Prompt](../llm/programming-the-prompt.md)** for the full 
 
 After construction, `LLMChatTask` provides a fluent builder API for incremental configuration. All methods are available on the task instance.
 
-Every ordered collection below (tools, toolsets, factories, processors, policies,
-handlers, formatters, triggers, custom commands, UIs) exposes the full R5 verb
-set: `append_X`, `prepend_X`, `set_X`s, `remove_X` — see
-[Framework Conventions](../contributing/framework-conventions.md). UI factories
-and approval channels are replaced by assigning their property
-(`ui_factories`, `approval_channels`) instead of a `set_X`s method. The
-snippets below show one or two verbs per collection for brevity, not the
-complete set.
+Every ordered collection below (tools, toolsets, factories, processors, policies, handlers, formatters, triggers, custom commands, UIs) exposes the full R5 verb set: `append_X`, `prepend_X`, `set_X`s, `remove_X` — see [Framework Conventions](../contributing/framework-conventions.md). UI factories and approval channels are replaced by assigning their property (`ui_factories`, `approval_channels`) instead of a `set_X`s method. The snippets below show one or two verbs per collection for brevity, not the complete set.
 
 ### Component Slots
 
-Every component a task may hold exactly one of is a settable property (R8) —
-this works even on an already-defined task, such as the built-in `llm_chat`
-from `zrb_init.py`:
+Every component a task may hold exactly one of is a settable property (R8) — this works even on an already-defined task, such as the built-in `llm_chat` from `zrb_init.py`:
 
 ```python
 from zrb.builtin import llm_chat
@@ -158,9 +149,7 @@ llm_chat.model_getter = my_model_getter      # or None to remove the hook
 llm_chat.model_renderer = my_model_renderer  # or None to remove the hook
 ```
 
-`history_manager`, `sandbox`, and `permissions` are the same kind of slot —
-see their own sections below. Assigning the wrong type raises `TypeError`
-naming the expected class, at the assignment site.
+`history_manager`, `sandbox`, and `permissions` are the same kind of slot — see their own sections below. Assigning the wrong type raises `TypeError` naming the expected class, at the assignment site.
 
 ### UI Configuration
 
@@ -245,15 +234,10 @@ chat.append_trigger(my_trigger)  # a callable returning an async iterable
 chat.append_custom_command(my_command)
 ```
 
-A custom command is a slash command added to the chat, listed in `/help`.
-There are two kinds:
+A custom command is a slash command added to the chat, listed in `/help`. There are two kinds:
 
-- **`CustomCommand`** expands into a prompt for the LLM. `$name`, `${name}`,
-  `${name:-default}` and `$1`, `$2`, … are replaced with the arguments.
-- **`ActionCommand`** runs a Python callable instead and starts no LLM turn.
-  The callable receives the parsed arguments as a dict and the chat UI
-  (`None` when there is none, as for the initial message of a non-interactive
-  run), and returns the text to show the user, or `None` to show nothing.
+- **`CustomCommand`** expands into a prompt for the LLM. `$name`, `${name}`, `${name:-default}` and `$1`, `$2`, … are replaced with the arguments.
+- **`ActionCommand`** runs a Python callable instead and starts no LLM turn. The callable receives the parsed arguments as a dict and the chat UI (`None` when there is none, as for the initial message of a non-interactive run), and returns the text to show the user, or `None` to show nothing.
 
 ```python
 from zrb.llm.custom_command import ActionCommand, CustomCommand
@@ -275,15 +259,9 @@ chat.append_custom_command(
 
 An action may also:
 
-- **Be async.** It then runs as one of the UI's background tasks, cancelled
-  when the session ends, and its result is shown when it finishes.
-- **Reach the UI.** `ui.pending_attachments.append(...)` attaches to the next
-  message, `ui.insert_input_text(text)` types at the cursor,
-  `ui.submit_message_now(text)` submits a message and sends it into the
-  running turn at once (for hands-free words, which no key stands behind), and
-  `ui.append_to_output(text)` prints.
-- **Run mid-turn**, with `can_run_while_thinking=True`. Otherwise a command
-  waits for the model to finish.
+- **Be async.** It then runs as one of the UI's background tasks, cancelled when the session ends, and its result is shown when it finishes.
+- **Reach the UI.** `ui.pending_attachments.append(...)` attaches to the next message, `ui.insert_input_text(text)` types at the cursor, `ui.submit_message_now(text)` submits a message and sends it into the running turn at once (for hands-free words, which no key stands behind), and `ui.append_to_output(text)` prints.
+- **Run mid-turn**, with `can_run_while_thinking=True`. Otherwise a command waits for the model to finish.
 - **Complete its first argument**, with `complete_arg=lambda prefix: [...]`.
 
 A `/photo` command, simplified from the built-in one (`zrb.llm.camera.feature`):
@@ -312,11 +290,7 @@ chat.append_custom_command(
 )
 ```
 
-To write your own kind, subclass `AnyCustomCommand`. Its `handle(kwargs, ui)`
-decides: returning `None` (the default) sends `get_prompt(kwargs)` to the LLM,
-and returning a string handles the command in-process and shows that string.
-Its `can_run_while_thinking` and `get_arg_completions(prefix)` default to
-`False` and no completions.
+To write your own kind, subclass `AnyCustomCommand`. Its `handle(kwargs, ui)` decides: returning `None` (the default) sends `get_prompt(kwargs)` to the LLM, and returning a string handles the command in-process and shows that string. Its `can_run_while_thinking` and `get_arg_completions(prefix)` default to `False` and no completions.
 
 A trigger yields items, and each item becomes a user turn. An item may be:
 
@@ -343,17 +317,9 @@ async def inbox():
 chat.append_trigger(inbox)
 ```
 
-A trigger that speaks for the user (such as
-hands-free dictation) can yield `TriggerReply(text, approval=None,
-started_at=None)` instead, which answers the tool approval or question being
-asked, if there is one: a question gets `text`, an approval gets `approval`
-(or `text` when it is `None`). With `started_at` (`time.monotonic()` when the
-user began speaking), only a prompt already pending by then is answered; one
-that appeared later gets `text` as a turn. A plain string never answers one,
-so a scheduled or remote trigger cannot approve a tool call.
+A trigger that speaks for the user (such as hands-free dictation) can yield `TriggerReply(text, approval=None, started_at=None)` instead, which answers the tool approval or question being asked, if there is one: a question gets `text`, an approval gets `approval` (or `text` when it is `None`). With `started_at` (`time.monotonic()` when the user began speaking), only a prompt already pending by then is answered; one that appeared later gets `text` as a turn. A plain string never answers one, so a scheduled or remote trigger cannot approve a tool call.
 
-Camera, dictation and speech are added with one call each — see
-[Voice and camera](../llm/voice-camera.md).
+Camera, dictation and speech are added with one call each — see [Voice and camera](../llm/voice-camera.md).
 
 ### History Manager
 

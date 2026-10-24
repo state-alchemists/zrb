@@ -210,9 +210,7 @@ A `PromptManager` lets you control that assembly. Two independent levers:
 - **`prompts=[...]`** — extra content appended after the built-ins. This is exactly what `system_prompt` populates when you pass no `prompt_manager`.
 - **`include_sections=[...]`** — the full ordered list of section names to emit. Drop or reorder the built-ins; the built-in set itself is fixed.
 
-Dropping a section is an intentional deployment trade-off: shipped prompt files
-are plain markdown and are not conditionally rewritten. Keep the sections that
-the remaining instructions depend on.
+Dropping a section is an intentional deployment trade-off: shipped prompt files are plain markdown and are not conditionally rewritten. Keep the sections that the remaining instructions depend on.
 
 ```python
 from zrb import cli, LLMChatTask
