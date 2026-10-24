@@ -293,6 +293,24 @@ def _prune_old_subagent_history() -> None:
     history_dir = os.path.expanduser(CFG.LLM_HISTORY_DIR)
     if not os.path.isdir(history_dir):
         return
+    entries = _collect_delegated_history_entries(history_dir)
+    if entries is None:
+        return
+    if len(entries) <= retain:
+        return
+    entries.sort(key=lambda item: item[0])  # oldest first
+    for _mtime, path in entries[: len(entries) - retain]:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
+
+def _collect_delegated_history_entries(
+    history_dir: str,
+) -> list[tuple[float, str]] | None:
+    """`(mtime, path)` for every delegated transcript, or None if a directory
+    cannot be scanned."""
     # Only `subagent/{agent_type}/`, never the root: a user session whose name
     # merely looks delegated must never be deleted.
     entries: list[tuple[float, str]] = []
@@ -309,15 +327,8 @@ def _prune_old_subagent_history() -> None:
                     except OSError:
                         continue
     except OSError:
-        return
-    if len(entries) <= retain:
-        return
-    entries.sort(key=lambda item: item[0])  # oldest first
-    for _mtime, path in entries[: len(entries) - retain]:
-        try:
-            os.remove(path)
-        except OSError:
-            pass
+        return None
+    return entries
 
 
 async def fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -> None:

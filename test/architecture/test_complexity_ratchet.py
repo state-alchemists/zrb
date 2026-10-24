@@ -28,14 +28,17 @@ SRC = str(REPO_ROOT / "src" / "zrb")
 # a long function is fine vs not); raising either needs a one-line reason in
 # the same diff, like the facade and constructor budgets.
 #
-# mccabe 15 is held by three functions: `fit_context_window`,
-# `_prune_old_subagent_history`, and `BaseUIExecCommands.run_shell_command`.
-# radon 15 is held by eight, among them `process_deferred_requests`,
-# `classify_error_type` and `run_and_cleanup`. None is closure-inflated (each
-# scores within a point or two on both tools), so the next step down is real
-# refactoring, not a `# noqa`.
-MCCABE_LIMIT = 15
-RADON_LIMIT = 15
+# mccabe 14 is held by seven functions: `_open_microphone`, `find_definition`,
+# `make_yolo_inheritance_checker`, `format_diff`, `normalize_attachments`,
+# `log_session_state` and `run_in_daemon`. Four more score above the ceiling
+# under a `# noqa` the docstring above licenses: `setup_app_keybindings` (23),
+# `serve_chat_api` (19), `create_input_field` (15) and
+# `create_http_ui_factory` (15). radon 14 is held by thirty, among them
+# `walk_files`, `format_diff`, `run_shell_command` and `serve_cli`. Read a
+# function's radon score before reaching for a `# noqa`: it licenses the
+# closure-inflated shape only.
+MCCABE_LIMIT = 14
+RADON_LIMIT = 14
 
 
 def test_mccabe_complexity_ratchet():

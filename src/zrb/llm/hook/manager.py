@@ -425,36 +425,11 @@ class HookManager(HookManagerLoading):
 
         results: list[HookResult] = []
         for exec_result in exec_results:
-            modifications = exec_result.data.copy() if exec_result.data else {}
-
-            if exec_result.decision:
-                modifications["decision"] = exec_result.decision
-            if exec_result.reason:
-                modifications["reason"] = exec_result.reason
-            if exec_result.permission_decision:
-                modifications["permissionDecision"] = exec_result.permission_decision
-            if exec_result.permission_decision_reason:
-                modifications["permissionDecisionReason"] = (
-                    exec_result.permission_decision_reason
-                )
-            if exec_result.additional_context:
-                modifications["additionalContext"] = exec_result.additional_context
-            if exec_result.updated_input:
-                modifications["updatedInput"] = exec_result.updated_input
-            if exec_result.system_message:
-                modifications["systemMessage"] = exec_result.system_message
-            if not exec_result.continue_execution:
-                modifications["continue"] = False
-            if exec_result.suppress_output:
-                modifications["suppressOutput"] = True
-            if exec_result.hook_specific_output:
-                modifications["hookSpecificOutput"] = exec_result.hook_specific_output
-
             result = HookResult(
                 success=exec_result.success,
                 output=exec_result.message or exec_result.error,
                 data=exec_result.data,
-                modifications=modifications,
+                modifications=_hook_modifications(exec_result),
                 should_stop=exec_result.blocked or not exec_result.continue_execution,
             )
             results.append(result)
@@ -546,3 +521,35 @@ hook_manager = HookManager(registry=hook_registry)
 def get_run_hook_manager() -> HookManager:
     """Return the current run's hook manager, or the process-wide manager."""
     return get_current_hook_manager() or hook_manager
+
+
+def _hook_modifications(exec_result: HookExecutionResult) -> dict[str, object]:
+    """Flatten a hook's typed result fields into a `HookResult` modifications map."""
+    modifications: dict[str, object] = (
+        exec_result.data.copy() if exec_result.data else {}
+    )
+
+    if exec_result.decision:
+        modifications["decision"] = exec_result.decision
+    if exec_result.reason:
+        modifications["reason"] = exec_result.reason
+    if exec_result.permission_decision:
+        modifications["permissionDecision"] = exec_result.permission_decision
+    if exec_result.permission_decision_reason:
+        modifications["permissionDecisionReason"] = (
+            exec_result.permission_decision_reason
+        )
+    if exec_result.additional_context:
+        modifications["additionalContext"] = exec_result.additional_context
+    if exec_result.updated_input:
+        modifications["updatedInput"] = exec_result.updated_input
+    if exec_result.system_message:
+        modifications["systemMessage"] = exec_result.system_message
+    if not exec_result.continue_execution:
+        modifications["continue"] = False
+    if exec_result.suppress_output:
+        modifications["suppressOutput"] = True
+    if exec_result.hook_specific_output:
+        modifications["hookSpecificOutput"] = exec_result.hook_specific_output
+
+    return modifications

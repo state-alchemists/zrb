@@ -14,8 +14,9 @@ from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.util.cli.style import remove_style
 
 
-# noqa: C901 -- registration/factory function; nested handlers are trivial.
-def create_http_ui_factory(
+# mccabe sums the nested `HTTPUI` methods and the `http_ui_factory` closure into
+# this line; radon scores each separately (each is trivial on its own).
+def create_http_ui_factory(  # noqa: C901 -- factory fn; nested handlers are trivial
     session_manager: ChatSessionManager,
     session_id: str,
     session_name: str,
