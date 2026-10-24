@@ -81,12 +81,24 @@ async def test_the_report_never_tells_the_model_to_run_it_again(tmp_path):
 
 
 def _flooding_command(tmp_path, seconds: float = 30.0) -> str:
-    """A script that overflows the cap, both before and after a timeout."""
+    """A script that overflows the cap, both before and after a timeout.
+
+    The first hundred lines go out in one burst, on purpose. The test gives the
+    command one second and a 400-character cap, and a loop that trickles one line
+    every 20 ms from line 0 only overflows if the interpreter is warm enough to
+    reach line 6 inside that second. On the shared macOS runner it is not: the
+    failure showed five lines and no spill file at all, which measures interpreter
+    startup on that machine rather than the adoption path. A burst makes the
+    overflow happen as soon as the script runs at all, and the loop after it still
+    grows the file once the command has been adopted.
+    """
     script = tmp_path / "flood.py"
     script.write_text(
         "import time\n"
+        "for index in range(100):\n"
+        "    print('LINE', index, 'x' * 60, flush=True)\n"
         f"deadline = time.monotonic() + {seconds}\n"
-        "index = 0\n"
+        "index = 100\n"
         "while time.monotonic() < deadline:\n"
         "    print('LINE', index, 'x' * 60, flush=True)\n"
         "    index += 1\n"
