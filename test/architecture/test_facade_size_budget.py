@@ -91,7 +91,12 @@ FACADE_BUDGETS = {
     # `only_ready` on `send_queued_messages_now` and its parent forwarding. The
     # rule it carries (no edit cut short, no fresh message taken before the
     # grace) is the feature, not delegation.
-    "llm/ui/base/ui.py": 1275,
+    # +1 (1275->1276): one field, `shell_cut_signal`, published beside
+    # `active_run_context`; `Ctrl+G` cuts it so a `Shell` call that is holding
+    # the turn moves its command to the background instead of delaying the
+    # message until the command ends (ADR-0123) -- state, not a delegator, and
+    # the delivery ladder stays in `queue_delivery`.
+    "llm/ui/base/ui.py": 1276,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
