@@ -71,16 +71,22 @@ def is_tool_return_part(part: object) -> bool:
     Since pydantic-ai 2.60 that is a `ToolReturnPart` — a retry included, since a
     retry is the same part with `outcome='retried'`. History written before 2.60
     holds the deprecated `RetryPromptPart` instead; it is recognized by its kind
-    and its id, so this module never imports the deprecated class, and a
-    tool-less retry (which answers no call) is still not one.
+    so this module never imports the deprecated class.
+
+    A legacy part counts only when it names a tool. pydantic-ai generates a
+    `tool_call_id` for a tool-less retry, so the id alone would make feedback
+    that answers no call look like a return — and it would then be paired with,
+    or stripped as an orphan of, a call it never answered.
     """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ToolReturnPart
 
     if isinstance(part, ToolReturnPart):
         return True
-    return getattr(part, "part_kind", None) == "retry-prompt" and bool(
-        getattr(part, "tool_call_id", None)
+    return (
+        getattr(part, "part_kind", None) == "retry-prompt"
+        and bool(getattr(part, "tool_name", None))
+        and bool(getattr(part, "tool_call_id", None))
     )
 
 

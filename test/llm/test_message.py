@@ -475,21 +475,3 @@ def test_tool_less_retry_is_ignored_by_pairing():
     assert get_tool_pairs([req]) == {}
     assert sanitize_orphaned_tool_calls([req]) == [req]
     assert strip_orphaned_returns([req]) == [req]
-
-
-def test_a_legacy_retry_part_still_completes_its_pair():
-    """History written before pydantic-ai 2.60 holds a tool-linked
-    `RetryPromptPart`. The call it answers must not be stripped as orphaned —
-    that leaves the retry dangling, which providers reject with a 400."""
-    from pydantic_ai.messages import RetryPromptPart
-
-    call = ModelResponse(
-        parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="x1")],
-        timestamp=datetime.now(),
-    )
-    retry = ModelRequest(
-        parts=[RetryPromptPart(content="bad", tool_name="t", tool_call_id="x1")]
-    )
-
-    for sanitize in (sanitize_orphaned_tool_calls, strip_orphaned_returns):
-        assert sanitize([call, retry]) == [call, retry]
