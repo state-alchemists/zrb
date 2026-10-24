@@ -12,6 +12,7 @@ one per skill, and one for all of them together.
 
 import re
 from collections.abc import Sequence
+from html import unescape
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
@@ -58,6 +59,10 @@ def _blocks(text: str) -> list[tuple[str, str]]:
     New text needs none of this: the rendering side neutralises the delimiters
     inside a body (`zrb.llm.skill.activation`). This is for history written
     before that, where the tags are genuinely ambiguous.
+
+    The name comes back unescaped, because that is what the registry knows it
+    by: the renderer HTML-escapes the attribute, so `r&d` is written
+    `r&amp;d` and an escaped lookup finds no skill and drops a real body.
     """
     openings = [
         match
@@ -74,12 +79,8 @@ def _blocks(text: str) -> list[tuple[str, str]]:
             continue
         end = close_at + len(_CLOSING_TAG)
         name_match = _NAME_PATTERN.search(opening.group(0))
-        found.append(
-            (
-                name_match.group(1) if name_match else "",
-                text[opening.start() : end],
-            )
-        )
+        raw_name = name_match.group(1) if name_match else ""
+        found.append((unescape(raw_name), text[opening.start() : end]))
     return found
 
 

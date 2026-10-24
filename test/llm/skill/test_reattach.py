@@ -12,6 +12,8 @@ import pytest
 from zrb.llm.agent.types import ModelRequest, UserPromptPart
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.skill import reattach
+from zrb.llm.skill.activation import build_activation_block
+from zrb.llm.skill.manager import Skill, skill_manager
 from zrb.llm.skill.reattach import build_reattach_message
 
 
@@ -162,6 +164,21 @@ def test_an_unknown_skill_name_is_logged_as_skipped(caplog):
         build_reattach_message(dropped, [], llm_limiter)
 
     assert "skipped_unknown=['example']" in caplog.text
+
+
+def test_a_skill_whose_name_needs_escaping_is_still_reattached():
+    """The renderer escapes the name inside the attribute, so the lookup has to
+    compare real names: a skill called `r&d` arrives as `r&amp;d`, and a lookup
+    of the escaped form finds nothing and drops a body that was really there."""
+    skill = Skill(name="r&d", path="/tmp/rnd/SKILL.md", description="d")
+    skill_manager.add_skill(skill)
+    try:
+        blocked = build_activation_block(skill, "BODY_RND")
+        content = _content(build_reattach_message(_request(blocked), [], llm_limiter))
+    finally:
+        skill_manager.remove_skill("r&d")
+
+    assert "BODY_RND" in content
 
 
 def test_an_oversized_skill_is_truncated_to_its_own_cap(monkeypatch):
