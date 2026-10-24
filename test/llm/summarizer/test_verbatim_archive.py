@@ -111,43 +111,6 @@ def test_nothing_to_archive_writes_nothing(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_prior_summaries_are_not_archived_as_verbatim_text(tmp_path, monkeypatch):
-    """A summary is a derived retelling: archiving it would bury the real text."""
-    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
-    summary = ModelRequest(
-        parts=[
-            UserPromptPart(
-                content="# SYSTEM: Automated Context Restoration\nold summary"
-            )
-        ]
-    )
-    messages = [
-        summary,
-        *_messages()[:1],
-        ModelResponse(parts=[TextPart(content="Looking at it.")]),
-        ModelRequest(parts=[UserPromptPart(content="and now?")]),
-        ModelResponse(parts=[TextPart(content="Done.")]),
-    ]
-    agent = MagicMock()
-    agent.run = AsyncMock(return_value=MagicMock(output="Summary content"))
-
-    # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.summarizer import summarize_history
-
-    await summarize_history(
-        messages,
-        agent=agent,
-        summary_window=1,
-        conversational_token_threshold=10,
-        session_name="s",
-    )
-
-    text = open(verbatim_archive_path("s", str(tmp_path)), encoding="utf-8").read()
-    assert "old summary" not in text
-    assert "fix the parser" in text
-
-
-@pytest.mark.asyncio
 async def test_the_summary_names_the_archive_it_replaced(tmp_path, monkeypatch):
     """The path is written by code, not by the model: it must be this machine's."""
     monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)

@@ -19,7 +19,10 @@ SRC = REPO_ROOT / "src" / "zrb"
 # -18 (1077->1059): the RAG tool and its config mixin were removed.
 # -1 (1059->1058): `_retry_prompt_to_text(part: Any)` merged into
 # `_tool_return_to_text`, which already takes an `Any` part.
-ANY_ANNOTATIONS = 1058
+# -2 (1058->1056): `_drop_summary_parts` became `_drop_synthetic_parts`, typed
+# over `ModelMessage` in and out, and the two synthetic-part predicates take
+# `object` (they only ask the part what it is).
+ANY_ANNOTATIONS = 1056
 
 
 def _count_any(annotation: ast.expr | None) -> int:

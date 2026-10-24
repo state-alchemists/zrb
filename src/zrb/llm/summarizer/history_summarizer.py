@@ -888,18 +888,20 @@ def _verbatim_prefix(
 
 
 def _without_prior_summaries(messages: "list[ModelMessage]") -> "list[ModelMessage]":
-    """Drop earlier compactions' synthetic summaries from an archive section.
+    """Drop earlier compactions' synthetic parts from an archive section.
 
     The archive records what the conversation actually said. A summary is a
-    derived retelling that the next summary already folds in, and archiving it
-    would leave the reader sifting model prose out of verbatim text.
+    derived retelling that the next summary already folds in, and a rendered
+    tail is a handover of turns the archive already holds word for word;
+    archiving either would leave the reader sifting model prose out of verbatim
+    text, and a second compaction would append the first one's tail again.
     """
     result: "list[ModelMessage]" = []
     for message in messages:
         if getattr(message, "parts", None) is None:
             result.append(message)
             continue
-        stripped = _drop_summary_parts(message)
+        stripped = _drop_synthetic_parts(message)
         if stripped.parts:
             result.append(stripped)
     return result
@@ -1089,18 +1091,6 @@ def _is_verbatim_tail_part(part: object) -> bool:
 def _is_synthetic_part(part: object) -> bool:
     """Whether compaction wrote *part*: a prior summary, or a prior rendered tail."""
     return _is_summary_part(part) or _is_verbatim_tail_part(part)
-
-
-def _drop_summary_parts(msg: Any) -> Any:
-    """*msg* without synthetic summary parts.
-
-    `ensure_alternating_roles` can merge a prior summary part with a real user
-    part into one message; this keeps the summary from carrying forward.
-    """
-    parts = [part for part in getattr(msg, "parts", []) if not _is_summary_part(part)]
-    if len(parts) == len(msg.parts):
-        return msg
-    return replace(msg, parts=parts)
 
 
 def _drop_synthetic_parts(msg: "ModelMessage") -> "ModelMessage":
