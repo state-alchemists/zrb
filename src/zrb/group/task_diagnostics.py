@@ -114,6 +114,14 @@ def find_task_diagnostics(
         # A displaced task is already named by its collision diagnostic.
         if id(task) in reachable or id(task) in replaced_ids:
             continue
+        # A built-in registration, frozen in the snapshot before any init source
+        # ran. `zrb.builtin.llm.deferred` registers the chat stand-in that way,
+        # and a dispatch replaces it with the real task, so an init module that
+        # imported the stand-in holds an object the tree no longer does
+        # (ADR-0129). It was registered by zrb, not declared by the project --
+        # unlike a project's own `LazyTask`, whose id the snapshot never saw.
+        if id(task) in builtin_ids:
+            continue
         diagnostics.append(
             TaskDiagnostic(
                 symbol=symbol,
