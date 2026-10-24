@@ -33,6 +33,19 @@ dependencies = [
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
     "pydantic-ai-slim[mcp]>=2.54.0,<2.55.0",
+    # Security fix: GHSA-7xgj-8392-5q4r - a post-transform component authorization
+    # check is skipped on direct calls. Patched in 3.4.10. Held to 3.x on purpose:
+    # the fix is a patch release, while pydantic-ai-slim's `[mcp]` extra allows
+    # `>=3.3.0,<5`, so an unbounded update would take 4.x — a major bump of the MCP
+    # transport — for a medium advisory a patch already closes.
+    "fastmcp-slim>=3.4.11,<3.5",
+    # Security fix: GHSA-v4x8-3wr5-3wq8 (high) - ReadWriteLock's SQLite file is
+    # reopened by name, so a planted symlink or journal makes the lock's owner
+    # overwrite or unlink its own files; plus GHSA-9vhv-jxww-xfm5 and
+    # GHSA-567q-5qvw-pf92 (low, Windows side files and an oplock that defeats the
+    # stale break). All three patched in 4.2.1. filelock arrives via
+    # huggingface-hub, which asks only for >=3.10.0.
+    "filelock>=4.2.1,<5.0",
     # Security fix: CVE-2026-114603 - unbounded tracestate parsing. This floor used
     # to sit on the `rag` extra, carried there by chromadb's OTLP exporter; the extra
     # is gone but the package is not: pydantic-ai-slim (>=1.28.0) and mistralai
