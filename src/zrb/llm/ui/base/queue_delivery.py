@@ -70,6 +70,7 @@ def send_queued_messages_now(
     only_ready: bool = False,
     immediate_entry: QueuedMessage | None = None,
     cut_signal: "ShellCutSignal | None" = None,
+    move_shell: bool | None = None,
 ) -> DeliveryReport:
     """Hand the queued messages to the running turn, now.
 
@@ -102,7 +103,9 @@ def send_queued_messages_now(
     *cut_signal* is the run's own (see `zrb.llm.shell_cut`). An explicit
     send-now cuts it before steering, so a `Shell` call still holding the turn
     moves its command to the background instead of delaying the message until
-    the command ends.
+    the command ends. *move_shell* overrides whether that happens — speech
+    passes the run's `LLM_VOICE_MOVES_SHELL` setting — and defaults to
+    `may_interrupt`, which is "the user asked for this turn to move now".
     """
     entries = (
         queue.deliverable(time.monotonic(), immediate_entry=immediate_entry)
@@ -118,9 +121,18 @@ def send_queued_messages_now(
     # A running `Shell` call is the one thing that can still keep the model
     # from reading this message: the request that would carry it is assembled
     # after the tool returns, and a long command returns when it is done. Ask
-    # the run's shells to step aside first. Only an explicit send-now does it:
-    # `may_interrupt` is exactly "the user asked for this turn to move now".
-    if may_interrupt and active_run_context is not None and cut_signal is not None:
+    # the run's shells to step aside first. *move_shell* decides that
+    # separately from `may_interrupt`, because cutting is not interrupting: the
+    # command keeps running, and the cancel below must stay reserved for a
+    # caller that asked for it. Speech moves nothing by default.
+    wants_the_shell_out_of_the_way = (
+        may_interrupt if move_shell is None else move_shell
+    )
+    if (
+        wants_the_shell_out_of_the_way
+        and active_run_context is not None
+        and cut_signal is not None
+    ):
         cut_signal.cut()
 
     delivered: "tuple[QueuedMessage, ...]" = ()

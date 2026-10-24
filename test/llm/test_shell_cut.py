@@ -9,7 +9,11 @@ import asyncio
 
 import pytest
 
-from zrb.llm.shell_cut import ShellCutSignal
+from zrb.llm.shell_cut import (
+    ShellCutSignal,
+    current_shell_cut_signal,
+    signal_for_run,
+)
 
 
 @pytest.mark.asyncio
@@ -73,3 +77,23 @@ def test_each_cut_advances_the_generation():
     signal.cut()
 
     assert signal.generation == 2
+
+
+def test_a_nested_run_shares_its_parents_signal():
+    """A sub-agent runs inside the turn the user is steering, so a `Shell` it
+    starts must be reachable by the same key."""
+    parent = ShellCutSignal()
+    token = current_shell_cut_signal.set(parent)
+    try:
+        assert signal_for_run() is parent
+    finally:
+        current_shell_cut_signal.reset(token)
+
+
+def test_a_top_level_run_mints_its_own_signal():
+    assert current_shell_cut_signal.get() is None
+    first = signal_for_run()
+    second = signal_for_run()
+
+    assert isinstance(first, ShellCutSignal)
+    assert first is not second

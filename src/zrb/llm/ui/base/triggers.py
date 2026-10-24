@@ -12,6 +12,7 @@ import logging
 from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any, cast
 
+from zrb.config.config import CFG
 from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
 from zrb.util.cli.style import stylize_error
@@ -117,10 +118,13 @@ class BaseUITriggers:
             # its words are submitted and handed to the running turn at the
             # earliest safe model request. They never interrupt that turn —
             # stopping it is the user's call (Esc, Ctrl+G, a stop word).
+            # Moving a running command aside is a separate question, and the
+            # setting decides it: a misheard word must not disturb a build.
             owner.submit_message_now(
                 reply.text,
                 reply.source or KEYBOARD_INPUT,
                 may_interrupt=False,
+                move_shell=CFG.LLM_VOICE_MOVES_SHELL,
             )
             return
         if reply.source is None:

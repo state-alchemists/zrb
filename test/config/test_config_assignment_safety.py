@@ -48,6 +48,17 @@ def test_convert_setting_value_casts_strings_to_field_types():
     assert cfg.convert_setting_value("LLM_MODEL", "my-model") == "my-model"
 
 
+def test_voice_moves_shell_is_off_by_default_and_settable_with_set(monkeypatch):
+    """`/set LLM_VOICE_MOVES_SHELL 1` is how a voice-first session turns it on,
+    so the name has to be one `/set` can cast and assign."""
+    monkeypatch.delenv("ZRB_LLM_VOICE_MOVES_SHELL", raising=False)
+    cfg = Config()
+    assert cfg.LLM_VOICE_MOVES_SHELL is False
+    for raw, expected in (("1", True), ("0", False)):
+        setattr(cfg, "LLM_VOICE_MOVES_SHELL", cfg.convert_setting_value("LLM_VOICE_MOVES_SHELL", raw))
+        assert cfg.LLM_VOICE_MOVES_SHELL is expected
+
+
 def test_convert_setting_value_unknown_name_raises_with_suggestion():
     cfg = Config()
     with pytest.raises(AttributeError) as excinfo:

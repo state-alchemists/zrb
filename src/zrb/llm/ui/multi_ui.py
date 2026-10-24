@@ -603,6 +603,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         user_message: str,
         source: InputProvenance | None = None,
         may_interrupt: bool = True,
+        move_shell: bool | None = None,
     ) -> DeliveryReport:
         """Send this message promptly without flushing other queued drafts."""
         self.submit_message(user_message, source)
@@ -610,6 +611,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             may_interrupt=may_interrupt,
             only_ready=True,
             immediate_entry=self._message_queue.peek_latest(),
+            move_shell=move_shell,
         )
 
     async def process_messages_loop(self):
@@ -761,6 +763,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         may_interrupt: bool = True,
         only_ready: bool = False,
         immediate_entry: QueuedMessage | None = None,
+        move_shell: bool | None = None,
     ) -> DeliveryReport:
         """Deliver the queued messages into the running turn, now.
 
@@ -777,6 +780,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             only_ready=only_ready,
             immediate_entry=immediate_entry,
             cut_signal=self.shell_cut_signal,
+            move_shell=move_shell,
         )
         main_ui = self.main_ui
         redraw = getattr(main_ui, "redraw_echoes", None)

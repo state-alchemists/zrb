@@ -83,9 +83,9 @@ from zrb.llm.permission.state import (
 from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.shell_cut import (
-    ShellCutSignal,
     current_shell_cut_signal,
     get_run_shell_cut_signal,
+    signal_for_run,
 )
 from zrb.llm.snapshot.command import run_in_worker
 from zrb.llm.stream_observer import StreamObserver, create_observed_event_handler
@@ -197,8 +197,10 @@ async def run_agent(
         bind_contextvar(stack, current_model, getattr(agent, "model", None))
         bind_contextvar(stack, current_llm_limiter, limiter)
         # The turn's "step aside" flag: a send-now cuts it, and the shell call
-        # that is holding the turn moves its command to the background.
-        bind_contextvar(stack, current_shell_cut_signal, ShellCutSignal())
+        # that is holding the turn moves its command to the background. A nested
+        # run shares its parent's, so a shell inside a sub-agent is reachable by
+        # the same key.
+        bind_contextvar(stack, current_shell_cut_signal, signal_for_run())
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)

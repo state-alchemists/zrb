@@ -79,3 +79,21 @@ def test_speech_does_not_cut_the_runs_shell(cut_ui):
         cut_ui.submit_message_now("spoken", DICTATION_INPUT, may_interrupt=False)
 
     assert signal.generation == 0
+
+
+def test_a_voice_first_session_can_let_speech_move_the_shell(cut_ui):
+    """`LLM_VOICE_MOVES_SHELL` is what a hands-free session turns on; the turn
+    is still never interrupted."""
+    signal = ShellCutSignal()
+    cut_ui.active_run_context = MagicMock()
+    cut_ui.shell_cut_signal = signal
+    cancelled = []
+    with patch.object(cut_ui, "append_to_output"), patch.object(
+        cut_ui, "cancel_current_turn", side_effect=cancelled.append
+    ):
+        cut_ui.submit_message_now(
+            "spoken", DICTATION_INPUT, may_interrupt=False, move_shell=True
+        )
+
+    assert signal.generation == 1
+    assert cancelled == [], "moving a command must not cancel the turn"

@@ -479,7 +479,7 @@ def test_a_child_ui_lets_its_multi_ui_parent_deliver():
     report = ui.send_queued_messages_now()
 
     parent.send_queued_messages_now.assert_called_once_with(
-        may_interrupt=True, only_ready=False, immediate_entry=None
+        may_interrupt=True, only_ready=False, immediate_entry=None, move_shell=None
     )
     assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
 
