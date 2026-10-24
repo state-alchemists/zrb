@@ -129,11 +129,14 @@ def _row(model: str, runs: list[UsageRecord]) -> str:
 
 def _footer(records: list[UsageRecord]) -> list[str]:
     tool_calls = sum(record.tool_calls for record in records)
-    model_ms = sum(record.duration_ms for record in records)
+    # Wall time, not API time: the runner's timer surrounds a whole round, so it
+    # includes tool execution and any wait for approval. Separating provider time
+    # from that needs per-request spans, which is the tracing this does not do.
+    run_ms = sum(record.duration_ms for record in records)
     lines = [
         f"  cache   {_cache_ratio(records):.0%} of input tokens came from the prompt cache",
         f"  runs    {len(records)} run(s) · {tool_calls} tool call(s) · "
-        f"{_duration(model_ms)} of model time",
+        f"{_duration(run_ms)} of wall time",
     ]
     unpriced = [record for record in records if record.cost is None]
     if unpriced:

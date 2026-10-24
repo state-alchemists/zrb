@@ -157,11 +157,11 @@ def test_unmeasured_requests_are_called_out(usage_dir, command):
     assert "2 request(s) reported no usage" in output
 
 
-def test_model_time_is_summed_across_runs(usage_dir, command):
+def test_wall_time_is_summed_across_runs(usage_dir, command):
     _record(duration_ms=60_000)
     _record(duration_ms=30_000)
 
-    assert "1m 30s of model time" in command.handle({}, None)
+    assert "1m 30s of wall time" in command.handle({}, None)
 
 
 def test_the_longest_models_are_listed_first(usage_dir, command):
