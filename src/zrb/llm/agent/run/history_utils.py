@@ -259,8 +259,9 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
 
     ``ModelRequest`` (user role):
         ``ToolReturnPart``                       → ``UserPromptPart("(sanitized-history) previous result …")``
-        ``RetryPromptPart`` with ``tool_name``   → ``UserPromptPart("(sanitized-history) prior retry feedback …")``
-        ``UserPromptPart`` / ``SystemPromptPart``/ tool-less ``RetryPromptPart``
+        ``ToolReturnPart`` with ``outcome='retried'``
+                                                 → ``UserPromptPart("(sanitized-history) prior retry feedback …")``
+        ``UserPromptPart`` / ``SystemPromptPart``
                                                  → kept (empty content normalised to ``"(empty)"``)
 
     Both sides of every tool pair are converted, so nothing is orphaned.
@@ -323,18 +324,23 @@ def _normalize_for_response(part: Any) -> Any:
 def _normalize_for_request(part: Any) -> Any:
     """Collapse one `ModelRequest` part to what the user role accepts."""
     from pydantic_ai.messages import (  # lazy: heavy third-party
-        RetryPromptPart,
         SystemPromptPart,
         ToolReturnPart,
         UserPromptPart,
     )
 
     if isinstance(part, ToolReturnPart):
+        # A retry is this same part with `outcome='retried'` since pydantic-ai
+        # 2.60; it maps to the user role rather than the tool role, so it keeps
+        # no tool_call_id, and `_tool_return_to_text` words it as feedback.
         return UserPromptPart(content=_tool_return_to_text(part))
-    if isinstance(part, RetryPromptPart) and getattr(part, "tool_name", None):
-        # A tool-linked retry maps to a tool-role message; keep no tool_call_id.
-        return UserPromptPart(content=_retry_prompt_to_text(part))
-    if isinstance(part, (UserPromptPart, SystemPromptPart, RetryPromptPart)):
+    if getattr(part, "part_kind", None) == "retry-prompt":
+        # History written before 2.60 carries the deprecated `RetryPromptPart`.
+        # It must still be flattened rather than passed through to a provider
+        # mapper that no longer knows it; the kind string identifies it without
+        # this module importing the deprecated class.
+        return UserPromptPart(content=_legacy_retry_to_text(part))
+    if isinstance(part, (UserPromptPart, SystemPromptPart)):
         return _sanitize_content(part)
     return part
 
@@ -355,7 +361,13 @@ def _tool_call_to_text(part: Any) -> str:
 
 
 def _tool_return_to_text(part: Any) -> str:
-    """Convert a BaseToolReturnPart to a truncated prose label."""
+    """Convert a BaseToolReturnPart to a truncated prose label.
+
+    A retry is the same part with `outcome='retried'`, which is what pydantic-ai
+    2.60 folded the deprecated `RetryPromptPart` into. It reads differently from
+    a result — the model is being told why the call has to be made again — so the
+    outcome decides the wording rather than the part type.
+    """
     from pydantic_ai.messages import BaseToolReturnPart  # lazy: heavy third-party
 
     if not isinstance(part, BaseToolReturnPart):
@@ -364,7 +376,18 @@ def _tool_return_to_text(part: Any) -> str:
     raw = part.content
     content = str(raw) if raw is not None else "(no value)"
     content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
+    if getattr(part, "outcome", "success") == "retried":
+        return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
     return f'(sanitized-history) previous result from tool "{name}": ' f"{content}"
+
+
+def _legacy_retry_to_text(part: object) -> str:
+    """A pre-2.60 `RetryPromptPart` as prose, read without importing the class."""
+    name = getattr(part, "tool_name", None) or "(unnamed)"
+    raw = getattr(part, "content", None)
+    content = str(raw) if raw not in (None, "") else "(no value)"
+    content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
+    return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
 
 
 def _thinking_part_content(part: Any) -> str:
@@ -375,19 +398,6 @@ def _thinking_part_content(part: Any) -> str:
         return ""
     content = part.content if hasattr(part, "content") else ""
     return str(content) if content else EMPTY_CONTENT_PLACEHOLDER
-
-
-def _retry_prompt_to_text(part: Any) -> str:
-    """Convert a tool-linked ``RetryPromptPart`` to a prose label."""
-    from pydantic_ai.messages import RetryPromptPart  # lazy: heavy third-party
-
-    if not isinstance(part, RetryPromptPart):
-        return ""
-    name = getattr(part, "tool_name", None) or "(unnamed)"
-    raw = part.content if hasattr(part, "content") else None
-    content = str(raw) if raw not in (None, "") else "(no value)"
-    content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
-    return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
 
 
 def merge_consecutive_messages(current_history, current_message):
@@ -462,18 +472,16 @@ def history_through_deferred_returns(
     tools, whatever failed after. `None` when the round never ran them.
     """
     from pydantic_ai.messages import ModelRequest  # lazy: heavy third-party
-    from pydantic_ai.messages import (
-        RetryPromptPart,
-        ToolReturnPart,
-    )
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.message import is_tool_return_part
 
     deferred_ids = {*results.approvals, *results.calls}
     request_indexes = [
         i for i, msg in enumerate(messages) if isinstance(msg, ModelRequest)
     ]
     has_deferred_return = any(
-        isinstance(part, (ToolReturnPart, RetryPromptPart))
-        and part.tool_call_id in deferred_ids
+        is_tool_return_part(part)
+        and getattr(part, "tool_call_id", None) in deferred_ids
         for i in request_indexes
         for part in messages[i].parts
     )

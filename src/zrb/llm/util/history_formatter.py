@@ -16,6 +16,17 @@ from zrb.util.truncate import truncate_display
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
 
+_OUTCOME_ICONS = {"success": "✅", "retried": "🔄"}
+
+
+def outcome_icon(outcome: object) -> str:
+    """The icon for a tool outcome, shared so the transcript and its replay agree.
+
+    A retried call did not fail — the model was asked to make it again — so it
+    must not read as an error in either place. Anything unrecognized does.
+    """
+    return _OUTCOME_ICONS.get(str(outcome), "❌")
+
 
 def extract_last_response_text(messages: "Sequence[ModelMessage]") -> str:
     """Return the text of the most recent assistant response with any text,
@@ -149,7 +160,10 @@ def _format_request(
             tool_return_parts.append(part)
         elif part_kind == "system-prompt":
             system_prompt_parts.append(part)
-        elif part_kind == "retry-prompt":
+        elif part_kind in ("retry-feedback", "retry-prompt"):
+            # `retry-prompt` is the deprecated `RetryPromptPart`; dispatch is on
+            # the part's own kind string, so history written before pydantic-ai
+            # 2.60 still renders without importing the deprecated class.
             retry_parts.append(part)
 
     for part in tool_return_parts:
@@ -286,9 +300,11 @@ def _format_tool_return(
     tool_name = getattr(part, "tool_name", None)
     tool_call_id = getattr(part, "tool_call_id", None)
     content = getattr(part, "content", "")
-    outcome = getattr(part, "outcome", "success")
+    outcome = str(getattr(part, "outcome", "success"))
 
-    status_icon = "✅" if str(outcome) == "success" else "❌"
+    # A retried call did not fail — the model was asked to make it again — so it
+    # gets its own icon rather than reading as an error.
+    status_icon = outcome_icon(outcome)
 
     id_display = tool_call_id or "?"
 

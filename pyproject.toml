@@ -32,7 +32,7 @@ dependencies = [
     # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
-    "pydantic-ai-slim[mcp]>=2.54.0,<2.55.0",
+    "pydantic-ai-slim[mcp]>=2.61.0,<2.62.0",
     # Security fix: GHSA-7xgj-8392-5q4r - a post-transform component authorization
     # check is skipped on direct calls. Patched in 3.4.10. Held to 3.x on purpose:
     # the fix is a patch release, while pydantic-ai-slim's `[mcp]` extra allows
@@ -55,11 +55,14 @@ dependencies = [
     # `openai` is a core dependency (not an extra) because every OpenAI-compatible
     # provider routes through it — OpenAI, Ollama, DeepSeek, OpenRouter, Z.ai,
     # Cerebras, Together, and the rest.
-    # >=3.19.0 is a hard floor, not a preference: it's pydantic-ai-slim's own
-    # `openai` extra floor as of 2.54.0 (was 3.8.0 as of 2.41.0). An older SDK is
-    # untested against this pydantic-ai version and may miss parameters
-    # `OpenAIChatModel` sends unconditionally (e.g. `prompt_cache_options=`).
-    "openai>=3.19.0",
+    # >=3.26.0 is a hard floor, not a preference: it's pydantic-ai-slim's own
+    # `openai` extra floor as of 2.61.0 (3.19.0 as of 2.54.0, 3.8.0 as of 2.41.0).
+    # We take `pydantic-ai-slim[mcp]`, not its `openai` extra, so the resolver
+    # never enforces that floor for us — it stayed at 3.19.0 while pydantic-ai
+    # moved from 2.54.0 to 2.61.0. An older SDK is untested against this
+    # pydantic-ai version and may miss parameters `OpenAIChatModel` sends
+    # unconditionally (e.g. `prompt_cache_options=`).
+    "openai>=3.26.0",
     "prompt-toolkit>=3",
     "rich>=13",
     # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin

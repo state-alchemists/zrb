@@ -10,8 +10,45 @@ _MISSING_KEY_MESSAGE = re.compile(r"Set the `\w+` environment variable")
 _OPENAI_SDK_MISSING_KEY_MESSAGE = re.compile(r"Missing credentials")
 
 
+def _typed_model_errors() -> dict[str, type[Exception]]:
+    """pydantic-ai's typed model errors, imported on first use.
+
+    Lazy because this module is imported by the task layer on every path, while
+    pydantic-ai is heavy and only reached once something has failed.
+    """
+    # lazy: heavy third-party -- pydantic_ai
+    from pydantic_ai import exceptions as pai
+
+    return {
+        "rate_limit": pai.ModelRateLimitError,
+        "quota": pai.ModelQuotaExceededError,
+        "unavailable": pai.ModelUnavailableError,
+        "overloaded": pai.ModelOverloadedError,
+        "server": pai.ModelServerError,
+        "connection": pai.ModelConnectionError,
+        "timeout": pai.ModelTimeoutError,
+        "context_window": pai.ModelContextWindowExceededError,
+    }
+
+
+def _is_typed_model_error(e: BaseException, *kinds: str) -> bool:
+    """True when *e* is one of pydantic-ai's typed model errors.
+
+    Since 2.59 the provider answer is classified where it is received, for the
+    OpenAI-compatible path too (`_model_errors.openai_compatible_category`, which
+    reads `context_length_exceeded` and the wording OpenRouter, vLLM and Groq
+    use), and for Bedrock and Google by their own mappings. So the type is the
+    precise answer and the status code is the approximation; these checks run
+    first and the older heuristics stay for errors that arrive untyped.
+    """
+    errors = _typed_model_errors()
+    return isinstance(e, tuple(errors[kind] for kind in kinds))
+
+
 def is_prompt_too_long_error(e: Exception) -> bool:
     """Returns True if the exception is a context length / token limit error."""
+    if _is_typed_model_error(e, "context_window"):
+        return True
     err_str = str(e).lower()
     context_keywords = [
         "prompt too long",
@@ -76,7 +113,18 @@ def is_missing_reasoning_content_error(e: Exception) -> bool:
 
 
 def is_retryable_error(e: Exception) -> bool:
-    """Returns True for transient provider errors (429, 5xx) worth retrying."""
+    """Returns True for transient provider errors worth retrying.
+
+    An exhausted quota arrives as a 429 like a rate limit does, but waiting does
+    not refill it — pydantic-ai gives it its own class precisely so this can be
+    told apart, and the status-code branch below cannot.
+    """
+    if _is_typed_model_error(e, "quota"):
+        return False
+    if _is_typed_model_error(
+        e, "rate_limit", "unavailable", "overloaded", "server", "connection", "timeout"
+    ):
+        return True
     status_code = getattr(e, "status_code", None)
     if status_code is not None:
         return status_code == 429 or status_code >= 500
@@ -111,6 +159,9 @@ def is_permanent_error(e: BaseException) -> bool:
     # pydantic-ai's misconfiguration class (missing key, bad model string).
     if isinstance(e, UserError):
         return True
+    # An exhausted quota or spend limit: the next attempt fails the same way.
+    if _is_typed_model_error(e, "quota"):
+        return True
     if not isinstance(e, Exception):
         return False
     return classify_error_type(e) in _PERMANENT_ERROR_TYPES
@@ -121,8 +172,38 @@ def retry_unless_permanent(e: BaseException) -> bool:
     return not is_permanent_error(e)
 
 
+def _classify_typed_model_error(e: Exception) -> str | None:
+    """The StopFailure token for a pydantic-ai typed error, or None for an untyped one."""
+    if _is_typed_model_error(e, "context_window"):
+        return "context_length"
+    if _is_typed_model_error(e, "overloaded"):
+        return "overloaded"
+    if _is_typed_model_error(e, "server"):
+        return "server_error"
+    if _is_typed_model_error(e, "rate_limit", "quota"):
+        return "rate_limit"
+    return None
+
+
 def classify_error_type(e: Exception) -> str:
-    """Classify an exception into Claude Code's StopFailure error-type tokens, else "unknown"."""
+    """Classify an exception into Claude Code's StopFailure error-type tokens, else "unknown".
+
+    pydantic-ai's typed errors are consulted first, because they are decided from
+    the provider's own code or message where the answer is received, and a status
+    code is not enough to tell these apart: an exhausted quota and a rate limit
+    are both 429, and OpenRouter and vLLM report a context overflow as a 400 with
+    no distinguishing code. The status and keyword branches below stay for errors
+    that arrive untyped — a raw SDK exception, or a provider path that has not
+    been classified yet.
+    """
+    typed = _classify_typed_model_error(e)
+    if typed is not None:
+        return typed
+    return _classify_untyped_error(e)
+
+
+def _classify_untyped_error(e: Exception) -> str:
+    """The status-code and keyword branches, for an error pydantic-ai did not classify."""
     status_code = getattr(e, "status_code", None)
     if status_code is None:
         response = getattr(e, "response", None)

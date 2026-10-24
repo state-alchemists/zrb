@@ -71,3 +71,27 @@ def test_replay_non_string_content_is_not_split():
 
     kinds = [kind for _text, kind in ui.calls]
     assert "live_context" not in kinds
+
+
+def test_replay_shows_a_retried_tool_return_as_a_retry_not_a_failure():
+    """The history formatter marks a retried call 🔄, so a reloaded transcript
+    must agree with a live one instead of reporting a failure."""
+    ui = MockUI()
+    message = SimpleNamespace(
+        kind="request",
+        timestamp=None,
+        parts=[
+            SimpleNamespace(
+                part_kind="tool-return",
+                tool_name="t",
+                tool_call_id="c1",
+                content="try again",
+                outcome="retried",
+            )
+        ],
+    )
+    ui.replay_history([message])
+
+    rendered = " ".join(text for text, _kind in ui.calls)
+    assert "🔄" in rendered
+    assert "❌" not in rendered

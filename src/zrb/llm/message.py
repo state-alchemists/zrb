@@ -1,4 +1,4 @@
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
@@ -57,14 +57,49 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
     return new_messages
 
 
+def _is_tool_call(part: object) -> bool:
+    """True when *part* is a tool call."""
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolCallPart
+
+    return isinstance(part, ToolCallPart)
+
+
+def is_tool_return_part(part: object) -> bool:
+    """True when *part* answers a tool call.
+
+    Since pydantic-ai 2.60 that is a `ToolReturnPart` — a retry included, since a
+    retry is the same part with `outcome='retried'`. History written before 2.60
+    holds the deprecated `RetryPromptPart` instead; it is recognized by its kind
+    so this module never imports the deprecated class.
+
+    A legacy part counts only when it names a tool. pydantic-ai generates a
+    `tool_call_id` for a tool-less retry, so the id alone would make feedback
+    that answers no call look like a return — and it would then be paired with,
+    or stripped as an orphan of, a call it never answered.
+    """
+    # lazy: zrb internal (heavy via transitive)
+    from zrb.llm.agent.types import ToolReturnPart
+
+    if isinstance(part, ToolReturnPart):
+        return True
+    return (
+        getattr(part, "part_kind", None) == "retry-prompt"
+        and bool(getattr(part, "tool_name", None))
+        and bool(getattr(part, "tool_call_id", None))
+    )
+
+
 def _strip_orphaned_parts(
     msg: "Any",
     orphaned_ids: "set[str]",
-    part_type: "type | tuple[type, ...]",
+    matches: "Callable[[Any], bool]",
     ensure_text: bool = False,
 ) -> "Any | None":
     """Return *msg* with parts matching *orphaned_ids* removed, or ``None`` if empty.
 
+    *matches* says which parts answer a call or make one — a predicate rather
+    than a type, because a legacy retry part has to be recognized by its kind.
     When *ensure_text* is ``True`` and the result has no ``TextPart`` with
     content, a ``TOOL_CALL_PLACEHOLDER`` text part is prepended so the message
     stays valid.
@@ -75,10 +110,7 @@ def _strip_orphaned_parts(
     new_parts = [
         p
         for p in msg.parts
-        if not (
-            isinstance(p, part_type)
-            and getattr(p, "tool_call_id", None) in orphaned_ids
-        )
+        if not (matches(p) and getattr(p, "tool_call_id", None) in orphaned_ids)
     ]
     if not new_parts:
         return None
@@ -104,9 +136,6 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     from zrb.llm.agent.types import (
         ModelRequest,
         ModelResponse,
-        RetryPromptPart,
-        ToolCallPart,
-        ToolReturnPart,
     )
 
     call_ids: set[str] = set()
@@ -127,13 +156,13 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
     for msg in messages:
         if isinstance(msg, ModelResponse) and orphaned_calls:
             patched = _strip_orphaned_parts(
-                msg, orphaned_calls, ToolCallPart, ensure_text=True
+                msg, orphaned_calls, _is_tool_call, ensure_text=True
             )
             if patched is not None:
                 result.append(patched)
         elif isinstance(msg, ModelRequest) and orphaned_returns:
             patched = _strip_orphaned_parts(
-                msg, orphaned_returns, (ToolReturnPart, RetryPromptPart)
+                msg, orphaned_returns, is_tool_return_part
             )
             if patched is not None:
                 result.append(patched)
@@ -151,11 +180,7 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     the summarised (dropped) portion are stripped.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import (
-        ModelRequest,
-        RetryPromptPart,
-        ToolReturnPart,
-    )
+    from zrb.llm.agent.types import ModelRequest
 
     call_ids: set[str] = set()
     return_ids: set[str] = set()
@@ -173,7 +198,7 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     for msg in messages:
         if isinstance(msg, ModelRequest) and orphaned_returns:
             patched = _strip_orphaned_parts(
-                msg, orphaned_returns, (ToolReturnPart, RetryPromptPart)
+                msg, orphaned_returns, is_tool_return_part
             )
             if patched is not None:
                 result.append(patched)
@@ -251,21 +276,16 @@ def _iter_tool_events(
     """Yield ``(msg_index, tool_call_id, kind)`` for every tool part in *messages*.
 
     *kind* is ``"call"`` for ``ToolCallPart`` and ``"return"`` for
-    ``ToolReturnPart`` or a tool-linked ``RetryPromptPart`` (providers serialize
-    it as a ``role='tool'`` message). Tool-less retries map to user messages and
-    are skipped, as are parts without a ``tool_call_id``.
+    ``ToolReturnPart``, which is also what a retry is since pydantic-ai 2.60
+    (``outcome='retried'``; providers serialize it as a ``role='tool'``
+    message). Parts without a ``tool_call_id`` are skipped.
     """
-    # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.agent.types import RetryPromptPart, ToolCallPart, ToolReturnPart
-
     for msg_idx, msg in enumerate(messages):
         for part in getattr(msg, "parts", []):
             tool_call_id = getattr(part, "tool_call_id", None)
             if not tool_call_id:
                 continue
-            if isinstance(part, ToolCallPart):
+            if _is_tool_call(part):
                 yield msg_idx, tool_call_id, "call"
-            elif isinstance(part, ToolReturnPart):
-                yield msg_idx, tool_call_id, "return"
-            elif isinstance(part, RetryPromptPart) and part.tool_name:
+            elif is_tool_return_part(part):
                 yield msg_idx, tool_call_id, "return"

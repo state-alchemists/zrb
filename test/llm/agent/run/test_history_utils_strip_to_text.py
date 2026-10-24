@@ -366,14 +366,17 @@ def test_close_dangling_tool_calls_noop_when_response_has_no_tool_calls():
 
 def test_strip_to_text_only_truncates_long_retry_prompt():
     """Oversized retry prompts are converted and truncated."""
-    from pydantic_ai.messages import RetryPromptPart
+    from pydantic_ai.messages import ToolReturnPart
 
     long_content = "E" * 700
     history = [
         ModelRequest(
             parts=[
-                RetryPromptPart(
-                    content=long_content, tool_name="bad_tool", tool_call_id="c1"
+                ToolReturnPart(
+                    tool_name="bad_tool",
+                    content=long_content,
+                    tool_call_id="c1",
+                    outcome="retried",
                 )
             ]
         )
@@ -389,3 +392,27 @@ def test_strip_to_text_only_truncates_long_retry_prompt():
     assert "bad_tool" in text
     assert text.endswith("...")
     assert "E" * 700 not in text
+
+
+def test_a_legacy_retry_part_is_still_flattened():
+    """History written before pydantic-ai 2.60 holds the deprecated
+    `RetryPromptPart`. Context-overflow recovery must still flatten it: a part
+    a provider mapper no longer knows would defeat the whole path."""
+    from pydantic_ai.messages import RetryPromptPart
+
+    history = [
+        ModelRequest(
+            parts=[
+                RetryPromptPart(
+                    content="malformed args", tool_name="t", tool_call_id="c9"
+                )
+            ]
+        )
+    ]
+
+    result = strip_to_text_only(history)
+
+    out_part = result[0].parts[0]
+    assert isinstance(out_part, UserPromptPart)
+    assert "prior retry feedback" in out_part.content
+    assert "malformed args" in out_part.content

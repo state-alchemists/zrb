@@ -175,9 +175,9 @@ class TestLoadCommandReplay:
         assert "pondering the question" in thinking_records[0][0]
         assert thinking_records[0][1] == "thinking"
 
-    def test_load_renders_retry_prompt_with_faint_kind(self, recording_ui):
-        """Retry-prompt parts in loaded history must render with the faint tool_call kind."""
-        from pydantic_ai.messages import ModelRequest, RetryPromptPart
+    def test_load_renders_retry_feedback_with_faint_kind(self, recording_ui):
+        """Retry-feedback parts in loaded history must render with the faint tool_call kind."""
+        from pydantic_ai.messages import ModelRequest, RetryFeedbackPart, RetryInfo
 
         ui = recording_ui
         ui.load_commands = ["/load"]
@@ -185,7 +185,10 @@ class TestLoadCommandReplay:
             return_value=[
                 ModelRequest(
                     parts=[
-                        RetryPromptPart(content="please use a valid argument"),
+                        RetryFeedbackPart(
+                            content="please use a valid argument",
+                            retry=RetryInfo(cause="model_retry"),
+                        ),
                     ]
                 )
             ]
