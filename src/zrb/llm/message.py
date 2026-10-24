@@ -161,9 +161,7 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
             if patched is not None:
                 result.append(patched)
         elif isinstance(msg, ModelRequest) and orphaned_returns:
-            patched = _strip_orphaned_parts(
-                msg, orphaned_returns, is_tool_return_part
-            )
+            patched = _strip_orphaned_parts(msg, orphaned_returns, is_tool_return_part)
             if patched is not None:
                 result.append(patched)
         else:
@@ -197,9 +195,7 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     result: list[Any] = []
     for msg in messages:
         if isinstance(msg, ModelRequest) and orphaned_returns:
-            patched = _strip_orphaned_parts(
-                msg, orphaned_returns, is_tool_return_part
-            )
+            patched = _strip_orphaned_parts(msg, orphaned_returns, is_tool_return_part)
             if patched is not None:
                 result.append(patched)
         else:

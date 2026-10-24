@@ -377,7 +377,9 @@ def _tool_return_to_text(part: Any) -> str:
     content = str(raw) if raw is not None else "(no value)"
     content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
     if getattr(part, "outcome", "success") == "retried":
-        return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
+        return (
+            f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
+        )
     return f'(sanitized-history) previous result from tool "{name}": ' f"{content}"
 
 
@@ -472,6 +474,7 @@ def history_through_deferred_returns(
     tools, whatever failed after. `None` when the round never ran them.
     """
     from pydantic_ai.messages import ModelRequest  # lazy: heavy third-party
+
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.message import is_tool_return_part
 

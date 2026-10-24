@@ -125,9 +125,7 @@ def _midnight(now: datetime) -> datetime:
 
 def _table(records: list[UsageRecord]) -> str:
     grouped = _group_by_model(records)
-    ordered = sorted(
-        grouped.items(), key=lambda item: -_total(item[1], _INPUT)
-    )
+    ordered = sorted(grouped.items(), key=lambda item: -_total(item[1], _INPUT))
     rows = [
         f"  {'model':<{_MODEL_WIDTH}}{'runs':>6}{'input':>10}"
         f"{'output':>10}{'cache read':>12}{'cost':>10}"

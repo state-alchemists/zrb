@@ -117,7 +117,9 @@ def _spill_path(text: str) -> str:
 
 def _highest_line(path: str) -> int:
     with open(path, "r", encoding="utf-8", errors="replace") as spilled:
-        numbers = [int(n) for n in re.findall(r"^LINE (\d+)", spilled.read(), re.MULTILINE)]
+        numbers = [
+            int(n) for n in re.findall(r"^LINE (\d+)", spilled.read(), re.MULTILINE)
+        ]
     assert numbers, "nothing of the command's output is in the file"
     return max(numbers)
 

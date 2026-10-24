@@ -142,9 +142,7 @@ def _baseline_sections(
     return status, commits, worktrees
 
 
-def _extend_new_commits(
-    commits: list[str], seen: set[str], found: list[str]
-) -> None:
+def _extend_new_commits(commits: list[str], seen: set[str], found: list[str]) -> None:
     """Append commits not already in *seen*, preserving render order."""
     for commit in found:
         key = _commit_key(commit)
@@ -545,7 +543,7 @@ def _overflow_summary(dropped: str) -> str:
         return "(...more)"
     lines = []
     for category in sorted(counts):
-        detail = f"; newest \"{newest[category]}\"" if newest.get(category) else ""
+        detail = f'; newest "{newest[category]}"' if newest.get(category) else ""
         lines.append(
             f"- Hidden {category} notes ({counts[category]}{detail}) — "
             "use SearchJournal."

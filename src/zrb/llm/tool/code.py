@@ -220,9 +220,7 @@ def _collect_matching_files(
             file_path = os.path.join(root, file)
             try:
                 rel_path = os.path.relpath(file_path, dir_path)
-                if visible is not None and (
-                    os.path.normpath(rel_path) not in visible
-                ):
+                if visible is not None and (os.path.normpath(rel_path) not in visible):
                     continue
                 if matches_any_pattern(rel_path, exclude_patterns):
                     continue

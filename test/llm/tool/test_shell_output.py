@@ -270,7 +270,10 @@ async def test_a_successful_command_still_keeps_only_its_tail(monkeypatch):
 @pytest.mark.asyncio
 async def test_a_failure_that_fits_is_shown_whole(monkeypatch):
     res = await _run_noisy(
-        monkeypatch, _noisy_lines("FIRST-CAUSE\n", "LAST-SUMMARY\n", filler=2), 1, 10_000
+        monkeypatch,
+        _noisy_lines("FIRST-CAUSE\n", "LAST-SUMMARY\n", filler=2),
+        1,
+        10_000,
     )
 
     assert "FIRST-CAUSE" in res

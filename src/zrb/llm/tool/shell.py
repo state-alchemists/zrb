@@ -755,11 +755,7 @@ def _overflow_note(dump_path: str | None, failed: bool) -> str:
     """What the model is told about output that did not fit."""
     if not dump_path:
         return ""
-    kept = (
-        "the beginning and the end of a failed command"
-        if failed
-        else "the tail"
-    )
+    kept = "the beginning and the end of a failed command" if failed else "the tail"
     return (
         f"[SYSTEM SUGGESTION]: Output truncated (kept {kept}). Full "
         f"stdout/stderr saved to {dump_path} — Grep it to locate sections, "
@@ -767,9 +763,7 @@ def _overflow_note(dump_path: str | None, failed: bool) -> str:
     )
 
 
-def _live_overflow_note(
-    stdout_cap: StreamCapture, stderr_cap: StreamCapture
-) -> str:
+def _live_overflow_note(stdout_cap: StreamCapture, stderr_cap: StreamCapture) -> str:
     """Name the spill files a command that is still running keeps writing into.
 
     Unlike `_overflow_note`'s dump, these files are not a snapshot: the capture

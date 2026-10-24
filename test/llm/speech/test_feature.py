@@ -385,7 +385,9 @@ def test_enabling_speech_again_uses_the_new_config():
 
     enable_speech(task, SpeechConfig(commands=["/second"]))
     (second_commands,) = task.append_custom_command.call_args.args
-    assert [c.command for c in second_commands() if c.command != "/volume"] == ["/second"]
+    assert [c.command for c in second_commands() if c.command != "/volume"] == [
+        "/second"
+    ]
 
 
 def test_a_task_reusing_one_manager_never_gains_a_second_set_of_hooks():

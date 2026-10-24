@@ -116,7 +116,9 @@ def usage_store_path(when: datetime, directory: str | None = None) -> str:
     one — rather than one growing file that every query has to scan whole.
     """
     base = directory if directory is not None else CFG.LLM_USAGE_DIR
-    return os.path.join(base, f"{_FILE_PREFIX}{when.strftime(_MONTH_FORMAT)}{_FILE_SUFFIX}")
+    return os.path.join(
+        base, f"{_FILE_PREFIX}{when.strftime(_MONTH_FORMAT)}{_FILE_SUFFIX}"
+    )
 
 
 def record_usage(
@@ -144,9 +146,7 @@ def record_usage(
         kind=kind,
         duration_ms=duration_ms,
         cost=_cost_of(usage),
-        **{
-            name: _count_of(usage, _USAGE_ATTR.get(name, name)) for name in _INT_FIELDS
-        },
+        **{name: _count_of(usage, _USAGE_ATTR.get(name, name)) for name in _INT_FIELDS},
     )
     path = usage_store_path(timestamp)
     try:
@@ -205,7 +205,9 @@ def _month_files(
         if until is not None
         else datetime.now(timezone.utc)
     )
-    candidates = [usage_store_path(month, base) for month in _months_between(start, end)]
+    candidates = [
+        usage_store_path(month, base) for month in _months_between(start, end)
+    ]
     return [path for path in candidates if os.path.exists(path)]
 
 

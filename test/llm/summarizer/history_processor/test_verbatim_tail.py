@@ -68,9 +68,16 @@ async def test_a_resolved_tool_pair_spanning_almost_the_whole_history_is_still_k
     )
     filler = [ModelResponse(parts=[TextPart(content="x")]) for _ in range(20)]
     result = ModelRequest(
-        parts=[ToolReturnPart(tool_name="read_file", content="contents", tool_call_id="1")]
+        parts=[
+            ToolReturnPart(tool_name="read_file", content="contents", tool_call_id="1")
+        ]
     )
-    messages = [ModelRequest(parts=[UserPromptPart(content="please read it")]), call, *filler, result]
+    messages = [
+        ModelRequest(parts=[UserPromptPart(content="please read it")]),
+        call,
+        *filler,
+        result,
+    ]
 
     with patch(
         "zrb.llm.summarizer.history_summarizer.chunk_and_summarize",
@@ -84,7 +91,9 @@ async def test_a_resolved_tool_pair_spanning_almost_the_whole_history_is_still_k
             conversational_token_threshold=100,
         )
 
-    combined = "\n".join(str(getattr(p, "content", "")) for m in new_history for p in m.parts)
+    combined = "\n".join(
+        str(getattr(p, "content", "")) for m in new_history for p in m.parts
+    )
     assert "contents" in combined
     # The pair is resolved, so nothing needs to stay structured.
     assert _structured_parts(new_history) == []
@@ -161,5 +170,7 @@ async def test_resolved_pairs_before_a_deferred_call_are_still_flattened():
 
     structured = _structured_parts(new_history)
     assert structured == [pending_call]
-    combined = "\n".join(str(getattr(p, "content", "")) for m in new_history for p in m.parts)
+    combined = "\n".join(
+        str(getattr(p, "content", "")) for m in new_history for p in m.parts
+    )
     assert "earlier contents" in combined

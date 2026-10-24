@@ -151,7 +151,9 @@ def _log_decision(
     is the only record of a decision that otherwise leaves no trace.
     """
     dropped_names = {
-        name for message in dropped for name, _ in _blocks(message_content_text(message))
+        name
+        for message in dropped
+        for name, _ in _blocks(message_content_text(message))
     }
     if not dropped_names and not present:
         return

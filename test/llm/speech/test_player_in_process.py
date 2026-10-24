@@ -52,7 +52,9 @@ class AudioBackend(FakeBackend):
         return SpeechAudio(16000, [text.encode()])
 
 
-def _in_process(monkeypatch, available=True, options=None, fallbacks=None, volumes=None):
+def _in_process(
+    monkeypatch, available=True, options=None, fallbacks=None, volumes=None
+):
     made = []
     options = [] if options is None else options
     fallbacks = [] if fallbacks is None else fallbacks

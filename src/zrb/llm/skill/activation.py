@@ -80,4 +80,8 @@ def build_activation_block(
     if preloaded_by:
         attrs += f' preloaded-by="{escape(preloaded_by, quote=True)}"'
     body = _neutralize_delimiters(skill_body(content))
-    return f"<ACTIVATED_SKILL{attrs}>\n" + "\n".join(lines) + f"\n\n{body}\n</ACTIVATED_SKILL>"
+    return (
+        f"<ACTIVATED_SKILL{attrs}>\n"
+        + "\n".join(lines)
+        + f"\n\n{body}\n</ACTIVATED_SKILL>"
+    )

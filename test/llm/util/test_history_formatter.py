@@ -321,7 +321,9 @@ def test_retry_feedback_without_a_tool_call_formats():
     messages = [
         ModelRequest(
             parts=[
-                RetryFeedbackPart(content="Generic retry", retry=RetryInfo(cause="model_retry")),
+                RetryFeedbackPart(
+                    content="Generic retry", retry=RetryInfo(cause="model_retry")
+                ),
             ]
         ),
     ]

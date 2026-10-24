@@ -51,7 +51,9 @@ def test_nothing_to_reattach_returns_none():
 
 def test_newest_block_per_skill_wins():
     """An older activation must not resurrect a superseded body."""
-    dropped = _request(_block("core-coding", "OLD BODY"), _block("core-coding", "NEW BODY"))
+    dropped = _request(
+        _block("core-coding", "OLD BODY"), _block("core-coding", "NEW BODY")
+    )
 
     message = build_reattach_message(dropped, [], llm_limiter)
 
@@ -163,9 +165,7 @@ def test_a_truncated_skill_keeps_its_closing_marker(monkeypatch):
 def test_the_total_cap_stops_after_the_newest_skills(monkeypatch):
     newest = _block("core-research")
     dropped = _request(_block("core-coding"), newest)
-    monkeypatch.setattr(
-        reattach, "TOTAL_TOKEN_CAP", llm_limiter.count_tokens(newest)
-    )
+    monkeypatch.setattr(reattach, "TOTAL_TOKEN_CAP", llm_limiter.count_tokens(newest))
 
     message = build_reattach_message(dropped, [], llm_limiter)
 
@@ -210,7 +210,9 @@ def test_a_history_without_skills_logs_nothing(caplog):
     """Compaction runs on every long session; a session that never used a
     skill must not start writing a line per compaction."""
     with caplog.at_level(logging.DEBUG):
-        assert build_reattach_message(_request("just a question"), [], llm_limiter) is None
+        assert (
+            build_reattach_message(_request("just a question"), [], llm_limiter) is None
+        )
 
     assert "compaction re-attach" not in caplog.text
 
@@ -250,9 +252,7 @@ async def test_compaction_keeps_the_skill_body_in_the_history(tmp_path, monkeypa
 
 
 @pytest.mark.asyncio
-async def test_an_opening_turn_that_survives_is_not_re_attached(
-    tmp_path, monkeypatch
-):
+async def test_an_opening_turn_that_survives_is_not_re_attached(tmp_path, monkeypatch):
     """The opening user turn is kept verbatim; a skill block inside it is
     already in the history, and a second copy would double the instructions."""
     from unittest.mock import AsyncMock, MagicMock

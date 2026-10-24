@@ -76,7 +76,9 @@ def test_the_cache_ratio_uses_the_same_definition_as_pydantic_ai(usage_dir):
 
 
 def test_a_run_with_no_input_tokens_has_no_ratio(usage_dir):
-    record = record_usage(RunUsage(requests=1, output_tokens=4), model="m", when=JANUARY)
+    record = record_usage(
+        RunUsage(requests=1, output_tokens=4), model="m", when=JANUARY
+    )
 
     assert record is not None
     assert record.cache_hit_ratio == 0.0
@@ -89,7 +91,9 @@ def test_a_run_that_reported_nothing_is_not_recorded(usage_dir):
 
 
 def test_an_unpriced_run_is_recorded_as_unknown_not_free(usage_dir):
-    record = record_usage(RunUsage(input_tokens=5, cost=None), model="local", when=JANUARY)
+    record = record_usage(
+        RunUsage(input_tokens=5, cost=None), model="local", when=JANUARY
+    )
 
     assert record is not None
     assert record.cost is None
@@ -218,7 +222,11 @@ def test_a_failed_write_does_not_raise(usage_dir, tmp_path):
 
 def test_the_duration_and_kind_travel_with_the_record(usage_dir):
     record_usage(
-        RunUsage(input_tokens=1), model="m", kind="subagent", duration_ms=4200, when=JANUARY
+        RunUsage(input_tokens=1),
+        model="m",
+        kind="subagent",
+        duration_ms=4200,
+        when=JANUARY,
     )
 
     (stored,) = read_records()
@@ -242,7 +250,9 @@ def test_records_are_one_json_object_per_line(usage_dir):
     record_usage(RunUsage(input_tokens=1), model="first", when=JANUARY)
     record_usage(RunUsage(input_tokens=1), model="second", when=JANUARY)
 
-    lines = pathlib.Path(usage_store_path(JANUARY)).read_text(encoding="utf-8").splitlines()
+    lines = (
+        pathlib.Path(usage_store_path(JANUARY)).read_text(encoding="utf-8").splitlines()
+    )
 
     assert [json.loads(line)["model"] for line in lines] == ["first", "second"]
 
@@ -296,9 +306,7 @@ async def test_a_headless_run_writes_one_line(usage_dir):
     agent = MagicMock()
     agent.run = _fake_run_from(result)
 
-    await run_agent(
-        agent=agent, message="Hi", message_history=[], limiter=LLMLimiter()
-    )
+    await run_agent(agent=agent, message="Hi", message_history=[], limiter=LLMLimiter())
 
     (record,) = read_records()
     assert record.model == "test-model"

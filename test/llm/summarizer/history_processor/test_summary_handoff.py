@@ -29,8 +29,8 @@ from zrb.llm.summarizer import summarize_history
 from zrb.llm.summarizer.history_summarizer import (
     _render_archive_note,
     _render_summary_content,
-    summary_cap,
     _truncate_snapshot,
+    summary_cap,
 )
 
 JOURNAL_PATCH = "zrb.llm.summarizer.history_summarizer.render_journal_index"

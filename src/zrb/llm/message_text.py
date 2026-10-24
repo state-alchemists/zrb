@@ -45,7 +45,9 @@ def message_content_text(msg: object) -> str:
     """
     parts = getattr(msg, "parts", None) or ()
     return "\n".join(
-        str(part.content) for part in parts if getattr(part, "content", None) is not None
+        str(part.content)
+        for part in parts
+        if getattr(part, "content", None) is not None
     )
 
 

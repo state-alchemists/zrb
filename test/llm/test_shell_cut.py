@@ -46,9 +46,7 @@ async def test_every_wait_registered_before_one_cut_wakes():
     """Two commands may run in parallel; the user's key moves both."""
     signal = ShellCutSignal()
     generation = signal.generation
-    waiters = [
-        asyncio.ensure_future(signal.wait_for_cut(generation)) for _ in range(3)
-    ]
+    waiters = [asyncio.ensure_future(signal.wait_for_cut(generation)) for _ in range(3)]
     await asyncio.sleep(0.01)
 
     signal.cut()

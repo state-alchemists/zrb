@@ -55,7 +55,11 @@ def test_voice_moves_shell_is_off_by_default_and_settable_with_set(monkeypatch):
     cfg = Config()
     assert cfg.LLM_VOICE_MOVES_SHELL is False
     for raw, expected in (("1", True), ("0", False)):
-        setattr(cfg, "LLM_VOICE_MOVES_SHELL", cfg.convert_setting_value("LLM_VOICE_MOVES_SHELL", raw))
+        setattr(
+            cfg,
+            "LLM_VOICE_MOVES_SHELL",
+            cfg.convert_setting_value("LLM_VOICE_MOVES_SHELL", raw),
+        )
         assert cfg.LLM_VOICE_MOVES_SHELL is expected
 
 

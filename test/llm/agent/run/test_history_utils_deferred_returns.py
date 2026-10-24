@@ -26,9 +26,7 @@ def _legacy_retry(tool_call_id: str) -> ModelRequest:
     from pydantic_ai.messages import RetryPromptPart
 
     return ModelRequest(
-        parts=[
-            RetryPromptPart(content="bad", tool_name="t", tool_call_id=tool_call_id)
-        ]
+        parts=[RetryPromptPart(content="bad", tool_name="t", tool_call_id=tool_call_id)]
     )
 
 

@@ -279,7 +279,11 @@ async def test_the_configured_tail_budget_reaches_the_split(tmp_path, monkeypatc
     captured = {}
 
     def capture_split(
-        messages, summary_window, limiter, threshold, tail_budget_ratio=TAIL_BUDGET_RATIO
+        messages,
+        summary_window,
+        limiter,
+        threshold,
+        tail_budget_ratio=TAIL_BUDGET_RATIO,
     ):
         captured["tail_budget_ratio"] = tail_budget_ratio
         return messages, []

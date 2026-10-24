@@ -90,8 +90,9 @@ def test_a_voice_first_session_can_let_speech_move_the_shell(cut_ui):
     cut_ui.active_run_context = MagicMock()
     cut_ui.shell_cut_signal = signal
     cancelled = []
-    with patch.object(cut_ui, "append_to_output"), patch.object(
-        cut_ui, "cancel_current_turn", side_effect=cancelled.append
+    with (
+        patch.object(cut_ui, "append_to_output"),
+        patch.object(cut_ui, "cancel_current_turn", side_effect=cancelled.append),
     ):
         cut_ui.submit_message_now(
             "spoken", DICTATION_INPUT, may_interrupt=False, move_shell=True

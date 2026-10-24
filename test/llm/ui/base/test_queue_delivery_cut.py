@@ -64,9 +64,7 @@ def test_a_caller_can_interrupt_without_moving_the_shell():
     queue = MessageQueue()
     queue.put_nowait(_entry("next turn"))
 
-    report, signal = _send(
-        queue, _RunContext(), may_interrupt=True, move_shell=False
-    )
+    report, signal = _send(queue, _RunContext(), may_interrupt=True, move_shell=False)
 
     assert report.outcome is DeliveryOutcome.DELIVERED_EARLY
     assert signal.generation == 0

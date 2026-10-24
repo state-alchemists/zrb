@@ -121,7 +121,9 @@ def test_a_partly_priced_model_is_marked(usage_dir, command):
 def test_the_default_window_accumulates_every_recorded_run(usage_dir, command):
     """`/usage` answers "what have I spent", not only "what did this chat
     spend": an older run in another conversation is still counted."""
-    _record(session="earlier-chat", model="from-yesterday", when=NOW - timedelta(days=3))
+    _record(
+        session="earlier-chat", model="from-yesterday", when=NOW - timedelta(days=3)
+    )
     _record(session="now-chat", model="from-now")
 
     ui = _FakeUI("now-chat")

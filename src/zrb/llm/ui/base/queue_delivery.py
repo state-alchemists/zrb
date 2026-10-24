@@ -125,9 +125,7 @@ def send_queued_messages_now(
     # separately from `may_interrupt`, because cutting is not interrupting: the
     # command keeps running, and the cancel below must stay reserved for a
     # caller that asked for it. Speech moves nothing by default.
-    wants_the_shell_out_of_the_way = (
-        may_interrupt if move_shell is None else move_shell
-    )
+    wants_the_shell_out_of_the_way = may_interrupt if move_shell is None else move_shell
     if (
         wants_the_shell_out_of_the_way
         and active_run_context is not None
