@@ -2,16 +2,9 @@
 
 # Programming the Voice
 
-A voice assistant has three separate pieces: it hears speech, decides what the
-agent should do, and turns the agent's output into audio. Zrb exposes each
-piece independently. Use `DictationConfig` to program voice input, `SpeechConfig`
-to program spoken interaction, and `AnySpeechBackend` when you need to replace
-text-to-speech itself.
+A voice assistant has three separate pieces: it hears speech, decides what the agent should do, and turns the agent's output into audio. Zrb exposes each piece independently. Use `DictationConfig` to program voice input, `SpeechConfig` to program spoken interaction, and `AnySpeechBackend` when you need to replace text-to-speech itself.
 
-This page is the practical companion to [Voice and Camera](voice-camera.md):
-it starts with working configurations, then shows the Python extension points.
-The exhaustive environment-variable reference is [LLM Configuration → Voice
-and Camera](../configuration/llm-voice-camera.md#voice-and-camera).
+This page is the practical companion to [Voice and Camera](voice-camera.md): it starts with working configurations, then shows the Python extension points. The exhaustive environment-variable reference is [LLM Configuration → Voice and Camera](../configuration/llm-voice-camera.md#voice-and-camera).
 
 ## Table of contents
 
@@ -27,9 +20,7 @@ and Camera](../configuration/llm-voice-camera.md#voice-and-camera).
 
 ## A local conversation
 
-This is a practical starting point for a hands-free conversation on a noisy
-room microphone: Moonshine transcribes each finished utterance, Piper speaks
-locally, and barge-in stays possible without pausing speech on every loud sound.
+This is a practical starting point for a hands-free conversation on a noisy room microphone: Moonshine transcribes each finished utterance, Piper speaks locally, and barge-in stays possible without pausing speech on every loud sound.
 
 ```bash
 pip install 'zrb[voice]'
@@ -57,16 +48,9 @@ What each important setting does:
 | `ZRB_LLM_SPEECH_VOICE=en_US-kristin-medium` | Selects the Piper voice. |
 | `ZRB_LLM_DICTATION_WAKE_WORDS=...` | Limits hands-free turns to utterances beginning with one of the configured spellings. |
 
-**Live interruption needs `vosk`.** Moonshine, like the other Pipecat services
-and the cloud backends, transcribes the utterance after you stop speaking, so a
-stop word or a wake word takes effect only then — the barge-in it triggers still
-works, just a beat later. `vosk` is the only built-in backend that transcribes
-while you speak, so switch `ZRB_LLM_DICTATION_BACKEND` to `vosk` when a stop word
-must land the moment it is said.
+**Live interruption needs `vosk`.** Moonshine, like the other Pipecat services and the cloud backends, transcribes the utterance after you stop speaking, so a stop word or a wake word takes effect only then — the barge-in it triggers still works, just a beat later. `vosk` is the only built-in backend that transcribes while you speak, so switch `ZRB_LLM_DICTATION_BACKEND` to `vosk` when a stop word must land the moment it is said.
 
-`ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on` is not needed in this recipe because
-`conversation` already enables it. You may include it when you want the command
-to state that choice explicitly:
+`ZRB_LLM_DICTATION_BARGE_IN_ENABLED=on` is not needed in this recipe because `conversation` already enables it. You may include it when you want the command to state that choice explicitly:
 
 ```bash
 ZRB_LLM_VOICE=conversation \
@@ -86,9 +70,7 @@ Use the preset when the built-in defaults are suitable:
 ZRB_LLM_VOICE=conversation zrb llm chat
 ```
 
-It enables replies read aloud, hands-free listening, and barge-in. The default
-barge-in hold stays on, so zrb pauses quickly while it determines whether the
-sound was an interruption or its own voice.
+It enables replies read aloud, hands-free listening, and barge-in. The default barge-in hold stays on, so zrb pauses quickly while it determines whether the sound was an interruption or its own voice.
 
 ### Conversation without barge-in
 
@@ -98,13 +80,11 @@ Use `turns` when you want zrb and the user to take turns:
 ZRB_LLM_VOICE=turns zrb llm chat
 ```
 
-Speech is enabled and dictation stays hands-free, but the microphone is deaf
-while zrb is speaking.
+Speech is enabled and dictation stays hands-free, but the microphone is deaf while zrb is speaking.
 
 ### Push-to-talk with spoken replies
 
-Use `speak` when you want replies read aloud but prefer to start each recording
-explicitly with `/voice`:
+Use `speak` when you want replies read aloud but prefer to start each recording explicitly with `/voice`:
 
 ```bash
 ZRB_LLM_VOICE=speak zrb llm chat
@@ -112,8 +92,7 @@ ZRB_LLM_VOICE=speak zrb llm chat
 
 ### A noisy room with cloud transcription
 
-Keep local playback but use a hosted transcription backend when accuracy is
-more important than an offline setup:
+Keep local playback but use a hosted transcription backend when accuracy is more important than an offline setup:
 
 ```bash
 ZRB_LLM_VOICE=conversation \
@@ -124,14 +103,11 @@ ZRB_LLM_SPEECH_BACKEND=piper \
 zrb llm chat
 ```
 
-Add `ZRB_LLM_DICTATION_WAKE_WORDS` in a shared room. Add a language hint with
-`ZRB_LLM_DICTATION_LANGUAGE` when the transcription service supports it.
+Add `ZRB_LLM_DICTATION_WAKE_WORDS` in a shared room. Add a language hint with `ZRB_LLM_DICTATION_LANGUAGE` when the transcription service supports it.
 
 ### Fully local speech and transcription
 
-The exact model packages depend on the selected services. For example, a
-Moonshine/Piper setup keeps both speech directions on the machine after the
-models are downloaded:
+The exact model packages depend on the selected services. For example, a Moonshine/Piper setup keeps both speech directions on the machine after the models are downloaded:
 
 ```bash
 pip install 'zrb[voice]'
@@ -144,8 +120,7 @@ ZRB_LLM_SPEECH_BACKEND=piper \
 zrb llm chat
 ```
 
-See [Voice and Camera → Your own backend](voice-camera.md#your-own-backend)
-for the available local services and their package names.
+See [Voice and Camera → Your own backend](voice-camera.md#your-own-backend) for the available local services and their package names.
 
 ## The three programming layers
 
@@ -155,17 +130,11 @@ for the available local services and their package names.
 | Spoken response | Which events are spoken and the words used for approvals, questions, and progress | `SpeechConfig` and its phrase mappings |
 | Audio rendering | Voice, rate, provider, playback, and pause/interruption behavior | `SpeechConfig` and `AnySpeechBackend` |
 
-The model prompt is a fourth, related concern. `system_prompt` and
-`PromptManager` program what the agent thinks and does; the `speech_live` prompt
-only tells the model that its response will be heard aloud, so it opens with a
-spoken answer before code and tables. It does not choose the TTS voice or
-rewrite every response.
+The model prompt is a fourth, related concern. `system_prompt` and `PromptManager` program what the agent thinks and does; the `speech_live` prompt only tells the model that its response will be heard aloud, so it opens with a spoken answer before code and tables. It does not choose the TTS voice or rewrite every response.
 
 ## Program voice input
 
-Pass a `DictationConfig` when enabling dictation. Fields left as `None` come
-from `CFG` when the session starts, so this can be configured in `zrb_init.py`
-without rebuilding the task:
+Pass a `DictationConfig` when enabling dictation. Fields left as `None` come from `CFG` when the session starts, so this can be configured in `zrb_init.py` without rebuilding the task:
 
 ```python
 from zrb import LLMChatTask
@@ -190,22 +159,13 @@ enable_dictation(
 )
 ```
 
-Use wake words when other people or media may be audible. Use stop words for
-short, exact interruptions that should not reach the model. `barge_in_hold`
-controls whether loudness pauses speech before the transcript is known; it does
-not disable barge-in itself. The hold is on by default.
+Use wake words when other people or media may be audible. Use stop words for short, exact interruptions that should not reach the model. `barge_in_hold` controls whether loudness pauses speech before the transcript is known; it does not disable barge-in itself. The hold is on by default.
 
-`vosk` is the only built-in backend that transcribes while you speak: it
-exposes a streaming transcription interface, so a stop word or wake word can be
-acted on before the utterance ends. Every other backend — the Pipecat services
-(`whisper`, `moonshine`, `funasr`) and the cloud backends (`openai`, `google`,
-`multimodal`) — transcribes the finished utterance, so those words take effect
-only after it ends.
+`vosk` is the only built-in backend that transcribes while you speak: it exposes a streaming transcription interface, so a stop word or wake word can be acted on before the utterance ends. Every other backend — the Pipecat services (`whisper`, `moonshine`, `funasr`) and the cloud backends (`openai`, `google`, `multimodal`) — transcribes the finished utterance, so those words take effect only after it ends.
 
 ## Program spoken responses
 
-`SpeechConfig` controls which events become speech and the templates used for
-built-in notifications:
+`SpeechConfig` controls which events become speech and the templates used for built-in notifications:
 
 ```python
 from zrb.llm.speech import SpeechConfig, enable_speech
@@ -235,25 +195,14 @@ enable_speech(chat, speech)
 
 The available speech events are:
 
-- `reply` — the main agent's final response, streamed sentence by sentence when
-  `stream` is enabled;
+- `reply` — the main agent's final response, streamed sentence by sentence when `stream` is enabled;
 - `approval` — a tool approval request;
-- `question` — a question raised by the agent or UI; its own text is read, and
-  `question_message` is used only when it has none;
+- `question` — a question raised by the agent or UI; its own text is read, and `question_message` is used only when it has none;
 - `progress` — a tool call announced after the configured silence interval.
 
-`approval_message` supports `{action}` and `{target}`. The action and progress
-maps use tool-name patterns, with `*` and `?` wildcards; the first matching
-pattern wins. These are templates for fixed UI events, not additional model
-calls, so they are predictable and inexpensive.
+`approval_message` supports `{action}` and `{target}`. The action and progress maps use tool-name patterns, with `*` and `?` wildcards; the first matching pattern wins. These are templates for fixed UI events, not additional model calls, so they are predictable and inexpensive.
 
-For a response's general tone and structure, use the agent's `system_prompt`
-or the `speech_live` prompt. `approval_message`, `approval_actions`,
-`progress_phrases` and `question_message` control words zrb composes itself, so
-they take effect exactly as written. They do not rewrite an existing question: a
-question that carries text is read as the agent or UI wrote it, and only an empty
-one falls back to `question_message`. To change those words, change the message
-where it is produced, or intercept it with a hook.
+For a response's general tone and structure, use the agent's `system_prompt` or the `speech_live` prompt. `approval_message`, `approval_actions`, `progress_phrases` and `question_message` control words zrb composes itself, so they take effect exactly as written. They do not rewrite an existing question: a question that carries text is read as the agent or UI wrote it, and only an empty one falls back to `question_message`. To change those words, change the message where it is produced, or intercept it with a hook.
 
 ## Program audio rendering
 
@@ -269,11 +218,7 @@ SpeechConfig(
 )
 ```
 
-Cloud `openai` and `gemini` backends also accept `style`, such as
-`"calm, concise, and conversational"`. Local engines use their voice and rate
-settings instead. `player="auto"` lets zrb play renderable audio itself, which
-allows it to pause and stop playback precisely while the user talks; a separate
-player command can only stop the sentence currently being played.
+Cloud `openai` and `gemini` backends also accept `style`, such as `"calm, concise, and conversational"`. Local engines use their voice and rate settings instead. `player="auto"` lets zrb play renderable audio itself, which allows it to pause and stop playback precisely while the user talks; a separate player command can only stop the sentence currently being played.
 
 When the built-in backends are not enough, implement `AnySpeechBackend`:
 
@@ -299,11 +244,7 @@ class LocalTTS(AnySpeechBackend):
 enable_speech(chat, SpeechConfig(enabled=True, backend=LocalTTS()))
 ```
 
-A speech backend returns an utterance that zrb can queue, interrupt, and close.
-If it also provides renderable audio, zrb can play that audio itself and report
-when playback starts, which lets dictation distinguish zrb's voice from the
-user's speech as accurately as the backend permits. See the complete backend
-contract and fallback behavior in [Voice and Camera → Your own backend](voice-camera.md#your-own-backend).
+A speech backend returns an utterance that zrb can queue, interrupt, and close. If it also provides renderable audio, zrb can play that audio itself and report when playback starts, which lets dictation distinguish zrb's voice from the user's speech as accurately as the backend permits. See the complete backend contract and fallback behavior in [Voice and Camera → Your own backend](voice-camera.md#your-own-backend).
 
 ## Attach voice to your own chat task
 
@@ -336,10 +277,7 @@ enable_speech(
 )
 ```
 
-`enable_dictation()` adds the recording commands and microphone trigger.
-`enable_speech()` adds speech hooks, response streaming, and the speech-live
-context. Both functions can also be used on task objects built by an
-application; they do not require the built-in `llm_chat` task.
+`enable_dictation()` adds the recording commands and microphone trigger. `enable_speech()` adds speech hooks, response streaming, and the speech-live context. Both functions can also be used on task objects built by an application; they do not require the built-in `llm_chat` task.
 
 ## Use any Pipecat STT or TTS service
 
@@ -484,7 +422,6 @@ A service that is not built on Pipecat at all is a different extension point: im
 | Add a new spoken command or a voice-specific action | A custom command or trigger on `LLMChatTask` |
 | Rewrite every final response immediately before TTS | Currently use the prompt/backend boundaries; there is no general public speech-text transformation hook |
 
-For microphone setup, device permissions, and platform-specific failures, see
-[Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
+For microphone setup, device permissions, and platform-specific failures, see [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md).
 
 🔖 [Documentation Home](../README.md) > [LLM](./) > Programming the Voice

@@ -9,6 +9,7 @@ For developers who contribute to or maintain Zrb itself: setup, tests, release, 
 ## Table of Contents
 
 - [Getting Started](#getting-started)
+- [Writing Docs](#writing-docs)
 - [Publishing Zrb](#publishing-zrb)
 - [Changelog](#changelog)
 - [API Reference](#api-reference)
@@ -84,6 +85,20 @@ The architecture tests are ordinary pytest files; each one's docstring states th
 - **Changelog:** most changes need an entry — see [Changelog](#changelog).
 - **ADRs:** a non-trivial, consequential, and persistent design decision needs an Architecture Decision Record — see [`docs/adr/README.md`](../adr/README.md).
 - **Code conventions** (naming, testing, imports, error handling) are summarized in [`AGENTS.md`](../../AGENTS.md) — written for AI coding agents, but every rule applies to humans too. The test-enforced rules are [Framework Conventions (R1–R12)](framework-conventions.md).
+
+---
+
+## Writing Docs
+
+Prose is one line per paragraph, with no wrapping at a fixed column. Markdown renders both forms identically, so this costs nothing at read time, and it makes an edit visible: a one-word change is a one-line diff instead of a re-wrapped ten-line block.
+
+- Write a paragraph, and a list item, as a single line; let the editor scroll.
+- Leave anything whose layout carries meaning exactly as it is: fenced blocks (diagrams, code, tables drawn in characters), markdown tables, headings, blockquotes, frontmatter, and a line ending in two spaces, which is a hard break the author asked for.
+- Review such a change with `git diff -w`, which shows text only. Reflowing joins nothing but whitespace between words, so the word sequence, the blank lines and every fenced block stay identical — that is the property to check, not the line count.
+
+Nothing enforces this. There is no reflow script and no CI gate, because a correct one is a Markdown block parser and the failures that come with getting it wrong are worse than a wrapped paragraph; the guard is a review comment. `docs/` was reflowed once so the tree starts from a consistent baseline.
+
+Two places stay out of scope, deliberately. `src/zrb/llm/prompt/markdown/` is model-facing prompt text: its wording is pinned by ADR-0049 and its bytes are part of the cached prefix (ADR-0042), so a reformat there is a behaviour change, not a formatting one. Skill bodies and their companions under `src/zrb/llm_plugin/` are the same kind of text.
 
 ---
 

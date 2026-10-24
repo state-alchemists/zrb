@@ -61,11 +61,7 @@ flowchart TD
     Exec -->|resolves| Running["src/zrb/llm/task/chat/running.py — resolve UIs, triggers, commands"]
 ```
 
-`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass
-that composes its behavior as parts: `ChatExecution`
-(`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves
-UIs/triggers/commands. Since 2.65.3 these are **composed attributes**
-(`self._execution`, `self._running`), not base classes.
+`LLMChatTask` (`src/zrb/llm/task/chat/task.py`) is a plain `BaseTask` subclass that composes its behavior as parts: `ChatExecution` (`execution.py`) owns `exec_action`, `ChatRunning` (`running.py`) resolves UIs/triggers/commands. Since 2.65.3 these are **composed attributes** (`self._execution`, `self._running`), not base classes.
 
 Three things happen here:
 

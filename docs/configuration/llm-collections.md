@@ -144,11 +144,7 @@ task.append_tool(my_special_tool)   # this task only (defined in the snippet abo
 
 Per-instance mutations (`task.append_tool`, `task.prompt_manager.append_prompt`) affect **that** manager's resolved list and never reach the shared registry.
 
-**Single-component slots work the same way, after construction.** A task's
-component slots (`prompt_manager`, `hook_manager`, `llm_limiter`,
-`history_manager`, `sandbox`, `permissions`, `markdown_theme`, `model_getter`,
-`model_renderer`) are settable properties, so a `zrb_init.py` that runs after
-a built-in task is already defined can still replace one wholesale:
+**Single-component slots work the same way, after construction.** A task's component slots (`prompt_manager`, `hook_manager`, `llm_limiter`, `history_manager`, `sandbox`, `permissions`, `markdown_theme`, `model_getter`, `model_renderer`) are settable properties, so a `zrb_init.py` that runs after a built-in task is already defined can still replace one wholesale:
 
 ```python
 from zrb.builtin import llm_chat
@@ -159,12 +155,7 @@ llm_chat.prompt_manager = PromptManager(
 )
 ```
 
-This is channel 3 for a single component rather than a collection: the same
-"override one host" idea, spelled as a property assignment instead of a
-`task.append_tool`-style call because there's exactly one of it, not a list
-(R8, R7 — see [Framework Conventions](../contributing/framework-conventions.md)).
-A wrong type raises `TypeError` naming the expected class, at the assignment
-site.
+This is channel 3 for a single component rather than a collection: the same "override one host" idea, spelled as a property assignment instead of a `task.append_tool`-style call because there's exactly one of it, not a list (R8, R7 — see [Framework Conventions](../contributing/framework-conventions.md)). A wrong type raises `TypeError` naming the expected class, at the assignment site.
 
 ## Resolution order
 
