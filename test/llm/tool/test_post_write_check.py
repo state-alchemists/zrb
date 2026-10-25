@@ -1,16 +1,22 @@
 """Tests for the post-write diagnostic helper.
 
-The key behavior to lock in: LSP and the static checker are *both* consulted
-and their results merged, so an undefined name pyflakes catches still surfaces
-even when LSP filtered everything out by severity. Earlier versions returned
-early on LSP `found=True` with empty filtered diagnostics, silently dropping
-real errors.
+The key behavior to lock in: inside a project, LSP and the static checker are
+*both* consulted and their results merged, so an undefined name pyflakes
+catches still surfaces even when LSP filtered everything out by severity.
+Earlier versions returned early on LSP `found=True` with empty filtered
+diagnostics, silently dropping real errors.
+
+Outside any project the LSP is not consulted at all: it has no import graph to
+resolve against, so its module-resolution errors describe where the file sits
+rather than what was written.
 """
 
 from __future__ import annotations
 
 import asyncio
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from zrb.llm.tool.post_write_check import (
     compose_write_result,
@@ -20,6 +26,13 @@ from zrb.llm.tool.post_write_check import (
 
 def _run(coro):
     return asyncio.run(coro)
+
+
+@pytest.fixture
+def project_dir(tmp_path):
+    """A bare-enough directory that still counts as a project, so the LSP is consulted."""
+    (tmp_path / "pyproject.toml").write_text("")
+    return tmp_path
 
 
 def test_no_suffix_for_clean_python_file(tmp_path):
@@ -100,10 +113,10 @@ def test_clean_file_emits_no_suggestion(tmp_path):
     assert result == ""
 
 
-def test_undefined_name_surfaces_when_lsp_empty_but_found(tmp_path):
+def test_undefined_name_surfaces_when_lsp_empty_but_found(project_dir):
     """Regression: LSP `found=True` with empty filtered errors must NOT skip
     the static check. pyflakes catches the undefined name; the user sees it."""
-    path = tmp_path / "typo.py"
+    path = project_dir / "typo.py"
     path.write_text("def main():\n    prnit('hi')\n")
     with patch(
         "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
@@ -114,8 +127,8 @@ def test_undefined_name_surfaces_when_lsp_empty_but_found(tmp_path):
     assert "prnit" in result
 
 
-def test_lsp_and_static_results_dedupe(tmp_path):
-    path = tmp_path / "typo.py"
+def test_lsp_and_static_results_dedupe(project_dir):
+    path = project_dir / "typo.py"
     path.write_text("def main():\n    prnit('hi')\n")
     # LSP reports the same undefined-name pyflakes will report. Should appear once.
     lsp_payload = {
@@ -130,8 +143,8 @@ def test_lsp_and_static_results_dedupe(tmp_path):
     assert result.count("undefined name 'prnit'") == 1
 
 
-def test_lsp_exception_falls_through_to_static_check(tmp_path):
-    path = tmp_path / "typo.py"
+def test_lsp_exception_falls_through_to_static_check(project_dir):
+    path = project_dir / "typo.py"
     path.write_text("def main():\n    prnit('hi')\n")
     with patch(
         "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
@@ -142,9 +155,9 @@ def test_lsp_exception_falls_through_to_static_check(tmp_path):
     assert "prnit" in result
 
 
-def test_lsp_returning_non_dict_does_not_crash(tmp_path):
+def test_lsp_returning_non_dict_does_not_crash(project_dir):
     """Defensive: future refactor returning None/list/etc. must not raise."""
-    path = tmp_path / "clean.py"
+    path = project_dir / "clean.py"
     path.write_text("x = 1\n")
     with patch(
         "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
@@ -152,6 +165,88 @@ def test_lsp_returning_non_dict_does_not_crash(tmp_path):
     ):
         result = _run(format_post_write_diagnostics(str(path)))
     assert result == ""
+
+
+def test_import_outside_a_project_produces_no_diagnostic(tmp_path):
+    """A helper written to a bare directory is judged on what was written only.
+
+    There is no import graph around ``/tmp`` to resolve ``zrb.llm.tool`` against,
+    so a language server answers "could not be resolved" about the *location*.
+    Reporting that as a failed edit is a false verdict, so the LSP is not asked
+    at all — the absence of the call is the property under test."""
+    path = tmp_path / "journal_merge.py"
+    path.write_text("from zrb.llm.tool import journal_write\n")
+    get_diagnostics = AsyncMock(
+        return_value={
+            "found": True,
+            "diagnostics": [
+                {"line": 1, "message": 'Import "zrb.llm.tool" could not be resolved'}
+            ],
+        }
+    )
+    with patch(
+        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        new=get_diagnostics,
+    ):
+        result = _run(format_post_write_diagnostics(str(path)))
+
+    assert result == ""
+    get_diagnostics.assert_not_called()
+
+
+def test_import_inside_a_project_surfaces_the_lsp_verdict(project_dir):
+    """The same import inside a project is a real signal, and still reaches the model."""
+    path = project_dir / "journal_merge.py"
+    path.write_text("from zrb.llm.tool import journal_write\n")
+    get_diagnostics = AsyncMock(
+        return_value={
+            "found": True,
+            "diagnostics": [
+                {"line": 1, "message": 'Import "zrb.llm.tool" could not be resolved'}
+            ],
+        }
+    )
+    with patch(
+        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        new=get_diagnostics,
+    ):
+        result = _run(format_post_write_diagnostics(str(path)))
+
+    assert result.startswith("FAILED:")
+    assert "could not be resolved" in result
+    get_diagnostics.assert_called_once()
+
+
+def test_undefined_name_outside_a_project_still_fails(tmp_path):
+    """Skipping the LSP must not weaken the static check: an undefined name FAILs."""
+    path = tmp_path / "typo.py"
+    path.write_text("def main():\n    prnit('hi')\n")
+    get_diagnostics = AsyncMock(return_value={"found": False, "diagnostics": []})
+    with patch(
+        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        new=get_diagnostics,
+    ):
+        result = _run(format_post_write_diagnostics(str(path)))
+
+    assert result.startswith("FAILED:")
+    assert "prnit" in result
+    get_diagnostics.assert_not_called()
+
+
+def test_syntax_error_outside_a_project_still_fails(tmp_path):
+    """A file that cannot be parsed is broken wherever it sits."""
+    path = tmp_path / "broken.py"
+    path.write_text("def f(:\n    pass\n")
+    get_diagnostics = AsyncMock(return_value={"found": False, "diagnostics": []})
+    with patch(
+        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        new=get_diagnostics,
+    ):
+        result = _run(format_post_write_diagnostics(str(path)))
+
+    assert result.startswith("FAILED:")
+    assert "SyntaxError" in result
+    get_diagnostics.assert_not_called()
 
 
 def test_compose_write_result_passes_a_clean_outcome_through():

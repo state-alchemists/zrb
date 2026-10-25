@@ -3,6 +3,14 @@
 Merges LSP errors with a static check (Python: ``ast`` + ``pyflakes``),
 deduplicated by ``(line, message)``. The static check always runs because
 servers differ in severity (pylsp may report undefined names as warnings).
+
+An LSP verdict is authoritative only inside a project, so it is consulted only
+when the file sits under a project marker (``pyproject.toml``, ``.git``, …).
+Outside one there is no import graph to resolve against, and the server reports
+what the file's *location* implies — ``Import "zrb.llm.tool" could not be
+resolved`` for a helper in ``/tmp`` — not what was written. Such an error would
+frame a correct write as a failed edit and send the model off to re-read a file
+that never needed fixing, so it is not consulted.
 """
 
 from __future__ import annotations
@@ -24,7 +32,9 @@ async def format_post_write_diagnostics(abs_path: str) -> str:
     if not os.path.isfile(abs_path):
         return ""
 
-    lsp_errors = await _query_lsp_errors(abs_path)
+    lsp_errors: list[tuple[int, str]] = []
+    if lsp_manager.has_project_context(abs_path):
+        lsp_errors = await _query_lsp_errors(abs_path)
     static_errors = _static_check_errors(abs_path)
     seen: set[tuple[int, str]] = set()
     errors: list[tuple[int, str]] = []

@@ -62,22 +62,26 @@ class LSPManagerLifecycle:
         if file_path in self._project_roots:
             return self._project_roots[file_path]
 
-        path = Path(file_path).resolve()
-        if path.is_file():
-            path = path.parent
+        root = self.detect_project_marker_root(file_path)
+        if root is None:
+            root = str(_owning_directory(file_path))
 
-        current = path
+        return self._cache_project_root(file_path, root)
+
+    def detect_project_marker_root(self, file_path: str) -> str | None:
+        """The nearest ancestor of `file_path` holding a `PROJECT_MARKERS` entry, or None.
+
+        No fallback and no cache: a caller that must tell "inside a project" from
+        "loose on disk" needs the absence kept, which `detect_project_root`
+        deliberately hides.
+        """
+        current = _owning_directory(file_path)
         while current != current.parent:
-            for marker in PROJECT_MARKERS:
-                if marker.startswith("*"):
-                    found = any(current.glob(marker))
-                else:
-                    found = (current / marker).exists()
-                if found:
-                    return self._cache_project_root(file_path, str(current))
+            if any(_has_project_marker(current, marker) for marker in PROJECT_MARKERS):
+                return str(current)
             current = current.parent
 
-        return self._cache_project_root(file_path, str(path))
+        return None
 
     def _cache_project_root(self, file_path: str, root: str) -> str:
         """Cache `file_path → root`, dropping the oldest entry at the bound."""
@@ -148,3 +152,18 @@ class LSPManagerLifecycle:
             except Exception:  # noqa: BLE001 - atexit backstop, must never raise
                 pass
         self._servers.clear()
+
+
+def _owning_directory(file_path: str) -> Path:
+    """The resolved directory a walk-up starts from: the file's own, or the path itself."""
+    path = Path(file_path).resolve()
+    if path.is_file():
+        return path.parent
+    return path
+
+
+def _has_project_marker(directory: Path, marker: str) -> bool:
+    """Whether `directory` holds an entry named by `marker` (`*.csproj` matches by glob)."""
+    if marker.startswith("*"):
+        return any(directory.glob(marker))
+    return (directory / marker).exists()
