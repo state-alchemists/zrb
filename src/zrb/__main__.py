@@ -9,6 +9,7 @@ from typing import Any
 import zrb.builtin  # noqa: F401 — importing it registers the built-in tasks on `cli`
 from zrb.config.config import CFG
 from zrb.config.init_path import get_init_path_list
+from zrb.config.log_file import install_file_log_handler
 from zrb.group.any_group import NodeNotFoundError
 from zrb.group.task_diagnostics import (
     collect_declared_tasks,
@@ -111,6 +112,9 @@ def serve_cli():
     handler = logging.StreamHandler()
     handler.setFormatter(FaintFormatter())
     CFG.LOGGER.addHandler(handler)
+    # Before any init source loads, so a warning raised while starting up is
+    # kept too. A terminal that repaints its own screen keeps no record of one.
+    install_file_log_handler()
     stop_signals = _install_sigterm_handler()
     try:
         loaded_cleanly = True

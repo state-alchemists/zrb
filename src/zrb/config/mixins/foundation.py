@@ -233,6 +233,50 @@ class FoundationMixin:
         ),
     )
 
+    LOGGING_FILE = EnvField(
+        str,
+        fallback="",
+        doc=(
+            "Path to a file Zrb's internal logs are also written to, so a "
+            "diagnostic outlives the terminal that showed it. Empty (the "
+            "default) writes no file.\n"
+            "A file earns its keep where the terminal keeps no record: the chat "
+            "UI repaints its own screen, so a warning written to stderr is "
+            "painted over by the next frame before anyone has read it. Rotated "
+            "when it outgrows `{ENV_PREFIX}_LOGGING_FILE_MAX_BYTES`."
+        ),
+    )
+
+    LOGGING_FILE_LEVEL = EnvField(
+        str,
+        fallback="",
+        doc=(
+            "Verbosity of the log file alone, in the same names as "
+            "`{ENV_PREFIX}_LOGGING_LEVEL`. Empty (the default) follows "
+            "`{ENV_PREFIX}_LOGGING_LEVEL`.\n"
+            "Set apart from the terminal's level so the file can carry DEBUG "
+            "while the screen stays quiet."
+        ),
+    )
+
+    LOGGING_FILE_MAX_BYTES = EnvField(
+        int,
+        fallback=10 * 1024 * 1024,
+        doc=(
+            "Size the log file may reach before it is rotated. Default: "
+            "10485760 (10 MiB). 0 never rotates."
+        ),
+    )
+
+    LOGGING_FILE_BACKUP_COUNT = EnvField(
+        int,
+        fallback=3,
+        doc=(
+            "How many rotated log files to keep; the oldest is dropped past "
+            "that. Default: 3."
+        ),
+    )
+
     ENABLE_BUILTIN_TASKS = EnvField(
         to_boolean,
         serialize=on_off,
