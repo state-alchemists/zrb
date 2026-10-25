@@ -45,6 +45,10 @@ class LSPManager:
         """Walk up from `file_path` looking for a project marker (`.git`, `pyproject.toml`, …)."""
         return self._lifecycle.detect_project_root(file_path)
 
+    def has_project_context(self, file_path: str) -> bool:
+        """Whether `file_path` sits under a project marker (`.git`, `pyproject.toml`, …)."""
+        return self._lifecycle.detect_project_marker_root(file_path) is not None
+
     async def get_server(
         self,
         file_path: str,
