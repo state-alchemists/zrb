@@ -158,3 +158,43 @@ def test_a_raising_transaction_keeps_edits_that_were_there_before_it(git_journal
 
     assert os.path.isfile(stray)
     assert _note_exists(git_journal, "half-written")
+
+
+def test_an_older_index_is_undone_when_the_body_raises(git_journal):
+    """The baseline is read before `_open_journal` migrates an older index.
+
+    Read after it, the migration dirtied a clean journal written by an earlier
+    version, `is_clean_at_entry` came back false, and a raising body kept its
+    writes while the docstring promised a rollback.
+    """
+    _write_baseline_note()
+    older = "# Journal\n\n## User\n\n- Goes by Go.\n\n## Active Constraints\n\n"
+    with open(os.path.join(git_journal, "index.md"), "w", encoding="utf-8") as f:
+        f.write(older)
+    _git(
+        git_journal,
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@t",
+        "commit",
+        "-q",
+        "-a",
+        "-m",
+        "an index from an earlier version",
+    )
+    head = _head(git_journal)
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
+
+    with pytest.raises(RuntimeError, match="import failed"):
+        with journal_transaction() as transaction:
+            transaction.write_note(
+                "technical", "half-written", "Half", "ctx", "found", "s:2"
+            )
+            raise RuntimeError("import failed")
+
+    assert _head(git_journal) == head
+    with open(os.path.join(git_journal, "index.md"), "r", encoding="utf-8") as f:
+        restored = f.read()
+    assert "## Agent" not in restored, "the migration is part of what rolls back"
+    assert "half-written" not in restored

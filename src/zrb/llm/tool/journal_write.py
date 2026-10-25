@@ -349,19 +349,22 @@ def journal_transaction(
     own result.
 
     *message* is the commit's subject; with none, the commit counts the
-    changes. A body that raises makes no commit and, when the tree had a git
-    repo and nothing uncommitted at entry, is restored to that commit before
-    the exception carries on — `git reset --hard HEAD` puts every tracked file
-    back, though a file the transaction created stays behind, untracked and
-    unreferenced. A tree that was already dirty at entry is left exactly as it
-    is: those edits are not this transaction's to discard.
+    changes. A body that raises makes no commit and, when the journal had a git
+    repo and nothing uncommitted *before the lock was taken*, is restored to
+    that commit before the exception carries on — `git reset --hard HEAD` puts
+    every tracked file back, though a file the transaction created stays behind,
+    untracked and unreferenced. The baseline is read before `_open_journal`
+    because that call migrates an older root index: measured afterwards, a clean
+    journal written by an earlier version looks dirty and the failed body's
+    writes would survive. A journal somebody had already edited is theirs to
+    keep and is left exactly as it is.
 
     With zero changes, nothing is committed. `SearchJournal` does not take the
     journal lock, so a long transaction is visible mid-flight — the same grain
     a run of individual calls has.
     """
+    is_clean_at_entry = _is_clean_before_opening()
     with _open_journal() as root:
-        is_clean_at_entry = _is_git_tree_clean(root)
         transaction = JournalTransaction(root)
         try:
             yield transaction
@@ -424,6 +427,21 @@ class JournalTransaction:
     def _record(self, result: str) -> str:
         self.change_count += 1
         return result
+
+
+def _is_clean_before_opening() -> bool:
+    """Whether the journal was a clean git tree before the lock was taken.
+
+    Asked outside `_open_journal`, which migrates an older root index — a change
+    of its own, uncommitted until the transaction ends. Measured afterwards, a
+    clean journal from an earlier version reads as dirty and a failed body keeps
+    its writes while claiming a rollback. A directory that does not exist yet
+    has no history to restore, so it is not a baseline either.
+    """
+    journal_dir = CFG.LLM_JOURNAL_DIR
+    if not journal_dir:
+        return False
+    return _is_git_tree_clean(os.path.abspath(os.path.expanduser(journal_dir)))
 
 
 def _is_git_tree_clean(root: str) -> bool:
