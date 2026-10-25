@@ -500,10 +500,7 @@ class PcmUtterance(Utterance):
     def _prebuffer(self) -> None:
         """Wait until a moment of audio stands by to play (`_is_source_done`
         and `stop` release the wait), so the device's first block has sound."""
-        # A cushion of zero starts on whatever has arrived, which is not the
-        # same as starting on nothing: a device fed an empty block counts a
-        # stutter the listener hears as silence at the start of the sentence.
-        ready = max(1, int(self._audio.sample_rate * self._prebuffer_seconds) * 2)
+        ready = self._prebuffer_bytes()
         with self._buffer_changed:
             self._buffer_changed.wait_for(
                 lambda: self._buffer_bytes >= ready
@@ -511,6 +508,13 @@ class PcmUtterance(Utterance):
                 or self._is_done,
                 timeout=self._prebuffer_wait_seconds,
             )
+
+    def _prebuffer_bytes(self) -> int:
+        """How much audio must stand by before the device starts, in bytes: the
+        cushion, and at least one byte of it — a cushion of zero starts on
+        whatever has arrived, and a device fed an empty block opens the
+        sentence on silence the listener hears as a stutter."""
+        return max(1, int(self._audio.sample_rate * self._prebuffer_seconds) * 2)
 
     def _stop_stream(
         self, stop: Callable[[], object], close: Callable[[], object]
@@ -660,9 +664,22 @@ class PcmUtterance(Utterance):
     def _has_room_for_a_chunk(self) -> bool:
         """Whether another chunk may be appended: waits for the read ahead
         (`_read_ahead`) to have room, and is false only once playback was
-        stopped."""
+        stopped.
+
+        The read ahead is a count and the cushion is a duration, so the count
+        does not bound it: chunks differ in size, and a backend that streams
+        them small would never hold a cushion counted in seconds — the reader
+        would stop at `_read_ahead` chunks, the prebuffer would wait out its
+        timeout for audio nothing was reading, and the sentence would start
+        under the cushion it was given. Standing the cushion by comes first;
+        past it, the count keeps the download out of memory."""
+        cushion = self._prebuffer_bytes()
         with self._buffer_changed:
-            while len(self._buffer) >= self._read_ahead and not self._is_done:
+            while (
+                len(self._buffer) >= self._read_ahead
+                and self._buffer_bytes >= cushion
+                and not self._is_done
+            ):
                 self._buffer_changed.wait(_BUFFER_POLL_SECONDS)
             return not self._is_done
 

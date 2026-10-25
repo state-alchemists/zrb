@@ -150,6 +150,29 @@ def test_a_zero_cushion_still_waits_for_the_first_audio(sd):
     assert _played(stream)[:1600].tolist() == [5] * 1600  # not silence
 
 
+def test_the_read_ahead_count_does_not_cap_the_cushion(sd):
+    """A cushion counted in seconds cannot be bounded by a count of chunks: a
+    backend streaming small ones would never hold it, so the sentence would
+    start under its cushion once the wait ran out."""
+
+    def small_chunks():
+        for _ in range(200):
+            yield _pcm([5] * 160)  # 10 ms of audio per chunk
+            time.sleep(0.002)
+
+    sd.OutputStream = TimedStream
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, small_chunks()), read_ahead=2, prebuffer_seconds=0.4
+    )
+    started = time.monotonic()
+    utterance.play(timeout=15)
+
+    [stream] = FakeOutputStream.instances
+    # 0.4 s of audio is 40 such chunks, made well inside the second the wait
+    # would have run out at: the device starts on the cushion, not on the wait.
+    assert stream.started_at - started < 0.5
+
+
 def test_a_longer_cushion_absorbs_a_stall_in_the_audio(sd):
     """A stall mid-sentence is what the listener hears as a clipped word; the
     cushion is what decides whether it is heard at all."""
