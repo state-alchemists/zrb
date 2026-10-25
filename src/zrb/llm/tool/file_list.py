@@ -66,48 +66,22 @@ def _summarize_by_top_level(files: list[str]) -> list[dict[str, str | int]]:
 
 
 def list_files(
-    path: Annotated[
-        str, Field(description="Directory to list, recursively up to 3 levels deep.")
-    ] = ".",
+    path: Annotated[str, Field(description="Directory to list.")] = ".",
     exclude_patterns: Annotated[
         list[str] | None,
         Field(
-            description=(
-                "Glob patterns to exclude. Defaults to a standard set "
-                "(.git, node_modules, __pycache__, etc.); pass [] to include all."
-            )
+            description="Globs to skip; default .git, node_modules, etc. [] skips none."
         ),
     ] = None,
-    include_hidden: Annotated[
-        bool, Field(description="False (default) hides dotfiles; True surfaces them.")
-    ] = False,
+    include_hidden: Annotated[bool, Field(description="Include dotfiles.")] = False,
     depth: Annotated[
-        int,
-        Field(
-            description=(
-                "How many directory levels below `path` to descend (default 3; "
-                "1 lists only the direct children)."
-            )
-        ),
+        int, Field(description="Directory levels to descend; 1 is direct children.")
     ] = 3,
     gitignore: Annotated[
-        bool,
-        Field(
-            description=(
-                "True (default) hides files .gitignore excludes. False lists "
-                "them, which is useful only when the ignored tree is the target."
-            )
-        ),
+        bool, Field(description="False also lists .gitignore'd files.")
     ] = True,
     summary: Annotated[
-        bool,
-        Field(
-            description=(
-                "False (default) returns every path. True returns per-directory "
-                "file counts instead, which is the cheap way to orient in a "
-                "large tree."
-            )
-        ),
+        bool, Field(description="True returns file counts per top-level directory.")
     ] = False,
 ) -> dict[str, Any]:
     """
@@ -118,9 +92,7 @@ def list_files(
     locate one file you could have named is the expensive way to find it.
 
     A git checkout hides what `.gitignore` excludes (generated coverage HTML,
-    build output), so the listing is the repository's real shape rather than
-    every artifact on disk. `summary=True` returns counts per top-level
-    directory instead of every path.
+    build output), so the listing is the repository's real shape.
     """
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
@@ -155,29 +127,17 @@ def list_files(
 
 
 def glob_files(
-    pattern: Annotated[str, Field(description="Glob pattern to match, e.g. **/*.py.")],
-    path: Annotated[str, Field(description="Directory to search under.")] = ".",
+    pattern: Annotated[str, Field(description="e.g. **/*.py")],
+    path: Annotated[str, Field(description="Directory to search.")] = ".",
     exclude_patterns: Annotated[
         list[str] | None,
         Field(
-            description=(
-                "Glob patterns to exclude. Defaults to a standard set "
-                "(.git, node_modules, __pycache__, etc.); pass [] to include all."
-            )
+            description="Globs to skip; default .git, node_modules, etc. [] skips none."
         ),
     ] = None,
-    include_hidden: Annotated[
-        bool, Field(description="False (default) skips dotfiles; True matches them.")
-    ] = False,
+    include_hidden: Annotated[bool, Field(description="Match dotfiles.")] = False,
     gitignore: Annotated[
-        bool,
-        Field(
-            description=(
-                "True (default) hides files .gitignore excludes, matching LS. "
-                "False returns them, which is useful only when the ignored tree "
-                "is the target."
-            )
-        ),
+        bool, Field(description="False also returns .gitignore'd files.")
     ] = True,
 ) -> dict[str, Any]:
     """
@@ -186,8 +146,7 @@ def glob_files(
     This searches paths, not contents — use Grep to search what is inside the
     files, and LS when you do not yet know what you are looking for.
 
-    A git checkout hides what `.gitignore` excludes, so the result is the same
-    set of files LS would list rather than a different answer for the same tree.
+    A git checkout hides what `.gitignore` excludes, matching LS.
     """
     found_files = []
     abs_path = os.path.abspath(os.path.expanduser(path))

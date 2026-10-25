@@ -60,14 +60,11 @@ def notify(message: str) -> None:
 
 
 async def open_web_page(
-    url: Annotated[str, Field(description="The web page URL to fetch.")],
+    url: Annotated[str, Field(description="Page URL.")],
     summarize: Annotated[
         bool,
         Field(
-            description=(
-                "True (default): a sub-agent extracts high-signal content to "
-                "reduce token usage. False returns the full converted page."
-            )
+            description="True: a sub-agent extracts the key content. False: full page."
         ),
     ] = True,
 ) -> dict:
@@ -128,7 +125,7 @@ async def open_web_page(
 
 async def search_internet(
     query: Annotated[str, Field(description="Search query.")],
-    page: Annotated[int, Field(description="1-indexed page of results to return.")] = 1,
+    page: Annotated[int, Field(description="1-indexed results page.")] = 1,
 ) -> dict:
     """
     Searches the internet. Returns {query, results: [{title, url, snippet, source}],
