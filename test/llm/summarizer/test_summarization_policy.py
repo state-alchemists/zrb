@@ -363,7 +363,9 @@ async def test_the_split_is_printed_so_a_tail_is_never_a_guess(tmp_path, monkeyp
 
 
 @pytest.mark.asyncio
-async def test_the_summary_is_written_from_the_whole_conversation(tmp_path, monkeypatch):
+async def test_the_summary_is_written_from_the_whole_conversation(
+    tmp_path, monkeypatch
+):
     """What is kept is not what is read.
 
     `<where_we_are>`, `<now>` and `<next>` are the next agent's headline, and a
@@ -393,6 +395,6 @@ async def test_the_summary_is_written_from_the_whole_conversation(tmp_path, monk
         if call.args and isinstance(call.args[0], str)
     ]
     assert prompts, "the summarizer was never called"
-    assert any("question 5" in prompt for prompt in prompts), (
-        "the kept tail never reached the summarizer"
-    )
+    assert any(
+        "question 5" in prompt for prompt in prompts
+    ), "the kept tail never reached the summarizer"

@@ -88,7 +88,9 @@ def message_content_text(msg: object) -> str:
     )
 
 
-def model_request_to_text(msg: ModelRequest, tool_output_limit: int | None = None) -> str:
+def model_request_to_text(
+    msg: ModelRequest, tool_output_limit: int | None = None
+) -> str:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import SystemPromptPart, ToolReturnPart, UserPromptPart
     from zrb.llm.util.history_formatter import format_multimodal_item
@@ -125,7 +127,9 @@ def model_request_to_text(msg: ModelRequest, tool_output_limit: int | None = Non
     return "\n".join(parts) if parts else "[Empty ModelRequest]"
 
 
-def model_response_to_text(msg: ModelResponse, tool_output_limit: int | None = None) -> str:
+def model_response_to_text(
+    msg: ModelResponse, tool_output_limit: int | None = None
+) -> str:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
 

@@ -328,7 +328,9 @@ def test_the_default_limiter_never_counts_a_shorter_suffix_higher(with_anchors):
     limiter = LLMLimiter()
     for _ in range(40):
         messages = _random_history(rng, with_anchors, rng.randint(2, 20))
-        counts = [count_tail_tokens(limiter, messages[i:]) for i in range(len(messages))]
+        counts = [
+            count_tail_tokens(limiter, messages[i:]) for i in range(len(messages))
+        ]
         assert counts == sorted(counts, reverse=True)
 
 
@@ -405,9 +407,9 @@ def test_a_ceiling_above_the_budget_changes_nothing(limiter):
 def test_a_ceiling_of_zero_means_no_ceiling(limiter):
     messages = [ModelRequest(parts=[UserPromptPart(content=str(i))]) for i in range(40)]
 
-    assert split_history(
-        messages, 0, limiter, 100, tail_max_tokens=0
-    ) == split_history(messages, 0, limiter, 100)
+    assert split_history(messages, 0, limiter, 100, tail_max_tokens=0) == split_history(
+        messages, 0, limiter, 100
+    )
 
 
 class _CharLimiter(LLMLimiter):

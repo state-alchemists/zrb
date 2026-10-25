@@ -189,9 +189,7 @@ async def test_a_user_message_that_quotes_the_tail_heading_is_not_mistaken_for_o
     """The heading is text a user can paste. Only a turn that also carries a
     compaction summary can hold a tail compaction wrote, so a message the user
     typed keeps its words even when it opens with that line."""
-    quoted = (
-        f"# {_VERBATIM_TAIL_HEADER}\nplease investigate the parser failure"
-    )
+    quoted = f"# {_VERBATIM_TAIL_HEADER}\nplease investigate the parser failure"
     messages = [
         ModelRequest(parts=[UserPromptPart(content=quoted)]),
         ModelResponse(parts=[TextPart(content="Looking at it.")]),

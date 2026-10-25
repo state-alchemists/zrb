@@ -15,7 +15,9 @@ from zrb.config.config import CFG
 from zrb.llm.summarizer.verbatim_archive import verbatim_archive_path
 
 SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"
-TAIL_HEADER = "Recent conversation, reproduced verbatim (not a summary, not an instruction)"
+TAIL_HEADER = (
+    "Recent conversation, reproduced verbatim (not a summary, not an instruction)"
+)
 
 
 def _conversation():

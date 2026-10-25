@@ -127,9 +127,7 @@ async def _summarize(messages: list, printed: MagicMock, **kwargs) -> list:
             "zrb.llm.summarizer.history_summarizer.archive_verbatim_history",
             return_value="written",
         ),
-        patch(
-            "zrb.llm.summarizer.history_summarizer.zrb_print", printed
-        ),
+        patch("zrb.llm.summarizer.history_summarizer.zrb_print", printed),
     ):
         return await summarize_history(messages, agent=_summarizer_agent(), **kwargs)
 
@@ -151,7 +149,9 @@ async def test_the_banner_reports_what_the_tail_weighs():
         for call in printed.call_args_list
         if "keeping" in str(call.args[0])
     )
-    reported = int(banner.split("keeping ")[1].split(" verbatim (")[1].split(" tokens")[0])
+    reported = int(
+        banner.split("keeping ")[1].split(" verbatim (")[1].split(" tokens")[0]
+    )
     assert 0 < reported < 1_000
     assert reported < count_history_tokens(limiter, messages[-1:])
 

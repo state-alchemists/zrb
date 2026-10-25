@@ -1147,9 +1147,7 @@ def _is_verbatim_tail_part(part: object, msg: object) -> bool:
         and part.content.startswith(f"# {_VERBATIM_TAIL_HEADER}")
     ):
         return False
-    return any(
-        _is_summary_part(other) for other in getattr(msg, "parts", ()) or ()
-    )
+    return any(_is_summary_part(other) for other in getattr(msg, "parts", ()) or ())
 
 
 def _is_synthetic_part(part: object, msg: object) -> bool:
@@ -1160,9 +1158,7 @@ def _is_synthetic_part(part: object, msg: object) -> bool:
 def _drop_synthetic_parts(msg: "ModelMessage") -> "ModelMessage":
     """*msg* without the parts compaction wrote."""
     parts = [
-        part
-        for part in getattr(msg, "parts", [])
-        if not _is_synthetic_part(part, msg)
+        part for part in getattr(msg, "parts", []) if not _is_synthetic_part(part, msg)
     ]
     if len(parts) == len(msg.parts):
         return msg

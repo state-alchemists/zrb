@@ -61,4 +61,6 @@ def test_a_snapshot_missing_a_section_is_reported():
     )
 
     assert _is_state_snapshot_well_formed(complete) is True
-    assert _is_state_snapshot_well_formed(complete.replace("<next>x</next>", "")) is False
+    assert (
+        _is_state_snapshot_well_formed(complete.replace("<next>x</next>", "")) is False
+    )
