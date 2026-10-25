@@ -19,24 +19,15 @@ _READ_LINE_NUMBER = re.compile(r"^ *\d+\t")
 async def replace_in_file(
     path: Annotated[str, Field(description="File to edit.")],
     old_text: Annotated[
-        str,
-        Field(
-            description=(
-                "Exact text to replace, copied verbatim from Read (strip its "
-                "line-number prefix first). Falls back to whitespace-tolerant "
-                "fuzzy matching if the exact text isn't found."
-            )
-        ),
+        str, Field(description="Exact text to replace, copied from Read.")
     ],
-    new_text: Annotated[str, Field(description="Text to replace old_text with.")],
+    new_text: Annotated[str, Field(description="Replacement text.")],
     count: Annotated[
         int,
         Field(
             description=(
-                "How many occurrences to replace. The default -1 replaces "
-                "EVERY occurrence in the file. Pass count=1 unless you have "
-                "read the file and confirmed old_text appears exactly once, "
-                "or you actually intend a file-wide replacement."
+                "Occurrences to replace; -1 replaces EVERY one. Pass 1 unless "
+                "you confirmed old_text is unique or want a file-wide replace."
             )
         ),
     ] = -1,
@@ -46,8 +37,7 @@ async def replace_in_file(
 
     Read prefixes every line with its number (`cat -n` style: six columns, then
     a tab). That prefix is not in the file — strip it from old_text and
-    new_text. Text copied straight out of Read is matched anyway, but only
-    after the exact match has already failed.
+    new_text.
 
     Read the result, not just its status. It reports how many replacements
     happened, and says so when old_text matched only after whitespace was

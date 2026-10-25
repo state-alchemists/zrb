@@ -20,25 +20,13 @@ from zrb.llm.tool.shell import start_process
 
 async def enter_worktree(
     branch_name: Annotated[
-        str,
-        Field(
-            description=(
-                "Branch to create; auto-generated (worktree-YYYYMMDD-HHMMSS) "
-                "when empty."
-            )
-        ),
+        str, Field(description="Branch to create; auto-named when empty.")
     ] = "",
     worktree_path: Annotated[
-        str,
-        Field(
-            description=(
-                "Path of an existing linked worktree to resume; when empty, "
-                "create a new worktree."
-            )
-        ),
+        str, Field(description="Existing worktree to resume instead of creating.")
     ] = "",
     cwd: Annotated[
-        str, Field(description="Repo root to operate in, if not the current directory.")
+        str, Field(description="Repo root, if not the current directory.")
     ] = "",
 ) -> str:
     """
@@ -224,18 +212,13 @@ def _find_worktree_branch(worktree_list: str, requested_path: str) -> str | None
 
 
 async def exit_worktree(
-    worktree_path: Annotated[
-        str,
-        Field(
-            description="Path of the worktree to remove, as returned by EnterWorktree."
-        ),
-    ],
+    worktree_path: Annotated[str, Field(description="Path from EnterWorktree.")],
     keep_branch: Annotated[
         bool,
         Field(
             description=(
-                "False (default) also runs `git branch -D` — the branch and all "
-                "its commits are gone, irreversibly. Pass True to keep the branch."
+                "False also runs `git branch -D` — the branch and its commits "
+                "are gone, irreversibly."
             )
         ),
     ] = False,

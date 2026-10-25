@@ -11,9 +11,7 @@ from zrb.llm.util.attachment import get_media_type
 
 async def analyze_file(
     path: Annotated[str, Field(description="File to analyze.")],
-    query: Annotated[
-        str, Field(description="What to find or answer about the file's content.")
-    ],
+    query: Annotated[str, Field(description="What to find or answer.")],
 ) -> str:
     """
     Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.

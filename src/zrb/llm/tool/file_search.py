@@ -32,52 +32,29 @@ def _relpath_or_abs(path: str, start: str) -> str:
 def search_files(
     pattern: Annotated[
         str,
-        Field(
-            description=(
-                r"A regular expression (e.g. `def \w+`), NOT a glob — to find "
-                "files by name, use Glob instead."
-            )
-        ),
+        Field(description=r"Regular expression (e.g. `def \w+`), not a glob."),
     ],
-    path: Annotated[str, Field(description="Directory to search under.")] = ".",
-    file_pattern: Annotated[
-        str,
-        Field(description="A glob restricting which files to search (e.g. `*.py`)."),
-    ] = "",
+    path: Annotated[str, Field(description="Directory to search.")] = ".",
+    file_pattern: Annotated[str, Field(description="Glob to restrict files.")] = "",
     exclude_patterns: Annotated[
         list[str] | None,
         Field(
-            description=(
-                "Glob patterns to exclude. Defaults to a standard set "
-                "(.git, node_modules, __pycache__, etc.); pass [] to include all."
-            )
+            description="Globs to skip; default .git, node_modules, etc. [] skips none."
         ),
     ] = None,
     timeout: Annotated[
-        float,
-        Field(
-            description="Seconds before the search gives up and returns partial results."
-        ),
+        float, Field(description="Seconds; then partial results.")
     ] = 30.0,
-    context_lines: Annotated[
-        int, Field(description="Surrounding lines shown per match.")
-    ] = 2,
+    context_lines: Annotated[int, Field(description="Lines around each match.")] = 2,
     files_only: Annotated[
-        bool,
-        Field(
-            description=(
-                'True returns {"files": [...], "summary": "..."} — much '
-                "smaller output than the full per-match results."
-            )
-        ),
+        bool, Field(description="True returns only matching file names.")
     ] = False,
-    case_sensitive: Annotated[
-        bool, Field(description="False makes the search case-insensitive.")
-    ] = True,
+    case_sensitive: Annotated[bool, Field(description="False ignores case.")] = True,
 ) -> dict[str, Any]:
     """
-    Searches file *contents* for a regular expression. Results include line
-    numbers and context. Lines are truncated at 1000 chars in output.
+    Searches file *contents* for a regular expression (to find files by name,
+    use Glob). Results include line numbers and context; lines are truncated at
+    1000 chars.
 
     No matches rules out the pattern, not the behavior. Before reporting that
     something is absent — or that a removal is complete — say which pattern and

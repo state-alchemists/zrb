@@ -8,22 +8,13 @@ from zrb.llm.tool.file_observation import check_listed, record_seen
 
 
 def move_file(
-    src: Annotated[str, Field(description="Path of the file or directory to move.")],
-    dst: Annotated[
-        str,
-        Field(
-            description=(
-                "Destination path. Missing parent directories are created; "
-                "overwriting an existing destination is refused unless this "
-                "session has Read it, or List/Glob'd its parent directory, "
-                "first."
-            )
-        ),
-    ],
+    src: Annotated[str, Field(description="Path to move.")],
+    dst: Annotated[str, Field(description="Destination path.")],
 ) -> str:
     """
-    Moves or renames a file or directory. See each parameter's own description
-    for what happens at the destination.
+    Moves or renames a file or directory. Missing parent directories of dst are
+    created; overwriting an existing dst is refused unless this session has
+    Read it, or List/Glob'd its parent directory, first.
     """
     abs_src = os.path.abspath(os.path.expanduser(src))
     abs_dst = os.path.abspath(os.path.expanduser(dst))

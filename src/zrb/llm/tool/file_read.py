@@ -20,18 +20,14 @@ _MAX_READ_FILE_BYTES = 10 * 1024 * 1024
 
 
 async def read_file(
-    path: Annotated[str, Field(description="File to read — text, PDF or image.")],
-    start_line: Annotated[
-        int, Field(description="1-indexed first line to return.")
-    ] = 1,
-    end_line: Annotated[
-        int, Field(description="1-indexed last line to return; -1 means the last line.")
-    ] = -1,
+    path: Annotated[str, Field(description="File to read.")],
+    start_line: Annotated[int, Field(description="1-indexed.")] = 1,
+    end_line: Annotated[int, Field(description="-1 means the last line.")] = -1,
 ):  # str | ToolReturn, unannotated: pydantic-ai evaluates the hint
     """
-    Reads a UTF-8 text file or extracts text from a PDF. Output beyond the
-    size cap is truncated with a ``...[TRUNCATED]`` marker — narrow the range
-    or Grep, then Read.
+    Reads a UTF-8 text file (1-indexed lines) or extracts text from a PDF.
+    Output beyond the size cap is truncated with a ``...[TRUNCATED]`` marker —
+    narrow the range or Grep, then Read.
 
     Output: ``[File: ... ]`` header, then ``---CONTENT---``, then the body in
     ``cat -n`` form — line number right-aligned in six columns, then a tab,

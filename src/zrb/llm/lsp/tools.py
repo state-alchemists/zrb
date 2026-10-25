@@ -12,10 +12,7 @@ async def find_definition(
     symbol_kind: str = "",
 ) -> dict:
     """
-    Find where a symbol (class, function, variable) is defined.
-
-    Uses LSP (Language Server Protocol) for semantic code navigation.
-    More precise than text search — understands code structure.
+    Find where a symbol (class, function, variable) is defined, via LSP.
     """
     return await lsp_manager.find_definition(
         symbol_name, file_path, symbol_kind or None
@@ -30,11 +27,8 @@ async def find_references(
     include_declaration: bool = True,
 ) -> dict:
     """
-    Find all references to a symbol across the codebase.
-
-    Uses LSP for semantic reference finding — understands imports, aliases, etc.
-    More accurate than grep for finding all usages of a symbol.
-    If line/character are unknown, pass 0 for auto-detection.
+    Find all references to a symbol across the codebase, via LSP (follows
+    imports and aliases, unlike grep). Pass 0 for unknown line/character.
     """
     return await lsp_manager.find_references(
         symbol_name, file_path, line, character, include_declaration
@@ -46,21 +40,16 @@ async def get_diagnostics(
     severity: Literal["error", "warning", "info", "hint"] | None = None,
 ) -> dict:
     """
-    Get diagnostics (errors, warnings, hints) for a file.
-
-    Uses LSP to get real-time type checking, linting results, etc.
-    Essential for verifying code correctness after edits.
-    Severity can filter: "error", "warning", "info", "hint".
+    Get LSP diagnostics (type-check and lint results) for a file; use to
+    verify code after edits.
     """
     return await lsp_manager.get_diagnostics(file_path, severity)
 
 
 async def get_document_symbols(file_path: str) -> dict:
     """
-    Get all symbols (classes, functions, variables) defined in a file.
-
-    Uses LSP to parse and understand the file structure.
-    Great for getting an overview without reading the entire file.
+    Get all symbols (classes, functions, variables) defined in a file, as an
+    overview without reading it.
     """
     return await lsp_manager.get_document_symbols(file_path)
 
@@ -70,11 +59,8 @@ async def get_workspace_symbols(
     file_path: str = ".",
 ) -> dict:
     """
-    Search for symbols across the entire workspace/project.
-
-    Uses LSP workspace symbols for fast symbol search.
-    Like "Go to Symbol in Workspace" in IDEs.
-    Query can be partial — supports fuzzy matching.
+    Search for symbols across the workspace, via LSP. Query may be partial
+    (fuzzy).
     """
     return await lsp_manager.get_workspace_symbols(query, file_path)
 
@@ -85,11 +71,8 @@ async def get_hover_info(
     character: int,
 ) -> dict:
     """
-    Get hover information (type, documentation) at a position.
-
-    Uses LSP hover capability — like hovering over code in an IDE.
-    Shows type information, function signatures, docstrings.
-    Line and character are 0-based indices.
+    Get hover information (type, signature, docstring) at a position. Line and
+    character are 0-based.
     """
     return await lsp_manager.get_hover_info(file_path, line, character)
 
@@ -103,12 +86,9 @@ async def rename_symbol(
     dry_run: bool = True,
 ) -> dict:
     """
-    Rename a symbol across all files in the workspace.
-
-    Uses LSP rename capability for safe refactoring.
-    Use `dry_run=True` (default) to preview changes before applying.
-    Use instead of Edit for symbol renaming (catches all references).
-    If line/character are unknown, pass 0 for auto-detection.
+    Rename a symbol across all files via LSP; prefer over Edit for renames
+    (catches all references). `dry_run=True` (default) previews without
+    applying. Pass 0 for unknown line/character.
     """
     return await lsp_manager.rename_symbol(
         symbol_name, new_name, file_path, line, character, dry_run
@@ -117,10 +97,8 @@ async def rename_symbol(
 
 async def list_available_servers() -> dict:
     """
-    List all LSP servers detected on the system.
-
-    Shows which languages are supported for LSP-based code intelligence.
-    Use this to diagnose why LSP tools might not be working for a language.
+    List detected LSP servers and supported languages; use to diagnose why LSP
+    tools fail for a language.
     """
     servers = lsp_manager.list_available_servers()
     language_support = {}
