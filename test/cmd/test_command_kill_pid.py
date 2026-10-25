@@ -44,7 +44,7 @@ class TestRunCommandGracefulKill:
     """Tests for run_command timeout/cancellation that hit the graceful kill path."""
 
     @pytest.mark.asyncio
-    async def test_run_command_timeout_triggers_graceful_kill(self):
+    async def test_run_command_timeout_triggers_graceful_kill(self, monkeypatch):
         """Test that a timeout on a stubborn process triggers forceful kill path (lines 132-139)."""
         # Use a script that ignores SIGINT to force the graceful kill timeout
         # The process catches SIGINT but doesn't exit, causing TimeoutError in wait_for
@@ -58,6 +58,8 @@ class TestRunCommandGracefulKill:
             ),
         ]
         printed_messages = []
+        # The wait before the kill is the knob under test, not a duration to sit out.
+        monkeypatch.setenv("ZRB_CMD_CLEANUP_TIMEOUT", "100")
 
         def capture_print(msg, **kwargs):
             printed_messages.append(msg)
@@ -184,9 +186,10 @@ class TestRunCommandKillFallbacks:
         os.name != "posix", reason="os.killpg (the branch under test) is POSIX-only"
     )
     @pytest.mark.asyncio
-    async def test_timeout_killpg_then_force_kill(self):
+    async def test_timeout_killpg_then_force_kill(self, monkeypatch):
         """On timeout, a process that ignores SIGINT is force-killed via kill_pid."""
         printed = []
+        monkeypatch.setenv("ZRB_CMD_CLEANUP_TIMEOUT", "100")
         # killpg succeeds, but wait_for on cleanup times out -> kill_pid path.
         with (
             patch("zrb.cmd.command.os.killpg") as killpg,

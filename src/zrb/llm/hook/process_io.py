@@ -88,10 +88,13 @@ def has_exited(process: subprocess.Popen) -> bool:
     A process with no pid to wait on (a stand-in) is asked through ``poll``.
     """
     pid = getattr(process, "pid", None)
-    if not isinstance(pid, int) or not hasattr(os, "waitid"):
+    # Read off the module: typeshed declares `waitid` on Linux only, so a plain
+    # attribute fails pyright on macOS even behind a `hasattr` guard.
+    waitid = getattr(os, "waitid", None)
+    if not isinstance(pid, int) or waitid is None:
         return process.poll() is not None
     try:
-        state = os.waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        state = waitid(os.P_PID, pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
     except ChildProcessError:
         # Reaped already, by whoever owns it.
         return True
@@ -101,11 +104,12 @@ def has_exited(process: subprocess.Popen) -> bool:
 def wait_for_exit(process: subprocess.Popen) -> None:
     """Block until *process* exits, leaving it unreaped where the OS allows."""
     pid = getattr(process, "pid", None)
-    if not isinstance(pid, int) or not hasattr(os, "waitid"):
+    waitid = getattr(os, "waitid", None)
+    if not isinstance(pid, int) or waitid is None:
         process.wait()
         return
     try:
-        os.waitid(os.P_PID, pid, os.WEXITED | os.WNOWAIT)
+        waitid(os.P_PID, pid, os.WEXITED | os.WNOWAIT)
     except ChildProcessError:
         # Reaped already, by whoever owns it.
         return

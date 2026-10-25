@@ -10,6 +10,7 @@ The autouse fixtures provide deterministic non-secret defaults and restore
 """
 
 import os
+import shutil
 import tempfile
 from collections.abc import MutableMapping
 
@@ -66,7 +67,31 @@ _TEST_ENV = {
     "ZRB_LLM_USAGE_DIR": os.path.join(
         tempfile.gettempdir(), f"zrb-test-usage-{os.getpid()}"
     ),
+    # Same for the stores a run writes to: a delegation saves its transcript and
+    # prunes the whole history directory on every save, so a test pointed at the
+    # developer's real one scanned ~10,000 files per save (5 s a test) and left
+    # its own transcripts behind.
+    "ZRB_LLM_HISTORY_DIR": os.path.join(
+        tempfile.gettempdir(), f"zrb-test-history-{os.getpid()}"
+    ),
+    "ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_DIR": os.path.join(
+        tempfile.gettempdir(), f"zrb-test-previous-history-{os.getpid()}"
+    ),
+    "ZRB_LLM_SNAPSHOT_DIR": os.path.join(
+        tempfile.gettempdir(), f"zrb-test-snapshots-{os.getpid()}"
+    ),
 }
+
+
+def pytest_sessionfinish() -> None:
+    """Remove this process's per-run stores, which nothing else would."""
+    for key in (
+        "ZRB_LLM_USAGE_DIR",
+        "ZRB_LLM_HISTORY_DIR",
+        "ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_DIR",
+        "ZRB_LLM_SNAPSHOT_DIR",
+    ):
+        shutil.rmtree(_TEST_ENV[key], ignore_errors=True)
 
 
 @pytest.fixture(autouse=True)
