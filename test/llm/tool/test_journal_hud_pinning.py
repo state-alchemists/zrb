@@ -230,3 +230,51 @@ def test_a_hud_line_echoing_another_notes_link_does_not_steal_its_line(
     # ...and the echoed link is not copied onto the second one: it was read from
     # the index, not written, so it stays with the note it points at.
     assert "user/first.md" not in own_second[0]
+
+
+def test_an_echoed_line_handed_back_with_its_bullet_is_still_an_echo(
+    writable_journal,
+):
+    """A caller may repeat the index line verbatim: bullet, pin marker and link.
+
+    The bullet is stripped when the line is first read (`_hud_line_text`), so
+    echo detection compares prose to prose; the pin marker and the link are
+    handled by the same normalization. What must not survive is the old note's
+    link on the new note's line.
+    """
+    write_journal_note(
+        "user",
+        "first",
+        "First",
+        "ctx",
+        "found",
+        "s:1",
+        hud_line="Prefers terse replies.",
+    )
+    write_journal_note(
+        "user",
+        "second",
+        "Second",
+        "ctx",
+        "found",
+        "s:1",
+        hud_line="- 📌 Prefers terse replies. ([note](user/first.md))",
+    )
+
+    section = _hud_section(writable_journal, "User")
+    own_second = [
+        line
+        for line in section.splitlines()
+        if line.endswith("([note](user/second.md))")
+    ]
+    assert len(own_second) == 1
+    assert "user/first.md" not in own_second[0]
+    assert "📌" not in own_second[0]
+    assert (
+        sum(
+            1
+            for line in section.splitlines()
+            if line.endswith("([note](user/first.md))")
+        )
+        == 1
+    )
