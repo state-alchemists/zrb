@@ -191,7 +191,7 @@ async def test_cancelled_then_continued_session_reports_back_to_main_agent(
 
     # The main agent receives only the continuation's latest response — no
     # wrapper, no transcript pointer.
-    buffered_ui.parent_ui.submit_message.assert_called_once_with("the final answer")
+    buffered_ui.parent_ui.submit_message.assert_called_once_with("the final answer", None)
 
 
 @pytest.mark.asyncio

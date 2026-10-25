@@ -38,7 +38,9 @@ async def send_message_to_parent(
         return "[SYSTEM SUGGESTION] The main agent cannot receive messages right now; finish and report in your final answer."
     registry.record_agent_message(ui.session_id, agent_id)
     header = f'[message from sub-agent "{entry.agent_name}" ({agent_id})]'
-    parent.submit_message(f"{header}\n{message}")
+    # `None`: written by a subagent, not by the user, so it carries no input
+    # provenance rather than borrowing the keyboard's.
+    parent.submit_message(f"{header}\n{message}", None)
     return "Message sent to the main agent."
 
 

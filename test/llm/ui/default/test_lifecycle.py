@@ -177,7 +177,7 @@ async def test_handle_first_render():
     ui.application.after_render.remove_handler.assert_called_once_with(
         ui.on_first_render
     )
-    ui.submit_message.assert_called_with("hello")
+    ui.submit_message.assert_called_with("hello", None)
 
 
 @pytest.mark.asyncio

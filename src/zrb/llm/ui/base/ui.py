@@ -1146,7 +1146,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             source=source,
         )
 
-    def submit_message(self, user_message: str, source: InputSource = None) -> None:
+    def submit_message(
+        self, user_message: str, source: InputSource = KEYBOARD_INPUT
+    ) -> None:
         """Queue *user_message* for the next turn (Ctrl+G sends it sooner)."""
         self.submit_user_message(self.llm_task, user_message, source)
 

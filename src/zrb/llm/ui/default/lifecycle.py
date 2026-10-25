@@ -179,7 +179,9 @@ class UILifecycle:
         # Remove the exact bound method registered (`ui.on_first_render`, not
         # this part's), or the initial message resubmits every frame.
         ui.application.after_render.remove_handler(ui.on_first_render)
-        ui.submit_message(ui.initial_message)
+        # `None`: a startup message is not a keystroke, so it carries no input
+        # provenance rather than claiming the keyboard's.
+        ui.submit_message(ui.initial_message, None)
 
     def invalidate_ui(self):
         invalidate_app("UI")

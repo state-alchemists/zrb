@@ -1,6 +1,7 @@
 """The speaker's tone: emotion2vec+ beside the transcriber, carried by the turn."""
 
 import asyncio
+import dataclasses
 import sys
 import threading
 import time
@@ -12,7 +13,7 @@ from zrb.llm.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.dictation.emotion import EmotionDetector, Tone
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import Utterance
-from zrb.llm.input_source import DICTATION_INPUT
+from zrb.llm.input_source import DICTATION_INPUT, InputProvenance
 
 LABELS = ["生气/angry", "开心/happy", "中立/neutral", "难过/sad", "吃惊/surprised"]
 
@@ -146,7 +147,7 @@ async def test_a_model_that_cannot_load_ends_its_loading_line_with_a_failure(
         ).resolve()
     )
 
-    assert await _sources(session, 1) == [("hello", DICTATION_INPUT)]
+    assert await _sources(session, 1) == [("hello", _heard())]
     assert "Loading the emotion model…" in caplog.text
     # The load runs beside the microphone now, so the failure line lands a
     # moment after the turn it did not hold up (ADR-0115).
@@ -196,6 +197,18 @@ async def _sources(session: DictationSession, count: int):
     return [(reply.text, reply.source) for reply in replies]
 
 
+def _heard(*, tone: str = "", tone_score: float = 0.0) -> InputProvenance:
+    """The source one fake utterance produces.
+
+    The fake listener above yields `Utterance(text, i, i + 1)`, so every one of
+    them is spoken for exactly one second — the duration a dictated turn now
+    carries beside the words.
+    """
+    return dataclasses.replace(
+        DICTATION_INPUT, spoken_seconds=1.0, tone=tone, tone_score=tone_score
+    )
+
+
 @pytest.mark.asyncio
 async def test_the_tone_rides_on_the_turn_and_the_words_stay_clean(monkeypatch):
     session = _session_hearing(
@@ -204,17 +217,19 @@ async def test_the_tone_rides_on_the_turn_and_the_words_stay_clean(monkeypatch):
 
     sad, plain = await _sources(session, 2)
 
+    source = sad[1]
     assert sad[0] == "I am so sorry"
-    assert (sad[1].tone, sad[1].tone_score) == ("sad", 0.82)
-    assert "sounding sad (0.82)" in sad[1].render()
-    assert plain == ("open the file", DICTATION_INPUT)
+    assert source is not None
+    assert (source.tone, source.tone_score) == ("sad", 0.82)
+    assert "sounding sad (0.82)" in source.render()
+    assert plain == ("open the file", _heard())
 
 
 @pytest.mark.asyncio
 async def test_no_tone_is_heard_unless_detection_is_on(monkeypatch):
     session = _session_hearing(monkeypatch, "I am so sorry", detect_emotion=False)
 
-    assert await _sources(session, 1) == [("I am so sorry", DICTATION_INPUT)]
+    assert await _sources(session, 1) == [("I am so sorry", _heard())]
 
 
 @pytest.mark.asyncio
@@ -239,7 +254,7 @@ async def test_the_microphone_listens_before_the_emotion_model_loads(monkeypatch
 
     replies = await asyncio.wait_for(_sources(session, 1), timeout=2)
     try:
-        assert replies == [("hello", DICTATION_INPUT)]
+        assert replies == [("hello", _heard())]
         assert started.is_set()  # the load began
         assert not finish.is_set()  # and the turn did not wait for it
     finally:
@@ -285,7 +300,7 @@ async def test_the_load_is_marked_before_the_first_utterance_is_heard(monkeypatc
         ).resolve()
     )
 
-    assert await _sources(session, 1) == [("hello", DICTATION_INPUT)]
+    assert await _sources(session, 1) == [("hello", _heard())]
     assert events[0] == "marked"
     assert "heard" in events
 
@@ -304,7 +319,7 @@ async def test_the_transcriber_is_still_loaded_before_listening(monkeypatch):
         DictationConfig(backend=SlowBackend(), mode="hands_free").resolve()
     )
 
-    assert await _sources(session, 1) == [("hello", DICTATION_INPUT)]
+    assert await _sources(session, 1) == [("hello", _heard())]
     assert prepared == ["transcriber"]
 
 

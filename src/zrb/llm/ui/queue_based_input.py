@@ -64,10 +64,9 @@ class QueueBasedInput:
             self.waiting_for_input = False
 
     def _submit_message(self, text: str, source: InputProvenance | None) -> None:
-        if source is None:
-            self._simple_ui.submit_message(text)
-        else:
-            self._simple_ui.submit_message(text, source)
+        # Passed through even when None: this is a backend channel nobody has
+        # named, and calling it "keyboard" would be a guess the model would act on.
+        self._simple_ui.submit_message(text, source)
 
     def handle_incoming_message(self, text: str, source: InputProvenance | None = None):
         """Route a message from your backend: to a blocked `ask_user`, to a
