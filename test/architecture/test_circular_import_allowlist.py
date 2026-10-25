@@ -6,6 +6,8 @@ packages from importing each other at runtime.
 """
 
 import ast
+import json
+import os
 import re
 import subprocess
 import sys
@@ -121,6 +123,55 @@ _ISOLATED_IMPORT = textwrap.dedent("""
     importlib.import_module(target)
     """)
 
+# 492 modules, each needing a clean `zrb` import: a fresh interpreter apiece spent
+# most of its time re-importing the same third-party packages. A cycle is between
+# zrb modules, so third-party code may stay loaded; this server imports it once,
+# then forks one child per module, which starts from no `zrb` module at all.
+_FORK_SERVER = textwrap.dedent("""
+    import contextlib
+    import importlib
+    import json
+    import os
+    import sys
+    import traceback
+
+    reply = os.fdopen(os.dup(1), "w")
+    os.dup2(os.open(os.devnull, os.O_WRONLY), 1)
+    for name in sys.argv[2].split(","):
+        with contextlib.suppress(Exception):
+            importlib.import_module(name)
+    isolated_import = open(sys.argv[3], encoding="utf-8").read()
+    # A forked child must skip the parent's exit handlers.
+    hard_exit = getattr(os, "_exit")
+
+    def import_in_child(target, write_end):
+        sys.argv = ["", target, sys.argv[1]]
+        try:
+            exec(isolated_import, {})
+        except BaseException:
+            os.write(write_end, traceback.format_exc().encode())
+            hard_exit(1)
+        hard_exit(0)
+
+    for line in sys.stdin:
+        target = line.strip()
+        read_end, write_end = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            os.close(read_end)
+            import_in_child(target, write_end)
+        os.close(write_end)
+        with os.fdopen(read_end, "rb") as pipe:
+            error = pipe.read().decode(errors="replace")
+        _, status = os.waitpid(pid, 0)
+        reply.write(json.dumps({"ok": status == 0, "error": error}) + "\\n")
+        reply.flush()
+    """)
+
+_THIRD_PARTY = (
+    "pydantic,pydantic_ai,fastmcp,mcp,prompt_toolkit,fastapi,openai,anthropic,rich"
+)
+
 
 def _all_modules() -> list[str]:
     """Return importable package and module targets under `zrb`."""
@@ -134,19 +185,69 @@ def _all_modules() -> list[str]:
     return sorted(targets)
 
 
-@pytest.mark.parametrize("module", _all_modules())
-def test_every_module_imports_with_its_parents_stubbed(module: str):
-    result = subprocess.run(
-        [sys.executable, "-c", _ISOLATED_IMPORT, module, str(REPO_ROOT / "src")],
-        capture_output=True,
+@pytest.fixture(scope="session")
+def isolated_import(tmp_path_factory):
+    """`isolated_import(module)` is `(ok, error)` for importing it with its
+    parents stubbed, in a process that has no other `zrb` module loaded."""
+    if not hasattr(os, "fork"):
+
+        def in_fresh_interpreter(module: str) -> tuple[bool, str]:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    _ISOLATED_IMPORT,
+                    module,
+                    str(REPO_ROOT / "src"),
+                ],
+                capture_output=True,
+                text=True,
+            )
+            return result.returncode == 0, result.stderr
+
+        yield in_fresh_interpreter
+        return
+    script = tmp_path_factory.mktemp("isolated-import") / "isolated_import.py"
+    script.write_text(_ISOLATED_IMPORT, encoding="utf-8")
+    server = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            _FORK_SERVER,
+            str(REPO_ROOT / "src"),
+            _THIRD_PARTY,
+            str(script),
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
         text=True,
     )
-    assert result.returncode == 0, (
+
+    def in_forked_child(module: str) -> tuple[bool, str]:
+        assert server.stdin is not None and server.stdout is not None
+        server.stdin.write(module + "\n")
+        server.stdin.flush()
+        answer = json.loads(server.stdout.readline())
+        return answer["ok"], answer["error"]
+
+    try:
+        yield in_forked_child
+    finally:
+        if server.stdin is not None:
+            server.stdin.close()
+        server.wait(timeout=30)
+
+
+@pytest.mark.parametrize("module", _all_modules())
+def test_every_module_imports_with_its_parents_stubbed(module: str, isolated_import):
+    ok, error = isolated_import(module)
+    assert ok, (
         f"`{module}` cannot be imported on its own — its import closure "
         "contains a cycle that is currently masked by whatever else loads "
         "first. Fix it at the source: trim the package __init__ re-export "
         "that drags a heavy sibling in, move a dependency-free leaf module out "
         "of the package it doesn't belong to, or — only when both directions "
         "are genuine — defer one import with a `# lazy: circular` tag and add "
-        f"it to CIRCULAR_IMPORT_ALLOWLIST above.\n{result.stderr[-1500:]}"
+        f"it to CIRCULAR_IMPORT_ALLOWLIST above.\n{error[-1500:]}"
     )

@@ -8,7 +8,7 @@ import pytest
 from zrb.llm.dictation import emotion_model
 from zrb.llm.dictation.emotion_model import ChildDiedError, EmotionWorker
 
-from .test_emotion_model import _classify, in_threads  # noqa: F401
+from .test_emotion_model import STARTED, _classify, in_threads  # noqa: F401
 
 
 def test_a_child_silent_while_loading_is_a_death(in_threads):  # noqa: F811
@@ -17,12 +17,17 @@ def test_a_child_silent_while_loading_is_a_death(in_threads):  # noqa: F811
     release = threading.Event()
 
     def wedged(repo):
-        release.wait(5)
+        # A real child dies when it is terminated; a thread cannot, so it watches
+        # for the terminate the worker sends instead of sitting out the join.
+        while not release.wait(0.01):
+            if any(process.was_terminated for process in STARTED):
+                break
         return _classify
 
     in_threads.setattr(emotion_model, "load_classifier", wedged)
     in_threads.setattr(emotion_model, "READY_TIMEOUT_SECONDS", 0.1)
     in_threads.setattr(emotion_model, "MAX_DEATHS", 1)
+    in_threads.setattr(emotion_model, "STOP_GRACE_SECONDS", 0.1)
     worker = EmotionWorker("me/e2v")
     try:
         with pytest.raises(ChildDiedError, match="said nothing"):

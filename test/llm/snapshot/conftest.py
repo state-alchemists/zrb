@@ -1,6 +1,7 @@
 """Fixtures shared by the snapshot-store tests: a small repository and a
 temporary store snapshotting it."""
 
+import shutil
 import subprocess
 
 import pytest
@@ -12,19 +13,28 @@ def _git(repo, *args) -> None:
     subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True)
 
 
-@pytest.fixture
-def repo(tmp_path):
-    """A repository with one tracked file and `ignored.txt` in `.gitignore`."""
-    _git(tmp_path, "init", "-q")
-    _git(tmp_path, "config", "user.email", "t@example.com")
-    _git(tmp_path, "config", "user.name", "t")
+@pytest.fixture(scope="session")
+def repo_template(tmp_path_factory):
+    """The repository every test starts from, built once: seven `git` runs per
+    test were a large part of what the snapshot tests spent."""
+    template = tmp_path_factory.mktemp("repo-template")
+    _git(template, "init", "-q")
+    _git(template, "config", "user.email", "t@example.com")
+    _git(template, "config", "user.name", "t")
     # No background `git maintenance` or auto-gc touching it mid-test.
-    _git(tmp_path, "config", "maintenance.auto", "false")
-    _git(tmp_path, "config", "gc.auto", "0")
-    (tmp_path / "tracked.txt").write_text("a\n")
-    (tmp_path / ".gitignore").write_text("ignored.txt\n")
-    _git(tmp_path, "add", ".")
-    _git(tmp_path, "commit", "-qm", "init")
+    _git(template, "config", "maintenance.auto", "false")
+    _git(template, "config", "gc.auto", "0")
+    (template / "tracked.txt").write_text("a\n")
+    (template / ".gitignore").write_text("ignored.txt\n")
+    _git(template, "add", ".")
+    _git(template, "commit", "-qm", "init")
+    return template
+
+
+@pytest.fixture
+def repo(tmp_path, repo_template):
+    """A repository with one tracked file and `ignored.txt` in `.gitignore`."""
+    shutil.copytree(repo_template, tmp_path, dirs_exist_ok=True)
     return tmp_path
 
 

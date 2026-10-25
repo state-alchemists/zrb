@@ -30,7 +30,9 @@ correct at the time of the entry stays correct as a record of what
 happened, even after the file moves.
 """
 
+import os
 import re
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parents[2]
@@ -99,6 +101,24 @@ def _live_docs() -> list[Path]:
     return [REPO_ROOT / "AGENTS.md", *sorted(docs)]
 
 
+# Directories holding somebody else's copy of the code: an installed
+# environment, a sibling worktree, git's own hooks. A doc citing a path that
+# exists only in one of them has gone stale in this checkout, so the walk must
+# not descend — skipping the files after `rglob` had already visited them
+# accepted such a path as live, and on a developer's machine `.venv` and `.zrb`
+# hold 38,000 of the repository's 39,000 `.py` files.
+_NOT_THE_CHECKOUT = frozenset({".git", ".venv", ".zrb", "__pycache__"})
+
+
+def _checkout_python_files():
+    """Every `.py` file in this checkout, without descending into the copies."""
+    for directory, subdirectories, names in os.walk(REPO_ROOT):
+        subdirectories[:] = [d for d in subdirectories if d not in _NOT_THE_CHECKOUT]
+        for name in names:
+            if name.endswith(".py"):
+                yield Path(directory, name)
+
+
 def _known_paths() -> set[str]:
     """Every repo file, indexed by each of its path suffixes.
 
@@ -106,11 +126,8 @@ def _known_paths() -> set[str]:
     `src/zrb/llm/agent/run/runner.py`; both should resolve.
     """
     known: set[str] = set()
-    for path in REPO_ROOT.rglob("*.py"):
-        rel = path.relative_to(REPO_ROOT)
-        if ".venv" in rel.parts or "__pycache__" in rel.parts:
-            continue
-        parts = rel.parts
+    for path in _checkout_python_files():
+        parts = path.relative_to(REPO_ROOT).parts
         for i in range(len(parts)):
             known.add("/".join(parts[i:]))
     return known
