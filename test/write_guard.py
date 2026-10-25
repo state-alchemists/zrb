@@ -31,7 +31,8 @@ from collections.abc import Iterable
 # Directories and files the tools around the suite write into the repository:
 # bytecode, coverage data, reports, caches. A write below one is not a leak.
 ARTIFACT_NAMES = frozenset(
-    {
+    os.path.normcase(name)
+    for name in {
         "__pycache__",
         ".pytest_cache",
         ".hypothesis",
@@ -48,7 +49,7 @@ ARTIFACT_NAMES = frozenset(
         "README.pypi.md",
     }
 )
-ARTIFACT_PREFIXES = (".coverage",)
+ARTIFACT_PREFIXES = (os.path.normcase(".coverage"),)
 
 _WRITE_MODE_CHARACTERS = "wax+"
 _WRITE_FLAGS = (
@@ -58,6 +59,19 @@ _WRITE_FLAGS = (
 
 def _canonical(path: str) -> str:
     return os.path.normcase(os.path.realpath(path))
+
+
+def _canonical_entry(path: str) -> str:
+    """Canonicalize the directory entry a path names, without following it.
+
+    `os.remove`, `os.rename`, `os.link`, `os.symlink` and `os.mkdir` act on the
+    entry itself: for a symlink, that is the link, not what it points at. The
+    parent is resolved; the final name is kept as it is.
+    """
+    parent, name = os.path.split(os.path.abspath(path))
+    if not name:
+        return _canonical(parent)
+    return os.path.join(_canonical(parent), os.path.normcase(name))
 
 
 def _is_inside(path: str, root: str) -> bool:
@@ -137,21 +151,29 @@ def resolve_target(path: object, dir_fd: object = None) -> str | None:
     return None if base is None else os.path.join(base, text)
 
 
-def written_targets(event: str, args: tuple) -> list[tuple[object, object]]:
-    """Return `(path, dir_fd)` for each path an audit event writes or removes.
+def written_targets(event: str, args: tuple) -> list[tuple[object, object, bool]]:
+    """Return `(path, dir_fd, follows)` for each path an audit event changes.
+
+    `follows` is True when the operation acts on what a final symlink points at
+    (writing or truncating a file), False when it acts on the directory entry.
+    `os.ftruncate` emits `os.truncate` with a descriptor, which carries no path
+    and is skipped: a known blind spot, with `chmod`, `utime` and `setxattr`
+    (they change metadata, not content).
 
     `open` events carry no `dir_fd`, so a relative `os.open` name (the one `open`
     event with no mode text) may be relative to a descriptor and is not judged:
     a known blind spot. A relative `open()` is judged against the cwd.
     """
     if event == "open":
-        return [(args[0], None)] if _opens_judgeably_for_writing(args) else []
+        return [(args[0], None, True)] if _opens_judgeably_for_writing(args) else []
+    if event == "os.truncate":
+        return [(args[0], None, True)]
     if event in ("os.mkdir", "os.remove", "os.rmdir"):
-        return [(args[0], args[2] if event == "os.mkdir" else args[1])]
+        return [(args[0], args[2] if event == "os.mkdir" else args[1], False)]
     if event in ("os.rename", "os.link"):
-        return [(args[0], args[2]), (args[1], args[3])]
+        return [(args[0], args[2], False), (args[1], args[3], False)]
     if event == "os.symlink":
-        return [(args[1], args[2])]
+        return [(args[1], args[2], False)]
     return []
 
 
@@ -171,9 +193,13 @@ class WriteGuard:
         self.violations: list[str] = []
         self._checking = False
 
-    def find_forbidden(self, path: str) -> str | None:
-        """Return the canonical path when writing it is forbidden, else None."""
-        target = _canonical(path)
+    def find_forbidden(self, path: str, follows: bool = True) -> str | None:
+        """Return the canonical path when changing it is forbidden, else None.
+
+        `follows=False` judges the directory entry itself (a symlink is not
+        resolved), for deleting, moving and creating entries.
+        """
+        target = _canonical(path) if follows else _canonical_entry(path)
         if any(_is_inside(target, root) for root in self._allowed):
             return None
         for root in self._forbidden:
@@ -188,12 +214,12 @@ class WriteGuard:
             return
         self._checking = True
         try:
-            for path, dir_fd in written_targets(event, args):
-                self._judge(path, dir_fd)
+            for path, dir_fd, follows in written_targets(event, args):
+                self._judge(path, dir_fd, follows)
         finally:
             self._checking = False
 
-    def _judge(self, path: object, dir_fd: object) -> None:
+    def _judge(self, path: object, dir_fd: object, follows: bool) -> None:
         resolved = resolve_target(path, dir_fd)
         if resolved is None:
             self._refuse(
@@ -203,7 +229,7 @@ class WriteGuard:
                 str(path),
             )
         elif resolved:
-            offender = self.find_forbidden(resolved)
+            offender = self.find_forbidden(resolved, follows)
             if offender is not None:
                 self._refuse(f"a test wrote to {offender}", offender)
 

@@ -189,3 +189,55 @@ def test_relative_low_level_open_is_not_judged(guard):
     guard.audit("open", ("entry.png", None, flags))
 
     assert guard.violations == []
+
+
+def _symlink_or_skip(link, target):
+    try:
+        os.symlink(target, link)
+    except OSError as error:  # Windows needs a privilege to create one
+        pytest.skip(f"cannot create a symlink on this platform: {error}")
+
+
+def test_a_repository_symlink_to_temp_cannot_be_unlinked(guard, tmp_path):
+    link = tmp_path / "repo" / "repo-link"
+    _symlink_or_skip(link, tmp_path / "home" / "tmp")
+
+    with pytest.raises(PermissionError):
+        guard.audit("os.remove", (str(link), -1))
+
+
+def test_a_repository_symlink_to_temp_cannot_be_renamed_away(guard, tmp_path):
+    link = tmp_path / "repo" / "repo-link"
+    _symlink_or_skip(link, tmp_path / "home" / "tmp")
+
+    with pytest.raises(PermissionError):
+        guard.audit("os.rename", (str(link), str(tmp_path / "moved"), -1, -1))
+
+
+def test_a_temp_symlink_to_the_repository_can_be_unlinked(guard, tmp_path):
+    link = tmp_path / "home" / "tmp" / "to-repo"
+    _symlink_or_skip(link, tmp_path / "repo")
+
+    guard.audit("os.remove", (str(link), -1))
+
+    assert guard.violations == []
+
+
+def test_writing_through_a_temp_symlink_to_the_repository_is_refused(guard, tmp_path):
+    link = tmp_path / "home" / "tmp" / "to-repo"
+    _symlink_or_skip(link, tmp_path / "repo")
+
+    with pytest.raises(PermissionError):
+        guard.audit("open", (str(link / "f.txt"), "w", 0))
+
+
+def test_truncating_a_repository_file_is_refused(guard, tmp_path):
+    with pytest.raises(PermissionError):
+        guard.audit("os.truncate", (str(tmp_path / "repo" / "a.py"), 0))
+
+
+def test_truncating_a_temp_file_and_a_descriptor_is_not_refused(guard, tmp_path):
+    guard.audit("os.truncate", (str(tmp_path / "home" / "tmp" / "f"), 0))
+    guard.audit("os.truncate", (5, 0))  # `os.ftruncate`: no path to judge
+
+    assert guard.violations == []
