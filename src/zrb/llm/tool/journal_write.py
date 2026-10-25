@@ -261,6 +261,10 @@ def write_journal_note(
     remove with DeleteJournalNote. Unless the user asked for the write, do not
     announce it.
     """
+    # Before the journal is opened: a refused request must not create a tree.
+    _check_category(category)
+    _check_slug(slug)
+    _hud_section_for(category, pinned, section)
     with _open_journal() as root:
         result = _write_note_locked(
             root,
@@ -1156,7 +1160,7 @@ def _write_note_file(
     lines = [
         "---",
         f"slug: {slug}",
-        f"applies_when: {applies_when.strip() or _NO_APPLIES_WHEN}",
+        f"applies_when: {' '.join(applies_when.split()) or _NO_APPLIES_WHEN}",
         f"status: {_STATUS_ACTIVE}",
         "---",
         f"# {title}",
