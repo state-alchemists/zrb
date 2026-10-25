@@ -50,13 +50,9 @@ def search_journal(
         str,
         Field(
             description=(
-                "What to look for. Several plain words are read as a query: "
-                "the words that say nothing about the subject are dropped, and "
-                "a file holding more of the rest ranks first. Any-of, not "
-                "all-of, because a question is prose and no note repeats its "
-                "words verbatim — requiring every word found 2 of 8 "
-                "question-style queries against 8 of 8. Anything containing "
-                "regex metacharacters is a regex, as before."
+                "What to look for. Plain words are read as any-of (filler "
+                "words dropped; a file holding more of them ranks first). "
+                "Anything containing regex metacharacters is a regex."
             )
         ),
     ],
@@ -67,19 +63,16 @@ def search_journal(
     """
     Searches the journal for a regex pattern or for a set of words.
 
-    Returns matching lines with file names and line numbers, ordered by what
-    the file is: notes whose title matches come first, then other notes, then
-    the indexes and the activity log. A file appears at most a few times.
-    A zero-hit search suggests note titles that share a word with the query
-    under `did_you_mean` — and is not proof the topic was never recorded: try
-    those titles or a synonym before concluding.
+    Returns matching lines with file names and line numbers, notes whose title
+    matches first, then other notes, then the indexes and the activity log. A
+    zero-hit search suggests titles under `did_you_mean` and is not proof the
+    topic was never recorded: try those or a synonym before concluding.
 
     Call this before WriteJournalNote or DeleteJournalNote whenever you are
     not certain a slug is free, or that it names the note you intend to touch.
     Wait for this result before issuing that write or delete — don't batch
-    the two calls, since the write/delete it should inform depends on what
-    this search finds. Search here too before SupersedeJournalNote: the
-    reason it records should name the note that replaced this one.
+    the two calls. Search before SupersedeJournalNote too: its reason should
+    name the note that replaced this one.
     """
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:
