@@ -51,6 +51,9 @@ _HUD_SECTION = {
 _HUD_ORDER = ("User", "Preferences", "Agent", "Active Constraints")
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _BACKLINKS_HEADING = "## Backlinks"
+# What makes a HUD line survive the section's cap. It travels in the index line
+# itself because the capper only ever sees the index text, never the note file.
+_PIN_MARKER = "📌 "
 
 
 def log_activity(
@@ -82,16 +85,27 @@ def log_activity(
     WriteJournalNote when the finding must be findable by topic.
     """
     with _open_journal() as root:
-        now = datetime.now()
-        day_file = _ensure_activity_path(root, now)
-        file_note = ", ".join(files) if files else "—"
-        entry = f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}."
-        _insert_before_backlinks(day_file, entry)
-        _git_commit(root, f"activity: {now:%Y-%m-%d %H:%M}")
-        return f"Logged to {_posix_relpath(day_file, root)}"
+        result = _log_activity_locked(root, summary, files)
+        # The entry carries its own timestamp from inside the helper; this
+        # label is the same minute except across a minute rollover.
+        _git_commit(root, f"activity: {datetime.now():%Y-%m-%d %H:%M}")
+        return result
 
 
 log_activity.__name__ = "LogActivity"
+
+
+def _log_activity_locked(root: str, summary: str, files: list[str] | None) -> str:
+    """Record the activity line under *root*, returning the tool's result.
+
+    The caller holds the journal lock and makes the commit, so a transaction can
+    call this many times for one lock and one commit."""
+    now = datetime.now()
+    day_file = _ensure_activity_path(root, now)
+    file_note = ", ".join(files) if files else "—"
+    entry = f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}."
+    _insert_before_backlinks(day_file, entry)
+    return f"Logged to {_posix_relpath(day_file, root)}"
 
 
 def write_journal_note(
@@ -159,12 +173,24 @@ def write_journal_note(
             description=(
                 "One-line compression pinned to the injected index, under the "
                 "section for this category. Pin durable identity, preferences or "
-                "active constraints; the index is capped. On revision pass an "
-                "updated line if the fact changed — omission retains the old "
-                "pinned line. A supplied line replaces the one for this note."
+                "active constraints; the section is capped and the oldest lines "
+                "past the cap are evicted and named in the result. On revision "
+                "pass an updated line if the fact changed — omission retains the "
+                "old pinned line. A supplied line replaces the one for this note."
             )
         ),
     ] = None,
+    pinned: Annotated[
+        bool,
+        Field(
+            description=(
+                "Keep this note's hud_line through the section's cap: pinned "
+                "lines are evicted only when every line in the section is "
+                "pinned. Set it for a constraint or an identity that must not "
+                "disappear, and leave it off for a line you may revise away."
+            )
+        ),
+    ] = False,
 ) -> str:
     """Records a durable finding as a topic note, findable by search later.
 
@@ -188,38 +214,75 @@ def write_journal_note(
     announce it.
     """
     with _open_journal() as root:
-        _check_category(category)
-        if not _SLUG_RE.match(slug):
-            raise ValueError(
-                f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
-                "(lowercase letters, digits, single hyphens)."
-            )
-        targets = _resolve_links(root, links or [])
-        note_path = os.path.join(root, category, f"{slug}.md")
-        _write_note_file(note_path, slug, title, context, finding, source, targets)
-        for target in targets:
-            _add_backlink(target, note_path, title)
-        _register_in_index(
-            os.path.join(root, category, _index_name()), note_path, title
-        )
-        _register_in_index(
-            os.path.join(root, _index_name()),
-            note_path,
+        result = _write_note_locked(
+            root,
+            category,
+            slug,
             title,
-            heading="## Recent Insights",
+            context,
+            finding,
+            source,
+            links,
+            hud_line,
+            pinned,
         )
-        if hud_line:
-            _upsert_hud_line(
-                root,
-                _HUD_SECTION[category],
-                hud_line.strip(),
-                _posix_relpath(note_path, root),
-            )
         _git_commit(root, f"write: {category}/{slug}")
-        return f"Wrote {_posix_relpath(note_path, root)}"
+        return result
 
 
 write_journal_note.__name__ = "WriteJournalNote"
+
+
+def _write_note_locked(
+    root: str,
+    category: str,
+    slug: str,
+    title: str,
+    context: str,
+    finding: str,
+    source: str,
+    links: list[str] | None,
+    hud_line: str | None,
+    pinned: bool,
+) -> str:
+    """Write the note and its index/HUD entries under *root*.
+
+    The caller holds the lock and makes the commit. Returns exactly the string
+    the tool returns, eviction note included — that is how a caller learns an
+    older line under the same section lost its place."""
+    _check_category(category)
+    if not _SLUG_RE.match(slug):
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
+            "(lowercase letters, digits, single hyphens)."
+        )
+    targets = _resolve_links(root, links or [])
+    note_path = os.path.join(root, category, f"{slug}.md")
+    _write_note_file(note_path, slug, title, context, finding, source, targets)
+    for target in targets:
+        _add_backlink(target, note_path, title)
+    _register_in_index(os.path.join(root, category, _index_name()), note_path, title)
+    _register_in_index(
+        os.path.join(root, _index_name()),
+        note_path,
+        title,
+        heading="## Recent Insights",
+    )
+    evicted = (
+        _upsert_hud_line(
+            root,
+            _HUD_SECTION[category],
+            hud_line,
+            _posix_relpath(note_path, root),
+            pinned,
+        )
+        if hud_line
+        else []
+    )
+    result = f"Wrote {_posix_relpath(note_path, root)}"
+    if evicted:
+        result += _eviction_note(_HUD_SECTION[category], evicted)
+    return result
 
 
 def delete_journal_note(
@@ -249,20 +312,182 @@ def delete_journal_note(
     the user asked for the deletion, do not announce it.
     """
     with _open_journal() as root:
-        _check_category(category)
-        note_path = os.path.join(root, category, f"{slug}.md")
-        if not os.path.isfile(note_path):
-            raise ValueError(
-                f"[SYSTEM SUGGESTION]: no note at {category}/{slug}.md. "
-                "SearchJournal for the correct slug, or omit the delete."
-            )
-        _scrub_links_to(root, note_path)
-        os.remove(note_path)
+        result = _delete_note_locked(root, category, slug)
         _git_commit(root, f"delete: {category}/{slug}")
-        return f"Deleted {_posix_relpath(note_path, root)}"
+        return result
 
 
 delete_journal_note.__name__ = "DeleteJournalNote"
+
+
+def _delete_note_locked(root: str, category: str, slug: str) -> str:
+    """Delete the note and every link to it under *root*.
+
+    The caller holds the journal lock and makes the commit."""
+    _check_category(category)
+    note_path = os.path.join(root, category, f"{slug}.md")
+    if not os.path.isfile(note_path):
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: no note at {category}/{slug}.md. "
+            "SearchJournal for the correct slug, or omit the delete."
+        )
+    _scrub_links_to(root, note_path)
+    _snapshot_before_write(note_path)
+    os.remove(note_path)
+    return f"Deleted {_posix_relpath(note_path, root)}"
+
+
+@contextmanager
+def journal_transaction(
+    message: str | None = None,
+) -> Iterator["JournalTransaction"]:
+    """Make many journal changes under one lock and one commit.
+
+    The Python seam a script or an import needs: the tools each take the lock
+    themselves and cannot be nested, so a batch used to reach into the private
+    helpers instead. This is not a model-facing tool — the model keeps writing
+    one note per call, because each of its writes has to be confirmed by its
+    own result.
+
+    *message* is the commit's subject; with none, the commit counts the
+    changes. A body that raises makes no commit: every file it touched is put
+    back as it was — the bytes it held, or its absence — and the exception
+    carries on. The snapshot is taken by the writes themselves rather than from
+    git, because git has no baseline for an ignored or untracked note, and
+    because `_open_journal` migrates an older root index before the body runs.
+    A file the body never touched is left alone, however dirty the journal was.
+    The snapshot starts once the journal is open, so the tree and repository
+    `_open_journal` sets up — and the root index it migrates — are setup rather
+    than part of the body: a failed body never leaves a first-time journal
+    half-built, and never deletes a file setup created.
+
+    With zero changes, nothing is committed. `SearchJournal` does not take the
+    journal lock, so a long transaction is visible mid-flight — the same grain
+    a run of individual calls has.
+    """
+    with _open_journal() as root:
+        transaction = JournalTransaction(root)
+        _begin_snapshot()
+        try:
+            yield transaction
+        except BaseException:
+            _restore_snapshots(_take_snapshot())
+            raise
+        finally:
+            _take_snapshot()
+        if transaction.change_count:
+            _git_commit(root, message or f"batch: {transaction.change_count} change(s)")
+
+
+class JournalTransaction:
+    """The changes made inside one `journal_transaction`.
+
+    Each method is the lock-free, commit-free half of the matching tool, so it
+    returns the same string the tool would and adds one to `change_count`.
+    Never build one directly: `journal_transaction` owns the lock and the
+    commit, and the object is only valid inside the `with` block it opens.
+    """
+
+    def __init__(self, root: str) -> None:
+        self._root = root
+        self.change_count = 0
+
+    def log_activity(self, summary: str, files: list[str] | None = None) -> str:
+        """Record one activity line; the whole batch commits at exit."""
+        return self._record(_log_activity_locked(self._root, summary, files))
+
+    def write_note(
+        self,
+        category: str,
+        slug: str,
+        title: str,
+        context: str,
+        finding: str,
+        source: str,
+        links: list[str] | None = None,
+        hud_line: str | None = None,
+        pinned: bool = False,
+    ) -> str:
+        """Write one note; the whole batch commits at exit."""
+        return self._record(
+            _write_note_locked(
+                self._root,
+                category,
+                slug,
+                title,
+                context,
+                finding,
+                source,
+                links,
+                hud_line,
+                pinned,
+            )
+        )
+
+    def delete_note(self, category: str, slug: str) -> str:
+        """Delete one note; the whole batch commits at exit."""
+        return self._record(_delete_note_locked(self._root, category, slug))
+
+    def _record(self, result: str) -> str:
+        self.change_count += 1
+        return result
+
+
+#: Files the running transaction has already touched, and their bytes before the
+#: touch (`None` for a file that did not exist). One at a time is enough: the
+#: journal lock admits one writer, and this is only set inside its body.
+_SNAPSHOT: "dict[str, bytes | None] | None" = None
+
+
+def _begin_snapshot() -> None:
+    global _SNAPSHOT
+    _SNAPSHOT = {}
+
+
+def _take_snapshot() -> dict[str, bytes | None]:
+    """Return what the body has touched so far, and stop recording."""
+    global _SNAPSHOT
+    taken = _SNAPSHOT or {}
+    _SNAPSHOT = None
+    return taken
+
+
+def _snapshot_before_write(path: str) -> None:
+    """Remember *path*'s bytes the first time the running body touches it.
+
+    Bytes rather than a git baseline, because git has none for an ignored or
+    untracked file: a note matching a `.gitignore` rule can be overwritten and
+    `git reset` will never bring it back. A file that cannot be read is not
+    recorded, so a failed restore leaves it as the body wrote it rather than
+    truncating it with bytes this call never saw.
+    """
+    if _SNAPSHOT is None or path in _SNAPSHOT:
+        return
+    try:
+        with open(path, "rb") as handle:
+            _SNAPSHOT[path] = handle.read()
+    except FileNotFoundError:
+        _SNAPSHOT[path] = None
+    except OSError:
+        return
+
+
+def _restore_snapshots(snapshot: dict[str, bytes | None]) -> None:
+    """Put every touched file back: its bytes, or its absence. Best effort.
+
+    Silent on a file it cannot restore, like `_git_commit`: the journal's own
+    history still holds what the body was about to change.
+    """
+    for path, content in snapshot.items():
+        try:
+            if content is None:
+                if os.path.isfile(path):
+                    os.remove(path)
+                continue
+            with open(path, "wb") as handle:
+                handle.write(content)
+        except OSError:
+            continue
 
 
 def _scrub_links_to(root: str, target_path: str) -> None:
@@ -764,58 +989,170 @@ def _section_bounds(lines: list[str], heading: str) -> tuple[int, int]:
     return start, end
 
 
-def _upsert_hud_line(root: str, section: str, line: str, note_rel: str) -> None:
+def _upsert_hud_line(
+    root: str, section: str, line: str, note_rel: str, pinned: bool = False
+) -> list[str]:
     """Pin *line* under *section*, replacing any earlier line from the same note.
 
     Lines are keyed by their trailing note link; an unlinked line is replaced
     only when identical to the new one. A supplied line that already carries a
     note link — a revision may repeat the line as it was read in the index —
-    has it stripped first, so the note is pinned once.
+    has it stripped first, so the note is pinned once. Any pin marker in what
+    the caller passed is stripped too: whether the line is pinned is decided by
+    *pinned*, not by text the caller may have echoed back from the index.
+
+    Returns whatever the section's cap evicted, in its original order.
     """
     own = f" ([note]({note_rel}))"
-    base = _hud_line_base(line, own)
-    entry = f"{base}{own}"
+    text = _hud_line_text(line, own)
+    entry = f"{_with_pin_marker(f'- {text}', pinned)}{own}"
     index_path = os.path.join(root, _index_name())
-    text = _read_text(index_path)
-    if entry in text.splitlines():
-        return
+    current = _read_text(index_path)
+    if entry in current.splitlines():
+        return []
     heading = f"## {section}"
-    lines = text.splitlines()
+    lines = current.splitlines()
     if heading in lines:
         start, end = _section_bounds(lines, heading)
-        kept = [ln for ln in lines[start:end] if not ln.endswith(own) and ln != base]
-        text = "\n".join([*lines[:start], *kept, *lines[end:]]) + "\n"
-    text = _append_under_heading(text, heading, entry)
-    text = _cap_section_entries(
-        text, heading, CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
+        body = lines[start:end]
+        if _is_echoed_line(text, [ln for ln in body if ln.strip()]):
+            text = _hud_text_without_links(text)
+            entry = f"{_with_pin_marker(f'- {text}', pinned)}{own}"
+        kept = [ln for ln in body if not _is_own_hud_line(ln, own, text)]
+        current = "\n".join([*lines[:start], *kept, *lines[end:]]) + "\n"
+    current = _append_under_heading(current, heading, entry)
+    current, evicted = _cap_section_entries(
+        current, heading, CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
     )
-    _write_text(index_path, text)
+    _write_text(index_path, current)
+    return evicted
 
 
-def _hud_line_base(line: str, own: str) -> str:
-    """Strip only this note's trailing link, leaving links to other notes intact."""
+def _hud_line_text(line: str, own: str) -> str:
+    """The line's own text: no bullet, no pin marker, no link to this note.
+
+    Links to other notes are left intact."""
     text = line.strip().removeprefix("- ").strip()
+    text = text.removeprefix(_PIN_MARKER).strip()
     while text.endswith(own):
         text = text.removesuffix(own).rstrip()
-    return f"- {text}"
+    return text
 
 
-def _cap_section_entries(text: str, heading: str, max_entries: int) -> str:
-    """Keep only the newest *max_entries* lines under *heading* (`<= 0` uncapped).
+def _with_pin_marker(base: str, pinned: bool) -> str:
+    """Prefix *base* with the pin marker when *pinned*, else leave it alone."""
+    if not pinned:
+        return base
+    return f"- {_PIN_MARKER}{base.removeprefix('- ')}"
+
+
+_HUD_NOTE_LINK_RE = re.compile(r"\(\[note\]\([^)]*\)\)\s*$")
+
+
+def _hud_text_without_links(line: str) -> str:
+    """*line*'s prose with the bullet, a pin marker and any note links removed."""
+    text = line.strip().removeprefix("- ").strip()
+    text = text.removeprefix(_PIN_MARKER).strip()
+    while True:
+        match = _HUD_NOTE_LINK_RE.search(text)
+        if not match:
+            return text.rstrip()
+        text = text[: match.start()].rstrip()
+
+
+def _is_echoed_line(text: str, existing: list[str]) -> bool:
+    """Whether *text* is a line read back from this section, its link included.
+
+    A caller may hand back the line it read in the index; that trailing
+    `([note](…))` is the index's, not content, and copying it onto the new line
+    would point the new note at the old one. A line the caller wrote itself may
+    legitimately end in a link to another note ("See also …"), so the index
+    decides: only text that reproduces an existing line's prose *and* its link
+    is an echo.
+    """
+    match = _HUD_NOTE_LINK_RE.search(text)
+    if not match:
+        return False
+    link = match.group(0).strip()
+    prose = text[: match.start()].rstrip()
+    return any(
+        line.rstrip().endswith(link) and _hud_text_without_links(line) == prose
+        for line in existing
+    )
+
+
+def _is_own_hud_line(line: str, own: str, text: str) -> bool:
+    """True when *line* is this note's pin, or an unlinked copy of *text*.
+
+    A revision keeps one line per note, so the note's own line is matched by its
+    link even when the text changed. Matching by text covers a copy that carries
+    no link yet — but only then: a line linked to a *different* note stays, even
+    when both notes pinned exactly the same words, because that line is how the
+    other note is reached from the index.
+    """
+    stripped = line.rstrip()
+    if stripped.endswith(own):
+        return True
+    if _HUD_NOTE_LINK_RE.search(stripped):
+        return False
+    return _hud_line_text(line, own) == text
+
+
+def _is_pinned_line(line: str) -> bool:
+    """True when *line* carries the pin marker the cap must not evict first."""
+    return line.lstrip().startswith(f"- {_PIN_MARKER}")
+
+
+def _cap_section_entries(
+    text: str, heading: str, max_entries: int
+) -> tuple[str, list[str]]:
+    """Keep the newest *max_entries* lines under *heading* (`<= 0` uncapped).
 
     For HUD sections only; catalogs like `Recent Insights` stay complete.
-    """
+    Returns the text and the lines it dropped, in their original order, so the
+    caller can report a loss instead of the write quietly succeeding."""
     if max_entries <= 0:
-        return text
+        return text, []
     lines = text.splitlines()
     if heading not in lines:
-        return text
+        return text, []
     start, end = _section_bounds(lines, heading)
     body = [line for line in lines[start:end] if line.strip()]
     if len(body) <= max_entries:
-        return text
-    body = body[-max_entries:]
-    return "\n".join([*lines[:start], "", *body, "", *lines[end:]]).rstrip() + "\n"
+        return text, []
+    body, evicted = _split_by_pin(body, max_entries)
+    capped = "\n".join([*lines[:start], "", *body, "", *lines[end:]])
+    return capped.rstrip() + "\n", evicted
+
+
+def _split_by_pin(body: list[str], max_entries: int) -> tuple[list[str], list[str]]:
+    """Drop the oldest unpinned lines down to *max_entries*; return kept, dropped.
+
+    A pinned line goes only when every line in the section is pinned, so a
+    section of pinned constraints may stay over the cap rather than lose one.
+    """
+    is_pinned = [_is_pinned_line(line) for line in body]
+    if all(is_pinned):
+        return body[-max_entries:], body[:-max_entries]
+    evictable = [index for index, pinned in enumerate(is_pinned) if not pinned]
+    dropped = set(evictable[: len(body) - max_entries])
+    kept = [line for index, line in enumerate(body) if index not in dropped]
+    evicted = [line for index, line in enumerate(body) if index in dropped]
+    return kept, evicted
+
+
+def _eviction_note(section: str, evicted: list[str]) -> str:
+    """Say what the section's cap dropped, and how to keep a line next time.
+
+    The write used to report success while an older pinned constraint vanished;
+    the model can only re-pin what it is told about. The list bullet is dropped
+    from each line so the quote reads as the line itself."""
+    lines = ", ".join(f'"{line.removeprefix("- ")}"' for line in evicted)
+    cap = CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
+    return (
+        f". Evicted from ## {section} (cap {cap}): {lines} — re-pin with "
+        "pinned=True or raise LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION."
+    )
 
 
 def _insert_before_backlinks(path: str, entry: str) -> None:
@@ -895,4 +1232,5 @@ def _write_text(path: str, content: str) -> None:
     here, so the owner-only guarantee has to come from the write itself
     instead of relying on a later pass that will never revisit it.
     """
+    _snapshot_before_write(path)
     write_text_owner_only(path, content)
