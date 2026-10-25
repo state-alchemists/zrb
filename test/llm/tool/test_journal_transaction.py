@@ -140,10 +140,13 @@ def test_a_raising_transaction_commits_no_new_note(git_journal):
     assert not _index_mentions(git_journal, "half-written", "technical/index.md")
 
 
-def test_a_raising_transaction_keeps_edits_that_were_there_before_it(git_journal):
-    """The rollback is only safe on a tree the transaction itself dirtied: a
-    journal somebody had already edited is theirs, so nothing is reset — and the
-    transaction's own writes stay on disk for a human to sort out."""
+def test_a_raising_transaction_leaves_other_edits_untouched(git_journal):
+    """Rollback restores only the files the transaction itself touched.
+
+    A note somebody else was editing is not the transaction's to discard — and
+    the body's own writes are undone anyway, because the snapshot is per file
+    rather than a tree-wide reset.
+    """
     _write_baseline_note()
     stray = os.path.join(git_journal, "user", "hand-written.md")
     with open(stray, "w", encoding="utf-8") as f:
@@ -157,7 +160,42 @@ def test_a_raising_transaction_keeps_edits_that_were_there_before_it(git_journal
             raise RuntimeError("import failed")
 
     assert os.path.isfile(stray)
-    assert _note_exists(git_journal, "half-written")
+    assert not _note_exists(git_journal, "half-written")
+    assert not _index_mentions(git_journal, "half-written")
+
+
+def test_a_raising_transaction_restores_an_ignored_note(git_journal):
+    """Git has no baseline for an ignored file, so a clean status cannot make a
+    rollback safe on its own: the snapshot is what brings the old bytes back."""
+    _write_baseline_note()
+    legacy = os.path.join(git_journal, "technical", "legacy.md")
+    with open(legacy, "w", encoding="utf-8") as f:
+        f.write("# Legacy finding\n")
+    with open(os.path.join(git_journal, ".gitignore"), "a", encoding="utf-8") as f:
+        f.write("technical/legacy.md\n")
+    _git(
+        git_journal,
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@t",
+        "commit",
+        "-q",
+        "-a",
+        "-m",
+        "an ignored note",
+    )
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
+
+    with pytest.raises(RuntimeError, match="import failed"):
+        with journal_transaction() as transaction:
+            transaction.write_note(
+                "technical", "legacy", "Legacy", "new ctx", "new finding", "s:9"
+            )
+            raise RuntimeError("import failed")
+
+    with open(legacy, "r", encoding="utf-8") as f:
+        assert f.read() == "# Legacy finding\n"
 
 
 def test_an_older_index_is_undone_when_the_body_raises(git_journal):

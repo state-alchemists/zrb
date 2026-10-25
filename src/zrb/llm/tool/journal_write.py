@@ -332,6 +332,7 @@ def _delete_note_locked(root: str, category: str, slug: str) -> str:
             "SearchJournal for the correct slug, or omit the delete."
         )
     _scrub_links_to(root, note_path)
+    _snapshot_before_write(note_path)
     os.remove(note_path)
     return f"Deleted {_posix_relpath(note_path, root)}"
 
@@ -349,30 +350,32 @@ def journal_transaction(
     own result.
 
     *message* is the commit's subject; with none, the commit counts the
-    changes. A body that raises makes no commit and, when the journal had a git
-    repo and nothing uncommitted *before the lock was taken*, is restored to
-    that commit before the exception carries on — `git reset --hard HEAD` puts
-    every tracked file back, though a file the transaction created stays behind,
-    untracked and unreferenced. The baseline is read before `_open_journal`
-    because that call migrates an older root index: measured afterwards, a clean
-    journal written by an earlier version looks dirty and the failed body's
-    writes would survive. A journal somebody had already edited is theirs to
-    keep and is left exactly as it is.
+    changes. A body that raises makes no commit: every file it touched is put
+    back as it was — the bytes it held, or its absence — and the exception
+    carries on. The snapshot is taken by the writes themselves rather than from
+    git, because git has no baseline for an ignored or untracked note, and
+    because `_open_journal` migrates an older root index before the body runs.
+    A file the body never touched is left alone, however dirty the journal was.
 
     With zero changes, nothing is committed. `SearchJournal` does not take the
     journal lock, so a long transaction is visible mid-flight — the same grain
     a run of individual calls has.
     """
-    is_clean_at_entry = _is_clean_before_opening()
-    with _open_journal() as root:
-        transaction = JournalTransaction(root)
-        try:
-            yield transaction
-        except BaseException:
-            _rollback_to_entry(root, is_clean_at_entry)
-            raise
-        if transaction.change_count:
-            _git_commit(root, message or f"batch: {transaction.change_count} change(s)")
+    _begin_snapshot()
+    try:
+        with _open_journal() as root:
+            transaction = JournalTransaction(root)
+            try:
+                yield transaction
+            except BaseException:
+                _restore_snapshots(_take_snapshot())
+                raise
+            if transaction.change_count:
+                _git_commit(
+                    root, message or f"batch: {transaction.change_count} change(s)"
+                )
+    finally:
+        _take_snapshot()
 
 
 class JournalTransaction:
@@ -429,60 +432,61 @@ class JournalTransaction:
         return result
 
 
-def _is_clean_before_opening() -> bool:
-    """Whether the journal was a clean git tree before the lock was taken.
+#: Files the running transaction has already touched, and their bytes before the
+#: touch (`None` for a file that did not exist). One at a time is enough: the
+#: journal lock admits one writer, and this is only set inside its body.
+_SNAPSHOT: "dict[str, bytes | None] | None" = None
 
-    Asked outside `_open_journal`, which migrates an older root index — a change
-    of its own, uncommitted until the transaction ends. Measured afterwards, a
-    clean journal from an earlier version reads as dirty and a failed body keeps
-    its writes while claiming a rollback. A directory that does not exist yet
-    has no history to restore, so it is not a baseline either.
+
+def _begin_snapshot() -> None:
+    global _SNAPSHOT
+    _SNAPSHOT = {}
+
+
+def _take_snapshot() -> dict[str, bytes | None]:
+    """Return what the body has touched so far, and stop recording."""
+    global _SNAPSHOT
+    taken = _SNAPSHOT or {}
+    _SNAPSHOT = None
+    return taken
+
+
+def _snapshot_before_write(path: str) -> None:
+    """Remember *path*'s bytes the first time the running body touches it.
+
+    Bytes rather than a git baseline, because git has none for an ignored or
+    untracked file: a note matching a `.gitignore` rule can be overwritten and
+    `git reset` will never bring it back. A file that cannot be read is not
+    recorded, so a failed restore leaves it as the body wrote it rather than
+    truncating it with bytes this call never saw.
     """
-    journal_dir = CFG.LLM_JOURNAL_DIR
-    if not journal_dir:
-        return False
-    return _is_git_tree_clean(os.path.abspath(os.path.expanduser(journal_dir)))
-
-
-def _is_git_tree_clean(root: str) -> bool:
-    """True when *root* is a git repo with nothing uncommitted.
-
-    Asked before the transaction's body runs: only then does
-    `git reset --hard HEAD` discard the transaction's own writes and nothing
-    else. A journal somebody had already edited is theirs to keep.
-    """
-    if not os.path.isdir(os.path.join(root, ".git")):
-        return False
-    try:
-        result = subprocess.run(
-            ["git", "-C", root, "status", "--porcelain"],
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return result.returncode == 0 and not result.stdout.strip()
-
-
-def _rollback_to_entry(root: str, is_clean_at_entry: bool) -> None:
-    """Best-effort `git reset --hard HEAD` when the tree was clean at entry.
-
-    Silent on failure, like `_git_commit`: a journal a failed rollback leaves
-    dirty is still recoverable from its own history.
-    """
-    if not is_clean_at_entry:
+    if _SNAPSHOT is None or path in _SNAPSHOT:
         return
     try:
-        subprocess.run(
-            ["git", "-C", root, "reset", "--hard", "HEAD"],
-            capture_output=True,
-            check=False,
-            timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
-        )
-    except (OSError, subprocess.SubprocessError):
+        with open(path, "rb") as handle:
+            _SNAPSHOT[path] = handle.read()
+    except FileNotFoundError:
+        _SNAPSHOT[path] = None
+    except OSError:
         return
+
+
+def _restore_snapshots(snapshot: dict[str, bytes | None]) -> None:
+    """Put every touched file back: its bytes, or its absence. Best effort.
+
+    Silent on a file it cannot restore, like `_git_commit`: the journal's own
+    history still holds what the body was about to change.
+    """
+    for path, content in snapshot.items():
+        try:
+            if content is None:
+                if os.path.isfile(path):
+                    os.remove(path)
+                continue
+            with open(path, "wb") as handle:
+                handle.write(content)
+        except OSError:
+            continue
 
 
 def _scrub_links_to(root: str, target_path: str) -> None:
@@ -1227,4 +1231,5 @@ def _write_text(path: str, content: str) -> None:
     here, so the owner-only guarantee has to come from the write itself
     instead of relying on a later pass that will never revisit it.
     """
+    _snapshot_before_write(path)
     write_text_owner_only(path, content)
