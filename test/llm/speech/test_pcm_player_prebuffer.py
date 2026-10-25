@@ -191,9 +191,11 @@ def test_the_read_ahead_count_does_not_cap_the_cushion(sd):
     start under its cushion once the wait ran out."""
 
     def small_chunks():
+        # Produced as fast as they are asked for: the cushion is counted in
+        # seconds of audio, so where a count-capped buffer would already sit
+        # idle at two chunks, forty of these are what it waits for.
         for _ in range(200):
             yield _pcm([5] * 160)  # 10 ms of audio per chunk
-            time.sleep(0.002)
 
     sd.OutputStream = TimedStream
     utterance = PcmUtterance(
@@ -203,8 +205,10 @@ def test_the_read_ahead_count_does_not_cap_the_cushion(sd):
     utterance.play(timeout=15)
 
     [stream] = FakeOutputStream.instances
-    # 0.4 s of audio is 40 such chunks, made well inside the second the wait
-    # would have run out at: the device starts on the cushion, not on the wait.
+    # A count-capped reader would sit at two chunks and hold the device off
+    # until the 1.0 s wait ran out; the cushion asks for 40 such chunks, which
+    # the reader takes as fast as they come: the device starts in milliseconds,
+    # not on the wait.
     assert stream.started_at - started < 0.5
 
 
