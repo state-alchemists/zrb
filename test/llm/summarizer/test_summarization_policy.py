@@ -360,3 +360,39 @@ async def test_the_split_is_printed_so_a_tail_is_never_a_guess(tmp_path, monkeyp
     banner = " ".join(str(call) for call in printed.call_args_list)
     assert "Summarizing 8 messages (80 tokens)" in banner
     assert "keeping 4 verbatim (40 tokens)" in banner
+
+
+@pytest.mark.asyncio
+async def test_the_summary_is_written_from_the_whole_conversation(tmp_path, monkeypatch):
+    """What is kept is not what is read.
+
+    `<where_we_are>`, `<now>` and `<next>` are the next agent's headline, and a
+    summarizer that never saw the kept tail writes them for the moment the split
+    fell on — a whole work episode before the newest messages it then reads
+    verbatim, so it asks for work those messages already finished.
+    """
+    from unittest.mock import AsyncMock, MagicMock
+
+    monkeypatch.setattr(CFG, "LLM_HISTORY_DIR", str(tmp_path), raising=False)
+    agent = MagicMock()
+    agent.run = AsyncMock(
+        return_value=MagicMock(output="<state_snapshot>s</state_snapshot>")
+    )
+
+    await history_summarizer.summarize_history(
+        _turns(6),  # 12 messages; the last 4 are kept verbatim
+        agent=agent,
+        summary_window=300,
+        limiter=FixedLimiter(per_message=10),
+        conversational_token_threshold=100,
+    )
+
+    prompts = [
+        call.args[0]
+        for call in agent.run.call_args_list
+        if call.args and isinstance(call.args[0], str)
+    ]
+    assert prompts, "the summarizer was never called"
+    assert any("question 5" in prompt for prompt in prompts), (
+        "the kept tail never reached the summarizer"
+    )
