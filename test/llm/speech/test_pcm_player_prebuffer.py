@@ -84,7 +84,12 @@ class ScriptedSource:
 
     def feed(self, chunk):
         """Hand over a chunk and wait until the player's reader holds it: the
-        reader asking for the next one is what says it has."""
+        reader asking for the next one is what says it has.
+
+        The reader pulls the next chunk from the source before it checks for
+        room (`for chunk in chunks: if not has_room(): ...`), so it asks even
+        when the buffer is full: feeding exactly the cushion's worth never
+        waits on a request the full buffer would withhold."""
         self._fed += 1
         self._items.put(chunk)
         if chunk is not None:
