@@ -44,15 +44,44 @@ def install_file_log_handler(logger: logging.Logger | None = None) -> None:
     except OSError as exc:
         target.warning(f"LOGGING_FILE {path!r} cannot be opened: {exc}")
         return
+    terminal_level = target.level
     target.addHandler(handler)
+    _let_the_file_see_more(target, terminal_level)
+
+
+def _let_the_file_see_more(logger: logging.Logger, terminal_level: int) -> None:
+    """Let a file keep records the screen is not showing.
+
+    A logger drops a record before any handler receives it, so a file level
+    below the terminal's cannot work on the handler alone: the logger's own
+    level has to come down. Every other handler is pinned to the level the
+    logger had first, or the screen would start showing what only the file was
+    asked to keep.
+    """
+    file_handler = _file_handler(logger)
+    if file_handler is None or file_handler.level >= terminal_level:
+        return
+    for handler in logger.handlers:
+        if handler is not file_handler and handler.level == logging.NOTSET:
+            handler.setLevel(terminal_level)
+    logger.setLevel(file_handler.level)
+
+
+def _file_handler(logger: logging.Logger) -> logging.Handler | None:
+    return next(
+        (
+            handler
+            for handler in logger.handlers
+            if getattr(handler, _FILE_HANDLER_MARK, False)
+        ),
+        None,
+    )
 
 
 def has_file_log_handler(logger: logging.Logger | None = None) -> bool:
     """Whether *logger* — `CFG.LOGGER` left out — is writing a log file."""
     target = CFG.LOGGER if logger is None else logger
-    return any(
-        getattr(handler, _FILE_HANDLER_MARK, False) for handler in target.handlers
-    )
+    return _file_handler(target) is not None
 
 
 def _build_handler(path: str) -> logging.Handler:

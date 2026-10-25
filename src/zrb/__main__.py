@@ -105,16 +105,38 @@ def _report_load_failure(label: str, error: Exception) -> None:
     print(stylize_error("\n".join(lines)), file=sys.stderr)
 
 
-def serve_cli():
+def _configure_logging() -> None:
+    """The line on the screen, and the file when one is configured.
+
+    Runs before any init source loads, when `serve_cli` calls it, so a warning
+    raised while starting up is kept too: a terminal that repaints its own
+    screen keeps no record of one.
+    """
     CFG.LOGGER.setLevel(CFG.LOGGING_LEVEL)
-    for handler in CFG.LOGGER.handlers[:]:
-        CFG.LOGGER.removeHandler(handler)
+    _reset_log_handlers()
     handler = logging.StreamHandler()
+    handler.setLevel(CFG.LOGGING_LEVEL)
     handler.setFormatter(FaintFormatter())
     CFG.LOGGER.addHandler(handler)
-    # Before any init source loads, so a warning raised while starting up is
-    # kept too. A terminal that repaints its own screen keeps no record of one.
     install_file_log_handler()
+
+
+def _reset_log_handlers() -> None:
+    """Drop the handlers an earlier setup left, closing the files among them.
+
+    A file stays open until it is closed, so a repeated setup would leave the
+    old one holding its descriptor for the life of the process. A stream
+    handler owns nothing, and closing one this code did not add would reach
+    into whatever registered it.
+    """
+    for handler in CFG.LOGGER.handlers[:]:
+        CFG.LOGGER.removeHandler(handler)
+        if isinstance(handler, logging.FileHandler):
+            handler.close()
+
+
+def serve_cli():
+    _configure_logging()
     stop_signals = _install_sigterm_handler()
     try:
         loaded_cleanly = True
@@ -212,8 +234,12 @@ def _handle_uncaught(error: Exception) -> None:
     A failed task already logged its own summary (see
     `BaseTaskExecution.execute_action_with_retry`). The debug variable name is
     derived from `ENV_PREFIX` to honour white-labeled distributions.
+
+    The gate is `LOGGING_LEVEL`, not the logger's own level: a log file asking
+    for DEBUG lowers the logger without asking the screen for anything, and a
+    failure should not turn into a raw traceback because of a file setting.
     """
-    if CFG.LOGGER.isEnabledFor(logging.DEBUG):
+    if CFG.LOGGING_LEVEL <= logging.DEBUG:
         raise error
     debug_env_key = type(CFG).LOGGING_LEVEL.env_key(CFG.ENV_PREFIX)
     print(stylize_error(f"{type(error).__name__}: {error}"), file=sys.stderr)

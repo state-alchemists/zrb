@@ -1,7 +1,10 @@
+import io
 import logging
 import sys
 
-from zrb.__main__ import serve_cli
+import pytest
+
+from zrb.__main__ import _handle_uncaught, serve_cli
 from zrb.config.config import CFG
 from zrb.config.log_file import has_file_log_handler, install_file_log_handler
 
@@ -148,3 +151,88 @@ def test_serve_cli_wires_the_configured_file(tmp_path, monkeypatch):
                 continue
             CFG.LOGGER.removeHandler(handler)
             handler.close()
+
+
+def test_a_more_verbose_file_keeps_the_screen_quiet(monkeypatch, tmp_path):
+    """`LOGGING_FILE_LEVEL` under the terminal's level is the whole reason the
+    file has one, and a logger drops a record before its handlers see it — so
+    the logger level has to come down while the screen is pinned where it was.
+    """
+    log_path = tmp_path / "zrb.log"
+    monkeypatch.setenv("ZRB_LOGGING_FILE", str(log_path))
+    monkeypatch.setenv("ZRB_LOGGING_FILE_LEVEL", "DEBUG")
+    monkeypatch.setenv("ZRB_LOGGING_LEVEL", "WARNING")
+    logger = _fresh_logger("zrb.test.log_file.quiet_screen")
+    logger.setLevel(logging.WARNING)
+    screen = logging.StreamHandler(io.StringIO())
+    logger.addHandler(screen)
+
+    install_file_log_handler(logger)
+    logger.debug("the callback asked for 4096 frames")
+    logger.warning(STUTTER)
+
+    assert "asked for 4096 frames" in log_path.read_text(encoding="utf-8")
+    shown = screen.stream.getvalue()
+    assert STUTTER in shown
+    assert "asked for 4096 frames" not in shown
+
+
+def test_the_file_level_does_not_turn_a_failure_into_a_traceback(
+    monkeypatch, tmp_path, capsys
+):
+    """A file asking for DEBUG lowers `CFG.LOGGER`; a failed task must still
+    print one clean line, because the screen was never asked for detail."""
+    monkeypatch.setenv("ZRB_LOGGING_FILE", str(tmp_path / "zrb.log"))
+    monkeypatch.setenv("ZRB_LOGGING_FILE_LEVEL", "DEBUG")
+    monkeypatch.setenv("ZRB_LOGGING_LEVEL", "WARNING")
+    before = CFG.LOGGER.handlers[:]
+    before_level = CFG.LOGGER.level
+    try:
+        install_file_log_handler()
+        assert CFG.LOGGER.isEnabledFor(logging.DEBUG), "the trap this guards"
+        with pytest.raises(SystemExit):
+            _handle_uncaught(RuntimeError("boom"))
+        captured = capsys.readouterr()
+        assert "RuntimeError: boom" in captured.err
+        assert "Traceback" not in captured.err
+    finally:
+        for handler in CFG.LOGGER.handlers[:]:
+            if handler in before:
+                continue
+            CFG.LOGGER.removeHandler(handler)
+            handler.close()
+        CFG.LOGGER.setLevel(before_level)
+
+
+def test_running_the_cli_twice_does_not_leak_a_file_handler(tmp_path, monkeypatch):
+    """`serve_cli` may run more than once in one process. Each pass drops the
+    handlers before adding its own, so a file handler left open would be one
+    descriptor per pass."""
+    monkeypatch.setenv("ZRB_LOGGING_FILE", str(tmp_path / "zrb.log"))
+    monkeypatch.setenv("ZRB_INIT_STRICT", "off")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["zrb"])
+    before = CFG.LOGGER.handlers[:]
+    before_level = CFG.LOGGER.level
+    try:
+        serve_cli()
+        first = [
+            handler
+            for handler in CFG.LOGGER.handlers
+            if getattr(handler, "_zrb_log_file_handler", False)
+        ]
+        assert len(first) == 1
+
+        serve_cli()
+        assert len(CFG.LOGGER.handlers) == 2, "one screen handler, one file handler"
+        assert (
+            getattr(first[0], "stream", "unopened") is None
+        ), "the file the first pass opened is closed"
+    finally:
+        for handler in CFG.LOGGER.handlers[:]:
+            CFG.LOGGER.removeHandler(handler)
+            if handler not in before and isinstance(handler, logging.FileHandler):
+                handler.close()
+        for handler in before:
+            CFG.LOGGER.addHandler(handler)
+        CFG.LOGGER.setLevel(before_level)
