@@ -53,12 +53,18 @@ class AudioBackend(FakeBackend):
 
 
 def _in_process(
-    monkeypatch, available=True, options=None, fallbacks=None, volumes=None
+    monkeypatch,
+    available=True,
+    options=None,
+    fallbacks=None,
+    volumes=None,
+    cushions=None,
 ):
     made = []
     options = [] if options is None else options
     fallbacks = [] if fallbacks is None else fallbacks
     seen_volumes: list[int | None] = [] if volumes is None else volumes
+    seen_cushions: list[float | None] = [] if cushions is None else cushions
 
     class FakePcm(RecordingUtterance):
         def __init__(
@@ -70,11 +76,13 @@ def _in_process(
             on_device_error=None,
             device_is_resting=None,
             volume=None,
+            prebuffer_seconds=None,
         ):
             super().__init__(b"".join(audio.chunks).decode(), made, threading.Event())
             options.append((block_frames, read_ahead))
             fallbacks.append(fallback)
             seen_volumes.append(volume)
+            seen_cushions.append(prebuffer_seconds)
 
     monkeypatch.setattr(
         "zrb.llm.speech.player.is_in_process_available", lambda: available
@@ -120,18 +128,21 @@ def test_in_process_playback_takes_its_block_and_read_ahead_from_config(
     lock_file, monkeypatch
 ):
     options = []
-    _in_process(monkeypatch, options=options)
+    cushions = []
+    _in_process(monkeypatch, options=options, cushions=cushions)
     config = _config(
         AudioBackend(),
         lock_file,
         player="auto",
         player_block_frames=256,
         player_read_ahead=4,
+        player_prebuffer_seconds=0.6,
     )
 
     Speaker(config).speak("hello")
 
     assert options == [(256, 4)]
+    assert cushions == [0.6]
 
 
 @pytest.mark.parametrize(

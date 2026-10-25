@@ -69,6 +69,7 @@ def _in_process(monkeypatch, available=True, options=None, fallbacks=None):
             on_device_error=None,
             device_is_resting=None,
             volume=None,
+            prebuffer_seconds=None,
         ):
             super().__init__(b"".join(audio.chunks).decode(), made, threading.Event())
             options.append((block_frames, read_ahead))

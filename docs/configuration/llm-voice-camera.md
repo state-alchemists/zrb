@@ -143,6 +143,7 @@ The same reply is on screen while it is being read, so it can be answered before
 | `ZRB_LLM_SPEECH_DRAIN_TIMEOUT` | Seconds queued speech may still play after zrb exits | `30` |
 | `ZRB_LLM_SPEECH_PLAYER_TIMEOUT` | Seconds one utterance may play; `0` means no limit | `120` |
 | `ZRB_LLM_SPEECH_PLAYER_BLOCK_FRAMES` | Samples per block when zrb plays speech itself; smaller pauses and stops sooner, larger is kinder to a slow machine | `1024` |
+| `ZRB_LLM_SPEECH_PLAYER_PREBUFFER_SECONDS` | Seconds of speech to have standing by before zrb starts playing a sentence, so a slow render is absorbed instead of heard; larger survives a slower machine and delays each sentence's first word by as much, `0` starts on whatever has arrived | `0.4` |
 | `ZRB_LLM_SPEECH_PLAYER_READ_AHEAD` | Chunks of downloaded or rendered speech read ahead of playback | `32` |
 | `ZRB_LLM_SPEECH_RENDER_TIMEOUT` | Seconds `say` or `espeak-ng` may take to render a sentence for zrb to play; `0` means no limit | `60` |
 | `ZRB_LLM_SPEECH_STALL_TIMEOUT` | With `ZRB_LLM_SPEECH_TIMEOUT` at `0`, seconds `openai` audio may stop arriving before it is given up on | `30` |
