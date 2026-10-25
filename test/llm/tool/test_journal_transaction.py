@@ -198,12 +198,13 @@ def test_a_raising_transaction_restores_an_ignored_note(git_journal):
         assert f.read() == "# Legacy finding\n"
 
 
-def test_an_older_index_is_undone_when_the_body_raises(git_journal):
-    """The baseline is read before `_open_journal` migrates an older index.
+def test_a_raising_transaction_leaves_the_migration_it_needed(git_journal):
+    """Opening a journal is setup, not part of the body.
 
-    Read after it, the migration dirtied a clean journal written by an earlier
-    version, `is_clean_at_entry` came back false, and a raising body kept its
-    writes while the docstring promised a rollback.
+    The root index an older journal needs is migrated before the snapshot
+    starts, so a failed body leaves that migration in place — and still undoes
+    every write the body itself made. Setup that survives is idempotent; a
+    half-applied body is not.
     """
     _write_baseline_note()
     older = "# Journal\n\n## User\n\n- Goes by Go.\n\n## Active Constraints\n\n"
@@ -222,7 +223,6 @@ def test_an_older_index_is_undone_when_the_body_raises(git_journal):
         "an index from an earlier version",
     )
     head = _head(git_journal)
-    assert _git(git_journal, "status", "--porcelain").strip() == ""
 
     with pytest.raises(RuntimeError, match="import failed"):
         with journal_transaction() as transaction:
@@ -234,5 +234,23 @@ def test_an_older_index_is_undone_when_the_body_raises(git_journal):
     assert _head(git_journal) == head
     with open(os.path.join(git_journal, "index.md"), "r", encoding="utf-8") as f:
         restored = f.read()
-    assert "## Agent" not in restored, "the migration is part of what rolls back"
+    assert "## Agent" in restored, "the migration is setup and stays"
     assert "half-written" not in restored
+
+
+def test_a_raising_transaction_leaves_a_first_time_journal_whole(git_journal):
+    """A journal created by the doomed call is setup too.
+
+    The tree and its initial commit are made before the snapshot starts, so a
+    failed body leaves an empty but valid journal — not an initial commit with
+    its tracked files deleted underneath it.
+    """
+    with pytest.raises(RuntimeError, match="import failed"):
+        with journal_transaction() as transaction:
+            transaction.write_note("technical", "x", "X", "c", "f", "s")
+            raise RuntimeError("import failed")
+
+    assert os.path.isfile(os.path.join(git_journal, "index.md"))
+    assert os.path.isfile(os.path.join(git_journal, "technical", "index.md"))
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
+    assert not _note_exists(git_journal, "x")

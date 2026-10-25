@@ -356,26 +356,27 @@ def journal_transaction(
     git, because git has no baseline for an ignored or untracked note, and
     because `_open_journal` migrates an older root index before the body runs.
     A file the body never touched is left alone, however dirty the journal was.
+    The snapshot starts once the journal is open, so the tree and repository
+    `_open_journal` sets up — and the root index it migrates — are setup rather
+    than part of the body: a failed body never leaves a first-time journal
+    half-built, and never deletes a file setup created.
 
     With zero changes, nothing is committed. `SearchJournal` does not take the
     journal lock, so a long transaction is visible mid-flight — the same grain
     a run of individual calls has.
     """
-    _begin_snapshot()
-    try:
-        with _open_journal() as root:
-            transaction = JournalTransaction(root)
-            try:
-                yield transaction
-            except BaseException:
-                _restore_snapshots(_take_snapshot())
-                raise
-            if transaction.change_count:
-                _git_commit(
-                    root, message or f"batch: {transaction.change_count} change(s)"
-                )
-    finally:
-        _take_snapshot()
+    with _open_journal() as root:
+        transaction = JournalTransaction(root)
+        _begin_snapshot()
+        try:
+            yield transaction
+        except BaseException:
+            _restore_snapshots(_take_snapshot())
+            raise
+        finally:
+            _take_snapshot()
+        if transaction.change_count:
+            _git_commit(root, message or f"batch: {transaction.change_count} change(s)")
 
 
 class JournalTransaction:
