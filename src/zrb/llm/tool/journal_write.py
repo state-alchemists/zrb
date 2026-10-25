@@ -1037,13 +1037,24 @@ def _with_pin_marker(base: str, pinned: bool) -> str:
     return f"- {_PIN_MARKER}{base.removeprefix('- ')}"
 
 
-def _is_own_hud_line(line: str, own: str, text: str) -> bool:
-    """True when *line* is this note's pin, or carries the same unlinked text.
+_HUD_NOTE_LINK_RE = re.compile(r"\(\[note\]\([^)]*\)\)\s*$")
 
-    A revision keeps one line per note, so the note's own line is matched by
-    its link even when the text changed; matching the text covers a copy that
-    has no link yet."""
-    return line.endswith(own) or _hud_line_text(line, own) == text
+
+def _is_own_hud_line(line: str, own: str, text: str) -> bool:
+    """True when *line* is this note's pin, or an unlinked copy of *text*.
+
+    A revision keeps one line per note, so the note's own line is matched by its
+    link even when the text changed. Matching by text covers a copy that carries
+    no link yet — but only then: a line linked to a *different* note stays, even
+    when both notes pinned exactly the same words, because that line is how the
+    other note is reached from the index.
+    """
+    stripped = line.rstrip()
+    if stripped.endswith(own):
+        return True
+    if _HUD_NOTE_LINK_RE.search(stripped):
+        return False
+    return _hud_line_text(line, own) == text
 
 
 def _is_pinned_line(line: str) -> bool:

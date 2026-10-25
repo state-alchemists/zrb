@@ -161,3 +161,73 @@ def test_deleting_a_pinned_note_removes_its_marked_line(writable_journal):
     index = _read(writable_journal)
     assert "about to be retracted" not in index
     assert "technical/retracted.md" not in index
+
+
+def test_two_notes_pinning_the_same_words_keep_one_line_each(writable_journal):
+    """A line linked to another note is that note's, even when the words match.
+
+    The text-equality fallback is for an unlinked copy. Applied to a linked line
+    it deleted the first note's only route back from the index, so the second
+    write quietly stole the first one's HUD entry.
+    """
+    for slug in ("first", "second"):
+        write_journal_note(
+            "user",
+            slug,
+            slug.title(),
+            "ctx",
+            "found",
+            "s:1",
+            hud_line="Prefers concise replies.",
+        )
+
+    section = _hud_section(writable_journal, "User")
+    assert "([note](user/first.md))" in section
+    assert "([note](user/second.md))" in section
+
+
+def test_a_hud_line_echoing_another_notes_link_does_not_steal_its_line(
+    writable_journal,
+):
+    """A caller may hand back the line it read, link included — and that link may
+    be the other note's when both pinned the same words. Comparing the echoed
+    text against the existing line matched, so the write deleted the first
+    note's entry and the second one inherited its link.
+    """
+    write_journal_note(
+        "user",
+        "first",
+        "First",
+        "ctx",
+        "found",
+        "s:1",
+        hud_line="Prefers terse replies.",
+    )
+    write_journal_note(
+        "user",
+        "second",
+        "Second",
+        "ctx",
+        "found",
+        "s:1",
+        hud_line="Prefers terse replies. ([note](user/first.md))",
+    )
+
+    section = _hud_section(writable_journal, "User")
+    # The first note keeps its own line: a line ending in its link still exists.
+    assert (
+        sum(
+            1
+            for line in section.splitlines()
+            if line.endswith("([note](user/first.md))")
+        )
+        == 1
+    )
+    assert (
+        sum(
+            1
+            for line in section.splitlines()
+            if line.endswith("([note](user/second.md))")
+        )
+        == 1
+    )
