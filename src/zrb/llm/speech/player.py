@@ -598,7 +598,7 @@ class Speaker:
             self._backends = None
             owned, self._owned_backends = self._owned_backends, []
             self._failing_backend = None
-            self._failed_renders = 0
+            failed_renders, self._failed_renders = self._failed_renders, 0
             # A warm-up still running is warming what `_backends` no longer
             # holds: its completion must not mark the fresh set warm, and the
             # set it leaves behind is a new generation's to warm. The guard
@@ -606,6 +606,11 @@ class Speaker:
             # every turn park another one behind the same stuck load.
             self._warm_up_generation += 1
             self._is_warmed_up = False
+        if failed_renders:
+            logger.warning(
+                f"Replacing the speech backend after {failed_renders} sentence(s) "
+                "it could not render"
+            )
         for backend in owned:
             backend.close()
 

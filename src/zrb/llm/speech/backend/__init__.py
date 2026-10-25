@@ -1,4 +1,7 @@
-from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
+from zrb.llm.speech.backend.any_speech_backend import (
+    AnySpeechBackend,
+    SpeechServiceStopped,
+)
 from zrb.llm.speech.backend.builtin import get_speech_backend
 from zrb.llm.speech.backend.gemini import GeminiSpeechBackend
 from zrb.llm.speech.backend.local_command import LocalCommandBackend
@@ -11,6 +14,7 @@ __all__ = [
     "GeminiSpeechBackend",
     "LocalCommandBackend",
     "OpenAISpeechBackend",
+    "SpeechServiceStopped",
     "TermuxSpeechBackend",
     "Utterance",
     "create_wav_utterance",

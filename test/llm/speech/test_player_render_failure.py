@@ -118,7 +118,7 @@ def test_audio_that_fails_to_render_is_spoken_by_a_player_program(
 
 
 def test_a_backend_that_fails_to_render_three_times_in_a_row_is_dropped(
-    lock_file, monkeypatch
+    lock_file, monkeypatch, caplog
 ):
     _in_process(monkeypatch)
 
@@ -137,9 +137,12 @@ def test_a_backend_that_fails_to_render_three_times_in_a_row_is_dropped(
     for text in ("one", "two", "three"):
         speaker.speak(text)
     assert backend.closed == 0
+    assert "Replacing the speech backend" not in caplog.text
     speaker.speak("four")
 
     assert backend.closed == 1
+    # Why the backend was replaced is not left to be inferred from silence.
+    assert "Replacing the speech backend after 3 sentence(s)" in caplog.text
 
 
 def test_the_sentence_that_lost_its_backend_still_falls_back_with_it(

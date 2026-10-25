@@ -23,6 +23,9 @@ from pipecat.services.tts_service import TTSService  # noqa: E402
 
 from zrb.config.config import CFG  # noqa: E402
 from zrb.llm.speech import pipecat_tts  # noqa: E402
+from zrb.llm.speech.backend.any_speech_backend import (  # noqa: E402
+    SpeechServiceStopped,
+)
 from zrb.llm.speech.pipecat_tts import TTSPipeline  # noqa: E402
 
 RATE = 24000
@@ -358,3 +361,51 @@ def test_closing_a_pipeline_cancels_what_is_still_running_on_its_loop():
     lingering = LingeringSpeechService.lingering
     assert lingering is not None and lingering.cancelled()
     assert _tts_threads() == []
+
+
+class StoppedSpeechService(FakeSpeechService):
+    """A service Pipecat marked unusable: it refuses every sentence it is given."""
+
+    @property
+    def is_usable(self) -> bool:
+        return False
+
+
+class DyingSpeechService(FakeSpeechService):
+    """A service whose failed sentence leaves it unusable."""
+
+    async def run_tts(self, text: str, context_id: str):
+        self.said.append(text)
+        # The verdict pipecat's own error reporting reaches, without waiting
+        # for enough silent contexts to make it.
+        self._is_usable = False
+        raise RuntimeError("the model is gone")
+        yield  # pragma: no cover — a generator, as the service expects
+
+
+def test_a_service_that_stopped_is_reported_instead_of_asked():
+    """A stopped service refuses everything, so asking it buys only another
+    failed render: it is reported as stopped before a sentence is sent."""
+    service = StoppedSpeechService()
+    pipeline = TTSPipeline.start(service)
+    try:
+        with pytest.raises(SpeechServiceStopped, match="no longer make audio"):
+            pipeline.speak(SENTENCE, timeout=5)
+    finally:
+        pipeline.close()
+
+    assert service.said == []
+
+
+def test_the_sentence_that_took_the_service_out_of_service_says_so():
+    """The failure that marks a service unusable is reported as a stopped
+    service, which is the signal the backend needs to build a fresh one."""
+    service = DyingSpeechService()
+    pipeline = TTSPipeline.start(service)
+    try:
+        with pytest.raises(SpeechServiceStopped, match="no longer make audio"):
+            pipeline.speak(SENTENCE, timeout=5)
+    finally:
+        pipeline.close()
+
+    assert service.said == [SENTENCE]
