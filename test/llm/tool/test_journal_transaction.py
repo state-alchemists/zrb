@@ -370,7 +370,6 @@ def test_transaction_write_note_forwards_applies_when(git_journal):
             "found",
             "s:1",
             applies_when="while version 3.26 is deployed",
-            section="Constraints",
         )
 
     path = os.path.join(git_journal, "technical", "x.md")
