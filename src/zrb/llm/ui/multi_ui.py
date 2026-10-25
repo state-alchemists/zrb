@@ -593,9 +593,13 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def submit_message(
         self,
         user_message: str,
-        source: InputProvenance | None = None,
+        source: InputProvenance | None = KEYBOARD_INPUT,
     ) -> None:
-        """Queue *user_message* for the shared agent turn (Ctrl+G sends sooner)."""
+        """Queue *user_message* for the shared agent turn (Ctrl+G sends sooner).
+
+        `KEYBOARD_INPUT` by default because this is the keystroke path; a
+        caller submitting words that are not the user's own passes `None`.
+        """
         self.submit_user_message(self._llm_task, user_message, source)
 
     def submit_message_now(

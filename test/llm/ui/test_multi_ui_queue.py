@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.input_source import KEYBOARD_INPUT
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
 from zrb.llm.ui.multi_ui import MultiUI
@@ -56,6 +57,19 @@ def child_ui_2():
 @pytest.fixture
 def multi_ui(child_ui_1, child_ui_2):
     return MultiUI([child_ui_1, child_ui_2])
+
+
+def test_a_typed_message_reaches_the_queue_with_keyboard_provenance(multi_ui):
+    """`submit_message` is what a keystroke calls, and it used to forward `None`
+    for the source — so an ordinary typed turn carried no provenance at all and
+    the silence it followed could never be reported."""
+    llm_task = MagicMock()
+    multi_ui.set_llm_task(llm_task)
+
+    with patch.object(multi_ui, "submit_user_message") as mock_submit:
+        multi_ui.submit_message("typed by hand")
+
+    mock_submit.assert_called_once_with(llm_task, "typed by hand", KEYBOARD_INPUT)
 
 
 def test_submit_user_message_queues_job(mock_child_ui):
@@ -191,7 +205,7 @@ def test_multi_ui_submit_message_uses_own_llm_task(multi_ui):
     multi_ui.set_llm_task(llm_task)
     with patch.object(multi_ui, "submit_user_message") as mock_submit:
         multi_ui.submit_message("report text")
-    mock_submit.assert_called_once_with(llm_task, "report text", None)
+    mock_submit.assert_called_once_with(llm_task, "report text", KEYBOARD_INPUT)
 
 
 @pytest.mark.asyncio

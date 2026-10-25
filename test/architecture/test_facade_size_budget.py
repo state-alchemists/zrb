@@ -105,7 +105,10 @@ FACADE_BUDGETS = {
     # can ask for (the `/btw` display contract's sibling): the default prints
     # the reply under its title, so every UI shows the same content and only
     # one with a float overrides the destination -- new surface (ADR-0127).
-    "llm/ui/base/ui.py": 1296,
+    # +2 (1296->1298): `submit_message`'s source defaults to `KEYBOARD_INPUT`
+    # instead of `None` -- the keystroke path was passing `None` and so carried
+    # no provenance at all. A longer signature black must wrap; no new surface.
+    "llm/ui/base/ui.py": 1298,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

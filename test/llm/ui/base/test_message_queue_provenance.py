@@ -11,26 +11,17 @@ import time
 import pytest
 
 from zrb.llm.input_source import KEYBOARD_INPUT
-from zrb.llm.ui.base.message_queue import (
-    MessageQueue,
-    QueuedMessage,
-    _run_queued_message,
-    submit_user_message_via_queue,
-)
-
-
-async def _noop():
-    pass
+from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
 
 
 async def _stub_stream_ai_response(llm_task, text, attachments):
     pass
 
 
-def _submit(queue, message="hello"):
+def _submit(queue, message="hello", stream=_stub_stream_ai_response):
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
-        stream_ai_response=_stub_stream_ai_response,
+        stream_ai_response=stream,
         queue=queue,
         attachment_sources=[],
         echo_targets=[],
@@ -67,16 +58,37 @@ def test_the_first_message_of_a_session_carries_no_silence():
     assert entry.source == KEYBOARD_INPUT
 
 
+def test_a_message_sent_during_a_running_turn_reports_no_idle_gap():
+    """The end of the *previous* turn is the wrong yardstick while another turn
+    is running: the model has just seen this conversation, not an hour of
+    silence, and "after 1h of silence" would be a lie it acts on."""
+    queue = MessageQueue()
+    queue.last_turn_finished_at = time.monotonic() - 3600
+    queue.turn_started_at = time.monotonic() - 5
+
+    _submit(queue, "and another thing")
+
+    entry = queue.peek_latest()
+    assert entry is not None
+    assert entry.source is not None
+    assert entry.source.idle_seconds == 0
+    assert "silence" not in entry.source.render()
+
+
 @pytest.mark.asyncio
 async def test_a_finished_turn_records_when_it_finished():
     queue = MessageQueue()
     ran = asyncio.Event()
 
     async def stream_ai_response(llm_task, text, attachments):
+        assert queue.turn_started_at is not None  # marked while it runs
         ran.set()
 
-    entry = QueuedMessage(text="hello", attachments=[], kind="message", run=_noop)
-    await _run_queued_message(stream_ai_response, object(), entry, queue)
+    _submit(queue, stream=stream_ai_response)
+    entry = queue.peek_latest()
+    assert entry is not None
+    await entry.run()
 
     assert ran.is_set()
+    assert queue.turn_started_at is None
     assert queue.last_turn_finished_at is not None

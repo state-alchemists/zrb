@@ -39,7 +39,9 @@ class InputProvenance:
         elif self.is_over_speech:
             label = f"{label}, partly over the reply"
         if self.idle_seconds >= 1:
-            label = f"{label}, after {format_duration(int(self.idle_seconds))} of silence"
+            label = (
+                f"{label}, after {format_duration(int(self.idle_seconds))} of silence"
+            )
         return label
 
 

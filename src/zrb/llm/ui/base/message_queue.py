@@ -117,6 +117,9 @@ class MessageQueue(asyncio.Queue):
         # When the last turn finished (monotonic), read at the next submission
         # to say how long the chat was quiet; see `_source_with_idle`.
         self.last_turn_finished_at: float | None = None
+        # Set while a queued turn runs. A submission that arrives during one has
+        # no silence to report: the model has just seen this conversation.
+        self.turn_started_at: float | None = None
 
     def peek_latest(self) -> "QueuedMessage | None":
         """The newest not-yet-started entry, or None."""
@@ -210,10 +213,12 @@ async def _run_queued_message(
     queue: "MessageQueue",
 ) -> None:
     token = input_provenance.set(entry.source)
+    queue.turn_started_at = time.monotonic()
     try:
         await stream_ai_response(llm_task, entry.text, entry.attachments)
     finally:
         input_provenance.reset(token)
+        queue.turn_started_at = None
         # The queue, not the module, holds this: two chat sessions in one
         # process must not read each other's silences.
         queue.last_turn_finished_at = time.monotonic()
@@ -226,11 +231,16 @@ def _source_with_idle(
 
     A turn's own words carry no time: without this a model reads a reply to a
     sentence it has just seen and a reply to one written an hour ago as the
-    same act. Nothing is measured before the first turn of a session, and the
-    source is left untouched then, so an untouched default still compares
-    equal to `KEYBOARD_INPUT`.
+    same act. The gap is only meaningful when nothing is running — a message
+    sent during a turn measures from the *end of the turn before it*, which can
+    be hours ago while the model has been working for seconds. Nothing is
+    measured before the first turn of a session, and the source is left
+    untouched then, so an untouched default still compares equal to
+    `KEYBOARD_INPUT`.
     """
-    if source is None or queue.last_turn_finished_at is None:
+    if source is None or queue.turn_started_at is not None:
+        return source
+    if queue.last_turn_finished_at is None:
         return source
     return replace(source, idle_seconds=time.monotonic() - queue.last_turn_finished_at)
 
@@ -296,9 +306,7 @@ def submit_user_message_via_queue(
             text=user_message,
             attachments=attachments,
             kind="message",
-            run=lambda: _run_queued_message(
-                stream_ai_response, llm_task, entry, queue
-            ),
+            run=lambda: _run_queued_message(stream_ai_response, llm_task, entry, queue),
             source=_source_with_idle(source, queue),
         )
         entry.echo_marker = marker
