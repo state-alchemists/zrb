@@ -329,41 +329,6 @@ def test_a_line_an_earlier_version_pinned_twice_is_written_once(writable_journal
     assert pinned.count("([note](technical/retry-policy.md))") == 1
 
 
-def test_an_unknown_section_leaves_the_journal_untouched(writable_journal):
-    from zrb.llm.tool.journal_write import write_journal_note
-
-    with pytest.raises(ValueError, match="unknown section"):
-        write_journal_note(
-            category="technical",
-            slug="bad-section",
-            title="T",
-            context="c",
-            finding="f",
-            source="s:1",
-            hud_line="A line.",
-            section="Constraint",
-        )
-
-    assert not os.path.exists(os.path.join(writable_journal, "technical", "bad-section.md"))
-
-
-def test_a_refused_section_does_not_create_the_journal(writable_journal):
-    from zrb.llm.tool.journal_write import write_journal_note
-
-    with pytest.raises(ValueError, match="unknown section"):
-        write_journal_note(
-            category="technical",
-            slug="x",
-            title="T",
-            context="c",
-            finding="f",
-            source="s:1",
-            section="Constraint",
-        )
-
-    assert not os.path.exists(writable_journal)
-
-
 def test_a_multiline_applies_when_cannot_inject_frontmatter(writable_journal):
     from zrb.llm.tool.journal_write import write_journal_note
 
@@ -384,7 +349,7 @@ def test_a_multiline_applies_when_cannot_inject_frontmatter(writable_journal):
     assert "applies_when: line one status: superseded --- # injected" in head
 
 
-def test_refiling_an_unchanged_pinned_line_moves_it_to_the_new_section(
+def test_unpinning_an_unchanged_line_moves_it_out_of_constraints(
     writable_journal,
 ):
     from zrb.llm.tool.journal_write import write_journal_note
@@ -397,11 +362,10 @@ def test_refiling_an_unchanged_pinned_line_moves_it_to_the_new_section(
         finding="f",
         source="s:1",
         hud_line="Keep this.",
-        pinned=True,
     )
-    write_journal_note(**fields)
+    write_journal_note(**fields, pinned=True)
 
-    write_journal_note(**fields, section="Recent")
+    write_journal_note(**fields, pinned=False)
 
     index = _read(writable_journal, "index.md")
     constraints = index.split("## Constraints", 1)[1].split("\n## ", 1)[0]
