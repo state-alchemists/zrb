@@ -1,5 +1,6 @@
 import os
 import uuid
+import weakref
 from collections.abc import Callable
 from pathlib import Path
 
@@ -397,6 +398,34 @@ class SkillManager:
 
 
 skill_manager = SkillManager(registry=skill_registry)
+
+_activation_managers: "weakref.WeakSet[SkillManager]" = weakref.WeakSet()
+"""Every manager an activation tool was built from, alive as its tool is."""
+
+
+def remember_skill_manager(manager: SkillManager) -> None:
+    """Record a manager a skill can be activated from.
+
+    `create_activate_skill_tool(manager)` is public, so activation does not have
+    to come from the global registry. Compaction asks whether a name is real
+    before re-attaching its body, and a manager it has never heard of would make
+    that body look invented.
+    """
+    _activation_managers.add(manager)
+
+
+def has_skill(name: str) -> bool:
+    """True when a skill *name* can be activated in this process.
+
+    The global registry answers first; any manager a tool was built from
+    answers after it. Weak references, so a manager built for one call does not
+    keep its skills resolvable for the process's lifetime.
+    """
+    if skill_manager.get_skill(name) is not None:
+        return True
+    return any(
+        manager.get_skill(name) is not None for manager in list(_activation_managers)
+    )
 
 
 def _parse_skill_frontmatter(content: str, full_path: str) -> dict:

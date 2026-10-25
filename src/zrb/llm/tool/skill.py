@@ -5,6 +5,7 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.llm.skill.activation import build_activation_block
 from zrb.llm.skill.manager import SkillManager
+from zrb.llm.skill.manager import remember_skill_manager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
 from zrb.llm.skill.preload import format_preload_problems, resolve_preload
 from zrb.llm.util.roster import cap_items, search_roster
@@ -13,6 +14,10 @@ from zrb.llm.util.roster import cap_items, search_roster
 def create_activate_skill_tool(skill_manager: SkillManager | None = None):
     if skill_manager is None:
         skill_manager = default_skill_manager
+    # Compaction asks this manager too before re-attaching a body: a skill
+    # activated from a supplied manager is not an invented name (see
+    # `has_skill`).
+    remember_skill_manager(skill_manager)
 
     async def activate_skill_impl(
         skill: Annotated[

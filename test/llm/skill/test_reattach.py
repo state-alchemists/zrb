@@ -5,6 +5,7 @@ instructions: without the body the next turn keeps the role and loses the
 procedure it came with.
 """
 
+import asyncio
 import logging
 
 import pytest
@@ -179,6 +180,31 @@ def test_a_skill_whose_name_needs_escaping_is_still_reattached():
         skill_manager.remove_skill("r&d")
 
     assert "BODY_RND" in content
+
+
+def test_a_skill_from_a_supplied_manager_is_still_reattached(tmp_path):
+    """`create_activate_skill_tool(manager)` is public, so an activation can
+    come from a manager the global registry knows nothing about. Validating
+    only against the global one would drop a body the model really was given —
+    the review's custom-manager case."""
+    from zrb.llm.skill.manager import SkillManager
+    from zrb.llm.tool.skill import create_activate_skill_tool
+
+    manager = SkillManager(root_dir=str(tmp_path))
+    manager.add_skill(
+        Skill(
+            name="custom-skill",
+            path=str(tmp_path / "custom-skill" / "SKILL.md"),
+            description="d",
+            content="CUSTOM_BODY",
+        )
+    )
+    activate = create_activate_skill_tool(manager)
+
+    block = asyncio.run(activate("custom-skill"))
+    content = _content(build_reattach_message(_request(block), [], llm_limiter))
+
+    assert "CUSTOM_BODY" in content
 
 
 def test_an_oversized_skill_is_truncated_to_its_own_cap(monkeypatch):

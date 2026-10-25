@@ -85,7 +85,7 @@ def _blocks(text: str) -> list[tuple[str, str]]:
 
 
 def _is_real_skill(name: str) -> bool:
-    """True when *name* is a skill this process can load.
+    """True when *name* is a skill this process can activate.
 
     Message text is scanned for activation blocks, and message text quotes this
     markup: a tool result that prints a test fixture, an ADR, or a skill
@@ -94,11 +94,15 @@ def _is_real_skill(name: str) -> bool:
     an activation, and re-attaching it would put a transcript's prose into the
     history as if it were instructions — once, and then again at every later
     compaction, because the re-attached copy carries the tag as well.
+
+    The answer comes from `has_skill`, which asks every manager an activation
+    tool was built from, not just the global one: a skill activated through a
+    supplied manager is still a body the model was given.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.skill.manager import skill_manager
+    from zrb.llm.skill.manager import has_skill
 
-    return skill_manager.get_skill(name) is not None
+    return has_skill(name)
 
 
 def _newest_per_skill(
