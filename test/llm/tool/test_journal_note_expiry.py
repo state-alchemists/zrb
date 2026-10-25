@@ -96,10 +96,10 @@ def test_superseding_takes_the_line_out_of_the_index_and_keeps_the_file(
 
     index = _read(writable_journal, "index.md")
     assert "Stutter comes from GIL contention." not in index
-    # Out of the HUD section; the `## Recent Insights` catalog still lists the
-    # note, because the note still exists.
-    recent = index.split("## Recent", 1)[1].split("\n## ", 1)[0]
-    assert "old-cause" not in recent
+    # The root index is what is injected, so nothing of the note stays in it;
+    # the category index keeps the link, because the note still exists.
+    assert "old-cause" not in index
+    assert "old-cause" in _read(writable_journal, "technical/index.md")
     note = _read(writable_journal, "technical/old-cause.md")
     assert "status: superseded" in note
     assert "superseded by the prebuffer note: it was a cushion" in note

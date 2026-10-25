@@ -462,6 +462,7 @@ def _supersede_note_locked(root: str, category: str, slug: str, reason: str) -> 
     _snapshot_before_write(note_path)
     _write_text(note_path, text)
     dropped = _remove_note_hud_line(root, note_rel)
+    _remove_root_catalog_entry(root, note_rel)
     result = f"Superseded {note_rel}: {reason.strip()}"
     if dropped:
         result += f" Removed from the index: {dropped[0].strip()}"
@@ -476,6 +477,21 @@ def _with_status(text: str, status: str) -> str:
     if lines and lines[0].strip() == "---":
         return "\n".join([lines[0], f"status: {status}", *lines[1:]]) + "\n"
     return f"---\nstatus: {status}\n---\n{text}"
+
+
+def _remove_root_catalog_entry(root: str, note_rel: str) -> None:
+    """Drop *note_rel*'s `Recent Insights` link from the root index.
+
+    The root index is what is injected, catalog included, so a retired note
+    left there is still in every turn's context. The category index keeps its
+    link: the note stays findable as evidence, just not announced."""
+    index_path = os.path.join(root, _index_name())
+    text = _read_text(index_path)
+    link = re.compile(rf"- \[.*\]\({re.escape(note_rel)}\)")
+    lines = text.splitlines()
+    kept = [line for line in lines if not link.fullmatch(line)]
+    if len(kept) != len(lines):
+        _write_text(index_path, "\n".join(kept) + "\n")
 
 
 def _remove_note_hud_line(root: str, note_rel: str) -> list[str]:
@@ -1337,7 +1353,7 @@ def _upsert_hud_line(
     entry = f"{_with_pin_marker(f'- {text}', pinned)}{own}"
     index_path = os.path.join(root, _index_name())
     current = _read_text(index_path)
-    if _entry_in_section(current, f"## {section}", entry):
+    if _has_entry_in_section(current, f"## {section}", entry):
         return []
     # A note has one line, in one section: re-filing it under a new section
     # (a line that turns out to be a constraint, a preference that was really
@@ -1361,7 +1377,7 @@ def _upsert_hud_line(
     return evicted
 
 
-def _entry_in_section(text: str, heading: str, entry: str) -> bool:
+def _has_entry_in_section(text: str, heading: str, entry: str) -> bool:
     """Whether *entry* is already a line of the section under *heading*."""
     lines = text.splitlines()
     if heading not in lines:
