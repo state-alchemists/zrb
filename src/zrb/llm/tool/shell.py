@@ -36,37 +36,26 @@ _HEAD_SHARE_OF_FAILED_OUTPUT = 0.4
 
 
 async def run_shell_command(
-    command: Annotated[
-        str, Field(description="The non-interactive command to execute.")
-    ],
-    cwd: Annotated[
-        str,
-        Field(
-            description="Working directory; defaults to the current directory when empty."
-        ),
-    ] = "",
+    command: Annotated[str, Field(description="Non-interactive command.")],
+    cwd: Annotated[str, Field(description="Working directory.")] = "",
     timeout: Annotated[
         int,
         Field(
             description=(
-                "Timeout in SECONDS, not milliseconds (default 120). Outrunning "
-                "it moves the command to the background, which keeps running "
-                "and is reported with a handle; it is not killed."
+                "SECONDS, not milliseconds. Outrunning it moves the command to "
+                "the background (not killed), reported with a handle."
             )
         ),
     ] = 120,
     max_chars: Annotated[
-        int,
-        Field(
-            description="Output character limit; -1 (default) uses the configured output limit."
-        ),
+        int, Field(description="-1 uses the configured output limit.")
     ] = -1,
     shell: Annotated[
         str,
         Field(
             description=(
                 "bash/zsh/sh (POSIX), pwsh/cmd (Windows), node/ruby/php "
-                "(runtime); empty uses the user's default shell."
+                "(runtime); empty is the user's default."
             )
         ),
     ] = "",
@@ -78,19 +67,13 @@ async def run_shell_command(
         bool,
         Field(
             description=(
-                "True for long-running processes (server, watcher, tail -f) — "
-                "returns immediately with a handle; check status with MonitorProcess."
+                "True for long-running processes (server, watcher): returns a handle at once; "
+                "check with MonitorProcess."
             )
         ),
     ] = False,
     description: Annotated[
-        str,
-        Field(
-            description=(
-                "Short label for the background process, shown by MonitorProcess; "
-                "defaults to the command itself. Only meaningful with background=True."
-            )
-        ),
+        str, Field(description="Label for a background process; default the command.")
     ] = "",
 ) -> str:
     """
@@ -102,8 +85,7 @@ async def run_shell_command(
     shell redirects are the wrong tool — the file tools carry diagnostics
     and path validation a shell command bypasses.
 
-    Shell is zrb's only shell tool — call Shell, not Bash. A sub-agent or skill
-    that asks for ``Bash`` is mapped to Shell; pass ``shell="bash"`` for bash.
+    Call Shell, not Bash; pass ``shell="bash"`` for bash.
 
     stdin is closed — pass ``-y``, ``--yes``, or ``CI=true`` for prompts.
     Output is truncated: a successful command keeps its tail, a failed one

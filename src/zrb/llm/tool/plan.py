@@ -278,26 +278,14 @@ async def write_todos(
         list[dict[str, Any]],
         Field(
             description=(
-                'Each item: {content (str), status ("pending"|"in_progress"|'
-                '"completed"|"cancelled", default "pending"), id (auto-assigned '
-                "if omitted)}."
+                '{content, status: "pending"(default)|"in_progress"|"completed"|'
+                '"cancelled", id: auto if omitted}'
             )
         ),
     ],
-    session: Annotated[
-        str,
-        Field(
-            description="Session to write todos for; defaults to the current tool session."
-        ),
-    ] = "",
+    session: Annotated[str, Field(description="Defaults to the current session.")] = "",
     replace: Annotated[
-        bool,
-        Field(
-            description=(
-                "True (default) overwrites the whole list; False merges with "
-                "the existing list."
-            )
-        ),
+        bool, Field(description="True overwrites the list; False merges.")
     ] = True,
 ) -> str:
     """
@@ -367,12 +355,7 @@ def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
 
 
 async def get_todos(
-    session: Annotated[
-        str,
-        Field(
-            description="Session to read todos for; defaults to the current tool session."
-        ),
-    ] = "",
+    session: Annotated[str, Field(description="Defaults to the current session.")] = "",
 ) -> str:
     """
     Returns the current todo list and progress summary.
