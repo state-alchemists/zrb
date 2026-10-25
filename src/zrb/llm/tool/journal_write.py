@@ -545,13 +545,25 @@ def journal_transaction(
     With zero changes, nothing is committed. `SearchJournal` does not take the
     journal lock, so a long transaction is visible mid-flight — the same grain
     a run of individual calls has.
+
+    Not nestable, and it says so rather than pretending: the snapshot is one per
+    thread, so a nested block would start by discarding the outer one's, and the
+    outer body's later failure could no longer put back what it had changed. A
+    helper that wants to batch should take the transaction it is given, or call
+    the journal tools, whose changes ride this block's single commit.
     """
+    if getattr(_lock_state, "in_transaction", 0):
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: journal_transaction is already open on this "
+            "thread, and nested transactions cannot honour both blocks' "
+            "rollback — the snapshot is one per thread — so this call wrote "
+            "nothing. Use the transaction you were given, or call the journal "
+            "tools, whose changes ride the outer block's commit."
+        )
     with _open_journal() as root:
         transaction = JournalTransaction(root)
-        depth = getattr(_lock_state, "in_transaction", 0)
-        _lock_state.in_transaction = depth + 1
-        if depth == 0:
-            _lock_state.deferred_changes = 0
+        _lock_state.in_transaction = 1
+        _lock_state.deferred_changes = 0
         _begin_snapshot()
         try:
             yield transaction
@@ -559,18 +571,13 @@ def journal_transaction(
             _restore_snapshots(_take_snapshot())
             raise
         finally:
-            _lock_state.in_transaction = depth
+            _lock_state.in_transaction = 0
             _take_snapshot()
         # A tool called inside the body counted its change here instead of
         # committing it; the whole body still makes one commit, at the end.
         changes = transaction.change_count + getattr(_lock_state, "deferred_changes", 0)
-        if depth == 0:
-            _lock_state.deferred_changes = 0
-        else:
-            # An inner transaction hands its changes to the outer one, which
-            # owns the commit for the whole nest.
-            _lock_state.deferred_changes = changes
-        if changes and depth == 0:
+        _lock_state.deferred_changes = 0
+        if changes:
             _git_commit(root, message or f"batch: {changes} change(s)")
 
 
@@ -741,7 +748,7 @@ def _commit_or_defer(root: str, message: str) -> None:
     raises. A tool called inside that body used to commit straight away, which
     broke both halves: the rollback restored the files but the commit stayed in
     history, and the transaction then committed again at exit. The change is
-    counted here instead, and rides on the outermost commit.
+    counted here instead, and rides the transaction's single commit.
     """
     if getattr(_lock_state, "in_transaction", 0):
         _lock_state.deferred_changes = getattr(_lock_state, "deferred_changes", 0) + 1

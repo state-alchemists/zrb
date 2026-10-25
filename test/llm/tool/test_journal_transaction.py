@@ -333,3 +333,28 @@ def test_a_raising_body_leaves_no_commit_behind_for_a_tool_it_called(git_journal
     assert _head(git_journal) == before
     assert not _note_exists(git_journal, "ghost")
     assert _git(git_journal, "status", "--porcelain").strip() == ""
+
+
+def test_a_nested_transaction_is_refused_rather_than_lying_about_rollback(
+    git_journal,
+):
+    """The snapshot is one per thread, so entering a nested block would discard
+    the outer one's and the outer body could no longer put back what it changed.
+
+    Refusing names the better move — use the transaction you were given — where
+    a stack of snapshots would have to answer a question with no good answer:
+    whether a failed inner block should also undo an outer write to the same
+    file.
+    """
+    _write_baseline_note()
+    before = _head(git_journal)
+
+    with pytest.raises(ValueError, match="already open on this thread"):
+        with journal_transaction("outer") as transaction:
+            transaction.write_note("technical", "before", "Before", "c", "f", "s")
+            with journal_transaction("inner"):
+                pass
+
+    assert not _note_exists(git_journal, "before")
+    assert _head(git_journal) == before
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
