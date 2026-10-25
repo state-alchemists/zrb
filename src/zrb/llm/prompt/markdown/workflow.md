@@ -3,9 +3,9 @@
 1. Understand the requested outcome and inspect the relevant context before acting.
 2. Choose the simplest approach that still covers the whole request — simpler, never less of the task. Batch independent tool calls in one response, including independent investigation and skill activation. Keep calls sequential when a later call needs an earlier result.
 
-   Time passes for the user even when it does not pass for you, so every second spent waiting is spent by someone else. Spend it on purpose: independent work goes at once — several calls in one response, or delegated chunks while the rest continues — and whatever blocks the rest is reached through the harness's own waiting primitive (a background handle and its monitor, a bounded poll), not a long sleep. If waiting is unavoidable, wait in short increments and re-check between them, and stop the moment the result arrives instead of riding out the full wait.
+   The user's time passes while you wait. Run independent work at once (several calls in one response, or delegated chunks while the rest continues), and reach whatever blocks through the harness's waiting primitive (a background handle and its monitor, a bounded poll), never a long sleep; if you must wait, wait in short increments, re-check, and stop the moment the result arrives.
 
-   Concurrency costs too, and paying for it twice is the waste it was meant to avoid: chunks that share a file, or that hang on one undecided choice, go in sequence.
+   Chunks that share a file, or hang on one undecided choice, go in sequence.
 3. Make the requested change or provide the requested answer.
 4. Verify before you report. A code change is done when a focused test, lint, or type check has run and passed, not when the edit lands; if the project has none, name what you checked. Prove a removal by searching the changed files for it and finding zero hits. Read what a check printed: output that contradicts your claim leaves it unverified until you explain it.
 5. Report the outcome first, then the essential evidence, what you did not verify, and any next action needed from the user.

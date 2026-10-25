@@ -41,13 +41,13 @@ def _hud_section(root: str, name: str) -> str:
 
 
 def _pin(
-    slug: str, hud_line: str, pinned: bool = False, section: str | None = None
+    slug: str, hud_line: str, pinned: bool = False, category: str = "technical"
 ) -> str:
-    """Write one technical note, whose line lands in `## Recent` unless it is
-    pinned — a pinned technical line is a constraint, and goes to
-    `## Constraints` — or unless *section* says where it belongs."""
+    """Write one note, whose line lands in its category's section — `## Recent`
+    for the default `technical` — unless a pinned `technical` line sends it to
+    `## Constraints`."""
     return write_journal_note(
-        category="technical",
+        category=category,
         slug=slug,
         title=slug.title(),
         context="c",
@@ -55,7 +55,6 @@ def _pin(
         source="s",
         hud_line=hud_line,
         pinned=pinned,
-        section=section,
     )
 
 
@@ -111,17 +110,18 @@ def test_a_pinned_line_survives_the_section_cap(writable_journal):
     """The oldest *unpinned* line goes first, so a durable constraint marked
     `pinned=True` outlives the lines written after it."""
     journal_write.CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 2
-    # Pinned within one section on purpose: this pins the capper's order, not
-    # the routing that sends a pinned technical line to `## Constraints`.
-    _pin("public-tests", "Tests stay public-API only.", True, section="Recent")
-    _pin("will-go", "A line that will go.")
-    result = _pin("stays", "A line that stays.")
+    # `user` on purpose: a pinned `user` line stays in its own section, so this
+    # pins the capper's order, not the routing that sends a pinned technical
+    # line to `## Constraints`.
+    _pin("public-tests", "Tests stay public-API only.", True, category="user")
+    _pin("will-go", "A line that will go.", category="user")
+    result = _pin("stays", "A line that stays.", category="user")
 
-    section = _hud_section(writable_journal, "Recent")
+    section = _hud_section(writable_journal, "User")
     assert "- 📌 Tests stay public-API only." in section
     assert "A line that will go." not in section
     assert "A line that stays." in section
-    assert '"A line that will go. ([note](technical/will-go.md))"' in result
+    assert '"A line that will go. ([note](user/will-go.md))"' in result
 
 
 def test_when_every_line_is_pinned_the_oldest_pinned_line_is_evicted(

@@ -78,10 +78,7 @@ def log_activity(
     summary: Annotated[
         str,
         Field(
-            description=(
-                "One line of what happened. The date, time, and file path are "
-                "derived here — pass only the summary itself."
-            )
+            description=("One line of what happened; date, time and path are derived.")
         ),
     ],
     files: Annotated[
@@ -98,8 +95,7 @@ def log_activity(
     single lookups, and anything already recorded.
 
     Verify before recording: a wrong entry misleads every future session, and a
-    number or an absence needs its source (`wc -l: 832`, `rg: 0 hits`) or stays
-    out. Unless the user asked for the write, do not announce it. Use
+    number or an absence needs its source (`wc -l: 832`) or stays out. Unless the user asked for the write, do not announce it. Use
     WriteJournalNote when the finding must be findable by topic.
     """
     with _open_journal() as root:
@@ -143,12 +139,11 @@ def write_journal_note(
         str,
         Field(
             description=(
-                "Kebab-case; becomes the filename. Reusing an existing slug "
-                "overwrites that note — the previous Context/Finding is kept "
-                "as one bounded History entry, not preserved in full. Call "
-                "SearchJournal for this slug or topic first if you are not "
-                "certain it is free or that you mean to revise it, and wait "
-                "for its result before this call — don't batch the two."
+                "Kebab-case filename. Reusing a slug overwrites that note; "
+                "the old Context/Finding survives only as one bounded History "
+                "entry. SearchJournal first unless you are certain the slug "
+                "is free or is the note you mean to revise, and wait for its "
+                "result before this call — don't batch the two."
             )
         ),
     ],
@@ -156,9 +151,8 @@ def write_journal_note(
         str,
         Field(
             description=(
-                "Short heading for the note; also the link label used by "
-                "indexes and backlinks. Retitling an existing slug relabels "
-                "its index entries."
+                "Short heading; also the index and backlink label. Retitling "
+                "an existing slug relabels its index entries."
             )
         ),
     ],
@@ -167,8 +161,8 @@ def write_journal_note(
         str,
         Field(
             description=(
-                "The durable fact itself, stated so a future session with no "
-                "memory of this conversation understands it standalone."
+                "The durable fact, standalone for a future session with no "
+                "memory of this conversation."
             )
         ),
     ],
@@ -180,8 +174,7 @@ def write_journal_note(
         Field(
             description=(
                 "Journal-root-relative paths of related notes (e.g. "
-                "`technical/retry-policy.md`); each gets a reciprocal "
-                "backlink automatically."
+                "`technical/retry-policy.md`); each gets a backlink."
             )
         ),
     ] = None,
@@ -189,12 +182,11 @@ def write_journal_note(
         str | None,
         Field(
             description=(
-                "One-line compression pinned to the injected index, under the "
-                "section for this category. Pin durable identity, preferences or "
-                "active constraints; the section is capped and the oldest lines "
-                "past the cap are evicted and named in the result. On revision "
-                "pass an updated line if the fact changed — omission retains the "
-                "old pinned line. A supplied line replaces the one for this note."
+                "One-line summary pinned to the injected index, in this "
+                "category's section. The section is capped: the oldest lines "
+                "past it are evicted and named in the result. On revision "
+                "pass an updated line if the fact changed; omitting keeps the "
+                "old one."
             )
         ),
     ] = None,
@@ -202,40 +194,23 @@ def write_journal_note(
         bool,
         Field(
             description=(
-                "Keep this note's hud_line through the section's cap: pinned "
-                "lines are evicted only when every line in the section is "
-                "pinned. Set it for a constraint or an identity that must not "
-                "disappear, and leave it off for a line you may revise away. On "
-                "a `projects` or `technical` note, a pinned line is also a "
-                "durable constraint: it goes under `## Constraints` instead of "
-                "`## Recent`."
+                "Keep hud_line through the section cap (evicted only when "
+                "every line in the section is pinned). Set it for a "
+                "constraint or identity that must not disappear. On a "
+                "`projects` or `technical` note a pinned line goes under `## "
+                "Constraints`, not `## Recent`."
             )
         ),
     ] = False,
-    section: Annotated[
-        str | None,
-        Field(
-            description=(
-                "The index section this hud_line belongs in, when the category "
-                "does not decide it: `User` (who the user is, and how they want "
-                "to be worked with), `Agent` (who you are, and your own standing "
-                "choices), `Constraints` (a fact that must keep holding), or "
-                "`Recent` (a headline that may age out). Omit to take the "
-                "category's own section."
-            )
-        ),
-    ] = None,
     applies_when: Annotated[
         str | None,
         Field(
             description=(
-                "The condition under which this note still holds — `while "
-                "zrb 3.26 is the released line`, `until the pocket engine "
-                "stops being the default`, `while go uses the office laptop`. "
-                "Somebody has to be able to test it later, so name something "
-                "checkable: a version, a file, a setting, a stated preference. "
-                "It is what lets a later session retire the note instead of "
-                "re-reading it; a note without one cannot be retired."
+                "The condition under which the note still holds, e.g. `while "
+                "zrb 3.26 is the released line`, `while go uses the office "
+                "laptop`. Name something checkable: a version, file, setting "
+                "or stated preference. Without one the note can never be "
+                "retired, only re-read."
             )
         ),
     ] = None,
@@ -251,20 +226,17 @@ def write_journal_note(
     topic: who the user is or a preference they stated (highest value, usually
     said once — record it that turn), a root cause, a decision, or an API quirk.
 
-    Record only what this session verified: an unchecked diagnosis, or a
-    comparison with something you never saw, is a guess, and a wrong entry
-    misleads every session that finds it. Skip anything already recorded —
-    search first when unsure.
+    Record only what this session verified: an unchecked diagnosis is a guess,
+    and a wrong entry misleads every session that finds it. Skip anything
+    already recorded — search first when unsure.
 
     This tool maintains the indexes, backlinks, and git history, so never edit
-    journal files directly, even to tidy up after a write: revise here or
-    remove with DeleteJournalNote. Unless the user asked for the write, do not
-    announce it.
+    journal files directly: revise here or remove with DeleteJournalNote.
+    Unless the user asked for the write, do not announce it.
     """
     # Before the journal is opened: a refused request must not create a tree.
     _check_category(category)
     _check_slug(slug)
-    _hud_section_for(category, pinned, section)
     with _open_journal() as root:
         result = _write_note_locked(
             root,
@@ -277,7 +249,6 @@ def write_journal_note(
             links,
             hud_line,
             pinned,
-            section,
             applies_when,
         )
         _commit_or_defer(root, f"write: {category}/{slug}")
@@ -311,11 +282,9 @@ def supersede_journal_note(
 ) -> str:
     """Retires a note whose `applies_when` no longer holds.
 
-    The note stays on disk — a journal that deletes its evidence cannot explain
-    how it got somewhere — but it leaves the injected index in the same call, so
-    a false constraint cannot sit in front of a later session until somebody
-    notices. Its frontmatter says `status: superseded` and its `## History` says
-    why.
+    The note stays on disk as evidence but leaves the injected index in the
+    same call, so a false constraint cannot keep reaching later sessions. Its
+    frontmatter says `status: superseded` and its `## History` says why.
 
     Use it, not DeleteJournalNote, when the finding was right and has stopped
     being true. DeleteJournalNote is for a note that should never have existed.
@@ -340,7 +309,6 @@ def _write_note_locked(
     links: list[str] | None,
     hud_line: str | None,
     pinned: bool,
-    section: str | None = None,
     applies_when: str | None = None,
 ) -> str:
     """Write the note and its index/HUD entries under *root*.
@@ -350,8 +318,7 @@ def _write_note_locked(
     older line under the same section lost its place."""
     _check_category(category)
     _check_slug(slug)
-    # Before the first write: a bad section must not leave a half-written note.
-    hud_section = _hud_section_for(category, pinned, section)
+    hud_section = _hud_section_for(category, pinned)
     targets = _resolve_links(root, links or [])
     note_path = os.path.join(root, category, f"{slug}.md")
     _write_note_file(
@@ -383,22 +350,14 @@ def _write_note_locked(
     return result
 
 
-def _hud_section_for(category: str, pinned: bool, section: str | None) -> str:
+def _hud_section_for(category: str, pinned: bool) -> str:
     """Which HUD section this note's line belongs in.
 
-    The caller's own *section* wins, then firmness decides: a pinned line on a
+    The category decides, and firmness refines it: a pinned line on a
     `projects` or `technical` note is a constraint that has to keep holding, so
     it goes to `## Constraints` rather than the rotating `## Recent`. Pinning a
-    `user` or `preferences` line keeps it in `## User`, because a pinned
-    identity is still an identity, not a constraint."""
-    if section:
-        name = section.strip().removeprefix("## ").strip()
-        if name not in _HUD_ORDER:
-            raise ValueError(
-                f"[SYSTEM SUGGESTION]: unknown section {section!r}. "
-                f"Use one of: {', '.join(_HUD_ORDER)}."
-            )
-        return name
+    `user`, `preferences` or `agent` line keeps it in its own section, because a
+    pinned identity is still an identity, not a constraint."""
     if pinned and category in ("projects", "technical"):
         return _CONSTRAINTS_SECTION
     return _HUD_SECTION[category]
@@ -407,14 +366,7 @@ def _hud_section_for(category: str, pinned: bool, section: str | None) -> str:
 def delete_journal_note(
     category: Annotated[
         str,
-        Field(
-            description=(
-                f"One of: {', '.join(NOTE_CATEGORIES)}. `user` and `agent` are "
-                "who the two parties are; `preferences` is how the user wants "
-                "to be worked with, and an agent's own standing choices go "
-                "under `agent`, not here."
-            )
-        ),
+        Field(description=(f"One of: {', '.join(NOTE_CATEGORIES)}.")),
     ],
     slug: Annotated[
         str, Field(description="The note's existing filename, without `.md`.")
@@ -628,7 +580,6 @@ class JournalTransaction:
         links: list[str] | None = None,
         hud_line: str | None = None,
         pinned: bool = False,
-        section: str | None = None,
         applies_when: str | None = None,
     ) -> str:
         """Write one note; the whole batch commits at exit."""
@@ -644,7 +595,6 @@ class JournalTransaction:
                 links,
                 hud_line,
                 pinned,
-                section,
                 applies_when,
             )
         )
