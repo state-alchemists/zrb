@@ -12,7 +12,7 @@ from zrb.config.config import CFG
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.pcm_player import PcmUtterance, prebuffer_wait_seconds
 
-from .test_pcm_player import RATE, CallbackStop, FakeOutputStream, _pcm
+from .test_pcm_player import RATE, CallbackStop, FakeOutputStream, _pcm, _played
 
 np = pytest.importorskip("numpy")
 
@@ -129,6 +129,25 @@ def test_the_cushion_is_read_from_the_configuration_when_none_is_given(sd, monke
 
     [stream] = FakeOutputStream.instances
     assert stream.started_at - started >= STALL_SECONDS / 2
+
+
+def test_a_zero_cushion_still_waits_for_the_first_audio(sd):
+    """`0` starts on whatever has arrived, which is not the same as starting on
+    nothing: a device fed an empty first block opens the sentence on silence."""
+
+    def arrives_late():
+        time.sleep(0.2)
+        yield _pcm([5] * 1600)
+        yield _pcm([5] * 1600)
+
+    sd.OutputStream = TimedStream
+    utterance = PcmUtterance(SpeechAudio(RATE, arrives_late()), prebuffer_seconds=0.0)
+    started = time.monotonic()
+    utterance.play(timeout=5)
+
+    [stream] = FakeOutputStream.instances
+    assert stream.started_at - started >= 0.15  # waited for the first chunk
+    assert _played(stream)[:1600].tolist() == [5] * 1600  # not silence
 
 
 def test_a_longer_cushion_absorbs_a_stall_in_the_audio(sd):

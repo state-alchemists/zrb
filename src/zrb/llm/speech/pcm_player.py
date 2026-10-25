@@ -500,7 +500,10 @@ class PcmUtterance(Utterance):
     def _prebuffer(self) -> None:
         """Wait until a moment of audio stands by to play (`_is_source_done`
         and `stop` release the wait), so the device's first block has sound."""
-        ready = int(self._audio.sample_rate * self._prebuffer_seconds) * 2
+        # A cushion of zero starts on whatever has arrived, which is not the
+        # same as starting on nothing: a device fed an empty block counts a
+        # stutter the listener hears as silence at the start of the sentence.
+        ready = max(1, int(self._audio.sample_rate * self._prebuffer_seconds) * 2)
         with self._buffer_changed:
             self._buffer_changed.wait_for(
                 lambda: self._buffer_bytes >= ready
