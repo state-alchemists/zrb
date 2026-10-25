@@ -42,7 +42,9 @@ def _scrub_config_namespace(environ: MutableMapping[str, str]) -> dict[str, str]
 
 
 # The developer's real home, kept across the redirect so the write guard can name
-# it. Workers inherit both variables from the controller that spawned them.
+# it. It is an internal handoff from the controller to the xdist workers it spawns,
+# not a setting: the controller always overwrites it, so a value exported before
+# the run cannot switch the redirect off.
 _REAL_HOME_VAR = "PYTEST_ZRB_REAL_HOME"
 _TEST_HOME_PREFIX = "zrb-test-home-"
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -52,12 +54,12 @@ _test_home: str | None = None
 def _redirect_home() -> None:
     """Point `~` at a per-run directory so nothing lands in the real home.
 
-    The controller creates it before xdist spawns workers, which inherit the
-    environment (and so find `_REAL_HOME_VAR` already set); only the controller
+    The controller (any process that is not an xdist worker) creates it before
+    xdist spawns the workers, which inherit the environment; only the controller
     removes it, in `pytest_sessionfinish`.
     """
     global _test_home
-    if _REAL_HOME_VAR in os.environ:
+    if os.environ.get("PYTEST_XDIST_WORKER"):
         return
     os.environ[_REAL_HOME_VAR] = os.path.expanduser("~")
     # Resolved, so a symlinked temp root (macOS `/var` -> `/private/var`) does not
@@ -68,13 +70,21 @@ def _redirect_home() -> None:
     os.environ["USERPROFILE"] = home  # what `expanduser` reads on Windows
 
 
+def _is_real_home(path: str) -> bool:
+    real = os.path.realpath(os.environ[_REAL_HOME_VAR])
+    return os.path.normcase(os.path.realpath(path)) == os.path.normcase(real)
+
+
 def pytest_configure() -> None:
     """Remove developer config, redirect home and guard writes, per process."""
     _scrub_config_namespace(os.environ)
     _redirect_home()
+    allowed = [tempfile.gettempdir()]
+    if not _is_real_home(os.environ["HOME"]):  # never let the real home allow itself
+        allowed.append(os.environ["HOME"])
     write_guard.install(
         forbidden_roots=[os.environ[_REAL_HOME_VAR], _REPO_ROOT],
-        allowed_roots=[tempfile.gettempdir(), os.environ["HOME"]],
+        allowed_roots=allowed,
     )
 
 
