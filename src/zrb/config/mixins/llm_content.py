@@ -163,8 +163,9 @@ class LLMContentMixin:
         serialize=on_off,
         doc=(
             "Master switch for the cross-session journal. Off unregisters the "
-            "four journal tools (SearchJournal, LogActivity, "
-            "WriteJournalNote, DeleteJournalNote) and suppresses the "
+            "five journal tools (SearchJournal, LogActivity, "
+            "WriteJournalNote, SupersedeJournalNote, DeleteJournalNote) and "
+            "suppresses the "
             "<journal-index> injection. Those tools are the whole interface — "
             "there is no prompt section describing a journal protocol — so off "
             "means the model is never told a journal exists, and neither reads "
@@ -244,7 +245,8 @@ class LLMContentMixin:
         serialize=on_off,
         doc=(
             "Git-back the journal directory: `git init` it on first use, and "
-            "commit after every LogActivity/WriteJournalNote/DeleteJournalNote "
+            "commit after every LogActivity/WriteJournalNote/"
+            "SupersedeJournalNote/DeleteJournalNote "
             "call. Gives the journal unbounded, diffable history and makes a "
             "delete or a bad overwrite recoverable by a human outside the "
             "tools (the in-file History block only keeps the last 3 "

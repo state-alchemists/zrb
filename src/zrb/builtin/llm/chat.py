@@ -173,6 +173,7 @@ llm_chat.prepend_tool_policy(
     # is nothing to adjudicate, and prompting would discourage recording.
     auto_approve("LogActivity"),
     auto_approve("WriteJournalNote"),
+    auto_approve("SupersedeJournalNote"),
     auto_approve("WebSearch"),
     auto_approve("WebFetch"),
     auto_approve("ActivateSkill"),
