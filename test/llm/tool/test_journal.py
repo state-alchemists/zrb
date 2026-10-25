@@ -346,3 +346,17 @@ def test_requiring_every_word_would_miss_the_note_a_question_asks_for(tmp_path):
             files.append(row["file"])
     # The partial match is still returned; the fuller one leads.
     assert files == ["technical/both.md", "technical/one.md"]
+
+
+def test_case_sensitive_ranking_ignores_a_title_that_only_matches_in_lowercase(
+    journal_dir,
+):
+    with open(os.path.join(journal_dir, "a.md"), "w") as f:
+        f.write("# speech load\n\nSpeech\n")
+    with open(os.path.join(journal_dir, "b.md"), "w") as f:
+        f.write("# Unrelated\n\nSpeech and Load\n")
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = journal_dir
+        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
+            result = search_journal("Speech Load", case_sensitive=True)
+    assert result["results"][0]["file"] == "b.md"

@@ -110,7 +110,7 @@ def search_journal(
         return found
     if not found:
         return _no_matches(query, abs_dir)
-    return _format_results(found, abs_dir, words or [query])
+    return _format_results(found, abs_dir, words or [query], case_sensitive)
 
 
 search_journal.__name__ = "SearchJournal"
@@ -266,7 +266,10 @@ def _python_matches(pattern: re.Pattern, abs_dir: str) -> list[tuple[str, int, s
 
 
 def _format_results(
-    matches: list[tuple[str, int, str]], abs_dir: str, terms: list[str]
+    matches: list[tuple[str, int, str]],
+    abs_dir: str,
+    terms: list[str],
+    case_sensitive: bool = False,
 ) -> dict[str, Any]:
     """Group *matches* by file, rank the files, and keep a few rows of each.
 
@@ -283,9 +286,9 @@ def _format_results(
     ranked = []
     for rel, rows in grouped.items():
         title = _note_title(rel, abs_dir)
-        title_hits = _title_hits(title, terms)
-        body = " ".join(content for _line, content in rows).lower()
-        word_hits = sum(1 for term in terms if term.lower() in body)
+        title_hits = _title_hits(title, terms, case_sensitive)
+        body = _fold(" ".join(content for _line, content in rows), case_sensitive)
+        word_hits = sum(1 for term in terms if _fold(term, case_sensitive) in body)
         word_hits = max(word_hits, title_hits)
         ranked.append(
             (_file_group(rel, title_hits), -word_hits, -title_hits, rel, rows)
@@ -342,10 +345,17 @@ def _note_title(rel: str, abs_dir: str) -> str:
         return ""
 
 
-def _title_hits(title: str, terms: list[str]) -> int:
+def _fold(text: str, case_sensitive: bool) -> str:
+    """*text* under the same case rule the search matched with."""
+    return text if case_sensitive else text.lower()
+
+
+def _title_hits(title: str, terms: list[str], case_sensitive: bool = False) -> int:
     """How many of *terms* the title carries: it is what says "about this"."""
-    lowered = title.lower()
-    return sum(1 for term in terms if term.lower() in lowered) if lowered else 0
+    folded = _fold(title, case_sensitive)
+    if not folded:
+        return 0
+    return sum(1 for term in terms if _fold(term, case_sensitive) in folded)
 
 
 def _no_matches(query: str, abs_dir: str) -> dict[str, Any]:

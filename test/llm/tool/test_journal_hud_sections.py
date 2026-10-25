@@ -382,3 +382,29 @@ def test_a_multiline_applies_when_cannot_inject_frontmatter(writable_journal):
         "status: active"
     ]
     assert "applies_when: line one status: superseded --- # injected" in head
+
+
+def test_refiling_an_unchanged_pinned_line_moves_it_to_the_new_section(
+    writable_journal,
+):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    fields = dict(
+        category="technical",
+        slug="x",
+        title="T",
+        context="c",
+        finding="f",
+        source="s:1",
+        hud_line="Keep this.",
+        pinned=True,
+    )
+    write_journal_note(**fields)
+
+    write_journal_note(**fields, section="Recent")
+
+    index = _read(writable_journal, "index.md")
+    constraints = index.split("## Constraints", 1)[1].split("\n## ", 1)[0]
+    recent = index.split("## Recent", 1)[1].split("\n## ", 1)[0]
+    assert "Keep this." not in constraints
+    assert "Keep this." in recent

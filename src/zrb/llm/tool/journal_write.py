@@ -1337,7 +1337,7 @@ def _upsert_hud_line(
     entry = f"{_with_pin_marker(f'- {text}', pinned)}{own}"
     index_path = os.path.join(root, _index_name())
     current = _read_text(index_path)
-    if entry in current.splitlines():
+    if _entry_in_section(current, f"## {section}", entry):
         return []
     # A note has one line, in one section: re-filing it under a new section
     # (a line that turns out to be a constraint, a preference that was really
@@ -1359,6 +1359,15 @@ def _upsert_hud_line(
     )
     _write_text(index_path, current)
     return evicted
+
+
+def _entry_in_section(text: str, heading: str, entry: str) -> bool:
+    """Whether *entry* is already a line of the section under *heading*."""
+    lines = text.splitlines()
+    if heading not in lines:
+        return False
+    start, end = _section_bounds(lines, heading)
+    return entry in lines[start:end]
 
 
 def _drop_from_other_hud_sections(
