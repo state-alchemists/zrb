@@ -59,18 +59,18 @@ flowchart LR
 
 ### Index File Structure
 
-The root index is created with this skeleton; `WriteJournalNote` adds a one-line summary of each note under `User`, `Preferences`, `Agent` or `Active Constraints` (for `projects` and `technical` notes). `agent` holds what is true of the assistant itself — standing choices, working style, how it wants to be treated — and `preferences` holds what the user stated about how *they* want to be worked with, so a fact about the agent never lands in the user's section by default:
+The root index is created with this skeleton, and every note's one-line summary is rendered under the HUD section its category and pin decide: `User` (`user` and `preferences`), `Constraints` (a pinned `projects` or `technical` note), `Agent` (`agent`), or `Recent` (an unpinned `projects` or `technical` note). `agent` holds what is true of the assistant itself — standing choices, working style, how it wants to be treated — and `preferences` holds what the user stated about how *they* want to be worked with, so a fact about the agent never lands in the user's section by default:
 
 ```markdown
 # Journal
 
 ## User
 
-## Preferences
+## Constraints
 
 ## Agent
 
-## Active Constraints
+## Recent
 
 ## Directories
 
@@ -78,6 +78,18 @@ The root index is created with this skeleton; `WriteJournalNote` adds a one-line
 
 ## Recent Insights
 ```
+
+### The Indexes Are Rendered From the Notes
+
+A note's frontmatter is the one source of truth for what the indexes say about it: `status`, `applies_when`, `hud_line` (the summary, absent when the note has none), `pinned` and `updated` (when the note was last written, which is the order the section cap evicts by). The root index and every category index are a view rendered from those fields (`journal_index.py`; the note value and its frontmatter are in `journal_note.py`). A write, supersede, delete or refile changes the note and renders again, and rendering the same notes twice yields the same bytes.
+
+What the render produces: the four HUD sections in a fixed order, each capped at `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` (the oldest unpinned line goes first, a pinned line only when every line in the section is pinned, and `WriteJournalNote` names what its write evicted); `## Recent Insights`, which lists active notes only; a link to each category in `## Directories`; and a category index that lists every note in it, superseded ones included. The cap is a view: an evicted note keeps its `hud_line`, so raising the cap brings its line back.
+
+**Foreign lines.** A line in a generated region that no note accounts for is a hand edit, and the render carries it through unchanged and in place, never evicts it, and does not count it toward the cap. Ownership is read from the note link a line already carries, so no marker is added to the injected text and no state is kept beside the index. A HUD line (a bullet, an optional pin marker, the text, then a trailing note link to the note's file) belongs to the note that link names, provided that note has a `hud_line`; a `## Recent Insights` or category-index line (a bullet holding one titled link) belongs to the note whose file it links; every other line is foreign.
+
+The failure modes follow from that rule. A hand edit to the text of a line a note owns is reverted at the next render, because the text is the note's `hud_line` — edit the note's frontmatter, or call `WriteJournalNote`. A hand-written line that ends in a note link to a note that has a line is claimed by that note, and a hand-written bullet that is only a link to a note, in a catalog or category index, is relabelled. A note whose title or `hud_line` is edited in its file keeps its old index line only if the link no longer matches; otherwise the next render replaces it. A line that is nothing but a link to a note is dropped when that note is deleted, a hand-written one included, because it would otherwise be a broken link. Anything else a person writes in the index — a heading, a paragraph, a bullet with no note link — is never touched.
+
+**Older journals.** A journal written before the index was derived held each pin and HUD line only in the index text. The first journal call reads the first line that links a note without an `updated` stamp into that note's frontmatter (`hud_line`, `pinned`, and an `updated` stamp that keeps the line order), then renders; a line that no note accounts for stays where it was as a foreign line. A note is migrated once, so running it again changes nothing.
 
 ---
 
@@ -122,7 +134,7 @@ Nothing is injected at all when the index file is missing, unreadable, or empty;
 
 That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note. An unwritten journal is *empty*, not broken.
 
-**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the six directory indexes (five categories plus `activity-log`) on first write, and maintain the link graph — each note registered in its directory index, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0055).
+**The rest of the tree is created by the writers, not by the agent.** `LogActivity` and `WriteJournalNote` (`src/zrb/llm/tool/journal_write.py`) derive every path and timestamp themselves, create the root index and the six directory indexes (five categories plus `activity-log`) on first write, and maintain the link graph — every index rendered from the notes, each forward link matched by a reciprocal backlink. The agent supplies content; the structure is code (ADR-0055).
 
 ---
 

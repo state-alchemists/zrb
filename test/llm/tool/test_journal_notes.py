@@ -298,10 +298,12 @@ def test_revising_a_note_leaves_another_notes_hud_line_that_cites_it(writable_jo
     )
 
 
-def test_an_unlinked_hud_line_is_left_for_the_cap_to_evict(writable_journal):
-    """A hand-pinned line has no note link, so it cannot be attributed to this
-    note; the cap is what retires it. One reading exactly as the new line does
-    is the same fact, and is replaced rather than repeated."""
+def test_an_unlinked_hud_line_is_a_foreign_line_the_write_leaves_alone(
+    writable_journal,
+):
+    """A hand-pinned line has no note link, so no note accounts for it: it is a
+    foreign line and stays, even when its words are exactly the new line's. The
+    note's own line is rendered beside it."""
     from zrb.llm.tool.journal_write import write_journal_note
 
     index_path = os.path.join(writable_journal, "index.md")
@@ -336,8 +338,7 @@ def test_an_unlinked_hud_line_is_left_for_the_cap_to_evict(writable_journal):
 
     index = _read(writable_journal, "index.md")
     assert "- Another pinned fact.\n" in index
-    assert "- Hand-pinned, no note link.\n" not in index
-    assert index.count("Hand-pinned, no note link.") == 1
+    assert "- Hand-pinned, no note link.\n" in index
     assert "- Hand-pinned, no note link. ([note](user/seed.md))" in index
 
 
