@@ -607,6 +607,8 @@ class JournalTransaction:
         links: list[str] | None = None,
         hud_line: str | None = None,
         pinned: bool = False,
+        section: str | None = None,
+        applies_when: str | None = None,
     ) -> str:
         """Write one note; the whole batch commits at exit."""
         return self._record(
@@ -621,6 +623,8 @@ class JournalTransaction:
                 links,
                 hud_line,
                 pinned,
+                section,
+                applies_when,
             )
         )
 

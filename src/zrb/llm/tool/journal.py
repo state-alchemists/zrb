@@ -197,14 +197,13 @@ def _all_matches(
     query: str, abs_dir: str, case_sensitive: bool
 ) -> "list[tuple[str, int, str]] | dict[str, Any]":
     """Every line of the journal matching *query*, or a failure to report."""
+    if shutil.which("rg"):
+        # ripgrep validates its own dialect (`\p{L}` is valid there).
+        return _rg_matches(query, abs_dir, case_sensitive)
     try:
         pattern = re.compile(query, 0 if case_sensitive else re.IGNORECASE)
     except re.error as e:
-        # Compiled before any engine sees it: a pattern this Python cannot read
-        # is reported in this tool's words, whichever engine would have run.
         return {"error": f"Invalid regex pattern: {e}"}
-    if shutil.which("rg"):
-        return _rg_matches(query, abs_dir, case_sensitive)
     return _python_matches(pattern, abs_dir)
 
 
@@ -221,7 +220,7 @@ def _rg_matches(
         return {"error": f"rg failed: {e}"}
     if proc.returncode == 2:
         # A regex that does not compile is the query's fault, not the journal's.
-        return {"error": f"rg error: {proc.stderr.strip()}"}
+        return {"error": f"Invalid regex pattern: {proc.stderr.strip()}"}
     return _parse_rg_json(proc.stdout)
 
 

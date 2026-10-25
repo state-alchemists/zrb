@@ -358,3 +358,21 @@ def test_a_nested_transaction_is_refused_rather_than_lying_about_rollback(
     assert not _note_exists(git_journal, "before")
     assert _head(git_journal) == before
     assert _git(git_journal, "status", "--porcelain").strip() == ""
+
+
+def test_transaction_write_note_forwards_applies_when(git_journal):
+    with journal_transaction() as transaction:
+        transaction.write_note(
+            "technical",
+            "x",
+            "Title",
+            "ctx",
+            "found",
+            "s:1",
+            applies_when="while version 3.26 is deployed",
+            section="Constraints",
+        )
+
+    path = os.path.join(git_journal, "technical", "x.md")
+    with open(path, "r", encoding="utf-8") as f:
+        assert "while version 3.26 is deployed" in f.read()
