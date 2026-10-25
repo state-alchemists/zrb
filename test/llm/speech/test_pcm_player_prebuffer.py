@@ -82,17 +82,16 @@ class ScriptedSource:
                 return
             yield chunk
 
-    def feed(self, chunk):
-        """Hand over a chunk and wait until the player's reader holds it: the
-        reader asking for the next one is what says it has.
+    def feed(self, chunk, wait=True):
+        """Hand over a chunk and, unless *wait* is off, wait until the player's
+        reader holds it: the reader asking for the next one is what says it has.
 
-        The reader pulls the next chunk from the source before it checks for
-        room (`for chunk in chunks: if not has_room(): ...`), so it asks even
-        when the buffer is full: feeding exactly the cushion's worth never
-        waits on a request the full buffer would withhold."""
+        Leave *wait* off for the chunk that fills the cushion: a reader with no
+        room may never ask for another, and nothing then needs to be known about
+        it but that the device starts."""
         self._fed += 1
         self._items.put(chunk)
-        if chunk is not None:
+        if chunk is not None and wait:
             with self._asked:
                 assert self._asked.wait_for(lambda: self._asks > self._fed, 10)
 
@@ -242,8 +241,8 @@ def test_the_read_ahead_count_does_not_cap_the_cushion(sd):
     )
     # Forty chunks of ten milliseconds are what the cushion asks for. A reader
     # capped at two would stop taking them, and `feed` would find them unread.
-    for _ in range(40):
-        source.feed(_pcm([5] * 160))
+    for index in range(40):
+        source.feed(_pcm([5] * 160), wait=index < 39)
 
     assert stream.is_started.wait(10)
     _hang_up(utterance, source, player)
