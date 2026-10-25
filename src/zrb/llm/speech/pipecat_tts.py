@@ -13,6 +13,7 @@ from collections.abc import Iterator
 from typing import TYPE_CHECKING, TypeVar
 
 from zrb.config.config import CFG
+from zrb.llm.speech.backend.any_speech_backend import SpeechServiceStopped
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.util.teardown import cancel_and_wait, close_quietly
 
@@ -241,6 +242,8 @@ class TTSPipeline:
     ) -> SpeechAudio:
         """Return *text* as audio in *voice* (empty: the voice the service
         was built with), or raise if synthesis fails to start."""
+        if not self.is_service_usable:
+            raise self._service_stopped()
         self._sentence_lock.acquire()
         try:
             sentence = self._recorder.start_sentence()
@@ -253,15 +256,35 @@ class TTSPipeline:
         try:
             _call(self._loop, self._say(text, voice))
             first = sentence.wait_for_chunk(timeout)
-        except BaseException:
+        except BaseException as exc:
             # Close and interrupt before releasing the claim, so late audio
             # cannot reach the next sentence.
             self._drop(sentence)
+            # The failure that took the service out of service is the last one
+            # this pipeline can be asked: the backend has to replace it.
+            if not self.is_service_usable:
+                raise self._service_stopped() from exc
             raise
         return SpeechAudio(
             sentence.sample_rate,
             self._read(sentence, first),
             close=lambda: self._drop(sentence),
+        )
+
+    @property
+    def is_service_usable(self) -> bool:
+        """Whether the service behind this pipeline still accepts work.
+
+        Pipecat marks a service unusable once its work can no longer succeed —
+        enough silent or failed contexts in a row — and it then refuses every
+        sentence it is given, without an error of its own. Asking it again buys
+        nothing but another failed render."""
+        return bool(getattr(self._service, "is_usable", True))
+
+    def _service_stopped(self) -> SpeechServiceStopped:
+        return SpeechServiceStopped(
+            "the speech service can no longer make audio: it stopped after "
+            "enough silent or failed sentences"
         )
 
     async def _say(self, text: str, voice: str) -> None:

@@ -8,6 +8,16 @@ if TYPE_CHECKING:
     from zrb.llm.speech.backend.utterance import Utterance
 
 
+class SpeechServiceStopped(RuntimeError):
+    """A backend's speech service stopped making audio for good.
+
+    Not the same as a sentence that failed. A service Pipecat marks unusable
+    refuses every sentence it is given from then on, so a backend holding one
+    has to let it go and start a fresh service rather than keep asking: the
+    alternative is a session that goes mute while every sentence is reported
+    as one more failed render."""
+
+
 class AnySpeechBackend(ABC):
     """Interface for text-to-speech backends."""
 

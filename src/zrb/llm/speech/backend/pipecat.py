@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 from typing import TYPE_CHECKING
 
 from zrb.llm.ambient_state import get_current_speech_voice
-from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
+from zrb.llm.speech.backend.any_speech_backend import (
+    AnySpeechBackend,
+    SpeechServiceStopped,
+)
 from zrb.llm.voice.manager import tts_manager
 from zrb.llm.voice.registry import tts_registry
 
@@ -15,6 +19,8 @@ if TYPE_CHECKING:
     from zrb.llm.speech.backend.utterance import Utterance
     from zrb.llm.speech.config import SpeechConfig
     from zrb.llm.speech.pipecat_tts import TTSPipeline
+
+logger = logging.getLogger(__name__)
 
 # How long a sentence waits for another thread's model load before giving up
 # and letting the speaker fall back. A first local load downloads its model, so
@@ -62,7 +68,29 @@ class PipecatSpeechBackend(AnySpeechBackend):
     def create_audio(self, text: str) -> "SpeechAudio":
         """Return *text* as PCM for in-process playback, in the voice the
         speaker asks for, else the one the service was built with."""
-        return self._get_pipeline().speak(text, voice=get_current_speech_voice())
+        pipeline = self._get_pipeline()
+        try:
+            return pipeline.speak(text, voice=get_current_speech_voice())
+        except SpeechServiceStopped:
+            # A service that stopped refuses every sentence, so this pipeline
+            # is not worth keeping: the next sentence builds a new one.
+            self._discard_pipeline(pipeline)
+            raise
+
+    def _discard_pipeline(self, pipeline: "TTSPipeline") -> None:
+        """Let *pipeline* go, so the next sentence starts a fresh service.
+
+        Rebuilding reloads the model, which is the price of a voice at all: a
+        session that keeps the stopped service is one that has gone mute."""
+        with self._state:
+            if self._pipeline is not pipeline:
+                return
+            self._pipeline = None
+        logger.warning(
+            f"The {self._service_name} speech service stopped making audio; "
+            "the next sentence starts a fresh one"
+        )
+        pipeline.close()
 
     def close(self) -> None:
         """Stop and discard the pipeline. A pipeline still starting is not

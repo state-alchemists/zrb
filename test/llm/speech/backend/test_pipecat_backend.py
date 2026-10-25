@@ -14,6 +14,9 @@ from pipecat.services.tts_service import TTSService  # noqa: E402
 
 from zrb.config.config import CFG  # noqa: E402
 from zrb.llm.speech import SpeechConfig  # noqa: E402
+from zrb.llm.speech.backend.any_speech_backend import (  # noqa: E402
+    SpeechServiceStopped,
+)
 from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend  # noqa: E402
 from zrb.llm.voice.builtin import TTS_SERVICE_SPECS  # noqa: E402
 from zrb.llm.voice.registry import TTSServiceRegistry  # noqa: E402
@@ -162,6 +165,46 @@ def test_the_backend_refuses_to_play_the_audio_itself(factory):
         backend.create_utterance(SENTENCE)
 
     assert factory.services == []
+
+
+class StoppingSpeechService(FakeSpeechService):
+    """A service that stops on the first sentence it is asked for."""
+
+    async def run_tts(self, text: str, context_id: str):
+        self.said.append(text)
+        # The verdict pipecat's own error reporting reaches, without waiting
+        # for enough silent contexts to make it.
+        self._is_usable = False
+        raise RuntimeError("the model is gone")
+        yield  # pragma: no cover — a generator, as the service expects
+
+
+def test_a_service_that_stopped_is_replaced_by_the_next_sentence(monkeypatch, caplog):
+    """A stopped service refuses every sentence and keeps refusing forever.
+    Keeping it is a session that has gone mute, so the backend lets it go and
+    the next sentence builds a fresh one."""
+    built: "list[FakeSpeechService]" = []
+
+    def create_service(name: str, config: SpeechConfig) -> FakeSpeechService:
+        service = StoppingSpeechService() if not built else FakeSpeechService()
+        built.append(service)
+        return service
+
+    monkeypatch.setattr(
+        "zrb.llm.speech.backend.pipecat.tts_manager.create_service", create_service
+    )
+    backend = PipecatSpeechBackend("pocket", SpeechConfig().resolve())
+    try:
+        with pytest.raises(SpeechServiceStopped, match="no longer make audio"):
+            backend.create_audio(SENTENCE)
+        chunks = list(backend.create_audio(SENTENCE).chunks)
+    finally:
+        backend.close()
+
+    assert len(built) == 2
+    assert built[1].said == [SENTENCE]
+    assert chunks == [CHUNK]
+    assert "starts a fresh one" in caplog.text
 
 
 def test_closing_the_backend_stops_the_pipeline_and_is_safe_to_repeat(factory):
