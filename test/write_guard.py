@@ -11,8 +11,17 @@ a write to the two places the suite has no business writing — the real home
 and the repository — whatever path a test spells. A write anywhere else
 (`tmp_path`, the temp directory, `/dev/null`) is not the guard's concern.
 
-The guard sees writes made by Python in the process it runs in; a subprocess
-inherits the redirected `HOME` but is not hooked.
+The guard judges creations, writes and deletions (`open` for writing,
+`os.mkdir`, `os.remove`/`os.unlink`, `os.rmdir`, and both ends of `os.rename`,
+`os.replace` and `os.link`; `shutil.rmtree` and `shutil.move` go through these).
+A relative path is resolved against the cwd, or against its `dir_fd` through
+`/proc/self/fd` (Linux) or `F_GETPATH` (macOS); where a descriptor cannot be
+traced (Windows) the guard refuses rather than guess.
+
+Known blind spots: a subprocess inherits the redirected `HOME` but is not
+hooked; and the `open` audit event carries no `dir_fd`, so a relative
+`os.open(name, flags, dir_fd=fd)` cannot be told from one against the cwd and is
+not judged at all (a relative `open()` is judged against the cwd).
 """
 
 import os
@@ -77,31 +86,77 @@ def _writes_through_open(args: tuple) -> bool:
     return isinstance(flags, int) and bool(flags & _WRITE_FLAGS)
 
 
-def _is_resolvable(args: tuple) -> bool:
-    """False for a relative `os.open` path: its `dir_fd`, if any, is not in the event."""
-    mode = args[1] if len(args) > 1 else None
-    path = _as_text(args[0])
-    return mode is not None or (path is not None and os.path.isabs(path))
+def _opens_judgeably_for_writing(args: tuple) -> bool:
+    if not _writes_through_open(args):
+        return False
+    text = _as_text(args[0])
+    is_os_open = not isinstance(args[1] if len(args) > 1 else None, str)
+    return not (is_os_open and text is not None and not os.path.isabs(text))
 
 
-def written_paths(event: str, args: tuple) -> list[object]:
-    """Return the paths an audit event creates or opens for writing."""
+def _fd_directory(fd: int) -> str | None:
+    """Return the directory a descriptor refers to, or None if unknowable."""
+    try:
+        if sys.platform.startswith("linux"):
+            return os.readlink(f"/proc/self/fd/{fd}")
+        if sys.platform == "darwin":
+            import fcntl  # lazy: platform-only — POSIX; Windows has no `fcntl`
+
+            raw = fcntl.fcntl(fd, fcntl.F_GETPATH, b"\0" * 1024)  # type: ignore[attr-defined]
+            return os.fsdecode(raw.split(b"\0", 1)[0])
+    except OSError:
+        return None
+    return None
+
+
+def _as_dir_fd(value: object) -> int | None:
+    """A real descriptor from an audit `dir_fd` slot; None means the cwd."""
+    return value if isinstance(value, int) and value >= 0 else None
+
+
+def resolve_target(path: object, dir_fd: object = None) -> str | None:
+    """Return the absolute path the OS would use, or None if unresolvable.
+
+    A relative path is taken against the descriptor when one is given, else
+    against the cwd. A descriptor that cannot be traced to a directory (Windows,
+    a closed fd) yields None, which the guard treats as forbidden.
+    """
+    text = _as_text(path)
+    if text is None:
+        return ""  # a descriptor, not a path: nothing to judge
+    if os.path.isabs(text):
+        return text
+    fd = _as_dir_fd(dir_fd)
+    if fd is None:
+        return os.path.join(os.getcwd(), text)
+    base = _fd_directory(fd)
+    return None if base is None else os.path.join(base, text)
+
+
+def written_targets(event: str, args: tuple) -> list[tuple[object, object]]:
+    """Return `(path, dir_fd)` for each path an audit event writes or removes.
+
+    `open` events carry no `dir_fd`, so a relative `os.open` name (the one `open`
+    event with no mode text) may be relative to a descriptor and is not judged:
+    a known blind spot. A relative `open()` is judged against the cwd.
+    """
     if event == "open":
-        return [args[0]] if _writes_through_open(args) and _is_resolvable(args) else []
-    if event == "os.mkdir":
-        return [args[0]]
+        return [(args[0], None)] if _opens_judgeably_for_writing(args) else []
+    if event in ("os.mkdir", "os.remove", "os.rmdir"):
+        return [(args[0], args[2] if event == "os.mkdir" else args[1])]
     if event in ("os.rename", "os.link"):
-        return [args[1]]
+        return [(args[0], args[2]), (args[1], args[3])]
     if event == "os.symlink":
-        return [args[1]]
+        return [(args[1], args[2])]
     return []
 
 
 class WriteGuard:
-    """Refuse writes into forbidden roots, except for known tool artifacts.
+    """Refuse writes and deletions in forbidden roots, except tool artifacts.
 
     `allowed_roots` win over `forbidden_roots`: on Windows the temp directory
-    lives inside the real home.
+    lives inside the real home. A move is judged by both its ends, so taking a
+    repository file out to temp is refused as well as putting one in.
     """
 
     def __init__(
@@ -129,18 +184,31 @@ class WriteGuard:
             return
         self._checking = True
         try:
-            for raw in written_paths(event, args):
-                text = _as_text(raw)
-                offender = self.find_forbidden(text) if text else None
-                if offender is not None:
-                    self.violations.append(offender)
-                    raise PermissionError(
-                        f"The test suite may only write inside temp, but a test "
-                        f"wrote to {offender}. Use tmp_path (or monkeypatch the "
-                        f"setting that points there) instead."
-                    )
+            for path, dir_fd in written_targets(event, args):
+                self._judge(path, dir_fd)
         finally:
             self._checking = False
+
+    def _judge(self, path: object, dir_fd: object) -> None:
+        resolved = resolve_target(path, dir_fd)
+        if resolved is None:
+            self._refuse(
+                f"{path!r} is relative to a directory descriptor that cannot be "
+                f"traced to a path on this platform, so it cannot be shown to be "
+                f"inside temp",
+                str(path),
+            )
+        elif resolved:
+            offender = self.find_forbidden(resolved)
+            if offender is not None:
+                self._refuse(f"a test wrote to {offender}", offender)
+
+    def _refuse(self, reason: str, recorded: str) -> None:
+        self.violations.append(recorded)
+        raise PermissionError(
+            f"The test suite may only write inside temp, but {reason}. "
+            f"Use tmp_path (or monkeypatch the setting that points there) instead."
+        )
 
 
 def _is_artifact(relative_path: str) -> bool:

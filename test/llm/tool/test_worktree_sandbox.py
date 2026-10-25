@@ -78,10 +78,8 @@ async def test_enter_worktree_refuses_a_repo_outside_the_sandbox(
     mock_subprocess, monkeypatch, outside_root
 ):
     """`cwd` is the model's choice; naming another repo must not let it write there."""
-    with (
-        tempfile.TemporaryDirectory() as project,
-        tempfile.TemporaryDirectory(dir=outside_root) as other_repo,
-    ):
+    other_repo = str(outside_root / "other-repo")  # a path to judge, never created
+    with tempfile.TemporaryDirectory() as project:
         monkeypatch.setattr(
             "zrb.llm.tool.worktree.get_effective_sandbox_policy",
             lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
@@ -101,18 +99,18 @@ async def test_enter_worktree_refuses_a_branch_name_that_leaves_the_sandbox(
     mock_subprocess, monkeypatch, outside_root
 ):
     """`branch_name` becomes a path; climbing out with `..` must be refused."""
-    with tempfile.TemporaryDirectory(dir=outside_root) as project:
-        monkeypatch.setattr(
-            "zrb.llm.tool.worktree.get_effective_sandbox_policy",
-            lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
-        )
-        mock_subprocess.side_effect = [
-            create_mock_process(returncode=0, stdout=project.encode()),
-        ]
-        res = await enter_worktree(branch_name="../../../escape", cwd=project)
+    project = str(outside_root / "project")  # a path to judge, never created
+    monkeypatch.setattr(
+        "zrb.llm.tool.worktree.get_effective_sandbox_policy",
+        lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
+    )
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=project.encode()),
+    ]
+    res = await enter_worktree(branch_name="../../../escape", cwd=project)
 
-        assert "Blocked by sandbox policy" in res
-        assert mock_subprocess.call_count == 1  # no `git worktree add`
+    assert "Blocked by sandbox policy" in res
+    assert mock_subprocess.call_count == 1  # no `git worktree add`
 
 
 @pytest.mark.asyncio

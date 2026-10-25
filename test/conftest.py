@@ -13,6 +13,7 @@ import os
 import shutil
 import tempfile
 from collections.abc import MutableMapping
+from pathlib import Path
 
 import pytest
 import write_guard
@@ -140,20 +141,25 @@ def _no_forbidden_writes():
 
 
 @pytest.fixture
-def outside_root(tmp_path, monkeypatch):
-    """A directory outside every root the sandbox keeps writable.
+def outside_root():
+    """A path outside every root the sandbox keeps writable; it is not created.
 
-    The sandbox keeps the temp directory writable by design, and the suite's
-    home and every `tmp_path` live in it, so an "outside" path has to be
-    carved out of temp: the temp directory is narrowed to a sibling of the
-    returned one, for the duration of the test.
+    The sandbox keeps both `tempfile.gettempdir()` and, on POSIX, `/tmp`
+    writable, and every `tmp_path` lives in one of them (`/tmp/pytest-of-...` on
+    Linux, `/var/folders/...` on macOS), so no path under temp can be "outside".
+    The developer's real home is outside both on every platform, and the tests
+    using this only *evaluate* the path: the write guard still refuses any
+    accidental write there.
     """
-    narrowed = tmp_path / "sandbox-tmp"
-    narrowed.mkdir()
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    monkeypatch.setattr(tempfile, "tempdir", str(narrowed))
-    return outside
+    real_home = os.environ[_REAL_HOME_VAR]
+    outside = os.path.join(real_home, "zrb-test-outside")
+    roots = [tempfile.gettempdir()] + (["/tmp"] if os.name == "posix" else [])
+    for root in roots:
+        if os.path.commonpath(
+            [os.path.realpath(outside), os.path.realpath(root)]
+        ) == os.path.realpath(root):
+            pytest.skip(f"the home {real_home} lies inside the temp root {root}")
+    return Path(outside)
 
 
 @pytest.fixture(autouse=True)
