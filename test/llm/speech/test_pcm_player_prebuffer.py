@@ -4,12 +4,14 @@ buys — a stall in the engine that is absorbed instead of heard."""
 
 import time
 import types
+from dataclasses import fields
 from unittest.mock import patch
 
 import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.speech.backend.audio import SpeechAudio
+from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.pcm_player import PcmUtterance, prebuffer_wait_seconds
 
 from .test_pcm_player import (
@@ -156,6 +158,14 @@ def test_a_zero_cushion_still_waits_for_the_first_audio(sd):
     [stream] = FakeOutputStream.instances
     assert stream.started_at - started >= 0.15  # waited for the first chunk
     assert _played(stream)[:1600].tolist() == [5] * 1600  # not silence
+
+
+def test_the_newest_speech_setting_is_the_last_field():
+    """A dataclass is positional too: a field added in the middle rebinds every
+    field after it for a caller that passes them that way."""
+    assert [field.name for field in fields(SpeechConfig)][-1] == (
+        "player_prebuffer_seconds"
+    )
 
 
 def test_the_cushion_is_added_last_so_a_positional_caller_still_fits(sd):
