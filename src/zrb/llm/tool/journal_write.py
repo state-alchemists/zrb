@@ -106,7 +106,7 @@ def log_activity(
         result = _log_activity_locked(root, summary, files)
         # The entry carries its own timestamp from inside the helper; this
         # label is the same minute except across a minute rollover.
-        _git_commit(root, f"activity: {datetime.now():%Y-%m-%d %H:%M}")
+        _commit_or_defer(root, f"activity: {datetime.now():%Y-%m-%d %H:%M}")
         return result
 
 
@@ -276,7 +276,7 @@ def write_journal_note(
             section,
             applies_when,
         )
-        _git_commit(root, f"write: {category}/{slug}")
+        _commit_or_defer(root, f"write: {category}/{slug}")
         if not (applies_when or "").strip():
             result += (
                 " No applies_when given: a note that cannot say when it stops "
@@ -318,7 +318,7 @@ def supersede_journal_note(
     """
     with _open_journal() as root:
         result = _supersede_note_locked(root, category, slug, reason)
-        _git_commit(root, f"supersede: {category}/{slug}")
+        _commit_or_defer(root, f"supersede: {category}/{slug}")
         return result
 
 
@@ -431,7 +431,7 @@ def delete_journal_note(
     """
     with _open_journal() as root:
         result = _delete_note_locked(root, category, slug)
-        _git_commit(root, f"delete: {category}/{slug}")
+        _commit_or_defer(root, f"delete: {category}/{slug}")
         return result
 
 
@@ -548,6 +548,10 @@ def journal_transaction(
     """
     with _open_journal() as root:
         transaction = JournalTransaction(root)
+        depth = getattr(_lock_state, "in_transaction", 0)
+        _lock_state.in_transaction = depth + 1
+        if depth == 0:
+            _lock_state.deferred_changes = 0
         _begin_snapshot()
         try:
             yield transaction
@@ -555,9 +559,19 @@ def journal_transaction(
             _restore_snapshots(_take_snapshot())
             raise
         finally:
+            _lock_state.in_transaction = depth
             _take_snapshot()
-        if transaction.change_count:
-            _git_commit(root, message or f"batch: {transaction.change_count} change(s)")
+        # A tool called inside the body counted its change here instead of
+        # committing it; the whole body still makes one commit, at the end.
+        changes = transaction.change_count + getattr(_lock_state, "deferred_changes", 0)
+        if depth == 0:
+            _lock_state.deferred_changes = 0
+        else:
+            # An inner transaction hands its changes to the outer one, which
+            # owns the commit for the whole nest.
+            _lock_state.deferred_changes = changes
+        if changes and depth == 0:
+            _git_commit(root, message or f"batch: {changes} change(s)")
 
 
 class JournalTransaction:
@@ -714,8 +728,25 @@ def _scrub_links_to(root: str, target_path: str) -> None:
 
 # Whether this thread holds the journal lock, so a journal tool called from
 # inside another journal write re-enters instead of waiting out the timeout
-# against its own lock.
+# against its own lock. `in_transaction` counts the `journal_transaction`
+# bodies this thread is inside, and `deferred_changes` counts the changes a
+# tool made there and left for the transaction's single commit.
 _lock_state = threading.local()
+
+
+def _commit_or_defer(root: str, message: str) -> None:
+    """Commit now, or hand the change to the open transaction.
+
+    `journal_transaction` promises one commit and none at all when its body
+    raises. A tool called inside that body used to commit straight away, which
+    broke both halves: the rollback restored the files but the commit stayed in
+    history, and the transaction then committed again at exit. The change is
+    counted here instead, and rides on the outermost commit.
+    """
+    if getattr(_lock_state, "in_transaction", 0):
+        _lock_state.deferred_changes = getattr(_lock_state, "deferred_changes", 0) + 1
+        return
+    _git_commit(root, message)
 
 
 @contextmanager

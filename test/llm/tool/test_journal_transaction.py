@@ -296,3 +296,40 @@ def test_a_write_waits_for_a_held_lock_instead_of_failing(git_journal):
     holder.join(5)
 
     assert os.path.isfile(os.path.join(git_journal, "user", "goes-by-go.md"))
+
+
+def test_a_tool_call_inside_a_transaction_rides_the_single_commit(git_journal):
+    """The transaction owns the commit, so a tool called inside its body must
+    not make one.
+
+    It used to commit immediately, and the transaction committed again at exit:
+    two commits where the seam promises one.
+    """
+    _write_baseline_note()
+    before = _subjects(git_journal)
+
+    with journal_transaction("batch"):
+        write_journal_note("technical", "one", "One", "c", "f", "s")
+        write_journal_note("technical", "two", "Two", "c", "f", "s")
+
+    after = _subjects(git_journal)
+    assert after[: len(after) - len(before)] == ["batch"]
+    assert os.path.isfile(os.path.join(git_journal, "technical", "one.md"))
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
+
+
+def test_a_raising_body_leaves_no_commit_behind_for_a_tool_it_called(git_journal):
+    """A failed transaction makes no commit — including for the tools its body
+    called, whose own commits used to survive the rollback that restored the
+    files, leaving a write in history and the inverse of it in the tree."""
+    _write_baseline_note()
+    before = _head(git_journal)
+
+    with pytest.raises(RuntimeError):
+        with journal_transaction("batch"):
+            write_journal_note("technical", "ghost", "Ghost", "c", "f", "s")
+            raise RuntimeError("abort")
+
+    assert _head(git_journal) == before
+    assert not _note_exists(git_journal, "ghost")
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
