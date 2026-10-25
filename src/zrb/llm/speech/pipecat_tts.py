@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, TypeVar
 from zrb.config.config import CFG
 from zrb.llm.speech.backend.any_speech_backend import SpeechServiceStopped
 from zrb.llm.speech.backend.audio import SpeechAudio
+from zrb.llm.util.priority import raise_priority
 from zrb.llm.util.teardown import cancel_and_wait, close_quietly
 
 if TYPE_CHECKING:
@@ -442,6 +443,7 @@ def _stop_loop(loop: asyncio.AbstractEventLoop, thread: threading.Thread) -> Non
 
 def _run_loop(loop: asyncio.AbstractEventLoop) -> None:
     """Run *loop* on this thread until stopped."""
+    raise_priority()
     asyncio.set_event_loop(loop)
     try:
         loop.run_forever()

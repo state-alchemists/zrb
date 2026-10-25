@@ -27,7 +27,7 @@ from zrb.llm.util.audio_devices import (
     read_system_default_output,
 )
 from zrb.llm.util.portaudio_exit import guard_portaudio_exit
-
+from zrb.llm.util.priority import raise_priority
 # How long playback waits for the source reader to see it has ended.
 _READER_JOIN_SECONDS = 1.0
 # How long a reader or prebuffer may wait before re-checking what it waits
@@ -646,6 +646,7 @@ class PcmUtterance(Utterance):
         self._audio.close()
 
     def _read_source(self) -> None:
+        raise_priority()
         try:
             for chunk in self._audio.chunks:
                 # Read ahead a little, not the whole download into memory.

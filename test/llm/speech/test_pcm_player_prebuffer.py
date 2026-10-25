@@ -29,8 +29,9 @@ np = pytest.importorskip("numpy")
 # One block of the player's default size, and how long it plays for.
 BLOCK = 1024
 BLOCK_SECONDS = BLOCK / RATE
-# A stall long enough to be heard, and clear of the sleeps' own jitter.
-STALL_SECONDS = 0.4
+# Long enough to be heard, and short enough of the cushion under test (0.5)
+# that absorbing it is not a tie.
+STALL_SECONDS = 0.3
 
 
 class TimedStream(FakeOutputStream):
@@ -50,7 +51,7 @@ class RealtimeStream(FakeOutputStream):
             out = np.zeros((self.blocksize, 1), np.int16)
             self.callback(out, self.blocksize, None, None)
             self.played.append(out.copy())
-            time.sleep(BLOCK_SECONDS)
+            time.sleep(self.blocksize / RATE)
         self.finished()
 
 
@@ -66,17 +67,18 @@ def _pausing_source(pause=STALL_SECONDS):
 
 
 def _stalling_source(stall=STALL_SECONDS):
-    """Audio produced just faster than it plays, with one stall in the middle.
+    """Audio produced at roughly 1.7× realtime, with one stall mid-sentence.
 
-    Faster than playback on purpose: the stall is then the only reason the
-    device could go unfed, which is what the cushion is for.
+    The margin over realtime survives a loaded runner's sleep overshoot; the
+    stall sits late enough to land inside the playing sentence, once both the
+    thin and the deep cushion below have let playback start.
     """
 
     def chunks():
-        for index in range(15):
-            if index == 3:
+        for index in range(20):
+            if index == 13:
                 time.sleep(stall)
-            time.sleep(BLOCK_SECONDS * 0.85)
+            time.sleep(BLOCK_SECONDS * 0.6)
             yield _pcm([5] * BLOCK)
 
     return chunks()
@@ -218,15 +220,18 @@ def test_a_longer_cushion_absorbs_a_stall_in_the_audio(sd):
     sd.OutputStream = RealtimeStream
 
     def underruns_with(prebuffer_seconds):
+        # Read-ahead 2 keeps the buffer at the cushion's depth, so a deep
+        # cushion is not credited for a buffer that filled past it.
         utterance = PcmUtterance(
             SpeechAudio(RATE, _stalling_source()),
+            read_ahead=2,
             prebuffer_seconds=prebuffer_seconds,
         )
         utterance.play(timeout=15)
         return utterance.underruns
 
-    thin = underruns_with(0.1)
-    deep = underruns_with(0.4)
+    thin = underruns_with(0.1)  # the hardcoded tenth the cushion replaced
+    deep = underruns_with(0.5)  # the default the cushion now asks for
 
     assert thin >= 1  # the stall was heard on the old cushion
     assert deep == 0  # and absorbed on the new one

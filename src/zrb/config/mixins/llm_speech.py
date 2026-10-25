@@ -85,9 +85,9 @@ class LLMSpeechMixin:
         )
         self.DEFAULT_LLM_SPEECH_RENDER_TIMEOUT: str = "60"
         self.DEFAULT_LLM_SPEECH_STALL_TIMEOUT: str = "30"
-        self.DEFAULT_LLM_SPEECH_PLAYER_BLOCK_FRAMES: str = "1024"
-        self.DEFAULT_LLM_SPEECH_PLAYER_PREBUFFER_SECONDS: str = "0.4"
-        self.DEFAULT_LLM_SPEECH_PLAYER_READ_AHEAD: str = "32"
+        self.DEFAULT_LLM_SPEECH_PLAYER_BLOCK_FRAMES: str = "2048"
+        self.DEFAULT_LLM_SPEECH_PLAYER_PREBUFFER_SECONDS: str = "0.5"
+        self.DEFAULT_LLM_SPEECH_PLAYER_READ_AHEAD: str = "64"
         self.DEFAULT_LLM_SPEECH_PROGRESS_PHRASES: str = (
             '{"Read": "Reading a file.", "AnalyzeFile": "Reading a file.", "LS": "Looking through the files.", "Glob": "Looking through the files.", "Grep": "Searching the code.", "AnalyzeCode": "Reading the code.", "Write": "Writing a file.", "Edit": "Editing a file.", "MV": "Moving a file.", "RM": "Removing a file.", "Shell": "Running a command.", "Bash": "Running a command.", "WebSearch": "Searching the web.", "WebFetch": "Reading a web page.", "DelegateToAgent": "Handing this to a sub-agent.", "DelegateToAgentBackground": "Handing this to a sub-agent.", "Lsp*": "Checking the code.", "": "Working on it.", "*": "Using the {tool} tool."}'
         )
@@ -370,32 +370,32 @@ class LLMSpeechMixin:
 
     LLM_SPEECH_PLAYER_BLOCK_FRAMES = EnvField(
         int,
-        fallback=1024,
+        fallback=2048,
         doc=(
             "Samples per block when the CLI plays speech itself; smaller pauses "
             "and stops sooner, larger is kinder to a slow machine. Default: "
-            "1024."
+            "2048."
         ),
     )
 
     LLM_SPEECH_PLAYER_PREBUFFER_SECONDS = EnvField(
         float,
-        fallback=0.4,
+        fallback=0.5,
         doc=(
             "Seconds of speech to have standing by before the CLI starts "
             "playing a sentence, so a slow render is absorbed instead of "
             "heard; larger survives a slower machine and delays each "
             "sentence's first word by as much. 0 starts on whatever has "
-            "arrived. Default: 0.4."
+            "arrived. Default: 0.5."
         ),
     )
 
     LLM_SPEECH_PLAYER_READ_AHEAD = EnvField(
         int,
-        fallback=32,
+        fallback=64,
         doc=(
             "Chunks of downloaded or rendered speech read ahead of "
-            "playback. Default: 32."
+            "playback. Default: 64."
         ),
     )
 
