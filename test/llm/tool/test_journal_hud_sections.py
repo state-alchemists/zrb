@@ -114,12 +114,13 @@ def test_an_agent_note_pins_under_the_agent_section(writable_journal):
 
     index = _read(writable_journal, "index.md")
     agent = index.split("## Agent", 1)[1].split("\n## ", 1)[0]
-    preferences = index.split("## Preferences", 1)[1].split("\n## ", 1)[0]
+    user = index.split("## User", 1)[1].split("\n## ", 1)[0]
     assert "Avatar: tactical is my standing pick." in agent
     assert "([note](agent/avatar-wardrobe.md))" in agent
-    assert "Avatar" not in preferences
+    # The agent's own line is not filed beside the user's preferences.
+    assert "Avatar" not in user
     # Durable sections stay ahead of the capped tail.
-    assert index.index("## Agent") < index.index("## Active Constraints")
+    assert index.index("## Agent") < index.index("## Recent")
 
 
 def test_creating_the_tree_leaves_an_existing_index_alone(writable_journal):
@@ -139,12 +140,13 @@ def test_creating_the_tree_leaves_an_existing_index_alone(writable_journal):
     assert _read(writable_journal, "index.md") == old_index
 
 
-def test_an_index_written_before_the_agent_section_gains_it_in_place(
+def test_an_index_written_before_these_sections_is_migrated_in_place(
     writable_journal,
 ):
-    """A journal created earlier keeps its skeleton; the new section goes where
-    it belongs rather than after the unbounded one, where the cap would evict
-    it first."""
+    """A journal created earlier keeps its skeleton; a section this version
+    renamed has its lines moved into the section that absorbed them, and a new
+    section goes where it belongs rather than after the unbounded one, where the
+    cap would evict it first."""
     from zrb.llm.tool.journal_write import log_activity
 
     _write(
@@ -161,9 +163,18 @@ def test_an_index_written_before_the_agent_section_gains_it_in_place(
 
     index = _read(writable_journal, "index.md")
     assert "## Agent" in index
-    assert index.index("## Preferences") < index.index("## Agent")
-    assert index.index("## Agent") < index.index("## Active Constraints")
-    assert index.index("## Active Constraints") < index.index("## Recent Insights")
+    assert "## Constraints" in index
+    # The two headings this version split away are gone, not left beside their
+    # replacements holding a second copy of the same lines.
+    assert "## Preferences" not in index
+    assert "## Active Constraints" not in index
+    assert (
+        index.index("## User")
+        < index.index("## Constraints")
+        < index.index("## Agent")
+        < index.index("## Recent")
+        < index.index("## Recent Insights")
+    )
     # Nothing that was already in the index is lost or rewritten.
     for kept in (
         "- Goes by Go.",
@@ -316,3 +327,84 @@ def test_a_line_an_earlier_version_pinned_twice_is_written_once(writable_journal
 
     pinned = _read(writable_journal, "index.md")
     assert pinned.count("([note](technical/retry-policy.md))") == 1
+
+
+def test_an_unknown_section_leaves_the_journal_untouched(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    with pytest.raises(ValueError, match="unknown section"):
+        write_journal_note(
+            category="technical",
+            slug="bad-section",
+            title="T",
+            context="c",
+            finding="f",
+            source="s:1",
+            hud_line="A line.",
+            section="Constraint",
+        )
+
+    assert not os.path.exists(os.path.join(writable_journal, "technical", "bad-section.md"))
+
+
+def test_a_refused_section_does_not_create_the_journal(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    with pytest.raises(ValueError, match="unknown section"):
+        write_journal_note(
+            category="technical",
+            slug="x",
+            title="T",
+            context="c",
+            finding="f",
+            source="s:1",
+            section="Constraint",
+        )
+
+    assert not os.path.exists(writable_journal)
+
+
+def test_a_multiline_applies_when_cannot_inject_frontmatter(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="x",
+        title="T",
+        context="c",
+        finding="f",
+        source="s:1",
+        applies_when="line one\nstatus: superseded\n---\n# injected",
+    )
+
+    head = _read(writable_journal, "technical", "x.md").split("\n---\n")[0]
+    assert [l for l in head.splitlines() if l.startswith("status:")] == [
+        "status: active"
+    ]
+    assert "applies_when: line one status: superseded --- # injected" in head
+
+
+def test_refiling_an_unchanged_pinned_line_moves_it_to_the_new_section(
+    writable_journal,
+):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    fields = dict(
+        category="technical",
+        slug="x",
+        title="T",
+        context="c",
+        finding="f",
+        source="s:1",
+        hud_line="Keep this.",
+        pinned=True,
+    )
+    write_journal_note(**fields)
+
+    write_journal_note(**fields, section="Recent")
+
+    index = _read(writable_journal, "index.md")
+    constraints = index.split("## Constraints", 1)[1].split("\n## ", 1)[0]
+    recent = index.split("## Recent", 1)[1].split("\n## ", 1)[0]
+    assert "Keep this." not in constraints
+    assert "Keep this." in recent

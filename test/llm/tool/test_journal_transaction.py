@@ -8,11 +8,19 @@ hands out the lock-free halves of the tools, and commits once at the end.
 
 import os
 import subprocess
+import threading
+import time
 from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.tool.journal_write import journal_transaction, write_journal_note
+from zrb.llm.tool import journal_write
+from zrb.llm.tool.journal_write import (
+    ensure_journal_tree,
+    journal_transaction,
+    write_journal_note,
+)
+from zrb.util.file_lock import hold_file_lock
 
 
 @pytest.fixture
@@ -254,3 +262,117 @@ def test_a_raising_transaction_leaves_a_first_time_journal_whole(git_journal):
     assert os.path.isfile(os.path.join(git_journal, "technical", "index.md"))
     assert _git(git_journal, "status", "--porcelain").strip() == ""
     assert not _note_exists(git_journal, "x")
+
+
+def test_a_tool_called_inside_a_transaction_re_enters_the_lock(git_journal):
+    """The lock is the thread's, so a journal tool called from inside a journal
+    write re-enters it instead of waiting out the timeout against its own lock.
+
+    Before this, the nested call failed after the whole lock timeout with
+    "journal is busy" — a message about another writer, when the writer was the
+    caller itself.
+    """
+    with journal_transaction("batch") as _transaction:
+        write_journal_note("user", "goes-by-go", "T", "c", "f", "s")
+
+    assert os.path.isfile(os.path.join(git_journal, "user", "goes-by-go.md"))
+
+
+def test_a_write_waits_for_a_held_lock_instead_of_failing(git_journal):
+    """A lock held for a moment costs a wait, not a failure."""
+    journal_write.CFG.LLM_JOURNAL_LOCK_TIMEOUT = 5
+    ensure_journal_tree()
+    taken = threading.Event()
+
+    def hold() -> None:
+        with hold_file_lock(os.path.join(git_journal, ".lock"), timeout=5):
+            taken.set()
+            time.sleep(0.3)
+
+    holder = threading.Thread(target=hold, daemon=True)
+    holder.start()
+    assert taken.wait(5), "the other writer never took the lock"
+    write_journal_note("user", "goes-by-go", "T", "c", "f", "s")
+    holder.join(5)
+
+    assert os.path.isfile(os.path.join(git_journal, "user", "goes-by-go.md"))
+
+
+def test_a_tool_call_inside_a_transaction_rides_the_single_commit(git_journal):
+    """The transaction owns the commit, so a tool called inside its body must
+    not make one.
+
+    It used to commit immediately, and the transaction committed again at exit:
+    two commits where the seam promises one.
+    """
+    _write_baseline_note()
+    before = _subjects(git_journal)
+
+    with journal_transaction("batch"):
+        write_journal_note("technical", "one", "One", "c", "f", "s")
+        write_journal_note("technical", "two", "Two", "c", "f", "s")
+
+    after = _subjects(git_journal)
+    assert after[: len(after) - len(before)] == ["batch"]
+    assert os.path.isfile(os.path.join(git_journal, "technical", "one.md"))
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
+
+
+def test_a_raising_body_leaves_no_commit_behind_for_a_tool_it_called(git_journal):
+    """A failed transaction makes no commit — including for the tools its body
+    called, whose own commits used to survive the rollback that restored the
+    files, leaving a write in history and the inverse of it in the tree."""
+    _write_baseline_note()
+    before = _head(git_journal)
+
+    with pytest.raises(RuntimeError):
+        with journal_transaction("batch"):
+            write_journal_note("technical", "ghost", "Ghost", "c", "f", "s")
+            raise RuntimeError("abort")
+
+    assert _head(git_journal) == before
+    assert not _note_exists(git_journal, "ghost")
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
+
+
+def test_a_nested_transaction_is_refused_rather_than_lying_about_rollback(
+    git_journal,
+):
+    """The snapshot is one per thread, so entering a nested block would discard
+    the outer one's and the outer body could no longer put back what it changed.
+
+    Refusing names the better move — use the transaction you were given — where
+    a stack of snapshots would have to answer a question with no good answer:
+    whether a failed inner block should also undo an outer write to the same
+    file.
+    """
+    _write_baseline_note()
+    before = _head(git_journal)
+
+    with pytest.raises(ValueError, match="already open on this thread"):
+        with journal_transaction("outer") as transaction:
+            transaction.write_note("technical", "before", "Before", "c", "f", "s")
+            with journal_transaction("inner"):
+                pass
+
+    assert not _note_exists(git_journal, "before")
+    assert _head(git_journal) == before
+    assert _git(git_journal, "status", "--porcelain").strip() == ""
+
+
+def test_transaction_write_note_forwards_applies_when(git_journal):
+    with journal_transaction() as transaction:
+        transaction.write_note(
+            "technical",
+            "x",
+            "Title",
+            "ctx",
+            "found",
+            "s:1",
+            applies_when="while version 3.26 is deployed",
+            section="Constraints",
+        )
+
+    path = os.path.join(git_journal, "technical", "x.md")
+    with open(path, "r", encoding="utf-8") as f:
+        assert "while version 3.26 is deployed" in f.read()

@@ -234,15 +234,17 @@ def test_zero_hit_suggests_similar_note_titles(tmp_path):
     journal_dir = tmp_path / "journal"
     (journal_dir / "technical").mkdir(parents=True)
     (journal_dir / "technical" / "retry-policy.md").write_text(
-        "# Retry policy is not concurrency-safe\n\nsome body\n", encoding="utf-8"
+        "# Concurrency is not safe here\n\nsome body\n", encoding="utf-8"
     )
     with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = str(journal_dir)
         with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("Retry policy is not concurrency safe")
+            # The words are in the file's name, not in its text, which is what
+            # makes this a zero hit a suggestion can still answer.
+            result = search_journal("retry policy")
     assert result["results"] == []
     assert "did_you_mean" in result
-    assert any("Retry policy" in s for s in result["did_you_mean"])
+    assert any("Concurrency" in s for s in result["did_you_mean"])
 
 
 def test_zero_hit_with_no_close_titles_omits_did_you_mean(journal_with_entries):
@@ -282,17 +284,19 @@ def test_zero_hit_survives_a_note_that_is_not_utf8(tmp_path):
     search that found nothing crashed instead of saying so."""
     journal_dir = tmp_path / "journal"
     (journal_dir / "technical").mkdir(parents=True)
-    (journal_dir / "technical" / "latin-1-note.md").write_bytes(b"# Caf\xe9 policy\n")
+    (journal_dir / "technical" / "latin-1-note.md").write_bytes(b"# Caf\xe9 notes\n")
     (journal_dir / "technical" / "retry-policy.md").write_text(
-        "# Retry policy is not concurrency-safe\n\nbody\n", encoding="utf-8"
+        "# Concurrency is not safe here\n\nbody\n", encoding="utf-8"
     )
     with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = str(journal_dir)
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
         with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("Retry policy is not concurrency safe")
+            # The words are in the two file names, so both notes are read to
+            # build the suggestions — one of them byte by byte.
+            result = search_journal("retry policy")
     assert result["results"] == []
-    assert any("Retry policy" in title for title in result.get("did_you_mean", []))
+    assert any("Concurrency" in title for title in result.get("did_you_mean", []))
 
 
 def test_zero_hit_does_not_offer_a_category_index_as_a_title(tmp_path):
@@ -307,7 +311,52 @@ def test_zero_hit_does_not_offer_a_category_index_as_a_title(tmp_path):
     with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_DIR = str(journal_dir)
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "notes-index.md"
+        from zrb.llm.tool.journal import _suggest_similar
+
+        suggestions = _suggest_similar("Technical notes", str(journal_dir))
+    assert "Technical" not in suggestions
+
+
+def test_requiring_every_word_would_miss_the_note_a_question_asks_for(tmp_path):
+    """A question is prose, and the note that answers it does not repeat its
+    words — so the search reads several plain words as any-of and lets the
+    ranking supply the precision.
+
+    Requiring every word was measured on eight questions about notes that
+    exist: it found 2 of 8, against 8 of 8 for any-of. This pins the difference
+    so the AND gate is not quietly reintroduced as a fix.
+    """
+    journal_dir = tmp_path / "journal"
+    (journal_dir / "technical").mkdir(parents=True)
+    (journal_dir / "technical" / "both.md").write_text(
+        "# Speech goes silent under load\n\nspeech load\n", encoding="utf-8"
+    )
+    (journal_dir / "technical" / "one.md").write_text(
+        "# Speech notes\n\nspeech\n", encoding="utf-8"
+    )
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = str(journal_dir)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
         with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
-            result = search_journal("Technical notes")
-    assert result["results"] == []
-    assert "Technical" not in result.get("did_you_mean", [])
+            result = search_journal("why does speech go silent under load")
+
+    files = []
+    for row in result["results"]:
+        if row["file"] not in files:
+            files.append(row["file"])
+    # The partial match is still returned; the fuller one leads.
+    assert files == ["technical/both.md", "technical/one.md"]
+
+
+def test_case_sensitive_ranking_ignores_a_title_that_only_matches_in_lowercase(
+    journal_dir,
+):
+    with open(os.path.join(journal_dir, "a.md"), "w") as f:
+        f.write("# speech load\n\nSpeech\n")
+    with open(os.path.join(journal_dir, "b.md"), "w") as f:
+        f.write("# Unrelated\n\nSpeech and Load\n")
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = journal_dir
+        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
+            result = search_journal("Speech Load", case_sensitive=True)
+    assert result["results"][0]["file"] == "b.md"

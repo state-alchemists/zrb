@@ -22,7 +22,11 @@ SRC = REPO_ROOT / "src" / "zrb"
 # -2 (1058->1056): `_drop_summary_parts` became `_drop_synthetic_parts`, typed
 # over `ModelMessage` in and out, and the two synthetic-part predicates take
 # `object` (they only ask the part what it is).
-ANY_ANNOTATIONS = 1056
+# -1 (1056->1055): `_search_with_python` became `_python_matches` and returns
+# `list[tuple[str, int, str]]` — the rows it matched — now that the ranking and
+# the result dict live in `_format_results`, instead of building `dict[str, Any]`
+# itself.
+ANY_ANNOTATIONS = 1055
 
 
 def _count_any(annotation: ast.expr | None) -> int:

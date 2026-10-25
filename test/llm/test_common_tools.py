@@ -62,7 +62,12 @@ def _names(monkeypatch, journal_enabled: bool) -> set[str]:
     return host.resolved_tool_names()
 
 
-JOURNAL_TOOLS = {"SearchJournal", "LogActivity", "WriteJournalNote"}
+JOURNAL_TOOLS = {
+    "SearchJournal",
+    "LogActivity",
+    "WriteJournalNote",
+    "SupersedeJournalNote",
+}
 
 
 def test_apply_stores_providers_without_resolving_anything(monkeypatch):
@@ -220,3 +225,10 @@ def test_every_registered_tool_parameter_carries_a_description(monkeypatch):
             if not spec.get("description")
         )
     assert not gaps, f"Tool parameters with no schema description: {gaps}"
+
+
+def test_the_retirement_tool_is_reachable_by_the_model(monkeypatch):
+    """`SupersedeJournalNote` was documented in the journal prompt and in three
+    tool descriptions but never registered, so the model was told how to retire
+    a stale note and given no way to do it."""
+    assert "SupersedeJournalNote" in _names(monkeypatch, True)
