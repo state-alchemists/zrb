@@ -1009,7 +1009,11 @@ def _upsert_hud_line(
     lines = current.splitlines()
     if heading in lines:
         start, end = _section_bounds(lines, heading)
-        kept = [ln for ln in lines[start:end] if not _is_own_hud_line(ln, own, text)]
+        body = lines[start:end]
+        if _is_echoed_line(text, [ln for ln in body if ln.strip()]):
+            text = _hud_text_without_links(text)
+            entry = f"{_with_pin_marker(f'- {text}', pinned)}{own}"
+        kept = [ln for ln in body if not _is_own_hud_line(ln, own, text)]
         current = "\n".join([*lines[:start], *kept, *lines[end:]]) + "\n"
     current = _append_under_heading(current, heading, entry)
     current, evicted = _cap_section_entries(
@@ -1038,6 +1042,38 @@ def _with_pin_marker(base: str, pinned: bool) -> str:
 
 
 _HUD_NOTE_LINK_RE = re.compile(r"\(\[note\]\([^)]*\)\)\s*$")
+
+
+def _hud_text_without_links(line: str) -> str:
+    """*line*'s prose with the bullet, a pin marker and any note links removed."""
+    text = line.strip().removeprefix("- ").strip()
+    text = text.removeprefix(_PIN_MARKER).strip()
+    while True:
+        match = _HUD_NOTE_LINK_RE.search(text)
+        if not match:
+            return text.rstrip()
+        text = text[: match.start()].rstrip()
+
+
+def _is_echoed_line(text: str, existing: list[str]) -> bool:
+    """Whether *text* is a line read back from this section, its link included.
+
+    A caller may hand back the line it read in the index; that trailing
+    `([note](…))` is the index's, not content, and copying it onto the new line
+    would point the new note at the old one. A line the caller wrote itself may
+    legitimately end in a link to another note ("See also …"), so the index
+    decides: only text that reproduces an existing line's prose *and* its link
+    is an echo.
+    """
+    match = _HUD_NOTE_LINK_RE.search(text)
+    if not match:
+        return False
+    link = match.group(0).strip()
+    prose = text[: match.start()].rstrip()
+    return any(
+        line.rstrip().endswith(link) and _hud_text_without_links(line) == prose
+        for line in existing
+    )
 
 
 def _is_own_hud_line(line: str, own: str, text: str) -> bool:

@@ -214,20 +214,19 @@ def test_a_hud_line_echoing_another_notes_link_does_not_steal_its_line(
     )
 
     section = _hud_section(writable_journal, "User")
-    # The first note keeps its own line: a line ending in its link still exists.
-    assert (
-        sum(
-            1
-            for line in section.splitlines()
-            if line.endswith("([note](user/first.md))")
-        )
-        == 1
-    )
-    assert (
-        sum(
-            1
-            for line in section.splitlines()
-            if line.endswith("([note](user/second.md))")
-        )
-        == 1
-    )
+    own_first = [
+        line
+        for line in section.splitlines()
+        if line.endswith("([note](user/first.md))")
+    ]
+    own_second = [
+        line
+        for line in section.splitlines()
+        if line.endswith("([note](user/second.md))")
+    ]
+    # Each note keeps its own line...
+    assert len(own_first) == 1
+    assert len(own_second) == 1
+    # ...and the echoed link is not copied onto the second one: it was read from
+    # the index, not written, so it stays with the note it points at.
+    assert "user/first.md" not in own_second[0]
