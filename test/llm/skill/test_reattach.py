@@ -5,6 +5,7 @@ instructions: without the body the next turn keeps the role and loses the
 procedure it came with.
 """
 
+import asyncio
 import logging
 
 import pytest
@@ -12,6 +13,8 @@ import pytest
 from zrb.llm.agent.types import ModelRequest, UserPromptPart
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.skill import reattach
+from zrb.llm.skill.activation import build_activation_block
+from zrb.llm.skill.manager import Skill, skill_manager
 from zrb.llm.skill.reattach import build_reattach_message
 
 
@@ -96,18 +99,18 @@ def test_a_quoted_opening_tag_does_not_swallow_the_next_skill():
     """Legacy text: a body quoting an opening tag must not merge the blocks
     that follow it, or the later skills are lost at compaction."""
     text = (
-        '<ACTIVATED_SKILL name="a">\n'
+        '<ACTIVATED_SKILL name="core-coding">\n'
         'write <ACTIVATED_SKILL name="example">\n'
         "</ACTIVATED_SKILL>\n"
-        '<ACTIVATED_SKILL name="b">\nBODY_B\n'
+        '<ACTIVATED_SKILL name="core-research">\nBODY_B\n'
         "</ACTIVATED_SKILL>"
     )
     dropped = _request(text)
 
     content = _content(build_reattach_message(dropped, [], llm_limiter))
 
-    assert 'name="a"' in content
-    assert 'name="b"' in content
+    assert 'name="core-coding"' in content
+    assert 'name="core-research"' in content
     assert "BODY_B" in content
 
 
@@ -131,6 +134,106 @@ def test_a_skill_kept_verbatim_is_skipped_while_the_other_is_reattached():
     content = _content(message)
     assert 'name="core-research"' in content
     assert 'name="core-coding"' not in content
+
+
+def test_a_transcript_quoting_the_markup_is_not_a_skill():
+    """Message text quotes this markup — this repo's own fixtures do it — and a
+    tool result is such text. No skill answers to a quoted name, so attaching
+    it puts a transcript's prose in the history as if it were instructions, and
+    the re-attached copy carries the tag too: it would be found again at every
+    later compaction."""
+    transcript = (
+        '<ACTIVATED_SKILL name="example">\n'
+        "During compaction, `_blocks()` sees the quoted opening as the next "
+        "block opening.\n</ACTIVATED_SKILL>"
+    )
+    dropped = _request(_block("core-coding"), transcript)
+
+    content = _content(build_reattach_message(dropped, [], llm_limiter))
+
+    assert 'name="core-coding"' in content
+    assert 'name="example"' not in content
+    assert "_blocks() sees" not in content
+
+
+def test_an_unknown_skill_name_is_logged_as_skipped(caplog):
+    """The decision has to be visible: a fabricated block in the history is
+    otherwise indistinguishable from a real one that the caps dropped."""
+    dropped = _request(_block("core-coding"), _block("example", "NOT_A_SKILL"))
+
+    with caplog.at_level(logging.DEBUG):
+        build_reattach_message(dropped, [], llm_limiter)
+
+    assert "skipped_unknown=['example']" in caplog.text
+
+
+def test_a_skill_whose_name_needs_escaping_is_still_reattached():
+    """The renderer escapes the name inside the attribute, so the lookup has to
+    compare real names: a skill called `r&d` arrives as `r&amp;d`, and a lookup
+    of the escaped form finds nothing and drops a body that was really there."""
+    skill = Skill(name="r&d", path="/tmp/rnd/SKILL.md", description="d")
+    skill_manager.add_skill(skill)
+    try:
+        blocked = build_activation_block(skill, "BODY_RND")
+        content = _content(build_reattach_message(_request(blocked), [], llm_limiter))
+    finally:
+        skill_manager.remove_skill("r&d")
+
+    assert "BODY_RND" in content
+
+
+def test_a_skill_from_a_supplied_manager_is_still_reattached(tmp_path):
+    """`create_activate_skill_tool(manager)` is public, so an activation can
+    come from a manager the global registry knows nothing about. Validating
+    only against the global one would drop a body the model really was given —
+    the review's custom-manager case."""
+    from zrb.llm.skill.manager import SkillManager
+    from zrb.llm.tool.skill import create_activate_skill_tool
+
+    manager = SkillManager(root_dir=str(tmp_path))
+    manager.add_skill(
+        Skill(
+            name="custom-skill",
+            path=str(tmp_path / "custom-skill" / "SKILL.md"),
+            description="d",
+            content="CUSTOM_BODY",
+        )
+    )
+    activate = create_activate_skill_tool(manager)
+
+    block = asyncio.run(activate("custom-skill"))
+    content = _content(build_reattach_message(_request(block), [], llm_limiter))
+
+    assert "CUSTOM_BODY" in content
+
+
+def test_a_skill_activated_by_a_slash_command_is_still_reattached(tmp_path):
+    """`get_skill_custom_command(manager)` is public too, and it builds the
+    activation block straight from its manager. Registration cannot live in one
+    factory: the other one is then the hole."""
+    from zrb.llm.custom_command.skill_command_factory import get_skill_custom_command
+    from zrb.llm.skill.manager import SkillManager
+
+    manager = SkillManager(root_dir=str(tmp_path))
+    manager.add_skill(
+        Skill(
+            name="slash-skill",
+            path=str(tmp_path / "slash-skill" / "SKILL.md"),
+            description="d",
+            content="SLASH_BODY",
+        )
+    )
+    command = next(
+        command
+        for command in get_skill_custom_command(manager)()
+        if command.command == "/slash-skill"
+    )
+
+    content = _content(
+        build_reattach_message(_request(command.get_prompt({})), [], llm_limiter)
+    )
+
+    assert "SLASH_BODY" in content
 
 
 def test_an_oversized_skill_is_truncated_to_its_own_cap(monkeypatch):
