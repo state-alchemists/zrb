@@ -8,24 +8,67 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.llm.tool.journal_write import NOTE_CATEGORIES
 from zrb.util.markdown import get_first_heading
-from zrb.util.string.suggestion import suggest_name
 from zrb.util.truncate import truncate_text
+
+# Characters that make a query a regex instead of plain words.
+_REGEX_META = frozenset("\\^$.*+?()[]{}|")
+
+# Words too common to say what a query is about, dropped before matching titles.
+_STOP_WORDS = frozenset("""
+    a an and are as at be been but by can did do does for from had has have how
+    i if in into is it its just me my not of on or our so than that the their
+    them then there these they this to too was we were what when where which
+    who why will with would you your
+    """.split())
+
+# One file is shown at most this many times: a note that says "compaction" on
+# twelve lines would otherwise be the whole result, and the note that is *about*
+# compaction would never be seen.
+_ROWS_PER_FILE = 3
+
+# How many files a result names. A word that appears in every note would
+# otherwise put every note in the answer.
+MAX_FILES = 5
+
+# The whole result, so a broad query stays readable.
+_MAX_ROWS = 60
+
+# Where a file sits in the ranking. A title match is a note *about* the query; a
+# note that merely mentions it still beats the indexes and the activity log,
+# which mention everything.
+_TITLE_MATCH = 0
+_NOTE = 1
+_INDEX = 2
+_ACTIVITY = 3
 
 
 def search_journal(
-    query: Annotated[str, Field(description="Regex pattern to search for.")],
+    query: Annotated[
+        str,
+        Field(
+            description=(
+                "What to look for. Several plain words are read as 'all of "
+                "these words' — which is how a question is asked; anything "
+                "containing regex metacharacters is a regex, as before."
+            )
+        ),
+    ],
     case_sensitive: Annotated[
         bool, Field(description="False (default): case-insensitive search.")
     ] = False,
 ) -> dict[str, Any]:
     """
-    Searches the journal for a regex pattern.
+    Searches the journal for a regex pattern or for a set of words.
 
-    Returns matching lines with file names and line numbers. A zero-hit search
-    suggests nearby note titles under `did_you_mean` — and is not proof the
-    topic was never recorded: try those titles or a synonym before concluding.
+    Returns matching lines with file names and line numbers, ordered by what
+    the file is: notes whose title matches come first, then other notes, then
+    the indexes and the activity log. A file appears at most a few times.
+    A zero-hit search suggests note titles that share a word with the query
+    under `did_you_mean` — and is not proof the topic was never recorded: try
+    those titles or a synonym before concluding.
 
     Call this before WriteJournalNote or DeleteJournalNote whenever you are
     not certain a slug is free, or that it names the note you intend to touch.
@@ -53,35 +96,118 @@ def search_journal(
             return {"error": f"Cannot create journal directory {journal_dir}: {e}"}
         return {"summary": "No matches found.", "results": []}
 
-    flags = 0 if case_sensitive else re.IGNORECASE
-    try:
-        pattern = re.compile(query, flags)
-    except re.error as e:
-        return {"error": f"Invalid regex pattern: {e}"}
-
-    if shutil.which("rg"):
-        return _search_with_rg(query, abs_dir, case_sensitive)
-    return _search_with_python(query, abs_dir, pattern)
+    words = _query_words(query)
+    if words:
+        found = _matches_any_word(words, abs_dir, case_sensitive)
+    else:
+        found = _all_matches(query, abs_dir, case_sensitive)
+    if isinstance(found, dict):
+        return found
+    if not found:
+        return _no_matches(query, abs_dir)
+    return _format_results(found, abs_dir, words or [query])
 
 
 search_journal.__name__ = "SearchJournal"
 
 
-def _search_with_rg(query: str, abs_dir: str, case_sensitive: bool) -> dict[str, Any]:
+def _query_words(query: str) -> list[str]:
+    """The words of a plain multi-word *query*, or `[]` when it is a regex.
+
+    A question is longer than any title and carries no regex syntax, so reading
+    it as one literal string matched nothing at all. Several plain words now
+    mean "all of these words", and the words that say nothing about the subject
+    — `the`, `of`, `how` — are dropped first, or requiring them would require
+    the note to be written as prose. A single word, or anything with a
+    metacharacter in it, stays a regex."""
+    if any(character in _REGEX_META for character in query):
+        return []
+    words = [word for word in re.split(r"\s+", query.strip()) if word]
+    if len(words) < 2:
+        return []
+    significant = [word for word in words if word.lower() not in _STOP_WORDS]
+    return significant if len(significant) > 1 else words
+
+
+def _matches_any_word(
+    words: list[str], abs_dir: str, case_sensitive: bool
+) -> "list[tuple[str, int, str]] | dict[str, Any]":
+    """The matching lines of every file holding any of *words*, or a failure."""
+    found: list[tuple[str, int, str]] = []
+    seen: set[tuple[str, int]] = set()
+    for word in words:
+        matches = _all_matches(word, abs_dir, case_sensitive)
+        if isinstance(matches, dict):
+            return matches
+        for match in matches:
+            key = (match[0], match[1])
+            if key in seen:
+                continue
+            seen.add(key)
+            found.append(match)
+    return found
+
+
+def _matches_every_word(
+    words: list[str], abs_dir: str, case_sensitive: bool
+) -> "list[tuple[str, int, str]] | dict[str, Any]":
+    """The matching lines of every file that holds *words*, or a failure.
+
+    One pass per word, intersected by file, because the regex engine here has
+    no look-around to ask for all of them at once."""
+    per_word: "list[dict[str, list[tuple[str, int, str]]]]" = []
+    for word in words:
+        found = _all_matches(word, abs_dir, case_sensitive)
+        if isinstance(found, dict):
+            return found
+        grouped: dict[str, list[tuple[str, int, str]]] = {}
+        for match in found:
+            grouped.setdefault(match[0], []).append(match)
+        per_word.append(grouped)
+    keep = set(per_word[0])
+    for grouped in per_word[1:]:
+        keep &= set(grouped)
+    if not keep:
+        return []
+    return [
+        match
+        for grouped in per_word
+        for path, rows in grouped.items()
+        if path in keep
+        for match in rows
+    ]
+
+
+def _all_matches(
+    query: str, abs_dir: str, case_sensitive: bool
+) -> "list[tuple[str, int, str]] | dict[str, Any]":
+    """Every line of the journal matching *query*, or a failure to report."""
+    try:
+        pattern = re.compile(query, 0 if case_sensitive else re.IGNORECASE)
+    except re.error as e:
+        # Compiled before any engine sees it: a pattern this Python cannot read
+        # is reported in this tool's words, whichever engine would have run.
+        return {"error": f"Invalid regex pattern: {e}"}
+    if shutil.which("rg"):
+        return _rg_matches(query, abs_dir, case_sensitive)
+    return _python_matches(pattern, abs_dir)
+
+
+def _rg_matches(
+    query: str, abs_dir: str, case_sensitive: bool
+) -> "list[tuple[str, int, str]] | dict[str, Any]":
     cmd = ["rg", "--json", "--no-messages"]
     if not case_sensitive:
         cmd.append("--ignore-case")
     cmd.extend(["--", query, abs_dir])
-
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
     except (subprocess.TimeoutExpired, OSError) as e:
         return {"error": f"rg failed: {e}"}
-
     if proc.returncode == 2:
+        # A regex that does not compile is the query's fault, not the journal's.
         return {"error": f"rg error: {proc.stderr.strip()}"}
-
-    return _format_results(_parse_rg_json(proc.stdout), abs_dir, query)
+    return _parse_rg_json(proc.stdout)
 
 
 def _parse_rg_json(stdout: str) -> list[tuple[str, int, str]]:
@@ -107,9 +233,7 @@ def _parse_rg_json(stdout: str) -> list[tuple[str, int, str]]:
     return matches
 
 
-def _search_with_python(
-    query: str, abs_dir: str, pattern: re.Pattern
-) -> dict[str, Any]:
+def _python_matches(pattern: re.Pattern, abs_dir: str) -> list[tuple[str, int, str]]:
     raw_lines: list[tuple[str, int, str]] = []
     for root, dirs, files in os.walk(abs_dir):
         dirs[:] = [d for d in dirs if not d.startswith(".")]
@@ -121,48 +245,120 @@ def _search_with_python(
                 with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
                     for line_num, line in enumerate(f, 1):
                         if pattern.search(line):
-                            rel = os.path.relpath(file_path, abs_dir)
-                            raw_lines.append((rel, line_num, line.rstrip()))
+                            raw_lines.append((file_path, line_num, line.rstrip()))
             except OSError:
                 pass
-    return _format_results(raw_lines, abs_dir, query)
+    return raw_lines
 
 
 def _format_results(
-    matches: list[tuple[str, int, str]], abs_dir: str, query: str
+    matches: list[tuple[str, int, str]], abs_dir: str, terms: list[str]
 ) -> dict[str, Any]:
-    results = []
+    """Group *matches* by file, rank the files, and keep a few rows of each.
+
+    A file is ranked by how many of *terms* it holds — a body hit and a title
+    hit count the same here — then by what the file is: a note whose title
+    carries the words, another note, an index, the activity log. The shortlist
+    is what makes a question answerable: a word that appears in every note
+    would otherwise put every note in the result."""
+    grouped: dict[str, list[tuple[int, str]]] = {}
     for file_path, line_num, content in matches:
-        rel = (
-            os.path.relpath(file_path, abs_dir)
-            if os.path.isabs(file_path)
-            else file_path
+        rel = _relpath(file_path, abs_dir)
+        grouped.setdefault(rel, []).append((line_num, content))
+
+    ranked = []
+    for rel, rows in grouped.items():
+        title = _note_title(rel, abs_dir)
+        title_hits = _title_hits(title, terms)
+        body = " ".join(content for _line, content in rows).lower()
+        word_hits = sum(1 for term in terms if term.lower() in body)
+        word_hits = max(word_hits, title_hits)
+        ranked.append(
+            (_file_group(rel, title_hits), -word_hits, -title_hits, rel, rows)
         )
-        truncated, _ = truncate_text(content, 500, keep="head")
-        results.append({"file": rel, "line": str(line_num), "content": truncated})
+    ranked.sort()
 
-    if not results:
-        empty: dict[str, Any] = {"summary": "No matches found.", "results": []}
-        suggestions = _suggest_similar(query, abs_dir)
-        if suggestions:
-            empty["did_you_mean"] = suggestions
-        return empty
+    results = []
+    for _group, _negated_hits, _negated_title_hits, rel, rows in ranked[:MAX_FILES]:
+        for line_num, content in sorted(rows)[:_ROWS_PER_FILE]:
+            truncated, _ = truncate_text(content, 500, keep="head")
+            results.append({"file": rel, "line": str(line_num), "content": truncated})
 
-    return {"summary": f"Found {len(results)} matches.", "results": results}
+    by_title = sum(1 for entry in ranked if entry[0] == _TITLE_MATCH)
+    summary = f"Found {len(matches)} matches in {len(grouped)} files."
+    if by_title:
+        summary += f" {by_title} of them about it by title."
+    if len(results) < min(len(matches), _MAX_ROWS):
+        summary += f" Showing {len(results)}."
+    return {"summary": summary, "results": results}
+
+
+def _relpath(file_path: str, abs_dir: str) -> str:
+    return (
+        os.path.relpath(file_path, abs_dir) if os.path.isabs(file_path) else file_path
+    ).replace(os.sep, "/")
+
+
+def _file_group(rel: str, title_hits: int) -> int:
+    """Which band of the ranking *rel* belongs to."""
+    if rel.startswith("activity-log/"):
+        return _ACTIVITY
+    if _is_index(rel):
+        return _INDEX
+    return _TITLE_MATCH if title_hits else _NOTE
+
+
+def _is_index(rel: str) -> bool:
+    name = rel.rsplit("/", 1)[-1]
+    try:
+        configured = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
+    except ValueError:
+        configured = "index.md"
+    return name in {"index.md", configured}
+
+
+def _note_title(rel: str, abs_dir: str) -> str:
+    """The `# ` title of a note, or "" for an index, the log, or no note."""
+    if _is_index(rel) or rel.startswith("activity-log/"):
+        return ""
+    try:
+        with open(os.path.join(abs_dir, rel), encoding="utf-8", errors="ignore") as f:
+            return get_first_heading(f.read()) or ""
+    except OSError:
+        return ""
+
+
+def _title_hits(title: str, terms: list[str]) -> int:
+    """How many of *terms* the title carries: it is what says "about this"."""
+    lowered = title.lower()
+    return sum(1 for term in terms if term.lower() in lowered) if lowered else 0
+
+
+def _no_matches(query: str, abs_dir: str) -> dict[str, Any]:
+    empty: dict[str, Any] = {"summary": "No matches found.", "results": []}
+    suggestions = _suggest_similar(query, abs_dir)
+    if suggestions:
+        empty["did_you_mean"] = suggestions
+    return empty
 
 
 def _suggest_similar(query: str, abs_dir: str) -> list[str]:
-    """Fuzzy-match *query* against note titles in the category directories,
-    skipping each directory's index, so a zero-hit search doesn't read as
-    "never documented"."""
-    candidates: list[str] = []
-    index_name = CFG.LLM_JOURNAL_INDEX_FILE
-    for name in NOTE_CATEGORIES:
-        category_dir = os.path.join(abs_dir, name)
+    """Note titles sharing a word with *query*, best first.
+
+    Word overlap, not whole-string similarity. A question is longer than any
+    title, so `difflib` scored a six-letter word against a ninety-character
+    title at about 0.12 against its own 0.6 bar: the one mechanism meant to
+    turn a dead end into a lead answered nothing, for every realistic query."""
+    words = _significant_words(query)
+    if not words:
+        return []
+    scored: list[tuple[int, str]] = []
+    for category in NOTE_CATEGORIES:
+        category_dir = os.path.join(abs_dir, category)
         if not os.path.isdir(category_dir):
             continue
         for filename in os.listdir(category_dir):
-            if not filename.endswith(".md") or filename == index_name:
+            if not filename.endswith(".md") or _is_index(f"{category}/{filename}"):
                 continue
             try:
                 # A note holding bytes that are not UTF-8 must not turn a
@@ -174,8 +370,19 @@ def _suggest_similar(query: str, abs_dir: str) -> list[str]:
                     errors="ignore",
                 ) as f:
                     heading = get_first_heading(f.read())
-                if heading:
-                    candidates.append(heading)
             except OSError:
                 continue
-    return suggest_name(query, candidates, limit=5)
+            if not heading:
+                continue
+            haystack = f"{heading} {filename}".lower()
+            hits = sum(1 for word in words if word in haystack)
+            if hits:
+                scored.append((-hits, heading))
+    scored.sort()
+    return [title for _negated_hits, title in scored[:5]]
+
+
+def _significant_words(query: str) -> list[str]:
+    """The words of *query* that could say what it is about."""
+    words = re.findall(r"[a-z0-9][a-z0-9_-]+", query.lower())
+    return [word for word in words if len(word) >= 3 and word not in _STOP_WORDS]
