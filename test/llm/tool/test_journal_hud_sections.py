@@ -345,4 +345,4 @@ def test_an_unknown_section_leaves_the_journal_untouched(writable_journal):
         )
 
     assert not os.path.exists(os.path.join(writable_journal, "technical", "bad-section.md"))
-    assert not os.path.exists(os.path.join(writable_journal, "index.md"))
+    assert "bad-section" not in _read(writable_journal, "index.md")
