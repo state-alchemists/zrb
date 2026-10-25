@@ -2,18 +2,26 @@
 
 from dataclasses import dataclass
 
+from zrb.util.todo.duration import format_duration
+
 
 @dataclass(frozen=True, slots=True)
 class InputProvenance:
     """Where a user turn came from, whether transcription may be unreliable,
-    and the tone it was said in when dictation heard one (*tone_score*: how
-    sure, 0-1)."""
+    the tone it was said in when dictation heard one (*tone_score*: how
+    sure, 0-1), and what the microphone heard around it: how long the
+    utterance lasted, whether any of it was said over a reply
+    (``is_over_speech``), and whether it was said over one long enough to
+    pause it (``is_barge_in``)."""
 
     channel: str
     modality: str = "text"
     transcription: bool = False
     tone: str = ""
     tone_score: float = 0.0
+    spoken_seconds: float = 0.0
+    is_barge_in: bool = False
+    is_over_speech: bool = False
 
     def render(self) -> str:
         """Render the compact live-context description for this input."""
@@ -22,7 +30,21 @@ class InputProvenance:
             label = f"{label}/{self.modality}"
         if self.tone:
             label = f"{label}, sounding {self.tone} ({self.tone_score:.2f})"
+        if self.spoken_seconds > 0:
+            label = f"{label}, {_spoken(self.spoken_seconds)} spoken"
+        if self.is_barge_in:
+            label = f"{label}, talked over the reply"
+        elif self.is_over_speech:
+            label = f"{label}, partly over the reply"
         return label
+
+
+def _spoken(seconds: float) -> str:
+    """`6.4s`, `1m14s` — a dictated utterance is seconds long, so the tenth of
+    a second stays useful until it runs past a minute."""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    return format_duration(int(seconds))
 
 
 KEYBOARD_INPUT = InputProvenance("keyboard")

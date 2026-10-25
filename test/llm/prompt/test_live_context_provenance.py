@@ -47,6 +47,47 @@ def test_live_context_says_how_a_dictated_turn_sounded():
     assert "- Input: user via microphone/dictation, sounding sad (0.82)" in rendered
 
 
+def test_live_context_says_how_a_dictated_turn_cut_in():
+    """The listener already knows how long an utterance lasted and whether it
+    talked over zrb; without this the turn reaches the model as a bare
+    transcript and the model cannot tell being interrupted from a monologue."""
+    ctx = MagicMock(spec=AnyContext)
+    token = input_provenance.set(
+        InputProvenance(
+            "microphone",
+            "dictation",
+            transcription=True,
+            spoken_seconds=6.4,
+            is_barge_in=True,
+            is_over_speech=True,
+        )
+    )
+    try:
+        rendered = render_live_context(ctx)
+    finally:
+        input_provenance.reset(token)
+
+    assert (
+        "- Input: user via microphone/dictation, 6.4s spoken, talked over the reply"
+        in rendered
+    )
+
+
+def test_live_context_separates_partly_over_the_reply_from_a_barge_in():
+    ctx = MagicMock(spec=AnyContext)
+    token = input_provenance.set(
+        InputProvenance(
+            "microphone", "dictation", transcription=True, is_over_speech=True
+        )
+    )
+    try:
+        rendered = render_live_context(ctx)
+    finally:
+        input_provenance.reset(token)
+
+    assert "- Input: user via microphone/dictation, partly over the reply" in rendered
+
+
 def test_live_context_includes_active_worktrees(tmp_path):
     current = tmp_path / "current"
     other = tmp_path / "other"

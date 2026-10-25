@@ -607,11 +607,18 @@ class DictationSession:
             # into the running turn at once instead of waiting in the queue.
             send_now=True,
         )
-        source = DICTATION_INPUT
-        if tone is not None:
-            source = dataclasses.replace(
-                source, tone=tone.emotion, tone_score=tone.score
-            )
+        source = dataclasses.replace(
+            DICTATION_INPUT,
+            tone=tone.emotion if tone is not None else "",
+            tone_score=tone.score if tone is not None else 0.0,
+            # The listener already knows both of these and the turn used to drop
+            # them here: a message said over a reply reads differently from one
+            # said into silence, and how long it took to say is the only
+            # duration a typed turn never carries.
+            spoken_seconds=max(0.0, utterance.ended_at - utterance.started_at),
+            is_barge_in=utterance.is_barge_in,
+            is_over_speech=utterance.is_over_speech,
+        )
         object.__setattr__(reply, "source", source)
         return reply
 
