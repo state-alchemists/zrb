@@ -66,48 +66,26 @@ async def analyze_code(
     path: Annotated[str, Field(description="Directory to analyze.")],
     query: Annotated[
         str,
-        Field(
-            description=(
-                'Specific question (e.g., "how is auth implemented?"), not a '
-                'vague one (e.g., "explain this code").'
-            )
-        ),
+        Field(description='A specific question ("how is auth implemented?").'),
     ],
     file_pattern: Annotated[
-        str, Field(description="Limits scope, e.g. `*.py`. Empty analyzes everything.")
+        str, Field(description="Glob to limit scope, e.g. `*.py`.")
     ] = "",
     exclude_patterns: Annotated[
         list[str] | None,
-        Field(
-            description=(
-                "Glob patterns to skip; defaults to `.git`, `node_modules`, "
-                "`__pycache__`, etc. when omitted."
-            )
-        ),
+        Field(description="Globs to skip; default .git, node_modules, etc."),
     ] = None,
     use_lsp: Annotated[
-        bool,
-        Field(
-            description=(
-                "True (default) uses LSP for more token-efficient semantic "
-                "pre-analysis on supported file types."
-            )
-        ),
+        bool, Field(description="Use LSP for token-efficient pre-analysis.")
     ] = True,
     gitignore: Annotated[
-        bool,
-        Field(
-            description=(
-                "True (default) skips files .gitignore excludes, so a run does "
-                "not read or bill for output the repository refuses to track."
-            )
-        ),
+        bool, Field(description="Skip files .gitignore excludes.")
     ] = True,
 ) -> str:
     """
-    Answers a question about a whole directory by reading it with an LLM
-    sub-agent. Slow and resource-intensive — a full pass over every matched
-    file, billed as its own model run.
+    Answers a question about a directory by reading it with an LLM sub-agent.
+    Slow and resource-intensive — a full pass over every matched file, billed
+    as its own model run.
 
     Reach for this only when the answer genuinely spans many files and you
     cannot name them: "how is auth implemented across this service?". When you
