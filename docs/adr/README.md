@@ -111,6 +111,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0126** — [zrb keeps its own model capability table, because pydantic-ai's profiles assume capability](adr-0126.md)
 - **ADR-0127** — [Usage is what pydantic-ai already reports, kept locally and read back as `/usage`](adr-0127.md)
 - **ADR-0130** — [Compaction hands over a briefing, and the tail is a handover too](adr-0130.md)
+- **ADR-0131** — [Speech's player defaults meet the measured machine, and its threads ask to be scheduled above the work that starved them](adr-0131.md)
 
 ### Prompt
 
