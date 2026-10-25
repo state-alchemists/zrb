@@ -85,6 +85,23 @@ class Skill:
         self.preload = preload or []
 
 
+_built_managers: "weakref.WeakSet[SkillManager]" = weakref.WeakSet()
+"""Every manager this process built, alive as long as someone holds it."""
+
+
+def remember_skill_manager(manager: "SkillManager") -> None:
+    """Record a manager a skill can be activated from.
+
+    A supplied `SkillManager` reaches the model through
+    `create_activate_skill_tool` or `get_skill_custom_command`, and compaction
+    asks whether a name is real before re-attaching its body: a manager it has
+    never heard of would make a body the model really was given look invented.
+    Every construction path is covered because the manager registers itself —
+    one factory at a time is how the custom-command path gets missed.
+    """
+    _built_managers.add(manager)
+
+
 class SkillManager:
     """Discover and resolve skills against a `SkillRegistry`.
 
@@ -117,6 +134,11 @@ class SkillManager:
         self._max_depth = max_depth
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._scanned = False
+        # Every manager is a possible source of an activation, and compaction
+        # asks this set before it re-attaches a body (see `has_skill`).
+        # Registering here rather than at each activation factory is the only
+        # way the set cannot be missed when a new activation path is added.
+        remember_skill_manager(self)
 
     @property
     def registry(self) -> SkillRegistry:
@@ -399,33 +421,17 @@ class SkillManager:
 
 skill_manager = SkillManager(registry=skill_registry)
 
-_activation_managers: "weakref.WeakSet[SkillManager]" = weakref.WeakSet()
-"""Every manager an activation tool was built from, alive as its tool is."""
-
-
-def remember_skill_manager(manager: SkillManager) -> None:
-    """Record a manager a skill can be activated from.
-
-    `create_activate_skill_tool(manager)` is public, so activation does not have
-    to come from the global registry. Compaction asks whether a name is real
-    before re-attaching its body, and a manager it has never heard of would make
-    that body look invented.
-    """
-    _activation_managers.add(manager)
-
 
 def has_skill(name: str) -> bool:
     """True when a skill *name* can be activated in this process.
 
-    The global registry answers first; any manager a tool was built from
+    The global registry answers first; every other manager this process built
     answers after it. Weak references, so a manager built for one call does not
     keep its skills resolvable for the process's lifetime.
     """
     if skill_manager.get_skill(name) is not None:
         return True
-    return any(
-        manager.get_skill(name) is not None for manager in list(_activation_managers)
-    )
+    return any(manager.get_skill(name) is not None for manager in list(_built_managers))
 
 
 def _parse_skill_frontmatter(content: str, full_path: str) -> dict:

@@ -207,6 +207,35 @@ def test_a_skill_from_a_supplied_manager_is_still_reattached(tmp_path):
     assert "CUSTOM_BODY" in content
 
 
+def test_a_skill_activated_by_a_slash_command_is_still_reattached(tmp_path):
+    """`get_skill_custom_command(manager)` is public too, and it builds the
+    activation block straight from its manager. Registration cannot live in one
+    factory: the other one is then the hole."""
+    from zrb.llm.custom_command.skill_command_factory import get_skill_custom_command
+    from zrb.llm.skill.manager import SkillManager
+
+    manager = SkillManager(root_dir=str(tmp_path))
+    manager.add_skill(
+        Skill(
+            name="slash-skill",
+            path=str(tmp_path / "slash-skill" / "SKILL.md"),
+            description="d",
+            content="SLASH_BODY",
+        )
+    )
+    command = next(
+        command
+        for command in get_skill_custom_command(manager)()
+        if command.command == "/slash-skill"
+    )
+
+    content = _content(
+        build_reattach_message(_request(command.get_prompt({})), [], llm_limiter)
+    )
+
+    assert "SLASH_BODY" in content
+
+
 def test_an_oversized_skill_is_truncated_to_its_own_cap(monkeypatch):
     body = "start " + ("filler " * 400) + "TAIL_MARKER"
     dropped = _request(_block("core-coding", body))
