@@ -345,11 +345,7 @@ def _write_note_locked(
     the tool returns, eviction note included — that is how a caller learns an
     older line under the same section lost its place."""
     _check_category(category)
-    if not _SLUG_RE.match(slug):
-        raise ValueError(
-            f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
-            "(lowercase letters, digits, single hyphens)."
-        )
+    _check_slug(slug)
     targets = _resolve_links(root, links or [])
     note_path = os.path.join(root, category, f"{slug}.md")
     _write_note_file(
@@ -447,6 +443,7 @@ def _supersede_note_locked(root: str, category: str, slug: str, reason: str) -> 
     applying and still sits in every turn's context is a claim that has to be
     paid for in every turn until somebody notices."""
     _check_category(category)
+    _check_slug(slug)
     note_rel = _posix_relpath(os.path.join(root, category, f"{slug}.md"), root)
     note_path = os.path.join(root, category, f"{slug}.md")
     if not os.path.isfile(note_path):
@@ -503,6 +500,7 @@ def _delete_note_locked(root: str, category: str, slug: str) -> str:
 
     The caller holds the journal lock and makes the commit."""
     _check_category(category)
+    _check_slug(slug)
     note_path = os.path.join(root, category, f"{slug}.md")
     if not os.path.isfile(note_path):
         raise ValueError(
@@ -878,6 +876,21 @@ def _check_category(category: str) -> None:
         raise ValueError(
             f"[SYSTEM SUGGESTION]: unknown category {category!r}. "
             f"Use one of: {', '.join(NOTE_CATEGORIES)}."
+        )
+
+
+def _check_slug(slug: str) -> None:
+    """Refuse anything that is not kebab-case.
+
+    A slug is interpolated into a path, so `../index` is not a name this journal
+    has: joining it lands on the root index, and the tool would then write
+    frontmatter into a file it never meant to touch. Categories are a fixed list
+    but a slug is free text, so this is the boundary that has to hold.
+    """
+    if not _SLUG_RE.match(slug):
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
+            "(lowercase letters, digits, single hyphens)."
         )
 
 

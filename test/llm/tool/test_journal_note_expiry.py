@@ -104,3 +104,35 @@ def test_superseding_takes_the_line_out_of_the_index_and_keeps_the_file(
     assert "status: superseded" in note
     assert "superseded by the prebuffer note: it was a cushion" in note
     assert "Removed from the index" in result
+
+
+def test_a_slug_that_climbs_out_of_its_category_is_refused(writable_journal):
+    """A slug is free text interpolated into a path, so `../index` is not a note
+    name — joining it lands on the root index and the tool would write frontmatter
+    into a file it never meant to touch."""
+    from zrb.llm.tool.journal_write import (
+        delete_journal_note,
+        supersede_journal_note,
+        write_journal_note,
+    )
+
+    write_journal_note("technical", "real-note", "T", "c", "f", "s")
+    index = _read(writable_journal, "index.md")
+
+    for call in (
+        lambda: supersede_journal_note("technical", "../index", "retired"),
+        lambda: delete_journal_note("technical", "../index"),
+    ):
+        with pytest.raises(ValueError, match="kebab-case"):
+            call()
+
+    assert _read(writable_journal, "index.md") == index
+
+
+def test_the_journal_tools_are_reachable_from_the_package(writable_journal):
+    """The lazy package is the public API for a Python caller; a tool registered
+    for the model but missing here is an ImportError away from unusable."""
+    from zrb.llm.tool import delete_journal_note, supersede_journal_note
+
+    assert callable(supersede_journal_note)
+    assert callable(delete_journal_note)
