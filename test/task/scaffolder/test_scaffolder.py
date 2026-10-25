@@ -6,11 +6,11 @@ from zrb.content_transformer.content_transformer import ContentTransformer
 _DIR = os.path.dirname(__file__)
 
 
-def test_generate_with_basic_config():
+def test_generate_with_basic_config(tmp_path):
     scaffolder = Scaffolder(
         name="scaffold",
         source_path=os.path.join(_DIR, "template"),
-        destination_path=os.path.join(_DIR, "test-generated-basic"),
+        destination_path=str(tmp_path / "test-generated-basic"),
         transform_path={"project_name": "test_app"},
         transform_content={
             "Project Name": "Test App",
@@ -18,18 +18,18 @@ def test_generate_with_basic_config():
         },
     )
     scaffolder.run()
-    generated_dir = os.path.join(_DIR, "test-generated-basic")
+    generated_dir = str(tmp_path / "test-generated-basic")
     assert os.path.isdir(generated_dir)
 
 
-def test_generate_keeps_literal_braces_in_destination_path():
+def test_generate_keeps_literal_braces_in_destination_path(tmp_path):
     """A bare-string destination is a literal: braces reach the filesystem
     untouched, with no flag needed to opt out of rendering."""
     literal_dir_name = "test-generated-{undefined_name}"
     scaffolder = Scaffolder(
         name="scaffold-no-render-dest",
         source_path=os.path.join(_DIR, "template"),
-        destination_path=os.path.join(_DIR, literal_dir_name),
+        destination_path=str(tmp_path / literal_dir_name),
         transform_path={"project_name": "test_app"},
         transform_content={
             "Project Name": "Test App",
@@ -38,7 +38,7 @@ def test_generate_keeps_literal_braces_in_destination_path():
     )
     # Would raise NameError on "undefined_name" if rendered instead of kept literal.
     scaffolder.run()
-    generated_dir = os.path.join(_DIR, literal_dir_name)
+    generated_dir = str(tmp_path / literal_dir_name)
     assert os.path.isdir(generated_dir)
 
 

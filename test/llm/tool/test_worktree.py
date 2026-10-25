@@ -24,9 +24,11 @@ def create_mock_process(returncode=0, stdout=b"", stderr=b""):
 
 
 @pytest.mark.asyncio
-async def test_enter_worktree_success(mock_subprocess):
+async def test_enter_worktree_success(mock_subprocess, tmp_path):
     mock_subprocess.side_effect = [
-        create_mock_process(returncode=0),  # check repo
+        create_mock_process(  # the repo root; the tool creates .zrb/worktree in it
+            returncode=0, stdout=str(tmp_path).encode()
+        ),
         create_mock_process(
             returncode=0, stdout=b"Preparing worktree", stderr=b""
         ),  # git worktree add
@@ -38,9 +40,11 @@ async def test_enter_worktree_success(mock_subprocess):
 
 
 @pytest.mark.asyncio
-async def test_enter_worktree_no_branch_name(mock_subprocess):
+async def test_enter_worktree_no_branch_name(mock_subprocess, tmp_path):
     mock_subprocess.side_effect = [
-        create_mock_process(returncode=0),  # check repo
+        create_mock_process(  # the repo root; the tool creates .zrb/worktree in it
+            returncode=0, stdout=str(tmp_path).encode()
+        ),
         create_mock_process(returncode=0),  # git worktree add
     ]
     res = await enter_worktree()
@@ -169,9 +173,11 @@ async def test_enter_worktree_does_not_combine_existing_path_and_new_branch(
 
 
 @pytest.mark.asyncio
-async def test_enter_worktree_failure(mock_subprocess):
+async def test_enter_worktree_failure(mock_subprocess, tmp_path):
     mock_subprocess.side_effect = [
-        create_mock_process(returncode=0),  # check repo
+        create_mock_process(  # the repo root; the tool creates .zrb/worktree in it
+            returncode=0, stdout=str(tmp_path).encode()
+        ),
         create_mock_process(
             returncode=1, stderr=b"fatal: branch already exists"
         ),  # git worktree add

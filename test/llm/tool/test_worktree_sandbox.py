@@ -75,12 +75,12 @@ async def test_exit_worktree_routes_git_calls_through_sandbox(mock_subprocess):
 
 @pytest.mark.asyncio
 async def test_enter_worktree_refuses_a_repo_outside_the_sandbox(
-    mock_subprocess, monkeypatch
+    mock_subprocess, monkeypatch, outside_root
 ):
     """`cwd` is the model's choice; naming another repo must not let it write there."""
     with (
         tempfile.TemporaryDirectory() as project,
-        tempfile.TemporaryDirectory(dir=os.path.expanduser("~")) as other_repo,
+        tempfile.TemporaryDirectory(dir=outside_root) as other_repo,
     ):
         monkeypatch.setattr(
             "zrb.llm.tool.worktree.get_effective_sandbox_policy",
@@ -98,10 +98,10 @@ async def test_enter_worktree_refuses_a_repo_outside_the_sandbox(
 
 @pytest.mark.asyncio
 async def test_enter_worktree_refuses_a_branch_name_that_leaves_the_sandbox(
-    mock_subprocess, monkeypatch
+    mock_subprocess, monkeypatch, outside_root
 ):
     """`branch_name` becomes a path; climbing out with `..` must be refused."""
-    with tempfile.TemporaryDirectory(dir=os.path.expanduser("~")) as project:
+    with tempfile.TemporaryDirectory(dir=outside_root) as project:
         monkeypatch.setattr(
             "zrb.llm.tool.worktree.get_effective_sandbox_policy",
             lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),

@@ -15,6 +15,7 @@ import tempfile
 from collections.abc import MutableMapping
 
 import pytest
+import write_guard
 
 # Config reads `<prefix>_<KNOB>`; the prefix itself is `_ZRB_ENV_PREFIX`.
 # `DEFAULT_PREFIX` is public because the hermetic-environment test checks it.
@@ -39,9 +40,41 @@ def _scrub_config_namespace(environ: MutableMapping[str, str]) -> dict[str, str]
     return {name: environ.pop(name) for name in names}
 
 
+# The developer's real home, kept across the redirect so the write guard can name
+# it. Workers inherit both variables from the controller that spawned them.
+_REAL_HOME_VAR = "PYTEST_ZRB_REAL_HOME"
+_TEST_HOME_PREFIX = "zrb-test-home-"
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_test_home: str | None = None
+
+
+def _redirect_home() -> None:
+    """Point `~` at a per-run directory so nothing lands in the real home.
+
+    The controller creates it before xdist spawns workers, which inherit the
+    environment (and so find `_REAL_HOME_VAR` already set); only the controller
+    removes it, in `pytest_sessionfinish`.
+    """
+    global _test_home
+    if _REAL_HOME_VAR in os.environ:
+        return
+    os.environ[_REAL_HOME_VAR] = os.path.expanduser("~")
+    # Resolved, so a symlinked temp root (macOS `/var` -> `/private/var`) does not
+    # make `~` differ from the cwd a test changes into.
+    home = os.path.realpath(tempfile.mkdtemp(prefix=_TEST_HOME_PREFIX))
+    _test_home = home
+    os.environ["HOME"] = home
+    os.environ["USERPROFILE"] = home  # what `expanduser` reads on Windows
+
+
 def pytest_configure() -> None:
-    """Remove developer config before collection in every pytest process."""
+    """Remove developer config, redirect home and guard writes, per process."""
     _scrub_config_namespace(os.environ)
+    _redirect_home()
+    write_guard.install(
+        forbidden_roots=[os.environ[_REAL_HOME_VAR], _REPO_ROOT],
+        allowed_roots=[tempfile.gettempdir(), os.environ["HOME"]],
+    )
 
 
 # Non-secret placeholders; `openai-chat:` selects the model class patched by tests.
@@ -85,6 +118,8 @@ _TEST_ENV = {
 
 def pytest_sessionfinish() -> None:
     """Remove this process's per-run stores, which nothing else would."""
+    if _test_home is not None:
+        shutil.rmtree(_test_home, ignore_errors=True)
     for key in (
         "ZRB_LLM_USAGE_DIR",
         "ZRB_LLM_HISTORY_DIR",
@@ -92,6 +127,33 @@ def pytest_sessionfinish() -> None:
         "ZRB_LLM_SNAPSHOT_DIR",
     ):
         shutil.rmtree(_TEST_ENV[key], ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def _no_forbidden_writes():
+    """Fail a test whose write the guard refused, even if the test swallowed it."""
+    guard = write_guard.install([], [])  # already installed by `pytest_configure`
+    seen = len(guard.violations)
+    yield
+    leaked = guard.violations[seen:]
+    assert not leaked, f"test wrote outside temp: {leaked}"
+
+
+@pytest.fixture
+def outside_root(tmp_path, monkeypatch):
+    """A directory outside every root the sandbox keeps writable.
+
+    The sandbox keeps the temp directory writable by design, and the suite's
+    home and every `tmp_path` live in it, so an "outside" path has to be
+    carved out of temp: the temp directory is narrowed to a sibling of the
+    returned one, for the duration of the test.
+    """
+    narrowed = tmp_path / "sandbox-tmp"
+    narrowed.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    monkeypatch.setattr(tempfile, "tempdir", str(narrowed))
+    return outside
 
 
 @pytest.fixture(autouse=True)

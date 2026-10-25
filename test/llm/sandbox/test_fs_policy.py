@@ -51,22 +51,22 @@ def test_write_to_nonexistent_nested_target_inside_root_allowed(tmp_path):
     assert check_write(str(target), policy) is None
 
 
-def test_write_outside_root_blocked(tmp_path):
-    # NOTE: pytest's tmp_path lives under the system temp dir, which is always
-    # writable by design — "outside" paths must live elsewhere (e.g. $HOME).
+def test_write_outside_root_blocked(tmp_path, outside_root):
+    # NOTE: the system temp dir is always writable by design, so `outside_root`
+    # narrows it to a sibling.
     (tmp_path / "proj").mkdir()
     policy = _policy(tmp_path)
-    outside = os.path.join(os.path.expanduser("~"), "zrb-test-elsewhere", "f.txt")
+    outside = str(outside_root / "f.txt")
     error = check_write(outside, policy)
     assert error is not None
     assert "outside the sandbox writable roots" in error
 
 
-def test_symlink_escape_is_blocked(tmp_path):
+def test_symlink_escape_is_blocked(tmp_path, outside_root):
     proj = tmp_path / "proj"
     proj.mkdir()
     # The escape target must be outside every writable root (incl. tempdir).
-    (proj / "esc").symlink_to(os.path.expanduser("~"))
+    (proj / "esc").symlink_to(outside_root)
     policy = _policy(tmp_path)
     error = check_write(str(proj / "esc" / "owned.txt"), policy)
     assert error is not None

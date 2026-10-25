@@ -43,23 +43,9 @@ def _policy(tmp_path, **kwargs):
 
 
 @pytest.fixture
-def outside_dir():
-    """A directory outside every writable root.
-
-    pytest's tmp_path lives under the system temp dir — which the sandbox
-    keeps writable by design — so escape tests need a target elsewhere.
-    """
-    import shutil as _shutil
-    import uuid
-
-    path = os.path.join(
-        os.path.expanduser("~"), f".zrb-sandbox-test-{uuid.uuid4().hex[:8]}"
-    )
-    os.makedirs(path, exist_ok=True)
-    try:
-        yield path
-    finally:
-        _shutil.rmtree(path, ignore_errors=True)
+def outside_dir(outside_root):
+    """A directory outside every writable root (see `outside_root`)."""
+    return str(outside_root)
 
 
 @pytest.mark.asyncio

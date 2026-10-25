@@ -50,13 +50,6 @@ def test_sandbox_policy_resets_on_exception():
 # --- gate via create_safe_wrapper -------------------------------------------
 
 
-def _outside_path():
-    """A path outside every writable root (cwd, tempdir, the policy's roots)."""
-    import os
-
-    return os.path.join(os.path.expanduser("~"), "zrb-test-elsewhere", "x.txt")
-
-
 def _enabled_policy(tmp_path, **kwargs):
     defaults = {
         "enabled": True,
@@ -83,7 +76,7 @@ async def test_gate_inert_when_disabled(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_gate_blocks_edit_outside_writable_roots(tmp_path):
+async def test_gate_blocks_edit_outside_writable_roots(tmp_path, outside_root):
     from zrb.llm.agent.common import create_safe_wrapper
 
     calls = []
@@ -98,7 +91,7 @@ async def test_gate_blocks_edit_outside_writable_roots(tmp_path):
     token = current_sandbox_policy.set(_enabled_policy(tmp_path))
     try:
         # tmp_path is inside the always-writable temp dir; target elsewhere.
-        result = await wrapped(path=_outside_path())
+        result = await wrapped(path=str(outside_root / "x.txt"))
     finally:
         current_sandbox_policy.reset(token)
 
@@ -174,7 +167,7 @@ async def test_gate_does_not_path_check_execute_tools(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_gate_write_checks_untagged_tools(tmp_path):
+async def test_gate_write_checks_untagged_tools(tmp_path, outside_root):
     """UNKNOWN capability (e.g. MCP tools) is write-checked — safe by default."""
     from zrb.llm.agent.common import create_safe_wrapper
 
@@ -185,7 +178,7 @@ async def test_gate_write_checks_untagged_tools(tmp_path):
 
     token = current_sandbox_policy.set(_enabled_policy(tmp_path))
     try:
-        result = await wrapped(path=_outside_path())
+        result = await wrapped(path=str(outside_root / "x.txt"))
     finally:
         current_sandbox_policy.reset(token)
 
@@ -214,7 +207,7 @@ async def test_gate_blocks_escape_when_disallowed(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_gate_checks_exit_worktree_path(tmp_path):
+async def test_gate_checks_exit_worktree_path(tmp_path, outside_root):
     """ExitWorktree's `worktree_path` arg is write-checked (ADR-0065)."""
     from zrb.llm.agent.common import create_safe_wrapper
 
@@ -226,7 +219,7 @@ async def test_gate_checks_exit_worktree_path(tmp_path):
 
     token = current_sandbox_policy.set(_enabled_policy(tmp_path))
     try:
-        result = await wrapped(worktree_path=_outside_path())
+        result = await wrapped(worktree_path=str(outside_root / "x.txt"))
     finally:
         current_sandbox_policy.reset(token)
 
@@ -234,7 +227,7 @@ async def test_gate_checks_exit_worktree_path(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_gate_checks_enter_worktree_path(tmp_path):
+async def test_gate_checks_enter_worktree_path(tmp_path, outside_root):
     """EnterWorktree's resume path is write-checked like ExitWorktree's path."""
     from zrb.llm.agent.common import create_safe_wrapper
 
@@ -246,7 +239,7 @@ async def test_gate_checks_enter_worktree_path(tmp_path):
 
     token = current_sandbox_policy.set(_enabled_policy(tmp_path))
     try:
-        result = await wrapped(worktree_path=_outside_path())
+        result = await wrapped(worktree_path=str(outside_root / "x.txt"))
     finally:
         current_sandbox_policy.reset(token)
 
@@ -254,7 +247,7 @@ async def test_gate_checks_enter_worktree_path(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_gate_move_checks_src_and_dst(tmp_path):
+async def test_gate_move_checks_src_and_dst(tmp_path, outside_root):
     from zrb.llm.agent.common import create_safe_wrapper
 
     (tmp_path / "proj").mkdir()
@@ -270,7 +263,7 @@ async def test_gate_move_checks_src_and_dst(tmp_path):
         # src inside, dst outside → blocked
         blocked = await wrapped(
             src=str(tmp_path / "proj" / "a.txt"),
-            dst=_outside_path(),
+            dst=str(outside_root / "x.txt"),
         )
         # both inside → allowed
         allowed = await wrapped(
@@ -287,14 +280,14 @@ async def test_gate_move_checks_src_and_dst(tmp_path):
 # --- gate via explicit ctx.deps (ADR-0069) -----------------------------------
 
 
-def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path):
+def test_gate_uses_ctx_deps_policy_over_ambient(tmp_path, outside_root):
     """A `ctx.deps` policy wins over the ambient one.
 
     Ambient allows the target; only `ctx.deps` blocks it.
     """
     import os
 
-    target = _outside_path()
+    target = str(outside_root / "x.txt")
     ambient = _enabled_policy(tmp_path, writable_paths=(os.path.dirname(target),))
     deps_policy = _enabled_policy(tmp_path)  # writable_paths=tmp_path/proj only
 
