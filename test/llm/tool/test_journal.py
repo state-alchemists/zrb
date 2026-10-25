@@ -315,3 +315,34 @@ def test_zero_hit_does_not_offer_a_category_index_as_a_title(tmp_path):
 
         suggestions = _suggest_similar("Technical notes", str(journal_dir))
     assert "Technical" not in suggestions
+
+
+def test_requiring_every_word_would_miss_the_note_a_question_asks_for(tmp_path):
+    """A question is prose, and the note that answers it does not repeat its
+    words — so the search reads several plain words as any-of and lets the
+    ranking supply the precision.
+
+    Requiring every word was measured on eight questions about notes that
+    exist: it found 2 of 8, against 7 of 8 for any-of. This pins the difference
+    so the AND gate is not quietly reintroduced as a fix.
+    """
+    journal_dir = tmp_path / "journal"
+    (journal_dir / "technical").mkdir(parents=True)
+    (journal_dir / "technical" / "both.md").write_text(
+        "# Speech goes silent under load\n\nspeech load\n", encoding="utf-8"
+    )
+    (journal_dir / "technical" / "one.md").write_text(
+        "# Speech notes\n\nspeech\n", encoding="utf-8"
+    )
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = str(journal_dir)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
+            result = search_journal("why does speech go silent under load")
+
+    files = []
+    for row in result["results"]:
+        if row["file"] not in files:
+            files.append(row["file"])
+    # The partial match is still returned; the fuller one leads.
+    assert files == ["technical/both.md", "technical/one.md"]

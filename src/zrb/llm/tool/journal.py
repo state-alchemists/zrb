@@ -50,9 +50,13 @@ def search_journal(
         str,
         Field(
             description=(
-                "What to look for. Several plain words are read as 'all of "
-                "these words' — which is how a question is asked; anything "
-                "containing regex metacharacters is a regex, as before."
+                "What to look for. Several plain words are read as a query: "
+                "the words that say nothing about the subject are dropped, and "
+                "a file holding more of the rest ranks first. Any-of, not "
+                "all-of, because a question is prose and no note repeats its "
+                "words verbatim — requiring every word found 2 of 8 "
+                "question-style queries against 7 of 8. Anything containing "
+                "regex metacharacters is a regex, as before."
             )
         ),
     ],
@@ -74,7 +78,8 @@ def search_journal(
     not certain a slug is free, or that it names the note you intend to touch.
     Wait for this result before issuing that write or delete — don't batch
     the two calls, since the write/delete it should inform depends on what
-    this search finds.
+    this search finds. Search here too before SupersedeJournalNote: the
+    reason it records should name the note that replaced this one.
     """
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:
@@ -116,10 +121,13 @@ def _query_words(query: str) -> list[str]:
 
     A question is longer than any title and carries no regex syntax, so reading
     it as one literal string matched nothing at all. Several plain words now
-    mean "all of these words", and the words that say nothing about the subject
-    — `the`, `of`, `how` — are dropped first, or requiring them would require
-    the note to be written as prose. A single word, or anything with a
-    metacharacter in it, stays a regex."""
+    mean "any of these words", and the words that say nothing about the subject
+    — `the`, `of`, `how` — are dropped first. Any-of rather than all-of is a
+    measurement, not a preference: requiring every word found 2 of 8
+    question-style queries against 7 of 8, because a question is prose and no
+    note repeats its words verbatim. Precision comes from the ranking instead —
+    a file holding more of the words sorts first. A single word, or anything
+    with a metacharacter in it, stays a regex."""
     if any(character in _REGEX_META for character in query):
         return []
     words = [word for word in re.split(r"\s+", query.strip()) if word]
@@ -151,7 +159,14 @@ def _matches_any_word(
 def _matches_every_word(
     words: list[str], abs_dir: str, case_sensitive: bool
 ) -> "list[tuple[str, int, str]] | dict[str, Any]":
-    """The matching lines of every file that holds *words*, or a failure.
+    """The matching lines of every file that holds every one of *words*.
+
+    Kept because it is the alternative `_matches_any_word` was chosen over, and
+    the choice was measured rather than argued: requiring every word found 2 of
+    8 question-style queries against 7 of 8 for any-of, since a question is
+    prose and no note repeats it verbatim. Not on the search path — the test
+    `test_requiring_every_word_would_miss_the_note_a_question_asks_for` pins
+    the difference, so a later reader does not have to take this on faith.
 
     One pass per word, intersected by file, because the regex engine here has
     no look-around to ask for all of them at once."""
