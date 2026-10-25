@@ -37,9 +37,13 @@ class _FakeCtypes:
         return self._lib
 
 
-def fake_os(set_priority):
+def fake_os(set_priority, current_nice: int = 0):
     """An `os` the POSIX ask reads, so no real attribute is needed."""
-    return types.SimpleNamespace(setpriority=set_priority, PRIO_PROCESS=0)
+    return types.SimpleNamespace(
+        setpriority=set_priority,
+        getpriority=lambda *_: current_nice,
+        PRIO_PROCESS=0,
+    )
 
 
 def run_darwin(monkeypatch, lib: _FakeLib) -> "int | None":
@@ -71,6 +75,23 @@ def test_a_granted_posix_ask_lowers_the_nice_by_five(monkeypatch):
         return 0
 
     monkeypatch.setattr(priority, "os", fake_os(record))
+    assert run_as(monkeypatch, "linux") == -5
+    assert asks == [(0, 0, -5)]
+
+
+def test_an_already_higher_priority_is_left_alone(monkeypatch):
+    asks: list[int] = []
+    monkeypatch.setattr(priority, "os", fake_os(lambda *a: asks.append(a), -10))
+    assert run_as(monkeypatch, "linux") == -10
+    assert asks == []
+
+
+def test_a_posix_without_getpriority_still_asks(monkeypatch):
+    asks: list[tuple[int, int, int]] = []
+    stub = types.SimpleNamespace(
+        setpriority=lambda *a: asks.append(a), PRIO_PROCESS=0
+    )
+    monkeypatch.setattr(priority, "os", stub)
     assert run_as(monkeypatch, "linux") == -5
     assert asks == [(0, 0, -5)]
 
