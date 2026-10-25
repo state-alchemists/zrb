@@ -95,18 +95,22 @@ def _opens_judgeably_for_writing(args: tuple) -> bool:
 
 
 def _fd_directory(fd: int) -> str | None:
-    """Return the directory a descriptor refers to, or None if unknowable."""
-    try:
-        if sys.platform.startswith("linux"):
-            return os.readlink(f"/proc/self/fd/{fd}")
-        if sys.platform == "darwin":
-            import fcntl  # lazy: platform-only — POSIX; Windows has no `fcntl`
+    """Return the directory a descriptor refers to, or None if unknowable.
 
-            raw = fcntl.fcntl(fd, fcntl.F_GETPATH, b"\0" * 1024)  # type: ignore[attr-defined]
-            return os.fsdecode(raw.split(b"\0", 1)[0])
-    except OSError:
+    Chosen by what the system offers, never by `sys.platform`: a test may patch
+    the platform name, and `F_GETPATH` does not exist on Linux."""
+    try:
+        if os.path.isdir("/proc/self/fd"):
+            return os.readlink(f"/proc/self/fd/{fd}")
+        import fcntl  # lazy: platform-only — POSIX; Windows has no `fcntl`
+
+        get_path = getattr(fcntl, "F_GETPATH", None)  # macOS only
+        if get_path is None:
+            return None
+        raw = fcntl.fcntl(fd, get_path, b"\0" * 1024)
+        return os.fsdecode(raw.split(b"\0", 1)[0])
+    except (OSError, ImportError):
         return None
-    return None
 
 
 def _as_dir_fd(value: object) -> int | None:

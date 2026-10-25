@@ -144,11 +144,13 @@ def test_mkdir_through_a_temp_descriptor_is_allowed(guard, tmp_path):
     assert guard.violations == []
 
 
-def test_an_untraceable_descriptor_fails_closed(guard, monkeypatch):
-    monkeypatch.setattr(sys, "platform", "win32")
+def test_an_untraceable_descriptor_fails_closed(guard):
+    read_end, write_end = os.pipe()
+    os.close(read_end)
+    os.close(write_end)
 
     with pytest.raises(PermissionError, match="cannot be traced"):
-        guard.audit("os.mkdir", ("sub", 0o777, 7))
+        guard.audit("os.mkdir", ("sub", 0o777, read_end))
 
 
 def test_write_inside_an_allowed_root_nested_in_a_forbidden_one_passes(guard, tmp_path):
