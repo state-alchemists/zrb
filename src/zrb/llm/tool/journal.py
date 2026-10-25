@@ -55,7 +55,7 @@ def search_journal(
                 "a file holding more of the rest ranks first. Any-of, not "
                 "all-of, because a question is prose and no note repeats its "
                 "words verbatim — requiring every word found 2 of 8 "
-                "question-style queries against 7 of 8. Anything containing "
+                "question-style queries against 8 of 8. Anything containing "
                 "regex metacharacters is a regex, as before."
             )
         ),
@@ -124,7 +124,7 @@ def _query_words(query: str) -> list[str]:
     mean "any of these words", and the words that say nothing about the subject
     — `the`, `of`, `how` — are dropped first. Any-of rather than all-of is a
     measurement, not a preference: requiring every word found 2 of 8
-    question-style queries against 7 of 8, because a question is prose and no
+    question-style queries against 8 of 8, because a question is prose and no
     note repeats its words verbatim. Precision comes from the ranking instead —
     a file holding more of the words sorts first. A single word, or anything
     with a metacharacter in it, stays a regex."""
@@ -163,7 +163,7 @@ def _matches_every_word(
 
     Kept because it is the alternative `_matches_any_word` was chosen over, and
     the choice was measured rather than argued: requiring every word found 2 of
-    8 question-style queries against 7 of 8 for any-of, since a question is
+    8 question-style queries against 8 of 8 for any-of, since a question is
     prose and no note repeats it verbatim. Not on the search path — the test
     `test_requiring_every_word_would_miss_the_note_a_question_asks_for` pins
     the difference, so a later reader does not have to take this on faith.

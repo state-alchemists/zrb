@@ -323,7 +323,7 @@ def test_requiring_every_word_would_miss_the_note_a_question_asks_for(tmp_path):
     ranking supply the precision.
 
     Requiring every word was measured on eight questions about notes that
-    exist: it found 2 of 8, against 7 of 8 for any-of. This pins the difference
+    exist: it found 2 of 8, against 8 of 8 for any-of. This pins the difference
     so the AND gate is not quietly reintroduced as a fix.
     """
     journal_dir = tmp_path / "journal"
