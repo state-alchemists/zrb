@@ -332,6 +332,10 @@ async def summarize_history(
     compresses even within limits (``/compress``). The journal index is
     re-seeded into the summary.
 
+    The tail is kept verbatim but not hidden from the summarizer: the snapshot
+    is written from the whole conversation, so its `<where_we_are>`, `<now>` and
+    `<next>` describe the end of it rather than the moment the split fell on.
+
     The replaced messages are archived verbatim once the replacement is ready,
     and the summary names the archive when it was written: a summary is a lossy
     view, the archive is not. `verbatim_source` is the history as it stood
@@ -371,15 +375,7 @@ async def summarize_history(
         to_summarize, to_keep, verbatim_tail_message, structured_tail = (
             _prepare_kept_tail(messages, to_summarize, to_keep)
         )
-        zrb_print(
-            stylize_warning(
-                f"  Summarizing {len(to_summarize)} messages "
-                f"({count_history_tokens(llm_limiter, to_summarize)} tokens); keeping "
-                f"{len(to_keep)} verbatim "
-                f"({count_tail_tokens(llm_limiter, to_keep)} tokens)."
-            ),
-            plain=True,
-        )
+        _print_split(messages, to_summarize, to_keep, llm_limiter)
         archive_path = verbatim_archive_path(
             _resolve_session_name(session_name, messages), history_dir
         )
@@ -457,6 +453,30 @@ async def summarize_history(
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
+
+
+def _print_split(
+    messages: "list[ModelMessage]",
+    to_summarize: "list[ModelMessage]",
+    to_keep: "list[ModelMessage]",
+    limiter: "LLMLimiter",
+) -> None:
+    """The banner: what is replaced, what is read, and what is kept.
+
+    The tail is kept verbatim and read by the summarizer as well, so the count
+    read is named whenever a tail exists: "summarizing 8 of them" no longer
+    means the model read 8.
+    """
+    read_note = f", reading all {len(messages)}" if to_keep else ""
+    zrb_print(
+        stylize_warning(
+            f"  Summarizing {len(to_summarize)} messages "
+            f"({count_history_tokens(limiter, to_summarize)} tokens)"
+            f"{read_note}; keeping {len(to_keep)} verbatim "
+            f"({count_tail_tokens(limiter, to_keep)} tokens)."
+        ),
+        plain=True,
+    )
 
 
 def _warn_when_the_split_kept_nothing(
@@ -588,17 +608,23 @@ async def _build_summary_parts(
     conversational_token_threshold: int,
     archive_path: str | None = None,
 ) -> "_FittedSummary | None":
-    """Summarize `to_summarize`, capping it and re-seeding the journal index.
+    """Summarize the whole conversation, capping it and re-seeding the journal.
+
+    *to_summarize* is what gets replaced and *to_keep* is what stays verbatim,
+    but the model reads both: a snapshot written only from the replaced part
+    describes the conversation as it stood at the split, and its
+    `<where_we_are>`, `<now>` and `<next>` are the next agent's headline — so
+    they would ask for work the kept tail already finished.
 
     Returns the parts the cap approved, or ``None`` when not even the framing
     fits the cap. An empty `model_text` means the model answered with nothing.
     """
     summary_text = await chunk_and_summarize(
-        to_summarize,
+        to_summarize + to_keep,
         summarizer_agent,
         llm_limiter,
         conversational_token_threshold,
-        include_last_user_intent_instruction=(len(to_keep) == 0),
+        include_last_user_intent_instruction=True,
     )
     has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
     is_near_threshold = llm_limiter.count_tokens(summary_text) > (
