@@ -8,11 +8,19 @@ hands out the lock-free halves of the tools, and commits once at the end.
 
 import os
 import subprocess
+import threading
+import time
 from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.tool.journal_write import journal_transaction, write_journal_note
+from zrb.llm.tool import journal_write
+from zrb.llm.tool.journal_write import (
+    ensure_journal_tree,
+    journal_transaction,
+    write_journal_note,
+)
+from zrb.util.file_lock import hold_file_lock
 
 
 @pytest.fixture
@@ -254,3 +262,37 @@ def test_a_raising_transaction_leaves_a_first_time_journal_whole(git_journal):
     assert os.path.isfile(os.path.join(git_journal, "technical", "index.md"))
     assert _git(git_journal, "status", "--porcelain").strip() == ""
     assert not _note_exists(git_journal, "x")
+
+
+def test_a_tool_called_inside_a_transaction_re_enters_the_lock(git_journal):
+    """The lock is the thread's, so a journal tool called from inside a journal
+    write re-enters it instead of waiting out the timeout against its own lock.
+
+    Before this, the nested call failed after the whole lock timeout with
+    "journal is busy" — a message about another writer, when the writer was the
+    caller itself.
+    """
+    with journal_transaction("batch") as _transaction:
+        write_journal_note("user", "goes-by-go", "T", "c", "f", "s")
+
+    assert os.path.isfile(os.path.join(git_journal, "user", "goes-by-go.md"))
+
+
+def test_a_write_waits_for_a_held_lock_instead_of_failing(git_journal):
+    """A lock held for a moment costs a wait, not a failure."""
+    journal_write.CFG.LLM_JOURNAL_LOCK_TIMEOUT = 5
+    ensure_journal_tree()
+    taken = threading.Event()
+
+    def hold() -> None:
+        with hold_file_lock(os.path.join(git_journal, ".lock"), timeout=5):
+            taken.set()
+            time.sleep(0.3)
+
+    holder = threading.Thread(target=hold, daemon=True)
+    holder.start()
+    assert taken.wait(5), "the other writer never took the lock"
+    write_journal_note("user", "goes-by-go", "T", "c", "f", "s")
+    holder.join(5)
+
+    assert os.path.isfile(os.path.join(git_journal, "user", "goes-by-go.md"))

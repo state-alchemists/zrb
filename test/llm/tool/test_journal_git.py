@@ -97,7 +97,7 @@ def test_hung_git_does_not_break_writes(git_journal):
         result = write_journal_note(
             "technical", "some-note", "Title", "ctx", "finding", "source"
         )
-    assert result == "Wrote technical/some-note.md"
+    assert result.startswith("Wrote technical/some-note.md")
     assert os.path.isfile(os.path.join(git_journal, "technical", "some-note.md"))
     assert not os.path.isdir(os.path.join(git_journal, ".git"))
 
@@ -122,6 +122,6 @@ def test_missing_git_binary_does_not_break_writes(git_journal):
         result = write_journal_note(
             "technical", "some-note", "Title", "ctx", "finding", "source"
         )
-    assert result == "Wrote technical/some-note.md"
+    assert result.startswith("Wrote technical/some-note.md")
     assert os.path.isfile(os.path.join(git_journal, "technical", "some-note.md"))
     assert not os.path.isdir(os.path.join(git_journal, ".git"))

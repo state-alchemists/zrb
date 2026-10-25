@@ -88,7 +88,9 @@ def test_write_journal_note_registers_itself_everywhere(writable_journal):
     )
 
     note = _read(writable_journal, "technical", "retry-policy.md")
-    assert note.startswith("---\nslug: retry-policy\n---")
+    assert note.startswith("---\nslug: retry-policy\n")
+    assert "status: active" in note
+    assert "applies_when:" in note
     assert "**Finding:** `retry_period` is read without a lock" in note
     assert "## Backlinks" in note
     # orphan: reachable from the category index and from the root's HUD list.
@@ -206,8 +208,11 @@ def test_hud_line_lands_in_the_section_matching_the_category(writable_journal):
     )
 
     index = _read(writable_journal, "index.md")
-    preferences = index.split("## Preferences", 1)[1].split("\n## ", 1)[0]
-    assert "Prefers terse replies, no preamble." in preferences
+    # A preference is a fact about the user, so it belongs under `## User` —
+    # not in a section of its own beside the agent's own standing rules.
+    user = index.split("## User", 1)[1].split("\n## ", 1)[0]
+    assert "Prefers terse replies, no preamble." in user
+    assert "## Preferences" not in index
     # The unbounded section must stay last so overflow only evicts itself.
     assert index.index("## Recent Insights") > index.index("## Directories")
 
@@ -230,9 +235,9 @@ def test_hud_line_does_not_duplicate_on_a_repeat(writable_journal):
 
 
 def test_two_notes_sharing_a_hud_line_both_keep_their_pin(writable_journal):
-    """`projects` and `technical` share the Active Constraints section, so two
-    notes compressing the same fact collide there by design. The note link, not
-    the text, is the key — matching by text would delete one note's pin."""
+    """`projects` and `technical` share `## Recent`, so two notes compressing the
+    same fact collide there by design. The note link, not the text, is the key —
+    matching by text would delete one note's pin."""
     from zrb.llm.tool.journal_write import write_journal_note
 
     for category, slug in (("projects", "retry-cap"), ("technical", "retry-cap-hard")):
@@ -247,7 +252,7 @@ def test_two_notes_sharing_a_hud_line_both_keep_their_pin(writable_journal):
         )
 
     index = _read(writable_journal, "index.md")
-    section = index.split("## Active Constraints", 1)[1].split("\n## ", 1)[0]
+    section = index.split("## Recent", 1)[1].split("\n## ", 1)[0]
     assert section.count("Retries are capped at 3.") == 2
     assert "([note](projects/retry-cap.md))" in section
     assert "([note](technical/retry-cap-hard.md))" in section
@@ -439,3 +444,77 @@ def test_writers_refuse_when_the_journal_dir_is_unset():
         with pytest.raises(ValueError) as excinfo:
             log_activity("anything")
     assert "not configured" in str(excinfo.value)
+
+
+def test_a_note_says_when_it_stops_applying(writable_journal):
+    """The condition is what makes a note retirable: a finding nobody wrote the
+    expiry of can only be re-read, never checked."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    write_journal_note(
+        category="technical",
+        slug="prebuffer",
+        title="The cushion is a setting",
+        context="While zrb ships the pocket engine",
+        finding="A sentence starts on a cushion of audio",
+        source="pcm_player.py:1",
+        applies_when="while pocket stays the default speech engine",
+    )
+
+    note = _read(writable_journal, "technical/prebuffer.md")
+    assert "applies_when: while pocket stays the default speech engine" in note
+    assert "status: active" in note
+
+
+def test_a_note_that_does_not_say_why_it_would_stop_is_told_so(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    result = write_journal_note(
+        category="technical",
+        slug="vague",
+        title="T",
+        context="c",
+        finding="f",
+        source="s",
+    )
+
+    assert "applies_when: not stated" in _read(writable_journal, "technical/vague.md")
+    assert "cannot be retired" in result
+
+
+def test_superseding_takes_the_line_out_of_the_index_and_keeps_the_file(
+    writable_journal,
+):
+    """A note that stopped applying costs every turn it stays in the index; its
+    evidence is what keeps the journal able to explain itself."""
+    from zrb.llm.tool.journal_write import (
+        supersede_journal_note,
+        write_journal_note,
+    )
+
+    write_journal_note(
+        category="technical",
+        slug="old-cause",
+        title="Stutter comes from GIL contention",
+        context="c",
+        finding="f",
+        source="s",
+        hud_line="Stutter comes from GIL contention.",
+        applies_when="until the decode timings are measured",
+    )
+    assert "Stutter comes from GIL contention." in _read(writable_journal, "index.md")
+
+    result = supersede_journal_note(
+        "technical", "old-cause", "superseded by the prebuffer note: it was a cushion"
+    )
+
+    index = _read(writable_journal, "index.md")
+    assert "Stutter comes from GIL contention." not in index
+    # Out of the HUD section; the `## Recent Insights` catalog still lists the
+    # note, because the note still exists.
+    recent = index.split("## Recent", 1)[1].split("\n## ", 1)[0]
+    assert "old-cause" not in recent
+    note = _read(writable_journal, "technical/old-cause.md")
+    assert "status: superseded" in note
+    assert "superseded by the prebuffer note: it was a cushion" in note
+    assert "Removed from the index" in result

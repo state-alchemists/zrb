@@ -40,8 +40,12 @@ def _hud_section(root: str, name: str) -> str:
     return _read(root).split(f"## {name}", 1)[1].split("\n## ", 1)[0]
 
 
-def _pin(slug: str, hud_line: str, pinned: bool = False) -> str:
-    """Write one technical note, which pins its line under Active Constraints."""
+def _pin(
+    slug: str, hud_line: str, pinned: bool = False, section: str | None = None
+) -> str:
+    """Write one technical note, whose line lands in `## Recent` unless it is
+    pinned — a pinned technical line is a constraint, and goes to
+    `## Constraints` — or unless *section* says where it belongs."""
     return write_journal_note(
         category="technical",
         slug=slug,
@@ -51,6 +55,7 @@ def _pin(slug: str, hud_line: str, pinned: bool = False) -> str:
         source="s",
         hud_line=hud_line,
         pinned=pinned,
+        section=section,
     )
 
 
@@ -72,8 +77,8 @@ def test_an_eviction_is_named_in_the_write_result(writable_journal):
     ]
 
     # Nothing evicted, nothing added to the result.
-    assert results[0] == "Wrote user/pref-0.md"
-    assert results[1] == "Wrote user/pref-1.md"
+    assert results[0].startswith("Wrote user/pref-0.md")
+    assert results[1].startswith("Wrote user/pref-1.md")
     assert results[2].startswith("Wrote user/pref-2.md. Evicted from ## User (cap 2): ")
     assert '"Preference number 0. ([note](user/pref-0.md))"' in results[2]
     assert "pinned=True" in results[2]
@@ -106,11 +111,13 @@ def test_a_pinned_line_survives_the_section_cap(writable_journal):
     """The oldest *unpinned* line goes first, so a durable constraint marked
     `pinned=True` outlives the lines written after it."""
     journal_write.CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 2
-    _pin("public-tests", "Tests stay public-API only.", pinned=True)
+    # Pinned within one section on purpose: this pins the capper's order, not
+    # the routing that sends a pinned technical line to `## Constraints`.
+    _pin("public-tests", "Tests stay public-API only.", True, section="Recent")
     _pin("will-go", "A line that will go.")
     result = _pin("stays", "A line that stays.")
 
-    section = _hud_section(writable_journal, "Active Constraints")
+    section = _hud_section(writable_journal, "Recent")
     assert "- 📌 Tests stay public-API only." in section
     assert "A line that will go." not in section
     assert "A line that stays." in section
@@ -128,11 +135,11 @@ def test_when_every_line_is_pinned_the_oldest_pinned_line_is_evicted(
     _pin("second", "The second pinned line.", pinned=True)
     result = _pin("third", "The third pinned line.", pinned=True)
 
-    section = _hud_section(writable_journal, "Active Constraints")
+    section = _hud_section(writable_journal, "Constraints")
     assert "The first pinned line." not in section
     assert "The second pinned line." in section
     assert "The third pinned line." in section
-    assert "Evicted from ## Active Constraints (cap 2)" in result
+    assert "Evicted from ## Constraints (cap 2)" in result
     assert '"📌 The first pinned line. ([note](technical/first.md))"' in result
 
 
@@ -141,7 +148,7 @@ def test_pin_state_comes_from_the_argument_not_from_the_text(writable_journal):
     included. The marker is stripped first, so the argument decides."""
     _pin("retry-policy", "📌 Retry is not concurrency-safe.")
 
-    section = _hud_section(writable_journal, "Active Constraints")
+    section = _hud_section(writable_journal, "Recent")
     assert "- Retry is not concurrency-safe. ([note](technical/retry-policy.md))" in (
         section
     )
@@ -153,7 +160,7 @@ def test_deleting_a_pinned_note_removes_its_marked_line(writable_journal):
     text, or a delete leaves a pinned line pointing at a file that is gone."""
     _pin("retracted", "A fact that is about to be retracted.", pinned=True)
     assert "- 📌 A fact that is about to be retracted." in _hud_section(
-        writable_journal, "Active Constraints"
+        writable_journal, "Constraints"
     )
 
     delete_journal_note("technical", "retracted")

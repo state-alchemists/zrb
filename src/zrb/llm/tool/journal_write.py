@@ -15,6 +15,7 @@ entries and backlinks, which upholds these invariants by construction:
 import os
 import re
 import subprocess
+import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
@@ -37,19 +38,36 @@ ACTIVITY_DIR = "activity-log"
 _HISTORY_HEADING = "## History"
 _HISTORY_MAX_ENTRIES = 3
 
-# Which HUD section a note's one-line summary lands in.
+# Which HUD section a note's one-line summary lands in. Two sections are split
+# by owner — what the user is like, and who the agent is — so a preference the
+# agent holds for itself is not filed beside the user's own. The other two are
+# split by firmness: a constraint holds every turn, a headline may age out.
 _HUD_SECTION = {
     "user": "User",
+    "preferences": "User",
     "agent": "Agent",
-    "preferences": "Preferences",
-    "projects": "Active Constraints",
-    "technical": "Active Constraints",
+    "projects": "Recent",
+    "technical": "Recent",
 }
+# The section a durable line goes to — a constraint is a fact that must keep
+# holding, not the newest headline from a category.
+_CONSTRAINTS_SECTION = "Constraints"
 # Their order in the index. The snapshot is capped and overflows from the end, so
 # the durable sections come first; a journal written before a section existed is
 # migrated into this order rather than appended after the unbounded one.
-_HUD_ORDER = ("User", "Preferences", "Agent", "Active Constraints")
+_HUD_ORDER = ("User", _CONSTRAINTS_SECTION, "Agent", "Recent")
+# Sections this version renamed, and what absorbed their lines. The lines are
+# moved, never dropped: a heading change must not cost a journal what it held.
+_HUD_RENAMES = (("Preferences", "User"), ("Active Constraints", "Recent"))
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+# A note's frontmatter says when it stops applying, and whether it already has.
+# The condition is the half of a finding that lets a later session retire it
+# instead of re-reading it: "safe to delete" is a claim somebody has to be able
+# to check, and a finding whose expiry nobody wrote down is a finding nobody can
+# retire.
+_NO_APPLIES_WHEN = "not stated"
+_STATUS_ACTIVE = "active"
+_STATUS_SUPERSEDED = "superseded"
 _BACKLINKS_HEADING = "## Backlinks"
 # What makes a HUD line survive the section's cap. It travels in the index line
 # itself because the capper only ever sees the index text, never the note file.
@@ -187,10 +205,40 @@ def write_journal_note(
                 "Keep this note's hud_line through the section's cap: pinned "
                 "lines are evicted only when every line in the section is "
                 "pinned. Set it for a constraint or an identity that must not "
-                "disappear, and leave it off for a line you may revise away."
+                "disappear, and leave it off for a line you may revise away. On "
+                "a `projects` or `technical` note, a pinned line is also a "
+                "durable constraint: it goes under `## Constraints` instead of "
+                "`## Recent`."
             )
         ),
     ] = False,
+    section: Annotated[
+        str | None,
+        Field(
+            description=(
+                "The index section this hud_line belongs in, when the category "
+                "does not decide it: `User` (who the user is, and how they want "
+                "to be worked with), `Agent` (who you are, and your own standing "
+                "choices), `Constraints` (a fact that must keep holding), or "
+                "`Recent` (a headline that may age out). Omit to take the "
+                "category's own section."
+            )
+        ),
+    ] = None,
+    applies_when: Annotated[
+        str | None,
+        Field(
+            description=(
+                "The condition under which this note still holds — `while "
+                "zrb 3.26 is the released line`, `until the pocket engine "
+                "stops being the default`, `while go uses the office laptop`. "
+                "Somebody has to be able to test it later, so name something "
+                "checkable: a version, a file, a setting, a stated preference. "
+                "It is what lets a later session retire the note instead of "
+                "re-reading it; a note without one cannot be retired."
+            )
+        ),
+    ] = None,
 ) -> str:
     """Records a durable finding as a topic note, findable by search later.
 
@@ -225,12 +273,56 @@ def write_journal_note(
             links,
             hud_line,
             pinned,
+            section,
+            applies_when,
         )
         _git_commit(root, f"write: {category}/{slug}")
+        if not (applies_when or "").strip():
+            result += (
+                " No applies_when given: a note that cannot say when it stops "
+                "applying cannot be retired, only re-read."
+            )
         return result
 
 
 write_journal_note.__name__ = "WriteJournalNote"
+
+
+def supersede_journal_note(
+    category: Annotated[
+        str,
+        Field(description=f"One of: {', '.join(NOTE_CATEGORIES)}."),
+    ],
+    slug: Annotated[str, Field(description="The note's slug, without `.md`.")],
+    reason: Annotated[
+        str,
+        Field(
+            description=(
+                "Why it no longer applies, and the note that replaced it if "
+                "one did (`superseded by the prebuffer note: the cause was "
+                "decode spikes, not GIL contention`)."
+            )
+        ),
+    ],
+) -> str:
+    """Retires a note whose `applies_when` no longer holds.
+
+    The note stays on disk — a journal that deletes its evidence cannot explain
+    how it got somewhere — but it leaves the injected index in the same call, so
+    a false constraint cannot sit in front of a later session until somebody
+    notices. Its frontmatter says `status: superseded` and its `## History` says
+    why.
+
+    Use it, not DeleteJournalNote, when the finding was right and has stopped
+    being true. DeleteJournalNote is for a note that should never have existed.
+    """
+    with _open_journal() as root:
+        result = _supersede_note_locked(root, category, slug, reason)
+        _git_commit(root, f"supersede: {category}/{slug}")
+        return result
+
+
+supersede_journal_note.__name__ = "SupersedeJournalNote"
 
 
 def _write_note_locked(
@@ -244,6 +336,8 @@ def _write_note_locked(
     links: list[str] | None,
     hud_line: str | None,
     pinned: bool,
+    section: str | None = None,
+    applies_when: str | None = None,
 ) -> str:
     """Write the note and its index/HUD entries under *root*.
 
@@ -258,7 +352,9 @@ def _write_note_locked(
         )
     targets = _resolve_links(root, links or [])
     note_path = os.path.join(root, category, f"{slug}.md")
-    _write_note_file(note_path, slug, title, context, finding, source, targets)
+    _write_note_file(
+        note_path, slug, title, context, finding, source, targets, applies_when or ""
+    )
     for target in targets:
         _add_backlink(target, note_path, title)
     _register_in_index(os.path.join(root, category, _index_name()), note_path, title)
@@ -268,10 +364,11 @@ def _write_note_locked(
         title,
         heading="## Recent Insights",
     )
+    hud_section = _hud_section_for(category, pinned, section)
     evicted = (
         _upsert_hud_line(
             root,
-            _HUD_SECTION[category],
+            hud_section,
             hud_line,
             _posix_relpath(note_path, root),
             pinned,
@@ -281,8 +378,29 @@ def _write_note_locked(
     )
     result = f"Wrote {_posix_relpath(note_path, root)}"
     if evicted:
-        result += _eviction_note(_HUD_SECTION[category], evicted)
+        result += _eviction_note(hud_section, evicted)
     return result
+
+
+def _hud_section_for(category: str, pinned: bool, section: str | None) -> str:
+    """Which HUD section this note's line belongs in.
+
+    The caller's own *section* wins, then firmness decides: a pinned line on a
+    `projects` or `technical` note is a constraint that has to keep holding, so
+    it goes to `## Constraints` rather than the rotating `## Recent`. Pinning a
+    `user` or `preferences` line keeps it in `## User`, because a pinned
+    identity is still an identity, not a constraint."""
+    if section:
+        name = section.strip().removeprefix("## ").strip()
+        if name not in _HUD_ORDER:
+            raise ValueError(
+                f"[SYSTEM SUGGESTION]: unknown section {section!r}. "
+                f"Use one of: {', '.join(_HUD_ORDER)}."
+            )
+        return name
+    if pinned and category in ("projects", "technical"):
+        return _CONSTRAINTS_SECTION
+    return _HUD_SECTION[category]
 
 
 def delete_journal_note(
@@ -320,6 +438,66 @@ def delete_journal_note(
 delete_journal_note.__name__ = "DeleteJournalNote"
 
 
+def _supersede_note_locked(root: str, category: str, slug: str, reason: str) -> str:
+    """Retire a note that stopped applying, under *root*.
+
+    The caller holds the journal lock and makes the commit. The file stays —
+    its evidence is why the journal can explain itself later — but its line
+    leaves the injected index here and now, because a note that has stopped
+    applying and still sits in every turn's context is a claim that has to be
+    paid for in every turn until somebody notices."""
+    _check_category(category)
+    note_rel = _posix_relpath(os.path.join(root, category, f"{slug}.md"), root)
+    note_path = os.path.join(root, category, f"{slug}.md")
+    if not os.path.isfile(note_path):
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: no note at {note_rel}. SearchJournal for the "
+            "correct slug, or omit the supersede."
+        )
+    entry = f"- {datetime.now():%Y-%m-%d} — superseded: {reason.strip()}"
+    text = _with_status(_read_text(note_path), _STATUS_SUPERSEDED)
+    text = _append_under_heading(text, _HISTORY_HEADING, entry)
+    _snapshot_before_write(note_path)
+    _write_text(note_path, text)
+    dropped = _remove_note_hud_line(root, note_rel)
+    result = f"Superseded {note_rel}: {reason.strip()}"
+    if dropped:
+        result += f" Removed from the index: {dropped[0].strip()}"
+    return result
+
+
+def _with_status(text: str, status: str) -> str:
+    """*text* with its frontmatter `status:` set to *status*."""
+    if re.search(r"(?m)^status: ", text):
+        return re.sub(r"(?m)^status: .*$", f"status: {status}", text, count=1)
+    lines = text.splitlines()
+    if lines and lines[0].strip() == "---":
+        return "\n".join([lines[0], f"status: {status}", *lines[1:]]) + "\n"
+    return f"---\nstatus: {status}\n---\n{text}"
+
+
+def _remove_note_hud_line(root: str, note_rel: str) -> list[str]:
+    """Drop *note_rel*'s line from every HUD section, returning what went."""
+    own = f" ([note]({note_rel}))"
+    index_path = os.path.join(root, _index_name())
+    current = _read_text(index_path)
+    lines = current.splitlines()
+    dropped: list[str] = []
+    for name in _HUD_ORDER:
+        heading = f"## {name}"
+        if heading not in lines:
+            continue
+        start, end = _section_bounds(lines, heading)
+        body = lines[start:end]
+        kept = [line for line in body if not line.rstrip().endswith(own)]
+        dropped.extend(line for line in body if line.rstrip().endswith(own))
+        if len(kept) != len(body):
+            lines = [*lines[:start], *kept, *lines[end:]]
+    if dropped:
+        _write_text(index_path, "\n".join(lines) + "\n")
+    return dropped
+
+
 def _delete_note_locked(root: str, category: str, slug: str) -> str:
     """Delete the note and every link to it under *root*.
 
@@ -343,11 +521,14 @@ def journal_transaction(
 ) -> Iterator["JournalTransaction"]:
     """Make many journal changes under one lock and one commit.
 
-    The Python seam a script or an import needs: the tools each take the lock
-    themselves and cannot be nested, so a batch used to reach into the private
-    helpers instead. This is not a model-facing tool — the model keeps writing
-    one note per call, because each of its writes has to be confirmed by its
-    own result.
+    The Python seam a script or an import needs: batching used to mean reaching
+    past the tools into the private helpers, because a tool called inside
+    another write waited out the lock timeout against a lock its own thread
+    held. A journal tool called inside this block now re-enters the lock its
+    caller holds, so both shapes work; this one is still the better shape for a
+    batch, since it commits once instead of once per call. This is not a
+    model-facing tool — the model keeps writing one note per call, because each
+    of its writes has to be confirmed by its own result.
 
     *message* is the commit's subject; with none, the commit counts the
     changes. A body that raises makes no commit: every file it touched is put
@@ -531,21 +712,43 @@ def _scrub_links_to(root: str, target_path: str) -> None:
                 _write_text(file_path, "\n".join(kept).rstrip() + "\n")
 
 
+# Whether this thread holds the journal lock, so a journal tool called from
+# inside another journal write re-enters instead of waiting out the timeout
+# against its own lock.
+_lock_state = threading.local()
+
+
 @contextmanager
 def _open_journal() -> Iterator[str]:
     """Yield the journal root with its tree in place, the lock held, and git
     initialized when `LLM_JOURNAL_GIT_ENABLED`."""
     root = ensure_journal_tree()
+    if getattr(_lock_state, "depth", 0):
+        # This thread already holds the root lock — a tool called from inside a
+        # journal write, or a transaction body that logs. Re-entering is safe:
+        # nothing else can interleave while the outermost call holds it, and
+        # waiting for it would burn the whole timeout and then fail against
+        # this thread's own lock.
+        _lock_state.depth += 1
+        try:
+            yield root
+        finally:
+            _lock_state.depth -= 1
+        return
     # One root lock makes the multi-file update atomic against concurrent writers.
     try:
         with hold_file_lock(
             os.path.join(root, ".lock"),
             timeout=max(0.0, CFG.LLM_JOURNAL_LOCK_TIMEOUT),
         ):
-            _migrate_root_index(root)
-            if CFG.LLM_JOURNAL_GIT_ENABLED:
-                _ensure_journal_git(root)
-            yield root
+            _lock_state.depth = 1
+            try:
+                _migrate_root_index(root)
+                if CFG.LLM_JOURNAL_GIT_ENABLED:
+                    _ensure_journal_git(root)
+                yield root
+            finally:
+                _lock_state.depth = 0
     except FileLockTimeout as exc:
         raise ValueError(
             "[SYSTEM SUGGESTION]: journal is busy; another writer held "
@@ -560,17 +763,76 @@ def _open_journal() -> Iterator[str]:
 def _migrate_root_index(root: str) -> None:
     """Bring the root index up to the skeleton this version writes, lock held.
 
-    Two things an older journal is missing: a HUD section for a category that
-    did not exist, and the category's link in `## Directories`. A read-modify-
-    write, so it belongs where the lock is: reading the index before
-    `hold_file_lock` let a writer write back a copy taken before another writer
-    added its line, losing that line on both sides of a successful call.
+    Three things an older journal is missing: a renamed HUD section's lines in
+    the section that absorbed it, a HUD section that did not exist (a named
+    constraint beside the rotating headlines), and the category's link in
+    `## Directories`. A read-modify-write, so it belongs where the lock is:
+    reading the index before `hold_file_lock` let a writer write back a copy
+    taken before another writer added its line, losing that line on both sides
+    of a successful call.
     """
     root_index = os.path.join(root, _index_name())
     current = _read_text(root_index)
-    migrated = _ensure_directory_links(_ensure_hud_sections(current))
+    migrated = _ensure_directory_links(
+        _ensure_hud_sections(_absorb_renamed_sections(current))
+    )
     if migrated != current:
         _write_text(root_index, migrated)
+
+
+def _absorb_renamed_sections(text: str) -> str:
+    """Move a renamed HUD section's lines into the section that absorbed them.
+
+    `## Preferences` is now `## User` (it mixed what the user is like with the
+    agent's own standing rules, so the heading claimed one owner and held two)
+    and `## Active Constraints` is now `## Recent` (a rotating queue of newest
+    headlines under a name that promised constraints). The lines are moved, in
+    order, after what the target already held: a renamed heading must not cost
+    the journal an entry. Running it twice changes nothing.
+    """
+    renamed, sections = _split_index_sections(text)
+    names = [name for name, _body in sections]
+    if not any(old in names for old, _new in _HUD_RENAMES):
+        return text
+    targets = dict(_HUD_RENAMES)
+    bodies: dict[str, list[str]] = {}
+    order: list[str] = []
+    for name, body in sections:
+        target = targets.get(name, name)
+        if target not in bodies:
+            bodies[target] = []
+            order.append(target)
+        bodies[target].extend(line for line in body if line.strip())
+    ordered = [name for name in _HUD_ORDER if name in bodies]
+    ordered += [name for name in order if name not in _HUD_ORDER]
+    return _join_index_sections(renamed, [(name, bodies[name]) for name in ordered])
+
+
+def _split_index_sections(text: str) -> "tuple[list[str], list[tuple[str, list[str]]]]":
+    """The lines before the first `## ` heading, then each heading and its body."""
+    preamble: list[str] = []
+    sections: list[tuple[str, list[str]]] = []
+    for line in text.splitlines():
+        if line.startswith("## "):
+            sections.append((line[3:].strip(), []))
+        elif sections:
+            sections[-1][1].append(line)
+        else:
+            preamble.append(line)
+    return preamble, sections
+
+
+def _join_index_sections(
+    preamble: list[str], sections: "list[tuple[str, list[str]]]"
+) -> str:
+    """Render an index in the shape `_root_index_skeleton` writes."""
+    parts = ["\n".join(preamble).rstrip("\n"), "\n"]
+    for name, body in sections:
+        content = "\n".join(body).strip("\n")
+        parts.append(f"\n## {name}\n")
+        if content:
+            parts.append(f"\n{content}\n")
+    return "".join(parts)
 
 
 def _check_category(category: str) -> None:
@@ -808,11 +1070,16 @@ def _write_note_file(
     finding: str,
     source: str,
     targets: list[str],
+    applies_when: str = "",
 ) -> None:
     """Write the note, merging (never dropping) the existing ``## Backlinks``
     and ``## Related`` links, and appending the superseded Context/Finding to
     ``## History`` (capped at ``_HISTORY_MAX_ENTRIES``).
-    """
+
+    *applies_when* is the condition under which the finding still holds. It
+    lives in the frontmatter rather than the prose because a later session has
+    to be able to *test* it: a note nobody can say the expiry of is a note
+    nobody can retire."""
     history = _merge_entries(
         _entries_under(note_path, _HISTORY_HEADING), _prior_revision_entry(note_path)
     )
@@ -833,6 +1100,8 @@ def _write_note_file(
     lines = [
         "---",
         f"slug: {slug}",
+        f"applies_when: {applies_when.strip() or _NO_APPLIES_WHEN}",
+        f"status: {_STATUS_ACTIVE}",
         "---",
         f"# {title}",
         "",
@@ -1010,6 +1279,10 @@ def _upsert_hud_line(
     current = _read_text(index_path)
     if entry in current.splitlines():
         return []
+    # A note has one line, in one section: re-filing it under a new section
+    # (a line that turns out to be a constraint, a preference that was really
+    # the agent's own rule) must move it, not copy it.
+    current = _drop_from_other_hud_sections(current, section, own, text)
     heading = f"## {section}"
     lines = current.splitlines()
     if heading in lines:
@@ -1026,6 +1299,30 @@ def _upsert_hud_line(
     )
     _write_text(index_path, current)
     return evicted
+
+
+def _drop_from_other_hud_sections(
+    text: str, section: str, own: str, line_text: str
+) -> str:
+    """Remove this note's line from every HUD section but *section*.
+
+    Matching is `_is_own_hud_line`'s, so the note's line is found by its link
+    even though the prose changed, and another note's line that quotes the same
+    words is left alone."""
+    for name in _HUD_ORDER:
+        if name == section:
+            continue
+        heading = f"## {name}"
+        lines = text.splitlines()
+        if heading not in lines:
+            continue
+        start, end = _section_bounds(lines, heading)
+        body = lines[start:end]
+        kept = [line for line in body if not _is_own_hud_line(line, own, line_text)]
+        if len(kept) == len(body):
+            continue
+        text = "\n".join([*lines[:start], *kept, *lines[end:]]) + "\n"
+    return text
 
 
 def _hud_line_text(line: str, own: str) -> str:

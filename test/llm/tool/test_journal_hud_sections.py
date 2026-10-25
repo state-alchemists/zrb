@@ -114,12 +114,13 @@ def test_an_agent_note_pins_under_the_agent_section(writable_journal):
 
     index = _read(writable_journal, "index.md")
     agent = index.split("## Agent", 1)[1].split("\n## ", 1)[0]
-    preferences = index.split("## Preferences", 1)[1].split("\n## ", 1)[0]
+    user = index.split("## User", 1)[1].split("\n## ", 1)[0]
     assert "Avatar: tactical is my standing pick." in agent
     assert "([note](agent/avatar-wardrobe.md))" in agent
-    assert "Avatar" not in preferences
+    # The agent's own line is not filed beside the user's preferences.
+    assert "Avatar" not in user
     # Durable sections stay ahead of the capped tail.
-    assert index.index("## Agent") < index.index("## Active Constraints")
+    assert index.index("## Agent") < index.index("## Recent")
 
 
 def test_creating_the_tree_leaves_an_existing_index_alone(writable_journal):
@@ -139,12 +140,13 @@ def test_creating_the_tree_leaves_an_existing_index_alone(writable_journal):
     assert _read(writable_journal, "index.md") == old_index
 
 
-def test_an_index_written_before_the_agent_section_gains_it_in_place(
+def test_an_index_written_before_these_sections_is_migrated_in_place(
     writable_journal,
 ):
-    """A journal created earlier keeps its skeleton; the new section goes where
-    it belongs rather than after the unbounded one, where the cap would evict
-    it first."""
+    """A journal created earlier keeps its skeleton; a section this version
+    renamed has its lines moved into the section that absorbed them, and a new
+    section goes where it belongs rather than after the unbounded one, where the
+    cap would evict it first."""
     from zrb.llm.tool.journal_write import log_activity
 
     _write(
@@ -161,9 +163,18 @@ def test_an_index_written_before_the_agent_section_gains_it_in_place(
 
     index = _read(writable_journal, "index.md")
     assert "## Agent" in index
-    assert index.index("## Preferences") < index.index("## Agent")
-    assert index.index("## Agent") < index.index("## Active Constraints")
-    assert index.index("## Active Constraints") < index.index("## Recent Insights")
+    assert "## Constraints" in index
+    # The two headings this version split away are gone, not left beside their
+    # replacements holding a second copy of the same lines.
+    assert "## Preferences" not in index
+    assert "## Active Constraints" not in index
+    assert (
+        index.index("## User")
+        < index.index("## Constraints")
+        < index.index("## Agent")
+        < index.index("## Recent")
+        < index.index("## Recent Insights")
+    )
     # Nothing that was already in the index is lost or rewritten.
     for kept in (
         "- Goes by Go.",
