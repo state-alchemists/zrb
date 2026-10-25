@@ -32,6 +32,16 @@ def test_workflow_explains_parallel_calls_and_skill_activation():
     assert "every matching one" in prompt
 
 
+def test_workflow_says_the_wall_clock_belongs_to_the_user():
+    """The model does not experience duration, so a wasted wait is invisible to
+    it and paid by the user. The prompt has to say that outright, and name both
+    shapes: work that can run at once, and a wait that must stay bounded."""
+    prompt = get_prompt("workflow")
+    assert "long sleep" in prompt
+    assert "background handle" in prompt
+    assert "go in sequence" in prompt
+
+
 def test_example_models_a_multi_methodology_task():
     prompt = get_prompt("example")
     assert "core-design" in prompt
