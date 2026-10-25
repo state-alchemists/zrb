@@ -12,7 +12,8 @@ class InputProvenance:
     sure, 0-1), and what the microphone heard around it: how long the
     utterance lasted, whether any of it was said over a reply
     (``is_over_speech``), and whether it was said over one long enough to
-    pause it (``is_barge_in``)."""
+    pause it (``is_barge_in``). ``idle_seconds`` is the other half of the same
+    question — how long the chat had been quiet before the turn arrived."""
 
     channel: str
     modality: str = "text"
@@ -22,6 +23,7 @@ class InputProvenance:
     spoken_seconds: float = 0.0
     is_barge_in: bool = False
     is_over_speech: bool = False
+    idle_seconds: float = 0.0
 
     def render(self) -> str:
         """Render the compact live-context description for this input."""
@@ -36,6 +38,8 @@ class InputProvenance:
             label = f"{label}, talked over the reply"
         elif self.is_over_speech:
             label = f"{label}, partly over the reply"
+        if self.idle_seconds >= 1:
+            label = f"{label}, after {format_duration(int(self.idle_seconds))} of silence"
         return label
 
 
