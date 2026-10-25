@@ -46,6 +46,23 @@ Valid values: `CRITICAL`, `FATAL`, `ERROR`, `WARN`, `WARNING`, `INFO`, `DEBUG`, 
 
 Format: `%(asctime)s %(levelname)s: %(message)s` (ISO-8601 date, styled with faint ANSI coloring).
 
+### Keeping the lines: `ZRB_LOGGING_FILE`
+
+A terminal is not a record. The chat UI repaints its own screen, so a warning written to stderr is painted over by the next frame and never read again — which is how a fault that only appears while the machine is busy stays undiagnosable. Point zrb at a file and the same lines are kept:
+
+```bash
+export ZRB_LOGGING_FILE=~/.zrb/zrb.log         # off when empty (the default)
+export ZRB_LOGGING_FILE_LEVEL=DEBUG            # the file alone; default: ZRB_LOGGING_LEVEL
+export ZRB_LOGGING_FILE_MAX_BYTES=10485760     # 10 MiB, then rotate; 0 never rotates
+export ZRB_LOGGING_FILE_BACKUP_COUNT=3         # how many rotated files to keep
+```
+
+The handler is installed at CLI startup, before any init source loads, so a warning raised while starting up is kept too. Its directory is created when missing, and a file that cannot be opened is reported rather than fatal: a chat that cannot log still runs. File lines also carry the logger's name — `2026-10-25 16:20:14 WARNING zrb.llm.speech.pcm_player: Speech stuttered: …` — because a file is read out of context.
+
+Installing twice adds nothing, so `CFG.LOGGER` never writes one line to the same file twice.
+
+Only what goes through `CFG.LOGGER` is kept. A few startup diagnostics print to stderr directly — a failing init source, a mistyped variable — and stay on the terminal.
+
 ### Root Logger (`CFG.LOGGER`)
 
 Access the configured root logger from any module:

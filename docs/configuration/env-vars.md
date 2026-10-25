@@ -46,6 +46,10 @@ A *retired* setting still in your environment is named at startup too, with what
 | `ZRB_PROJECT_ENV_KEYS` | Your own variables under the `ZRB_` prefix (comma-separated, exact or `*` glob, prefix omitted) that the typo and retired-setting warnings should skip | (empty) |
 | `ZRB_IS_TERMUX` | Whether zrb runs under Termux (auto-detected; override for Termux-specific keybindings) | Auto-detected |
 | [`ZRB_LOGGING_LEVEL`](../advanced-topics/logging.md) | Verbosity of Zrb's internal logs | `WARNING` |
+| [`ZRB_LOGGING_FILE`](../advanced-topics/logging.md) | Path to write the logs to as well, for a terminal that keeps no record | (empty = no file) |
+| `ZRB_LOGGING_FILE_LEVEL` | Verbosity of that file alone, in the `ZRB_LOGGING_LEVEL` names | Follows `ZRB_LOGGING_LEVEL` |
+| `ZRB_LOGGING_FILE_MAX_BYTES` | Size the log file reaches before it rotates; 0 never rotates | `10485760` (10 MiB) |
+| `ZRB_LOGGING_FILE_BACKUP_COUNT` | Rotated log files kept before the oldest is dropped | `3` |
 | `ZRB_BANNER` | Custom ASCII art or text displayed at CLI start | Standard Zrb ASCII art |
 | `ZRB_ROOT_GROUP_NAME` | Name of root command group in help menus | `zrb` |
 | `ZRB_ROOT_GROUP_DESCRIPTION` | Description for root command group | `A coding agent with a built-in task DAG` |
