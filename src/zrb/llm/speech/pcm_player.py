@@ -231,6 +231,10 @@ class PcmUtterance(Utterance):
     utterance is made: what plays is the backend's samples scaled, clipped at
     the ends a 16-bit sample has.
 
+    *prebuffer_seconds* is how much audio stands by before the device starts.
+    It is the newest of these, and sits last for that reason: an older caller
+    passing the others by position still means what it meant.
+
     The play timeout counts playing time only: a pause does not use it up.
     """
 
@@ -239,11 +243,11 @@ class PcmUtterance(Utterance):
         audio: SpeechAudio,
         block_frames: int | None = None,
         read_ahead: int | None = None,
-        prebuffer_seconds: float | None = None,
         fallback: Callable[[], Utterance] | None = None,
         on_device_error: Callable[[Exception], None] | None = None,
         device_is_resting: Callable[[], bool] | None = None,
         volume: int = FULL_VOLUME,
+        prebuffer_seconds: float | None = None,
     ):
         super().__init__([])
         self._fallback = fallback

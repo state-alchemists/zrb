@@ -12,7 +12,15 @@ from zrb.config.config import CFG
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.speech.pcm_player import PcmUtterance, prebuffer_wait_seconds
 
-from .test_pcm_player import RATE, CallbackStop, FakeOutputStream, _pcm, _played
+from .test_pcm_player import (
+    RATE,
+    CallbackStop,
+    FakeOutputStream,
+    ProgramUtterance,
+    _pcm,
+    _played,
+)
+from .test_pcm_player_underrun import GoneOutputStream
 
 np = pytest.importorskip("numpy")
 
@@ -148,6 +156,23 @@ def test_a_zero_cushion_still_waits_for_the_first_audio(sd):
     [stream] = FakeOutputStream.instances
     assert stream.started_at - started >= 0.15  # waited for the first chunk
     assert _played(stream)[:1600].tolist() == [5] * 1600  # not silence
+
+
+def test_the_cushion_is_added_last_so_a_positional_caller_still_fits(sd):
+    """An older call passing the older options by position keeps meaning what
+    it meant: the cushion sits after them, not among them."""
+    events = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([5] * 1600)]),
+        BLOCK,  # block_frames
+        32,  # read_ahead
+        lambda: ProgramUtterance(events),  # fallback, the fourth positional
+    )
+    sd.OutputStream = GoneOutputStream  # a device that cannot play
+
+    utterance.play(timeout=2)
+
+    assert events == ["played", "cleaned"]
 
 
 def test_the_read_ahead_count_does_not_cap_the_cushion(sd):
