@@ -36,9 +36,13 @@ _BUFFER_POLL_SECONDS = 0.005
 # Audio to have read ahead before the device starts playing, and how long
 # holding it off for that at all is worth; past the wait, what came goes, and
 # a sentence that never starts is worse than one that stutters in its first
-# block.
-_PREBUFFER_SECONDS = 0.1
-_PREBUFFER_WAIT_SECONDS = 1.0
+# block. The cushion itself is a setting
+# (`CFG.LLM_SPEECH_PLAYER_PREBUFFER_SECONDS`): a slower engine needs more of
+# it, and pays for it in the pause before each sentence's first word. The wait
+# grows with the cushion, or it would cap a longer one back to itself and the
+# setting would silently under-deliver where it is needed most.
+_PREBUFFER_WAIT_FLOOR_SECONDS = 1.0
+_PREBUFFER_WAIT_FACTOR = 2.0
 # How often playback checks whether it is paused, to leave paused time out
 # of the timeout.
 _TIMEOUT_POLL_SECONDS = 0.02
@@ -63,6 +67,14 @@ _SAMPLE_MAX = 32767
 def clamp_volume(percent: int) -> int:
     """*percent* held inside what zrb speaks at, ``MIN_VOLUME``-``MAX_VOLUME``."""
     return max(MIN_VOLUME, min(MAX_VOLUME, percent))
+
+
+def prebuffer_wait_seconds(prebuffer_seconds: float) -> float:
+    """How long holding playback off for *prebuffer_seconds* of audio is worth:
+    twice the cushion, and never under `_PREBUFFER_WAIT_FLOOR_SECONDS`."""
+    return max(
+        _PREBUFFER_WAIT_FLOOR_SECONDS, prebuffer_seconds * _PREBUFFER_WAIT_FACTOR
+    )
 
 
 logger = logging.getLogger(__name__)
@@ -181,9 +193,13 @@ def is_available() -> bool:
 
 class PcmUtterance(Utterance):
     """`SpeechAudio` played through a sounddevice output stream, in blocks of
-    *block_frames* samples, reading *read_ahead* chunks ahead of playback;
-    left ``None``, `CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES` and
-    `CFG.LLM_SPEECH_PLAYER_READ_AHEAD`.
+    *block_frames* samples, reading *read_ahead* chunks ahead of playback and
+    starting on *prebuffer_seconds* of audio; each left ``None``,
+    `CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES`,
+    `CFG.LLM_SPEECH_PLAYER_READ_AHEAD` and
+    `CFG.LLM_SPEECH_PLAYER_PREBUFFER_SECONDS`. The cushion buys a slow engine
+    the time to make its next block, at the cost of that pause before each
+    sentence starts.
 
     When the output device cannot be opened (none, or busy), or the audio
     fails before any of it was heard (a download cut off, a broken stream),
@@ -223,6 +239,7 @@ class PcmUtterance(Utterance):
         audio: SpeechAudio,
         block_frames: int | None = None,
         read_ahead: int | None = None,
+        prebuffer_seconds: float | None = None,
         fallback: Callable[[], Utterance] | None = None,
         on_device_error: Callable[[Exception], None] | None = None,
         device_is_resting: Callable[[], bool] | None = None,
@@ -257,8 +274,15 @@ class PcmUtterance(Utterance):
             block_frames = CFG.LLM_SPEECH_PLAYER_BLOCK_FRAMES
         if read_ahead is None:
             read_ahead = CFG.LLM_SPEECH_PLAYER_READ_AHEAD
+        if prebuffer_seconds is None:
+            prebuffer_seconds = CFG.LLM_SPEECH_PLAYER_PREBUFFER_SECONDS
         self._block_frames = max(1, block_frames)
         self._read_ahead = max(1, read_ahead)
+        # No cushion means the device starts as soon as anything at all has
+        # arrived, which is a setting someone may choose; a negative one is
+        # not, and reads the same way.
+        self._prebuffer_seconds = max(0.0, prebuffer_seconds)
+        self._prebuffer_wait_seconds = prebuffer_wait_seconds(self._prebuffer_seconds)
         self._audio = audio
         self._buffer: deque[bytes] = deque()
         # The audio in `_buffer`, in bytes; both it and `_is_source_done`
@@ -476,13 +500,13 @@ class PcmUtterance(Utterance):
     def _prebuffer(self) -> None:
         """Wait until a moment of audio stands by to play (`_is_source_done`
         and `stop` release the wait), so the device's first block has sound."""
-        ready = int(self._audio.sample_rate * _PREBUFFER_SECONDS) * 2
+        ready = int(self._audio.sample_rate * self._prebuffer_seconds) * 2
         with self._buffer_changed:
             self._buffer_changed.wait_for(
                 lambda: self._buffer_bytes >= ready
                 or self._is_source_done
                 or self._is_done,
-                timeout=_PREBUFFER_WAIT_SECONDS,
+                timeout=self._prebuffer_wait_seconds,
             )
 
     def _stop_stream(
@@ -716,6 +740,8 @@ class PcmUtterance(Utterance):
             "standing by in time (the audio arrives slowly, or the machine "
             f"cannot fill a block of {self._block_frames} frames from one "
             "callback to the next; "
+            f"{CFG.ENV_PREFIX}_LLM_SPEECH_PLAYER_PREBUFFER_SECONDS starts each "
+            "sentence on more audio, and "
             f"{CFG.ENV_PREFIX}_LLM_SPEECH_PLAYER_BLOCK_FRAMES makes the block "
             "longer to wait for)"
         )

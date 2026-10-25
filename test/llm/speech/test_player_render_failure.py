@@ -65,6 +65,7 @@ def _in_process(monkeypatch, available=True, options=None, fallbacks=None):
             audio,
             block_frames=None,
             read_ahead=None,
+            prebuffer_seconds=None,
             fallback=None,
             on_device_error=None,
             device_is_resting=None,

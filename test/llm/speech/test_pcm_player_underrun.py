@@ -116,14 +116,20 @@ def test_a_block_the_device_says_it_got_early_counts_as_an_underrun(sd, caplog):
 
 def test_audio_arriving_too_late_is_counted_as_an_underrun(sd, caplog):
     """Without PortAudio's word on it (its callback produced silence in time),
-    a block waiting for the download is what the listener heard as stutter."""
+    a block waiting for the download is what the listener heard as stutter.
+
+    On a cushion thin enough not to cover the wait, which is the case being
+    counted: with the default cushion a pause this short is absorbed, which
+    `test_pcm_player_prebuffer` checks."""
 
     def arrives_in_drips():
         yield _pcm([5] * 1600)
         time.sleep(0.2)  # the read ahead did not cover this long
         yield _pcm([5] * 1600)
 
-    utterance = PcmUtterance(SpeechAudio(RATE, arrives_in_drips()))
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, arrives_in_drips()), prebuffer_seconds=0.1
+    )
 
     utterance.play(timeout=5)
 

@@ -386,6 +386,7 @@ class Speaker:
                     audio,
                     block_frames=self._config.player_block_frames,
                     read_ahead=self._config.player_read_ahead,
+                    prebuffer_seconds=self._config.player_prebuffer_seconds,
                     fallback=self._program_fallback(backend, later, text),
                     on_device_error=self._handle_device_error,
                     device_is_resting=self._is_device_resting,

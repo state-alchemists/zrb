@@ -67,6 +67,7 @@ class SpeechConfig:
     stall_timeout: float | None = None
     player_block_frames: int | None = None
     player_read_ahead: int | None = None
+    player_prebuffer_seconds: float | None = None
     progress_phrases: dict[str, str] | None = None
     approval_actions: dict[str, str] | None = None
     emotion_voices: dict[str, str] | None = None
