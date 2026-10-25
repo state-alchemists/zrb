@@ -327,3 +327,22 @@ def test_a_line_an_earlier_version_pinned_twice_is_written_once(writable_journal
 
     pinned = _read(writable_journal, "index.md")
     assert pinned.count("([note](technical/retry-policy.md))") == 1
+
+
+def test_an_unknown_section_leaves_the_journal_untouched(writable_journal):
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    with pytest.raises(ValueError, match="unknown section"):
+        write_journal_note(
+            category="technical",
+            slug="bad-section",
+            title="T",
+            context="c",
+            finding="f",
+            source="s:1",
+            hud_line="A line.",
+            section="Constraint",
+        )
+
+    assert not os.path.exists(os.path.join(writable_journal, "technical", "bad-section.md"))
+    assert not os.path.exists(os.path.join(writable_journal, "index.md"))

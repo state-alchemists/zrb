@@ -346,6 +346,8 @@ def _write_note_locked(
     older line under the same section lost its place."""
     _check_category(category)
     _check_slug(slug)
+    # Before the first write: a bad section must not leave a half-written note.
+    hud_section = _hud_section_for(category, pinned, section)
     targets = _resolve_links(root, links or [])
     note_path = os.path.join(root, category, f"{slug}.md")
     _write_note_file(
@@ -360,7 +362,6 @@ def _write_note_locked(
         title,
         heading="## Recent Insights",
     )
-    hud_section = _hud_section_for(category, pinned, section)
     evicted = (
         _upsert_hud_line(
             root,
