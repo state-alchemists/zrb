@@ -169,6 +169,60 @@ async def test_pre_compact_prompt_is_what_the_user_typed():
 
 
 @pytest.mark.asyncio
+async def test_a_precompact_hook_s_context_does_not_hide_a_dropped_message():
+    """The POST_COMPACT counts start after a PreCompact hook's own context has joined the
+    history. Counting from before it lets one message out and one in look like nothing
+    happened, which is the case this pins."""
+    agent = MagicMock()
+    agent.model = "deepseek:deepseek-flash"
+    mock_result = MagicMock()
+    mock_result.output = "Result"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.max_token_per_request = 100
+    limiter.get_effective_context_window.return_value = 100
+    limiter.acquire = AsyncMock()
+    # The same total before and after, so the token count alone cannot show the drop.
+    limiter.count_tokens.side_effect = lambda value: 80
+    limiter.fit_context_window.side_effect = lambda history, *a, **k: history[1:]
+
+    captured: dict = {}
+
+    async def rec(context: HookContext) -> HookResult:
+        if context.event == HookEvent.PRE_COMPACT:
+            return HookResult(success=True, modifications={"additionalContext": "ctx"})
+        if context.event == HookEvent.POST_COMPACT:
+            captured.update(context.event_data)
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.add_hook(rec, events=[HookEvent.PRE_COMPACT, HookEvent.POST_COMPACT])
+
+    with (
+        patch.object(agent, "run") as mock_run,
+        patch(
+            "zrb.llm.agent.run.runner.ensure_alternating_roles", side_effect=lambda x: x
+        ),
+    ):
+        mock_run.side_effect = _run_from(_gen)
+        await run_agent(
+            agent=agent,
+            message="Hi",
+            message_history=[MagicMock() for _ in range(3)],
+            limiter=limiter,
+            hook_manager=manager,
+        )
+
+    assert captured["before_message_count"] == 4, "three came in and the hook added one"
+    assert captured["message_count"] == 3, "the fit dropped one"
+    assert captured["compacted"] is True
+
+
+@pytest.mark.asyncio
 async def test_the_ninety_percent_fit_is_reported_as_a_compaction():
     """`_acquire_rate_limit` trims to 90% of the window, and it used to do that *after* the
     event, so a history that fit the window but not the margin was dropped with no day line.

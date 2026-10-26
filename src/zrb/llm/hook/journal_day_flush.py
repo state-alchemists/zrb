@@ -2,16 +2,13 @@
 
 Registered on every `HookManager` whenever `LLM_JOURNAL_ENABLED` and
 `LLM_JOURNAL_DAY_FLUSH_ENABLED` are both on, so a journaled setup gets a day
-record without configuring anything — the same
-posture as the built-in journal-compliance judge. It listens to `PostCompact`,
-which fires on every turn, and writes only when the turn actually replaced
-history: a line per turn would be noise wearing a record's shape.
+record without configuring anything. It listens to `PostCompact`, which fires on
+every turn, and writes only when the turn replaced history: writing on every turn
+would put one line per turn in the day file.
 
-Deliberately dumb. A flush rides on the compaction that is already the most
-expensive moment of a session, so it takes no model call and makes no judgement
-about what mattered: one line saying which span went away, how big it was, and
-the last thing the user asked. A model-driven "keep the five lines worth
-keeping" pass belongs in a slower hook, if it ever belongs anywhere.
+It takes no model call and makes no judgement about what mattered. One line
+records which span went away, how big it was, and the last thing the user asked.
+A model-driven "keep the five lines worth keeping" pass belongs in a slower hook.
 
 A failure here must never block anything: the writer catches its own errors and
 the hook always returns a result with no output.
@@ -38,7 +35,7 @@ QUOTE_LIMIT = 160
 """Characters of the last user turn kept in the flushed line."""
 
 DEFAULT_IMPORTANCE = 2
-"""A scaffold line, not a kept moment: the sweep may drop it without loss."""
+"""The importance a flushed line gets. It is scaffolding the sweep may drop."""
 
 AUTO_FLUSH_MARKER = "auto-flush"
 # The injected block ends the turn and closes its own tag, so only that shape is
@@ -138,8 +135,9 @@ def _last_user_ask(data: dict[str, object]) -> str:
     """What the user last asked: this turn's prompt, else the newest turn in history.
 
     `_prepare_history` sends the prompt with the event, because it joins the
-    history only afterwards. History is what a compaction nothing asked for has to
-    offer — and only its user-prompt parts, never a tool result.
+    history only afterwards. When no prompt came with the event, the newest user
+    turn in the history is used, and only its user-prompt parts: a system prompt or
+    a tool return is not something anybody asked.
     """
     prompt = data.get("prompt")
     if prompt is not None:
@@ -189,12 +187,11 @@ def append_day_line(
     Returns the path written, or ``None`` when the write failed — the caller
     treats that as "no flush", never as an error to report upward.
 
-    The heading rides with the first line in one append rather than a
-    create-then-write pair: one session would create an empty file, another would
-    append its line, and the first would then write the heading over the start of
-    it. A single ``O_APPEND`` write puts each line at the end of the file, so
-    nothing is ever overwritten. In the microsecond where both see an empty file
-    both write a heading — a repeated line, never a lost one.
+    The heading is written with the first line rather than in a separate create
+    step: one session would create an empty file, another would append its line,
+    and the first would then write the heading over the start of it. One append
+    puts each line at the end of the file, so nothing is overwritten. Two sessions
+    arriving together can both write a heading; a duplicate is better than a loss.
     """
     moment = now or datetime.now()
     path = _day_path(moment, root)
@@ -211,12 +208,12 @@ def append_day_line(
 
 
 class _DayFlush:
-    """The flush, as a callable that answers to the name both knobs use.
+    """The flush as a callable that carries its own name.
 
     `HookRegistry._hook_name` reads a config's name, then the hook's `__name__`,
-    then its `name`. A plain function would answer with its Python name,
-    `journal_day_flush`, which `LLM_HOOKS=journal-day-flush` does not match — an
-    allowlist naming the flush would have dropped it in silence. An object has no
+    then its `name`. A plain function answers with its Python name,
+    `journal_day_flush`, which `LLM_HOOKS=journal-day-flush` does not match, so an
+    allowlist naming the flush would have dropped it silently. An object has no
     `__name__`, so the documented name is the one that answers.
     """
 
@@ -226,8 +223,8 @@ class _DayFlush:
         """The PostCompact hook: record the span a compaction replaced.
 
         Nothing is written when the turn replaced no history. Both compaction
-        events fire on every turn, so a hook that wrote on each would fill the day
-        file with a line per turn — noise wearing the shape of a record.
+        events fire on every turn, so a hook that wrote on each would put one line
+        per turn in the day file.
         """
         data = context.event_data if isinstance(context.event_data, dict) else {}
         if not data.get("compacted"):
