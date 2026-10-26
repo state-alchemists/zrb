@@ -27,6 +27,7 @@ from zrb.llm.ambient_state import (
     set_interactive_mode,
 )
 from zrb.llm.journal_index_name import resolve_journal_index_name
+from zrb.llm.journal_usage_log import record_injected
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
@@ -44,6 +45,9 @@ _LIVE_CONTEXT_BLOCK_RE = re.compile(
 
 # A journal index entry: `[title](category/note.md)`.
 _INDEX_LINK = re.compile(r"\[([^\]]+)\]\(([a-z0-9_-]+)/[^)]*\)")
+
+# The trailing link of a HUD line: `- text ([note](category/slug.md))`.
+_HUD_NOTE_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$", re.MULTILINE)
 
 
 def append_live_context(prompt_content: Any, live_context: str) -> Any:
@@ -511,7 +515,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     possibly_related = ""
     if first_message and CFG.LLM_JOURNAL_AUTO_SEARCH_ENABLED:
         possibly_related = _render_possibly_related(first_message)
-    return (
+    block = (
         f"<journal-index>\n"
         f"Your persistent memory (index file: {index_file}). "
         f"{hint}"
@@ -527,6 +531,13 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         f"{possibly_related}"
         f"</journal-index>"
     )
+    record_injected(len(block.encode("utf-8")), _hud_note_paths(content), bool(hint))
+    return block
+
+
+def _hud_note_paths(content: str) -> list[str]:
+    """The note path each injected HUD line links to (`([note](path))`)."""
+    return [m.group(1) for m in _HUD_NOTE_LINK.finditer(content)]
 
 
 def _overflow_summary(dropped: str) -> str:
@@ -563,10 +574,11 @@ def _render_possibly_related(first_message: str) -> str:
     """Auto-search the opening message into a section marked unverified; ``""`` on no hits."""
     # lazy: zrb internal (heavy via transitive — zrb.llm.tool's __init__
     # imports pydantic_ai-dependent modules)
-    from zrb.llm.tool.journal import search_journal
+    from zrb.llm.tool.journal import find_in_journal
 
-    result = search_journal(first_message)
-    hits = result.get("results") or []
+    result = find_in_journal(first_message)
+    found = result.get("results")
+    hits = found if isinstance(found, list) else []
     if not hits:
         return ""
     max_hits = max(CFG.LLM_JOURNAL_AUTO_SEARCH_MAX_HITS, 0)

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.journal_usage_log import record_path_read
 from zrb.llm.tool.file_observation import record_observed, record_observed_binary
 from zrb.llm.util.attachment import get_media_type, get_oversized_by, sniff_mismatch
 from zrb.llm.util.image_scale import scale_image_bytes
@@ -54,6 +55,7 @@ async def read_file(
     validation_error = _validate_path_for_reading(abs_path)
     if validation_error:
         return validation_error
+    record_path_read(abs_path)
 
     media_type = get_media_type(abs_path)
     if media_type is not None and media_type.startswith("image/"):

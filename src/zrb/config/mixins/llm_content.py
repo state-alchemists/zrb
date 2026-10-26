@@ -83,11 +83,15 @@ class LLMContentMixin:
             )
         ),
         doc=(
-            "Directory for the local LLM usage log: one JSON line per completed "
-            "run, holding token counts, request and tool-call counts, the run's "
-            "duration and its cost when the model is priced. Numbers only — no "
-            "prompt text, no tool arguments — which is what lets `/usage` work "
-            "without an opt-in."
+            "Directory for the local LLM usage logs: `usage-YYYY-MM.jsonl` holds "
+            "one JSON line per completed run (token counts, request and "
+            "tool-call counts, per-tool call and error counts by tool name, the "
+            "run's duration and its cost when the model is priced), and "
+            "`journal-YYYY-MM.jsonl` holds one line per journal event (index "
+            "injected, searched, read, written, superseded, deleted) with note "
+            "ids stored as short hashes. Numbers, tool names and hashed ids only "
+            "— no prompt text, tool arguments, note titles or file content — "
+            "which is what lets `/usage` work without an opt-in."
         ),
     )
 

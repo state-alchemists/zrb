@@ -28,6 +28,12 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.journal_index_name import resolve_journal_index_name
+from zrb.llm.journal_usage_log import (
+    DELETED,
+    SUPERSEDED,
+    WRITTEN,
+    record_note_event,
+)
 from zrb.llm.tool.journal_index import (
     ACTIVITY_DIR,
     hud_lines_of,
@@ -243,6 +249,7 @@ def write_journal_note(
             applies_when,
         )
         _commit_or_defer(root, f"write: {category}/{slug}")
+        record_note_event(WRITTEN, category, slug)
         if not (applies_when or "").strip():
             result += (
                 " No applies_when given: a note that cannot say when it stops "
@@ -283,6 +290,7 @@ def supersede_journal_note(
     with _open_journal() as root:
         result = _supersede_note_locked(root, category, slug, reason)
         _commit_or_defer(root, f"supersede: {category}/{slug}")
+        record_note_event(SUPERSEDED, category, slug)
         return result
 
 
@@ -387,6 +395,7 @@ def delete_journal_note(
     with _open_journal() as root:
         result = _delete_note_locked(root, category, slug)
         _commit_or_defer(root, f"delete: {category}/{slug}")
+        record_note_event(DELETED, category, slug)
         return result
 
 
