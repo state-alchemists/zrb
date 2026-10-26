@@ -57,11 +57,19 @@ CATALOG_HEADING = "## Recent Insights"
 
 _NOTE_LINK_RE = re.compile(r"\(\[note\]\(([^)]*)\)\)\s*$")
 _BARE_LINK_RE = re.compile(r"^- \[.*\]\(([^)]+)\)\s*$")
+_OLDER_NOTES_RE = re.compile(r"^- _\d+ older notes?: see each category's index_\s*$")
+# A HUD line longer than this is still written; the tool result asks the model to
+# shorten it, because the injected snapshot spends its budget on these lines.
+HUD_LINE_SOFT_LIMIT = 160
 
 
 @dataclass(frozen=True)
 class HudSection:
-    """What one HUD section shows, and what its cap left out; both oldest first."""
+    """What one HUD section shows and what its cap left out.
+
+    *kept* is newest first, the order the section renders in, so the injected
+    snapshot, which is cut from the end, loses the oldest lines. *evicted* is
+    oldest first, the order the cap dropped them in."""
 
     kept: list[str]
     evicted: list[str]
@@ -91,7 +99,7 @@ def plan_hud(notes: list[Note], cap: int) -> dict[str, HudSection]:
 
     *notes* is oldest first, which is the order eviction follows. The cap is
     `<= 0` for none. A section keeps its newest *cap* lines, sparing a pinned line
-    until every line in the section is pinned."""
+    until every line in the section is pinned, and lists them newest first."""
     entries: dict[str, list[Note]] = {name: [] for name in HUD_ORDER}
     for note in notes:
         if note.is_active and note.hud_line:
@@ -106,20 +114,29 @@ def _cap_entries(entries: list[Note], cap: int) -> HudSection:
     section of pinned constraints may stay over the cap rather than lose one."""
     over = len(entries) - cap
     if cap <= 0 or over <= 0:
-        return HudSection([hud_line_of(note) for note in entries], [])
+        return HudSection([hud_line_of(note) for note in reversed(entries)], [])
     if all(note.pinned for note in entries):
         dropped = set(range(over))
     else:
         evictable = [index for index, note in enumerate(entries) if not note.pinned]
         dropped = set(evictable[:over])
     return HudSection(
-        [hud_line_of(n) for i, n in enumerate(entries) if i not in dropped],
+        [
+            hud_line_of(n)
+            for i, n in reversed(list(enumerate(entries)))
+            if i not in dropped
+        ],
         [hud_line_of(n) for i, n in enumerate(entries) if i in dropped],
     )
 
 
-def render_root_index(text: str, notes: list[Note], cap: int, index_name: str) -> str:
+def render_root_index(
+    text: str, notes: list[Note], cap: int, index_name: str, catalog_cap: int
+) -> str:
     """The root index with every generated region rendered from *notes*.
+
+    *cap* is the per-section HUD cap and *catalog_cap* the number of notes the
+    `## Recent Insights` catalog lists (`<= 0` for all of them).
 
     Missing HUD sections and category links are added where they belong; the
     HUD sections and the catalog take their owned lines from the notes; anything
@@ -129,7 +146,7 @@ def render_root_index(text: str, notes: list[Note], cap: int, index_name: str) -
     plan = plan_hud(notes, cap)
     hud_rels = {note.rel for note in notes if note.hud_line}
     note_rels = {note.rel for note in notes}
-    catalog = [catalog_line(note) for note in notes if note.is_active]
+    catalog = plan_catalog(notes, catalog_cap)
     seen: set[str] = set()
     rendered: list[tuple[str, list[str]]] = []
     for name, body in sections:
@@ -140,9 +157,30 @@ def render_root_index(text: str, notes: list[Note], cap: int, index_name: str) -
             body = _splice(body, lambda line: hud_owner(line) in hud_rels, generated)
         elif f"## {name}" == CATALOG_HEADING:
             generated = catalog if first else []
-            body = _splice(body, lambda line: bare_target(line) in note_rels, generated)
+            body = _splice(
+                body, lambda line: is_catalog_line(line, note_rels), generated
+            )
         rendered.append((name, body))
     return join_index_sections(preamble, rendered)
+
+
+def plan_catalog(notes: list[Note], cap: int) -> list[str]:
+    """The `## Recent Insights` lines: the newest *cap* active notes, newest
+    first, then one line counting the older ones the category indexes still list.
+    *notes* is oldest first; `cap <= 0` lists every active note."""
+    active = [note for note in reversed(notes) if note.is_active]
+    shown = active if cap <= 0 else active[:cap]
+    lines = [catalog_line(note) for note in shown]
+    older = len(active) - len(shown)
+    if older:
+        noun = "note" if older == 1 else "notes"
+        lines.append(f"- _{older} older {noun}: see each category's index_")
+    return lines
+
+
+def is_catalog_line(line: str, note_rels: set[str]) -> bool:
+    """Whether the renderer owns this `## Recent Insights` line."""
+    return bare_target(line) in note_rels or bool(_OLDER_NOTES_RE.match(line))
 
 
 def render_category_index(text: str, notes: list[Note], category: str) -> str:

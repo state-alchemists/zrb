@@ -224,6 +224,18 @@ class LLMContentMixin:
         ),
     )
 
+    LLM_JOURNAL_CATALOG_MAX_ENTRIES = EnvField(
+        int,
+        fallback=25,
+        doc=(
+            "Maximum notes the root index's `## Recent Insights` catalog lists "
+            "(a count, not a duration). The newest active notes by `updated` "
+            "are shown, newest first, followed by one line counting the older "
+            "ones; the category indexes always list every note. `<= 0` lists "
+            "every active note (uncapped)."
+        ),
+    )
+
     LLM_JOURNAL_AUTO_SEARCH_ENABLED = EnvField(
         to_boolean,
         serialize=on_off,

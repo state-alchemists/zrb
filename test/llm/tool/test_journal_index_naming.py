@@ -18,6 +18,7 @@ def _write_with_index_name(root, index_name: str) -> None:
         mock_cfg.LLM_JOURNAL_INDEX_FILE = index_name
         mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
+        mock_cfg.LLM_JOURNAL_CATALOG_MAX_ENTRIES = 25
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         write_journal_note(
             "technical",

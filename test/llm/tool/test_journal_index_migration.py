@@ -62,6 +62,7 @@ def old_journal(tmp_path):
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
         mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
+        mock_cfg.LLM_JOURNAL_CATALOG_MAX_ENTRIES = 25
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         ensure_journal_tree()
         for category, slug in (
@@ -111,10 +112,12 @@ def test_pins_and_lines_move_into_the_notes_they_link(old_journal):
 def test_the_index_is_rendered_with_every_line_kept_in_place(old_journal):
     log_activity("first call")
 
+    # The old index listed oldest first; the render lists newest first, so the
+    # two owned lines swap while the hand-written one keeps its place between.
     assert _section(old_journal, "User") == [
-        "- Goes by Go. ([note](user/identity.md))",
-        "- Hand-added reminder.",
         "- Prefers terse replies. ([note](preferences/terse.md))",
+        "- Hand-added reminder.",
+        "- Goes by Go. ([note](user/identity.md))",
     ]
     assert _section(old_journal, "Constraints") == [
         "- 📌 Tests stay public-API only. ([note](technical/tests-public.md))"
@@ -152,10 +155,10 @@ def test_the_order_of_a_section_survives_the_move(old_journal):
     write_journal_note("user", "new", "New", "c", "f", "s", hud_line="Newest.")
 
     user = _section(old_journal, "User")
-    assert user.index("- Goes by Go. ([note](user/identity.md))") < user.index(
-        "- Prefers terse replies. ([note](preferences/terse.md))"
+    assert user.index("- Prefers terse replies. ([note](preferences/terse.md))") < (
+        user.index("- Goes by Go. ([note](user/identity.md))")
     )
-    assert user[-1] == "- Newest. ([note](user/new.md))"
+    assert user[0] == "- Newest. ([note](user/new.md))"
 
 
 def test_a_migrated_note_can_be_superseded(old_journal):

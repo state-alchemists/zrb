@@ -30,6 +30,7 @@ from zrb.config.config import CFG
 from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.llm.tool.journal_index import (
     ACTIVITY_DIR,
+    HUD_LINE_SOFT_LIMIT,
     hud_lines_of,
     hud_section_for,
     normalize_hud_line,
@@ -173,7 +174,8 @@ def write_journal_note(
         str | None,
         Field(
             description=(
-                "One-line summary pinned to the injected index, in this "
+                "One-line summary (aim for 160 characters or fewer) pinned to "
+                "the injected index, in this "
                 "category's section. The section is capped: the oldest lines "
                 "past it are evicted and named in the result. On revision "
                 "pass an updated line if the fact changed; omitting keeps the "
@@ -345,6 +347,12 @@ def _write_note_locked(
     result = f"Wrote {note_rel}"
     if evicted:
         result += _eviction_note(section, evicted)
+    if len(line) > HUD_LINE_SOFT_LIMIT:
+        result += (
+            f" The hud_line is {len(line)} characters, over the "
+            f"{HUD_LINE_SOFT_LIMIT} a headline should stay within: rewrite it "
+            "shorter with another WriteJournalNote."
+        )
     return result
 
 
@@ -740,6 +748,7 @@ def _render_indexes(root: str) -> list[Note]:
             notes,
             CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION,
             index_name,
+            CFG.LLM_JOURNAL_CATALOG_MAX_ENTRIES,
         ),
     )
     for category in NOTE_CATEGORIES:

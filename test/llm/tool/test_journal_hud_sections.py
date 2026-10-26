@@ -20,6 +20,7 @@ def writable_journal(tmp_path):
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
         mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
+        mock_cfg.LLM_JOURNAL_CATALOG_MAX_ENTRIES = 25
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         yield str(root)
 

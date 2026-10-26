@@ -540,7 +540,10 @@ def _overflow_summary(dropped: str) -> str:
                 continue
             seen_here.add(category)
             counts[category] = counts.get(category, 0) + 1
-            newest[category] = title if title != "note" else _title_before_link(line)
+            # The index lists newest first, so the first line seen is the newest.
+            newest.setdefault(
+                category, title if title != "note" else _title_before_link(line)
+            )
     if not counts:
         return "(...more)"
     lines = []
