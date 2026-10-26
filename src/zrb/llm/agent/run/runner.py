@@ -90,7 +90,7 @@ from zrb.llm.shell_cut import (
 )
 from zrb.llm.snapshot.command import run_in_worker
 from zrb.llm.stream_observer import StreamObserver, create_observed_event_handler
-from zrb.llm.usage_log import record_usage
+from zrb.llm.usage_log import count_tool_calls, record_usage
 from zrb.llm.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
@@ -635,7 +635,11 @@ async def _stream_one_round(
         # (`run_stream_events()` synthesizes it); usage accounting needs it.
         partial_run.record_event(AgentRunResultEvent(result=result))
         _record_run_usage(
-            result.response.model_name, result.usage, effective_ui, started_at
+            result.response.model_name,
+            result.usage,
+            effective_ui,
+            started_at,
+            result.new_messages(),
         )
         if effective_event_handler:
             await effective_event_handler(AgentRunResultEvent(result=result))
@@ -651,8 +655,13 @@ def _record_run_usage(
     usage: "RunUsage",
     effective_ui: "AnyUI | None",
     started_at: float,
+    new_messages: object = None,
 ) -> None:
     """Write one usage-log line for the round that just finished.
+
+    *new_messages* are this round's own messages, where each tool call and its
+    result already sit, so the per-tool counts cost one pass at the end of the
+    round instead of a hook on every call.
 
     The session name is the UI's, because that is where a conversation's
     identity lives; a headless run records an empty one and `/usage` still sees
@@ -661,11 +670,16 @@ def _record_run_usage(
     session = ""
     if effective_ui is not None:
         session = effective_ui.conversation_session_name or ""
+    calls, errors = count_tool_calls(
+        new_messages if isinstance(new_messages, list) else []
+    )
     record_usage(
         usage,
         model=model_name if isinstance(model_name, str) else "",
         session=session,
         duration_ms=int((time.monotonic() - started_at) * 1000),
+        tool_counts=calls,
+        tool_errors=errors,
     )
 
 

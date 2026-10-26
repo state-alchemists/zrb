@@ -213,7 +213,7 @@ def test_auto_search_adds_a_separate_unverified_section(tmp_path):
         cfg.LLM_JOURNAL_AUTO_SEARCH_ENABLED = True
         cfg.LLM_JOURNAL_AUTO_SEARCH_MAX_HITS = 3
         with patch(
-            "zrb.llm.tool.journal.search_journal",
+            "zrb.llm.tool.journal.find_in_journal",
             return_value={
                 "summary": "Found 1 matches.",
                 "results": [
@@ -252,7 +252,7 @@ def test_auto_search_omitted_on_zero_hits(tmp_path):
         cfg.LLM_JOURNAL_AUTO_SEARCH_ENABLED = True
         cfg.LLM_JOURNAL_AUTO_SEARCH_MAX_HITS = 3
         with patch(
-            "zrb.llm.tool.journal.search_journal",
+            "zrb.llm.tool.journal.find_in_journal",
             return_value={"summary": "No matches found.", "results": []},
         ):
             result = render_journal_index(first_message="xyzzy_no_match")

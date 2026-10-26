@@ -28,6 +28,12 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.journal_index_name import resolve_journal_index_name
+from zrb.llm.journal_usage_log import (
+    DELETED,
+    SUPERSEDED,
+    WRITTEN,
+    record_note_event,
+)
 from zrb.llm.tool.journal_index import (
     ACTIVITY_DIR,
     HUD_LINE_SOFT_LIMIT,
@@ -245,6 +251,7 @@ def write_journal_note(
             applies_when,
         )
         _commit_or_defer(root, f"write: {category}/{slug}")
+        _record_or_queue(WRITTEN, category, slug)
         if not (applies_when or "").strip():
             result += (
                 " No applies_when given: a note that cannot say when it stops "
@@ -285,6 +292,7 @@ def supersede_journal_note(
     with _open_journal() as root:
         result = _supersede_note_locked(root, category, slug, reason)
         _commit_or_defer(root, f"supersede: {category}/{slug}")
+        _record_or_queue(SUPERSEDED, category, slug)
         return result
 
 
@@ -395,6 +403,7 @@ def delete_journal_note(
     with _open_journal() as root:
         result = _delete_note_locked(root, category, slug)
         _commit_or_defer(root, f"delete: {category}/{slug}")
+        _record_or_queue(DELETED, category, slug)
         return result
 
 
@@ -500,11 +509,13 @@ def journal_transaction(
         transaction = JournalTransaction(root)
         _lock_state.in_transaction = 1
         _lock_state.deferred_changes = 0
+        _lock_state.pending_events = []
         _begin_snapshot()
         try:
             yield transaction
         except BaseException:
             _restore_snapshots(_take_snapshot())
+            _lock_state.pending_events = []
             raise
         finally:
             _lock_state.in_transaction = 0
@@ -515,6 +526,9 @@ def journal_transaction(
         _lock_state.deferred_changes = 0
         if changes:
             _git_commit(root, message or f"batch: {changes} change(s)")
+        # Only now is the body known to have succeeded: a rolled-back change
+        # leaves no event, and each change leaves exactly one, in order.
+        _flush_pending_events()
 
 
 class JournalTransaction:
@@ -548,7 +562,7 @@ class JournalTransaction:
         applies_when: str | None = None,
     ) -> str:
         """Write one note; the whole batch commits at exit."""
-        return self._record(
+        result = self._record(
             _write_note_locked(
                 self._root,
                 category,
@@ -563,10 +577,22 @@ class JournalTransaction:
                 applies_when,
             )
         )
+        _record_or_queue(WRITTEN, category, slug)
+        return result
 
     def delete_note(self, category: str, slug: str) -> str:
         """Delete one note; the whole batch commits at exit."""
-        return self._record(_delete_note_locked(self._root, category, slug))
+        result = self._record(_delete_note_locked(self._root, category, slug))
+        _record_or_queue(DELETED, category, slug)
+        return result
+
+    def supersede_note(self, category: str, slug: str, reason: str) -> str:
+        """Retire one note that stopped applying; the whole batch commits at exit."""
+        result = self._record(
+            _supersede_note_locked(self._root, category, slug, reason)
+        )
+        _record_or_queue(SUPERSEDED, category, slug)
+        return result
 
     def _record(self, result: str) -> str:
         self.change_count += 1
@@ -633,8 +659,9 @@ def _restore_snapshots(snapshot: dict[str, bytes | None]) -> None:
 # Whether this thread holds the journal lock, so a journal tool called from
 # inside another journal write re-enters instead of waiting out the timeout
 # against its own lock. `in_transaction` counts the `journal_transaction`
-# bodies this thread is inside, and `deferred_changes` counts the changes a
-# tool made there and left for the transaction's single commit.
+# bodies this thread is inside, `deferred_changes` counts the changes a tool
+# made there and left for the transaction's single commit, and `pending_events`
+# holds their usage-log events until that commit succeeds.
 _lock_state = threading.local()
 
 
@@ -651,6 +678,24 @@ def _commit_or_defer(root: str, message: str) -> None:
         _lock_state.deferred_changes = getattr(_lock_state, "deferred_changes", 0) + 1
         return
     _git_commit(root, message)
+
+
+def _record_or_queue(event: str, category: str, slug: str) -> None:
+    """Log a note event now, or queue it for the open transaction.
+
+    Inside `journal_transaction` a change is not real until the body returns:
+    a rollback must leave no event behind, so the event waits for the flush."""
+    if getattr(_lock_state, "in_transaction", 0):
+        _lock_state.pending_events.append((event, category, slug))
+        return
+    record_note_event(event, category, slug)
+
+
+def _flush_pending_events() -> None:
+    events = getattr(_lock_state, "pending_events", [])
+    _lock_state.pending_events = []
+    for event, category, slug in events:
+        record_note_event(event, category, slug)
 
 
 @contextmanager

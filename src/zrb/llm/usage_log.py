@@ -7,7 +7,8 @@ module writes one JSON line per completed run, so `/usage` can answer what a
 session, a day or a week consumed without asking a provider anything.
 
 The record holds numbers only: no prompt text, no tool arguments, no file
-content. That is what lets it be written by default instead of behind an opt-in
+content. Tool *names* are the one non-numeric field — they say which tool ran,
+never what it was given. That is what lets it be written by default instead of behind an opt-in
 — the same reason history files are not needed to answer "what did this cost".
 """
 
@@ -16,7 +17,8 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
-from dataclasses import dataclass
+from collections.abc import Iterable
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -39,6 +41,8 @@ _INT_FIELDS = (
     "tool_calls",
     "unmeasured_requests",
 )
+# A tool return that did not succeed: it raised, or asked the model to retry.
+_FAILED_OUTCOMES = ("failed", "retried")
 # Record field -> `RunUsage` attribute, where the two names differ.
 _USAGE_ATTR = {"reasoning_tokens": "output_reasoning_tokens"}
 
@@ -61,6 +65,10 @@ class UsageRecord:
     unmeasured_requests: int
     duration_ms: int
     cost: float | None
+    # Calls and failures per tool name. Absent from lines written before they
+    # existed, which read back as empty.
+    tool_counts: dict[str, int] = field(default_factory=dict)
+    tool_errors: dict[str, int] = field(default_factory=dict)
 
     @property
     def cache_hit_ratio(self) -> float:
@@ -99,12 +107,14 @@ class UsageRecord:
         """Rebuild a record; raises when *raw* is not one."""
         counts = {name: _as_int(raw, name) for name in _INT_FIELDS}
         return cls(
-            timestamp=_as_datetime(raw["timestamp"]),
+            timestamp=as_datetime(raw["timestamp"]),
             model=str(raw["model"]),
             session=str(raw["session"]),
             kind=str(raw["kind"]),
             duration_ms=_as_int(raw, "duration_ms"),
             cost=_as_cost(raw.get("cost")),
+            tool_counts=_as_name_counts(raw.get("tool_counts")),
+            tool_errors=_as_name_counts(raw.get("tool_errors")),
             **counts,
         )
 
@@ -115,10 +125,16 @@ def usage_store_path(when: datetime, directory: str | None = None) -> str:
     One file per month, so a week's question reads one file and a month's reads
     one — rather than one growing file that every query has to scan whole.
     """
+    return store_path(_FILE_PREFIX, when, directory)
+
+
+def store_path(prefix: str, when: datetime, directory: str | None = None) -> str:
+    """The month file of the log named by *prefix* that *when* belongs to.
+
+    Shared with the journal event log, which keeps the same one-file-per-month
+    layout beside this one."""
     base = directory if directory is not None else CFG.LLM_USAGE_DIR
-    return os.path.join(
-        base, f"{_FILE_PREFIX}{when.strftime(_MONTH_FORMAT)}{_FILE_SUFFIX}"
-    )
+    return os.path.join(base, f"{prefix}{when.strftime(_MONTH_FORMAT)}{_FILE_SUFFIX}")
 
 
 def record_usage(
@@ -129,6 +145,8 @@ def record_usage(
     kind: str = "turn",
     duration_ms: int = 0,
     when: datetime | None = None,
+    tool_counts: dict[str, int] | None = None,
+    tool_errors: dict[str, int] | None = None,
 ) -> UsageRecord | None:
     """Append one run to the log.
 
@@ -146,6 +164,8 @@ def record_usage(
         kind=kind,
         duration_ms=duration_ms,
         cost=_cost_of(usage),
+        tool_counts=dict(tool_counts or {}),
+        tool_errors=dict(tool_errors or {}),
         **{name: _count_of(usage, _USAGE_ATTR.get(name, name)) for name in _INT_FIELDS},
     )
     path = usage_store_path(timestamp)
@@ -176,16 +196,19 @@ def read_records(
     from a killed process must not make the whole history unreadable.
     """
     records: list[UsageRecord] = []
-    for path in _month_files(since, until, directory):
+    for path in store_files(_FILE_PREFIX, since, until, directory):
         records.extend(_read_file(path, since, until, session_key))
     records.sort(key=lambda record: record.timestamp)
     return records
 
 
-def _month_files(
-    since: datetime | None, until: datetime | None, directory: str | None
+def store_files(
+    prefix: str,
+    since: datetime | None,
+    until: datetime | None,
+    directory: str | None,
 ) -> list[str]:
-    """The month files that can hold a record inside the window.
+    """The month files of the log named by *prefix* that can hold a line in the window.
 
     A bound is read as an instant, then named in UTC: files are named by the
     UTC month of the record, so local midnight on the 1st in a zone ahead of
@@ -198,15 +221,15 @@ def _month_files(
     """
     base = directory if directory is not None else CFG.LLM_USAGE_DIR
     if since is None:
-        return _files_in(base)
-    start = _as_datetime(since).astimezone(timezone.utc)
+        return _files_in(base, prefix)
+    start = as_datetime(since).astimezone(timezone.utc)
     end = (
-        _as_datetime(until).astimezone(timezone.utc)
+        as_datetime(until).astimezone(timezone.utc)
         if until is not None
         else datetime.now(timezone.utc)
     )
     candidates = [
-        usage_store_path(month, base) for month in _months_between(start, end)
+        store_path(prefix, month, base) for month in _months_between(start, end)
     ]
     return [path for path in candidates if os.path.exists(path)]
 
@@ -221,8 +244,8 @@ def _months_between(start: datetime, end: datetime) -> list[datetime]:
     return months
 
 
-def _files_in(base: str) -> list[str]:
-    """Every usage file in *base*, in name order (which is month order)."""
+def _files_in(base: str, prefix: str) -> list[str]:
+    """Every file of the log named by *prefix* in *base*, in name order (which is month order)."""
     try:
         names = os.listdir(base)
     except OSError:
@@ -230,7 +253,7 @@ def _files_in(base: str) -> list[str]:
     return [
         os.path.join(base, name)
         for name in sorted(names)
-        if name.startswith(_FILE_PREFIX) and name.endswith(_FILE_SUFFIX)
+        if name.startswith(prefix) and name.endswith(_FILE_SUFFIX)
     ]
 
 
@@ -251,9 +274,9 @@ def _read_file(
         record = _parse_line(line)
         if record is None:
             continue
-        if since is not None and record.timestamp < _as_datetime(since):
+        if since is not None and record.timestamp < as_datetime(since):
             continue
-        if until is not None and record.timestamp > _as_datetime(until):
+        if until is not None and record.timestamp > as_datetime(until):
             continue
         if session_key is not None and record.session_key != session_key:
             continue
@@ -271,6 +294,37 @@ def _parse_line(line: str) -> UsageRecord | None:
     except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         CFG.LOGGER.debug(f"Skipping an unreadable usage line: {text[:80]}")
         return None
+
+
+def count_tool_calls(
+    messages: Iterable[object],
+) -> tuple[dict[str, int], dict[str, int]]:
+    """Calls and failures per tool name across a run's *messages*.
+
+    Read off the messages the run already holds, once per round, so nothing
+    runs per token or per tool call. A call is a tool-call part; a failure is a
+    tool return whose outcome is `failed` or `retried` (the tool raised, the model
+    sent bad arguments, or the tool asked to be retried), or the older retry prompt
+    addressed to a tool. Parts are
+    read by their `part_kind` rather than their class, which keeps this module
+    free of a `pydantic_ai` import. Only names are kept — never arguments.
+    """
+    calls: dict[str, int] = {}
+    errors: dict[str, int] = {}
+    for message in messages:
+        for part in getattr(message, "parts", None) or ():
+            kind = getattr(part, "part_kind", "")
+            name = getattr(part, "tool_name", None)
+            if not isinstance(name, str) or not name:
+                continue
+            if kind == "tool-call":
+                calls[name] = calls.get(name, 0) + 1
+            elif kind == "retry-prompt" or (
+                kind == "tool-return"
+                and getattr(part, "outcome", "") in _FAILED_OUTCOMES
+            ):
+                errors[name] = errors.get(name, 0) + 1
+    return calls, errors
 
 
 def _is_empty(usage: RunUsage) -> bool:
@@ -316,6 +370,22 @@ def _as_int(raw: dict[str, object], key: str) -> int:
     return int(value)
 
 
+def _as_name_counts(value: object) -> dict[str, int]:
+    """A `{name: count}` map; anything else, and any bad entry, is dropped.
+
+    These fields are optional detail, so a malformed one must not make the
+    whole line — and its token counts — unreadable."""
+    if not isinstance(value, dict):
+        return {}
+    return {
+        name: int(count)
+        for name, count in value.items()
+        if isinstance(name, str)
+        and isinstance(count, (int, float))
+        and not isinstance(count, bool)
+    }
+
+
 def _as_cost(value: object) -> float | None:
     if value is None:
         return None
@@ -324,7 +394,7 @@ def _as_cost(value: object) -> float | None:
     return float(value)
 
 
-def _as_datetime(value: object) -> datetime:
+def as_datetime(value: object) -> datetime:
     """A timezone-aware datetime; a naive one is read as UTC.
 
     Records are always written aware, so the normalisation is for the window

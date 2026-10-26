@@ -9,6 +9,7 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.journal_index_name import resolve_journal_index_name
+from zrb.llm.journal_usage_log import record_searched
 from zrb.llm.tool.journal_write import NOTE_CATEGORIES
 from zrb.util.markdown import get_first_heading
 from zrb.util.truncate import truncate_text
@@ -74,6 +75,22 @@ def search_journal(
     the two calls. Search before SupersedeJournalNote too: its reason should
     name the note that replaced this one.
     """
+    result = find_in_journal(query, case_sensitive)
+    rows = result.get("results")
+    if "error" not in result and isinstance(rows, list):
+        record_searched(query, [row["file"] for row in rows], len(rows))
+    return result
+
+
+search_journal.__name__ = "SearchJournal"
+
+
+def find_in_journal(query: str, case_sensitive: bool = False) -> dict[str, object]:
+    """`search_journal` without the usage record.
+
+    For a search the agent did not ask for (the auto-search of a first message):
+    counting it as the agent's would make a search that was never reworded or
+    missed look like one."""
     journal_dir = CFG.LLM_JOURNAL_DIR
     if not journal_dir:
         return {
@@ -94,6 +111,10 @@ def search_journal(
             return {"error": f"Cannot create journal directory {journal_dir}: {e}"}
         return {"summary": "No matches found.", "results": []}
 
+    return _search(query, abs_dir, case_sensitive)
+
+
+def _search(query: str, abs_dir: str, case_sensitive: bool) -> dict[str, object]:
     words = _query_words(query)
     if words:
         found = _matches_any_word(words, abs_dir, case_sensitive)
@@ -104,9 +125,6 @@ def search_journal(
     if not found:
         return _no_matches(query, abs_dir)
     return _format_results(found, abs_dir, words or [query], case_sensitive)
-
-
-search_journal.__name__ = "SearchJournal"
 
 
 def _query_words(query: str) -> list[str]:

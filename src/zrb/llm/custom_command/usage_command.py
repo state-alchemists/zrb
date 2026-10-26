@@ -12,12 +12,19 @@ spent" is asked far more often than "what did this conversation spend", and
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.custom_command.usage_command_journal import render_journal_section
+from zrb.llm.custom_command.usage_command_tools import (
+    get_registered_tool_names,
+    render_tools_section,
+)
+from zrb.llm.journal_usage_log import JournalEvent, read_events
 from zrb.llm.usage_log import UsageRecord, read_records
 from zrb.util.string.name import get_conversation_key
 
@@ -62,8 +69,14 @@ def create_usage_commands() -> list[AnyCustomCommand]:
     ]
 
 
-def render_usage(records: list[UsageRecord], label: str) -> str:
-    """The body for one window: its label, the table, the footer.
+def render_usage(
+    records: list[UsageRecord],
+    label: str,
+    events: list[JournalEvent] | None = None,
+    registered_tools: list[str] | None = None,
+) -> str:
+    """The body for one window: its label, the table, the footer, then the
+    Tools and Journal sections when the window has data for them.
 
     The panel draws the title, so the body opens with the window it covers
     rather than repeating the word "Usage".
@@ -77,6 +90,19 @@ def render_usage(records: list[UsageRecord], label: str) -> str:
         "",
         *_footer(records),
     ]
+    for extra in (
+        render_tools_section(
+            records,
+            (
+                get_registered_tool_names()
+                if registered_tools is None
+                else registered_tools
+            ),
+        ),
+        render_journal_section(events or []),
+    ):
+        if extra:
+            sections.extend(["", *extra])
     return "\n".join(sections)
 
 
@@ -84,31 +110,50 @@ def _handle_usage(kwargs: dict[str, str], ui: "AnyUI | None") -> str:
     period = (kwargs.get("period") or "").strip().lower() or _DEFAULT_PERIOD
     if period not in PERIODS:
         return f"  /usage takes one of: {', '.join(PERIODS)}"
-    records, label = _select(period, ui)
-    return render_usage(records, label)
+    records, label, window = _select(period, ui)
+    return render_usage(
+        records,
+        label,
+        read_events(since=window.since, session_key=window.session_key),
+    )
 
 
-def _select(period: str, ui: "AnyUI | None") -> tuple[list[UsageRecord], str]:
-    """The records for *period* and the label that names it."""
+@dataclass(frozen=True)
+class _Window:
+    """The bounds both logs are read with."""
+
+    since: datetime | None = None
+    session_key: str | None = None
+
+
+def _select(period: str, ui: "AnyUI | None") -> tuple[list[UsageRecord], str, _Window]:
+    """The records for *period*, the label that names it, and the window.
+
+    The window is what both logs are read with, so the journal events cover
+    exactly the runs in the table."""
     now = datetime.now(timezone.utc)
     if period == "today":
-        return read_records(since=_midnight(now)), "today"
-    if period == "week":
+        window, label = _Window(since=_midnight(now)), "today"
+    elif period == "week":
         since = now - timedelta(days=_WEEK_DAYS)
-        return read_records(since=since), f"the last {_WEEK_DAYS} days"
-    if period == "all":
-        return read_records(), "every recorded run"
+        window, label = _Window(since=since), f"the last {_WEEK_DAYS} days"
+    elif period == "all":
+        window, label = _Window(), "every recorded run"
+    else:
+        window, label = _session_window(ui, now)
+    records = read_records(since=window.since, session_key=window.session_key)
+    return records, label, window
+
+
+def _session_window(ui: "AnyUI | None", now: datetime) -> tuple[_Window, str]:
     session = _session_of(ui)
     if session:
         # The stable key, not the display name: a conversation is renamed after
         # its first message, and the first turn's row keeps the earlier name.
-        return (
-            read_records(session_key=get_conversation_key(session)),
-            f"session {session}",
-        )
+        return _Window(session_key=get_conversation_key(session)), f"session {session}"
     # A headless run records no session name, so "this session" would select
     # nothing; the day is the smallest window that still means something.
-    return read_records(since=_midnight(now)), "today (no session name)"
+    return _Window(since=_midnight(now)), "today (no session name)"
 
 
 def _session_of(ui: "AnyUI | None") -> str:
