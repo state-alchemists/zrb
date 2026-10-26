@@ -1,7 +1,7 @@
 """LLM-free evidence gates over a turn's messages.
 
-`runner.py` uses these to compute `wrote_files`, `changed_paths` and
-`journal_worthy` for the `STOP` hook payload.
+`runner.py` uses these to compute `wrote_files`, `changed_paths` and `journal_due`
+for the `STOP` hook payload.
 """
 
 from __future__ import annotations
@@ -70,6 +70,27 @@ def turn_changed_paths(
                 if isinstance(value, str) and value:
                     seen.setdefault(value, None)
     return list(seen)
+
+
+# run_scope -> the user turns that run has taken, least recently used first.
+# Bounded: a long-lived process outlives its conversations.
+_TURNS_PER_RUN: dict[str, int] = {}
+MAX_TRACKED_RUNS = 256
+
+
+def count_user_turn(run_scope: str) -> int:
+    """Count this turn against *run_scope* and return the running total, from 1.
+
+    The periodic journal check cannot be spaced on the prompts left in the
+    history: a summariser or a prune has already shortened that history, so a
+    long conversation repeats a count it passed and the check stops coming due.
+    This counts the turns the run took.
+    """
+    count = _TURNS_PER_RUN.pop(run_scope, 0) + 1
+    _TURNS_PER_RUN[run_scope] = count
+    while len(_TURNS_PER_RUN) > MAX_TRACKED_RUNS:
+        _TURNS_PER_RUN.pop(next(iter(_TURNS_PER_RUN)))
+    return count
 
 
 def turn_states_preference(turn_messages: list[Any]) -> bool:

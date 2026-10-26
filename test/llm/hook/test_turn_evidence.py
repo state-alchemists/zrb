@@ -1,3 +1,5 @@
+import uuid
+
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
@@ -7,10 +9,39 @@ from pydantic_ai.messages import (
 )
 
 from zrb.llm.hook.turn_evidence import (
+    MAX_TRACKED_RUNS,
+    count_user_turn,
     turn_changed_paths,
     turn_states_preference,
     turn_wrote_files,
 )
+
+
+class TestCountUserTurn:
+    def test_counts_each_turn_of_a_run(self):
+        scope = uuid.uuid4().hex
+        assert [count_user_turn(scope) for _ in range(3)] == [1, 2, 3]
+
+    def test_runs_are_counted_apart(self):
+        first, second = uuid.uuid4().hex, uuid.uuid4().hex
+        count_user_turn(first)
+        assert count_user_turn(second) == 1
+        assert count_user_turn(first) == 2
+
+    def test_the_count_does_not_come_from_the_history(self):
+        "A summariser or a prune shortens the history; the count survives it."
+        scope = uuid.uuid4().hex
+        total = 0
+        for _ in range(12):
+            total = count_user_turn(scope)
+        assert total == 12
+
+    def test_evicts_the_least_recently_used_run(self):
+        first = uuid.uuid4().hex
+        count_user_turn(first)
+        for _ in range(MAX_TRACKED_RUNS):
+            count_user_turn(uuid.uuid4().hex)
+        assert count_user_turn(first) == 1
 
 
 class TestTurnChangedPaths:

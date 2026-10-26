@@ -12,7 +12,7 @@ import re
 import subprocess
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from html import escape
 from typing import Any
 
@@ -594,6 +594,185 @@ def _render_possibly_related(first_message: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+DAY_LINE_COUNT = 5
+"""Most lines today contributes to the injected day block."""
+
+YESTERDAY_LINE_COUNT = 2
+"""Most lines yesterday contributes: enough to recognise the seam, not a summary."""
+
+DAY_BLOCK_MAX_CHARS = 1500
+"""Cap on the whole day block, in characters."""
+
+_HANDOVER_HEADING = "## handover"
+_IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
+_RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
+
+
+def _without_importance(entry: str) -> str:
+    """*entry* without its `· imp N` key, which orders lines rather than saying anything."""
+    return _RANKING.sub("", entry).strip()
+
+
+def _day_file(day: date) -> str:
+    """The activity log's file for *day*, which is the day tier."""
+    # lazy: `zrb.llm.tool`'s package __init__ loads pydantic_ai-dependent modules
+    from zrb.llm.tool.journal_index import ACTIVITY_DIR
+
+    root = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
+    return os.path.join(
+        root,
+        ACTIVITY_DIR,
+        day.strftime("%Y"),
+        day.strftime("%Y-%m"),
+        f"{day.isoformat()}.md",
+    )
+
+
+def _read_day(path: str) -> str:
+    """The day file's text, or ``""`` when it does not exist yet."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def _day_entries(text: str) -> list[str]:
+    """The bullet entries above the first `## ` heading, one string each.
+
+    A plain continuation line belongs to the entry above it, which is how a wrapped
+    event reads back as one line.
+    """
+    entries: list[str] = []
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith("- "):
+            entries.append(line[2:].strip())
+        elif line.strip() and entries:
+            entries[-1] = f"{entries[-1]} {line.strip()}"
+    return entries
+
+
+def _importance(entry: str) -> int:
+    """The `· imp N` a day line carries, or 0 when it carries none."""
+    found = _IMPORTANCE.search(entry)
+    return int(found.group(1)) if found else 0
+
+
+def _handover(text: str) -> str:
+    """The `## Handover` section without its heading, or ``""`` when absent."""
+    lines = text.splitlines()
+    start = None
+    for index, line in enumerate(lines):
+        if line.strip().lower().startswith(_HANDOVER_HEADING):
+            start = index + 1
+            break
+    if start is None:
+        return ""
+    body: list[str] = []
+    for line in lines[start:]:
+        if line.startswith("## "):
+            break
+        body.append(line)
+    return "\n".join(body).strip()
+
+
+def _top_entries(entries: list[str], count: int) -> list[str]:
+    """The *count* entries that matter most, returned in the order they were written."""
+    ranked = sorted(
+        enumerate(entries),
+        key=lambda pair: (_importance(pair[1]), pair[0]),
+        reverse=True,
+    )
+    return [entries[index] for index in sorted(pair[0] for pair in ranked[:count])]
+
+
+_DAY_BLOCK_OPEN = "<day>\n"
+"""The wrapper the block is sent in; `render_day_block` always returns one thing."""
+
+_DAY_BLOCK_CLOSE = "\n</day>"
+_SECTION_SEPARATOR = "\n\n"
+_CUT_MARKER = "…"
+
+
+def _wrap_sections(sections: list[str]) -> str:
+    """The `<day>` block around *sections*, each separated by a blank line."""
+    return _DAY_BLOCK_OPEN + _SECTION_SEPARATOR.join(sections) + _DAY_BLOCK_CLOSE
+
+
+def _room_for_next(kept: list[str]) -> int:
+    """How many characters one more section may take, wrapper and separator included."""
+    used = len(_wrap_sections(kept)) + (len(_SECTION_SEPARATOR) if kept else 0)
+    return DAY_BLOCK_MAX_CHARS - used
+
+
+def _cut_section(section: str, room: int) -> str:
+    """*section* cut to at most *room* characters, on a line break when one keeps most of it."""
+    if len(section) <= room:
+        return section
+    head = section[:room]
+    line_end = head.rfind("\n")
+    if line_end >= room // 2:
+        return head[:line_end]
+    return head[: max(0, room - len(_CUT_MARKER))].rstrip() + _CUT_MARKER
+
+
+def _fit_sections(sections: list[str]) -> str:
+    """Wrap the sections that fit the cap, cutting the last one to what is left.
+
+    A cut section ends the block; the full lines are still in the day file.
+    """
+    kept: list[str] = []
+    for section in sections:
+        room = _room_for_next(kept)
+        if len(section) <= room:
+            kept.append(section)
+            continue
+        if room > 0:
+            kept.append(_cut_section(section, room))
+        break
+    return _wrap_sections(kept)
+
+
+def render_day_block(today: date | None = None) -> str | None:
+    """The seam block: the newest handover, today's most important lines, and
+    yesterday's two.
+
+    The handover goes first because no later reader can reconstruct it. ``None``
+    when there is no day file to read, or when journaling is off.
+    """
+    if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_DIR:
+        return None
+    current = today or datetime.now().date()
+    yesterday = current - timedelta(days=1)
+    today_text = _read_day(_day_file(current))
+    yesterday_text = _read_day(_day_file(yesterday))
+    if not today_text and not yesterday_text:
+        return None
+    sections: list[str] = []
+    handover = _handover(today_text) or _handover(yesterday_text)
+    if handover:
+        sections.append("## From the last me, to the next me\n\n" + handover)
+    today_entries = _top_entries(_day_entries(today_text), DAY_LINE_COUNT)
+    if today_entries:
+        sections.append(
+            f"## Today ({current.isoformat()})\n\n"
+            + "\n".join(f"- {_without_importance(entry)}" for entry in today_entries)
+        )
+    yesterday_entries = _top_entries(_day_entries(yesterday_text), YESTERDAY_LINE_COUNT)
+    if yesterday_entries:
+        sections.append(
+            f"## Yesterday ({yesterday.isoformat()})\n\n"
+            + "\n".join(
+                f"- {_without_importance(entry)}" for entry in yesterday_entries
+            )
+        )
+    if not sections:
+        return None
+    return _fit_sections(sections)
+
+
 def render_live_context(
     ctx: AnyContext,
     model: "Any" = None,
@@ -721,5 +900,8 @@ def _render_parts(
         journal_block = render_journal_index(first_message)
         if journal_block:
             parts.append(journal_block)
+        day_block = render_day_block()
+        if day_block:
+            parts.append(day_block)
 
     return "\n".join(parts)

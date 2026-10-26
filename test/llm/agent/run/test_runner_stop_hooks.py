@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import MagicMock
 
 import pytest
@@ -326,3 +327,53 @@ async def test_run_agent_stop_block_cap_prevents_infinite_loop():
 
     # First turn + STOP_HOOK_BLOCK_CAP continuations, then the cap forces a stop.
     assert call_count == STOP_HOOK_BLOCK_CAP + 1
+
+
+@pytest.mark.asyncio
+async def test_the_periodic_journal_check_counts_turns_not_the_trimmed_history(
+    monkeypatch,
+):
+    """The check is spaced on the run's own turn count.
+
+    It counted user prompts in the history it was handed, and that history has
+    already been summarised or pruned: a long conversation kept reporting the same
+    number, so the one case the check exists for — a conversation that writes no
+    file and states no preference — never came due.
+    """
+    from zrb.config.config import CFG
+
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_COMPLIANCE_TURNS", 2, raising=False)
+
+    agent = MagicMock()
+    result = MagicMock()
+    result.output = "ok"
+    result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=result)
+
+    agent.run = _run_from(_gen)
+
+    captured: list = []
+
+    async def record(context: HookContext) -> HookResult:
+        captured.append(context.event_data["journal_due"])
+        return HookResult(success=True)
+
+    manager = HookManager(search_dirs=[])
+    manager.add_hook(record, events=[HookEvent.STOP])
+    scope = f"periodic-{uuid.uuid4().hex}"
+
+    for _ in range(2):
+        await run_agent(
+            agent=agent,
+            message="a question that writes no file",
+            # Trimmed to nothing, as a summariser leaves it: the prompts the run
+            # took are not in here.
+            message_history=[],
+            limiter=LLMLimiter(),
+            hook_manager=manager,
+            run_scope=scope,
+        )
+
+    assert captured == [False, True]

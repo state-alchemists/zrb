@@ -379,7 +379,7 @@ async def test_stop_event_keeps_earlier_rounds_after_empty_completion_retry():
     assert len(captured) == 1
     assert captured[0]["wrote_files"] is True
     assert captured[0]["changed_paths"] == ["a.txt"]
-    assert captured[0]["journal_worthy"] is True
+    assert captured[0]["journal_due"] is True
     turn = captured[0]["turn"]
     assert len(turn) == len({id(message) for message in turn})
     assert [type(message).__name__ for message in turn] == [

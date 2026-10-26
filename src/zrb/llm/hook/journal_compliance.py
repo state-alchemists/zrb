@@ -42,9 +42,10 @@ def build_journal_compliance_hook_config() -> HookConfig:
         ),
         matchers=[
             MatcherConfig(
-                # wrote_files OR a stated preference, precomputed in
-                # `runner.py` since MatcherConfig has no OR.
-                field="event_data.journal_worthy",
+                # A turn that wrote files or stated a preference, or a conversation
+                # that has run long enough to be checked. Precomputed in `runner.py`
+                # because MatcherConfig has no OR.
+                field="event_data.journal_due",
                 operator=MatcherOperator.EQUALS,
                 value=True,
             )
@@ -55,8 +56,11 @@ def build_journal_compliance_hook_config() -> HookConfig:
 
 
 def register_journal_compliance_hook(manager: "HookManager") -> None:
-    """Hook factory: register the judge on *manager* unless journaling is off."""
-    if not CFG.LLM_JOURNAL_ENABLED:
+    """Hook factory: register the judge on *manager* unless journaling is off, or
+    `LLM_JOURNAL_COMPLIANCE_ENABLED` says no. Its own switch exists so the judge can
+    be left out while the rest of journaling carries on — the same shape
+    `LLM_SELF_REVIEW_ENABLED` gives the self-review gate."""
+    if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_COMPLIANCE_ENABLED:
         return
     manager.register_hook_config(
         build_journal_compliance_hook_config(), source="builtin"

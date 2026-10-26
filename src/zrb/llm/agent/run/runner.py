@@ -70,6 +70,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.turn_evidence import (
+    count_user_turn,
     turn_changed_paths,
     turn_states_preference,
     turn_wrote_files,
@@ -256,6 +257,10 @@ async def run_agent(
             system_prompt,
             print_fn,
             effective_hook_manager,
+            # The typed message, not `prompt_content`: a fallback model may have
+            # replaced an attachment with its own description of the image, and a
+            # journal quote must not present that as the user's words.
+            typed_prompt=message or "",
         )
 
         current_message = merge_consecutive_messages(current_history, prompt_content)
@@ -360,6 +365,7 @@ async def _prepare_history(
     system_prompt,
     print_fn,
     effective_hook_manager,
+    typed_prompt: str = "",
 ):
     history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
@@ -368,13 +374,19 @@ async def _prepare_history(
     CFG.LOGGER.debug(f"System prompt reserved tokens: {reserved_tokens}")
 
     pre_process_tokens = limiter.count_tokens(message_history)
+    before_message_count = len(message_history)
 
     precompact_results = await effective_hook_manager.execute_hooks(
         HookEvent.PRE_COMPACT,
         {
             "history": message_history,
+            # The turn that caused this, as the user typed it. It joins the history
+            # only after the event, so a hook recording what was asked has nowhere
+            # else to read it from -- and `prompt_content` is not the same value:
+            # a fallback model may have described an attachment into it.
+            "prompt": typed_prompt,
             "token_count": pre_process_tokens,
-            "message_count": len(message_history),
+            "message_count": before_message_count,
             "has_history_processors": bool(history_processors),
         },
         trigger="auto",
@@ -398,18 +410,59 @@ async def _prepare_history(
 
     processed_history = ensure_alternating_roles(processed_history)
 
-    # Without processors the content is unchanged, so the count is reused.
-    post_process_tokens = (
-        limiter.count_tokens(processed_history)
-        if history_processors
-        else pre_process_tokens
+    # Taken after a PreCompact hook's context joins the history, which is not history
+    # that was replaced: counting it as one would hide a dropped message behind it.
+    stage_tokens = limiter.count_tokens(processed_history)
+    stage_message_count = len(processed_history)
+    post_process_tokens = stage_tokens
+    effective_limit = max(
+        0,
+        limiter.get_effective_context_window(getattr(agent, "model", None))
+        - reserved_tokens,
     )
+    # Before the event, so the counts describe the history that is sent. The post-compact
+    # hook's own context is prepended after this, so the prune cannot drop it.
+    if post_process_tokens > effective_limit:
+        print_fn(
+            f"\n[SYSTEM] History too large ({post_process_tokens} tokens) after summarization. Force pruning..."
+        )
+        safe_history = []
+        if (
+            processed_history
+            and limiter.count_tokens(processed_history[-1]) < effective_limit
+        ):
+            safe_history = [processed_history[-1]]
+        processed_history = safe_history
+        post_process_tokens = limiter.count_tokens(processed_history)
+
+    # The 90% trim `_acquire_rate_limit` would apply, done here instead so the counts
+    # stay in step with what is actually sent.
+    fitted = limiter.fit_context_window(
+        processed_history,
+        prompt_content,
+        reserved_tokens,
+        model=getattr(agent, "model", None),
+    )
+    if len(fitted) != len(processed_history):
+        processed_history = fitted
+        post_process_tokens = limiter.count_tokens(processed_history)
+
     postcompact_results = await effective_hook_manager.execute_hooks(
         HookEvent.POST_COMPACT,
         {
             "history": processed_history,
+            "prompt": typed_prompt,
             "token_count": post_process_tokens,
             "message_count": len(processed_history),
+            # Both events fire on every turn, so a hook that records compactions has to
+            # be told whether this turn replaced anything. These are the input to this
+            # stage, and the counts above are what survived it.
+            "before_token_count": stage_tokens,
+            "before_message_count": stage_message_count,
+            # Fewer messages counts as a compaction even when the token total is not
+            # smaller: a processor can replace many turns with one long one.
+            "compacted": len(processed_history) < stage_message_count
+            or post_process_tokens < stage_tokens,
             "has_history_processors": bool(history_processors),
         },
         trigger="auto",
@@ -419,30 +472,6 @@ async def _prepare_history(
         processed_history = _prepend_system_context(
             processed_history, postcompact_context
         )
-
-    effective_limit = max(
-        0,
-        limiter.get_effective_context_window(getattr(agent, "model", None))
-        - reserved_tokens,
-    )
-    # ensure_alternating_roles is a no-op on well-formed history, so reusing
-    # the pre-pass count when no processors ran is a safe approximation.
-    current_tokens = (
-        limiter.count_tokens(processed_history)
-        if history_processors
-        else pre_process_tokens
-    )
-    if current_tokens > effective_limit:
-        print_fn(
-            f"\n[SYSTEM] History too large ({current_tokens} tokens) after summarization. Force pruning..."
-        )
-        safe_history = []
-        if (
-            processed_history
-            and limiter.count_tokens(processed_history[-1]) < effective_limit
-        ):
-            safe_history = [processed_history[-1]]
-        processed_history = safe_history
 
     return await _acquire_rate_limit(
         limiter,
@@ -511,6 +540,9 @@ async def _execution_loop(
         run_history=current_history,
     )
     cursor.snapshot = _create_turn_snapshot(nested_run)
+    # Once per turn, so every STOP this turn fires — a hook may ask for another
+    # round — reads the same number.
+    cursor.user_turn_number = count_user_turn(get_current_agent_run_scope())
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -845,6 +877,13 @@ async def _finish_turn(
     its own Stop). Returns `(output, history)`, or `None` for another round.
     """
     wrote_files = turn_wrote_files(cursor.accumulated)
+    # A conversation that touches no file and states no preference is never due on those
+    # two counts, however long it runs, so it is checked every so many user turns.
+    compliance_turns = CFG.LLM_JOURNAL_COMPLIANCE_TURNS
+    user_turns = cursor.user_turn_number
+    periodic_check = (
+        compliance_turns > 0 and user_turns > 0 and user_turns % compliance_turns == 0
+    )
     stop_results = await effective_hook_manager.execute_hooks(
         HookEvent.STOP,
         {
@@ -859,10 +898,12 @@ async def _finish_turn(
             "run_scope": get_current_agent_run_scope(),
             "turn_id": cursor.turn_id,
             "nested_run": nested_run,
-            # wrote_files OR a stated preference, precomputed because
-            # MatcherConfig has no OR primitive (journal_compliance.py).
-            "journal_worthy": (
-                wrote_files or turn_states_preference(cursor.accumulated)
+            # wrote_files OR a stated preference OR a periodic check, precomputed
+            # because MatcherConfig has no OR primitive (journal_compliance.py).
+            "journal_due": (
+                wrote_files
+                or turn_states_preference(cursor.accumulated)
+                or periodic_check
             ),
         },
         stop_hook_active=extension_state.block_count > 0,
