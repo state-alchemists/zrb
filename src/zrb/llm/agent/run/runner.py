@@ -415,6 +415,29 @@ async def _prepare_history(
         if history_processors
         else pre_process_tokens
     )
+    effective_limit = max(
+        0,
+        limiter.get_effective_context_window(getattr(agent, "model", None))
+        - reserved_tokens,
+    )
+    # The last resort, and *before* the event, so what the event reports is what is
+    # really left: an over-limit request cannot be sent, and a hook that recorded the
+    # history before this prune would be recording a history nobody ever saw. A
+    # post-compact hook's own context is prepended after this, so the prune cannot
+    # drop that either.
+    if post_process_tokens > effective_limit:
+        print_fn(
+            f"\n[SYSTEM] History too large ({post_process_tokens} tokens) after summarization. Force pruning..."
+        )
+        safe_history = []
+        if (
+            processed_history
+            and limiter.count_tokens(processed_history[-1]) < effective_limit
+        ):
+            safe_history = [processed_history[-1]]
+        processed_history = safe_history
+        post_process_tokens = limiter.count_tokens(processed_history)
+
     postcompact_results = await effective_hook_manager.execute_hooks(
         HookEvent.POST_COMPACT,
         {
@@ -429,7 +452,8 @@ async def _prepare_history(
             "before_message_count": before_message_count,
             # Fewer messages is a compaction even when the result is not smaller in
             # tokens: a processor that replaces many turns with one long one still
-            # replaced them, and the day file should say so.
+            # replaced them. Both counts are measured after the force-prune above,
+            # so a prune is one of the compactions this reports.
             "compacted": len(processed_history) < before_message_count
             or post_process_tokens < pre_process_tokens,
             "has_history_processors": bool(history_processors),
@@ -441,30 +465,6 @@ async def _prepare_history(
         processed_history = _prepend_system_context(
             processed_history, postcompact_context
         )
-
-    effective_limit = max(
-        0,
-        limiter.get_effective_context_window(getattr(agent, "model", None))
-        - reserved_tokens,
-    )
-    # ensure_alternating_roles is a no-op on well-formed history, so reusing
-    # the pre-pass count when no processors ran is a safe approximation.
-    current_tokens = (
-        limiter.count_tokens(processed_history)
-        if history_processors
-        else pre_process_tokens
-    )
-    if current_tokens > effective_limit:
-        print_fn(
-            f"\n[SYSTEM] History too large ({current_tokens} tokens) after summarization. Force pruning..."
-        )
-        safe_history = []
-        if (
-            processed_history
-            and limiter.count_tokens(processed_history[-1]) < effective_limit
-        ):
-            safe_history = [processed_history[-1]]
-        processed_history = safe_history
 
     return await _acquire_rate_limit(
         limiter,
