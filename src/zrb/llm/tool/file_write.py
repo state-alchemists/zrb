@@ -17,24 +17,21 @@ from zrb.llm.tool.post_write_check import (
 
 
 async def write_file(
-    path: Annotated[
-        str,
-        Field(description="File to write, creating it and any missing parent dirs."),
-    ],
-    content: Annotated[str, Field(description="Full text to write, UTF-8.")],
+    path: Annotated[str, Field(description="File to write.")],
+    content: Annotated[str, Field(description="Full UTF-8 text.")],
     mode: Annotated[
         str,
         Field(
             description=(
-                '"w" (default) overwrites the whole file — refused against an '
-                "existing file this session hasn't Read/Written/Edited yet. "
-                '"a" appends, for writing large content in chunks.'
+                '"w" overwrites — refused on an existing file this session '
+                'hasn\'t Read/Written/Edited yet. "a" appends (large content in '
+                "chunks)."
             )
         ),
     ] = "w",
 ) -> str:
     """
-    Creates a file, replaces one, or appends to one. Use Edit to change part
+    Creates a file (and missing parent dirs), replaces one, or appends to one. Use Edit to change part
     of an existing file — rewriting a file you have not just read drops
     everything you did not reproduce, and nothing reports that loss.
 

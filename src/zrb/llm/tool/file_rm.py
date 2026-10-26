@@ -8,16 +8,9 @@ from zrb.llm.tool.file_observation import check_listed
 
 
 def remove_file(
-    path: Annotated[str, Field(description="Absolute or relative path to remove.")],
+    path: Annotated[str, Field(description="Path to remove.")],
     recursive: Annotated[
-        bool,
-        Field(
-            description=(
-                "False (default) only removes a file or empty directory; True "
-                "also removes a non-empty directory's contents — irreversible "
-                "either way."
-            )
-        ),
+        bool, Field(description="True also removes a non-empty directory.")
     ] = False,
 ) -> str:
     """
