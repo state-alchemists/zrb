@@ -92,19 +92,35 @@ def _message_text(message: object) -> str:
     return " ".join(chunks)
 
 
-def _last_user_ask(history: object) -> str:
-    """The newest user turn's text, clipped; `""` when there is none.
+def _typed_text(message: object) -> str:
+    """The words the user typed in one turn, clipped; `""` when there are none.
 
-    The live-context block rides inside that turn, so only the text above it is
+    The live-context block rides inside the turn, so only the text above it is
     quoted: that is the part the user actually typed.
     """
+    raw = message if isinstance(message, str) else _message_text(message)
+    return " ".join(raw.split()).split(_LIVE_CONTEXT_MARKER)[0].strip()[:QUOTE_LIMIT]
+
+
+def _last_user_ask(data: dict[str, object]) -> str:
+    """What the user last asked: this turn's prompt, else the newest turn in history.
+
+    `_prepare_history` fires PRE_COMPACT *before* the prompt joins the history, so
+    `prompt` is the only place the ask that caused this compaction can come from.
+    History is what a compaction nothing asked for has to offer.
+    """
+    prompt = data.get("prompt")
+    if prompt is not None:
+        asked = _typed_text(prompt)
+        if asked:
+            return asked
+    history = data.get("history")
     for message in reversed(history if isinstance(history, list) else []):
         if not _is_user_turn(message):
             continue
-        text = " ".join(_message_text(message).split())
-        head = text.split(_LIVE_CONTEXT_MARKER)[0].strip()
-        if head:
-            return head[:QUOTE_LIMIT]
+        asked = _typed_text(message)
+        if asked:
+            return asked
     return ""
 
 
@@ -118,7 +134,7 @@ def format_day_line(now: datetime, data: dict[str, object], cwd: str = "") -> st
     if isinstance(tokens, int):
         facts.append(f"~{tokens // 1000}k tokens" if tokens >= 1000 else f"{tokens} tokens")
     where = " ".join(str(cwd or data.get("cwd") or "").split()) or "?"
-    ask = _last_user_ask(data.get("history"))
+    ask = _last_user_ask(data)
     quote = f' · last ask: "{ask}"' if ask else ""
     return (
         f"- {now.strftime('%H:%M')} · {where} · compaction replaced "
@@ -164,12 +180,28 @@ def append_day_line(
     return path
 
 
-async def journal_day_flush(context: "HookContext") -> HookResult:
-    """The PreCompact hook: record the span before it is replaced."""
-    data = context.event_data if isinstance(context.event_data, dict) else {}
-    line = format_day_line(datetime.now(), data, cwd=context.cwd or "")
-    append_day_line(line)
-    return HookResult()
+class _DayFlush:
+    """The flush, as a callable that answers to the name both knobs use.
+
+    `HookRegistry._hook_name` reads a config's name, then the hook's `__name__`,
+    then its `name`. A plain function would answer with its Python name,
+    `journal_day_flush`, which `LLM_HOOKS=journal-day-flush` does not match — an
+    allowlist naming the flush would have dropped it in silence. An object has no
+    `__name__`, so the documented name is the one that answers.
+    """
+
+    name = _NAME
+
+    async def __call__(self, context: "HookContext") -> HookResult:
+        """The PreCompact hook: record the span before it is replaced."""
+        data = context.event_data if isinstance(context.event_data, dict) else {}
+        line = format_day_line(datetime.now(), data, cwd=context.cwd or "")
+        append_day_line(line)
+        return HookResult()
+
+
+journal_day_flush = _DayFlush()
+"""The one flush hook; see `_DayFlush` for why it is an object rather than a function."""
 
 
 def register_journal_day_flush_hook(manager: "HookManager") -> None:

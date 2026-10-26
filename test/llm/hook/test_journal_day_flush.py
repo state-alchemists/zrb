@@ -8,7 +8,7 @@ swallowed rather than raised into the compaction path.
 
 import asyncio
 from datetime import datetime
-from typing import TYPE_CHECKING, cast
+from typing import cast
 from unittest.mock import patch
 
 from zrb.llm.hook.interface import HookContext
@@ -19,10 +19,9 @@ from zrb.llm.hook.journal_day_flush import (
     journal_day_flush,
     register_journal_day_flush_hook,
 )
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.registry import HookRegistry
 from zrb.llm.hook.types import HookEvent
-
-if TYPE_CHECKING:
-    from zrb.llm.hook.manager import HookManager
 
 NOW = datetime(2026, 10, 26, 20, 30)
 
@@ -85,6 +84,29 @@ def test_only_the_typed_text_is_quoted():
     assert "<live-context>" not in line
 
 
+def test_the_prompt_that_caused_it_is_what_is_quoted():
+    """`_prepare_history` fires PRE_COMPACT before the prompt joins the history, so
+    the prompt is the only place the ask that caused this compaction can come from."""
+    history = [{"parts": [{"content": "the previous ask", "part_kind": "user-prompt"}]}]
+
+    line = format_day_line(
+        NOW, {"history": history, "prompt": "start the sweep tonight"}, cwd="/repo"
+    )
+
+    assert 'last ask: "start the sweep tonight"' in line
+    assert "the previous ask" not in line
+
+
+def test_a_compaction_nothing_asked_for_falls_back_to_the_history():
+    """The prompt is missing when nothing prompted it: the newest user turn is then
+    the best there is."""
+    history = [{"parts": [{"content": "the ask in flight", "part_kind": "user-prompt"}]}]
+
+    line = format_day_line(NOW, {"history": history}, cwd="/repo")
+
+    assert 'last ask: "the ask in flight"' in line
+
+
 def test_object_shaped_history_is_read_too():
     """A Python caller hands over live `ModelRequest` objects, not JSON."""
 
@@ -134,6 +156,19 @@ def test_no_flush_when_journaling_is_off():
         register_journal_day_flush_hook(cast("HookManager", manager))
 
     assert manager.calls == []
+
+
+def test_an_allowlist_naming_the_flush_keeps_it(monkeypatch):
+    """`LLM_HOOKS` is an allowlist of hook names, so the flush has to answer to its
+    own name — not to the Python name of whatever implements it."""
+    registry = HookRegistry()
+    manager = HookManager(registry=registry)
+    monkeypatch.setenv("ZRB_LLM_HOOKS", "journal-day-flush")
+    with patch("zrb.llm.hook.journal_day_flush.CFG") as cfg:
+        cfg.LLM_JOURNAL_ENABLED = True
+        register_journal_day_flush_hook(cast("HookManager", manager))
+
+    assert registry.get_hooks(HookEvent.PRE_COMPACT) == [journal_day_flush]
 
 
 def test_registered_on_pre_compact_only():

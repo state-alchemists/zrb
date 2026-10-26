@@ -373,6 +373,9 @@ async def _prepare_history(
         HookEvent.PRE_COMPACT,
         {
             "history": message_history,
+            # The turn that caused this. It joins the history only after the event,
+            # so a hook recording what was asked has nowhere else to read it from.
+            "prompt": prompt_content,
             "token_count": pre_process_tokens,
             "message_count": len(message_history),
             "has_history_processors": bool(history_processors),
