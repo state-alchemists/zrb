@@ -13,8 +13,10 @@ import os
 import shutil
 import tempfile
 from collections.abc import MutableMapping
+from pathlib import Path
 
 import pytest
+import write_guard
 
 # Config reads `<prefix>_<KNOB>`; the prefix itself is `_ZRB_ENV_PREFIX`.
 # `DEFAULT_PREFIX` is public because the hermetic-environment test checks it.
@@ -39,9 +41,61 @@ def _scrub_config_namespace(environ: MutableMapping[str, str]) -> dict[str, str]
     return {name: environ.pop(name) for name in names}
 
 
+# The developer's real home, kept across the redirect so the write guard can name
+# it. It is an internal handoff from the controller to the xdist workers it spawns,
+# not a setting: the controller always overwrites it, so a value exported before
+# the run cannot switch the redirect off.
+_REAL_HOME_VAR = "PYTEST_ZRB_REAL_HOME"
+_REDIRECTED_VAR = "PYTEST_ZRB_REDIRECTED"
+_TEST_HOME_PREFIX = "zrb-test-home-"
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_test_home: str | None = None
+
+
+def _redirect_home() -> None:
+    """Point `~` at a per-run directory so nothing lands in the real home.
+
+    The controller (any process that is not an xdist worker) creates it before
+    xdist spawns the workers, which inherit the environment; only the controller
+    removes it, in `pytest_sessionfinish`.
+    """
+    global _test_home
+    if os.environ.get("PYTEST_XDIST_WORKER"):
+        return
+    if os.environ.get(_REDIRECTED_VAR) == _redirect_marker():
+        return  # this process already redirected: do not leak another home
+    os.environ[_REAL_HOME_VAR] = os.path.expanduser("~")
+    # Resolved, so a symlinked temp root (macOS `/var` -> `/private/var`) does not
+    # make `~` differ from the cwd a test changes into.
+    home = os.path.realpath(tempfile.mkdtemp(prefix=_TEST_HOME_PREFIX))
+    _test_home = home
+    os.environ["HOME"] = home
+    os.environ["USERPROFILE"] = home  # what `expanduser` reads on Windows
+    os.environ[_REDIRECTED_VAR] = _redirect_marker()
+
+
+def _redirect_marker() -> str:
+    """Names this process and the home it was given, so an inherited or stale
+    value (another process, another home) never reads as already redirected."""
+    return f"{os.getpid()}:{os.environ.get('HOME', '')}"
+
+
+def _is_real_home(path: str) -> bool:
+    real = os.path.realpath(os.environ[_REAL_HOME_VAR])
+    return os.path.normcase(os.path.realpath(path)) == os.path.normcase(real)
+
+
 def pytest_configure() -> None:
-    """Remove developer config before collection in every pytest process."""
+    """Remove developer config, redirect home and guard writes, per process."""
     _scrub_config_namespace(os.environ)
+    _redirect_home()
+    allowed = [tempfile.gettempdir()]
+    if not _is_real_home(os.environ["HOME"]):  # never let the real home allow itself
+        allowed.append(os.environ["HOME"])
+    write_guard.install(
+        forbidden_roots=[os.environ[_REAL_HOME_VAR], _REPO_ROOT],
+        allowed_roots=allowed,
+    )
 
 
 # Non-secret placeholders; `openai-chat:` selects the model class patched by tests.
@@ -85,6 +139,8 @@ _TEST_ENV = {
 
 def pytest_sessionfinish() -> None:
     """Remove this process's per-run stores, which nothing else would."""
+    if _test_home is not None:
+        shutil.rmtree(_test_home, ignore_errors=True)
     for key in (
         "ZRB_LLM_USAGE_DIR",
         "ZRB_LLM_HISTORY_DIR",
@@ -92,6 +148,38 @@ def pytest_sessionfinish() -> None:
         "ZRB_LLM_SNAPSHOT_DIR",
     ):
         shutil.rmtree(_TEST_ENV[key], ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def _no_forbidden_writes():
+    """Fail a test whose write the guard refused, even if the test swallowed it."""
+    guard = write_guard.install([], [])  # already installed by `pytest_configure`
+    seen = len(guard.violations)
+    yield
+    leaked = guard.violations[seen:]
+    assert not leaked, f"test wrote outside temp: {leaked}"
+
+
+@pytest.fixture
+def outside_root():
+    """A path outside every root the sandbox keeps writable; it is not created.
+
+    The sandbox keeps both `tempfile.gettempdir()` and, on POSIX, `/tmp`
+    writable, and every `tmp_path` lives in one of them (`/tmp/pytest-of-...` on
+    Linux, `/var/folders/...` on macOS), so no path under temp can be "outside".
+    The developer's real home is outside both on every platform, and the tests
+    using this only *evaluate* the path: the write guard still refuses any
+    accidental write there.
+    """
+    real_home = os.environ[_REAL_HOME_VAR]
+    outside = os.path.join(real_home, "zrb-test-outside")
+    roots = [tempfile.gettempdir()] + (["/tmp"] if os.name == "posix" else [])
+    for root in roots:
+        if os.path.commonpath(
+            [os.path.realpath(outside), os.path.realpath(root)]
+        ) == os.path.realpath(root):
+            pytest.skip(f"the home {real_home} lies inside the temp root {root}")
+    return Path(outside)
 
 
 @pytest.fixture(autouse=True)
