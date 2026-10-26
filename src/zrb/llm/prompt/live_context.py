@@ -678,18 +678,58 @@ def _top_entries(entries: list[str], count: int) -> list[str]:
     return [entries[index] for index in sorted(pair[0] for pair in ranked[:count])]
 
 
+_DAY_BLOCK_OPEN = "<day>\n"
+"""The wrapper the block is sent in; `render_day_block` always returns one thing."""
+
+_DAY_BLOCK_CLOSE = "\n</day>"
+_SECTION_SEPARATOR = "\n\n"
+_CUT_MARKER = "…"
+
+
+def _wrap_sections(sections: list[str]) -> str:
+    """The `<day>` block around *sections*, each separated by a blank line."""
+    return _DAY_BLOCK_OPEN + _SECTION_SEPARATOR.join(sections) + _DAY_BLOCK_CLOSE
+
+
+def _room_for_next(kept: list[str]) -> int:
+    """How many characters one more section may take, wrapper and separator included."""
+    used = len(_wrap_sections(kept)) + (len(_SECTION_SEPARATOR) if kept else 0)
+    return DAY_BLOCK_MAX_CHARS - used
+
+
+def _cut_section(section: str, room: int) -> str:
+    """*section* cut to at most *room* characters, on a line break when one serves.
+
+    A line break is worth taking only when it keeps most of the room. A handover
+    written as one long paragraph has a single newline right after its heading,
+    and cutting there would leave the heading alone while dropping every word
+    the paragraph said.
+    """
+    if len(section) <= room:
+        return section
+    head = section[:room]
+    line_end = head.rfind("\n")
+    if line_end >= room // 2:
+        return head[:line_end]
+    return head[: max(0, room - len(_CUT_MARKER))].rstrip() + _CUT_MARKER
+
+
 def _fit_sections(sections: list[str]) -> str:
-    """Wrap the sections that fit the cap, cutting the last one on a line break."""
+    """Wrap the sections that fit the cap, cutting the last one to what is left.
+
+    A section that had to be cut ends the block: half a line says less than
+    nothing, and today's and yesterday's lines are still in the day file.
+    """
     kept: list[str] = []
     for section in sections:
-        block = "<day>\n" + "\n\n".join(kept + [section]) + "\n</day>"
-        if len(block) <= DAY_BLOCK_MAX_CHARS:
+        room = _room_for_next(kept)
+        if len(section) <= room:
             kept.append(section)
             continue
-        if not kept:
-            kept.append(section[:DAY_BLOCK_MAX_CHARS].rsplit("\n", 1)[0])
+        if room > 0:
+            kept.append(_cut_section(section, room))
         break
-    return "<day>\n" + "\n\n".join(kept) + "\n</day>"
+    return _wrap_sections(kept)
 
 
 def render_day_block(today: date | None = None) -> str | None:

@@ -129,3 +129,39 @@ def test_the_whole_block_respects_the_cap(tmp_path):
     assert result is not None
     assert len(result) <= DAY_BLOCK_MAX_CHARS, "the cap is on the whole block"
     assert result.startswith("<day>") and result.endswith("</day>")
+
+
+def test_a_one_paragraph_handover_still_carries_its_words(tmp_path):
+    """A handover written as one long paragraph keeps its text.
+
+    Cutting at the last line break would fall back to the newline right after the
+    heading, so the block would arrive with a heading and nothing under it — the
+    failure that looks like success.
+    """
+    paragraph = "Do not rebuild the sweep before it can prove it cannot lose an entry. " * 40
+    _write_day(
+        tmp_path,
+        TODAY,
+        "# today\n\n- 09:00 · home · a line · imp 5\n\n## Handover\n\n" + paragraph,
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert len(result) <= DAY_BLOCK_MAX_CHARS
+    body = result.split("From the last me, to the next me", 1)[1]
+    assert len(body.strip()) > 200, "the heading alone is not a handover"
+    assert "Do not rebuild the sweep" in result
+
+
+def test_a_long_handover_of_short_lines_is_cut_on_a_line_break(tmp_path):
+    """When whole lines are there to cut on, no line arrives half-written."""
+    lines = [f"line {index} of the handover, short enough to stay whole." for index in range(80)]
+    _write_day(tmp_path, TODAY, "# today\n\n## Handover\n\n" + "\n".join(lines))
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert len(result) <= DAY_BLOCK_MAX_CHARS
+    assert "…" not in result, "there was a line break to cut on"
+    assert result.splitlines()[-2] in lines, "the last line kept is a whole line"

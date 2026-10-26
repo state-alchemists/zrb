@@ -17,7 +17,7 @@ and the hook always returns a result with no output.
 
 import os
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.hook.enablement import is_builtin_hook_enabled
@@ -26,7 +26,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.message_text import message_content_text
 
 if TYPE_CHECKING:
-    from zrb.llm.hook.interface import HookCallable, HookContext
+    from zrb.llm.hook.interface import HookContext
     from zrb.llm.hook.manager import HookManager
 
 _NAME = "journal-day-flush"
@@ -52,7 +52,7 @@ def _day_path(now: datetime, root: str | None = None) -> str:
     return os.path.join(base, DAY_DIR_NAME, f"{now.strftime('%Y-%m-%d')}.md")
 
 
-def _is_user_turn(message: Any) -> bool:
+def _is_user_turn(message: object) -> bool:
     """Whether *message* is a user turn, however it arrived (object or dict)."""
     if isinstance(message, dict):
         kind = message.get("role") or message.get("kind") or ""
@@ -72,7 +72,7 @@ def _is_user_turn(message: Any) -> bool:
     return False
 
 
-def _message_text(message: Any) -> str:
+def _message_text(message: object) -> str:
     """One message's text, from a live `ModelRequest` or from a JSON dict.
 
     `message_content_text` is the authority for the objects the runner hands
@@ -92,7 +92,7 @@ def _message_text(message: Any) -> str:
     return " ".join(chunks)
 
 
-def _last_user_ask(history: Any) -> str:
+def _last_user_ask(history: object) -> str:
     """The newest user turn's text, clipped; `""` when there is none.
 
     The live-context block rides inside that turn, so only the text above it is
@@ -108,7 +108,7 @@ def _last_user_ask(history: Any) -> str:
     return ""
 
 
-def format_day_line(now: datetime, data: dict[str, Any], cwd: str = "") -> str:
+def format_day_line(now: datetime, data: dict[str, object], cwd: str = "") -> str:
     """The one line a flush appends: when, where, how much, and what was asked."""
     facts: list[str] = []
     count = data.get("message_count")
@@ -127,6 +127,22 @@ def format_day_line(now: datetime, data: dict[str, Any], cwd: str = "") -> str:
     )
 
 
+def _create_day_file(path: str, moment: datetime) -> None:
+    """Create the day file with its heading, unless something else got there first.
+
+    ``"x"`` is one atomic create-or-fail, so two sessions compacting into the same
+    new day cannot both open it for writing. An existence check followed by ``"w"``
+    could: both would see no file, and the second would truncate the record the
+    first had already written. ``FileExistsError`` is caught here rather than by
+    the caller, which must go on to append.
+    """
+    try:
+        with open(path, "x", encoding="utf-8") as f:
+            f.write(f"# {moment.strftime('%Y-%m-%d (%a)')}\n\n")
+    except FileExistsError:
+        pass  # another session owns the heading; the line below is still ours to add
+
+
 def append_day_line(
     line: str, now: datetime | None = None, root: str | None = None
 ) -> "str | None":
@@ -139,9 +155,7 @@ def append_day_line(
     path = _day_path(moment, root)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        if not os.path.exists(path):
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(f"# {moment.strftime('%Y-%m-%d (%a)')}\n\n")
+        _create_day_file(path, moment)
         with open(path, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except OSError as e:

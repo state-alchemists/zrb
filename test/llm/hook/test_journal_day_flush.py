@@ -105,6 +105,19 @@ def test_object_shaped_history_is_read_too():
     assert 'last ask: "are we done for the day?"' in line
 
 
+def test_appending_never_truncates_an_existing_day_file(tmp_path):
+    """The day tier is append-only: a flush adds its line and leaves every earlier
+    one. The second call is also the case where the file already exists, so the
+    heading is written once rather than overwriting the morning's record."""
+    first = append_day_line("- 09:00 · home · the morning line · imp 9", now=NOW, root=str(tmp_path))
+    second = append_day_line("- 20:30 · home · the evening line · imp 2", now=NOW, root=str(tmp_path))
+
+    assert first == second
+    text = (tmp_path / "days" / "2026-10-26.md").read_text(encoding="utf-8")
+    assert text.count("# ") == 1, "the heading is written once"
+    assert "the morning line" in text and "the evening line" in text
+
+
 def test_a_failed_write_returns_none_instead_of_raising(tmp_path):
     blocker = tmp_path / "not-a-dir"
     blocker.write_text("x", encoding="utf-8")
