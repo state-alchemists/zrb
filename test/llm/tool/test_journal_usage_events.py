@@ -141,6 +141,19 @@ def test_reading_a_note_by_path_records_a_read(journal):
     assert event.note == note_hash(f"technical/{SLUG}")
 
 
+def test_a_refused_read_of_a_note_is_not_recorded_as_a_read(journal):
+    """A note the read refuses (binary content, or past the size cap) returned
+    an error, not its text, so the report must not count it as read."""
+    _write()
+    note = journal / "technical" / f"{SLUG}.md"
+    note.write_bytes(b"binary \x00 content")
+
+    result = asyncio.run(read_file(str(note)))
+
+    assert result.startswith("Error")
+    assert _events(READ) == []
+
+
 def test_reading_an_index_or_a_file_outside_the_journal_records_nothing(
     journal, tmp_path
 ):

@@ -55,14 +55,16 @@ async def read_file(
     validation_error = _validate_path_for_reading(abs_path)
     if validation_error:
         return validation_error
-    record_path_read(abs_path)
 
     media_type = get_media_type(abs_path)
     if media_type is not None and media_type.startswith("image/"):
         return await _read_image(path, abs_path, media_type)
 
     # Off the event loop, as the wrapper runs a sync tool.
-    return await asyncio.to_thread(_read_text, path, abs_path, start_line, end_line)
+    text = await asyncio.to_thread(_read_text, path, abs_path, start_line, end_line)
+    if not text.startswith("Error"):  # a refused or failed read is not a read
+        record_path_read(abs_path)
+    return text
 
 
 def _read_text(path: str, abs_path: str, start_line: int, end_line: int) -> str:
