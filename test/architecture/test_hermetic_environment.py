@@ -49,3 +49,14 @@ def test_the_namespace_cleared_is_the_one_the_config_reads():
     from zrb.config.config import CFG
 
     assert suite_config.DEFAULT_PREFIX == CFG.ENV_PREFIX
+
+
+def test_configuring_twice_in_one_process_makes_one_home():
+    """The hook runs again whenever a test loads the suite config; a second
+    home would never be removed."""
+    suite_config.pytest_configure()
+    home = os.environ["HOME"]
+
+    suite_config.pytest_configure()
+
+    assert os.environ["HOME"] == home

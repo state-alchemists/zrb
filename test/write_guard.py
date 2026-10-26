@@ -200,13 +200,18 @@ class WriteGuard:
         resolved), for deleting, moving and creating entries.
         """
         target = _canonical(path) if follows else _canonical_entry(path)
-        if any(_is_inside(target, root) for root in self._allowed):
+        allowed = [r for r in self._allowed if _is_inside(target, r)]
+        forbidden = [r for r in self._forbidden if _is_inside(target, r)]
+        if not forbidden:
             return None
-        for root in self._forbidden:
-            if _is_inside(target, root):
-                relative = os.path.relpath(target, root)
-                return None if _is_artifact(relative) else target
-        return None
+        # The most specific root decides, so temp inside the repository is
+        # allowed and a repository inside temp (a checkout under /tmp) is not.
+        # A tie goes to the forbidden root.
+        deepest_forbidden = max(forbidden, key=len)
+        if allowed and len(max(allowed, key=len)) > len(deepest_forbidden):
+            return None
+        relative = os.path.relpath(target, deepest_forbidden)
+        return None if _is_artifact(relative) else target
 
     def audit(self, event: str, args: tuple) -> None:
         """`sys.addaudithook` callback: record and refuse a forbidden write."""

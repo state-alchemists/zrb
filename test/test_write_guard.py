@@ -159,6 +159,20 @@ def test_write_inside_an_allowed_root_nested_in_a_forbidden_one_passes(guard, tm
     assert guard.violations == []
 
 
+def test_a_repository_inside_an_allowed_root_is_still_protected(tmp_path):
+    """A checkout under the temp directory: the broad allowance must not
+    subsume the narrower repository root."""
+    (tmp_path / "checkout" / "src").mkdir(parents=True)
+    guard = WriteGuard(
+        forbidden_roots=[str(tmp_path / "checkout")],
+        allowed_roots=[str(tmp_path)],
+    )
+
+    with pytest.raises(PermissionError):
+        guard.audit("open", (str(tmp_path / "checkout" / "src" / "a.py"), "w", 0))
+    guard.audit("open", (str(tmp_path / "elsewhere.txt"), "w", 0))
+
+
 @pytest.mark.parametrize(
     "relative",
     [

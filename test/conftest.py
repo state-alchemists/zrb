@@ -46,6 +46,7 @@ def _scrub_config_namespace(environ: MutableMapping[str, str]) -> dict[str, str]
 # not a setting: the controller always overwrites it, so a value exported before
 # the run cannot switch the redirect off.
 _REAL_HOME_VAR = "PYTEST_ZRB_REAL_HOME"
+_REDIRECTED_VAR = "PYTEST_ZRB_REDIRECTED"
 _TEST_HOME_PREFIX = "zrb-test-home-"
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _test_home: str | None = None
@@ -61,6 +62,8 @@ def _redirect_home() -> None:
     global _test_home
     if os.environ.get("PYTEST_XDIST_WORKER"):
         return
+    if os.environ.get(_REDIRECTED_VAR) == _redirect_marker():
+        return  # this process already redirected: do not leak another home
     os.environ[_REAL_HOME_VAR] = os.path.expanduser("~")
     # Resolved, so a symlinked temp root (macOS `/var` -> `/private/var`) does not
     # make `~` differ from the cwd a test changes into.
@@ -68,6 +71,13 @@ def _redirect_home() -> None:
     _test_home = home
     os.environ["HOME"] = home
     os.environ["USERPROFILE"] = home  # what `expanduser` reads on Windows
+    os.environ[_REDIRECTED_VAR] = _redirect_marker()
+
+
+def _redirect_marker() -> str:
+    """Names this process and the home it was given, so an inherited or stale
+    value (another process, another home) never reads as already redirected."""
+    return f"{os.getpid()}:{os.environ.get('HOME', '')}"
 
 
 def _is_real_home(path: str) -> bool:
