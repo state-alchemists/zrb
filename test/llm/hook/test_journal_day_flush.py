@@ -36,12 +36,16 @@ class _FakeManager:
         self.calls.append((hook, events, config))
 
 
-def _context(history, count=42, tokens=96_000, cwd="/repo"):
+def _context(history, count=42, tokens=96_000, cwd="/repo", compacted=True):
     return HookContext(
-        event=HookEvent.PRE_COMPACT,
+        event=HookEvent.POST_COMPACT,
         event_data={
             "message_count": count,
             "token_count": tokens,
+            "before_message_count": 148,
+            "before_token_count": 240_000,
+            "compacted": compacted,
+            "has_history_processors": True,
             "history": history,
         },
         cwd=cwd,
@@ -61,9 +65,19 @@ def test_the_flush_writes_one_line_into_todays_day_file(tmp_path):
     text = day_file.read_text(encoding="utf-8")
     assert text.startswith("# "), "a new day file opens with its heading"
     assert text.count("\n- ") == 1, "one line per flush"
-    assert "42 messages" in text and "96k tokens" in text
+    assert "replaced 148 messages, ~240k tokens with 42 messages, ~96k tokens" in text
     assert "· /repo ·" in text, "the line says where the span was compacted"
     assert AUTO_FLUSH_MARKER in text
+
+
+def test_nothing_is_written_when_the_turn_replaced_nothing(tmp_path):
+    """Both compaction events fire on every turn. A hook that wrote on each would
+    put one line in the day file per turn, which is noise wearing a record's shape."""
+    with patch("zrb.llm.hook.journal_day_flush.CFG") as cfg:
+        cfg.LLM_JOURNAL_DIR = str(tmp_path)
+        asyncio.run(journal_day_flush(_context([], count=148, tokens=240_000, compacted=False)))
+
+    assert not (tmp_path / "days").exists()
 
 
 def test_only_the_typed_text_is_quoted():
@@ -82,6 +96,16 @@ def test_only_the_typed_text_is_quoted():
 
     assert 'last ask: "fix the retry block"' in line
     assert "<live-context>" not in line
+
+
+def test_a_mention_of_the_tag_keeps_the_users_words():
+    """Only a trailing injected block is removed: a turn that asks about the tag
+    itself is still the user's sentence, not something to cut at."""
+    line = format_day_line(
+        NOW, {"prompt": 'please explain the "<live-context>" tag'}, cwd="/repo"
+    )
+
+    assert 'last ask: "please explain the "<live-context>" tag"' in line
 
 
 def test_the_prompt_that_caused_it_is_what_is_quoted():
@@ -216,10 +240,10 @@ def test_an_allowlist_naming_the_flush_keeps_it(monkeypatch):
         cfg.LLM_JOURNAL_ENABLED = True
         register_journal_day_flush_hook(cast("HookManager", manager))
 
-    assert registry.get_hooks(HookEvent.PRE_COMPACT) == [journal_day_flush]
+    assert registry.get_hooks(HookEvent.POST_COMPACT) == [journal_day_flush]
 
 
-def test_registered_on_pre_compact_only():
+def test_registered_on_post_compact_only():
     manager = _FakeManager()
     with patch("zrb.llm.hook.journal_day_flush.CFG") as cfg:
         cfg.LLM_JOURNAL_ENABLED = True
@@ -227,4 +251,4 @@ def test_registered_on_pre_compact_only():
 
     assert len(manager.calls) == 1
     _hook, events, _config = manager.calls[0]
-    assert events == [HookEvent.PRE_COMPACT]
+    assert events == [HookEvent.POST_COMPACT]

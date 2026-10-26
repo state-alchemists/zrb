@@ -1,21 +1,23 @@
-"""The built-in day flush: what a compaction is about to replace is written
-into the journal's day tier first.
+"""The built-in day flush: a compaction is written into the journal's day tier.
 
 Registered on every `HookManager` whenever `LLM_JOURNAL_ENABLED` is on, so a
 journaled setup gets a day record without configuring anything — the same
-posture as the built-in journal-compliance judge.
+posture as the built-in journal-compliance judge. It listens to `PostCompact`,
+which fires on every turn, and writes only when the turn actually replaced
+history: a line per turn would be noise wearing a record's shape.
 
 Deliberately dumb. A flush rides on the compaction that is already the most
 expensive moment of a session, so it takes no model call and makes no judgement
-about what mattered: one line saying which span is going away, how big it was,
-and the last thing the user asked. A model-driven "keep the five lines worth
+about what mattered: one line saying which span went away, how big it was, and
+the last thing the user asked. A model-driven "keep the five lines worth
 keeping" pass belongs in a slower hook, if it ever belongs anywhere.
 
-A failure here must never block compaction: the writer catches its own errors
-and the hook always returns a result with no output.
+A failure here must never block anything: the writer catches its own errors and
+the hook always returns a result with no output.
 """
 
 import os
+import re
 from datetime import datetime
 from typing import TYPE_CHECKING
 
@@ -39,7 +41,11 @@ DEFAULT_IMPORTANCE = 2
 """A scaffold line, not a kept moment: the sweep may drop it without loss."""
 
 AUTO_FLUSH_MARKER = "auto-flush"
-_LIVE_CONTEXT_MARKER = "<live-context>"
+# The injected block ends the turn and closes its own tag, so only that shape is
+# removed: a user writing `<live-context>` mid-sentence keeps his words.
+_TRAILING_LIVE_CONTEXT = re.compile(
+    r"\s*<live-context>.*?</live-context>\s*\Z", re.DOTALL
+)
 _USER_KINDS = ("request", "user")
 
 
@@ -101,12 +107,11 @@ def _words(value: object) -> str:
 def _typed_text(message: object) -> str:
     """The words the user typed in one turn, clipped; `""` when there are none.
 
-    The live-context block rides inside the turn, so only the text above it is
-    quoted: that is the part the user actually typed.
+    The live-context block rides at the end of the turn, so only a trailing block
+    is cut: a turn that merely mentions the tag is still the user's sentence.
     """
-    return " ".join(_words(message).split()).split(_LIVE_CONTEXT_MARKER)[0].strip()[
-        :QUOTE_LIMIT
-    ]
+    words = _TRAILING_LIVE_CONTEXT.sub("", _words(message))
+    return " ".join(words.split())[:QUOTE_LIMIT]
 
 
 def _last_user_ask(data: dict[str, object]) -> str:
@@ -131,22 +136,30 @@ def _last_user_ask(data: dict[str, object]) -> str:
     return ""
 
 
-def format_day_line(now: datetime, data: dict[str, object], cwd: str = "") -> str:
-    """The one line a flush appends: when, where, how much, and what was asked."""
+def _span(count_key: str, token_key: str, data: dict[str, object]) -> str:
+    """`42 messages, ~96k tokens` for one side of a compaction, or `a span`."""
     facts: list[str] = []
-    count = data.get("message_count")
-    tokens = data.get("token_count")
+    count = data.get(count_key)
+    tokens = data.get(token_key)
     if isinstance(count, int):
         facts.append(f"{count} messages")
     if isinstance(tokens, int):
-        facts.append(f"~{tokens // 1000}k tokens" if tokens >= 1000 else f"{tokens} tokens")
+        facts.append(
+            f"~{tokens // 1000}k tokens" if tokens >= 1000 else f"{tokens} tokens"
+        )
+    return ", ".join(facts) or "a span"
+
+
+def format_day_line(now: datetime, data: dict[str, object], cwd: str = "") -> str:
+    """The one line a flush appends: when, where, how much, and what was asked."""
     where = " ".join(str(cwd or data.get("cwd") or "").split()) or "?"
     ask = _last_user_ask(data)
     quote = f' · last ask: "{ask}"' if ask else ""
+    replaced = _span("before_message_count", "before_token_count", data)
+    kept = _span("message_count", "token_count", data)
     return (
-        f"- {now.strftime('%H:%M')} · {where} · compaction replaced "
-        f"{', '.join(facts) or 'a span'}; no hand-written line existed for it"
-        f"{quote} · imp {DEFAULT_IMPORTANCE} · {AUTO_FLUSH_MARKER}"
+        f"- {now.strftime('%H:%M')} · {where} · compaction replaced {replaced} "
+        f"with {kept}{quote} · imp {DEFAULT_IMPORTANCE} · {AUTO_FLUSH_MARKER}"
     )
 
 
@@ -200,8 +213,15 @@ class _DayFlush:
     name = _NAME
 
     async def __call__(self, context: "HookContext") -> HookResult:
-        """The PreCompact hook: record the span before it is replaced."""
+        """The PostCompact hook: record the span a compaction replaced.
+
+        Nothing is written when the turn replaced no history. Both compaction
+        events fire on every turn, so a hook that wrote on each would fill the day
+        file with a line per turn — noise wearing the shape of a record.
+        """
         data = context.event_data if isinstance(context.event_data, dict) else {}
+        if not data.get("compacted"):
+            return HookResult()
         line = format_day_line(datetime.now(), data, cwd=context.cwd or "")
         append_day_line(line)
         return HookResult()
@@ -216,4 +236,4 @@ def register_journal_day_flush_hook(manager: "HookManager") -> None:
     named in `LLM_HOOKS_DISABLED`."""
     if not CFG.LLM_JOURNAL_ENABLED or not is_builtin_hook_enabled(_NAME):
         return
-    manager.add_hook(journal_day_flush, events=[HookEvent.PRE_COMPACT])
+    manager.add_hook(journal_day_flush, events=[HookEvent.POST_COMPACT])

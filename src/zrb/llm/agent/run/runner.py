@@ -373,6 +373,7 @@ async def _prepare_history(
     CFG.LOGGER.debug(f"System prompt reserved tokens: {reserved_tokens}")
 
     pre_process_tokens = limiter.count_tokens(message_history)
+    before_message_count = len(message_history)
 
     precompact_results = await effective_hook_manager.execute_hooks(
         HookEvent.PRE_COMPACT,
@@ -384,7 +385,7 @@ async def _prepare_history(
             # a fallback model may have described an attachment into it.
             "prompt": typed_prompt,
             "token_count": pre_process_tokens,
-            "message_count": len(message_history),
+            "message_count": before_message_count,
             "has_history_processors": bool(history_processors),
         },
         trigger="auto",
@@ -418,8 +419,15 @@ async def _prepare_history(
         HookEvent.POST_COMPACT,
         {
             "history": processed_history,
+            "prompt": typed_prompt,
             "token_count": post_process_tokens,
             "message_count": len(processed_history),
+            # Both events fire on every turn, so a hook that wants to record a
+            # compaction has to be told whether this turn actually replaced any
+            # history -- and how much went away.
+            "before_token_count": pre_process_tokens,
+            "before_message_count": before_message_count,
+            "compacted": post_process_tokens < pre_process_tokens,
             "has_history_processors": bool(history_processors),
         },
         trigger="auto",
