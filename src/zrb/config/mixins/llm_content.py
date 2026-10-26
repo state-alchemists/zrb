@@ -42,7 +42,6 @@ class LLMContentMixin:
         self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
         self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_GIT_ENABLED: str = "on"
-        self.DEFAULT_LLM_JOURNAL_DAY_FLUSH_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_COMPLIANCE_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SELF_REVIEW_ENABLED: str = "off"
@@ -274,15 +273,15 @@ class LLMContentMixin:
         ),
     )
 
-    LLM_JOURNAL_DAY_FLUSH_ENABLED = EnvField(
-        to_boolean,
-        serialize=on_off,
+    LLM_JOURNAL_COMPLIANCE_TURNS = EnvField(
+        int,
+        fallback=12,
         doc=(
-            "Register the built-in `journal-day-flush` hook, which appends a "
-            "line to the journal's day tier whenever a turn actually replaced "
-            "history. On by default; `LLM_JOURNAL_ENABLED=off` still takes it "
-            "out with the rest of journaling, and `HOOKS_ENABLED=off` takes "
-            "out every hook at once."
+            "User turns between journal-compliance checks on a conversation that "
+            "wrote no files and stated no preference. The judge otherwise runs only "
+            "on a turn that did one of those, which a long conversation touching no "
+            "file never does; every this many turns it reads the transcript and "
+            "decides for itself. `<= 0` turns the periodic check off."
         ),
     )
 

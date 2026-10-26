@@ -1,7 +1,7 @@
 """LLM-free evidence gates over a turn's messages.
 
-`runner.py` uses these to compute `wrote_files`, `changed_paths` and
-`journal_worthy` for the `STOP` hook payload.
+`runner.py` uses these to compute `wrote_files`, `changed_paths` and `journal_due`
+for the `STOP` hook payload.
 """
 
 from __future__ import annotations
@@ -70,6 +70,27 @@ def turn_changed_paths(
                 if isinstance(value, str) and value:
                     seen.setdefault(value, None)
     return list(seen)
+
+
+def user_turn_count(messages: list[object]) -> int:
+    """How many user prompts *messages* carries.
+
+    A `ModelRequest` also carries a system prompt, tool returns and retry feedback,
+    so the parts decide, not the message type. Used to space out the periodic
+    journal check: a long conversation is the case no file write ever signals.
+    """
+    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
+        ModelRequest,
+        UserPromptPart,
+    )
+
+    return sum(
+        1
+        for message in messages
+        if isinstance(message, ModelRequest)
+        for part in getattr(message, "parts", [])
+        if isinstance(part, UserPromptPart)
+    )
 
 
 def turn_states_preference(turn_messages: list[Any]) -> bool:

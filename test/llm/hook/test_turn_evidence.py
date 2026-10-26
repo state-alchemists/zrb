@@ -1,6 +1,7 @@
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
+    SystemPromptPart,
     TextPart,
     ToolCallPart,
     UserPromptPart,
@@ -10,7 +11,26 @@ from zrb.llm.hook.turn_evidence import (
     turn_changed_paths,
     turn_states_preference,
     turn_wrote_files,
+    user_turn_count,
 )
+
+
+class TestUserTurnCount:
+    def test_counts_user_prompts_not_messages(self):
+        "A ModelRequest also carries a system prompt and tool returns, so the"
+        history = [
+            ModelRequest(parts=[UserPromptPart(content="first")]),
+            ModelResponse(parts=[TextPart(content="an answer")]),
+            ModelRequest(parts=[UserPromptPart(content="second")]),
+        ]
+        assert user_turn_count(history) == 2
+
+    def test_a_request_with_no_user_part_is_not_a_user_turn(self):
+        history = [ModelRequest(parts=[SystemPromptPart(content="system only")])]
+        assert user_turn_count(history) == 0
+
+    def test_an_empty_history_is_zero(self):
+        assert user_turn_count([]) == 0
 
 
 class TestTurnChangedPaths:

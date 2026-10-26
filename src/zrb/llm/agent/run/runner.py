@@ -73,6 +73,7 @@ from zrb.llm.hook.turn_evidence import (
     turn_changed_paths,
     turn_states_preference,
     turn_wrote_files,
+    user_turn_count,
 )
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
@@ -876,6 +877,14 @@ async def _finish_turn(
     its own Stop). Returns `(output, history)`, or `None` for another round.
     """
     wrote_files = turn_wrote_files(cursor.accumulated)
+    # A conversation that touches no file and states no preference is never
+    # `journal_worthy`, however long it runs, so it is checked every
+    # `LLM_JOURNAL_COMPLIANCE_TURNS` user turns instead.
+    compliance_turns = CFG.LLM_JOURNAL_COMPLIANCE_TURNS
+    user_turns = user_turn_count(cursor.run_history)
+    periodic_check = (
+        compliance_turns > 0 and user_turns > 0 and user_turns % compliance_turns == 0
+    )
     stop_results = await effective_hook_manager.execute_hooks(
         HookEvent.STOP,
         {
@@ -890,10 +899,12 @@ async def _finish_turn(
             "run_scope": get_current_agent_run_scope(),
             "turn_id": cursor.turn_id,
             "nested_run": nested_run,
-            # wrote_files OR a stated preference, precomputed because
-            # MatcherConfig has no OR primitive (journal_compliance.py).
-            "journal_worthy": (
-                wrote_files or turn_states_preference(cursor.accumulated)
+            # wrote_files OR a stated preference OR a periodic check, precomputed
+            # because MatcherConfig has no OR primitive (journal_compliance.py).
+            "journal_due": (
+                wrote_files
+                or turn_states_preference(cursor.accumulated)
+                or periodic_check
             ),
         },
         stop_hook_active=extension_state.block_count > 0,

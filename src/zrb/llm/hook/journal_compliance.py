@@ -42,9 +42,10 @@ def build_journal_compliance_hook_config() -> HookConfig:
         ),
         matchers=[
             MatcherConfig(
-                # wrote_files OR a stated preference, precomputed in
-                # `runner.py` since MatcherConfig has no OR.
-                field="event_data.journal_worthy",
+                # A turn that wrote files or stated a preference, or a conversation
+                # that has run long enough to be checked. Precomputed in `runner.py`
+                # because MatcherConfig has no OR.
+                field="event_data.journal_due",
                 operator=MatcherOperator.EQUALS,
                 value=True,
             )
