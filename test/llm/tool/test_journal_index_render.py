@@ -29,6 +29,7 @@ def writable_journal(tmp_path):
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
         mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
+        mock_cfg.LLM_JOURNAL_CATALOG_MAX_ENTRIES = 25
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         yield str(root)
 
@@ -94,8 +95,8 @@ def test_a_foreign_line_survives_a_write(writable_journal):
 
     assert _section(writable_journal, "User") == [
         "- A hand note.",
-        "- Seeded. ([note](user/seed.md))",
         "- Goes by Go. ([note](user/identity.md))",
+        "- Seeded. ([note](user/seed.md))",
     ]
 
 
@@ -280,8 +281,8 @@ def test_the_cap_evicts_the_oldest_line_and_a_revision_refreshes_it(writable_jou
 
     section = _section(writable_journal, "User")
     assert section == [
-        "- Line a, revised. ([note](user/a.md))",
         "- Line c. ([note](user/c.md))",
+        "- Line a, revised. ([note](user/a.md))",
     ]
     assert '"Line b. ([note](user/b.md))"' in result
 
@@ -298,8 +299,8 @@ def test_an_evicted_line_is_a_view_and_returns_when_the_cap_is_raised(
     log_activity("anything")
 
     assert _section(writable_journal, "User") == [
-        "- Line a. ([note](user/a.md))",
         "- Line b. ([note](user/b.md))",
+        "- Line a. ([note](user/a.md))",
     ]
 
 

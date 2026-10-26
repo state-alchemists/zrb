@@ -107,7 +107,9 @@ def test_overflow_is_cut_on_a_line_boundary(tmp_path):
 
 def test_head_survives_so_ordering_decides_what_is_kept(tmp_path):
     """Overflow drops from the end — the HUD is written most-durable-first."""
-    filler = "\n".join(f"- [insight {i}](technical/n{i}.md)" for i in range(200))
+    filler = "\n".join(
+        f"- [insight {i}](technical/n{i}.md)" for i in reversed(range(200))
+    )
     journal_dir = _write_index(
         tmp_path, f"# Journal\n\n## User\n\n- Name: Go\n\n## Recent\n\n{filler}\n"
     )
@@ -120,18 +122,20 @@ def test_head_survives_so_ordering_decides_what_is_kept(tmp_path):
 
     assert result is not None
     assert "- Name: Go" in result
-    # The entry itself is not kept, but the summary names it as the newest
-    # hidden one so the model knows what it is missing.
-    assert "- [insight 199]" not in result
-    assert 'newest "insight 199"' in result
+    # The index lists newest first, so the cut drops the oldest and the summary
+    # names the first hidden entry, the newest of them.
+    assert "- [insight 199]" in result
+    assert "- [insight 0]" not in result
+    hidden_newest = max(i for i in range(200) if f"- [insight {i}]" not in result)
+    assert f'newest "insight {hidden_newest}"' in result
 
 
 def test_overflow_names_each_hidden_category(tmp_path):
     """A cut that drops Technical and Projects must say so: '(...more)' alone
     reads as 'nothing important', and the model re-derives what is already
     recorded."""
-    lines = [f"- [tech {i}](technical/n{i}.md)" for i in range(40)]
-    lines += [f"- [proj {i}](projects/p{i}.md)" for i in range(10)]
+    lines = [f"- [tech {i}](technical/n{i}.md)" for i in reversed(range(40))]
+    lines += [f"- [proj {i}](projects/p{i}.md)" for i in reversed(range(10))]
     journal_dir = _write_index(tmp_path, "# Journal\n" + "\n".join(lines) + "\n")
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = journal_dir
@@ -143,7 +147,8 @@ def test_overflow_names_each_hidden_category(tmp_path):
     assert result is not None
     assert "Hidden technical notes" in result
     assert "Hidden projects notes" in result
-    assert 'newest "tech 39"' in result
+    hidden_tech = max(i for i in range(40) if f"[tech {i}]" not in result)
+    assert f'newest "tech {hidden_tech}"' in result
     assert 'newest "proj 9"' in result
     assert "use SearchJournal" in result
 
