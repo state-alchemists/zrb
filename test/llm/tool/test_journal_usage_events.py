@@ -154,6 +154,19 @@ def test_a_refused_read_of_a_note_is_not_recorded_as_a_read(journal):
     assert _events(READ) == []
 
 
+def test_a_note_whose_first_line_starts_with_error_still_counts_as_read(journal):
+    """Success is the read header, which always precedes the note's own text."""
+    _write()
+    note = journal / "technical" / f"{SLUG}.md"
+    note.write_text("Error handling policy\nbody\n", encoding="utf-8")
+
+    result = asyncio.run(read_file(str(note)))
+
+    assert result.startswith("[File: ")
+    (event,) = _events(READ)
+    assert event.note == note_hash(f"technical/{SLUG}")
+
+
 def test_reading_an_index_or_a_file_outside_the_journal_records_nothing(
     journal, tmp_path
 ):
