@@ -228,3 +228,27 @@ def test_the_injected_snapshot_keeps_the_newest_recent_lines(
     assert "Headline 09" in result
     assert "Headline 08" in result
     assert "Headline 00" not in result
+
+
+def test_notes_with_the_same_hud_line_are_each_named_when_evicted(writable_journal):
+    """The cap names what a write evicted by note, not by the line's words: each
+    HUD line ends in a link to its own note, so two notes that share a headline
+    are still two lines, and the second eviction is reported too."""
+    with patch.object(journal_write.CFG, "LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION", 1):
+        results = [
+            write_journal_note(
+                "technical",
+                slug,
+                f"Note {slug}",
+                "c",
+                "f",
+                "s",
+                hud_line="The same headline.",
+            )
+            for slug in ("first", "second", "third")
+        ]
+
+    assert "Evicted" not in results[0]
+    assert "technical/first.md" in results[1]
+    assert "technical/second.md" in results[2]
+    assert "technical/first.md" not in results[2]
