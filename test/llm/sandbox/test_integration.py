@@ -44,22 +44,23 @@ def _policy(tmp_path, **kwargs):
 
 @pytest.fixture
 def outside_dir():
-    """A directory outside every writable root.
+    """A real, existing directory outside every writable root.
 
-    pytest's tmp_path lives under the system temp dir — which the sandbox
-    keeps writable by design — so escape tests need a target elsewhere.
+    The sandbox keeps `tempfile.gettempdir()` and `/tmp` writable, and the suite's
+    home and `tmp_path` live in them, so the directory comes from `/var/tmp`:
+    outside both on Linux and macOS (`/private/var/tmp`), and writable by the
+    user, so a refused write is the sandbox's refusal and not a missing path.
+    The guard does not cover `/var/tmp`, and the directory is removed afterwards.
     """
-    import shutil as _shutil
-    import uuid
+    import tempfile
 
-    path = os.path.join(
-        os.path.expanduser("~"), f".zrb-sandbox-test-{uuid.uuid4().hex[:8]}"
-    )
-    os.makedirs(path, exist_ok=True)
+    if not os.path.isdir("/var/tmp"):
+        pytest.skip("no /var/tmp to act as a directory outside the temp roots")
+    path = tempfile.mkdtemp(prefix="zrb-sandbox-test-", dir="/var/tmp")
     try:
         yield path
     finally:
-        _shutil.rmtree(path, ignore_errors=True)
+        shutil.rmtree(path, ignore_errors=True)
 
 
 @pytest.mark.asyncio

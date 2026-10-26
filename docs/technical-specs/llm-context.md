@@ -26,7 +26,7 @@ The journal is a directory of Markdown files organized hierarchically by topic o
 | Storage | Directory of Markdown files |
 | Organization | Five note categories plus a dated activity log |
 | Entry point | The root index file — `ZRB_LLM_JOURNAL_INDEX_FILE`, `index.md` by default — the only file injected into a session |
-| Written by | `LogActivity`, `WriteJournalNote` and `DeleteJournalNote`, which own the on-disk format |
+| Written by | `LogActivity`, `WriteJournalNote`, `SupersedeJournalNote` and `DeleteJournalNote`, which own the on-disk format |
 
 ---
 
@@ -36,7 +36,7 @@ Journal entries are stored in a directory structure with a central index file.
 
 Every journal knob (directory, index file, injection cap, HUD cap, first-turn auto-search, git backing) is listed in [LLM Configuration → Journal & Context Storage](../configuration/llm-context.md#journal--context-storage); the directory defaults to `~/.zrb/llm-notes/` and every index to `index.md`. The `~/.zrb/` path and the `ZRB_` prefix are the stock build's: a white-labeled build reads its own `<PREFIX>_LLM_JOURNAL_…` variables and puts the directory under its root group name (`~/.<ROOT_GROUP_NAME>/llm-notes/`).
 
-`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its four tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`, `DeleteJournalNote`), so the flag drops them from the per-run tool factories in `common_tools.py`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
+`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its five tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`, `SupersedeJournalNote`, `DeleteJournalNote`), so the flag drops them from the per-run tool factories in `common_tools.py`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
 
 `ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to `~/.zrb/llm-notes/` rather than disabling journaling.
 
@@ -55,7 +55,7 @@ flowchart LR
     Root --> A["activity-log/ — YYYY/YYYY-MM/YYYY-MM-DD.md"]
 ```
 
-`WriteJournalNote` writes `<category>/<slug>.md`; `LogActivity` appends to the day file under `activity-log/`. With `ZRB_LLM_JOURNAL_GIT_ENABLED` on (the default) and `git` installed, the journal root is also a git repository and each write or delete is a commit.
+`WriteJournalNote` writes `<category>/<slug>.md`, with `slug`, `applies_when` (the condition under which the note still holds, `not stated` when none was given) and `status` (`active`, or `superseded` once retired) in its frontmatter; a slug that is not kebab-case is refused. `SupersedeJournalNote` retires a note whose `applies_when` no longer holds: the file stays, its `status` becomes `superseded`, and its line leaves the root index. `DeleteJournalNote` removes a note and every link to it. `LogActivity` appends to the day file under `activity-log/`. With `ZRB_LLM_JOURNAL_GIT_ENABLED` on (the default) and `git` installed, the journal root is also a git repository and each write, supersede or delete is a commit; `journal_transaction` batches many changes from Python under one lock and one commit.
 
 ### Index File Structure
 
@@ -83,7 +83,7 @@ The root index is created with this skeleton, and every note's one-line summary 
 
 A note's frontmatter is the one source of truth for what the indexes say about it: `status`, `applies_when`, `hud_line` (the summary, absent when the note has none), `pinned` and `updated` (when the note was last written, which is the order the section cap evicts by). The root index and every category index are a view rendered from those fields (`journal_index.py`; the note value and its frontmatter are in `journal_note.py`). A write, supersede, delete or refile changes the note and renders again, and rendering the same notes twice yields the same bytes.
 
-What the render produces: the four HUD sections in a fixed order, each capped at `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` (the oldest unpinned line goes first, a pinned line only when every line in the section is pinned, and `WriteJournalNote` names what its write evicted); `## Recent Insights`, which lists active notes only; a link to each category in `## Directories`; and a category index that lists every note in it, superseded ones included. The cap is a view: an evicted note keeps its `hud_line`, so raising the cap brings its line back.
+What the render produces: the four HUD sections in a fixed order, each held to `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` where unpinned lines allow (the oldest unpinned line goes first, a pinned line only when every line in the section is pinned, so a section with more pinned lines than the cap stays above it; `WriteJournalNote` names what its write evicted); `## Recent Insights`, which lists active notes only; a link to each category in `## Directories`; and a category index that lists every note in it, superseded ones included. The cap is a view: an evicted note keeps its `hud_line`, so raising the cap brings its line back.
 
 **Foreign lines.** A line in a generated region that no note accounts for is a hand edit, and the render carries it through unchanged and in place, never evicts it, and does not count it toward the cap. Ownership is read from the note link a line already carries, so no marker is added to the injected text and no state is kept beside the index. A HUD line (a bullet, an optional pin marker, the text, then a trailing note link to the note's file) belongs to the note that link names, provided that note has a `hud_line`; a `## Recent Insights` or category-index line (a bullet holding one titled link) belongs to the note whose file it links; every other line is foreign.
 
@@ -108,7 +108,7 @@ When present, the block is wrapped as its own tag inside the live-context payloa
 
 ```
 <journal-index>
-Your persistent memory (index file: /abs/path/to/index.md). Use SearchJournal for full entries; a category's index.md (e.g. technical/index.md) lists every note ever written in it, uncapped. Change the journal only through LogActivity, WriteJournalNote, or DeleteJournalNote — ...
+Your persistent memory (index file: /abs/path/to/index.md). Use SearchJournal for full entries; a category's index.md (e.g. technical/index.md) lists every note ever written in it, uncapped. Change the journal only through LogActivity, WriteJournalNote, or DeleteJournalNote — and retire a note that stopped applying with SupersedeJournalNote ...
 [content of the root index, capped at ZRB_LLM_JOURNAL_INDEX_MAX_CHARS]
 [on the first turn, notes possibly related to the opening message, when ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED is on]
 </journal-index>
@@ -122,7 +122,7 @@ When the content exceeds the cap it is cut **on a line boundary** and ` (...more
 Your persistent memory (index file: /abs/path/to/index.md). Truncated at `(...more)`. Use SearchJournal for full entries; ...
 ```
 
-Cutting on a line boundary matters because the entries are facts about the user — half a sentence is worse than none. Overflow is dropped from the **end**, so the index should be written most-durable-first. `WriteJournalNote` enforces that order when it creates the root index: identity and standing preferences first, unbounded "Recent Insights" last, so growth only ever evicts itself.
+Cutting on a line boundary matters because the entries are facts about the user — half a sentence is worse than none. Overflow is dropped from the **end**, so the index should be written most-durable-first. `WriteJournalNote` enforces that order when it creates the root index: the `User`, `Constraints`, `Agent` and `Recent` sections first, unbounded "Recent Insights" last, so growth only ever evicts itself. Unpinned lines are evicted first, oldest first, down to `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION`. A pinned line is evicted only when every line in its section is pinned, and then the oldest pinned lines go until the cap holds. A section with more pinned lines than the cap that still has unpinned lines loses all of them and stays above the cap.
 
 Nothing is injected at all when the index file is missing, unreadable, or empty; when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when `ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove an empty journal — and nothing tells the model so. Stating the caveat would cost either prompt weight or a tool docstring paid for on every request, so it is a known gap rather than shipped text (`render_journal_index`'s docstring records it). It matters only when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0` while the journal tools stay registered — a deliberate and unusual pairing.
 
@@ -130,7 +130,7 @@ Nothing is injected at all when the index file is missing, unreadable, or empty;
 
 ## 4. Automatic Creation
 
-`search_journal` (`src/zrb/llm/tool/journal.py`, exposed to the agent as `SearchJournal`) calls `os.makedirs(..., exist_ok=True)` when the configured directory is absent and reports the same empty result an unmatched search returns.
+`search_journal` (`src/zrb/llm/tool/journal.py`, exposed to the agent as `SearchJournal`) reads a plain multi-word query as any-of its significant words and ranks a file holding more of them first: notes whose title matches, then other notes, then the indexes and the activity log; a query with regex metacharacters is a regex, and a zero-hit search suggests note titles sharing a word with the query under `did_you_mean`. It calls `os.makedirs(..., exist_ok=True)` when the configured directory is absent and reports the same empty result an unmatched search returns.
 
 That behaviour is deliberate. Reporting a missing directory as an error made the whole memory layer read as unavailable, and the agent responded by declaring it could not journal rather than by writing its first note. An unwritten journal is *empty*, not broken.
 

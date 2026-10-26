@@ -2,6 +2,9 @@
 on, why the wait that holds it off has to grow with it, and what the cushion
 buys — a stall in the engine that is absorbed instead of heard."""
 
+import math
+import queue
+import threading
 import time
 import types
 from dataclasses import fields
@@ -42,17 +45,79 @@ class TimedStream(FakeOutputStream):
         super().start()
 
 
-class RealtimeStream(FakeOutputStream):
-    """A device that asks for the next block once the last one would have
-    played, so a source keeping up is heard without stutter."""
+class ManualStream(FakeOutputStream):
+    """A device that plays a block only when the test says so: one `tick` is
+    one block of playing time, so a stall is counted in blocks, not seconds."""
 
-    def _run(self):
-        while self._running:
-            out = np.zeros((self.blocksize, 1), np.int16)
-            self.callback(out, self.blocksize, None, None)
-            self.played.append(out.copy())
-            time.sleep(self.blocksize / RATE)
-        self.finished()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.is_started = threading.Event()
+
+    def start(self):
+        self._running = True
+        self.is_started.set()
+
+    def tick(self):
+        out = np.zeros((self.blocksize, 1), np.int16)
+        self.callback(out, self.blocksize, None, None)
+
+
+class ScriptedSource:
+    """Audio that arrives only when the test feeds it, and says when the player
+    has taken what was fed, so no step of the script depends on a clock."""
+
+    def __init__(self):
+        self._items = queue.Queue()
+        self._asks = 0
+        self._fed = 0
+        self._asked = threading.Condition()
+
+    def chunks(self):
+        while True:
+            with self._asked:
+                self._asks += 1
+                self._asked.notify_all()
+            chunk = self._items.get(timeout=10)
+            if chunk is None:
+                return
+            yield chunk
+
+    def feed(self, chunk, wait=True):
+        """Hand over a chunk and, unless *wait* is off, wait until the player's
+        reader holds it: the reader asking for the next one is what says it has.
+
+        Leave *wait* off for the chunk that fills the cushion: a reader with no
+        room may never ask for another, and nothing then needs to be known about
+        it but that the device starts."""
+        self._fed += 1
+        self._items.put(chunk)
+        if chunk is not None and wait:
+            with self._asked:
+                assert self._asked.wait_for(lambda: self._asks > self._fed, 10)
+
+
+def _start_playing(prebuffer_seconds, **options):
+    """A player on a source the test feeds, running on a thread of its own:
+    the player, its source, the thread and the device it opened."""
+    FakeOutputStream.instances = []
+    source = ScriptedSource()
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, source.chunks()),
+        prebuffer_seconds=prebuffer_seconds,
+        **options,
+    )
+    player = threading.Thread(target=utterance.play, args=(30,), daemon=True)
+    player.start()
+    while not FakeOutputStream.instances:  # the device is opened as play begins
+        time.sleep(0.001)
+    [stream] = FakeOutputStream.instances
+    return utterance, source, player, stream
+
+
+def _hang_up(utterance, source, player):
+    source.feed(None)
+    utterance.stop()
+    player.join(10)
 
 
 def _pausing_source(pause=STALL_SECONDS):
@@ -64,36 +129,6 @@ def _pausing_source(pause=STALL_SECONDS):
         yield _pcm([5] * 1600)
 
     return chunks()
-
-
-def _stalling_source(stall=STALL_SECONDS):
-    """Audio produced at roughly 1.7× realtime, with one stall mid-sentence.
-
-    The margin over realtime survives a loaded runner's sleep overshoot; the
-    stall sits late enough to land inside the playing sentence, once both the
-    thin and the deep cushion below have let playback start.
-    """
-
-    def chunks():
-        for index in range(20):
-            if index == 13:
-                time.sleep(stall)
-            time.sleep(BLOCK_SECONDS * 0.6)
-            yield _pcm([5] * BLOCK)
-
-    return chunks()
-
-
-def _start_delay(prebuffer_seconds):
-    """How long `play` held the device off, in seconds."""
-    FakeOutputStream.instances = []
-    utterance = PcmUtterance(
-        SpeechAudio(RATE, _pausing_source()), prebuffer_seconds=prebuffer_seconds
-    )
-    started = time.monotonic()
-    utterance.play(timeout=15)
-    [stream] = FakeOutputStream.instances
-    return stream.started_at - started
 
 
 @pytest.fixture
@@ -119,14 +154,22 @@ def test_the_wait_grows_with_the_cushion():
 
 def test_the_device_starts_on_the_audio_the_cushion_asks_for(sd):
     """The cushion decides how much audio stands by: a tenth of a second
-    starts on the first chunk, half a second waits the source's pause out."""
-    sd.OutputStream = TimedStream
+    starts on the first chunk, half a second waits for the rest of it."""
+    sd.OutputStream = ManualStream
+    first = _pcm([5] * 1600)  # a tenth of a second
 
-    thin = _start_delay(0.1)
-    deep = _start_delay(0.5)
+    utterance, source, player, thin = _start_playing(0.1, block_frames=BLOCK)
+    source.feed(first)
+    assert thin.is_started.wait(10)  # started on the first chunk alone
+    _hang_up(utterance, source, player)
 
-    assert thin < STALL_SECONDS / 2  # started before the pause was over
-    assert deep >= STALL_SECONDS / 2  # held until it was
+    utterance, source, player, deep = _start_playing(0.5, block_frames=BLOCK)
+    source.feed(first)
+    assert not deep.is_started.wait(0.1)  # held, with a tenth standing by
+    for _ in range(4):
+        source.feed(first)
+    assert deep.is_started.wait(10)  # started once half a second did
+    _hang_up(utterance, source, player)
 
 
 def test_the_cushion_is_read_from_the_configuration_when_none_is_given(sd, monkeypatch):
@@ -191,44 +234,48 @@ def test_the_read_ahead_count_does_not_cap_the_cushion(sd):
     """A cushion counted in seconds cannot be bounded by a count of chunks: a
     backend streaming small ones would never hold it, so the sentence would
     start under its cushion once the wait ran out."""
+    sd.OutputStream = ManualStream
 
-    def small_chunks():
-        # Produced as fast as they are asked for: the cushion is counted in
-        # seconds of audio, so where a count-capped buffer would already sit
-        # idle at two chunks, forty of these are what it waits for.
-        for _ in range(200):
-            yield _pcm([5] * 160)  # 10 ms of audio per chunk
-
-    sd.OutputStream = TimedStream
-    utterance = PcmUtterance(
-        SpeechAudio(RATE, small_chunks()), read_ahead=2, prebuffer_seconds=0.4
+    utterance, source, player, stream = _start_playing(
+        0.4, block_frames=BLOCK, read_ahead=2
     )
-    started = time.monotonic()
-    utterance.play(timeout=15)
+    # Forty chunks of ten milliseconds are what the cushion asks for. A reader
+    # capped at two would stop taking them, and `feed` would find them unread.
+    for index in range(40):
+        source.feed(_pcm([5] * 160), wait=index < 39)
 
-    [stream] = FakeOutputStream.instances
-    # A count-capped reader would sit at two chunks and hold the device off
-    # until the 1.0 s wait ran out; the cushion asks for 40 such chunks, which
-    # the reader takes as fast as they come: the device starts in milliseconds,
-    # not on the wait.
-    assert stream.started_at - started < 0.5
+    assert stream.is_started.wait(10)
+    _hang_up(utterance, source, player)
 
 
 def test_a_longer_cushion_absorbs_a_stall_in_the_audio(sd):
     """A stall mid-sentence is what the listener hears as a clipped word; the
-    cushion is what decides whether it is heard at all."""
-    sd.OutputStream = RealtimeStream
+    cushion is what decides whether it is heard at all.
+
+    Time is counted in blocks the test plays, never in seconds: the source
+    produces one block per block played, then goes quiet for the stall."""
+    sd.OutputStream = ManualStream
+    stall_blocks = math.ceil(STALL_SECONDS / BLOCK_SECONDS)
 
     def underruns_with(prebuffer_seconds):
-        # Read-ahead 2 keeps the buffer at the cushion's depth, so a deep
-        # cushion is not credited for a buffer that filled past it.
-        utterance = PcmUtterance(
-            SpeechAudio(RATE, _stalling_source()),
-            read_ahead=2,
-            prebuffer_seconds=prebuffer_seconds,
+        utterance, source, player, stream = _start_playing(
+            prebuffer_seconds, block_frames=BLOCK
         )
-        utterance.play(timeout=15)
-        return utterance.underruns
+        # The device starts once the cushion stands by, and not before.
+        for _ in range(math.ceil(prebuffer_seconds * RATE / BLOCK)):
+            source.feed(_pcm([5] * BLOCK))
+        assert stream.is_started.wait(10)
+        for _ in range(5):  # production keeps pace with playing
+            stream.tick()
+            source.feed(_pcm([5] * BLOCK))
+        for _ in range(stall_blocks):  # the engine stalls; the device does not
+            stream.tick()
+        for _ in range(3):  # and recovers
+            source.feed(_pcm([5] * BLOCK))
+            stream.tick()
+        heard = utterance.underruns
+        _hang_up(utterance, source, player)
+        return heard
 
     thin = underruns_with(0.1)  # the hardcoded tenth the cushion replaced
     deep = underruns_with(0.5)  # the default the cushion now asks for

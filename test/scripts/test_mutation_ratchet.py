@@ -199,18 +199,23 @@ def test_a_red_baseline_stops_the_package_before_anything_is_mutated(monkeypatch
     assert written == []
 
 
-def test_uncommitted_mirrored_tests_count_as_dirty():
+def test_uncommitted_mirrored_tests_count_as_dirty(tmp_path, monkeypatch):
     """The tests are what the score is measured against, so an uncommitted
     assertion raises the rate for work that is not in the tree yet."""
-    probe = REPO_ROOT / "test" / "llm" / "skill" / "ratchet_dirty_probe.txt"
+    repo = tmp_path / "repo"
+    probe = repo / "test" / "llm" / "skill" / "ratchet_dirty_probe.txt"
+    probe.parent.mkdir(parents=True)
     probe.write_text("")
-    try:
-        assert any(
-            "ratchet_dirty_probe" in p
-            for p in mutation_ratchet.dirty_paths(["llm/skill"])
-        )
-    finally:
-        probe.unlink()
+    (repo / "src" / "zrb" / "llm" / "skill").mkdir(parents=True)
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)  # list files singly
+    monkeypatch.setattr(mutation_ratchet, "REPO_ROOT", repo)
+    monkeypatch.setattr(mutation_ratchet, "SRC", repo / "src" / "zrb")
+    monkeypatch.setattr(mutation_ratchet, "TESTS", repo / "test")
+
+    dirty = mutation_ratchet.dirty_paths(["llm/skill"])
+
+    assert any("ratchet_dirty_probe" in p for p in dirty)
 
 
 def test_a_baseline_that_hangs_is_reported_not_raised(monkeypatch):

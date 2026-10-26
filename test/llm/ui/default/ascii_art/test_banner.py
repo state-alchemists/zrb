@@ -65,6 +65,7 @@ def test_get_default_banner_search_path_walks_up_to_home(monkeypatch, tmp_path):
     nested = home / "a" / "b"
     nested.mkdir(parents=True)
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))  # all `expanduser` reads on Windows
     monkeypatch.chdir(nested)
 
     res = get_default_banner_search_path()

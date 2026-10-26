@@ -217,9 +217,10 @@ class LLMContentMixin:
         fallback=20,
         doc=(
             "Maximum hud_line entries kept per root-index HUD section (User, "
-            "Preferences, Agent, Active Constraints). Oldest entries are evicted "
-            "first so a stale preference does not sit in the always-injected "
-            "index forever. `<= 0` disables the cap (uncapped)."
+            "Constraints, Agent, Recent). Oldest unpinned entries are evicted "
+            "first so a stale headline does not sit in the always-injected "
+            "index forever; a pinned entry goes only when the whole section is "
+            "pinned. `<= 0` disables the cap (uncapped)."
         ),
     )
 
