@@ -83,6 +83,18 @@ def log_activity(
         list[str] | None,
         Field(description="Paths you touched this turn, if any."),
     ] = None,
+    importance: Annotated[
+        int | None,
+        Field(
+            description=(
+                "How much this line matters to whoever reads the day back, 1 to "
+                "10; omit it for an ordinary line. A later session's first turn "
+                "shows the highest lines from today and yesterday, so reserve the "
+                "top of the range for a constraint, a decision, or a thread left "
+                "open."
+            )
+        ),
+    ] = None,
 ) -> str:
     """Records one line of work in the journal's activity log.
 
@@ -97,7 +109,7 @@ def log_activity(
     WriteJournalNote when the finding must be findable by topic.
     """
     with _open_journal() as root:
-        result = _log_activity_locked(root, summary, files)
+        result = _log_activity_locked(root, summary, files, importance)
         # The entry carries its own timestamp from inside the helper; this
         # label is the same minute except across a minute rollover.
         _commit_or_defer(root, f"activity: {datetime.now():%Y-%m-%d %H:%M}")
@@ -107,7 +119,16 @@ def log_activity(
 log_activity.__name__ = "LogActivity"
 
 
-def _log_activity_locked(root: str, summary: str, files: list[str] | None) -> str:
+IMPORTANCE_MIN, IMPORTANCE_MAX = 1, 10
+"""The range `imp N` is held to; the day block ranks a day's lines on it."""
+
+
+def _log_activity_locked(
+    root: str,
+    summary: str,
+    files: list[str] | None,
+    importance: int | None = None,
+) -> str:
     """Record the activity line under *root*, returning the tool's result.
 
     The caller holds the journal lock and makes the commit, so a transaction can
@@ -115,7 +136,14 @@ def _log_activity_locked(root: str, summary: str, files: list[str] | None) -> st
     now = datetime.now()
     day_file = _ensure_activity_path(root, now)
     file_note = ", ".join(files) if files else "—"
-    entry = f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}."
+    ranked = (
+        f" · imp {max(IMPORTANCE_MIN, min(IMPORTANCE_MAX, importance))}"
+        if importance is not None
+        else ""
+    )
+    entry = (
+        f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}{ranked}."
+    )
     _write_if_changed(day_file, insert_before_backlinks(read_text(day_file), entry))
     return f"Logged to {relative(day_file, root)}"
 
@@ -544,9 +572,13 @@ class JournalTransaction:
         self._root = root
         self.change_count = 0
 
-    def log_activity(self, summary: str, files: list[str] | None = None) -> str:
+    def log_activity(
+        self, summary: str, files: list[str] | None = None, importance: int | None = None
+    ) -> str:
         """Record one activity line; the whole batch commits at exit."""
-        return self._record(_log_activity_locked(self._root, summary, files))
+        return self._record(
+            _log_activity_locked(self._root, summary, files, importance)
+        )
 
     def write_note(
         self,

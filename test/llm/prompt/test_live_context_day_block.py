@@ -21,8 +21,10 @@ YESTERDAY = TODAY - timedelta(days=1)
 
 
 def _write_day(root, day: date, body: str) -> None:
-    (root / "days").mkdir(exist_ok=True)
-    (root / "days" / f"{day.isoformat()}.md").write_text(body, encoding="utf-8")
+    """Write *body* as the activity log's file for *day*, which is the day tier."""
+    month = root / "activity-log" / day.strftime("%Y") / day.strftime("%Y-%m")
+    month.mkdir(parents=True, exist_ok=True)
+    (month / f"{day.isoformat()}.md").write_text(body, encoding="utf-8")
 
 
 def _render(root, today: date = TODAY) -> "str | None":
@@ -30,6 +32,30 @@ def _render(root, today: date = TODAY) -> "str | None":
         cfg.LLM_JOURNAL_ENABLED = True
         cfg.LLM_JOURNAL_DIR = str(root)
         return render_day_block(today)
+
+
+def test_the_block_reads_the_activity_log_that_log_activity_writes(tmp_path):
+    """The day tier is the activity log's own day file, not a second layout.
+
+    The block used to look in `days/`, which nothing writes, so it rendered
+    nothing in normal use. This pins the two ends together: what the writer
+    writes is what the reader finds, `imp N` and all.
+    """
+    from zrb.llm.tool.journal_write import log_activity
+
+    with patch("zrb.llm.tool.journal_write.CFG") as writer_cfg:
+        writer_cfg.LLM_JOURNAL_DIR = str(tmp_path)
+        writer_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        writer_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
+        writer_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
+        writer_cfg.LLM_JOURNAL_CATALOG_MAX_ENTRIES = 25
+        writer_cfg.LLM_JOURNAL_GIT_ENABLED = False
+        log_activity("wired the day tier to the activity log", importance=9)
+
+    block = _render(tmp_path, date.today())
+    assert block is not None, "the block must find the file LogActivity wrote"
+    assert "wired the day tier to the activity log" in block
+    assert "imp 9" not in block, "importance is a ranking key, not block text"
 
 
 def test_no_day_file_renders_nothing(tmp_path):

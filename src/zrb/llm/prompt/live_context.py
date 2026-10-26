@@ -603,15 +603,37 @@ YESTERDAY_LINE_COUNT = 2
 DAY_BLOCK_MAX_CHARS = 1500
 """Cap on the whole day block, in characters."""
 
-_DAY_DIR_NAME = "days"
 _HANDOVER_HEADING = "## handover"
 _IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
+_RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
+
+
+def _without_importance(entry: str) -> str:
+    """*entry* without its `· imp N` ranking key.
+
+    The key orders the day's lines; it says nothing to the reader, so it stays out
+    of the block and out of the prompt.
+    """
+    return _RANKING.sub("", entry).strip()
 
 
 def _day_file(day: date) -> str:
-    """The day file for *day*, beside the journal's notes."""
+    """The activity log's file for *day* — the journal's day tier.
+
+    The day tier is not a second file layout: `LogActivity` already writes one
+    file per day, under a year/month index hierarchy, git-backed. This reads that.
+    """
+    # lazy: `zrb.llm.tool`'s package __init__ loads pydantic_ai-dependent modules
+    from zrb.llm.tool.journal_index import ACTIVITY_DIR
+
     root = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
-    return os.path.join(root, _DAY_DIR_NAME, f"{day.isoformat()}.md")
+    return os.path.join(
+        root,
+        ACTIVITY_DIR,
+        day.strftime("%Y"),
+        day.strftime("%Y-%m"),
+        f"{day.isoformat()}.md",
+    )
 
 
 def _read_day(path: str) -> str:
@@ -758,13 +780,15 @@ def render_day_block(today: date | None = None) -> str | None:
     if today_entries:
         sections.append(
             f"## Today ({current.isoformat()})\n\n"
-            + "\n".join(f"- {entry}" for entry in today_entries)
+            + "\n".join(f"- {_without_importance(entry)}" for entry in today_entries)
         )
     yesterday_entries = _top_entries(_day_entries(yesterday_text), YESTERDAY_LINE_COUNT)
     if yesterday_entries:
         sections.append(
             f"## Yesterday ({yesterday.isoformat()})\n\n"
-            + "\n".join(f"- {entry}" for entry in yesterday_entries)
+            + "\n".join(
+                f"- {_without_importance(entry)}" for entry in yesterday_entries
+            )
         )
     if not sections:
         return None
