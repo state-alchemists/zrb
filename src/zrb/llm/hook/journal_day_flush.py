@@ -92,14 +92,29 @@ def _message_text(message: object) -> str:
     return " ".join(chunks)
 
 
+def _words(message: object) -> str:
+    """The words one prompt carries, whatever shape it arrived in.
+
+    A prompt that carried an attachment is a flat list — the text, then the
+    attachments, then the live-context block — so the strings are gathered and
+    anything else contributes nothing: an attachment has no words of its own.
+    """
+    if isinstance(message, str):
+        return message
+    if isinstance(message, (list, tuple)):
+        return " ".join(_words(item) for item in message)
+    return _message_text(message)
+
+
 def _typed_text(message: object) -> str:
     """The words the user typed in one turn, clipped; `""` when there are none.
 
     The live-context block rides inside the turn, so only the text above it is
     quoted: that is the part the user actually typed.
     """
-    raw = message if isinstance(message, str) else _message_text(message)
-    return " ".join(raw.split()).split(_LIVE_CONTEXT_MARKER)[0].strip()[:QUOTE_LIMIT]
+    return " ".join(_words(message).split()).split(_LIVE_CONTEXT_MARKER)[0].strip()[
+        :QUOTE_LIMIT
+    ]
 
 
 def _last_user_ask(data: dict[str, object]) -> str:

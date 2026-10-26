@@ -107,6 +107,25 @@ def test_a_compaction_nothing_asked_for_falls_back_to_the_history():
     assert 'last ask: "the ask in flight"' in line
 
 
+def test_a_prompt_with_an_attachment_keeps_its_words():
+    """A prompt that carried an attachment arrives as a flat list: the text, the
+    attachment, then the live-context block. The words are still the ask."""
+
+    class Attachment:  # what an image looks like from here: content, no parts
+        content = b"\x89PNG"
+
+    prompt = [
+        "look at this papaya",
+        Attachment(),
+        "<live-context> - Time: 20:00 </live-context>",
+    ]
+
+    line = format_day_line(NOW, {"prompt": prompt}, cwd="/repo")
+
+    assert 'last ask: "look at this papaya"' in line
+    assert "<live-context>" not in line
+
+
 def test_object_shaped_history_is_read_too():
     """A Python caller hands over live `ModelRequest` objects, not JSON."""
 
