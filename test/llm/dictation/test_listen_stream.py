@@ -238,7 +238,8 @@ async def test_a_batch_backend_is_asked_for_a_stream_only_once():
         patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
     ):
         task = asyncio.create_task(consume())
-        await asyncio.sleep(0)
+        # The microphone opens on a daemon thread; wait for its callback.
+        await _wait_for(lambda: "callback" in captured)
         for block in blocks:
             captured["callback"](block, len(block), None, None)
         [utterance] = await task
@@ -297,7 +298,8 @@ async def test_a_stream_that_cannot_be_created_falls_back_too():
         patch("zrb.llm.dictation.listen.is_speaking", return_value=False),
     ):
         task = asyncio.create_task(consume())
-        await asyncio.sleep(0)
+        # The microphone opens on a daemon thread; wait for its callback.
+        await _wait_for(lambda: "callback" in captured)
         for block in blocks:
             captured["callback"](block, len(block), None, None)
         [utterance] = await task
