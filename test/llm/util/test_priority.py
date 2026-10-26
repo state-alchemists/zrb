@@ -13,6 +13,7 @@ class _FakeLib:
     def __init__(self, result: int | Exception) -> None:
         self._result = result
         self.asked: tuple[int, int, int] | None = None
+
         # A plain function, not a bound method: production writes `restype`
         # and `argtypes` onto what ctypes hands back.
         def stub(qos: int, relative: int) -> int:
@@ -50,7 +51,9 @@ def run_darwin(monkeypatch, lib: _FakeLib) -> "int | None":
     return run_as(monkeypatch, "darwin", ctypes_lib=lib)
 
 
-def run_as(monkeypatch, platform: str, ctypes_lib: _FakeLib | None = None) -> "int | None":
+def run_as(
+    monkeypatch, platform: str, ctypes_lib: _FakeLib | None = None
+) -> "int | None":
     monkeypatch.setattr(priority.sys, "platform", platform)
     if ctypes_lib is not None:
         monkeypatch.setattr(priority, "ctypes", _FakeCtypes(ctypes_lib))
@@ -88,9 +91,7 @@ def test_an_already_higher_priority_is_left_alone(monkeypatch):
 
 def test_a_posix_without_getpriority_still_asks(monkeypatch):
     asks: list[tuple[int, int, int]] = []
-    stub = types.SimpleNamespace(
-        setpriority=lambda *a: asks.append(a), PRIO_PROCESS=0
-    )
+    stub = types.SimpleNamespace(setpriority=lambda *a: asks.append(a), PRIO_PROCESS=0)
     monkeypatch.setattr(priority, "os", stub)
     assert run_as(monkeypatch, "linux") == -5
     assert asks == [(0, 0, -5)]

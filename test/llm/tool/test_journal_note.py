@@ -2,9 +2,14 @@
 
 from datetime import datetime, timedelta
 
-from zrb.llm.tool.journal_note import (Note, list_notes, next_stamp,
-                                       parse_frontmatter, read_note,
-                                       set_frontmatter)
+from zrb.llm.tool.journal_note import (
+    Note,
+    list_notes,
+    next_stamp,
+    parse_frontmatter,
+    read_note,
+    set_frontmatter,
+)
 
 
 def _note(updated: datetime, has_stamp: bool = True) -> Note:
