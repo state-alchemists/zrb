@@ -476,3 +476,4 @@ async def test_run_agent_user_prompt_context_prepending():
         passed_message = mock_run.call_args[0][0]
         assert "PROMPT_CONTEXT" in passed_message
         assert "Hi" in passed_message
+

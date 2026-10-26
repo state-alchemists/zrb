@@ -72,25 +72,25 @@ def turn_changed_paths(
     return list(seen)
 
 
-def user_turn_count(messages: list[object]) -> int:
-    """How many user prompts *messages* carries.
+# run_scope -> the user turns that run has taken, least recently used first.
+# Bounded: a long-lived process outlives its conversations.
+_TURNS_PER_RUN: dict[str, int] = {}
+MAX_TRACKED_RUNS = 256
 
-    A `ModelRequest` also carries a system prompt, tool returns and retry feedback,
-    so the parts decide, not the message type. Used to space out the periodic
-    journal check: a long conversation is the case no file write ever signals.
+
+def count_user_turn(run_scope: str) -> int:
+    """Count this turn against *run_scope* and return the running total, from 1.
+
+    The periodic journal check cannot be spaced on the prompts left in the
+    history: a summariser or a prune has already shortened that history, so a
+    long conversation repeats a count it passed and the check stops coming due.
+    This counts the turns the run took.
     """
-    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
-        ModelRequest,
-        UserPromptPart,
-    )
-
-    return sum(
-        1
-        for message in messages
-        if isinstance(message, ModelRequest)
-        for part in getattr(message, "parts", [])
-        if isinstance(part, UserPromptPart)
-    )
+    count = _TURNS_PER_RUN.pop(run_scope, 0) + 1
+    _TURNS_PER_RUN[run_scope] = count
+    while len(_TURNS_PER_RUN) > MAX_TRACKED_RUNS:
+        _TURNS_PER_RUN.pop(next(iter(_TURNS_PER_RUN)))
+    return count
 
 
 def turn_states_preference(turn_messages: list[Any]) -> bool:

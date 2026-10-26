@@ -27,6 +27,10 @@ class TurnCursor:
     # See `commit_round`'s docstring for why that distinction matters.
     accumulated: list[Any] = field(default_factory=list)
     round_baseline: int = field(default=0, repr=False)
+    # This turn's number in its run, counting every turn the run has taken
+    # rather than the prompts its trimmed history still holds. 0 until the loop
+    # counts it.
+    user_turn_number: int = 0
     # The working directory's snapshot at turn start, while the self-review
     # gate is on and the run is top-level (`turn_snapshot.py`); the Stop
     # payload's `turn_start_snapshot` is read from it. `_execution_loop`

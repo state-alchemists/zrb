@@ -70,10 +70,10 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.turn_evidence import (
+    count_user_turn,
     turn_changed_paths,
     turn_states_preference,
     turn_wrote_files,
-    user_turn_count,
 )
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.message import ensure_alternating_roles
@@ -540,6 +540,9 @@ async def _execution_loop(
         run_history=current_history,
     )
     cursor.snapshot = _create_turn_snapshot(nested_run)
+    # Once per turn, so every STOP this turn fires — a hook may ask for another
+    # round — reads the same number.
+    cursor.user_turn_number = count_user_turn(get_current_agent_run_scope())
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -877,7 +880,7 @@ async def _finish_turn(
     # A conversation that touches no file and states no preference is never due on those
     # two counts, however long it runs, so it is checked every so many user turns.
     compliance_turns = CFG.LLM_JOURNAL_COMPLIANCE_TURNS
-    user_turns = user_turn_count(cursor.run_history)
+    user_turns = cursor.user_turn_number
     periodic_check = (
         compliance_turns > 0 and user_turns > 0 and user_turns % compliance_turns == 0
     )

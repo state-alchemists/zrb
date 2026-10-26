@@ -1,36 +1,47 @@
+import uuid
+
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
-    SystemPromptPart,
     TextPart,
     ToolCallPart,
     UserPromptPart,
 )
 
 from zrb.llm.hook.turn_evidence import (
+    MAX_TRACKED_RUNS,
+    count_user_turn,
     turn_changed_paths,
     turn_states_preference,
     turn_wrote_files,
-    user_turn_count,
 )
 
 
-class TestUserTurnCount:
-    def test_counts_user_prompts_not_messages(self):
-        "A ModelRequest also carries a system prompt and tool returns, so the"
-        history = [
-            ModelRequest(parts=[UserPromptPart(content="first")]),
-            ModelResponse(parts=[TextPart(content="an answer")]),
-            ModelRequest(parts=[UserPromptPart(content="second")]),
-        ]
-        assert user_turn_count(history) == 2
+class TestCountUserTurn:
+    def test_counts_each_turn_of_a_run(self):
+        scope = uuid.uuid4().hex
+        assert [count_user_turn(scope) for _ in range(3)] == [1, 2, 3]
 
-    def test_a_request_with_no_user_part_is_not_a_user_turn(self):
-        history = [ModelRequest(parts=[SystemPromptPart(content="system only")])]
-        assert user_turn_count(history) == 0
+    def test_runs_are_counted_apart(self):
+        first, second = uuid.uuid4().hex, uuid.uuid4().hex
+        count_user_turn(first)
+        assert count_user_turn(second) == 1
+        assert count_user_turn(first) == 2
 
-    def test_an_empty_history_is_zero(self):
-        assert user_turn_count([]) == 0
+    def test_the_count_does_not_come_from_the_history(self):
+        "A summariser or a prune shortens the history; the count survives it."
+        scope = uuid.uuid4().hex
+        total = 0
+        for _ in range(12):
+            total = count_user_turn(scope)
+        assert total == 12
+
+    def test_evicts_the_least_recently_used_run(self):
+        first = uuid.uuid4().hex
+        count_user_turn(first)
+        for _ in range(MAX_TRACKED_RUNS):
+            count_user_turn(uuid.uuid4().hex)
+        assert count_user_turn(first) == 1
 
 
 class TestTurnChangedPaths:
