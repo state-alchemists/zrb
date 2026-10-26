@@ -42,6 +42,8 @@ class LLMContentMixin:
         self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
         self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_GIT_ENABLED: str = "on"
+        self.DEFAULT_LLM_JOURNAL_DAY_FLUSH_ENABLED: str = "on"
+        self.DEFAULT_LLM_JOURNAL_COMPLIANCE_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SELF_REVIEW_ENABLED: str = "off"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_ROUNDS: str = "2"
@@ -269,6 +271,30 @@ class LLMContentMixin:
             "tools (the in-file History block only keeps the last 3 "
             "revisions). Best-effort: a missing `git` binary or a failed "
             "commit never breaks journaling, it just forgoes the commit."
+        ),
+    )
+
+    LLM_JOURNAL_DAY_FLUSH_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Register the built-in `journal-day-flush` hook, which appends a "
+            "line to the journal's day tier whenever a turn actually replaced "
+            "history. On by default; `LLM_JOURNAL_ENABLED=off` still takes it "
+            "out with the rest of journaling, and `HOOKS_ENABLED=off` takes "
+            "out every hook at once."
+        ),
+    )
+
+    LLM_JOURNAL_COMPLIANCE_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Register the built-in `journal-compliance-judge` Stop hook, which "
+            "asks a small model whether a turn that wrote files or stated a "
+            "preference left the journal recording it. On by default; "
+            "`LLM_JOURNAL_ENABLED=off` still takes it out with the rest of "
+            "journaling."
         ),
     )
 

@@ -22,7 +22,6 @@ class HooksMixin:
         self.DEFAULT_HOOKS_TIMEOUT: str = "30000"
         self.DEFAULT_HOOKS_EXIT_TIMEOUT: str = "2000"
         self.DEFAULT_LLM_HOOKS: str = ""
-        self.DEFAULT_LLM_HOOKS_DISABLED: str = ""
         super().__init__()
 
     HOOKS_ENABLED = EnvField(
@@ -33,17 +32,6 @@ class HooksMixin:
         path_list,
         serialize=path_list_join,
         doc="Colon-separated (semicolon on Windows) directories to scan for hook scripts.",
-    )
-
-    LLM_HOOKS_DISABLED = EnvField(
-        comma_list,
-        serialize=comma_join,
-        doc=(
-            "Comma-separated names of built-in hooks to leave unregistered, e.g. "
-            "`journal-day-flush, journal-compliance-judge`. Empty keeps every "
-            "built-in hook on, which is the default; `HOOKS_ENABLED=off` still "
-            "disables all hooks, built-in and user alike, at once."
-        ),
     )
 
     HOOKS_TIMEOUT = EnvField(int, doc="Timeout in milliseconds for hook execution.")

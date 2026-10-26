@@ -1,7 +1,8 @@
 """The built-in day flush: a compaction is written into the journal's day tier.
 
-Registered on every `HookManager` whenever `LLM_JOURNAL_ENABLED` is on, so a
-journaled setup gets a day record without configuring anything — the same
+Registered on every `HookManager` whenever `LLM_JOURNAL_ENABLED` and
+`LLM_JOURNAL_DAY_FLUSH_ENABLED` are both on, so a journaled setup gets a day
+record without configuring anything — the same
 posture as the built-in journal-compliance judge. It listens to `PostCompact`,
 which fires on every turn, and writes only when the turn actually replaced
 history: a line per turn would be noise wearing a record's shape.
@@ -22,7 +23,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.hook.enablement import is_builtin_hook_enabled
 from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.types import HookEvent
 
@@ -242,8 +242,10 @@ journal_day_flush = _DayFlush()
 
 
 def register_journal_day_flush_hook(manager: "HookManager") -> None:
-    """Hook factory: register the flush unless journaling is off, or the hook is
-    named in `LLM_HOOKS_DISABLED`."""
-    if not CFG.LLM_JOURNAL_ENABLED or not is_builtin_hook_enabled(_NAME):
+    """Hook factory: register the flush unless journaling is off, or
+    `LLM_JOURNAL_DAY_FLUSH_ENABLED` says no. Its own switch exists so the flush can
+    be left out while the rest of journaling carries on — the same shape
+    `LLM_SELF_REVIEW_ENABLED` gives the self-review gate."""
+    if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_DAY_FLUSH_ENABLED:
         return
     manager.add_hook(journal_day_flush, events=[HookEvent.POST_COMPACT])

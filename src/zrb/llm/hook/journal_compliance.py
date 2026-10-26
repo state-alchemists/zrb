@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.hook.enablement import is_builtin_hook_enabled
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.prompt.prompt import get_prompt
@@ -57,8 +56,10 @@ def build_journal_compliance_hook_config() -> HookConfig:
 
 def register_journal_compliance_hook(manager: "HookManager") -> None:
     """Hook factory: register the judge on *manager* unless journaling is off, or
-    the hook is named in `LLM_HOOKS_DISABLED`."""
-    if not CFG.LLM_JOURNAL_ENABLED or not is_builtin_hook_enabled(_NAME):
+    `LLM_JOURNAL_COMPLIANCE_ENABLED` says no. Its own switch exists so the judge can
+    be left out while the rest of journaling carries on — the same shape
+    `LLM_SELF_REVIEW_ENABLED` gives the self-review gate."""
+    if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_COMPLIANCE_ENABLED:
         return
     manager.register_hook_config(
         build_journal_compliance_hook_config(), source="builtin"

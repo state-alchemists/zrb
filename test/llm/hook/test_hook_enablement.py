@@ -1,14 +1,16 @@
-"""Tests for `LLM_HOOKS_DISABLED`: turning one built-in hook off by name.
+"""Tests for a built-in hook's own on/off switch.
 
-The knob exists because the built-in set keeps growing and a hook that cannot be
-switched off alone forces the whole subsystem off. These tests pin the two ways
-it can go wrong: silently disabling nothing, and taking a blank entry for a name.
+Each switch is a boolean named like every other feature flag in the config
+(`LLM_SELF_REVIEW_ENABLED`, `LLM_JOURNAL_GIT_ENABLED`) rather than one shared
+list of names: a list has no schema, is invisible in a config listing, and a typo
+in it silently disables nothing. These tests pin that each switch decides its own
+hook, and that journaling off still takes both out.
 """
 
 from typing import TYPE_CHECKING, cast
 from unittest.mock import patch
 
-from zrb.llm.hook.enablement import is_builtin_hook_enabled
+from zrb.config.config import CFG
 from zrb.llm.hook.journal_compliance import register_journal_compliance_hook
 from zrb.llm.hook.journal_day_flush import register_journal_day_flush_hook
 
@@ -27,54 +29,53 @@ class _FakeManager:
         self.registered.append(config)
 
 
-def _enabled(disabled):
-    with patch("zrb.llm.hook.enablement.CFG") as cfg:
-        cfg.LLM_HOOKS_DISABLED = disabled
-        return is_builtin_hook_enabled("journal-day-flush")
+FACTORIES = {
+    "journal_day_flush": (
+        register_journal_day_flush_hook,
+        "LLM_JOURNAL_DAY_FLUSH_ENABLED",
+    ),
+    "journal_compliance": (
+        register_journal_compliance_hook,
+        "LLM_JOURNAL_COMPLIANCE_ENABLED",
+    ),
+}
 
 
-def _register(module: str, disabled) -> "_FakeManager":
-    """Register a built-in hook's factory with journaling on and *disabled* set."""
+def _register(
+    module: str, journal_on: bool = True, hook_on: bool = True
+) -> "_FakeManager":
+    """Register one built-in hook's factory with both of its switches set.
+
+    The factory reads `CFG` under its own module's name, so patching that one
+    binding leaves the other hook's factory on the real config — which is what
+    makes the two switches independent rather than merely different fields.
+    """
+    factory, switch = FACTORIES[module]
     manager = _FakeManager()
-    with patch(f"zrb.llm.hook.{module}.CFG") as hook_cfg, patch(
-        "zrb.llm.hook.enablement.CFG"
-    ) as enable_cfg:
-        hook_cfg.LLM_JOURNAL_ENABLED = True
-        enable_cfg.LLM_HOOKS_DISABLED = disabled
-        if module == "journal_day_flush":
-            register_journal_day_flush_hook(cast("HookManager", manager))
-        else:
-            register_journal_compliance_hook(cast("HookManager", manager))
+    with patch(f"zrb.llm.hook.{module}.CFG") as cfg:
+        cfg.LLM_JOURNAL_ENABLED = journal_on
+        setattr(cfg, switch, hook_on)
+        factory(cast("HookManager", manager))
     return manager
 
 
-def test_empty_list_keeps_everything_on():
-    assert _enabled([]) is True
-    assert _enabled("") is True
+def test_the_flush_has_its_own_switch():
+    assert len(_register("journal_day_flush", hook_on=True).registered) == 1
+    assert _register("journal_day_flush", hook_on=False).registered == []
 
 
-def test_a_named_hook_is_off_and_the_others_are_not():
-    assert _enabled(["journal-day-flush"]) is False
-    assert _enabled(["journal-day-flush", "self-review"]) is False
-    assert _enabled(["something-else"]) is True
+def test_the_compliance_judge_has_its_own_switch():
+    assert len(_register("journal_compliance", hook_on=True).registered) == 1
+    assert _register("journal_compliance", hook_on=False).registered == []
 
 
-def test_blank_entries_are_not_names():
-    """A trailing comma or a stray space must not disable a hook by accident."""
-    assert _enabled([" journal-day-flush "]) is False
-    assert _enabled(["", "  "]) is True
+def test_journaling_off_still_takes_both_out():
+    assert _register("journal_day_flush", journal_on=False).registered == []
+    assert _register("journal_compliance", journal_on=False).registered == []
 
 
-def test_the_flush_hook_honours_the_list():
-    assert _register("journal_day_flush", ["journal-day-flush"]).registered == []
-    assert len(_register("journal_day_flush", []).registered) == 1
-
-
-def test_the_compliance_hook_honours_the_list():
-    assert _register("journal_compliance", ["journal-compliance-judge"]).registered == []
-    assert len(_register("journal_compliance", []).registered) == 1
-
-
-def test_a_different_name_disables_neither():
-    manager = _register("journal_day_flush", ["journal-compliance-judge"])
-    assert len(manager.registered) == 1
+def test_both_switches_default_to_on():
+    """The hook is on out of the box, like `LLM_JOURNAL_GIT_ENABLED`: a record a
+    journal-less setup does not get is the thing the day tier was built to fix."""
+    assert CFG.DEFAULT_LLM_JOURNAL_DAY_FLUSH_ENABLED == "on"
+    assert CFG.DEFAULT_LLM_JOURNAL_COMPLIANCE_ENABLED == "on"
