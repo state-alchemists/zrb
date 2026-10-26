@@ -427,7 +427,11 @@ async def _prepare_history(
             # history -- and how much went away.
             "before_token_count": pre_process_tokens,
             "before_message_count": before_message_count,
-            "compacted": post_process_tokens < pre_process_tokens,
+            # Fewer messages is a compaction even when the result is not smaller in
+            # tokens: a processor that replaces many turns with one long one still
+            # replaced them, and the day file should say so.
+            "compacted": len(processed_history) < before_message_count
+            or post_process_tokens < pre_process_tokens,
             "has_history_processors": bool(history_processors),
         },
         trigger="auto",

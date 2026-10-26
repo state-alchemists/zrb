@@ -46,7 +46,6 @@ AUTO_FLUSH_MARKER = "auto-flush"
 _TRAILING_LIVE_CONTEXT = re.compile(
     r"\s*<live-context>.*?</live-context>\s*\Z", re.DOTALL
 )
-_USER_KINDS = ("request", "user")
 
 
 def _day_path(now: datetime, root: str | None = None) -> str:
@@ -57,24 +56,45 @@ def _day_path(now: datetime, root: str | None = None) -> str:
     return os.path.join(base, DAY_DIR_NAME, f"{now.strftime('%Y-%m-%d')}.md")
 
 
-def _is_user_turn(message: object) -> bool:
-    """Whether *message* is a user turn, however it arrived (object or dict)."""
-    if isinstance(message, dict):
-        kind = message.get("role") or message.get("kind") or ""
-        parts = message.get("parts") or []
-    else:
-        kind = getattr(message, "kind", "") or getattr(message, "role", "") or ""
-        parts = getattr(message, "parts", None) or []
-    if str(kind) in _USER_KINDS:
-        return True
-    for part in parts if isinstance(parts, list) else []:
-        if isinstance(part, dict):
-            part_kind = part.get("part_kind")
-        else:
-            part_kind = getattr(part, "part_kind", None)
-        if str(part_kind or "").startswith("user"):
-            return True
-    return False
+def _parts_of(message: object) -> "list[object] | None":
+    """*message*'s parts, when it has any; ``None`` for a bare string or part."""
+    parts = (
+        message.get("parts")
+        if isinstance(message, dict)
+        else getattr(message, "parts", None)
+    )
+    return list(parts) if isinstance(parts, (list, tuple)) else None
+
+
+def _content_of(part: object) -> object:
+    """A part's own content, whichever way the part arrived."""
+    if isinstance(part, dict):
+        return part.get("content")
+    return getattr(part, "content", None)
+
+
+def _part_kind(part: object) -> str:
+    """A part's `part_kind`, whichever way the part arrived."""
+    kind = part.get("part_kind") if isinstance(part, dict) else getattr(part, "part_kind", None)
+    return str(kind or "")
+
+
+def _user_text(message: object) -> str:
+    """The words of *message* the user typed, and no other part of it.
+
+    A `ModelRequest` carries a system prompt and tool returns beside the user's
+    turn, so its parts are filtered by `part_kind` rather than trusted whole —
+    otherwise a tool result becomes "the last thing the user asked". A bare
+    string, and a message with no parts, are taken as they are.
+    """
+    parts = _parts_of(message)
+    if parts is None:
+        return _words(message)
+    return " ".join(
+        _words(_content_of(part))
+        for part in parts
+        if _part_kind(part).startswith("user")
+    )
 
 
 def _words(value: object) -> str:
@@ -117,9 +137,9 @@ def _typed_text(message: object) -> str:
 def _last_user_ask(data: dict[str, object]) -> str:
     """What the user last asked: this turn's prompt, else the newest turn in history.
 
-    `_prepare_history` fires PRE_COMPACT *before* the prompt joins the history, so
-    `prompt` is the only place the ask that caused this compaction can come from.
-    History is what a compaction nothing asked for has to offer.
+    `_prepare_history` sends the prompt with the event, because it joins the
+    history only afterwards. History is what a compaction nothing asked for has to
+    offer — and only its user-prompt parts, never a tool result.
     """
     prompt = data.get("prompt")
     if prompt is not None:
@@ -128,9 +148,7 @@ def _last_user_ask(data: dict[str, object]) -> str:
             return asked
     history = data.get("history")
     for message in reversed(history if isinstance(history, list) else []):
-        if not _is_user_turn(message):
-            continue
-        asked = _typed_text(message)
+        asked = _typed_text(_user_text(message))
         if asked:
             return asked
     return ""
@@ -163,37 +181,29 @@ def format_day_line(now: datetime, data: dict[str, object], cwd: str = "") -> st
     )
 
 
-def _create_day_file(path: str, moment: datetime) -> None:
-    """Create the day file with its heading, unless something else got there first.
-
-    ``"x"`` is one atomic create-or-fail, so two sessions compacting into the same
-    new day cannot both open it for writing. An existence check followed by ``"w"``
-    could: both would see no file, and the second would truncate the record the
-    first had already written. ``FileExistsError`` is caught here rather than by
-    the caller, which must go on to append.
-    """
-    try:
-        with open(path, "x", encoding="utf-8") as f:
-            f.write(f"# {moment.strftime('%Y-%m-%d (%a)')}\n\n")
-    except FileExistsError:
-        pass  # another session owns the heading; the line below is still ours to add
-
-
 def append_day_line(
     line: str, now: datetime | None = None, root: str | None = None
 ) -> "str | None":
-    """Append *line* to the day file, creating the file with its heading.
+    """Append *line* to the day file, with its heading when the file is new.
 
     Returns the path written, or ``None`` when the write failed — the caller
     treats that as "no flush", never as an error to report upward.
+
+    The heading rides with the first line in one append rather than a
+    create-then-write pair: one session would create an empty file, another would
+    append its line, and the first would then write the heading over the start of
+    it. A single ``O_APPEND`` write puts each line at the end of the file, so
+    nothing is ever overwritten. In the microsecond where both see an empty file
+    both write a heading — a repeated line, never a lost one.
     """
     moment = now or datetime.now()
     path = _day_path(moment, root)
+    heading = f"# {moment.strftime('%Y-%m-%d (%a)')}\n\n"
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        _create_day_file(path, moment)
         with open(path, "a", encoding="utf-8") as f:
-            f.write(line + "\n")
+            new = os.fstat(f.fileno()).st_size == 0
+            f.write((heading if new else "") + line + "\n")
     except OSError as e:
         CFG.LOGGER.debug(f"journal day flush could not write {path}: {e}")
         return None

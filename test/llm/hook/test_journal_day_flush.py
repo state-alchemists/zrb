@@ -212,6 +212,49 @@ def test_an_attachment_in_the_history_is_never_stringified_into_the_quote():
     assert "PNG" not in line, "an attachment's bytes are not words anyone typed"
 
 
+def test_an_empty_file_left_by_another_session_still_gets_its_heading(tmp_path):
+    """A file created but not yet written is what a racing session leaves behind;
+    the heading belongs at the top of it, with the line after."""
+    (tmp_path / "days").mkdir()
+    (tmp_path / "days" / "2026-10-26.md").write_text("", encoding="utf-8")
+
+    append_day_line("- 20:30 · home · the line · imp 2", now=NOW, root=str(tmp_path))
+
+    text = (tmp_path / "days" / "2026-10-26.md").read_text(encoding="utf-8")
+    assert text.startswith("# "), "an empty file gets its heading"
+    assert "the line" in text
+
+
+def test_a_request_quotes_only_its_user_part():
+    """A `ModelRequest` carries a system prompt and tool returns beside the user's
+    turn. Its kind is `request` for all of them, so the parts decide."""
+
+    class Part:
+        def __init__(self, content, part_kind):
+            self.content, self.part_kind = content, part_kind
+
+    class Message:
+        kind = "request"
+
+        def __init__(self, parts):
+            self.parts = parts
+
+    history = [
+        Message(
+            [
+                Part("SYSTEM RULES NOBODY TYPED", "system-prompt"),
+                Part("Tool Result (shell): ls -la", "tool-return"),
+                Part("the real ask", "user-prompt"),
+            ]
+        )
+    ]
+
+    line = format_day_line(NOW, {"history": history}, cwd="/repo")
+
+    assert 'last ask: "the real ask"' in line
+    assert "SYSTEM RULES" not in line and "Tool Result" not in line
+
+
 def test_a_failed_write_returns_none_instead_of_raising(tmp_path):
     blocker = tmp_path / "not-a-dir"
     blocker.write_text("x", encoding="utf-8")
