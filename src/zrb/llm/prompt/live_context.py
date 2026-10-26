@@ -609,20 +609,12 @@ _RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
 
 
 def _without_importance(entry: str) -> str:
-    """*entry* without its `· imp N` ranking key.
-
-    The key orders the day's lines; it says nothing to the reader, so it stays out
-    of the block and out of the prompt.
-    """
+    """*entry* without its `· imp N` key, which orders lines rather than saying anything."""
     return _RANKING.sub("", entry).strip()
 
 
 def _day_file(day: date) -> str:
-    """The activity log's file for *day* — the journal's day tier.
-
-    The day tier is not a second file layout: `LogActivity` already writes one
-    file per day, under a year/month index hierarchy, git-backed. This reads that.
-    """
+    """The activity log's file for *day*, which is the day tier."""
     # lazy: `zrb.llm.tool`'s package __init__ loads pydantic_ai-dependent modules
     from zrb.llm.tool.journal_index import ACTIVITY_DIR
 
@@ -648,8 +640,8 @@ def _read_day(path: str) -> str:
 def _day_entries(text: str) -> list[str]:
     """The bullet entries above the first `## ` heading, one string each.
 
-    A bullet ends the previous entry, and a plain continuation line belongs to
-    the entry above it, which is how a long event wraps in the day file.
+    A plain continuation line belongs to the entry above it, which is how a wrapped
+    event reads back as one line.
     """
     entries: list[str] = []
     for line in text.splitlines():
@@ -687,11 +679,7 @@ def _handover(text: str) -> str:
 
 
 def _top_entries(entries: list[str], count: int) -> list[str]:
-    """The *count* entries that matter most: importance first, newest after it.
-
-    Chosen lines come back in the order they were written, so the block reads
-    as a day rather than as a ranking.
-    """
+    """The *count* entries that matter most, returned in the order they were written."""
     ranked = sorted(
         enumerate(entries),
         key=lambda pair: (_importance(pair[1]), pair[0]),
@@ -720,13 +708,7 @@ def _room_for_next(kept: list[str]) -> int:
 
 
 def _cut_section(section: str, room: int) -> str:
-    """*section* cut to at most *room* characters, on a line break when one serves.
-
-    A line break is worth taking only when it keeps most of the room. A handover
-    written as one long paragraph has a single newline right after its heading,
-    and cutting there would leave the heading alone while dropping every word
-    the paragraph said.
-    """
+    """*section* cut to at most *room* characters, on a line break when one keeps most of it."""
     if len(section) <= room:
         return section
     head = section[:room]
@@ -739,8 +721,7 @@ def _cut_section(section: str, room: int) -> str:
 def _fit_sections(sections: list[str]) -> str:
     """Wrap the sections that fit the cap, cutting the last one to what is left.
 
-    A section that had to be cut ends the block: half a line says less than
-    nothing, and today's and yesterday's lines are still in the day file.
+    A cut section ends the block; the full lines are still in the day file.
     """
     kept: list[str] = []
     for section in sections:
@@ -758,11 +739,8 @@ def render_day_block(today: date | None = None) -> str | None:
     """The seam block: the newest handover, today's most important lines, and
     yesterday's two.
 
-    This is what makes a fresh session resume rather than start. The handover —
-    the departing agent's note to whoever takes over — goes first and is never
-    summarised away; today and yesterday follow in that order, each cut to a
-    few lines by `importance`. ``None`` when there is no day file to read, or
-    when journaling is off, so a journal-less setup renders exactly as before.
+    The handover goes first because no later reader can reconstruct it. ``None``
+    when there is no day file to read, or when journaling is off.
     """
     if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_DIR:
         return None

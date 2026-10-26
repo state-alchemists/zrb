@@ -410,9 +410,8 @@ async def _prepare_history(
 
     processed_history = ensure_alternating_roles(processed_history)
 
-    # Measured after a PreCompact hook's context has joined the history. That context is
-    # not history that was replaced; counting it as if it were lets a dropped message
-    # hide behind an added one.
+    # Taken after a PreCompact hook's context joins the history, which is not history
+    # that was replaced: counting it as one would hide a dropped message behind it.
     stage_tokens = limiter.count_tokens(processed_history)
     stage_message_count = len(processed_history)
     post_process_tokens = stage_tokens
@@ -421,9 +420,8 @@ async def _prepare_history(
         limiter.get_effective_context_window(getattr(agent, "model", None))
         - reserved_tokens,
     )
-    # The last resort, before the event, so the counts describe the history that is sent.
-    # An over-limit request cannot go out, and the post-compact hook's own context is
-    # prepended after this, so the prune cannot drop it.
+    # Before the event, so the counts describe the history that is sent. The post-compact
+    # hook's own context is prepended after this, so the prune cannot drop it.
     if post_process_tokens > effective_limit:
         print_fn(
             f"\n[SYSTEM] History too large ({post_process_tokens} tokens) after summarization. Force pruning..."
@@ -437,9 +435,8 @@ async def _prepare_history(
         processed_history = safe_history
         post_process_tokens = limiter.count_tokens(processed_history)
 
-    # `_acquire_rate_limit` trims to 90% of the window before anything is sent, which can
-    # drop turns the force-prune left alone. Doing it here keeps the counts in step with
-    # what is actually sent.
+    # The 90% trim `_acquire_rate_limit` would apply, done here instead so the counts
+    # stay in step with what is actually sent.
     fitted = limiter.fit_context_window(
         processed_history,
         prompt_content,
@@ -877,9 +874,8 @@ async def _finish_turn(
     its own Stop). Returns `(output, history)`, or `None` for another round.
     """
     wrote_files = turn_wrote_files(cursor.accumulated)
-    # A conversation that touches no file and states no preference is never
-    # `journal_worthy`, however long it runs, so it is checked every
-    # `LLM_JOURNAL_COMPLIANCE_TURNS` user turns instead.
+    # A conversation that touches no file and states no preference is never due on those
+    # two counts, however long it runs, so it is checked every so many user turns.
     compliance_turns = CFG.LLM_JOURNAL_COMPLIANCE_TURNS
     user_turns = user_turn_count(cursor.run_history)
     periodic_check = (
