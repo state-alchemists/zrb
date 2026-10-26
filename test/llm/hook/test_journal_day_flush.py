@@ -159,6 +159,35 @@ def test_appending_never_truncates_an_existing_day_file(tmp_path):
     assert "the morning line" in text and "the evening line" in text
 
 
+def test_an_attachment_in_the_history_is_never_stringified_into_the_quote():
+    """A user part may hold a list: the text, then the attachment. `str` of that
+    list carries the attachment's bytes, so only the words are taken — the quote
+    must not become a Python repr of somebody's image."""
+
+    class Part:
+        part_kind = "user-prompt"
+
+        def __init__(self, content):
+            self.content = content
+
+    class Message:
+        kind = "request"
+
+        def __init__(self, content):
+            self.parts = [Part(content)]
+
+    class Image:  # what an image part looks like from here: data, no content
+        media_type = "image/png"
+        data = b"\x89PNG-not-words"
+
+    line = format_day_line(
+        NOW, {"history": [Message(["look at this papaya", Image()])]}, cwd="/repo"
+    )
+
+    assert 'last ask: "look at this papaya"' in line
+    assert "PNG" not in line, "an attachment's bytes are not words anyone typed"
+
+
 def test_a_failed_write_returns_none_instead_of_raising(tmp_path):
     blocker = tmp_path / "not-a-dir"
     blocker.write_text("x", encoding="utf-8")

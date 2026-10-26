@@ -23,7 +23,6 @@ from zrb.config.config import CFG
 from zrb.llm.hook.enablement import is_builtin_hook_enabled
 from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.message_text import message_content_text
 
 if TYPE_CHECKING:
     from zrb.llm.hook.interface import HookContext
@@ -72,38 +71,31 @@ def _is_user_turn(message: object) -> bool:
     return False
 
 
-def _message_text(message: object) -> str:
-    """One message's text, from a live `ModelRequest` or from a JSON dict.
+def _words(value: object) -> str:
+    """Every word *value* carries, and nothing else.
 
-    `message_content_text` is the authority for the objects the runner hands
-    over; a replay written as JSON has no such type, so its parts are read here.
+    A prompt, a user part or a message may hold a string, or a list mixing that
+    text with attachments. Attachments are skipped rather than stringified: the
+    `str` of an image part carries the repr of its bytes, which is nobody's words
+    and would land in the journal as though it were. The same shape arrives as a
+    `ModelRequest` with a list in its user part, as a JSON replay of one, and as
+    the flat list a prompt becomes when it carries an attachment.
     """
-    if not isinstance(message, dict):
-        return message_content_text(message)
-    parts = message.get("parts") or message.get("content") or []
-    if isinstance(parts, str):
-        return parts
-    if isinstance(parts, dict):
-        parts = [parts]
-    chunks = [
-        str(part.get("content") or "") if isinstance(part, dict) else str(part)
-        for part in (parts if isinstance(parts, list) else [])
-    ]
-    return " ".join(chunks)
-
-
-def _words(message: object) -> str:
-    """The words one prompt carries, whatever shape it arrived in.
-
-    A prompt that carried an attachment is a flat list — the text, then the
-    attachments, then the live-context block — so the strings are gathered and
-    anything else contributes nothing: an attachment has no words of its own.
-    """
-    if isinstance(message, str):
-        return message
-    if isinstance(message, (list, tuple)):
-        return " ".join(_words(item) for item in message)
-    return _message_text(message)
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        return " ".join(_words(item) for item in value)
+    if isinstance(value, dict):
+        return _words(value.get("parts") or value.get("content"))
+    parts = getattr(value, "parts", None)
+    if isinstance(parts, (list, tuple)):
+        return _words(list(parts))
+    content = getattr(value, "content", None)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, (list, tuple, dict)):
+        return _words(content)
+    return ""
 
 
 def _typed_text(message: object) -> str:
