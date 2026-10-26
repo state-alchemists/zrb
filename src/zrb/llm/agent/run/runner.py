@@ -438,6 +438,20 @@ async def _prepare_history(
         processed_history = safe_history
         post_process_tokens = limiter.count_tokens(processed_history)
 
+    # `_acquire_rate_limit` fits the history into 90% of the window before anything is
+    # sent, and that trim drops turns the force-prune above left alone. It runs here
+    # now, before the event, for the same reason the prune does: a hook that recorded
+    # the history between the two would be recording one the model is never sent.
+    fitted = limiter.fit_context_window(
+        processed_history,
+        prompt_content,
+        reserved_tokens,
+        model=getattr(agent, "model", None),
+    )
+    if len(fitted) != len(processed_history):
+        processed_history = fitted
+        post_process_tokens = limiter.count_tokens(processed_history)
+
     postcompact_results = await effective_hook_manager.execute_hooks(
         HookEvent.POST_COMPACT,
         {

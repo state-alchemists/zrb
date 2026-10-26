@@ -169,6 +169,62 @@ async def test_pre_compact_prompt_is_what_the_user_typed():
 
 
 @pytest.mark.asyncio
+async def test_the_ninety_percent_fit_is_reported_as_a_compaction():
+    """`_acquire_rate_limit` trims to 90% of the window, and it used to do that *after* the
+    event, so a history that fit the window but not the margin was dropped with no day line.
+    The fit runs before the event now, and the counts are the ones that survive it."""
+    agent = MagicMock()
+    agent.model = "deepseek:deepseek-flash"
+    mock_result = MagicMock()
+    mock_result.output = "Result"
+    mock_result.all_messages.return_value = []
+
+    async def _gen(*args, **kwargs):
+        yield AgentRunResultEvent(result=mock_result)
+
+    limiter = MagicMock(spec=LLMLimiter)
+    limiter.max_token_per_request = 100
+    limiter.get_effective_context_window.return_value = 100  # 90% of it is 90
+    limiter.acquire = AsyncMock()
+    # 95 fits the window, so no force-prune; it does not fit the 90% margin, so the fit trims.
+    limiter.count_tokens.side_effect = lambda value: (
+        95 if isinstance(value, list) and len(value) == 3 else 40
+    )
+    limiter.fit_context_window.side_effect = lambda history, *a, **k: history[1:]
+
+    captured: dict = {}
+
+    async def rec(context: HookContext) -> HookResult:
+        if context.event == HookEvent.POST_COMPACT:
+            captured.update(context.event_data)
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.add_hook(rec, events=[HookEvent.POST_COMPACT])
+
+    with (
+        patch.object(agent, "run") as mock_run,
+        patch(
+            "zrb.llm.agent.run.runner.ensure_alternating_roles", side_effect=lambda x: x
+        ),
+    ):
+        mock_run.side_effect = _run_from(_gen)
+        await run_agent(
+            agent=agent,
+            message="Hi",
+            message_history=[MagicMock() for _ in range(3)],
+            limiter=limiter,
+            hook_manager=manager,
+        )
+
+    assert len(captured["history"]) == 2, "the event reports what the fit left"
+    assert captured["message_count"] == 2
+    assert captured["token_count"] == 40
+    assert captured["before_message_count"] == 3
+    assert captured["compacted"] is True
+
+
+@pytest.mark.asyncio
 async def test_a_force_prune_is_reported_as_a_compaction():
     """The prune is the last resort and the largest replacement there is. It runs
     before the event now, so the event reports the history that is actually left and
