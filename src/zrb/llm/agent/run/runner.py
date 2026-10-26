@@ -256,6 +256,10 @@ async def run_agent(
             system_prompt,
             print_fn,
             effective_hook_manager,
+            # The typed message, not `prompt_content`: a fallback model may have
+            # replaced an attachment with its own description of the image, and a
+            # journal quote must not present that as the user's words.
+            typed_prompt=message or "",
         )
 
         current_message = merge_consecutive_messages(current_history, prompt_content)
@@ -360,6 +364,7 @@ async def _prepare_history(
     system_prompt,
     print_fn,
     effective_hook_manager,
+    typed_prompt: str = "",
 ):
     history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
@@ -373,9 +378,11 @@ async def _prepare_history(
         HookEvent.PRE_COMPACT,
         {
             "history": message_history,
-            # The turn that caused this. It joins the history only after the event,
-            # so a hook recording what was asked has nowhere else to read it from.
-            "prompt": prompt_content,
+            # The turn that caused this, as the user typed it. It joins the history
+            # only after the event, so a hook recording what was asked has nowhere
+            # else to read it from -- and `prompt_content` is not the same value:
+            # a fallback model may have described an attachment into it.
+            "prompt": typed_prompt,
             "token_count": pre_process_tokens,
             "message_count": len(message_history),
             "has_history_processors": bool(history_processors),

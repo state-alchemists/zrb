@@ -143,6 +143,32 @@ async def test_pre_compact_trigger_and_additional_context():
 
 
 @pytest.mark.asyncio
+async def test_pre_compact_prompt_is_what_the_user_typed():
+    """The flush quotes this value, so it is the typed message and not
+    `prompt_content`: a fallback model may have described an attachment in there,
+    and a generated description is not the user's words."""
+    captured: dict = {}
+
+    async def rec(context: HookContext) -> HookResult:
+        if context.event == HookEvent.PRE_COMPACT:
+            captured["prompt"] = context.event_data.get("prompt")
+        return HookResult()
+
+    manager = HookManager(search_dirs=[])
+    manager.add_hook(rec, events=[HookEvent.PRE_COMPACT])
+
+    await run_agent(
+        agent=_single_turn_agent(),
+        message="look at this papaya",
+        message_history=[],
+        limiter=LLMLimiter(),
+        hook_manager=manager,
+    )
+
+    assert captured.get("prompt") == "look at this papaya"
+
+
+@pytest.mark.asyncio
 async def test_post_compact_fires_after_processing():
     """POST_COMPACT fires (mirror of PreCompact) with trigger=auto once history
     processing has run."""
