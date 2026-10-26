@@ -209,11 +209,13 @@ async def test_a_hook_cancelled_before_it_starts_never_runs():
     await asyncio.sleep(0.1)
 
     waiting.cancel()
+    # `cancel()` only schedules the cancellation: let it reach the pool before the
+    # worker is freed, or a loaded machine lets the queued hook start first.
+    with pytest.raises(asyncio.CancelledError):
+        await waiting
     release.set()
     await busy
 
-    with pytest.raises(asyncio.CancelledError):
-        await waiting
     executor.shutdown()
     assert not ran.is_set()
 
