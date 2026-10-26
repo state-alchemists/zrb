@@ -18,6 +18,7 @@ from zrb.llm.hook.executor import (
 from zrb.llm.hook.hook_loader import get_search_directories as _get_search_directories
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.journal_compliance import register_journal_compliance_hook
+from zrb.llm.hook.journal_day_flush import register_journal_day_flush_hook
 from zrb.llm.hook.manager_loading import HookManagerLoading
 from zrb.llm.hook.matcher import evaluate_matchers
 from zrb.llm.hook.registry import HookRegistry, hook_registry
@@ -77,6 +78,7 @@ class HookManager(HookManagerLoading):
         # every manager re-scans the filesystem.
         self._hook_factories: list[Callable[[HookManager], None]] = [
             register_journal_compliance_hook,
+            register_journal_day_flush_hook,
             register_self_review_hook,
             register_skill_frontmatter_hooks,
         ]

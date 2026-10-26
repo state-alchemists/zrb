@@ -12,7 +12,7 @@ import re
 import subprocess
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from html import escape
 from typing import Any
 
@@ -594,6 +594,143 @@ def _render_possibly_related(first_message: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+DAY_LINE_COUNT = 5
+"""Most lines today contributes to the injected day block."""
+
+YESTERDAY_LINE_COUNT = 2
+"""Most lines yesterday contributes: enough to recognise the seam, not a summary."""
+
+DAY_BLOCK_MAX_CHARS = 1500
+"""Cap on the whole day block, in characters."""
+
+_DAY_DIR_NAME = "days"
+_HANDOVER_HEADING = "## handover"
+_IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
+
+
+def _day_file(day: date) -> str:
+    """The day file for *day*, beside the journal's notes."""
+    root = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
+    return os.path.join(root, _DAY_DIR_NAME, f"{day.isoformat()}.md")
+
+
+def _read_day(path: str) -> str:
+    """The day file's text, or ``""`` when it does not exist yet."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+def _day_entries(text: str) -> list[str]:
+    """The bullet entries above the first `## ` heading, one string each.
+
+    A bullet ends the previous entry, and a plain continuation line belongs to
+    the entry above it, which is how a long event wraps in the day file.
+    """
+    entries: list[str] = []
+    for line in text.splitlines():
+        if line.startswith("## "):
+            break
+        if line.startswith("- "):
+            entries.append(line[2:].strip())
+        elif line.strip() and entries:
+            entries[-1] = f"{entries[-1]} {line.strip()}"
+    return entries
+
+
+def _importance(entry: str) -> int:
+    """The `· imp N` a day line carries, or 0 when it carries none."""
+    found = _IMPORTANCE.search(entry)
+    return int(found.group(1)) if found else 0
+
+
+def _handover(text: str) -> str:
+    """The `## Handover` section without its heading, or ``""`` when absent."""
+    lines = text.splitlines()
+    start = None
+    for index, line in enumerate(lines):
+        if line.strip().lower().startswith(_HANDOVER_HEADING):
+            start = index + 1
+            break
+    if start is None:
+        return ""
+    body: list[str] = []
+    for line in lines[start:]:
+        if line.startswith("## "):
+            break
+        body.append(line)
+    return "\n".join(body).strip()
+
+
+def _top_entries(entries: list[str], count: int) -> list[str]:
+    """The *count* entries that matter most: importance first, newest after it.
+
+    Chosen lines come back in the order they were written, so the block reads
+    as a day rather than as a ranking.
+    """
+    ranked = sorted(
+        enumerate(entries),
+        key=lambda pair: (_importance(pair[1]), pair[0]),
+        reverse=True,
+    )
+    return [entries[index] for index in sorted(pair[0] for pair in ranked[:count])]
+
+
+def _fit_sections(sections: list[str]) -> str:
+    """Wrap the sections that fit the cap, cutting the last one on a line break."""
+    kept: list[str] = []
+    for section in sections:
+        block = "<day>\n" + "\n\n".join(kept + [section]) + "\n</day>"
+        if len(block) <= DAY_BLOCK_MAX_CHARS:
+            kept.append(section)
+            continue
+        if not kept:
+            kept.append(section[:DAY_BLOCK_MAX_CHARS].rsplit("\n", 1)[0])
+        break
+    return "<day>\n" + "\n\n".join(kept) + "\n</day>"
+
+
+def render_day_block(today: date | None = None) -> str | None:
+    """The seam block: the newest handover, today's most important lines, and
+    yesterday's two.
+
+    This is what makes a fresh session resume rather than start. The handover —
+    the departing agent's note to whoever takes over — goes first and is never
+    summarised away; today and yesterday follow in that order, each cut to a
+    few lines by `importance`. ``None`` when there is no day file to read, or
+    when journaling is off, so a journal-less setup renders exactly as before.
+    """
+    if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_DIR:
+        return None
+    current = today or datetime.now().date()
+    yesterday = current - timedelta(days=1)
+    today_text = _read_day(_day_file(current))
+    yesterday_text = _read_day(_day_file(yesterday))
+    if not today_text and not yesterday_text:
+        return None
+    sections: list[str] = []
+    handover = _handover(today_text) or _handover(yesterday_text)
+    if handover:
+        sections.append("## From the last me, to the next me\n\n" + handover)
+    today_entries = _top_entries(_day_entries(today_text), DAY_LINE_COUNT)
+    if today_entries:
+        sections.append(
+            f"## Today ({current.isoformat()})\n\n"
+            + "\n".join(f"- {entry}" for entry in today_entries)
+        )
+    yesterday_entries = _top_entries(_day_entries(yesterday_text), YESTERDAY_LINE_COUNT)
+    if yesterday_entries:
+        sections.append(
+            f"## Yesterday ({yesterday.isoformat()})\n\n"
+            + "\n".join(f"- {entry}" for entry in yesterday_entries)
+        )
+    if not sections:
+        return None
+    return _fit_sections(sections)
+
+
 def render_live_context(
     ctx: AnyContext,
     model: "Any" = None,
@@ -721,5 +858,8 @@ def _render_parts(
         journal_block = render_journal_index(first_message)
         if journal_block:
             parts.append(journal_block)
+        day_block = render_day_block()
+        if day_block:
+            parts.append(day_block)
 
     return "\n".join(parts)
