@@ -297,7 +297,9 @@ async def test_a_force_prune_is_reported_as_a_compaction():
     limiter.get_effective_context_window.return_value = 100  # small enough to force it
     limiter.acquire = AsyncMock()
     limiter.fit_context_window.side_effect = lambda h, m, r, *a, **k: h
-    limiter.count_tokens.side_effect = lambda value: 200 if isinstance(value, list) else 50
+    limiter.count_tokens.side_effect = lambda value: (
+        200 if isinstance(value, list) else 50
+    )
 
     captured: dict = {}
 
@@ -476,4 +478,3 @@ async def test_run_agent_user_prompt_context_prepending():
         passed_message = mock_run.call_args[0][0]
         assert "PROMPT_CONTEXT" in passed_message
         assert "Hi" in passed_message
-
