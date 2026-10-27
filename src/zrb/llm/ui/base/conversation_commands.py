@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shlex
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
@@ -580,9 +581,9 @@ class BaseUIConversationCommands:
             # Command with arg → redirect to file.
             prefix = f"{cmd} "
             if text.lower().startswith(prefix):
-                path = text[len(prefix) :].strip()
-                if not path:
-                    continue
+                path = _redirect_target(text[len(prefix) :])
+                if path is None:
+                    continue  # prose, not a filename: the line stays text
 
                 content = self.last_ai_response()
                 if not content:
@@ -699,6 +700,29 @@ class BaseUIConversationCommands:
             return
         self._base_ui.pending_attachments.append(expanded_path)
         self._base_ui.append_to_output(stylize_muted(f"\n  📎 Attached: {path}\n"))
+
+
+def _redirect_target(argument: str) -> str | None:
+    """The one path a redirect names, or None when the line is prose instead.
+
+    A redirect's argument is a filename, and a filename is one word: a shell
+    refuses `> a b` as an "ambiguous redirect", and prose pasted after the
+    command arrives with spaces or a newline in it. Writing that as a file --
+    which is what happened -- leaves a document named after the paragraph, so
+    the line is treated as the text it is instead. Quoting or escaping a path
+    with spaces still works, exactly as a shell wants it.
+    """
+    argument = argument.strip()
+    if not argument:
+        return None
+    try:
+        # Windows paths use backslashes, which POSIX shlex reads as escapes.
+        tokens = shlex.split(argument, posix=os.name != "nt")
+    except ValueError:
+        return None  # unbalanced quote: prose, not a path
+    if len(tokens) != 1:
+        return None  # several words: a paragraph, not a filename
+    return tokens[0].strip('"') if os.name == "nt" else tokens[0]
 
 
 def _describe_restore(sha: str, left_behind: tuple[str, ...]) -> str:
