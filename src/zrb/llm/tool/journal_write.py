@@ -17,6 +17,7 @@ the notes again (`journal_index`), so no fact lives in two files.
 """
 
 import os
+import re
 import subprocess
 import threading
 from collections.abc import Iterator
@@ -77,9 +78,9 @@ def log_activity(
         str,
         Field(
             description=(
-                "One line of what happened; date, time and path are derived. A "
-                "line may be a moment instead of work: the user's words quoted, "
-                "then why they mattered."
+                "One line of what happened; date, time and path are derived, so a "
+                "clock time at the start of it is dropped. A line may be a moment "
+                "instead of work: the user's words quoted, then why they mattered."
             )
         ),
     ],
@@ -131,6 +132,28 @@ log_activity.__name__ = "LogActivity"
 IMPORTANCE_MIN, IMPORTANCE_MAX = 1, 10
 """The range `imp N` is held to; the day block ranks a day's lines on it."""
 
+# A clock time the summary brought along, with the date and the dash an agent
+# tends to copy from the file it is reading. Matched only at the start, and only
+# with colons: "2.5 kg" is a number, not a stamp.
+_LEADING_STAMP = re.compile(
+    r"^\s*(?:\d{4}-\d{2}-\d{2}[ T])?\d{1,2}:\d{2}(?::\d{2})?\s*(?:[—–-]\s*)?"
+)
+
+
+def _clean_summary(summary: str) -> str:
+    """*summary* without a clock time at its start, and without a trailing period.
+
+    This tool writes the timestamp, so one in the text is a second stamp — a line
+    read back as `19:32 — 19:35 — …` says two events happened. The period is
+    added back by the caller, so one already there would double it. A summary
+    that is only a time keeps its text rather than losing all of it.
+    """
+    text = summary.strip()
+    cleaned = _LEADING_STAMP.sub("", text, count=1).strip()
+    if not cleaned:
+        return text
+    return cleaned[:-1].rstrip() if cleaned.endswith(".") else cleaned
+
 
 def _log_activity_locked(
     root: str,
@@ -151,7 +174,8 @@ def _log_activity_locked(
         else ""
     )
     entry = (
-        f"- {now.strftime('%H:%M')} — {summary.strip()}. Files: {file_note}{ranked}."
+        f"- {now.strftime('%H:%M')} — {_clean_summary(summary)}. "
+        f"Files: {file_note}{ranked}."
     )
     _write_if_changed(day_file, insert_before_backlinks(read_text(day_file), entry))
     return f"Logged to {relative(day_file, root)}"

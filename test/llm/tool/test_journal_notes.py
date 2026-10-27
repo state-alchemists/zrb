@@ -69,6 +69,41 @@ def test_log_activity_appends_rather_than_rewrites(writable_journal):
     assert day.index("bumped the version") < day.index("## Backlinks")
 
 
+def test_log_activity_writes_one_stamp_even_when_the_summary_brought_one(
+    writable_journal,
+):
+    """The line's time is the tool's, so a time in the text is a second stamp.
+
+    Read back, `19:32 — 19:35 — …` says two events happened, and an agent that
+    copies the stamp from the file it was reading is how that starts. A summary
+    ending its own sentence must not end it twice before `Files:` either.
+    """
+    from zrb.llm.tool.journal_write import log_activity
+
+    result = log_activity("03:07:42 — Go tested memory with the lunch story.")
+    day = _read(writable_journal, result.split("Logged to ")[1])
+    entry = next(line for line in day.splitlines() if "Go tested memory" in line)
+
+    assert "03:07:42" not in entry, "the summary's own stamp is dropped"
+    assert entry.count(" — ") == 1, "one separator, then the text"
+    assert "story.." not in entry, "the period is the tool's to add"
+
+
+def test_log_activity_drops_a_full_iso_stamp_but_not_a_number(writable_journal):
+    from zrb.llm.tool.journal_write import log_activity
+
+    result = log_activity("2026-10-26 23:01: the same minute, twice")
+    log_activity("2.5 kg of coffee, and a 3:1 ratio")
+
+    day = _read(writable_journal, result.split("Logged to ")[1])
+
+    assert "2026-10-26 23:01" not in day
+    assert "the same minute, twice" in day
+    # A colon in a number is not a clock time, and the pattern only looks at the
+    # start of a line.
+    assert "2.5 kg of coffee, and a 3:1 ratio" in day
+
+
 def test_log_activity_omits_missing_files_as_a_dash(writable_journal):
     from zrb.llm.tool.journal_write import log_activity
 
