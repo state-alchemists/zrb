@@ -174,3 +174,51 @@ class TestBaseUIOutputCommands:
         result = ui.handle_copy_command("/notcopy")
 
         assert result is False
+
+    def test_handle_redirect_command_leaves_pasted_prose_as_text(
+        self, simple_ui_instance
+    ):
+        """A redirect's target is a filename; prose pasted after it is text."""
+        import os
+        import tempfile
+
+        ui = simple_ui_instance
+        ui.redirect_output_commands = ["/redirect", ">"]
+        ui.last_result_data = "Test output content"
+        ui.append_to_output = MagicMock()
+
+        with tempfile.TemporaryDirectory() as folder:
+            pasted = f"the paragraph I pasted\nand its second line, {folder}"
+            result = ui.handle_redirect_command(f"> {pasted}")
+
+            assert result is False  # not consumed: the line goes on as a message
+            assert os.listdir(folder) == []  # and nothing is named after the paste
+
+    def test_handle_redirect_command_takes_a_quoted_path(self, simple_ui_instance):
+        """A path with spaces still works when quoted, the way a shell wants it."""
+        import tempfile
+        from pathlib import Path
+
+        ui = simple_ui_instance
+        ui.redirect_output_commands = [">"]
+        ui.last_result_data = "Test output content"
+        ui.append_to_output = MagicMock()
+
+        with tempfile.TemporaryDirectory() as folder:
+            result = ui.handle_redirect_command(f'> "{folder}/my notes.txt"')
+
+            assert result is True
+            assert (Path(folder) / "my notes.txt").read_text() == "Test output content"
+
+    def test_handle_redirect_command_two_words_is_text(
+        self, simple_ui_instance, tmp_path, monkeypatch
+    ):
+        """Two words is prose, not a filename: a shell calls that ambiguous."""
+        monkeypatch.chdir(tmp_path)
+        ui = simple_ui_instance
+        ui.redirect_output_commands = [">"]
+        ui.last_result_data = "Test output content"
+        ui.append_to_output = MagicMock()
+
+        assert ui.handle_redirect_command("> notes for later") is False
+        assert list(tmp_path.iterdir()) == []  # nothing named after the sentence
