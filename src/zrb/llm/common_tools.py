@@ -226,9 +226,14 @@ def _seed_tool_factories() -> tuple[list, list]:
         # LLM_JOURNAL_ENABLED=false is enforced by these tools' absence. The
         # journal-compliance hook names them, so `resolve_agent_hook_tools`
         # strips defer_loading there.
+        #
+        # SearchJournal alone is not deferred: remembering happens mid-
+        # conversation, and a schema behind `search_tools` asks the model to
+        # think of a search before it can search — the step that gets skipped.
+        # The writers stay deferred; the compliance judge covers the write path.
         lambda ctx: (
             [
-                Tool(search_journal, defer_loading=True),
+                Tool(search_journal, defer_loading=False),
                 Tool(log_activity, defer_loading=True),
                 Tool(write_journal_note, defer_loading=True),
                 Tool(supersede_journal_note, defer_loading=True),

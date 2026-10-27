@@ -67,7 +67,9 @@ def test_no_day_file_renders_nothing(tmp_path):
 
 
 def test_journal_disabled_renders_nothing(tmp_path):
-    _write_day(tmp_path, TODAY, "# 2026-10-26\n\n- 09:00 · home · something happened · imp 5\n")
+    _write_day(
+        tmp_path, TODAY, "# 2026-10-26\n\n- 09:00 · home · something happened · imp 5\n"
+    )
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_ENABLED = False
         cfg.LLM_JOURNAL_DIR = str(tmp_path)
@@ -130,8 +132,12 @@ def test_yesterday_contributes_two_lines(tmp_path):
 def test_yesterday_handover_is_used_when_today_has_none(tmp_path):
     """A session that starts before the day's first line must still find the
     handover left the night before."""
-    _write_day(tmp_path, YESTERDAY, "# yesterday\n\n- 17:16 · office · parked: retry block · imp 9\n\n"
-                                   "## Handover\n\nRead the open items note first.\n")
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n- 17:16 · office · parked: retry block · imp 9\n\n"
+        "## Handover\n\nRead the open items note first.\n",
+    )
     _write_day(tmp_path, TODAY, "# today\n\n- 00:10 · home · a late line · imp 3\n")
 
     result = _render(tmp_path)
@@ -147,7 +153,9 @@ def test_the_whole_block_respects_the_cap(tmp_path):
         TODAY,
         "# today\n\n"
         + "\n".join(f"- 0{i}:00 · home · {long_line} · imp 9" for i in range(9))
-        + "\n\n## Handover\n\n" + long_line * 4 + "\n",
+        + "\n\n## Handover\n\n"
+        + long_line * 4
+        + "\n",
     )
 
     result = _render(tmp_path)
@@ -157,6 +165,21 @@ def test_the_whole_block_respects_the_cap(tmp_path):
     assert result.startswith("<day>") and result.endswith("</day>")
 
 
+def test_the_block_says_it_is_memory_rather_than_a_briefing(tmp_path):
+    """The block lands in a user turn, where nothing else explains how to use it.
+
+    Without this line the model reports what it read — "according to the day
+    block" — which is the briefing the whole seam exists to avoid.
+    """
+    _write_day(tmp_path, TODAY, "# today\n\n- 09:00 · home · a line · imp 5\n")
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert "not a briefing" in result
+    assert "never announce or recite" in result
+
+
 def test_a_one_paragraph_handover_still_carries_its_words(tmp_path):
     """A handover written as one long paragraph keeps its text.
 
@@ -164,7 +187,9 @@ def test_a_one_paragraph_handover_still_carries_its_words(tmp_path):
     heading, so the block would arrive with a heading and nothing under it — the
     failure that looks like success.
     """
-    paragraph = "Do not rebuild the sweep before it can prove it cannot lose an entry. " * 40
+    paragraph = (
+        "Do not rebuild the sweep before it can prove it cannot lose an entry. " * 40
+    )
     _write_day(
         tmp_path,
         TODAY,
@@ -182,7 +207,10 @@ def test_a_one_paragraph_handover_still_carries_its_words(tmp_path):
 
 def test_a_long_handover_of_short_lines_is_cut_on_a_line_break(tmp_path):
     """When whole lines are there to cut on, no line arrives half-written."""
-    lines = [f"line {index} of the handover, short enough to stay whole." for index in range(80)]
+    lines = [
+        f"line {index} of the handover, short enough to stay whole."
+        for index in range(80)
+    ]
     _write_day(tmp_path, TODAY, "# today\n\n## Handover\n\n" + "\n".join(lines))
 
     result = _render(tmp_path)

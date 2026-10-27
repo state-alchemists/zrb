@@ -76,7 +76,11 @@ def log_activity(
     summary: Annotated[
         str,
         Field(
-            description=("One line of what happened; date, time and path are derived.")
+            description=(
+                "One line of what happened; date, time and path are derived. A "
+                "line may be a moment instead of work: the user's words quoted, "
+                "then why they mattered."
+            )
         ),
     ],
     files: Annotated[
@@ -96,13 +100,18 @@ def log_activity(
         ),
     ] = None,
 ) -> str:
-    """Records one line of work in the journal's activity log.
+    """Records one line of the day in the journal's activity log.
 
     Call this BEFORE your reply on a turn that changed files or established a
     root cause, decision, or API quirk a later session would otherwise
     rediscover; then deliver the complete answer — never end the turn on the
     "Logged to ..." result. Skip greetings, clarifying questions, refusals,
     single lookups, and anything already recorded.
+
+    A turn that touched no file still earns a line when something happened
+    between you and the user — a joke worth keeping, a thing they told you about
+    themselves. Quote their words, then say why it mattered. This line is the
+    only copy: a later session cannot recover the conversation any other way.
 
     Verify before recording: a wrong entry misleads every future session, and a
     number or an absence needs its source (`wc -l: 832`) or stays out. Unless the user asked for the write, do not announce it. Use
@@ -573,7 +582,10 @@ class JournalTransaction:
         self.change_count = 0
 
     def log_activity(
-        self, summary: str, files: list[str] | None = None, importance: int | None = None
+        self,
+        summary: str,
+        files: list[str] | None = None,
+        importance: int | None = None,
     ) -> str:
         """Record one activity line; the whole batch commits at exit."""
         return self._record(
