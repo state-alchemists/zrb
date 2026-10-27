@@ -809,7 +809,8 @@
         "output:POSITIONAL_OR_KEYWORD:1",
         "data:POSITIONAL_OR_KEYWORD:1",
         "modifications:POSITIONAL_OR_KEYWORD:1",
-        "should_stop:POSITIONAL_OR_KEYWORD:1"
+        "should_stop:POSITIONAL_OR_KEYWORD:1",
+        "tool_calls:POSITIONAL_OR_KEYWORD:1"
       ],
       "members": [
         "to_claude_json"
