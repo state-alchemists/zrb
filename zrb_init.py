@@ -97,7 +97,12 @@ format_code = code_group.add_task(
         description="Format Zrb code",
         cwd=_DIR,
         cmd=[
-            "isort . --profile black --force-grid-wrap 0 --skip-glob 'llm-challenges/**'",
+            # `isort .` does not read .gitignore, so the worktree copies under
+            # `.claude/` and `.zrb/` and the 35,000 files in `.venv` were sorted
+            # too: 67s, against 6s for the 1,353 tracked files. Black skips them
+            # on its own, which is why only the import sort was slow.
+            "isort . --profile black --force-grid-wrap 0 --skip-glob 'llm-challenges/**' "
+            "--skip-glob '.claude/**' --skip-glob '.zrb/**' --skip-glob '.venv/**'",
             "black . --extend-exclude 'llm-challenges'",
         ],
     ),
