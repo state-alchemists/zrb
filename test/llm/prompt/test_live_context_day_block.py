@@ -205,6 +205,41 @@ def test_a_one_paragraph_handover_still_carries_its_words(tmp_path):
     assert "Do not rebuild the sweep" in result
 
 
+def test_a_long_handover_still_leaves_the_day_lines_a_line_each(tmp_path):
+    """The handover leads, but it may not fill the cap on its own.
+
+    Measured on 2026-10-27: a migrated handover of about 2,300 characters produced
+    a 1,484-character block with no Today and no Yesterday in it — the two sections
+    the day tier exists for, kept out by the one section nothing can reconstruct.
+    The handover still takes the larger share; it just cannot take all of it.
+    """
+    handover = "\n".join(
+        f"handover line {index}, long enough that the section is far over the cap."
+        for index in range(40)
+    )
+    _write_day(
+        tmp_path,
+        TODAY,
+        "# today\n\n"
+        "- 09:00 · home · today's line that must still arrive · imp 9\n\n"
+        "## Handover\n\n" + handover,
+    )
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 20:00 · home · yesterday's line that must still arrive · imp 8\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert len(result) <= DAY_BLOCK_MAX_CHARS
+    assert result.index("From the last me") < result.index("## Today")
+    assert "today's line that must still arrive" in result
+    assert "yesterday's line that must still arrive" in result
+
+
 def test_a_long_handover_of_short_lines_is_cut_on_a_line_break(tmp_path):
     """When whole lines are there to cut on, no line arrives half-written."""
     lines = [
