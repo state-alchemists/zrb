@@ -188,6 +188,21 @@ def test_a_failed_judge_run_is_counted_separately():
     assert "0 skipped" in text
 
 
+def test_a_run_crossing_the_window_is_not_an_orphan():
+    """Either end can fall outside the selected window on its own — a run started
+    at 23:59:59 and finished after midnight has its dispatch excluded, and the
+    summary must not report a completion with zero runs."""
+    only_finished = "\n".join(
+        render_journal_section([_event(JUDGED, 0, tool_calls=1)], {})
+    )
+    only_dispatched = "\n".join(render_journal_section([_event(JUDGING, 0)], {}))
+
+    assert "judge    1 run(s)" in only_finished
+    assert "never came back" not in only_finished
+    assert "judge    1 run(s)" in only_dispatched
+    assert "1 never came back" in only_dispatched
+
+
 def test_a_window_without_events_has_no_journal_section():
     assert render_journal_section([]) == []
     assert render_journal_section([_event(INJECTED, size=1)])[0] == "  Journal"

@@ -115,24 +115,39 @@ def _notes_line(events: list[JournalEvent]) -> str:
 def _judge_line(events: list[JournalEvent]) -> str:
     """How often the compliance judge ran, and what came of it.
 
-    A dispatch with no matching completion is a run that never came back — the
-    case that used to look identical to a judge deciding to skip."""
+    A dispatch with no completion is a run that never came back — the case that
+    used to look identical to a judge deciding to skip."""
     dispatched = sum(1 for event in events if event.event == JUDGING)
     finished = [event for event in events if event.event == JUDGED]
     if not dispatched and not finished:
         return ""
-    parts = [f"judge    {dispatched} run(s)"]
-    parts.append(f"{sum(1 for event in finished if event.tool_calls)} with a call")
-    parts.append(
-        f"{sum(1 for e in finished if e.tool_calls == 0 and not e.failed)} skipped"
-    )
-    failed = sum(1 for event in finished if event.failed)
-    if failed:
-        parts.append(f"{failed} failed")
-    missed = dispatched - len(finished)
+    missed = _unfinished(dispatched, finished)
+    parts = [f"judge    {len(finished) + missed} run(s)", *_judged_counts(finished)]
     if missed > 0:
         parts.append(f"{missed} never came back")
     return " · ".join(parts)
+
+
+def _unfinished(dispatched: int, finished: list[JournalEvent]) -> int:
+    """Dispatches with no completion.
+
+    Either end can fall outside the selected window on its own — a run starting
+    at 23:59:59 and finishing after midnight has its dispatch excluded — so the
+    run count above adds the two halves rather than trusting the dispatch count.
+    """
+    return max(0, dispatched - len(finished))
+
+
+def _judged_counts(finished: list[JournalEvent]) -> list[str]:
+    """What the completed runs did: made a journal call, skipped, or failed."""
+    counts = [
+        f"{sum(1 for event in finished if event.tool_calls)} with a call",
+        f"{sum(1 for e in finished if e.tool_calls == 0 and not e.failed)} skipped",
+    ]
+    failed = sum(1 for event in finished if event.failed)
+    if failed:
+        counts.append(f"{failed} failed")
+    return counts
 
 
 def _is_read_after(events: list[JournalEvent], written: JournalEvent) -> bool:
