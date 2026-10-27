@@ -187,6 +187,7 @@ def _seed_tool_factories() -> tuple[list, list]:
         delete_journal_note,
         log_activity,
         supersede_journal_note,
+        write_day_handover,
         write_journal_note,
     )
     from zrb.llm.tool.mcp import load_mcp_config
@@ -204,6 +205,7 @@ def _seed_tool_factories() -> tuple[list, list]:
     # Journal writers touch only CFG.LLM_JOURNAL_DIR, but plan mode still blocks them.
     for _fn in (
         log_activity,
+        write_day_handover,
         write_journal_note,
         supersede_journal_note,
         delete_journal_note,
@@ -230,11 +232,15 @@ def _seed_tool_factories() -> tuple[list, list]:
         # SearchJournal alone is not deferred: remembering happens mid-
         # conversation, and a schema behind `search_tools` asks the model to
         # think of a search before it can search — the step that gets skipped.
-        # The writers stay deferred; the compliance judge covers the write path.
+        # The note writers stay deferred, and the compliance judge covers their
+        # write path. `WriteDayHandover` stays deferred too, but the judge is not
+        # its safety net — that hook fires per turn, not per session end — so the
+        # day block names it to the agent that is actually leaving.
         lambda ctx: (
             [
                 Tool(search_journal, defer_loading=False),
                 Tool(log_activity, defer_loading=True),
+                Tool(write_day_handover, defer_loading=True),
                 Tool(write_journal_note, defer_loading=True),
                 Tool(supersede_journal_note, defer_loading=True),
                 Tool(delete_journal_note, defer_loading=True),

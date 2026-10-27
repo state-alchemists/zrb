@@ -35,6 +35,9 @@ def test_hook_config_shape():
     assert config.name == "journal-compliance-judge"
     assert config.events == [HookEvent.STOP]
     assert config.type == HookType.AGENT
+    # `WriteDayHandover` is absent on purpose: the judge runs at the STOP of a
+    # turn, not at the end of a session, so a handover written here would claim a
+    # stop that did not happen. The day block names it for the agent instead.
     assert config.config.tools == [
         "LogActivity",
         "WriteJournalNote",

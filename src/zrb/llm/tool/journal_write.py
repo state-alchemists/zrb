@@ -181,6 +181,115 @@ def _log_activity_locked(
     return f"Logged to {relative(day_file, root)}"
 
 
+HANDOVER_HEADING = "## Handover"
+"""The section a fresh session's day block leads with; this module is its writer."""
+
+HANDOVER_MAX_CHARS = 700
+"""Longest handover accepted: the block shares its 1,500 characters with the day lines."""
+
+
+def write_day_handover(
+    handover: Annotated[
+        str,
+        Field(
+            description=(
+                "What the next you needs that a list of events cannot say: where "
+                "the work stopped, what is still in flight, and the one thing to "
+                "settle first. Keep it under 700 characters and leave out "
+                "headings; the next session's first turn opens with it."
+            )
+        ),
+    ],
+) -> str:
+    """Leave today's `## Handover` section for the session that follows this one.
+
+    A fresh session's day block leads with this section, so it is where a session
+    says the state it stopped in rather than only what happened. Call it when a
+    session ends with threads still open — before your final reply, not instead of
+    it — and skip it when nothing is in flight.
+
+    The section is rewritten, not appended to: a second call replaces the first,
+    and the day's lines are left where they are. It goes above the day's `## Open`
+    list and the `## Backlinks` block, which stays last.
+
+    The block reads it first and then the day's most important lines, so a
+    handover over its share of the block's cap is cut there rather than at writing
+    time — which is why a long one is refused with a suggestion instead of being
+    truncated quietly.
+    """
+    text = _acceptable_handover(handover)
+    with _open_journal() as root:
+        day_file = _ensure_activity_path(root, datetime.now())
+        _write_if_changed(day_file, _with_handover(read_text(day_file), text))
+        _commit_or_defer(root, f"handover: {datetime.now():%Y-%m-%d}")
+        return f"Handover written to {relative(day_file, root)}"
+
+
+write_day_handover.__name__ = "WriteDayHandover"
+
+
+def _acceptable_handover(handover: str) -> str:
+    """*handover* as it will be stored, or a refusal the model can act on."""
+    text = handover.strip()
+    if not text:
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: the handover was empty, so nothing was written "
+            "and any earlier one is still in place. Say where the work stopped, "
+            "what is still in flight, and what to settle first — or skip this call "
+            "when the session left nothing open."
+        )
+    if any(line.startswith("#") for line in text.splitlines()):
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: the handover has a line starting with '#', and "
+            "the section already carries its own heading, so nothing was written. "
+            "In the file that line would end the section, and the next rewrite "
+            "would leave the text under it orphaned. Keep the words and drop the "
+            "heading: the state, what is still in flight, and what to settle first."
+        )
+    if len(text) > HANDOVER_MAX_CHARS:
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: the handover is {len(text)} characters and the "
+            f"limit is {HANDOVER_MAX_CHARS}, so nothing was written. It leads the "
+            "next session's block, which is 1,500 characters shared with that "
+            "session's day lines; shorten it to the state, what is still in "
+            "flight, and the one thing to settle first."
+        )
+    return text
+
+
+def _without_handover(text: str) -> str:
+    """*text* with any Handover section removed and the rest left as it was."""
+    kept: list[str] = []
+    dropping = False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            dropping = line.strip().lower().startswith(HANDOVER_HEADING.lower())
+            if dropping:
+                continue
+        if not dropping:
+            kept.append(line)
+    return "\n".join(kept).rstrip() + "\n"
+
+
+def _insert_after_entries(text: str, section: str) -> str:
+    """*section* above the first `##` heading, which keeps it under the day's lines."""
+    lines = text.splitlines()
+    end = next(
+        (index for index, line in enumerate(lines) if line.startswith("## ")),
+        len(lines),
+    )
+    head = "\n".join(lines[:end]).strip()
+    tail = "\n".join(lines[end:]).strip()
+    return "\n\n".join(part for part in (head, section, tail) if part) + "\n"
+
+
+def _with_handover(text: str, handover: str) -> str:
+    """*text* carrying *handover* as its only Handover section."""
+    return _insert_after_entries(
+        _without_handover(text), f"{HANDOVER_HEADING}\n\n{handover}"
+    )
+
+
 def write_journal_note(
     category: Annotated[
         str,

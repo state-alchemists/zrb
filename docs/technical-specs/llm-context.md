@@ -26,7 +26,7 @@ The journal is a directory of Markdown files organized hierarchically by topic o
 | Storage | Directory of Markdown files |
 | Organization | Five note categories plus a dated activity log |
 | Entry point | The root index file — `ZRB_LLM_JOURNAL_INDEX_FILE`, `index.md` by default — the only file injected into a session |
-| Written by | `LogActivity`, `WriteJournalNote`, `SupersedeJournalNote` and `DeleteJournalNote`, which own the on-disk format |
+| Written by | `LogActivity`, `WriteDayHandover`, `WriteJournalNote`, `SupersedeJournalNote` and `DeleteJournalNote`, which own the on-disk format |
 
 ---
 
@@ -36,7 +36,7 @@ Journal entries are stored in a directory structure with a central index file.
 
 Every journal knob (directory, index file, injection cap, HUD cap, first-turn auto-search, git backing) is listed in [LLM Configuration → Journal & Context Storage](../configuration/llm-context.md#journal--context-storage); the directory defaults to `~/.zrb/llm-notes/` and every index to `index.md`. The `~/.zrb/` path and the `ZRB_` prefix are the stock build's: a white-labeled build reads its own `<PREFIX>_LLM_JOURNAL_…` variables and puts the directory under its root group name (`~/.<ROOT_GROUP_NAME>/llm-notes/`).
 
-`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its five tools (`SearchJournal`, `LogActivity`, `WriteJournalNote`, `SupersedeJournalNote`, `DeleteJournalNote`), so the flag drops them from the per-run tool factories in `common_tools.py`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
+`ZRB_LLM_JOURNAL_ENABLED=false` turns the whole subsystem off. There is no journal prompt section to suppress — the journal *is* its six tools (`SearchJournal`, `LogActivity`, `WriteDayHandover`, `WriteJournalNote`, `SupersedeJournalNote`, `DeleteJournalNote`), so the flag drops them from the per-run tool factories in `common_tools.py`, and `render_journal_index` checks the same flag for the `<journal-index>` injection. The model is then never told a journal exists (ADR-0055).
 
 `ZRB_LLM_JOURNAL_DIR` is **not** an off switch: clearing it falls back to `~/.zrb/llm-notes/` rather than disabling journaling.
 
@@ -55,7 +55,7 @@ flowchart LR
     Root --> A["activity-log/ — YYYY/YYYY-MM/YYYY-MM-DD.md"]
 ```
 
-`WriteJournalNote` writes `<category>/<slug>.md`, with `slug`, `applies_when` (the condition under which the note still holds, `not stated` when none was given) and `status` (`active`, or `superseded` once retired) in its frontmatter; a slug that is not kebab-case is refused. `SupersedeJournalNote` retires a note whose `applies_when` no longer holds: the file stays, its `status` becomes `superseded`, and its line leaves the root index. `DeleteJournalNote` removes a note and every link to it. `LogActivity` appends to the day file under `activity-log/`. With `ZRB_LLM_JOURNAL_GIT_ENABLED` on (the default) and `git` installed, the journal root is also a git repository and each write, supersede or delete is a commit; `journal_transaction` batches many changes from Python under one lock and one commit.
+`WriteJournalNote` writes `<category>/<slug>.md`, with `slug`, `applies_when` (the condition under which the note still holds, `not stated` when none was given) and `status` (`active`, or `superseded` once retired) in its frontmatter; a slug that is not kebab-case is refused. `SupersedeJournalNote` retires a note whose `applies_when` no longer holds: the file stays, its `status` becomes `superseded`, and its line leaves the root index. `DeleteJournalNote` removes a note and every link to it. `LogActivity` appends to the day file under `activity-log/`. `WriteDayHandover` writes that same day file's `## Handover` section — the one the first turn of a session reads first — replacing any handover already there rather than adding a second, and placing it under the day's lines and above its `## Open` list. With `ZRB_LLM_JOURNAL_GIT_ENABLED` on (the default) and `git` installed, the journal root is also a git repository and each write, supersede or delete is a commit; `journal_transaction` batches many changes from Python under one lock and one commit.
 
 ### Index File Structure
 

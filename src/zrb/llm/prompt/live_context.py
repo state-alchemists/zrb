@@ -692,6 +692,9 @@ _DAY_BLOCK_OPEN = (
     "<day>\n"
     "Your memory of the last day or two, not a briefing: use a detail from it "
     "where it fits, and never announce or recite this block.\n\n"
+    "When a session ends with threads still open, leave the next one a handover "
+    "with WriteDayHandover: where the work stopped, what is still in flight, and "
+    "what to settle first.\n\n"
 )
 """The wrapper the block is sent in, with the line that says how to read it.
 

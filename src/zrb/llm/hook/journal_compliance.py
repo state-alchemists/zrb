@@ -37,6 +37,12 @@ def build_journal_compliance_hook_config() -> HookConfig:
         type=HookType.AGENT,
         config=AgentHookConfig(
             system_prompt=get_prompt("journal_compliance"),
+            # The handover writer is deliberately absent. This hook fires at the
+            # STOP of every turn the matcher selects, not at the end of a
+            # session, so a handover written here would claim a stop that did not
+            # happen — and could replace the one the session itself left. The day
+            # block names `WriteDayHandover` for the agent that is actually
+            # leaving.
             tools=["LogActivity", "WriteJournalNote", "SearchJournal"],
             # Not `str()`: the fallback may be a `Model` instance, whose repr
             # is not a model name.
