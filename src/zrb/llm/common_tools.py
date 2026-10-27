@@ -232,7 +232,10 @@ def _seed_tool_factories() -> tuple[list, list]:
         # SearchJournal alone is not deferred: remembering happens mid-
         # conversation, and a schema behind `search_tools` asks the model to
         # think of a search before it can search — the step that gets skipped.
-        # The writers stay deferred; the compliance judge covers the write path.
+        # The note writers stay deferred, and the compliance judge covers their
+        # write path. `WriteDayHandover` stays deferred too, but the judge is not
+        # its safety net — that hook fires per turn, not per session end — so the
+        # day block names it to the agent that is actually leaving.
         lambda ctx: (
             [
                 Tool(search_journal, defer_loading=False),
