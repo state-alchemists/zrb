@@ -187,6 +187,7 @@ def _seed_tool_factories() -> tuple[list, list]:
         delete_journal_note,
         log_activity,
         supersede_journal_note,
+        write_day_handover,
         write_journal_note,
     )
     from zrb.llm.tool.mcp import load_mcp_config
@@ -204,6 +205,7 @@ def _seed_tool_factories() -> tuple[list, list]:
     # Journal writers touch only CFG.LLM_JOURNAL_DIR, but plan mode still blocks them.
     for _fn in (
         log_activity,
+        write_day_handover,
         write_journal_note,
         supersede_journal_note,
         delete_journal_note,
@@ -235,6 +237,7 @@ def _seed_tool_factories() -> tuple[list, list]:
             [
                 Tool(search_journal, defer_loading=False),
                 Tool(log_activity, defer_loading=True),
+                Tool(write_day_handover, defer_loading=True),
                 Tool(write_journal_note, defer_loading=True),
                 Tool(supersede_journal_note, defer_loading=True),
                 Tool(delete_journal_note, defer_loading=True),

@@ -357,7 +357,7 @@ The building blocks are in `zrb.llm.summarizer`, all `async` except `split_histo
 
 ### Journal System
 
-Long-term memory is a directory of Markdown notes (default `~/.zrb/llm-notes/`) that the agent writes through `LogActivity`/`WriteJournalNote`/`SupersedeJournalNote`/`DeleteJournalNote` and reads through `SearchJournal`. How it is stored and when its index reaches the model: [LLM Journal System](../technical-specs/llm-context.md). Knobs: [LLM Configuration → Journal & Context Storage](../configuration/llm-context.md#journal--context-storage).
+Long-term memory is a directory of Markdown notes (default `~/.zrb/llm-notes/`) that the agent writes through `LogActivity`/`WriteDayHandover`/`WriteJournalNote`/`SupersedeJournalNote`/`DeleteJournalNote` and reads through `SearchJournal`. How it is stored and when its index reaches the model: [LLM Journal System](../technical-specs/llm-context.md). Knobs: [LLM Configuration → Journal & Context Storage](../configuration/llm-context.md#journal--context-storage).
 
 ---
 

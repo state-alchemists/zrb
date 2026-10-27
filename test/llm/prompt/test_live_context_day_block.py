@@ -180,6 +180,20 @@ def test_the_block_says_it_is_memory_rather_than_a_briefing(tmp_path):
     assert "never announce or recite" in result
 
 
+def test_the_block_names_the_tool_that_writes_the_handover(tmp_path):
+    """The writer is deferred, so the block is the one place that names it.
+
+    A tool nobody is reminded of at the moment it is needed is a tool that does
+    not get used: the section would keep arriving only when it is typed by hand.
+    """
+    _write_day(tmp_path, TODAY, "# today\n\n- 09:00 · home · a line · imp 5\n")
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert "WriteDayHandover" in result
+
+
 def test_a_one_paragraph_handover_still_carries_its_words(tmp_path):
     """A handover written as one long paragraph keeps its text.
 

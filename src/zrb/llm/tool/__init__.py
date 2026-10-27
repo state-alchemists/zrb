@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         delete_journal_note,
         log_activity,
         supersede_journal_note,
+        write_day_handover,
         write_journal_note,
     )
     from zrb.llm.tool.mcp import load_mcp_config
@@ -59,6 +60,7 @@ __all__ = [
     "move_file",
     "search_journal",
     "log_activity",
+    "write_day_handover",
     "write_journal_note",
     "supersede_journal_note",
     "delete_journal_note",
@@ -101,6 +103,7 @@ _SOURCES = {
     "tool_name": "zrb.llm.tool_registry",
     "tool_registry": "zrb.llm.tool_registry",
     "write_file": "zrb.llm.tool.file",
+    "write_day_handover": "zrb.llm.tool.journal_write",
     "write_journal_note": "zrb.llm.tool.journal_write",
     "supersede_journal_note": "zrb.llm.tool.journal_write",
     "delete_journal_note": "zrb.llm.tool.journal_write",

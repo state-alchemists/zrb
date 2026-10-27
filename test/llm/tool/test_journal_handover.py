@@ -1,0 +1,165 @@
+"""Tests for `WriteDayHandover`, the only writer of the day block's first section.
+
+The reading end is pinned next door in
+`test/llm/prompt/test_live_context_day_block.py`; these pin the writing end: one
+section, rewritten rather than appended, under the day's lines and above its
+`## Open` list, refused rather than truncated when it would eat the block.
+"""
+
+import os
+from datetime import date
+from unittest.mock import patch
+
+import pytest
+
+
+@pytest.fixture
+def writable_journal(tmp_path):
+    """Patch CFG for the writer module and return the journal root."""
+    root = tmp_path / "notes"
+    with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = str(root)
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
+        mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
+        mock_cfg.LLM_JOURNAL_CATALOG_MAX_ENTRIES = 25
+        mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
+        yield str(root)
+
+
+def _day_path(root: str) -> str:
+    today = date.today()
+    return os.path.join(
+        root,
+        "activity-log",
+        today.strftime("%Y"),
+        today.strftime("%Y-%m"),
+        f"{today.isoformat()}.md",
+    )
+
+
+def _read(path: str) -> str:
+    with open(path, encoding="utf-8") as handle:
+        return handle.read()
+
+
+def _render(root: str) -> "str | None":
+    """The block a fresh session would read, against the same journal root."""
+    from zrb.llm.prompt.live_context import render_day_block
+
+    with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+        cfg.LLM_JOURNAL_ENABLED = True
+        cfg.LLM_JOURNAL_DIR = root
+        return render_day_block(date.today())
+
+
+def test_the_handover_lands_where_the_next_session_reads_it(writable_journal):
+    """The writer and the block's reader agree on the file and on the heading.
+
+    Nothing wrote this section before, so a fresh session could only ever read
+    the one file it was typed into by hand. This pins the two ends together.
+    """
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    write_day_handover("The sweep is unbuilt. Settle the tag before anything else.")
+
+    block = _render(writable_journal)
+
+    assert block is not None, "the block must find the file the writer wrote"
+    assert "From the last me, to the next me" in block
+    assert "Settle the tag before anything else." in block
+
+
+def test_a_second_handover_replaces_the_first(writable_journal):
+    """Rewritten, not appended: two sections would make the block pick one."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    write_day_handover("first version, still deciding")
+    write_day_handover("second version, decided")
+
+    day = _read(_day_path(writable_journal))
+
+    assert day.count("## Handover") == 1
+    assert "first version" not in day
+    assert "second version, decided" in day
+
+
+def test_the_handover_sits_under_the_day_lines_and_above_backlinks(writable_journal):
+    from zrb.llm.tool.journal_write import log_activity, write_day_handover
+
+    log_activity("a day line that keeps its place")
+    write_day_handover("where the work stopped")
+
+    day = _read(_day_path(writable_journal))
+
+    assert day.index("a day line that keeps its place") < day.index("## Handover")
+    assert day.index("## Handover") < day.index("## Backlinks")
+
+
+def test_an_open_list_survives_and_the_handover_goes_above_it(writable_journal):
+    """A hand-written `## Open` is not the writer's to drop."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "- 09:00 — a line.\n\n"
+            "## Open\n\n- [ ] the tag\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
+
+    write_day_handover("read the open list first")
+
+    day = _read(path)
+
+    assert day.count("## Open") == 1
+    assert day.index("## Handover") < day.index("## Open")
+    assert "read the open list first" in day
+    assert "- [ ] the tag" in day
+
+
+def test_an_over_long_handover_is_refused_rather_than_truncated(writable_journal):
+    """A truncated handover arrives as if it were the whole one.
+
+    The block cuts a long handover at read time, so a writer that also cut it
+    would hide which end lost the tail, and the model would believe it had said
+    the last thing it wrote.
+    """
+    from zrb.llm.tool.journal_write import HANDOVER_MAX_CHARS, write_day_handover
+
+    with pytest.raises(ValueError) as raised:
+        write_day_handover("x" * (HANDOVER_MAX_CHARS + 1))
+
+    message = str(raised.value)
+    assert "[SYSTEM SUGGESTION]" in message
+    assert str(HANDOVER_MAX_CHARS) in message
+    assert not os.path.exists(_day_path(writable_journal)), "a refusal writes nothing"
+
+
+def test_an_empty_handover_is_refused(writable_journal):
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    with pytest.raises(ValueError) as raised:
+        write_day_handover("   \n\n")
+
+    assert "[SYSTEM SUGGESTION]" in str(raised.value)
+    assert not os.path.exists(_day_path(writable_journal))
+
+
+def test_a_handover_carrying_its_own_heading_is_refused(writable_journal):
+    """A `#` line would end the section at the next read.
+
+    The block's reader stops at a `## ` line and so would a rewrite, which would
+    leave everything under it stranded in the day file with no heading saying
+    where it came from.
+    """
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    with pytest.raises(ValueError) as raised:
+        write_day_handover("## Today\n\nthe state, with a heading of its own")
+
+    message = str(raised.value)
+    assert "[SYSTEM SUGGESTION]" in message
+    assert not os.path.exists(_day_path(writable_journal)), "a refusal writes nothing"
