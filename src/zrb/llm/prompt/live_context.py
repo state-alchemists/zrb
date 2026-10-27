@@ -726,20 +726,47 @@ def _cut_section(section: str, room: int) -> str:
     return head[: max(0, room - len(_CUT_MARKER))].rstrip() + _CUT_MARKER
 
 
-def _fit_sections(sections: list[str]) -> str:
-    """Wrap the sections that fit the cap, cutting the last one to what is left.
+def _room_for_first_line(section: str) -> int:
+    """Characters *section* needs to show its heading and one line of content."""
+    heading, _, body = section.partition(_SECTION_SEPARATOR)
+    first_line = body.split("\n", 1)[0]
+    return len(heading) + len(_SECTION_SEPARATOR) + len(first_line)
 
-    A cut section ends the block; the full lines are still in the day file.
+
+def _reserve_for_later(sections: list[str]) -> int:
+    """Room every section after the current one must keep, heading and separators included.
+
+    Without this the first section — the handover, which nothing can reconstruct
+    later — fills the cap on its own and the day lines it exists to sit beside
+    never arrive. Measured on 2026-10-27: a 2,300-character handover rendered a
+    1,484-character block with no today and no yesterday in it.
+    """
+    return sum(
+        _room_for_first_line(section) + len(_SECTION_SEPARATOR) for section in sections
+    )
+
+
+def _fit_sections(sections: list[str]) -> str:
+    """Wrap the sections that fit the cap, cutting one short so the rest still show.
+
+    A section over its room is cut, and the sections after it are still rendered in
+    what the cut left. The lines beyond a cut are not lost: they are in the day file,
+    and the day lines a cut drops are one `SearchJournal` away, while the handover is
+    the one part no later reader can reconstruct.
     """
     kept: list[str] = []
-    for section in sections:
-        room = _room_for_next(kept)
+    for index, section in enumerate(sections):
+        available = _room_for_next(kept)
+        room = available - _reserve_for_later(sections[index + 1 :])
+        if room < _room_for_first_line(section):
+            # The reserves are unaffordable, so this section takes its whole turn
+            # rather than being cut to less than a line.
+            room = available
         if len(section) <= room:
             kept.append(section)
             continue
         if room > 0:
             kept.append(_cut_section(section, room))
-        break
     return _wrap_sections(kept)
 
 
