@@ -7,11 +7,15 @@ many bytes the index adds to a turn, how often a search finds nothing, and
 whether a note the agent wrote is ever read again.
 
 One line per event: `injected`, `searched`, `read`, `written`, `superseded`,
-`deleted`. Like the usage log it holds numbers and ids only. A note is
-identified by a short hash of its `category/slug`, never by the name, because a
-slug carries meaning; `/usage` resolves a hash to a title by scanning the
-current journal, so a note that no longer exists reads as removed. No query, no
-note text, no title and no HUD line is ever written.
+`deleted`, `judging`, `judged`. Like the usage log it holds numbers and ids only.
+A note is identified by a short hash of its `category/slug`, never by the name,
+because a slug carries meaning; `/usage` resolves a hash to a title by scanning
+the current journal, so a note that no longer exists reads as removed. No query,
+no note text, no title and no HUD line is ever written.
+
+The judge pair exists because a compliance run is fire-and-forget: `judging`
+says one was dispatched and `judged` says it came back, so a run that never
+finished is visible as a start with no end — the state a silent miss hid in.
 
 Recording never raises: a journal tool must not fail because a log could not be
 written.
@@ -42,7 +46,9 @@ READ = "read"
 WRITTEN = "written"
 SUPERSEDED = "superseded"
 DELETED = "deleted"
-EVENTS = (INJECTED, SEARCHED, READ, WRITTEN, SUPERSEDED, DELETED)
+JUDGING = "judging"
+JUDGED = "judged"
+EVENTS = (INJECTED, SEARCHED, READ, WRITTEN, SUPERSEDED, DELETED, JUDGING, JUDGED)
 
 
 @dataclass(frozen=True)
@@ -64,6 +70,9 @@ class JournalEvent:
     hits: list[str] = field(default_factory=list)
     # read / written / superseded / deleted: the hashed id of the note.
     note: str = ""
+    # judging / judged: how many tool calls the run made, and whether it failed.
+    tool_calls: int = 0
+    failed: bool = False
 
     @property
     def is_zero_result(self) -> bool:
@@ -91,6 +100,8 @@ class JournalEvent:
             results=_as_int(raw.get("results")),
             hits=_as_ids(raw.get("hits")),
             note=str(raw.get("note") or ""),
+            tool_calls=_as_int(raw.get("tool_calls")),
+            failed=raw.get("failed") is True,
         )
 
 
@@ -132,6 +143,16 @@ def record_searched(query: str, result_files: list[str], results: int) -> None:
 def record_note_event(event: str, category: str, slug: str) -> None:
     """A write, supersede or delete of the note `category/slug`."""
     _append(event, note=note_hash(f"{category}/{slug}"))
+
+
+def record_judging() -> None:
+    """The compliance judge was dispatched for this turn."""
+    _append(JUDGING)
+
+
+def record_judged(tool_calls: int, failed: bool) -> None:
+    """The judge came back: *tool_calls* journal calls it made, or *failed*."""
+    _append(JUDGED, tool_calls=tool_calls, failed=failed)
 
 
 def record_path_read(abs_path: str) -> None:
@@ -181,6 +202,8 @@ def _append(
     results: int = 0,
     hits: list[str] | None = None,
     note: str = "",
+    tool_calls: int = 0,
+    failed: bool = False,
 ) -> None:
     """Write one line; a failure is logged at debug and swallowed."""
     try:
@@ -197,6 +220,8 @@ def _append(
             results=results,
             hits=hits or [],
             note=note,
+            tool_calls=tool_calls,
+            failed=failed,
         )
         path = store_path(_FILE_PREFIX, now)
         os.makedirs(os.path.dirname(path), exist_ok=True)

@@ -14,6 +14,8 @@ from zrb.llm.custom_command.usage_command_journal import (
 from zrb.llm.journal_usage_log import (
     DELETED,
     INJECTED,
+    JUDGED,
+    JUDGING,
     READ,
     SEARCHED,
     SUPERSEDED,
@@ -156,6 +158,34 @@ def test_titles_are_resolved_from_the_current_journal_by_hash(usage_dir, monkeyp
     )
 
     assert get_note_titles() == {A: "Alpha note"}
+
+
+def test_the_judge_trace_separates_a_skip_from_a_run_that_never_came_back():
+    """A dispatch with no completion is the state a silent miss hid in: the
+    judge was spawned and the process moved on."""
+    events = [
+        _event(JUDGING, 0),
+        _event(JUDGED, 1, tool_calls=1),
+        _event(JUDGING, 2),
+        _event(JUDGED, 3, tool_calls=0),
+        _event(JUDGING, 4),
+    ]
+
+    text = "\n".join(render_journal_section(events, {}))
+
+    assert "judge    3 run(s)" in text
+    assert "1 with a call" in text
+    assert "1 skipped" in text
+    assert "1 never came back" in text
+
+
+def test_a_failed_judge_run_is_counted_separately():
+    events = [_event(JUDGING, 0), _event(JUDGED, 1, failed=True)]
+
+    text = "\n".join(render_journal_section(events, {}))
+
+    assert "1 failed" in text
+    assert "0 skipped" in text
 
 
 def test_a_window_without_events_has_no_journal_section():

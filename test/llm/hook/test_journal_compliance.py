@@ -6,12 +6,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.journal_compliance import (
     build_journal_compliance_hook_config,
     register_journal_compliance_hook,
 )
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent, HookType
+from zrb.llm.journal_usage_log import JUDGED, JUDGING, read_events
+
+
+@pytest.fixture(autouse=True)
+def _usage_dir(tmp_path, monkeypatch):
+    """The judge records its runs; keep them out of the real usage directory."""
+    monkeypatch.setattr(CFG, "LLM_USAGE_DIR", str(tmp_path), raising=False)
+    return tmp_path
 
 
 def _mock_agent_cls(output: str = "skip"):
@@ -157,3 +166,68 @@ def test_its_own_switch_exists_because_the_alternative_takes_all_hooks():
     """A built-in hook that cannot be switched off alone forces `HOOKS_ENABLED=off`
     for every hook. This one has a field, shaped like `LLM_SELF_REVIEW_ENABLED`."""
     assert CFG.DEFAULT_LLM_JOURNAL_COMPLIANCE_ENABLED == "on"
+
+
+class _WrappingManager:
+    """A manager that keeps the callable the factory registers, so a test can run
+    it without an LLM behind it."""
+
+    def __init__(self, result: HookResult):
+        self.result = result
+        self.registered = []
+        self.registered_callable = None
+
+    async def judge(self, context):
+        return self.result
+
+    def register_hook_config(self, config, source=None):
+        self.registered.append(config)
+        return self.judge
+
+    def remove_hook(self, hook):
+        self.registered_callable = None
+
+    def add_hook(self, hook, events=None, config=None):
+        self.registered_callable = hook
+
+
+def _watched(result: HookResult) -> "_WrappingManager":
+    manager = _WrappingManager(result)
+    with patch("zrb.llm.hook.journal_compliance.CFG") as cfg:
+        cfg.LLM_JOURNAL_ENABLED = True
+        cfg.LLM_JOURNAL_COMPLIANCE_ENABLED = True
+        register_journal_compliance_hook(cast("HookManager", manager))
+    return manager
+
+
+@pytest.mark.asyncio
+async def test_a_run_is_recorded_from_dispatch_to_result():
+    """The judge is spawned fire-and-forget, so no other surface sees it: a skip
+    and a hook that never fired used to look exactly the same."""
+    manager = _watched(HookResult(success=True, output="skip", tool_calls=0))
+
+    await manager.registered_callable(None)
+
+    dispatched, finished = read_events()
+    assert (dispatched.event, finished.event) == (JUDGING, JUDGED)
+    assert (finished.tool_calls, finished.failed) == (0, False)
+
+
+@pytest.mark.asyncio
+async def test_a_run_that_wrote_is_recorded_with_its_call_count():
+    manager = _watched(HookResult(success=True, output="logged", tool_calls=2))
+
+    await manager.registered_callable(None)
+
+    finished = read_events()[-1]
+    assert (finished.tool_calls, finished.failed) == (2, False)
+
+
+@pytest.mark.asyncio
+async def test_a_failed_run_is_recorded_as_a_failure():
+    manager = _watched(HookResult(success=False, output="no model configured"))
+
+    await manager.registered_callable(None)
+
+    finished = read_events()[-1]
+    assert finished.failed is True

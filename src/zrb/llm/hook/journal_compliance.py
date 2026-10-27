@@ -12,9 +12,11 @@ from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.journal_usage_log import record_judged, record_judging
 from zrb.llm.prompt.prompt import get_prompt
 
 if TYPE_CHECKING:
+    from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
     from zrb.llm.hook.manager import HookManager
 
 _NAME = "journal-compliance-judge"
@@ -62,6 +64,32 @@ def register_journal_compliance_hook(manager: "HookManager") -> None:
     `LLM_SELF_REVIEW_ENABLED` gives the self-review gate."""
     if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_COMPLIANCE_ENABLED:
         return
-    manager.register_hook_config(
-        build_journal_compliance_hook_config(), source="builtin"
-    )
+    config = build_journal_compliance_hook_config()
+    hook = manager.register_hook_config(config, source="builtin")
+    if hook is None:
+        return
+    # The judge is an async hook, so it is spawned fire-and-forget: nothing
+    # downstream sees whether it ran or what it decided, and "no entry" cannot be
+    # told apart from "never fired". The replacement callable records both ends.
+    manager.remove_hook(hook)
+    manager.add_hook(_recorded(hook), config.events, config)
+
+
+def _recorded(hook: "HookCallable") -> "HookCallable":
+    """*hook*, with each run written to the journal usage log.
+
+    `judging` before the model call and `judged` after, so a run that never comes
+    back is a start with no end rather than silence.
+    """
+
+    async def recorded(context: "HookContext") -> "HookResult":
+        record_judging()
+        try:
+            result = await hook(context)
+        except Exception:
+            record_judged(tool_calls=0, failed=True)
+            raise
+        record_judged(tool_calls=result.tool_calls, failed=not result.success)
+        return result
+
+    return recorded
