@@ -357,6 +357,7 @@ async def run_llm_hook(
         # lazy: zrb internal (heavy via transitive) — building an agent pulls
         # in pydantic_ai; deferred until a prompt/agent hook fires.
         from zrb.llm.agent import create_agent
+        from zrb.llm.agent.types import ToolCallPart
 
         # A hook agent is a nested agent inside a run, so an unconfigured one
         # inherits that run's model (a `/model` switch, `--model`) before
@@ -379,6 +380,12 @@ async def run_llm_hook(
             success=True,
             output=output_text,
             modifications=_parse_json_object(output_text),
+            tool_calls=sum(
+                1
+                for message in result.new_messages()
+                for part in getattr(message, "parts", [])
+                if isinstance(part, ToolCallPart)
+            ),
         )
     except Exception as e:
         logger.error(f"Error executing {kind} hook: {e}", exc_info=True)

@@ -9,12 +9,16 @@ from zrb.config.config import CFG
 from zrb.llm.ambient_state import set_current_tool_session
 from zrb.llm.journal_usage_log import (
     INJECTED,
+    JUDGED,
+    JUDGING,
     SEARCHED,
     JournalEvent,
     note_hash,
     note_id_of,
     read_events,
     record_injected,
+    record_judged,
+    record_judging,
     record_note_event,
     record_searched,
 )
@@ -129,6 +133,20 @@ def test_an_unwritable_directory_does_not_raise(usage_dir):
     record_note_event("deleted", "user", "x")
 
     assert read_events() == []
+
+
+def test_a_judge_run_records_both_ends(usage_dir):
+    record_judging()
+    record_judged(tool_calls=2, failed=False)
+
+    dispatched, finished = read_events()
+
+    assert dispatched.event == JUDGING
+    assert (finished.event, finished.tool_calls, finished.failed) == (
+        JUDGED,
+        2,
+        False,
+    )
 
 
 def test_a_zero_result_search_says_so():

@@ -688,8 +688,16 @@ def _top_entries(entries: list[str], count: int) -> list[str]:
     return [entries[index] for index in sorted(pair[0] for pair in ranked[:count])]
 
 
-_DAY_BLOCK_OPEN = "<day>\n"
-"""The wrapper the block is sent in; `render_day_block` always returns one thing."""
+_DAY_BLOCK_OPEN = (
+    "<day>\n"
+    "Your memory of the last day or two, not a briefing: use a detail from it "
+    "where it fits, and never announce or recite this block.\n\n"
+)
+"""The wrapper the block is sent in, with the line that says how to read it.
+
+`render_day_block` always returns one thing. The instruction lives in the wrapper
+rather than the prompt so it is paid for only when there is a block to read, and
+so it travels with the text it describes."""
 
 _DAY_BLOCK_CLOSE = "\n</day>"
 _SECTION_SEPARATOR = "\n\n"

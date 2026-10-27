@@ -114,6 +114,9 @@ class HookResult:
     data: dict[str, Any] | None = None
     modifications: dict[str, Any] = field(default_factory=dict)
     should_stop: bool = False
+    # Agent hooks only: how many tool calls the run made. Nothing else observes
+    # it, and a judge that makes none has decided to skip.
+    tool_calls: int = 0
 
     @classmethod
     def block(cls, reason: str, additional_context: str | None = None) -> "HookResult":

@@ -107,16 +107,29 @@ def test_journal_tools_unregistered_when_journal_disabled(monkeypatch):
     assert {"Read", "Write", "Grep"} <= names
 
 
-def test_journal_tools_are_deferred_for_the_main_agent(monkeypatch):
-    """Rarely touched per turn, so their schemas stay hidden until
-    `search_tools` — the hook path un-defers its own copy separately
+def test_journal_writers_are_deferred_for_the_main_agent(monkeypatch):
+    """The writers are rarely touched per turn, so their schemas stay hidden
+    until `search_tools` — the hook path un-defers its own copy separately
     (`agent/hook_agent.py::_undeferred`)."""
     monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
     by_name = {tool_name(t): t for t in host.resolved_tools()}
-    for name in JOURNAL_TOOLS | {"DeleteJournalNote"}:
+    for name in JOURNAL_TOOLS - {"SearchJournal"} | {"DeleteJournalNote"}:
         assert by_name[name].defer_loading is True
+
+
+def test_search_journal_is_deferred_never(monkeypatch):
+    """Recall happens mid-conversation, so its schema must already be in hand.
+
+    Behind `search_tools` the model has to think of a search before it can
+    search, which is the step that gets skipped; a reminder in the prompt only
+    exists on a conversation's first turn."""
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+    host = RecordingHost()
+    apply_common_tools(host)
+    by_name = {tool_name(t): t for t in host.resolved_tools()}
+    assert by_name["SearchJournal"].defer_loading is False
 
 
 def test_read_tool_result_reflects_the_live_spill_flag(monkeypatch):
