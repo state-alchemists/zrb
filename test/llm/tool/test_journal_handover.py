@@ -163,3 +163,164 @@ def test_a_handover_carrying_its_own_heading_is_refused(writable_journal):
     message = str(raised.value)
     assert "[SYSTEM SUGGESTION]" in message
     assert not os.path.exists(_day_path(writable_journal)), "a refusal writes nothing"
+
+
+def test_a_handover_keeps_what_was_logged_since_the_last_one(writable_journal):
+    """The bug of 2026-10-28: a second handover took the whole afternoon with it.
+
+    `log_activity` used to add its line before the Backlinks block, which sits
+    inside the handover section, so every rewrite deleted everything written
+    since the previous handover — the one copy of those hours.
+    """
+    from zrb.llm.tool.journal_write import log_activity, write_day_handover
+
+    log_activity("alpha line")
+    write_day_handover("HANDOVER-FIRST")
+    log_activity("beta line")
+    write_day_handover("HANDOVER-SECOND")
+
+    day = _read(_day_path(writable_journal))
+
+    assert "alpha line" in day
+    assert "beta line" in day
+    assert day.index("beta line") < day.index("## Handover")
+    assert "HANDOVER-FIRST" not in day
+    assert "HANDOVER-SECOND" in day
+
+
+def test_a_day_line_stranded_in_an_old_handover_is_rescued(writable_journal):
+    """A file the old code already wrote keeps its lines on the next write."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "- 09:00 — an early line. Files: — · imp 4.\n\n"
+            "## Handover\n\nan old handover\n\n"
+            "- 15:16 — stranded inside the old section. Files: — · imp 6.\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
+
+    write_day_handover("the new one")
+
+    day = _read(path)
+
+    assert "stranded inside the old section" in day
+    assert day.index("stranded inside the old section") < day.index("## Handover")
+    assert "[recovered from a handover" in day, "the reading is left open, not settled"
+    assert "an old handover" not in day
+
+
+def test_a_step_of_the_old_handover_is_marked_rather_than_called_an_event(
+    writable_journal,
+):
+    """A line the file cannot classify keeps both readings, and loses no text.
+
+    Older versions allowed a handover to hold a step in exactly the shape
+    `log_activity` writes, so a rewrite cannot tell it from a stranded event by
+    looking. It is lifted into the day's lines — the copy has to survive — and
+    marked, because reading a step as finished work is the one error that costs
+    the next session its answer.
+    """
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "## Handover\n\nwhere it stopped:\n\n"
+            "- 12:34 — deploy is blocked. Files: app.py.\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
+
+    write_day_handover("HANDOVER-SECOND")
+
+    day = _read(path)
+    lifted = next(line for line in day.splitlines() if "deploy is blocked" in line)
+
+    assert not lifted.startswith("#"), "it is a day line, not a heading"
+    assert "- 12:34 — deploy is blocked. Files: app.py." in lifted, "text kept whole"
+    assert "[recovered from a handover" in lifted
+    assert day.index(lifted) < day.index("## Handover")
+
+
+def test_a_line_from_before_files_were_named_is_rescued_too(writable_journal):
+    """The older ending is still a day line: `· imp N`, with no `Files: …`."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "## Handover\n\nan old handover\n\n"
+            "- 09:08 — office · a line from before Files: · imp 6\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
+
+    write_day_handover("the new one")
+
+    day = _read(path)
+
+    assert "a line from before Files:" in day
+    assert day.index("a line from before Files:") < day.index("## Handover")
+    assert "an old handover" not in day
+
+
+def test_a_handover_step_opening_like_a_day_line_is_refused(writable_journal):
+    """The section must not hold a line a rewrite would lift out of it.
+
+    Telling a step from an event by reading the line cannot be made reliable: the
+    same model writes both, so `- 12:34 — deploy is blocked. Files: app.py.` is a
+    shape it produces in either place. The writer keeps the ambiguity out of the
+    file instead of resolving it wrongly on the next rewrite — and a refusal
+    leaves the earlier handover standing.
+    """
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    write_day_handover("HANDOVER-KEPT")
+
+    with pytest.raises(ValueError) as raised:
+        write_day_handover(
+            "where it stopped:\n\n- 12:34 — deploy is blocked. Files: app.py."
+        )
+
+    assert "[SYSTEM SUGGESTION]" in str(raised.value)
+    assert "HANDOVER-KEPT" in _read(_day_path(writable_journal))
+
+
+def test_a_handover_may_still_list_steps(writable_journal):
+    """The refusal is about the clock stamp, not about lists."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    write_day_handover("where it stopped:\n\n- deploy is blocked at 12:34")
+
+    assert "deploy is blocked at 12:34" in _read(_day_path(writable_journal))
+
+
+def test_a_handover_written_before_the_refusal_keeps_its_stamp_only_step(
+    writable_journal,
+):
+    """A file already holding such a step is read as a handover, not as events."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "- 09:00 — an early line. Files: — · imp 4.\n\n"
+            "## Handover\n\nwhere it stopped:\n\n- 12:34 — deploy is blocked\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
+
+    write_day_handover("HANDOVER-SECOND")
+
+    day = _read(path)
+
+    assert "deploy is blocked" not in day, "a step is not an event of the day"
+    assert "an early line" in day
+    assert "HANDOVER-SECOND" in day

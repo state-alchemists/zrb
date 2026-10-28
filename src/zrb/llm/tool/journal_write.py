@@ -59,7 +59,6 @@ from zrb.llm.tool.journal_note import (
     check_slug,
     compose_note,
     format_stamp,
-    insert_before_backlinks,
     list_notes,
     next_stamp,
     one_line,
@@ -139,6 +138,30 @@ _LEADING_STAMP = re.compile(
     r"^\s*(?:\d{4}-\d{2}-\d{2}[ T])?\d{1,2}:\d{2}(?::\d{2})?\s*(?:[—–-]\s*)?"
 )
 
+# A line opening like a day line, whatever ends it. `WriteDayHandover` refuses
+# one, because `_without_handover` lifts day lines out of the section a rewrite
+# replaces: a step written this way would come back as an event of the day and
+# leave the handover the next session reads first.
+_DAY_LINE_START = re.compile(r"^- \d\d:\d\d — ")
+
+# A line `log_activity` wrote, and nothing looser: the stamp and an ending the
+# tool gives one — `Files: …` since a line carried its files, `· imp N` before
+# that. A handover is free prose, and the ending is what a step of its own does
+# not carry, which is why a file written before the refusal above keeps its step
+# in the section it belongs to rather than producing an event that never was.
+_DAY_LINE = re.compile(
+    _DAY_LINE_START.pattern + r".*(?:\. Files: .*\.|· imp \d\d?\.?)$"
+)
+
+# A day line lifted out of a handover carries this. The file cannot say whether it
+# was an event the broken `log_activity` stranded there or a step the handover's
+# author wrote in the same shape, and the next session should not read the second
+# as a finished piece of work. Marking it keeps both readings visible; guessing at
+# one of them, by text or by position, would be a claim the file cannot support.
+_RECOVERED_FROM_HANDOVER = (
+    " [recovered from a handover — this may have been a step, not an event]"
+)
+
 
 def _clean_summary(summary: str) -> str:
     """*summary* without a clock time at its start, and without a trailing period.
@@ -153,6 +176,29 @@ def _clean_summary(summary: str) -> str:
     if not cleaned:
         return text
     return cleaned[:-1].rstrip() if cleaned.endswith(".") else cleaned
+
+
+def _append_day_line(text: str, entry: str) -> str:
+    """*text* with *entry* as its newest day line, above any `##` section.
+
+    Not `insert_before_backlinks`, which reaches that spot only past a
+    `## Handover`: a handover owns everything from its heading to the next one,
+    so the next write deleted every line logged since the previous handover
+    (2026-10-28: twenty-three of them, a whole afternoon).
+    """
+    if entry in text:
+        return text
+    lines = text.splitlines()
+    end = next(
+        (index for index, line in enumerate(lines) if line.startswith("## ")),
+        len(lines),
+    )
+    head = lines[:end]
+    while head and not head[-1].strip():
+        head.pop()
+    tail = "\n".join(lines[end:]).strip()
+    body = "\n".join([*head, entry])
+    return f"{body}\n\n{tail}\n" if tail else f"{body}\n"
 
 
 def _log_activity_locked(
@@ -177,7 +223,7 @@ def _log_activity_locked(
         f"- {now.strftime('%H:%M')} — {_clean_summary(summary)}. "
         f"Files: {file_note}{ranked}."
     )
-    _write_if_changed(day_file, insert_before_backlinks(read_text(day_file), entry))
+    _write_if_changed(day_file, _append_day_line(read_text(day_file), entry))
     return f"Logged to {relative(day_file, root)}"
 
 
@@ -246,6 +292,15 @@ def _acceptable_handover(handover: str) -> str:
             "would leave the text under it orphaned. Keep the words and drop the "
             "heading: the state, what is still in flight, and what to settle first."
         )
+    if any(_DAY_LINE_START.match(line) for line in text.splitlines()):
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: the handover has a line opening like a day line "
+            "(`- 12:34 — …`), and a rewrite lifts day lines out of this section, "
+            "so that step would come back as an event of the day and leave the "
+            "handover. Say the same thing without the leading clock — `at 12:34, "
+            "deploy is blocked` — in a sentence or a plain bullet. Nothing was "
+            "written, so any earlier handover is still in place."
+        )
     if len(text) > HANDOVER_MAX_CHARS:
         raise ValueError(
             f"[SYSTEM SUGGESTION]: the handover is {len(text)} characters and the "
@@ -258,7 +313,18 @@ def _acceptable_handover(handover: str) -> str:
 
 
 def _without_handover(text: str) -> str:
-    """*text* with any Handover section removed and the rest left as it was."""
+    """*text* with any Handover section removed and the rest left as it was.
+
+    A day line is kept wherever it sits. `log_activity` used to add one before
+    the Backlinks block, which is inside this section once a handover exists, so
+    a file written by that version carries day lines here — dropping them would
+    delete the only copy of those hours.
+
+    One lifted out of the section is marked, because the shape cannot say which
+    it was: an event stranded there by the old writer, or a step of the handover's
+    own. It stays in the day's lines where the next session will see it, and the
+    mark says the reading is open rather than settled.
+    """
     kept: list[str] = []
     dropping = False
     for line in text.splitlines():
@@ -268,6 +334,8 @@ def _without_handover(text: str) -> str:
                 continue
         if not dropping:
             kept.append(line)
+        elif _DAY_LINE.match(line) and _RECOVERED_FROM_HANDOVER not in line:
+            kept.append(line + _RECOVERED_FROM_HANDOVER)
     return "\n".join(kept).rstrip() + "\n"
 
 
