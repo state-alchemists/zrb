@@ -24,6 +24,28 @@ _EMOTION_BY_EMOJI: dict[str, str] = {
 }
 
 
+# Markdown emphasis or code markers a reply may open with *in front of* the
+# emoji. A model bolds its opening line by habit, so `**😊 …` opens with an
+# emoji exactly as `😊 …` does: the markers are skipped here and left in the
+# text, so the emphasis keeps its closing pair.
+OPENING_MARKERS = "*_`"
+
+
+def leading_emoji_index(text: str) -> int | None:
+    """Index in *text* of the emotion emoji it opens with, if it opens with
+    one: the whitespace, then the markdown emphasis or code markers
+    immediately in front of it, are skipped. A bullet or heading marker is
+    not handled, and neither is whitespace between the markers and the
+    emoji."""
+    index = len(text) - len(text.lstrip())
+    while index < len(text) and text[index] in OPENING_MARKERS:
+        index += 1
+    if index < len(text) and text[index] in _EMOTION_BY_EMOJI:
+        return index
+    return None
+
+
 def get_leading_emotion(text: str) -> str | None:
     """The emotion of the emoji *text* opens with, if it opens with one."""
-    return _EMOTION_BY_EMOJI.get(text.lstrip()[:1])
+    index = leading_emoji_index(text)
+    return None if index is None else _EMOTION_BY_EMOJI[text[index]]
