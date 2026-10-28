@@ -153,6 +153,15 @@ _DAY_LINE = re.compile(
     _DAY_LINE_START.pattern + r".*(?:\. Files: .*\.|· imp \d\d?\.?)$"
 )
 
+# A day line lifted out of a handover carries this. The file cannot say whether it
+# was an event the broken `log_activity` stranded there or a step the handover's
+# author wrote in the same shape, and the next session should not read the second
+# as a finished piece of work. Marking it keeps both readings visible; guessing at
+# one of them, by text or by position, would be a claim the file cannot support.
+_RECOVERED_FROM_HANDOVER = (
+    " [recovered from a handover — this may have been a step, not an event]"
+)
+
 
 def _clean_summary(summary: str) -> str:
     """*summary* without a clock time at its start, and without a trailing period.
@@ -310,6 +319,11 @@ def _without_handover(text: str) -> str:
     the Backlinks block, which is inside this section once a handover exists, so
     a file written by that version carries day lines here — dropping them would
     delete the only copy of those hours.
+
+    One lifted out of the section is marked, because the shape cannot say which
+    it was: an event stranded there by the old writer, or a step of the handover's
+    own. It stays in the day's lines where the next session will see it, and the
+    mark says the reading is open rather than settled.
     """
     kept: list[str] = []
     dropping = False
@@ -318,8 +332,10 @@ def _without_handover(text: str) -> str:
             dropping = line.strip().lower().startswith(HANDOVER_HEADING.lower())
             if dropping:
                 continue
-        if not dropping or _DAY_LINE.match(line):
+        if not dropping:
             kept.append(line)
+        elif _DAY_LINE.match(line) and _RECOVERED_FROM_HANDOVER not in line:
+            kept.append(line + _RECOVERED_FROM_HANDOVER)
     return "\n".join(kept).rstrip() + "\n"
 
 

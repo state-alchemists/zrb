@@ -209,7 +209,42 @@ def test_a_day_line_stranded_in_an_old_handover_is_rescued(writable_journal):
 
     assert "stranded inside the old section" in day
     assert day.index("stranded inside the old section") < day.index("## Handover")
+    assert "[recovered from a handover" in day, "the reading is left open, not settled"
     assert "an old handover" not in day
+
+
+def test_a_step_of_the_old_handover_is_marked_rather_than_called_an_event(
+    writable_journal,
+):
+    """A line the file cannot classify keeps both readings, and loses no text.
+
+    Older versions allowed a handover to hold a step in exactly the shape
+    `log_activity` writes, so a rewrite cannot tell it from a stranded event by
+    looking. It is lifted into the day's lines — the copy has to survive — and
+    marked, because reading a step as finished work is the one error that costs
+    the next session its answer.
+    """
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "## Handover\n\nwhere it stopped:\n\n"
+            "- 12:34 — deploy is blocked. Files: app.py.\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
+
+    write_day_handover("HANDOVER-SECOND")
+
+    day = _read(path)
+    lifted = next(line for line in day.splitlines() if "deploy is blocked" in line)
+
+    assert not lifted.startswith("#"), "it is a day line, not a heading"
+    assert "- 12:34 — deploy is blocked. Files: app.py." in lifted, "text kept whole"
+    assert "[recovered from a handover" in lifted
+    assert day.index(lifted) < day.index("## Handover")
 
 
 def test_a_line_from_before_files_were_named_is_rescued_too(writable_journal):
