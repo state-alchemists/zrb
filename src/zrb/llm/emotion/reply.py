@@ -32,7 +32,11 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import ModelRequestContext
 
 from zrb.llm.ambient_state import current_reply_emotion
-from zrb.llm.emotion.label import get_leading_emotion
+from zrb.llm.emotion.label import (
+    OPENING_MARKERS,
+    get_leading_emotion,
+    leading_emoji_index,
+)
 
 
 class ReplyEmotion(AbstractCapability[None]):
@@ -153,18 +157,18 @@ class _Opening:
         return list(held)
 
     def _release_if_visible(self) -> "list[AgentStreamEvent | str]":
-        if not self._text.strip():
+        if not _has_visible_text(self._text):
             return []
-        emotion = get_leading_emotion(self._text) or ""
-        cut = len(self._text) - len(_strip_text(self._text)) if emotion else 0
         index, held, text = self._index, self._held, self._text
         self._held, self._index, self._text = [], None, ""
         self._is_opening_read = True
-        if cut:
+        emotion = get_leading_emotion(text) or ""
+        spans = _removed_spans(text) if emotion else []
+        if spans:
             assert index is not None
             self._stripped.add(index)
-            held = _cut_text(held, index, cut)
-            if not _strip_text(text):
+            held = _remove_chars(held, index, spans)
+            if not _has_visible_text(_strip_text(text)):
                 self._trimming = index
         return [emotion, *held]
 
@@ -187,31 +191,73 @@ class _Opening:
         return event
 
 
-def _cut_text(
-    events: list[AgentStreamEvent], index: int, cut: int
+def _removed_spans(text: str) -> "list[tuple[int, int]]":
+    """The spans `_strip_text` takes out of *text*: the whitespace it opens
+    with, then the emoji with the whitespace after it. The markdown markers
+    in front of the emoji are kept, so emphasis keeps its closing pair."""
+    spans: list[tuple[int, int]] = []
+    leading = len(text) - len(text.lstrip())
+    if leading:
+        spans.append((0, leading))
+    index = leading_emoji_index(text)
+    if index is not None:
+        after = text[index + 1 :]
+        spans.append((index, index + 1 + len(after) - len(after.lstrip())))
+    return spans
+
+
+def _has_visible_text(text: str) -> bool:
+    """False while *text* is only whitespace and markdown markers: the blanks
+    a stream sends before its first word are not the start of the reply."""
+    return bool(text.strip(OPENING_MARKERS + " \t\r\n"))
+
+
+def _remove_chars(
+    events: list[AgentStreamEvent], index: int, spans: "list[tuple[int, int]]"
 ) -> list[AgentStreamEvent]:
-    """*events* with the first *cut* characters of part *index*'s text gone,
-    dropping a delta left empty."""
+    """*events* with *spans* of part *index*'s text gone, dropping a delta
+    left empty."""
+    offset = 0
     kept: list[AgentStreamEvent] = []
     for event in events:
         if (
-            cut
-            and isinstance(event, PartStartEvent)
+            isinstance(event, PartStartEvent)
             and isinstance(event.part, TextPart)
+            and event.index == index
         ):
-            content = event.part.content
-            event = replace(event, part=replace(event.part, content=content[cut:]))
-            cut -= min(cut, len(content))
-        elif cut and _is_text_delta(event, index):
+            content, offset = _cut_spans(event.part.content, offset, spans)
+            kept.append(replace(event, part=replace(event.part, content=content)))
+        elif _is_text_delta(event, index):
             assert isinstance(event, PartDeltaEvent)
             assert isinstance(event.delta, TextPartDelta)
-            content = event.delta.content_delta
-            cut, content = cut - min(cut, len(content)), content[cut:]
-            if not content:
+            delta = event.delta.content_delta
+            content, offset = _cut_spans(delta, offset, spans)
+            if delta and not content:
                 continue
-            event = replace(event, delta=replace(event.delta, content_delta=content))
-        kept.append(event)
+            kept.append(
+                replace(event, delta=replace(event.delta, content_delta=content))
+            )
+        else:
+            kept.append(event)
     return kept
+
+
+def _cut_spans(
+    content: str, offset: int, spans: "list[tuple[int, int]]"
+) -> "tuple[str, int]":
+    """*content*, which begins at *offset* in its part's text, with *spans*
+    gone; and the offset just past it."""
+    pieces: list[str] = []
+    cursor = 0
+    for start, end in spans:
+        low = max(start - offset, cursor)
+        high = min(end - offset, len(content))
+        if high <= low:
+            continue
+        pieces.append(content[cursor:low])
+        cursor = high
+    pieces.append(content[cursor:])
+    return "".join(pieces), offset + len(content)
 
 
 def _is_text_delta(event: AgentStreamEvent, index: int) -> bool:
@@ -234,5 +280,10 @@ def _strip_part(part: ModelResponsePart) -> ModelResponsePart:
 
 
 def _strip_text(text: str) -> str:
-    """*text* without the emotion emoji it opens with, nor the space after."""
-    return text.lstrip()[1:].lstrip()
+    """*text* without the emotion emoji it opens with, nor the space after.
+    Markdown markers in front of the emoji stay, so emphasis keeps its pair."""
+    stripped = text.lstrip()
+    index = leading_emoji_index(stripped)
+    if index is None:
+        return text
+    return stripped[:index] + stripped[index + 1 :].lstrip()

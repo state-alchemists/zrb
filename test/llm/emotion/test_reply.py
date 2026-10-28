@@ -86,6 +86,54 @@ async def test_the_emoji_is_out_of_every_copy_of_the_reply(chunks):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "chunks",
+    [
+        ("**😊 Hello", " world.**"),
+        ("**", "😊", " Hel", "lo world.**"),
+        ("**😊", "\n\nHello", " world.**"),
+    ],
+)
+async def test_an_emoji_inside_the_replys_opening_markdown_is_read_and_taken_out(chunks):
+    """A reply that opens with bold around the emoji (`**😊 …`, which a model
+    writes by habit) still opens with an emotion, and only the emoji leaves:
+    the markers stay, so the emphasis keeps both halves."""
+    seen, output, kept, read, started, with_text = await _run(*chunks)
+
+    assert seen == "**Hello world.**"
+    assert output == "**Hello world.**"
+    assert kept == ["**Hello world.**"]
+    assert read == ["happy"]
+    assert started and all(started)
+    assert set(with_text) == {"happy"}
+
+
+@pytest.mark.asyncio
+async def test_the_end_event_of_a_stripped_part_carries_the_stripped_text():
+    """A UI may paint from the end event: it must not put the emoji back."""
+    read: list[str] = []
+
+    async def on_emotion(emotion):
+        read.append(emotion)
+
+    async def events():
+        yield PartStartEvent(index=0, part=TextPart("**😊 Hello"))
+        yield PartEndEvent(index=0, part=TextPart("**😊 Hello world.**"))
+
+    capability = ReplyEmotion(on_emotion, _noop)
+    passed = [
+        event
+        async for event in capability.wrap_run_event_stream(
+            MagicMock(), stream=events()
+        )
+    ]
+
+    ends = [event for event in passed if isinstance(event, PartEndEvent)]
+    assert [event.part.content for event in ends] == ["**Hello world.**"]
+    assert read == ["happy"]
+
+
+@pytest.mark.asyncio
 async def test_a_reply_without_an_emotion_emoji_is_left_as_it_is():
     seen, output, kept, read, _, with_text = await _run("🚀 Ship", " it 😊")
 
