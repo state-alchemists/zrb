@@ -118,12 +118,20 @@ async def test_an_emoji_inside_the_replys_opening_markdown_is_read_and_taken_out
         (("**😊**", " Hi"), "Hi"),
         (("*😊* hi",), "hi"),
         (("**😊", " ", "Hi**"), "**Hi**"),
+        (("  **😊** Hi",), "Hi"),
+        (("  ", "**😊**", " Hi"), "Hi"),
+        (("\n\n*😊* hi",), "hi"),
+        (("  **😊 Hello**",), "**Hello**"),
     ],
 )
 async def test_emphasis_holding_only_the_emoji_goes_with_it(chunks, expected):
     """`**😊** Hi` must not become `**** Hi`: when the emphasis holds nothing
     but the emoji, the whole enclosure leaves with it. And the space after an
-    emoji that ends the text so far still goes, whichever delta brings it."""
+    emoji that ends the text so far still goes, whichever delta brings it.
+
+    The whitespace that opens the reply goes with it, enclosed or not: it is
+    not part of what the reply says, and the enclosure is no reason to keep
+    it."""
     seen, output, kept, read, _, _ = await _run(*chunks)
 
     assert seen == output == kept[0] == expected

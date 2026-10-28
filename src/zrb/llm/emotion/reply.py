@@ -188,7 +188,9 @@ def _removed_spans(text: str) -> "list[tuple[int, int]]":
     no emoji: the whitespace in front, then the emoji with the whitespace after
     it. Markdown markers in front of the emoji are kept, so emphasis keeps its
     closing pair — unless the emphasis holds nothing but the emoji, `**😊**`,
-    where keeping them would leave four stray markers behind."""
+    where keeping them would leave four stray markers behind. The whitespace in
+    front goes either way: it opened the reply, and it is gone before the text
+    is read or spoken."""
     index = leading_emoji_index(text)
     if index is None:
         return []
@@ -197,7 +199,7 @@ def _removed_spans(text: str) -> "list[tuple[int, int]]":
     after = text[index + 1 :]
     if before and after.startswith(before):
         closer_end = index + 1 + len(before)
-        return [(leading, closer_end + _leading_space(text[closer_end:]))]
+        return [(0, closer_end + _leading_space(text[closer_end:]))]
     spans = [(0, leading)] if leading else []
     spans.append((index, index + 1 + _leading_space(after)))
     return spans
