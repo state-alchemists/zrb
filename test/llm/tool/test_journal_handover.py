@@ -235,30 +235,57 @@ def test_a_line_from_before_files_were_named_is_rescued_too(writable_journal):
     assert "an old handover" not in day
 
 
-def test_a_handover_step_that_looks_like_a_day_line_stays_with_the_handover(
+def test_a_handover_step_opening_like_a_day_line_is_refused(writable_journal):
+    """The section must not hold a line a rewrite would lift out of it.
+
+    Telling a step from an event by reading the line cannot be made reliable: the
+    same model writes both, so `- 12:34 — deploy is blocked. Files: app.py.` is a
+    shape it produces in either place. The writer keeps the ambiguity out of the
+    file instead of resolving it wrongly on the next rewrite — and a refusal
+    leaves the earlier handover standing.
+    """
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    write_day_handover("HANDOVER-KEPT")
+
+    with pytest.raises(ValueError) as raised:
+        write_day_handover(
+            "where it stopped:\n\n- 12:34 — deploy is blocked. Files: app.py."
+        )
+
+    assert "[SYSTEM SUGGESTION]" in str(raised.value)
+    assert "HANDOVER-KEPT" in _read(_day_path(writable_journal))
+
+
+def test_a_handover_may_still_list_steps(writable_journal):
+    """The refusal is about the clock stamp, not about lists."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    write_day_handover("where it stopped:\n\n- deploy is blocked at 12:34")
+
+    assert "deploy is blocked at 12:34" in _read(_day_path(writable_journal))
+
+
+def test_a_handover_written_before_the_refusal_keeps_its_stamp_only_step(
     writable_journal,
 ):
-    """`- 12:34 — …` in a handover is a step, not an event of the day.
+    """A file already holding such a step is read as a handover, not as events."""
+    from zrb.llm.tool.journal_write import write_day_handover
 
-    A handover is free prose, and a rewrite replaces all of it while lifting only
-    the day lines out. Matched on the stamp alone, such a bullet was lifted into
-    the day's lines: the file claimed an event that never happened, and the step
-    left the handover the next session reads first.
-    """
-    from zrb.llm.tool.journal_write import log_activity, write_day_handover
-
-    log_activity("alpha line")
-    write_day_handover("where it stopped:\n\n- 12:34 — deploy is blocked")
-
-    day = _read(_day_path(writable_journal))
-
-    assert "deploy is blocked" in day
-    assert day.index("## Handover") < day.index("deploy is blocked"), "still a step"
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "- 09:00 — an early line. Files: — · imp 4.\n\n"
+            "## Handover\n\nwhere it stopped:\n\n- 12:34 — deploy is blocked\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
 
     write_day_handover("HANDOVER-SECOND")
 
-    day = _read(_day_path(writable_journal))
+    day = _read(path)
 
-    assert "deploy is blocked" not in day, "replaced with the handover it belonged to"
-    assert "alpha line" in day
+    assert "deploy is blocked" not in day, "a step is not an event of the day"
+    assert "an early line" in day
     assert "HANDOVER-SECOND" in day

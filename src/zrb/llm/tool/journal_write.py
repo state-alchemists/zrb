@@ -138,13 +138,20 @@ _LEADING_STAMP = re.compile(
     r"^\s*(?:\d{4}-\d{2}-\d{2}[ T])?\d{1,2}:\d{2}(?::\d{2})?\s*(?:[—–-]\s*)?"
 )
 
-# A line `log_activity` wrote, and nothing looser: the stamp at the front and an
-# ending the tool gives one — `Files: …` since a line carried its files, `· imp N`
-# before that. A handover is free prose and may carry a bullet of its own, a
-# `- 12:34 — deploy is blocked` step, which belongs to the section it sits in:
-# matched on the stamp alone it was lifted into the day's lines, which both
-# invented an event and took the step out of the handover.
-_DAY_LINE = re.compile(r"^- \d\d:\d\d — .*(?:\. Files: .*\.|· imp \d\d?\.?)$")
+# A line opening like a day line, whatever ends it. `WriteDayHandover` refuses
+# one, because `_without_handover` lifts day lines out of the section a rewrite
+# replaces: a step written this way would come back as an event of the day and
+# leave the handover the next session reads first.
+_DAY_LINE_START = re.compile(r"^- \d\d:\d\d — ")
+
+# A line `log_activity` wrote, and nothing looser: the stamp and an ending the
+# tool gives one — `Files: …` since a line carried its files, `· imp N` before
+# that. A handover is free prose, and the ending is what a step of its own does
+# not carry, which is why a file written before the refusal above keeps its step
+# in the section it belongs to rather than producing an event that never was.
+_DAY_LINE = re.compile(
+    _DAY_LINE_START.pattern + r".*(?:\. Files: .*\.|· imp \d\d?\.?)$"
+)
 
 
 def _clean_summary(summary: str) -> str:
@@ -275,6 +282,15 @@ def _acceptable_handover(handover: str) -> str:
             "In the file that line would end the section, and the next rewrite "
             "would leave the text under it orphaned. Keep the words and drop the "
             "heading: the state, what is still in flight, and what to settle first."
+        )
+    if any(_DAY_LINE_START.match(line) for line in text.splitlines()):
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: the handover has a line opening like a day line "
+            "(`- 12:34 — …`), and a rewrite lifts day lines out of this section, "
+            "so that step would come back as an event of the day and leave the "
+            "handover. Say the same thing without the leading clock — `at 12:34, "
+            "deploy is blocked` — in a sentence or a plain bullet. Nothing was "
+            "written, so any earlier handover is still in place."
         )
     if len(text) > HANDOVER_MAX_CHARS:
         raise ValueError(
