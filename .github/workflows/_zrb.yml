@@ -33,7 +33,7 @@ jobs:
   Run-command:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:3.15.0
+      image: stalchmst/zrb:3.28.1
       # Anonymous pulls from shared runner IPs hit Docker Hub's rate limit.
       credentials:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
