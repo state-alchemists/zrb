@@ -197,9 +197,9 @@ def test_a_day_line_stranded_in_an_old_handover_is_rescued(writable_journal):
     with open(path, "w", encoding="utf-8") as handle:
         handle.write(
             f"# {date.today().isoformat()}\n\n"
-            "- 09:00 — an early line.\n\n"
+            "- 09:00 — an early line. Files: — · imp 4.\n\n"
             "## Handover\n\nan old handover\n\n"
-            "- 15:16 — stranded inside the old section.\n\n"
+            "- 15:16 — stranded inside the old section. Files: — · imp 6.\n\n"
             "## Backlinks\n\n- [month index](index.md)\n"
         )
 
@@ -210,3 +210,55 @@ def test_a_day_line_stranded_in_an_old_handover_is_rescued(writable_journal):
     assert "stranded inside the old section" in day
     assert day.index("stranded inside the old section") < day.index("## Handover")
     assert "an old handover" not in day
+
+
+def test_a_line_from_before_files_were_named_is_rescued_too(writable_journal):
+    """The older ending is still a day line: `· imp N`, with no `Files: …`."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "## Handover\n\nan old handover\n\n"
+            "- 09:08 — office · a line from before Files: · imp 6\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
+
+    write_day_handover("the new one")
+
+    day = _read(path)
+
+    assert "a line from before Files:" in day
+    assert day.index("a line from before Files:") < day.index("## Handover")
+    assert "an old handover" not in day
+
+
+def test_a_handover_step_that_looks_like_a_day_line_stays_with_the_handover(
+    writable_journal,
+):
+    """`- 12:34 — …` in a handover is a step, not an event of the day.
+
+    A handover is free prose, and a rewrite replaces all of it while lifting only
+    the day lines out. Matched on the stamp alone, such a bullet was lifted into
+    the day's lines: the file claimed an event that never happened, and the step
+    left the handover the next session reads first.
+    """
+    from zrb.llm.tool.journal_write import log_activity, write_day_handover
+
+    log_activity("alpha line")
+    write_day_handover("where it stopped:\n\n- 12:34 — deploy is blocked")
+
+    day = _read(_day_path(writable_journal))
+
+    assert "deploy is blocked" in day
+    assert day.index("## Handover") < day.index("deploy is blocked"), "still a step"
+
+    write_day_handover("HANDOVER-SECOND")
+
+    day = _read(_day_path(writable_journal))
+
+    assert "deploy is blocked" not in day, "replaced with the handover it belonged to"
+    assert "alpha line" in day
+    assert "HANDOVER-SECOND" in day
