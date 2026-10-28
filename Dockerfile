@@ -4,7 +4,7 @@ FROM python:3.13-slim-bookworm AS normal
 WORKDIR /zrb-bin
 
 # install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends g++ git curl wget jq unzip rsync openssh-client && \
+RUN apt-get update && apt-get install -y --no-install-recommends g++ git curl wget jq unzip rsync ripgrep openssh-client && \
     rm -rf /var/lib/apt/lists/*
 
 # install poetry for reproducible installs (uses poetry.lock)
