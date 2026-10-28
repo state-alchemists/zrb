@@ -14,6 +14,7 @@ from zrb.llm.emotion import get_leading_emotion
         ("_😢 Italic one._", "sad"),
         ("Done 😊", None),
         ("**Done 😊", None),
+        ("** 😊 Hi", None),
         ("", None),
         ("🚀 Shipped.", None),
     ],

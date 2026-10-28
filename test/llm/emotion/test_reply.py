@@ -94,7 +94,9 @@ async def test_the_emoji_is_out_of_every_copy_of_the_reply(chunks):
         ("**😊", "\n\nHello", " world.**"),
     ],
 )
-async def test_an_emoji_inside_the_replys_opening_markdown_is_read_and_taken_out(chunks):
+async def test_an_emoji_inside_the_replys_opening_markdown_is_read_and_taken_out(
+    chunks,
+):
     """A reply that opens with bold around the emoji (`**😊 …`, which a model
     writes by habit) still opens with an emotion, and only the emoji leaves:
     the markers stay, so the emphasis keeps both halves."""
@@ -106,6 +108,78 @@ async def test_an_emoji_inside_the_replys_opening_markdown_is_read_and_taken_out
     assert read == ["happy"]
     assert started and all(started)
     assert set(with_text) == {"happy"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "chunks, expected",
+    [
+        (("**😊** Hi",), "Hi"),
+        (("**😊**", " Hi"), "Hi"),
+        (("*😊* hi",), "hi"),
+        (("**😊", " ", "Hi**"), "**Hi**"),
+    ],
+)
+async def test_emphasis_holding_only_the_emoji_goes_with_it(chunks, expected):
+    """`**😊** Hi` must not become `**** Hi`: when the emphasis holds nothing
+    but the emoji, the whole enclosure leaves with it. And the space after an
+    emoji that ends the text so far still goes, whichever delta brings it."""
+    seen, output, kept, read, _, _ = await _run(*chunks)
+
+    assert seen == output == kept[0] == expected
+    assert read == ["happy"]
+
+
+@pytest.mark.asyncio
+async def test_an_unclosed_opening_marker_stays_for_the_stream_to_close():
+    """`  **😊 Hi` has no closing pair in the text so far: only the emoji and
+    its space leave, so the delta that closes the emphasis can still close
+    it, and the spaces in front go with it."""
+    seen, output, kept, read, _, _ = await _run("  **😊 Hi")
+
+    assert seen == output == kept[0] == "**Hi"
+    assert read == ["happy"]
+
+
+@pytest.mark.asyncio
+async def test_a_part_of_only_markers_is_not_the_opening_in_either_copy():
+    """The stream and the finished response must choose the same part: one
+    that is nothing but markers has nothing for an emoji to open."""
+    parts = [TextPart("**"), TextPart("😊 Hi")]
+
+    async def events():
+        for index, part in enumerate(parts):
+            yield PartStartEvent(index=index, part=part)
+            yield PartEndEvent(index=index, part=part)
+
+    capability = ReplyEmotion(_noop, _noop)
+    passed = [
+        event
+        async for event in capability.wrap_run_event_stream(
+            MagicMock(), stream=events()
+        )
+    ]
+    streamed = [
+        event.part.content
+        for event in passed
+        if isinstance(event, (PartStartEvent, PartEndEvent))
+    ]
+    kept = await capability.after_model_request(
+        MagicMock(),
+        request_context=MagicMock(),
+        response=ModelResponse(parts=list(parts)),
+    )
+
+    assert streamed == ["**", "**", "Hi", "Hi"]
+    assert [part.content for part in kept.parts] == ["**", "Hi"]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_of_only_markers_still_arrives():
+    seen, _, _, read, _, _ = await _run("**", "*")
+
+    assert seen.strip("*\n ") == ""
+    assert read == []
 
 
 @pytest.mark.asyncio

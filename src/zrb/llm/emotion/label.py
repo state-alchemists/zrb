@@ -33,7 +33,10 @@ OPENING_MARKERS = "*_`"
 
 def leading_emoji_index(text: str) -> int | None:
     """Index in *text* of the emotion emoji it opens with, if it opens with
-    one, past the whitespace and markdown markers in front of it."""
+    one: the whitespace, then the markdown emphasis or code markers
+    immediately in front of it, are skipped. A bullet or heading marker is
+    not handled, and neither is whitespace between the markers and the
+    emoji."""
     index = len(text) - len(text.lstrip())
     while index < len(text) and text[index] in OPENING_MARKERS:
         index += 1

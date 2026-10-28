@@ -77,12 +77,14 @@ class ReplyEmotion(AbstractCapability[None]):
         request_context: ModelRequestContext,
         response: ModelResponse,
     ) -> ModelResponse:
-        # Only the first non-blank text part can carry the emoji.
+        # Only the first text part with something to read can carry the emoji.
+        # A part that is nothing but markers is not it: the stream does not
+        # treat one as the opening either, and the two copies must agree.
         index = next(
             (
                 i
                 for i, part in enumerate(response.parts)
-                if isinstance(part, TextPart) and part.content.strip()
+                if isinstance(part, TextPart) and _has_visible_text(part.content)
             ),
             None,
         )
@@ -106,8 +108,12 @@ class ReplyEmotion(AbstractCapability[None]):
 
 class _Opening:
     """Buffers a response's events from the start of its first text part
-    until that part has visible text, then releases them in order with the
-    leading emoji removed. Later text parts pass through untouched.
+    until that part carries a word past its opening, then releases them in
+    order with the emoji removed. Later text parts pass through untouched.
+
+    Holding until a word arrives is what makes the removal decidable: `**😊`
+    may still close as `**😊**`, where the whole enclosure goes, and deciding
+    before the closer arrives would leave `****` behind.
 
     `take` and `flush` return the events to pass on. A `str` among them is
     the emotion read, ``""`` when the reply opens without one, which leaves
@@ -120,10 +126,7 @@ class _Opening:
         # Indexes of parts whose emoji was removed, so their end event is
         # stripped too.
         self._stripped: set[int] = set()
-        # Index of a part whose text so far is only the emoji and blanks;
-        # the blanks that follow are dropped until its text starts.
-        self._trimming: int | None = None
-        # True once visible text has been seen; later parts pass untouched.
+        # True once the opening has been read; later parts pass untouched.
         self._is_opening_read = False
 
     def take(self, event: AgentStreamEvent) -> "list[AgentStreamEvent | str]":
@@ -132,58 +135,47 @@ class _Opening:
             and isinstance(event.part, TextPart)
             and not self._is_opening_read
         ):
-            self._trimming = None
             passed = self.flush()
             self._held = [event]
             self._index = event.index
             self._text = event.part.content
-            return passed + self._release_if_visible()
+            return passed + self._release_if_a_word()
         if self._index is None:
-            return self._trim(self._clean_end(event))
+            return [self._clean_end(event)]
         if isinstance(event, PartEndEvent) and event.index == self._index:
-            return self.flush() + [event]
+            return self.flush() + [self._clean_end(event)]
         self._held.append(event)
         if _is_text_delta(event, self._index):
             assert isinstance(event, PartDeltaEvent)
             assert isinstance(event.delta, TextPartDelta)
             self._text += event.delta.content_delta
-            return self._release_if_visible()
+            return self._release_if_a_word()
         return []
 
     def flush(self) -> "list[AgentStreamEvent | str]":
-        """Release the held events unchanged; their part had no visible
-        text."""
-        held, self._held, self._index, self._text = self._held, [], None, ""
-        return list(held)
+        """Release what is held. A part that never got a word goes out here,
+        with its opening still taken out."""
+        if self._index is None:
+            held, self._held = self._held, []
+            return list(held)
+        return self._release_if_a_word(force=True)
 
-    def _release_if_visible(self) -> "list[AgentStreamEvent | str]":
-        if not _has_visible_text(self._text):
+    def _release_if_a_word(self, force: bool = False) -> "list[AgentStreamEvent | str]":
+        if not force and not _has_a_word(self._text):
             return []
         index, held, text = self._index, self._held, self._text
         self._held, self._index, self._text = [], None, ""
-        self._is_opening_read = True
         emotion = get_leading_emotion(text) or ""
-        spans = _removed_spans(text) if emotion else []
+        spans = _removed_spans(text)
+        # A part that is only markers or blanks opened nothing, so the next
+        # part can still be the reply's opening.
+        if spans or _has_visible_text(text):
+            self._is_opening_read = True
         if spans:
             assert index is not None
             self._stripped.add(index)
             held = _remove_chars(held, index, spans)
-            if not _has_visible_text(_strip_text(text)):
-                self._trimming = index
         return [emotion, *held]
-
-    def _trim(self, event: AgentStreamEvent) -> "list[AgentStreamEvent | str]":
-        """Drop the whitespace after an emoji that arrived in a delta of its
-        own, until the part's text starts."""
-        if self._trimming is None or not _is_text_delta(event, self._trimming):
-            return [event]
-        assert isinstance(event, PartDeltaEvent)
-        assert isinstance(event.delta, TextPartDelta)
-        content = event.delta.content_delta.lstrip()
-        if not content:
-            return []
-        self._trimming = None
-        return [replace(event, delta=replace(event.delta, content_delta=content))]
 
     def _clean_end(self, event: AgentStreamEvent) -> AgentStreamEvent:
         if isinstance(event, PartEndEvent) and event.index in self._stripped:
@@ -192,24 +184,41 @@ class _Opening:
 
 
 def _removed_spans(text: str) -> "list[tuple[int, int]]":
-    """The spans `_strip_text` takes out of *text*: the whitespace it opens
-    with, then the emoji with the whitespace after it. The markdown markers
-    in front of the emoji are kept, so emphasis keeps its closing pair."""
-    spans: list[tuple[int, int]] = []
-    leading = len(text) - len(text.lstrip())
-    if leading:
-        spans.append((0, leading))
+    """The spans `_strip_text` takes out of *text*, or none when it opens with
+    no emoji: the whitespace in front, then the emoji with the whitespace after
+    it. Markdown markers in front of the emoji are kept, so emphasis keeps its
+    closing pair — unless the emphasis holds nothing but the emoji, `**😊**`,
+    where keeping them would leave four stray markers behind."""
     index = leading_emoji_index(text)
-    if index is not None:
-        after = text[index + 1 :]
-        spans.append((index, index + 1 + len(after) - len(after.lstrip())))
+    if index is None:
+        return []
+    leading = len(text) - len(text.lstrip())
+    before = text[leading:index]
+    after = text[index + 1 :]
+    if before and after.startswith(before):
+        closer_end = index + 1 + len(before)
+        return [(leading, closer_end + _leading_space(text[closer_end:]))]
+    spans = [(0, leading)] if leading else []
+    spans.append((index, index + 1 + _leading_space(after)))
     return spans
+
+
+def _leading_space(text: str) -> int:
+    """How many characters of *text* are whitespace."""
+    return len(text) - len(text.lstrip())
 
 
 def _has_visible_text(text: str) -> bool:
     """False while *text* is only whitespace and markdown markers: the blanks
     a stream sends before its first word are not the start of the reply."""
     return bool(text.strip(OPENING_MARKERS + " \t\r\n"))
+
+
+def _has_a_word(text: str) -> bool:
+    """Whether anything readable has arrived past the opening emoji. Until it
+    has, markers around the emoji could still close straight after it, and
+    what leaves the reply is not yet decidable."""
+    return _has_visible_text(_strip_text(text))
 
 
 def _remove_chars(
@@ -281,9 +290,6 @@ def _strip_part(part: ModelResponsePart) -> ModelResponsePart:
 
 def _strip_text(text: str) -> str:
     """*text* without the emotion emoji it opens with, nor the space after.
-    Markdown markers in front of the emoji stay, so emphasis keeps its pair."""
-    stripped = text.lstrip()
-    index = leading_emoji_index(stripped)
-    if index is None:
-        return text
-    return stripped[:index] + stripped[index + 1 :].lstrip()
+    One rule, in `_removed_spans`, so the streamed and finished copies of a
+    reply cannot disagree about what leaves."""
+    return _cut_spans(text, 0, _removed_spans(text))[0]
