@@ -163,3 +163,50 @@ def test_a_handover_carrying_its_own_heading_is_refused(writable_journal):
     message = str(raised.value)
     assert "[SYSTEM SUGGESTION]" in message
     assert not os.path.exists(_day_path(writable_journal)), "a refusal writes nothing"
+
+
+def test_a_handover_keeps_what_was_logged_since_the_last_one(writable_journal):
+    """The bug of 2026-10-28: a second handover took the whole afternoon with it.
+
+    `log_activity` used to add its line before the Backlinks block, which sits
+    inside the handover section, so every rewrite deleted everything written
+    since the previous handover — the one copy of those hours.
+    """
+    from zrb.llm.tool.journal_write import log_activity, write_day_handover
+
+    log_activity("alpha line")
+    write_day_handover("HANDOVER-FIRST")
+    log_activity("beta line")
+    write_day_handover("HANDOVER-SECOND")
+
+    day = _read(_day_path(writable_journal))
+
+    assert "alpha line" in day
+    assert "beta line" in day
+    assert day.index("beta line") < day.index("## Handover")
+    assert "HANDOVER-FIRST" not in day
+    assert "HANDOVER-SECOND" in day
+
+
+def test_a_day_line_stranded_in_an_old_handover_is_rescued(writable_journal):
+    """A file the old code already wrote keeps its lines on the next write."""
+    from zrb.llm.tool.journal_write import write_day_handover
+
+    path = _day_path(writable_journal)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(
+            f"# {date.today().isoformat()}\n\n"
+            "- 09:00 — an early line.\n\n"
+            "## Handover\n\nan old handover\n\n"
+            "- 15:16 — stranded inside the old section.\n\n"
+            "## Backlinks\n\n- [month index](index.md)\n"
+        )
+
+    write_day_handover("the new one")
+
+    day = _read(path)
+
+    assert "stranded inside the old section" in day
+    assert day.index("stranded inside the old section") < day.index("## Handover")
+    assert "an old handover" not in day

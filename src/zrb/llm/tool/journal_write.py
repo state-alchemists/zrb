@@ -59,7 +59,6 @@ from zrb.llm.tool.journal_note import (
     check_slug,
     compose_note,
     format_stamp,
-    insert_before_backlinks,
     list_notes,
     next_stamp,
     one_line,
@@ -139,6 +138,10 @@ _LEADING_STAMP = re.compile(
     r"^\s*(?:\d{4}-\d{2}-\d{2}[ T])?\d{1,2}:\d{2}(?::\d{2})?\s*(?:[—–-]\s*)?"
 )
 
+# The shape `log_activity` writes. Only these lines may be lifted out of a
+# section they were stranded in: anything else there belongs to that section.
+_DAY_LINE = re.compile(r"^- \d\d:\d\d — ")
+
 
 def _clean_summary(summary: str) -> str:
     """*summary* without a clock time at its start, and without a trailing period.
@@ -153,6 +156,29 @@ def _clean_summary(summary: str) -> str:
     if not cleaned:
         return text
     return cleaned[:-1].rstrip() if cleaned.endswith(".") else cleaned
+
+
+def _append_day_line(text: str, entry: str) -> str:
+    """*text* with *entry* as its newest day line, above any `##` section.
+
+    Not `insert_before_backlinks`, which reaches that spot only past a
+    `## Handover`: a handover owns everything from its heading to the next one,
+    so the next write deleted every line logged since the previous handover
+    (2026-10-28: twenty-three of them, a whole afternoon).
+    """
+    if entry in text:
+        return text
+    lines = text.splitlines()
+    end = next(
+        (index for index, line in enumerate(lines) if line.startswith("## ")),
+        len(lines),
+    )
+    head = lines[:end]
+    while head and not head[-1].strip():
+        head.pop()
+    tail = "\n".join(lines[end:]).strip()
+    body = "\n".join([*head, entry])
+    return f"{body}\n\n{tail}\n" if tail else f"{body}\n"
 
 
 def _log_activity_locked(
@@ -177,7 +203,7 @@ def _log_activity_locked(
         f"- {now.strftime('%H:%M')} — {_clean_summary(summary)}. "
         f"Files: {file_note}{ranked}."
     )
-    _write_if_changed(day_file, insert_before_backlinks(read_text(day_file), entry))
+    _write_if_changed(day_file, _append_day_line(read_text(day_file), entry))
     return f"Logged to {relative(day_file, root)}"
 
 
@@ -258,7 +284,13 @@ def _acceptable_handover(handover: str) -> str:
 
 
 def _without_handover(text: str) -> str:
-    """*text* with any Handover section removed and the rest left as it was."""
+    """*text* with any Handover section removed and the rest left as it was.
+
+    A day line is kept wherever it sits. `log_activity` used to add one before
+    the Backlinks block, which is inside this section once a handover exists, so
+    a file written by that version carries day lines here — dropping them would
+    delete the only copy of those hours.
+    """
     kept: list[str] = []
     dropping = False
     for line in text.splitlines():
@@ -266,7 +298,7 @@ def _without_handover(text: str) -> str:
             dropping = line.strip().lower().startswith(HANDOVER_HEADING.lower())
             if dropping:
                 continue
-        if not dropping:
+        if not dropping or _DAY_LINE.match(line):
             kept.append(line)
     return "\n".join(kept).rstrip() + "\n"
 
