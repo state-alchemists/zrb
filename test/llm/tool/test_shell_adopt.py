@@ -6,9 +6,11 @@ now moved to the background instead, and these tests hold that shape.
 """
 
 import asyncio
+import math
 import re
 import shlex
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -18,6 +20,28 @@ from zrb.llm.tool.shell import run_shell_command
 from zrb.llm.tool.shell_background import get_shell_background_registry
 
 _PYTHON = shlex.quote(Path(sys.executable).as_posix())
+
+_MEASUREMENT_TIMEOUT_SECONDS = 60
+_STARTUP_MARGIN_SECONDS = 1
+
+
+async def _window_outlasting_startup() -> int:
+    """A timeout that leaves the command room to start *and* to print.
+
+    Two tests below need output from inside the window they give a command: a
+    tick in the report, and an overflow spill file. Whether that output exists
+    depends on how fast the machine boots an interpreter, and on a shared
+    runner that is most of a one-second window. The bank's GitLab runner
+    reported an empty stdout, and no spill file, for scripts that had not
+    reached their first line yet, where GitHub's runner saw ticks and a spill
+    from the same commit. So the window is measured against this machine
+    instead of being assumed to be a second.
+    """
+    start = time.monotonic()
+    await run_shell_command(
+        f'{_PYTHON} -c "print(1)"', timeout=_MEASUREMENT_TIMEOUT_SECONDS
+    )
+    return math.ceil(time.monotonic() - start) + _STARTUP_MARGIN_SECONDS
 
 
 def _ticker_command(tmp_path, seconds: float = 30.0) -> str:
@@ -50,10 +74,11 @@ def _highest_tick(text: str) -> int:
 
 @pytest.mark.asyncio
 async def test_a_timed_out_command_keeps_running_under_a_handle(tmp_path):
-    result = await run_shell_command(_ticker_command(tmp_path), timeout=1)
+    window = await _window_outlasting_startup()
+    result = await run_shell_command(_ticker_command(tmp_path), timeout=window)
     handle = _handle(result)
     try:
-        assert "(moved to background after 1s)" in result
+        assert f"(moved to background after {window}s)" in result
         assert "NOT killed" in result
         assert f"MonitorProcess(handle='{handle}')" in result
 
@@ -132,8 +157,9 @@ async def test_an_adopted_flood_keeps_one_complete_spill_file(tmp_path):
     opens a new file holding only what was written after adoption — a path that
     claims to be the command's output while starting mid-stream.
     """
+    window = await _window_outlasting_startup()
     result = await run_shell_command(
-        _flooding_command(tmp_path), timeout=1, max_chars=400
+        _flooding_command(tmp_path), timeout=window, max_chars=400
     )
     handle = _handle(result)
     try:
