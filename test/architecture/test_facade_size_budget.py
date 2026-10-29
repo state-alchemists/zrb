@@ -111,8 +111,10 @@ FACADE_BUDGETS = {
     # +3 (1298->1301): `stream_ai_response` renders the answer through
     # `shown_text`, so the `<spoken>` markers speech alone needs never reach the
     # screen: one import and the comment saying why; the parsing stays in
-    # `llm/util/spoken.py`.
-    "llm/ui/base/ui.py": 1301,
+    # `llm/util/spoken.py`. +2 (1301->1303): the same reason and the same
+    # one-line call at `end_side_question` -- a `/btw` answer is a screen too,
+    # and its history is never involved.
+    "llm/ui/base/ui.py": 1303,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
