@@ -126,10 +126,13 @@ class SpeechChunker:
         return chunks
 
     def _find_cut(self) -> int | None:
-        """Where the next chunk ends in `_prose`, if one is complete."""
-        for match in _BOUNDARY_RE.finditer(self._prose):
-            if len(clean_for_speech(self._prose[: match.end()])) >= self._min_chars:
-                return match.end()
+        """Where the next chunk ends in `_prose`, if one is complete: the end of
+        a sentence the voice can take whole, else the last break inside the
+        length it can take, so a long sentence is said in pieces instead of
+        past the engine's limit."""
+        end = self._sentence_end()
+        if end is not None and self._is_short_enough(self._prose[:end]):
+            return end
         if len(self._prose) <= self._max_chars:
             return None
         window = self._prose[: self._max_chars]
@@ -138,3 +141,14 @@ class SpeechChunker:
             return clause_ends[-1]
         space = window.rfind(" ")
         return space + 1 if space > 0 else self._max_chars
+
+    def _sentence_end(self) -> int | None:
+        """Where the first run of `_prose` worth speaking ends a sentence."""
+        for match in _BOUNDARY_RE.finditer(self._prose):
+            if len(clean_for_speech(self._prose[: match.end()])) >= self._min_chars:
+                return match.end()
+        return None
+
+    def _is_short_enough(self, text: str) -> bool:
+        """Whether the cleaned *text* is no longer than one piece may be."""
+        return len(clean_for_speech(text)) <= self._max_chars

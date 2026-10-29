@@ -24,14 +24,21 @@ class StreamedReply:
 
     Every sentence is spoken and the whole reply is read: a session that
     summarizes long replies does not stream them (`SpeechSession`).
-    Events arrive on the event loop and the turn ends on a hook thread, so
-    every method holds a lock.
+
+    *max_chars*, when given, is the longest run of prose said as one piece:
+    the speech backend's own limit, which the chunker cannot know. Events
+    arrive on the event loop and the turn ends on a hook thread, so every
+    method holds a lock.
     """
 
-    def __init__(self, say: Callable[[str], None]) -> None:
+    def __init__(
+        self, say: Callable[[str], None], max_chars: int | None = None
+    ) -> None:
         self._say = say
         self._lock = threading.Lock()
-        self._chunker = SpeechChunker()
+        self._chunker = (
+            SpeechChunker() if max_chars is None else SpeechChunker(max_chars=max_chars)
+        )
         self._has_spoken = False
         self._is_muted = False
         self._was_muted = False

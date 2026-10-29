@@ -108,3 +108,23 @@ def test_a_dotted_abbreviation_does_not_end_a_sentence():
     chunker = SpeechChunker(min_chars=1)
     chunks = _feed_all(chunker, _stream("Use a tool, e.g. grep, i.e. fast. Next"))
     assert chunks == ["Use a tool, e.g. grep, i.e. fast."]
+
+
+def test_a_sentence_longer_than_the_limit_is_said_in_pieces():
+    """A voice with a small token window drops what comes past it, so a
+    sentence that runs longer than one piece is cut, not said whole."""
+    chunker = SpeechChunker(min_chars=10, max_chars=40)
+    text = "This is a very long sentence that exceeds the voice token window. Next."
+    chunks = _feed_all(chunker, _stream(text))
+    assert chunks == [
+        "This is a very long sentence that",
+        "exceeds the voice token window.",
+    ]
+    assert chunker.flush() == ["Next."]
+
+
+def test_a_sentence_inside_the_limit_is_not_cut():
+    """The common case is left alone: a sentence the voice can take whole."""
+    chunker = SpeechChunker(min_chars=10, max_chars=250)
+    chunks = _feed_all(chunker, _stream("The tests pass on every platform."))
+    assert chunks + chunker.flush() == ["The tests pass on every platform."]

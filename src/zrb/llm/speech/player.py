@@ -9,6 +9,7 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import replace
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import current_speech_voice
@@ -27,6 +28,9 @@ from zrb.llm.speech.pcm_player import (
     wait_for_streams_to_close,
 )
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
+
+if TYPE_CHECKING:
+    from zrb.llm.speech.backend.audio import SpeechAudio
 
 logger = logging.getLogger(__name__)
 
@@ -84,6 +88,14 @@ def _is_locked(lock_file: str) -> bool:
 
 # Pipecat gives up on a service after this many silent sentences in a row.
 _RENDER_FAILURES_BEFORE_RESTART = 3
+# How many times one sentence is offered to a backend before it is given up
+# on: a local voice that comes back with no audio at all is usually having a
+# bad context rather than refusing the sentence, and a sentence lost is not
+# heard at all.
+_RENDER_ATTEMPTS = 2
+# How much of a sentence that could not be spoken is written to the log, so a
+# sentence that went unsaid can be found and tried again by hand.
+_SPOKEN_EXCERPT_CHARS = 60
 
 
 class Speaker:
@@ -369,18 +381,16 @@ class Speaker:
     ) -> Utterance:
         """Create an utterance, using a later backend if needed."""
         if self._should_speak_in_process(later):
-            try:
-                audio = backend.create_audio(text)
-            except Exception as exc:
+            audio, reason = self._render(backend, text)
+            if audio is None:
                 self._handle_render_failure(backend)
                 logger.warning(
                     f"Speech backend {backend.name} could not render audio to play "
-                    f"in process ({exc}); {self._what_speaks_it(backend, later)}"
+                    f"in process ({reason}); {self._what_speaks_it(backend, later)}: "
+                    f"{_spoken_excerpt(text)}"
                 )
-                audio = None
             else:
                 self._handle_render_success(backend)
-            if audio is not None:
                 self._played_in_process = True
                 return PcmUtterance(
                     audio,
@@ -394,6 +404,30 @@ class Speaker:
                 )
         self._played_in_process = False
         return backend.create_utterance(text)
+
+    def _render(
+        self, backend: AnySpeechBackend, text: str
+    ) -> "tuple[SpeechAudio | None, Exception | None]":
+        """*text* rendered by *backend*, asked again once when it is a local
+        voice that made no audio at all, and what it made or why not.
+
+        An empty context is the engine's slip, not the sentence's: Pipecat
+        reports one as a completed context with no audio, and a local voice
+        that renders it has nothing else to speak the sentence with. A remote
+        voice is asked once: a render nobody hears is still billed, and where
+        it fails the local engine speaks the sentence instead."""
+        attempts = _RENDER_ATTEMPTS if backend.is_local else 1
+        reason: Exception | None = None
+        for _ in range(attempts):
+            try:
+                audio = backend.create_audio(text)
+            except Exception as exc:
+                reason = exc
+            else:
+                if audio is not None:
+                    return audio, None
+                reason = RuntimeError("it made no audio")
+        return None, reason
 
     def _stand_ins(self, later: "list[AnySpeechBackend]") -> "list[AnySpeechBackend]":
         """The later backends that can play a sentence through a program."""
@@ -766,6 +800,17 @@ class Speaker:
             owned, self._owned_backends = self._owned_backends, []
         for backend in owned:
             backend.close()
+
+
+def _spoken_excerpt(text: str) -> str:
+    """The start of *text*, so a sentence that went unsaid can be found again.
+
+    Only a sentence that could not be spoken is written this way, and only its
+    start: the log is one more place a conversation would otherwise be left in
+    full."""
+    if len(text) <= _SPOKEN_EXCERPT_CHARS:
+        return repr(text)
+    return repr(text[:_SPOKEN_EXCERPT_CHARS] + "...")
 
 
 def _resolve_player(player: str | None) -> str:

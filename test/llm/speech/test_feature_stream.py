@@ -135,6 +135,18 @@ async def test_a_reply_spoken_at_stop_is_read_in_its_emotions_voice():
     assert session.speaker.voices == ["happy.wav"]
 
 
+def test_a_streamed_chunk_stops_at_the_length_the_voice_can_take():
+    """A local engine drops words past its own token window, so how much prose
+    one chunk may hold is the setting's, not the chunker's default."""
+    session = _session(stream=True, chunk_max_chars=40)
+    reply = "one two three four, five six seven eight nine"
+
+    session.handle_stream_event(_text_start(""))
+    session.handle_stream_event(_text_delta(reply))
+
+    assert session.speaker.said == ["one two three four,"]
+
+
 def test_text_before_a_tool_call_is_spoken_when_the_call_starts():
     session = _session(stream=True)
 
