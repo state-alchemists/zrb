@@ -4,15 +4,14 @@ The widget's interactive parts (focus, invalidate) are exercised through public
 state-driver methods (`move_choice_cursor`, `toggle_choice_current`,
 `confirm_choice`) without a live terminal — `get_app()` calls inside the mixin
 are guarded and no-op when no app is running. The panel's own presentation is
-covered beside this file: `test_selection_context.py` (the question's context
-and the panel's height) and `test_selection_recommended.py` (the ★ marker).
+covered beside this file: `test_selection_context.py` (the question's context,
+recorded in scrollback rather than painted) and `test_selection_recommended.py`
+(the ★ marker).
 """
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock
-
-import pytest
 
 
 def _event(text=""):

@@ -36,7 +36,6 @@ def create_style() -> Style:
                 f"{panel}-frame": f"bg:{choice_bg} {CFG.LLM_UI_STYLE_INPUT_FRAME}",
                 panel: f"bg:{choice_bg}",
                 f"{panel}.question": f"bg:{choice_bg} bold",
-                f"{panel}.context": f"bg:{choice_bg} {faint}",
                 f"{panel}.selected": f"bg:{choice_selected_bg} {text} bold",
                 f"{panel}.option": f"bg:{choice_bg}",
                 f"{panel}.desc": f"bg:{choice_bg} {faint}",

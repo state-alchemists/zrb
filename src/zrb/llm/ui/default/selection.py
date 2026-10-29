@@ -13,10 +13,12 @@ Selection model:
     closes, focus returns to the input field, and the next Enter resolves the
     same future with the typed text (via `handle_confirmation`).
 
-Panel layering: the question's `context` (the facts needed to answer) renders
-above the question, muted, and an option marked `recommended` carries a ★ in
-its gutter. The panel grows with the context up to a share of the terminal
-height, then the context is ellipsized so the options stay reachable.
+Size: the panel hugs the question, its rows and the key hint, and nothing sizes
+it against the terminal. It floats *over* the transcript, so every row it takes
+is a row of the conversation the answer depends on — which is why the question's
+`context` is not painted here at all, only recorded in scrollback with the
+answer (`_answer_echo`). An option marked `recommended` carries a ★ in its row
+gutter, so the label an answer resolves to stays plain.
 """
 
 from __future__ import annotations
@@ -27,7 +29,6 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.tool_call.choice_spec_format import get_option_label
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
-from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
@@ -41,13 +42,6 @@ FREE_TEXT_LABEL = "✎ Type my own answer…"
 
 # Gutter glyph on a row whose option is the one the model advises.
 RECOMMENDED_MARK = "★"
-
-# The panel may take at most this share of the terminal's rows: enough to read
-# the context without ever pushing the options off screen.
-CHOICE_HEIGHT_SHARE = 0.4
-
-# What a truncated context ends on.
-ELLIPSIS = "…"
 
 
 @dataclass(frozen=True)
@@ -254,8 +248,8 @@ class UISelection:
     def _answer_echo(self, question: str, answer: str, context: str = "") -> str:
         """Scrollback record left after the widget closes: question + answer.
 
-        The whole context is recorded here — the panel truncates it to fit on
-        screen, so scrollback is where its long form lives.
+        The whole context is recorded here: the panel does not paint it at all
+        (it would cover the transcript), so scrollback is where it lives.
         """
         quoted = "".join(f"  {line}\n" for line in context.splitlines())
         return f"\n❓ {question}\n{quoted}  ✔ {answer}\n"
@@ -288,15 +282,17 @@ class UISelection:
     # rendering
 
     def get_choice_text(self) -> "StyleAndTextTuples":
+        """What the panel paints: the question, its rows and the key hint.
+
+        Nothing here measures the terminal. The panel floats *over* the
+        transcript, so its height must follow the question and the options
+        alone: a panel that grew with the question's `context` covered the
+        conversation the user was reading in order to answer it.
+        """
         spec = self._active_choice
         if spec is None:
             return []
         width = self._wrap_width()
-        body = self._body_frags(spec, width)
-        return self._context_frags(spec, width, body) + body
-
-    def _body_frags(self, spec: dict, width: int) -> "StyleAndTextTuples":
-        """The question, the rows and the key hint — everything but the context."""
         multi = bool(spec.get("multi_select"))
         idx, total = spec.get("index", 1), spec.get("total", 1)
         counter = f"  ({idx}/{total})" if total > 1 else ""
@@ -317,37 +313,6 @@ class UISelection:
         if any(row.recommended for row in rows):
             hint += f" · {RECOMMENDED_MARK} recommended"
         frags.append(("class:choice.hint", f"\n{hint}\n"))
-        return frags
-
-    def _context_frags(
-        self, spec: dict, width: int, body: "StyleAndTextTuples"
-    ) -> "StyleAndTextTuples":
-        """The context, above the question, clamped to the panel's height budget."""
-        context = spec.get("context") or ""
-        lines = _wrap(context, width - 1)
-        if not lines:
-            return []
-        # `_height_cap` bounds the context, not the whole panel: the question,
-        # the rows and the hint are painted whatever happens. Two rows stay
-        # reserved — one under the panel, one for the blank line that separates
-        # the context from the question — so what is left over is the real
-        # budget. Measuring the panel against the cap instead (`cap - body - 1`)
-        # subtracted the body twice and left a 24-row terminal with a negative
-        # budget, so a one-line context was dropped for want of arithmetic
-        # rather than for want of room.
-        budget = min(
-            self._height_cap(),
-            self._terminal_lines() - _painted_lines(body) - 2,
-        )
-        lines = _clamp_lines(lines, budget, width - 1)
-        if not lines:
-            # No room at all: the options matter more than the context, and the
-            # full context is still recorded in scrollback with the answer.
-            return []
-        frags: StyleAndTextTuples = [
-            ("class:choice.context", f" {line}\n") for line in lines
-        ]
-        frags.append(("class:choice.context", "\n"))
         return frags
 
     def _rows(self, spec: dict) -> "list[_Row]":
@@ -408,38 +373,6 @@ class UISelection:
         columns = getattr(self._ui, "output_field_width", None)
         return max(24, (columns or 84) - 4)
 
-    def _height_cap(self) -> int:
-        """Rows the context may paint: a share of the terminal, never all of it.
-
-        A ceiling on the context, not on the panel: what a short screen cannot
-        hold is decided against `_terminal_lines` in `_context_frags`, so this
-        only stops a long context from dominating a tall one.
-        """
-        return max(1, int(self._terminal_lines() * CHOICE_HEIGHT_SHARE))
-
-    def _terminal_lines(self) -> int:
-        """Terminal rows.
-
-        The running application first — its output is a dup of the real stdout,
-        while `get_terminal_size` may read a redirected fd and disagree with
-        what the renderer is painting.
-        """
-        app = self._running_application()
-        if app is not None:
-            try:
-                return app.output.get_size().rows
-            except (AttributeError, OSError, ValueError):
-                # A redirected or console-less output: fall through to the
-                # terminal probe, the same fallback `output_field_width` uses.
-                pass
-        return get_terminal_size().lines
-
-    def _running_application(self):
-        """The live prompt_toolkit application, or None before it is built."""
-        if not getattr(self._ui, "is_application_built", False):
-            return None
-        return getattr(self._ui, "application", None)
-
     # helpers
 
     def _append_now(self, text: str) -> None:
@@ -462,26 +395,3 @@ def _wrap(text: str, width: int) -> list[str]:
     if not text:
         return []
     return textwrap.wrap(text, max(10, width)) or [""]
-
-
-def _painted_lines(frags: "StyleAndTextTuples") -> int:
-    """How many terminal lines *frags* paint."""
-    return "".join(frag[1] for frag in frags).count("\n")
-
-
-def _clamp_lines(lines: list[str], budget: int, width: int) -> list[str]:
-    """At most *budget* of *lines*, the last one ellipsized when some were cut."""
-    if budget <= 0:
-        return []
-    if len(lines) <= budget:
-        return lines
-    kept = lines[:budget]
-    kept[-1] = _ellipsize(kept[-1], width)
-    return kept
-
-
-def _ellipsize(line: str, width: int) -> str:
-    """*line* ending in an ellipsis, dropping a word rather than overflow."""
-    if len(line) + len(ELLIPSIS) > width:
-        line = line.rsplit(" ", 1)[0] if " " in line.strip() else line[:-1]
-    return f"{line.rstrip()}{ELLIPSIS}"

@@ -1,9 +1,11 @@
-"""The question's context in the choice panel: shown, capped, and echoed.
+"""The question's context: out of the panel, in the scrollback echo.
 
-The panel used to show the question alone, so answering meant scrolling back to
-the conversation. The context is rendered above the question, the panel grows
-with it, and past a share of the terminal height it is ellipsized rather than
-allowed to push the options off screen. Scrollback keeps the long form.
+The panel floats over the transcript and takes the focus, so every row it paints
+costs a row of the conversation the answer depends on. `#765` let it grow with
+the context up to 40% of the terminal, which covered that conversation; the
+panel hugs its question and its options again, and the whole context is recorded
+in scrollback beside the answer instead. These tests hold that line: the panel's
+height moves neither with the context nor with the terminal's rows.
 """
 
 from __future__ import annotations
@@ -13,6 +15,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.llm.ui.default import selection as selection_module
+from zrb.util.cli import terminal as terminal_module
 from zrb.util.cli.terminal import TerminalSize
 
 
@@ -41,25 +44,25 @@ def _painted_line_count(ui) -> int:
     return _rendered(ui).count("\n")
 
 
-def _context_lines(ui) -> list[str]:
-    """The context's painted lines, trailing newlines and padding stripped."""
-    return [
-        frag[1].strip()
-        for frag in ui.get_choice_text()
-        if frag[0] == "class:choice.context" and frag[1].strip()
-    ]
-
-
 @pytest.fixture
 def terminal_rows(monkeypatch):
-    """Pin the terminal height the choice panel measures itself against."""
+    """Pin the terminal height, in every namespace the panel could read it.
+
+    CI runs on 24 rows while a local terminal is taller, so a height-sensitive
+    test passes here and fails there. The probe is pinned both at its source and
+    on the module under test (`raising=False`: a panel that no longer imports it
+    by name has no such attribute), and the tests below prove the height makes
+    no difference either way.
+    """
 
     def _set(rows: int) -> None:
-        monkeypatch.setattr(
-            selection_module,
-            "get_terminal_size",
-            lambda *args, **kwargs: TerminalSize(columns=80, lines=rows),
-        )
+        size = TerminalSize(columns=80, lines=rows)
+
+        def probe(*args, **kwargs):
+            return size
+
+        monkeypatch.setattr(terminal_module, "get_terminal_size", probe)
+        monkeypatch.setattr(selection_module, "get_terminal_size", probe, raising=False)
 
     return _set
 
@@ -71,95 +74,51 @@ def _long_context(sentences: int = 12) -> str:
     )
 
 
-def test_context_renders_above_the_question_in_muted_style(ui, terminal_rows):
-    """The panel carries the facts needed to answer, so the user need not
-    scroll back to the conversation to answer it."""
-    terminal_rows(40)
-    spec = _spec([{"label": "A"}, {"label": "B"}])
+# --- the panel does not grow ------------------------------------------------
+
+
+def test_the_panel_paints_no_context(ui, terminal_rows):
+    """The panel carries the question and the options, not the context: the
+    conversation behind it is what the user reads, and it stays visible."""
+    terminal_rows(24)
+    spec = _spec([{"label": "Postgres"}, {"label": "SQLite"}])
     spec["context"] = "Read-heavy traffic, 2GB of data, no ops team."
     ui.begin_choice(spec)
     text = _rendered(ui)
 
-    assert text.index("Read-heavy traffic") < text.index("Which DB?")
-    assert "Read-heavy traffic, 2GB of data, no ops team." in text
-    context_styles = [
-        frag[0] for frag in ui.get_choice_text() if "Read-heavy traffic" in frag[1]
-    ]
-    assert context_styles == ["class:choice.context"]
-
-
-def test_context_is_wrapped_to_the_panel_width(ui, terminal_rows):
-    terminal_rows(40)
-    spec = _spec([{"label": "A"}])
-    spec["context"] = _long_context(4)
-    ui.begin_choice(spec)
-
-    context_frags = [
-        frag[1]
-        for frag in ui.get_choice_text()
-        if frag[0] == "class:choice.context" and frag[1].strip()
-    ]
-    assert len(context_frags) > 1, "expected the context to wrap onto several lines"
-    # Panel width is 80 here (the stand-in UI's default): one column of padding.
-    assert all(len(line.rstrip("\n")) <= 80 for line in context_frags)
-
-
-def test_short_context_grows_the_panel(ui, terminal_rows):
-    """The panel is allowed to grow with the context — that is the point."""
-    terminal_rows(40)
-    ui.begin_choice(_spec([{"label": "A"}, {"label": "B"}]))
-    without_context = _painted_line_count(ui)
-
-    spec = _spec([{"label": "A"}, {"label": "B"}])
-    spec["context"] = "Two lines of facts.\nA second line."
-    ui.begin_choice(spec)
-    assert _painted_line_count(ui) > without_context
-
-
-def test_long_context_is_truncated_and_the_options_stay_on_screen(ui, terminal_rows):
-    terminal_rows(40)
-    spec = _spec([{"label": "Postgres"}, {"label": "SQLite"}])
-    spec["context"] = _long_context(40)  # far past any share of a screen
-    ui.begin_choice(spec)
-    text = _rendered(ui)
-
-    # The context never paints more than 40% of the screen, and the panel as a
-    # whole never outgrows it. The 40% bounds the context, not the question,
-    # the rows and the hint, which must stay whatever the terminal size.
-    assert len(_context_lines(ui)) <= int(40 * selection_module.CHOICE_HEIGHT_SHARE)
-    assert _painted_line_count(ui) < 40
-    assert _context_lines(ui)[-1].endswith("…"), "a cut context must say so"
-    # Options, the free-text row and the key hint all survive the truncation.
+    assert "Read-heavy traffic" not in text
+    # Question, both options, the free-text row and the key hint all survive.
+    assert "Which DB?" in text
     assert "Postgres" in text and "SQLite" in text
     assert "Type my own answer" in text
     assert "↑/↓ move" in text
 
 
-def test_a_context_that_fits_is_not_truncated(ui, terminal_rows):
-    terminal_rows(60)
+def test_the_panel_height_does_not_move_with_the_context(ui, terminal_rows):
+    """The regression: a long context grew the panel over the transcript."""
+    terminal_rows(24)
+    ui.begin_choice(_spec([{"label": "A"}, {"label": "B"}]))
+    without_context = _painted_line_count(ui)
+
     spec = _spec([{"label": "A"}, {"label": "B"}])
-    spec["context"] = "One short fact."
+    spec["context"] = _long_context(40)  # far past any share of a screen
     ui.begin_choice(spec)
-    assert _context_lines(ui) == ["One short fact."]
+    assert _painted_line_count(ui) == without_context
 
 
-def test_no_room_for_context_still_shows_the_options(ui, terminal_rows):
-    """On a tiny terminal the options win: the context is dropped, not clipped
-    into the option rows."""
-    terminal_rows(10)
+def test_the_panel_height_does_not_move_with_the_terminal_rows(ui, terminal_rows):
+    """A 24-row CI terminal and a tall local one paint the same panel — the
+    second half of the regression, and the half that passed locally."""
     spec = _spec([{"label": "Postgres"}, {"label": "SQLite"}])
-    spec["context"] = _long_context()
+    spec["context"] = _long_context(40)
+
+    terminal_rows(24)
     ui.begin_choice(spec)
-    text = _rendered(ui)
+    short_terminal = _rendered(ui)
 
-    assert "Postgres" in text and "SQLite" in text
-    assert "Sentence 0" not in text
-    assert _context_lines(ui) == []
-
-
-def test_context_absent_renders_nothing_extra(ui):
-    ui.begin_choice(_spec([{"label": "A"}]))
-    assert _context_lines(ui) == []
+    terminal_rows(60)
+    ui.begin_choice(spec)
+    assert _rendered(ui) == short_terminal
 
 
 # --- scrollback echo --------------------------------------------------------
@@ -177,11 +136,11 @@ def test_echo_records_the_context(ui):
     assert "✔ Postgres" in joined
 
 
-def test_echo_keeps_the_whole_context_the_panel_truncated(ui, terminal_rows):
-    """The panel ellipsizes a long context; scrollback is where the rest lives."""
-    terminal_rows(40)
+def test_echo_keeps_the_whole_context_the_panel_never_paints(ui, terminal_rows):
+    """Scrollback is where the context lives, so nothing of it is lost."""
+    terminal_rows(24)
     spec = _spec([{"label": "Postgres"}, {"label": "SQLite"}])
-    spec["context"] = _long_context(40)  # far past any share of a screen
+    spec["context"] = _long_context(40)
     ui.begin_choice(spec)
     ui.confirm_choice()
 
