@@ -7,10 +7,9 @@ cuts that into sentences with `SpeechChunker` and says each one as soon as it
 is complete. Text written before a tool call is spoken when the call starts, so
 "Let me run the tests." is heard before the tests run.
 
-A reply's own prose waits one sentence before it is said: a `<spoken>` block
-may still follow it, and a sentence already in the ear cannot be taken back.
-The wait is on the way into the chunker, not on the way out — once prose has
-been cut into a sentence, the block that follows reads as the rest of it.
+Only a `<spoken>` block is said while the reply streams. The prose around it
+is for the eye, and none of it is said on the chance that no block follows:
+such a reply is read whole when the turn ends, by the stop hook.
 
 Events are read by their ``event_kind``/``part_kind`` tags rather than their
 classes, so speech never imports pydantic-ai.
@@ -18,17 +17,12 @@ classes, so speech never imports pydantic-ai.
 
 from __future__ import annotations
 
-import re
 import threading
 from collections.abc import Callable
 from typing import Any
 
 from zrb.llm.speech.chunker import SpeechChunker
 from zrb.llm.util.spoken import SpokenSplitter
-
-# Where a sentence ends, as the chunker cuts: punctuation followed by space, or
-# a blank line. Only the count matters here.
-_SENTENCE_END_RE = re.compile(r"(?<!\.[a-zA-Z])[.!?](?=\s)|\n[ \t]*\n")
 
 
 class StreamedReply:
@@ -54,15 +48,16 @@ class StreamedReply:
             SpeechChunker() if max_chars is None else SpeechChunker(max_chars=max_chars)
         )
         self._spoken = SpokenSplitter()
+        # Blocks only, never the prose around them: a stream cannot take back a
+        # sentence once it is in the ear. A reply with no block is read whole
+        # when the turn ends — streaming claims nothing, `has_claimed_turn`
+        # stays false, and the stop hook speaks the message. Guessing instead
+        # cost a merge of prose and block into one chunk; not guessing costs the
+        # silence a forgotten tag causes.
+        self._spoken.speak_only_blocks()
         self._has_spoken = False
         self._is_muted = False
         self._was_muted = False
-        # The reply's own prose, held until it is known whether a `<spoken>`
-        # block is coming. Waiting for the *second* sentence is what makes the
-        # wait worth anything: a single sentence ending does not settle it,
-        # because the block the prompt asks for comes in front of the detail.
-        self._pending = ""
-        self._has_decided = False
 
     @property
     def has_claimed_turn(self) -> bool:
@@ -80,7 +75,7 @@ class StreamedReply:
             if _is_response_start(event):
                 # A new response is a new message: a block the last one left
                 # open ran to its end, not into this one.
-                self._spoken.reset()
+                self._reset_spoken()
             self._speak(self._read(event))
 
     def mute_response(self) -> None:
@@ -89,9 +84,7 @@ class StreamedReply:
         user said reaches the run as a steer, so the run keeps going."""
         with self._lock:
             self._chunker.reset()
-            self._spoken.reset()
-            self._pending = ""
-            self._has_decided = False
+            self._reset_spoken()
             self._is_muted = self._was_muted = True
 
     def flush(self) -> None:
@@ -107,11 +100,15 @@ class StreamedReply:
 
     def _reset(self) -> None:
         self._chunker.reset()
-        self._spoken.reset()
+        self._reset_spoken()
         self._has_spoken = False
-        self._pending = ""
-        self._has_decided = False
         self._is_muted = self._was_muted = False
+
+    def _reset_spoken(self) -> None:
+        """A fresh splitter for a new message, still blocks-only: `reset` puts
+        `_speaks_outside` back on, and this stream must not have it."""
+        self._spoken.reset()
+        self._spoken.speak_only_blocks()
 
     def _read(self, event: Any) -> list[str]:
         kind = getattr(event, "event_kind", None)
@@ -139,36 +136,18 @@ class StreamedReply:
 
     def _sayable(self, text: str) -> str:
         """What of *text* is meant for the ear: a `<spoken>` block's own words,
-        or the reply's own while it keeps no block.
+        and nothing at all while the reply is outside one.
 
-        The reply's own words wait here until the question is settled — a block
-        has opened, or a second sentence has ended without one. They wait on the
-        way into the chunker rather than out of it: once prose has been cut into
-        a sentence, the block that follows it reads as more of the same one, and
-        a sentence already said cannot be taken back.
+        The prose around a block is for the eye, and a stream cannot take back
+        what it has already said, so none of it is said on the chance that the
+        reply turns out to keep no block. That reply is read whole when the turn
+        ends instead, by the stop hook.
         """
-        spoken = self._spoken.feed(text)[1]
-        if self._spoken.has_block:
-            # A block opened: what was written in front of it was for the eye.
-            self._pending = ""
-            return spoken
-        if self._has_decided:
-            return spoken
-        self._pending += spoken
-        if _sentence_ends(self._pending) < 2:
-            return ""
-        self._has_decided = True
-        released, self._pending = self._pending, ""
-        return released
+        return self._spoken.feed(text)[1]
 
     def _flush(self) -> list[str]:
         """Every sentence still held: the text, or the reply, ends here."""
         said_so_far = self._spoken.flush()[1]
-        if not self._spoken.has_block:
-            # The reply opened no block, or the one it opened came too late to
-            # claim the prose: the question is settled, so the prose is said.
-            said_so_far = self._pending + said_so_far
-        self._pending = ""
         chunks = self._chunker.feed(said_so_far) if said_so_far else []
         return chunks + self._chunker.flush()
 
@@ -176,11 +155,6 @@ class StreamedReply:
         for chunk in chunks:
             self._say(chunk)
             self._has_spoken = True
-
-
-def _sentence_ends(text: str) -> int:
-    """How many sentences end in *text*, by the chunker's own rule."""
-    return len(_SENTENCE_END_RE.findall(text))
 
 
 def _is_response_start(event: Any) -> bool:
