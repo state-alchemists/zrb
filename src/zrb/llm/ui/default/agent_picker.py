@@ -354,19 +354,34 @@ class UIAgentPicker:
         if session.title:
             label += f" · {session.title}"
         state = "running" if running else "finished"
-        row: StyleAndTextTuples = [(style, f" {cursor}{label}")]
+        # One row is one painted line. `RowWindow` counts newline-delimited rows
+        # and anchors the cursor on them, while the window wraps its content, so
+        # a label long enough to wrap would be painted but not counted -- the
+        # rows after it would push the selected agent out of the capped panel.
+        # The fixed tail is measured and the label takes what is left; the
+        # window's own wrap stays as the backstop for a mis-measured line.
+        prefix = f" {cursor}"
+        tail: StyleAndTextTuples = [(style, f" [{state}]")]
+        if self._agent_needs_approval(session.agent_id):
+            tail.append(("class:agent-picker.needs-approval", " ⏳ needs approval"))
         if running and activity_entry.task:
-            row.append(
+            tail.append(
                 (
                     "class:agent-picker.desc",
                     f"  — {truncate_display(activity_entry.task, 50)}",
                 )
             )
-        row.append((style, f" [{state}]"))
-        if self._agent_needs_approval(session.agent_id):
-            row.append(("class:agent-picker.needs-approval", " ⏳ needs approval"))
+        tail_width = sum(len(frag[1]) for frag in tail)
+        room = max(8, self._pick_width() - len(prefix) - tail_width)
+        row: StyleAndTextTuples = [(style, f"{prefix}{truncate_display(label, room)}")]
+        row.extend(tail)
         row.append((style, "\n"))
         return row
+
+    def _pick_width(self) -> int:
+        """Usable text width inside the framed panel: four columns of border."""
+        columns = getattr(self._ui, "output_field_width", None)
+        return max(24, (columns or 84) - 4)
 
     def _agent_needs_approval(self, agent_id: str) -> bool:
         """Whether `agent_id` has an unresolved confirmation request queued.

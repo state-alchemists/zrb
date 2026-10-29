@@ -20,6 +20,7 @@ class FakeUI:
 
     def __init__(self):
         self.conversation_session_name = "test_session"
+        self.output_field_width = 84
         self.input_field = MagicMock()
         self.input_field.buffer = MagicMock(text="", cursor_position=0)
         self._output_field = MagicMock()
@@ -473,3 +474,24 @@ def test_agent_picker_window_wraps_long_rows():
     assert window is not None
     assert window.wrap_lines() is True
     assert window.dont_extend_height() is True
+
+
+def test_a_long_picker_row_is_painted_as_one_line():
+    """The cap counts newline-delimited rows while the window wraps its text.
+
+    A row that wraps is painted but not counted, so the rows after it push the
+    selected agent below the capped panel and it cannot be reached. The label
+    therefore gives way to the row's fixed tail instead of wrapping.
+    """
+    ui = FakeUI()
+    ui.output_field_width = 60
+    _open(ui, [_session("a", agent_name="reviewer", title="a" * 200)])
+    with patch(
+        "zrb.llm.ui.default.agent_picker.agent_activity_registry",
+        MagicMock(active=lambda session_id: []),
+    ):
+        lines = "".join(t for _s, t in ui.get_agent_picker_text()).splitlines()
+
+    # 60 columns less the framed panel's border and padding.
+    assert all(len(line) <= 56 for line in lines), lines
+    assert any("reviewer" in line and "[finished]" in line for line in lines)

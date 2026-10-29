@@ -169,6 +169,19 @@ def test_pageup_moves_cursor_up_by_screen_height_minus_four():
     event.current_buffer.cursor_up.assert_called_once_with(count=20)
 
 
+def test_a_terminal_too_short_to_page_still_moves_one_row():
+    # `rows - overlap` goes to zero and below on a four-row terminal, and
+    # prompt_toolkit asserts on a non-positive count instead of clamping.
+    kb = create_output_keybindings(TextArea())
+    handler = _handler_for(kb, Keys.PageUp)
+    event = _fake_event()
+    event.app.output.get_size.return_value.rows = 3
+
+    handler(event)
+
+    event.current_buffer.cursor_up.assert_called_once_with(count=1)
+
+
 def test_printable_char_redirects_focus_and_inserts_when_no_selection():
     # A MagicMock stand-in avoids driving prompt_toolkit's real Buffer.
     # insert_text(), which schedules a background completer task and needs a

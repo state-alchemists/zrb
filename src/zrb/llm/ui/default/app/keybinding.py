@@ -81,7 +81,7 @@ def page_output(
     The focused pane is only the fallback for a caller that has no transcript to
     name.
     """
-    steps = event.app.output.get_size().rows - PAGE_OVERLAP_ROWS
+    steps = max(1, event.app.output.get_size().rows - PAGE_OVERLAP_ROWS)
     buffer = (
         output_field.buffer if output_field is not None else event.current_buffer
     )
