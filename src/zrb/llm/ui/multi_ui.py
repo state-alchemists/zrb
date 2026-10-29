@@ -41,6 +41,7 @@ from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
+from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -465,7 +466,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             if isinstance(result_data, str):
                 self._last_result_data = result_data
                 self.append_to_output("\n")
-                self.append_markdown(result_data)
+                # The answer keeps its `<spoken>` markers for speech; every
+                # child shows the whole reply without them.
+                self.append_markdown(shown_text(result_data))
             if self.main_ui is not None:
                 self.main_ui.conversation.schedule_auto_name(user_message)
 

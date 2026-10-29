@@ -122,7 +122,7 @@ async def test_a_reply_is_read_in_the_voice_of_the_emotion_it_opens_with():
 
 
 @pytest.mark.asyncio
-async def test_a_reply_spoken_at_stop_is_read_in_its_emotions_voice():
+async def test_a_reply_spoken_at_stop_reads_its_emotions_voice():
     session = _session(stream=False, emotion_voices={"happy": "happy.wav"})
 
     token = current_reply_emotion.set("happy")
@@ -133,6 +133,58 @@ async def test_a_reply_spoken_at_stop_is_read_in_its_emotions_voice():
 
     assert session.speaker.said == ["All green."]
     assert session.speaker.voices == ["happy.wav"]
+
+
+def test_only_the_spoken_block_is_read_aloud_while_it_streams():
+    session = _session(stream=True)
+
+    session.handle_stream_event(_text_start("<spoken>"))
+    session.handle_stream_event(_text_delta("The build failed. Again."))
+    session.handle_stream_event(_text_delta("</spoken> Here is the log."))
+    session.handle_stream_event(_tool_call_start())
+
+    assert session.speaker.said == ["The build failed. Again."]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_spoken_at_stop_reads_its_block_and_not_the_detail():
+    session = _session(stream=False)
+
+    await session.handle_stop(
+        _stop("<spoken>😊 All green.</spoken>\n`main.py`: three tests added.")
+    )
+
+    assert session.speaker.said == ["All green."]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_with_no_block_is_read_whole_as_before():
+    """What makes the block safe to forget: a model that never writes one is
+    heard exactly as it was before the block existed."""
+    session = _session(stream=False)
+    reply = "The build failed. I will look at the log."
+
+    await session.handle_stop(_stop(reply))
+
+    assert session.speaker.said == [reply]
+
+
+def test_a_block_does_not_cost_a_reply_its_emotions_voice():
+    """The emoji sits inside the block, as its first character; the emotion
+    feature still reads it, and the voice still follows it."""
+    session = _session(stream=True, emotion_voices={"sad": "sad.wav"})
+
+    token = current_reply_emotion.set("sad")
+    try:
+        session.handle_stream_event(_text_start("<spoken>"))
+        session.handle_stream_event(_text_delta("The build failed. Again."))
+        session.handle_stream_event(_text_delta("</spoken> The log is long."))
+        session.handle_stream_event(_tool_call_start())
+    finally:
+        current_reply_emotion.reset(token)
+
+    assert session.speaker.said == ["The build failed. Again."]
+    assert session.speaker.voices == ["sad.wav"]
 
 
 def test_a_streamed_chunk_stops_at_the_length_the_voice_can_take():

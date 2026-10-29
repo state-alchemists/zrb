@@ -110,6 +110,8 @@ Reads the reply a sentence at a time as it streams, tool approvals, questions, a
 
 The same reply is on screen while it is being read, so it can be answered before the voice has finished it. Sending a message — typed, dictated, or from another channel — hushes the voice: the sentence in flight is cut and anything queued is dropped, while the turn itself goes on. It is the hush a spoken barge-in does, reached from the keyboard, and it means speech is never allowed to describe a turn you have already moved past. Answering a prompt hushes it too, without your sending anything: a question is spoken before its dialog appears, and whether you pick an option with the arrow keys or type an answer, the question being read stops there. Nothing else shortens a reply: a long one is read in full, unless `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS` asks for the small model's summary instead.
 
+What is read aloud is what the reply marks: a `<spoken>…</spoken>` block is heard word for word, and everything outside it — code, tables, file paths, the long explanation — is on screen only. The block holds one or two plain sentences, and the emoji it opens with is the reply's emotion; neither marker ever reaches the screen or the voice. A reply with no block is read in full, as before, so a model that forgets one is never silent.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_SPEECH_ENABLED` | Speak from the start of a session; `/speech` switches it either way | `off`, or as `ZRB_LLM_VOICE` sets it |
@@ -158,7 +160,7 @@ The same reply is on screen while it is being read, so it can be answered before
 | `ZRB_LLM_SPEECH_GEMINI_PROMPT` | What `gemini` is sent with no style: `{text}` is what to read. Without an instruction, Gemini may answer a short line instead of reading it | `Say: {text}` |
 | `ZRB_LLM_SPEECH_GEMINI_STYLE_PROMPT` | What `gemini` is sent with `ZRB_LLM_SPEECH_STYLE` set: `{style}` and `{text}` | `{style}`, a blank line, `Say exactly this, and nothing else: {text}` |
 
-A placeholder is replaced only where written; any other brace stays as it is. The prompts behind speech are prompt files, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`: `speech_live` (while speech is on, asks the model to open with a spoken answer).
+A placeholder is replaced only where written; any other brace stays as it is. The prompts behind speech are prompt files, overridable like any prompt through `ZRB_LLM_PROMPT_DIR`: `speech_live` (while speech is on, asks the model to put the one or two sentences to be heard inside a `<spoken>` block and the rest outside it).
 
 The cloud backends read `OPENAI_API_KEY`, and `GEMINI_API_KEY` or `GOOGLE_API_KEY`.
 

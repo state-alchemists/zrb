@@ -332,3 +332,96 @@ class TestStreamEventHandlerToolCall:
 
         recorder.assert_not_called()
         print_fn.assert_called()
+
+
+class TestStreamEventHandlerSpokenMarkers:
+    """`<spoken>` marks what is read aloud; the screen shows the whole reply
+    without the markers, which belong to the ear alone."""
+
+    def _text_start(self, handler, content: str):
+        from pydantic_ai.messages import TextPart
+
+        event = MagicMock()
+        event.part = TextPart(content=content)
+        handler.handle_part_start(event)
+
+    def _text_delta(self, handler, content: str):
+        from pydantic_ai.messages import TextPartDelta
+
+        event = MagicMock()
+        event.delta = TextPartDelta(content_delta=content)
+        handler.handle_part_delta(event)
+
+    def _printed(self, print_fn: MagicMock) -> str:
+        return "".join(
+            str(call.args[0]) for call in print_fn.call_args_list if call.args
+        )
+
+    def test_a_streamed_reply_reaches_the_screen_without_the_markers(self):
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+
+        self._text_start(handler, "<spoken>😊 Fixed it.</spoken>")
+        self._text_delta(handler, "\nTwo files changed.")
+
+        printed = self._printed(print_fn)
+        assert "spoken" not in printed
+        assert "😊 Fixed it." in printed
+        assert "Two files changed." in printed
+
+    def test_a_marker_split_across_two_deltas_reaches_no_screen(self):
+        print_fn = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn)
+
+        self._text_start(handler, "")
+        for piece in ("<spo", "ken>All green.", "</spoke", "n> Detail."):
+            self._text_delta(handler, piece)
+
+        printed = self._printed(print_fn)
+        assert "spoken" not in printed
+        assert "All green. Detail." in printed
+
+    def test_a_settled_block_carries_no_marker(self):
+        """What `settle_text_block` renders in full is the block's own text."""
+        on_settle = MagicMock()
+        handler = StreamEventHandler(print_fn=MagicMock(), on_text_settle=on_settle)
+        from pydantic_ai import ToolCallPart
+
+        self._text_start(handler, "<spoken>Reading the file.</spoken>")
+        tool_event = MagicMock()
+        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
+        handler.handle_part_start(tool_event)
+
+        on_settle.assert_called_once_with("Reading the file.")
+
+    def test_the_final_text_carries_no_marker(self):
+        """The hint a closed block collapses into counts, and keeps, the text
+        the user is meant to read."""
+        print_fn = MagicMock()
+        on_collapse = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, on_text_collapse=on_collapse)
+
+        self._text_start(handler, "<spoken>😊 Done.</spoken>\nTwo files changed.")
+        result_event = MagicMock()
+        result_event.result.usage = MagicMock()
+        handler.handle_run_result(result_event)
+
+        _collapsed, full = on_collapse.call_args[0]
+        assert "spoken" not in full
+        assert "😊 Done." in full
+        assert "Two files changed." in full
+
+    def test_a_trailing_partial_marker_is_shown_instead_of_lost(self):
+        """A reply cut off after `<spo` wrote prose, not a marker: closing the
+        block must not swallow it."""
+        print_fn = MagicMock()
+        on_collapse = MagicMock()
+        handler = StreamEventHandler(print_fn=print_fn, on_text_collapse=on_collapse)
+
+        self._text_start(handler, "prose <spo")
+        result_event = MagicMock()
+        result_event.result.usage = MagicMock()
+        handler.handle_run_result(result_event)
+
+        _collapsed, full = on_collapse.call_args[0]
+        assert "prose <spo" in full

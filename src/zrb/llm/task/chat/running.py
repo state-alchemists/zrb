@@ -23,6 +23,7 @@ from zrb.llm.util.feature_config import (
     reset_session_ui,
     set_session_ui,
 )
+from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
 from zrb.util.attr import get_attr
 from zrb.util.cli.style import stylize_muted
@@ -103,12 +104,14 @@ class ChatRunning:
         with _bound_session_ui(uis[0] if uis else None):
             result = await llm_task_core.async_run(session)
         # Unlike stream_ai_response, this path never finalizes with a rendered
-        # pass, so do it here for every UI that supports it.
+        # pass, so do it here for every UI that supports it. The answer keeps
+        # its `<spoken>` markers for speech; a screen shows it without them.
         if isinstance(result, str):
+            shown = shown_text(result)
             for ui in llm_task_core.get_uis():
                 append_markdown = getattr(ui, "append_markdown", None)
                 if callable(append_markdown):
-                    append_markdown(result)
+                    append_markdown(shown)
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
 

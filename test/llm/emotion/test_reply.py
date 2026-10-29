@@ -89,6 +89,30 @@ async def test_the_emoji_is_out_of_every_copy_of_the_reply(chunks):
 @pytest.mark.parametrize(
     "chunks",
     [
+        ("<spoken>😊 Hello", " world.</spoken>\nDetail."),
+        ("<spoken>", "😊", " Hello", " world.</spoken>\nDetail."),
+        ("<spok", "en>😊 Hello world.</spoken>\nDetail."),
+    ],
+)
+async def test_an_emoji_inside_the_spoken_block_is_read_and_taken_out(chunks):
+    """With speech on, the model puts the emoji inside its `<spoken>` block,
+    where it is the block's first character rather than the reply's. The
+    emotion is still read, and the emoji still leaves the reply, while the
+    block's markers stay for speech to find."""
+    seen, output, kept, read, started, with_text = await _run(*chunks)
+
+    assert seen == "<spoken>Hello world.</spoken>\nDetail."
+    assert output == "<spoken>Hello world.</spoken>\nDetail."
+    assert kept == ["<spoken>Hello world.</spoken>\nDetail."]
+    assert read == ["happy"]
+    assert started and all(started)
+    assert set(with_text) == {"happy"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "chunks",
+    [
         ("**😊 Hello", " world.**"),
         ("**", "😊", " Hel", "lo world.**"),
         ("**😊", "\n\nHello", " world.**"),

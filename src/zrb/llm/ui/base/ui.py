@@ -74,6 +74,7 @@ from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.util.spoken import shown_text
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
@@ -1250,7 +1251,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             if isinstance(result_data, str):
                 self._last_result_data = result_data
                 self.append_to_output("\n")
-                self.append_markdown(result_data)
+                # The answer keeps its `<spoken>` markers for speech; the
+                # screen shows the whole reply without them.
+                self.append_markdown(shown_text(result_data))
             self._conversation.schedule_auto_name(user_message)
 
         except asyncio.CancelledError:

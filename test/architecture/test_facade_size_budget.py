@@ -108,7 +108,11 @@ FACADE_BUDGETS = {
     # +2 (1296->1298): `submit_message`'s source defaults to `KEYBOARD_INPUT`
     # instead of `None` -- the keystroke path was passing `None` and so carried
     # no provenance at all. A longer signature black must wrap; no new surface.
-    "llm/ui/base/ui.py": 1298,
+    # +3 (1298->1301): `stream_ai_response` renders the answer through
+    # `shown_text`, so the `<spoken>` markers speech alone needs never reach the
+    # screen: one import and the comment saying why; the parsing stays in
+    # `llm/util/spoken.py`.
+    "llm/ui/base/ui.py": 1301,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

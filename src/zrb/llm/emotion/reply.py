@@ -36,7 +36,9 @@ from zrb.llm.emotion.label import (
     OPENING_MARKERS,
     get_leading_emotion,
     leading_emoji_index,
+    opening_tag_index,
 )
+from zrb.llm.util.spoken import OPEN_TAG, partial_marker
 
 
 class ReplyEmotion(AbstractCapability[None]):
@@ -211,9 +213,21 @@ def _leading_space(text: str) -> int:
 
 
 def _has_visible_text(text: str) -> bool:
-    """False while *text* is only whitespace and markdown markers: the blanks
-    a stream sends before its first word are not the start of the reply."""
-    return bool(text.strip(OPENING_MARKERS + " \t\r\n"))
+    """False while *text* is only whitespace, markdown markers and the start of
+    a `<spoken>` marker: the blanks a stream sends before its first word are not
+    the start of the reply, and a block's own marker is not a word either — the
+    emoji that may follow it is still to come."""
+    index = opening_tag_index(text)
+    if index is not None:
+        text = text[index + len(OPEN_TAG) :]
+    return bool(_without_partial_marker(text).strip(OPENING_MARKERS + " \t\r\n"))
+
+
+def _without_partial_marker(text: str) -> str:
+    """*text* without the tail that could still become a marker: `<spok` says
+    nothing yet, and the emoji may be the very next character."""
+    tail = partial_marker(text)
+    return text[: len(text) - len(tail)]
 
 
 def _has_a_word(text: str) -> bool:
