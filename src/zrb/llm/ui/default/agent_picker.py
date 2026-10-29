@@ -103,6 +103,13 @@ class UIAgentPicker:
         )
         if not sessions:
             return False
+        if panel_row_cap(self._ui) <= 0:
+            # Nowhere to paint the list: focusing it would send whatever is typed
+            # next to a control nobody can see. Down stays on history recall.
+            append = getattr(self._ui, "append_to_output", None)
+            if append is not None:
+                append("  ⚠ the sub-agent picker needs more screen rows\n")
+            return False
         self._picker_sessions = list(sessions)
         self._picker_cursor = 0
         self._row_window.reset()

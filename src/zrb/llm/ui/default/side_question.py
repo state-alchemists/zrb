@@ -91,6 +91,15 @@ class UISideQuestion:
         """Whether the panel is currently shown."""
         return self._is_active
 
+    def shows_rows(self) -> bool:
+        """Whether the docked panel is up and has a row to paint.
+
+        A docked panel whose content height is zero still spends the `Frame`'s
+        border rows, so the layout shows an empty box and the transcript pays
+        for it. The container is gated on this instead of `is_active`.
+        """
+        return self._is_active and self.panel_rows() > 0
+
     def begin(self, question: str) -> object:
         """Open the panel for *question*, replacing any previous answer.
 
@@ -99,9 +108,17 @@ class UISideQuestion:
         dropped instead of being shown under this question.
         """
         self._question = question.strip()
-        self._is_active = True
         self._request = request = object()
         self._last_answer = None
+        if panel_row_cap(self._ui) <= 0:
+            # No rows to dock into: the frame would spend the layout's border
+            # rows painting nothing at all. The question goes to the transcript
+            # at this size, and `end` puts the answer there with it.
+            self._is_active = False
+            self._ui.append_to_output(f"\n💭 {self._question}\n")
+            self._invalidate()
+            return request
+        self._is_active = True
         self._fill(self._echo(_PENDING))
         # The panel takes the focus while it is shown, so Up/Down scroll the
         # answer instead of recalling a message into the input. A prompt that is
@@ -125,6 +142,11 @@ class UISideQuestion:
         if not self.is_current(request):
             return
         self._last_answer = answer
+        if not self._is_active:
+            # Opened into the transcript for want of room: the answer follows
+            # the question there instead of into a panel that never appeared.
+            self._ui.append_markdown(answer)
+            return
         self._render_and_fill(answer)
 
     def show(self, title: str, body: str) -> None:

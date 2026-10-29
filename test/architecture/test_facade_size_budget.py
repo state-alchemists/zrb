@@ -154,7 +154,10 @@ FACADE_BUDGETS = {
     # -4 (749->745): the four `*_float` builders are gone — the panels dock into
     # the layout, so each part builds its own framed `Frame` and `ui.py` only
     # wires the two slots.
-    "llm/ui/default/ui.py": 745,
+    # +13 (745->758): `_input_panel_active` also requires the panel to have a row
+    # to paint, so a terminal too short for it keeps the input frame instead of
+    # trading it for an empty border.
+    "llm/ui/default/ui.py": 758,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.
