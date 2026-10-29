@@ -184,3 +184,102 @@ def test_the_approval_action_comes_from_the_configured_patterns():
 def test_the_approval_actions_are_read_from_cfg_when_left_unset(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_SPEECH_APPROVAL_ACTIONS", '{"*": "memakai {tool}"}')
     assert describe_tool_call("Bash", {}, "{action}") == "memakai Bash"
+
+
+def test_the_approval_says_what_the_call_is_for_instead_of_the_command():
+    """The approval-side half of #764: a call carrying a ``purpose`` is
+    announced by it, so the raw command is never read aloud."""
+    spoken = describe_tool_call(
+        "Shell",
+        {
+            "command": "find . -type f | xargs ls -S | head -1",
+            "purpose": "Getting the biggest file",
+        },
+    )
+    assert spoken == (
+        "I need to run a shell command Getting the biggest file. "
+        "I need your approval."
+    )
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {"command": "ls"},
+        {"command": "ls", "purpose": ""},
+        {"command": "ls", "purpose": "   "},
+        {"command": "ls", "purpose": 3},
+        {"command": "ls", "purpose": None},
+    ],
+)
+def test_a_call_with_no_usable_purpose_is_announced_by_its_target(args):
+    assert describe_tool_call("Shell", args) == (
+        "I need to run a shell command ls. I need your approval."
+    )
+
+
+@pytest.mark.parametrize("args", [None, {}, {"command": ""}, {"command": 3}, "no json"])
+def test_a_call_whose_arguments_name_no_command_still_asks_for_approval(args):
+    """No arguments, a blank or non-string target, and the unparseable JSON
+    string a provider can leave behind keep today's line: a hook never raises
+    over one."""
+    assert describe_tool_call("Shell", args) == (
+        "I need to run a shell command. I need your approval."
+    )
+
+
+def test_a_purpose_streamed_as_json_is_read_too():
+    spoken = describe_tool_call(
+        "Shell", '{"command": "ls", "purpose": "Listing the files here"}'
+    )
+    assert spoken == (
+        "I need to run a shell command Listing the files here. "
+        "I need your approval."
+    )
+
+
+def test_a_tool_carrying_no_purpose_is_announced_as_before():
+    spoken = describe_tool_call("Write", {"path": "/tmp/a.py", "content": "x"})
+    assert spoken == "I need to write a file /tmp/a.py. I need your approval."
+
+
+def test_the_purpose_is_cut_to_the_target_length():
+    spoken = describe_tool_call(
+        "Shell",
+        {"command": "ls", "purpose": "Getting the biggest file"},
+        message="[{target}]",
+        target_max_chars=5,
+    )
+    assert spoken == "[ Getti]"
+
+
+def test_a_zero_target_length_leaves_the_purpose_out_too():
+    """``{target}`` means one thing whichever fills it: a template that asks
+    for no target does not get the purpose either."""
+    spoken = describe_tool_call(
+        "Shell",
+        {"command": "ls", "purpose": "Getting the biggest file"},
+        message="{action}{target}.",
+        target_max_chars=0,
+    )
+    assert spoken == "run a shell command."
+
+
+@pytest.mark.asyncio
+async def test_the_session_asks_for_approval_in_the_calls_own_words():
+    session, speaker = _text_session()
+    await session.handle_permission_request(
+        HookContext(
+            event=HookEvent.PERMISSION_REQUEST,
+            event_data={},
+            tool_name="Shell",
+            tool_input={
+                "command": "find . -type f | xargs ls -S | head -1",
+                "purpose": "Getting the biggest file",
+            },
+        )
+    )
+    assert speaker.said == [
+        "I need to run a shell command Getting the biggest file. "
+        "I need your approval."
+    ]

@@ -28,14 +28,14 @@ PURPOSE_ARGUMENT = "purpose"
 """The argument a tool call may carry to say, in plain words, what it is for."""
 
 
-def describe_tool_purpose(part: object) -> str | None:
-    """The ``purpose`` *part*'s call carries, as written; ``None`` when it
-    carries none, or an empty one, which leaves the tool's phrase to say it.
+def describe_purpose(args: object) -> str | None:
+    """The ``purpose`` a tool call's *args* carry, as written; ``None`` when
+    they carry none, or an empty one, which leaves the tool's phrase to say it.
 
-    *part* is a tool call part, whose ``args`` pydantic-ai holds either as a
-    dict or as the JSON string a provider streamed.
+    *args* is a call's arguments, which pydantic-ai holds either as a dict or as
+    the JSON string a provider streamed, so a purpose is read the same way by
+    whichever line speaks it.
     """
-    args = getattr(part, "args", None)
     if isinstance(args, str):
         try:
             args = json.loads(args)
@@ -47,6 +47,12 @@ def describe_tool_purpose(part: object) -> str | None:
     if not isinstance(purpose, str):
         return None
     return purpose.strip() or None
+
+
+def describe_tool_purpose(part: object) -> str | None:
+    """The ``purpose`` *part*'s call carries, as written; ``None`` when it
+    carries none — see `describe_purpose`, which reads the arguments."""
+    return describe_purpose(getattr(part, "args", None))
 
 
 def describe_tool_progress(
