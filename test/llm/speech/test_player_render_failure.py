@@ -393,6 +393,76 @@ def test_a_local_voice_is_not_read_by_the_local_engine(lock_file, monkeypatch, c
     assert "this sentence goes unsaid" in caplog.text
 
 
+def test_a_local_voice_that_made_no_audio_is_asked_for_the_sentence_again(
+    lock_file, monkeypatch, caplog
+):
+    """A context that came back empty is the engine's slip, not the sentence's:
+    Pipecat reports one as a context that completed with no audio, and a local
+    voice that believes it the first time leaves the sentence unsaid."""
+    made = _in_process(monkeypatch)
+    asked = []
+
+    class SilentOnce(LocalVoice):
+        def __init__(self):
+            super().__init__()
+            self.is_first = True
+
+        def create_audio(self, text):
+            asked.append(text)
+            if self.is_first:
+                self.is_first = False
+                raise RuntimeError("TTS context completed with no audio")
+            return super().create_audio(text)
+
+    _with_local_voice(monkeypatch, SilentOnce(), AudioBackend(renders=False))
+    speaker = Speaker(_config("pocket", lock_file, player="auto"))
+
+    speaker.speak("hello")
+
+    assert asked == ["hello", "hello"]
+    assert made == ["hello"]
+    assert "goes unsaid" not in caplog.text
+
+
+def test_a_remote_voice_is_asked_once_for_a_sentence(lock_file, monkeypatch):
+    """A render nobody hears is still billed, so only a local voice, which has
+    no other way to speak the sentence, is asked again."""
+    _in_process(monkeypatch)
+    asked = []
+
+    class BrokenRemote(RemoteVoice):
+        def create_audio(self, text):
+            asked.append(text)
+            raise RuntimeError("the service is down")
+
+    _with_local_voice(monkeypatch, BrokenRemote(), AudioBackend(renders=False))
+    speaker = Speaker(_config("remote", lock_file, player="auto"))
+
+    speaker.speak("hello")
+
+    assert asked == ["hello"]
+
+
+def test_a_sentence_that_stayed_silent_is_named_in_the_log(
+    lock_file, monkeypatch, caplog
+):
+    """The log says which sentence was lost, so it can be tried again by hand
+    rather than guessed at from a gap in what was heard."""
+    _in_process(monkeypatch)
+
+    class AlwaysSilent(LocalVoice):
+        def create_audio(self, text):
+            raise RuntimeError("TTS context completed with no audio")
+
+    _with_local_voice(monkeypatch, AlwaysSilent(), AudioBackend(renders=False))
+    speaker = Speaker(_config("pocket", lock_file, player="auto"))
+
+    with pytest.raises(RuntimeError):
+        speaker.speak("the fix is on its way")
+
+    assert "'the fix is on its way'" in caplog.text
+
+
 def test_a_remote_voice_that_fails_is_read_by_the_local_engine(lock_file, monkeypatch):
     """A paid voice that fails is read by the local engine, as documented."""
     _in_process(monkeypatch)
