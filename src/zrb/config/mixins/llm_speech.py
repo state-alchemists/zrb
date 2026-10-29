@@ -310,9 +310,10 @@ class LLMSpeechMixin:
         doc=(
             "Said when a tool call waits for approval. {action} is what the "
             "tool does (see {ENV_PREFIX}_LLM_SPEECH_APPROVAL_ACTIONS); "
-            "{target} is a space and the file or command it acts on, or "
-            "empty. Default: I need to {action}{target}. I need your "
-            "approval."
+            "{target} is a space and what the call is for: its own `purpose` "
+            "argument when it gives one, otherwise the file or command it "
+            "acts on, or empty. Default: I need to {action}{target}. I need "
+            "your approval."
         ),
     )
 
@@ -321,8 +322,8 @@ class LLMSpeechMixin:
         serialize=comma_join,
         doc=(
             "Comma-separated tool arguments tried, in order, for the "
-            "{target} of an approval request. Default: path, file_path, "
-            "command, notebook_path."
+            "{target} of an approval request, for a call carrying no "
+            "`purpose`. Default: path, file_path, command, notebook_path."
         ),
     )
 

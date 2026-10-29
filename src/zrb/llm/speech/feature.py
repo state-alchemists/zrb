@@ -22,7 +22,11 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import IsStale, Speaker, is_speaking
-from zrb.llm.speech.progress import ProgressNarrator, SpeechClock
+from zrb.llm.speech.progress import (
+    ProgressNarrator,
+    SpeechClock,
+    describe_purpose,
+)
 from zrb.llm.speech.streamed_reply import StreamedReply
 from zrb.llm.speech.summary import SpeechSummarizer
 from zrb.llm.speech.text import clean_for_speech, fill_template, match_tool_phrase
@@ -482,7 +486,7 @@ def is_answered_since(ui: "AnyUI | None", asked_at: float) -> Callable[[], bool]
 
 def describe_tool_call(
     tool: str | None,
-    args: dict[str, Any] | None,
+    args: dict[str, Any] | str | None,
     message: str | None = None,
     target_keys: list[str] | None = None,
     target_max_chars: int | None = None,
@@ -490,9 +494,11 @@ def describe_tool_call(
 ) -> str:
     """A spoken approval request, from *message* with ``{action}`` (the
     first of *actions* whose pattern matches *tool*, else the tool's name)
-    and ``{target}`` (the first of *target_keys* among *args*, cut to
-    *target_max_chars*). A template, not a model call: the user is waiting
-    on it. Each left ``None`` is read from `CFG.LLM_SPEECH_APPROVAL_*`."""
+    and ``{target}`` (the call's own ``purpose`` when it gives one, else the
+    first of *target_keys* among *args*, cut to *target_max_chars*). *args* is
+    the call's arguments, which a hook holds either as a dict or as the JSON
+    string a provider streamed. A template, not a model call: the user is
+    waiting on it. Each left ``None`` is read from `CFG.LLM_SPEECH_APPROVAL_*`."""
     if message is None:
         message = CFG.LLM_SPEECH_APPROVAL_MESSAGE
     if target_keys is None:
@@ -504,10 +510,30 @@ def describe_tool_call(
     action = match_tool_phrase(tool, actions)
     if action is None:
         action = tool or ""
-    target = ""
-    for key in target_keys if target_max_chars > 0 else []:
-        value = (args or {}).get(key)
-        if isinstance(value, str) and value.strip():
-            target = " " + value.strip()[:target_max_chars]
-            break
+    target = _spoken_target(args, target_keys, target_max_chars)
     return fill_template(message, action=action, target=target)
+
+
+def _spoken_target(
+    args: dict[str, object] | str | None, target_keys: list[str], max_chars: int
+) -> str:
+    """``{target}``'s value: a space and what the call is for, cut to
+    *max_chars* — the call's own ``purpose`` when it gives one, else the first
+    of *target_keys* its arguments hold. Empty for a call that names neither,
+    and for a template that leaves the target out altogether (``max_chars`` of
+    ``0``), which the purpose does not override."""
+    if max_chars <= 0:
+        return ""
+    value = describe_purpose(args)
+    if value is None:
+        # Arguments a provider streamed as unparseable JSON stay a string, and
+        # name no key to read a target from.
+        arguments = args if isinstance(args, dict) else {}
+        for key in target_keys:
+            candidate = arguments.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                value = candidate.strip()
+                break
+    if not value:
+        return ""
+    return " " + value[:max_chars]
