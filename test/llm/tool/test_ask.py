@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+from typing import get_args, get_type_hints
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -42,6 +44,69 @@ def test_build_choice_spec_carries_counter_and_header():
     assert spec["multi_select"] is False
     # Header is derived from the question when not given (trailing '?' stripped).
     assert spec["header"] == "Pick a DB"
+
+
+def test_build_choice_spec_carries_context_and_recommended_flags():
+    spec = build_choice_spec(
+        1,
+        1,
+        {
+            "question": "Which DB?",
+            "context": "Read-heavy traffic, 2GB of data, no ops team.",
+            "options": [
+                {"label": "Postgres", "recommended": True},
+                {"label": "SQLite"},
+            ],
+        },
+    )
+    assert spec["context"] == "Read-heavy traffic, 2GB of data, no ops team."
+    assert spec["options"][0]["recommended"] is True
+    assert "recommended" not in spec["options"][1]
+
+
+def test_build_choice_spec_does_not_strip_unknown_option_keys():
+    """A UI may render per-option keys this module knows nothing about."""
+    options = [{"label": "Postgres", "recommended": True, "cost": "high"}]
+    spec = build_choice_spec(1, 1, {"question": "Which DB?", "options": options})
+    assert spec["options"][0]["cost"] == "high"
+
+
+def test_build_choice_spec_context_defaults_to_empty():
+    spec = build_choice_spec(1, 1, {"question": "Pick", "options": [{"label": "A"}]})
+    assert spec["context"] == ""
+
+
+def test_question_schema_documents_context_and_recommendation():
+    """The model learns the two new keys from the parameter description alone."""
+    raw = inspect.unwrap(ask_user_question)
+    hints = get_type_hints(raw, include_extras=True)
+    description = get_args(hints["questions"])[1].description
+    assert "context" in description
+    assert "recommended" in description
+
+
+@pytest.mark.asyncio
+async def test_context_and_recommendation_reach_the_ui():
+    fake_ui = AsyncMock()
+    fake_ui.ask_user_choice.return_value = "Postgres"
+    with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
+        result = await ask_user_question(
+            [
+                {
+                    "question": "Which DB?",
+                    "context": "The service is read-heavy.",
+                    "options": [
+                        {"label": "Postgres", "recommended": True},
+                        {"label": "SQLite"},
+                    ],
+                }
+            ]
+        )
+    spec = fake_ui.ask_user_choice.await_args.args[0]
+    assert spec["context"] == "The service is read-heavy."
+    assert spec["options"][0]["recommended"] is True
+    # The recommendation never reaches the answer the model is told about.
+    assert result == "Q1 (Which DB): Postgres"
 
 
 def test_format_choice_spec_renders_numbered_text():

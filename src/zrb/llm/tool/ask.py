@@ -32,10 +32,14 @@ async def ask_user_question(
             description=(
                 "One or more questions to ask. Each entry must have: "
                 "`question` (str) the question text; `options` (list[dict]) "
-                "each with `label` (str) and optional `description` (str); "
-                "`multi_select` (bool, optional, default False) True to allow "
-                "multiple selections; `header` (str, optional) short label "
-                "(≤12 chars) shown as a chip."
+                "each with `label` (str) and optional `description` (str), "
+                "plus `recommended` (bool, optional) True on the option you "
+                "advise; `multi_select` (bool, optional, default False) True "
+                "to allow multiple selections; `header` (str, optional) short "
+                "label (≤12 chars) shown as a chip; `context` (str, optional) "
+                "the few facts the user needs in order to answer, as short "
+                "plain markdown — the panel shows it above the question, so "
+                "the user need not scroll back to the conversation."
             )
         ),
     ],
@@ -130,7 +134,10 @@ def build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]
     header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
     return {
         "question": q["question"],
+        # Options go through verbatim: a UI may render any per-option key
+        # (`recommended`, and whatever it grows next), so nothing is dropped.
         "options": q["options"],
+        "context": str(q.get("context") or ""),
         "multi_select": bool(q.get("multi_select")),
         "header": header,
         "index": idx,
