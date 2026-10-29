@@ -247,10 +247,10 @@ def test_enable_speech_adds_a_live_context_to_the_tasks_prompt_manager():
         close_feature_sessions("")
 
 
-def _tool_call(tool):
+def _tool_call(tool, args=None):
     return SimpleNamespace(
         event_kind="function_tool_call",
-        part=SimpleNamespace(tool_name=tool, tool_call_id="c1"),
+        part=SimpleNamespace(tool_name=tool, tool_call_id="c1", args=args),
     )
 
 
@@ -261,6 +261,19 @@ def test_a_tool_call_after_a_silence_is_announced_with_progress(monkeypatch):
     session.handle_stream_event(_tool_call("Shell"))
 
     assert session.speaker.said == ["Running a command."]
+
+
+def test_the_call_s_own_purpose_is_what_is_announced(monkeypatch):
+    """The narration reaches the speaker as the model wrote the purpose, not
+    as the Shell phrase it stands in for."""
+    monkeypatch.setattr("zrb.llm.speech.feature.is_speaking", lambda lock: False)
+    session = _session(events=["progress"], progress_interval=5)
+
+    session.handle_stream_event(
+        _tool_call("Shell", args={"purpose": "Getting the biggest file"})
+    )
+
+    assert session.speaker.said == ["Getting the biggest file"]
 
 
 @pytest.mark.asyncio

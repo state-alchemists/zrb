@@ -37,6 +37,16 @@ _HEAD_SHARE_OF_FAILED_OUTPUT = 0.4
 
 async def run_shell_command(
     command: Annotated[str, Field(description="Non-interactive command.")],
+    purpose: Annotated[
+        str,
+        Field(
+            description=(
+                "Short, plain-language phrase saying what the command is FOR, "
+                "read aloud to a user who is listening: 'Getting the biggest "
+                "file in the directory'. Never the command itself."
+            )
+        ),
+    ] = "",
     cwd: Annotated[str, Field(description="Working directory.")] = "",
     timeout: Annotated[
         int,
@@ -78,6 +88,10 @@ async def run_shell_command(
 ) -> str:
     """
     Executes a non-interactive command in a shell. Returns truncated stdout/stderr.
+
+    Say why you are calling it: fill ``purpose`` with the reason, in plain
+    words ("Getting the biggest file in the directory") — a user listening to
+    zrb hears that instead of "Running a command.".
 
     Use this to RUN things — builds, tests, linters, git, package managers,
     scripts. Not to touch files: Read/Write/Edit for contents, Grep/Glob/LS to

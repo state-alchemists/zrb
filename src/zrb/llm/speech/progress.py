@@ -2,8 +2,10 @@
 
 `ProgressNarrator` watches the run's stream (through a stream observer) and,
 when a tool call starts after a stretch in which nothing was said, speaks a
-short template line: "Running a command." A template, not a model call, as
-for approvals: the moment has passed by the time a model answers.
+short line: the call's own ``purpose`` argument when it carries one ("Getting
+the biggest file in the directory"), else a template from a tool-name phrase
+map ("Running a command."). A template, not a model call, as for approvals:
+the moment has passed by the time a model answers.
 
 A line still queued when its tool finishes is dropped, and nothing is said
 while the model's own words are being spoken, so the narration only fills
@@ -12,6 +14,7 @@ silence.
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 from collections.abc import Callable
@@ -20,6 +23,30 @@ from typing import Any
 from zrb.config.config import CFG
 from zrb.llm.speech.player import IsStale
 from zrb.llm.speech.text import match_tool_phrase
+
+PURPOSE_ARGUMENT = "purpose"
+"""The argument a tool call may carry to say, in plain words, what it is for."""
+
+
+def describe_tool_purpose(part: object) -> str | None:
+    """The ``purpose`` *part*'s call carries, as written; ``None`` when it
+    carries none, or an empty one, which leaves the tool's phrase to say it.
+
+    *part* is a tool call part, whose ``args`` pydantic-ai holds either as a
+    dict or as the JSON string a provider streamed.
+    """
+    args = getattr(part, "args", None)
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except ValueError:
+            return None
+    if not isinstance(args, dict):
+        return None
+    purpose = args.get(PURPOSE_ARGUMENT)
+    if not isinstance(purpose, str):
+        return None
+    return purpose.strip() or None
 
 
 def describe_tool_progress(
@@ -35,8 +62,9 @@ def describe_tool_progress(
 
 class ProgressNarrator:
     """Speaks a tool call's progress line when nothing was said for
-    *interval* seconds (``0``: never), except for *silent_tools*, in the
-    words of *phrases* (defaults: `CFG.LLM_SPEECH_PROGRESS_SILENT_TOOLS`,
+    *interval* seconds (``0``: never), except for *silent_tools*: the call's
+    own ``purpose`` when it gives one, else the words of *phrases*
+    (defaults: `CFG.LLM_SPEECH_PROGRESS_SILENT_TOOLS`,
     `CFG.LLM_SPEECH_PROGRESS_PHRASES`).
 
     *say* queues a line with a staleness check; *seconds_since_said* is how
@@ -99,7 +127,9 @@ class ProgressNarrator:
             return
         if self._seconds_since_said() < self._interval:
             return
-        line = describe_tool_progress(tool, self._phrases)
+        line = describe_tool_purpose(part) or describe_tool_progress(
+            tool, self._phrases
+        )
         if not line:
             return
         with self._lock:
