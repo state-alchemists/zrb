@@ -9,10 +9,10 @@ from zrb.llm.speech.progress import (
 )
 
 
-def _call(tool, call_id="c1"):
+def _call(tool, call_id="c1", args=None):
     return SimpleNamespace(
         event_kind="function_tool_call",
-        part=SimpleNamespace(tool_name=tool, tool_call_id=call_id),
+        part=SimpleNamespace(tool_name=tool, tool_call_id=call_id, args=args),
     )
 
 
@@ -68,9 +68,89 @@ def test_a_result_naming_its_call_through_the_result_part_counts_too():
     assert said[0][1]() is True
 
 
-def test_nothing_is_announced_right_after_speech():
+@pytest.mark.parametrize(
+    "call",
+    [
+        _call("Shell"),
+        _call("Shell", args={"purpose": "Getting the biggest file in the directory"}),
+    ],
+)
+def test_nothing_is_announced_right_after_speech(call):
     narrator, said = _narrator(silence=2.0)
-    narrator.handle_event(_call("Shell"))
+    narrator.handle_event(call)
+    assert said == []
+
+
+def test_the_purpose_is_said_as_written_with_no_template_around_it():
+    """A user hears WHAT the call does, in the model's own words: the purpose
+    alone, with no "I need to run a shell command:" in front of it."""
+    narrator, said = _narrator()
+
+    narrator.handle_event(
+        _call(
+            "Shell",
+            args={
+                "command": "find . -type f | xargs ls -S | head -1",
+                "purpose": "Getting the biggest file in the directory",
+            },
+        )
+    )
+
+    [(text, is_stale)] = said
+    assert text == "Getting the biggest file in the directory"
+    assert is_stale() is False
+    narrator.handle_event(_result())
+    assert is_stale() is True
+
+
+def test_the_command_text_is_never_said():
+    """With no purpose the tool's phrase says it — the raw command never is."""
+    narrator, said = _narrator()
+
+    narrator.handle_event(_call("Shell", args={"command": "rm -rf /tmp/zrb-x"}))
+
+    assert [text for text, _ in said] == ["Running a command."]
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        {},
+        {"purpose": ""},
+        {"purpose": "   "},
+        {"purpose": 3},
+        "[]",
+        '{"command": "ls"',
+    ],
+)
+def test_a_call_carrying_no_purpose_falls_back_to_the_phrases(args):
+    """A purpose is dict-or-JSON-string, and an unusable one is no purpose."""
+    narrator, said = _narrator()
+
+    narrator.handle_event(_call("Shell", args=args))
+
+    assert [text for text, _ in said] == ["Running a command."]
+
+
+def test_a_purpose_streamed_as_json_is_read_too():
+    narrator, said = _narrator()
+
+    narrator.handle_event(
+        _call("Shell", args='{"command": "ls", "purpose": "Listing the files here"}')
+    )
+
+    assert [text for text, _ in said] == ["Listing the files here"]
+
+
+def test_a_purpose_does_not_wake_a_silent_tool():
+    said = []
+    narrator = ProgressNarrator(
+        lambda text, is_stale: said.append(text),
+        lambda: 100.0,
+        8.0,
+        silent_tools=["TodoWrite"],
+    )
+    narrator.handle_event(_call("TodoWrite", args={"purpose": "Writing the list"}))
     assert said == []
 
 

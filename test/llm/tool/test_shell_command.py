@@ -341,6 +341,58 @@ def test_docstring_points_unbounded_output_at_a_summarizing_form():
     assert "timeout" in doc
 
 
+def test_shell_asks_for_a_spoken_purpose():
+    """The schema offers `purpose`, and its description says it is spoken."""
+    from pydantic_ai import Tool
+
+    desc = Tool(run_shell_command).function_schema.json_schema["properties"]["purpose"][
+        "description"
+    ]
+
+    assert "read aloud" in desc
+
+
+def test_docstring_tells_the_model_to_fill_the_purpose():
+    doc = run_shell_command.__doc__ or ""
+
+    assert "purpose" in doc
+
+
+@pytest.mark.asyncio
+async def test_the_purpose_changes_no_part_of_what_runs():
+    """It is narration: the command runs, and the phrase stays out of the
+    report the model reads back."""
+    res = await run_shell_command("echo purpose-ok", purpose="Checking the echo")
+
+    assert "purpose-ok" in res
+    assert "Exit Code: 0" in res
+    assert "Checking the echo" not in res
+
+
+@pytest.mark.asyncio
+async def test_the_purpose_survives_the_background_path(monkeypatch):
+    """A background call takes it too, and it never reaches the registry."""
+    started = []
+
+    class _RecordingRegistry:
+        async def start(self, *args, **kwargs):
+            started.append((args, kwargs))
+            return "abc123"
+
+    monkeypatch.setattr(
+        "zrb.llm.tool.shell_background.get_shell_background_registry",
+        lambda: _RecordingRegistry(),
+    )
+    res = await run_shell_command(
+        "sleep 1", purpose="Waiting a second", background=True
+    )
+
+    assert "Handle: abc123" in res
+    # command, cwd, description, shell, dangerously_skip_sandbox — the purpose
+    # is narration, so it stays out of what the registry is told.
+    assert started == [(("sleep 1", "", "", "", False), {})]
+
+
 @pytest.mark.asyncio
 async def test_full_output_survives_bounded_memory_retention(monkeypatch):
     """The spill file preserves output omitted from bounded memory."""
