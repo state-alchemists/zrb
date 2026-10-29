@@ -151,7 +151,10 @@ FACADE_BUDGETS = {
     # `collapse_text_block` -- a text block a tool call ends is not the turn's
     # answer, so its prose stays readable in full; the rendering stays in
     # `output.py`.
-    "llm/ui/default/ui.py": 749,
+    # -4 (749->745): the four `*_float` builders are gone — the panels dock into
+    # the layout, so each part builds its own framed `Frame` and `ui.py` only
+    # wires the two slots.
+    "llm/ui/default/ui.py": 745,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

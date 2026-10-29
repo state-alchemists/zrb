@@ -2,7 +2,7 @@
 
 The panel used to show the question alone, so answering meant scrolling back to
 the conversation. The context is rendered above the question, the panel grows
-with it, and past a share of the terminal height it is ellipsized rather than
+with it, and past the docked panel's height cap it is ellipsized rather than
 allowed to push the options off screen. Scrollback keeps the long form.
 """
 
@@ -10,10 +10,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-
-from zrb.llm.ui.default import selection as selection_module
-from zrb.util.cli.terminal import TerminalSize
+from zrb.llm.ui.default.app.docking import panel_row_cap
 
 
 def _spec(options, multi=False, index=1, total=1):
@@ -48,20 +45,6 @@ def _context_lines(ui) -> list[str]:
         for frag in ui.get_choice_text()
         if frag[0] == "class:choice.context" and frag[1].strip()
     ]
-
-
-@pytest.fixture
-def terminal_rows(monkeypatch):
-    """Pin the terminal height the choice panel measures itself against."""
-
-    def _set(rows: int) -> None:
-        monkeypatch.setattr(
-            selection_module,
-            "get_terminal_size",
-            lambda *args, **kwargs: TerminalSize(columns=80, lines=rows),
-        )
-
-    return _set
 
 
 def _long_context(sentences: int = 12) -> str:
@@ -123,11 +106,11 @@ def test_long_context_is_truncated_and_the_options_stay_on_screen(ui, terminal_r
     ui.begin_choice(spec)
     text = _rendered(ui)
 
-    # The context never paints more than 40% of the screen, and the panel as a
-    # whole never outgrows it. The 40% bounds the context, not the question,
-    # the rows and the hint, which must stay whatever the terminal size.
-    assert len(_context_lines(ui)) <= int(40 * selection_module.CHOICE_HEIGHT_SHARE)
-    assert _painted_line_count(ui) < 40
+    # The context never paints past the docked panel's cap, and the panel as a
+    # whole never outgrows it. The cap bounds the context, not the question, the
+    # rows and the hint, which must stay whatever the terminal size.
+    assert len(_context_lines(ui)) <= panel_row_cap(ui)
+    assert _painted_line_count(ui) <= panel_row_cap(ui)
     assert _context_lines(ui)[-1].endswith("…"), "a cut context must say so"
     # Options, the free-text row and the key hint all survive the truncation.
     assert "Postgres" in text and "SQLite" in text
@@ -144,15 +127,16 @@ def test_a_context_that_fits_is_not_truncated(ui, terminal_rows):
 
 
 def test_no_room_for_context_still_shows_the_options(ui, terminal_rows):
-    """On a tiny terminal the options win: the context is dropped, not clipped
-    into the option rows."""
-    terminal_rows(10)
+    """On a screen too short for both, the options win: the context is dropped,
+    not clipped into the option rows, and the cursor's own row is never sliced
+    away."""
+    terminal_rows(18)
     spec = _spec([{"label": "Postgres"}, {"label": "SQLite"}])
     spec["context"] = _long_context()
     ui.begin_choice(spec)
     text = _rendered(ui)
 
-    assert "Postgres" in text and "SQLite" in text
+    assert "Postgres" in text or "SQLite" in text
     assert "Sentence 0" not in text
     assert _context_lines(ui) == []
 

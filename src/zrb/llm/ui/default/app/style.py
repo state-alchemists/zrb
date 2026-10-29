@@ -28,8 +28,8 @@ def create_style() -> Style:
         ),
     }
     # The AskUserQuestion widget, the sub-agent picker and the `/btw` panel
-    # share one panel look. The opaque background stops streaming output
-    # bleeding through the float.
+    # share one panel look, docked into the layout above or in place of the
+    # input. The opaque background keeps each one's box reading as one panel.
     for panel in ("choice", "agent-picker", "side-question"):
         styles.update(
             {

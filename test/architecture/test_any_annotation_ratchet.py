@@ -26,7 +26,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 # `list[tuple[str, int, str]]` — the rows it matched — now that the ranking and
 # the result dict live in `_format_results`, instead of building `dict[str, Any]`
 # itself.
-ANY_ANNOTATIONS = 1055
+# -1 (1055->1054): the shared `*_float` frame builder is gone — the panels dock
+# into the layout, so each builds its own `Frame` from typed state.
+ANY_ANNOTATIONS = 1054
 
 
 def _count_any(annotation: ast.expr | None) -> int:

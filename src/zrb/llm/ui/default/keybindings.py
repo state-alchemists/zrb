@@ -18,6 +18,7 @@ from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.hook.interface import HookEvent
 from zrb.llm.ui.base.queue_delivery import describe_delivery
+from zrb.llm.ui.default.app.keybinding import page_output
 from zrb.llm.util.attachment import (
     get_media_type,
     get_pasted_attachment_paths,
@@ -84,6 +85,19 @@ class UIKeybindings:
         @app_keybindings.add("space", filter=active_choice)
         def _(event):
             self._on_choice_toggle(event)
+
+        # Paging walks the transcript whatever pane holds the focus. The output
+        # pane binds the same keys for its own focus and the `/btw` panel pages
+        # itself; the choice panel binds neither, and a docked panel now leaves
+        # the transcript visible, so without these two an active choice would
+        # freeze the very transcript the user wants to read.
+        @app_keybindings.add("pageup")
+        def _(event):
+            self._on_page_output(event, -1)
+
+        @app_keybindings.add("pagedown")
+        def _(event):
+            self._on_page_output(event, 1)
 
         # Ctrl+K toggles focus between panes; the panes bind no Tab/Shift+Tab
         # traversal (app/layout.py, app/keybinding.py), so Shift+Tab stays free
@@ -197,6 +211,10 @@ class UIKeybindings:
 
     def _on_choice_toggle(self, event: Any) -> None:
         self._ui.selection_part.toggle_choice_current()
+
+    def _on_page_output(self, event: "KeyPressEvent", direction: int) -> None:
+        """PageUp/PageDown: move the transcript, not whichever pane has focus."""
+        page_output(self._ui.output_field, event, direction)
 
     def _on_toggle_focus(self, event: Any) -> None:
         ui = self._ui

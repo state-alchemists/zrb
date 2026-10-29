@@ -11,6 +11,27 @@ from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
 from zrb.llm.ui.default.selection import UISelection
+from zrb.util.cli.terminal import TerminalSize
+
+
+@pytest.fixture
+def terminal_rows(monkeypatch):
+    """Pin the terminal height a docked panel measures itself against.
+
+    CI runs on a 24-row terminal while a developer's is taller, so a height a
+    test reads off the real one passes locally and fails in CI. Every test that
+    asserts a panel's height calls this first.
+    """
+    from zrb.llm.ui.default.app import docking
+
+    def _set(rows: int) -> None:
+        monkeypatch.setattr(
+            docking,
+            "get_terminal_size",
+            lambda *args, **kwargs: TerminalSize(columns=80, lines=rows),
+        )
+
+    return _set
 
 
 class MockEditingUI:

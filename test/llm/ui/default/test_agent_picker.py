@@ -430,7 +430,7 @@ def test_picker_left_arrow_closes_picker_without_touching_view():
     """Regression: the picker can be reopened while already viewing an agent
     (Down Arrow has no `_viewing_agent_id` guard). Left previously had no
     binding on the picker's own control, so it fell through to the app-level
-    Left and silently exited the agent view while the picker Float stayed
+    Left and silently exited the agent view while the picker panel stayed
     drawn on top -- Left appeared to do nothing, and the next Escape then hit
     the app-level handler with the view already cleared, cancelling the main
     task instead of the sub-agent. Left on the picker's own control must only
