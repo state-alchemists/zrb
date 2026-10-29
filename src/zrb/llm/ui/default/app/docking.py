@@ -126,16 +126,31 @@ class RowWindow:
         self._first_row = 0
 
     def slice(
-        self, frags: "StyleAndTextTuples", anchor: int, rows: int
+        self,
+        frags: "StyleAndTextTuples",
+        anchor: int,
+        rows: int,
+        footer: int = 0,
     ) -> "StyleAndTextTuples":
-        """At most *rows* rows of *frags*, with row *anchor* among them."""
+        """At most *rows* rows of *frags*, with row *anchor* among them.
+
+        The last *footer* rows stay painted whatever the window does: they are
+        the key hint, and a legend the user cannot see is not a legend. One body
+        row always survives, so the anchor is never the thing that gets dropped.
+        """
         lines = _split_rows(frags)
-        rows = max(0, min(rows, len(lines)))
+        total = len(lines)
+        rows = max(0, min(rows, total))
         if rows == 0:
             return []
-        first = self._follow(anchor, rows, len(lines))
+        footer = max(0, min(footer, rows - 1, total))
+        body_rows = rows - footer
+        body_total = total - footer
+        if body_rows <= 0:
+            return _join_rows(lines[body_total:])
+        first = self._follow(min(anchor, body_total - 1), body_rows, body_total)
         self._first_row = first
-        return _join_rows(lines[first : first + rows])
+        return _join_rows(lines[first : first + body_rows] + lines[body_total:])
 
     def _follow(self, anchor: int, rows: int, total: int) -> int:
         """The first visible row, moved just enough to keep *anchor* in view."""

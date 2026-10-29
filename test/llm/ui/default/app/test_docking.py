@@ -121,3 +121,18 @@ class TestRowWindow:
         window.slice(_frags(20), anchor=15, rows=4)
         window.reset()
         assert _painted(window.slice(_frags(20), anchor=0, rows=4))[0] == "row 0"
+
+    def test_the_footer_rows_stay_painted_however_far_the_window_scrolls(self):
+        window = RowWindow()
+        # The last two rows are a hint that has to stay readable.
+        painted = _painted(window.slice(_frags(20), anchor=15, rows=6, footer=2))
+
+        assert painted[-1] == "row 19"
+        assert painted[-2] == "row 18"
+        assert "row 15" in painted, "and the anchor is still in view"
+
+    def test_a_footer_leaves_at_least_one_body_row(self):
+        window = RowWindow()
+        painted = _painted(window.slice(_frags(20), anchor=0, rows=2, footer=2))
+
+        assert painted == ["row 0", "row 19"]

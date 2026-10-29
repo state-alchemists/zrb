@@ -310,7 +310,7 @@ class UIAgentPicker:
         if not self._picker_sessions:
             return []
         frags, cursor_row = self._render_picker()
-        return self._row_window.slice(frags, cursor_row, self.panel_rows())
+        return self._row_window.slice(frags, cursor_row, self.panel_rows(), footer=2)
 
     def _render_picker(self) -> "tuple[StyleAndTextTuples, int]":
         """Every row the picker would paint, and the row the cursor sits on."""

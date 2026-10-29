@@ -126,6 +126,19 @@ def test_at_forty_rows_the_context_shows_above_the_question(ui, terminal_rows):
     assert "↑/↓ move" in text
 
 
+def test_the_hint_and_its_legend_survive_the_cap(ui, terminal_rows):
+    """At 24 rows the free-text row scrolls out, but the hint stays: it carries
+    the ★ legend, and an unexplained marker is worse than a scrolled option."""
+    terminal_rows(24)
+    spec = _spec([{"label": "Recommended one", "recommended": True}, {"label": "Other"}])
+    ui.begin_choice(spec)
+    text = _rendered(ui)
+
+    assert "★ recommended" in text
+    assert "↑/↓ move" in text
+    assert "Recommended one" in text, "the cursor's own row stays too"
+
+
 def test_a_short_screen_drops_the_context_and_keeps_the_option_row(ui, terminal_rows):
     """The options matter more than the context, and scrollback keeps the rest."""
     terminal_rows(18)

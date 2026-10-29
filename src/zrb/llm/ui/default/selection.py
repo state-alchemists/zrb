@@ -54,6 +54,11 @@ RECOMMENDED_MARK = "★"
 # What a truncated context ends on.
 ELLIPSIS = "…"
 
+# Rows the key hint takes at the bottom of the panel: a blank line and the hint
+# itself. They stay painted however short the panel gets — the hint carries the
+# ★ legend, and an unexplained marker is worse than a scrolled option.
+HINT_ROWS = 2
+
 
 @dataclass(frozen=True)
 class _Row:
@@ -331,7 +336,9 @@ class UISelection:
         if spec is None:
             return []
         frags, cursor_row = self._render_panel(spec)
-        return self._row_window.slice(frags, cursor_row, self.panel_rows())
+        return self._row_window.slice(
+            frags, cursor_row, self.panel_rows(), footer=HINT_ROWS
+        )
 
     def _render_panel(self, spec: dict) -> "tuple[StyleAndTextTuples, int]":
         """Every row the panel would paint, and the row the cursor sits on."""
