@@ -104,6 +104,35 @@ class TrackedSpans:
             return False
         return self._splice_collapsed_span(block.start, block.end, collapsed, full)
 
+    def settle_block(self, rendered: str) -> tuple[int, int] | None:
+        """Replace the block opened by `mark_block_start` with `rendered`.
+
+        For a block that ends without being collapsed: the caller renders the
+        block's own text (as markdown, say) and the muted streamed copy makes
+        way for it. `rendered` is a rendering of the block's *content*, so the
+        streamed span's own leading line breaks are kept — they are what puts
+        the replacement on a line of its own, which the content never carried.
+
+        Returns the span `rendered` itself occupies — separator excluded, so a
+        re-render of the source lands back on exactly that span — and None when
+        no block was open.
+        """
+        block = self.open_block
+        self.open_block = None
+        if block is None or block.end <= block.start or not rendered:
+            return None
+        streamed = self._get_text()[block.start : block.end]
+        separator = streamed[: len(streamed) - len(streamed.lstrip("\n"))]
+        if not self.replace(block.start, block.end, separator + rendered):
+            return None
+        start = block.start + len(separator)
+        return start, start + len(rendered)
+
+    def end_block(self) -> None:
+        """Release the block opened by `mark_block_start`, leaving its text in
+        place: a block that ended without being collapsed or replaced."""
+        self.open_block = None
+
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Grow or replace `key`'s own "Prepare tool parameters" line."""
         self._update_keyed_line(self._tool_prepare_spans, key, text)

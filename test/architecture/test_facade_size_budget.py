@@ -141,7 +141,11 @@ FACADE_BUDGETS = {
     # transcript, so a command's table stays readable while the conversation
     # scrolls under it -- new surface; the panel's own state and rendering
     # still live in `side_question.py` (ADR-0127).
-    "llm/ui/default/ui.py": 746,
+    # +3 (746->749): the `settle_text_block` delegator beside
+    # `collapse_text_block` -- a text block a tool call ends is not the turn's
+    # answer, so its prose stays readable in full; the rendering stays in
+    # `output.py`.
+    "llm/ui/default/ui.py": 749,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

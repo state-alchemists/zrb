@@ -172,6 +172,22 @@ def test_collapse_text_block_without_a_mark_is_a_noop():
     assert ui.get_buffered_output() == "no marked text block here"
 
 
+def test_settle_text_block_keeps_the_streamed_text_and_releases_the_block():
+    """A buffered child renders no markdown: its stream is already readable."""
+    ui = BufferedUI(MagicMock())
+    ui.append_to_output("before ", end="")
+    ui.mark_text_block_start()
+    ui.append_to_output("prose before a tool call", end="", kind="streaming")
+
+    ui.settle_text_block("prose before a tool call")
+
+    assert "prose before a tool call" in ui.get_buffered_output()
+    assert "💬 Response" not in ui.get_buffered_output()
+    assert ui.rendered_blocks == []
+    # The block is released, so a collapse right after finds nothing to take.
+    assert ui.collapse_text_block("💬 Response\n", "prose before a tool call") is False
+
+
 def test_clear_buffer_resets_toggle_state_for_text_block_too():
     ui = BufferedUI(MagicMock())
     ui.mark_text_block_start()

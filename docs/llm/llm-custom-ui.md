@@ -661,7 +661,8 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 | `reset_context_usage()` | `/compress` compacted the history, so the meter's context size is stale until the next run |
 | `append_markdown(markdown_text)` | Markdown reaches the pane (the assistant's answer, or a markdownish user paste) — a child without it gets the pre-rendered text |
 | `mark_text_block_start()` | The assistant begins a text block |
-| `collapse_text_block(collapsed, full)` | That text block ends, with a short and a full form |
+| `collapse_text_block(collapsed, full)` | The run's final text block ends, with a short and a full form |
+| `settle_text_block(source)` | A text block ends because a tool call (or another part) follows, not because the turn answered — render `source`, the block's own text, in full instead of collapsing it; the final reply follows through `append_markdown` |
 | `mark_thinking_block_start()` | The assistant begins a reasoning block |
 | `collapse_thinking_block(collapsed, full)` | That reasoning block ends |
 | `update_tool_prepare(key, text)` | A tool call is being prepared |

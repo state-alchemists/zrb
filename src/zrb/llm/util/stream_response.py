@@ -1,6 +1,6 @@
 import time
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 from zrb.llm.tool_call.args import (
     is_empty_tool_args,
@@ -27,12 +27,26 @@ PrintKind = Literal[
 _PROGRESS_REPAINT_INTERVAL = 0.1
 
 
+class _BlockContent(NamedTuple):
+    """What a block accumulated: the screen text it printed, plus the
+    undecorated source of that text."""
+
+    full: str
+    source: str
+
+
 class StreamedBlock:
-    """One live-streamed, later-collapsed block: the model's thinking or its
-    final-text reply. `StreamEventHandler` holds one of each.
+    """One live-streamed block: the model's thinking, or a stretch of its
+    prose. `StreamEventHandler` holds one of each.
 
     `kind` is the `print_fn` kind of every chunk; `label` heads the collapsed
     placeholder line.
+
+    A block can be open and then end in only two ways. `close` collapses it
+    into that placeholder — for thinking always, and for text when the run
+    ends, since `BaseUI.stream_ai_response` renders the final answer itself.
+    `settle` ends it leaving its prose on screen, which is what a text block
+    interrupted by a tool call wants.
     """
 
     def __init__(
@@ -53,6 +67,7 @@ class StreamedBlock:
         self._open = False
         self._open_prefix = ""
         self._full_chunks: list[str] = []
+        self._source_chunks: list[str] = []
 
     @property
     def is_open(self) -> bool:
@@ -65,16 +80,25 @@ class StreamedBlock:
         self._open = True
         self._open_prefix = prefix
         self._full_chunks = []
+        self._source_chunks = []
 
-    def stream(self, raw: str, preserve_leading_newline: bool) -> None:
+    def stream(
+        self, raw: str, preserve_leading_newline: bool, source: str | None = None
+    ) -> None:
         """Format, accumulate, and print one chunk of the block.
 
         Accumulated here rather than re-read from the rendered buffer, where
         `\\r` handling may have erased part of a line.
+
+        `source` is this chunk's own text without the screen decoration `raw`
+        carries — the indentation and the leading icon. `settle` hands it to a
+        markdown renderer, which would read that indentation as code. It
+        defaults to `raw`, correct for a caller that prints the text undecorated.
         """
         formatted = self._format_content(raw, preserve_leading_newline)
         if self._on_collapse is not None:
             self._full_chunks.append(formatted)
+        self._source_chunks.append(raw if source is None else source)
         self._print_fn(formatted, self._kind)
 
     def close(self) -> None:
@@ -83,16 +107,42 @@ class StreamedBlock:
         For the final-text block this collapses only the raw streamed copy;
         `BaseUI.stream_ai_response` appends the rendered one.
         """
+        content = self._end()
+        if content is not None:
+            self._collapse(content)
+
+    def settle(self) -> str:
+        """End the block without collapsing it, returning its text.
+
+        The caller puts a rendering of that text where the streamed copy was,
+        so prose written before a tool call stays readable. A block whose
+        source is blank — an empty text part — collapses instead: there is no
+        prose to keep, and a bare icon on a line of its own reads worse than
+        the hint it collapsed into.
+        """
+        content = self._end()
+        if content is None:
+            return ""
+        if content.source.strip():
+            return content.source
+        self._collapse(content)
+        return ""
+
+    def _end(self) -> _BlockContent | None:
+        """Release the block's state, returning what it accumulated."""
         if not self._open:
-            return
+            return None
         self._open = False
-        chunks, self._full_chunks = self._full_chunks, []
+        full, self._full_chunks = "".join(self._full_chunks), []
+        source, self._source_chunks = "".join(self._source_chunks), []
+        return _BlockContent(full, source)
+
+    def _collapse(self, content: _BlockContent) -> None:
         if self._on_collapse is None:
             return
-        full = "".join(chunks)
         # Some providers return only an opaque reasoning signature; the
         # count shows an empty block as such rather than as a bug.
-        char_count = len(full.strip())
+        char_count = len(content.full.strip())
         # No trailing "\n": whatever prints next supplies its own leading one.
         label = (
             f"{self._label} ({char_count} chars)"
@@ -100,7 +150,7 @@ class StreamedBlock:
             else f"{self._label} (empty)"
         )
         collapsed = self._format_content(f"{self._open_prefix}{label}", True)
-        self._on_collapse(collapsed, full)
+        self._on_collapse(collapsed, content.full)
 
 
 class StreamEventHandler:
@@ -118,6 +168,7 @@ class StreamEventHandler:
         on_thinking_collapse: Callable[[str, str], None] | None = None,
         on_text_start: Callable[[], None] | None = None,
         on_text_collapse: Callable[[str, str], None] | None = None,
+        on_text_settle: Callable[[str], None] | None = None,
         on_tool_prepare_update: Callable[[str, str], None] | None = None,
         on_tool_call_start: Callable[[str, str], None] | None = None,
         on_tool_call_end: Callable[[str | None], None] | None = None,
@@ -128,6 +179,7 @@ class StreamEventHandler:
         self._show_tool_call_detail = show_tool_call_detail
         self._show_tool_result = show_tool_result
         self._tool_block_recorder = tool_block_recorder
+        self._on_text_settle = on_text_settle
         self._on_tool_prepare_update = on_tool_prepare_update
         self._on_tool_call_start = on_tool_call_start
         self._on_tool_call_end = on_tool_call_end
@@ -294,6 +346,19 @@ class StreamEventHandler:
         )
         self._on_tool_prepare_update(tool_call_id, formatted)
 
+    def _settle_text(self) -> None:
+        """End an open text block as an intermediate one.
+
+        Text a following part closes is prose written before a tool call, not
+        the turn's answer — `handle_run_result` closes that one — so the block
+        is settled rather than collapsed: the UI renders it in full where the
+        streamed copy was, and the run's answer is still rendered once at the
+        end.
+        """
+        source = self._text.settle()
+        if source and self._on_text_settle is not None:
+            self._on_text_settle(source)
+
     def handle_part_start(self, event: "PartStartEvent") -> bool:
         # lazy: zrb internal (heavy via transitive)
         from zrb.llm.agent.types import TextPart, ToolCallPart
@@ -303,10 +368,10 @@ class StreamEventHandler:
         # which should collapse into one block.
         if isinstance(event.part, (ToolCallPart, TextPart)):
             self._thinking.close()
-        # Likewise a non-text part closes an open text response; a new
+        # Likewise a non-text part ends an open text response; a new
         # TextPart merges into it.
         if not isinstance(event.part, TextPart):
-            self._text.close()
+            self._settle_text()
 
         if isinstance(event.part, ToolCallPart):
             # Static placeholder; streaming providers overwrite it with the
@@ -341,6 +406,7 @@ class StreamEventHandler:
                 self._text.stream(
                     f"{self._event_prefix}{marker}{content}",
                     preserve_leading_newline=True,
+                    source=content,
                 )
         else:
             content = get_event_part_content(event)
@@ -511,6 +577,7 @@ def create_event_handler(
     on_thinking_collapse: Callable[[str, str], None] | None = None,
     on_text_start: Callable[[], None] | None = None,
     on_text_collapse: Callable[[str, str], None] | None = None,
+    on_text_settle: Callable[[str], None] | None = None,
     on_tool_prepare_update: Callable[[str, str], None] | None = None,
     on_tool_call_start: Callable[[str, str], None] | None = None,
     on_tool_call_end: Callable[[str | None], None] | None = None,
@@ -529,9 +596,14 @@ def create_event_handler(
         on_thinking_start: Called before a thinking block's first chunk.
         on_thinking_collapse: Called with (collapsed, full) when a thinking
             block ends; `full` is every chunk sent to print_fn for it.
-        on_text_start: Called before the final text response's first chunk.
-        on_text_collapse: Called with (collapsed, full) when the final text
-            response ends; same contract as `on_thinking_collapse`.
+        on_text_start: Called before a text response's first chunk.
+        on_text_collapse: Called with (collapsed, full) when the run's final
+            text response ends; same contract as `on_thinking_collapse`.
+        on_text_settle: Called with a text block's own text (no indentation,
+            no leading icon) when a tool call or another part ends it before
+            the run does. That prose is not the answer — `on_text_collapse`'s
+            block is — so the UI can leave it on screen in full, rendered,
+            instead of collapsing it into a hint.
         on_tool_prepare_update: Called with (tool_call_id, text) to print or
             replace that call's own "Prepare tool parameters" line (empty
             text erases it). Without it, a single `\\r`-animated line is used,
@@ -552,6 +624,7 @@ def create_event_handler(
         on_thinking_collapse=on_thinking_collapse,
         on_text_start=on_text_start,
         on_text_collapse=on_text_collapse,
+        on_text_settle=on_text_settle,
         on_tool_prepare_update=on_tool_prepare_update,
         on_tool_call_start=on_tool_call_start,
         on_tool_call_end=on_tool_call_end,

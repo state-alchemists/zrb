@@ -19,15 +19,22 @@ class TestStreamEventHandlerTextCollapse:
         on_start.assert_called_once_with()
         print_fn.assert_called()
 
-    def test_tool_call_after_text_closes_and_collapses_it(self):
-        "The realistic mid-turn case: text streamed, then a further tool"
+    def test_tool_call_after_text_settles_it_with_its_own_text(self):
+        """The realistic mid-turn case: text streamed, then a further tool.
+
+        That text is prose written before acting, not the turn's answer, so the
+        block is settled — handed over in full — rather than collapsed into the
+        placeholder the final answer gets.
+        """
         print_fn = MagicMock()
         on_start = MagicMock()
         on_collapse = MagicMock()
+        on_settle = MagicMock()
         handler = StreamEventHandler(
             print_fn=print_fn,
             on_text_start=on_start,
             on_text_collapse=on_collapse,
+            on_text_settle=on_settle,
         )
         from pydantic_ai import ToolCallPart
         from pydantic_ai.messages import TextPart
@@ -40,17 +47,64 @@ class TestStreamEventHandlerTextCollapse:
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
         handler.handle_part_start(tool_event)
 
+        on_settle.assert_called_once_with("Let me check that for you")
+        on_collapse.assert_not_called()
+
+    def test_settled_text_carries_no_indentation_or_leading_icon(self):
+        """A markdown renderer would read the stream's indentation as code, so
+        the settled text is the model's own words."""
+        print_fn = MagicMock()
+        on_settle = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn, on_text_settle=on_settle, indent_level=2
+        )
+        from pydantic_ai import TextPartDelta, ToolCallPart
+        from pydantic_ai.messages import TextPart
+
+        start_event = MagicMock()
+        start_event.part = TextPart(content="Let me check")
+        handler.handle_part_start(start_event)
+
+        delta_event = MagicMock()
+        delta_event.delta = TextPartDelta(content_delta=" that for you")
+        handler.handle_part_delta(delta_event)
+
+        tool_event = MagicMock()
+        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
+        handler.handle_part_start(tool_event)
+
+        on_settle.assert_called_once_with("Let me check that for you")
+
+    def test_an_empty_text_block_still_collapses_instead_of_settling(self):
+        """Nothing to keep — the placeholder is better than a bare icon."""
+        print_fn = MagicMock()
+        on_collapse = MagicMock()
+        on_settle = MagicMock()
+        handler = StreamEventHandler(
+            print_fn=print_fn, on_text_collapse=on_collapse, on_text_settle=on_settle
+        )
+        from pydantic_ai import ToolCallPart
+        from pydantic_ai.messages import TextPart
+
+        text_event = MagicMock()
+        text_event.part = TextPart(content="")
+        handler.handle_part_start(text_event)
+
+        tool_event = MagicMock()
+        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
+        handler.handle_part_start(tool_event)
+
+        on_settle.assert_not_called()
         on_collapse.assert_called_once()
-        collapsed_text, full_text = on_collapse.call_args[0]
+        collapsed_text, _full = on_collapse.call_args[0]
         assert "💬 Response" in collapsed_text
-        assert "Let me check that for you" in full_text
 
     def test_carriage_return_in_a_delta_does_not_truncate_the_full_text(self):
         "Same regression as thinking's: `full` must be accumulated at the"
         print_fn = MagicMock()
         on_collapse = MagicMock()
         handler = StreamEventHandler(print_fn=print_fn, on_text_collapse=on_collapse)
-        from pydantic_ai import TextPartDelta, ToolCallPart
+        from pydantic_ai import TextPartDelta
         from pydantic_ai.messages import TextPart
 
         start_event = MagicMock()
@@ -61,9 +115,9 @@ class TestStreamEventHandlerTextCollapse:
         delta_event.delta = TextPartDelta(content_delta="\rmore of the answer")
         handler.handle_part_delta(delta_event)
 
-        tool_event = MagicMock()
-        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
-        handler.handle_part_start(tool_event)
+        result_event = MagicMock()
+        result_event.result.usage = MagicMock()
+        handler.handle_run_result(result_event)
 
         on_collapse.assert_called_once()
         _collapsed, full = on_collapse.call_args[0]
