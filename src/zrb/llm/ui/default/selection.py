@@ -132,15 +132,30 @@ class UISelection:
         self._row_window.reset()
         # A panel with no rows to paint is a bare frame, and in this slot it has
         # taken the input's rows to get there: on a terminal too short to give it
-        # any, the question goes to the transcript instead and the input keeps
-        # its place, so a typed answer can still resolve the choice.
+        # any, the question goes to the transcript instead.
         if panel_row_cap(self._ui) <= 0:
-            self._echo_unpaintable_choice(spec)
-            focus_widget(self._ui.input_field, "Input-field")
-            self._invalidate()
+            self._start_unpaintable_choice(spec)
             return
         # The question is echoed into scrollback with the answer on resolve.
         focus_widget(self._choice_window, "Choice-window")
+
+    def _start_unpaintable_choice(self, spec: dict) -> None:
+        """Ask in the transcript, and take the answer as typed free text.
+
+        The choice must close, not merely go unpainted: an active choice is what
+        makes the input field read-only and what makes Enter confirm the
+        highlighted option, so leaving it set would answer with option zero
+        instead of what was typed. What stays is the pending free-text capture
+        the synthetic row uses, so the next Enter resolves this as typed text.
+        """
+        question = spec.get("question", "")
+        context = spec.get("context", "")
+        self._echo_unpaintable_choice(spec)
+        self.end_choice()
+        self._choice_freetext_prefix = ""
+        self._choice_freetext_question = question
+        self._choice_freetext_context = context
+        self._invalidate()
 
     def _echo_unpaintable_choice(self, spec: dict) -> None:
         """Put the question and its options in the transcript, for want of a panel."""

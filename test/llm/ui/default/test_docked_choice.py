@@ -8,6 +8,8 @@ the cursor rather than eating the screen.
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from prompt_toolkit.layout.dimension import to_dimension
 from prompt_toolkit.widgets import Frame
 
@@ -34,6 +36,13 @@ def _options(count: int) -> list[dict]:
 
 def _rendered(ui) -> str:
     return "".join(frag[1] for frag in ui.get_choice_text())
+
+
+def _event(text: str):
+    """The Enter the input field would send with *text* in its buffer."""
+    return SimpleNamespace(
+        current_buffer=SimpleNamespace(text=text, reset=lambda: None)
+    )
 
 
 def test_the_panel_keeps_the_frames_title_and_style_class(ui):
@@ -155,16 +164,23 @@ def test_a_terminal_with_no_room_asks_in_the_transcript_instead(ui, terminal_row
     """A zero-row panel is a bare frame with nothing under it.
 
     The panel stands in the input frame's place, so at that size the user would
-    lose both the options and the input. The question goes to the transcript
-    instead and the input keeps its rows, where a typed answer resolves it.
+    lose both the options and the input. The question goes to the transcript and
+    the choice closes — an active choice is what makes the input read-only and
+    what makes Enter confirm the highlighted option — so the typed answer is the
+    one that gets resolved, through the same pending capture the free-text row
+    leaves behind.
     """
     terminal_rows(16)
     assert panel_row_cap(ui) == 0
 
     ui.begin_choice(_spec(_options(2)))
 
-    assert ui.has_active_choice() is True
+    assert ui.has_active_choice() is False
     printed = "".join(ui.echoes)
     assert "Which one?" in printed
     assert "Option 0" in printed and "Option 1" in printed
     assert "Type your answer and press Enter" in printed
+
+    ui.handle_confirmation(_event("Option 1"))
+
+    assert ui.resolved == "Option 1"
