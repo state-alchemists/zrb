@@ -43,7 +43,9 @@ def zrb_floors() -> dict[str, dict[str, Version]]:
             requirement = Requirement(entry)
             floor = _floor(requirement.specifier)
             if floor is not None:
-                floors.setdefault(extra, {})[canonicalize_name(requirement.name)] = floor
+                floors.setdefault(extra, {})[
+                    canonicalize_name(requirement.name)
+                ] = floor
     return floors
 
 
@@ -61,7 +63,9 @@ def pydantic_ai_floors(extras: set[str]) -> dict[str, dict[str, Version]]:
             continue
         for extra in extras:
             if requirement.marker.evaluate({"extra": extra}):
-                floors.setdefault(extra, {})[canonicalize_name(requirement.name)] = floor
+                floors.setdefault(extra, {})[
+                    canonicalize_name(requirement.name)
+                ] = floor
     return floors
 
 
