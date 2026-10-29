@@ -643,7 +643,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         timestamp = datetime.now().strftime("%H:%M")
         self.append_to_output(f"\n🤖 {timestamp} >>\n")
         self.append_to_output("\n")
-        self.append_markdown(answer)
+        # A side answer is a screen: history is not involved, and the markers
+        # belong to the ear alone.
+        self.append_markdown(shown_text(answer))
 
     def fail_side_question(self, message: str, request: object | None = None) -> None:
         """[OPTIONAL] Report a side question that could not be answered."""

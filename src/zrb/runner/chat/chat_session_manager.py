@@ -13,6 +13,7 @@ from zrb.llm.history_manager.file_history_manager import (
 from zrb.llm.input_source import WEB_INPUT, InputProvenance
 from zrb.llm.prompt.live_context import split_live_context
 from zrb.llm.util.feature_config import close_feature_sessions
+from zrb.llm.util.spoken import shown_text
 
 # Re-exported for chat_api_route.py and tests.
 from zrb.llm.util.subagent_session_naming import (
@@ -273,6 +274,10 @@ class ChatSessionManager:
             live_context = None
             if role == "user":
                 content, live_context = split_live_context(content)
+            else:
+                # History keeps the `<spoken>` markers, because speech reads the
+                # same text at stop; a transcript is a screen and shows none.
+                content = shown_text(content)
             result.append(
                 {
                     "role": role,
