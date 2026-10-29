@@ -327,8 +327,18 @@ class UISelection:
         lines = _wrap(context, width - 1)
         if not lines:
             return []
-        # One row of the budget goes to the blank line under the context.
-        budget = self._height_cap() - _painted_lines(body) - 1
+        # `_height_cap` bounds the context, not the whole panel: the question,
+        # the rows and the hint are painted whatever happens. Two rows stay
+        # reserved — one under the panel, one for the blank line that separates
+        # the context from the question — so what is left over is the real
+        # budget. Measuring the panel against the cap instead (`cap - body - 1`)
+        # subtracted the body twice and left a 24-row terminal with a negative
+        # budget, so a one-line context was dropped for want of arithmetic
+        # rather than for want of room.
+        budget = min(
+            self._height_cap(),
+            self._terminal_lines() - _painted_lines(body) - 2,
+        )
         lines = _clamp_lines(lines, budget, width - 1)
         if not lines:
             # No room at all: the options matter more than the context, and the
@@ -399,7 +409,12 @@ class UISelection:
         return max(24, (columns or 84) - 4)
 
     def _height_cap(self) -> int:
-        """Rows the panel may paint: a share of the terminal, never all of it."""
+        """Rows the context may paint: a share of the terminal, never all of it.
+
+        A ceiling on the context, not on the panel: what a short screen cannot
+        hold is decided against `_terminal_lines` in `_context_frags`, so this
+        only stops a long context from dominating a tall one.
+        """
         return max(1, int(self._terminal_lines() * CHOICE_HEIGHT_SHARE))
 
     def _terminal_lines(self) -> int:

@@ -71,9 +71,10 @@ def _long_context(sentences: int = 12) -> str:
     )
 
 
-def test_context_renders_above_the_question_in_muted_style(ui):
+def test_context_renders_above_the_question_in_muted_style(ui, terminal_rows):
     """The panel carries the facts needed to answer, so the user need not
     scroll back to the conversation to answer it."""
+    terminal_rows(40)
     spec = _spec([{"label": "A"}, {"label": "B"}])
     spec["context"] = "Read-heavy traffic, 2GB of data, no ops team."
     ui.begin_choice(spec)
@@ -87,7 +88,8 @@ def test_context_renders_above_the_question_in_muted_style(ui):
     assert context_styles == ["class:choice.context"]
 
 
-def test_context_is_wrapped_to_the_panel_width(ui):
+def test_context_is_wrapped_to_the_panel_width(ui, terminal_rows):
+    terminal_rows(40)
     spec = _spec([{"label": "A"}])
     spec["context"] = _long_context(4)
     ui.begin_choice(spec)
@@ -117,12 +119,15 @@ def test_short_context_grows_the_panel(ui, terminal_rows):
 def test_long_context_is_truncated_and_the_options_stay_on_screen(ui, terminal_rows):
     terminal_rows(40)
     spec = _spec([{"label": "Postgres"}, {"label": "SQLite"}])
-    spec["context"] = _long_context()
+    spec["context"] = _long_context(40)  # far past any share of a screen
     ui.begin_choice(spec)
     text = _rendered(ui)
 
-    # 40 rows × 40% — the panel never paints more than that.
-    assert _painted_line_count(ui) <= int(40 * selection_module.CHOICE_HEIGHT_SHARE)
+    # The context never paints more than 40% of the screen, and the panel as a
+    # whole never outgrows it. The 40% bounds the context, not the question,
+    # the rows and the hint, which must stay whatever the terminal size.
+    assert len(_context_lines(ui)) <= int(40 * selection_module.CHOICE_HEIGHT_SHARE)
+    assert _painted_line_count(ui) < 40
     assert _context_lines(ui)[-1].endswith("…"), "a cut context must say so"
     # Options, the free-text row and the key hint all survive the truncation.
     assert "Postgres" in text and "SQLite" in text
@@ -176,7 +181,7 @@ def test_echo_keeps_the_whole_context_the_panel_truncated(ui, terminal_rows):
     """The panel ellipsizes a long context; scrollback is where the rest lives."""
     terminal_rows(40)
     spec = _spec([{"label": "Postgres"}, {"label": "SQLite"}])
-    spec["context"] = _long_context()
+    spec["context"] = _long_context(40)  # far past any share of a screen
     ui.begin_choice(spec)
     ui.confirm_choice()
 
