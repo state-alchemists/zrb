@@ -7,6 +7,7 @@ from zrb.llm.tool_call.args import (
     parse_tool_args_value,
     truncate_tool_args_values,
 )
+from zrb.llm.util.spoken import SpokenSplitter
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import (
@@ -209,6 +210,10 @@ class StreamEventHandler:
             self._format_content,
             print_fn,
         )
+        # What the model wrote, with the `<spoken>` markers taken out: the
+        # screen shows the whole reply, but never a marker, which belongs to
+        # the speech feature alone.
+        self._spoken = SpokenSplitter()
         # Part `.index` -> `tool_call_id` (deltas carry only `.index`), and
         # each call's prefix when its placeholder opened.
         self._tool_prepare_index_map: dict[int, str] = {}
@@ -355,9 +360,25 @@ class StreamEventHandler:
         streamed copy was, and the run's answer is still rendered once at the
         end.
         """
+        self._flush_text()
         source = self._text.settle()
         if source and self._on_text_settle is not None:
             self._on_text_settle(source)
+
+    def _flush_text(self) -> None:
+        """Print what the end of a piece held back, as the block closes.
+
+        The splitter holds a trailing `<spo` in case the next piece completes
+        `<spoken>`; there is no next piece here, so it was prose after all.
+        """
+        shown = self._spoken.flush()[0]
+        if shown and self._text.is_open:
+            self._text.stream(shown, preserve_leading_newline=False)
+
+    def _shown(self, content: str) -> str:
+        """*content* as the screen shows it: without the `<spoken>` markers,
+        which belong to the ear alone."""
+        return self._spoken.feed(content)[0]
 
     def handle_part_start(self, event: "PartStartEvent") -> bool:
         # lazy: zrb internal (heavy via transitive)
@@ -399,9 +420,13 @@ class StreamEventHandler:
             # Marked on the first chunk so the icon survives into `full`.
             if not self._text.is_open:
                 self._text.open(self._event_prefix)
+                # A new block is a new message: an unclosed block in the last
+                # one runs to its end, not into this one.
+                self._spoken.reset()
                 marker = "💬 "
             else:
                 marker = ""
+            content = self._shown(content)
             if content or marker:
                 self._text.stream(
                     f"{self._event_prefix}{marker}{content}",
@@ -433,7 +458,8 @@ class StreamEventHandler:
 
         if isinstance(event.delta, TextPartDelta):
             self._text.stream(
-                event.delta.content_delta or "", preserve_leading_newline=False
+                self._shown(event.delta.content_delta or ""),
+                preserve_leading_newline=False,
             )
             self._was_tool_call_delta = False
             self._was_tool_call_start = False
@@ -538,6 +564,7 @@ class StreamEventHandler:
         # Clear any tool that never got a result event.
         if self._on_tool_call_end is not None:
             self._on_tool_call_end(None)
+        self._flush_text()
         self._thinking.close()
         self._text.close()
         usage = event.result.usage

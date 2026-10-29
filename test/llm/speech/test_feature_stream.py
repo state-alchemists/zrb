@@ -88,14 +88,18 @@ def _tool_call_start():
 @pytest.mark.asyncio
 async def test_a_streamed_reply_is_spoken_a_sentence_at_a_time():
     session = _session(stream=True)
-    reply = "I will check the test suite first. Then I will fix the failing case."
+    first = "I will check the test suite first. "
+    rest = "Then I will fix the failing case. "
 
-    session.handle_stream_event(_text_start(""))
-    for i in range(0, len(reply), 4):
-        session.handle_stream_event(_text_delta(reply[i : i + 4]))
+    session.handle_stream_event(_text_start("<spoken>"))
+    for i in range(0, len(first), 4):
+        session.handle_stream_event(_text_delta(first[i : i + 4]))
 
     assert session.speaker.said == ["I will check the test suite first."]
-    await session.handle_stop(_stop(reply))
+
+    for i in range(0, len(rest), 4):
+        session.handle_stream_event(_text_delta(rest[i : i + 4]))
+
     assert session.speaker.said == [
         "I will check the test suite first.",
         "Then I will fix the failing case.",
@@ -109,12 +113,13 @@ async def test_a_reply_is_read_in_the_voice_of_the_emotion_it_opens_with():
     # The emotion feature sets it as it takes the emoji out of the reply.
     token = current_reply_emotion.set("sad")
     try:
-        session.handle_stream_event(_text_start(""))
-        session.handle_stream_event(_text_delta("The build failed. Again."))
+        session.handle_stream_event(
+            _text_start("<spoken>The build failed. Again.</spoken>")
+        )
         session.handle_stream_event(_tool_call_start())
     finally:
         current_reply_emotion.reset(token)
-    session.handle_stream_event(_text_start("I will look."))
+    session.handle_stream_event(_text_start("<spoken>I will look.</spoken>"))
     session.handle_stream_event(_tool_call_start())
 
     assert session.speaker.said == ["The build failed. Again.", "I will look."]
@@ -122,7 +127,7 @@ async def test_a_reply_is_read_in_the_voice_of_the_emotion_it_opens_with():
 
 
 @pytest.mark.asyncio
-async def test_a_reply_spoken_at_stop_is_read_in_its_emotions_voice():
+async def test_a_reply_spoken_at_stop_reads_its_emotions_voice():
     session = _session(stream=False, emotion_voices={"happy": "happy.wav"})
 
     token = current_reply_emotion.set("happy")
@@ -135,22 +140,90 @@ async def test_a_reply_spoken_at_stop_is_read_in_its_emotions_voice():
     assert session.speaker.voices == ["happy.wav"]
 
 
+def test_only_the_spoken_block_is_read_aloud_while_it_streams():
+    session = _session(stream=True)
+
+    session.handle_stream_event(_text_start("<spoken>"))
+    session.handle_stream_event(_text_delta("The build failed. Again."))
+    session.handle_stream_event(_text_delta("</spoken> Here is the log."))
+    session.handle_stream_event(_tool_call_start())
+
+    assert session.speaker.said == ["The build failed. Again."]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_spoken_at_stop_reads_its_block_and_not_the_detail():
+    session = _session(stream=False)
+
+    await session.handle_stop(
+        _stop("<spoken>😊 All green.</spoken>\n`main.py`: three tests added.")
+    )
+
+    assert session.speaker.said == ["All green."]
+
+
+@pytest.mark.asyncio
+async def test_a_reply_with_no_block_is_read_whole_as_before():
+    """What makes the block safe to forget: a model that never writes one is
+    heard exactly as it was before the block existed."""
+    session = _session(stream=False)
+    reply = "The build failed. I will look at the log."
+
+    await session.handle_stop(_stop(reply))
+
+    assert session.speaker.said == [reply]
+
+
+def test_prose_before_a_block_is_never_said():
+    """Nothing outside a block reaches the ear, before it or after it: the
+    stream says only what a block marks."""
+    session = _session(stream=True)
+
+    session.handle_stream_event(_text_start(""))
+    session.handle_stream_event(_text_delta("Let me check. "))
+    assert session.speaker.said == []
+
+    session.handle_stream_event(_text_delta("<spoken>Done.</spoken>"))
+    session.handle_stream_event(_tool_call_start())
+
+    assert session.speaker.said == ["Done."]
+
+
+def test_a_block_does_not_cost_a_reply_its_emotions_voice():
+    """The emoji sits inside the block, as its first character; the emotion
+    feature still reads it, and the voice still follows it."""
+    session = _session(stream=True, emotion_voices={"sad": "sad.wav"})
+
+    token = current_reply_emotion.set("sad")
+    try:
+        session.handle_stream_event(_text_start("<spoken>"))
+        session.handle_stream_event(_text_delta("The build failed. Again."))
+        session.handle_stream_event(_text_delta("</spoken> The log is long."))
+        session.handle_stream_event(_tool_call_start())
+    finally:
+        current_reply_emotion.reset(token)
+
+    assert session.speaker.said == ["The build failed. Again."]
+    assert session.speaker.voices == ["sad.wav"]
+
+
 def test_a_streamed_chunk_stops_at_the_length_the_voice_can_take():
     """A local engine drops words past its own token window, so how much prose
     one chunk may hold is the setting's, not the chunker's default."""
     session = _session(stream=True, chunk_max_chars=40)
     reply = "one two three four, five six seven eight nine"
 
-    session.handle_stream_event(_text_start(""))
+    session.handle_stream_event(_text_start("<spoken>"))
     session.handle_stream_event(_text_delta(reply))
+    session.handle_stream_event(_tool_call_start())
 
-    assert session.speaker.said == ["one two three four,"]
+    assert session.speaker.said[0] == "one two three four,"
 
 
-def test_text_before_a_tool_call_is_spoken_when_the_call_starts():
+def test_a_block_before_a_tool_call_is_spoken_when_the_call_starts():
     session = _session(stream=True)
 
-    session.handle_stream_event(_text_start("Let me look."))
+    session.handle_stream_event(_text_start("<spoken>Let me look.</spoken>"))
     session.handle_stream_event(_tool_call_start())
 
     assert session.speaker.said == ["Let me look."]
@@ -163,9 +236,10 @@ async def test_a_streamed_turn_is_spoken_whole_however_long_it_is():
     session = _session(stream=True)
     sentence = "This sentence is about forty characters. "
 
+    session.handle_stream_event(_text_start("<spoken>"))
     for _ in range(4):
         session.handle_stream_event(_text_delta(sentence))
-    await session.handle_stop(_stop(sentence * 4))
+    session.handle_stream_event(_tool_call_start())
 
     assert session.speaker.said == [sentence.strip()] * 4
 
@@ -297,7 +371,7 @@ def test_a_tool_call_right_after_its_spoken_intro_is_not_announced(monkeypatch):
     monkeypatch.setattr("zrb.llm.speech.feature.is_speaking", lambda lock: False)
     session = _session(stream=True, events=["reply", "progress"], progress_interval=5)
 
-    session.handle_stream_event(_text_start("Let me run the tests."))
+    session.handle_stream_event(_text_start("<spoken>Let me run the tests.</spoken>"))
     session.handle_stream_event(_tool_call_start())
     session.handle_stream_event(_tool_call("Shell"))
 

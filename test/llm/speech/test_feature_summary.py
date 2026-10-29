@@ -101,6 +101,22 @@ async def test_a_short_reply_is_read_whole(summarizer):
 
 
 @pytest.mark.asyncio
+async def test_a_summary_is_made_of_the_spoken_block_not_the_whole_reply(summarizer):
+    """The summary stands in for what would be said, so it summarizes the block:
+    detail written for the eye must not reach the ear through it."""
+    session = _session(stream=False, summarize_above_chars=100)
+    spoken_block = "The change touches three modules and adds a new knob. " * 3
+    detail = "`src/zrb/llm/speech/spoken.py` reads the marker; " * 3
+
+    await session.handle_stop(_stop(f"<spoken>{spoken_block}</spoken>\n{detail}"))
+    await _heard(session)
+
+    summarized_text, _model, _timeout = summarizer[0]
+    assert summarized_text == spoken_block.strip()
+    assert session.speaker.said == ["Three modules changed."]
+
+
+@pytest.mark.asyncio
 async def test_a_reply_is_read_whole_when_the_knob_is_off(summarizer):
     session = _session(stream=False, summarize_above_chars=0)
 

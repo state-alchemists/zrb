@@ -153,3 +153,31 @@ def test_a_text_tool_text_run_leaves_the_first_text_readable_in_full():
     assert "💬 Response" in streamed
     assert remove_style(answered).count("I have verified the file.") == 1
     assert remove_style(answered).count("I need to read") == 1
+
+
+def test_a_spoken_block_leaves_no_marker_on_screen():
+    """`<spoken>` marks what is read aloud. The block's own words are on screen
+    like any other prose, and neither marker is, on the whole streamed and
+    settled path — the answer's own render is `test_base_ui_spoken.py`'s."""
+    ui = SettleUI()
+    _print_fn, handler = setup_print_and_events(None, None, ui)
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        opening = MagicMock()
+        opening.part = TextPart(content="<spoken>😊 Reading the file.</spoken>")
+        handler.handle_part_start(opening)
+
+        call = MagicMock()
+        call.part = ToolCallPart(
+            tool_name="Read", args={"path": "a.txt"}, tool_call_id="call_1"
+        )
+        handler.handle_part_start(call)
+        handler.handle_tool_call(call)
+
+        result = MagicMock()
+        result.result.usage = MagicMock()
+        handler.handle_run_result(result)
+
+    screen = remove_style(ui.output_text)
+    assert "spoken" not in screen
+    assert "😊 Reading the file." in screen

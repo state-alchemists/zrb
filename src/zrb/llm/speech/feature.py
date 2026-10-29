@@ -1,9 +1,11 @@
 """`enable_speech`: read replies, tool approvals and questions aloud.
 
 Everything is spoken by one background thread per session, in order, so a hook
-only queues text and returns. A reply is read whole, however long it is,
-unless ``summarize_above_chars`` is set: a longer one is then spoken as the
-small model's summary, once the turn ends.
+only queues text and returns. Of a reply, the `<spoken>` blocks are read and
+nothing else is: a reply that opens none is read whole, as it was before the
+block existed. Either is read in full, unless ``summarize_above_chars`` is set:
+that speakable text is then longer than the setting, and is spoken as the small
+model's summary, once the turn ends.
 """
 
 from __future__ import annotations
@@ -32,6 +34,7 @@ from zrb.llm.util.feature_config import (
     replace_feature_sessions,
     replace_registration,
 )
+from zrb.llm.util.spoken import split_spoken
 
 if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
@@ -440,14 +443,22 @@ class SpeechSession:
         return max(self._config.summarize_above_chars or 0, 0)
 
     def say_reply(self, reply: str) -> None:
-        """Speak *reply*: whole, or as a summary when its speakable text is
-        longer than ``summarize_above_chars``. The summary is made on a worker
-        (`SpeechSummarizer`), so neither the turn nor the speaker's queue waits
-        for the model; it is dropped if speech is interrupted, the session
-        closes or a newer reply comes first, and the reply is read whole when
-        the summary fails, is late, or another is still being made."""
+        """Speak *reply*'s `<spoken>` block, or all of it when it opens none:
+        whole, or as a summary when that speakable text is longer than
+        ``summarize_above_chars``. The summary is made on a worker
+        (`SpeechSummarizer`), and summarizes what would be said, never the
+        whole reply, so the detail meant for the eye cannot leak into the ear;
+        the turn and the speaker's queue wait for no model call. It is dropped
+        if speech is interrupted, the session closes or a newer reply comes
+        first, and the reply is read whole when the summary fails, is late, or
+        another is still being made."""
         self._generation += 1
-        text = clean_for_speech(reply)
+        spoken, _shown = split_spoken(reply)
+        if spoken is not None and not spoken.strip():
+            # A block with nothing in it: the model said nothing is to be read
+            # aloud, which is not the same as saying nothing about what is.
+            return
+        text = clean_for_speech(reply if spoken is None else spoken)
         voice = self._get_voice(get_current_reply_emotion())
         if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
             self._say(text, voice=voice)

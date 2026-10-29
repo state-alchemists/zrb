@@ -13,6 +13,7 @@ from zrb.llm.util.history_formatter import (
     outcome_icon,
     truncate,
 )
+from zrb.llm.util.spoken import shown_text
 
 if TYPE_CHECKING:
     from zrb.llm.ui.base.ui import BaseUI
@@ -96,7 +97,9 @@ class BaseUIReplay:
                 content = str(getattr(part, "content", "") or "")
                 if content.strip():
                     self._base_ui.append_to_output("\n")
-                    self._base_ui.append_markdown(content)
+                    # History keeps the markers, because the stop hook reads the
+                    # same text for speech; a replayed reply is a screen.
+                    self._base_ui.append_markdown(shown_text(content))
             elif pkind == "tool-call":
                 self._replay_tool_call(part, pending_tool_calls)
 
