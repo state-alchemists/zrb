@@ -88,18 +88,25 @@ def _tool_call_start():
 @pytest.mark.asyncio
 async def test_a_streamed_reply_is_spoken_a_sentence_at_a_time():
     session = _session(stream=True)
-    reply = "I will check the test suite first. Then I will fix the failing case."
+    first = "I will check the test suite first."
+    rest = " Then I will fix the failing case. "  # the space completes the cut
+    reply = first + rest
 
     session.handle_stream_event(_text_start(""))
-    for i in range(0, len(reply), 4):
-        session.handle_stream_event(_text_delta(reply[i : i + 4]))
+    for i in range(0, len(first), 4):
+        session.handle_stream_event(_text_delta(first[i : i + 4]))
 
-    assert session.speaker.said == ["I will check the test suite first."]
+    # Held, not said: a `<spoken>` block could still follow this sentence, and
+    # a sentence already in the ear cannot be taken back.
+    assert session.speaker.said == []
+
+    for i in range(0, len(rest), 4):
+        session.handle_stream_event(_text_delta(rest[i : i + 4]))
+
+    # A second sentence settles it: no block came, so both are said, in order.
+    assert session.speaker.said == [first, "Then I will fix the failing case."]
     await session.handle_stop(_stop(reply))
-    assert session.speaker.said == [
-        "I will check the test suite first.",
-        "Then I will fix the failing case.",
-    ]
+    assert session.speaker.said == [first, "Then I will fix the failing case."]
 
 
 @pytest.mark.asyncio
@@ -169,6 +176,21 @@ async def test_a_reply_with_no_block_is_read_whole_as_before():
     assert session.speaker.said == [reply]
 
 
+def test_a_block_after_the_first_sentence_drops_that_sentence():
+    """The hold exists for exactly this: prose written before the block is
+    dropped unheard, because it was never said."""
+    session = _session(stream=True)
+
+    session.handle_stream_event(_text_start(""))
+    session.handle_stream_event(_text_delta("Let me check. "))
+    assert session.speaker.said == []
+
+    session.handle_stream_event(_text_delta("<spoken>Done.</spoken>"))
+    session.handle_stream_event(_tool_call_start())
+
+    assert session.speaker.said == ["Done."]
+
+
 def test_a_block_does_not_cost_a_reply_its_emotions_voice():
     """The emoji sits inside the block, as its first character; the emotion
     feature still reads it, and the voice still follows it."""
@@ -195,8 +217,11 @@ def test_a_streamed_chunk_stops_at_the_length_the_voice_can_take():
 
     session.handle_stream_event(_text_start(""))
     session.handle_stream_event(_text_delta(reply))
+    # The reply's first sentence waits one sentence for a `<spoken>` block; the
+    # ceiling is what this test is about, so end the text and look at it.
+    session.handle_stream_event(_tool_call_start())
 
-    assert session.speaker.said == ["one two three four,"]
+    assert session.speaker.said[0] == "one two three four,"
 
 
 def test_text_before_a_tool_call_is_spoken_when_the_call_starts():

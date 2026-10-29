@@ -88,7 +88,18 @@ class SpokenSplitter:
         self._is_spoken = False
         self._speaks_outside = True
         self._has_spoken = False
+        self._has_block = False
         self._held = ""
+
+    @property
+    def has_block(self) -> bool:
+        """Whether a `<spoken>` block has opened in this reply so far.
+
+        A stream cannot unsay what it has already said, so a caller that would
+        rather not guess holds its first sentence until this turns true — or
+        until a second sentence proves no block is coming.
+        """
+        return self._has_block
 
     def speak_only_blocks(self) -> None:
         """Say nothing outside a block, not even before the first one opens."""
@@ -144,6 +155,7 @@ class SpokenSplitter:
         self._is_spoken = opening
         if opening:
             self._speaks_outside = False
+            self._has_block = True
 
 
 def _next_tag(text: str, start: int) -> tuple[int, int] | None:
