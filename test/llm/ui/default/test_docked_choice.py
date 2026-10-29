@@ -149,3 +149,22 @@ def test_a_short_screen_drops_the_context_and_keeps_the_option_row(ui, terminal_
 
     assert "explains one fact" not in text
     assert "Option 0" in text
+
+
+def test_a_terminal_with_no_room_asks_in_the_transcript_instead(ui, terminal_rows):
+    """A zero-row panel is a bare frame with nothing under it.
+
+    The panel stands in the input frame's place, so at that size the user would
+    lose both the options and the input. The question goes to the transcript
+    instead and the input keeps its rows, where a typed answer resolves it.
+    """
+    terminal_rows(16)
+    assert panel_row_cap(ui) == 0
+
+    ui.begin_choice(_spec(_options(2)))
+
+    assert ui.has_active_choice() is True
+    printed = "".join(ui.echoes)
+    assert "Which one?" in printed
+    assert "Option 0" in printed and "Option 1" in printed
+    assert "Type your answer and press Enter" in printed

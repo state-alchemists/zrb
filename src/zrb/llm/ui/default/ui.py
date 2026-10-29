@@ -355,14 +355,27 @@ class UI(BaseUI):
         )
 
     def _input_panel_active(self) -> "Filter":
-        """Shown exactly while one of the input-slot panels is."""
+        """Shown exactly while one of the input-slot panels is, and has rows.
+
+        A terminal too short to give the panel one content row keeps the input
+        frame instead: a bare frame with no options under it cannot be answered,
+        while the input still can — the choice echoes its question and options
+        into the transcript for exactly that case.
+        """
         # lazy: heavy third-party
         from prompt_toolkit.filters import Condition
 
-        return Condition(
-            lambda: self._selection.has_active_choice()
-            or self._agent_picker.has_active_agent_picker()
-        )
+        from zrb.llm.ui.default.app.docking import panel_row_cap
+
+        def is_active() -> bool:
+            if not (
+                self._selection.has_active_choice()
+                or self._agent_picker.has_active_agent_picker()
+            ):
+                return False
+            return panel_row_cap(self) > 0
+
+        return Condition(is_active)
 
     def _create_application(
         self,

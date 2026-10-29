@@ -130,8 +130,29 @@ class UISelection:
         self._choice_cursor = 0
         self._choice_selected = set()
         self._row_window.reset()
+        # A panel with no rows to paint is a bare frame, and in this slot it has
+        # taken the input's rows to get there: on a terminal too short to give it
+        # any, the question goes to the transcript instead and the input keeps
+        # its place, so a typed answer can still resolve the choice.
+        if panel_row_cap(self._ui) <= 0:
+            self._echo_unpaintable_choice(spec)
+            focus_widget(self._ui.input_field, "Input-field")
+            self._invalidate()
+            return
         # The question is echoed into scrollback with the answer on resolve.
         focus_widget(self._choice_window, "Choice-window")
+
+    def _echo_unpaintable_choice(self, spec: dict) -> None:
+        """Put the question and its options in the transcript, for want of a panel."""
+        lines = [f"\n❓ {spec.get('question', '')}\n"]
+        lines += [f"  {line}\n" for line in spec.get("context", "").splitlines()]
+        options = spec.get("options", [])
+        lines += [
+            f"  {get_option_label(option, index)}\n"
+            for index, option in enumerate(options)
+        ]
+        lines.append("  ✎ Type your answer and press Enter.\n")
+        self._append_now("".join(lines))
 
     def end_choice(self) -> None:
         self._choice_freetext_prefix = None
