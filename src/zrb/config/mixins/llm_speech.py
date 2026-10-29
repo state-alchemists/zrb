@@ -85,6 +85,7 @@ class LLMSpeechMixin:
         )
         self.DEFAULT_LLM_SPEECH_RENDER_TIMEOUT: str = "60"
         self.DEFAULT_LLM_SPEECH_STALL_TIMEOUT: str = "30"
+        self.DEFAULT_LLM_SPEECH_CHUNK_MAX_CHARS: str = "250"
         self.DEFAULT_LLM_SPEECH_PLAYER_BLOCK_FRAMES: str = "2048"
         self.DEFAULT_LLM_SPEECH_PLAYER_PREBUFFER_SECONDS: str = "0.5"
         self.DEFAULT_LLM_SPEECH_PLAYER_READ_AHEAD: str = "64"
@@ -185,6 +186,20 @@ class LLMSpeechMixin:
             "reply once the turn ends. Either way the whole reply is read, "
             "unless {ENV_PREFIX}_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS is set, "
             "which turns streaming of the reply off. Default: true."
+        ),
+    )
+
+    LLM_SPEECH_CHUNK_MAX_CHARS = EnvField(
+        int,
+        fallback=250,
+        doc=(
+            "Longest run of prose, in characters, said as one piece while a "
+            "reply streams: prose past it is cut at a clause break, else a "
+            "space, and each piece is spoken as it is completed. A local "
+            "engine has its own token window and drops words past it, so a "
+            "voice that reads too little at once wants this lower — 180 "
+            "characters stays inside the 50 tokens Pocket TTS takes. Default: "
+            "250."
         ),
     )
 

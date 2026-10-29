@@ -188,7 +188,9 @@ class SpeechSession:
         # newer reply than a summary still being made.
         self._generation = 0
         self._summarizer = SpeechSummarizer()
-        self.streamed_reply = StreamedReply(self._say_reply_part)
+        self.streamed_reply = StreamedReply(
+            self._say_reply_part, max_chars=config.chunk_max_chars
+        )
         self.progress = ProgressNarrator(
             self._say,
             self._seconds_since_said,

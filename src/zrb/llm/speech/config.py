@@ -26,8 +26,8 @@ class SpeechConfig:
     *volume* is a percentage of the speech's own level, 0-200, and applies
     where zrb plays the audio itself — a player program keeps its own.
 
-    *player_prebuffer_seconds* is the newest field and sits last for that
-    reason: a dataclass is positional too, so a field added in the middle
+    *player_prebuffer_seconds* is the newest field but one, and *chunk_max_chars*
+    the newest: a dataclass is positional too, so a field added in the middle
     would rebind every field after it for a caller that passes them that way.
     """
 
@@ -75,6 +75,7 @@ class SpeechConfig:
     approval_actions: dict[str, str] | None = None
     emotion_voices: dict[str, str] | None = None
     player_prebuffer_seconds: float | None = None
+    chunk_max_chars: int | None = None
 
     def resolve(self) -> "SpeechConfig":
         """A copy with every ``None`` field read from `CFG`."""
