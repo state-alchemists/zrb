@@ -360,12 +360,20 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self._fanout("collapse_thinking_block", collapsed, full)
 
     def mark_text_block_start(self) -> None:
-        """Mark the final-text reply block's start on toggle-capable children."""
+        """Mark the reply block's start on toggle-capable children."""
         self._fanout("mark_text_block_start")
 
     def collapse_text_block(self, collapsed: str, full: str) -> None:
         """Collapse the block opened by `mark_text_block_start`."""
         self._fanout("collapse_text_block", collapsed, full)
+
+    def settle_text_block(self, source: str) -> None:
+        """Show an intermediate text block's prose in full on children that can.
+
+        No fallback: a child without the hook keeps the streamed copy it
+        already printed, which is the whole text anyway.
+        """
+        self._fanout("settle_text_block", source)
 
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Forward a tool call's start to children tracking the running-tool timer."""

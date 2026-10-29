@@ -175,6 +175,15 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         """Collapse the final-text block opened by `mark_text_block_start`."""
         return self._spans.collapse_block(collapsed, full)
 
+    def settle_text_block(self, source: str) -> None:
+        """End an intermediate text block without hiding it.
+
+        This buffer renders no markdown and reaches the parent as plain text,
+        so the streamed copy already is the readable form; only the span
+        bookkeeping has to be released.
+        """
+        self._spans.end_block()
+
     def update_shell_output(self, key: str, text: str) -> None:
         """Grow or replace `key`'s own live shell-output line with `text`."""
         self._spans.update_shell_output(key, text)

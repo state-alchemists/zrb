@@ -246,6 +246,19 @@ def test_multi_ui_collapse_text_block_forwards_to_supporting_children(
     )
 
 
+def test_multi_ui_settle_text_block_forwards_to_supporting_children(
+    multi_ui, child_ui_1, child_ui_2
+):
+    child_ui_1.settle_text_block = MagicMock()
+    del child_ui_2.settle_text_block
+
+    multi_ui.settle_text_block("prose written before a tool call")
+
+    child_ui_1.settle_text_block.assert_called_once_with(
+        "prose written before a tool call"
+    )
+
+
 def test_multi_ui_text_hooks_swallow_child_errors(multi_ui, child_ui_1, child_ui_2):
     child_ui_1.mark_text_block_start = MagicMock(side_effect=RuntimeError("bad"))
     child_ui_2.mark_text_block_start = MagicMock()

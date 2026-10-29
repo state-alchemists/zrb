@@ -358,6 +358,22 @@ class UIOutput:
         """
         return self._spans.collapse_block(collapsed, full)
 
+    def settle_text_block(self, source: str) -> None:
+        """Render an intermediate text block's prose in place of its stream.
+
+        A text block a tool call ends is prose the assistant wrote *before*
+        acting — not the turn's answer, which `collapse_text_block` takes care
+        of — so nothing is hidden: the block is rebuilt from `source` and left
+        readable. Registered as a rendered block, like `append_markdown`'s
+        output, so a resize re-wraps it with the rest of the transcript.
+        """
+        rendered = self._render_markdown_block(source, self.output_field_width)
+        span = self._spans.settle_block(rendered)
+        if span is not None:
+            self.set_rendered_block(
+                span[0], span[1], source, self._render_markdown_block
+            )
+
     def update_shell_output(self, key: str, text: str) -> None:
         """Grow or replace `key`'s own live shell-output line with `text`
         (the full accumulated stdout+stderr echo so far) — called on every
