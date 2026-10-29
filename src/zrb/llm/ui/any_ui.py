@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 class ChoiceOption(TypedDict, total=False):
     label: str
     description: str
+    recommended: bool
 
 
 class ChoiceSpec(TypedDict, total=False):
@@ -25,6 +26,7 @@ class ChoiceSpec(TypedDict, total=False):
 
     question: str
     options: list[ChoiceOption]
+    context: str
     multi_select: bool
     header: str
     index: int

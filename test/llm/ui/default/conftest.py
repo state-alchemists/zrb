@@ -1,4 +1,4 @@
-"""Shared stand-in for queued-message echo tests."""
+"""Shared stand-ins: the queued-message echo UI and the choice-widget UI."""
 
 from unittest.mock import MagicMock
 
@@ -7,8 +7,10 @@ import pytest
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.message_queue import MessageQueue
 from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.default.confirmation import UIConfirmation
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
+from zrb.llm.ui.default.selection import UISelection
 
 
 class MockEditingUI:
@@ -114,3 +116,60 @@ def editing_multi_ui():
     from zrb.llm.ui.multi_ui import MultiUI
 
     return MultiUI([MockEditingUI(), MockEditingUI()])
+
+
+class FakeSelectionUI:
+    """Minimal host composing the real `UISelection` (plus a real
+    `UIConfirmation` sibling, so `handle_confirmation`'s fall-through to
+    `UIConfirmation`'s base case is exercised exactly as in the real default
+    `UI`). `resolve_current` is overridden directly on this stand-in UI —
+    `UISelection`/`UIConfirmation` both call `self._ui.resolve_current`,
+    so this override is what they both see. `begin_choice`/`end_choice`/
+    `handle_confirmation` mirror the real `UI`'s own one-line delegators to
+    `UISelection`'s public implementation.
+    """
+
+    def __init__(self):
+        self.input_field = object()
+        self.confirmation = BaseUIConfirmationState()
+        self.confirmation.current = "FUTURE"  # truthy sentinel
+        self.resolved: str | None = None
+        self.echoes: list[str] = []
+        self._confirmation = UIConfirmation(self)
+        self._selection = UISelection(self, confirmation=self._confirmation)
+        self._selection.init_selection_state()
+
+    def append_to_output(self, *values, **kwargs):
+        self.echoes.append("".join(str(v) for v in values))
+
+    def resolve_current(self, text, echo):
+        self.resolved = text
+        if echo:
+            self.echoes.append(echo)
+        self.confirmation = BaseUIConfirmationState()
+        self.end_choice()
+        return True
+
+    def begin_choice(self, spec):
+        self._selection.begin_choice(spec)
+
+    def end_choice(self):
+        self._selection.end_choice()
+
+    def handle_confirmation(self, event):
+        return self._selection.handle_confirmation(event)
+
+    def __getattr__(self, name):
+        selection = self.__dict__.get("_selection")
+        if selection is not None and hasattr(selection, name):
+            return getattr(selection, name)
+        confirmation = self.__dict__.get("_confirmation")
+        if confirmation is not None:
+            return getattr(confirmation, name)
+        raise AttributeError(name)
+
+
+@pytest.fixture
+def ui():
+    """A stand-in default UI showing the real choice widget."""
+    return FakeSelectionUI()

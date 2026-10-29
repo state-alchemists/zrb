@@ -3,7 +3,9 @@
 The widget's interactive parts (focus, invalidate) are exercised through public
 state-driver methods (`move_choice_cursor`, `toggle_choice_current`,
 `confirm_choice`) without a live terminal — `get_app()` calls inside the mixin
-are guarded and no-op when no app is running.
+are guarded and no-op when no app is running. The panel's own presentation is
+covered beside this file: `test_selection_context.py` (the question's context
+and the panel's height) and `test_selection_recommended.py` (the ★ marker).
 """
 
 from __future__ import annotations
@@ -11,61 +13,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-
-from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
-from zrb.llm.ui.default.confirmation import UIConfirmation
-from zrb.llm.ui.default.selection import UISelection
-
-
-class FakeUI:
-    """Minimal host composing the real `UISelection` (plus a real
-    `UIConfirmation` sibling, so `handle_confirmation`'s fall-through to
-    `UIConfirmation`'s base case is exercised exactly as in the real default
-    `UI`). `resolve_current` is overridden directly on this stand-in UI —
-    `UISelection`/`UIConfirmation` both call `self._ui.resolve_current`,
-    so this override is what they both see. `begin_choice`/`end_choice`/
-    `handle_confirmation` mirror the real `UI`'s own one-line delegators to
-    `UISelection`'s public implementation.
-    """
-
-    def __init__(self):
-        self.input_field = object()
-        self.confirmation = BaseUIConfirmationState()
-        self.confirmation.current = "FUTURE"  # truthy sentinel
-        self.resolved: str | None = None
-        self.echoes: list[str] = []
-        self._confirmation = UIConfirmation(self)
-        self._selection = UISelection(self, confirmation=self._confirmation)
-        self._selection.init_selection_state()
-
-    def append_to_output(self, *values, **kwargs):
-        self.echoes.append("".join(str(v) for v in values))
-
-    def resolve_current(self, text, echo):
-        self.resolved = text
-        if echo:
-            self.echoes.append(echo)
-        self.confirmation = BaseUIConfirmationState()
-        self.end_choice()
-        return True
-
-    def begin_choice(self, spec):
-        self._selection.begin_choice(spec)
-
-    def end_choice(self):
-        self._selection.end_choice()
-
-    def handle_confirmation(self, event):
-        return self._selection.handle_confirmation(event)
-
-    def __getattr__(self, name):
-        selection = self.__dict__.get("_selection")
-        if selection is not None and hasattr(selection, name):
-            return getattr(selection, name)
-        confirmation = self.__dict__.get("_confirmation")
-        if confirmation is not None:
-            return getattr(confirmation, name)
-        raise AttributeError(name)
 
 
 def _event(text=""):
@@ -83,11 +30,6 @@ def _spec(options, multi=False, index=1, total=1):
         "index": index,
         "total": total,
     }
-
-
-@pytest.fixture
-def ui():
-    return FakeUI()
 
 
 def _long_spec():
