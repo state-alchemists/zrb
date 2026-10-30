@@ -17,7 +17,13 @@ from zrb.llm.tool.journal_write import (
     write_journal_note,
 )
 
-FIELDS = dict(context="c", finding="f", source="s", hud_line="a line")
+FIELDS = dict(
+    context="c",
+    finding="f",
+    source="s",
+    hud_line="a line",
+    applies_when="while zrb 3.29 is released",
+)
 
 
 @pytest.fixture

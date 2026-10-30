@@ -152,7 +152,10 @@ def test_migration_is_idempotent(old_journal):
 def test_the_order_of_a_section_survives_the_move(old_journal):
     log_activity("first call")
 
-    write_journal_note("user", "new", "New", "c", "f", "s", hud_line="Newest.")
+    write_journal_note(
+        "user", "new", "New", "c", "f", "s", hud_line="Newest.",
+        applies_when="while zrb 3.29 is released",
+    )
 
     user = _section(old_journal, "User")
     assert user.index("- Prefers terse replies. ([note](preferences/terse.md))") < (

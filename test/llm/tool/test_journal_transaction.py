@@ -65,16 +65,21 @@ def _index_mentions(root: str, slug: str, relative: str = "index.md") -> bool:
 def _write_baseline_note() -> None:
     """One ordinary write, so the repo exists with exactly one commit on top of
     its init commit and the tree is clean."""
-    write_journal_note("technical", "existing", "Existing", "ctx", "found", "s:1")
+    write_journal_note(
+        "technical", "existing", "Existing", "ctx", "found", "s:1",
+        applies_when="while zrb 3.29 is released",
+    )
 
 
 def test_a_transaction_writing_two_notes_produces_one_commit(git_journal):
     with journal_transaction() as transaction:
         first = transaction.write_note(
-            "technical", "first", "First", "ctx", "found it", "s:1"
+            "technical", "first", "First", "ctx", "found it", "s:1",
+            applies_when="while zrb 3.29 is released",
         )
         second = transaction.write_note(
-            "technical", "second", "Second", "ctx", "found it", "s:2"
+            "technical", "second", "Second", "ctx", "found it", "s:2",
+            applies_when="while zrb 3.29 is released",
         )
 
     # The strings are the tools' own, so a batch can be logged like any write.
@@ -139,7 +144,8 @@ def test_a_raising_transaction_commits_no_new_note(git_journal):
     with pytest.raises(RuntimeError, match="import failed"):
         with journal_transaction() as transaction:
             transaction.write_note(
-                "technical", "half-written", "Half", "ctx", "found", "s:2"
+                "technical", "half-written", "Half", "ctx", "found", "s:2",
+                applies_when="while zrb 3.29 is released",
             )
             transaction.log_activity("about to fail")
             raise RuntimeError("import failed")
@@ -164,7 +170,8 @@ def test_a_raising_transaction_leaves_other_edits_untouched(git_journal):
     with pytest.raises(RuntimeError, match="import failed"):
         with journal_transaction() as transaction:
             transaction.write_note(
-                "technical", "half-written", "Half", "ctx", "found", "s:2"
+                "technical", "half-written", "Half", "ctx", "found", "s:2",
+                applies_when="while zrb 3.29 is released",
             )
             raise RuntimeError("import failed")
 
@@ -199,7 +206,8 @@ def test_a_raising_transaction_restores_an_ignored_note(git_journal):
     with pytest.raises(RuntimeError, match="import failed"):
         with journal_transaction() as transaction:
             transaction.write_note(
-                "technical", "legacy", "Legacy", "new ctx", "new finding", "s:9"
+                "technical", "legacy", "Legacy", "new ctx", "new finding", "s:9",
+                applies_when="while zrb 3.29 is released",
             )
             raise RuntimeError("import failed")
 
@@ -236,7 +244,8 @@ def test_a_raising_transaction_leaves_the_migration_it_needed(git_journal):
     with pytest.raises(RuntimeError, match="import failed"):
         with journal_transaction() as transaction:
             transaction.write_note(
-                "technical", "half-written", "Half", "ctx", "found", "s:2"
+                "technical", "half-written", "Half", "ctx", "found", "s:2",
+                applies_when="while zrb 3.29 is released",
             )
             raise RuntimeError("import failed")
 
@@ -256,7 +265,10 @@ def test_a_raising_transaction_leaves_a_first_time_journal_whole(git_journal):
     """
     with pytest.raises(RuntimeError, match="import failed"):
         with journal_transaction() as transaction:
-            transaction.write_note("technical", "x", "X", "c", "f", "s")
+            transaction.write_note(
+                "technical", "x", "X", "c", "f", "s",
+                applies_when="while zrb 3.29 is released",
+            )
             raise RuntimeError("import failed")
 
     assert os.path.isfile(os.path.join(git_journal, "index.md"))
@@ -274,7 +286,10 @@ def test_a_tool_called_inside_a_transaction_re_enters_the_lock(git_journal):
     caller itself.
     """
     with journal_transaction("batch") as _transaction:
-        write_journal_note("user", "goes-by-go", "T", "c", "f", "s")
+        write_journal_note(
+            "user", "goes-by-go", "T", "c", "f", "s",
+            applies_when="while zrb 3.29 is released",
+        )
 
     assert os.path.isfile(os.path.join(git_journal, "user", "goes-by-go.md"))
 
@@ -293,7 +308,10 @@ def test_a_write_waits_for_a_held_lock_instead_of_failing(git_journal):
     holder = threading.Thread(target=hold, daemon=True)
     holder.start()
     assert taken.wait(5), "the other writer never took the lock"
-    write_journal_note("user", "goes-by-go", "T", "c", "f", "s")
+    write_journal_note(
+        "user", "goes-by-go", "T", "c", "f", "s",
+        applies_when="while zrb 3.29 is released",
+    )
     holder.join(5)
 
     assert os.path.isfile(os.path.join(git_journal, "user", "goes-by-go.md"))
@@ -310,8 +328,14 @@ def test_a_tool_call_inside_a_transaction_rides_the_single_commit(git_journal):
     before = _subjects(git_journal)
 
     with journal_transaction("batch"):
-        write_journal_note("technical", "one", "One", "c", "f", "s")
-        write_journal_note("technical", "two", "Two", "c", "f", "s")
+        write_journal_note(
+            "technical", "one", "One", "c", "f", "s",
+            applies_when="while zrb 3.29 is released",
+        )
+        write_journal_note(
+            "technical", "two", "Two", "c", "f", "s",
+            applies_when="while zrb 3.29 is released",
+        )
 
     after = _subjects(git_journal)
     assert after[: len(after) - len(before)] == ["batch"]
@@ -328,7 +352,10 @@ def test_a_raising_body_leaves_no_commit_behind_for_a_tool_it_called(git_journal
 
     with pytest.raises(RuntimeError):
         with journal_transaction("batch"):
-            write_journal_note("technical", "ghost", "Ghost", "c", "f", "s")
+            write_journal_note(
+                "technical", "ghost", "Ghost", "c", "f", "s",
+                applies_when="while zrb 3.29 is released",
+            )
             raise RuntimeError("abort")
 
     assert _head(git_journal) == before
@@ -352,7 +379,10 @@ def test_a_nested_transaction_is_refused_rather_than_lying_about_rollback(
 
     with pytest.raises(ValueError, match="already open on this thread"):
         with journal_transaction("outer") as transaction:
-            transaction.write_note("technical", "before", "Before", "c", "f", "s")
+            transaction.write_note(
+                "technical", "before", "Before", "c", "f", "s",
+                applies_when="while zrb 3.29 is released",
+            )
             with journal_transaction("inner"):
                 pass
 

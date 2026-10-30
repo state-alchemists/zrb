@@ -51,7 +51,9 @@ def _section(root: str, name: str) -> list[str]:
     return [line for line in body.splitlines() if line.strip()]
 
 
-def _note(slug, hud_line=None, category="technical", **extra) -> str:
+def _note(
+    slug, hud_line=None, category="technical", applies_when="while tested", **extra
+) -> str:
     return write_journal_note(
         category=category,
         slug=slug,
@@ -60,6 +62,7 @@ def _note(slug, hud_line=None, category="technical", **extra) -> str:
         finding="f",
         source="s",
         hud_line=hud_line,
+        applies_when=applies_when,
         **extra,
     )
 
@@ -244,6 +247,7 @@ def test_notes_with_the_same_hud_line_are_each_named_when_evicted(writable_journ
                 "f",
                 "s",
                 hud_line="The same headline.",
+                applies_when="while zrb 3.29 is released",
             )
             for slug in ("first", "second", "third")
         ]

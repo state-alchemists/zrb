@@ -156,6 +156,7 @@ def test_titles_are_resolved_from_the_current_journal_by_hash(usage_dir, monkeyp
         finding="f",
         source="s",
         hud_line="alpha",
+        applies_when="while zrb 3.29 is released",
     )
 
     assert get_note_titles() == {A: "Alpha note"}

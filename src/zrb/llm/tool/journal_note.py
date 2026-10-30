@@ -1,10 +1,17 @@
 """A journal note as data: its frontmatter is the one source of truth.
 
 Everything the injected index shows about a note is a field here — whether it is
-active (`status`, `applies_when`), the one line that represents it (`hud_line`),
-whether that line is pinned (`pinned`), and where it ranks (`updated`). The
-indexes are rendered from these fields by `journal_index`, never edited as text,
-so a note and its index entries cannot disagree.
+active (`status`, `applies_when`), the one line that represents it (`hud_line`,
+and whether that line was written or derived), whether it is pinned (`pinned`),
+where it ranks (`updated`), how it is found again (`keywords`), and what replaced
+it (`superseded_by`). The indexes are rendered from these fields by
+`journal_index`, never edited as text, so a note and its index entries cannot
+disagree.
+
+The two fields the index cannot do without are never absent: a note with no
+`applies_when` is refused (a claim nobody can check cannot be retired), and a note
+with no `hud_line` is given one derived from its Finding, so no note exists that
+the always-injected index can never show.
 
 This module is pure: it reads files but never writes one. A caller that has to
 write (`journal_write`) does so itself, because only it knows the open
@@ -28,10 +35,27 @@ STATUS_SUPERSEDED = "superseded"
 # The condition is the half of a finding that lets a later session retire it
 # instead of re-reading it: "safe to delete" is a claim somebody has to be able
 # to check, and a finding whose expiry nobody wrote down is a finding nobody can
-# retire.
+# retire. `NO_APPLIES_WHEN` is what a version before that rule stored in the
+# condition's place: it is read, so an old note still loads, and refused, so it is
+# never written again.
 NO_APPLIES_WHEN = "not stated"
+# Where a note's `hud_line` came from. A written line is the caller's words and no
+# later derivation may replace it; a derived one is this module's reading of the
+# note's own Finding, so it is regenerated when the Finding changes.
+HUD_LINE_SOURCE_WRITTEN = "written"
+HUD_LINE_SOURCE_DERIVED = "derived"
+# The index spends its budget on one line per note, and a line longer than this is
+# not a headline any more. A derived line is cut here; a written one is kept whole
+# and the tool result asks for a shorter one.
+HUD_LINE_MAX_CHARS = 160
+# A keyword is something to search for, so a word this short (`the`, `and`, `for`)
+# matches most notes and ranks none of them.
+KEYWORDS_MIN_WORD_LENGTH = 4
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _FRONTMATTER_FENCE = "---"
+# The first sentence of a Finding, terminator included. A Finding often has no
+# terminator at all (`retry_period` is read without a lock), which is the whole of it.
+_FIRST_SENTENCE_RE = re.compile(r"^(.+?[.!?])(?:\s|$)")
 
 
 @dataclass(frozen=True)
@@ -99,6 +123,111 @@ def read_text(path: str) -> str:
 def one_line(text: str) -> str:
     """*text* on one line, so a value can never open a second frontmatter key."""
     return " ".join(text.split())
+
+
+def check_applies_when(applies_when: str | None) -> str:
+    """The condition a note holds under, or a refusal the model can act on.
+
+    A finding with no expiry can only be re-read: nothing says when it stopped
+    being true, so nothing retires it. `not stated` is the placeholder an earlier
+    version wrote in the condition's place, and it is not a condition either.
+    """
+    text = one_line(applies_when or "")
+    if not text:
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: applies_when was empty, so nothing was written. "
+            "Say the condition under which the finding still holds, in words a "
+            "later session can check — a version (`while zrb 3.29 is the released "
+            "line`), a file (`while src/zrb/retry.py is unchanged`), a setting, or "
+            "a stated preference. Without it the note can never be retired, only "
+            "re-read."
+        )
+    if text.lower() == NO_APPLIES_WHEN:
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: applies_when was `not stated`, which is a "
+            "placeholder rather than a condition, so nothing was written. Name "
+            "what a later session can check: a version, a file, a setting, or a "
+            "preference the user stated. A note that cannot say when it stops "
+            "applying can only be re-read, never retired."
+        )
+    return text
+
+
+def derive_hud_line(finding: str) -> str:
+    """The first sentence of *finding*, on one line and capped at 160 characters.
+
+    A note with no line of its own still has to reach the injected index, and the
+    first sentence of what it found is the headline it already carries. A sentence
+    past the cap is cut at a word boundary and marked with `…`, so the index shows
+    a shortened line rather than a claim that reads as complete.
+    """
+    text = one_line(finding)
+    match = _FIRST_SENTENCE_RE.match(text)
+    return _cap_line(match.group(1) if match else text, HUD_LINE_MAX_CHARS)
+
+
+def _cap_line(text: str, limit: int) -> str:
+    """*text* cut to at most *limit* characters, at a word boundary, ending in `…`."""
+    if len(text) <= limit:
+        return text
+    head = text[: limit - 1].rstrip()
+    if " " in head:
+        head = head.rsplit(" ", 1)[0]
+    return f"{head.rstrip(' ,;:—-.')}…"
+
+
+def resolve_hud_line(
+    supplied: str, finding: str, prior: dict[str, str]
+) -> tuple[str, str]:
+    """The `hud_line` a write leaves on the note, and where it came from.
+
+    A line the caller wrote is the note's own, and a rewrite that passes none
+    keeps it — a derived line may never overwrite a written one. A derived line is
+    this module's reading of the Finding, so it is regenerated when the Finding
+    changes. A line the file carries with no `hud_line_source` was written before
+    that field existed and counts as written: it is somebody's words, and trading
+    them for a guess would lose the one thing the index needed.
+    """
+    if supplied.strip():
+        return one_line(supplied), HUD_LINE_SOURCE_WRITTEN
+    prior_line = prior.get("hud_line", "")
+    if prior_line and prior.get("hud_line_source") != HUD_LINE_SOURCE_DERIVED:
+        return one_line(prior_line), HUD_LINE_SOURCE_WRITTEN
+    return derive_hud_line(finding), HUD_LINE_SOURCE_DERIVED
+
+
+def normalize_keywords(values: list[str]) -> str:
+    """The `keywords:` value: lower-case, comma-separated, one line, no repeats.
+
+    A value may itself arrive comma-separated — that is the field's own storage
+    shape, and what a caller reads back from a note — so each is split before it
+    is cleaned."""
+    keywords: list[str] = []
+    for value in values:
+        for part in value.split(","):
+            keyword = _keyword(part)
+            if keyword and keyword not in keywords:
+                keywords.append(keyword)
+    return ", ".join(keywords)
+
+
+def derive_keywords(slug: str, title: str) -> str:
+    """Keywords from the note's own name: the slug's words, then the title's.
+
+    A note nobody gave keywords to is still one a later session has to find, and
+    the slug and title are the words its author already chose for it. A word under
+    four characters is left out: it is `the`, `and`, `for`, and it matches most
+    notes while ranking none of them.
+    """
+    words = [*slug.replace("-", " ").split(), *title.split()]
+    return normalize_keywords(
+        [word for word in words if len(_keyword(word)) >= KEYWORDS_MIN_WORD_LENGTH]
+    )
+
+
+def _keyword(value: str) -> str:
+    """One keyword: lower-case, no surrounding punctuation a sentence brought."""
+    return one_line(value).strip().lower().strip(",.`'\"()[]:;!?")
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:
@@ -235,7 +364,9 @@ def compose_note(
 
     *fields* carries `slug`, `title`, `context`, `finding`, `source` and the
     frontmatter values `applies_when`, `status`, `hud_line`, `pinned`,
-    `updated`; the last two optional keys are omitted from the file when empty.
+    `updated`, plus the optional `keywords`; a `hud_line` or `keywords` the
+    caller left empty is filled from the note itself (see `claim_frontmatter`),
+    and `pinned` is omitted from the file when false.
     """
     history = merge_entries(
         entries_under(existing, HISTORY_HEADING), prior_revision_entry(existing)
@@ -253,16 +384,7 @@ def compose_note(
     )
     lines = [
         _FRONTMATTER_FENCE,
-        f"slug: {fields['slug']}",
-        f"applies_when: {one_line(fields['applies_when']) or NO_APPLIES_WHEN}",
-        f"status: {fields['status']}",
-    ]
-    if fields["hud_line"]:
-        lines.append(f"hud_line: {one_line(fields['hud_line'])}")
-    if fields["pinned"] == "true":
-        lines.append("pinned: true")
-    lines += [
-        f"updated: {fields['updated']}",
+        *claim_frontmatter(fields, existing),
         _FRONTMATTER_FENCE,
         f"# {fields['title']}",
         "",
@@ -279,6 +401,38 @@ def compose_note(
         if entries or heading == BACKLINKS_HEADING:
             lines += [heading, "", *entries, ""]
     return "\n".join(lines)
+
+
+def claim_frontmatter(fields: "dict[str, str]", existing: str) -> list[str]:
+    """The frontmatter lines that say when a note holds and where it shows.
+
+    `hud_line` and `keywords` are the two fields a caller may omit, and each has a
+    fallback rather than an absence: the line is derived from the Finding unless
+    the file already carries one a caller wrote, and the keywords come from the
+    file when it has them and from the slug and title when it does not. So a
+    rewrite never loses what an earlier call established, and a note nobody wrote
+    either for still reaches the injected index and the search.
+    """
+    prior = parse_frontmatter(existing)
+    line, source = resolve_hud_line(fields["hud_line"], fields["finding"], prior)
+    keywords = (
+        normalize_keywords(fields.get("keywords", "").split(","))
+        or normalize_keywords(prior.get("keywords", "").split(","))
+        or derive_keywords(fields["slug"], fields["title"])
+    )
+    lines = [
+        f"slug: {fields['slug']}",
+        f"applies_when: {one_line(fields['applies_when'])}",
+        f"status: {fields['status']}",
+    ]
+    if line:
+        lines += [f"hud_line: {line}", f"hud_line_source: {source}"]
+    if fields["pinned"] == "true":
+        lines.append("pinned: true")
+    if keywords:
+        lines.append(f"keywords: {keywords}")
+    lines.append(f"updated: {fields['updated']}")
+    return lines
 
 
 def entries_under(text: str, heading: str) -> list[str]:

@@ -28,6 +28,7 @@ def _write_with_index_name(root, index_name: str) -> None:
             "f",
             "s",
             hud_line="Retry is not concurrency-safe.",
+            applies_when="while zrb 3.29 is released",
         )
         log_activity("logged a line")
 

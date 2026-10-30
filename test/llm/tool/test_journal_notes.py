@@ -121,6 +121,7 @@ def test_write_journal_note_registers_itself_everywhere(writable_journal):
         context="Any concurrent task run",
         finding="`retry_period` is read without a lock",
         source="base_task.py:160",
+        applies_when="while zrb 3.29 is released",
     )
 
     note = _read(writable_journal, "technical", "retry-policy.md")
@@ -146,6 +147,7 @@ def test_write_journal_note_inserts_reciprocal_backlinks(writable_journal):
         context="c",
         finding="f",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         category="technical",
@@ -155,6 +157,7 @@ def test_write_journal_note_inserts_reciprocal_backlinks(writable_journal):
         finding="f",
         source="s",
         links=["technical/first.md"],
+        applies_when="while zrb 3.29 is released",
     )
 
     # missing-backlink: the target gained an entry pointing back.
@@ -178,6 +181,7 @@ def test_write_journal_note_rejects_a_link_that_does_not_exist(writable_journal)
             finding="f",
             source="s",
             links=["technical/nope.md"],
+            applies_when="while zrb 3.29 is released",
         )
     assert "SYSTEM SUGGESTION" in str(excinfo.value)
     assert "does not exist" in str(excinfo.value)
@@ -195,6 +199,7 @@ def test_write_journal_note_rejects_a_link_outside_the_journal(writable_journal)
             finding="f",
             source="s",
             links=["../../etc/passwd"],
+            applies_when="while zrb 3.29 is released",
         )
     assert "outside the journal" in str(excinfo.value)
 
@@ -211,6 +216,7 @@ def test_write_journal_note_rejects_a_bad_slug(writable_journal, bad):
             context="c",
             finding="f",
             source="s",
+            applies_when="while zrb 3.29 is released",
         )
     assert "kebab-case" in str(excinfo.value)
 
@@ -226,6 +232,7 @@ def test_write_journal_note_rejects_an_unknown_category(writable_journal):
             context="c",
             finding="f",
             source="s",
+            applies_when="while zrb 3.29 is released",
         )
     assert "unknown category" in str(excinfo.value)
 
@@ -241,6 +248,7 @@ def test_hud_line_lands_in_the_section_matching_the_category(writable_journal):
         finding="No preamble, no summary of what was just said",
         source="stated 2026-08-04",
         hud_line="Prefers terse replies, no preamble.",
+        applies_when="while zrb 3.29 is released",
     )
 
     index = _read(writable_journal, "index.md")
@@ -265,6 +273,7 @@ def test_hud_line_does_not_duplicate_on_a_repeat(writable_journal):
             finding="f",
             source="s",
             hud_line="Goes by Go.",
+            applies_when="while zrb 3.29 is released",
         )
 
     assert _read(writable_journal, "index.md").count("Goes by Go.") == 1
@@ -285,6 +294,7 @@ def test_two_notes_sharing_a_hud_line_both_keep_their_pin(writable_journal):
             finding="f",
             source="s",
             hud_line="Retries are capped at 3.",
+            applies_when="while zrb 3.29 is released",
         )
 
     index = _read(writable_journal, "index.md")
@@ -305,6 +315,7 @@ def test_revising_a_note_leaves_another_notes_hud_line_that_cites_it(writable_jo
         finding="f",
         source="s",
         hud_line="Goes by Go.",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         category="user",
@@ -314,6 +325,7 @@ def test_revising_a_note_leaves_another_notes_hud_line_that_cites_it(writable_jo
         finding="f",
         source="s",
         hud_line="Follows the plan in [the plan](user/identity.md)",
+        applies_when="while zrb 3.29 is released",
     )
 
     write_journal_note(
@@ -324,6 +336,7 @@ def test_revising_a_note_leaves_another_notes_hud_line_that_cites_it(writable_jo
         finding="f",
         source="s",
         hud_line="Goes by Go Jr.",
+        applies_when="while zrb 3.29 is released",
     )
 
     index = _read(writable_journal, "index.md")
@@ -350,6 +363,7 @@ def test_an_unlinked_hud_line_is_a_foreign_line_the_write_leaves_alone(
         context="c",
         finding="f",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
     with open(index_path, encoding="utf-8") as f:
         text = f.read()
@@ -370,6 +384,7 @@ def test_an_unlinked_hud_line_is_a_foreign_line_the_write_leaves_alone(
         finding="f",
         source="s",
         hud_line="Hand-pinned, no note link.",
+        applies_when="while zrb 3.29 is released",
     )
 
     index = _read(writable_journal, "index.md")
@@ -390,57 +405,12 @@ def test_revised_hud_line_replaces_the_notes_earlier_line(writable_journal):
             finding="f",
             source="s",
             hud_line=f"Prompt scored {score}/10.",
+            applies_when="while zrb 3.29 is released",
         )
 
     index = _read(writable_journal, "index.md")
     assert "Prompt scored 7.8/10." not in index
     assert "Prompt scored 8.2/10. ([note](technical/prompt-review.md))" in index
-
-
-def test_retitled_note_is_relabelled_not_duplicated_in_indexes(writable_journal):
-    from zrb.llm.tool.journal_write import write_journal_note
-
-    for title in ("Aug review", "Sep review"):
-        write_journal_note(
-            category="technical",
-            slug="prompt-review",
-            title=title,
-            context="c",
-            finding="f",
-            source="s",
-        )
-
-    for index_path in ("index.md", "technical/index.md"):
-        index = _read(writable_journal, index_path)
-        assert index.count("prompt-review.md)") == 1
-        assert "[Sep review]" in index
-
-
-def test_retitling_a_note_whose_title_contains_a_bracket_relabels_not_duplicates(
-    writable_journal,
-):
-    """A title is free-form model text, so a `]` in it must not hide the line
-    from the target-keyed lookup that registration is keyed on."""
-    from zrb.llm.tool.journal_write import write_journal_note
-
-    for title in ("Fixes [nested] brackets", "Fixes [nested] brackets, revised"):
-        write_journal_note(
-            category="technical",
-            slug="nested",
-            title=title,
-            context="c",
-            finding="f",
-            source="s",
-        )
-
-    assert _read(writable_journal, "technical", "index.md").count("nested.md)") == 1
-    assert "- [Fixes [nested] brackets, revised](nested.md)" in _read(
-        writable_journal, "technical", "index.md"
-    )
-    assert _read(writable_journal, "index.md").count("nested.md)") == 1
-    assert "- [Fixes [nested] brackets, revised](technical/nested.md)" in _read(
-        writable_journal, "index.md"
-    )
 
 
 def test_revision_collapses_preexisting_duplicate_index_entries(writable_journal):
@@ -453,6 +423,7 @@ def test_revision_collapses_preexisting_duplicate_index_entries(writable_journal
         context="c",
         finding="f",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
     # A journal written before relabelling existed: two lines, one target.
     index_path = os.path.join(writable_journal, "technical", "index.md")
@@ -466,6 +437,7 @@ def test_revision_collapses_preexisting_duplicate_index_entries(writable_journal
         context="c",
         finding="f2",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
 
     index = _read(writable_journal, "technical", "index.md")

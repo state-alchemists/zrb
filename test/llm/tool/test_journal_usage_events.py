@@ -87,6 +87,7 @@ def test_a_refused_write_records_nothing(journal):
             context="c",
             finding="f",
             source="s",
+            applies_when="while zrb 3.29 is released",
         )
 
     assert read_events() == []
