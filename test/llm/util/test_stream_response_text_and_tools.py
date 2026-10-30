@@ -48,7 +48,7 @@ class TestStreamEventHandlerTextCollapse:
         handler.handle_part_start(tool_event)
 
         on_settle.assert_called_once_with(
-            "Let me check that for you", f"{handler.indentation}{CONTINUATION_PAD}"
+            "Let me check that for you"
         )
         on_collapse.assert_not_called()
 
@@ -75,9 +75,7 @@ class TestStreamEventHandlerTextCollapse:
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
         handler.handle_part_start(tool_event)
 
-        on_settle.assert_called_once_with(
-            "Let me check that for you", f"{handler.indentation}{CONTINUATION_PAD}"
-        )
+        on_settle.assert_called_once_with("Let me check that for you")
 
     def test_an_empty_text_block_still_collapses_instead_of_settling(self):
         """Nothing to keep — the placeholder is better than a bare icon."""
@@ -396,29 +394,18 @@ class TestStreamEventHandlerSpokenMarkers:
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
         handler.handle_part_start(tool_event)
 
-        on_settle.assert_called_once_with(
-            "Reading the file.", f"{handler.indentation}{CONTINUATION_PAD}"
-        )
+        on_settle.assert_called_once_with("Reading the file.")
 
-    def test_a_one_argument_settle_hook_still_gets_the_text(self):
-        """`settle_text_block(source)` is a documented custom-UI hook.
+    def test_the_settle_column_is_offered_once_as_its_own_hook(self):
+        """The column travels beside the text, not inside its signature.
 
-        The indent is offered, never forced: a channel written against the
-        one-argument form is called with the text alone, and lays it out its own
-        way.
+        `settle_text_block(source)` is documented, so the handler keeps it at
+        one argument and publishes the column on `continuation` instead.
         """
-        settled: list[str] = []
-        handler = StreamEventHandler(
-            print_fn=MagicMock(), on_text_settle=settled.append
-        )
-        from pydantic_ai import ToolCallPart
+        handler = StreamEventHandler(print_fn=MagicMock(), indent_level=2)
 
-        self._text_start(handler, "Reading the file.")
-        tool_event = MagicMock()
-        tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
-        handler.handle_part_start(tool_event)
-
-        assert settled == ["Reading the file."]
+        assert handler.continuation == f"{handler.indentation}{CONTINUATION_PAD}"
+        assert len(handler.continuation) == 7
 
     def test_the_final_text_carries_no_marker(self):
         """The hint a closed block collapses into counts, and keeps, the text

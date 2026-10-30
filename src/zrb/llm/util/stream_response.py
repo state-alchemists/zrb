@@ -1,4 +1,3 @@
-import inspect
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
@@ -167,27 +166,6 @@ class StreamedBlock:
         self._on_collapse(collapsed, content.full)
 
 
-def _can_take_settle_indent(callback: Callable[..., None] | None) -> bool:
-    """Whether *callback* can receive the settle indent as a second argument.
-
-    `settle_text_block(source)` is a documented custom-UI hook, so a channel
-    written against that one-argument form keeps working: the indent is
-    offered, never forced. Asked once, when the handler is built — the answer
-    cannot change for the lifetime of one bound method.
-
-    `ValueError` covers a callable whose signature Python cannot read (a C
-    builtin, a partially applied object): it is treated as the documented
-    one-argument form rather than as an error.
-    """
-    if callback is None:
-        return False
-    try:
-        inspect.signature(callback).bind("text", CONTINUATION_PAD)
-    except (TypeError, ValueError):
-        return False
-    return True
-
-
 class StreamEventHandler:
     """Stateful handler for agent stream events."""
 
@@ -203,7 +181,7 @@ class StreamEventHandler:
         on_thinking_collapse: Callable[[str, str], None] | None = None,
         on_text_start: Callable[[], None] | None = None,
         on_text_collapse: Callable[[str, str], None] | None = None,
-        on_text_settle: Callable[..., None] | None = None,
+        on_text_settle: Callable[[str], None] | None = None,
         on_tool_prepare_update: Callable[[str, str], None] | None = None,
         on_tool_call_start: Callable[[str, str], None] | None = None,
         on_tool_call_end: Callable[[str | None], None] | None = None,
@@ -212,7 +190,6 @@ class StreamEventHandler:
         self._usage_callback = usage_callback
         self._indentation = indent_level * 2 * " "
         self._continuation = f"{self._indentation}{CONTINUATION_PAD}"
-        self._settle_takes_indent = _can_take_settle_indent(on_text_settle)
         self._show_tool_call_detail = show_tool_call_detail
         self._show_tool_result = show_tool_result
         self._tool_block_recorder = tool_block_recorder
@@ -290,6 +267,15 @@ class StreamEventHandler:
     @property
     def event_prefix(self) -> str:
         return self._event_prefix
+
+    @property
+    def continuation(self) -> str:
+        """The column this handler's wrapped lines are streamed at.
+
+        A UI that renders a settled block asks for it (`set_stream_indentation`)
+        so the prose lands where it was already being read.
+        """
+        return self._continuation
 
     @property
     def printed_tool_ids(self) -> set:
@@ -398,15 +384,10 @@ class StreamEventHandler:
         """
         self._flush_text()
         source = self._text.settle()
-        if not source or self._on_text_settle is None:
-            return
-        # The prefix travels with the text: the UI renders the markdown and then
-        # re-applies the column, which it cannot guess from the source. A channel
-        # that implements only the documented `settle_text_block(source)` gets
-        # the text alone and keeps its own layout.
-        if self._settle_takes_indent:
-            self._on_text_settle(source, self._continuation)
-        else:
+        if source and self._on_text_settle is not None:
+            # The column is not passed here: a UI learns it once, through
+            # `set_stream_indentation`, so this hook keeps the one-argument
+            # contract `llm-custom-ui.md` documents.
             self._on_text_settle(source)
 
     def _flush_text(self) -> None:
@@ -648,7 +629,7 @@ def create_event_handler(
     on_thinking_collapse: Callable[[str, str], None] | None = None,
     on_text_start: Callable[[], None] | None = None,
     on_text_collapse: Callable[[str, str], None] | None = None,
-    on_text_settle: Callable[..., None] | None = None,
+    on_text_settle: Callable[[str], None] | None = None,
     on_tool_prepare_update: Callable[[str, str], None] | None = None,
     on_tool_call_start: Callable[[str, str], None] | None = None,
     on_tool_call_end: Callable[[str | None], None] | None = None,
@@ -670,16 +651,15 @@ def create_event_handler(
         on_text_start: Called before a text response's first chunk.
         on_text_collapse: Called with (collapsed, full) when the run's final
             text response ends; same contract as `on_thinking_collapse`.
-        on_text_settle: Called with (source, indent) when a tool call or another
-            part ends a text block before the run does. `source` is the block's
-            own text (no indentation, no leading icon) — indentation would make
-            a markdown renderer read it as code — and `indent` is the column its
-            wrapped lines were streamed at, so the rendered prose lands back on
-            it instead of jumping to the margin. That prose is not the answer —
-            `on_text_collapse`'s block is — so the UI can leave it on screen in
-            full, rendered, instead of collapsing it into a hint. A callback
-            that takes only `source` — the documented `settle_text_block(source)`
-            form — is called with `source` alone and keeps its own layout.
+        on_text_settle: Called with a text block's own text (no indentation, no
+            leading icon — indentation would make a markdown renderer read it as
+            code) when a tool call or another part ends it before the run does.
+            That prose is not the answer — `on_text_collapse`'s block is — so the
+            UI can leave it on screen in full, rendered, instead of collapsing it
+            into a hint. The column it was streamed at is not an argument here,
+            so this hook keeps the one-argument contract `llm-custom-ui.md`
+            documents: a UI that renders the block asks for it through its own
+            `set_stream_indentation`, which `setup_print_and_events` calls.
         on_tool_prepare_update: Called with (tool_call_id, text) to print or
             replace that call's own "Prepare tool parameters" line (empty
             text erases it). Without it, a single `\\r`-animated line is used,

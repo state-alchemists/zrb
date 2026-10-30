@@ -161,7 +161,10 @@ FACADE_BUDGETS = {
     # shrank out from under -- a hidden choice stays active and answers option
     # zero, so the transition to zero rows has to act, not merely hide.
     # +2 (760->762): `for` and its call over the two parts, since both need it.
-    "llm/ui/default/ui.py": 762,
+    # +4 (762->766): the `set_stream_indentation` delegator beside
+    # `settle_text_block` -- the column a settled block keeps belongs to the run's
+    # stream, and `output.py` holds it; the facade only forwards the hook name.
+    "llm/ui/default/ui.py": 766,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

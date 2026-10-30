@@ -126,6 +126,7 @@ class UIOutput:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
+        self.stream_indentation = ""
         self._spans = TrackedSpans(
             get_text=self._get_main_text,
             set_text=self._set_main_text,
@@ -359,7 +360,15 @@ class UIOutput:
         """
         return self._spans.collapse_block(collapsed, full)
 
-    def settle_text_block(self, source: str, indent: str = "") -> None:
+    def set_stream_indentation(self, indent: str) -> None:
+        """Remember the column the run's streamed lines wrap at.
+
+        `settle_text_block` puts a settled block's prose there. The handler is
+        still the source of the number; this is only where it lands.
+        """
+        self.stream_indentation = indent
+
+    def settle_text_block(self, source: str) -> None:
         """Render an intermediate text block's prose under its own marker.
 
         A text block a tool call ends is prose the assistant wrote *before*
@@ -369,13 +378,14 @@ class UIOutput:
         marker. The span is registered as a rendered block, like
         `append_markdown`'s output, so a resize re-wraps it.
 
-        `indent` is the column the block's wrapped lines were streamed at. The
-        prose sits there, under the marker, so settling does not move what the
-        reader was already reading; the marker takes the icon's line instead of
-        carrying the icon itself. The render narrows by exactly that much, so a
-        wrapped line plus its indentation still fits the field — indenting
-        afterwards would push every line past the edge, where it wraps again.
+        The prose sits at `stream_indentation`, the column the block's wrapped
+        lines were streamed at, so settling does not move what the reader was
+        already reading; the marker takes the icon's line instead of carrying
+        the icon itself. The render narrows by exactly that much, so a wrapped
+        line plus its indentation still fits the field — indenting afterwards
+        would push every line past the edge, where it wraps again.
         """
+        indent = self.stream_indentation
         rendered = self._render_markdown_block(
             source, _narrowed_width(self.output_field_width, len(indent))
         )

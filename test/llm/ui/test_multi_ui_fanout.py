@@ -252,11 +252,28 @@ def test_multi_ui_settle_text_block_forwards_to_supporting_children(
     child_ui_1.settle_text_block = MagicMock()
     del child_ui_2.settle_text_block
 
-    multi_ui.settle_text_block("prose written before a tool call", "  ")
+    multi_ui.settle_text_block("prose written before a tool call")
 
     child_ui_1.settle_text_block.assert_called_once_with(
-        "prose written before a tool call", "  "
+        "prose written before a tool call"
     )
+
+
+def test_multi_ui_set_stream_indentation_reaches_children_that_render(
+    multi_ui, child_ui_1, child_ui_2
+):
+    """The column goes to children that can use it, and past the others.
+
+    A channel without the hook is the same case as a channel without
+    `settle_text_block`: it lays the prose out its own way, and no argument
+    shape has to change for it.
+    """
+    child_ui_1.set_stream_indentation = MagicMock()
+    del child_ui_2.set_stream_indentation
+
+    multi_ui.set_stream_indentation("     ")
+
+    child_ui_1.set_stream_indentation.assert_called_once_with("     ")
 
 
 def test_multi_ui_text_hooks_swallow_child_errors(multi_ui, child_ui_1, child_ui_2):

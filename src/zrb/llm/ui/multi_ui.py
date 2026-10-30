@@ -368,13 +368,22 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Collapse the block opened by `mark_text_block_start`."""
         self._fanout("collapse_text_block", collapsed, full)
 
-    def settle_text_block(self, source: str, indent: str = "") -> None:
+    def settle_text_block(self, source: str) -> None:
         """Show an intermediate text block's prose in full on children that can.
 
         No fallback: a child without the hook keeps the streamed copy it
         already printed, which is the whole text anyway.
         """
-        self._fanout("settle_text_block", source, indent)
+        self._fanout("settle_text_block", source)
+
+    def set_stream_indentation(self, indent: str) -> None:
+        """Tell children that render a settled block the column to keep.
+
+        A child without the hook keeps its own layout — the same no-fallback
+        rule as the hooks above: it is a channel that never asked for the
+        column in the first place.
+        """
+        self._fanout("set_stream_indentation", indent)
 
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Forward a tool call's start to children tracking the running-tool timer."""

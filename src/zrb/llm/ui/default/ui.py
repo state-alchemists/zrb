@@ -621,8 +621,12 @@ class UI(BaseUI):
     def collapse_text_block(self, collapsed: str, full: str) -> bool:
         return self._output.collapse_text_block(collapsed, full)
 
-    def settle_text_block(self, source: str, indent: str = "") -> None:
-        self._output.settle_text_block(source, indent)
+    def settle_text_block(self, source: str) -> None:
+        self._output.settle_text_block(source)
+
+    def set_stream_indentation(self, indent: str) -> None:
+        """Tell the transcript the column streamed lines are wrapped at."""
+        self._output.set_stream_indentation(indent)
 
     def update_tool_prepare(self, key: str, text: str) -> None:
         self._output.update_tool_prepare(key, text)
