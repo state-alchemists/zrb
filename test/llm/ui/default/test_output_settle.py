@@ -16,7 +16,11 @@ from zrb.llm.agent.run.setup import setup_print_and_events
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.output import UIOutput
-from zrb.llm.util.stream_response import CONTINUATION_PAD, DEFAULT_STREAM_INDENTATION
+from zrb.llm.util.stream_response import (
+    CONTINUATION_PAD,
+    DEFAULT_STREAM_INDENTATION,
+    EVENT_INDENT,
+)
 from zrb.util.cli.style import remove_style
 
 
@@ -95,9 +99,11 @@ def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
     text = remove_style(ui.output_text)
     marker = "💬 Response (23 chars)"
     column = DEFAULT_STREAM_INDENTATION
+    icon = EVENT_INDENT
     assert text.count(marker) == 1
-    # The marker has a line to itself, and the prose starts on the next one.
-    assert f"\n{marker}\n" in text
+    # The marker has a line to itself, in the column the icon stood in, and the
+    # prose starts on the next one.
+    assert f"\n{icon}{marker}\n" in text
     assert text.endswith(f"\n{column}read the file first")
     # Markdown-rendered under the marker, not the raw source, and in the column
     # the run's wrapped lines sit at.
@@ -110,7 +116,8 @@ def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
 
     assert isinstance(source, CollapsibleBlockSource)
     assert source.expanded is True
-    assert remove_style(source.collapsed).endswith(marker)
+    # Folded back, the marker keeps the same column: Ctrl+O must not move it.
+    assert remove_style(source.collapsed).endswith(f"\n{icon}{marker}")
     assert remove_style(source.full).endswith(f"\n{column}read the file first")
 
 
@@ -186,7 +193,50 @@ def test_settled_prose_keeps_the_column_it_streamed_at():
         handler.handle_part_start(call)
 
     text = remove_style(ui.output_text)
-    assert f"\n💬 Response (19 chars)\n{continuation}read the file first" in text
+    assert (
+        f"\n{handler.indentation}💬 Response (19 chars)\n"
+        f"{continuation}read the file first" in text
+    ), "the settled marker must start where the block's icon stood"
+
+
+def test_a_deeper_run_settles_its_marker_in_its_own_icon_column():
+    """The marker follows the column the run reports, not the default one.
+
+    A delegated or nested run streams an event indentation deeper than the
+    default, and its icon moved right with it; a marker left at the default
+    would jump left of the prose it heads, which is the same bug one level down.
+    """
+    ui = SettleUI()
+    deeper_icon = f"{EVENT_INDENT}{EVENT_INDENT}"
+    deeper_column = f"{deeper_icon}{CONTINUATION_PAD}"
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.set_stream_indentation(deeper_column)
+        ui.mark_text_block_start()
+        ui.append_to_output("\n    💬 read it", end="", kind="streaming")
+        ui.settle_text_block("read it")
+
+    text = remove_style(ui.output_text)
+    assert f"\n{deeper_icon}💬 Response (7 chars)\n{deeper_column}read it" in text
+
+
+def test_a_column_that_is_not_the_stream_layout_keeps_the_marker_at_the_margin():
+    """A UI free to choose its own column gets no invented icon column.
+
+    `icon_indentation` strips one continuation pad; a column that does not end
+    in one says nothing about where an icon would sit, so the marker stays at
+    the margin instead of eating part of somebody else's layout.
+    """
+    ui = SettleUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.set_stream_indentation("» ")
+        ui.mark_text_block_start()
+        ui.append_to_output("\n» 💬 read it", end="", kind="streaming")
+        ui.settle_text_block("read it")
+
+    text = remove_style(ui.output_text)
+    assert "\n💬 Response (7 chars)\n» read it" in text
 
 
 def test_settled_prose_wraps_inside_the_field_it_is_indented_into():

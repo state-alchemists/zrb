@@ -54,6 +54,29 @@ replayed answer rendered at the margin would sit five columns left of the one a
 live turn put there. A run that reports its own column still overrides this."""
 
 
+def icon_indentation(column: str) -> str:
+    """Where a block's icon sits, given the column its prose wraps at.
+
+    The two differ by exactly one `CONTINUATION_PAD`: a streamed block's first
+    line carries the event indentation and the icon, and every later line adds
+    the pad. A settled block's marker takes the icon's place, so it starts there
+    rather than at the margin — a header painted flush left jumps left at the
+    moment the block settles, which is the prose the reader was reading.
+
+    A column that does not end in the pad is a UI that chose its own layout;
+    there the marker keeps the margin rather than inventing a column the stream
+    never used.
+    """
+    if column.endswith(CONTINUATION_PAD):
+        return column[: -len(CONTINUATION_PAD)]
+    return ""
+
+
+DEFAULT_ICON_INDENTATION = icon_indentation(DEFAULT_STREAM_INDENTATION)
+"""Where a block's icon sits before any run has reported a column of its own:
+one continuation pad left of `DEFAULT_STREAM_INDENTATION`."""
+
+
 class _BlockContent(NamedTuple):
     """What a block accumulated: the screen text it printed, plus the
     undecorated source of that text."""
