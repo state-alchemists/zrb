@@ -6,10 +6,14 @@ so a session could record a fact and then answer as though it had not. These
 tests pin the replacement: a few claims a turn, ranked, never repeated.
 """
 
+import ast
+import pathlib
+
 import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import set_current_session
+from zrb.llm.prompt import live_context
 from zrb.llm.prompt.live_context import _render_parts, render_journal_claims
 from zrb.llm.tool.journal_write import supersede_journal_note, write_journal_note
 
@@ -165,6 +169,25 @@ def test_a_disabled_journal_has_no_claims(journal, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_JOURNAL_ENABLED", False, raising=False)
 
     assert render_journal_claims() is None
+
+
+def test_the_module_postpones_its_annotations():
+    """`Note` is imported only for the type checker, so an annotation naming it
+    must stay unevaluated: 3.13 and older evaluate annotations where the
+    function is defined and raise `NameError` on import, while 3.14 postpones
+    them by default (PEP 649). That is why this break reached the matrix and not
+    the local suite — PR #783, run 41072102481: 3.14 passed, 3.11 to 3.13 did not.
+    """
+    module = ast.parse(pathlib.Path(live_context.__file__).read_text(encoding="utf-8"))
+    statements = [
+        node
+        for node in module.body
+        if not (isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant))
+    ]
+
+    assert isinstance(statements[0], ast.ImportFrom)
+    assert statements[0].module == "__future__"
+    assert any(alias.name == "annotations" for alias in statements[0].names)
 
 
 def test_the_first_turn_carries_the_index_and_later_turns_the_claims(journal):

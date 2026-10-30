@@ -5,6 +5,11 @@ Rendering also binds the ambient session and interactive-mode ``ContextVar``s
 the todo tools and ``ask_user_question`` read, and clears a stale active
 worktree.
 """
+# `Note` is imported only for the type checker, so the annotation that names it
+# has to stay unevaluated: 3.13 and older evaluate it when the function is
+# defined, and would raise `NameError` on import. 3.14 postpones annotations by
+# default (PEP 649), which is why a suite run on 3.14 cannot see this break.
+from __future__ import annotations
 
 import asyncio
 import os
