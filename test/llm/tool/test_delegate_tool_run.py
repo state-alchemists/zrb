@@ -199,10 +199,14 @@ async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
             )
             await started.wait()
             [session] = live_subagent_session_registry.active("default")
-            # The task driving the delegation is registered as the session's
+            # The task driving the sub-agent is registered as the session's
             # active task; cancelling through the registry is exactly what the
-            # TUI's Esc does.
-            assert session.active_task is run_task
+            # TUI's Esc does. It is the sub-agent's own task, not the frame
+            # awaiting it: `DelegateToAgent` starts the run as a `Task` so a
+            # send-now can hand it to the background, and cancelling the frame
+            # must never take the sub-agent with it.
+            assert session.active_task is not None
+            assert session.active_task is not run_task
             assert live_subagent_session_registry.cancel("default", session.agent_id)
             result = await run_task  # completes instead of raising CancelledError
     finally:

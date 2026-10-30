@@ -184,6 +184,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0078** — [Mid-turn messages queue, and Ctrl+G steers them into the live run](adr-0078.md)
 - **ADR-0116** — [A send-now action hands the queue to the live run, falling back to cancelling the turn](adr-0116.md)
 - **ADR-0123** — [A send-now key moves a running Shell aside, so the message is read in the same turn](adr-0123.md)
+- **ADR-0132** — [A send-now key moves a running delegation aside, so the message is read in the same turn](adr-0132.md)
 - **ADR-0079** — [LaTeX math renders as Unicode via masked pre-parse, not a Rich `Markdown` subclass](adr-0079.md)
 - **ADR-0080** — [Mermaid renders as Unicode diagram art via `termaid`; PlantUML stays deferred](adr-0080.md)
 - **ADR-0081** — [Web chat renders markdown/math/diagrams client-side; the non-interactive loop finalizes its output](adr-0081.md)

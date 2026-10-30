@@ -58,7 +58,23 @@ class _BackgroundRegistry:
     def start(
         self, handle: str, agent_name: str, coro, buffered_ui: BufferedUI
     ) -> None:
-        self._tasks[handle] = asyncio.ensure_future(coro)
+        self.adopt(handle, agent_name, asyncio.ensure_future(coro), buffered_ui)
+
+    def adopt(
+        self,
+        handle: str,
+        agent_name: str,
+        task: asyncio.Task,
+        buffered_ui: BufferedUI,
+    ) -> None:
+        """Take over a delegation that is already running, under *handle*.
+
+        The synchronous `DelegateToAgent` hands its sub-agent over this way when
+        a send-now moves it aside. The task, its transcript and its agent name
+        are recorded exactly as `start` records them, so `GetDelegationResult`
+        collects it like any other background delegation.
+        """
+        self._tasks[handle] = task
         self._buffers[handle] = buffered_ui
         self._agent_names[handle] = agent_name
 
