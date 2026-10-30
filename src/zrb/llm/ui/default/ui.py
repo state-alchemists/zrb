@@ -36,8 +36,10 @@ from zrb.util.cli.terminal import get_terminal_size
 
 if TYPE_CHECKING:
     from prompt_toolkit import Application
+    from prompt_toolkit.filters import Filter
     from prompt_toolkit.key_binding import KeyBindings, KeyPressEvent
     from prompt_toolkit.layout import Layout
+    from prompt_toolkit.layout.containers import AnyContainer
     from prompt_toolkit.lexers import Lexer
     from prompt_toolkit.styles import Style
     from prompt_toolkit.widgets import TextArea
@@ -157,17 +159,11 @@ class UI(BaseUI):
         self.append_rendered(greeting_panel, render_help_panel)
         self.append_to_output("")
 
-        # AskUserQuestion selection widget (hidden until a choice is active).
+        # AskUserQuestion selection widget, sub-agent picker and `/btw` panel
+        # (each hidden until something opens it).
         self._selection.init_selection_state()
-        choice_float = self._create_choice_float()
-
-        # Sub-agent picker + live view (hidden until Down Arrow opens it).
         self._agent_picker.init_agent_picker_state()
-        agent_picker_float = self._create_agent_picker_float()
-
-        # `/btw` panel (hidden until a side question is asked).
         self._side_question.init_side_question_state()
-        side_question_float = self._create_side_question_float()
 
         self._layout = create_layout(
             title=self._assistant_name,
@@ -177,7 +173,9 @@ class UI(BaseUI):
             info_bar_text=self._output.get_info_bar_text,
             status_bar_text=self._output.get_status_bar_text,
             badge_bar_text=self._output.get_badge_bar_text,
-            extra_floats=[choice_float, agent_picker_float, side_question_float],
+            dock_panels=self._create_dock_panels(),
+            input_panel=self._create_input_panel(),
+            input_panel_active=self._input_panel_active(),
             agent_activity_text=self._output.get_agent_activity_text,
             queued_messages_text=self._output.get_queued_messages_text,
         )
@@ -192,6 +190,10 @@ class UI(BaseUI):
 
     def _on_render(self, app: "Application") -> None:
         try:
+            # A panel the terminal shrank out from under still owns the keys:
+            # closing it here is what keeps a hidden choice from being answered.
+            for panel in (self._selection, self._agent_picker, self._side_question):
+                panel.fall_back_when_unpaintable()
             if self.viewing_agent_id is not None:
                 # The pane shows the sub-agent's buffer; the main transcript
                 # re-wraps once the view is left.
@@ -311,43 +313,73 @@ class UI(BaseUI):
     def invalidate_task(self, value: "asyncio.Task | None") -> None:
         self._invalidate_task = value
 
-    def _create_choice_float(self):
-        """Float hosting the AskUserQuestion widget, shown only when active."""
-        choice_window = self._selection.choice_window
-        if choice_window is None:
-            raise RuntimeError(
-                "init_selection_state was not called before _create_choice_float"
+    def _create_dock_panels(self) -> list:
+        """The panels that dock above the input while they are up.
+
+        `/btw` forwards what is typed to the input (a character starts a
+        message), so it keeps the input alive and docks above it rather than
+        taking its place — see `create_layout` for the rule.
+        """
+        # lazy: heavy third-party
+        from prompt_toolkit.filters import Condition
+        from prompt_toolkit.layout.containers import ConditionalContainer
+
+        return [
+            ConditionalContainer(
+                self._side_question.side_question_panel(),
+                filter=Condition(self._side_question.has_rows),
             )
-        return _create_frame_float(
-            choice_window,
-            title="Select an answer",
-            style="class:choice-frame",
-            is_active=self._selection.has_active_choice,
+        ]
+
+    def _create_input_panel(self) -> "AnyContainer":
+        """The panels that stand in the input frame's place while they are up.
+
+        A panel whose input is dead may stand in the input frame's place; a
+        panel that keeps the input alive docks above it (see `create_layout`).
+        The choice and the picker both hold the focus without forwarding a
+        keypress to the input, so both replace the frame; `/btw` forwards what
+        is typed to the input, so it docks instead.
+        """
+        # lazy: heavy third-party
+        from prompt_toolkit.filters import Condition
+        from prompt_toolkit.layout import HSplit
+        from prompt_toolkit.layout.containers import ConditionalContainer
+
+        return HSplit(
+            [
+                ConditionalContainer(
+                    self._selection.choice_panel(),
+                    filter=Condition(self._selection.has_active_choice),
+                ),
+                ConditionalContainer(
+                    self._agent_picker.agent_picker_panel(),
+                    filter=Condition(self._agent_picker.has_active_agent_picker),
+                ),
+            ]
         )
 
-    def _create_agent_picker_float(self):
-        """Float hosting the sub-agent picker, shown only while active."""
-        return _create_frame_float(
-            self._agent_picker.agent_picker_window,
-            title="Talk to a sub-agent",
-            style="class:agent-picker-frame",
-            is_active=self._agent_picker.has_active_agent_picker,
-        )
+    def _input_panel_active(self) -> "Filter":
+        """Shown exactly while one of the input-slot panels is, and has rows.
 
-    def _create_side_question_float(self):
-        """Float hosting the `/btw` panel, shown only while a side answer is up."""
-        window = self._side_question.side_question_window
-        if window is None:
-            raise RuntimeError(
-                "init_side_question_state was not called before "
-                "_create_side_question_float"
-            )
-        return _create_frame_float(
-            window,
-            title="Side question · esc closes",
-            style="class:side-question-frame",
-            is_active=lambda: self._side_question.is_active,
-        )
+        A terminal too short to give the panel one content row keeps the input
+        frame instead: a bare frame with no options under it cannot be answered,
+        while the input still can — the choice echoes its question and options
+        into the transcript for exactly that case.
+        """
+        # lazy: heavy third-party
+        from prompt_toolkit.filters import Condition
+
+        from zrb.llm.ui.default.app.docking import panel_row_cap
+
+        def is_active() -> bool:
+            if not (
+                self._selection.has_active_choice()
+                or self._agent_picker.has_active_agent_picker()
+            ):
+                return False
+            return panel_row_cap(self) > 0
+
+        return Condition(is_active)
 
     def _create_application(
         self,
@@ -701,11 +733,11 @@ class UI(BaseUI):
         self._side_question.cancel(request)
 
     def show_panel(self, title: str, body: str) -> None:
-        """Draw a command's reply in the float, above the input.
+        """Draw a command's reply in the `/btw` panel, above the input.
 
-        The float is the one `/btw` uses: a reply worth its own panel is a
-        reply the user reads while the conversation keeps scrolling under it.
-        Before the layout builds the float there is nothing to fill, so the
+        The panel is the one `/btw` uses: a reply worth its own panel is a
+        reply the user reads while the conversation keeps scrolling beside it.
+        Before the layout builds the panel there is nothing to fill, so the
         reply is printed instead of being lost.
         """
         if self._side_question.side_question_window is None:
@@ -728,22 +760,3 @@ class UI(BaseUI):
         # `UISelection` is the front: it handles the pending-free-text case
         # and falls through to `UIConfirmation`'s base case otherwise.
         return self._selection.handle_confirmation(event)
-
-
-def _create_frame_float(window: Any, title: str, style: str, is_active: Callable):
-    """A full-width framed float just above the input, shown while active.
-
-    Full width because side margins would let the streaming output bleed through.
-    """
-    # lazy: heavy third-party
-    from prompt_toolkit.filters import Condition
-    from prompt_toolkit.layout.containers import ConditionalContainer, Float
-    from prompt_toolkit.widgets import Frame
-
-    framed = Frame(window, title=title, style=style)
-    return Float(
-        bottom=4,
-        left=0,
-        right=0,
-        content=ConditionalContainer(content=framed, filter=Condition(is_active)),
-    )

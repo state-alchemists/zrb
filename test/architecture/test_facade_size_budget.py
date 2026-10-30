@@ -151,7 +151,17 @@ FACADE_BUDGETS = {
     # `collapse_text_block` -- a text block a tool call ends is not the turn's
     # answer, so its prose stays readable in full; the rendering stays in
     # `output.py`.
-    "llm/ui/default/ui.py": 749,
+    # -4 (749->745): the four `*_float` builders are gone — the panels dock into
+    # the layout, so each part builds its own framed `Frame` and `ui.py` only
+    # wires the two slots.
+    # +13 (745->758): `_input_panel_active` also requires the panel to have a row
+    # to paint, so a terminal too short for it keeps the input frame instead of
+    # trading it for an empty border.
+    # +2 (758->760): the two-line render hook that closes a panel the terminal
+    # shrank out from under -- a hidden choice stays active and answers option
+    # zero, so the transition to zero rows has to act, not merely hide.
+    # +2 (760->762): `for` and its call over the two parts, since both need it.
+    "llm/ui/default/ui.py": 762,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

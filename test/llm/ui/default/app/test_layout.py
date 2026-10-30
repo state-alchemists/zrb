@@ -7,8 +7,9 @@ from prompt_toolkit.completion import CompleteEvent
 from prompt_toolkit.document import Document
 from prompt_toolkit.keys import Keys
 from prompt_toolkit.layout import Layout
-from prompt_toolkit.layout.containers import ConditionalContainer, Float, Window
+from prompt_toolkit.layout.containers import ConditionalContainer, Window
 from prompt_toolkit.layout.controls import FormattedTextControl
+from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import SimpleLexer
 from prompt_toolkit.widgets import TextArea
 
@@ -351,19 +352,16 @@ class TestCreateLayout:
         )
         assert output_field.window in list(layout.find_all_windows())
 
-    def test_extra_floats_are_appended_to_the_float_container(self):
+    def test_the_completions_menu_is_the_layouts_only_float(self):
+        """A float covers the transcript, and the pane under it cannot be read
+        or scrolled while the float holds the focus, so no panel floats."""
         input_field, output_field = self._fields()
-        marker = Float(content=Window(FormattedTextControl("extra-marker")))
         layout = create_layout(
-            "title",
-            "jargon",
-            input_field,
-            output_field,
-            lambda: "i",
-            lambda: "s",
-            extra_floats=[marker],
+            "title", "jargon", input_field, output_field, lambda: "i", lambda: "s"
         )
-        assert marker in layout.container.floats
+        floats = layout.container.floats
+        assert len(floats) == 1
+        assert isinstance(floats[0].content, CompletionsMenu)
 
     def test_no_agent_activity_panel_when_not_given(self):
         input_field, output_field = self._fields()

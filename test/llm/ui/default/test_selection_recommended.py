@@ -6,6 +6,19 @@ so it is visible without becoming part of the label the answer resolves to.
 
 from __future__ import annotations
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def tall_terminal(terminal_rows):
+    """Every test here reads the whole panel, so it gets a screen that holds it.
+
+    A docked panel is capped at a third of the screen (`test_docked_choice.py`
+    covers the cap itself); CI's 24-row terminal would otherwise slice these
+    renders.
+    """
+    terminal_rows(80)
+
 
 def _spec(options, multi=False, index=1, total=1):
     return {

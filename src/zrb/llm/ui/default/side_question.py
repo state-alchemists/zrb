@@ -2,18 +2,19 @@
 
 A side question is answered off to the side and never saved to history, so its
 answer must not scroll the transcript the user is reading. `UISideQuestion`
-shows it in the same full-width framed float the choice widget uses, just above
-the input: the question, then the answer once it arrives, at a fixed height that
+shows it in the same framed panel the choice widget uses, docked above the
+input: the question, then the answer once it arrives, at a fixed height that
 scrolls instead of swallowing the screen.
 
-The panel takes the focus while it is shown, so the movement keys walk the
-answer instead of the input: Up/Down (with PageUp/PageDown/Home/End) scroll the
-panel rather than recalling a queued message. Enter closes it without submitting
-an input draft; Esc also closes it. Both return focus to the input. It is a read-only answer view, so typing still starts a
-message — text keys land in the input without the focus leaving the panel,
-keeping the movement keys on the answer for as long as it is up. A panel
-that opens while a prompt is waiting for the user keeps the focus where it is:
-that field is what the turn is blocked on.
+It docks rather than taking the input frame's place because it keeps typing
+alive: the panel takes the focus while it is shown, so the movement keys walk
+the answer instead of the input (Up/Down with PageUp/PageDown/Home/End scroll
+the panel rather than recalling a queued message), but a typed character starts
+a message in the input without the focus leaving the panel, so the input frame
+has to stay visible. Enter closes the panel without submitting an input draft;
+Esc also closes it. Both return focus to the input. A panel that opens while a
+prompt is waiting for the user keeps the focus where it is: that field is what
+the turn is blocked on.
 
 * `begin(question)` — open the panel and say the answer is coming. Returns a
   token naming that question.
@@ -32,10 +33,17 @@ from __future__ import annotations
 import unicodedata
 from typing import TYPE_CHECKING
 
+from zrb.llm.ui.default.app.docking import (
+    framed_panel_height,
+    panel_content_height,
+    panel_row_cap,
+)
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
+from zrb.llm.ui.default.app.notice import append_notice
 
 if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyBindings
+    from prompt_toolkit.layout.containers import AnyContainer
     from prompt_toolkit.widgets import TextArea
 
     from zrb.llm.ui.default.ui import UI
@@ -63,6 +71,9 @@ class UISideQuestion:
         # The raw markdown of the answer currently shown, for `rewrap`; None
         # while the panel shows a pending/failure message or nothing at all.
         self._last_answer: str | None = None
+        # A command reply's body (`show`), kept because the panel may have to
+        # hand it to the transcript when the screen shrinks under it.
+        self._shown_body: str | None = None
         self._rendered_width: int | None = None
 
     def init_side_question_state(self) -> None:
@@ -71,6 +82,7 @@ class UISideQuestion:
         self._is_active = False
         self._request = None
         self._last_answer = None
+        self._shown_body = None
         self._rendered_width = None
         self._window = self._create_window()
 
@@ -84,6 +96,15 @@ class UISideQuestion:
         """Whether the panel is currently shown."""
         return self._is_active
 
+    def has_rows(self) -> bool:
+        """Whether the docked panel is up and has a row to paint.
+
+        A docked panel whose content height is zero still spends the `Frame`'s
+        border rows, so the layout shows an empty box and the transcript pays
+        for it. The container is gated on this instead of `is_active`.
+        """
+        return self._is_active and self.panel_rows() > 0
+
     def begin(self, question: str) -> object:
         """Open the panel for *question*, replacing any previous answer.
 
@@ -92,9 +113,18 @@ class UISideQuestion:
         dropped instead of being shown under this question.
         """
         self._question = question.strip()
-        self._is_active = True
         self._request = request = object()
         self._last_answer = None
+        self._shown_body = None
+        if panel_row_cap(self._ui) <= 0:
+            # No rows to dock into: the frame would spend the layout's border
+            # rows painting nothing at all. The question goes to the transcript
+            # at this size, and `end` puts the answer there with it.
+            self._is_active = False
+            append_notice(self._ui, f"\n💭 {self._question}\n")
+            self._invalidate()
+            return request
+        self._is_active = True
         self._fill(self._echo(_PENDING))
         # The panel takes the focus while it is shown, so Up/Down scroll the
         # answer instead of recalling a message into the input. A prompt that is
@@ -118,6 +148,11 @@ class UISideQuestion:
         if not self.is_current(request):
             return
         self._last_answer = answer
+        if not self._is_active:
+            # Opened into the transcript for want of room: the answer follows
+            # the question there instead of into a panel that never appeared.
+            self._ui.append_markdown(answer)
+            return
         self._render_and_fill(answer)
 
     def show(self, title: str, body: str) -> None:
@@ -130,9 +165,19 @@ class UISideQuestion:
         than painted over this, because its token no longer matches.
         """
         self._question = title.strip()
-        self._is_active = True
         self._request = None
         self._last_answer = None
+        self._shown_body = body
+        if panel_row_cap(self._ui) <= 0:
+            # No rows to dock into: a reply written only into the hidden buffer
+            # would never be seen, so it goes to the transcript the way
+            # `BaseUI.show_panel` prints one.
+            self._is_active = False
+            append_notice(self._ui, f"\n{self._question}\n{body}\n")
+            self._shown_body = None
+            self._invalidate()
+            return
+        self._is_active = True
         self._fill(f"  {self._question}\n{body}")
         if not self._ui.is_waiting_for_answer:
             focus_widget(self._window, "Panel")
@@ -182,7 +227,44 @@ class UISideQuestion:
         if not self.is_current(request):
             return
         self._last_answer = None
+        if not self._is_active:
+            # Opened into the transcript for want of room: the failure belongs
+            # there too, not in a panel nobody can see.
+            append_notice(self._ui, f"  ❌ {message}\n")
+            return
         self._fill(self._echo(f"  ❌ {message}\n"))
+
+    def fall_back_when_unpaintable(self) -> None:
+        """Move a side answer the terminal shrank away from into the transcript.
+
+        The panel leaves the layout once it has no rows, but it is still what
+        `end` writes into: the answer would land in a buffer nobody paints, and
+        the question would never be read either. Closing it here is the same
+        move `begin` makes on a screen that never had the rows — after this,
+        `end` appends the answer to the transcript, because that is where an
+        inactive panel's answer goes.
+        """
+        if not self._is_active:
+            return
+        if panel_row_cap(self._ui) > 0:
+            return
+        self._is_active = False
+        # The token stays: the answer still belongs to this question, and it is
+        # about to be written to the transcript under it.
+        append_notice(self._ui, f"\n💭 {self._question}\n")
+        if self._shown_body is not None:
+            # A command reply the panel was showing: the body is nowhere else.
+            append_notice(self._ui, f"{self._shown_body}\n")
+            self._shown_body = None
+        if self._last_answer is not None:
+            # An answer that already arrived: the panel was the only place it
+            # lived, so it moves with the question rather than vanishing behind
+            # a panel that no longer has a row to paint.
+            self._ui.append_markdown(self._last_answer)
+            self._last_answer = None
+        self._fill("")
+        focus_widget(self._ui.input_field, "Input-field")
+        self._invalidate()
 
     def cancel(self, request: object | None = None) -> None:
         """Close the panel if *request* is the question it is showing.
@@ -197,10 +279,16 @@ class UISideQuestion:
     def dismiss(self) -> None:
         """Close the panel and return focus to the input box."""
         if not self._is_active:
+            # A question that never had rows went to the transcript instead of
+            # the panel. Closing it still drops the token: otherwise a background
+            # answer landing afterwards passes the "still current" check and
+            # prints under a question the user already closed.
+            self._request = None
             return
         self._is_active = False
         self._request = None
         self._last_answer = None
+        self._shown_body = None
         self._fill("")
         focus_widget(self._ui.input_field, "Input-field")
         self._invalidate()
@@ -281,7 +369,7 @@ class UISideQuestion:
             read_only=True,
             wrap_lines=True,
             scrollbar=False,
-            height=PANEL_HEIGHT,
+            height=panel_content_height(self.panel_rows),
             focusable=True,
             lexer=CLIStyleLexer(),
             style="class:side-question",
@@ -289,6 +377,38 @@ class UISideQuestion:
         # TextArea takes no `key_bindings` argument; attach them to its control.
         panel.control.key_bindings = self._create_keybindings()
         return panel
+
+    def side_question_panel(self) -> "AnyContainer":
+        """The framed panel, docked above the input while a side answer is up.
+
+        A panel whose input is dead may stand in the input frame's place; a
+        panel that keeps the input alive docks above it. Typing here starts a
+        message in the input (`handle_typed_text`), so hiding the input would
+        make that typing blind.
+        """
+        # lazy: heavy third-party
+        from prompt_toolkit.widgets import Frame
+
+        if self._window is None:
+            raise RuntimeError(
+                "init_side_question_state was not called before side_question_panel"
+            )
+        return Frame(
+            self._window,
+            title="Side question · esc closes",
+            style="class:side-question-frame",
+            height=framed_panel_height(self.panel_rows),
+        )
+
+    def panel_rows(self) -> int:
+        """Rows the panel paints: its own fixed height, capped for the screen.
+
+        `PANEL_HEIGHT` is the panel's own scheme — a body of that many rows that
+        scrolls itself, with `PANEL_PAGE_ROWS` for PageUp/PageDown. A short
+        terminal lowers it to the cap instead of pushing the transcript off the
+        bottom; it never grows past `PANEL_HEIGHT` for a longer answer.
+        """
+        return min(PANEL_HEIGHT, panel_row_cap(self._ui))
 
     def _create_keybindings(self) -> "KeyBindings":
         """Bind the keys a focused panel receives — the panel holds the focus.

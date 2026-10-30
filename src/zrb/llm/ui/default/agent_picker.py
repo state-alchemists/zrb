@@ -7,7 +7,7 @@ typed messages to it. In that view, Left returns to the main session and Esc
 cancels the sub-agent's work.
 
 * Picker widget: `_picker_sessions` / `_picker_cursor` / `_agent_picker_window`
-  (a focusable `Window` in a `Float`, like `UISelection`).
+  (a focusable `Window` in a framed panel, like `UISelection`).
 * Live view: `_viewing_agent_id` / `_saved_main_output`. The pane is a
   redraw-time snapshot of the sub-agent's buffer (`sync_output_to_viewed_agent`)
   and the main transcript is parked in `saved_main_output`.
@@ -19,11 +19,19 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.ambient_state import get_session_ownership_key
+from zrb.llm.ui.default.app.docking import (
+    RowWindow,
+    framed_panel_height,
+    panel_row_cap,
+    rendered_row_count,
+)
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
+from zrb.llm.ui.default.app.notice import append_notice
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
+    from prompt_toolkit.layout.containers import AnyContainer
 
     from zrb.llm.subagent.live_session import LiveSubAgentSession
     from zrb.llm.ui.default.ui import UI
@@ -46,6 +54,7 @@ class UIAgentPicker:
         self._saved_main_output = None
         self._picker_sessions = []
         self._picker_cursor = 0
+        self._row_window = RowWindow()
         self._agent_picker_window = self._create_agent_picker_window()
 
     def has_active_agent_picker(self) -> bool:
@@ -95,11 +104,34 @@ class UIAgentPicker:
         )
         if not sessions:
             return False
+        if panel_row_cap(self._ui) <= 0:
+            # Nowhere to paint the list: focusing it would send whatever is typed
+            # next to a control nobody can see. Down stays on history recall, and
+            # the reason is printed now — a pending confirmation would otherwise
+            # hold it back until the turn it belongs to is answered.
+            append_notice(self._ui, "  ⚠ the sub-agent picker needs more screen rows\n")
+            return False
         self._picker_sessions = list(sessions)
         self._picker_cursor = 0
+        self._row_window.reset()
         focus_widget(self._agent_picker_window, "Agent-picker")
         self._invalidate()
         return True
+
+    def fall_back_when_unpaintable(self) -> None:
+        """Close a picker the terminal shrank out from under, and say why.
+
+        The picker stands in the input frame's place, so once the screen has no
+        rows for it the layout hides it while it still holds the focus: the next
+        keypress would reach a list nobody can see. Closing it leaves Down Arrow
+        on history recall, which is where `open_agent_picker` leaves it too.
+        """
+        if not self._picker_sessions:
+            return
+        if panel_row_cap(self._ui) > 0:
+            return
+        self.close_agent_picker()
+        append_notice(self._ui, "  ⚠ the sub-agent picker needs more screen rows\n")
 
     def close_agent_picker(self) -> None:
         """Dismiss the picker without entering any view (public API)."""
@@ -268,11 +300,43 @@ class UIAgentPicker:
             wrap_lines=True,
         )
 
+    def agent_picker_panel(self) -> "AnyContainer":
+        """The framed panel, standing in the input frame's place while it is up.
+
+        A panel whose input is dead may stand in the input frame's place; a
+        panel that keeps the input alive docks above it. The picker binds
+        Up/Down/Enter/Esc/Left on its own control and forwards nothing, so a
+        typed character reaches no widget at all while it holds the focus —
+        the input is dead, and the picker takes its rows.
+        """
+        # lazy: heavy third-party
+        from prompt_toolkit.widgets import Frame
+
+        return Frame(
+            self._agent_picker_window,
+            title="Talk to a sub-agent",
+            style="class:agent-picker-frame",
+            height=framed_panel_height(self.panel_rows),
+        )
+
+    def panel_rows(self) -> int:
+        """Rows the picker paints: its sessions, capped like every docked panel."""
+        if not self._picker_sessions:
+            return 0
+        frags, _ = self._render_picker()
+        return min(rendered_row_count(frags), panel_row_cap(self._ui))
+
     # rendering
 
     def get_agent_picker_text(self) -> "StyleAndTextTuples":
+        """The rows the picker paints: at most the cap, scrolled to the cursor."""
         if not self._picker_sessions:
             return []
+        frags, cursor_row = self._render_picker()
+        return self._row_window.slice(frags, cursor_row, self.panel_rows(), footer=2)
+
+    def _render_picker(self) -> "tuple[StyleAndTextTuples, int]":
+        """Every row the picker would paint, and the row the cursor sits on."""
         activity = agent_activity_registry.active(
             session_id=get_session_ownership_key(self._ui.conversation_session_name)
         )
@@ -280,12 +344,18 @@ class UIAgentPicker:
         frags: StyleAndTextTuples = [
             ("class:agent-picker.question bold", " Select a sub-agent to talk to\n")
         ]
+        painted = rendered_row_count(frags)
+        cursor_row = painted
         for i, session in enumerate(self._picker_sessions):
-            frags += self._render_picker_row(i, session, by_id.get(session.agent_id))
+            if i == self._picker_cursor:
+                cursor_row = painted
+            row = self._render_picker_row(i, session, by_id.get(session.agent_id))
+            frags += row
+            painted += rendered_row_count(row)
         frags.append(
             ("class:agent-picker.hint", "\n ↑/↓ move · enter talk · esc cancel\n")
         )
-        return frags
+        return frags, cursor_row
 
     def _render_picker_row(
         self,
@@ -307,19 +377,34 @@ class UIAgentPicker:
         if session.title:
             label += f" · {session.title}"
         state = "running" if running else "finished"
-        row: StyleAndTextTuples = [(style, f" {cursor}{label}")]
+        # One row is one painted line. `RowWindow` counts newline-delimited rows
+        # and anchors the cursor on them, while the window wraps its content, so
+        # a label long enough to wrap would be painted but not counted -- the
+        # rows after it would push the selected agent out of the capped panel.
+        # The fixed tail is measured and the label takes what is left; the
+        # window's own wrap stays as the backstop for a mis-measured line.
+        prefix = f" {cursor}"
+        tail: StyleAndTextTuples = [(style, f" [{state}]")]
+        if self._agent_needs_approval(session.agent_id):
+            tail.append(("class:agent-picker.needs-approval", " ⏳ needs approval"))
         if running and activity_entry.task:
-            row.append(
+            tail.append(
                 (
                     "class:agent-picker.desc",
                     f"  — {truncate_display(activity_entry.task, 50)}",
                 )
             )
-        row.append((style, f" [{state}]"))
-        if self._agent_needs_approval(session.agent_id):
-            row.append(("class:agent-picker.needs-approval", " ⏳ needs approval"))
+        tail_width = sum(len(frag[1]) for frag in tail)
+        room = max(8, self._pick_width() - len(prefix) - tail_width)
+        row: StyleAndTextTuples = [(style, f"{prefix}{truncate_display(label, room)}")]
+        row.extend(tail)
         row.append((style, "\n"))
         return row
+
+    def _pick_width(self) -> int:
+        """Usable text width inside the framed panel: four columns of border."""
+        columns = getattr(self._ui, "output_field_width", None)
+        return max(24, (columns or 84) - 4)
 
     def _agent_needs_approval(self, agent_id: str) -> bool:
         """Whether `agent_id` has an unresolved confirmation request queued.

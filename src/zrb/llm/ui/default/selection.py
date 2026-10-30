@@ -2,8 +2,9 @@
 
 Renders an `AskUserQuestion` `ChoiceSpec` as an in-layout selectable list
 (no nested `Application` — that would fight the running full-screen app for
-the terminal). The widget is a focusable `Window` shown as a `Float`; its own
-key bindings drive selection and resolve the active confirmation future via
+the terminal). The widget is a focusable `Window` in a framed panel that stands
+in the input frame's place while a choice is up; its own key bindings drive
+selection and resolve the active confirmation future via
 `UIConfirmation.resolve_current`.
 
 Selection model:
@@ -15,8 +16,10 @@ Selection model:
 
 Panel layering: the question's `context` (the facts needed to answer) renders
 above the question, muted, and an option marked `recommended` carries a ★ in
-its gutter. The panel grows with the context up to a share of the terminal
-height, then the context is ellipsized so the options stay reachable.
+its gutter. The panel takes at most a third of the screen (`app/docking.py`),
+so a twenty-option question scrolls under the cursor instead of starving the
+transcript, and a long context is ellipsized rather than pushing the options
+out of view.
 """
 
 from __future__ import annotations
@@ -26,12 +29,19 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from zrb.llm.tool_call.choice_spec_format import get_option_label
+from zrb.llm.ui.default.app.docking import (
+    RowWindow,
+    framed_panel_height,
+    panel_row_cap,
+    rendered_row_count,
+)
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
-from zrb.util.cli.terminal import get_terminal_size
+from zrb.llm.ui.default.app.notice import append_notice
 
 if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
     from prompt_toolkit.layout import Window
+    from prompt_toolkit.layout.containers import AnyContainer
 
     from zrb.llm.ui.default.confirmation import UIConfirmation
     from zrb.llm.ui.default.ui import UI
@@ -42,12 +52,13 @@ FREE_TEXT_LABEL = "✎ Type my own answer…"
 # Gutter glyph on a row whose option is the one the model advises.
 RECOMMENDED_MARK = "★"
 
-# The panel may take at most this share of the terminal's rows: enough to read
-# the context without ever pushing the options off screen.
-CHOICE_HEIGHT_SHARE = 0.4
-
 # What a truncated context ends on.
 ELLIPSIS = "…"
+
+# Rows the key hint takes at the bottom of the panel: a blank line and the hint
+# itself. They stay painted however short the panel gets — the hint carries the
+# ★ legend, and an unexplained marker is worse than a scrolled option.
+HINT_ROWS = 2
 
 
 @dataclass(frozen=True)
@@ -84,6 +95,7 @@ class UISelection:
         self._choice_freetext_prefix: str | None = None
         self._choice_freetext_question: str = ""
         self._choice_freetext_context: str = ""
+        self._row_window = RowWindow()
         self._choice_window = self._create_choice_window()
 
     def has_active_choice(self) -> bool:
@@ -118,8 +130,62 @@ class UISelection:
         self._active_choice = spec
         self._choice_cursor = 0
         self._choice_selected = set()
+        self._row_window.reset()
+        # A panel with no rows to paint is a bare frame, and in this slot it has
+        # taken the input's rows to get there: on a terminal too short to give it
+        # any, the question goes to the transcript instead.
+        if panel_row_cap(self._ui) <= 0:
+            self._start_unpaintable_choice(spec)
+            return
         # The question is echoed into scrollback with the answer on resolve.
         focus_widget(self._choice_window, "Choice-window")
+
+    def fall_back_when_unpaintable(self) -> None:
+        """Move a choice the terminal shrank out from under into the transcript.
+
+        A choice that was opened where it had rows stays active when the screen
+        shrinks: the layout hides the panel, but an active choice is still what
+        makes the input read-only and what makes Enter confirm the highlighted
+        row, so the answer would become option zero without the user seeing it.
+        Closing it the way a choice that never fitted is closed keeps the
+        question answerable in the one place that still paints. Called from
+        every render, so the ordinary case costs two comparisons.
+        """
+        if self._active_choice is None:
+            return
+        if panel_row_cap(self._ui) > 0:
+            return
+        self._start_unpaintable_choice(self._active_choice)
+
+    def _start_unpaintable_choice(self, spec: dict) -> None:
+        """Ask in the transcript, and take the answer as typed free text.
+
+        The choice must close, not merely go unpainted: an active choice is what
+        makes the input field read-only and what makes Enter confirm the
+        highlighted option, so leaving it set would answer with option zero
+        instead of what was typed. What stays is the pending free-text capture
+        the synthetic row uses, so the next Enter resolves this as typed text.
+        """
+        question = spec.get("question", "")
+        context = spec.get("context", "")
+        self._echo_unpaintable_choice(spec)
+        self.end_choice()
+        self._choice_freetext_prefix = ""
+        self._choice_freetext_question = question
+        self._choice_freetext_context = context
+        self._invalidate()
+
+    def _echo_unpaintable_choice(self, spec: dict) -> None:
+        """Put the question and its options in the transcript, for want of a panel."""
+        lines = [f"\n❓ {spec.get('question', '')}\n"]
+        lines += [f"  {line}\n" for line in spec.get("context", "").splitlines()]
+        options = spec.get("options", [])
+        lines += [
+            f"  {get_option_label(option, index)}\n"
+            for index, option in enumerate(options)
+        ]
+        lines.append("  ✎ Type your answer and press Enter.\n")
+        self._append_now("".join(lines))
 
     def end_choice(self) -> None:
         self._choice_freetext_prefix = None
@@ -169,6 +235,37 @@ class UISelection:
             dont_extend_height=True,
             wrap_lines=True,
         )
+
+    def choice_panel(self) -> "AnyContainer":
+        """The framed panel, standing in the input frame's place while it runs.
+
+        A panel whose input is dead may stand in the input frame's place; a
+        panel that keeps the input alive docks above it. A choice makes the
+        input dead — printable keys reach it only outside a choice
+        (`filter=not_choice_active`, `app/keybinding.py`) — so the panel takes
+        the input's rows instead of covering the transcript with a float.
+        """
+        # lazy: heavy third-party
+        from prompt_toolkit.widgets import Frame
+
+        return Frame(
+            self._choice_window,
+            title="Select an answer",
+            style="class:choice-frame",
+            height=framed_panel_height(self.panel_rows),
+        )
+
+    def panel_rows(self) -> int:
+        """Rows the panel paints: what the question has to show, capped.
+
+        The rows come out of the transcript, so a twenty-option question must
+        not take them all; what does not fit scrolls under the cursor.
+        """
+        spec = self._active_choice
+        if spec is None:
+            return 0
+        frags, _ = self._render_panel(spec)
+        return min(rendered_row_count(frags), panel_row_cap(self._ui))
 
     # state transitions (public-testable seams)
 
@@ -288,15 +385,31 @@ class UISelection:
     # rendering
 
     def get_choice_text(self) -> "StyleAndTextTuples":
+        """The rows the panel paints: at most the cap, scrolled to the cursor."""
         spec = self._active_choice
         if spec is None:
             return []
-        width = self._wrap_width()
-        body = self._body_frags(spec, width)
-        return self._context_frags(spec, width, body) + body
+        frags, cursor_row = self._render_panel(spec)
+        return self._row_window.slice(
+            frags, cursor_row, self.panel_rows(), footer=HINT_ROWS
+        )
 
-    def _body_frags(self, spec: dict, width: int) -> "StyleAndTextTuples":
-        """The question, the rows and the key hint — everything but the context."""
+    def _render_panel(self, spec: dict) -> "tuple[StyleAndTextTuples, int]":
+        """Every row the panel would paint, and the row the cursor sits on."""
+        width = self._wrap_width()
+        body, row_starts = self._body_frags(spec, width)
+        context = self._context_frags(spec, width, body)
+        cursor_row = rendered_row_count(context) + row_starts[self._choice_cursor]
+        return context + body, cursor_row
+
+    def _body_frags(
+        self, spec: dict, width: int
+    ) -> "tuple[StyleAndTextTuples, list[int]]":
+        """The question, the rows and the key hint — everything but the context.
+
+        The second value is the painted row each selectable row starts on, so
+        the visible slice can be kept on the one the cursor is on.
+        """
         multi = bool(spec.get("multi_select"))
         idx, total = spec.get("index", 1), spec.get("total", 1)
         counter = f"  ({idx}/{total})" if total > 1 else ""
@@ -306,9 +419,15 @@ class UISelection:
             ("class:choice.question bold", f" {line}\n")
             for line in _wrap(question, width - 1)
         ]
+        painted = len(frags)
+        row_starts: list[int] = []
         for row in rows:
             frags.append(("class:choice.option", "\n"))
-            frags += self._render_row(row, multi, width)
+            painted += 1
+            row_starts.append(painted)
+            row_frags = self._render_row(row, multi, width)
+            frags += row_frags
+            painted += len(row_frags)
         hint = (
             " ↑/↓ move · space toggle · enter confirm · esc cancel"
             if multi
@@ -317,32 +436,25 @@ class UISelection:
         if any(row.recommended for row in rows):
             hint += f" · {RECOMMENDED_MARK} recommended"
         frags.append(("class:choice.hint", f"\n{hint}\n"))
-        return frags
+        return frags, row_starts
 
     def _context_frags(
         self, spec: dict, width: int, body: "StyleAndTextTuples"
     ) -> "StyleAndTextTuples":
-        """The context, above the question, clamped to the panel's height budget."""
+        """The context, above the question, clamped to what the cap leaves over."""
         context = spec.get("context") or ""
         lines = _wrap(context, width - 1)
         if not lines:
             return []
-        # `_height_cap` bounds the context, not the whole panel: the question,
-        # the rows and the hint are painted whatever happens. Two rows stay
-        # reserved — one under the panel, one for the blank line that separates
-        # the context from the question — so what is left over is the real
-        # budget. Measuring the panel against the cap instead (`cap - body - 1`)
-        # subtracted the body twice and left a 24-row terminal with a negative
-        # budget, so a one-line context was dropped for want of arithmetic
-        # rather than for want of room.
-        budget = min(
-            self._height_cap(),
-            self._terminal_lines() - _painted_lines(body) - 2,
-        )
+        # The cap now holds the whole panel — it is docked into the layout, so
+        # its rows come out of the transcript — which makes the context's
+        # budget what the question, the rows and the hint leave over, minus the
+        # blank line that separates the context from the question. On a screen
+        # too short for any of it the options win, and the full context is still
+        # recorded in scrollback with the answer.
+        budget = panel_row_cap(self._ui) - rendered_row_count(body) - 1
         lines = _clamp_lines(lines, budget, width - 1)
         if not lines:
-            # No room at all: the options matter more than the context, and the
-            # full context is still recorded in scrollback with the answer.
             return []
         frags: StyleAndTextTuples = [
             ("class:choice.context", f" {line}\n") for line in lines
@@ -400,45 +512,13 @@ class UISelection:
         return (line.ljust(width) if is_cursor else line) + "\n"
 
     def _wrap_width(self) -> int:
-        """Usable text width inside the choice float.
+        """Usable text width inside the panel.
 
         Four columns go to the full-width `Frame`'s border and padding; falls
         back to a default when the width is unknown.
         """
         columns = getattr(self._ui, "output_field_width", None)
         return max(24, (columns or 84) - 4)
-
-    def _height_cap(self) -> int:
-        """Rows the context may paint: a share of the terminal, never all of it.
-
-        A ceiling on the context, not on the panel: what a short screen cannot
-        hold is decided against `_terminal_lines` in `_context_frags`, so this
-        only stops a long context from dominating a tall one.
-        """
-        return max(1, int(self._terminal_lines() * CHOICE_HEIGHT_SHARE))
-
-    def _terminal_lines(self) -> int:
-        """Terminal rows.
-
-        The running application first — its output is a dup of the real stdout,
-        while `get_terminal_size` may read a redirected fd and disagree with
-        what the renderer is painting.
-        """
-        app = self._running_application()
-        if app is not None:
-            try:
-                return app.output.get_size().rows
-            except (AttributeError, OSError, ValueError):
-                # A redirected or console-less output: fall through to the
-                # terminal probe, the same fallback `output_field_width` uses.
-                pass
-        return get_terminal_size().lines
-
-    def _running_application(self):
-        """The live prompt_toolkit application, or None before it is built."""
-        if not getattr(self._ui, "is_application_built", False):
-            return None
-        return getattr(self._ui, "application", None)
 
     # helpers
 
@@ -448,10 +528,7 @@ class UISelection:
         `append_to_output` buffers output while a confirmation is pending, and
         the free-text future still is, so the slot is cleared for the write.
         """
-        saved = self._ui.confirmation.current
-        self._ui.confirmation.current = None
-        self._ui.append_to_output(text, kind="text")
-        self._ui.confirmation.current = saved
+        append_notice(self._ui, text, kind="text")
 
     def _invalidate(self) -> None:
         invalidate_app("Choice-widget")
@@ -462,11 +539,6 @@ def _wrap(text: str, width: int) -> list[str]:
     if not text:
         return []
     return textwrap.wrap(text, max(10, width)) or [""]
-
-
-def _painted_lines(frags: "StyleAndTextTuples") -> int:
-    """How many terminal lines *frags* paint."""
-    return "".join(frag[1] for frag in frags).count("\n")
 
 
 def _clamp_lines(lines: list[str], budget: int, width: int) -> list[str]:

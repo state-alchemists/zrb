@@ -1,8 +1,9 @@
 """The `/btw` panel: one question, one answer, closed by Esc.
 
 The panel owns only its own state and text; where it sits on screen is the
-`Float` the default `UI` builds around `side_question_window`. The keys it
-receives while it holds the focus are pinned in `test_side_question_keys.py`.
+docked `Frame` the default `UI` builds around `side_question_window`. The keys
+it receives while it holds the focus are pinned in `test_side_question_keys.py`,
+and the slot it takes in the layout in `test_docked_panels.py`.
 """
 
 from unittest.mock import MagicMock, patch
@@ -140,16 +141,39 @@ def test_a_pending_prompt_also_keeps_the_focus():
     assert panel.is_active is True
 
 
-def test_a_long_answer_scrolls_inside_a_fixed_height(part):
+def test_a_long_answer_scrolls_inside_a_fixed_height(part, terminal_rows):
+    from prompt_toolkit.layout.dimension import to_dimension
+
     from zrb.llm.ui.default.side_question import PANEL_HEIGHT
 
+    terminal_rows(40)
     part.begin("why?")
     part.end("\n".join(f"line {i}" for i in range(200)))
 
     window = part.side_question_window
     assert window is not None
-    # A `TextArea` forwards its height to the `Window` it renders through.
-    assert window.window.height == PANEL_HEIGHT
+    # A `TextArea` forwards its height to the `Window` it renders through. On a
+    # tall enough terminal that is the panel's own PANEL_HEIGHT, whatever the
+    # answer's length: the text scrolls, the panel does not grow.
+    assert to_dimension(window.window.height).preferred == PANEL_HEIGHT
+
+
+def test_the_panel_shrinks_to_the_screens_cap_when_rows_are_short(terminal_rows):
+    """Docking spends transcript rows, so a short terminal lowers the panel."""
+    from prompt_toolkit.layout.dimension import to_dimension
+
+    from zrb.llm.ui.default.app.docking import panel_row_cap
+    from zrb.llm.ui.default.side_question import PANEL_HEIGHT
+
+    terminal_rows(24)
+    ui = _FakeUI()
+    part = UISideQuestion(ui)
+    part.init_side_question_state()
+    part.begin("why?")
+    window = part.side_question_window
+    assert window is not None
+    assert panel_row_cap(ui) < PANEL_HEIGHT, "24 rows must lower the panel"
+    assert to_dimension(window.window.height).preferred == panel_row_cap(ui)
 
 
 def test_an_answer_for_a_replaced_question_is_dropped(part):

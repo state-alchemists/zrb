@@ -15,6 +15,17 @@ from unittest.mock import MagicMock
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def tall_terminal(terminal_rows):
+    """Every test here reads the whole panel, so it gets a screen that holds it.
+
+    A docked panel is capped at a third of the screen (`test_docked_choice.py`
+    covers the cap itself); CI's 24-row terminal would otherwise slice these
+    renders.
+    """
+    terminal_rows(80)
+
+
 def _event(text=""):
     event = MagicMock()
     event.current_buffer.text = text

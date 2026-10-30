@@ -88,8 +88,40 @@ def test_output_navigation_is_disabled_while_choice_is_active():
     assert up_bindings[1].filter()
     assert not down_bindings[0].filter()
     assert down_bindings[1].filter()
-    assert not _binding_for(kb, Keys.PageUp).filter()
+    # Paging is the exception: a docked panel leaves the transcript visible and
+    # Up/Down own the option cursor, so PageUp/PageDown keep scrolling it.
+    assert _binding_for(kb, Keys.PageUp).filter()
+    assert _binding_for(kb, Keys.PageDown).filter()
     assert not _binding_for(kb, "a").filter()
+
+
+def test_pageup_scrolls_the_transcript_not_the_focused_pane():
+    output_field = TextArea()
+    kb = create_output_keybindings(TextArea(), output_field=output_field)
+    event = _fake_event()
+    event.app.output.get_size.return_value.rows = 24
+
+    _handler_for(kb, Keys.PageUp)(event)
+
+    assert output_field.buffer.cursor_position == 0
+    event.current_buffer.cursor_up.assert_not_called()
+    output_field.text = "\n".join(f"L{i}" for i in range(40))
+    output_field.buffer.cursor_position = len(output_field.text)
+    _handler_for(kb, Keys.PageUp)(event)
+    assert output_field.buffer.cursor_position < len(output_field.text)
+
+
+def test_pagedown_scrolls_the_transcript_forward():
+    output_field = TextArea("\n".join(f"L{i}" for i in range(40)))
+    output_field.buffer.cursor_position = 0
+    kb = create_output_keybindings(TextArea(), output_field=output_field)
+    event = _fake_event()
+    event.app.output.get_size.return_value.rows = 24
+
+    _handler_for(kb, Keys.PageDown)(event)
+
+    assert output_field.buffer.document.cursor_position_row == 20
+    event.current_buffer.cursor_down.assert_not_called()
 
 
 def test_active_choice_navigation_handles_output_focus():
@@ -135,6 +167,19 @@ def test_pageup_moves_cursor_up_by_screen_height_minus_four():
     handler(event)
 
     event.current_buffer.cursor_up.assert_called_once_with(count=20)
+
+
+def test_a_terminal_too_short_to_page_still_moves_one_row():
+    # `rows - overlap` goes to zero and below on a four-row terminal, and
+    # prompt_toolkit asserts on a non-positive count instead of clamping.
+    kb = create_output_keybindings(TextArea())
+    handler = _handler_for(kb, Keys.PageUp)
+    event = _fake_event()
+    event.app.output.get_size.return_value.rows = 3
+
+    handler(event)
+
+    event.current_buffer.cursor_up.assert_called_once_with(count=1)
 
 
 def test_printable_char_redirects_focus_and_inserts_when_no_selection():

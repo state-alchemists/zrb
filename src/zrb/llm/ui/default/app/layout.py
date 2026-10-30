@@ -1,12 +1,17 @@
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
-from prompt_toolkit.filters import Condition, has_completions, has_selection
+from prompt_toolkit.filters import Condition, Filter, has_completions, has_selection
 from prompt_toolkit.formatted_text import HTML, AnyFormattedText
 from prompt_toolkit.history import History
 from prompt_toolkit.key_binding import KeyBindings
 from prompt_toolkit.layout import HSplit, Layout, Window, WindowAlign
-from prompt_toolkit.layout.containers import ConditionalContainer, Float, FloatContainer
+from prompt_toolkit.layout.containers import (
+    AnyContainer,
+    ConditionalContainer,
+    Float,
+    FloatContainer,
+)
 from prompt_toolkit.layout.controls import FormattedTextControl
 from prompt_toolkit.layout.menus import CompletionsMenu
 from prompt_toolkit.lexers import Lexer
@@ -24,6 +29,8 @@ from zrb.llm.ui.ui_config import UIConfig
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.selection import UISelection
+
+INPUT_FRAME_TITLE = "Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel"
 
 
 def create_input_field(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
@@ -161,7 +168,11 @@ def create_output_field(
         dont_extend_height=False,
     )
     if key_bindings is None and input_field is not None:
-        key_bindings = create_output_keybindings(input_field, choice)
+        # PageUp/PageDown scroll this pane whichever pane has the focus, so it
+        # is handed over rather than left to the focused one.
+        key_bindings = create_output_keybindings(
+            input_field, choice, output_field=text_area
+        )
     if key_bindings is not None:
         text_area.control.key_bindings = key_bindings
 
@@ -202,10 +213,12 @@ def create_layout(
     output_field: TextArea,
     info_bar_text: Callable[[], AnyFormattedText],
     status_bar_text: Callable[[], AnyFormattedText],
-    extra_floats: list[Float] | None = None,
     agent_activity_text: Callable[[], AnyFormattedText] | None = None,
     badge_bar_text: Callable[[], AnyFormattedText] | None = None,
     queued_messages_text: Callable[[], AnyFormattedText] | None = None,
+    dock_panels: list[AnyContainer] | None = None,
+    input_panel: AnyContainer | None = None,
+    input_panel_active: Filter | None = None,
 ) -> Layout:
     title_bar_text = HTML(
         " <title-text><b> {} </b></title-text> <faint>| {}</faint>"
@@ -276,11 +289,9 @@ def create_layout(
                     output_field,
                     Window(height=1),
                     *queued_panel,
-                    Frame(
-                        input_field,
-                        title="Ctrl+J newline · Ctrl+V/Alt+V paste · ESC cancel",
-                        style="class:input-frame",
-                    ),
+                    # The panels that keep the input alive while they are up.
+                    *(dock_panels or []),
+                    *_input_slot(input_field, input_panel, input_panel_active),
                     # A Frame title is one line, too narrow for every hint.
                     Window(
                         height=1,
@@ -298,13 +309,38 @@ def create_layout(
                 ],
             ),
             floats=[
+                # The completions menu is the layout's only float: it belongs
+                # to prompt_toolkit and covers nothing the user needs. Every
+                # other panel docks into the HSplit instead of covering the
+                # transcript.
                 Float(
                     xcursor=True,
                     ycursor=True,
                     content=CompletionsMenu(max_height=16, scroll_offset=1),
                 ),
-                *(extra_floats or []),
             ],
         ),
         focused_element=input_field,
     )
+
+
+def _input_slot(
+    input_field: TextArea,
+    input_panel: AnyContainer | None,
+    input_panel_active: Filter | None,
+) -> list:
+    """The input's row: the input frame, or the panel that stands in its place.
+
+    A panel whose input is dead may stand in the input frame's place; a panel
+    that keeps the input alive docks above it. Nothing typed reaches the input
+    while such a panel is up, so the frame would be three rows of dead weight.
+    """
+    input_frame = Frame(
+        input_field, title=INPUT_FRAME_TITLE, style="class:input-frame"
+    )
+    if input_panel is None or input_panel_active is None:
+        return [input_frame]
+    return [
+        ConditionalContainer(content=input_panel, filter=input_panel_active),
+        ConditionalContainer(content=input_frame, filter=~input_panel_active),
+    ]

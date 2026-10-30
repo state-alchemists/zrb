@@ -660,8 +660,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
         Default: print it under its title, which is the same content in the
         same place an ordinary reply goes. The default `UI` overrides this to
-        fill its float above the input, so a table a user is reading does not
-        scroll away with the next turn — the same reason `/btw` has one.
+        fill the panel docked above the input, so a table a user is reading
+        does not scroll away with the next turn — as with `/btw`.
         """
         self.append_to_output(stylize_muted(f"\n  {title}\n{body}\n"))
 
