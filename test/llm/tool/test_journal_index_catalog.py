@@ -51,7 +51,9 @@ def _section(root: str, name: str) -> list[str]:
     return [line for line in body.splitlines() if line.strip()]
 
 
-def _note(slug, hud_line=None, category="technical", **extra) -> str:
+def _note(
+    slug, hud_line=None, category="technical", applies_when="while tested", **extra
+) -> str:
     return write_journal_note(
         category=category,
         slug=slug,
@@ -60,6 +62,7 @@ def _note(slug, hud_line=None, category="technical", **extra) -> str:
         finding="f",
         source="s",
         hud_line=hud_line,
+        applies_when=applies_when,
         **extra,
     )
 
@@ -191,16 +194,16 @@ def test_a_catalog_hand_line_stays_beside_the_count_line(writable_journal):
     assert catalog.count("- _2 older notes: see each category's index_") == 1
 
 
-def test_a_long_hud_line_is_written_and_the_result_asks_for_a_shorter_one(
-    writable_journal,
-):
-    line = "x" * 161
+def test_a_line_over_the_headline_limit_is_refused(writable_journal):
+    """A cut line would be a claim nobody wrote, so the write is refused with the
+    number rather than storing a sentence that stops mid-thought."""
+    with pytest.raises(ValueError) as excinfo:
+        _note("long", "x" * 161)
 
-    result = _note("long", line)
-
-    assert "161 characters" in result
-    assert "shorter" in result
-    assert line in _read(writable_journal)
+    message = str(excinfo.value)
+    assert "[SYSTEM SUGGESTION]" in message
+    assert "161 characters" in message
+    assert not os.path.isfile(os.path.join(writable_journal, "technical/long.md"))
 
 
 def test_a_line_at_the_limit_draws_no_warning(writable_journal):
@@ -244,6 +247,7 @@ def test_notes_with_the_same_hud_line_are_each_named_when_evicted(writable_journ
                 "f",
                 "s",
                 hud_line="The same headline.",
+                applies_when="while zrb 3.29 is released",
             )
             for slug in ("first", "second", "third")
         ]

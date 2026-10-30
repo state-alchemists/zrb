@@ -44,6 +44,7 @@ def test_a_note_says_when_it_stops_applying(writable_journal):
         title="The cushion is a setting",
         context="While zrb ships the pocket engine",
         finding="A sentence starts on a cushion of audio",
+        hud_line="A sentence starts on a cushion of audio",
         source="pcm_player.py:1",
         applies_when="while pocket stays the default speech engine",
     )
@@ -53,20 +54,46 @@ def test_a_note_says_when_it_stops_applying(writable_journal):
     assert "status: active" in note
 
 
-def test_a_note_that_does_not_say_why_it_would_stop_is_told_so(writable_journal):
+def test_a_note_that_does_not_say_why_it_would_stop_is_refused(writable_journal):
+    """The condition stopped being optional: a finding nobody wrote the expiry of
+    can only be re-read, and 111 notes saying `not stated` is what that costs."""
     from zrb.llm.tool.journal_write import write_journal_note
 
-    result = write_journal_note(
-        category="technical",
-        slug="vague",
-        title="T",
-        context="c",
-        finding="f",
-        source="s",
-    )
+    with pytest.raises(ValueError) as excinfo:
+        write_journal_note(
+            category="technical",
+            slug="vague",
+            title="T",
+            context="c",
+            finding="f",
+            hud_line="f",
+            source="s",
+        )
 
-    assert "applies_when: not stated" in _read(writable_journal, "technical/vague.md")
-    assert "cannot be retired" in result
+    assert str(excinfo.value).startswith("[SYSTEM SUGGESTION]")
+    assert "a later session can check" in str(excinfo.value)
+    assert not os.path.isfile(os.path.join(writable_journal, "technical/vague.md"))
+
+
+def test_the_placeholder_an_old_writer_stored_is_not_a_condition(writable_journal):
+    """`not stated` is read — an older note carrying it still loads — but writing
+    it back is refused, so the placeholder cannot spread to a new note."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    with pytest.raises(ValueError) as excinfo:
+        write_journal_note(
+            category="technical",
+            slug="vague",
+            title="T",
+            context="c",
+            finding="f",
+            hud_line="f",
+            source="s",
+            applies_when="not stated",
+        )
+
+    assert "placeholder" in str(excinfo.value)
+    assert not os.path.isfile(os.path.join(writable_journal, "technical/vague.md"))
 
 
 def test_superseding_takes_the_line_out_of_the_index_and_keeps_the_file(
@@ -117,7 +144,11 @@ def test_a_slug_that_climbs_out_of_its_category_is_refused(writable_journal):
         write_journal_note,
     )
 
-    write_journal_note("technical", "real-note", "T", "c", "f", "s")
+    write_journal_note(
+        "technical", "real-note", "T", "c", "f", "s",
+        applies_when="while zrb 3.29 is released",
+
+        hud_line="f",)
     index = _read(writable_journal, "index.md")
 
     for call in (

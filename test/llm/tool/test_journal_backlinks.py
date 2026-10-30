@@ -38,7 +38,9 @@ def test_rewriting_a_note_keeps_the_backlinks_other_notes_added(writable_journal
         title="First",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         category="projects",
@@ -46,8 +48,10 @@ def test_rewriting_a_note_keeps_the_backlinks_other_notes_added(writable_journal
         title="Second",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
         links=["technical/first.md"],
+        applies_when="while zrb 3.29 is released",
     )
     assert "[Second]" in _read(writable_journal, "technical", "first.md")
 
@@ -57,7 +61,9 @@ def test_rewriting_a_note_keeps_the_backlinks_other_notes_added(writable_journal
         title="First",
         context="revised",
         finding="revised finding",
+        hud_line="revised finding",
         source="s:2",
+        applies_when="while zrb 3.29 is released",
     )
 
     first = _read(writable_journal, "technical", "first.md")
@@ -77,7 +83,9 @@ def test_rewriting_a_note_keeps_its_own_forward_links(writable_journal):
         title="First",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         category="projects",
@@ -85,8 +93,10 @@ def test_rewriting_a_note_keeps_its_own_forward_links(writable_journal):
         title="Second",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
         links=["technical/first.md"],
+        applies_when="while zrb 3.29 is released",
     )
 
     write_journal_note(
@@ -95,7 +105,9 @@ def test_rewriting_a_note_keeps_its_own_forward_links(writable_journal):
         title="Second",
         context="revised",
         finding="revised",
+        hud_line="revised",
         source="s:2",
+        applies_when="while zrb 3.29 is released",
     )
 
     second = _read(writable_journal, "projects", "second.md")
@@ -118,6 +130,7 @@ def test_hud_section_evicts_oldest_past_the_cap(writable_journal):
             finding="f",
             source="s",
             hud_line=f"Preference number {i}.",
+            applies_when="while zrb 3.29 is released",
         )
 
     index = _read(writable_journal, "index.md")
@@ -136,7 +149,9 @@ def test_revision_appends_a_dated_history_entry(writable_journal):
         title="Retry policy is not concurrency-safe",
         context="Any concurrent task run",
         finding="`retry_period` is read without a lock",
+        hud_line="`retry_period` is read without a lock",
         source="base_task.py:160",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         category="technical",
@@ -144,7 +159,9 @@ def test_revision_appends_a_dated_history_entry(writable_journal):
         title="Retry policy is not concurrency-safe",
         context="Any concurrent task run",
         finding="Actually it IS lock-protected as of the refactor",
+        hud_line="Actually it IS lock-protected as of the refactor",
         source="base_task.py:200",
+        applies_when="while zrb 3.29 is released",
     )
 
     note = _read(writable_journal, "technical", "retry-policy.md")
@@ -164,7 +181,9 @@ def test_history_is_capped_at_three_entries(writable_journal):
             title="Evolving note",
             context="c",
             finding=f"finding version {i}",
+            hud_line=f"finding version {i}",
             source="s",
+            applies_when="while zrb 3.29 is released",
         )
 
     note = _read(writable_journal, "technical", "evolving.md")
@@ -186,7 +205,9 @@ def test_delete_journal_note_removes_the_file_and_every_reference(writable_journ
         title="First",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         category="projects",
@@ -194,8 +215,10 @@ def test_delete_journal_note_removes_the_file_and_every_reference(writable_journ
         title="Second",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
         links=["technical/first.md"],
+        applies_when="while zrb 3.29 is released",
     )
 
     result = delete_journal_note("technical", "first")
@@ -219,7 +242,9 @@ def test_delete_scrubs_a_note_whose_title_contains_a_bracket(writable_journal):
         title="Fixes [nested] brackets",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         category="projects",
@@ -227,8 +252,10 @@ def test_delete_scrubs_a_note_whose_title_contains_a_bracket(writable_journal):
         title="Second",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
         links=["technical/nested.md"],
+        applies_when="while zrb 3.29 is released",
     )
 
     delete_journal_note("technical", "nested")
@@ -249,6 +276,7 @@ def test_delete_journal_note_removes_its_pinned_hud_line(writable_journal):
         finding="f",
         source="s",
         hud_line="A fact that is about to be retracted.",
+        applies_when="while zrb 3.29 is released",
     )
 
     delete_journal_note("technical", "stale")
@@ -267,7 +295,9 @@ def test_delete_journal_note_rejects_a_missing_slug(writable_journal):
         title="T",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
+        applies_when="while zrb 3.29 is released",
     )
     with pytest.raises(ValueError) as excinfo:
         delete_journal_note("technical", "does-not-exist")
@@ -316,7 +346,9 @@ def test_write_journal_note_holds_the_lock_for_the_whole_call(writable_journal):
             title="T",
             context="c",
             finding="f",
+            hud_line="f",
             source="s",
+            applies_when="while zrb 3.29 is released",
         )
 
     assert events == ["acquire .lock", "note exists: True", "release"]

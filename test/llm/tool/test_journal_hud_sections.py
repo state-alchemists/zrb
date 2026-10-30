@@ -111,6 +111,7 @@ def test_an_agent_note_pins_under_the_agent_section(writable_journal):
         finding="tara-tactical for a working day, tara-kimono for quiet evenings",
         source="FaceLook, 2026-10-22",
         hud_line="Avatar: tactical is my standing pick.",
+        applies_when="while zrb 3.29 is released",
     )
 
     index = _read(writable_journal, "index.md")
@@ -258,6 +259,7 @@ def test_hud_line_preserves_a_link_to_a_different_note(writable_journal):
         finding="f",
         source="s",
         hud_line="See also ([note](technical/other.md))",
+        applies_when="while zrb 3.29 is released",
     )
 
     index = _read(writable_journal, "index.md")
@@ -280,6 +282,7 @@ def test_repeating_a_pinned_line_with_its_link_does_not_pin_it_twice(
         finding="not concurrency-safe",
         source="src/retry.py:12",
         hud_line="Retry is not concurrency-safe.",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         category="technical",
@@ -289,6 +292,7 @@ def test_repeating_a_pinned_line_with_its_link_does_not_pin_it_twice(
         finding="not concurrency-safe",
         source="src/retry.py:12",
         hud_line="- Retry is not concurrency-safe. ([note](technical/retry-policy.md))",
+        applies_when="while zrb 3.29 is released",
     )
 
     pinned = [
@@ -324,6 +328,7 @@ def test_a_line_an_earlier_version_pinned_twice_is_written_once(writable_journal
         finding="not concurrency-safe",
         source="src/retry.py:12",
         hud_line="Retry is not concurrency-safe.",
+        applies_when="while zrb 3.29 is released",
     )
 
     pinned = _read(writable_journal, "index.md")
@@ -339,6 +344,7 @@ def test_a_multiline_applies_when_cannot_inject_frontmatter(writable_journal):
         title="T",
         context="c",
         finding="f",
+        hud_line="f",
         source="s:1",
         applies_when="line one\nstatus: superseded\n---\n# injected",
     )
@@ -363,6 +369,7 @@ def test_unpinning_an_unchanged_line_moves_it_out_of_constraints(
         finding="f",
         source="s:1",
         hud_line="Keep this.",
+        applies_when="while the line is still true",
     )
     write_journal_note(**fields, pinned=True)
 

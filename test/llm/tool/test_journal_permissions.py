@@ -66,8 +66,10 @@ def test_files_created_after_the_marker_stay_owner_only(writable_journal):
         ensure_journal_tree()
         log_activity("did a thing")
         write_journal_note(
-            "technical", "a-slug", "A title", "context", "finding", "source"
-        )
+            "technical", "a-slug", "A title", "context", "finding", "source",
+            applies_when="while zrb 3.29 is released",
+
+            hud_line="finding",)
     finally:
         os.umask(old_umask)
 
@@ -117,8 +119,10 @@ def test_a_symlinked_note_path_is_refused_not_overwritten(writable_journal, tmp_
 
     with pytest.raises(OSError):
         write_journal_note(
-            "technical", "a-slug", "A title", "context", "finding", "source"
-        )
+            "technical", "a-slug", "A title", "context", "finding", "source",
+            applies_when="while zrb 3.29 is released",
+
+            hud_line="finding",)
 
     assert secret.read_text(encoding="utf-8") == "do not touch\n"
 

@@ -56,6 +56,7 @@ def _pin(
         source="s",
         hud_line=hud_line,
         pinned=pinned,
+        applies_when="while zrb 3.29 is released",
     )
 
 
@@ -72,6 +73,7 @@ def test_an_eviction_is_named_in_the_write_result(writable_journal):
             finding="f",
             source="s",
             hud_line=f"Preference number {i}.",
+            applies_when="while zrb 3.29 is released",
         )
         for i in range(3)
     ]
@@ -97,6 +99,7 @@ def test_an_uncapped_section_evicts_nothing(writable_journal):
             finding="f",
             source="s",
             hud_line=f"Preference number {i}.",
+            applies_when="while zrb 3.29 is released",
         )
         for i in range(3)
     ]
@@ -187,6 +190,7 @@ def test_two_notes_pinning_the_same_words_keep_one_line_each(writable_journal):
             "found",
             "s:1",
             hud_line="Prefers concise replies.",
+            applies_when="while zrb 3.29 is released",
         )
 
     section = _hud_section(writable_journal, "User")
@@ -210,6 +214,7 @@ def test_a_hud_line_echoing_another_notes_link_does_not_steal_its_line(
         "found",
         "s:1",
         hud_line="Prefers terse replies.",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         "user",
@@ -219,6 +224,7 @@ def test_a_hud_line_echoing_another_notes_link_does_not_steal_its_line(
         "found",
         "s:1",
         hud_line="Prefers terse replies. ([note](user/first.md))",
+        applies_when="while zrb 3.29 is released",
     )
 
     section = _hud_section(writable_journal, "User")
@@ -258,6 +264,7 @@ def test_an_echoed_line_handed_back_with_its_bullet_is_still_an_echo(
         "found",
         "s:1",
         hud_line="Prefers terse replies.",
+        applies_when="while zrb 3.29 is released",
     )
     write_journal_note(
         "user",
@@ -267,6 +274,7 @@ def test_an_echoed_line_handed_back_with_its_bullet_is_still_an_echo(
         "found",
         "s:1",
         hud_line="- 📌 Prefers terse replies. ([note](user/first.md))",
+        applies_when="while zrb 3.29 is released",
     )
 
     section = _hud_section(writable_journal, "User")

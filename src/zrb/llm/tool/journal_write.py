@@ -37,7 +37,6 @@ from zrb.llm.journal_usage_log import (
 )
 from zrb.llm.tool.journal_index import (
     ACTIVITY_DIR,
-    HUD_LINE_SOFT_LIMIT,
     hud_lines_of,
     hud_section_for,
     normalize_hud_line,
@@ -55,13 +54,18 @@ from zrb.llm.tool.journal_note import (
     STATUS_SUPERSEDED,
     Note,
     append_under_heading,
+    check_applies_when,
     check_category,
+    check_finding,
+    check_hud_line,
     check_slug,
     compose_note,
     format_stamp,
     list_notes,
     next_stamp,
+    normalize_keywords,
     one_line,
+    parse_frontmatter,
     read_text,
     relative,
     scrub_links_to,
@@ -405,6 +409,21 @@ def write_journal_note(
     source: Annotated[
         str, Field(description="A file:line, commit hash, or URL backing the finding.")
     ],
+    hud_line: Annotated[
+        str,
+        Field(
+            description=(
+                "Required. The one line a later session reads this note by: the "
+                "claim itself — `retries happen once per prompt`, `a bank job "
+                "red at prepare_script is the runner failing to pull its "
+                "helper` — not the note's title, and 160 characters or fewer. "
+                "The always-injected index shows this line and links the note, "
+                "so a write with no line, or with one too long, is refused. On "
+                "revision, restate it: the current line is in the note's "
+                "frontmatter and in SearchJournal results."
+            )
+        ),
+    ],
     links: Annotated[
         list[str] | None,
         Field(
@@ -414,40 +433,39 @@ def write_journal_note(
             )
         ),
     ] = None,
-    hud_line: Annotated[
-        str | None,
-        Field(
-            description=(
-                "One-line summary (aim for 160 characters or fewer) pinned to "
-                "the injected index, in this "
-                "category's section. The section is capped: the oldest lines "
-                "past it are evicted and named in the result. On revision "
-                "pass an updated line if the fact changed; omitting keeps the "
-                "old one."
-            )
-        ),
-    ] = None,
     pinned: Annotated[
-        bool,
+        bool | None,
         Field(
             description=(
                 "Keep hud_line through the section cap (evicted only when "
                 "every line in the section is pinned). Set it for a "
-                "constraint or identity that must not disappear. On a "
+                "constraint or identity that must not disappear. Omit it to "
+                "keep the note's current pin as it is; `false` unpins. On a "
                 "`projects` or `technical` note a pinned line goes under `## "
                 "Constraints`, not `## Recent`."
             )
         ),
-    ] = False,
+    ] = None,
     applies_when: Annotated[
         str | None,
         Field(
             description=(
-                "The condition under which the note still holds, e.g. `while "
-                "zrb 3.26 is the released line`, `while go uses the office "
-                "laptop`. Name something checkable: a version, file, setting "
-                "or stated preference. Without one the note can never be "
-                "retired, only re-read."
+                "Required. The condition under which the note still holds, "
+                "e.g. `while zrb 3.29 is the released line`, `while go uses "
+                "the office laptop`. Name something checkable: a version, "
+                "file, setting or stated preference. A write without one is "
+                "refused, because a note that cannot say when it stops "
+                "applying can never be retired, only re-read."
+            )
+        ),
+    ] = None,
+    keywords: Annotated[
+        list[str] | None,
+        Field(
+            description=(
+                "Words a later search would use to find this note, e.g. "
+                "`['retry', 'lock', 'concurrency']`. Omit it and the slug and "
+                "title supply them."
             )
         ),
     ] = None,
@@ -474,6 +492,9 @@ def write_journal_note(
     # Before the journal is opened: a refused request must not create a tree.
     check_category(category)
     check_slug(slug)
+    check_finding(finding)
+    check_hud_line(hud_line, _prior_hud_line(category, slug))
+    check_applies_when(applies_when)
     with _open_journal() as root:
         result = _write_note_locked(
             root,
@@ -487,18 +508,25 @@ def write_journal_note(
             hud_line,
             pinned,
             applies_when,
+            keywords,
         )
         _commit_or_defer(root, f"write: {category}/{slug}")
         _record_or_queue(WRITTEN, category, slug)
-        if not (applies_when or "").strip():
-            result += (
-                " No applies_when given: a note that cannot say when it stops "
-                "applying cannot be retired, only re-read."
-            )
         return result
 
 
 write_journal_note.__name__ = "WriteJournalNote"
+
+
+def _prior_hud_line(category: str, slug: str) -> str:
+    """The line the note on disk already carries, read without opening the journal.
+
+    `hud_line` is checked before the journal is opened, so that a refused write
+    never creates a tree. Reading the one file that might already exist is what
+    lets that refusal quote the line it would replace, instead of asking the
+    caller to guess which claim they were about to drop."""
+    path = os.path.join(CFG.LLM_JOURNAL_DIR, category, f"{slug}.md")
+    return parse_frontmatter(read_text(path)).get("hud_line", "")
 
 
 def supersede_journal_note(
@@ -517,18 +545,32 @@ def supersede_journal_note(
             )
         ),
     ],
+    superseded_by: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Journal-root-relative name of the note that replaced this "
+                "one, `<category>/<slug>` — e.g. `technical/prebuffer`. It is "
+                "written into this note's frontmatter as `superseded_by`, so a "
+                "reader of the retired note is pointed at what took its place. "
+                "Omit it when nothing replaced the note. The replacement must "
+                "already exist — write it first."
+            )
+        ),
+    ] = None,
 ) -> str:
     """Retires a note whose `applies_when` no longer holds.
 
     The note stays on disk as evidence but leaves the injected index in the
     same call, so a false constraint cannot keep reaching later sessions. Its
-    frontmatter says `status: superseded` and its `## History` says why.
+    frontmatter says `status: superseded`, and `superseded_by` when another
+    note took its place, while its `## History` says why.
 
     Use it, not DeleteJournalNote, when the finding was right and has stopped
     being true. DeleteJournalNote is for a note that should never have existed.
     """
     with _open_journal() as root:
-        result = _supersede_note_locked(root, category, slug, reason)
+        result = _supersede_note_locked(root, category, slug, reason, superseded_by)
         _commit_or_defer(root, f"supersede: {category}/{slug}")
         _record_or_queue(SUPERSEDED, category, slug)
         return result
@@ -547,16 +589,21 @@ def _write_note_locked(
     source: str,
     links: list[str] | None,
     hud_line: str | None,
-    pinned: bool,
+    pinned: bool | None,
     applies_when: str | None = None,
+    keywords: list[str] | None = None,
 ) -> str:
     """Write the note under *root* and render the indexes from the notes.
 
     The caller holds the lock and makes the commit. Returns exactly the string
     the tool returns, eviction note included — that is how a caller learns an
-    older line under the same section lost its place."""
+    older line under the same section lost its place. The condition and the line
+    are checked here as well as in the tool, because `journal_transaction`
+    reaches this function without passing the tool's own argument check."""
     check_category(category)
     check_slug(slug)
+    condition = check_applies_when(applies_when)
+    check_finding(finding)
     notes = _load_notes(root)
     note_path = os.path.join(root, category, f"{slug}.md")
     note_rel = relative(note_path, root)
@@ -569,9 +616,10 @@ def _write_note_locked(
         "context": context,
         "finding": finding,
         "source": source,
-        "applies_when": applies_when or "",
+        "applies_when": condition,
         "status": STATUS_ACTIVE,
         "hud_line": line,
+        "keywords": normalize_keywords(keywords or []),
         "pinned": "true" if is_pinned else "",
         "updated": format_stamp(next_stamp(notes, datetime.now())),
     }
@@ -593,30 +641,29 @@ def _write_note_locked(
     result = f"Wrote {note_rel}"
     if evicted:
         result += _eviction_note(section, evicted)
-    if len(line) > HUD_LINE_SOFT_LIMIT:
-        result += (
-            f" The hud_line is {len(line)} characters, over the "
-            f"{HUD_LINE_SOFT_LIMIT} a headline should stay within: rewrite it "
-            "shorter with another WriteJournalNote."
-        )
     return result
 
 
 def _hud_state(
     hud_line: str | None,
-    pinned: bool,
+    pinned: bool | None,
     previous: Note | None,
     notes: list[Note],
     note_rel: str,
 ) -> tuple[str, bool]:
-    """The `hud_line` and `pinned` a write leaves on the note.
+    """The line the caller supplied, normalized, and the pin the write leaves.
 
-    A write that supplies no line keeps the note's own, pin included: the pin
-    belongs to a line, and a revision that leaves the line alone leaves it be."""
+    The line is mandatory. An empty one is refused, and when the note already
+    carries a line the refusal quotes it, so a rewrite that forgot to restate
+    the claim learns which claim it was about to lose rather than silently
+    trading it for nothing. The pin belongs to the note, not to the call: a
+    revision that does not mention it keeps it, and `pinned: false` is how a
+    caller unpins."""
     line = normalize_hud_line(hud_line or "", note_rel, notes)
-    if line:
-        return line, pinned
-    return (previous.hud_line, previous.pinned) if previous else ("", False)
+    prior_line = previous.hud_line if previous else ""
+    if pinned is None:
+        pinned = previous.pinned if previous else False
+    return check_hud_line(line, prior_line), pinned
 
 
 def delete_journal_note(
@@ -648,14 +695,24 @@ def delete_journal_note(
 delete_journal_note.__name__ = "DeleteJournalNote"
 
 
-def _supersede_note_locked(root: str, category: str, slug: str, reason: str) -> str:
+def _supersede_note_locked(
+    root: str,
+    category: str,
+    slug: str,
+    reason: str,
+    superseded_by: str | None = None,
+) -> str:
     """Retire a note that stopped applying, under *root*.
 
     The caller holds the journal lock and makes the commit. The file stays —
     its evidence is why the journal can explain itself later — but its line
     leaves the injected index here and now, because a note that has stopped
     applying and still sits in every turn's context is a claim that has to be
-    paid for in every turn until somebody notices."""
+    paid for in every turn until somebody notices.
+
+    `superseded_by` is where the replacement is recorded, and it is removed when
+    there is none: a retired note that points at something no longer replaces it
+    would send the next reader to a claim that is not the reason it was retired."""
     check_category(category)
     check_slug(slug)
     note_path = os.path.join(root, category, f"{slug}.md")
@@ -665,23 +722,71 @@ def _supersede_note_locked(root: str, category: str, slug: str, reason: str) -> 
             f"[SYSTEM SUGGESTION]: no note at {note_rel}. SearchJournal for the "
             "correct slug, or omit the supersede."
         )
+    replacement = _replacement_rel(root, superseded_by) if superseded_by else None
     dropped = hud_lines_of(read_text(os.path.join(root, _index_name())), note_rel)
     entry = f"- {datetime.now():%Y-%m-%d} — superseded: {reason.strip()}"
-    text = set_frontmatter(read_text(note_path), {"status": STATUS_SUPERSEDED})
+    text = set_frontmatter(
+        read_text(note_path),
+        {"status": STATUS_SUPERSEDED, "superseded_by": replacement},
+    )
     _write_text(note_path, append_under_heading(text, HISTORY_HEADING, entry))
     _render_indexes(root)
     result = f"Superseded {note_rel}: {reason.strip()}"
+    if replacement:
+        result += f" Replaced by {replacement}."
     if dropped:
         result += f" Removed from the index: {dropped[0].strip()}"
     return result
 
 
+def _replacement_rel(root: str, superseded_by: str) -> str:
+    """The `<category>/<slug>` a `superseded_by` argument names.
+
+    The value is written into the retired note's frontmatter, and this journal
+    writes a link only once its target is on disk: a back-link to a note that was
+    never written points the next reader at nothing. A trailing `.md` is accepted
+    and dropped, because the stored value is a note's name rather than a file."""
+    parts = [part for part in superseded_by.strip().split("/") if part]
+    if len(parts) != 2:
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: superseded_by {superseded_by!r} is not a note "
+            "path. Give `<category>/<slug>` — e.g. `technical/prebuffer` — or "
+            "omit it when nothing replaced the note."
+        )
+    category, filename = parts
+    check_category(category)
+    replacement = f"{category}/{filename.removesuffix('.md')}"
+    check_slug(replacement.split("/", 1)[1])
+    target = os.path.join(root, f"{replacement}.md")
+    if not os.path.isfile(target):
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: superseded_by names {replacement}, which does "
+            "not exist, so nothing was written. Write the replacement with "
+            "WriteJournalNote first, or omit superseded_by when no note "
+            "replaced this one."
+        )
+    # A file that exists is not yet a note: a hand-written page in a category
+    # directory carries no `slug:`, so the journal never indexes it and a link
+    # to it points the next reader at nothing.
+    if "slug" not in parse_frontmatter(read_text(target)):
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: superseded_by names {replacement}, which is a "
+            "page rather than a note — it carries no `slug:` frontmatter, so the "
+            "indexes the journal renders never list it. Name the note that "
+            "actually replaced this one, or omit superseded_by."
+        )
+    return replacement
+
+
 def _delete_note_locked(root: str, category: str, slug: str) -> str:
-    """Delete the note and every link to it under *root*.
+    """Delete the note and every reference to it under *root*.
 
     The caller holds the journal lock and makes the commit. A line that is
     nothing but a link to the note goes with it — a hand-written one too —
-    because leaving it would put a broken link in the journal."""
+    because leaving it would put a broken link in the journal. A note that
+    named this one as its replacement loses that `superseded_by` for the same
+    reason: the key is the record that something on disk took its place, and
+    after the delete nothing does."""
     check_category(category)
     check_slug(slug)
     note_path = os.path.join(root, category, f"{slug}.md")
@@ -690,12 +795,43 @@ def _delete_note_locked(root: str, category: str, slug: str) -> str:
             f"[SYSTEM SUGGESTION]: no note at {category}/{slug}.md. "
             "SearchJournal for the correct slug, or omit the delete."
         )
+    note_rel = relative(note_path, root)
     for path, text in scrub_links_to(root, note_path).items():
         _write_text(path, text)
+    # `superseded_by` stores `<category>/<slug>` without the extension, so the
+    # value to retract is the note's name, not its path.
+    cleared = _clear_superseded_by(root, f"{category}/{slug}")
     _snapshot_before_write(note_path)
     os.remove(note_path)
     _render_indexes(root)
-    return f"Deleted {relative(note_path, root)}"
+    result = f"Deleted {note_rel}"
+    if cleared:
+        result += (
+            " Cleared the superseded_by that named it from: "
+            f"{', '.join(cleared)}."
+        )
+    return result
+
+
+def _clear_superseded_by(root: str, replacement: str) -> list[str]:
+    """Drop `superseded_by: *replacement*` from every note that carries it.
+
+    *replacement* is a note's name, `<category>/<slug>`, the way the key stores
+    it. A deleted replacement would otherwise leave the retired note pointing at
+    a file nobody can open, and that key is read as a promise: the note says
+    something on disk took its place. Returns the notes it cleared, so the
+    result can name them."""
+    cleared: list[str] = []
+    for note in _load_notes(root):
+        if note.rel == f"{replacement}.md":
+            continue
+        path = os.path.join(root, note.rel)
+        text = read_text(path)
+        if parse_frontmatter(text).get("superseded_by") != replacement:
+            continue
+        _write_text(path, set_frontmatter(text, {"superseded_by": None}))
+        cleared.append(note.rel)
+    return cleared
 
 
 @contextmanager
@@ -803,8 +939,9 @@ class JournalTransaction:
         source: str,
         links: list[str] | None = None,
         hud_line: str | None = None,
-        pinned: bool = False,
+        pinned: bool | None = None,
         applies_when: str | None = None,
+        keywords: list[str] | None = None,
     ) -> str:
         """Write one note; the whole batch commits at exit."""
         result = self._record(
@@ -820,6 +957,7 @@ class JournalTransaction:
                 hud_line,
                 pinned,
                 applies_when,
+                keywords,
             )
         )
         _record_or_queue(WRITTEN, category, slug)
@@ -831,10 +969,12 @@ class JournalTransaction:
         _record_or_queue(DELETED, category, slug)
         return result
 
-    def supersede_note(self, category: str, slug: str, reason: str) -> str:
+    def supersede_note(
+        self, category: str, slug: str, reason: str, superseded_by: str | None = None
+    ) -> str:
         """Retire one note that stopped applying; the whole batch commits at exit."""
         result = self._record(
-            _supersede_note_locked(self._root, category, slug, reason)
+            _supersede_note_locked(self._root, category, slug, reason, superseded_by)
         )
         _record_or_queue(SUPERSEDED, category, slug)
         return result
@@ -1015,6 +1155,8 @@ def _migrate_journal(root: str) -> None:
                     read_text(path),
                     {
                         "hud_line": one_line(adoption.hud_line),
+                        # A line adopted from the index text was written by
+                        # whoever wrote that line; it is kept as it stands.
                         "pinned": "true" if adoption.pinned else None,
                         "updated": moment,
                     },

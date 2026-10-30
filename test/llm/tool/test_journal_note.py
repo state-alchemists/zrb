@@ -4,8 +4,13 @@ from datetime import datetime, timedelta
 
 from zrb.llm.tool.journal_note import (
     Note,
+    check_applies_when,
+    compose_note,
+    derive_keywords,
     list_notes,
     next_stamp,
+    normalize_keywords,
+    one_line,
     parse_frontmatter,
     read_note,
     set_frontmatter,
@@ -67,3 +72,78 @@ def test_a_page_without_a_slug_is_not_a_note(tmp_path):
     assert [note.rel for note in notes] == ["user/real.md"]
     assert notes[0].is_active
     assert not notes[0].is_migrated
+
+
+def test_a_line_is_stored_on_one_line():
+    assert one_line("  Spaced   out  ") == "Spaced out"
+
+
+def test_an_applies_when_that_states_nothing_is_refused():
+    for value in (None, "", "   ", "not stated"):
+        try:
+            check_applies_when(value)
+        except ValueError as error:
+            assert str(error).startswith("[SYSTEM SUGGESTION]")
+        else:  # pragma: no cover - the assertion below is the point
+            raise AssertionError(f"{value!r} was accepted")
+
+
+def test_an_applies_when_is_kept_on_one_line():
+    assert check_applies_when("while zrb\n3.29 is released") == (
+        "while zrb 3.29 is released"
+    )
+
+
+def test_keywords_come_from_the_slug_and_the_title():
+    """A note nobody gave keywords to is still one a later session has to find."""
+    keywords = derive_keywords("journal-claim-metadata", "A note claims its data")
+
+    assert keywords == "journal, claim, metadata, note, claims, data"
+
+
+def test_a_keyword_shorter_than_four_characters_is_left_out():
+    assert derive_keywords("a-b", "Cat sat on the mat") == ""
+
+
+def test_keywords_are_lower_case_comma_separated_and_unique():
+    assert normalize_keywords([" Pocket ", "pocket", "", "Speech, engine"]) == (
+        "pocket, speech, engine"
+    )
+
+
+def _fields(**overrides: str) -> dict[str, str]:
+    fields = {
+        "slug": "retry-policy",
+        "title": "Retry policy",
+        "context": "c",
+        "finding": "`retry_period` is read without a lock. Runs collide.",
+        "source": "s:1",
+        "applies_when": "while base_task.py reads it unlocked",
+        "status": "active",
+        "hud_line": "A claim.",
+        "keywords": "",
+        "pinned": "",
+        "updated": "2026-10-30T00:00:00.000000",
+    }
+    fields.update(overrides)
+    return fields
+
+
+def test_a_composed_note_writes_the_line_it_was_given_and_derives_keywords():
+    text = compose_note(
+        "", "/notes/technical/x.md", "index.md", _fields(hud_line="Runs collide."), []
+    )
+
+    head = parse_frontmatter(text)
+    assert head["hud_line"] == "Runs collide."
+    assert "hud_line_source" not in head
+    assert head["keywords"] == "retry, policy"
+
+
+def test_a_composed_note_with_no_keyword_left_omits_the_field():
+    fields = _fields(slug="ab", title="Cd")
+    head = parse_frontmatter(
+        compose_note("", "/notes/technical/ab.md", "index.md", fields, [])
+    )
+
+    assert "keywords" not in head

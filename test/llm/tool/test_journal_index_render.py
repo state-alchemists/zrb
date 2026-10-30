@@ -51,7 +51,9 @@ def _section(root: str, name: str) -> list[str]:
     return [line for line in body.splitlines() if line.strip()]
 
 
-def _note(slug, hud_line=None, category="user", pinned=False, **extra) -> str:
+def _note(
+    slug, hud_line=None, category="user", pinned=False, applies_when="while tested", **extra
+) -> str:
     return write_journal_note(
         category=category,
         slug=slug,
@@ -61,6 +63,7 @@ def _note(slug, hud_line=None, category="user", pinned=False, **extra) -> str:
         source="s",
         hud_line=hud_line,
         pinned=pinned,
+        applies_when=applies_when,
         **extra,
     )
 
@@ -214,10 +217,13 @@ def test_refiling_a_note_moves_its_line_instead_of_copying_it(writable_journal):
     ]
 
 
-def test_a_write_without_a_line_keeps_the_notes_line_and_its_pin(writable_journal):
+def test_a_write_without_a_line_is_refused_and_leaves_the_note_as_it_was(
+    writable_journal,
+):
     _note("rule", "Keep this.", category="technical", pinned=True)
 
-    _note("rule", None, category="technical")
+    with pytest.raises(ValueError):
+        _note("rule", None, category="technical")
 
     assert _section(writable_journal, "Constraints") == [
         "- 📌 Keep this. ([note](technical/rule.md))"
@@ -261,7 +267,10 @@ def test_a_rolled_back_transaction_restores_the_indexes_and_the_notes(
 
     with pytest.raises(RuntimeError):
         with journal_transaction() as batch:
-            batch.write_note("user", "extra", "Extra", "c", "f", "s", hud_line="New.")
+            batch.write_note(
+                "user", "extra", "Extra", "c", "f", "s", hud_line="New.",
+                applies_when="while zrb 3.29 is released",
+            )
             batch.delete_note("user", "seed")
             raise RuntimeError("abort")
 
@@ -318,7 +327,7 @@ def test_a_hand_edit_to_the_text_of_a_notes_own_line_is_reverted(writable_journa
 
 def test_deleting_a_note_also_drops_a_hand_written_link_to_it(writable_journal):
     """A line that is nothing but a link to the note would be a broken link."""
-    _note("gone", None, category="technical")
+    _note("gone", "A claim.", category="technical")
     _edit(
         writable_journal,
         "index.md",
@@ -329,3 +338,53 @@ def test_deleting_a_note_also_drops_a_hand_written_link_to_it(writable_journal):
     delete_journal_note("technical", "gone")
 
     assert _section(writable_journal, "Recent") == ["- Unrelated hand note."]
+
+
+def test_retitled_note_is_relabelled_not_duplicated_in_indexes(writable_journal):
+    for title in ("Aug review", "Sep review"):
+        write_journal_note(
+            "technical",
+            "prompt-review",
+            title,
+            "c",
+            "f",
+            "s",
+            applies_when="while zrb 3.29 is released",
+
+            hud_line="f",)
+
+    # Two lines name the note now — its HUD line and its catalog line — so the
+    # count is per region: one catalog entry and one category entry, relabelled.
+    root = _read(writable_journal)
+    assert root.count("- [Sep review](technical/prompt-review.md)") == 1
+    assert "[Aug review]" not in root
+    category_index = _read(writable_journal, "technical/index.md")
+    assert category_index.count("- [Sep review](prompt-review.md)") == 1
+    assert "[Aug review]" not in category_index
+
+
+def test_retitling_a_note_whose_title_contains_a_bracket_relabels_not_duplicates(
+    writable_journal,
+):
+    """A title is free-form model text, so a `]` in it must not hide the line
+    from the target-keyed lookup that registration is keyed on."""
+    for title in ("Fixes [nested] brackets", "Fixes [nested] brackets, revised"):
+        write_journal_note(
+            "technical",
+            "nested",
+            title,
+            "c",
+            "f",
+            "s",
+            applies_when="while zrb 3.29 is released",
+
+            hud_line="f",)
+
+    category_index = _read(writable_journal, "technical/index.md")
+    assert category_index.count("nested.md)") == 1
+    assert "- [Fixes [nested] brackets, revised](nested.md)" in category_index
+    # The root index names the note twice too, so the count is of catalog
+    # entries, not of every mention.
+    root = _read(writable_journal)
+    assert root.count("- [Fixes [nested] brackets, revised](technical/nested.md)") == 1
+    assert "[Fixes [nested] brackets](" not in root
