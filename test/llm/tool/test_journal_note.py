@@ -84,6 +84,36 @@ def test_the_derived_line_is_the_first_sentence_of_the_finding():
     assert derive_hud_line(finding) == "The cushion is a sentence of audio."
 
 
+def test_an_abbreviation_does_not_end_the_derived_line():
+    """`e.g.` is a period followed by a space, which a naive split reads as the
+    end of the sentence: the claim then stops mid-thought ("The value is e.g.")
+    while reading as a finished statement."""
+    finding = "The value is e.g. enabled for retries in 3.29.0. It is safe."
+
+    assert derive_hud_line(finding) == (
+        "The value is e.g. enabled for retries in 3.29.0."
+    )
+
+
+def test_a_title_or_an_initial_does_not_end_the_derived_line():
+    """`Dr.` is followed by a capital, so the letter after the period cannot be
+    what decides this on its own."""
+    finding = "Ask Dr. Chen, or J. Doe, before changing the retry. It is safe."
+
+    assert derive_hud_line(finding) == (
+        "Ask Dr. Chen, or J. Doe, before changing the retry."
+    )
+
+
+def test_a_lowercase_sentence_keeps_the_claim_whole():
+    """A period followed by a lower-case word is a continuation, not a new
+    sentence, so nothing qualifies and the finding is its own claim — a long
+    line is honest, and `_cap_line` still bounds it."""
+    finding = "the retry is broken. retry again with the lock held."
+
+    assert derive_hud_line(finding) == finding
+
+
 def test_a_finding_with_no_terminator_is_its_own_line():
     assert derive_hud_line("`retry_period` is read\nwithout a lock") == (
         "`retry_period` is read without a lock"

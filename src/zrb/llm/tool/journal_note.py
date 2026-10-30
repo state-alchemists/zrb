@@ -53,9 +53,35 @@ HUD_LINE_MAX_CHARS = 160
 KEYWORDS_MIN_WORD_LENGTH = 4
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _FRONTMATTER_FENCE = "---"
-# The first sentence of a Finding, terminator included. A Finding often has no
-# terminator at all (`retry_period` is read without a lock), which is the whole of it.
-_FIRST_SENTENCE_RE = re.compile(r"^(.+?[.!?])(?:\s|$)")
+# Where a sentence may end. A Finding often has no terminator at all
+# (`retry_period` is read without a lock), which is the whole of it.
+_TERMINATOR_RE = re.compile(r"[.!?](?=\s|$)")
+# A period inside one of these does not end a sentence. `e.g.` is the one that
+# bites: "The value is e.g. enabled for retries" used to be cut to "The value is
+# e.g.", a claim that stops mid-thought and reads as complete.
+_ABBREVIATIONS = frozenset(
+    {
+        "e.g",
+        "i.e",
+        "etc",
+        "vs",
+        "cf",
+        "al",
+        "approx",
+        "fig",
+        "mr",
+        "mrs",
+        "ms",
+        "dr",
+        "prof",
+        "sr",
+        "jr",
+        "st",
+    }
+)
+# A sentence after a terminator starts with one of these; a lower-case word is a
+# continuation (`and`, `or`), which is what makes the abbreviation rule safe.
+_SENTENCE_START_CHARS = "\"'([“‘"
 
 
 @dataclass(frozen=True)
@@ -180,8 +206,42 @@ def derive_hud_line(finding: str) -> str:
     a shortened line rather than a claim that reads as complete.
     """
     text = one_line(finding)
-    match = _FIRST_SENTENCE_RE.match(text)
-    return _cap_line(match.group(1) if match else text, HUD_LINE_MAX_CHARS)
+    return _cap_line(_first_sentence(text), HUD_LINE_MAX_CHARS)
+
+
+def _first_sentence(text: str) -> str:
+    """*text* up to its first sentence terminator, or all of it when it has none.
+
+    Where the line is cut is the whole point: a claim that stops at `e.g.` is
+    worse than a long one, because it reads as a finished statement. So a
+    terminator that `_breaks_sentence` refuses is stepped over and the search
+    continues; when no terminator qualifies, the finding is its claim."""
+    for match in _TERMINATOR_RE.finditer(text):
+        if _breaks_sentence(text, match.start()):
+            return text[: match.start() + 1]
+    return text
+
+
+def _breaks_sentence(text: str, index: int) -> bool:
+    """Whether the terminator at *index* ends a sentence rather than a word.
+
+    Only a period can sit inside a word, so only a period has to look around:
+    at the word it follows (`e.g`, `Mr`, a single initial `J`), and at what
+    comes after it — a capital, a digit, a quote or a bracket starts a
+    sentence, while a lower-case word continues the one already open."""
+    if text[index] != ".":
+        return True
+    before = text[:index].rsplit(None, 1)[-1].lstrip(_SENTENCE_START_CHARS).lower()
+    if before in _ABBREVIATIONS or (len(before) == 1 and before.isalpha()):
+        return False
+    rest = text[index + 1 :].lstrip()
+    if not rest:
+        return True
+    return (
+        rest[0].isupper()
+        or rest[0].isdigit()
+        or rest[0] in _SENTENCE_START_CHARS
+    )
 
 
 def _cap_line(text: str, limit: int) -> str:
