@@ -70,6 +70,9 @@ class UISideQuestion:
         # The raw markdown of the answer currently shown, for `rewrap`; None
         # while the panel shows a pending/failure message or nothing at all.
         self._last_answer: str | None = None
+        # A command reply's body (`show`), kept because the panel may have to
+        # hand it to the transcript when the screen shrinks under it.
+        self._shown_body: str | None = None
         self._rendered_width: int | None = None
 
     def init_side_question_state(self) -> None:
@@ -78,6 +81,7 @@ class UISideQuestion:
         self._is_active = False
         self._request = None
         self._last_answer = None
+        self._shown_body = None
         self._rendered_width = None
         self._window = self._create_window()
 
@@ -110,6 +114,7 @@ class UISideQuestion:
         self._question = question.strip()
         self._request = request = object()
         self._last_answer = None
+        self._shown_body = None
         if panel_row_cap(self._ui) <= 0:
             # No rows to dock into: the frame would spend the layout's border
             # rows painting nothing at all. The question goes to the transcript
@@ -161,12 +166,14 @@ class UISideQuestion:
         self._question = title.strip()
         self._request = None
         self._last_answer = None
+        self._shown_body = body
         if panel_row_cap(self._ui) <= 0:
             # No rows to dock into: a reply written only into the hidden buffer
             # would never be seen, so it goes to the transcript the way
             # `BaseUI.show_panel` prints one.
             self._is_active = False
             self._ui.append_to_output(f"\n{self._question}\n{body}\n")
+            self._shown_body = None
             self._invalidate()
             return
         self._is_active = True
@@ -226,6 +233,32 @@ class UISideQuestion:
             return
         self._fill(self._echo(f"  ❌ {message}\n"))
 
+    def fall_back_when_unpaintable(self) -> None:
+        """Move a side answer the terminal shrank away from into the transcript.
+
+        The panel leaves the layout once it has no rows, but it is still what
+        `end` writes into: the answer would land in a buffer nobody paints, and
+        the question would never be read either. Closing it here is the same
+        move `begin` makes on a screen that never had the rows — after this,
+        `end` appends the answer to the transcript, because that is where an
+        inactive panel's answer goes.
+        """
+        if not self._is_active:
+            return
+        if panel_row_cap(self._ui) > 0:
+            return
+        self._is_active = False
+        # The token stays: the answer still belongs to this question, and it is
+        # about to be written to the transcript under it.
+        self._ui.append_to_output(f"\n💭 {self._question}\n")
+        if self._shown_body is not None:
+            # A command reply the panel was showing: the body is nowhere else.
+            self._ui.append_to_output(f"{self._shown_body}\n")
+            self._shown_body = None
+        self._fill("")
+        focus_widget(self._ui.input_field, "Input-field")
+        self._invalidate()
+
     def cancel(self, request: object | None = None) -> None:
         """Close the panel if *request* is the question it is showing.
 
@@ -243,6 +276,7 @@ class UISideQuestion:
         self._is_active = False
         self._request = None
         self._last_answer = None
+        self._shown_body = None
         self._fill("")
         focus_widget(self._ui.input_field, "Input-field")
         self._invalidate()

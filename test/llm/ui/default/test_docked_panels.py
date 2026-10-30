@@ -385,3 +385,47 @@ def test_a_render_notices_the_screen_has_no_room_left(mock_ui_deps):
 
     assert ui.selection_part.has_active_choice() is False, "the choice closed"
     assert not choice_slot.filter(), "and the panel with it"
+
+
+def test_shrinking_the_screen_out_from_under_the_btw_panel_keeps_the_answer(
+    mock_ui_deps,
+):
+    """The answer is written when it arrives, which is after the resize.
+
+    A panel that merely went hidden would take the answer into a buffer nobody
+    paints. Closing it on the render that sees the new size puts the question in
+    the transcript, and there the answer follows it.
+    """
+    ui, app = _ui_and_app(mock_ui_deps, rows=24)
+    request = ui.begin_side_question("why is the sky blue?")
+    assert ui.is_side_question_active is True
+
+    app.output.resize(16)
+    app.after_render.fire()
+
+    assert ui.is_side_question_active is False
+    ui.end_side_question("Rayleigh scattering", request=request)
+
+    text = ui.output_field.text
+    assert "why is the sky blue?" in text
+    assert "Rayleigh scattering" in text
+
+
+def test_the_picker_notice_is_printed_even_while_a_confirmation_is_pending(
+    mock_ui_deps,
+):
+    """A notice about the screen must not wait for the turn it is not part of.
+
+    `append_to_output` holds output while a confirmation is pending, so a
+    declined picker would say nothing at the moment the user pressed Down.
+    """
+    ui, _app = _ui_and_app(mock_ui_deps, rows=16)
+    ui.confirmation.current = "FUTURE"  # an approval is waiting for its answer
+    ui.is_thinking = True  # a turn is streaming, so output is held back
+    with patch(
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
+        MagicMock(active=lambda *args, **kwargs: [_session("a")]),
+    ):
+        assert ui.open_agent_picker() is False
+
+    assert "needs more screen rows" in ui.output_field.text

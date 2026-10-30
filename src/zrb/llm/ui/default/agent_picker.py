@@ -26,6 +26,7 @@ from zrb.llm.ui.default.app.docking import (
     rendered_row_count,
 )
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
+from zrb.llm.ui.default.app.notice import append_notice
 from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
@@ -105,10 +106,10 @@ class UIAgentPicker:
             return False
         if panel_row_cap(self._ui) <= 0:
             # Nowhere to paint the list: focusing it would send whatever is typed
-            # next to a control nobody can see. Down stays on history recall.
-            append = getattr(self._ui, "append_to_output", None)
-            if append is not None:
-                append("  ⚠ the sub-agent picker needs more screen rows\n")
+            # next to a control nobody can see. Down stays on history recall, and
+            # the reason is printed now — a pending confirmation would otherwise
+            # hold it back until the turn it belongs to is answered.
+            append_notice(self._ui, "  ⚠ the sub-agent picker needs more screen rows\n")
             return False
         self._picker_sessions = list(sessions)
         self._picker_cursor = 0
@@ -130,9 +131,7 @@ class UIAgentPicker:
         if panel_row_cap(self._ui) > 0:
             return
         self.close_agent_picker()
-        append = getattr(self._ui, "append_to_output", None)
-        if append is not None:
-            append("  ⚠ the sub-agent picker needs more screen rows\n")
+        append_notice(self._ui, "  ⚠ the sub-agent picker needs more screen rows\n")
 
     def close_agent_picker(self) -> None:
         """Dismiss the picker without entering any view (public API)."""

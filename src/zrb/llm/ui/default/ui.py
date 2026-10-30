@@ -192,7 +192,7 @@ class UI(BaseUI):
         try:
             # A panel the terminal shrank out from under still owns the keys:
             # closing it here is what keeps a hidden choice from being answered.
-            for panel in (self._selection, self._agent_picker):
+            for panel in (self._selection, self._agent_picker, self._side_question):
                 panel.fall_back_when_unpaintable()
             if self.viewing_agent_id is not None:
                 # The pane shows the sub-agent's buffer; the main transcript

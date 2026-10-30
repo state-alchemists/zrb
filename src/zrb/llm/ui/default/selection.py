@@ -36,6 +36,7 @@ from zrb.llm.ui.default.app.docking import (
     rendered_row_count,
 )
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
+from zrb.llm.ui.default.app.notice import append_notice
 
 if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples
@@ -527,10 +528,7 @@ class UISelection:
         `append_to_output` buffers output while a confirmation is pending, and
         the free-text future still is, so the slot is cleared for the write.
         """
-        saved = self._ui.confirmation.current
-        self._ui.confirmation.current = None
-        self._ui.append_to_output(text, kind="text")
-        self._ui.confirmation.current = saved
+        append_notice(self._ui, text, kind="text")
 
     def _invalidate(self) -> None:
         invalidate_app("Choice-widget")
