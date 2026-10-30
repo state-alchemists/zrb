@@ -49,9 +49,10 @@ def _event(kind: str, seconds: int = 0, session: str = "s", **fields):
 
 
 def _record(**kwargs):
-    return record_usage(
-        RunUsage(input_tokens=1000, requests=1), model="m", when=NOW, **kwargs
-    )
+    # Stamped at call time, not at import: a run that reaches this test after
+    # midnight would otherwise write yesterday's record and then read today's.
+    kwargs.setdefault("when", datetime.now(timezone.utc))
+    return record_usage(RunUsage(input_tokens=1000, requests=1), model="m", **kwargs)
 
 
 def test_the_tools_section_ranks_calls_and_lists_the_idle_registered_tools(usage_dir):
