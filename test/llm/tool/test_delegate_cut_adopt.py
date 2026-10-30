@@ -340,6 +340,37 @@ async def test_a_cancelled_fan_out_stops_every_sibling_that_never_moved(manager)
 
 
 @pytest.mark.asyncio
+async def test_another_sessions_teardown_leaves_an_adopted_delegation_running(manager):
+    """A handle belongs to the session that minted it.
+
+    The registry is process-wide; the work in it is not. Another chat session
+    ending in the same process cancels only its own delegations, so this
+    session's handle still collects — and does not answer "Unknown handle".
+    """
+    started, release = asyncio.Event(), asyncio.Event()
+    tool = create_delegate_to_agent_tool(manager)
+    with patch(RUN_AGENT, side_effect=_gated_run_agent(started, release)):
+        message = await _run_with_cut(
+            lambda: tool(
+                agent_name="test-agent", deliverable="d", task="t", non_goals=[]
+            ),
+            started,
+        )
+        [handle] = _handles(message)
+
+        get_background_registry().cancel_all("some-other-session")
+        still_running = await create_get_delegation_result_tool()(handle)
+        assert "still running" in still_running.lower()
+
+        release.set()
+        collected = await asyncio.wait_for(
+            create_get_delegation_result_tool()(handle, wait=5), 20
+        )
+
+    assert "the answer" in collected
+
+
+@pytest.mark.asyncio
 async def test_a_sibling_that_raises_still_reports_its_own_error(manager):
     """A delegation that blows up outside its run fails alone.
 

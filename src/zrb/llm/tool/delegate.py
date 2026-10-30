@@ -530,7 +530,9 @@ def _adopt_delegation(
     )
 
     handle = get_random_name(separator="-", add_random_digit=True)
-    get_background_registry().adopt(handle, agent_name, run, buffered_ui)
+    get_background_registry().adopt(
+        handle, agent_name, run, buffered_ui, buffered_ui.session_id
+    )
     register_background_handle(handle)
     return handle
 

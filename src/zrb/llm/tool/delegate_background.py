@@ -53,12 +53,21 @@ class _BackgroundRegistry:
         self._tasks: dict[str, asyncio.Task] = {}
         self._buffers: dict[str, BufferedUI] = {}
         self._agent_names: dict[str, str] = {}
+        # The chat session that started each task. The registry is process-wide,
+        # the work in it is not: one session's teardown must not cancel another
+        # session's delegation (see `cancel_all`).
+        self._owners: dict[str, str] = {}
         self._notified: set[str] = set()
 
     def start(
-        self, handle: str, agent_name: str, coro, buffered_ui: BufferedUI
+        self,
+        handle: str,
+        agent_name: str,
+        coro,
+        buffered_ui: BufferedUI,
+        owner: str = "",
     ) -> None:
-        self.adopt(handle, agent_name, asyncio.ensure_future(coro), buffered_ui)
+        self.adopt(handle, agent_name, asyncio.ensure_future(coro), buffered_ui, owner)
 
     def adopt(
         self,
@@ -66,17 +75,20 @@ class _BackgroundRegistry:
         agent_name: str,
         task: asyncio.Task,
         buffered_ui: BufferedUI,
+        owner: str = "",
     ) -> None:
         """Take over a delegation that is already running, under *handle*.
 
         The synchronous `DelegateToAgent` hands its sub-agent over this way when
         a send-now moves it aside. The task, its transcript and its agent name
         are recorded exactly as `start` records them, so `GetDelegationResult`
-        collects it like any other background delegation.
+        collects it like any other background delegation. *owner* is the chat
+        session the work belongs to.
         """
         self._tasks[handle] = task
         self._buffers[handle] = buffered_ui
         self._agent_names[handle] = agent_name
+        self._owners[handle] = owner
 
     def peek_done(self, handles: set[str]) -> list[tuple[str, str]]:
         """Return (handle, agent_name) for handles newly finished since the last
@@ -102,6 +114,7 @@ class _BackgroundRegistry:
     def _consume(self, handle: str) -> tuple[asyncio.Task | None, BufferedUI | None]:
         """Drop every record of *handle*; return its task and buffer."""
         self._agent_names.pop(handle, None)
+        self._owners.pop(handle, None)
         self._notified.discard(handle)
         return self._tasks.pop(handle, None), self._buffers.pop(handle, None)
 
@@ -149,15 +162,22 @@ class _BackgroundRegistry:
 
         return f"[{handle}] {status}:\n\n{prefix}{body}"
 
-    def cancel_all(self) -> None:
-        """Cancel any outstanding background tasks (e.g. at session teardown)."""
-        for task in self._tasks.values():
-            if not task.done():
+    def cancel_all(self, owner: str = "") -> None:
+        """Cancel outstanding background tasks: every one, or only *owner*'s.
+
+        Session teardown passes the chat session that is ending. Without that,
+        one session leaving the process cancelled every other session's work
+        too, and a handle it still held answered "Unknown handle".
+        """
+        mine = [
+            handle
+            for handle in self._tasks
+            if not owner or self._owners.get(handle, "") == owner
+        ]
+        for handle in mine:
+            task, _ = self._consume(handle)
+            if task is not None and not task.done():
                 task.cancel()
-        self._tasks.clear()
-        self._buffers.clear()
-        self._agent_names.clear()
-        self._notified.clear()
 
 
 _registry = _BackgroundRegistry()
@@ -289,7 +309,8 @@ def create_background_delegate_tool(
             yolo=None,
         )
 
-        _registry.start(handle, agent_name, coro, buffered_ui)
+        # The buffer's own session is the owner: teardown cancels only its own.
+        _registry.start(handle, agent_name, coro, buffered_ui, buffered_ui.session_id)
         register_background_handle(handle)
         return (
             f"Started background agent '{agent_name}'. Handle: {handle}. "
