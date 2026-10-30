@@ -32,6 +32,22 @@ async def _cut_soon(signal: ShellCutSignal, seconds: float = 0.01) -> None:
     signal.cut()
 
 
+class _CutThatSettlesTheWork(ShellCutSignal):
+    """A cut that lands as the work finishes.
+
+    Both complete together: the keypress arrives, and the sub-agent or process
+    is done by the time the wait reports. A notice telling the model to wait on
+    the same handle again would point at a handle `poll` has just consumed.
+    """
+
+    def __init__(self, settle) -> None:
+        super().__init__()
+        self._settle = settle
+
+    async def wait_for_cut(self, generation: int) -> None:
+        self._settle()
+
+
 @pytest.mark.asyncio
 async def test_a_wait_that_finishes_first_is_not_interrupted():
     done = asyncio.ensure_future(asyncio.sleep(0))
@@ -99,6 +115,26 @@ async def test_a_cut_leaves_no_task_of_its_own_behind():
     ours = {asyncio.current_task(), pending}
     assert asyncio.all_tasks() - ours == set()
     await _finish_soon(pending)
+
+
+@pytest.mark.asyncio
+async def test_a_cut_that_lands_with_the_finished_work_reports_the_result():
+    """A finished handle is collected, not reported interrupted.
+
+    `poll` consumes a finished handle, so an interruption notice over a task
+    that settled with the cut would send the model to a handle that is gone.
+    """
+    registry = _BackgroundRegistry()
+    task = asyncio.ensure_future(asyncio.sleep(30))
+    registry.adopt("bg-1", "agent", task, BufferedUI(MagicMock()))
+    registry.poll = lambda handle: "Status: finished"
+    current_shell_cut_signal.set(_CutThatSettlesTheWork(task.cancel))
+
+    report = await registry.collect("bg-1", wait=5)
+
+    assert not report.startswith("[interrupted]")
+    assert "Status: finished" in report
+    assert "wait=N" not in report
 
 
 @pytest.mark.asyncio

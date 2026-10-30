@@ -117,7 +117,10 @@ async def is_cut_while_waiting(waits: "set[asyncio.Task]", seconds: float) -> bo
         done, _pending = await asyncio.wait(
             {waiting, cut_wait}, return_when=asyncio.FIRST_COMPLETED
         )
-        return cut_wait in done
+        # A wait that settled with the cut is answered by its result: the cut
+        # did not end it first, and the caller's `poll` consumes a finished
+        # handle, so "wait again" would point at one that is gone.
+        return cut_wait in done and waiting not in done
     finally:
         # Both tasks are this call's own, so reap them before returning: a
         # cancelled `asyncio.wait` left pending into the loop's next turn keeps

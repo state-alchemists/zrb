@@ -114,7 +114,11 @@ class _BackgroundRegistry:
         task = self._tasks.get(handle)
         if task is not None and not task.done() and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
-            if await is_cut_while_waiting({task}, capped):
+            was_cut = await is_cut_while_waiting({task}, capped)
+            # The sub-agent can settle as the cut lands, or while the cut's own
+            # tasks are reaped: `poll` below consumes a finished handle, so the
+            # notice must not send the model back to this one.
+            if was_cut and not task.done():
                 return (
                     interrupted_notice(
                         f"GetDelegationResult(handle='{handle}', wait=N)"

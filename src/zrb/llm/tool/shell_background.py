@@ -208,7 +208,10 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is not None and bp.returncode is None and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
-            if await is_cut_while_waiting(set(bp.tasks), capped):
+            was_cut = await is_cut_while_waiting(set(bp.tasks), capped)
+            # A process that exited as the cut landed is reported, not waited
+            # on: `poll` consumes the handle of a finished process.
+            if was_cut and bp.returncode is None:
                 return (
                     interrupted_notice(f"MonitorProcess(handle='{handle}', wait=N)")
                     + "\n\n"
