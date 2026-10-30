@@ -683,6 +683,9 @@ class LLMTask(BaseTask):
                 message=effective_message,
                 message_history=message_history,
                 limiter=self._llm_limiter,
+                # The user-facing boundary: LLMTask runs what a person asked
+                # for, so this is the run lookups-per-prompt divides by.
+                counts_as_user_prompt=True,
                 attachments=effective_attachments,
                 print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
                 event_handler=None,
