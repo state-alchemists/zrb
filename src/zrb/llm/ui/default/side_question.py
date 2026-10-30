@@ -256,6 +256,12 @@ class UISideQuestion:
             # A command reply the panel was showing: the body is nowhere else.
             append_notice(self._ui, f"{self._shown_body}\n")
             self._shown_body = None
+        if self._last_answer is not None:
+            # An answer that already arrived: the panel was the only place it
+            # lived, so it moves with the question rather than vanishing behind
+            # a panel that no longer has a row to paint.
+            self._ui.append_markdown(self._last_answer)
+            self._last_answer = None
         self._fill("")
         focus_widget(self._ui.input_field, "Input-field")
         self._invalidate()

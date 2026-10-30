@@ -411,6 +411,29 @@ def test_shrinking_the_screen_out_from_under_the_btw_panel_keeps_the_answer(
     assert "Rayleigh scattering" in text
 
 
+def test_a_completed_answer_follows_the_question_when_the_screen_shrinks(
+    mock_ui_deps,
+):
+    """The panel is the only place a finished answer lives.
+
+    Shrinking below the docking budget closes it, so the question and the answer
+    both have to be written to the transcript: the question alone would leave the
+    reader with a prompt and no reply.
+    """
+    ui, app = _ui_and_app(mock_ui_deps, rows=24)
+    request = ui.begin_side_question("why is the sky blue?")
+    ui.end_side_question("Rayleigh scattering", request=request)
+    assert "Rayleigh scattering" not in ui.output_field.text
+
+    app.output.resize(16)
+    app.after_render.fire()
+
+    assert ui.is_side_question_active is False
+    text = ui.output_field.text
+    assert "why is the sky blue?" in text
+    assert "Rayleigh scattering" in text
+
+
 def test_the_picker_notice_is_printed_even_while_a_confirmation_is_pending(
     mock_ui_deps,
 ):
