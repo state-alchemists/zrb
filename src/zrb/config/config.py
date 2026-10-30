@@ -24,7 +24,7 @@ To find a setting:
 - Hooks                                      -> mixins/hooks.py
 - Task runtime intervals/cmd buffer          -> mixins/task_runtime.py
 - CLI semantic colors (warning/error/muted)  -> mixins/cli_style.py
-- Theme selection (ZRB_THEME preset)         -> mixins/theme.py
+- Theme selection (THEME preset)             -> mixins/theme.py
 """
 
 import os
@@ -58,7 +58,7 @@ from zrb.util.string.suggestion import suggest_name
 
 # How alike a set variable must be to a setting's name to be called a typo of
 # it: `BARGEIN` for `BARGE_IN` scores 0.99, `MAX_TOKEN_PER_MINUTE` for
-# `LLM_MAX_TOKEN_PER_MINUTE` 0.92, while a project's own `ZRB_USE_BORG_*`
+# `LLM_MAX_TOKEN_PER_MINUTE` 0.92, while a project's own `ACME_USE_BORG_*`
 # scores 0.6 against its nearest setting.
 _TYPO_CUTOFF = 0.85
 
@@ -200,7 +200,7 @@ class Config(
         setting it most likely meant.
 
         Only a close match is reported: the prefix is shared with a project's
-        own variables (`ZRB_DEPLOY_TARGET`), which `CFG.PROJECT_ENV_KEYS` rules
+        own variables (`ACME_DEPLOY_TARGET`), which `CFG.PROJECT_ENV_KEYS` rules
         out of the report entirely — naming one there only silences it, and
         never makes it a suggestion target.
         """

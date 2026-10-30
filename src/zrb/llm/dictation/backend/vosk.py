@@ -16,6 +16,7 @@ from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 from zrb.llm.dictation.backend.any_transcription_stream import AnyTranscriptionStream
 from zrb.util.async_thread import run_in_daemon
+from zrb.util.file import delete_file_quietly
 
 logger = logging.getLogger(__name__)
 
@@ -362,7 +363,7 @@ async def download_vosk_model(
         # It cannot be the only removal: cancelling returns while the extractor
         # is still reading the archive, and an open file cannot be deleted on
         # every platform, where this one then fails silently.
-        _remove_quietly(zip_path)
+        delete_file_quietly(zip_path)
 
     if not os.path.isdir(target_dir):
         raise RuntimeError(
@@ -403,7 +404,7 @@ def _extract_model(
         # this is still reading the zip, and an open file cannot be deleted on
         # every platform: the caller's removal is the one that fails there, and
         # nothing else would ever come back for the file.
-        _remove_quietly(zip_path)
+        delete_file_quietly(zip_path)
 
 
 def _check_archive(
@@ -452,13 +453,6 @@ def _check_archive(
 def _mb(size: int) -> str:
     # `:g`, so a sub-megabyte overage does not read as "0 MB".
     return f"{size / MEGABYTE:g}"
-
-
-def _remove_quietly(path: str) -> None:
-    try:
-        os.remove(path)
-    except OSError:
-        pass
 
 
 def _close_response_quietly(response: object) -> None:

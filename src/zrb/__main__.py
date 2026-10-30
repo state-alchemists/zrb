@@ -108,9 +108,11 @@ def _report_load_failure(label: str, error: Exception) -> None:
 def _configure_logging() -> None:
     """The line on the screen, and the file when one is configured.
 
-    Runs before any init source loads, when `serve_cli` calls it, so a warning
-    raised while starting up is kept too: a terminal that repaints its own
-    screen keeps no record of one.
+    `serve_cli` calls this before any init source loads, so a warning raised
+    while starting up is kept too: a terminal that repaints its own screen
+    keeps no record of one. It calls it again afterwards, because `zrb_init.py`
+    may change `LOGGING_LEVEL` or `LOGGING_FILE` and the user's choice has to
+    win over the startup defaults.
     """
     CFG.LOGGER.setLevel(CFG.LOGGING_LEVEL)
     _reset_log_handlers()
@@ -168,6 +170,10 @@ def serve_cli():
                 lambda p=zrb_init_path: load_file_with_result(p),
                 loaded_sources,
             )
+        # Apply the configuration once more now that every source has loaded:
+        # a `zrb_init.py` that sets `LOGGING_LEVEL` or `LOGGING_FILE` must win
+        # over the defaults the first pass used for startup warnings.
+        _configure_logging()
         # Checked after every source so one run reports every failure.
         if not loaded_cleanly and CFG.INIT_STRICT:
             print(

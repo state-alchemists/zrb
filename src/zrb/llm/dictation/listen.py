@@ -46,8 +46,8 @@ DEVICE_WATCH_SECONDS = 2.0
 # How long a drop of captured audio waits before it is reported again.
 _OVERFLOW_REPORT_SECONDS = 5.0
 # Window and minimum sample count for measuring zrb's voice level.
-_ZRB_LEVEL_SECONDS = 3.0
-_ZRB_LEVEL_MIN_SECONDS = 0.5
+_VOICE_LEVEL_SECONDS = 3.0
+_VOICE_LEVEL_MIN_SECONDS = 0.5
 # Window and minimum sample count for measuring the room's noise floor.
 _NOISE_FLOOR_SECONDS = 3.0
 _NOISE_FLOOR_MIN_SECONDS = 0.5
@@ -133,10 +133,10 @@ class UtteranceCutter:
         self._is_finished_barge_in = False
         self._is_finished_over_speech = False
         self._utterance_count = 0
-        self._zrb_levels: deque[float] = deque(
-            maxlen=max(1, self._to_blocks(_ZRB_LEVEL_SECONDS))
+        self._voice_levels: deque[float] = deque(
+            maxlen=max(1, self._to_blocks(_VOICE_LEVEL_SECONDS))
         )
-        self._zrb_level_blocks = max(1, self._to_blocks(_ZRB_LEVEL_MIN_SECONDS))
+        self._voice_level_blocks = max(1, self._to_blocks(_VOICE_LEVEL_MIN_SECONDS))
         # The room's background: the quiet blocks heard while zrb was silent,
         # which the bar under ordinary speech is measured from.
         self._background_levels: deque[float] = deque(
@@ -191,7 +191,7 @@ class UtteranceCutter:
         # Measure zrb's level only over it and the room's level only while silent;
         # after a barge-in, zrb is paused, so later blocks are the user's voice.
         if is_over_zrb and not self.is_barge_in:
-            self._zrb_levels.append(level)
+            self._voice_levels.append(level)
         if not is_over_zrb:
             self._background_levels.append(level)
         if not self._speech:
@@ -220,8 +220,8 @@ class UtteranceCutter:
         if not is_over_zrb:
             return max(threshold, self._get_noise_bar())
         margin = self._config.barge_in_margin or 1
-        levels = sorted(self._zrb_levels)
-        if len(levels) < self._zrb_level_blocks:
+        levels = sorted(self._voice_levels)
+        if len(levels) < self._voice_level_blocks:
             return margin * threshold
         return max(threshold, margin * levels[len(levels) // 2])
 

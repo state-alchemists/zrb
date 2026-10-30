@@ -11,6 +11,7 @@ from zrb.llm.speech.backend.openai import OpenAISpeechBackend
 from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend
 from zrb.llm.speech.backend.termux import TermuxSpeechBackend
 from zrb.llm.voice.registry import tts_registry
+from zrb.util.platform import is_termux
 
 if TYPE_CHECKING:
     from zrb.llm.speech.config import SpeechConfig
@@ -38,9 +39,6 @@ def get_speech_backend(
 
 
 def _get_local_backend_name() -> str:
-    # lazy: tests patch `is_termux` after module import.
-    from zrb.config.helper import is_termux
-
     if is_termux() and shutil.which("termux-tts-speak"):
         return "termux"
     return "say" if shutil.which("say") else "espeak-ng"

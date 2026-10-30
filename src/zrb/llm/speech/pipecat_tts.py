@@ -17,6 +17,7 @@ from zrb.llm.speech.backend.any_speech_backend import SpeechServiceStopped
 from zrb.llm.speech.backend.audio import SpeechAudio
 from zrb.llm.util.priority import raise_priority
 from zrb.llm.util.teardown import cancel_and_wait, close_quietly
+from zrb.llm.voice.worker import create_worker_stopped_handler
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
@@ -397,13 +398,6 @@ async def _serve(
         """Record a service error."""
         recorder.record_failure(error.error)
 
-    def on_worker_stopped(task: "asyncio.Task[None]") -> None:
-        """Record worker termination for any waiting sentence."""
-        reason = "the Pipecat worker stopped"
-        if not task.cancelled() and task.exception() is not None:
-            reason = f"{reason}: {task.exception()}"
-        recorder.record_stopped(reason)
-
     service.add_event_handler("on_error", on_service_error)
     worker = PipelineWorker(
         # Keep the worker alive between sentences; teardown owns shutdown.
@@ -412,7 +406,7 @@ async def _serve(
     )
     # Bind TaskManager to this pipeline's loop.
     runner = asyncio.create_task(worker.run(WorkerParams(TaskManager())))
-    runner.add_done_callback(on_worker_stopped)
+    runner.add_done_callback(create_worker_stopped_handler(recorder.record_stopped))
     return worker, runner
 
 

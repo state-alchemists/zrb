@@ -32,7 +32,7 @@ from zrb.llm.screenshot.backend.tool import (
     ScreenshotToolBackend,
 )
 from zrb.llm.util.deadline import create_deadline
-from zrb.util.platform import is_wsl
+from zrb.util.platform import is_termux, is_wsl
 
 ChainBackend = PillowScreenshotBackend | ScreenshotToolBackend
 
@@ -100,7 +100,7 @@ class AutoScreenshotBackend(AnyScreenshotBackend):
         ]
 
     def list_displays(self) -> list[str]:
-        if _is_termux():
+        if is_termux():
             return []
         if sys.platform == "darwin":
             return ["1", "2"]
@@ -117,7 +117,7 @@ class AutoScreenshotBackend(AnyScreenshotBackend):
 
 def _get_platform_chain() -> "list[ScreenshotTool | None]":
     """The capture programs to try, in order; ``None`` stands for Pillow."""
-    if _is_termux():
+    if is_termux():
         return []
     if sys.platform == "darwin":
         return [SCREENCAPTURE]
@@ -133,7 +133,7 @@ def _get_platform_chain() -> "list[ScreenshotTool | None]":
 
 
 def _get_platform_hint() -> str:
-    if _is_termux():
+    if is_termux():
         return _TERMUX_HINT
     if sys.platform == "darwin":
         return _MACOS_HINT
@@ -152,10 +152,3 @@ def _is_wayland() -> bool:
     return bool(os.environ.get("WAYLAND_DISPLAY")) or (
         os.environ.get("XDG_SESSION_TYPE") == "wayland"
     )
-
-
-def _is_termux() -> bool:
-    # lazy: tests patch zrb.config.helper.is_termux; hoisting bypasses the mock
-    from zrb.config.helper import is_termux
-
-    return is_termux()

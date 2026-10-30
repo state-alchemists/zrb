@@ -1,7 +1,7 @@
 """Voice on Pipecat: which speech service zrb runs, and how to add one.
 
-Projects select a service with `ZRB_LLM_DICTATION_BACKEND` /
-`ZRB_LLM_SPEECH_BACKEND` or register one from `zrb_init.py`.
+Projects select a service with the `LLM_DICTATION_BACKEND` /
+`LLM_SPEECH_BACKEND` settings or register one from `zrb_init.py`.
 """
 
 from zrb.llm.voice.manager import (

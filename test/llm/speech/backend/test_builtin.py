@@ -97,7 +97,7 @@ def test_an_unknown_name_lists_the_registered_services():
 
 
 def test_auto_picks_termux_on_termux(monkeypatch):
-    monkeypatch.setattr("zrb.config.helper.is_termux", lambda: True)
+    monkeypatch.setattr("zrb.llm.speech.backend.builtin.is_termux", lambda: True)
     monkeypatch.setattr(
         "shutil.which",
         lambda name: f"/usr/bin/{name}" if name == "termux-tts-speak" else None,

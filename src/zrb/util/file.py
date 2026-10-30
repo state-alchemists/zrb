@@ -6,6 +6,18 @@ from pathlib import Path
 from typing import Literal
 
 
+def delete_file_quietly(file_path: str) -> None:
+    """Delete *file_path* when it exists, ignoring a race or a permission error.
+
+    Cleanup runs on paths that may already be gone, so a missing file is not a
+    failure worth reporting.
+    """
+    try:
+        os.remove(file_path)
+    except OSError:
+        pass
+
+
 def read_file(file_path: str, replace_map: dict[str, str] | None = None) -> str:
     """Reads a file and optionally replaces content based on a map.
 

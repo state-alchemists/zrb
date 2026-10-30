@@ -69,7 +69,7 @@ async def test_termux_camera_photo_returns_bytes(clean_env, tmp_path):
     "The capture path is Termux's real home dir, not tempfile.gettempdir() --"
     payload = b"\xff\xd8\xff-fake-jpeg"
     fake_path = str(tmp_path / "photo.jpg")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
 
     def _make_proc(*args, **kwargs):
@@ -90,7 +90,7 @@ async def test_termux_camera_photo_returns_bytes(clean_env, tmp_path):
 
 @pytest.mark.asyncio
 async def test_termux_camera_photo_uses_device_as_camera_id(clean_env):
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
 
     seen_cmds: list[list[str]] = []
@@ -108,7 +108,7 @@ async def test_termux_camera_photo_uses_device_as_camera_id(clean_env):
 @pytest.mark.asyncio
 async def test_termux_falls_through_to_ffmpeg_when_no_file_written(clean_env):
     "termux-camera-photo ran but wrote nothing; ffmpeg is also unavailable."
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
 
     with patch(
@@ -123,7 +123,7 @@ async def test_termux_falls_through_to_ffmpeg_when_no_file_written(clean_env):
 async def test_termux_skips_camera_photo_when_binary_missing(clean_env):
     "is_termux() is True, but termux-camera-photo isn't on PATH (e.g. proot)."
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only())
 
     result = await AutoCameraBackend().capture(None)
@@ -133,7 +133,7 @@ async def test_termux_skips_camera_photo_when_binary_missing(clean_env):
 
 @pytest.mark.asyncio
 async def test_ffmpeg_missing_returns_none(clean_env):
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only())
 
     result = await AutoCameraBackend().capture(None)
@@ -144,7 +144,7 @@ async def test_ffmpeg_missing_returns_none(clean_env):
 @pytest.mark.asyncio
 async def test_macos_ffmpeg_avfoundation_capture(clean_env):
     clean_env.setattr("sys.platform", "darwin")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     payload = b"\xff\xd8\xff-jpeg"
 
@@ -167,7 +167,7 @@ async def test_macos_ffmpeg_avfoundation_capture(clean_env):
 @pytest.mark.asyncio
 async def test_linux_ffmpeg_v4l2_default_device(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     payload = b"\xff\xd8\xff-jpeg"
 
@@ -191,7 +191,7 @@ async def test_linux_ffmpeg_v4l2_default_device(clean_env):
 async def test_linux_ffmpeg_tries_mjpeg_before_raw_fallback(clean_env):
     "v4l2 requests MJPEG@640x480 first -- see camera.py module docstring for why."
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     payload = b"\xff\xd8\xff-jpeg"
 
@@ -216,7 +216,7 @@ async def test_linux_ffmpeg_tries_mjpeg_before_raw_fallback(clean_env):
 @pytest.mark.asyncio
 async def test_linux_ffmpeg_falls_back_to_raw_when_mjpeg_unsupported(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     payload = b"\xff\xd8\xff-jpeg"
 
@@ -241,7 +241,7 @@ async def test_linux_ffmpeg_falls_back_to_raw_when_mjpeg_unsupported(clean_env):
 @pytest.mark.asyncio
 async def test_linux_ffmpeg_explicit_device_overrides_default(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
 
     seen_cmds: list[list[str]] = []
@@ -260,7 +260,7 @@ async def test_linux_ffmpeg_explicit_device_overrides_default(clean_env):
 @pytest.mark.asyncio
 async def test_windows_ffmpeg_uses_explicit_device_name(clean_env):
     clean_env.setattr("sys.platform", "win32")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
 
     seen_cmds: list[list[str]] = []
@@ -319,7 +319,7 @@ async def test_each_termux_capture_writes_its_own_file(clean_env):
 @pytest.mark.asyncio
 async def test_a_capture_that_never_runs_ffmpeg_drops_the_last_error(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     backend = FfmpegCameraBackend()
     failed = _FakeProcess(stderr=b"device busy", returncode=1)
@@ -335,7 +335,7 @@ async def test_a_capture_that_never_runs_ffmpeg_drops_the_last_error(clean_env):
 
 @pytest.mark.asyncio
 async def test_an_unreadable_termux_photo_is_a_failed_capture(clean_env, tmp_path):
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
     unreadable = tmp_path / "photo.jpg"
 

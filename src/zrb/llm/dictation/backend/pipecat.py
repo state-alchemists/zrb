@@ -1,6 +1,6 @@
 """Dictation transcribed by a Pipecat speech-to-text service.
 
-The service is selected by `ZRB_LLM_DICTATION_BACKEND` and registered through
+The service is selected by the `LLM_DICTATION_BACKEND` setting and registered through
 `zrb.llm.voice`; `AnyDictationBackend` returns only its transcript to the session.
 """
 

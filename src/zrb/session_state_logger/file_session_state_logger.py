@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.session_state_logger.any_session_state_logger import AnySessionStateLogger
-from zrb.util.file import read_file, write_file
+from zrb.util.file import delete_file_quietly, read_file, write_file
 
 if TYPE_CHECKING:
     from zrb.session_state_log.session_state_log import (
@@ -110,7 +110,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
             for file_name in file_names:
                 log_path = os.path.join(session_log_dir, f"{file_name}.json")
                 if file_name != keep and _is_expired(log_path, cutoff):
-                    _remove_quietly(os.path.join(dir_path, file_name))
+                    delete_file_quietly(os.path.join(dir_path, file_name))
             if dir_path != timeline_dir:
                 try:
                     os.rmdir(dir_path)  # only succeeds once it is empty
@@ -127,7 +127,7 @@ class FileSessionStateLogger(AnySessionStateLogger):
                 and name != keep
                 and _is_expired(entry.path, cutoff)
             ):
-                _remove_quietly(entry.path)
+                delete_file_quietly(entry.path)
 
     def get_session_file_path(self, session_name: str) -> str:
         return os.path.join(self.get_session_log_dir(), f"{session_name}.json")
@@ -189,13 +189,6 @@ def _is_expired(path: str, cutoff: float) -> bool:
         return os.path.getmtime(path) < cutoff
     except OSError:
         return True
-
-
-def _remove_quietly(path: str) -> None:
-    try:
-        os.remove(path)
-    except OSError:
-        pass
 
 
 def _state_log_models():

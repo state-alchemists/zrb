@@ -109,7 +109,7 @@ class EnvField(Generic[T]):
         ``None`` deletes the env var instead of writing ``"None"``.
     no_prefix:
         When ``True``, the env var is read and written under its bare name with
-        no ``ENV_PREFIX`` (e.g. ``BRAVE_API_KEY`` rather than ``ZRB_BRAVE_API_KEY``).
+        no ``ENV_PREFIX`` (e.g. ``BRAVE_API_KEY`` rather than ``ACME_BRAVE_API_KEY``).
         Pair with ``aliases``/``write_key`` for internal names such as
         ``_ZRB_CUSTOM_VERSION``.
     secret:
@@ -245,7 +245,7 @@ class EnvField(Generic[T]):
         if self._nullable and not raw:
             return None
         if not raw:
-            # An empty env var (`export ZRB_WEB_HTTP_PORT=`) counts as unset,
+            # An empty env var (`export ACME_WEB_HTTP_PORT=`) counts as unset,
             # rather than failing an int("")-style cast.
             raw = self._resolve_default(obj)
         try:

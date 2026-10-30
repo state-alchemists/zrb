@@ -67,7 +67,7 @@ def _which_only(*names: str):
 async def test_capture_timeout_returns_none_with_hint(clean_env):
     "A hung ffmpeg (open camera, no frame ever delivered) times out instead"
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
 
     hung_procs: list[_FakeProcess] = []
@@ -90,7 +90,7 @@ async def test_capture_timeout_returns_none_with_hint(clean_env):
 async def test_a_hung_termux_capture_is_abandoned_after_the_timeout(
     clean_env, tmp_path
 ):
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
     hung: list[_FakeProcess] = []
 
@@ -131,7 +131,7 @@ async def test_an_mjpeg_attempt_that_times_out_leaves_no_time_for_the_raw_one(
 @pytest.mark.asyncio
 async def test_auto_shares_one_deadline_between_termux_and_ffmpeg(clean_env, tmp_path):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo", "ffmpeg"))
     started: list[_FakeProcess] = []
 
@@ -182,7 +182,7 @@ async def _cancel_capture(capture) -> None:
 @pytest.mark.asyncio
 async def test_a_cancelled_ffmpeg_capture_kills_ffmpeg(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     hung: list[_FakeProcess] = []
 
@@ -201,7 +201,7 @@ async def test_a_cancelled_ffmpeg_capture_kills_ffmpeg(clean_env):
 async def test_a_cancelled_termux_capture_kills_termux_camera_photo(
     clean_env, tmp_path
 ):
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: True)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: True)
     clean_env.setattr("shutil.which", _which_only("termux-camera-photo"))
     hung: list[_FakeProcess] = []
 
@@ -220,7 +220,7 @@ async def test_a_cancelled_termux_capture_kills_termux_camera_photo(
 @pytest.mark.asyncio
 async def test_a_cancelled_windows_device_listing_kills_ffmpeg(clean_env):
     clean_env.setattr("sys.platform", "win32")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
     hung: list[_FakeProcess] = []
 
@@ -238,7 +238,7 @@ async def test_a_cancelled_windows_device_listing_kills_ffmpeg(clean_env):
 @pytest.mark.asyncio
 async def test_a_negative_timeout_means_no_limit(clean_env):
     clean_env.setattr("sys.platform", "linux")
-    clean_env.setattr("zrb.config.helper.is_termux", lambda: False)
+    clean_env.setattr("zrb.llm.camera.backend.auto.is_termux", lambda: False)
     clean_env.setattr("shutil.which", _which_only("ffmpeg"))
 
     with patch(

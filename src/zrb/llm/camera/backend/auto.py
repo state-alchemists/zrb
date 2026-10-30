@@ -4,6 +4,7 @@ from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.camera.backend.ffmpeg import FfmpegCameraBackend
 from zrb.llm.camera.backend.termux import TermuxCameraBackend
 from zrb.llm.util.deadline import create_deadline
+from zrb.util.platform import is_termux
 
 
 class AutoCameraBackend(AnyCameraBackend):
@@ -26,28 +27,21 @@ class AutoCameraBackend(AnyCameraBackend):
 
     async def capture(self, device: str | None) -> bytes | None:
         deadline = create_deadline(self._timeout)
-        if _is_termux() and self._termux.is_available:
+        if is_termux() and self._termux.is_available:
             data = await self._termux.capture_by(device, deadline)
             if data is not None:
                 return data
         return await self._ffmpeg.capture_by(device, deadline)
 
     def list_devices(self) -> list[str]:
-        if _is_termux():
+        if is_termux():
             return self._termux.list_devices()
         return self._ffmpeg.list_devices()
 
     def get_failure_hint(self) -> str:
-        if not _is_termux():
+        if not is_termux():
             return self._ffmpeg.get_failure_hint()
         hint = self._termux.get_failure_hint()
         if self._ffmpeg.last_error:
             hint += f"  ffmpeg said: {self._ffmpeg.last_error}\n"
         return hint
-
-
-def _is_termux() -> bool:
-    # lazy: tests patch zrb.config.helper.is_termux; hoisting bypasses the mock
-    from zrb.config.helper import is_termux
-
-    return is_termux()

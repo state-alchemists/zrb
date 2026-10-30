@@ -24,7 +24,6 @@ written.
 
 from __future__ import annotations
 
-import dataclasses
 import hashlib
 import json
 import os
@@ -33,7 +32,7 @@ from datetime import datetime, timezone
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_current_context_session
-from zrb.llm.usage_log import as_datetime, store_files, store_path
+from zrb.llm.usage_log import as_datetime, record_to_dict, store_files, store_path
 from zrb.util.string.name import get_conversation_key
 
 _FILE_PREFIX = "journal-"
@@ -93,9 +92,7 @@ class JournalEvent:
         return self.event == SEARCHED and self.results == 0
 
     def to_dict(self) -> dict[str, object]:
-        raw = dataclasses.asdict(self)
-        raw["timestamp"] = self.timestamp.isoformat()
-        return raw
+        return record_to_dict(self)
 
     @classmethod
     def from_dict(cls, raw: dict[str, object]) -> JournalEvent:

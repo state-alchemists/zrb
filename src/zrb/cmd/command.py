@@ -97,7 +97,7 @@ def get_shell_flag(shell: str) -> str:
 
 # The redirect fails quietly where /proc does not exist (macOS); `exec` keeps
 # the pid, so the process group the caller kills is still this one.
-_YIELD_TO_ZRB = (
+_YIELD_TO_PARENT = (
     '{ echo 1000 > /proc/self/oom_score_adj; } 2>/dev/null; exec nice -n 10 "$@"'
 )
 
@@ -113,7 +113,7 @@ def create_yielding_argv(argv: list[str]) -> list[str]:
     """
     if os.name == "nt" or not all(shutil.which(p) for p in ("sh", "nice", argv[0])):
         return argv
-    return ["sh", "-c", _YIELD_TO_ZRB, "sh", *argv]
+    return ["sh", "-c", _YIELD_TO_PARENT, "sh", *argv]
 
 
 def _process_tree_pids(pid: int) -> list[int]:

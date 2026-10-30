@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.dictation.listen import SAMPLE_RATE
 from zrb.llm.util.teardown import cancel_and_wait, close_quietly
+from zrb.llm.voice.worker import create_worker_stopped_handler
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -257,16 +258,6 @@ class STTPipeline:
 
         service.add_event_handler("on_error", on_service_error)
 
-        def on_worker_stopped(task: "asyncio.Task[None]") -> None:
-            """Record worker termination so waiting segments fail immediately.
-
-            Reading the exception in the done callback prevents an unretrieved-task
-            warning."""
-            reason = "the Pipecat worker stopped"
-            if not task.cancelled() and task.exception() is not None:
-                reason = f"{reason}: {task.exception()}"
-            recorder.record_stopped(reason)
-
         worker = PipelineWorker(
             Pipeline([service, sink]),
             # The pipeline idles between segments; Pipecat's default 300s watchdog
@@ -277,7 +268,7 @@ class STTPipeline:
             params=PipelineParams(audio_in_sample_rate=sample_rate),
         )
         runner = asyncio.create_task(worker.run(WorkerParams(TaskManager())))
-        runner.add_done_callback(on_worker_stopped)
+        runner.add_done_callback(create_worker_stopped_handler(recorder.record_stopped))
         return cls(worker, runner, service, sink, recorder, sample_rate)
 
     async def transcribe(self, audio: bytes) -> str:

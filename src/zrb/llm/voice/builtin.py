@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 STTSettingsT = TypeVar("STTSettingsT", bound="STTSettings")
 TTSSettingsT = TypeVar("TTSSettingsT", bound="TTSSettings")
 
-#: The voice a local service is built with when `ZRB_LLM_SPEECH_VOICE` is empty.
+#: The voice a local service is built with when `LLM_SPEECH_VOICE` is empty.
 #: Kokoro and Piper make the voice mandatory — Pipecat's `require_given` raises
 #: from their constructors — so unlike the models zrb leaves to the service,
 #: leaving this unset is not "the service's own choice", it is a backend that
@@ -136,7 +136,7 @@ def _create_pocket(config: "SpeechConfig") -> "TTSService":
     return PocketTTSService(settings=settings)
 
 
-#: Speech-to-text, by the name `ZRB_LLM_DICTATION_BACKEND` quotes. Every one is
+#: Speech-to-text, by the name `LLM_DICTATION_BACKEND` quotes. Every one is
 #: a `SegmentedSTTService`: it transcribes what it has buffered when the
 #: segment ends, which is the boundary zrb's own cutter already draws.
 STT_SERVICE_SPECS: dict[str, STTServiceSpec] = {
@@ -175,8 +175,8 @@ STT_SERVICE_SPECS: dict[str, STTServiceSpec] = {
     ),
 }
 
-#: Text-to-speech, by the name `ZRB_LLM_SPEECH_BACKEND` quotes. The voice is
-#: `ZRB_LLM_SPEECH_VOICE`, which each of these reads its own way.
+#: Text-to-speech, by the name `LLM_SPEECH_BACKEND` quotes. The voice is
+#: `LLM_SPEECH_VOICE`, which each of these reads its own way.
 TTS_SERVICE_SPECS: dict[str, TTSServiceSpec] = {
     "kokoro": TTSServiceSpec(
         name="kokoro",
