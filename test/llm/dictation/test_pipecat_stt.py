@@ -244,7 +244,12 @@ async def test_a_metric_before_a_transcript_does_not_swallow_its_words():
 @pytest.mark.asyncio
 async def test_a_timed_out_segment_is_not_answered_by_the_one_after_it(monkeypatch):
     """Retiring a timed-out pipeline prevents its late transcript answering the next segment."""
-    monkeypatch.setattr(pipecat_stt, "_TRANSCRIBE_TIMEOUT_SECONDS", 0.05)
+    # The budget is paid in full (the held service never answers), so it must be
+    # long enough for the worker to drain the segment before the retire cancels
+    # it: the final assertion is about a segment that *did* arrive. At 0.05s a
+    # loaded CI runner cancelled the worker first, `segments` was empty, and the
+    # test failed with nothing wrong in the code it covers.
+    monkeypatch.setattr(pipecat_stt, "_TRANSCRIBE_TIMEOUT_SECONDS", 2.0)
     service = HeldSegmentedService()
     pipeline = await STTPipeline.start(service)
     try:
