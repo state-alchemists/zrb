@@ -117,6 +117,23 @@ class UIAgentPicker:
         self._invalidate()
         return True
 
+    def fall_back_when_unpaintable(self) -> None:
+        """Close a picker the terminal shrank out from under, and say why.
+
+        The picker stands in the input frame's place, so once the screen has no
+        rows for it the layout hides it while it still holds the focus: the next
+        keypress would reach a list nobody can see. Closing it leaves Down Arrow
+        on history recall, which is where `open_agent_picker` leaves it too.
+        """
+        if not self._picker_sessions:
+            return
+        if panel_row_cap(self._ui) > 0:
+            return
+        self.close_agent_picker()
+        append = getattr(self._ui, "append_to_output", None)
+        if append is not None:
+            append("  ⚠ the sub-agent picker needs more screen rows\n")
+
     def close_agent_picker(self) -> None:
         """Dismiss the picker without entering any view (public API)."""
         if not self._picker_sessions:

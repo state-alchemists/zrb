@@ -33,6 +33,10 @@ class _SizedOutput(DummyOutput):
     def get_size(self) -> Size:
         return self._size
 
+    def resize(self, rows: int) -> None:
+        """Shrink or grow the screen mid-test, the way a window drag does."""
+        self._size = Size(rows=rows, columns=100)
+
 
 def _ui_and_app(deps, rows: int = 40):
     ui = UI(**deps)
@@ -326,3 +330,58 @@ def test_a_command_reply_reaches_the_transcript_when_no_panel_fits(
     text = ui.output_field.text
     assert "Usage" in text
     assert "1,000 in" in text
+
+
+def test_shrinking_the_screen_out_from_under_the_picker_closes_it(mock_ui_deps):
+    """A picker the layout hides still holds the focus.
+
+    The layout drops the panel once the cap reaches zero, but the picker keeps
+    the keys it was given: the next Down or Enter would reach a list nobody can
+    see. The transition closes it, exactly as `open_agent_picker` declines to
+    open one on a screen that never had the rows.
+    """
+    ui, app = _ui_and_app(mock_ui_deps, rows=24)
+    with patch(
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
+        MagicMock(active=lambda *args, **kwargs: [_session("a")]),
+    ):
+        assert ui.open_agent_picker() is True
+
+        app.output.resize(16)
+        ui.agent_picker_part.fall_back_when_unpaintable()
+
+    assert ui.agent_picker_part.has_active_agent_picker() is False
+
+
+def test_a_screen_that_still_has_room_leaves_the_picker_open(mock_ui_deps):
+    """The fallback acts on the transition to zero rows, not on every render."""
+    ui, app = _ui_and_app(mock_ui_deps, rows=40)
+    with patch(
+        "zrb.llm.subagent.live_session.live_subagent_session_registry",
+        MagicMock(active=lambda *args, **kwargs: [_session("a")]),
+    ):
+        assert ui.open_agent_picker() is True
+
+        app.output.resize(30)
+        ui.agent_picker_part.fall_back_when_unpaintable()
+
+    assert ui.agent_picker_part.has_active_agent_picker() is True
+
+
+def test_a_render_notices_the_screen_has_no_room_left(mock_ui_deps):
+    """The panel closes on the render that sees the new size, not on the next key.
+
+    prompt_toolkit redraws on SIGWINCH, so `after_render` is the one place a
+    resize is noticed; a choice left merely hidden still owns Enter and would
+    answer option zero.
+    """
+    ui, app = _ui_and_app(mock_ui_deps, rows=24)
+    choice_slot = _slot_holding(app.layout, ui.selection_part.choice_window)
+    ui.begin_choice(_spec(2))
+    assert choice_slot.filter()
+
+    app.output.resize(16)
+    app.after_render.fire()
+
+    assert ui.selection_part.has_active_choice() is False, "the choice closed"
+    assert not choice_slot.filter(), "and the panel with it"

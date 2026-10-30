@@ -184,3 +184,40 @@ def test_a_terminal_with_no_room_asks_in_the_transcript_instead(ui, terminal_row
     ui.handle_confirmation(_event("Option 1"))
 
     assert ui.resolved == "Option 1"
+
+
+def test_shrinking_the_screen_out_from_under_a_choice_asks_in_the_transcript(
+    ui, terminal_rows
+):
+    """A resize must not leave a choice alive behind a panel nobody can see.
+
+    The layout hides the panel once the cap reaches zero, but an active choice is
+    still what makes the input read-only and what makes Enter confirm the
+    highlighted row: the answer would become option zero, unseen.
+    """
+    terminal_rows(24)
+    ui.begin_choice(_spec(_options(2)))
+    assert ui.has_active_choice() is True
+
+    terminal_rows(16)
+    ui.fall_back_when_unpaintable()
+
+    assert ui.has_active_choice() is False
+    printed = "".join(ui.echoes)
+    assert "Which one?" in printed
+    assert "Option 0" in printed and "Option 1" in printed
+    assert "Type your answer and press Enter" in printed
+
+    ui.handle_confirmation(_event("Option 1"))
+
+    assert ui.resolved == "Option 1"
+
+
+def test_a_screen_that_still_has_room_leaves_a_choice_alone(ui, terminal_rows):
+    """The fallback acts on the transition to no rows, not on every render."""
+    terminal_rows(40)
+    ui.begin_choice(_spec(_options(2)))
+
+    ui.fall_back_when_unpaintable()
+
+    assert ui.has_active_choice() is True

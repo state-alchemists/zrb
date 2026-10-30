@@ -139,6 +139,23 @@ class UISelection:
         # The question is echoed into scrollback with the answer on resolve.
         focus_widget(self._choice_window, "Choice-window")
 
+    def fall_back_when_unpaintable(self) -> None:
+        """Move a choice the terminal shrank out from under into the transcript.
+
+        A choice that was opened where it had rows stays active when the screen
+        shrinks: the layout hides the panel, but an active choice is still what
+        makes the input read-only and what makes Enter confirm the highlighted
+        row, so the answer would become option zero without the user seeing it.
+        Closing it the way a choice that never fitted is closed keeps the
+        question answerable in the one place that still paints. Called from
+        every render, so the ordinary case costs two comparisons.
+        """
+        if self._active_choice is None:
+            return
+        if panel_row_cap(self._ui) > 0:
+            return
+        self._start_unpaintable_choice(self._active_choice)
+
     def _start_unpaintable_choice(self, spec: dict) -> None:
         """Ask in the transcript, and take the answer as typed free text.
 

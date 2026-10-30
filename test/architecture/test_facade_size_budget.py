@@ -157,7 +157,11 @@ FACADE_BUDGETS = {
     # +13 (745->758): `_input_panel_active` also requires the panel to have a row
     # to paint, so a terminal too short for it keeps the input frame instead of
     # trading it for an empty border.
-    "llm/ui/default/ui.py": 758,
+    # +2 (758->760): the two-line render hook that closes a panel the terminal
+    # shrank out from under -- a hidden choice stays active and answers option
+    # zero, so the transition to zero rows has to act, not merely hide.
+    # +2 (760->762): `for` and its call over the two parts, since both need it.
+    "llm/ui/default/ui.py": 762,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.
