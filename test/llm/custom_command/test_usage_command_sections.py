@@ -12,10 +12,12 @@ from zrb.llm.custom_command.usage_command_journal import (
     render_journal_section,
 )
 from zrb.llm.journal_usage_log import (
+    AUTO_SEARCHED,
     DELETED,
     INJECTED,
     JUDGED,
     JUDGING,
+    PROMPTED,
     READ,
     SEARCHED,
     SUPERSEDED,
@@ -251,3 +253,26 @@ class _Ui:
 
     def show_panel(self, title: str, body: str) -> None:
         self.shown = body
+
+
+def test_the_journal_section_reports_lookups_per_prompt_and_auto_search_yield():
+    events = [
+        _event(PROMPTED, 0),
+        _event(PROMPTED, 1),
+        _event(SEARCHED, 2, results=1),
+        _event(READ, 3, note=A),
+        _event(AUTO_SEARCHED, 4, results=2),
+        _event(AUTO_SEARCHED, 5, results=0),
+    ]
+
+    text = "\n".join(render_journal_section(events, {}))
+
+    assert "2 prompt(s) · 1.0 lookups per prompt" in text
+    assert "2 auto-search(es) · 50% found something" in text
+
+
+def test_without_a_prompt_event_the_lookups_ratio_is_absent_not_wrong():
+    """A window that predates the event must not divide by a guess."""
+    text = "\n".join(render_journal_section([_event(SEARCHED, 0, results=1)], {}))
+
+    assert "lookups per prompt" not in text

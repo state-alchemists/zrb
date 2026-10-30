@@ -76,6 +76,7 @@ from zrb.llm.hook.turn_evidence import (
     turn_wrote_files,
 )
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.journal_usage_log import record_prompted
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
     current_permission_policy,
@@ -177,6 +178,10 @@ async def run_agent(
 
     # Read before this run binds its own scope below.
     nested_run = bool(get_current_agent_run_scope()) if nested is None else nested
+    # One `prompted` per user message: the denominator of lookups per answer.
+    # A nested run is a tool call, not a question.
+    if not nested_run:
+        record_prompted()
 
     # ExitStack keeps set/reset symmetric: if a later bind raises, the vars
     # already bound are still reset, and no unset token is ever reset.

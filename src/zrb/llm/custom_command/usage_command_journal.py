@@ -6,10 +6,12 @@ import os
 
 from zrb.config.config import CFG
 from zrb.llm.journal_usage_log import (
+    AUTO_SEARCHED,
     DELETED,
     INJECTED,
     JUDGED,
     JUDGING,
+    PROMPTED,
     READ,
     SEARCHED,
     SUPERSEDED,
@@ -36,7 +38,9 @@ def render_journal_section(
     lines = ["  Journal"]
     for part in (
         _index_line(events),
+        _turn_line(events),
         _search_line(events),
+        _auto_search_line(events),
         _notes_line(events),
         _judge_line(events),
         _never_read_line(events, titles),
@@ -66,6 +70,31 @@ def _index_line(events: list[JournalEvent]) -> str:
     return (
         f"index    {_bytes(average)} per injection on average over "
         f"{len(injected)} injection(s) · {cut / len(injected):.0%} truncated"
+    )
+
+
+def _turn_line(events: list[JournalEvent]) -> str:
+    """Lookups per prompt: how much searching one question costs.
+
+    The number that says whether the memory arrives or has to be fetched. A
+    prompt the agent never recorded (a session that predates the event) is not
+    counted, so the ratio is absent rather than wrong."""
+    prompts = sum(1 for event in events if event.event == PROMPTED)
+    if not prompts:
+        return ""
+    lookups = sum(1 for event in events if event.event in (SEARCHED, READ))
+    return f"turn     {prompts} prompt(s) · {lookups / prompts:.1f} lookups per prompt"
+
+
+def _auto_search_line(events: list[JournalEvent]) -> str:
+    """What the opening-message auto-search found; it costs no model call."""
+    searches = [event for event in events if event.event == AUTO_SEARCHED]
+    if not searches:
+        return ""
+    found = sum(1 for event in searches if event.results > 0)
+    return (
+        f"auto     {len(searches)} auto-search(es) · "
+        f"{found / len(searches):.0%} found something"
     )
 
 
