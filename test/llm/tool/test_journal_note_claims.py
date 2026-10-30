@@ -15,6 +15,7 @@ import pytest
 
 from zrb.llm.tool.journal_note import parse_frontmatter
 from zrb.llm.tool.journal_write import (
+    delete_journal_note,
     journal_transaction,
     supersede_journal_note,
     write_journal_note,
@@ -152,6 +153,26 @@ def test_a_rewrite_that_names_no_keywords_keeps_the_ones_already_stored(
 
     front = _frontmatter(writable_journal, "technical", "retry-policy.md")
     assert front["keywords"] == "lock, concurrency"
+
+
+def test_deleting_the_replacement_clears_the_back_link_it_left(writable_journal):
+    """`superseded_by` says something on disk took this note's place. Delete
+    that something and the key becomes a promise nobody can keep, so the
+    delete retracts it and names the note it cleared."""
+    _write("old-cause", hud_line="Stutter comes from GIL contention.")
+    _write("prebuffer", hud_line="The stutter is a cushion of audio.")
+    supersede_journal_note(
+        "technical", "old-cause", "a cushion", "technical/prebuffer"
+    )
+
+    result = delete_journal_note("technical", "prebuffer")
+
+    front = _frontmatter(writable_journal, "technical", "old-cause.md")
+    assert "superseded_by" not in front
+    assert front["status"] == "superseded"
+    assert "Cleared the superseded_by that named it from: technical/old-cause.md" in (
+        result
+    )
 
 
 def test_a_supersede_records_the_note_that_replaced_it(writable_journal):

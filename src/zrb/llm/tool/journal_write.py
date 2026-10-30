@@ -588,7 +588,7 @@ def _write_note_locked(
     finding: str,
     source: str,
     links: list[str] | None,
-    hud_line: str,
+    hud_line: str | None,
     pinned: bool | None,
     applies_when: str | None = None,
     keywords: list[str] | None = None,
@@ -645,7 +645,7 @@ def _write_note_locked(
 
 
 def _hud_state(
-    hud_line: str,
+    hud_line: str | None,
     pinned: bool | None,
     previous: Note | None,
     notes: list[Note],
@@ -779,11 +779,14 @@ def _replacement_rel(root: str, superseded_by: str) -> str:
 
 
 def _delete_note_locked(root: str, category: str, slug: str) -> str:
-    """Delete the note and every link to it under *root*.
+    """Delete the note and every reference to it under *root*.
 
     The caller holds the journal lock and makes the commit. A line that is
     nothing but a link to the note goes with it — a hand-written one too —
-    because leaving it would put a broken link in the journal."""
+    because leaving it would put a broken link in the journal. A note that
+    named this one as its replacement loses that `superseded_by` for the same
+    reason: the key is the record that something on disk took its place, and
+    after the delete nothing does."""
     check_category(category)
     check_slug(slug)
     note_path = os.path.join(root, category, f"{slug}.md")
@@ -792,12 +795,43 @@ def _delete_note_locked(root: str, category: str, slug: str) -> str:
             f"[SYSTEM SUGGESTION]: no note at {category}/{slug}.md. "
             "SearchJournal for the correct slug, or omit the delete."
         )
+    note_rel = relative(note_path, root)
     for path, text in scrub_links_to(root, note_path).items():
         _write_text(path, text)
+    # `superseded_by` stores `<category>/<slug>` without the extension, so the
+    # value to retract is the note's name, not its path.
+    cleared = _clear_superseded_by(root, f"{category}/{slug}")
     _snapshot_before_write(note_path)
     os.remove(note_path)
     _render_indexes(root)
-    return f"Deleted {relative(note_path, root)}"
+    result = f"Deleted {note_rel}"
+    if cleared:
+        result += (
+            " Cleared the superseded_by that named it from: "
+            f"{', '.join(cleared)}."
+        )
+    return result
+
+
+def _clear_superseded_by(root: str, replacement: str) -> list[str]:
+    """Drop `superseded_by: *replacement*` from every note that carries it.
+
+    *replacement* is a note's name, `<category>/<slug>`, the way the key stores
+    it. A deleted replacement would otherwise leave the retired note pointing at
+    a file nobody can open, and that key is read as a promise: the note says
+    something on disk took its place. Returns the notes it cleared, so the
+    result can name them."""
+    cleared: list[str] = []
+    for note in _load_notes(root):
+        if note.rel == f"{replacement}.md":
+            continue
+        path = os.path.join(root, note.rel)
+        text = read_text(path)
+        if parse_frontmatter(text).get("superseded_by") != replacement:
+            continue
+        _write_text(path, set_frontmatter(text, {"superseded_by": None}))
+        cleared.append(note.rel)
+    return cleared
 
 
 @contextmanager
