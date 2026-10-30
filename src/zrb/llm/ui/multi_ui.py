@@ -289,11 +289,20 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def set_status_badge(self, key: str, text: str | None) -> None:
         self._fanout("set_status_badge", key, text)
 
-    def _fanout(self, method_name: str, /, *args, **kwargs) -> None:
+    def _fanout(
+        self, method_name: str, /, *args, fallback: str | None = None, **kwargs
+    ) -> None:
         """Call `method_name` on every child that implements it, best-effort:
-        a dead channel is not a dead run."""
+        a dead channel is not a dead run.
+
+        *fallback* is the older hook to call on a child that lacks
+        `method_name`, so a channel written before the new one still receives
+        the text — losing an answer is worse than losing its layout.
+        """
         for ui in self._uis:
             fn = getattr(ui, method_name, None)
+            if not callable(fn) and fallback is not None:
+                fn = getattr(ui, fallback, None)
             if not callable(fn):
                 continue
             try:
@@ -331,12 +340,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def append_answer(self, markdown_text: str) -> None:
         """Append the turn's answer on every child, at the column it keeps.
 
-        Every in-tree UI implements the hook — its default is the
-        `append_markdown` it used to call — so no child loses the answer, and a
-        channel of its own that never learned about the column keeps its own
-        layout.
+        A child written before this hook still gets the answer, through its own
+        `append_markdown`: the layout may differ, the text never disappears.
         """
-        self._fanout("append_answer", markdown_text)
+        self._fanout("append_answer", markdown_text, fallback="append_markdown")
 
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.

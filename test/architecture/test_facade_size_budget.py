@@ -114,10 +114,10 @@ FACADE_BUDGETS = {
     # `llm/util/spoken.py`. +2 (1301->1303): the same reason and the same
     # one-line call at `end_side_question` -- a `/btw` answer is a screen too,
     # and its history is never involved.
-    # +9 (1303->1312): `append_answer` -- the hook a turn's answer goes through
+    # +10 (1303->1313): `append_answer` -- the hook a turn's answer goes through
     # so a UI that lays output out in a column can keep it there; its default is
-    # the `append_markdown` it used to call.
-    "llm/ui/base/ui.py": 1312,
+    # the `append_markdown` it used to call, and the `/btw` reply takes it too.
+    "llm/ui/base/ui.py": 1313,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

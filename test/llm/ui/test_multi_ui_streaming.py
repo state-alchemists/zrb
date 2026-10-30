@@ -131,9 +131,9 @@ async def test_multi_ui_stream_sets_thinking_on_children(multi_ui, child_ui_1):
 
 
 @pytest.mark.asyncio
-async def test_multi_ui_stream_uses_append_markdown_on_main_ui(multi_ui, child_ui_1):
+async def test_multi_ui_stream_uses_append_answer_on_main_ui(multi_ui, child_ui_1):
     multi_ui.append_to_output = MagicMock()
-    child_ui_1.append_markdown = MagicMock()
+    child_ui_1.append_answer = MagicMock()
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
@@ -141,20 +141,21 @@ async def test_multi_ui_stream_uses_append_markdown_on_main_ui(multi_ui, child_u
 
     await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
-    # The main UI gets themed, re-wrappable markdown; other children (e.g.
-    # Telegram) get the pre-rendered text.
-    child_ui_1.append_markdown.assert_called_once_with("# Response")
+    # The answer goes through `append_answer`, so a UI that lays its output out
+    # in a column can keep the answer there.
+    child_ui_1.append_answer.assert_called_once_with("# Response")
 
 
 @pytest.mark.asyncio
-async def test_multi_ui_stream_uses_rendered_text_on_other_children(
+async def test_multi_ui_stream_gives_a_child_without_the_hook_its_markdown(
     multi_ui, child_ui_1, child_ui_2
 ):
     multi_ui.append_to_output = MagicMock()
-    child_ui_1.append_markdown = MagicMock()
-    # MagicMock auto-creates any attribute; remove it so hasattr() is False,
-    # matching a real chat backend (e.g. TelegramUI) that lacks append_markdown.
-    child_ui_2.append_markdown = None
+    child_ui_1.append_answer = MagicMock()
+    # A channel written before `append_answer` existed: it has its own markdown
+    # step and nothing else. Losing the layout is acceptable; losing the answer
+    # is not.
+    child_ui_2.append_answer = None
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
@@ -162,10 +163,7 @@ async def test_multi_ui_stream_uses_rendered_text_on_other_children(
 
     await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
-    # child_ui_2 has no append_markdown → gets rendered text with end="".
-    child_ui_2.append_to_output.assert_called()
-    args = child_ui_2.append_to_output.call_args
-    assert args.kwargs.get("end") == ""
+    child_ui_2.append_markdown.assert_called_once_with("# Response")
 
 
 @pytest.mark.asyncio
