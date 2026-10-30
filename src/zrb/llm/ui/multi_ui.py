@@ -486,8 +486,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 self._last_result_data = result_data
                 self.append_to_output("\n")
                 # The answer keeps its `<spoken>` markers for speech; every
-                # child shows the whole reply without them.
-                self.append_markdown(shown_text(result_data))
+                # child shows the whole reply without them, in the run's column.
+                self.append_answer(shown_text(result_data))
             if self.main_ui is not None:
                 self.main_ui.conversation.schedule_auto_name(user_message)
 

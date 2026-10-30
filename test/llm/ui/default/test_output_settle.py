@@ -6,6 +6,7 @@ renders that answer separately. A block a following part ends is not that
 answer, so `settle_text_block` rebuilds it in place and leaves it readable.
 """
 
+import os
 from unittest.mock import MagicMock, PropertyMock, patch
 
 from pydantic_ai import ToolCallPart
@@ -13,6 +14,7 @@ from pydantic_ai.messages import TextPart
 
 from zrb.llm.agent.run.setup import setup_print_and_events
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
+from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.output import UIOutput
 from zrb.llm.util.stream_response import CONTINUATION_PAD
 from zrb.util.cli.style import remove_style
@@ -46,6 +48,10 @@ class SettleUI:
     Holds the state `UIOutput` reaches via `self._ui` (normally supplied by the
     default `UI`) and forwards everything else to the composed part.
     """
+
+    # The real `/btw` entry point, bound onto this stand-in so the transcript
+    # test drives the code that runs in the chat instead of a copy of it.
+    end_side_question = BaseUI.end_side_question
 
     def __init__(self):
         self.output_field = _OutputField()
@@ -293,3 +299,74 @@ def test_a_spoken_block_leaves_no_marker_on_screen():
     screen = remove_style(ui.output_text)
     assert "spoken" not in screen
     assert "😊 Reading the file." in screen
+
+
+# A turn wide enough to wrap, narrow enough that the wrap is worth checking.
+TURN_COLUMNS = 60
+TURN_WIDTH = TURN_COLUMNS - 4  # what `output_field_width` subtracts
+INTERMEDIATE = (
+    "Let me look at the file before answering, because the answer depends on "
+    "what it says, and a guess would be worse than a moment's wait."
+)
+ANSWER = (
+    "The file is the answer.\n"
+    "\n"
+    "| name | value |\n"
+    "| --- | --- |\n"
+    "| alpha | one |\n"
+    "\n"
+    "```\n"
+    "print('one indent, not two')\n"
+    "```\n"
+)
+SIDE_ANSWER = "The side answer lands under its own header."
+_MARKER_GLYPHS = ("🤖", "💭", "💬", "🔄", "⏳", "◌")
+
+
+def test_a_whole_turn_keeps_every_prose_line_in_the_column(monkeypatch):
+    """One rule for every piece of run prose, checked on the finished transcript.
+
+    Driven through the real wiring — the handler for the block a tool call ends,
+    and the entry points the answer, a `/btw` reply and a replay all use — rather
+    than one assertion per path: a path added later that skips the funnel shows
+    up here as a line at the margin, which is the failure the per-path tests
+    could not see.
+    """
+    import zrb.llm.ui.default.output as output_module
+
+    monkeypatch.setattr(
+        output_module,
+        "get_terminal_size",
+        lambda *args, **kwargs: os.terminal_size((TURN_COLUMNS, 24)),
+    )
+    ui = SettleUI()
+    _print_fn, handler = setup_print_and_events(None, None, ui)
+    column = f"{handler.indentation}{CONTINUATION_PAD}"
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("\n🤖 11:47 >>\n")
+        opening = MagicMock()
+        opening.part = TextPart(content=INTERMEDIATE)
+        handler.handle_part_start(opening)
+        call = MagicMock()
+        call.part = ToolCallPart(tool_name="Read", args={}, tool_call_id="c1")
+        handler.handle_part_start(call)
+        ui.append_to_output("\n")
+        ui.append_answer(ANSWER)
+        ui.end_side_question(SIDE_ANSWER)
+
+    text = remove_style(ui.output_text)
+    prose = [
+        line
+        for line in text.splitlines()
+        if line.strip() and not line.lstrip().startswith(_MARKER_GLYPHS)
+    ]
+    assert prose, "the scripted turn produced no prose to check"
+    for line in prose:
+        assert line.startswith(column), f"run prose left the column: {line!r}"
+        assert len(line) <= TURN_WIDTH, (
+            f"line runs past the field ({len(line)} > {TURN_WIDTH}): {line!r}"
+        )
+    # A plain paragraph starts *exactly* at the column: a double indent passes a
+    # bare `startswith` and fails here.
+    assert f"{column}The file is the answer." in text
