@@ -55,13 +55,20 @@ def _record(
     *,
     model: str = "test-model",
     session: str = "",
-    when: datetime = NOW,
+    when: datetime | None = None,
     duration_ms: int = 0,
     **counts,
 ):
     usage = RunUsage(**{"input_tokens": 1000, **counts})
     return record_usage(
-        usage, model=model, session=session, when=when, duration_ms=duration_ms
+        usage,
+        model=model,
+        session=session,
+        # Read at call time, not at import: a run that reaches this test after
+        # midnight would otherwise stamp yesterday's record and then ask for
+        # today's window, which finds nothing.
+        when=when or datetime.now(timezone.utc),
+        duration_ms=duration_ms,
     )
 
 
