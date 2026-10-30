@@ -482,3 +482,4 @@ def test_a_stamp_the_writer_never_writes_is_still_aged(tmp_path):
         "technical/a-old.md",
         "technical/y-garbled.md",
     ]
+

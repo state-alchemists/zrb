@@ -326,7 +326,7 @@ def _format_results(
         title_hits = _title_hits(facts.title, terms, case_sensitive)
         body = _fold(" ".join(content for _line, content in rows), case_sensitive)
         word_hits = sum(1 for term in terms if _fold(term, case_sensitive) in body)
-        score = max(word_hits, title_hits) * _rank_multiplier(rel, facts, now)
+        score = max(word_hits, title_hits) * _rank_multiplier(facts, now)
         ranked.append((_file_group(rel, title_hits), -score, -title_hits, rel, rows))
     ranked.sort()
 
@@ -375,27 +375,34 @@ class _FileFacts(NamedTuple):
     title: str
     pinned: bool
     updated: datetime | None
+    is_note: bool
 
 
 def _file_facts(rel: str, abs_dir: str) -> _FileFacts:
-    """`_FileFacts` of *rel*: its `# ` title, whether it is pinned, when it was written.
+    """`_FileFacts` of *rel*: its `# ` title, whether it is pinned, when it was
+    written, and whether it is a note at all.
 
     One read per candidate, shared by every field. Reading for the title and
     reading again for the frontmatter would double the search's file reads to
-    decide an order, and a candidate is the only file read at all."""
+    decide an order, and a candidate is the only file read at all.
+
+    A file under a category directory is not yet a note: a hand-written page
+    there carries no `slug:`, which is what `journal_note.read_note` uses to
+    tell the two apart, so this reads the same key rather than the path alone."""
     if _is_index(rel) or rel.startswith("activity-log/"):
-        return _FileFacts("", False, None)
+        return _FileFacts("", False, None, False)
     path = os.path.join(abs_dir, rel)
     try:
         with open(path, encoding="utf-8", errors="ignore") as f:
             text = f.read()
     except OSError:
-        return _FileFacts("", False, None)
+        return _FileFacts("", False, None, False)
     front = parse_frontmatter(text)
     return _FileFacts(
         get_first_heading(text) or "",
         front.get("pinned", "").strip().lower() == "true",
         _note_updated(front.get("updated"), path),
+        "slug" in front,
     )
 
 
@@ -431,12 +438,14 @@ def _parse_moment(value: str | None) -> datetime | None:
     return moment.astimezone().replace(tzinfo=None)
 
 
-def _rank_multiplier(rel: str, facts: _FileFacts, now: datetime) -> float:
-    """What recency and a pin do to *rel*'s term hits.
+def _rank_multiplier(facts: _FileFacts, now: datetime) -> float:
+    """What recency and a pin do to this file's term hits.
 
     Only a note carries them: an index and the activity log are regenerated on
-    every write and have no age worth ranking by, so they keep their score."""
-    if not _is_note(rel):
+    every write and have no age worth ranking by, and a hand-written page in a
+    category directory is not a note the journal indexes, so all three keep
+    their score."""
+    if not facts.is_note:
         return 1.0
     return _recency_decay(facts.updated, now) * (_PINNED_BOOST if facts.pinned else 1)
 
@@ -447,12 +456,6 @@ def _recency_decay(moment: datetime | None, now: datetime) -> float:
         return _NEUTRAL_DECAY
     age = max(0.0, (now - moment).total_seconds() / _SECONDS_PER_DAY)
     return max(_MIN_DECAY, 0.5 ** (age / _HALF_LIFE_DAYS))
-
-
-def _is_note(rel: str) -> bool:
-    """Whether *rel* is a note — `<category>/<slug>.md` — and not a page."""
-    parts = rel.split("/")
-    return len(parts) == 2 and parts[0] in NOTE_CATEGORIES and not _is_index(rel)
 
 
 def _fold(text: str, case_sensitive: bool) -> str:
