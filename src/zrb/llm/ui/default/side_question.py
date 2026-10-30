@@ -159,9 +159,17 @@ class UISideQuestion:
         than painted over this, because its token no longer matches.
         """
         self._question = title.strip()
-        self._is_active = True
         self._request = None
         self._last_answer = None
+        if panel_row_cap(self._ui) <= 0:
+            # No rows to dock into: a reply written only into the hidden buffer
+            # would never be seen, so it goes to the transcript the way
+            # `BaseUI.show_panel` prints one.
+            self._is_active = False
+            self._ui.append_to_output(f"\n{self._question}\n{body}\n")
+            self._invalidate()
+            return
+        self._is_active = True
         self._fill(f"  {self._question}\n{body}")
         if not self._ui.is_waiting_for_answer:
             focus_widget(self._window, "Panel")
@@ -211,6 +219,11 @@ class UISideQuestion:
         if not self.is_current(request):
             return
         self._last_answer = None
+        if not self._is_active:
+            # Opened into the transcript for want of room: the failure belongs
+            # there too, not in a panel nobody can see.
+            self._ui.append_to_output(f"  ❌ {message}\n")
+            return
         self._fill(self._echo(f"  ❌ {message}\n"))
 
     def cancel(self, request: object | None = None) -> None:

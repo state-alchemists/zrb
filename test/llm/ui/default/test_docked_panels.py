@@ -306,3 +306,23 @@ def _session(agent_id: str):
     session.agent_name = agent_id
     session.title = ""
     return session
+
+
+def test_a_command_reply_reaches_the_transcript_when_no_panel_fits(
+    mock_ui_deps, terminal_rows
+):
+    """`/usage` and the other command replies print through `show_panel`.
+
+    With no rows to dock into, a reply written only into the panel's buffer
+    would never be seen: it goes to the transcript instead, as the base
+    `show_panel` prints one.
+    """
+    terminal_rows(16)
+    ui, _app = _ui_and_app(mock_ui_deps, rows=16)
+
+    ui.show_panel("Usage", "  1,000 in · 0 out")
+
+    assert ui.is_side_question_active is False
+    text = ui.output_field.text
+    assert "Usage" in text
+    assert "1,000 in" in text
