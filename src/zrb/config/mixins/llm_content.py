@@ -40,6 +40,8 @@ class LLMContentMixin:
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
         self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
+        self.DEFAULT_LLM_JOURNAL_CLAIMS_PER_TURN: str = "3"
+        self.DEFAULT_LLM_JOURNAL_CLAIMS_MAX_CHARS: str = "1000"
         self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_GIT_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_COMPLIANCE_ENABLED: str = "on"
@@ -238,6 +240,31 @@ class LLMContentMixin:
             "are shown, newest first, followed by one line counting the older "
             "ones; the category indexes always list every note. `<= 0` lists "
             "every active note (uncapped)."
+        ),
+    )
+
+    LLM_JOURNAL_CLAIMS_PER_TURN = EnvField(
+        int,
+        fallback=3,
+        doc=(
+            "Maximum journal claims injected into a turn after the first one "
+            "(a count). The index goes in once, at the start of a session, so a "
+            "note written later is invisible until the conversation is "
+            "compacted; each turn then shows the highest-scoring claims the "
+            "session has not been shown yet — pinned ones first, then the "
+            "freshest, then those sharing a word with the message. `<= 0` "
+            "suppresses the mid-session claims entirely."
+        ),
+    )
+
+    LLM_JOURNAL_CLAIMS_MAX_CHARS = EnvField(
+        int,
+        fallback=1000,
+        doc=(
+            "Maximum characters of those claims in one turn — a second budget "
+            "beside LLM_JOURNAL_CLAIMS_PER_TURN, so one long claim cannot spend "
+            "the whole allowance. A claim whose line does not fit is skipped. "
+            "`<= 0` suppresses the mid-session claims entirely."
         ),
     )
 

@@ -14,21 +14,35 @@ from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
 from html import escape
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.ambient_state import (
     get_active_worktree,
     get_current_chat_session_id,
+    get_current_context_session,
     get_input_provenance,
     set_active_worktree,
     set_current_tool_session,
     set_interactive_mode,
 )
 from zrb.llm.journal_index_name import resolve_journal_index_name
-from zrb.llm.journal_usage_log import record_auto_searched, record_injected
+from zrb.llm.journal_usage_log import (
+    INJECTED,
+    note_hash,
+    read_events,
+    record_auto_searched,
+    record_injected,
+)
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
+from zrb.util.string.name import get_conversation_key
+
+if TYPE_CHECKING:
+    # A runtime import of `zrb.llm.tool` here would close a package cycle: two
+    # tool modules read `zrb.llm.prompt.prompt`. Only the annotation needs the
+    # type; the functions import what they call where they call it.
+    from zrb.llm.tool.journal_note import Note
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
 LIVE_CONTEXT_ANCHOR = (
@@ -540,6 +554,86 @@ def _hud_note_paths(content: str) -> list[str]:
     return [m.group(1) for m in _HUD_NOTE_LINK.finditer(content)]
 
 
+def render_journal_claims(first_message: str | None = None) -> str | None:
+    """The journal claims a turn after the first has not been shown yet.
+
+    The index is injected once, so a note written during a session stays
+    invisible until the conversation is compacted — the session records a fact
+    and then answers as though it had never recorded it. Each later turn shows a
+    few claims instead: the ones freshness and *first_message* favour, and never
+    one this session already carries.
+
+    Which ones it already carries is read back from the `injected` events in the
+    usage log rather than kept in memory. The log is the thing that survives a
+    fresh process, and the web runner builds every message in one; a set that
+    reset would re-inject the same claims for the life of the conversation.
+    """
+    if not CFG.LLM_JOURNAL_ENABLED:
+        return None
+    per_turn = CFG.LLM_JOURNAL_CLAIMS_PER_TURN
+    max_chars = CFG.LLM_JOURNAL_CLAIMS_MAX_CHARS
+    if per_turn <= 0 or max_chars <= 0:
+        return None
+    try:
+        index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
+    except ValueError:
+        return None
+    # Deferred: `zrb.llm.tool` reads `zrb.llm.prompt.prompt`, so importing it at
+    # module level here would make the two packages import each other.
+    from zrb.llm.prompt.journal_claims import select_claims, terms
+    from zrb.llm.tool.journal_index import hud_line_of
+    from zrb.llm.tool.journal_note import list_notes
+
+    journal_dir = os.path.expanduser(CFG.LLM_JOURNAL_DIR)
+    notes = list_notes(journal_dir, (index_name, "index.md"))
+    if not notes:
+        return None
+    session = get_conversation_key(get_current_context_session())
+    chosen = select_claims(
+        notes,
+        now=datetime.now(),
+        query=terms(first_message),
+        already=_injected_note_ids(session, notes),
+        per_turn=per_turn,
+        max_chars=max_chars,
+    )
+    if not chosen:
+        return None
+    lines = "\n".join(hud_line_of(note) for note in chosen)
+    block = (
+        "<journal-claims>\n"
+        "Journal claims from notes written since this session's index went in. "
+        "Each is what its note says in one line; read the note before relying "
+        f"on the detail.\n{lines}\n"
+        "</journal-claims>"
+    )
+    record_injected(len(block.encode("utf-8")), [note.rel for note in chosen], False)
+    return block
+
+
+def _injected_note_ids(session: str, notes: list[Note]) -> set[str]:
+    """The `category/slug` of every note this session has already been shown.
+
+    An unreadable log fails open — a repeated claim costs a few tokens, while
+    failing closed would silently drop the memory the log exists to carry.
+    """
+    try:
+        events = read_events(session_key=session)
+    except (OSError, ValueError):
+        CFG.LOGGER.debug("Journal claims: usage log unreadable", exc_info=True)
+        return set()
+    shown = {
+        hashed for event in events if event.event == INJECTED for hashed in event.hud
+    }
+    if not shown:
+        return set()
+    return {
+        f"{note.category}/{note.slug}"
+        for note in notes
+        if note_hash(f"{note.category}/{note.slug}") in shown
+    }
+
+
 def _overflow_summary(dropped: str) -> str:
     """One line per note category the cap hid, plus the newest title in it."""
     counts: dict[str, int] = {}
@@ -945,5 +1039,12 @@ def _render_parts(
         day_block = render_day_block()
         if day_block:
             parts.append(day_block)
+    else:
+        # The index went in on the first turn; this turn shows only the claims
+        # written since, so a fact recorded mid-session reaches the next turn
+        # instead of waiting for compaction.
+        claims_block = render_journal_claims(first_message)
+        if claims_block:
+            parts.append(claims_block)
 
     return "\n".join(parts)
