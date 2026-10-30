@@ -167,6 +167,28 @@ async def test_multi_ui_stream_gives_a_child_without_the_hook_its_markdown(
 
 
 @pytest.mark.asyncio
+async def test_multi_ui_stream_gives_a_bare_child_the_rendered_answer(
+    multi_ui, child_ui_1, child_ui_2
+):
+    multi_ui.append_to_output = MagicMock()
+    child_ui_1.append_answer = MagicMock()
+    # A minimal UI: `append_to_output` and nothing richer. Both hooks are
+    # documented as optional, so this shape is supported and must still get the
+    # answer — review caught it losing the text entirely.
+    child_ui_2.append_answer = None
+    child_ui_2.append_markdown = None
+    llm_task = MagicMock()
+    llm_task.async_run = AsyncMock(return_value="# Response")
+    llm_task.set_ui = MagicMock()
+    llm_task.tool_confirmation = MagicMock()
+
+    await multi_ui.stream_ai_response(llm_task, "Hello", [])
+
+    child_ui_2.append_to_output.assert_called()
+    assert child_ui_2.append_to_output.call_args.kwargs.get("end") == ""
+
+
+@pytest.mark.asyncio
 async def test_multi_ui_stream_takes_snapshot_before_run(multi_ui, child_ui_1):
     multi_ui.append_to_output = MagicMock()
     snapshot_manager = MagicMock()

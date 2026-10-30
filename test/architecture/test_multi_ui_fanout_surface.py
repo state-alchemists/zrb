@@ -71,6 +71,16 @@ def _dispatched_names() -> set[str]:
             )
             names.add(first.value)
             continue
+        # `_append_prose(text, "hook", "older-hook")` — the per-child hook
+        # chain, newest first. Every name in it is dispatch too.
+        if isinstance(func, ast.Attribute) and func.attr == "_append_prose":
+            for arg in node.args[1:]:
+                assert isinstance(arg, ast.Constant) and isinstance(arg.value, str), (
+                    "_append_prose's hook names must be string literals so this "
+                    f"test can see them; got {ast.dump(arg)}"
+                )
+                names.add(arg.value)
+            continue
         # `getattr(ui, "name", None)` — `ui` is the loop variable over
         # `self._uis`; probes against `self.main_ui`, `sys` etc. are not
         # child-hook dispatch and are skipped.

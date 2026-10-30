@@ -289,20 +289,11 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def set_status_badge(self, key: str, text: str | None) -> None:
         self._fanout("set_status_badge", key, text)
 
-    def _fanout(
-        self, method_name: str, /, *args, fallback: str | None = None, **kwargs
-    ) -> None:
+    def _fanout(self, method_name: str, /, *args, **kwargs) -> None:
         """Call `method_name` on every child that implements it, best-effort:
-        a dead channel is not a dead run.
-
-        *fallback* is the older hook to call on a child that lacks
-        `method_name`, so a channel written before the new one still receives
-        the text — losing an answer is worse than losing its layout.
-        """
+        a dead channel is not a dead run."""
         for ui in self._uis:
             fn = getattr(ui, method_name, None)
-            if not callable(fn) and fallback is not None:
-                fn = getattr(ui, fallback, None)
             if not callable(fn):
                 continue
             try:
@@ -326,24 +317,37 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         Children with their own `append_markdown` get the source; others get
         pre-rendered output.
         """
-        rendered = render_markdown(markdown_text, width=None)
-        for ui in self._uis:
-            try:
-                child_append = getattr(ui, "append_markdown", None)
-                if callable(child_append):
-                    child_append(markdown_text)
-                else:
-                    ui.append_to_output(rendered, end="")
-            except Exception as e:
-                CFG.LOGGER.debug(f"Child UI append failed: {e}")
+        self._append_prose(markdown_text, "append_markdown")
 
     def append_answer(self, markdown_text: str) -> None:
         """Append the turn's answer on every child, at the column it keeps.
 
-        A child written before this hook still gets the answer, through its own
-        `append_markdown`: the layout may differ, the text never disappears.
+        The hooks are tried newest first, and a child that has neither still
+        gets the answer as pre-rendered text: the layout may differ, the text
+        never disappears.
         """
-        self._fanout("append_answer", markdown_text, fallback="append_markdown")
+        self._append_prose(markdown_text, "append_answer", "append_markdown")
+
+    def _append_prose(self, markdown_text: str, *hook_names: str) -> None:
+        """Hand prose to each child through the first hook it implements.
+
+        A child that implements none of *hook_names* — a minimal UI with only
+        `append_to_output`, which is a supported shape — gets the pre-rendered
+        text instead. An answer must never depend on a channel having opted
+        into a richer hook.
+        """
+        rendered = render_markdown(markdown_text, width=None)
+        for ui in self._uis:
+            try:
+                for hook_name in hook_names:
+                    hook = getattr(ui, hook_name, None)
+                    if callable(hook):
+                        hook(markdown_text)
+                        break
+                else:
+                    ui.append_to_output(rendered, end="")
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI {hook_names[0]} failed: {e}")
 
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.
