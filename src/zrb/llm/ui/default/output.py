@@ -20,7 +20,12 @@ from zrb.llm.ui.output_chunk import (
     merge_into_block,
 )
 from zrb.llm.ui.tracked_spans import TrackedSpans
-from zrb.llm.util.stream_response import DEFAULT_STREAM_INDENTATION, TEXT_BLOCK_LABEL
+from zrb.llm.util.stream_response import (
+    DEFAULT_ICON_INDENTATION,
+    DEFAULT_STREAM_INDENTATION,
+    TEXT_BLOCK_LABEL,
+    icon_indentation,
+)
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -130,6 +135,9 @@ class UIOutput:
         # learn the layout from, and history replay renders through the same
         # column rule a live turn uses — see `DEFAULT_STREAM_INDENTATION`.
         self.stream_indentation = DEFAULT_STREAM_INDENTATION
+        # The icon's column, one pad left of the prose: a settled block's marker
+        # takes the icon's place, so this is where its header has to start.
+        self.icon_indentation = DEFAULT_ICON_INDENTATION
         self._spans = TrackedSpans(
             get_text=self._get_main_text,
             set_text=self._set_main_text,
@@ -372,6 +380,7 @@ class UIOutput:
         report one — replay, before any turn has streamed.
         """
         self.stream_indentation = indent
+        self.icon_indentation = icon_indentation(indent)
 
     def _render_at_column(self, source: str, width: int | None) -> str:
         """Render *source* so it sits in the column the run streams at.
@@ -410,15 +419,18 @@ class UIOutput:
 
         The prose sits at the run's column, so settling does not move what the
         reader was already reading; the marker takes the icon's line instead of
-        carrying the icon itself.
+        carrying the icon itself, which means it starts in the icon's column —
+        a header painted at the margin would jump left exactly when the block
+        settled.
         """
         rendered = self._render_at_column(source, self.output_field_width)
         count = len(source.strip())
-        marker = (
+        label = (
             f"{TEXT_BLOCK_LABEL} ({count} chars)"
             if count
             else f"{TEXT_BLOCK_LABEL} (empty)"
         )
+        marker = f"{self.icon_indentation}{label}"
         # One registration only: `set_rendered_block` drops overlapping spans, so
         # a separate entry for the prose would erase the fold it sits inside.
         self._spans.settle_expandable_block(

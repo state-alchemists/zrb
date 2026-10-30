@@ -66,10 +66,51 @@ def _handle(text: str) -> str:
     return match.group(1)
 
 
+def _ticks(text: str) -> list[int]:
+    return [int(index) for index in re.findall(r"TICK (\d+)", text)]
+
+
 def _highest_tick(text: str) -> int:
-    ticks = [int(index) for index in re.findall(r"TICK (\d+)", text)]
+    ticks = _ticks(text)
     assert ticks, text
     return max(ticks)
+
+
+async def _collect_until_tick_past(
+    handle: str, after: int, seconds: float = 6.0
+) -> str:
+    """Poll the handle until it reports a tick past *after*, or give up.
+
+    Waiting a fixed sleep assumes the adopted command has already printed, which
+    is the assumption that broke on the Windows runner: there the interpreter
+    was still starting when the window closed, so the report held no output at
+    all. What the report must not do is stop the output, so the test waits for
+    the next tick instead of assuming one was due.
+    """
+    deadline = time.monotonic() + seconds
+    status = await get_shell_background_registry().collect(handle)
+    while time.monotonic() < deadline:
+        if any(tick > after for tick in _ticks(status)):
+            return status
+        await asyncio.sleep(0.2)
+        status = await get_shell_background_registry().collect(handle)
+    return status
+
+
+def _slow_starter_command(tmp_path, quiet_seconds: float = 3.0) -> str:
+    """A command that says nothing for a while, then ticks: a slow interpreter."""
+    script = tmp_path / "slow_ticker.py"
+    script.write_text(
+        "import time\n"
+        f"time.sleep({quiet_seconds})\n"
+        "index = 0\n"
+        "while True:\n"
+        "    print('TICK', index, flush=True)\n"
+        "    index += 1\n"
+        "    time.sleep(0.1)\n",
+        encoding="utf-8",
+    )
+    return f"{_PYTHON} {shlex.quote(script.as_posix())}"
 
 
 @pytest.mark.asyncio
@@ -82,12 +123,38 @@ async def test_a_timed_out_command_keeps_running_under_a_handle(tmp_path):
         assert "NOT killed" in result
         assert f"MonitorProcess(handle='{handle}')" in result
 
-        before = _highest_tick(result)
-        await asyncio.sleep(0.5)
-        status = await get_shell_background_registry().collect(handle)
+        # The report may hold no output at all: a machine slow enough to boot
+        # the interpreter after the window is adopted before its first line,
+        # which is what the Windows runner does (see the test below).
+        before = max(_ticks(result), default=0)
+        status = await _collect_until_tick_past(handle, before)
 
         assert "Status: running" in status
         assert _highest_tick(status) > before, "output after the timeout is lost"
+    finally:
+        await get_shell_background_registry().kill(handle)
+
+
+@pytest.mark.asyncio
+async def test_a_command_adopted_before_it_prints_is_still_collected(tmp_path):
+    """The Windows runner's case: adopted while the interpreter was still starting.
+
+    A shared runner can boot Python slower than the window, so the report holds
+    no output at all — which is why the test above must not require one. The
+    command is not lost: the handle is live, and what it writes afterwards still
+    arrives. Giving it a quiet start makes that case happen on every machine.
+    """
+    result = await run_shell_command(_slow_starter_command(tmp_path), timeout=1)
+    handle = _handle(result)
+    try:
+        assert "(moved to background after 1s)" in result
+        # Nothing printed yet: the report has no tick to measure from.
+        assert _ticks(result) == [], "the slow starter printed before the window"
+
+        status = await _collect_until_tick_past(handle, 0)
+
+        assert "Status: running" in status
+        assert _highest_tick(status) > 0, "output after the timeout is lost"
     finally:
         await get_shell_background_registry().kill(handle)
 
