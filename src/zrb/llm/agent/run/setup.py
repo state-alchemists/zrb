@@ -160,4 +160,12 @@ def setup_print_and_events(print_fn, event_handler, effective_ui):
             on_tool_call_start=getattr(effective_ui, "start_tool_call", None),
             on_tool_call_end=getattr(effective_ui, "end_tool_call", None),
         )
+    # The column a settled block keeps is the stream's own: told once, here,
+    # rather than as an argument to the documented one-argument
+    # `settle_text_block(source)` hook. A UI without the hook lays it out its
+    # own way, which is what it did before this column existed.
+    set_indentation = getattr(effective_ui, "set_stream_indentation", None)
+    continuation = getattr(effective_event_handler, "continuation", "")
+    if callable(set_indentation) and continuation:
+        set_indentation(continuation)
     return effective_print_fn, effective_event_handler

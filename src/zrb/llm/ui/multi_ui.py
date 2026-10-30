@@ -376,6 +376,15 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """
         self._fanout("settle_text_block", source)
 
+    def set_stream_indentation(self, indent: str) -> None:
+        """Tell children that render a settled block the column to keep.
+
+        A child without the hook keeps its own layout — the same no-fallback
+        rule as the hooks above: it is a channel that never asked for the
+        column in the first place.
+        """
+        self._fanout("set_stream_indentation", indent)
+
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Forward a tool call's start to children tracking the running-tool timer."""
         self._fanout("start_tool_call", tool_name, tool_call_id)

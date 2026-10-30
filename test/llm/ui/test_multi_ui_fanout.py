@@ -259,6 +259,23 @@ def test_multi_ui_settle_text_block_forwards_to_supporting_children(
     )
 
 
+def test_multi_ui_set_stream_indentation_reaches_children_that_render(
+    multi_ui, child_ui_1, child_ui_2
+):
+    """The column goes to children that can use it, and past the others.
+
+    A channel without the hook is the same case as a channel without
+    `settle_text_block`: it lays the prose out its own way, and no argument
+    shape has to change for it.
+    """
+    child_ui_1.set_stream_indentation = MagicMock()
+    del child_ui_2.set_stream_indentation
+
+    multi_ui.set_stream_indentation("     ")
+
+    child_ui_1.set_stream_indentation.assert_called_once_with("     ")
+
+
 def test_multi_ui_text_hooks_swallow_child_errors(multi_ui, child_ui_1, child_ui_2):
     child_ui_1.mark_text_block_start = MagicMock(side_effect=RuntimeError("bad"))
     child_ui_2.mark_text_block_start = MagicMock()

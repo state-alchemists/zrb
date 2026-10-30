@@ -126,6 +126,7 @@ class UIOutput:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
+        self.stream_indentation = ""
         self._spans = TrackedSpans(
             get_text=self._get_main_text,
             set_text=self._set_main_text,
@@ -359,6 +360,14 @@ class UIOutput:
         """
         return self._spans.collapse_block(collapsed, full)
 
+    def set_stream_indentation(self, indent: str) -> None:
+        """Remember the column the run's streamed lines wrap at.
+
+        `settle_text_block` puts a settled block's prose there. The handler is
+        still the source of the number; this is only where it lands.
+        """
+        self.stream_indentation = indent
+
     def settle_text_block(self, source: str) -> None:
         """Render an intermediate text block's prose under its own marker.
 
@@ -368,8 +377,18 @@ class UIOutput:
         prose follows on a line of its own, and Ctrl+O folds it back to the
         marker. The span is registered as a rendered block, like
         `append_markdown`'s output, so a resize re-wraps it.
+
+        The prose sits at `stream_indentation`, the column the block's wrapped
+        lines were streamed at, so settling does not move what the reader was
+        already reading; the marker takes the icon's line instead of carrying
+        the icon itself. The render narrows by exactly that much, so a wrapped
+        line plus its indentation still fits the field — indenting afterwards
+        would push every line past the edge, where it wraps again.
         """
-        rendered = self._render_markdown_block(source, self.output_field_width)
+        indent = self.stream_indentation
+        rendered = self._render_markdown_block(
+            source, _narrowed_width(self.output_field_width, len(indent))
+        )
         count = len(source.strip())
         marker = (
             f"{TEXT_BLOCK_LABEL} ({count} chars)"
@@ -379,7 +398,7 @@ class UIOutput:
         # One registration only: `set_rendered_block` drops overlapping spans, so
         # a separate entry for the prose would erase the fold it sits inside.
         self._spans.settle_expandable_block(
-            marker, f"{stylize_muted(marker)}\n{rendered}"
+            marker, f"{stylize_muted(marker)}\n{_indent_lines(rendered, indent)}"
         )
 
     def update_shell_output(self, key: str, text: str) -> None:
@@ -825,3 +844,27 @@ class UIOutput:
             (CFG.LLM_UI_STYLE_FAINT, "\n"),
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", text + " "),
         ]
+
+
+def _narrowed_width(width: int | None, indent: int) -> int | None:
+    """*width* less *indent*, or None when the width itself is unknown.
+
+    A line rendered at *width* and then indented would be *indent* columns too
+    wide for the field, so the renderer gets the narrower number up front. Never
+    below 1: rich still wraps at a tiny width, and this keeps that a bad look
+    rather than a crash.
+    """
+    if width is None or not indent:
+        return width
+    return max(1, width - indent)
+
+
+def _indent_lines(text: str, prefix: str) -> str:
+    """Prefix every non-blank line of *text* with *prefix*.
+
+    Blank lines stay empty: a paragraph break with trailing spaces is invisible
+    in a terminal but travels into a copy-paste and into a diff.
+    """
+    if not prefix:
+        return text
+    return "\n".join(f"{prefix}{line}" if line.strip() else line for line in text.split("\n"))

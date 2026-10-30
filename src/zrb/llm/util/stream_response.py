@@ -31,6 +31,14 @@ TEXT_BLOCK_LABEL = "💬 Response"
 """What a text block folds into, and the header `settle_text_block` keeps above
 its prose: the same words, whether the block is closed or left readable."""
 
+CONTINUATION_PAD = "   "
+"""Spaces a block's wrapped lines add past the event indentation.
+
+The first line carries the prefix and the icon; every later line sits this much
+further in, so a wrapped paragraph reads as one paragraph under its icon. A
+settled block's prose keeps the same column, which is why `_settle_text` hands
+the prefix to the UI alongside the text."""
+
 
 class _BlockContent(NamedTuple):
     """What a block accumulated: the screen text it printed, plus the
@@ -181,6 +189,7 @@ class StreamEventHandler:
         self._print_fn = print_fn
         self._usage_callback = usage_callback
         self._indentation = indent_level * 2 * " "
+        self._continuation = f"{self._indentation}{CONTINUATION_PAD}"
         self._show_tool_call_detail = show_tool_call_detail
         self._show_tool_result = show_tool_result
         self._tool_block_recorder = tool_block_recorder
@@ -260,6 +269,15 @@ class StreamEventHandler:
         return self._event_prefix
 
     @property
+    def continuation(self) -> str:
+        """The column this handler's wrapped lines are streamed at.
+
+        A UI that renders a settled block asks for it (`set_stream_indentation`)
+        so the prose lands where it was already being read.
+        """
+        return self._continuation
+
+    @property
     def printed_tool_ids(self) -> set:
         return self._printed_tool_ids
 
@@ -272,11 +290,11 @@ class StreamEventHandler:
 
         if preserve_leading_newline:
             if content.startswith("\n"):
-                result = "\n" + content[1:].replace("\n", f"\n{self._indentation}   ")
+                result = "\n" + content[1:].replace("\n", f"\n{self._continuation}")
             else:
-                result = "\n" + content.replace("\n", f"\n{self._indentation}   ")
+                result = "\n" + content.replace("\n", f"\n{self._continuation}")
         else:
-            result = content.replace("\n", f"\n{self._indentation}   ")
+            result = content.replace("\n", f"\n{self._continuation}")
 
         if has_trailing_newline:
             result += "\n"
@@ -367,6 +385,9 @@ class StreamEventHandler:
         self._flush_text()
         source = self._text.settle()
         if source and self._on_text_settle is not None:
+            # The column is not passed here: a UI learns it once, through
+            # `set_stream_indentation`, so this hook keeps the one-argument
+            # contract `llm-custom-ui.md` documents.
             self._on_text_settle(source)
 
     def _flush_text(self) -> None:
@@ -630,11 +651,15 @@ def create_event_handler(
         on_text_start: Called before a text response's first chunk.
         on_text_collapse: Called with (collapsed, full) when the run's final
             text response ends; same contract as `on_thinking_collapse`.
-        on_text_settle: Called with a text block's own text (no indentation,
-            no leading icon) when a tool call or another part ends it before
-            the run does. That prose is not the answer — `on_text_collapse`'s
-            block is — so the UI can leave it on screen in full, rendered,
-            instead of collapsing it into a hint.
+        on_text_settle: Called with a text block's own text (no indentation, no
+            leading icon — indentation would make a markdown renderer read it as
+            code) when a tool call or another part ends it before the run does.
+            That prose is not the answer — `on_text_collapse`'s block is — so the
+            UI can leave it on screen in full, rendered, instead of collapsing it
+            into a hint. The column it was streamed at is not an argument here,
+            so this hook keeps the one-argument contract `llm-custom-ui.md`
+            documents: a UI that renders the block asks for it through its own
+            `set_stream_indentation`, which `setup_print_and_events` calls.
         on_tool_prepare_update: Called with (tool_call_id, text) to print or
             replace that call's own "Prepare tool parameters" line (empty
             text erases it). Without it, a single `\\r`-animated line is used,

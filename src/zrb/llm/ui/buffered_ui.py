@@ -184,6 +184,13 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         """
         self._spans.end_block()
 
+    def set_stream_indentation(self, indent: str) -> None:
+        """Accept the stream's column and drop it.
+
+        The copy this buffer keeps was streamed at that column already, so
+        re-indenting it would move it twice.
+        """
+
     def update_shell_output(self, key: str, text: str) -> None:
         """Grow or replace `key`'s own live shell-output line with `text`."""
         self._spans.update_shell_output(key, text)
