@@ -216,9 +216,14 @@ async def _resolve_approval(
         return verdict
 
     if approval_channel is not None:
-        return await _request_via_approval_channel(call, approval_channel)
+        verdict = await _request_via_approval_channel(call, approval_channel)
+        await _announce_permission_resolved(call, verdict, hook_manager)
+        return verdict
 
     verdict = await _confirm_via_cli(call, ui, effective_tool_confirmation)
+    # Before the fall-through: with no verdict the policy decides next, and the wait is over
+    # either way. Nothing else reports this moment — see _announce_permission_resolved.
+    await _announce_permission_resolved(call, verdict, hook_manager)
     if verdict is not None:
         return verdict
 
@@ -359,6 +364,30 @@ async def _apply_permission_request_hook(call, hook_manager):
 
         return ToolDenied("Denied by PermissionRequest hook")
     return None
+
+
+async def _announce_permission_resolved(call, verdict, hook_manager) -> None:
+    """Tell the hooks the wait is over, once the answer is known.
+
+    Only the paths that reached an interactive approval call this, so a tool the policy
+    approved outright fires nothing. ``approved`` is True, False, or None when the channel
+    gave no verdict and the policy is about to answer — "the user was asked and did not
+    say", which is not the same as "denied". Observe-only: whatever a hook returns here is
+    ignored, so a listener cannot change what was decided.
+    """
+    if hook_manager is None:
+        return
+    # lazy: heavy third-party
+    from pydantic_ai import ToolDenied
+
+    await hook_manager.execute_hooks(
+        HookEvent.PERMISSION_RESOLVED,
+        {
+            "tool": call.tool_name,
+            "approved": None if verdict is None else not isinstance(verdict, ToolDenied),
+        },
+        tool_name=call.tool_name,
+    )
 
 
 async def _request_via_approval_channel(call, approval_channel):

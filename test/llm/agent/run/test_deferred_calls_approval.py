@@ -464,3 +464,82 @@ async def test_process_deferred_requests_cli_fallback_callable():
 
     assert result.approvals["call_1"] == cli_result
     effective_tool_confirmation.assert_called_once_with(call)
+
+
+def _permission_resolved_calls(hook_manager):
+    return [
+        c
+        for c in hook_manager.execute_hooks.call_args_list
+        if c.args and c.args[0] == HookEvent.PERMISSION_RESOLVED
+    ]
+
+
+@pytest.mark.asyncio
+async def test_permission_resolved_fires_when_the_answer_arrives():
+    """The wait ends when the approval comes back, not when the tool does.
+
+    A listener that showed "waiting for you" has no other event to clear it:
+    PermissionRequest fires before the question is shown, and PostToolUse only
+    once the tool has finished. The avatar's posture is the reason this exists.
+    """
+    ui = MagicMock(spec=AnyUI)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    approval_channel = MagicMock()
+    channel_result = MagicMock()
+    channel_result.to_pydantic_result.return_value = MockToolApproved("ok")
+    approval_channel.request_approval = AsyncMock(return_value=channel_result)
+
+    call = MagicMock()
+    call.tool_name = "run_shell_command"
+    call.args = {"cmd": "ls"}
+    call.tool_call_id = "call_1"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    resolved = _permission_resolved_calls(hook_manager)
+    assert len(resolved) == 1
+    assert resolved[0].args[1] == {"tool": "run_shell_command", "approved": True}
+    # It follows the request, which is what an observer needs to pair them up.
+    events = [c.args[0] for c in hook_manager.execute_hooks.call_args_list]
+    assert events.index(HookEvent.PERMISSION_REQUEST) < events.index(
+        HookEvent.PERMISSION_RESOLVED
+    )
+
+
+@pytest.mark.asyncio
+async def test_permission_resolved_says_neither_when_the_channel_gave_no_verdict():
+    """No verdict is not a denial: the policy answers next, and a listener
+    should not clear a waiting pose on a "no" nobody said."""
+    ui = MagicMock(spec=AnyUI)
+    hook_manager = MagicMock(spec=HookManager)
+    hook_manager.execute_hooks = AsyncMock(return_value=[])
+
+    approval_channel = MagicMock()
+    channel_result = MagicMock()
+    channel_result.to_pydantic_result.return_value = None
+    approval_channel.request_approval = AsyncMock(return_value=channel_result)
+
+    call = MagicMock()
+    call.tool_name = "read_file"
+    call.args = {"path": "x"}
+    call.tool_call_id = "call_2"
+
+    result_output = MagicMock()
+    result_output.calls = [call]
+    result_output.approvals = []
+
+    await process_deferred_requests(
+        result_output, None, ui, hook_manager, approval_channel=approval_channel
+    )
+
+    resolved = _permission_resolved_calls(hook_manager)
+    assert len(resolved) == 1
+    assert resolved[0].args[1] == {"tool": "read_file", "approved": None}

@@ -16,6 +16,11 @@ class HookEvent(str, Enum):
     POST_TOOL_USE_FAILURE = "PostToolUseFailure"
     # Fired when the agent waits for the user to approve a tool call.
     PERMISSION_REQUEST = "PermissionRequest"
+    # Fired when that wait ends and the answer is known: approved, denied, or neither (the
+    # channel gave no verdict and the policy answers instead). Observe-only; it carries
+    # {"tool": name, "approved": True | False | None}. Nothing else reports this moment —
+    # PermissionRequest fires before the question is shown, PostToolUse only once the tool ran.
+    PERMISSION_RESOLVED = "PermissionResolved"
     NOTIFICATION = "Notification"
     STOP = "Stop"
     # Fired when a turn ends on an unrecoverable API error (observe-only).
