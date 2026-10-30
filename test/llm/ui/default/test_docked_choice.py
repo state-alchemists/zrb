@@ -59,12 +59,12 @@ def test_the_frame_is_exactly_the_panels_rows_plus_its_border(ui, terminal_rows)
     ui.begin_choice(_spec(_options(2)))
     panel = ui.choice_panel()
 
-    assert to_dimension(panel.container.height).preferred == ui.panel_rows() + FRAME_ROWS
+    assert (
+        to_dimension(panel.container.height).preferred == ui.panel_rows() + FRAME_ROWS
+    )
 
 
-def test_a_twenty_option_question_is_capped_at_a_third_of_the_screen(
-    ui, terminal_rows
-):
+def test_a_twenty_option_question_is_capped_at_a_third_of_the_screen(ui, terminal_rows):
     """Twenty options must not take the rows the transcript needs to be read."""
     terminal_rows(24)
     ui.begin_choice(_spec(_options(20)))
@@ -139,7 +139,9 @@ def test_the_hint_and_its_legend_survive_the_cap(ui, terminal_rows):
     """At 24 rows the free-text row scrolls out, but the hint stays: it carries
     the ★ legend, and an unexplained marker is worse than a scrolled option."""
     terminal_rows(24)
-    spec = _spec([{"label": "Recommended one", "recommended": True}, {"label": "Other"}])
+    spec = _spec(
+        [{"label": "Recommended one", "recommended": True}, {"label": "Other"}]
+    )
     ui.begin_choice(spec)
     text = _rendered(ui)
 

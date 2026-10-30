@@ -335,9 +335,7 @@ def _input_slot(
     that keeps the input alive docks above it. Nothing typed reaches the input
     while such a panel is up, so the frame would be three rows of dead weight.
     """
-    input_frame = Frame(
-        input_field, title=INPUT_FRAME_TITLE, style="class:input-frame"
-    )
+    input_frame = Frame(input_field, title=INPUT_FRAME_TITLE, style="class:input-frame")
     if input_panel is None or input_panel_active is None:
         return [input_frame]
     return [

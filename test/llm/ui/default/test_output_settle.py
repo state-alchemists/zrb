@@ -250,12 +250,15 @@ def test_settled_prose_wraps_inside_the_field_it_is_indented_into():
     continuation = f"{handler.indentation}{CONTINUATION_PAD}"
     words = " ".join(f"word{index}" for index in range(40))
 
-    with patch.object(ui.output_part, "schedule_invalidate"), patch.object(
-        type(ui.output_part),
-        "output_field_width",
-        new_callable=PropertyMock,
-        create=True,
-        return_value=40,
+    with (
+        patch.object(ui.output_part, "schedule_invalidate"),
+        patch.object(
+            type(ui.output_part),
+            "output_field_width",
+            new_callable=PropertyMock,
+            create=True,
+            return_value=40,
+        ),
     ):
         opening = MagicMock()
         opening.part = TextPart(content=words)
@@ -292,7 +295,9 @@ def test_ctrl_o_folds_the_settled_prose_back_to_its_marker():
 
     ui.output_field.buffer.cursor_position = len(ui.output_text)
     assert ui.toggle_collapsible_block_at_cursor() is True
-    assert remove_style(ui.output_text).endswith(f"\n{DEFAULT_STREAM_INDENTATION}read it")
+    assert remove_style(ui.output_text).endswith(
+        f"\n{DEFAULT_STREAM_INDENTATION}read it"
+    )
 
 
 def test_settle_text_block_without_a_mark_is_a_noop():
@@ -444,9 +449,9 @@ def test_a_whole_turn_keeps_every_prose_line_in_the_column(monkeypatch):
     assert prose, "the scripted turn produced no prose to check"
     for line in prose:
         assert line.startswith(column), f"run prose left the column: {line!r}"
-        assert len(line) <= TURN_WIDTH, (
-            f"line runs past the field ({len(line)} > {TURN_WIDTH}): {line!r}"
-        )
+        assert (
+            len(line) <= TURN_WIDTH
+        ), f"line runs past the field ({len(line)} > {TURN_WIDTH}): {line!r}"
     # A plain paragraph starts *exactly* at the column: a double indent passes a
     # bare `startswith` and fails here.
     assert f"{column}The file is the answer." in text

@@ -82,9 +82,7 @@ def page_output(
     name.
     """
     steps = max(1, event.app.output.get_size().rows - PAGE_OVERLAP_ROWS)
-    buffer = (
-        output_field.buffer if output_field is not None else event.current_buffer
-    )
+    buffer = output_field.buffer if output_field is not None else event.current_buffer
     if direction < 0:
         buffer.cursor_up(count=steps)
     else:

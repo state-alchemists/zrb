@@ -903,4 +903,6 @@ def _indent_lines(text: str, prefix: str) -> str:
     """
     if not prefix:
         return text
-    return "\n".join(f"{prefix}{line}" if line.strip() else line for line in text.split("\n"))
+    return "\n".join(
+        f"{prefix}{line}" if line.strip() else line for line in text.split("\n")
+    )

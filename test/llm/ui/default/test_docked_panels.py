@@ -156,9 +156,7 @@ def test_the_agent_picker_takes_the_input_frames_place(mock_ui_deps):
     binds Up/Down/Enter/Esc/Left and forwards nothing, so the input frame is
     dead weight and the picker takes its rows."""
     ui, app = _ui_and_app(mock_ui_deps)
-    picker_slot = _slot_holding(
-        app.layout, ui.agent_picker_part.agent_picker_window
-    )
+    picker_slot = _slot_holding(app.layout, ui.agent_picker_part.agent_picker_window)
     input_slot = _slot_holding(app.layout, _input_frame(app.layout))
     assert not picker_slot.filter()
 

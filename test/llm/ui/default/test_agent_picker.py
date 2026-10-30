@@ -495,4 +495,3 @@ def test_a_long_picker_row_is_painted_as_one_line():
     # 60 columns less the framed panel's border and padding.
     assert all(len(line) <= 56 for line in lines), lines
     assert any("reviewer" in line and "[finished]" in line for line in lines)
-

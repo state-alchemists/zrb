@@ -233,8 +233,7 @@ def test_a_purpose_streamed_as_json_is_read_too():
         "Shell", '{"command": "ls", "purpose": "Listing the files here"}'
     )
     assert spoken == (
-        "I need to run a shell command Listing the files here. "
-        "I need your approval."
+        "I need to run a shell command Listing the files here. " "I need your approval."
     )
 
 

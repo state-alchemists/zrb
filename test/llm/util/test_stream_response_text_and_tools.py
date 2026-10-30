@@ -47,9 +47,7 @@ class TestStreamEventHandlerTextCollapse:
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
         handler.handle_part_start(tool_event)
 
-        on_settle.assert_called_once_with(
-            "Let me check that for you"
-        )
+        on_settle.assert_called_once_with("Let me check that for you")
         on_collapse.assert_not_called()
 
     def test_settled_text_carries_no_indentation_or_leading_icon(self):

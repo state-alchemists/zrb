@@ -87,9 +87,7 @@ def test_a_muted_response_is_silent_until_the_next_response_starts():
     assert said == []
     assert reply.has_claimed_turn
 
-    reply.handle_event(
-        _event("part_start", index=0, part=_part("text", "<spoken>New"))
-    )
+    reply.handle_event(_event("part_start", index=0, part=_part("text", "<spoken>New")))
     reply.flush()
     assert said == ["New"]
 
