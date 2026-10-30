@@ -24,6 +24,10 @@ CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
     # Pipecat and its re-exporting backend package form a genuine cycle; defer the
     # backend half where the pipeline is built.
     "llm/speech/backend/pipecat.py": 1,
+    # The background registry imports `delegate`'s `BufferedUI` and
+    # `run_agent_task`; `delegate` defers the one call back into it, where a
+    # send-now cut hands a running delegation over.
+    "llm/tool/delegate.py": 1,
 }
 
 

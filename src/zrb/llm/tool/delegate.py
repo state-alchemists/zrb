@@ -23,6 +23,7 @@ from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
+from zrb.llm.shell_cut import get_run_shell_cut_signal
 from zrb.llm.subagent.live_session import (
     live_subagent_session_registry,
     start_titling,
@@ -455,6 +456,169 @@ async def worktree_has_new_commits(worktree_path: str, base_sha: str) -> bool:
     return count.isdigit() and int(count) > 0
 
 
+def _cut_waiter() -> "asyncio.Task | None":
+    """A task that finishes when this turn is needed back, or None outside a run.
+
+    The generation is read before waiting, so a keypress that arrived during an
+    earlier tool call does not move work that had not started yet.
+    """
+    cut = get_run_shell_cut_signal()
+    if cut is None:
+        return None
+    return asyncio.ensure_future(cut.wait_for_cut(cut.generation))
+
+
+async def _stop_waiter(waiter: "asyncio.Task | None") -> None:
+    """Cancel a waiter nobody needs any more, and never let its outcome escape."""
+    if waiter is None or waiter.done():
+        return
+    waiter.cancel()
+    await asyncio.gather(waiter, return_exceptions=True)
+
+
+async def _stop_runs(runs: "list[asyncio.Task]") -> None:
+    """Stop delegations whose turn is being cancelled.
+
+    The turn that would have reported them is gone, so they stop with it — the
+    behaviour they had before a cut could move them anywhere.
+    """
+    for run in runs:
+        run.cancel()
+    await asyncio.gather(*runs, return_exceptions=True)
+
+
+async def _has_run_finished(run: asyncio.Task, cut_wait: "asyncio.Task | None") -> bool:
+    """Whether *run* finished, rather than a cut asking this turn to move on."""
+    if cut_wait is None:
+        await asyncio.wait({run})
+        return True
+    done, _ = await asyncio.wait({run, cut_wait}, return_when=asyncio.FIRST_COMPLETED)
+    return run in done
+
+
+async def _wait_for_runs(
+    runs: "list[asyncio.Task]", cut_wait: "asyncio.Task | None"
+) -> None:
+    """Wait for every run, or for the cut that asks this turn to move on.
+
+    Runs still going when it returns are left running: a cut hands them to the
+    background registry, and it never cancels one.
+    """
+    pending = set(runs)
+    while pending:
+        waiters = pending if cut_wait is None else pending | {cut_wait}
+        done, _ = await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
+        if cut_wait is not None and cut_wait in done:
+            return
+        pending -= done
+
+
+def _adopt_delegation(
+    run: asyncio.Task, buffered_ui: BufferedUI, agent_name: str
+) -> str:
+    """Hand a still-running delegation to the background registry; return its handle.
+
+    The task keeps running: only its result changes hands, from this tool call
+    to `GetDelegationResult`. Its buffered transcript goes with it, so what the
+    sub-agent has already printed stays readable there.
+    """
+    # lazy: circular — delegate_background imports this module's BufferedUI and
+    # run_agent_task, so this direction has to stay deferred.
+    from zrb.llm.tool.delegate_background import (
+        get_background_registry,
+        register_background_handle,
+    )
+
+    handle = get_random_name(separator="-", add_random_digit=True)
+    get_background_registry().adopt(
+        handle, agent_name, run, buffered_ui, buffered_ui.session_id
+    )
+    register_background_handle(handle)
+    return handle
+
+
+def _moved_to_background_note(handle: str, agent_name: str) -> str:
+    """Report a delegation that is still running, and how to reach it."""
+    call = f"GetDelegationResult(handle='{handle}'"
+    return (
+        f"Handle: {handle}\n"
+        "[SYSTEM SUGGESTION]: The user sent a message that needs this turn while "
+        f"the sub-agent '{agent_name}' was running, so the delegation was moved "
+        f"to the background as '{handle}' instead of holding the turn. Read the "
+        "message first. It was NOT cancelled, and the work it has already done "
+        f"is not lost. Call {call}) to read what it has produced so far, {call}, "
+        f"wait=30) to block for it, or {call}, kill=True) to stop it. Do not "
+        "delegate the same work again: that starts a second copy."
+    )
+
+
+def _moved_siblings_note(moved: "list[tuple[str, str]]", total: int) -> str:
+    """Report fanned-out sub-agents that are still running, one handle each.
+
+    *moved* is ``(handle, agent_name)`` in fan-out order; *total* is how many
+    the call asked for, so the model can tell how much came back now.
+    """
+    listing = ", ".join(f"'{handle}' ({agent_name})" for handle, agent_name in moved)
+    calls = ", ".join(f"GetDelegationResult(handle='{handle}')" for handle, _ in moved)
+    return (
+        f"Handles: {listing}\n"
+        "[SYSTEM SUGGESTION]: The user sent a message that needs this turn while "
+        f"{len(moved)} of the {total} sub-agents in this fan-out were still "
+        "running, so those were moved to the background instead of holding the "
+        "turn. Read the message first. None was cancelled, and the work they "
+        f"have already done is not lost. Call {calls} to collect each result as "
+        "it finishes (wait=N blocks for one, kill=True stops it). Do not "
+        "delegate the same work again: that starts a second copy."
+    )
+
+
+async def _run_delegation(
+    agent_name: str,
+    deliverable: str,
+    non_goals: list[str],
+    task: str,
+    additional_context: str,
+    sub_agent_manager: SubAgentManager,
+    buffered_ui: BufferedUI,
+) -> str:
+    """Run one sub-agent for this turn, or step it aside when the user needs the turn.
+
+    The sub-agent is a `Task` from the start, so a cut hands exactly that task to
+    the background registry: an awaited task nobody waits on any more keeps
+    running, which is what keeps the work alive when the turn is interrupted
+    instead of waiting.
+    """
+    run = asyncio.ensure_future(
+        run_agent_task(
+            agent_name=agent_name,
+            deliverable=deliverable,
+            non_goals=non_goals,
+            task=task,
+            additional_context=additional_context,
+            sub_agent_manager=sub_agent_manager,
+            ui=buffered_ui,
+        )
+    )
+    cut_wait = _cut_waiter()
+    try:
+        finished = await _has_run_finished(run, cut_wait)
+    except asyncio.CancelledError:
+        await _stop_runs([run])
+        raise
+    finally:
+        await _stop_waiter(cut_wait)
+
+    if not finished:
+        return _moved_to_background_note(
+            _adopt_delegation(run, buffered_ui, agent_name), agent_name
+        )
+    task_result: AgentTaskResult = run.result()
+    if not task_result.success:
+        return f"Error: {task_result.error}"
+    label = buffered_ui.label or f"[{agent_name}]"
+    return f"{label} completed:\n\n{task_result.result}"
+
+
 async def _run_parallel(
     tasks: list[dict[str, Any]],
     sub_agent_manager: SubAgentManager,
@@ -462,7 +626,7 @@ async def _run_parallel(
     """Run several sub-agent tasks concurrently and return combined results.
 
     A shared lock serializes approval prompts. ``isolate_worktree: true`` gives
-    a task its own git worktree; each gathered `Task` copies `contextvars`, so
+    a task its own git worktree; each `Task` copies `contextvars`, so
     `active_worktree` stays isolated per task.
     """
     required = ("agent_name", "deliverable", "task", "non_goals")
@@ -481,19 +645,15 @@ async def _run_parallel(
     _max_parallel = CFG.LLM_MAX_PARALLEL_DELEGATIONS
     _fan_out_semaphore = asyncio.Semaphore(_max_parallel) if _max_parallel > 0 else None
 
-    async def _run_single_agent_inner(task_spec: dict[str, Any]) -> AgentTaskResult:
+    async def _run_single_agent_inner(
+        task_spec: dict[str, Any], buffered_ui: BufferedUI
+    ) -> AgentTaskResult:
         agent_name = task_spec.get("agent_name", "")
         deliverable = task_spec.get("deliverable", "")
         task = task_spec.get("task", "")
         non_goals = task_spec.get("non_goals", []) or []
         additional_context = task_spec.get("additional_context", "")
         isolate = bool(task_spec.get("isolate_worktree", False))
-        # run_agent_task assigns the [agent_name #ordinal] label.
-        buffered_ui = BufferedUI(
-            parent_ui,
-            shared_lock=ui_lock,
-            session_id=get_session_ownership_key(get_current_tool_session()),
-        )
 
         worktree_path = ""
         base_sha = ""
@@ -523,7 +683,7 @@ async def _run_parallel(
                 yolo=None,
             )
         finally:
-            # A cleanup failure must not escape into `gather` and abort siblings.
+            # A cleanup failure must not escape and abort the sibling tasks.
             if isolate and worktree_path:
                 try:
                     dirty = await worktree_has_changes(worktree_path)
@@ -552,32 +712,90 @@ async def _run_parallel(
             result.error,
         )
 
-    async def run_single_agent(task_spec: dict[str, Any]) -> AgentTaskResult:
+    async def run_single_agent(
+        task_spec: dict[str, Any], buffered_ui: BufferedUI
+    ) -> AgentTaskResult:
         if _fan_out_semaphore is None:
-            return await _run_single_agent_inner(task_spec)
+            return await _run_single_agent_inner(task_spec, buffered_ui)
         async with _fan_out_semaphore:
-            return await _run_single_agent_inner(task_spec)
+            return await _run_single_agent_inner(task_spec, buffered_ui)
 
-    # An unanticipated raise fails one task, not every sibling.
-    raw_results = await asyncio.gather(
-        *[run_single_agent(t) for t in tasks], return_exceptions=True
+    # One buffer and one `Task` per delegation, rather than one `gather`: a cut
+    # hands the still-running ones to the background registry, and a frame
+    # cancelled with its turn takes no child task down with it.
+    buffered_uis = [_fan_out_buffer(parent_ui, ui_lock) for _ in tasks]
+    runs = [
+        asyncio.ensure_future(run_single_agent(spec, buffered_ui))
+        for spec, buffered_ui in zip(tasks, buffered_uis)
+    ]
+    cut_wait = _cut_waiter()
+    try:
+        await _wait_for_runs(runs, cut_wait)
+    except asyncio.CancelledError:
+        await _stop_runs(runs)
+        raise
+    finally:
+        await _stop_waiter(cut_wait)
+
+    agent_names = [spec.get("agent_name", "") for spec in tasks]
+    return "\n\n".join(_fan_out_reports(agent_names, buffered_uis, runs))
+
+
+def _fan_out_buffer(parent_ui: "AnyUI", ui_lock: asyncio.Lock) -> BufferedUI:
+    """One fanned-out delegation's output buffer; `run_agent_task` labels it.
+
+    Built here rather than inside the task so the buffer is known to this frame:
+    a cut adopts a task together with the buffer holding its transcript.
+    """
+    return BufferedUI(
+        parent_ui,
+        shared_lock=ui_lock,
+        session_id=get_session_ownership_key(get_current_tool_session()),
     )
 
-    combined_results = []
-    for spec, r in zip(tasks, raw_results):
-        if isinstance(r, BaseException):
-            label = f"[{spec.get('agent_name', '?')}]"
-            combined_results.append(f"{label} Error: {r}")
-            continue
-        # r.agent_name already carries its [agent_name #ordinal] label.
-        if not r.success:
-            combined_results.append(f"{r.agent_name} Error: {r.error}")
-        else:
-            indented_result = "\n".join(
-                ["  " + line for line in (r.result or "").splitlines()]
-            )
-            combined_results.append(f"{r.agent_name} completed:\n{indented_result}")
-    return "\n\n".join(combined_results)
+
+def _fan_out_reports(
+    agent_names: list[str], buffered_uis: list[BufferedUI], runs: "list[asyncio.Task]"
+) -> list[str]:
+    """One report per finished delegation, then one handle list for the rest.
+
+    A delegation still running when the turn was needed back is adopted, not
+    cancelled: its handle is reported so its result can be collected later.
+    """
+    reports = [
+        _fan_out_report(agent_name, run)
+        for agent_name, run in zip(agent_names, runs)
+        if run.done()
+    ]
+    moved = [
+        (_adopt_delegation(run, buffered_ui, agent_name), agent_name)
+        for agent_name, buffered_ui, run in zip(agent_names, buffered_uis, runs)
+        if not run.done()
+    ]
+    if moved:
+        reports.append(_moved_siblings_note(moved, len(runs)))
+    return reports
+
+
+def _fan_out_report(agent_name: str, run: asyncio.Task) -> str:
+    """One finished delegation's report; its own failure stays its own line.
+
+    An unanticipated raise fails one task, not every sibling — the guarantee
+    `gather(return_exceptions=True)` used to give this loop.
+    """
+    if run.cancelled():
+        return f"[{agent_name}] Error: cancelled"
+    error = run.exception()
+    if error is not None:
+        return f"[{agent_name}] Error: {error}"
+    result: AgentTaskResult = run.result()
+    # result.agent_name already carries its [agent_name #ordinal] label.
+    if not result.success:
+        return f"{result.agent_name} Error: {result.error}"
+    indented_result = "\n".join(
+        ["  " + line for line in (result.result or "").splitlines()]
+    )
+    return f"{result.agent_name} completed:\n{indented_result}"
 
 
 def create_delegate_to_agent_tool(
@@ -665,27 +883,22 @@ def create_delegate_to_agent_tool(
                 "(non_goals defaults to []), or pass tasks=[...] to fan out."
             )
         parent_ui = resolve_ui(get_current_ui())
-        # run_agent_task assigns the [agent_name #ordinal] label.
+        # run_agent_task assigns the [agent_name #ordinal] label. Built here so a
+        # cut can adopt the transcript along with the run.
         buffered_ui = BufferedUI(
             parent_ui,
             session_id=get_session_ownership_key(get_current_tool_session()),
         )
 
-        task_result = await run_agent_task(
+        return await _run_delegation(
             agent_name=agent_name,
             deliverable=deliverable,
             non_goals=non_goals,
             task=task,
             additional_context=additional_context,
             sub_agent_manager=sub_agent_manager,
-            ui=buffered_ui,
+            buffered_ui=buffered_ui,
         )
-
-        if not task_result.success:
-            return f"Error: {task_result.error}"
-
-        label = buffered_ui.label or f"[{agent_name}]"
-        return f"{label} completed:\n\n{task_result.result}"
 
     setattr(delegate_to_agent, "zrb_is_delegate_tool", True)
     delegate_to_agent.__name__ = "DelegateToAgent"

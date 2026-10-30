@@ -16,7 +16,10 @@ from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
-from zrb.llm.ambient_state import get_session_ownership_key
+from zrb.llm.ambient_state import (
+    get_current_tool_session,
+    get_session_ownership_key,
+)
 from zrb.llm.approval import resolve_approval_channel
 from zrb.llm.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.file_history_manager import default_history_manager
@@ -258,7 +261,11 @@ class ChatExecution:
         try:
             from zrb.llm.tool.delegate_background import get_background_registry
 
-            get_background_registry().cancel_all()
+            # This session's own handles only: the registry is process-wide, and
+            # another chat session's delegation must outlive this one's exit.
+            get_background_registry().cancel_all(
+                get_session_ownership_key(get_current_tool_session())
+            )
         except Exception as e:
             CFG.LOGGER.debug(
                 f"Background-delegation teardown at session end failed: {e}"
