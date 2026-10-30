@@ -151,7 +151,7 @@ class UISideQuestion:
         if not self._is_active:
             # Opened into the transcript for want of room: the answer follows
             # the question there instead of into a panel that never appeared.
-            self._ui.append_markdown(answer)
+            self._ui.append_answer(answer)
             return
         self._render_and_fill(answer)
 
@@ -260,7 +260,7 @@ class UISideQuestion:
             # An answer that already arrived: the panel was the only place it
             # lived, so it moves with the question rather than vanishing behind
             # a panel that no longer has a row to paint.
-            self._ui.append_markdown(self._last_answer)
+            self._ui.append_answer(self._last_answer)
             self._last_answer = None
         self._fill("")
         focus_widget(self._ui.input_field, "Input-field")

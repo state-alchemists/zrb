@@ -317,16 +317,37 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         Children with their own `append_markdown` get the source; others get
         pre-rendered output.
         """
+        self._append_prose(markdown_text, "append_markdown")
+
+    def append_answer(self, markdown_text: str) -> None:
+        """Append the turn's answer on every child, at the column it keeps.
+
+        The hooks are tried newest first, and a child that has neither still
+        gets the answer as pre-rendered text: the layout may differ, the text
+        never disappears.
+        """
+        self._append_prose(markdown_text, "append_answer", "append_markdown")
+
+    def _append_prose(self, markdown_text: str, *hook_names: str) -> None:
+        """Hand prose to each child through the first hook it implements.
+
+        A child that implements none of *hook_names* — a minimal UI with only
+        `append_to_output`, which is a supported shape — gets the pre-rendered
+        text instead. An answer must never depend on a channel having opted
+        into a richer hook.
+        """
         rendered = render_markdown(markdown_text, width=None)
         for ui in self._uis:
             try:
-                child_append = getattr(ui, "append_markdown", None)
-                if callable(child_append):
-                    child_append(markdown_text)
+                for hook_name in hook_names:
+                    hook = getattr(ui, hook_name, None)
+                    if callable(hook):
+                        hook(markdown_text)
+                        break
                 else:
                     ui.append_to_output(rendered, end="")
             except Exception as e:
-                CFG.LOGGER.debug(f"Child UI append failed: {e}")
+                CFG.LOGGER.debug(f"Child UI {hook_names[0]} failed: {e}")
 
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.
@@ -476,8 +497,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 self._last_result_data = result_data
                 self.append_to_output("\n")
                 # The answer keeps its `<spoken>` markers for speech; every
-                # child shows the whole reply without them.
-                self.append_markdown(shown_text(result_data))
+                # child shows the whole reply without them, in the run's column.
+                self.append_answer(shown_text(result_data))
             if self.main_ui is not None:
                 self.main_ui.conversation.schedule_auto_name(user_message)
 

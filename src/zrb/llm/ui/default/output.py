@@ -20,7 +20,7 @@ from zrb.llm.ui.output_chunk import (
     merge_into_block,
 )
 from zrb.llm.ui.tracked_spans import TrackedSpans
-from zrb.llm.util.stream_response import TEXT_BLOCK_LABEL
+from zrb.llm.util.stream_response import DEFAULT_STREAM_INDENTATION, TEXT_BLOCK_LABEL
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -126,7 +126,10 @@ class UIOutput:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
-        self.stream_indentation = ""
+        # Not the margin: a transcript that starts at column 0 has no live run to
+        # learn the layout from, and history replay renders through the same
+        # column rule a live turn uses — see `DEFAULT_STREAM_INDENTATION`.
+        self.stream_indentation = DEFAULT_STREAM_INDENTATION
         self._spans = TrackedSpans(
             get_text=self._get_main_text,
             set_text=self._set_main_text,
@@ -363,10 +366,37 @@ class UIOutput:
     def set_stream_indentation(self, indent: str) -> None:
         """Remember the column the run's streamed lines wrap at.
 
-        `settle_text_block` puts a settled block's prose there. The handler is
-        still the source of the number; this is only where it lands.
+        `settle_text_block` and `append_answer` put a run's prose there. The
+        handler is still the source of the number; this is only where it lands,
+        and it starts at the default layout's column for the runs that never
+        report one — replay, before any turn has streamed.
         """
         self.stream_indentation = indent
+
+    def _render_at_column(self, source: str, width: int | None) -> str:
+        """Render *source* so it sits in the column the run streams at.
+
+        The one place the column rule lives, and the only reader of
+        `stream_indentation`: the markdown is rendered *narrowed* by the column
+        — a line rendered at the full width and indented afterwards runs past
+        the field and wraps again — and then every non-blank line is prefixed
+        with it. Every entry point that puts a run's prose on screen renders
+        through here, so a new one cannot land at the margin by omission.
+        """
+        indent = self.stream_indentation
+        return _indent_lines(
+            self._render_markdown_block(source, _narrowed_width(width, len(indent))),
+            indent,
+        )
+
+    def append_answer(self, markdown_text: str) -> None:
+        """Append the turn's answer at the column the run streams at.
+
+        The answer is what the reader keeps, so it sits where the streamed copy
+        sat before collapsing into the marker above it. Re-rendered the same way
+        on resize, so a wrapped line plus its indentation still fits the field.
+        """
+        self.append_rendered(markdown_text, self._render_at_column)
 
     def settle_text_block(self, source: str) -> None:
         """Render an intermediate text block's prose under its own marker.
@@ -378,17 +408,11 @@ class UIOutput:
         marker. The span is registered as a rendered block, like
         `append_markdown`'s output, so a resize re-wraps it.
 
-        The prose sits at `stream_indentation`, the column the block's wrapped
-        lines were streamed at, so settling does not move what the reader was
-        already reading; the marker takes the icon's line instead of carrying
-        the icon itself. The render narrows by exactly that much, so a wrapped
-        line plus its indentation still fits the field — indenting afterwards
-        would push every line past the edge, where it wraps again.
+        The prose sits at the run's column, so settling does not move what the
+        reader was already reading; the marker takes the icon's line instead of
+        carrying the icon itself.
         """
-        indent = self.stream_indentation
-        rendered = self._render_markdown_block(
-            source, _narrowed_width(self.output_field_width, len(indent))
-        )
+        rendered = self._render_at_column(source, self.output_field_width)
         count = len(source.strip())
         marker = (
             f"{TEXT_BLOCK_LABEL} ({count} chars)"
@@ -398,7 +422,7 @@ class UIOutput:
         # One registration only: `set_rendered_block` drops overlapping spans, so
         # a separate entry for the prose would erase the fold it sits inside.
         self._spans.settle_expandable_block(
-            marker, f"{stylize_muted(marker)}\n{_indent_lines(rendered, indent)}"
+            marker, f"{stylize_muted(marker)}\n{rendered}"
         )
 
     def update_shell_output(self, key: str, text: str) -> None:

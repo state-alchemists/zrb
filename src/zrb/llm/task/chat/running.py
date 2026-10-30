@@ -109,9 +109,7 @@ class ChatRunning:
         if isinstance(result, str):
             shown = shown_text(result)
             for ui in llm_task_core.get_uis():
-                append_markdown = getattr(ui, "append_markdown", None)
-                if callable(append_markdown):
-                    append_markdown(shown)
+                _append_shown_answer(ui, shown)
         ctx.xcom["__conversation_name__"] = initial_conversation_name
         return result
 
@@ -369,6 +367,22 @@ def _bound_session_ui(ui: "AnyUI | None") -> Iterator[None]:
 def _get_action_ui(ui: "AnyUI") -> "BaseUI":
     """The UI an action command acts on: a `MultiUI`'s main UI, else *ui*."""
     return cast("BaseUI", getattr(ui, "main_ui", None) or ui)
+
+
+def _append_shown_answer(ui: "AnyUI", shown: str) -> None:
+    """Put a finished turn's answer on *ui* through the richest hook it has.
+
+    `append_answer` is where a UI that lays a run's output out in a column puts
+    the answer, so it lands where the streamed copy was; a UI written before
+    that hook still gets the text through `append_markdown`. Skipping it here
+    would draw a non-interactive answer at the margin while the same answer in
+    an interactive session sits in the column.
+    """
+    for hook_name in ("append_answer", "append_markdown"):
+        hook = getattr(ui, hook_name, None)
+        if callable(hook):
+            hook(shown)
+            return
 
 
 def _is_action_command(message: Any, custom_commands: "list[AnyCustomCommand]") -> bool:

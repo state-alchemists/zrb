@@ -89,6 +89,10 @@ class MockUI:
     def append_markdown(self, markdown_text):
         self.append_to_output(markdown_text)
 
+    def append_answer(self, markdown_text):
+        """The turn's answer; this stand-in lays nothing out in a column."""
+        self.append_markdown(markdown_text)
+
     def invalidate_ui(self):
         pass
 

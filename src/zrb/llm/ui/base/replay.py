@@ -98,8 +98,9 @@ class BaseUIReplay:
                 if content.strip():
                     self._base_ui.append_to_output("\n")
                     # History keeps the markers, because the stop hook reads the
-                    # same text for speech; a replayed reply is a screen.
-                    self._base_ui.append_markdown(shown_text(content))
+                    # same text for speech; a replayed reply is a screen, and a
+                    # screen of run prose takes the run's column.
+                    self._base_ui.append_answer(shown_text(content))
             elif pkind == "tool-call":
                 self._replay_tool_call(part, pending_tool_calls)
 

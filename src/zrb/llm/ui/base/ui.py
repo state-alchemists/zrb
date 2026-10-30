@@ -644,8 +644,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self.append_to_output(f"\n🤖 {timestamp} >>\n")
         self.append_to_output("\n")
         # A side answer is a screen: history is not involved, and the markers
-        # belong to the ear alone.
-        self.append_markdown(shown_text(answer))
+        # belong to the ear alone. It is run prose, so it takes the column the
+        # run's lines stream at.
+        self.append_answer(shown_text(answer))
 
     def fail_side_question(self, message: str, request: object | None = None) -> None:
         """[OPTIONAL] Report a side question that could not be answered."""
@@ -1064,6 +1065,15 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             )
         )
 
+    def append_answer(self, markdown_text: str) -> None:
+        """Append the turn's answer, the text the reader keeps.
+
+        A UI that lays a run's output out in a column overrides this, so the
+        answer lands in that column instead of jumping to the margin; without
+        an override it is rendered at the margin, as it always was.
+        """
+        self.append_markdown(markdown_text)
+
     @property
     def output_field_width(self) -> int | None:
         """Output width, or None; subclasses override `_get_output_field_width`."""
@@ -1255,7 +1265,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 self.append_to_output("\n")
                 # The answer keeps its `<spoken>` markers for speech; the
                 # screen shows the whole reply without them.
-                self.append_markdown(shown_text(result_data))
+                self.append_answer(shown_text(result_data))
             self._conversation.schedule_auto_name(user_message)
 
         except asyncio.CancelledError:

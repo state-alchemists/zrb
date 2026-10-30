@@ -138,6 +138,17 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
         if flush:
             sys.stderr.flush()
 
+    def append_answer(self, markdown_text: str) -> None:
+        """Append the turn's answer, pre-rendered: this UI keeps no source.
+
+        Same render `MultiUI` gives a child with no markdown step of its own.
+        """
+        # lazy: transitively heavy -- the renderer pulls the theme and the
+        # markdown stack.
+        from zrb.util.cli.markdown import render_markdown
+
+        self.append_to_output(render_markdown(markdown_text, width=None), end="")
+
     def stream_to_parent(
         self,
         *values: object,

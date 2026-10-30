@@ -660,10 +660,11 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 | `accumulate_usage(usage, context_usage)` | A run reports token totals — needed for a session token meter |
 | `reset_context_usage()` | `/compress` compacted the history, so the meter's context size is stale until the next run |
 | `append_markdown(markdown_text)` | Markdown reaches the pane (the assistant's answer, or a markdownish user paste) — a child without it gets the pre-rendered text |
+| `append_answer(markdown_text)` | The turn's answer, the text the reader keeps — a channel that lays a run's output out in a column renders it there, so it stays where the streamed copy was instead of jumping to the margin. A child without it still gets the answer, through `append_markdown` |
 | `mark_text_block_start()` | The assistant begins a text block |
 | `collapse_text_block(collapsed, full)` | The run's final text block ends, with a short and a full form |
-| `settle_text_block(source)` | A text block ends because a tool call (or another part) follows, not because the turn answered — render `source`, the block's own text, in full instead of collapsing it; the final reply follows through `append_markdown`. The column the block was streamed at arrives separately, through `set_stream_indentation` |
-| `set_stream_indentation(indent)` | The run's streamed lines wrap at this column (five spaces in the default layout). `settle_text_block` puts the settled prose there so it stays where the reader was reading; a channel without this hook keeps its own layout |
+| `settle_text_block(source)` | A text block ends because a tool call (or another part) follows, not because the turn answered — render `source`, the block's own text, in full instead of collapsing it; the final reply follows through `append_answer`. The column the block was streamed at arrives separately, through `set_stream_indentation` |
+| `set_stream_indentation(indent)` | The run's streamed lines wrap at this column (five spaces in the default layout). `settle_text_block` puts the settled prose there so it stays where the reader was reading; a channel without this hook keeps its own layout. The default UI starts at that five-space column, so a replayed answer lands there before any run has reported its own |
 | `mark_thinking_block_start()` | The assistant begins a reasoning block |
 | `collapse_thinking_block(collapsed, full)` | That reasoning block ends |
 | `update_tool_prepare(key, text)` | A tool call is being prepared |

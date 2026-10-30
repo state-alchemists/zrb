@@ -114,7 +114,10 @@ FACADE_BUDGETS = {
     # `llm/util/spoken.py`. +2 (1301->1303): the same reason and the same
     # one-line call at `end_side_question` -- a `/btw` answer is a screen too,
     # and its history is never involved.
-    "llm/ui/base/ui.py": 1303,
+    # +10 (1303->1313): `append_answer` -- the hook a turn's answer goes through
+    # so a UI that lays output out in a column can keep it there; its default is
+    # the `append_markdown` it used to call, and the `/btw` reply takes it too.
+    "llm/ui/base/ui.py": 1313,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
@@ -164,7 +167,10 @@ FACADE_BUDGETS = {
     # +4 (762->766): the `set_stream_indentation` delegator beside
     # `settle_text_block` -- the column a settled block keeps belongs to the run's
     # stream, and `output.py` holds it; the facade only forwards the hook name.
-    "llm/ui/default/ui.py": 766,
+    # +3 (766->769): the same delegator for `append_answer`, the hook the turn's
+    # answer takes so it lands in that same column; the rendering stays in
+    # `output.py`.
+    "llm/ui/default/ui.py": 769,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.
