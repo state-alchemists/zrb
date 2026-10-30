@@ -20,7 +20,7 @@ from zrb.llm.ui.output_chunk import (
     merge_into_block,
 )
 from zrb.llm.ui.tracked_spans import TrackedSpans
-from zrb.llm.util.stream_response import TEXT_BLOCK_LABEL
+from zrb.llm.util.stream_response import DEFAULT_STREAM_INDENTATION, TEXT_BLOCK_LABEL
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -126,7 +126,10 @@ class UIOutput:
 
     def __init__(self, ui: "UI") -> None:
         self._ui = ui
-        self.stream_indentation = ""
+        # Not the margin: a transcript that starts at column 0 has no live run to
+        # learn the layout from, and history replay renders through the same
+        # column rule a live turn uses — see `DEFAULT_STREAM_INDENTATION`.
+        self.stream_indentation = DEFAULT_STREAM_INDENTATION
         self._spans = TrackedSpans(
             get_text=self._get_main_text,
             set_text=self._set_main_text,
@@ -363,8 +366,10 @@ class UIOutput:
     def set_stream_indentation(self, indent: str) -> None:
         """Remember the column the run's streamed lines wrap at.
 
-        `settle_text_block` puts a settled block's prose there. The handler is
-        still the source of the number; this is only where it lands.
+        `settle_text_block` and `append_answer` put a run's prose there. The
+        handler is still the source of the number; this is only where it lands,
+        and it starts at the default layout's column for the runs that never
+        report one — replay, before any turn has streamed.
         """
         self.stream_indentation = indent
 

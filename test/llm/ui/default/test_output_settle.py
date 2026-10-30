@@ -16,7 +16,7 @@ from zrb.llm.agent.run.setup import setup_print_and_events
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.output import UIOutput
-from zrb.llm.util.stream_response import CONTINUATION_PAD
+from zrb.llm.util.stream_response import CONTINUATION_PAD, DEFAULT_STREAM_INDENTATION
 from zrb.util.cli.style import remove_style
 
 
@@ -94,11 +94,13 @@ def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
 
     text = remove_style(ui.output_text)
     marker = "💬 Response (23 chars)"
+    column = DEFAULT_STREAM_INDENTATION
     assert text.count(marker) == 1
     # The marker has a line to itself, and the prose starts on the next one.
     assert f"\n{marker}\n" in text
-    assert text.endswith("\nread the file first")
-    # Markdown-rendered under the marker, not the raw source, and not indented.
+    assert text.endswith(f"\n{column}read the file first")
+    # Markdown-rendered under the marker, not the raw source, and in the column
+    # the run's wrapped lines sit at.
     assert "**the file**" not in text
     # One registration: the fold and the resize re-render share it, and the
     # painted form is the open one.
@@ -109,7 +111,7 @@ def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
     assert isinstance(source, CollapsibleBlockSource)
     assert source.expanded is True
     assert remove_style(source.collapsed).endswith(marker)
-    assert remove_style(source.full).endswith("\nread the file first")
+    assert remove_style(source.full).endswith(f"\n{column}read the file first")
 
 
 def test_the_answer_keeps_the_column_the_run_streams_at():
@@ -133,6 +135,34 @@ def test_the_answer_keeps_the_column_the_run_streams_at():
     # Registered for re-rendering, so a resize keeps the column instead of
     # dropping the answer back to the margin.
     assert len(ui.rendered_blocks) == 1
+
+
+def test_an_answer_lands_in_the_default_column_before_any_run_reports_one():
+    """A replayed answer has no run behind it, and still sits in the column.
+
+    `/load` replays a stored reply through `append_answer` while the session has
+    not run yet, so nothing has reported a column. A transcript that starts at
+    the margin draws every resumed answer five columns left of the one a live
+    turn drew, which is the layout difference the funnel exists to remove.
+    """
+    ui = SettleUI()  # no handler, no run: nothing has set a column
+    column = DEFAULT_STREAM_INDENTATION
+    assert column == "     ", "the default layout's column is five spaces"
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("\n🤖 11:47 >>\n")
+        ui.append_answer("Resumed answer.\n\nSecond paragraph.")
+
+    text = remove_style(ui.output_text)
+    assert f"\n{column}Resumed answer." in text
+    assert f"\n{column}Second paragraph." in text
+
+    # A run that does report its own column still wins over the default.
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.set_stream_indentation("       ")
+        ui.append_answer("A deeper run's answer.")
+
+    assert "\n       A deeper run's answer." in remove_style(ui.output_text)
 
 
 def test_settled_prose_keeps_the_column_it_streamed_at():
@@ -212,7 +242,7 @@ def test_ctrl_o_folds_the_settled_prose_back_to_its_marker():
 
     ui.output_field.buffer.cursor_position = len(ui.output_text)
     assert ui.toggle_collapsible_block_at_cursor() is True
-    assert remove_style(ui.output_text).endswith("\nread it")
+    assert remove_style(ui.output_text).endswith(f"\n{DEFAULT_STREAM_INDENTATION}read it")
 
 
 def test_settle_text_block_without_a_mark_is_a_noop():

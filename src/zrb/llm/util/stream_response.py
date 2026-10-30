@@ -31,6 +31,11 @@ TEXT_BLOCK_LABEL = "💬 Response"
 """What a text block folds into, and the header `settle_text_block` keeps above
 its prose: the same words, whether the block is closed or left readable."""
 
+EVENT_INDENT = "  "
+"""One streamed event's indentation: the two spaces a block's first line sits at,
+with the icon after them. `StreamEventHandler` repeats it once per
+`indent_level`, one by default."""
+
 CONTINUATION_PAD = "   "
 """Spaces a block's wrapped lines add past the event indentation.
 
@@ -38,6 +43,15 @@ The first line carries the prefix and the icon; every later line sits this much
 further in, so a wrapped paragraph reads as one paragraph under its icon. A
 settled block's prose keeps the same column, which is why `_settle_text` hands
 the prefix to the UI alongside the text."""
+
+DEFAULT_STREAM_INDENTATION = f"{EVENT_INDENT}{CONTINUATION_PAD}"
+"""The column a run's prose sits in before any run has reported one of its own.
+
+`EVENT_INDENT` plus `CONTINUATION_PAD` is where a default run's wrapped prose
+lines land, so it is where the transcript starts: a resumed session replays its
+stored answers before any live run has called `set_stream_indentation`, and a
+replayed answer rendered at the margin would sit five columns left of the one a
+live turn put there. A run that reports its own column still overrides this."""
 
 
 class _BlockContent(NamedTuple):
@@ -188,7 +202,7 @@ class StreamEventHandler:
     ):
         self._print_fn = print_fn
         self._usage_callback = usage_callback
-        self._indentation = indent_level * 2 * " "
+        self._indentation = EVENT_INDENT * indent_level
         self._continuation = f"{self._indentation}{CONTINUATION_PAD}"
         self._show_tool_call_detail = show_tool_call_detail
         self._show_tool_result = show_tool_result
