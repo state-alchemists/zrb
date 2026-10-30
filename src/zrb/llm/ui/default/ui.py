@@ -323,7 +323,7 @@ class UI(BaseUI):
         return [
             ConditionalContainer(
                 self._side_question.side_question_panel(),
-                filter=Condition(self._side_question.shows_rows),
+                filter=Condition(self._side_question.has_rows),
             )
         ]
 

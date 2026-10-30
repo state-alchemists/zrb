@@ -91,7 +91,7 @@ class UISideQuestion:
         """Whether the panel is currently shown."""
         return self._is_active
 
-    def shows_rows(self) -> bool:
+    def has_rows(self) -> bool:
         """Whether the docked panel is up and has a row to paint.
 
         A docked panel whose content height is zero still spends the `Frame`'s
