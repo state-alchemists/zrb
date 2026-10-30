@@ -153,6 +153,24 @@ def check_applies_when(applies_when: str | None) -> str:
     return text
 
 
+def check_finding(finding: str | None) -> str:
+    """The finding a note records, or a refusal the model can act on.
+
+    A note with no finding has nothing to remember and nothing to derive a
+    claim from: its `hud_line` would be empty, the frontmatter would carry no
+    line, and `plan_hud` would leave the note out of the injected index — the
+    one place a note has to reach to be read again.
+    """
+    text = one_line(finding or "")
+    if not text:
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: finding was empty, so nothing was written. "
+            "State what was found, in the one or two sentences a later session "
+            "should be able to act on, then write the note again."
+        )
+    return text
+
+
 def derive_hud_line(finding: str) -> str:
     """The first sentence of *finding*, on one line and capped at 160 characters.
 

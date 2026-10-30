@@ -58,6 +58,7 @@ from zrb.llm.tool.journal_note import (
     append_under_heading,
     check_applies_when,
     check_category,
+    check_finding,
     check_slug,
     compose_note,
     format_stamp,
@@ -65,6 +66,7 @@ from zrb.llm.tool.journal_note import (
     next_stamp,
     normalize_keywords,
     one_line,
+    parse_frontmatter,
     read_text,
     relative,
     scrub_links_to,
@@ -488,6 +490,7 @@ def write_journal_note(
     # Before the journal is opened: a refused request must not create a tree.
     check_category(category)
     check_slug(slug)
+    check_finding(finding)
     check_applies_when(applies_when)
     with _open_journal() as root:
         result = _write_note_locked(
@@ -586,6 +589,7 @@ def _write_note_locked(
     check_category(category)
     check_slug(slug)
     condition = check_applies_when(applies_when)
+    check_finding(finding)
     notes = _load_notes(root)
     note_path = os.path.join(root, category, f"{slug}.md")
     note_rel = relative(note_path, root)
@@ -742,12 +746,23 @@ def _replacement_rel(root: str, superseded_by: str) -> str:
     check_category(category)
     replacement = f"{category}/{filename.removesuffix('.md')}"
     check_slug(replacement.split("/", 1)[1])
-    if not os.path.isfile(os.path.join(root, f"{replacement}.md")):
+    target = os.path.join(root, f"{replacement}.md")
+    if not os.path.isfile(target):
         raise ValueError(
             f"[SYSTEM SUGGESTION]: superseded_by names {replacement}, which does "
             "not exist, so nothing was written. Write the replacement with "
             "WriteJournalNote first, or omit superseded_by when no note "
             "replaced this one."
+        )
+    # A file that exists is not yet a note: a hand-written page in a category
+    # directory carries no `slug:`, so the journal never indexes it and a link
+    # to it points the next reader at nothing.
+    if "slug" not in parse_frontmatter(read_text(target)):
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: superseded_by names {replacement}, which is a "
+            "page rather than a note — it carries no `slug:` frontmatter, so the "
+            "indexes the journal renders never list it. Name the note that "
+            "actually replaced this one, or omit superseded_by."
         )
     return replacement
 
