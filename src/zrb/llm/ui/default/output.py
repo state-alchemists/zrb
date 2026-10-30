@@ -368,6 +368,25 @@ class UIOutput:
         """
         self.stream_indentation = indent
 
+    def append_answer(self, markdown_text: str) -> None:
+        """Append the turn's answer at the column the run streams at.
+
+        The answer is what the reader keeps, so it sits where the streamed copy
+        sat before collapsing into the marker above it. Rendered narrow by the
+        column, and re-rendered the same way on resize, so a wrapped line plus
+        its indentation still fits the field.
+        """
+        indent = self.stream_indentation
+        self.append_rendered(
+            markdown_text,
+            lambda source, width: _indent_lines(
+                self._render_markdown_block(
+                    source, _narrowed_width(width, len(indent))
+                ),
+                indent,
+            ),
+        )
+
     def settle_text_block(self, source: str) -> None:
         """Render an intermediate text block's prose under its own marker.
 

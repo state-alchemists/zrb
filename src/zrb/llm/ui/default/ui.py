@@ -628,6 +628,9 @@ class UI(BaseUI):
         """Tell the transcript the column streamed lines are wrapped at."""
         self._output.set_stream_indentation(indent)
 
+    def append_answer(self, markdown_text: str) -> None:
+        self._output.append_answer(markdown_text)
+
     def update_tool_prepare(self, key: str, text: str) -> None:
         self._output.update_tool_prepare(key, text)
 

@@ -106,6 +106,29 @@ def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
     assert remove_style(source.full).endswith("\nread the file first")
 
 
+def test_the_answer_keeps_the_column_the_run_streams_at():
+    """The answer is appended where the streamed copy sat, not at the margin.
+
+    The marker above it is the copy that collapsed, so an answer rendered at
+    the margin jumps five columns left exactly when the turn ends — the block
+    the reader was reading moves under them.
+    """
+    ui = SettleUI()
+    _print_fn, handler = setup_print_and_events(None, None, ui)
+    continuation = f"{handler.indentation}{CONTINUATION_PAD}"
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("\n🤖 11:47 >>\n")
+        ui.append_answer("Reading the file first.\n\nThen decide.")
+
+    text = remove_style(ui.output_text)
+    assert f"\n{continuation}Reading the file first." in text
+    assert f"\n{continuation}Then decide." in text
+    # Registered for re-rendering, so a resize keeps the column instead of
+    # dropping the answer back to the margin.
+    assert len(ui.rendered_blocks) == 1
+
+
 def test_settled_prose_keeps_the_column_it_streamed_at():
     """The block settles in place, so its lines do not jump to the margin.
 

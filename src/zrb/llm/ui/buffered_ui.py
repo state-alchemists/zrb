@@ -147,6 +147,18 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     def _append_progress_line(self, text: str) -> None:
         self.append_to_output(text, end="", kind="progress")
 
+    def append_answer(self, markdown_text: str) -> None:
+        """Accept the turn's answer, pre-rendered: this buffer keeps no source.
+
+        Same render `MultiUI` gives a child with no markdown step of its own,
+        so a sub-agent's transcript reads the way it did before the hook.
+        """
+        # lazy: transitively heavy -- the renderer pulls the theme and the
+        # markdown stack.
+        from zrb.util.cli.markdown import render_markdown
+
+        self.append_to_output(render_markdown(markdown_text, width=None), end="")
+
     def append_toggle_block(self, collapsed: str, full: str) -> None:
         """Append a tool-call/result line that can later be expanded in place."""
         if collapsed == full:

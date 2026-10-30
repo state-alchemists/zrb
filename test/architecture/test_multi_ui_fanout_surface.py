@@ -27,6 +27,7 @@ MULTI_UI = REPO_ROOT / "src" / "zrb" / "llm" / "ui" / "multi_ui.py"
 FANOUT_METHODS = frozenset(
     {
         "accumulate_usage",
+        "append_answer",
         "append_markdown",
         "collapse_text_block",
         "collapse_thinking_block",

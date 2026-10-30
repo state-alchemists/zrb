@@ -328,6 +328,16 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI append failed: {e}")
 
+    def append_answer(self, markdown_text: str) -> None:
+        """Append the turn's answer on every child, at the column it keeps.
+
+        Every in-tree UI implements the hook — its default is the
+        `append_markdown` it used to call — so no child loses the answer, and a
+        channel of its own that never learned about the column keeps its own
+        layout.
+        """
+        self._fanout("append_answer", markdown_text)
+
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.
 
