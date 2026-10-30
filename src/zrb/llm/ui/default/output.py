@@ -372,9 +372,13 @@ class UIOutput:
         `indent` is the column the block's wrapped lines were streamed at. The
         prose sits there, under the marker, so settling does not move what the
         reader was already reading; the marker takes the icon's line instead of
-        carrying the icon itself.
+        carrying the icon itself. The render narrows by exactly that much, so a
+        wrapped line plus its indentation still fits the field — indenting
+        afterwards would push every line past the edge, where it wraps again.
         """
-        rendered = self._render_markdown_block(source, self.output_field_width)
+        rendered = self._render_markdown_block(
+            source, _narrowed_width(self.output_field_width, len(indent))
+        )
         count = len(source.strip())
         marker = (
             f"{TEXT_BLOCK_LABEL} ({count} chars)"
@@ -830,6 +834,19 @@ class UIOutput:
             (CFG.LLM_UI_STYLE_FAINT, "\n"),
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", text + " "),
         ]
+
+
+def _narrowed_width(width: int | None, indent: int) -> int | None:
+    """*width* less *indent*, or None when the width itself is unknown.
+
+    A line rendered at *width* and then indented would be *indent* columns too
+    wide for the field, so the renderer gets the narrower number up front. Never
+    below 1: rich still wraps at a tiny width, and this keeps that a bad look
+    rather than a crash.
+    """
+    if width is None or not indent:
+        return width
+    return max(1, width - indent)
 
 
 def _indent_lines(text: str, prefix: str) -> str:

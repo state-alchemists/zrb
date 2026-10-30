@@ -6,7 +6,7 @@ renders that answer separately. A block a following part ends is not that
 answer, so `settle_text_block` rebuilds it in place and leaves it readable.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from pydantic_ai import ToolCallPart
 from pydantic_ai.messages import TextPart
@@ -128,6 +128,41 @@ def test_settled_prose_keeps_the_column_it_streamed_at():
 
     text = remove_style(ui.output_text)
     assert f"\n💬 Response (19 chars)\n{continuation}read the file first" in text
+
+
+def test_settled_prose_wraps_inside_the_field_it_is_indented_into():
+    """The render narrows by the indent, so no line runs past the field.
+
+    Rendering at the full width and indenting afterwards leaves every wrapped
+    line five columns too long: the terminal wraps it again, or clips it.
+    """
+    ui = SettleUI()
+    _print_fn, handler = setup_print_and_events(None, None, ui)
+    continuation = f"{handler.indentation}{CONTINUATION_PAD}"
+    words = " ".join(f"word{index}" for index in range(40))
+
+    with patch.object(ui.output_part, "schedule_invalidate"), patch.object(
+        type(ui.output_part),
+        "output_field_width",
+        new_callable=PropertyMock,
+        create=True,
+        return_value=40,
+    ):
+        opening = MagicMock()
+        opening.part = TextPart(content=words)
+        handler.handle_part_start(opening)
+
+        call = MagicMock()
+        call.part = ToolCallPart(tool_name="Read", args={}, tool_call_id="c1")
+        handler.handle_part_start(call)
+
+    prose = [
+        line
+        for line in remove_style(ui.output_text).split("\n")
+        if line.startswith(continuation)
+    ]
+    assert len(prose) > 1, "the text has to wrap for this to mean anything"
+    assert all(len(line) <= 40 for line in prose)
 
 
 def test_ctrl_o_folds_the_settled_prose_back_to_its_marker():
