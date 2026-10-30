@@ -64,6 +64,9 @@ class Note:
     pinned: bool
     updated: datetime
     has_stamp: bool
+    # The `keywords:` line, comma-separated, as the note stores it. Ranking reads
+    # it, and it is the only field a search can match that the prose does not.
+    keywords: str = ""
 
     @property
     def rel(self) -> str:
@@ -324,6 +327,7 @@ def read_note(root: str, category: str, filename: str) -> Note | None:
         pinned=front.get("pinned", "").lower() == "true",
         updated=stamp or _modified_at(path),
         has_stamp=stamp is not None,
+        keywords=front.get("keywords", ""),
     )
 
 

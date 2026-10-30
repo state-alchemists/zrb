@@ -5,6 +5,11 @@ Rendering also binds the ambient session and interactive-mode ``ContextVar``s
 the todo tools and ``ask_user_question`` read, and clears a stale active
 worktree.
 """
+# `Note` is imported only for the type checker, so the annotation that names it
+# has to stay unevaluated: 3.13 and older evaluate it when the function is
+# defined, and would raise `NameError` on import. 3.14 postpones annotations by
+# default (PEP 649), which is why a suite run on 3.14 cannot see this break.
+from __future__ import annotations
 
 import asyncio
 import os
@@ -12,23 +17,37 @@ import re
 import subprocess
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from html import escape
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.ambient_state import (
     get_active_worktree,
     get_current_chat_session_id,
+    get_current_context_session,
     get_input_provenance,
     set_active_worktree,
     set_current_tool_session,
     set_interactive_mode,
 )
 from zrb.llm.journal_index_name import resolve_journal_index_name
-from zrb.llm.journal_usage_log import record_auto_searched, record_injected
+from zrb.llm.journal_usage_log import (
+    INJECTED,
+    note_hash,
+    read_events,
+    record_auto_searched,
+    record_injected,
+)
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
+from zrb.util.string.name import get_conversation_key
+
+if TYPE_CHECKING:
+    # A runtime import of `zrb.llm.tool` here would close a package cycle: two
+    # tool modules read `zrb.llm.prompt.prompt`. Only the annotation needs the
+    # type; the functions import what they call where they call it.
+    from zrb.llm.tool.journal_note import Note
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
 LIVE_CONTEXT_ANCHOR = (
@@ -48,6 +67,10 @@ _INDEX_LINK = re.compile(r"\[([^\]]+)\]\(([a-z0-9_-]+)/[^)]*\)")
 
 # The trailing link of a HUD line: `- text ([note](category/slug.md))`.
 _HUD_NOTE_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$", re.MULTILINE)
+
+# What this process has shown, by conversation and by note version. A backstop
+# for a usage directory that cannot be written; see `_shown_in_process`.
+_PROCESS_SHOWN: dict[str, set[str]] = {}
 
 
 def append_live_context(prompt_content: Any, live_context: str) -> Any:
@@ -540,6 +563,145 @@ def _hud_note_paths(content: str) -> list[str]:
     return [m.group(1) for m in _HUD_NOTE_LINK.finditer(content)]
 
 
+def render_journal_claims(first_message: str | None = None) -> str | None:
+    """The journal claims a turn after the first has not been shown yet.
+
+    The index is injected once, so a note written during a session stays
+    invisible until the conversation is compacted — the session records a fact
+    and then answers as though it had never recorded it. Each later turn shows a
+    few claims instead: the ones freshness and *first_message* favour, written or
+    revised since the index went in, and never one this session already carries.
+
+    What a session already carries is read back from the `injected` events in the
+    usage log rather than held in memory. The log is the thing that survives a
+    fresh process, and the web runner builds every message in one; a set that
+    reset would re-inject the same claims for the life of the conversation. An
+    in-process record backs it up when there is no log to write (see
+    `_shown_in_process`).
+    """
+    if not CFG.LLM_JOURNAL_ENABLED:
+        return None
+    per_turn = CFG.LLM_JOURNAL_CLAIMS_PER_TURN
+    max_chars = CFG.LLM_JOURNAL_CLAIMS_MAX_CHARS
+    if per_turn <= 0 or max_chars <= 0:
+        return None
+    try:
+        index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
+    except ValueError:
+        return None
+    # Deferred: `zrb.llm.tool` reads `zrb.llm.prompt.prompt`, so importing it at
+    # module level here would make the two packages import each other.
+    from zrb.llm.prompt.journal_claims import select_claims, terms
+    from zrb.llm.tool.journal_index import hud_line_of
+    from zrb.llm.tool.journal_note import list_notes
+
+    journal_dir = os.path.expanduser(CFG.LLM_JOURNAL_DIR)
+    notes = list_notes(journal_dir, (index_name, "index.md"))
+    if not notes:
+        return None
+    session = get_conversation_key(get_current_context_session())
+    events = _session_events(session)
+    chosen = select_claims(
+        notes,
+        now=datetime.now(),
+        query=terms(first_message),
+        already=_already_shown(events, notes) | _shown_in_process(session, notes),
+        since=_session_start(events),
+        per_turn=per_turn,
+        max_chars=max_chars,
+    )
+    if not chosen:
+        return None
+    lines = "\n".join(hud_line_of(note) for note in chosen)
+    block = (
+        "<journal-claims>\n"
+        "Journal claims from notes written or revised during this session. Each "
+        "is what its note says in one line; read the note before relying on the "
+        f"detail.\n{lines}\n"
+        "</journal-claims>"
+    )
+    _remember_shown(session, chosen)
+    record_injected(len(block.encode("utf-8")), [note.rel for note in chosen], False)
+    return block
+
+
+def _session_events(session: str) -> "list[Any]":
+    """This session's journal events, oldest first; an unreadable log reads as none.
+
+    Failing open is deliberate: with no record, a claim may be repeated after a
+    fresh process, which costs a few tokens, where failing closed would drop
+    memory the log exists to carry.
+    """
+    try:
+        return read_events(session_key=session)
+    except (OSError, ValueError):
+        CFG.LOGGER.debug("Journal claims: usage log unreadable", exc_info=True)
+        return []
+
+
+def _session_start(events: "list[Any]") -> datetime | None:
+    """When this session's first event happened, or `None` if it has none yet.
+
+    A note written before that is older than the conversation: it is what
+    `SearchJournal` and the category indexes are for, not a claim this turn has
+    just learned. `None` means the log holds nothing for this session — either it
+    cannot be written, or nothing has happened yet — so nothing is stale by
+    comparison with anything."""
+    stamps = [event.timestamp for event in events]
+    return min(stamps) if stamps else None
+
+
+def _already_shown(events: "list[Any]", notes: list[Note]) -> set[str]:
+    """The `category/slug` of every note this session was shown *as it then was*.
+
+    A note counts as shown when an `injected` event carried it at or after the
+    moment it was last written: a revision replaces the claim, so a session that
+    was shown the old line has not seen the one the note now carries. Comparing
+    names alone hid every correction made mid-session — the most valuable claim
+    there is — because the slug had been injected once, on the first turn.
+    """
+    sent_at: dict[str, datetime] = {}
+    for event in events:
+        if event.event != INJECTED:
+            continue
+        for hashed in event.hud:
+            if hashed not in sent_at or event.timestamp > sent_at[hashed]:
+                sent_at[hashed] = event.timestamp
+    shown: set[str] = set()
+    for note in notes:
+        note_id = f"{note.category}/{note.slug}"
+        injected = sent_at.get(note_hash(note_id))
+        # A stamp is written from `datetime.now()`, so it is local where an event
+        # is UTC-aware; `astimezone` reads a naive one as local, which is right.
+        if injected is not None and injected >= note.updated.astimezone(timezone.utc):
+            shown.add(note_id)
+    return shown
+
+
+def _shown_in_process(session: str, notes: list[Note]) -> set[str]:
+    """The notes this process has already shown this session, at this version.
+
+    A backstop for a usage directory that cannot be created or written — a read
+    only home, a full disk, a container without one. The log is still the record
+    that survives a fresh process; this is what keeps an interactive session from
+    repeating the same three claims every turn when there is no log to read."""
+    shown = _PROCESS_SHOWN.get(session, set())
+    return {
+        f"{note.category}/{note.slug}"
+        for note in notes
+        if _version_of(note) in shown
+    }
+
+
+def _remember_shown(session: str, notes: list[Note]) -> None:
+    _PROCESS_SHOWN.setdefault(session, set()).update(_version_of(note) for note in notes)
+
+
+def _version_of(note: Note) -> str:
+    """A note's identity at one revision: the key the shown-records compare on."""
+    return f"{note.category}/{note.slug}@{note.updated.isoformat()}"
+
+
 def _overflow_summary(dropped: str) -> str:
     """One line per note category the cap hid, plus the newest title in it."""
     counts: dict[str, int] = {}
@@ -945,5 +1107,12 @@ def _render_parts(
         day_block = render_day_block()
         if day_block:
             parts.append(day_block)
+    else:
+        # The index went in on the first turn; this turn shows only the claims
+        # written since, so a fact recorded mid-session reaches the next turn
+        # instead of waiting for compaction.
+        claims_block = render_journal_claims(first_message)
+        if claims_block:
+            parts.append(claims_block)
 
     return "\n".join(parts)

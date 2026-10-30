@@ -102,7 +102,7 @@ The index is only injected at the two moments it could otherwise be missing from
 - **The first turn** — when history is still empty, `render_live_context(..., inject_journal_index=True)` appends the snapshot.
 - **History summarization** — `summarize_history` re-seeds the index into the freshly-compressed history so it survives compaction.
 
-On every other turn, the block is simply omitted — the agent is expected to already have it from earlier in the conversation.
+On every other turn the `<journal-index>` block is omitted — the agent is expected to already have it from earlier in the conversation — and a much smaller `<journal-claims>` block takes its place (see §3.1).
 
 When present, the block is wrapped as its own tag inside the live-context payload (shown with the default index name — the header and the category hint both carry whatever `ZRB_LLM_JOURNAL_INDEX_FILE` says):
 
@@ -125,6 +125,25 @@ Your persistent memory (index file: /abs/path/to/index.md). Truncated at `(...mo
 Cutting on a line boundary matters because the entries are facts about the user — half a sentence is worse than none. Overflow is dropped from the **end**, so the index should be written most-durable-first. `WriteJournalNote` enforces that order when it creates the root index: the `User`, `Constraints`, `Agent` and `Recent` sections first, unbounded "Recent Insights" last, so growth only ever evicts itself. A section renders newest first, so the cut drops the oldest headlines first, and unpinned lines are evicted first, oldest first, down to `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION`. A pinned line is evicted only when every line in its section is pinned, and then the oldest pinned lines go until the cap holds. A section with more pinned lines than the cap that still has unpinned lines loses all of them and stays above the cap.
 
 Nothing is injected at all when the index file is missing, unreadable, or empty; when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0`; or when `ZRB_LLM_JOURNAL_ENABLED` is `false`. A missing block therefore does not prove an empty journal — and nothing tells the model so. Stating the caveat would cost either prompt weight or a tool docstring paid for on every request, so it is a known gap rather than shipped text (`render_journal_index`'s docstring records it). It matters only when `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` is `0` while the journal tools stay registered — a deliberate and unusual pairing.
+
+### 3.1 The mid-session claims
+
+The index goes in once, so a note written after it is invisible until the conversation is compacted: the session can record a fact and then answer as though it had never recorded it. Each turn after the first therefore carries at most `ZRB_LLM_JOURNAL_CLAIMS_PER_TURN` claims (default **3**) inside `ZRB_LLM_JOURNAL_CLAIMS_MAX_CHARS` (default **1000**):
+
+```
+<journal-claims>
+Journal claims from notes written since this session's index went in. Each is what its note says in one line; read the note before relying on the detail.
+- 📌 Retry is not concurrency-safe. ([note](technical/retry-policy.md))
+</journal-claims>
+```
+
+The claim is the note's `hud_line` — why that line is a required argument of every write — rendered by the same `hud_line_of` the index uses, so a claim looks the same in both places.
+
+Ranking (`src/zrb/llm/prompt/journal_claims.py`) multiplies three things: **freshness** (half-life one day — the notes a session has not been shown are the ones written during it, and `SearchJournal` is what finds last week's), a **pin** (`× (1 + 2)` — a pinned claim is a constraint that has to keep holding, so one written this session must reach the next turn), and the **words a claim shares with the turn** (`× (1 + shared)`), so among notes written together the ones on the subject take the few slots. Only notes written or revised **during this session** are candidates: the session's first event (a prompt) is the anchor, and anything older is what `SearchJournal` and the category indexes are for — including a note the index's cap kept out. A superseded note is never a claim: it is evidence, not memory. A claim whose line does not fit the character budget is skipped rather than ending the turn, and it stays eligible on a later turn.
+
+Which claims a session already carries is read back from the `injected` events in `journal-usage-YYYY-MM.jsonl`, not kept in memory: the web runner builds every message in a fresh process, and a set that reset would re-inject the same claims for the life of the conversation. **A note counts as shown only as it stood when it was injected** — every event carries a timestamp, and a note whose `updated` stamp is later than the injection that carried it is eligible again, so a correction made mid-session reaches the next turn. Comparing names alone hides every revision, which is the claim a session most needs. Each claims block records its own `injected` event, so the cost stays visible in `/usage`, and an unreadable or unwritable log fails open: a repeated claim costs a few tokens while failing closed would drop the memory the log exists to carry. For that case the process also remembers what it showed, per conversation and per version, so a read-only home does not turn the block into the same three claims every turn.
+
+The first turn still injects the whole index: ranking that snapshot as well is a separate change, since it decides which of the index's own sections survive the cap.
 
 ---
 
