@@ -28,6 +28,7 @@ from zrb.llm.ambient_state import (
     get_session_ownership_key,
 )
 from zrb.llm.permission import Capability, tag
+from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.subagent.manager import (
     SubAgentManager,
 )
@@ -104,11 +105,27 @@ class _BackgroundRegistry:
         return newly_done
 
     async def collect(self, handle: str, wait: float = 0.0) -> str:
-        """Poll a handle, blocking up to ``wait`` seconds; timeout leaves the task running."""
+        """Poll a handle, blocking up to ``wait`` seconds; timeout leaves the task running.
+
+        An interrupting message ends the wait rather than holding the turn, and
+        the call reports itself interrupted: the sub-agent keeps running, and
+        the same call collects it again.
+        """
         task = self._tasks.get(handle)
         if task is not None and not task.done() and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
-            await asyncio.wait({task}, timeout=capped)
+            was_cut = await is_cut_while_waiting({task}, capped)
+            # The sub-agent can settle as the cut lands, or while the cut's own
+            # tasks are reaped: `poll` below consumes a finished handle, so the
+            # notice must not send the model back to this one.
+            if was_cut and not task.done():
+                return (
+                    interrupted_notice(
+                        f"GetDelegationResult(handle='{handle}', wait=N)"
+                    )
+                    + "\n\n"
+                    + self.poll(handle)
+                )
         return self.poll(handle)
 
     def _consume(self, handle: str) -> tuple[asyncio.Task | None, BufferedUI | None]:

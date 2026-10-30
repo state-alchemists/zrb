@@ -80,3 +80,52 @@ def signal_for_run() -> ShellCutSignal:
     would listen to a signal nothing ever cuts, and the key would move nothing.
     """
     return get_run_shell_cut_signal() or ShellCutSignal()
+
+
+def interrupted_notice(retry: str) -> str:
+    """What a monitoring call reports when a cut ended its wait.
+
+    A wait is not work: nothing is lost by stopping it, so the call says it was
+    interrupted and names the call that picks the same wait up again. The
+    warning against starting a second copy is not decoration — the process or
+    the sub-agent is still running.
+    """
+    return (
+        "[interrupted] The user sent a message that needs this turn, so this "
+        "wait stopped. Nothing was cancelled and nothing was lost: it is still "
+        "running. Read the message first, then call "
+        f"`{retry}` to wait again — do not start a second copy."
+    )
+
+
+async def is_cut_while_waiting(waits: "set[asyncio.Task]", seconds: float) -> bool:
+    """Wait for *waits* up to *seconds*; True when a cut ended the wait first.
+
+    The cut is the run's own (``Ctrl+G``/send-now), read the same way `Shell`
+    reads it, so one session's keypress does not end another session's wait.
+    Outside a run there is no signal and this is `asyncio.wait` and nothing else.
+    """
+    cut = get_run_shell_cut_signal()
+    waiting = asyncio.ensure_future(
+        asyncio.wait(waits, timeout=seconds, return_when=asyncio.ALL_COMPLETED)
+    )
+    if cut is None:
+        await waiting
+        return False
+    cut_wait = asyncio.ensure_future(cut.wait_for_cut(cut.generation))
+    try:
+        done, _pending = await asyncio.wait(
+            {waiting, cut_wait}, return_when=asyncio.FIRST_COMPLETED
+        )
+        # A wait that settled with the cut is answered by its result: the cut
+        # did not end it first, and the caller's `poll` consumes a finished
+        # handle, so "wait again" would point at one that is gone.
+        return cut_wait in done and waiting not in done
+    finally:
+        # Both tasks are this call's own, so reap them before returning: a
+        # cancelled `asyncio.wait` left pending into the loop's next turn keeps
+        # the watched tasks' done-callbacks registered, and a loop that closes
+        # in between reports it as a task destroyed while still pending.
+        cut_wait.cancel()
+        waiting.cancel()
+        await asyncio.gather(cut_wait, waiting, return_exceptions=True)
