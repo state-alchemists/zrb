@@ -191,6 +191,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0093** — [A slash command is always offered; an unavailable one explains itself](adr-0093.md)
 - **ADR-0106** — [A side question runs without tools, and its prompt says so](adr-0106.md)
 - **ADR-0117** — [The `/btw` panel holds the focus while it is shown, and a typed character still starts a message](adr-0117.md)
+- **ADR-0133** — [A panel that has something to say docks into the layout, and takes no rows it cannot paint](adr-0133.md)
 
 ### Voice and media
 
