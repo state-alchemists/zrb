@@ -56,14 +56,20 @@ _FRONTMATTER_FENCE = "---"
 # Where a sentence may end. A Finding often has no terminator at all
 # (`retry_period` is read without a lock), which is the whole of it.
 _TERMINATOR_RE = re.compile(r"[.!?](?=\s|$)")
-# A period inside one of these does not end a sentence. `e.g.` is the one that
-# bites: "The value is e.g. enabled for retries" used to be cut to "The value is
-# e.g.", a claim that stops mid-thought and reads as complete.
-_ABBREVIATIONS = frozenset(
+# A period inside one of these never ends a sentence: the abbreviation needs the
+# word after it (`e.g. enabled`) or is a title before a name (`Dr. Chen`). `e.g.`
+# is the one that bit: "The value is e.g. enabled for retries" used to be cut to
+# "The value is e.g.", a claim that stops mid-thought and reads as complete.
+#
+# `etc` is deliberately absent. It is the one abbreviation that also ends
+# sentences — `Use etc. Next step is locking.` — so it cannot be decided from
+# the word alone; it falls through to the next-word rule, which reads the
+# capital as a new sentence and the lower-case word as a continuation
+# (`backoff, etc. and nothing more`).
+_NEVER_TERMINAL = frozenset(
     {
         "e.g",
         "i.e",
-        "etc",
         "vs",
         "cf",
         "al",
@@ -228,11 +234,13 @@ def _is_sentence_end(text: str, index: int) -> bool:
     Only a period can sit inside a word, so only a period has to look around:
     at the word it follows (`e.g`, `Mr`, a single initial `J`), and at what
     comes after it — a capital, a digit, a quote or a bracket starts a
-    sentence, while a lower-case word continues the one already open."""
+    sentence, while a lower-case word continues the one already open. An
+    abbreviation that never ends a sentence stops the check there; one that can
+    (`etc`) falls through and lets the next word decide."""
     if text[index] != ".":
         return True
     before = text[:index].rsplit(None, 1)[-1].lstrip(_SENTENCE_START_CHARS).lower()
-    if before in _ABBREVIATIONS or (len(before) == 1 and before.isalpha()):
+    if before in _NEVER_TERMINAL or (len(before) == 1 and before.isalpha()):
         return False
     rest = text[index + 1 :].lstrip()
     if not rest:

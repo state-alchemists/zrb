@@ -105,6 +105,21 @@ def test_a_title_or_an_initial_does_not_end_the_derived_line():
     )
 
 
+def test_an_abbreviation_that_can_end_a_sentence_ends_it():
+    """`etc.` is both: mid-sentence a lower-case word follows, at the end of a
+    sentence a capital does. It cannot be decided from the word alone, so it
+    falls through to the next-word rule — the reviewer's trigger."""
+    finding = "Use etc. Next step is locking. More later."
+
+    assert derive_hud_line(finding) == "Use etc."
+
+
+def test_etc_inside_a_sentence_does_not_end_it():
+    finding = "Retries back off, etc. and the lock stays held."
+
+    assert derive_hud_line(finding) == finding
+
+
 def test_a_lowercase_sentence_keeps_the_claim_whole():
     """A period followed by a lower-case word is a continuation, not a new
     sentence, so nothing qualifies and the finding is its own claim — a long
