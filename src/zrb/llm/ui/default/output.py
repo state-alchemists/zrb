@@ -20,6 +20,7 @@ from zrb.llm.ui.output_chunk import (
     merge_into_block,
 )
 from zrb.llm.ui.tracked_spans import TrackedSpans
+from zrb.llm.util.stream_response import TEXT_BLOCK_LABEL
 from zrb.util.cli.help_panel import render_help_panel
 from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
@@ -359,20 +360,27 @@ class UIOutput:
         return self._spans.collapse_block(collapsed, full)
 
     def settle_text_block(self, source: str) -> None:
-        """Render an intermediate text block's prose in place of its stream.
+        """Render an intermediate text block's prose under its own marker.
 
         A text block a tool call ends is prose the assistant wrote *before*
         acting — not the turn's answer, which `collapse_text_block` takes care
-        of — so nothing is hidden: the block is rebuilt from `source` and left
-        readable. Registered as a rendered block, like `append_markdown`'s
-        output, so a resize re-wraps it with the rest of the transcript.
+        of — so nothing is hidden: the marker says how much was written, the
+        prose follows on a line of its own, and Ctrl+O folds it back to the
+        marker. The span is registered as a rendered block, like
+        `append_markdown`'s output, so a resize re-wraps it.
         """
         rendered = self._render_markdown_block(source, self.output_field_width)
-        span = self._spans.settle_block(rendered)
-        if span is not None:
-            self.set_rendered_block(
-                span[0], span[1], source, self._render_markdown_block
-            )
+        count = len(source.strip())
+        marker = (
+            f"{TEXT_BLOCK_LABEL} ({count} chars)"
+            if count
+            else f"{TEXT_BLOCK_LABEL} (empty)"
+        )
+        # One registration only: `set_rendered_block` drops overlapping spans, so
+        # a separate entry for the prose would erase the fold it sits inside.
+        self._spans.settle_expandable_block(
+            marker, f"{stylize_muted(marker)}\n{rendered}"
+        )
 
     def update_shell_output(self, key: str, text: str) -> None:
         """Grow or replace `key`'s own live shell-output line with `text`
