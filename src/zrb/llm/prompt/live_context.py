@@ -68,6 +68,10 @@ _INDEX_LINK = re.compile(r"\[([^\]]+)\]\(([a-z0-9_-]+)/[^)]*\)")
 # The trailing link of a HUD line: `- text ([note](category/slug.md))`.
 _HUD_NOTE_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$", re.MULTILINE)
 
+# What this process has shown, by conversation and by note version. A backstop
+# for a usage directory that cannot be written; see `_shown_in_process`.
+_PROCESS_SHOWN: dict[str, set[str]] = {}
+
 
 def append_live_context(prompt_content: Any, live_context: str) -> Any:
     """Append the ``<live-context>`` block to the end of the current user turn.
@@ -565,13 +569,15 @@ def render_journal_claims(first_message: str | None = None) -> str | None:
     The index is injected once, so a note written during a session stays
     invisible until the conversation is compacted — the session records a fact
     and then answers as though it had never recorded it. Each later turn shows a
-    few claims instead: the ones freshness and *first_message* favour, and never
-    one this session already carries.
+    few claims instead: the ones freshness and *first_message* favour, written or
+    revised since the index went in, and never one this session already carries.
 
-    Which ones it already carries is read back from the `injected` events in the
-    usage log rather than kept in memory. The log is the thing that survives a
+    What a session already carries is read back from the `injected` events in the
+    usage log rather than held in memory. The log is the thing that survives a
     fresh process, and the web runner builds every message in one; a set that
-    reset would re-inject the same claims for the life of the conversation.
+    reset would re-inject the same claims for the life of the conversation. An
+    in-process record backs it up when there is no log to write (see
+    `_shown_in_process`).
     """
     if not CFG.LLM_JOURNAL_ENABLED:
         return None
@@ -594,11 +600,13 @@ def render_journal_claims(first_message: str | None = None) -> str | None:
     if not notes:
         return None
     session = get_conversation_key(get_current_context_session())
+    events = _session_events(session)
     chosen = select_claims(
         notes,
         now=datetime.now(),
         query=terms(first_message),
-        already=_already_shown(session, notes),
+        already=_already_shown(events, notes) | _shown_in_process(session, notes),
+        since=_session_start(events),
         per_turn=per_turn,
         max_chars=max_chars,
     )
@@ -607,32 +615,51 @@ def render_journal_claims(first_message: str | None = None) -> str | None:
     lines = "\n".join(hud_line_of(note) for note in chosen)
     block = (
         "<journal-claims>\n"
-        "Journal claims from notes written since this session's index went in. "
-        "Each is what its note says in one line; read the note before relying "
-        f"on the detail.\n{lines}\n"
+        "Journal claims from notes written or revised during this session. Each "
+        "is what its note says in one line; read the note before relying on the "
+        f"detail.\n{lines}\n"
         "</journal-claims>"
     )
+    _remember_shown(session, chosen)
     record_injected(len(block.encode("utf-8")), [note.rel for note in chosen], False)
     return block
 
 
-def _already_shown(session: str, notes: list[Note]) -> set[str]:
-    """The `category/slug` of every note this session has been shown *as it then was*.
+def _session_events(session: str) -> "list[Any]":
+    """This session's journal events, oldest first; an unreadable log reads as none.
+
+    Failing open is deliberate: with no record, a claim may be repeated after a
+    fresh process, which costs a few tokens, where failing closed would drop
+    memory the log exists to carry.
+    """
+    try:
+        return read_events(session_key=session)
+    except (OSError, ValueError):
+        CFG.LOGGER.debug("Journal claims: usage log unreadable", exc_info=True)
+        return []
+
+
+def _session_start(events: "list[Any]") -> datetime | None:
+    """When this session's first event happened, or `None` if it has none yet.
+
+    A note written before that is older than the conversation: it is what
+    `SearchJournal` and the category indexes are for, not a claim this turn has
+    just learned. `None` means the log holds nothing for this session — either it
+    cannot be written, or nothing has happened yet — so nothing is stale by
+    comparison with anything."""
+    stamps = [event.timestamp for event in events]
+    return min(stamps) if stamps else None
+
+
+def _already_shown(events: "list[Any]", notes: list[Note]) -> set[str]:
+    """The `category/slug` of every note this session was shown *as it then was*.
 
     A note counts as shown when an `injected` event carried it at or after the
     moment it was last written: a revision replaces the claim, so a session that
     was shown the old line has not seen the one the note now carries. Comparing
     names alone hid every correction made mid-session — the most valuable claim
     there is — because the slug had been injected once, on the first turn.
-
-    An unreadable log fails open: a repeated claim costs a few tokens, while
-    failing closed would silently drop the memory the log exists to carry.
     """
-    try:
-        events = read_events(session_key=session)
-    except (OSError, ValueError):
-        CFG.LOGGER.debug("Journal claims: usage log unreadable", exc_info=True)
-        return set()
     sent_at: dict[str, datetime] = {}
     for event in events:
         if event.event != INJECTED:
@@ -649,6 +676,30 @@ def _already_shown(session: str, notes: list[Note]) -> set[str]:
         if injected is not None and injected >= note.updated.astimezone(timezone.utc):
             shown.add(note_id)
     return shown
+
+
+def _shown_in_process(session: str, notes: list[Note]) -> set[str]:
+    """The notes this process has already shown this session, at this version.
+
+    A backstop for a usage directory that cannot be created or written — a read
+    only home, a full disk, a container without one. The log is still the record
+    that survives a fresh process; this is what keeps an interactive session from
+    repeating the same three claims every turn when there is no log to read."""
+    shown = _PROCESS_SHOWN.get(session, set())
+    return {
+        f"{note.category}/{note.slug}"
+        for note in notes
+        if _version_of(note) in shown
+    }
+
+
+def _remember_shown(session: str, notes: list[Note]) -> None:
+    _PROCESS_SHOWN.setdefault(session, set()).update(_version_of(note) for note in notes)
+
+
+def _version_of(note: Note) -> str:
+    """A note's identity at one revision: the key the shown-records compare on."""
+    return f"{note.category}/{note.slug}@{note.updated.isoformat()}"
 
 
 def _overflow_summary(dropped: str) -> str:

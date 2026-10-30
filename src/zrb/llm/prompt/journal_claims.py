@@ -16,7 +16,7 @@ Pure: notes in, notes out. No `CFG`, no I/O, so the caller owns both.
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -78,17 +78,25 @@ def select_claims(
     now: datetime,
     query: set[str],
     already: set[str],
+    since: datetime | None = None,
     per_turn: int,
     max_chars: int,
 ) -> list[Note]:
     """The claims to inject this turn, highest score first.
 
     *already* holds the `category/slug` of every note this session has been
-    shown, so nothing is injected twice. *per_turn* and *max_chars* are both
-    budgets and both apply: *per_turn* keeps a turn that wrote ten notes from
-    dumping ten claims on the next one, and *max_chars* keeps one long claim from
-    spending the whole allowance. A claim whose line does not fit is skipped
-    rather than ending the turn, because the next line may be short.
+    shown as it then stood. *since* is when the session began: a claim is what
+    the turn has just learned, so a note written before that is old news however
+    it scored — it is what `SearchJournal` and the category indexes are for, and
+    letting it through would spend one of three slots on it while the block's own
+    sentence says otherwise. `None` means the log holds nothing for this session,
+    so nothing is stale by comparison.
+
+    *per_turn* and *max_chars* are both budgets and both apply: *per_turn* keeps
+    a turn that wrote ten notes from dumping ten claims on the next one, and
+    *max_chars* keeps one long claim from spending the whole allowance. A claim
+    whose line does not fit is skipped rather than ending the turn, because the
+    next line may be short.
     """
     if per_turn <= 0 or max_chars <= 0:
         return []
@@ -98,6 +106,7 @@ def select_claims(
         if note.is_active
         and note.hud_line
         and f"{note.category}/{note.slug}" not in already
+        and (since is None or note.updated.astimezone(timezone.utc) >= since)
     ]
     ranked = sorted(
         candidates, key=lambda note: (-claim_score(note, now, query), note.rel)

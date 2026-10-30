@@ -8,13 +8,17 @@ tests pin the replacement: a few claims a turn, ranked, never repeated.
 
 import ast
 import pathlib
+from datetime import datetime, timedelta
+from uuid import uuid4
 
 import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import set_current_session
+from zrb.llm.journal_usage_log import record_prompted
 from zrb.llm.prompt import live_context
 from zrb.llm.prompt.live_context import _render_parts, render_journal_claims
+from zrb.llm.tool.journal_note import set_frontmatter
 from zrb.llm.tool.journal_write import supersede_journal_note, write_journal_note
 
 LINE = "Retry is not concurrency-safe."
@@ -31,7 +35,13 @@ def journal(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_JOURNAL_INDEX_FILE", "index.md", raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_CLAIMS_PER_TURN", 3, raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_CLAIMS_MAX_CHARS", 1000, raising=False)
-    set_current_session("bold-arch-1234")
+    # A conversation key unique to this test: the in-process record of what was
+    # shown lives in the module and outlives a test, the way process memory
+    # outlives a turn, so two tests must never share a conversation.
+    set_current_session(f"bold-arch-{uuid4().hex[:12]}")
+    # A turn begins with a prompt, which is this session's first event; every
+    # note these tests write comes after it, so all of them are "this session".
+    record_prompted()
     return root
 
 
@@ -64,6 +74,57 @@ def test_a_note_written_mid_session_reaches_the_next_turn(journal):
     assert "<journal-claims>" in block
     assert LINE in block
     assert "([note](technical/retry-policy.md))" in block
+
+
+def _age(root: str, slug: str, when: "datetime") -> None:
+    """Rewrite a note's `updated` stamp, so a test can place it in the past."""
+    path = pathlib.Path(root, "technical", f"{slug}.md")
+    text = set_frontmatter(path.read_text(encoding="utf-8"), {"updated": when.isoformat()})
+    path.write_text(text, encoding="utf-8")
+
+
+def test_a_note_older_than_the_conversation_is_not_a_claim(journal, monkeypatch):
+    """The block says "during this session". A note the journal already held — here
+    one the cap kept out of the index — is what `SearchJournal` and the category
+    indexes are for; it would spend one of three slots on old news while the
+    block's own sentence says otherwise."""
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_INDEX_MAX_CHARS", 120, raising=False)
+    for index in range(12):
+        _write(f"filler-{index}", hud_line=f"Filler claim number {index}.")
+        _age(journal, f"filler-{index}", datetime.now() - timedelta(days=2))
+    _render_parts([], None, True, True, first_message="hello")
+
+    assert render_journal_claims() is None
+
+
+def test_a_claim_is_not_repeated_when_the_usage_log_cannot_be_written(
+    journal, monkeypatch, tmp_path
+):
+    """The log survives a fresh process; this process still remembers what it
+    showed when there is no log to write — a read-only home or a full disk must
+    not turn the block into the same three claims every turn."""
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file where a directory belongs", encoding="utf-8")
+    monkeypatch.setattr(CFG, "LLM_USAGE_DIR", str(blocker / "usage"), raising=False)
+    _write("retry-policy")
+
+    assert render_journal_claims() is not None
+    assert render_journal_claims() is None
+
+
+def test_two_sessions_do_not_hide_each_other_s_claims(journal):
+    """Each conversation gets its own claims: the record is keyed by session, so
+    what one session was shown another may still need — the same note is the
+    answer to two different questions asked at once."""
+    _write("retry-policy")
+
+    set_current_session("bold-arch-1234")
+    assert render_journal_claims() is not None
+
+    set_current_session("calm-wave-5678")
+    assert render_journal_claims() is not None
+
+    set_current_session("bold-arch-1234")
 
 
 def test_a_claim_is_shown_once_per_session(journal):
