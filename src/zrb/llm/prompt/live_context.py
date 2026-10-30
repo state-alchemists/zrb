@@ -27,7 +27,7 @@ from zrb.llm.ambient_state import (
     set_interactive_mode,
 )
 from zrb.llm.journal_index_name import resolve_journal_index_name
-from zrb.llm.journal_usage_log import record_injected
+from zrb.llm.journal_usage_log import record_auto_searched, record_injected
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
@@ -582,6 +582,10 @@ def _render_possibly_related(first_message: str) -> str:
     result = find_in_journal(first_message)
     found = result.get("results")
     hits = found if isinstance(found, list) else []
+    files = [str(hit["file"]) for hit in hits if isinstance(hit, dict) and "file" in hit]
+    # Recorded even with no hits: an auto-search that found nothing is the
+    # measurement of the automatic retrieval, not a turn that never happened.
+    record_auto_searched(first_message, files, len(hits))
     if not hits:
         return ""
     max_hits = max(CFG.LLM_JOURNAL_AUTO_SEARCH_MAX_HITS, 0)

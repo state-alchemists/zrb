@@ -6,8 +6,9 @@ It exists so `/usage` can say what the journal costs and whether it pays: how
 many bytes the index adds to a turn, how often a search finds nothing, and
 whether a note the agent wrote is ever read again.
 
-One line per event: `injected`, `searched`, `read`, `written`, `superseded`,
-`deleted`, `judging`, `judged`. Like the usage log it holds numbers and ids only.
+One line per event: `injected`, `prompted`, `searched`, `auto_searched`, `read`,
+`written`, `superseded`, `deleted`, `judging`, `judged`. Like the usage log it
+holds numbers and ids only.
 A note is identified by a short hash of its `category/slug`, never by the name,
 because a slug carries meaning; `/usage` resolves a hash to a title by scanning
 the current journal, so a note that no longer exists reads as removed. No query,
@@ -41,14 +42,27 @@ _ACTIVITY_DIR = "activity-log"
 _INDEX_NAME = "index.md"
 
 INJECTED = "injected"
+PROMPTED = "prompted"
 SEARCHED = "searched"
+AUTO_SEARCHED = "auto_searched"
 READ = "read"
 WRITTEN = "written"
 SUPERSEDED = "superseded"
 DELETED = "deleted"
 JUDGING = "judging"
 JUDGED = "judged"
-EVENTS = (INJECTED, SEARCHED, READ, WRITTEN, SUPERSEDED, DELETED, JUDGING, JUDGED)
+EVENTS = (
+    INJECTED,
+    PROMPTED,
+    SEARCHED,
+    AUTO_SEARCHED,
+    READ,
+    WRITTEN,
+    SUPERSEDED,
+    DELETED,
+    JUDGING,
+    JUDGED,
+)
 
 
 @dataclass(frozen=True)
@@ -129,11 +143,35 @@ def record_injected(size: int, hud_notes: list[str], truncated: bool) -> None:
     _append(INJECTED, size=size, truncated=truncated, hud=hud)
 
 
+def record_prompted() -> None:
+    """A user prompt started a turn: the denominator of lookups per answer.
+
+    One per submitted prompt, not per model round. A turn that makes six tool
+    calls is still one question, and counting rounds would make an agent that
+    searches once look cheaper than one that searches once and reads twice."""
+    _append(PROMPTED)
+
+
 def record_searched(query: str, result_files: list[str], results: int) -> None:
     """A search ran: *result_files* are the rel paths its rows came from."""
+    _append_search(SEARCHED, query, result_files, results)
+
+
+def record_auto_searched(query: str, result_files: list[str], results: int) -> None:
+    """The opening-message auto-search ran, so its yield is visible.
+
+    Kept apart from `searched`: that event counts a search the agent chose to
+    make, and folding in one it never asked for would make an automatic miss
+    read as the agent's own — the reason `find_in_journal` records nothing."""
+    _append_search(AUTO_SEARCHED, query, result_files, results)
+
+
+def _append_search(
+    event: str, query: str, result_files: list[str], results: int
+) -> None:
     ids = {nid for nid in map(note_id_of, result_files) if nid}
     _append(
-        SEARCHED,
+        event,
         terms=len(query.split()),
         results=results,
         hits=sorted(note_hash(nid) for nid in ids),

@@ -8,18 +8,23 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import set_current_tool_session
 from zrb.llm.journal_usage_log import (
+    AUTO_SEARCHED,
+    EVENTS,
     INJECTED,
     JUDGED,
     JUDGING,
+    PROMPTED,
     SEARCHED,
     JournalEvent,
     note_hash,
     note_id_of,
     read_events,
+    record_auto_searched,
     record_injected,
     record_judged,
     record_judging,
     record_note_event,
+    record_prompted,
     record_searched,
 )
 
@@ -155,3 +160,28 @@ def test_a_zero_result_search_says_so():
     )
 
     assert event.is_zero_result
+
+
+def test_a_prompt_and_an_auto_search_stay_apart_from_the_agents_searches(usage_dir):
+    record_prompted()
+    record_auto_searched("two words", ["technical/a.md"], 3)
+
+    prompted, auto = read_events()
+
+    assert prompted.event == PROMPTED
+    assert auto.event == AUTO_SEARCHED
+    assert (auto.terms, auto.results) == (2, 3)
+    assert auto.hits == [note_hash("technical/a")]
+
+
+def test_an_auto_search_that_found_nothing_is_still_recorded(usage_dir):
+    record_auto_searched("nothing here", [], 0)
+
+    (event,) = read_events()
+
+    assert (event.event, event.results, event.hits) == (AUTO_SEARCHED, 0, [])
+
+
+def test_the_new_events_are_part_of_the_known_set():
+    assert PROMPTED in EVENTS
+    assert AUTO_SEARCHED in EVENTS

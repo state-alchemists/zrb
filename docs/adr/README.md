@@ -132,6 +132,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0054** — [Built-in plugin split into core-skills, skills, agents](adr-0054.md)
 - **ADR-0055** — [The journal is a markdown graph that only tools write](adr-0055.md)
 - **ADR-0118** — [A skill declares the skills it preloads, and one activation renders them together](adr-0118.md)
+- **ADR-0134** — [Journal usage is measured per prompt and per automatic search, so a retrieval change can be judged](adr-0134.md)
 
 ### Tools
 

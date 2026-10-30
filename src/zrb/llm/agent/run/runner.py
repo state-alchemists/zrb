@@ -76,6 +76,7 @@ from zrb.llm.hook.turn_evidence import (
     turn_wrote_files,
 )
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.journal_usage_log import record_prompted
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
     current_permission_policy,
@@ -128,6 +129,10 @@ async def run_agent(
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
     run_scope: str = "",
     nested: bool | None = None,
+    # Opt-in: this run is a user's prompt, so it counts in lookups-per-prompt.
+    # Most callers of this function are internal helpers (dictation, web and
+    # code extraction, media description, file analysis) and must leave it off.
+    counts_as_user_prompt: bool = False,
     stream_observers: "Sequence[StreamObserver] | None" = None,
 ) -> tuple[Any, list[Any]]:
     """Run the agent with rate limiting, history management and confirmations.
@@ -177,6 +182,11 @@ async def run_agent(
 
     # Read before this run binds its own scope below.
     nested_run = bool(get_current_agent_run_scope()) if nested is None else nested
+    # Opt-in rather than inferred from `nested_run`: most callers are internal
+    # helpers, and counting a dictation transcription as a prompt would make
+    # lookups per prompt read better than it is — the flattering direction.
+    if counts_as_user_prompt:
+        record_prompted()
 
     # ExitStack keeps set/reset symmetric: if a later bind raises, the vars
     # already bound are still reset, and no unset token is ever reset.
