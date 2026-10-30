@@ -25,6 +25,7 @@ from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_current_chat_session_id
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
+from zrb.llm.shell_cut import interrupted_notice, wait_unless_cut
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.string.name import get_random_name
 
@@ -200,16 +201,19 @@ class _ShellBackgroundRegistry:
     async def collect(self, handle: str, wait: float = 0.0) -> str:
         """Poll a handle, blocking up to ``wait`` seconds for exit and full drain.
 
-        The process is not killed on timeout.
+        The process is not killed on timeout, and an interrupting message ends
+        the wait instead of holding the turn: the call then reports itself
+        interrupted, keeping the process as it is for the retry.
         """
         bp = self._procs.get(handle)
         if bp is not None and bp.returncode is None and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
-            await asyncio.wait(
-                set(bp.tasks),
-                timeout=capped,
-                return_when=asyncio.ALL_COMPLETED,
-            )
+            if await wait_unless_cut(set(bp.tasks), capped):
+                return (
+                    interrupted_notice(f"MonitorProcess(handle='{handle}', wait=N)")
+                    + "\n\n"
+                    + self.poll(handle)
+                )
         return self.poll(handle)
 
     def poll(self, handle: str) -> str:
