@@ -3,13 +3,15 @@ import os
 import re
 import shutil
 import subprocess
-from typing import Annotated, Any
+from datetime import datetime
+from typing import Annotated, Any, NamedTuple
 
 from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.journal_index_name import resolve_journal_index_name
 from zrb.llm.journal_usage_log import record_searched
+from zrb.llm.tool.journal_note import parse_frontmatter
 from zrb.llm.tool.journal_write import NOTE_CATEGORIES
 from zrb.util.markdown import get_first_heading
 from zrb.util.truncate import truncate_text
@@ -45,6 +47,24 @@ _NOTE = 1
 _INDEX = 2
 _ACTIVITY = 3
 
+# What time does to a note's score, inside its band. A month-old note competes at
+# half strength: age orders the notes, it does not decide the answer, because a
+# stale finding is still a finding.
+_HALF_LIFE_DAYS = 30.0
+_SECONDS_PER_DAY = 86400.0
+
+# A pin is a note the journal wants read, so it counts double.
+_PINNED_BOOST = 2.0
+
+# A note with no readable moment at all — no `updated:` stamp and no file mtime —
+# competes at the half-life value: neither dropped nor favoured.
+_NEUTRAL_DECAY = 0.5
+
+# Never zero. Forty half-lives is three years, past which one note is no more
+# stale than another; a floor is also what keeps an unreadable date from erasing
+# a note out of the result.
+_MIN_DECAY = 0.5**40
+
 
 def search_journal(
     query: Annotated[
@@ -65,9 +85,11 @@ def search_journal(
     Searches the journal for a regex pattern or for a set of words.
 
     Returns matching lines with file names and line numbers, notes whose title
-    matches first, then other notes, then the indexes and the activity log. A
-    zero-hit search suggests titles under `did_you_mean` and is not proof the
-    topic was never recorded: try those or a synonym before concluding.
+    matches first, then other notes, then the indexes and the activity log.
+    Within a group the fresher note leads — a note is worth half as much a month
+    later — and a pinned note counts double. A zero-hit search suggests titles
+    under `did_you_mean` and is not proof the topic was never recorded: try
+    those or a synonym before concluding.
 
     Call this before WriteJournalNote or DeleteJournalNote whenever you are
     not certain a slug is free, or that it names the note you intend to touch.
@@ -286,24 +308,26 @@ def _format_results(
 
     A file is ranked by how many of *terms* it holds — a body hit and a title
     hit count the same here — then by what the file is: a note whose title
-    carries the words, another note, an index, the activity log. The shortlist
-    is what makes a question answerable: a word that appears in every note
-    would otherwise put every note in the result."""
+    carries the words, another note, an index, the activity log. Inside a band,
+    a note's hits are then scaled by its age and its pin (`_rank_multiplier`),
+    so a fresh note leads a stale one with the same hits. The band stays the
+    primary key: no amount of age lifts an index or the activity log over a
+    note. The shortlist is what makes a question answerable: a word that
+    appears in every note would otherwise put every note in the result."""
     grouped: dict[str, list[tuple[int, str]]] = {}
     for file_path, line_num, content in matches:
         rel = _relpath(file_path, abs_dir)
         grouped.setdefault(rel, []).append((line_num, content))
 
+    now = datetime.now()
     ranked = []
     for rel, rows in grouped.items():
-        title = _note_title(rel, abs_dir)
-        title_hits = _title_hits(title, terms, case_sensitive)
+        facts = _file_facts(rel, abs_dir)
+        title_hits = _title_hits(facts.title, terms, case_sensitive)
         body = _fold(" ".join(content for _line, content in rows), case_sensitive)
         word_hits = sum(1 for term in terms if _fold(term, case_sensitive) in body)
-        word_hits = max(word_hits, title_hits)
-        ranked.append(
-            (_file_group(rel, title_hits), -word_hits, -title_hits, rel, rows)
-        )
+        score = max(word_hits, title_hits) * _rank_multiplier(rel, facts, now)
+        ranked.append((_file_group(rel, title_hits), -score, -title_hits, rel, rows))
     ranked.sort()
 
     results = []
@@ -345,15 +369,90 @@ def _is_index(rel: str) -> bool:
     return name in {"index.md", configured}
 
 
-def _note_title(rel: str, abs_dir: str) -> str:
-    """The `# ` title of a note, or "" for an index, the log, or no note."""
+class _FileFacts(NamedTuple):
+    """What the ranking reads from one file, gathered in a single read."""
+
+    title: str
+    pinned: bool
+    updated: datetime | None
+
+
+def _file_facts(rel: str, abs_dir: str) -> _FileFacts:
+    """`_FileFacts` of *rel*: its `# ` title, whether it is pinned, when it was written.
+
+    One read per candidate, shared by every field. Reading for the title and
+    reading again for the frontmatter would double the search's file reads to
+    decide an order, and a candidate is the only file read at all."""
     if _is_index(rel) or rel.startswith("activity-log/"):
-        return ""
+        return _FileFacts("", False, None)
+    path = os.path.join(abs_dir, rel)
     try:
-        with open(os.path.join(abs_dir, rel), encoding="utf-8", errors="ignore") as f:
-            return get_first_heading(f.read()) or ""
+        with open(path, encoding="utf-8", errors="ignore") as f:
+            text = f.read()
     except OSError:
-        return ""
+        return _FileFacts("", False, None)
+    front = parse_frontmatter(text)
+    return _FileFacts(
+        get_first_heading(text) or "",
+        front.get("pinned", "").strip().lower() == "true",
+        _note_updated(front.get("updated"), path),
+    )
+
+
+def _note_updated(stamp: str | None, path: str) -> datetime | None:
+    """The moment a note was last written: its `updated:` stamp, else the file
+    mtime, else `None`.
+
+    The mtime fallback is what lets a note written before the stamp existed —
+    or by hand — rank by the date it is on disk rather than as ancient."""
+    moment = _parse_moment(stamp)
+    if moment is not None:
+        return moment
+    try:
+        return datetime.fromtimestamp(os.path.getmtime(path))
+    except OSError:
+        return None
+
+
+def _parse_moment(value: str | None) -> datetime | None:
+    """*value* as a naive local `datetime`, or `None` when it is not one.
+
+    A hand-written stamp may carry a timezone; the journal's own stamps are
+    naive local time, so an aware one is brought into that frame instead of
+    making the age subtraction raise."""
+    if not value:
+        return None
+    try:
+        moment = datetime.fromisoformat(value.strip())
+    except ValueError:
+        return None
+    if moment.tzinfo is None:
+        return moment
+    return moment.astimezone().replace(tzinfo=None)
+
+
+def _rank_multiplier(rel: str, facts: _FileFacts, now: datetime) -> float:
+    """What recency and a pin do to *rel*'s term hits.
+
+    Only a note carries them: an index and the activity log are regenerated on
+    every write and have no age worth ranking by, so they keep their score."""
+    if not _is_note(rel):
+        return 1.0
+    return _recency_decay(facts.updated, now) * (_PINNED_BOOST if facts.pinned else 1)
+
+
+def _recency_decay(moment: datetime | None, now: datetime) -> float:
+    """Half the score per half-life of age, floored so it never reaches 0."""
+    if moment is None:
+        return _NEUTRAL_DECAY
+    age = max(0.0, (now - moment).total_seconds() / _SECONDS_PER_DAY)
+    return max(_MIN_DECAY, 0.5 ** (age / _HALF_LIFE_DAYS))
+
+
+def _is_note(rel: str) -> bool:
+    """Whether *rel* is a note — `<category>/<slug>.md` — and not a page."""
+    parts = rel.split("/")
+    return len(parts) == 2 and parts[0] in NOTE_CATEGORIES and not _is_index(rel)
 
 
 def _fold(text: str, case_sensitive: bool) -> str:
