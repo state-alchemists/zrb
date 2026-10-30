@@ -75,6 +75,35 @@ def test_a_claim_is_shown_once_per_session(journal):
     assert render_journal_claims() is None
 
 
+def test_a_note_revised_after_it_was_shown_is_shown_again(journal):
+    """A correction is the valuable claim: the session has seen the note, but
+    not the line it now carries. Deduplicating by name alone hid every revision
+    made mid-session, which is the one thing a session cannot afford to miss."""
+    _write("retry-policy")
+    assert "Retry is not concurrency-safe." in render_journal_claims()
+
+    _write("retry-policy", hud_line="Retry is capped at one attempt per prompt.")
+
+    block = render_journal_claims()
+    assert block is not None
+    assert "Retry is capped at one attempt per prompt." in block
+    assert "Retry is not concurrency-safe." not in block
+
+
+def test_a_note_revised_after_the_index_carried_it_is_shown_again(journal):
+    """The index is an injection like any other: what it showed is the note as
+    it stood then, not the note for the rest of the session."""
+    _write("retry-policy")
+    _render_parts([], None, True, True, first_message="hello")
+    assert render_journal_claims() is None
+
+    _write("retry-policy", hud_line="Retry is capped at one attempt per prompt.")
+
+    block = render_journal_claims()
+    assert block is not None
+    assert "Retry is capped at one attempt per prompt." in block
+
+
 def test_a_claim_the_index_already_carried_is_not_repeated(journal):
     """The index records what it injected as note ids; the claims block records
     the same ids. If the two disagreed, every claim the index showed would come

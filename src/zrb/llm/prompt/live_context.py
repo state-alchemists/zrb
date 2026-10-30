@@ -17,7 +17,7 @@ import re
 import subprocess
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from html import escape
 from typing import TYPE_CHECKING, Any
 
@@ -598,7 +598,7 @@ def render_journal_claims(first_message: str | None = None) -> str | None:
         notes,
         now=datetime.now(),
         query=terms(first_message),
-        already=_injected_note_ids(session, notes),
+        already=_already_shown(session, notes),
         per_turn=per_turn,
         max_chars=max_chars,
     )
@@ -616,10 +616,16 @@ def render_journal_claims(first_message: str | None = None) -> str | None:
     return block
 
 
-def _injected_note_ids(session: str, notes: list[Note]) -> set[str]:
-    """The `category/slug` of every note this session has already been shown.
+def _already_shown(session: str, notes: list[Note]) -> set[str]:
+    """The `category/slug` of every note this session has been shown *as it then was*.
 
-    An unreadable log fails open — a repeated claim costs a few tokens, while
+    A note counts as shown when an `injected` event carried it at or after the
+    moment it was last written: a revision replaces the claim, so a session that
+    was shown the old line has not seen the one the note now carries. Comparing
+    names alone hid every correction made mid-session — the most valuable claim
+    there is — because the slug had been injected once, on the first turn.
+
+    An unreadable log fails open: a repeated claim costs a few tokens, while
     failing closed would silently drop the memory the log exists to carry.
     """
     try:
@@ -627,16 +633,22 @@ def _injected_note_ids(session: str, notes: list[Note]) -> set[str]:
     except (OSError, ValueError):
         CFG.LOGGER.debug("Journal claims: usage log unreadable", exc_info=True)
         return set()
-    shown = {
-        hashed for event in events if event.event == INJECTED for hashed in event.hud
-    }
-    if not shown:
-        return set()
-    return {
-        f"{note.category}/{note.slug}"
-        for note in notes
-        if note_hash(f"{note.category}/{note.slug}") in shown
-    }
+    sent_at: dict[str, datetime] = {}
+    for event in events:
+        if event.event != INJECTED:
+            continue
+        for hashed in event.hud:
+            if hashed not in sent_at or event.timestamp > sent_at[hashed]:
+                sent_at[hashed] = event.timestamp
+    shown: set[str] = set()
+    for note in notes:
+        note_id = f"{note.category}/{note.slug}"
+        injected = sent_at.get(note_hash(note_id))
+        # A stamp is written from `datetime.now()`, so it is local where an event
+        # is UTC-aware; `astimezone` reads a naive one as local, which is right.
+        if injected is not None and injected >= note.updated.astimezone(timezone.utc):
+            shown.add(note_id)
+    return shown
 
 
 def _overflow_summary(dropped: str) -> str:
