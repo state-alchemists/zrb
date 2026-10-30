@@ -98,7 +98,7 @@ def interrupted_notice(retry: str) -> str:
     )
 
 
-async def wait_unless_cut(waits: "set[asyncio.Task]", seconds: float) -> bool:
+async def is_cut_while_waiting(waits: "set[asyncio.Task]", seconds: float) -> bool:
     """Wait for *waits* up to *seconds*; True when a cut ended the wait first.
 
     The cut is the run's own (``Ctrl+G``/send-now), read the same way `Shell`
@@ -119,6 +119,10 @@ async def wait_unless_cut(waits: "set[asyncio.Task]", seconds: float) -> bool:
         )
         return cut_wait in done
     finally:
+        # Both tasks are this call's own, so reap them before returning: a
+        # cancelled `asyncio.wait` left pending into the loop's next turn keeps
+        # the watched tasks' done-callbacks registered, and a loop that closes
+        # in between reports it as a task destroyed while still pending.
         cut_wait.cancel()
-        if not waiting.done():
-            waiting.cancel()
+        waiting.cancel()
+        await asyncio.gather(cut_wait, waiting, return_exceptions=True)

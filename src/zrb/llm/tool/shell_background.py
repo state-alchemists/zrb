@@ -25,7 +25,7 @@ from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_current_chat_session_id
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
-from zrb.llm.shell_cut import interrupted_notice, wait_unless_cut
+from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.string.name import get_random_name
 
@@ -208,7 +208,7 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is not None and bp.returncode is None and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
-            if await wait_unless_cut(set(bp.tasks), capped):
+            if await is_cut_while_waiting(set(bp.tasks), capped):
                 return (
                     interrupted_notice(f"MonitorProcess(handle='{handle}', wait=N)")
                     + "\n\n"

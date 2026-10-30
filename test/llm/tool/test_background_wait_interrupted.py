@@ -7,6 +7,7 @@ keeps running, and the same call waits for it again after the message is read.
 """
 
 import asyncio
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -14,9 +15,10 @@ from zrb.llm.shell_cut import (
     ShellCutSignal,
     current_shell_cut_signal,
     interrupted_notice,
-    wait_unless_cut,
+    is_cut_while_waiting,
 )
 from zrb.llm.tool.delegate_background import _BackgroundRegistry
+from zrb.llm.ui.buffered_ui import BufferedUI
 
 
 async def _finish_soon(task: asyncio.Task, seconds: float = 0.01) -> None:
@@ -34,7 +36,7 @@ async def _cut_soon(signal: ShellCutSignal, seconds: float = 0.01) -> None:
 async def test_a_wait_that_finishes_first_is_not_interrupted():
     done = asyncio.ensure_future(asyncio.sleep(0))
 
-    interrupted = await wait_unless_cut({done}, seconds=5)
+    interrupted = await is_cut_while_waiting({done}, seconds=5)
 
     assert interrupted is False
 
@@ -46,7 +48,7 @@ async def test_a_cut_ends_the_wait_and_says_so():
     pending = asyncio.ensure_future(asyncio.sleep(30))
     asyncio.ensure_future(_cut_soon(signal))
 
-    interrupted = await wait_unless_cut({pending}, seconds=5)
+    interrupted = await is_cut_while_waiting({pending}, seconds=5)
 
     assert interrupted is True
     # Nothing was cancelled: the work the wait was watching is still there.
@@ -59,7 +61,7 @@ async def test_without_a_run_there_is_no_cut_to_hear():
     pending = asyncio.ensure_future(asyncio.sleep(30))
     asyncio.ensure_future(_finish_soon(pending))
 
-    interrupted = await wait_unless_cut({pending}, seconds=5)
+    interrupted = await is_cut_while_waiting({pending}, seconds=5)
 
     assert interrupted is False
 
@@ -76,19 +78,45 @@ def test_the_notice_names_the_call_that_picks_the_wait_up():
 
 
 @pytest.mark.asyncio
+async def test_a_cut_leaves_no_task_of_its_own_behind():
+    """The wait reaps the tasks it started before it reports.
+
+    A cancelled `asyncio.wait` left pending until the loop's next turn keeps the
+    watched work's done-callbacks registered, and a loop that closes in between
+    reports it as a task destroyed while pending.
+    """
+    signal = ShellCutSignal()
+    current_shell_cut_signal.set(signal)
+    pending = asyncio.ensure_future(asyncio.sleep(30))
+    asyncio.get_running_loop().call_later(0.01, signal.cut)
+
+    interrupted = await is_cut_while_waiting({pending}, seconds=5)
+
+    assert interrupted is True
+    assert not pending.done()
+    # The only tasks alive are the test's own: the work being watched, and the
+    # test. Anything else is a task the wait started and did not reap.
+    ours = {asyncio.current_task(), pending}
+    assert asyncio.all_tasks() - ours == set()
+    await _finish_soon(pending)
+
+
+@pytest.mark.asyncio
 async def test_a_collect_that_is_cut_reports_the_wait_interrupted():
     registry = _BackgroundRegistry()
     signal = ShellCutSignal()
     current_shell_cut_signal.set(signal)
     task = asyncio.ensure_future(asyncio.sleep(30))
-    registry._tasks["bg-1"] = task
+    registry.adopt("bg-1", "agent", task, BufferedUI(MagicMock()))
     registry.poll = lambda handle: "Status: running"
     asyncio.ensure_future(_cut_soon(signal))
 
     report = await registry.collect("bg-1", wait=5)
 
     assert report.startswith("[interrupted]")
-    assert "GetDelegationResult(handle='bg-1')" in report
+    # The retry must carry a wait: `GetDelegationResult(handle)` alone defaults
+    # to wait=0, so it would come back "still running" the instant it is called.
+    assert "GetDelegationResult(handle='bg-1', wait=N)" in report
     assert "Status: running" in report
     assert not task.done()
     await _finish_soon(task)

@@ -28,7 +28,7 @@ from zrb.llm.ambient_state import (
     get_session_ownership_key,
 )
 from zrb.llm.permission import Capability, tag
-from zrb.llm.shell_cut import interrupted_notice, wait_unless_cut
+from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.subagent.manager import (
     SubAgentManager,
 )
@@ -114,9 +114,11 @@ class _BackgroundRegistry:
         task = self._tasks.get(handle)
         if task is not None and not task.done() and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
-            if await wait_unless_cut({task}, capped):
+            if await is_cut_while_waiting({task}, capped):
                 return (
-                    interrupted_notice(f"GetDelegationResult(handle='{handle}')")
+                    interrupted_notice(
+                        f"GetDelegationResult(handle='{handle}', wait=N)"
+                    )
                     + "\n\n"
                     + self.poll(handle)
                 )
