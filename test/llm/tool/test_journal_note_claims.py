@@ -118,6 +118,30 @@ def test_the_pin_survives_a_revision_that_does_not_mention_it(writable_journal):
     assert front["pinned"] == "true"
 
 
+def test_the_pin_survives_a_revision_made_inside_a_transaction(writable_journal):
+    """The transaction is a second door into the same writer, so it needs the
+    same tri-state default: a body that omits `pinned` keeps the pin, exactly
+    as the tool does. It defaulted to `False`, which unpinned every pinned note
+    revised through a transaction."""
+    _write(pinned=True)
+
+    with journal_transaction() as transaction:
+        transaction.write_note(
+            "technical",
+            "retry-policy",
+            "Retry policy",
+            "c",
+            "The lock was added.",
+            "s:2",
+            hud_line=LINE,
+            applies_when=CONDITION,
+        )
+
+    assert _frontmatter(writable_journal, "technical", "retry-policy.md")["pinned"] == (
+        "true"
+    )
+
+
 def test_a_revision_can_unpin(writable_journal):
     _write(pinned=True)
 

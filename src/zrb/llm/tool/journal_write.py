@@ -939,7 +939,7 @@ class JournalTransaction:
         source: str,
         links: list[str] | None = None,
         hud_line: str | None = None,
-        pinned: bool = False,
+        pinned: bool | None = None,
         applies_when: str | None = None,
         keywords: list[str] | None = None,
     ) -> str:
