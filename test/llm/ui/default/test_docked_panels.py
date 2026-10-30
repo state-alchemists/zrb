@@ -434,6 +434,24 @@ def test_a_completed_answer_follows_the_question_when_the_screen_shrinks(
     assert "Rayleigh scattering" in text
 
 
+def test_a_cancelled_side_question_does_not_print_its_answer(mock_ui_deps):
+    """Cancelling a question that opened into the transcript ends it there.
+
+    With no rows to dock into, the question is printed and no panel is up, so the
+    close has to drop the token as well: otherwise a background answer landing
+    afterwards passes the "still current" check and prints under a question the
+    user already closed.
+    """
+    ui, _app = _ui_and_app(mock_ui_deps, rows=16)
+    request = ui.begin_side_question("why is the sky blue?")
+    ui.cancel_side_question(request=request)
+    ui.end_side_question("Rayleigh scattering", request=request)
+
+    text = ui.output_field.text
+    assert "why is the sky blue?" in text
+    assert "Rayleigh scattering" not in text
+
+
 def test_the_picker_notice_is_printed_even_while_a_confirmation_is_pending(
     mock_ui_deps,
 ):

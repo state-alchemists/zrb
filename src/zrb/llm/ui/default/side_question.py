@@ -279,6 +279,11 @@ class UISideQuestion:
     def dismiss(self) -> None:
         """Close the panel and return focus to the input box."""
         if not self._is_active:
+            # A question that never had rows went to the transcript instead of
+            # the panel. Closing it still drops the token: otherwise a background
+            # answer landing afterwards passes the "still current" check and
+            # prints under a question the user already closed.
+            self._request = None
             return
         self._is_active = False
         self._request = None
