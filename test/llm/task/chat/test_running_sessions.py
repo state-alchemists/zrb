@@ -145,6 +145,41 @@ async def test_run_non_interactive_session_finalizes_attached_uis(runner):
 
 
 @pytest.mark.asyncio
+async def test_run_non_interactive_session_answers_through_append_answer(runner):
+    """A UI with the column-aware hook finalizes through it, not the margin one.
+
+    The interactive path finalizes through `append_answer`, which is where a UI
+    that lays a run's output out in a column puts the answer. Finalizing a
+    non-interactive turn through `append_markdown` instead drew the same answer
+    at the margin.
+    """
+    ctx = MagicMock()
+    ctx.shared_print = MagicMock()
+    ctx.xcom = {}
+
+    ui_with_both = MagicMock(spec=["append_answer", "append_markdown"])
+
+    llm_task_core = MagicMock()
+    llm_task_core.async_run = AsyncMock(return_value="AI Output")
+    llm_task_core.get_uis.return_value = [ui_with_both]
+
+    res = await runner.run_non_interactive_session(
+        ctx=ctx,
+        llm_task_core=llm_task_core,
+        history_manager=MagicMock(),
+        ui_commands={},
+        initial_message="hi",
+        initial_conversation_name="sess1",
+        initial_yolo=False,
+        initial_attachments=[],
+    )
+
+    assert res == "AI Output"
+    ui_with_both.append_answer.assert_called_once_with("AI Output")
+    ui_with_both.append_markdown.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_run_non_interactive_session_skips_finalize_for_non_string_result(
     runner,
 ):
