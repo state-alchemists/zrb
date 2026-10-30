@@ -39,6 +39,7 @@ from zrb.llm.ui.default.app.docking import (
     panel_row_cap,
 )
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
+from zrb.llm.ui.default.app.notice import append_notice
 
 if TYPE_CHECKING:
     from prompt_toolkit.key_binding import KeyBindings
@@ -120,7 +121,7 @@ class UISideQuestion:
             # rows painting nothing at all. The question goes to the transcript
             # at this size, and `end` puts the answer there with it.
             self._is_active = False
-            self._ui.append_to_output(f"\n💭 {self._question}\n")
+            append_notice(self._ui, f"\n💭 {self._question}\n")
             self._invalidate()
             return request
         self._is_active = True
@@ -172,7 +173,7 @@ class UISideQuestion:
             # would never be seen, so it goes to the transcript the way
             # `BaseUI.show_panel` prints one.
             self._is_active = False
-            self._ui.append_to_output(f"\n{self._question}\n{body}\n")
+            append_notice(self._ui, f"\n{self._question}\n{body}\n")
             self._shown_body = None
             self._invalidate()
             return
@@ -229,7 +230,7 @@ class UISideQuestion:
         if not self._is_active:
             # Opened into the transcript for want of room: the failure belongs
             # there too, not in a panel nobody can see.
-            self._ui.append_to_output(f"  ❌ {message}\n")
+            append_notice(self._ui, f"  ❌ {message}\n")
             return
         self._fill(self._echo(f"  ❌ {message}\n"))
 
@@ -250,10 +251,10 @@ class UISideQuestion:
         self._is_active = False
         # The token stays: the answer still belongs to this question, and it is
         # about to be written to the transcript under it.
-        self._ui.append_to_output(f"\n💭 {self._question}\n")
+        append_notice(self._ui, f"\n💭 {self._question}\n")
         if self._shown_body is not None:
             # A command reply the panel was showing: the body is nowhere else.
-            self._ui.append_to_output(f"{self._shown_body}\n")
+            append_notice(self._ui, f"{self._shown_body}\n")
             self._shown_body = None
         self._fill("")
         focus_widget(self._ui.input_field, "Input-field")
