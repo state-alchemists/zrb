@@ -31,6 +31,14 @@ TEXT_BLOCK_LABEL = "💬 Response"
 """What a text block folds into, and the header `settle_text_block` keeps above
 its prose: the same words, whether the block is closed or left readable."""
 
+CONTINUATION_PAD = "   "
+"""Spaces a block's wrapped lines add past the event indentation.
+
+The first line carries the prefix and the icon; every later line sits this much
+further in, so a wrapped paragraph reads as one paragraph under its icon. A
+settled block's prose keeps the same column, which is why `_settle_text` hands
+the prefix to the UI alongside the text."""
+
 
 class _BlockContent(NamedTuple):
     """What a block accumulated: the screen text it printed, plus the
@@ -173,7 +181,7 @@ class StreamEventHandler:
         on_thinking_collapse: Callable[[str, str], None] | None = None,
         on_text_start: Callable[[], None] | None = None,
         on_text_collapse: Callable[[str, str], None] | None = None,
-        on_text_settle: Callable[[str], None] | None = None,
+        on_text_settle: Callable[[str, str], None] | None = None,
         on_tool_prepare_update: Callable[[str, str], None] | None = None,
         on_tool_call_start: Callable[[str, str], None] | None = None,
         on_tool_call_end: Callable[[str | None], None] | None = None,
@@ -181,6 +189,7 @@ class StreamEventHandler:
         self._print_fn = print_fn
         self._usage_callback = usage_callback
         self._indentation = indent_level * 2 * " "
+        self._continuation = f"{self._indentation}{CONTINUATION_PAD}"
         self._show_tool_call_detail = show_tool_call_detail
         self._show_tool_result = show_tool_result
         self._tool_block_recorder = tool_block_recorder
@@ -272,11 +281,11 @@ class StreamEventHandler:
 
         if preserve_leading_newline:
             if content.startswith("\n"):
-                result = "\n" + content[1:].replace("\n", f"\n{self._indentation}   ")
+                result = "\n" + content[1:].replace("\n", f"\n{self._continuation}")
             else:
-                result = "\n" + content.replace("\n", f"\n{self._indentation}   ")
+                result = "\n" + content.replace("\n", f"\n{self._continuation}")
         else:
-            result = content.replace("\n", f"\n{self._indentation}   ")
+            result = content.replace("\n", f"\n{self._continuation}")
 
         if has_trailing_newline:
             result += "\n"
@@ -367,7 +376,9 @@ class StreamEventHandler:
         self._flush_text()
         source = self._text.settle()
         if source and self._on_text_settle is not None:
-            self._on_text_settle(source)
+            # The prefix travels with the text: the UI renders the markdown and
+            # then re-applies the column, which it cannot guess from the source.
+            self._on_text_settle(source, self._continuation)
 
     def _flush_text(self) -> None:
         """Print what the end of a piece held back, as the block closes.
@@ -608,7 +619,7 @@ def create_event_handler(
     on_thinking_collapse: Callable[[str, str], None] | None = None,
     on_text_start: Callable[[], None] | None = None,
     on_text_collapse: Callable[[str, str], None] | None = None,
-    on_text_settle: Callable[[str], None] | None = None,
+    on_text_settle: Callable[[str, str], None] | None = None,
     on_tool_prepare_update: Callable[[str, str], None] | None = None,
     on_tool_call_start: Callable[[str, str], None] | None = None,
     on_tool_call_end: Callable[[str | None], None] | None = None,
@@ -630,11 +641,14 @@ def create_event_handler(
         on_text_start: Called before a text response's first chunk.
         on_text_collapse: Called with (collapsed, full) when the run's final
             text response ends; same contract as `on_thinking_collapse`.
-        on_text_settle: Called with a text block's own text (no indentation,
-            no leading icon) when a tool call or another part ends it before
-            the run does. That prose is not the answer — `on_text_collapse`'s
-            block is — so the UI can leave it on screen in full, rendered,
-            instead of collapsing it into a hint.
+        on_text_settle: Called with (source, indent) when a tool call or another
+            part ends a text block before the run does. `source` is the block's
+            own text (no indentation, no leading icon) — indentation would make
+            a markdown renderer read it as code — and `indent` is the column its
+            wrapped lines were streamed at, so the rendered prose lands back on
+            it instead of jumping to the margin. That prose is not the answer —
+            `on_text_collapse`'s block is — so the UI can leave it on screen in
+            full, rendered, instead of collapsing it into a hint.
         on_tool_prepare_update: Called with (tool_call_id, text) to print or
             replace that call's own "Prepare tool parameters" line (empty
             text erases it). Without it, a single `\\r`-animated line is used,

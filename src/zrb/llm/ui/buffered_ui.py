@@ -175,12 +175,13 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         """Collapse the final-text block opened by `mark_text_block_start`."""
         return self._spans.collapse_block(collapsed, full)
 
-    def settle_text_block(self, source: str) -> None:
+    def settle_text_block(self, source: str, indent: str = "") -> None:
         """End an intermediate text block without hiding it.
 
         This buffer renders no markdown and reaches the parent as plain text,
         so the streamed copy already is the readable form; only the span
-        bookkeeping has to be released.
+        bookkeeping has to be released. `indent` is unused for the same reason:
+        the copy it keeps was streamed at that column already.
         """
         self._spans.end_block()
 

@@ -252,10 +252,10 @@ def test_multi_ui_settle_text_block_forwards_to_supporting_children(
     child_ui_1.settle_text_block = MagicMock()
     del child_ui_2.settle_text_block
 
-    multi_ui.settle_text_block("prose written before a tool call")
+    multi_ui.settle_text_block("prose written before a tool call", "  ")
 
     child_ui_1.settle_text_block.assert_called_once_with(
-        "prose written before a tool call"
+        "prose written before a tool call", "  "
     )
 
 

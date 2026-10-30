@@ -14,6 +14,7 @@ from pydantic_ai.messages import TextPart
 from zrb.llm.agent.run.setup import setup_print_and_events
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.default.output import UIOutput
+from zrb.llm.util.stream_response import CONTINUATION_PAD
 from zrb.util.cli.style import remove_style
 
 
@@ -103,6 +104,30 @@ def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
     assert source.expanded is True
     assert remove_style(source.collapsed).endswith(marker)
     assert remove_style(source.full).endswith("\nread the file first")
+
+
+def test_settled_prose_keeps_the_column_it_streamed_at():
+    """The block settles in place, so its lines do not jump to the margin.
+
+    The marker takes the line the icon led; the prose keeps the column its
+    wrapped lines already had — the handler hands that column over, because a
+    markdown renderer would read it as a code block if it came with the text.
+    """
+    ui = SettleUI()
+    _print_fn, handler = setup_print_and_events(None, None, ui)
+    continuation = f"{handler.indentation}{CONTINUATION_PAD}"
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        opening = MagicMock()
+        opening.part = TextPart(content="read the file first")
+        handler.handle_part_start(opening)
+
+        call = MagicMock()
+        call.part = ToolCallPart(tool_name="Read", args={}, tool_call_id="c1")
+        handler.handle_part_start(call)
+
+    text = remove_style(ui.output_text)
+    assert f"\n💬 Response (19 chars)\n{continuation}read the file first" in text
 
 
 def test_ctrl_o_folds_the_settled_prose_back_to_its_marker():

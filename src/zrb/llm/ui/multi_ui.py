@@ -368,13 +368,13 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Collapse the block opened by `mark_text_block_start`."""
         self._fanout("collapse_text_block", collapsed, full)
 
-    def settle_text_block(self, source: str) -> None:
+    def settle_text_block(self, source: str, indent: str = "") -> None:
         """Show an intermediate text block's prose in full on children that can.
 
         No fallback: a child without the hook keeps the streamed copy it
         already printed, which is the whole text anyway.
         """
-        self._fanout("settle_text_block", source)
+        self._fanout("settle_text_block", source, indent)
 
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Forward a tool call's start to children tracking the running-tool timer."""

@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from zrb.llm.util.stream_response import StreamEventHandler
+from zrb.llm.util.stream_response import CONTINUATION_PAD, StreamEventHandler
 
 
 class TestStreamEventHandlerTextCollapse:
@@ -47,7 +47,9 @@ class TestStreamEventHandlerTextCollapse:
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
         handler.handle_part_start(tool_event)
 
-        on_settle.assert_called_once_with("Let me check that for you")
+        on_settle.assert_called_once_with(
+            "Let me check that for you", f"{handler.indentation}{CONTINUATION_PAD}"
+        )
         on_collapse.assert_not_called()
 
     def test_settled_text_carries_no_indentation_or_leading_icon(self):
@@ -73,7 +75,9 @@ class TestStreamEventHandlerTextCollapse:
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
         handler.handle_part_start(tool_event)
 
-        on_settle.assert_called_once_with("Let me check that for you")
+        on_settle.assert_called_once_with(
+            "Let me check that for you", f"{handler.indentation}{CONTINUATION_PAD}"
+        )
 
     def test_an_empty_text_block_still_collapses_instead_of_settling(self):
         """Nothing to keep — the placeholder is better than a bare icon."""
@@ -392,7 +396,9 @@ class TestStreamEventHandlerSpokenMarkers:
         tool_event.part = ToolCallPart(tool_name="t", args={}, tool_call_id="1")
         handler.handle_part_start(tool_event)
 
-        on_settle.assert_called_once_with("Reading the file.")
+        on_settle.assert_called_once_with(
+            "Reading the file.", f"{handler.indentation}{CONTINUATION_PAD}"
+        )
 
     def test_the_final_text_carries_no_marker(self):
         """The hint a closed block collapses into counts, and keeps, the text

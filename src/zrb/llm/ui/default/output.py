@@ -359,7 +359,7 @@ class UIOutput:
         """
         return self._spans.collapse_block(collapsed, full)
 
-    def settle_text_block(self, source: str) -> None:
+    def settle_text_block(self, source: str, indent: str = "") -> None:
         """Render an intermediate text block's prose under its own marker.
 
         A text block a tool call ends is prose the assistant wrote *before*
@@ -368,6 +368,11 @@ class UIOutput:
         prose follows on a line of its own, and Ctrl+O folds it back to the
         marker. The span is registered as a rendered block, like
         `append_markdown`'s output, so a resize re-wraps it.
+
+        `indent` is the column the block's wrapped lines were streamed at. The
+        prose sits there, under the marker, so settling does not move what the
+        reader was already reading; the marker takes the icon's line instead of
+        carrying the icon itself.
         """
         rendered = self._render_markdown_block(source, self.output_field_width)
         count = len(source.strip())
@@ -379,7 +384,7 @@ class UIOutput:
         # One registration only: `set_rendered_block` drops overlapping spans, so
         # a separate entry for the prose would erase the fold it sits inside.
         self._spans.settle_expandable_block(
-            marker, f"{stylize_muted(marker)}\n{rendered}"
+            marker, f"{stylize_muted(marker)}\n{_indent_lines(rendered, indent)}"
         )
 
     def update_shell_output(self, key: str, text: str) -> None:
@@ -825,3 +830,14 @@ class UIOutput:
             (CFG.LLM_UI_STYLE_FAINT, "\n"),
             (f"fg:{CFG.LLM_UI_STYLE_FAINT}", text + " "),
         ]
+
+
+def _indent_lines(text: str, prefix: str) -> str:
+    """Prefix every non-blank line of *text* with *prefix*.
+
+    Blank lines stay empty: a paragraph break with trailing spaces is invisible
+    in a terminal but travels into a copy-paste and into a diff.
+    """
+    if not prefix:
+        return text
+    return "\n".join(f"{prefix}{line}" if line.strip() else line for line in text.split("\n"))
