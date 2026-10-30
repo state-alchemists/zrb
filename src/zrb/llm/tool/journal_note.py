@@ -214,15 +214,15 @@ def _first_sentence(text: str) -> str:
 
     Where the line is cut is the whole point: a claim that stops at `e.g.` is
     worse than a long one, because it reads as a finished statement. So a
-    terminator that `_breaks_sentence` refuses is stepped over and the search
+    terminator that `_is_sentence_end` refuses is stepped over and the search
     continues; when no terminator qualifies, the finding is its claim."""
     for match in _TERMINATOR_RE.finditer(text):
-        if _breaks_sentence(text, match.start()):
+        if _is_sentence_end(text, match.start()):
             return text[: match.start() + 1]
     return text
 
 
-def _breaks_sentence(text: str, index: int) -> bool:
+def _is_sentence_end(text: str, index: int) -> bool:
     """Whether the terminator at *index* ends a sentence rather than a word.
 
     Only a period can sit inside a word, so only a period has to look around:
