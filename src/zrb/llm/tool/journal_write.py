@@ -37,7 +37,6 @@ from zrb.llm.journal_usage_log import (
 )
 from zrb.llm.tool.journal_index import (
     ACTIVITY_DIR,
-    HUD_LINE_SOFT_LIMIT,
     hud_lines_of,
     hud_section_for,
     normalize_hud_line,
@@ -50,7 +49,6 @@ from zrb.llm.tool.journal_index import (
 from zrb.llm.tool.journal_index_migration import absorb_renamed_sections, plan_adoptions
 from zrb.llm.tool.journal_note import (
     HISTORY_HEADING,
-    HUD_LINE_SOURCE_WRITTEN,
     NOTE_CATEGORIES,
     STATUS_ACTIVE,
     STATUS_SUPERSEDED,
@@ -59,6 +57,7 @@ from zrb.llm.tool.journal_note import (
     check_applies_when,
     check_category,
     check_finding,
+    check_hud_line,
     check_slug,
     compose_note,
     format_stamp,
@@ -410,6 +409,21 @@ def write_journal_note(
     source: Annotated[
         str, Field(description="A file:line, commit hash, or URL backing the finding.")
     ],
+    hud_line: Annotated[
+        str,
+        Field(
+            description=(
+                "Required. The one line a later session reads this note by: the "
+                "claim itself — `retries happen once per prompt`, `a bank job "
+                "red at prepare_script is the runner failing to pull its "
+                "helper` — not the note's title, and 160 characters or fewer. "
+                "The always-injected index shows this line and links the note, "
+                "so a write with no line, or with one too long, is refused. On "
+                "revision, restate it: the current line is in the note's "
+                "frontmatter and in SearchJournal results."
+            )
+        ),
+    ],
     links: Annotated[
         list[str] | None,
         Field(
@@ -419,31 +433,19 @@ def write_journal_note(
             )
         ),
     ] = None,
-    hud_line: Annotated[
-        str | None,
-        Field(
-            description=(
-                "One-line summary (aim for 160 characters or fewer) pinned to "
-                "the injected index, in this "
-                "category's section. The section is capped: the oldest lines "
-                "past it are evicted and named in the result. On revision "
-                "pass an updated line if the fact changed; omitting keeps a "
-                "line you wrote and otherwise re-derives one from the Finding."
-            )
-        ),
-    ] = None,
     pinned: Annotated[
-        bool,
+        bool | None,
         Field(
             description=(
                 "Keep hud_line through the section cap (evicted only when "
                 "every line in the section is pinned). Set it for a "
-                "constraint or identity that must not disappear. On a "
+                "constraint or identity that must not disappear. Omit it to "
+                "keep the note's current pin as it is; `false` unpins. On a "
                 "`projects` or `technical` note a pinned line goes under `## "
                 "Constraints`, not `## Recent`."
             )
         ),
-    ] = False,
+    ] = None,
     applies_when: Annotated[
         str | None,
         Field(
@@ -491,6 +493,7 @@ def write_journal_note(
     check_category(category)
     check_slug(slug)
     check_finding(finding)
+    check_hud_line(hud_line, _prior_hud_line(category, slug))
     check_applies_when(applies_when)
     with _open_journal() as root:
         result = _write_note_locked(
@@ -513,6 +516,17 @@ def write_journal_note(
 
 
 write_journal_note.__name__ = "WriteJournalNote"
+
+
+def _prior_hud_line(category: str, slug: str) -> str:
+    """The line the note on disk already carries, read without opening the journal.
+
+    `hud_line` is checked before the journal is opened, so that a refused write
+    never creates a tree. Reading the one file that might already exist is what
+    lets that refusal quote the line it would replace, instead of asking the
+    caller to guess which claim they were about to drop."""
+    path = os.path.join(CFG.LLM_JOURNAL_DIR, category, f"{slug}.md")
+    return parse_frontmatter(read_text(path)).get("hud_line", "")
 
 
 def supersede_journal_note(
@@ -574,8 +588,8 @@ def _write_note_locked(
     finding: str,
     source: str,
     links: list[str] | None,
-    hud_line: str | None,
-    pinned: bool,
+    hud_line: str,
+    pinned: bool | None,
     applies_when: str | None = None,
     keywords: list[str] | None = None,
 ) -> str:
@@ -583,9 +597,9 @@ def _write_note_locked(
 
     The caller holds the lock and makes the commit. Returns exactly the string
     the tool returns, eviction note included — that is how a caller learns an
-    older line under the same section lost its place. The condition is checked
-    here as well as in the tool, because `journal_transaction` reaches this
-    function without passing the tool's own argument check."""
+    older line under the same section lost its place. The condition and the line
+    are checked here as well as in the tool, because `journal_transaction`
+    reaches this function without passing the tool's own argument check."""
     check_category(category)
     check_slug(slug)
     condition = check_applies_when(applies_when)
@@ -627,32 +641,29 @@ def _write_note_locked(
     result = f"Wrote {note_rel}"
     if evicted:
         result += _eviction_note(section, evicted)
-    if len(line) > HUD_LINE_SOFT_LIMIT:
-        result += (
-            f" The hud_line is {len(line)} characters, over the "
-            f"{HUD_LINE_SOFT_LIMIT} a headline should stay within: rewrite it "
-            "shorter with another WriteJournalNote."
-        )
     return result
 
 
 def _hud_state(
-    hud_line: str | None,
-    pinned: bool,
+    hud_line: str,
+    pinned: bool | None,
     previous: Note | None,
     notes: list[Note],
     note_rel: str,
 ) -> tuple[str, bool]:
     """The line the caller supplied, normalized, and the pin the write leaves.
 
-    Only the caller's half is decided here: `compose_note` derives a line from the
-    Finding when this is empty, or keeps the one the note already carries. The pin
-    outlives a revision that does not restate it — the pin belongs to a line, and a
-    write that leaves the line alone leaves it be."""
+    The line is mandatory. An empty one is refused, and when the note already
+    carries a line the refusal quotes it, so a rewrite that forgot to restate
+    the claim learns which claim it was about to lose rather than silently
+    trading it for nothing. The pin belongs to the note, not to the call: a
+    revision that does not mention it keeps it, and `pinned: false` is how a
+    caller unpins."""
     line = normalize_hud_line(hud_line or "", note_rel, notes)
-    if line:
-        return line, pinned
-    return "", (previous.pinned if previous else pinned)
+    prior_line = previous.hud_line if previous else ""
+    if pinned is None:
+        pinned = previous.pinned if previous else False
+    return check_hud_line(line, prior_line), pinned
 
 
 def delete_journal_note(
@@ -1110,9 +1121,8 @@ def _migrate_journal(root: str) -> None:
                     read_text(path),
                     {
                         "hud_line": one_line(adoption.hud_line),
-                        # A line adopted from the index text was written, by
-                        # whoever wrote that line: no later derivation replaces it.
-                        "hud_line_source": HUD_LINE_SOURCE_WRITTEN,
+                        # A line adopted from the index text was written by
+                        # whoever wrote that line; it is kept as it stands.
                         "pinned": "true" if adoption.pinned else None,
                         "updated": moment,
                     },

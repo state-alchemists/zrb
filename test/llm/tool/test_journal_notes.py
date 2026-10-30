@@ -120,6 +120,7 @@ def test_write_journal_note_registers_itself_everywhere(writable_journal):
         title="Retry policy is not concurrency-safe",
         context="Any concurrent task run",
         finding="`retry_period` is read without a lock",
+        hud_line="`retry_period` is read without a lock",
         source="base_task.py:160",
         applies_when="while zrb 3.29 is released",
     )
@@ -146,6 +147,7 @@ def test_write_journal_note_inserts_reciprocal_backlinks(writable_journal):
         title="First",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
         applies_when="while zrb 3.29 is released",
     )
@@ -155,6 +157,7 @@ def test_write_journal_note_inserts_reciprocal_backlinks(writable_journal):
         title="Second",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
         links=["technical/first.md"],
         applies_when="while zrb 3.29 is released",
@@ -179,6 +182,7 @@ def test_write_journal_note_rejects_a_link_that_does_not_exist(writable_journal)
             title="T",
             context="c",
             finding="f",
+            hud_line="f",
             source="s",
             links=["technical/nope.md"],
             applies_when="while zrb 3.29 is released",
@@ -197,6 +201,7 @@ def test_write_journal_note_rejects_a_link_outside_the_journal(writable_journal)
             title="T",
             context="c",
             finding="f",
+            hud_line="f",
             source="s",
             links=["../../etc/passwd"],
             applies_when="while zrb 3.29 is released",
@@ -215,6 +220,7 @@ def test_write_journal_note_rejects_a_bad_slug(writable_journal, bad):
             title="T",
             context="c",
             finding="f",
+            hud_line="f",
             source="s",
             applies_when="while zrb 3.29 is released",
         )
@@ -231,6 +237,7 @@ def test_write_journal_note_rejects_an_unknown_category(writable_journal):
             title="T",
             context="c",
             finding="f",
+            hud_line="f",
             source="s",
             applies_when="while zrb 3.29 is released",
         )
@@ -362,6 +369,7 @@ def test_an_unlinked_hud_line_is_a_foreign_line_the_write_leaves_alone(
         title="T",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
         applies_when="while zrb 3.29 is released",
     )
@@ -422,6 +430,7 @@ def test_revision_collapses_preexisting_duplicate_index_entries(writable_journal
         title="Old",
         context="c",
         finding="f",
+        hud_line="f",
         source="s",
         applies_when="while zrb 3.29 is released",
     )
@@ -436,6 +445,7 @@ def test_revision_collapses_preexisting_duplicate_index_entries(writable_journal
         title="Old",
         context="c",
         finding="f2",
+        hud_line="f2",
         source="s",
         applies_when="while zrb 3.29 is released",
     )

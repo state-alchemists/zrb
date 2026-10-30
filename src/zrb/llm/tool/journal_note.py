@@ -1,17 +1,18 @@
 """A journal note as data: its frontmatter is the one source of truth.
 
 Everything the injected index shows about a note is a field here — whether it is
-active (`status`, `applies_when`), the one line that represents it (`hud_line`,
-and whether that line was written or derived), whether it is pinned (`pinned`),
-where it ranks (`updated`), how it is found again (`keywords`), and what replaced
-it (`superseded_by`). The indexes are rendered from these fields by
-`journal_index`, never edited as text, so a note and its index entries cannot
-disagree.
+active (`status`, `applies_when`), the one line that represents it (`hud_line`),
+whether it is pinned (`pinned`), where it ranks (`updated`), how it is found
+again (`keywords`), and what replaced it (`superseded_by`). The indexes are
+rendered from these fields by `journal_index`, never edited as text, so a note
+and its index entries cannot disagree.
 
-The two fields the index cannot do without are never absent: a note with no
-`applies_when` is refused (a claim nobody can check cannot be retired), and a note
-with no `hud_line` is given one derived from its Finding, so no note exists that
-the always-injected index can never show.
+The three fields the index cannot do without are never absent, and none of them
+is guessed here: a note with no `applies_when` is refused (a claim nobody can
+check cannot be retired), a note with no `finding` is refused (there is nothing
+to remember), and a note with no `hud_line` is refused too — the line is the
+claim the note will be read by, so the caller writes it rather than this module
+deriving it from the first sentence of the Finding.
 
 This module is pure: it reads files but never writes one. A caller that has to
 write (`journal_write`) does so itself, because only it knows the open
@@ -39,55 +40,16 @@ STATUS_SUPERSEDED = "superseded"
 # condition's place: it is read, so an old note still loads, and refused, so it is
 # never written again.
 NO_APPLIES_WHEN = "not stated"
-# Where a note's `hud_line` came from. A written line is the caller's words and no
-# later derivation may replace it; a derived one is this module's reading of the
-# note's own Finding, so it is regenerated when the Finding changes.
-HUD_LINE_SOURCE_WRITTEN = "written"
-HUD_LINE_SOURCE_DERIVED = "derived"
 # The index spends its budget on one line per note, and a line longer than this is
-# not a headline any more. A derived line is cut here; a written one is kept whole
-# and the tool result asks for a shorter one.
+# not a headline any more: a claim that long is a paragraph, and the note already
+# has one of those. The line is the caller's, so this is a refusal with a number,
+# not a cut — a silent trim would store a claim nobody wrote.
 HUD_LINE_MAX_CHARS = 160
 # A keyword is something to search for, so a word this short (`the`, `and`, `for`)
 # matches most notes and ranks none of them.
 KEYWORDS_MIN_WORD_LENGTH = 4
 _SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _FRONTMATTER_FENCE = "---"
-# Where a sentence may end. A Finding often has no terminator at all
-# (`retry_period` is read without a lock), which is the whole of it.
-_TERMINATOR_RE = re.compile(r"[.!?](?=\s|$)")
-# A period inside one of these never ends a sentence: the abbreviation needs the
-# word after it (`e.g. enabled`) or is a title before a name (`Dr. Chen`). `e.g.`
-# is the one that bit: "The value is e.g. enabled for retries" used to be cut to
-# "The value is e.g.", a claim that stops mid-thought and reads as complete.
-#
-# `etc` is deliberately absent. It is the one abbreviation that also ends
-# sentences — `Use etc. Next step is locking.` — so it cannot be decided from
-# the word alone; it falls through to the next-word rule, which reads the
-# capital as a new sentence and the lower-case word as a continuation
-# (`backoff, etc. and nothing more`).
-_NEVER_TERMINAL = frozenset(
-    {
-        "e.g",
-        "i.e",
-        "vs",
-        "cf",
-        "al",
-        "approx",
-        "fig",
-        "mr",
-        "mrs",
-        "ms",
-        "dr",
-        "prof",
-        "sr",
-        "jr",
-        "st",
-    }
-)
-# A sentence after a terminator starts with one of these; a lower-case word is a
-# continuation (`and`, `or`), which is what makes the abbreviation rule safe.
-_SENTENCE_START_CHARS = "\"'([“‘"
 
 
 @dataclass(frozen=True)
@@ -203,83 +165,45 @@ def check_finding(finding: str | None) -> str:
     return text
 
 
-def derive_hud_line(finding: str) -> str:
-    """The first sentence of *finding*, on one line and capped at 160 characters.
+def check_hud_line(hud_line: str | None, prior_line: str = "") -> str:
+    """The one line a note is read by, or a refusal the model can act on.
 
-    A note with no line of its own still has to reach the injected index, and the
-    first sentence of what it found is the headline it already carries. A sentence
-    past the cap is cut at a word boundary and marked with `…`, so the index shows
-    a shortened line rather than a claim that reads as complete.
+    This line is the caller's sentence, not this module's guess. The always
+    injected index spends one line per note, so the line is what a later session
+    decides with: `retries happen once per prompt` says something, a first
+    sentence of a Finding only sometimes does.
+
+    A write without one is refused, and so is one longer than a headline. The
+    over-long case is a refusal rather than a cut because a trimmed claim is a
+    claim nobody wrote, and the index would then show a sentence that stops
+    mid-thought while reading as finished.
+
+    *prior_line* is the line the note already carries, when it has one: a
+    rewrite that forgets to restate it is told which line it was about to lose,
+    so the omission costs a correction instead of a wrong claim in the index.
     """
-    text = one_line(finding)
-    return _cap_line(_first_sentence(text), HUD_LINE_MAX_CHARS)
-
-
-def _first_sentence(text: str) -> str:
-    """*text* up to its first sentence terminator, or all of it when it has none.
-
-    Where the line is cut is the whole point: a claim that stops at `e.g.` is
-    worse than a long one, because it reads as a finished statement. So a
-    terminator that `_is_sentence_end` refuses is stepped over and the search
-    continues; when no terminator qualifies, the finding is its claim."""
-    for match in _TERMINATOR_RE.finditer(text):
-        if _is_sentence_end(text, match.start()):
-            return text[: match.start() + 1]
+    text = one_line(hud_line or "")
+    if not text:
+        if prior_line:
+            raise ValueError(
+                "[SYSTEM SUGGESTION]: hud_line was empty, so nothing was "
+                f"written. This note's line is {prior_line!r} — pass it back "
+                "unchanged if the claim still holds, or write a new one that "
+                "says what the note now claims."
+            )
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: hud_line was empty, so nothing was written. "
+            "Write the one line a later session reads this note by — the claim "
+            "or preference itself, not the title — in 160 characters or fewer; "
+            "the injected index shows that line and links the note."
+        )
+    if len(text) > HUD_LINE_MAX_CHARS:
+        raise ValueError(
+            f"[SYSTEM SUGGESTION]: hud_line is {len(text)} characters, over the "
+            f"{HUD_LINE_MAX_CHARS} a headline is allowed, so nothing was "
+            "written. Shorten it to the claim itself and write the note again."
+        )
     return text
-
-
-def _is_sentence_end(text: str, index: int) -> bool:
-    """Whether the terminator at *index* ends a sentence rather than a word.
-
-    Only a period can sit inside a word, so only a period has to look around:
-    at the word it follows (`e.g`, `Mr`, a single initial `J`), and at what
-    comes after it — a capital, a digit, a quote or a bracket starts a
-    sentence, while a lower-case word continues the one already open. An
-    abbreviation that never ends a sentence stops the check there; one that can
-    (`etc`) falls through and lets the next word decide."""
-    if text[index] != ".":
-        return True
-    before = text[:index].rsplit(None, 1)[-1].lstrip(_SENTENCE_START_CHARS).lower()
-    if before in _NEVER_TERMINAL or (len(before) == 1 and before.isalpha()):
-        return False
-    rest = text[index + 1 :].lstrip()
-    if not rest:
-        return True
-    return (
-        rest[0].isupper()
-        or rest[0].isdigit()
-        or rest[0] in _SENTENCE_START_CHARS
-    )
-
-
-def _cap_line(text: str, limit: int) -> str:
-    """*text* cut to at most *limit* characters, at a word boundary, ending in `…`."""
-    if len(text) <= limit:
-        return text
-    head = text[: limit - 1].rstrip()
-    if " " in head:
-        head = head.rsplit(" ", 1)[0]
-    return f"{head.rstrip(' ,;:—-.')}…"
-
-
-def resolve_hud_line(
-    supplied: str, finding: str, prior: dict[str, str]
-) -> tuple[str, str]:
-    """The `hud_line` a write leaves on the note, and where it came from.
-
-    A line the caller wrote is the note's own, and a rewrite that passes none
-    keeps it — a derived line may never overwrite a written one. A derived line is
-    this module's reading of the Finding, so it is regenerated when the Finding
-    changes. A line the file carries with no `hud_line_source` was written before
-    that field existed and counts as written: it is somebody's words, and trading
-    them for a guess would lose the one thing the index needed.
-    """
-    if supplied.strip():
-        return one_line(supplied), HUD_LINE_SOURCE_WRITTEN
-    prior_line = prior.get("hud_line", "")
-    if prior_line and prior.get("hud_line_source") != HUD_LINE_SOURCE_DERIVED:
-        return one_line(prior_line), HUD_LINE_SOURCE_WRITTEN
-    return derive_hud_line(finding), HUD_LINE_SOURCE_DERIVED
 
 
 def normalize_keywords(values: list[str]) -> str:
@@ -450,9 +374,9 @@ def compose_note(
 
     *fields* carries `slug`, `title`, `context`, `finding`, `source` and the
     frontmatter values `applies_when`, `status`, `hud_line`, `pinned`,
-    `updated`, plus the optional `keywords`; a `hud_line` or `keywords` the
-    caller left empty is filled from the note itself (see `claim_frontmatter`),
-    and `pinned` is omitted from the file when false.
+    `updated`, plus the optional `keywords`. The `hud_line` is the caller's and
+    is written as given; a missing `keywords` is filled from the note's own name
+    (see `claim_frontmatter`), and `pinned` is omitted from the file when false.
     """
     history = merge_entries(
         entries_under(existing, HISTORY_HEADING), prior_revision_entry(existing)
@@ -492,15 +416,13 @@ def compose_note(
 def claim_frontmatter(fields: "dict[str, str]", existing: str) -> list[str]:
     """The frontmatter lines that say when a note holds and where it shows.
 
-    `hud_line` and `keywords` are the two fields a caller may omit, and each has a
-    fallback rather than an absence: the line is derived from the Finding unless
-    the file already carries one a caller wrote, and the keywords come from the
-    file when it has them and from the slug and title when it does not. So a
-    rewrite never loses what an earlier call established, and a note nobody wrote
-    either for still reaches the injected index and the search.
+    `hud_line` is mandatory and arrives already checked, so it is written as
+    given — nothing here invents or replaces one. `keywords` is the only field a
+    caller may omit, and it has a fallback rather than an absence: the keywords
+    come from the file when it has them and from the slug and title when it does
+    not, so a note nobody chose keywords for is still one a later session finds.
     """
     prior = parse_frontmatter(existing)
-    line, source = resolve_hud_line(fields["hud_line"], fields["finding"], prior)
     keywords = (
         normalize_keywords(fields.get("keywords", "").split(","))
         or normalize_keywords(prior.get("keywords", "").split(","))
@@ -510,9 +432,8 @@ def claim_frontmatter(fields: "dict[str, str]", existing: str) -> list[str]:
         f"slug: {fields['slug']}",
         f"applies_when: {one_line(fields['applies_when'])}",
         f"status: {fields['status']}",
+        f"hud_line: {one_line(fields['hud_line'])}",
     ]
-    if line:
-        lines += [f"hud_line: {line}", f"hud_line_source: {source}"]
     if fields["pinned"] == "true":
         lines.append("pinned: true")
     if keywords:

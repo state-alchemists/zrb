@@ -44,6 +44,7 @@ def test_a_note_says_when_it_stops_applying(writable_journal):
         title="The cushion is a setting",
         context="While zrb ships the pocket engine",
         finding="A sentence starts on a cushion of audio",
+        hud_line="A sentence starts on a cushion of audio",
         source="pcm_player.py:1",
         applies_when="while pocket stays the default speech engine",
     )
@@ -65,6 +66,7 @@ def test_a_note_that_does_not_say_why_it_would_stop_is_refused(writable_journal)
             title="T",
             context="c",
             finding="f",
+            hud_line="f",
             source="s",
         )
 
@@ -85,6 +87,7 @@ def test_the_placeholder_an_old_writer_stored_is_not_a_condition(writable_journa
             title="T",
             context="c",
             finding="f",
+            hud_line="f",
             source="s",
             applies_when="not stated",
         )
@@ -144,7 +147,8 @@ def test_a_slug_that_climbs_out_of_its_category_is_refused(writable_journal):
     write_journal_note(
         "technical", "real-note", "T", "c", "f", "s",
         applies_when="while zrb 3.29 is released",
-    )
+
+        hud_line="f",)
     index = _read(writable_journal, "index.md")
 
     for call in (

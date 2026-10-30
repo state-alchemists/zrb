@@ -23,6 +23,7 @@ def _write(slug: str, finding: str = "A finding worth keeping.") -> None:
         title=f"Note {slug}",
         context="Why it came up.",
         finding=finding,
+        hud_line=finding,
         source="a test",
         applies_when="while this test suite exists",
     )
@@ -38,6 +39,28 @@ def test_a_note_with_no_finding_is_refused_with_a_suggestion(journal_dir):
     assert "[SYSTEM SUGGESTION]" in message
     assert "finding was empty" in message
     assert not os.path.exists(journal_dir / "technical" / "empty.md")
+
+
+def test_a_new_note_with_no_line_is_refused_with_a_suggestion(journal_dir):
+    """The line is the one thing the injected index shows, and nothing derives
+    it any more: a note written without one would be a note no later session
+    can see."""
+    with pytest.raises(ValueError) as excinfo:
+        write_journal_note(
+            category="technical",
+            slug="no-line",
+            title="Note",
+            context="Why it came up.",
+            finding="A finding worth keeping.",
+            source="a test",
+            hud_line="",
+            applies_when="while this test suite exists",
+        )
+
+    message = str(excinfo.value)
+    assert "[SYSTEM SUGGESTION]" in message
+    assert "hud_line was empty" in message
+    assert not os.path.exists(journal_dir / "technical" / "no-line.md")
 
 
 def test_a_supersede_cannot_point_at_a_page_that_is_not_a_note(journal_dir):

@@ -344,6 +344,7 @@ def test_a_multiline_applies_when_cannot_inject_frontmatter(writable_journal):
         title="T",
         context="c",
         finding="f",
+        hud_line="f",
         source="s:1",
         applies_when="line one\nstatus: superseded\n---\n# injected",
     )

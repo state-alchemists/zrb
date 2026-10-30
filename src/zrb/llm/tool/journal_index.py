@@ -58,9 +58,6 @@ CATALOG_HEADING = "## Recent Insights"
 _NOTE_LINK_RE = re.compile(r"\(\[note\]\(([^)]*)\)\)\s*$")
 _BARE_LINK_RE = re.compile(r"^- \[.*\]\(([^)]+)\)\s*$")
 _OLDER_NOTES_RE = re.compile(r"^- _\d+ older notes?: see each category's index_\s*$")
-# A HUD line longer than this is still written; the tool result asks the model to
-# shorten it, because the injected snapshot spends its budget on these lines.
-HUD_LINE_SOFT_LIMIT = 160
 
 
 @dataclass(frozen=True)

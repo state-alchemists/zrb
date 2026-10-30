@@ -1,11 +1,11 @@
 """A note's claim metadata: the line that represents it, and what replaced it.
 
-Measured on 2026-10-30 in a real journal of 233 notes: 98 carried no `hud_line`,
-so the always-injected index could never show them, and 111 said `applies_when:
-not stated`, so nothing could retire them. So a note now gets a line even when the
-caller writes none, the one line it stores says whether it was written or derived,
-and a condition is required. `keywords` and `superseded_by` are the two fields that
-make a note findable again and make its replacement explicit.
+Measured on 2026-10-30 in a real journal of 233 notes: 98 carried no `hud_line`
+and 111 said `applies_when: not stated`, so most of the journal could not be
+shown or retired. The line is now written by the caller and mandatory — a note
+derives nothing — and a condition is required. `keywords` and `superseded_by`
+are the two fields that make a note findable again and make its replacement
+explicit.
 """
 
 import os
@@ -22,6 +22,7 @@ from zrb.llm.tool.journal_write import (
 
 FINDING = "`retry_period` is read without a lock. Concurrent runs collide."
 CONDITION = "while base_task.py reads it unlocked"
+LINE = "Retry is not concurrency-safe."
 
 
 @pytest.fixture
@@ -51,66 +52,77 @@ def _write(slug: str = "retry-policy", **extra) -> str:
         context="c",
         finding=FINDING,
         source="s:1",
+        hud_line=LINE,
         applies_when=CONDITION,
     )
     fields.update(extra)
     return write_journal_note(**fields)
 
 
-def test_a_note_with_no_line_is_given_one_and_the_file_says_so(writable_journal):
-    """The index could not show 98 of 233 notes; a derived line is what puts every
-    note in it without asking the caller for a second summary."""
+def test_the_line_the_caller_wrote_is_what_the_file_stores(writable_journal):
     _write()
 
     front = _frontmatter(writable_journal, "technical", "retry-policy.md")
 
-    assert front["hud_line"] == "`retry_period` is read without a lock."
-    assert front["hud_line_source"] == "derived"
+    assert front["hud_line"] == LINE
+    # Nothing tracks where a line came from any more: there is only one source.
+    assert "hud_line_source" not in front
 
 
-def test_a_line_the_caller_wrote_is_recorded_as_written(writable_journal):
-    _write(hud_line="Retry is not concurrency-safe.")
-
-    front = _frontmatter(writable_journal, "technical", "retry-policy.md")
-
-    assert front["hud_line"] == "Retry is not concurrency-safe."
-    assert front["hud_line_source"] == "written"
-
-
-def test_a_derived_line_never_overwrites_a_written_one(writable_journal):
-    _write(hud_line="Retry is not concurrency-safe.")
-
-    _write(finding="The lock was added.", source="s:2")
-
-    front = _frontmatter(writable_journal, "technical", "retry-policy.md")
-    assert front["hud_line"] == "Retry is not concurrency-safe."
-    assert front["hud_line_source"] == "written"
-    assert "The lock was added." in open(
-        os.path.join(writable_journal, "technical/retry-policy.md"), encoding="utf-8"
-    ).read()
-
-
-def test_a_derived_line_follows_the_finding_when_the_note_is_rewritten(
+def test_a_rewrite_without_a_line_is_refused_and_names_the_one_it_would_lose(
     writable_journal,
 ):
-    """A derived line is this module's guess, so a changed Finding regenerates it
-    rather than leaving a headline that describes what the note used to say."""
+    """The claim is the one thing the index shows, so an omission has to cost a
+    correction rather than silently replacing the line with nothing."""
     _write()
 
-    _write(finding="The lock was added. Nothing collides now.", source="s:2")
+    with pytest.raises(ValueError) as excinfo:
+        write_journal_note(
+            category="technical",
+            slug="retry-policy",
+            title="Retry policy",
+            context="c",
+            finding="The lock was added.",
+            source="s:2",
+            hud_line="",
+            applies_when=CONDITION,
+        )
+
+    message = str(excinfo.value)
+    assert "[SYSTEM SUGGESTION]" in message
+    assert LINE in message
+    assert (
+        _frontmatter(writable_journal, "technical", "retry-policy.md")["hud_line"]
+        == LINE
+    )
+
+
+def test_a_revision_replaces_the_line_it_restates(writable_journal):
+    _write()
+
+    _write(hud_line="The lock is held now.", finding="The lock was added.", source="s:2")
 
     front = _frontmatter(writable_journal, "technical", "retry-policy.md")
-    assert front["hud_line"] == "The lock was added."
-    assert front["hud_line_source"] == "derived"
+    assert front["hud_line"] == "The lock is held now."
 
 
-def test_the_written_line_keeps_its_pin_through_a_revision(writable_journal):
-    _write(hud_line="Retry is not concurrency-safe.", pinned=True)
+def test_the_pin_survives_a_revision_that_does_not_mention_it(writable_journal):
+    """The pin belongs to the note, not to the call: a rewrite that says nothing
+    about it keeps it, and only `pinned: false` unpins."""
+    _write(pinned=True)
 
     _write(finding="The lock was added.", source="s:2")
 
     front = _frontmatter(writable_journal, "technical", "retry-policy.md")
     assert front["pinned"] == "true"
+
+
+def test_a_revision_can_unpin(writable_journal):
+    _write(pinned=True)
+
+    _write(pinned=False)
+
+    assert "pinned" not in _frontmatter(writable_journal, "technical", "retry-policy.md")
 
 
 def test_keywords_given_by_the_caller_are_stored_lower_case_on_one_line(

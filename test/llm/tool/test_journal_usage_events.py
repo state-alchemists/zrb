@@ -67,7 +67,7 @@ def test_writing_a_note_records_a_hashed_written_event(journal):
 
 def test_superseding_and_deleting_record_their_own_events(journal):
     _write()
-    _write("second-note", hud_line=None)
+    _write("second-note", hud_line="A second line.")
 
     supersede_journal_note("technical", SLUG, "no longer true")
     delete_journal_note("technical", "second-note")
@@ -86,6 +86,7 @@ def test_a_refused_write_records_nothing(journal):
             title=TITLE,
             context="c",
             finding="f",
+            hud_line="f",
             source="s",
             applies_when="while zrb 3.29 is released",
         )
