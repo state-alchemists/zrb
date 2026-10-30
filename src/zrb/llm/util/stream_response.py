@@ -27,6 +27,10 @@ PrintKind = Literal[
 # of tool-arg deltas would otherwise flood stdout and add write latency.
 _PROGRESS_REPAINT_INTERVAL = 0.1
 
+TEXT_BLOCK_LABEL = "💬 Response"
+"""What a text block folds into, and the header `settle_text_block` keeps above
+its prose: the same words, whether the block is closed or left readable."""
+
 
 class _BlockContent(NamedTuple):
     """What a block accumulated: the screen text it printed, plus the
@@ -204,7 +208,7 @@ class StreamEventHandler:
         )
         self._text = StreamedBlock(
             "streaming",
-            "💬 Response",
+            TEXT_BLOCK_LABEL,
             on_text_start,
             on_text_collapse,
             self._format_content,

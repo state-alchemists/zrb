@@ -75,8 +75,8 @@ class SettleUI:
         return getattr(output, name)
 
 
-def test_settle_text_block_renders_the_prose_in_place_of_the_stream():
-    """An intermediate block is rebuilt from its own text, not collapsed."""
+def test_settle_text_block_keeps_the_marker_above_the_rendered_prose():
+    """The marker stays as a header, and the prose is rendered underneath it."""
     ui = SettleUI()
 
     with patch.object(ui.output_part, "schedule_invalidate"):
@@ -85,16 +85,45 @@ def test_settle_text_block_renders_the_prose_in_place_of_the_stream():
         ui.append_to_output("\n  💬 read **the file** first", end="", kind="streaming")
         ui.settle_text_block("read **the file** first")
 
-    assert "💬 Response" not in ui.output_text
-    # Markdown-rendered, not the raw source, and not the stream's indentation.
-    assert "**the file**" not in ui.output_text
-    assert remove_style(ui.output_text).endswith("\n\nread the file first")
+    text = remove_style(ui.output_text)
+    marker = "💬 Response (23 chars)"
+    assert text.count(marker) == 1
+    # The marker has a line to itself, and the prose starts on the next one.
+    assert f"\n{marker}\n" in text
+    assert text.endswith("\nread the file first")
+    # Markdown-rendered under the marker, not the raw source, and not indented.
+    assert "**the file**" not in text
+    # One registration: the fold and the resize re-render share it, and the
+    # painted form is the open one.
     assert len(ui.rendered_blocks) == 1
-    # Tracked for resize re-wrap: re-rendering the recorded source lands back on
-    # exactly the span the block covers — the separator stays outside it.
-    start, end, source, renderer = ui.rendered_blocks[0]
-    assert source == "read **the file** first"
-    assert renderer(source, None) == ui.output_text[start:end]
+    start, end, source, _renderer = ui.rendered_blocks[0]
+    from zrb.llm.ui.output_chunk import CollapsibleBlockSource
+
+    assert isinstance(source, CollapsibleBlockSource)
+    assert source.expanded is True
+    assert remove_style(source.collapsed).endswith(marker)
+    assert remove_style(source.full).endswith("\nread the file first")
+
+
+def test_ctrl_o_folds_the_settled_prose_back_to_its_marker():
+    """Painted open, so the prose reads at once; Ctrl+O folds it to the marker."""
+    ui = SettleUI()
+
+    with patch.object(ui.output_part, "schedule_invalidate"):
+        ui.append_to_output("before\n", end="")
+        ui.mark_text_block_start()
+        ui.append_to_output("\n  💬 read it", end="", kind="streaming")
+        ui.settle_text_block("read it")
+
+    ui.output_field.buffer.cursor_position = len(ui.output_text)
+    assert ui.toggle_collapsible_block_at_cursor() is True
+    folded = remove_style(ui.output_text)
+    assert folded.endswith("💬 Response (7 chars)")
+    assert "read it" not in folded
+
+    ui.output_field.buffer.cursor_position = len(ui.output_text)
+    assert ui.toggle_collapsible_block_at_cursor() is True
+    assert remove_style(ui.output_text).endswith("\nread it")
 
 
 def test_settle_text_block_without_a_mark_is_a_noop():

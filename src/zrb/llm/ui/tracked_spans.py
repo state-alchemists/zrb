@@ -128,6 +128,40 @@ class TrackedSpans:
         start = block.start + len(separator)
         return start, start + len(rendered)
 
+    def settle_expandable_block(
+        self, collapsed: str, expanded: str
+    ) -> tuple[int, int] | None:
+        """Replace the open block with *expanded*, registered as collapsible.
+
+        The block is painted **open**, so the prose is readable the moment it
+        lands, and Ctrl+O folds it back to *collapsed* — the marker line saying
+        how much was folded away. The streamed span's own leading line breaks are
+        kept for both forms, so either one starts on a line of its own.
+
+        Returns the span *expanded* occupies, separator excluded, so a re-render
+        of the source lands back on exactly that span — and None when no block
+        was open.
+        """
+        block = self.open_block
+        self.open_block = None
+        if block is None or block.end <= block.start or not expanded:
+            return None
+        streamed = self._get_text()[block.start : block.end]
+        separator = streamed[: len(streamed) - len(streamed.lstrip("\n"))] or "\n"
+        source = CollapsibleBlockSource(
+            stylize_muted(separator + collapsed), separator + expanded
+        )
+        source.expanded = True
+        if not self.replace(block.start, block.end, separator + expanded):
+            return None
+        # Registered with the separator: `toggle_at` swaps the whole span, and a
+        # marker that swallowed the line break would cling to the line above.
+        self._register_block(
+            block.start, block.start + len(separator + expanded), source
+        )
+        start = block.start + len(separator)
+        return start, start + len(expanded)
+
     def end_block(self) -> None:
         """Release the block opened by `mark_block_start`, leaving its text in
         place: a block that ended without being collapsed or replaced."""
