@@ -3,11 +3,12 @@
 import json
 import os
 import subprocess
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.tool.journal import search_journal
+from zrb.llm.tool.journal import find_in_journal, search_journal
 
 
 @pytest.fixture
@@ -360,3 +361,125 @@ def test_case_sensitive_ranking_ignores_a_title_that_only_matches_in_lowercase(
         with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
             result = search_journal("Speech Load", case_sensitive=True)
     assert result["results"][0]["file"] == "b.md"
+
+
+def _stamp(days_ago):
+    """The `updated:` value a note of the given age carries."""
+    moment = datetime.now() - timedelta(days=days_ago)
+    return moment.isoformat(timespec="microseconds")
+
+
+def _write_note(journal_dir, rel, heading, body, updated=None, pinned=False):
+    """A note at *rel*: its slug, an optional `updated:`/`pinned:`, heading, body."""
+    front = [f"slug: {rel.rsplit('/', 1)[-1].removesuffix('.md')}"]
+    if pinned:
+        front.append("pinned: true")
+    if updated is not None:
+        front.append(f"updated: {updated}")
+    path = os.path.join(journal_dir, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        block = "".join(f"{line}\n" for line in front)
+        f.write(f"---\n{block}---\n# {heading}\n\n{body}\n")
+
+
+def _write_page(journal_dir, rel, text):
+    path = os.path.join(journal_dir, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def _ranked(journal_dir, query):
+    """The files a search returns, in rank order.
+
+    `find_in_journal`, not `search_journal`: the ranking is this module's job,
+    while recording a usage event is a separate one that writes to the real
+    usage store."""
+    with patch("zrb.llm.tool.journal.CFG") as mock_cfg:
+        mock_cfg.LLM_JOURNAL_DIR = journal_dir
+        mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+        with patch("zrb.llm.tool.journal.shutil.which", return_value=None):
+            result = find_in_journal(query)
+    return list(dict.fromkeys(row["file"] for row in result["results"]))
+
+
+def test_a_fresher_note_outranks_an_older_one_at_equal_term_hits(tmp_path):
+    """A stale note used to tie with an hour-old one: nothing in the ranking was
+    a function of time, so the newest finding could sit behind an old one. The
+    paths sort against the expected order, so a tie cannot pass by accident."""
+    d = str(tmp_path / "journal")
+    _write_note(d, "technical/a-stale.md", "Queue depth", "redis", _stamp(120))
+    _write_note(d, "technical/z-fresh.md", "Cache keys", "redis", _stamp(0))
+
+    assert _ranked(d, "redis") == ["technical/z-fresh.md", "technical/a-stale.md"]
+
+
+def test_a_pinned_note_outranks_an_unpinned_one_of_the_same_age(tmp_path):
+    """Equal hits and equal age leave the pin as the only thing to rank by, and
+    the paths sort against that order."""
+    d = str(tmp_path / "journal")
+    stamp = _stamp(3)
+    _write_note(d, "technical/a-plain.md", "Queue depth", "redis", stamp)
+    _write_note(d, "technical/z-pinned.md", "Cache keys", "redis", stamp, pinned=True)
+
+    assert _ranked(d, "redis") == ["technical/z-pinned.md", "technical/a-plain.md"]
+
+
+def test_a_note_outranks_the_index_and_the_log_however_old_it_is(tmp_path):
+    """Age orders the note band. It never lifts a page that mentions everything
+    over a note that mentions the one thing that was asked for."""
+    d = str(tmp_path / "journal")
+    _write_note(d, "technical/ancient.md", "Retry policy", "cap", _stamp(3650))
+    _write_page(d, "index.md", "# Index\n\ncap\n")
+    _write_page(d, "activity-log/2026-01-01.md", "# Log\n\ncap\n")
+
+    assert _ranked(d, "cap") == [
+        "technical/ancient.md",
+        "index.md",
+        "activity-log/2026-01-01.md",
+    ]
+
+
+def test_a_note_without_an_updated_stamp_stays_in_the_result(tmp_path):
+    """A note older than the stamp — or written by hand — is dated by its mtime,
+    and never dropped from the result for lacking the key."""
+    d = str(tmp_path / "journal")
+    _write_note(d, "technical/unstamped.md", "Loose end", "backoff cap")
+
+    assert _ranked(d, "backoff") == ["technical/unstamped.md"]
+
+
+def test_a_note_with_no_readable_date_competes_at_the_half_life_value(tmp_path):
+    """Neither a stamp nor an mtime is neutral, not zero: such a note must not
+    rank below a two-month-old one, and must stay in the result. The paths sort
+    against that order."""
+    d = str(tmp_path / "journal")
+    _write_note(d, "technical/z-dateless.md", "Loose end", "backoff cap")
+    _write_note(d, "technical/a-older.md", "Second read", "backoff cap", _stamp(60))
+
+    with patch("zrb.llm.tool.journal.os.path.getmtime", side_effect=OSError("gone")):
+        assert _ranked(d, "backoff") == [
+            "technical/z-dateless.md",
+            "technical/a-older.md",
+        ]
+
+
+def test_a_stamp_the_writer_never_writes_is_still_aged(tmp_path):
+    """A hand-written stamp may carry an offset, or not be a date at all. Neither
+    may crash the age subtraction: the first is brought into local time, the
+    second falls back to the file's mtime."""
+    d = str(tmp_path / "journal")
+    aware = datetime.now().astimezone().isoformat()
+    _write_note(d, "technical/a-old.md", "Retry policy", "redis", _stamp(90))
+    _write_note(d, "technical/y-garbled.md", "Queue depth", "redis", "last tuesday")
+    _write_note(d, "technical/z-aware.md", "Cache keys", "redis", aware)
+    old = (datetime.now() - timedelta(days=400)).timestamp()
+    os.utime(os.path.join(d, "technical/y-garbled.md"), (old, old))
+
+    assert _ranked(d, "redis") == [
+        "technical/z-aware.md",
+        "technical/a-old.md",
+        "technical/y-garbled.md",
+    ]
+
