@@ -19,7 +19,6 @@ def mock_web_auth_config():
     config.access_token_cookie_name = "access_token"
     config.default_user = MagicMock(username="default_user")
 
-    # Create a test user
     test_user = MagicMock(username="testuser")
     test_user.is_password_match = MagicMock(return_value=True)
 

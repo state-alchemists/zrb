@@ -228,16 +228,12 @@ async def test_callback_failure_surfaces_from_fanout():
 
 def test_a_trigger_gets_its_own_color_and_icon_by_default():
     """`BaseTrigger` defaults to cyan and ✨ when neither is supplied."""
-    # Arrange / Act
     trigger = BaseTrigger(name="watch")
-    # Assert
     assert trigger.color == CYAN
     assert trigger.icon == "✨"
 
 
 def test_an_explicit_color_or_icon_wins_over_the_trigger_default():
-    # Arrange / Act
     trigger = BaseTrigger(name="watch", color=99, icon="🔔")
-    # Assert
     assert trigger.color == 99
     assert trigger.icon == "🔔"

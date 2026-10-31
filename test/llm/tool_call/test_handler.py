@@ -86,7 +86,6 @@ async def test_confirmation_message_middleware():
     )
     await handler.handle(ui, call)
 
-    # Check that append_to_output was called with "Modified Args"
     args, _ = ui.append_to_output.call_args
     assert "Modified Args" in args[0]
 

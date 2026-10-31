@@ -342,7 +342,6 @@ class TestBufferedOutputMixin:
 
         buffered = TestBuffered()
 
-        # Verify the method exists and is callable
         assert callable(getattr(buffered, "stop_flush_loop", None))
 
         # Use public property

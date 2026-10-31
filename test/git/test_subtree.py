@@ -68,7 +68,6 @@ async def test_pull_subtree_success(tmp_path):
         mock_run.return_value = (CmdResult("", "", ""), 0)
         await pull_subtree(repo_dir, "src/libA", "urlA", "main")
         mock_run.assert_called_once()
-        # Verify it was a pull command
         assert "pull" in mock_run.call_args[1]["cmd"]
 
 
@@ -81,7 +80,6 @@ async def test_push_subtree_success(tmp_path):
         mock_run.return_value = (CmdResult("", "", ""), 0)
         await push_subtree(repo_dir, "src/libA", "urlA", "main")
         mock_run.assert_called_once()
-        # Verify it was a push command
         assert "push" in mock_run.call_args[1]["cmd"]
 
 

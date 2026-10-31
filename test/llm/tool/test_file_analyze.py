@@ -51,7 +51,6 @@ async def test_analyze_file_read_error(temp_file):
 
 @pytest.mark.asyncio
 async def test_analyze_file_truncation(temp_file):
-    # Create a "large" file content
     content = "line\n" * 100
     with open(temp_file, "w") as f:
         f.write(content)

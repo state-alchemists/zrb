@@ -70,7 +70,6 @@ def test_list_todo_basic(temp_todo_dir):
 
 
 def test_show_todo_lifecycle(temp_todo_dir):
-    # Add a task first
     ctx_add = MagicMock()
     ctx_add.input.description = "show me"
     ctx_add.input.priority = "B"

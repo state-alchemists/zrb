@@ -8,7 +8,6 @@ from zrb.llm.tool_call import auto_approve
 
 @pytest.mark.asyncio
 async def test_allow_tool_usage_match_no_kwargs():
-    # Setup
     middleware = auto_approve("my_tool")
     ui = MagicMock()
     call = MagicMock()
@@ -16,17 +15,14 @@ async def test_allow_tool_usage_match_no_kwargs():
     call.args = {"a": 1}
     next_handler = AsyncMock()
 
-    # Execute
     result = await middleware(ui, call, next_handler)
 
-    # Assert
     assert isinstance(result, ToolApproved)
     next_handler.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_allow_tool_usage_mismatch_name():
-    # Setup
     middleware = auto_approve("my_tool")
     ui = MagicMock()
     call = MagicMock()
@@ -34,17 +30,14 @@ async def test_allow_tool_usage_mismatch_name():
     call.args = {}
     next_handler = AsyncMock(return_value="next_result")
 
-    # Execute
     result = await middleware(ui, call, next_handler)
 
-    # Assert
     assert result == "next_result"
     next_handler.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_allow_tool_usage_match_kwargs_success():
-    # Setup
     middleware = auto_approve("my_tool", {"param": "^valid_"})
     ui = MagicMock()
     call = MagicMock()
@@ -52,17 +45,14 @@ async def test_allow_tool_usage_match_kwargs_success():
     call.args = {"param": "valid_value", "other": "ignored"}
     next_handler = AsyncMock()
 
-    # Execute
     result = await middleware(ui, call, next_handler)
 
-    # Assert
     assert isinstance(result, ToolApproved)
     next_handler.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_allow_tool_usage_match_kwargs_fail():
-    # Setup
     middleware = auto_approve("my_tool", {"param": "^valid_"})
     ui = MagicMock()
     call = MagicMock()
@@ -70,10 +60,8 @@ async def test_allow_tool_usage_match_kwargs_fail():
     call.args = {"param": "invalid_value"}
     next_handler = AsyncMock(return_value="next_result")
 
-    # Execute
     result = await middleware(ui, call, next_handler)
 
-    # Assert
     assert result == "next_result"
     next_handler.assert_called_once()
 

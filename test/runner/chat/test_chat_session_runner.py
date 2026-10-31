@@ -55,7 +55,6 @@ async def test_run_chat_session_success(mock_deps):
     # Wait until the message has been handed to the LLM task
     await _wait_for(lambda: llm_chat_task.async_run.called)
 
-    # Verify the message was processed
     llm_chat_task.async_run.assert_called_once()
     session_manager.broadcast.assert_called_with("test-id", "[USER] hello")
 

@@ -38,10 +38,8 @@ async def test_llm_task_tool_confirmation_called():
         shared_ctx = SharedContext()
         session = Session(shared_ctx, state_logger=MagicMock())
 
-        # Execute
         await task.async_run(session)
 
-        # Assert
         mock_run_agent.assert_called_once()
         args, kwargs = mock_run_agent.call_args
         assert kwargs["tool_confirmation"] == tool_confirmation

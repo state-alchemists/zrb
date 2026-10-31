@@ -210,7 +210,6 @@ async def test_defer_action_and_wait(session):
 
     session.defer_action(task, sample_coro())
 
-    # Verify task is registered
     assert task.name in session.task_names
 
     await session.wait_deferred()
@@ -436,10 +435,8 @@ def test_as_state_log_with_non_serializable_input():
     shared_ctx = SharedContext()
     session = Session(shared_ctx=shared_ctx)
 
-    # Add a non-serializable value to input
     shared_ctx.input["normal"] = "value"
 
-    # Create a non-serializable object
     class NotSerializable:
         def __repr__(self):
             return "<NotSerializable>"

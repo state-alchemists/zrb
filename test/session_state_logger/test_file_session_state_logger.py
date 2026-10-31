@@ -46,7 +46,6 @@ class TestFileSessionStateLogger:
 
         logger = FileSessionStateLogger(str(tmp_path))
 
-        # Create a session log
         session_log = SessionStateLog(
             name="test_session",
             start_time="2024-01-15 10:30:00.123456",
@@ -319,7 +318,6 @@ class TestFileSessionStateLoggerTimeline:
             max_start_time=datetime(2024, 12, 31),
         )
 
-        # Check result format
         if isinstance(result, dict):
             assert result["total"] == 3
             assert len(result["data"]) == 3

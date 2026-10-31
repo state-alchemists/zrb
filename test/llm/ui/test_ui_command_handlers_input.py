@@ -79,7 +79,6 @@ class TestBaseUIInputCommands:
         ui.attach_commands = ["/attach"]
         ui.append_to_output = MagicMock()
 
-        # Create a temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as f:
             f.write(b"test")
             temp_path = f.name

@@ -50,7 +50,6 @@ async def test_get_git_diff_all_types(session, mock_print):
         ) as mock_get_diff,
     ):
 
-        # Get the task object
         get_diff_task = git_module.get_git_diff
 
         result = await get_diff_task.async_run(
@@ -90,7 +89,6 @@ async def test_get_git_diff_only_created(session, mock_print):
         ) as mock_get_diff,
     ):
 
-        # Get the task object
         get_diff_task = git_module.get_git_diff
 
         result = await get_diff_task.async_run(
@@ -128,7 +126,6 @@ async def test_get_git_diff_no_changes(session, mock_print):
         ) as mock_get_diff,
     ):
 
-        # Get the task object
         get_diff_task = git_module.get_git_diff
 
         result = await get_diff_task.async_run(
@@ -177,7 +174,6 @@ async def test_prune_local_branches_deletes_merged_non_protected(session, mock_p
         ) as mock_delete_branch,
     ):
 
-        # Get the task object
         prune_task = git_module.prune_local_branches
 
         await prune_task.async_run(
@@ -299,7 +295,6 @@ async def test_prune_local_branches_skips_non_merged(session, mock_print):
         ) as mock_delete_branch,
     ):
 
-        # Get the task object
         prune_task = git_module.prune_local_branches
 
         await prune_task.async_run(
@@ -345,7 +340,6 @@ async def test_prune_local_branches_handles_delete_error(session, mock_print):
         ) as mock_delete_branch,
     ):
 
-        # Get the task object
         prune_task = git_module.prune_local_branches
 
         await prune_task.async_run(
