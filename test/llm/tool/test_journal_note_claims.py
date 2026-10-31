@@ -101,7 +101,9 @@ def test_a_rewrite_without_a_line_is_refused_and_names_the_one_it_would_lose(
 def test_a_revision_replaces_the_line_it_restates(writable_journal):
     _write()
 
-    _write(hud_line="The lock is held now.", finding="The lock was added.", source="s:2")
+    _write(
+        hud_line="The lock is held now.", finding="The lock was added.", source="s:2"
+    )
 
     front = _frontmatter(writable_journal, "technical", "retry-policy.md")
     assert front["hud_line"] == "The lock is held now."
@@ -147,7 +149,9 @@ def test_a_revision_can_unpin(writable_journal):
 
     _write(pinned=False)
 
-    assert "pinned" not in _frontmatter(writable_journal, "technical", "retry-policy.md")
+    assert "pinned" not in _frontmatter(
+        writable_journal, "technical", "retry-policy.md"
+    )
 
 
 def test_keywords_given_by_the_caller_are_stored_lower_case_on_one_line(
@@ -185,9 +189,7 @@ def test_deleting_the_replacement_clears_the_back_link_it_left(writable_journal)
     delete retracts it and names the note it cleared."""
     _write("old-cause", hud_line="Stutter comes from GIL contention.")
     _write("prebuffer", hud_line="The stutter is a cushion of audio.")
-    supersede_journal_note(
-        "technical", "old-cause", "a cushion", "technical/prebuffer"
-    )
+    supersede_journal_note("technical", "old-cause", "a cushion", "technical/prebuffer")
 
     result = delete_journal_note("technical", "prebuffer")
 
@@ -204,7 +206,10 @@ def test_a_supersede_records_the_note_that_replaced_it(writable_journal):
     _write("prebuffer", finding="The stutter is a cushion of audio.")
 
     result = supersede_journal_note(
-        "technical", "old-cause", "the cause was a cushion", superseded_by="technical/prebuffer"
+        "technical",
+        "old-cause",
+        "the cause was a cushion",
+        superseded_by="technical/prebuffer",
     )
 
     front = _frontmatter(writable_journal, "technical", "old-cause.md")

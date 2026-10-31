@@ -52,10 +52,15 @@ def test_ensure_journal_tree_alone_does_not_initialize_git(git_journal):
 
 def test_write_journal_note_initializes_a_git_repo(git_journal):
     write_journal_note(
-        "technical", "some-note", "Title", "ctx", "finding", "source",
+        "technical",
+        "some-note",
+        "Title",
+        "ctx",
+        "finding",
+        "source",
         applies_when="while zrb 3.29 is released",
-
-        hud_line="finding",)
+        hud_line="finding",
+    )
     assert os.path.isdir(os.path.join(git_journal, ".git"))
 
 
@@ -74,28 +79,43 @@ def test_git_disabled_creates_no_git_repo(tmp_path):
 
 def test_write_journal_note_produces_a_commit(git_journal):
     write_journal_note(
-        "technical", "some-note", "Title", "ctx", "finding A", "source",
+        "technical",
+        "some-note",
+        "Title",
+        "ctx",
+        "finding A",
+        "source",
         applies_when="while zrb 3.29 is released",
-
-        hud_line="finding A",)
+        hud_line="finding A",
+    )
     log = _git(git_journal, "log", "--oneline", "--", "technical/some-note.md")
     assert len(log.strip().splitlines()) == 1
 
     write_journal_note(
-        "technical", "some-note", "Title", "ctx", "finding B", "source",
+        "technical",
+        "some-note",
+        "Title",
+        "ctx",
+        "finding B",
+        "source",
         applies_when="while zrb 3.29 is released",
-
-        hud_line="finding B",)
+        hud_line="finding B",
+    )
     log = _git(git_journal, "log", "--oneline", "--", "technical/some-note.md")
     assert len(log.strip().splitlines()) == 2
 
 
 def test_delete_journal_note_is_recoverable_via_git_history(git_journal):
     write_journal_note(
-        "technical", "some-note", "Title", "ctx", "the original finding", "source",
+        "technical",
+        "some-note",
+        "Title",
+        "ctx",
+        "the original finding",
+        "source",
         applies_when="while zrb 3.29 is released",
-
-        hud_line="the original finding",)
+        hud_line="the original finding",
+    )
     delete_journal_note("technical", "some-note")
 
     assert not os.path.isfile(os.path.join(git_journal, "technical", "some-note.md"))
@@ -111,10 +131,15 @@ def test_hung_git_does_not_break_writes(git_journal):
         side_effect=subprocess.TimeoutExpired(cmd="git", timeout=1),
     ):
         result = write_journal_note(
-            "technical", "some-note", "Title", "ctx", "finding", "source",
+            "technical",
+            "some-note",
+            "Title",
+            "ctx",
+            "finding",
+            "source",
             applies_when="while zrb 3.29 is released",
-
-            hud_line="finding",)
+            hud_line="finding",
+        )
     assert result.startswith("Wrote technical/some-note.md")
     assert os.path.isfile(os.path.join(git_journal, "technical", "some-note.md"))
     assert not os.path.isdir(os.path.join(git_journal, ".git"))
@@ -125,10 +150,15 @@ def test_git_commands_pass_a_timeout(git_journal):
         "zrb.llm.tool.journal_write.subprocess.run", wraps=subprocess.run
     ) as mock_run:
         write_journal_note(
-            "technical", "some-note", "Title", "ctx", "finding", "source",
+            "technical",
+            "some-note",
+            "Title",
+            "ctx",
+            "finding",
+            "source",
             applies_when="while zrb 3.29 is released",
-
-            hud_line="finding",)
+            hud_line="finding",
+        )
     assert mock_run.call_args_list, "expected at least one git subprocess call"
     for call in mock_run.call_args_list:
         assert "timeout" in call.kwargs
@@ -140,10 +170,15 @@ def test_missing_git_binary_does_not_break_writes(git_journal):
         side_effect=FileNotFoundError("no git"),
     ):
         result = write_journal_note(
-            "technical", "some-note", "Title", "ctx", "finding", "source",
+            "technical",
+            "some-note",
+            "Title",
+            "ctx",
+            "finding",
+            "source",
             applies_when="while zrb 3.29 is released",
-
-            hud_line="finding",)
+            hud_line="finding",
+        )
     assert result.startswith("Wrote technical/some-note.md")
     assert os.path.isfile(os.path.join(git_journal, "technical", "some-note.md"))
     assert not os.path.isdir(os.path.join(git_journal, ".git"))

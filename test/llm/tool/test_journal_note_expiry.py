@@ -145,10 +145,15 @@ def test_a_slug_that_climbs_out_of_its_category_is_refused(writable_journal):
     )
 
     write_journal_note(
-        "technical", "real-note", "T", "c", "f", "s",
+        "technical",
+        "real-note",
+        "T",
+        "c",
+        "f",
+        "s",
         applies_when="while zrb 3.29 is released",
-
-        hud_line="f",)
+        hud_line="f",
+    )
     index = _read(writable_journal, "index.md")
 
     for call in (

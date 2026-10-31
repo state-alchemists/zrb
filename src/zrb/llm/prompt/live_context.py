@@ -5,6 +5,7 @@ Rendering also binds the ambient session and interactive-mode ``ContextVar``s
 the todo tools and ``ask_user_question`` read, and clears a stale active
 worktree.
 """
+
 # `Note` is imported only for the type checker, so the annotation that names it
 # has to stay unevaluated: 3.13 and older evaluate it when the function is
 # defined, and would raise `NameError` on import. 3.14 postpones annotations by
@@ -687,14 +688,14 @@ def _shown_in_process(session: str, notes: list[Note]) -> set[str]:
     repeating the same three claims every turn when there is no log to read."""
     shown = _PROCESS_SHOWN.get(session, set())
     return {
-        f"{note.category}/{note.slug}"
-        for note in notes
-        if _version_of(note) in shown
+        f"{note.category}/{note.slug}" for note in notes if _version_of(note) in shown
     }
 
 
 def _remember_shown(session: str, notes: list[Note]) -> None:
-    _PROCESS_SHOWN.setdefault(session, set()).update(_version_of(note) for note in notes)
+    _PROCESS_SHOWN.setdefault(session, set()).update(
+        _version_of(note) for note in notes
+    )
 
 
 def _version_of(note: Note) -> str:
@@ -744,7 +745,9 @@ def _render_possibly_related(first_message: str) -> str:
     result = find_in_journal(first_message)
     found = result.get("results")
     hits = found if isinstance(found, list) else []
-    files = [str(hit["file"]) for hit in hits if isinstance(hit, dict) and "file" in hit]
+    files = [
+        str(hit["file"]) for hit in hits if isinstance(hit, dict) and "file" in hit
+    ]
     # Recorded even with no hits: an auto-search that found nothing is the
     # measurement of the automatic retrieval, not a turn that never happened.
     record_auto_searched(first_message, files, len(hits))

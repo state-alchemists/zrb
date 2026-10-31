@@ -118,9 +118,7 @@ async def test_permission_resolved_carries_a_denial():
     """Approved and denied reach the listener as true and false, and a denied call is
     still dropped from execution after the announcement."""
     ui = MagicMock(spec=AnyUI)
-    call, result_output, channel, hook_manager = _waiting_for(
-        MockToolDenied("because")
-    )
+    call, result_output, channel, hook_manager = _waiting_for(MockToolDenied("because"))
 
     result = await process_deferred_requests(
         result_output, None, ui, hook_manager, approval_channel=channel

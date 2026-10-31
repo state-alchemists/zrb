@@ -52,7 +52,9 @@ def test_a_hand_written_page_does_not_take_a_note_s_rank(tmp_path):
     boost like a note, tie a pinned note, and win the tie-break on its name —
     taking one of the five result slots from a note that is indexed."""
     root = str(tmp_path)
-    _page(root, "technical/a-page.md", "---\npinned: true\n---\n# Page\n\nretry policy\n")
+    _page(
+        root, "technical/a-page.md", "---\npinned: true\n---\n# Page\n\nretry policy\n"
+    )
     _note(root, "technical/z-note.md", "retry policy", pinned=True)
 
     assert _ranked(root, "retry policy") == [

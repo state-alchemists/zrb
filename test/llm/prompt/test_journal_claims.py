@@ -79,7 +79,9 @@ def test_a_note_written_mid_session_reaches_the_next_turn(journal):
 def _age(root: str, slug: str, when: "datetime") -> None:
     """Rewrite a note's `updated` stamp, so a test can place it in the past."""
     path = pathlib.Path(root, "technical", f"{slug}.md")
-    text = set_frontmatter(path.read_text(encoding="utf-8"), {"updated": when.isoformat()})
+    text = set_frontmatter(
+        path.read_text(encoding="utf-8"), {"updated": when.isoformat()}
+    )
     path.write_text(text, encoding="utf-8")
 
 

@@ -384,7 +384,9 @@ async def _announce_permission_resolved(call, verdict, hook_manager) -> None:
         HookEvent.PERMISSION_RESOLVED,
         {
             "tool": call.tool_name,
-            "approved": None if verdict is None else not isinstance(verdict, ToolDenied),
+            "approved": (
+                None if verdict is None else not isinstance(verdict, ToolDenied)
+            ),
         },
         tool_name=call.tool_name,
     )
