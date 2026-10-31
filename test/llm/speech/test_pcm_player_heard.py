@@ -103,6 +103,6 @@ def test_a_device_that_cannot_open_reports_no_end(sd):
     utterance = _utterance([_pcm([1] * 256)], heard)
     with patch.object(utterance, "_open_stream", side_effect=OSError("no device")):
         with pytest.raises(OSError):
-            utterance._play_in_process(timeout=5)
+            utterance.play(timeout=5)
 
     assert heard == []
