@@ -40,8 +40,11 @@ Layering refactor for lower-cognitive-load imports. Tools and hooks no longer im
 | `from zrb.llm.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
 | `from zrb.llm.subagent.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
 | `from zrb.llm.subagent.live_session import live_subagent_session_registry` | `from zrb.llm.delegation_api import get_live_session_registry` |
+| `from zrb.llm.prompt.live_context import append_live_context, split_live_context` | `from zrb.llm.util.live_context_block import append_live_context, split_live_context` |
 
 `zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
+
+`split_live_context` is still importable from `zrb.llm.prompt.live_context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.util.live_context_block` now.
 
 ---
 
