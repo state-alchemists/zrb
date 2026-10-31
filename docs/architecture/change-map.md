@@ -93,6 +93,5 @@ Read the test before changing an area; it is the precise statement of what the c
 - [Architecture, Philosophy & Conventions](../contributing/architecture.md) — why the shape is this shape
 - [Framework Conventions](../contributing/framework-conventions.md) — the enforced code rules
 - [Where the code lives](../../AGENTS.md) — the repository map
-- [LLM Unit Cards](../llm/unit-cards/README.md) — one-card-per-llm-unit, with purpose and entry points
 
 🔖 [Documentation Home](../README.md) > Architecture > Change Map
