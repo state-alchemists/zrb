@@ -2,12 +2,12 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
-from zrb.llm.tool_call.args import (
+from zrb.llm.util.spoken import SpokenSplitter
+from zrb.llm.util.tool_args import (
     is_empty_tool_args,
     parse_tool_args_value,
     truncate_tool_args_values,
 )
-from zrb.llm.util.spoken import SpokenSplitter
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import (

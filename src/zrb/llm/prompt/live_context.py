@@ -5,6 +5,7 @@ Rendering also binds the ambient session and interactive-mode ``ContextVar``s
 the todo tools and ``ask_user_question`` read, and clears a stale active
 worktree.
 """
+
 # `Note` is imported only for the type checker, so the annotation that names it
 # has to stay unevaluated: 3.13 and older evaluate it when the function is
 # defined, and would raise `NameError` on import. 3.14 postpones annotations by
@@ -41,6 +42,7 @@ from zrb.llm.journal_usage_log import (
     record_injected,
 )
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
+from zrb.llm.util.live_context_block import split_live_context
 from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
@@ -57,11 +59,6 @@ LIVE_CONTEXT_ANCHOR = (
     "snapshots from when that turn was sent."
 )
 
-# `append_live_context` always appends the block last, after "\n\n" (or bare).
-_LIVE_CONTEXT_BLOCK_RE = re.compile(
-    r"\n\n(<live-context>.*</live-context>)\s*\Z", re.DOTALL
-)
-
 # A journal index entry: `[title](category/note.md)`.
 _INDEX_LINK = re.compile(r"\[([^\]]+)\]\(([a-z0-9_-]+)/[^)]*\)")
 
@@ -71,41 +68,6 @@ _HUD_NOTE_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$", re.MULTILINE)
 # What this process has shown, by conversation and by note version. A backstop
 # for a usage directory that cannot be written; see `_shown_in_process`.
 _PROCESS_SHOWN: dict[str, set[str]] = {}
-
-
-def append_live_context(prompt_content: Any, live_context: str) -> Any:
-    """Append the ``<live-context>`` block to the end of the current user turn.
-
-    Accepts a ``str``, a multimodal ``list`` or ``None``; a falsy
-    *live_context* is a no-op. Inverse of ``split_live_context``.
-    """
-    if not live_context:
-        return prompt_content
-    if prompt_content is None:
-        return live_context
-    if isinstance(prompt_content, str):
-        return f"{prompt_content}\n\n{live_context}"
-    if isinstance(prompt_content, list):
-        return [*prompt_content, live_context]
-    return prompt_content
-
-
-def split_live_context(content: str) -> tuple[str, str | None]:
-    """Split a trailing ``<live-context>`` block off a stored user message for display.
-
-    Returns ``(message_text, live_context_block)``; the block is ``None`` (and
-    *content* unchanged) when there is none.
-    """
-    if not content or "<live-context>" not in content:
-        return content, None
-    match = _LIVE_CONTEXT_BLOCK_RE.search(content)
-    if not match:
-        # No leading blank line (e.g. the block was the entire prompt).
-        idx = content.find("<live-context>")
-        if content[idx:].rstrip().endswith("</live-context>"):
-            return content[:idx].rstrip(), content[idx:].rstrip()
-        return content, None
-    return content[: match.start()].rstrip(), match.group(1)
 
 
 def previous_git_baseline(message_history: "Sequence[object]") -> str | None:
@@ -687,14 +649,14 @@ def _shown_in_process(session: str, notes: list[Note]) -> set[str]:
     repeating the same three claims every turn when there is no log to read."""
     shown = _PROCESS_SHOWN.get(session, set())
     return {
-        f"{note.category}/{note.slug}"
-        for note in notes
-        if _version_of(note) in shown
+        f"{note.category}/{note.slug}" for note in notes if _version_of(note) in shown
     }
 
 
 def _remember_shown(session: str, notes: list[Note]) -> None:
-    _PROCESS_SHOWN.setdefault(session, set()).update(_version_of(note) for note in notes)
+    _PROCESS_SHOWN.setdefault(session, set()).update(
+        _version_of(note) for note in notes
+    )
 
 
 def _version_of(note: Note) -> str:
@@ -744,7 +706,9 @@ def _render_possibly_related(first_message: str) -> str:
     result = find_in_journal(first_message)
     found = result.get("results")
     hits = found if isinstance(found, list) else []
-    files = [str(hit["file"]) for hit in hits if isinstance(hit, dict) and "file" in hit]
+    files = [
+        str(hit["file"]) for hit in hits if isinstance(hit, dict) and "file" in hit
+    ]
     # Recorded even with no hits: an auto-search that found nothing is the
     # measurement of the automatic retrieval, not a turn that never happened.
     record_auto_searched(first_message, files, len(hits))

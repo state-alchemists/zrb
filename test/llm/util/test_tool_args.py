@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from zrb.llm.tool_call.args import (
+from zrb.llm.util.tool_args import (
     is_empty_tool_args,
     parse_tool_args,
     truncate_tool_args_values,

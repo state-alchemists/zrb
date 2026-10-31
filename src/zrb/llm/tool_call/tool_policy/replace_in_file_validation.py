@@ -2,7 +2,7 @@ import os
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.tool_call.args import parse_tool_args
+from zrb.llm.util.tool_args import parse_tool_args
 from zrb.util.string.fuzzy_match import find_fuzzy_match
 
 if TYPE_CHECKING:

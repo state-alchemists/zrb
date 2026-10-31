@@ -11,8 +11,8 @@ from zrb.llm.history_manager.file_history_manager import (
     default_history_manager,
 )
 from zrb.llm.input_source import WEB_INPUT, InputProvenance
-from zrb.llm.prompt.live_context import split_live_context
 from zrb.llm.util.feature_config import close_feature_sessions
+from zrb.llm.util.live_context_block import split_live_context
 from zrb.llm.util.spoken import shown_text
 
 # Re-exported for chat_api_route.py and tests.
@@ -239,9 +239,7 @@ class ChatSessionManager:
             close_feature_sessions(session_id)
             # lazy: transitively heavy via internal — live_session.py imports
             # run_agent, which pulls in pydantic_ai.
-            from zrb.llm.subagent.live_session import (
-                live_subagent_session_registry,
-            )
+            from zrb.llm.subagent.live_session import live_subagent_session_registry
 
             live_subagent_session_registry.clear(session_id=session_id)
             # Background shells outlive a message; this is their only cleanup.

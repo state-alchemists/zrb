@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.tool_call.args import (
+from zrb.llm.util.live_context_block import split_live_context
+from zrb.llm.util.tool_args import (
     is_empty_tool_args,
     parse_tool_args_value,
     truncate_tool_args_values,
@@ -75,7 +76,6 @@ def _strip_live_context(content):
     item of a multimodal prompt); recall must not show it as typed text.
     """
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.prompt.live_context import split_live_context
 
     if isinstance(content, str):
         return split_live_context(content)[0]

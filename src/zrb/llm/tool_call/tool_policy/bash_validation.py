@@ -1,8 +1,8 @@
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolPolicy
+from zrb.llm.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart

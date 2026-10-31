@@ -23,9 +23,9 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import ASK
 from zrb.llm.tool_call.always_approve import is_always_auto_approve
-from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.override_registry import discard_override, record_override
+from zrb.llm.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
     from pydantic_ai import DeferredToolRequests, DeferredToolResults
@@ -384,7 +384,9 @@ async def _announce_permission_resolved(call, verdict, hook_manager) -> None:
         HookEvent.PERMISSION_RESOLVED,
         {
             "tool": call.tool_name,
-            "approved": None if verdict is None else not isinstance(verdict, ToolDenied),
+            "approved": (
+                None if verdict is None else not isinstance(verdict, ToolDenied)
+            ),
         },
         tool_name=call.tool_name,
     )
