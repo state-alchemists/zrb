@@ -95,9 +95,11 @@ Verified:
    - `append_live_context` / `split_live_context` and their regex moved from `prompt/live_context.py` to the new `util/live_context_block.py`; importers updated and the split tests moved to `test/llm/util/test_live_context_block.py`.
    - The three allowlist lines were deleted. Ratchet is now at 25 upward edges.
    - Verified: `test/architecture`, `test/llm/{util,prompt,tool_call,agent,ui/base}`, `test/util`, `test/runner/chat` all pass (2,943 tests); `flake8 --select=F` clean. Full suite, pyright and coverage not run.
-2. **Move ambient lookups beside `agent_state` (5 edges). NEXT.** `get_current_ui` already follows this pattern.
-   - `ui/multi_ui.get_main_ui` and `resolve_ui` are used by `agent/run/setup.py`, `task/chat/execution.py`, `task/chat/running.py`, `tool/delegate.py` and `tool/delegate_background.py`.
-   - `approval/approval_channel.current_approval_channel` is used by `agent_state.py`.
+2. **Ambient lookups (5 edges): half done.**
+   - ~~`current_approval_channel`~~ **DONE.** The `ContextVar` is now defined in `agent_state.py`; `approval/approval_channel.py` re-exports it, so no importer changed. Ratchet is at 24 upward edges. Verified with `test/architecture`, `test/llm/{approval,hook,agent,subagent}`, `test_agent_state.py` and `test_contextvars_index.py` (1,653 passed).
+   - **`ui/multi_ui.resolve_ui` / `get_main_ui` is NOT a pure move, contrary to the first plan.** `resolve_ui` constructs `StdUI` or `MultiUI`, and `get_main_ui` does `isinstance(ui, MultiUI)`, so they need the concrete L4 classes. Callers: `agent/run/setup.py`, `task/chat/execution.py`, `task/chat/running.py`, `tool/delegate.py`, `tool/delegate_background.py`.
+   - Options, decide with the user: (a) an ambient UI factory in `agent_state` that the UI layer registers, with `AnyUI` gaining a `main_ui` property so `get_main_ui` needs no `isinstance`; (b) accept the edge for `task/*`, which is L3 and could legitimately depend on UI construction only if `task` moves to L4; (c) leave it allowlisted. I lean to (a) for `agent/` and `tool/` and (c) for `task/`.
+
 3. **Add one small `AgentRunner` Protocol in L0 (6 edges).** Register the implementation from the engine layer, the same way as for the UI.
    - Callers: `hook/creator.py`, `history_manager/conversation_naming.py`, `tool/code.py`, `tool/web.py` and `tool/file_analyze.py`.
    - `tool/file_read.py -> agent/run/multimodal_describe.py` may belong here too. Check that.

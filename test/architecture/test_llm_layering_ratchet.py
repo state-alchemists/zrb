@@ -56,7 +56,6 @@ KNOWN_UPWARD_EDGES: set[str] = {
     "agent/hook_agent.py -> subagent/manager.py",
     "agent/hook_agent.py -> subagent/tool_resolver.py",
     "agent/run/setup.py -> ui/multi_ui.py",
-    "agent_state.py -> approval/approval_channel.py",
     "history_manager/conversation_naming.py -> agent/common.py",
     "hook/creator.py -> agent/__init__.py",
     "subagent/live_session.py -> ui/base/message_queue.py",
