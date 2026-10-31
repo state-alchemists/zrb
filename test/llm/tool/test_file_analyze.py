@@ -18,7 +18,9 @@ def temp_file(tmp_path):
 async def test_analyze_file_success(temp_file):
     # We must patch the source module because analyze_file does a local import
     with (
-        patch("zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock) as mock_run,
+        patch(
+            "zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock
+        ) as mock_run,
         patch("zrb.llm.tool.file_analyze.create_agent") as mock_create,
     ):
 
@@ -55,7 +57,9 @@ async def test_analyze_file_truncation(temp_file):
         f.write(content)
 
     with (
-        patch("zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock) as mock_run,
+        patch(
+            "zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock
+        ) as mock_run,
         patch("zrb.llm.tool.file_analyze.create_agent") as mock_create,
         patch("zrb.llm.tool.file_analyze.CFG") as mock_cfg,
     ):
@@ -102,7 +106,9 @@ async def test_analyze_file_refuses_an_image_a_text_only_model_gets_described(
     Image.new("RGB", (4, 4), "red").save(image)
     token = current_model.set("openai:gpt-3.5-turbo")
     try:
-        with patch("zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock) as mock_run:
+        with patch(
+            "zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock
+        ) as mock_run:
             result = await analyze_file(str(image), "What is this?")
     finally:
         current_model.reset(token)

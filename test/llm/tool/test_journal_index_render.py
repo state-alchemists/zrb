@@ -52,7 +52,12 @@ def _section(root: str, name: str) -> list[str]:
 
 
 def _note(
-    slug, hud_line=None, category="user", pinned=False, applies_when="while tested", **extra
+    slug,
+    hud_line=None,
+    category="user",
+    pinned=False,
+    applies_when="while tested",
+    **extra,
 ) -> str:
     return write_journal_note(
         category=category,
@@ -268,7 +273,13 @@ def test_a_rolled_back_transaction_restores_the_indexes_and_the_notes(
     with pytest.raises(RuntimeError):
         with journal_transaction() as batch:
             batch.write_note(
-                "user", "extra", "Extra", "c", "f", "s", hud_line="New.",
+                "user",
+                "extra",
+                "Extra",
+                "c",
+                "f",
+                "s",
+                hud_line="New.",
                 applies_when="while zrb 3.29 is released",
             )
             batch.delete_note("user", "seed")
@@ -350,8 +361,8 @@ def test_retitled_note_is_relabelled_not_duplicated_in_indexes(writable_journal)
             "f",
             "s",
             applies_when="while zrb 3.29 is released",
-
-            hud_line="f",)
+            hud_line="f",
+        )
 
     # Two lines name the note now — its HUD line and its catalog line — so the
     # count is per region: one catalog entry and one category entry, relabelled.
@@ -377,8 +388,8 @@ def test_retitling_a_note_whose_title_contains_a_bracket_relabels_not_duplicates
             "f",
             "s",
             applies_when="while zrb 3.29 is released",
-
-            hud_line="f",)
+            hud_line="f",
+        )
 
     category_index = _read(writable_journal, "technical/index.md")
     assert category_index.count("nested.md)") == 1

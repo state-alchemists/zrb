@@ -2,18 +2,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.delegation_api import SubAgentManagerAPI, register_subagent_manager
 from zrb.llm.subagent.building import SubAgentBuilding
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.manager_loading import SubAgentManagerLoading
 from zrb.llm.subagent.manager_search import SubAgentManagerSearch
 from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
-from typing import cast
-
-from zrb.llm.delegation_api import SubAgentManagerAPI, register_subagent_manager
 from zrb.llm.subagent.tool_resolver import resolved_tool_name
 from zrb.util.asset_scanner import IGNORE_DIRS
 

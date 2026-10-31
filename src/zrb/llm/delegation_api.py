@@ -15,7 +15,6 @@ from zrb.llm.any_live_sub_agent_session import AnyLiveSubAgentSession
 from zrb.llm.any_sub_agent_definition import AnySubAgentDefinition
 from zrb.llm.any_sub_agent_manager import AnySubAgentManager as SubAgentManagerAPI
 
-
 LiveSessionRegistryAPI = AnyLiveSessionRegistry
 LiveSubAgentSessionLike = AnyLiveSubAgentSession
 

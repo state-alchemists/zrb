@@ -130,9 +130,9 @@ def test_the_live_stream_and_the_exported_transcript_agree():
     """
     import json
 
-    from zrb.llm.util.tool_args import truncate_tool_args_values
     from zrb.llm.util import history_formatter, stream_response
     from zrb.llm.util.history_formatter import format_args
+    from zrb.llm.util.tool_args import truncate_tool_args_values
     from zrb.util.truncate import truncate_display
 
     value = "x" * 80

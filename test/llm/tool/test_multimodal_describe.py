@@ -271,7 +271,10 @@ async def test_describe_runs_sub_agent_and_returns_text_for_image():
         return _FakeResult("  a red square  "), None
 
     with (
-        patch("zrb.llm.tool.multimodal_describe.create_agent", side_effect=fake_create_agent),
+        patch(
+            "zrb.llm.tool.multimodal_describe.create_agent",
+            side_effect=fake_create_agent,
+        ),
         patch("zrb.llm.tool.multimodal_describe.run_agent", side_effect=fake_run_agent),
         patch(
             "zrb.llm.tool.multimodal_describe.resolve_configured_model",
@@ -302,7 +305,10 @@ async def test_describe_uses_audio_prompt_for_audio_binary():
         return _FakeResult("someone speaking"), None
 
     with (
-        patch("zrb.llm.tool.multimodal_describe.create_agent", side_effect=fake_create_agent),
+        patch(
+            "zrb.llm.tool.multimodal_describe.create_agent",
+            side_effect=fake_create_agent,
+        ),
         patch("zrb.llm.tool.multimodal_describe.run_agent", side_effect=fake_run_agent),
         patch(
             "zrb.llm.tool.multimodal_describe.resolve_configured_model",
@@ -325,8 +331,12 @@ async def test_describe_returns_none_when_sub_agent_run_fails():
         raise RuntimeError("provider down")
 
     with (
-        patch("zrb.llm.tool.multimodal_describe.create_agent", return_value=MagicMock()),
-        patch("zrb.llm.tool.multimodal_describe.run_agent", side_effect=failing_run_agent),
+        patch(
+            "zrb.llm.tool.multimodal_describe.create_agent", return_value=MagicMock()
+        ),
+        patch(
+            "zrb.llm.tool.multimodal_describe.run_agent", side_effect=failing_run_agent
+        ),
         patch(
             "zrb.llm.tool.multimodal_describe.resolve_configured_model",
             side_effect=lambda m: m,

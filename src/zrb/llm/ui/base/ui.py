@@ -99,8 +99,8 @@ if TYPE_CHECKING:
         ToolDenied,
         UserContent,
     )
-    from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.any_ui import ChoiceSpec
+    from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)
 
