@@ -421,8 +421,11 @@ class PcmUtterance(Utterance):
             # The stream is stopped by now, so no callback can still be
             # sending blocks: the end is said here, in order after them, even
             # when `stop` came between two callbacks and `_fill` never ran
-            # again. `_heard` says it once.
-            self._heard(b"")
+            # again. `_heard` says it once. Only for a sentence that was heard
+            # or stopped: a device that failed to open played nothing, and the
+            # fallback is about to say the sentence, so no end is announced.
+            if self._has_played_audio or self.is_stopped:
+                self._heard(b"")
             if not is_played:
                 # The device failed: close the source, which ends the read.
                 self._is_abandoned = True
