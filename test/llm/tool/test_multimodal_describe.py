@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic_ai.messages import BinaryContent
 
-from zrb.llm.agent.run.multimodal_describe import (
+from zrb.llm.tool.multimodal_describe import (
     describe_binary_attachment,
     replace_unsupported_attachments,
 )
@@ -130,7 +130,7 @@ async def test_image_substituted_with_description_when_fallback_succeeds():
         return "A red 4x4 placeholder image."
 
     with patch(
-        "zrb.llm.agent.run.multimodal_describe.describe_binary_attachment",
+        "zrb.llm.tool.multimodal_describe.describe_binary_attachment",
         side_effect=fake_describe,
     ):
         result = await replace_unsupported_attachments(
@@ -156,7 +156,7 @@ async def test_image_dropped_when_multimodal_describe_fails():
         return None
 
     with patch(
-        "zrb.llm.agent.run.multimodal_describe.describe_binary_attachment",
+        "zrb.llm.tool.multimodal_describe.describe_binary_attachment",
         side_effect=fail_describe,
     ):
         result = await replace_unsupported_attachments(
@@ -271,10 +271,10 @@ async def test_describe_runs_sub_agent_and_returns_text_for_image():
         return _FakeResult("  a red square  "), None
 
     with (
-        patch("zrb.llm.agent.create_agent", side_effect=fake_create_agent),
-        patch("zrb.llm.agent.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.tool.multimodal_describe.create_agent", side_effect=fake_create_agent),
+        patch("zrb.llm.tool.multimodal_describe.run_agent", side_effect=fake_run_agent),
         patch(
-            "zrb.llm.config.model_resolver.resolve_configured_model",
+            "zrb.llm.tool.multimodal_describe.resolve_configured_model",
             side_effect=lambda m: f"resolved:{m}",
         ),
     ):
@@ -302,10 +302,10 @@ async def test_describe_uses_audio_prompt_for_audio_binary():
         return _FakeResult("someone speaking"), None
 
     with (
-        patch("zrb.llm.agent.create_agent", side_effect=fake_create_agent),
-        patch("zrb.llm.agent.run_agent", side_effect=fake_run_agent),
+        patch("zrb.llm.tool.multimodal_describe.create_agent", side_effect=fake_create_agent),
+        patch("zrb.llm.tool.multimodal_describe.run_agent", side_effect=fake_run_agent),
         patch(
-            "zrb.llm.config.model_resolver.resolve_configured_model",
+            "zrb.llm.tool.multimodal_describe.resolve_configured_model",
             side_effect=lambda m: m,
         ),
     ):
@@ -325,10 +325,10 @@ async def test_describe_returns_none_when_sub_agent_run_fails():
         raise RuntimeError("provider down")
 
     with (
-        patch("zrb.llm.agent.create_agent", return_value=MagicMock()),
-        patch("zrb.llm.agent.run_agent", side_effect=failing_run_agent),
+        patch("zrb.llm.tool.multimodal_describe.create_agent", return_value=MagicMock()),
+        patch("zrb.llm.tool.multimodal_describe.run_agent", side_effect=failing_run_agent),
         patch(
-            "zrb.llm.config.model_resolver.resolve_configured_model",
+            "zrb.llm.tool.multimodal_describe.resolve_configured_model",
             side_effect=lambda m: m,
         ),
     ):

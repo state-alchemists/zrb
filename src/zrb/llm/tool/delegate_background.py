@@ -29,10 +29,10 @@ from zrb.llm.ambient_state import (
 )
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
-from zrb.llm.subagent.manager import (
-    SubAgentManager,
+from zrb.llm.delegation_api import (
+    SubAgentManagerAPI,
+    default_sub_agent_manager,
 )
-from zrb.llm.subagent.manager import sub_agent_manager as default_sub_agent_manager
 from zrb.llm.tool.delegate import (
     BufferedUI,
     agent_not_found_message,
@@ -242,10 +242,10 @@ def background_delegation_live_context(ctx: "AnyContext") -> str | None:
 
 
 def create_background_delegate_tool(
-    sub_agent_manager: SubAgentManager | None = None,
+    sub_agent_manager: SubAgentManagerAPI | None = None,
 ):
     if sub_agent_manager is None:
-        sub_agent_manager = default_sub_agent_manager
+        sub_agent_manager = default_sub_agent_manager()
 
     async def delegate_to_agent_background(
         agent_name: Annotated[

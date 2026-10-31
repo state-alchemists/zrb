@@ -26,6 +26,13 @@ from zrb.llm.history_manager.conversation_naming import (
     suggest_slug,
 )
 from zrb.llm.ui.base.message_queue import steer_into_live_run
+from typing import cast
+
+from zrb.llm.delegation_api import (
+    LiveSessionRegistryAPI,
+    register_live_session_registry,
+    register_start_titling,
+)
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
@@ -437,3 +444,5 @@ def _bind_captured_approval(authority: AuthoritySnapshot | None) -> Generator[No
         scoped(current_approval_channel, authority.approval_channel),
     ):
         yield
+register_live_session_registry(cast(LiveSessionRegistryAPI, live_subagent_session_registry))
+register_start_titling(start_titling)

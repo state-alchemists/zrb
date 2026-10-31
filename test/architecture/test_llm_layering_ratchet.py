@@ -29,10 +29,12 @@ LLM = SRC / "zrb" / "llm"
 
 _UNITS_BY_LAYER = {
     0: (
-        "agent_activity agent_state agent_tool_result ambient_state any_ui config "
-        "factory_resolver input_source journal_index_name journal_usage_log "
-        "message message_text shell_cut stream_observer tool_registry "
-        "ui_fallback usage_log util"
+        "agent_activity agent_runner agent_state agent_tool_result ambient_state "
+        "any_agent any_agent_result any_agent_runner any_live_session_registry "
+        "any_live_sub_agent_session any_sub_agent_definition any_sub_agent_manager "
+        "any_ui config delegation_api factory_resolver input_source journal_index_name "
+        "journal_usage_log message message_text shell_cut stream_observer "
+        "tool_registry ui_fallback usage_log util"
     ),
     1: (
         "approval history_manager hook lsp permission prompt sandbox skill "
@@ -55,24 +57,13 @@ _CONTRACT_PATHS = {"agent/types.py"}
 KNOWN_UPWARD_EDGES: set[str] = {
     "agent/hook_agent.py -> subagent/manager.py",
     "agent/hook_agent.py -> subagent/tool_resolver.py",
-    "history_manager/conversation_naming.py -> agent/common.py",
-    "hook/creator.py -> agent/__init__.py",
     "subagent/live_session.py -> ui/base/message_queue.py",
     "subagent/parent_message.py -> ui/buffered_ui.py",
     "task/chat/running.py -> ui/default/app/lexer.py",
     "task/chat/running.py -> ui/default/ui.py",
     "task/chat/running.py -> ui/multi_ui.py",
     "task/chat/task.py -> ui/ui_config.py",
-    "tool/code.py -> agent/__init__.py",
-    "tool/delegate.py -> agent/run/runner.py",
-    "tool/delegate.py -> subagent/live_session.py",
-    "tool/delegate.py -> subagent/manager.py",
     "tool/delegate.py -> ui/buffered_ui.py",
-    "tool/delegate_background.py -> subagent/manager.py",
-    "tool/delegate_message.py -> subagent/live_session.py",
-    "tool/file_analyze.py -> agent/__init__.py",
-    "tool/file_read.py -> agent/run/multimodal_describe.py",
-    "tool/web.py -> agent/__init__.py",
 }
 
 # Mutual dependencies between two units of the same layer, as "a <-> b".

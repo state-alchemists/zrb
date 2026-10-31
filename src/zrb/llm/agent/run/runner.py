@@ -1165,7 +1165,7 @@ async def _apply_multimodal_fallback(
     attachments are dropped with a warning.
     """
     # lazy: transitively heavy — multimodal_describe loads pydantic_ai, pdfplumber, prompt_toolkit
-    from zrb.llm.agent.run.multimodal_describe import replace_unsupported_attachments
+    from zrb.llm.tool.multimodal_describe import replace_unsupported_attachments
 
     main_model = getattr(agent, "model", None)
     return await replace_unsupported_attachments(

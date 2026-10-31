@@ -24,6 +24,9 @@ CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
     # Pipecat and its re-exporting backend package form a genuine cycle; defer the
     # backend half where the pipeline is built.
     "llm/speech/backend/pipecat.py": 1,
+    # zrb.llm.agent is a lazy facade; its registration adapter resolves
+    # engine pieces on first call to avoid pulling pydantic_ai at import time.
+    "llm/agent/__init__.py": 2,
     # The background registry imports `delegate`'s `BufferedUI` and
     # `run_agent_task`; `delegate` defers the one call back into it, where a
     # send-now cut hands a running delegation over.

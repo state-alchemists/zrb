@@ -10,8 +10,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
+from zrb.llm.agent_runner import create_agent, run_agent
 from zrb.llm.agent_state import get_current_model
-from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
+from zrb.llm.config.limiter import get_run_llm_limiter
+from zrb.llm.config.model_resolver import (
+    resolve_configured_model,
+    resolve_configured_multimodal_model,
+)
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.util.capabilities import (
     is_known_model,
@@ -50,12 +55,6 @@ async def describe_binary_attachment(
             f"Multimodal model does not support {modality}; cannot describe attachment."
         )
         return None
-
-    # lazy: zrb internal (heavy via transitive) — zrb.llm.agent pulls in the
-    # runner, which lazily imports this module.
-    from zrb.llm.agent import create_agent, run_agent
-    from zrb.llm.config.limiter import get_run_llm_limiter
-    from zrb.llm.config.model_resolver import resolve_configured_model
 
     system_prompt = (
         get_prompt("multimodal_image")

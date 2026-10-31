@@ -181,7 +181,7 @@ async def test_a_text_only_model_gets_the_photo_described(text_only_model, monke
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o-mini")
     monkeypatch.setattr(
-        "zrb.llm.agent.run.multimodal_describe.describe_binary_attachment", describe
+        "zrb.llm.tool.multimodal_describe.describe_binary_attachment", describe
     )
 
     result = await _take_photo(FakeCamera(b"\xff\xd8\xff-fake-jpeg"))()

@@ -6,7 +6,10 @@ First resolution of any exported name also imports `hook_agent`, which
 registers the `HookType.AGENT` builder.
 """
 
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, cast
+
+from zrb.llm.agent_runner import Agent, register_agent_runner
 
 if TYPE_CHECKING:
     from zrb.llm.agent.common import create_agent  # noqa: F401
@@ -29,6 +32,28 @@ _SOURCES = {
     "create_summarizer_agent": "zrb.llm.agent.summarizer",
     "run_agent": "zrb.llm.agent.run.runner",
 }
+
+
+class _EngineAgentRunner:
+    """The engine half of `zrb.llm.agent_runner`, resolved on first call."""
+
+    def create_agent(self, **kwargs: object) -> Agent:
+        # lazy: circular — this package is the lazy facade; importing the
+        # engine here would load pydantic_ai at package import.
+        from zrb.llm.agent.common import create_agent
+
+        return cast("Callable[..., Agent]", create_agent)(**kwargs)
+
+    async def run_agent(self, **kwargs: object) -> tuple[object, list[object]]:
+        # lazy: circular — the runner imports this package.
+        from zrb.llm.agent.run.runner import run_agent
+
+        return await cast(
+            "Callable[..., Awaitable[tuple[object, list[object]]]]", run_agent
+        )(**kwargs)
+
+
+register_agent_runner(_EngineAgentRunner())
 
 
 def __getattr__(name: str):

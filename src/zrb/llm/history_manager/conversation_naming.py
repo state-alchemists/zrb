@@ -6,6 +6,7 @@ import re
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.agent_runner import create_agent
 from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.util.subagent_session_naming import parse_delegated_session
@@ -50,9 +51,6 @@ class ConversationNamingError(Exception):
 async def suggest_slug(message: str, model: "str | Model | None" = None) -> str:
     """A short topic slug for *message* from the small model. Raises
     `ConversationNamingError` when the model fails or gives nothing usable."""
-    # lazy: heavy third-party — building an agent pulls in pydantic_ai.
-    from zrb.llm.agent.common import create_agent
-
     try:
         agent = create_agent(
             model=resolve_configured_small_model(model or CFG.LLM_AUTO_NAME_MODEL),

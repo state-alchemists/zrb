@@ -1,8 +1,15 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from zrb.llm.tool.code import analyze_code
+
+
+@pytest.fixture(autouse=True)
+def _stub_agent_builder():
+    """analyze_code builds an agent; the tests only care about run_agent."""
+    with patch("zrb.llm.tool.code.create_agent", return_value=MagicMock()):
+        yield
 
 
 @pytest.fixture

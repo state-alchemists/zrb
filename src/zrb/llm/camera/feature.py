@@ -116,7 +116,7 @@ def create_camera_tools(config: CameraConfig) -> "list[ToolFuncEither]":
         user unprompted. The user approves each photo.
         """
         # lazy: transitively heavy — multimodal_describe loads pydantic_ai
-        from zrb.llm.agent.run.multimodal_describe import create_image_tool_return
+        from zrb.llm.tool.multimodal_describe import create_image_tool_return
 
         photo = await capture_photo(backend, device or config.device or None)
         if photo is None:

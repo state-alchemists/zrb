@@ -142,7 +142,7 @@ def create_screenshot_tools(config: ScreenshotConfig) -> "list[ToolFuncEither]":
         may show private things; the user approves each capture.
         """
         # lazy: transitively heavy — multimodal_describe loads pydantic_ai
-        from zrb.llm.agent.run.multimodal_describe import create_image_tool_return
+        from zrb.llm.tool.multimodal_describe import create_image_tool_return
 
         # TakeScreenshot is opt-in and every call is approved by the user
         # (Capability.EXECUTE), so an explicitly approved remote capture is
