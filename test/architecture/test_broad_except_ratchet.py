@@ -13,7 +13,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 _BROAD = {"Exception", "BaseException"}
 
 # -9 (312->303): the RAG tool's registration loop and its config mixin were removed.
-SWALLOWED_BROAD_EXCEPTS = 303
+# +1 (303->304): the speech player's audio callback must survive a listener's
+# bug of any type (a raise there would kill playback), so it cannot be narrowed.
+SWALLOWED_BROAD_EXCEPTS = 304
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:
