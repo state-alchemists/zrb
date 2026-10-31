@@ -34,10 +34,12 @@ Inside `llm/`:
 
 | Path | What is in it |
 | --- | --- |
-| `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `gates.py` enforces permission denials |
+| `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `gates.py` enforces permission denials. The L0 facade `llm/agent_runner.py` names `create_agent`/`run_agent` for lower layers |
 | `subagent/` | Sub-agent definitions, discovery and delegation sessions — a layer above `agent/`, which never imports it |
 | `ui/` | The UI implementations; the `AnyUI` contract is the top-level `any_ui.py`, and the prompt_toolkit TUI lives under `ui/default/app/` |
 | `any_ui.py`, `ui_fallback/` | The `AnyUI` contract and the UI pieces L0 may construct (`StdUI`, `UIStateDefaultsMixin`, the `resolve_ui`/`create_combined_ui` resolver). They live outside `ui/` so a headless run does not load the presentation package |
+| `any_agent.py`, `any_agent_result.py`, `any_agent_runner.py`, `agent_runner.py` | L0 agent contracts and the facade lower layers call to build/run agents without importing the engine package |
+| `any_sub_agent_definition.py`, `any_sub_agent_manager.py`, `any_live_sub_agent_session.py`, `any_live_session_registry.py`, `delegation_api.py` | L0 delegation contracts (sub-agent manager, live-session registry) and the registry functions lower layers call instead of importing `subagent/*` |
 | `approval/`, `permission/` | The approval channel, and the permission ruleset (`policy.py`, `state.py`) |
 | `config/` | LLM-specific config: model resolution, the rate limiter |
 | `custom_command/` | Slash commands built from skills and markdown |
@@ -64,7 +66,7 @@ Inside `llm/`:
 - A new task under `builtin/` must also be imported in `builtin/__init__.py` and added to its `__all__`, or it simply never appears in the CLI. Guarded by `test/builtin/test_registration_completeness.py` — including the tree scan for a module `__init__.py` never imports. A task that exists only as another task's `upstream=` dependency belongs in that file's `INTERNAL_TASKS` map, with its reason.
 - A new tool under `llm/tool/` must also be registered *and* `tag()`-ed with a `Capability` in `llm/common_tools.py::_seed_default_tools`, or it resolves to `Capability.UNKNOWN` (denied in plan mode). Guarded by `test_every_registered_tool_carries_a_known_capability` in `test/llm/test_common_tools.py`. Leaving a *third-party* or MCP tool untagged is still fine — `UNKNOWN` is deliberately safe-by-default there.
 
-`hook/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`), because `zrb.llm.agent` itself depends on `hook.manager`. The real builder (`agent/hook_agent.py`) registers when any name re-exported by `zrb.llm.agent` is first resolved (ADR-0096); if it is missing, the hook fails with a logged warning instead of crashing.
+`hook/manager.py` builds a `HookType.AGENT` hook through a registration seam (`hook/agent_hook_registry.py`), because `zrb.llm.agent` itself depends on `hook.manager`. The real builder (`agent/hook_agent.py`) registers when any name re-exported by `zrb.llm.agent` is first resolved (ADR-0096); if it is missing, the hook fails with a logged warning instead of crashing. The engine also registers its `AnyAgentRunner` adapter at import so lower layers can call `zrb.llm.agent_runner.create_agent`/`run_agent`.
 
 > For the design of each subsystem, see [`docs/architecture/README.md`](docs/architecture/README.md); for a top-down code tour of `zrb llm chat "..."` (CLI → task → agent run → UI → history), see `docs/llm/llm-chat-lifecycle.md`.
 

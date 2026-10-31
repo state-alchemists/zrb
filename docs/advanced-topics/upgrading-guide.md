@@ -23,6 +23,28 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ---
 
+## Upgrading to NEXT (unreleased)
+
+Layering refactor for lower-cognitive-load imports. Tools and hooks no longer import the engine or subagent orchestration directly.
+
+### Moved modules
+
+| Old | New |
+|---|---|
+| `zrb.llm.agent.run.multimodal_describe` | `zrb.llm.tool.multimodal_describe` |
+
+### Import path changes (lower layers)
+
+| Before | After |
+|---|---|
+| `from zrb.llm.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
+| `from zrb.llm.subagent.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
+| `from zrb.llm.subagent.live_session import live_subagent_session_registry` | `from zrb.llm.delegation_api import get_live_session_registry` |
+
+`zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
+
+---
+
 ## Upgrading to 3.16.0
 
 3.16.0 brings an opt-in spoken summary back and moves some modules to the package that owns them ([Moved modules](#moved-modules)). Speech changes only if you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.

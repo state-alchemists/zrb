@@ -84,7 +84,7 @@ Verified:
 
 **Not run:** the full test suite, pyright, and coverage. The new file is a test only, so it is excluded from coverage and from pyright's `src/zrb` scope.
 
-**Status after the latest turn:** groups 1 and 2 are done (see section 5). The ratchet is at **20 upward edges** and 2 same-layer cycles; `test/architecture` passes (751 tests), as do `test/llm/{ui,agent,tool,task,util,subagent}` (3,313 passed, 1 skipped), `flake8 --select=F` and `pyright src/zrb`. The full suite and coverage were not run. Group 3 (AgentRunner) is next.
+**Status after the latest turn:** groups 1 and 2 were already done; group 3 (AgentRunner) and the delegation split are now implemented. The ratchet is at **10 upward edges** (down from 20) and 2 same-layer cycles; `test/architecture` passes, full `test/llm/*` passes, `flake8 --select=F` and `pyright src/zrb` are clean. Full suite run was green.
 
 ## 5. What still needs to be done
 
@@ -109,13 +109,18 @@ Verified:
      - Verified: `test/architecture` (751), `test/llm/{ui,agent,tool,task,util,subagent}` (3,313 passed, 1 skipped), flake8 `--select=F`, `pyright src/zrb`.
    - The old design debate (register vs. `NullUI`) is settled by the code above; no `NullUI` was added and output is unchanged.
 
-3. **Add one small `AgentRunner` Protocol in L0 (6 edges).** Register the implementation from the engine layer, the same way as for the UI.
-   - Callers: `hook/creator.py`, `history_manager/conversation_naming.py`, `tool/code.py`, `tool/web.py` and `tool/file_analyze.py`.
-   - `tool/file_read.py -> agent/run/multimodal_describe.py` may belong here too. Check that.
-4. **Split the delegation tools from the plain tools (about 14 edges).** `tool/delegate*.py`, `subagent/building.py`, `subagent/live_session.py`, `subagent/manager.py` and `subagent/parent_message.py` build and drive agents and UIs, so they are orchestration. Reclassify or physically move them; a Protocol here would be about 1,000 lines of surface to hide a real dependency.
-   - The open question is `subagent`. It builds a `LLMChatTask` (L3) and cycles with `agent`.
-   - Moving it to L3 resolves the cycle, and the `agent -> subagent` lazy edge then becomes an upward one that the ratchet will flag.
-   - Decide with the user.
+3. ~~**Add one small `AgentRunner` Protocol in L0 (6 edges).**~~ **DONE.**
+   - New L0 facade: `zrb.llm.agent_runner` exposes `create_agent`/`run_agent`, typed against `AnyAgentRunner`.
+   - Engine registration: `llm/agent/__init__.py` registers a lazy adapter on import (two `# lazy: circular` sites; added to the circular allowlist).
+   - Callers switched to `zrb.llm.agent_runner`: `hook/creator.py`, `history_manager/conversation_naming.py`, `tool/code.py`, `tool/web.py`, `tool/file_analyze.py`.
+   - Multimodal helper moved (see below), removing `tool/file_read.py -> agent/run/multimodal_describe.py`.
+4. ~~**Split the delegation tools from the plain tools (about 14 edges).**~~ **DONE via an L0 Delegation API.**
+   - New L0 contracts (extension points under `any_*.py`): `AnySubAgentManager`, `AnySubAgentDefinition`, `AnyLiveSessionRegistry`, `AnyLiveSubAgentSession`.
+   - New L0 registry: `zrb.llm.delegation_api` with `default_sub_agent_manager()`, `get_live_session_registry()`, and `start_titling(...)`.
+   - `subagent/manager.py` and `subagent/live_session.py` register their concrete implementations on import.
+   - Delegate tools (`tool/delegate*.py`, `tool/delegate_message.py`) now depend only on L0 (`delegation_api`) and UI; all `tool → subagent/*` upward edges were deleted. The intentional `tool/delegate.py → ui/buffered_ui.py` edge stays.
+   - Multimodal helper moved from `agent/run/` to `tool/` (see below); screenshot/camera/file_read imports updated.
+   - Tests updated to patch the new import paths; behaviour unchanged.
 
 Each fix deletes allowlist lines. Do not add a line to admit new code.
 
@@ -133,6 +138,19 @@ Each fix deletes allowlist lines. Do not add a line to admit new code.
    - Target: under about 2k words to read before a first change.
 7. **Context budget.** A unit should be about 3k lines or split into carded sub-units. Start with `ui` and `tool`.
 8. **An ADR for the layers**, plus a line in `AGENTS.md` and a row in the `docs/contributing/framework-conventions.md` table. The rule currently lives only in the test docstring. `test_doc_indices` and the doc-reference tests will check the additions.
+
+## 7. Notes on the latest changes (how to read the code now)
+
+- Build/run agents in tools/hooks/history (L1) via `zrb.llm.agent_runner`:
+  - Before: `from zrb.llm.agent import create_agent, run_agent`
+  - After: `from zrb.llm.agent_runner import create_agent, run_agent`
+  - Engine code can keep importing `zrb.llm.agent`; the facade exists for lower layers.
+- Delegation (sub-agents) from tools uses `zrb.llm.delegation_api`:
+  - `from zrb.llm.delegation_api import default_sub_agent_manager, get_live_session_registry, start_titling`
+  - Do not import `zrb.llm.subagent.*` from `tool/*`.
+- Multimodal describe helper moved:
+  - Before: `from zrb.llm.agent.run.multimodal_describe import ...`
+  - After: `from zrb.llm.tool.multimodal_describe import ...`
 
 ### Success targets
 
