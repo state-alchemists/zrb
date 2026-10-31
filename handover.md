@@ -103,6 +103,13 @@ Verified:
      - With registration, that guarantee goes. `zrb/llm/` has no `__init__.py` (namespace package), so there is no single import point that always registers the resolver. Callers of `run_agent` that may never import `zrb.llm.ui`: `tool/web.py`, `tool/code.py`, `agent/run/multimodal_describe.py`, `dictation/backend/multimodal.py`.
      - A string-based `importlib` fallback inside `agent_state` would hide the upward dependency from the ratchet. Do not do that.
    - Design choices still open: (i) register the resolver from `zrb/llm/ui/__init__.py` *and* make `agent/run/setup.py` fail loudly (with a `[SYSTEM SUGGESTION]` message, per R10) when none is registered; (ii) give the headless case its own tiny L0 fallback UI (a no-op `AnyUI`) so `None` never needs `StdUI`; (iii) keep `agent/run/setup.py -> ui/multi_ui.py` allowlisted and fix only `tool/delegate*.py`.
+   - **User chose (ii), the L0 fallback UI. Refined design, not yet implemented, with one behaviour caveat:**
+     - Today `resolve_ui(None)` returns `StdUI`, which *prints to stdout*. A plain no-op fallback would silently drop that output for any caller that has no UI, so do not replace `StdUI` with a no-op everywhere.
+     - Safe shape: the UI package registers a resolver in `agent_state` (building `StdUI`/`MultiUI` exactly as today); `agent_state` also holds a minimal silent `NullUI` used only when nothing registered one, which can happen only when `zrb.llm.ui` was never imported (library use). Wherever the UI package is loaded, which is every CLI and chat path, behaviour is unchanged.
+     - `AnyUI` has 41 abstract methods; build `NullUI` from `UIStateDefaultsMixin` plus no-op methods, in a new L0 module (suggested `llm/null_ui.py`). Check `StdUI` (197 lines) for what it needs.
+     - Confirm with a test that `run_agent` with no UI imported behaves sensibly, and that `StdUI` is still used when the UI package is loaded (assert the type from `resolve_ui(None)`).
+     - If the silent library-use case is unacceptable, fall back to choice (i): fail with a `[SYSTEM SUGGESTION]` error when nothing registered.
+
    - `get_main_ui` alone can be duck-typed in L0 (`getattr(ui, "main_ui", None)`, since only `MultiUI` defines `main_ui`) with no interface change, but that removes no edge until `resolve_ui` moves too.
    - Whichever is chosen: add a test that `run_agent` with no UI imported still works (run it in a subprocess that never imports `zrb.llm.ui`).
 
