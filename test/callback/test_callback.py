@@ -48,16 +48,13 @@ class TestCallbackBehavior:
     async def test_callback_executes_task_and_maps_input(
         self, mock_task, mock_session, mock_parent_session
     ):
-        # Arrange
         callback = Callback(
             task=mock_task,
             input_mapping={"key": "value"},
         )
 
-        # Act
         result = await callback.async_run(mock_parent_session, mock_session)
 
-        # Assert
         assert result == "task_result"
         mock_task.async_run.assert_called_once_with(mock_session)
         assert mock_session.shared_ctx.input["key"] == "value"
@@ -71,7 +68,6 @@ class TestCallbackBehavior:
         queued value to its task, so it has no `render_input_mapping` flag to
         turn on — the `Tpl` wrapper is the whole opt-in.
         """
-        # Arrange
         mock_session.shared_ctx.render.side_effect = lambda t: (
             "from-xcom" if t == "{ctx.xcom['q'].pop()}" else t
         )
@@ -83,10 +79,8 @@ class TestCallbackBehavior:
             },
         )
 
-        # Act
         await callback.async_run(mock_parent_session, mock_session)
 
-        # Assert
         assert mock_session.shared_ctx.input["templated"] == "from-xcom"
         assert mock_session.shared_ctx.input["literal"] == "{not-a-template}"
 
@@ -94,7 +88,6 @@ class TestCallbackBehavior:
     async def test_callback_publishes_to_parent_queues(
         self, mock_task, mock_session, mock_parent_session
     ):
-        # Arrange
         callback = Callback(
             task=mock_task,
             input_mapping={},
@@ -102,7 +95,6 @@ class TestCallbackBehavior:
             session_name_queue="sessions",
         )
 
-        # Act
         await callback.async_run(mock_parent_session, mock_session)
 
         # Assert
@@ -134,14 +126,11 @@ class TestCallbackBehavior:
     async def test_callback_handles_task_error(
         self, mock_task, mock_session, mock_parent_session
     ):
-        # Arrange
         mock_task.async_run.side_effect = ValueError("Task Failed")
         callback = Callback(task=mock_task, input_mapping={}, error_queue="errors")
 
-        # Act
         result = await callback.async_run(mock_parent_session, mock_session)
 
-        # Assert
         assert result is None
         assert "errors" in mock_parent_session.shared_ctx.xcom
         error = mock_parent_session.shared_ctx.xcom["errors"].pop()
@@ -152,16 +141,13 @@ class TestCallbackBehavior:
     async def test_callback_maps_xcom_from_parent(
         self, mock_task, mock_session, mock_parent_session
     ):
-        # Arrange
         mock_parent_session.shared_ctx.xcom["parent_data"] = "secret_data"
         callback = Callback(
             task=mock_task, input_mapping={}, xcom_mapping={"parent_data": "child_data"}
         )
 
-        # Act
         await callback.async_run(mock_parent_session, mock_session)
 
-        # Assert
         assert mock_session.shared_ctx.xcom["child_data"] == "secret_data"
 
 

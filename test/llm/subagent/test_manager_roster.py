@@ -178,7 +178,6 @@ def test_sub_agent_manager_filter_delegate_tools_from_factory():
 
     delegate_tool.zrb_is_delegate_tool = True
 
-    # Add a factory that returns a delegate tool
     manager.append_tool_factory(lambda ctx: delegate_tool)
 
     agent_def = SubAgentDefinition(

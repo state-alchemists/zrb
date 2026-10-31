@@ -166,7 +166,6 @@ class TestChatSessionManagerCleanup:
 
         manager = await ChatSessionManager.get_instance()
 
-        # Create a session with a running task coroutine
         async def long_running():
             await asyncio.sleep(100)
 
@@ -180,7 +179,6 @@ class TestChatSessionManagerCleanup:
         # Cancel all sessions
         await manager.cancel_all_sessions()
 
-        # Verify task was cancelled
         assert task.cancelled() or task.done()
 
     def test_get_active_tasks_with_running_task(self):

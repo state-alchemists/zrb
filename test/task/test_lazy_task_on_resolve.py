@@ -63,7 +63,6 @@ def test_a_callback_waits_for_the_task_to_load():
 
     stand_in = _stand_in().on_resolve(lambda task: seen.append(task.name))
 
-    # Assert
     assert seen == [], "The callback ran at registration, before the task existed."
     stand_in.resolve()
     assert seen == ["now"], f"The callback saw {seen}, not the resolved task."
@@ -119,11 +118,9 @@ def test_a_failing_callback_is_retried_rather_than_cached():
 
     stand_in = _stand_in().on_resolve(flaky)
 
-    # Act
     with pytest.raises(RuntimeError, match="misconfigured"):
         stand_in.resolve()
 
-    # Assert
     assert stand_in.resolve() is not None
     assert attempts == [1, 2], "The callback was dropped after raising once."
 
@@ -142,12 +139,10 @@ def test_a_callback_that_succeeded_is_not_replayed_after_a_later_failure():
 
     stand_in = _stand_in().on_resolve(first).on_resolve(second)
 
-    # Act
     with pytest.raises(RuntimeError, match="misconfigured"):
         stand_in.resolve()
     stand_in.resolve()
 
-    # Assert
     assert calls == ["first", "second", "second"]
 
 
@@ -161,7 +156,6 @@ def test_configuring_the_chat_stand_in_does_not_import_its_module():
         "'loaded': 'zrb.builtin.llm.chat' in sys.modules, 'seen': seen}))"
     )
 
-    # Assert
     assert state["loaded"] is False, (
         "Registering a callback on the stand-in imported "
         "`zrb.builtin.llm.chat`, which is the import the stand-in defers."
@@ -180,7 +174,6 @@ def test_the_chat_module_loads_when_something_needs_it():
         "'seen': seen, 'resolved': task.name}))"
     )
 
-    # Assert
     assert state["loaded"] is True
     assert state["seen"] == ["chat"], "The callback did not run at load time."
     assert state["resolved"] == "chat"

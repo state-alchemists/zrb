@@ -40,7 +40,6 @@ async def test_rsync_task_local_to_remote(mock_session):
     ):
         await rsync_task.exec(mock_session)
 
-        # Check that run_command was called
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         cmd_script = call_kwargs["cmd"][2]
@@ -75,7 +74,6 @@ async def test_rsync_task_remote_to_local(mock_session):
     ):
         await rsync_task.exec(mock_session)
 
-        # Check that run_command was called
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         cmd_script = call_kwargs["cmd"][2]
@@ -111,7 +109,6 @@ async def test_rsync_task_with_key(mock_session):
     ):
         await rsync_task.exec(mock_session)
 
-        # Check that run_command was called
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         cmd_script = call_kwargs["cmd"][2]
@@ -145,7 +142,6 @@ async def test_rsync_task_with_password(mock_session):
     ):
         await rsync_task.exec(mock_session)
 
-        # Check that run_command was called
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         cmd_script = call_kwargs["cmd"][2]
@@ -180,7 +176,6 @@ async def test_rsync_task_with_key_and_password(mock_session):
     ):
         await rsync_task.exec(mock_session)
 
-        # Check that run_command was called
         assert len(call_args_list) == 1
         call_kwargs = call_args_list[0][1]
         cmd_script = call_kwargs["cmd"][2]

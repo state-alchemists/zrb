@@ -45,7 +45,6 @@ async def test_delegate_tool_success(mock_sub_agent_manager):
         assert "completed:" in result
         assert "Agent Result" in result
 
-        # Verify call arguments
         mock_run_agent.assert_called_once()
         call_kwargs = mock_run_agent.call_args.kwargs
         assert call_kwargs["agent"] == mock_agent

@@ -114,7 +114,6 @@ def test_content_transformer_transform_file_dict():
             )
             transformer.transform_file(ctx, "/path/to/file.txt")
 
-            # Check that write was called
             mock_write.assert_called_once()
 
 

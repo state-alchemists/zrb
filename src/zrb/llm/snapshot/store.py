@@ -61,6 +61,17 @@ _GITLINK_MODE = "160000"
 # `FILE_ATTRIBUTE_REPARSE_POINT`: set on a Windows junction or symlink.
 _REPARSE_POINT = 0x400
 
+# HEAD holds either `ref: <a branch>` or the object it points at (SHA-1, or
+# SHA-256 in a repository made with it).
+_HEAD_PREFIX = "ref: "
+_OBJECT_ID_LENGTHS = (40, 64)
+_HEX = frozenset("0123456789abcdef")
+
+# The Windows prefix that turns off all path parsing: `\\?\C:\...` and
+# `\\?\UNC\server\share\...` name the same files as the plain forms.
+_VERBATIM_PREFIX = "\\\\?\\"
+_VERBATIM_UNC_PREFIX = "\\\\?\\UNC\\"
+
 
 logger = logging.getLogger(__name__)
 
@@ -104,8 +115,8 @@ class SnapshotStore:
         borrow_objects: bool = False,
     ):
         # Absolute: git runs with the work tree as its cwd.
-        self._git_dir = os.path.realpath(git_dir)
-        self._workdir = os.path.realpath(workdir)
+        self._git_dir = plain_path(os.path.realpath(git_dir))
+        self._workdir = plain_path(os.path.realpath(workdir))
         try:
             holds = os.path.commonpath([self._git_dir, self._workdir]) == self._git_dir
         except ValueError:  # another drive on Windows
@@ -118,7 +129,7 @@ class SnapshotStore:
         self._index_name = index_name
         self._ignore_dirs = frozenset(ignore_dirs)
         self._exclude_paths = [self._git_dir] + [
-            os.path.realpath(p) for p in exclude_paths
+            plain_path(os.path.realpath(p)) for p in exclude_paths
         ]
         self._borrow_objects = borrow_objects
         self._initialized = False
@@ -192,9 +203,7 @@ class SnapshotStore:
         Raises SnapshotError when git cannot set it up."""
         if self._initialized:
             return
-        if not os.path.isdir(os.path.join(self._git_dir, "objects")):
-            os.makedirs(self._git_dir, mode=0o700, exist_ok=True)
-            get_git_output(["init", "-q", "--bare", self._git_dir], None, deadline)
+        self._prepare_git_dir(deadline)
         # Owner-only, whatever the umask: the store holds copies of untracked
         # files. Applied on every open to tighten an older store too.
         os.chmod(self._git_dir, 0o700)
@@ -205,6 +214,26 @@ class SnapshotStore:
         # empty mid-rewrite would let the project's filters (git-lfs) in.
         _write_if_changed(os.path.join(info, "attributes"), _BYTE_EXACT_ATTRIBUTES)
         self._initialized = True
+
+    def _prepare_git_dir(self, deadline: float | None) -> None:
+        """Make *git_dir* a repository git accepts, creating it or repairing it.
+
+        Whether it is one is decided by git's own pieces, never by its
+        `objects` directory alone: `git init` makes the directories first and
+        writes `HEAD` after them, so a process killed in between leaves a
+        store that looks set up and is not one. Under `pytest-xdist` sixteen
+        processes set one store up at once, and one that trusted `objects` went
+        straight on to fail with "not a git repository"."""
+        os.makedirs(self._git_dir, mode=0o700, exist_ok=True)
+        if is_repository(self._git_dir):
+            return
+        if not _has_head(self._git_dir):
+            # `git init` leaves a HEAD it finds in place, so a half-written one
+            # has to go before git can write a whole one.
+            _remove_if_present(os.path.join(self._git_dir, "HEAD"))
+        get_git_output(["init", "-q", "--bare", self._git_dir], None, deadline)
+        if not is_repository(self._git_dir):
+            raise SnapshotError(f"git init left {self._git_dir} unusable")
 
     def snapshot(self, deadline: float | None = None) -> Snapshot:
         """Snapshot the directory and write its tree. Raises
@@ -842,6 +871,49 @@ def _remove_if_present(path: str) -> None:
         os.remove(path)
     except FileNotFoundError:
         pass  # never made, or removed already: gone either way
+
+
+def _has_head(git_dir: str) -> bool:
+    """Whether git would read *git_dir*'s HEAD: the branch it names, or the
+    object it points at — and not the empty or half-written file a killed
+    `git init` leaves behind."""
+    try:
+        with open(os.path.join(git_dir, "HEAD"), encoding="utf-8") as f:
+            head = f.readline().strip()
+    except (OSError, UnicodeDecodeError):
+        return False
+    if head.startswith(_HEAD_PREFIX):
+        return head[len(_HEAD_PREFIX) :].strip().startswith("refs/")
+    return len(head) in _OBJECT_ID_LENGTHS and all(c in _HEX for c in head)
+
+
+def is_repository(git_dir: str) -> bool:
+    """Whether git would accept *git_dir* as a repository: the pieces its own
+    `is_git_directory()` insists on — a HEAD that names a branch or an object,
+    and the `objects` and `refs` directories. A directory holding only some of
+    them is one a killed setup left behind."""
+    return (
+        _has_head(git_dir)
+        and os.path.isdir(os.path.join(git_dir, "objects"))
+        and os.path.isdir(os.path.join(git_dir, "refs"))
+    )
+
+
+def plain_path(path: str) -> str:
+    """*path* without the Windows verbatim prefix, which names the same file as
+    the plain path but is a different string.
+
+    `realpath` returns the prefixed form for a directory that does not exist
+    yet, in one branch of its own — when the path appears between two of its
+    calls, which is what processes racing to create one store do. Two
+    spellings of one store are two lock files, two `--git-dir`s, and a process
+    that names the store differently from the rest. Git takes either form;
+    sharing a lock and a name needs one."""
+    if path.startswith(_VERBATIM_UNC_PREFIX):
+        return "\\\\" + path[len(_VERBATIM_UNC_PREFIX) :]
+    if path.startswith(_VERBATIM_PREFIX):
+        return path[len(_VERBATIM_PREFIX) :]
+    return path
 
 
 def _write(path: str, content: str) -> None:

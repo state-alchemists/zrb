@@ -62,7 +62,6 @@ async def test_git_add_subtree_success(session, mock_print, mock_git_commit_upst
         ) as mock_add_subtree,
     ):
 
-        # Get the task object
         add_subtree_task = git_subtree_module.git_add_subtree
 
         await add_subtree_task.async_run(
@@ -118,7 +117,6 @@ async def test_git_pull_subtree_success(session, mock_print, mock_git_commit_ups
         ) as mock_pull_subtree,
     ):
 
-        # Get the task object
         pull_subtree_task = git_subtree_module.git_pull_subtree
 
         await pull_subtree_task.async_run(session=session)
@@ -168,7 +166,6 @@ async def test_git_pull_subtree_no_config(
         ) as mock_pull_subtree,
     ):
 
-        # Get the task object
         pull_subtree_task = git_subtree_module.git_pull_subtree
 
         with pytest.raises(ValueError, match="No subtrees.json"):
@@ -210,7 +207,6 @@ async def test_git_pull_subtree_handles_error(
         ) as mock_pull_subtree,
     ):
 
-        # Get the task object
         pull_subtree_task = git_subtree_module.git_pull_subtree
 
         with pytest.raises(Exception, match="Pull failed"):
@@ -253,7 +249,6 @@ async def test_git_push_subtree_success(session, mock_print, mock_git_commit_ups
         ) as mock_push_subtree,
     ):
 
-        # Get the task object
         push_subtree_task = git_subtree_module.git_push_subtree
 
         await push_subtree_task.async_run(session=session)
@@ -303,7 +298,6 @@ async def test_git_push_subtree_no_config(
         ) as mock_push_subtree,
     ):
 
-        # Get the task object
         push_subtree_task = git_subtree_module.git_push_subtree
 
         with pytest.raises(ValueError, match="No subtrees.json"):
@@ -345,7 +339,6 @@ async def test_git_push_subtree_handles_error(
         ) as mock_push_subtree,
     ):
 
-        # Get the task object
         push_subtree_task = git_subtree_module.git_push_subtree
 
         with pytest.raises(Exception, match="Push failed"):

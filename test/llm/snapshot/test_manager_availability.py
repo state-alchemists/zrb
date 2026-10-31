@@ -2,6 +2,7 @@
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -85,6 +86,23 @@ async def test_a_store_that_cannot_be_set_up_turns_rewind_off_with_its_reason(
     assert await manager.take_snapshot("later") is None
     assert manager.list_snapshots() == []
     assert not blocker.exists()
+
+
+@pytest.mark.asyncio
+async def test_a_store_a_killed_setup_left_behind_is_set_up_again(
+    snapshot_dir, workdir
+):
+    "A store directory that outlives its setup holds no history; the next"
+    " session must set it up again rather than turn rewind off."
+    await SnapshotManager(snapshot_dir, "first", workdir).take_snapshot("one")
+    (store,) = [e.path for e in os.scandir(snapshot_dir) if e.name.endswith(".git")]
+    shutil.rmtree(os.path.join(store, "refs"))
+    os.remove(os.path.join(store, "HEAD"))
+
+    second = SnapshotManager(snapshot_dir, "second", workdir)
+
+    assert await second.take_snapshot("two") is not None
+    assert second.unavailable_reason == ""
 
 
 @pytest.mark.asyncio

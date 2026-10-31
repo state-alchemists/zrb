@@ -111,7 +111,6 @@ async def test_stream_ai_response_with_result(mock_child_ui):
 
     await multi_ui.stream_ai_response(mock_llm_task, "Hello", [])
 
-    # Verify output was rendered
     multi_ui.append_to_output.assert_called()
 
 

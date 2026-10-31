@@ -74,7 +74,6 @@ def test_importing_the_builtins_loads_no_llm_module():
         "import json, sys, zrb.builtin; print(json.dumps(sorted("
         "m for m in sys.modules if m == 'zrb.llm' or m.startswith('zrb.llm.'))))"
     )
-    # Assert
     assert loaded == [], (
         f"`import zrb.builtin` now loads {len(loaded)} `zrb.llm` module(s), "
         f"starting with {loaded[:3]}. Every command pays for them, `zrb --help` "
@@ -94,7 +93,6 @@ def test_the_cli_lists_the_chat_task():
         "'root': [alias for alias in ('chat', 'please') "
         "if cli.get_task_by_alias(alias) is not None]}))"
     )
-    # Assert
     assert set(listing["llm"]) == {"chat", "please"}, (
         "The `llm` group no longer lists both of its tasks: "
         f"{sorted(listing['llm'])}. A lazily registered task that is not "
@@ -122,7 +120,6 @@ def test_the_stand_in_agrees_with_the_task_it_stands_for():
         "'group_holds_the_real_task': "
         "llm_group.get_task_by_alias('chat') is real}))"
     )
-    # Assert
     assert agreement["stand_in"][0] == "LazyTask", (
         "The tree already holds the real task, so this test cannot see the "
         "stand-in: something imported the chat module before `zrb --help` "
@@ -161,7 +158,6 @@ def test_shadowing_the_chat_task_is_not_reported_as_a_collision():
         "print(json.dumps([d.problem for d in find_task_diagnostics("
         "[], cli, get_builtin_task_ids())]))"
     )
-    # Assert
     assert diagnostics == [], (
         f"The CLI would warn about {diagnostics} on a run that shadows the "
         "built-in chat task. `zrb.builtin.llm.chat` must call "
@@ -175,10 +171,8 @@ def test_resolve_task_leaves_an_ordinary_task_alone():
 
     task = BaseTask(name="plain")
 
-    # Act
     resolved = resolve_task(task)
 
-    # Assert
     assert resolved is task
 
 
@@ -192,10 +186,8 @@ def test_resolving_a_lazy_task_is_cached():
         attribute="llm_chat",
     )
 
-    # Act
     first, second = resolve_task(stand_in), stand_in.resolve()
 
-    # Assert
     assert first is second
     assert first.name == "chat"
 
@@ -210,7 +202,6 @@ def test_resolving_a_lazy_task_pointing_nowhere_fails_loudly():
         attribute="not_a_task",
     )
 
-    # Act
     with pytest.raises(ImportError, match="not_a_task"):
         stand_in.resolve()
 
@@ -225,6 +216,5 @@ def test_an_unresolved_lazy_task_refuses_to_run():
         attribute="llm_chat",
     )
 
-    # Act
     with pytest.raises(RuntimeError, match="lazy registration"):
         stand_in.run()

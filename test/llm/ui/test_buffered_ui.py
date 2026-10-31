@@ -31,7 +31,6 @@ def test_buffered_ui_flush_to_parent():
 
     # Should have called append_to_output with prefixed content
     assert mock_wrapped.append_to_output.call_count == 1
-    # Check that the call contains the prefixed lines
     call_arg = mock_wrapped.append_to_output.call_args[0][0]
     assert "[AGENT]" in call_arg
 

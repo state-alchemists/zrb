@@ -220,14 +220,12 @@ async def test_llm_task_detects_multimodal_content_in_history():
 @pytest.mark.asyncio
 async def test_a_permanent_error_is_not_retried_even_with_retries_allowed():
     """`LLMTask` defaults `retry_if` to `retry_unless_permanent`."""
-    # Arrange
     from unittest.mock import AsyncMock
 
     from pydantic_ai.exceptions import UserError
 
     task = LLMTask(name="permanent", retries=2)
     session = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
-    # Act
     with (
         patch("zrb.llm.task.llm_task.create_agent"),
         patch("zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock) as run_agent,
@@ -235,20 +233,17 @@ async def test_a_permanent_error_is_not_retried_even_with_retries_allowed():
         run_agent.side_effect = UserError("Set the `OPENAI_API_KEY` env var")
         with pytest.raises(UserError):
             await task.async_run(session)
-    # Assert
     assert run_agent.call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_an_explicit_retry_if_wins_over_the_permanent_error_default():
-    # Arrange
     from unittest.mock import AsyncMock
 
     from pydantic_ai.exceptions import UserError
 
     task = LLMTask(name="always-retry", retries=1, retry_if=lambda _: True)
     session = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
-    # Act
     with (
         patch("zrb.llm.task.llm_task.create_agent"),
         patch("zrb.llm.task.llm_task.run_agent", new_callable=AsyncMock) as run_agent,
@@ -256,5 +251,4 @@ async def test_an_explicit_retry_if_wins_over_the_permanent_error_default():
         run_agent.side_effect = UserError("Set the `OPENAI_API_KEY` env var")
         with pytest.raises(UserError):
             await task.async_run(session)
-    # Assert
     assert run_agent.call_count == 2

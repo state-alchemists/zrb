@@ -44,7 +44,6 @@ class TestChatSessionManagerListing:
 
         manager = ChatSessionManager.get_instance_sync()
 
-        # Create a mock history file
         history_dir = tmp_path / "history"
         history_dir.mkdir()
         history_file = history_dir / "test-session-2024-01-15-10-30.json"

@@ -78,7 +78,6 @@ def test_importing_zrb_loads_no_zrb_submodule():
             "m for m in sys.modules if m == 'zrb' or m.startswith('zrb.'))))"
         )
     )
-    # Assert
     assert loaded == ["zrb"], (
         "`import zrb` now loads zrb submodule(s) "
         f"{[name for name in loaded if name != 'zrb']}. Every caller pays for "
@@ -99,7 +98,6 @@ def test_the_entry_point_registers_every_builtin_task():
             )
         )
     )
-    # Assert
     assert not expected - registered, (
         "The `zrb` entry point no longer registers every built-in task on "
         f"`cli`; missing: {sorted(expected - registered)}. `import zrb` is lazy "

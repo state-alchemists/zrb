@@ -10,7 +10,7 @@ import subprocess
 import pytest
 
 from zrb.llm.snapshot.command import SnapshotError
-from zrb.llm.snapshot.store import SnapshotStore
+from zrb.llm.snapshot.store import SnapshotStore, is_repository, plain_path
 
 
 def _snap(store: SnapshotStore) -> str:
@@ -248,3 +248,43 @@ def test_a_store_whose_attribute_rules_were_changed_gets_them_back(repo, tmp_pat
     assert not [
         n for n in os.listdir(os.path.dirname(attributes)) if "attributes." in n
     ]
+
+
+@pytest.mark.parametrize("piece", ["HEAD", "objects", "refs"])
+def test_a_store_left_unfinished_by_a_killed_setup_is_set_up_again(
+    repo, tmp_path, piece
+):
+    """`git init` makes the directories before it writes HEAD, so a setup that
+    died in between leaves a store that looks set up and is not one: sixteen
+    processes setting one store up at once, and the one that trusted
+    `objects/` went on to fail with "not a git repository"."""
+    git_dir = str(tmp_path / "snaps.git")
+    SnapshotStore(git_dir, str(repo)).ensure()
+    leftover = os.path.join(git_dir, piece)
+    if os.path.isdir(leftover):
+        shutil.rmtree(leftover)
+    else:
+        os.remove(leftover)
+
+    assert _snap(SnapshotStore(git_dir, str(repo)))
+    assert is_repository(git_dir)
+
+
+def test_a_store_whose_head_was_half_written_is_set_up_again(repo, tmp_path):
+    git_dir = str(tmp_path / "snaps.git")
+    SnapshotStore(git_dir, str(repo)).ensure()
+    with open(os.path.join(git_dir, "HEAD"), "w") as f:
+        f.write("ref: refs/hea")  # the setup was killed mid-write
+
+    assert _snap(SnapshotStore(git_dir, str(repo)))
+    assert is_repository(git_dir)
+
+
+def test_a_verbatim_windows_path_is_spelled_the_plain_way():
+    """`realpath` returns the verbatim form for a directory that does not exist
+    yet. Two processes racing to create one store must spell it one way, or
+    they hold two lock files and pass two `--git-dir`s for one directory."""
+    assert plain_path("\\\\?\\C:\\snaps\\project.git") == "C:\\snaps\\project.git"
+    assert plain_path("\\\\?\\UNC\\server\\share\\s.git") == "\\\\server\\share\\s.git"
+    assert plain_path("/home/go/snaps.git") == "/home/go/snaps.git"
+    assert plain_path("snaps.git") == "snaps.git"

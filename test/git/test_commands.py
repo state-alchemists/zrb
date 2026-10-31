@@ -395,7 +395,6 @@ async def test_is_branch_merged_uses_custom_target(mock_print):
         await is_branch_merged(
             "/fake/repo", "feature-a", target="origin/main", print_method=mock_print
         )
-        # Verify the command includes the custom target
         mock_run_command.assert_called_with(
             cmd=["git", "branch", "--merged", "origin/main"],
             cwd="/fake/repo",

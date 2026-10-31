@@ -21,7 +21,6 @@ def mock_web_auth_config():
     config.access_token_expire_minutes = 30
     config.refresh_token_expire_minutes = 1440  # 24 hours
 
-    # Create a test user
     test_user = MagicMock(username="testuser")
     test_user.is_password_match = MagicMock(return_value=True)
 
@@ -118,7 +117,6 @@ class TestRegenerateTokens:
 
     def test_regenerate_tokens_success(self, mock_web_auth_config):
         """Test successful token regeneration."""
-        # Create a valid refresh token
         refresh_token = jwt.encode(
             {
                 "sub": "testuser",
@@ -148,7 +146,6 @@ class TestRegenerateTokens:
         """Test regeneration with expired refresh token."""
         from fastapi import HTTPException
 
-        # Create an expired refresh token
         expired_token = jwt.encode(
             {
                 "sub": "testuser",
