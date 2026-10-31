@@ -14,7 +14,10 @@ SESSION = "sess"
 def registry():
     reg = LiveSubAgentSessionRegistry()
     with (
-        patch("zrb.llm.tool.delegate_message.live_subagent_session_registry", reg),
+        patch(
+            "zrb.llm.tool.delegate_message.get_live_session_registry",
+            return_value=reg,
+        ),
         patch("zrb.llm.subagent.parent_message.live_subagent_session_registry", reg),
     ):
         yield reg

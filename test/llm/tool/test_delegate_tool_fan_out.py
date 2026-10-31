@@ -228,7 +228,7 @@ def test_create_delegate_tool_uses_default_manager():
     default = MagicMock(spec=SubAgentManager)
     default.scan.return_value = []
 
-    with patch("zrb.llm.tool.delegate.default_sub_agent_manager", default):
+    with patch("zrb.llm.tool.delegate.default_sub_agent_manager", return_value=default):
         tool = create_delegate_to_agent_tool()
 
     assert tool.__name__ == "DelegateToAgent"

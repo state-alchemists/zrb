@@ -7,12 +7,8 @@ time. This keeps layer-1 tools from importing layer-3 orchestration.
 
 from __future__ import annotations
 
-from typing import Protocol
-
-from zrb.llm.any_agent_runner import AnyAgent as Agent
 from zrb.llm.any_live_session_registry import AnyLiveSessionRegistry
 from zrb.llm.any_live_sub_agent_session import AnyLiveSubAgentSession
-from zrb.llm.any_sub_agent_definition import AnySubAgentDefinition
 from zrb.llm.any_sub_agent_manager import AnySubAgentManager as SubAgentManagerAPI
 
 LiveSessionRegistryAPI = AnyLiveSessionRegistry

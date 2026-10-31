@@ -9,7 +9,6 @@ when the package loads.
 from __future__ import annotations
 
 from zrb.llm.any_agent import AnyAgent as Agent
-from zrb.llm.any_agent_result import AnyAgentResult as AgentResult
 from zrb.llm.any_agent_runner import AnyAgentRunner as AgentRunner
 
 _RUNNER: AgentRunner | None = None
