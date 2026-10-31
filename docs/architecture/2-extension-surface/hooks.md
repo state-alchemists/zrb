@@ -112,7 +112,7 @@ sequenceDiagram
 | Agent-type hook with no builder installed | `get_agent_hook_builder` returns `None` | Logs a warning and returns a failed result; only reachable in an isolated test |
 | A hook declared in a skill's frontmatter | `src/zrb/llm/hook/skill_frontmatter.py` | Kept in a process-wide record and replayed onto every manager, including fresh per-run ones and after `reload` |
 | A run started inside another run | `resolve_context_dependencies` in `src/zrb/llm/agent/run/setup.py` | Inherits the parent run's manager, so a sub-agent's tools see the parent's hooks |
-| A call that needs approval | `src/zrb/llm/agent/run/deferred_calls.py` | Fires `PreToolUse` before the prompt, and `PermissionRequest` when the user is actually asked |
+| A call that needs approval | `src/zrb/llm/agent/run/deferred_calls.py` | Fires `PreToolUse` before the prompt, `PermissionRequest` when the user is actually asked, and observe-only `PermissionResolved` once the answer is known |
 | A Claude tool name in a matcher (`Bash`) | `evaluate_matchers` | Expanded to the zrb tool it means (`Shell`) for `tool_name` |
 | `LLM_HOOKS` set | `HookRegistry` | Only hooks with those names run |
 

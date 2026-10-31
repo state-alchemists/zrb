@@ -1,16 +1,12 @@
 # Minimal UI Example
 
-This example demonstrates the **simplest** way to create a custom UI backend for
-Zrb's LLM Chat using `SimpleUI`. You only implement **2 methods** — `print()` and
-`get_input()` — and `SimpleUI` handles the message loop, command processing, and
-tool approvals for you.
+This example demonstrates the **simplest** way to create a custom UI backend for Zrb's LLM Chat using `SimpleUI`. You only implement **2 methods** — `print()` and `get_input()` — and `SimpleUI` handles the message loop, command processing, and tool approvals for you.
 
 See [`zrb_init.py`](./zrb_init.py) for the full implementation.
 
 ## Extension Levels
 
-Zrb provides several levels for extending the chat UI, in increasing order of
-control (and effort). Pick the lowest level that fits your backend:
+Zrb provides several levels for extending the chat UI, in increasing order of control (and effort). Pick the lowest level that fits your backend:
 
 ```mermaid
 flowchart TB
@@ -33,9 +29,7 @@ flowchart TB
 
 ## How It Works
 
-The key idea: we **set our own UI factory** on the built-in `llm_chat` task and
-turn off its default terminal UI (`include_default_ui = False`). When the user
-runs `zrb llm chat`, it uses our UI instead of the default terminal one.
+The key idea: we **set our own UI factory** on the built-in `llm_chat` task and turn off its default terminal UI (`include_default_ui = False`). When the user runs `zrb llm chat`, it uses our UI instead of the default terminal one.
 
 ```python
 import asyncio
@@ -68,9 +62,7 @@ llm_chat.include_default_ui = False
 # User runs: zrb llm chat
 ```
 
-`create_ui_factory(MinimalUI, **kwargs)` forwards any extra keyword arguments to
-your `MinimalUI.__init__`, so you can pass configuration (a log file path, a
-client handle, etc.) without writing a factory function by hand.
+`create_ui_factory(MinimalUI, **kwargs)` forwards any extra keyword arguments to your `MinimalUI.__init__`, so you can pass configuration (a log file path, a client handle, etc.) without writing a factory function by hand.
 
 ## Required Methods
 
@@ -104,16 +96,9 @@ ZRB_CHAT_LOG_FILE=chat.log zrb llm chat
 
 ## Going Further
 
-- **Event-driven backends** (Telegram, Discord) — extend `EventDrivenUI` and
-  implement `start_event_loop()`. See [`examples/chat-telegram/`](../chat-telegram/).
-- **HTTP/streaming backends** (HTTP, SSE) — also extend `EventDrivenUI`; drive
-  `handle_incoming_message()` from your request handler instead of a bot
-  callback. See [`examples/chat-sse/`](../chat-sse/) and
-  `zrb.runner.chat.http_ui.create_http_ui_factory` for the built-in example.
-- **Dual mode** (CLI *and* an external channel) — keep `include_default_ui`
-  at its default (`True`) and add your factory with
-  `llm_chat.append_ui_factory(...)`; the terminal UI and yours then share one
-  session.
+- **Event-driven backends** (Telegram, Discord) — extend `EventDrivenUI` and implement `start_event_loop()`. See [`examples/chat-telegram/`](../chat-telegram/).
+- **HTTP/streaming backends** (HTTP, SSE) — also extend `EventDrivenUI`; drive `handle_incoming_message()` from your request handler instead of a bot callback. See [`examples/chat-sse/`](../chat-sse/) and `zrb.runner.chat.http_ui.create_http_ui_factory` for the built-in example.
+- **Dual mode** (CLI *and* an external channel) — keep `include_default_ui` at its default (`True`) and add your factory with `llm_chat.append_ui_factory(...)`; the terminal UI and yours then share one session.
 
 ## Related Files
 

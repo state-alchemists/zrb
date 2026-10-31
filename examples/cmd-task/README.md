@@ -14,8 +14,7 @@ Run with: `zrb hello`
 
 ## Input Variables
 
-Wrap the command in `Tpl` to interpolate inputs with `{ctx.input.name}`. A bare
-string is a literal, so braces meant for the shell need no escaping:
+Wrap the command in `Tpl` to interpolate inputs with `{ctx.input.name}`. A bare string is a literal, so braces meant for the shell need no escaping:
 
 ```python
 cmd=Tpl("echo 'Hello, {ctx.input.name}!'")   # rendered

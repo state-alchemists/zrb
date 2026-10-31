@@ -174,6 +174,7 @@ A matcher keyed on a value zrb never emits simply never fires.
 #### Zrb-only events (no Claude counterpart)
 
 - `PreCommand` / `PostCommand` — bracket a UI command in the chat TUI (Claude's nearest analogue is `UserPromptExpansion`, with a different contract).
+- `PermissionResolved` — the interactive approval's answer is known; observe-only. Claude's nearest analogue is `PermissionDenied`, which fires only on a denial.
 
 #### What ports cleanly
 

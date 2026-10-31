@@ -122,6 +122,8 @@ When pydantic-ai requests a tool call, Zrb resolves the outcome using this prior
 5.  **Approval Channel:** Remote/multi-channel handlers.
 6.  **CLI Fallback:** User is prompted in the terminal.
 
+When the approval channel or the CLI fallback produces an answer, the observe-only `PermissionResolved` hook fires once that answer is known. It cannot change the decision; a call approved by an earlier level fires nothing because nobody was asked.
+
 A permission-policy `DENY` is additionally enforced at execution time, so it holds even for a call that an earlier level approved.
 
 ---

@@ -94,6 +94,8 @@ There are two decisions, made at different times.
 9. the CLI prompt through `ToolCallHandler.handle`;
 10. a hard ask still unanswered is denied.
 
+When the approval channel or the CLI prompt produces an answer, the observe-only `PermissionResolved` hook fires once that answer is known. It cannot change the decision; a call the policy approved outright fires nothing because nobody was asked.
+
 ```mermaid
 sequenceDiagram
     participant R as run_agent
@@ -140,6 +142,6 @@ An approved call then goes through `SafeToolsetWrapper.call_tool` like any other
 - [Sub-agents](../2-extension-surface/sub-agents.md) — how a child inherits rules and routes prompts
 - [Permission Policy](../../llm/permission-policy.md) — writing rules, the user-facing guide
 - [Plan Mode](../../llm/plan-mode.md) — the read-only preset
-- [Hooks](../../llm/hooks.md) — `PreToolUse` and `PermissionRequest`
+- [Hooks](../../llm/hooks.md) — `PreToolUse`, `PermissionRequest` and `PermissionResolved`
 
 🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > Tool Call & Approval

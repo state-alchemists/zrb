@@ -88,5 +88,4 @@ input_mapping={
 }
 ```
 
-Maps the popped queue value to the task's input. `Tpl` is what asks for
-rendering — a bare string would be passed through as a literal.
+Maps the popped queue value to the task's input. `Tpl` is what asks for rendering — a bare string would be passed through as a literal.
