@@ -72,3 +72,27 @@ def test_no_audio_means_nothing_to_report(sd):
     PcmUtterance(SpeechAudio(RATE, [])).play(timeout=5)
     PcmUtterance(SpeechAudio(RATE, [], on_block=heard.append))
     assert heard == []
+
+
+def test_the_listener_hears_the_samples_the_device_plays(sd):
+    """After volume and clipping, not the samples as they were read."""
+    heard = []
+    utterance = PcmUtterance(
+        SpeechAudio(RATE, [_pcm([1000, -1000, 30000] * 100)], on_block=heard.append),
+        volume=50,
+    )
+    utterance.play(timeout=5)
+
+    [stream] = FakeOutputStream.instances
+    played = _played(stream)[:300].tolist()
+    assert played[:3] == [500, -500, 15000]
+    assert b"".join(block for block in heard if block) == _pcm(played)
+
+
+def test_stopping_before_play_still_reports_the_end(sd):
+    heard = []
+    utterance = _utterance([_pcm([1] * 256)], heard)
+    utterance.stop()
+    utterance.play(timeout=5)
+
+    assert heard == [b""]
