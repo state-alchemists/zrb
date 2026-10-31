@@ -270,6 +270,7 @@ class PcmUtterance(Utterance):
         # What made the source stop early, unless `stop` did.
         self._source_error: Exception | None = None
         self._has_played_audio = False
+        self._said_end = False
         self._underruns = 0
         # An underrun the callback counted, and whether it was said, live
         # with the playing thread: the callback cannot log, the monitor can.
@@ -708,6 +709,7 @@ class PcmUtterance(Utterance):
         if self.is_stopped:
             out.fill(0)
             self._finished.set()
+            self._heard(b"")
             return
         if self._is_paused:
             out.fill(0)
@@ -735,12 +737,37 @@ class PcmUtterance(Utterance):
         out[len(samples) :, 0] = 0
         if len(samples):
             self._has_played_audio = True
+            self._heard(data[: len(samples) * 2])
         if getattr(status, "output_underflow", False) or (
             samples.size < frames and not is_source_done
         ):
             self._note_underrun()
         if not samples.size and is_source_done and not self._buffer:
             self._finished.set()
+            self._heard(b"")
+
+    def _heard(self, block: bytes) -> None:
+        """Tell whoever listens to the voice that *block* is being heard now.
+
+        `SpeechAudio.on_block`: the blocks as they reach the device, and one
+        empty block when there are no more (played to the end, or stopped
+        before it). Reading the chunks is not this moment -- the player keeps
+        seconds of them standing by -- which is what makes it the right signal
+        for a mouth or a caption.
+
+        This runs on PortAudio's real-time callback, where being late is
+        heard as a stutter, so it does the least it can: one call, no waiting.
+        A listener that raises is not allowed to take the sentence down with
+        it, so the exception ends the listening rather than the playback."""
+        heard = self._audio.on_block
+        if heard is None or self._said_end:
+            return
+        if not block:
+            self._said_end = True
+        try:
+            heard(block)
+        except Exception:  # a listener's bug must not silence the voice
+            pass
 
     def _note_underrun(self) -> None:
         """Count one block the playback could not fill with audio in time,
