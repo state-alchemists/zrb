@@ -137,7 +137,7 @@ def register_theme(name: str, values: dict[str, str]) -> None:
             "CLI_COLOR_INFO": "#268bd2",
             "LLM_UI_STYLE_TEXT": "#657b83",
         })
-        # then: export <ENV_PREFIX>_THEME=solarized
+        # then: export ENV_PREFIX_THEME=solarized
 
     Keys are ``LLM_UI_STYLE_*`` / ``CLI_COLOR_*`` / ``CLI_STYLE_*`` names;
     values are prompt_toolkit (TUI) or Rich (markdown/CLI) style strings.

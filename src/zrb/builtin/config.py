@@ -32,7 +32,7 @@ def _terminal_width() -> int:
 def _render_entries(entries: list[_Entry]) -> str:
     """Render entries as a definition list, one knob per block::
 
-        <ENV_PREFIX>_LLM_MODEL = openai:gpt-5.6-luna (set)
+        ENV_PREFIX_LLM_MODEL = openai:gpt-5.6-luna (set)
             Primary LLM model identifier.
 
     `(set)` marks a value chosen in the environment or `zrb_init.py`;
@@ -70,7 +70,7 @@ def _render_detail(entry: _Entry) -> str:
     """Full, untruncated view of a single knob.
 
     Shown when a filter narrows to one entry; value lines are verbatim, so a
-    multi-line value such as ``<ENV_PREFIX>_BANNER`` keeps its shape.
+    multi-line value such as ``ENV_PREFIX_BANNER`` keeps its shape.
     """
     lines = [stylize_cyan(entry.env_var), ""]
     lines.append(stylize_muted(f"Value {_source_label(entry)}:"))

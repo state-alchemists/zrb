@@ -58,8 +58,8 @@ from zrb.util.string.suggestion import suggest_name
 
 # How alike a set variable must be to a setting's name to be called a typo of
 # it: `BARGEIN` for `BARGE_IN` scores 0.99, `MAX_TOKEN_PER_MINUTE` for
-# `LLM_MAX_TOKEN_PER_MINUTE` 0.92, while a project's own `ACME_USE_BORG_*`
-# scores 0.6 against its nearest setting.
+# `LLM_MAX_TOKEN_PER_MINUTE` 0.92, while a project's own `USE_BORG_*` under
+# `ENV_PREFIX` scores 0.6 against its nearest setting.
 _TYPO_CUTOFF = 0.85
 
 
@@ -196,13 +196,13 @@ class Config(
             ) from error
 
     def get_mistyped_env_keys(self) -> dict[str, str]:
-        """Each set `<ENV_PREFIX>_*` variable no setting reads, mapped to the
+        """Each set ``ENV_PREFIX``_* variable no setting reads, mapped to the
         setting it most likely meant.
 
         Only a close match is reported: the prefix is shared with a project's
-        own variables (`ACME_DEPLOY_TARGET`), which `CFG.PROJECT_ENV_KEYS` rules
-        out of the report entirely — naming one there only silences it, and
-        never makes it a suggestion target.
+        own variables (`DEPLOY_TARGET` under `ENV_PREFIX`), which
+        `CFG.PROJECT_ENV_KEYS` rules out of the report entirely — naming one
+        there only silences it, and never makes it a suggestion target.
         """
         known = sorted(
             key
