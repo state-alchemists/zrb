@@ -32,16 +32,27 @@ _EXTENSIBLE = 0xFFFE
 
 class SpeechAudio:
     """16-bit mono PCM at *sample_rate*, in *chunks*; *close* releases what
-    produces them (a download) and ends a read blocked on it."""
+    produces them (a download) and ends a read blocked on it.
+
+    *on_block*, when given, is told each block of samples **as it is about to
+    be heard**, and an empty block once the sentence has been heard to its end
+    (or stopped before it got there). The player keeps seconds of audio standing
+    by, so reading *chunks* is not the same moment as hearing them: whatever has
+    to move with the voice -- a mouth, a caption -- belongs on this, not on the
+    reading. It runs on the audio thread, where being late is a stutter, so it
+    must not block: put the work on a queue and let a thread do it.
+    """
 
     def __init__(
         self,
         sample_rate: int,
         chunks: Iterable[bytes],
         close: Callable[[], None] | None = None,
+        on_block: Callable[[bytes], None] | None = None,
     ) -> None:
         self.sample_rate = sample_rate
         self.chunks = chunks
+        self.on_block = on_block
         self._close = close
 
     def close(self) -> None:

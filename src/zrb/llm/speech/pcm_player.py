@@ -270,6 +270,8 @@ class PcmUtterance(Utterance):
         # What made the source stop early, unless `stop` did.
         self._source_error: Exception | None = None
         self._has_played_audio = False
+        self._said_end = False
+        self._said_end_lock = threading.Lock()
         self._underruns = 0
         # An underrun the callback counted, and whether it was said, live
         # with the playing thread: the callback cannot log, the monitor can.
@@ -332,6 +334,7 @@ class PcmUtterance(Utterance):
         """Play to the end, or until *timeout* seconds or `stop`; through
         the fallback when the device cannot be opened, or rests."""
         if self.is_stopped:
+            self._heard(b"")
             return
         fallback = self._fallback
         if fallback is not None and self._is_device_resting():
@@ -415,6 +418,14 @@ class PcmUtterance(Utterance):
             is_played = True
         finally:
             self._finished.set()
+            # The stream is stopped by now, so no callback can still be
+            # sending blocks: the end is said here, in order after them, even
+            # when `stop` came between two callbacks and `_fill` never ran
+            # again. `_heard` says it once. Only for a sentence that was heard
+            # or stopped: a device that failed to open played nothing, and the
+            # fallback is about to say the sentence, so no end is announced.
+            if self._has_played_audio or self.is_stopped:
+                self._heard(b"")
             if not is_played:
                 # The device failed: close the source, which ends the read.
                 self._is_abandoned = True
@@ -708,6 +719,7 @@ class PcmUtterance(Utterance):
         if self.is_stopped:
             out.fill(0)
             self._finished.set()
+            self._heard(b"")
             return
         if self._is_paused:
             out.fill(0)
@@ -735,12 +747,46 @@ class PcmUtterance(Utterance):
         out[len(samples) :, 0] = 0
         if len(samples):
             self._has_played_audio = True
+            # What the device gets, after volume and clipping, not what was read.
+            self._heard(samples.tobytes())
         if getattr(status, "output_underflow", False) or (
             samples.size < frames and not is_source_done
         ):
             self._note_underrun()
         if not samples.size and is_source_done and not self._buffer:
             self._finished.set()
+            # An end is only for audio that was heard: a source that gave
+            # nothing played nothing, and the fallback or error path follows.
+            if self._has_played_audio:
+                self._heard(b"")
+
+    def _heard(self, block: bytes) -> None:
+        """Tell whoever listens to the voice that *block* is being heard now.
+
+        `SpeechAudio.on_block`: the blocks as they reach the device, and one
+        empty block when there are no more (played to the end, or stopped
+        before it). Reading the chunks is not this moment -- the player keeps
+        seconds of them standing by -- which is what makes it the right signal
+        for a mouth or a caption.
+
+        This runs on PortAudio's real-time callback, where being late is
+        heard as a stutter, so it does the least it can: one call, no waiting.
+        A listener that raises is not allowed to take the sentence down with
+        it, so the exception ends the listening rather than the playback."""
+        heard = self._audio.on_block
+        if heard is None:
+            return
+        if not block:
+            with self._said_end_lock:
+                if self._said_end:
+                    return
+                self._said_end = True
+        elif self._said_end:
+            return
+        try:
+            heard(block)
+        except Exception:  # a listener's bug must not silence the voice
+            pass
 
     def _note_underrun(self) -> None:
         """Count one block the playback could not fill with audio in time,
