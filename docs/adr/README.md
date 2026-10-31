@@ -88,6 +88,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0096** — [The agent barrel resolves lazily, and import safety is asserted per module](adr-0096.md)
 - **ADR-0098** — [A fixed action vocabulary, and boolean names that read as questions](adr-0098.md)
 - **ADR-0129** — [A lazy registration holds the configuration it was given until it loads](adr-0129.md)
+- **ADR-0120** — [LLM layered architecture with L0 facades and registries](0120-llm-layered-architecture.md)
 
 ### Testing
 
