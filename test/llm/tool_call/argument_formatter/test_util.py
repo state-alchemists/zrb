@@ -70,7 +70,6 @@ class TestFormatDiff:
 
     def test_format_diff_with_term_width_parameter(self):
         """Test format_diff with explicit terminal width."""
-        # Create a long line that would need wrapping
         long_line = "x" * 100
         old_content = "short"
         new_content = long_line

@@ -102,9 +102,7 @@ def _signature_differs_from_ancestor(cls: type) -> bool:
 
 @pytest.mark.parametrize("class_name", EXPORTED_CLASSES)
 def test_public_members_have_docstrings(class_name):
-    # Arrange
     cls = getattr(zrb, class_name)
-    # Act
     undocumented = []
     for name, member in inspect.getmembers(
         cls, lambda x: inspect.isfunction(x) or isinstance(x, property)
@@ -117,7 +115,6 @@ def test_public_members_have_docstrings(class_name):
             continue
         if not inspect.getdoc(member):
             undocumented.append(name)
-    # Assert
     assert (
         not undocumented
     ), f"{class_name} has public members without a docstring: {undocumented}"
@@ -130,25 +127,19 @@ def test_dataclasses_document_themselves_at_class_level(class_name):
     Its fields appear in the class signature with their types and defaults, so
     the documentation belongs on the class, not on a synthesized method.
     """
-    # Arrange
     cls = getattr(zrb, class_name)
-    # Act
     docstring = (cls.__doc__ or "").strip()
-    # Assert
     assert docstring, f"dataclass {class_name} has no class docstring"
 
 
 @pytest.mark.parametrize("class_name", EXPORTED_NON_DATACLASSES)
 def test_constructors_document_the_parameters_they_add(class_name):
-    # Arrange
     cls = getattr(zrb, class_name)
     own = _own_params(cls)
     if not _defines_init(cls) or not _signature_differs_from_ancestor(cls):
         pytest.skip(f"{class_name} takes the same parameters as its base")
-    # Act
     docstring = cls.__init__.__doc__ or ""
     missing = [name for name in own if f"{name}:" not in docstring]
-    # Assert
     assert docstring.strip(), (
         f"{class_name}.__init__ takes a different parameter set than its base but "
         f"has no docstring of its own, so help({class_name}) shows an ancestor's "
@@ -221,14 +212,11 @@ def test_a_forwarding_constructor_names_the_set_it_forwards(class_name):
     set is narrower than that class's, say what it leaves out. Those omissions
     are enforced at runtime too (`reject_excluded_params`).
     """
-    # Arrange
     cls = getattr(zrb, class_name)
     docstring = cls.__init__.__doc__ or ""
-    # Act
     names_a_parent = any(
         f"`{ancestor.__name__}`" in docstring for ancestor in cls.__mro__[1:]
     )
-    # Assert
     assert names_a_parent, (
         f"{class_name}.__init__ forwards **kwargs but its docstring never names "
         f"the class those parameters come from, so `help({class_name})` shows "

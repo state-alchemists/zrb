@@ -43,7 +43,6 @@ async def test_http_check_retry_and_succeed(mock_session):
     mock_response_success = MagicMock()
     mock_response_success.status_code = 200
 
-    # Create a simple async function for sleep
     sleep_called = []
 
     async def mock_sleep(delay):

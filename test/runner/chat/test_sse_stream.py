@@ -179,7 +179,6 @@ class TestSSEStreamResponse:
         try:
             _ = await generator.__anext__()  # connected event
 
-            # Patch the timeout to be very short for testing
             with patch("asyncio.wait_for") as mock_wait_for:
                 mock_wait_for.side_effect = asyncio.TimeoutError
                 keepalive_event = await generator.__anext__()

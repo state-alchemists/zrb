@@ -58,7 +58,6 @@ async def test_git_commit_success(session, mock_print):
         ) as mock_commit,
     ):
 
-        # Get the task object
         commit_task = git_module.git_commit
 
         await commit_task.async_run(session=session, kwargs={"message": commit_message})
@@ -90,7 +89,6 @@ async def test_git_commit_add_fails(session, mock_print):
         ) as mock_commit,
     ):
 
-        # Get the task object
         commit_task = git_module.git_commit
 
         with pytest.raises(Exception, match="Add failed"):
@@ -124,7 +122,6 @@ async def test_git_commit_commit_fails(session, mock_print):
         ) as mock_commit,
     ):
 
-        # Get the task object
         commit_task = git_module.git_commit
 
         with pytest.raises(Exception, match="Commit failed"):
@@ -158,7 +155,6 @@ async def test_git_pull_success(session, mock_print, mock_git_commit_upstream):
         ) as mock_pull,
     ):
 
-        # Get the task object
         pull_task = git_module.git_pull
 
         await pull_task.async_run(session=session, kwargs={"remote": remote_name})
@@ -198,7 +194,6 @@ async def test_git_pull_fails(session, mock_print, mock_git_commit_upstream):
         ) as mock_pull,
     ):
 
-        # Get the task object
         pull_task = git_module.git_pull
 
         with pytest.raises(Exception, match="Pull failed"):
@@ -235,7 +230,6 @@ async def test_git_push_success(session, mock_print, mock_git_commit_upstream):
         ) as mock_push,
     ):
 
-        # Get the task object
         push_task = git_module.git_push
 
         await push_task.async_run(session=session, kwargs={"remote": remote_name})
@@ -275,7 +269,6 @@ async def test_git_push_fails(session, mock_print, mock_git_commit_upstream):
         ) as mock_push,
     ):
 
-        # Get the task object
         push_task = git_module.git_push
 
         with pytest.raises(Exception, match="Push failed"):

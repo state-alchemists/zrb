@@ -113,9 +113,7 @@ def snapshot() -> dict:
 
 
 def test_exported_names_are_unchanged(snapshot):
-    # Arrange / Act
     current = build_surface()["__all__"]
-    # Assert
     assert current == snapshot["__all__"], (
         "zrb.__all__ changed. Removing an export breaks user code; adding one is "
         "fine but must be recorded via UPDATE_API_SNAPSHOT=1."
@@ -123,43 +121,34 @@ def test_exported_names_are_unchanged(snapshot):
 
 
 def test_exported_class_constructors_are_unchanged(snapshot):
-    # Arrange
     current = build_surface()["classes"]
-    # Act
     drifted = {
         name: (snapshot["classes"][name]["init"], spec["init"])
         for name, spec in current.items()
         if name in snapshot["classes"]
         and spec["init"] != snapshot["classes"][name]["init"]
     }
-    # Assert
     assert not drifted, _render_drift(drifted, "constructor parameters")
 
 
 def test_exported_class_members_are_unchanged(snapshot):
-    # Arrange
     current = build_surface()["classes"]
-    # Act
     drifted = {
         name: (snapshot["classes"][name]["members"], spec["members"])
         for name, spec in current.items()
         if name in snapshot["classes"]
         and spec["members"] != snapshot["classes"][name]["members"]
     }
-    # Assert
     assert not drifted, _render_drift(drifted, "members")
 
 
 def test_exported_functions_are_unchanged(snapshot):
-    # Arrange
     current = build_surface()["functions"]
-    # Act
     drifted = {
         name: (snapshot["functions"][name], spec)
         for name, spec in current.items()
         if name in snapshot["functions"] and spec != snapshot["functions"][name]
     }
-    # Assert
     assert not drifted, _render_drift(drifted, "function parameters")
 
 

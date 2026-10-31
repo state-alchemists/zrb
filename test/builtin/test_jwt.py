@@ -188,7 +188,6 @@ class TestJwtErrorHandling:
     async def test_decode_jwt_expired_token(self):
         """Test decode_jwt with expired token."""
         session = Session(shared_ctx=SharedContext(), state_logger=MagicMock())
-        # Create an expired token
         expired_token = pyjwt.encode(
             {"exp": time.time() - 3600}, "secret", algorithm="HS256"
         )

@@ -58,9 +58,7 @@ def build(ui_class, **factory_kwargs):
 
 @pytest.mark.parametrize("ui_class", LEVELS, ids=lambda c: c.__name__)
 def test_documented_level_builds_through_create_ui_factory(ui_class):
-    # Arrange / Act
     ui = build(ui_class)
-    # Assert
     assert isinstance(ui, ui_class)
     assert ui.conversation_session_name == "a-session"
 
@@ -75,18 +73,13 @@ def test_documented_level_needs_no_further_overrides(ui_class):
 @pytest.mark.parametrize("ui_class", LEVELS, ids=lambda c: c.__name__)
 def test_ui_config_reaches_every_level(ui_class):
     """`ui_config` is the keyword every UI takes — the one that broke before."""
-    # Arrange / Act
     ui = build(ui_class, ui_config=UIConfig(assistant_name="Ada"))
-    # Assert
     assert ui.assistant_name == "Ada"
 
 
 @pytest.mark.parametrize("ui_class", LEVELS, ids=lambda c: c.__name__)
 def test_shared_ui_config_is_not_mutated_across_runs(ui_class):
     """One config object registered once, reused by every session it serves."""
-    # Arrange
     shared = UIConfig(assistant_name="Ada")
-    # Act
     build(ui_class, ui_config=shared)
-    # Assert
     assert shared.conversation_session_name == ""

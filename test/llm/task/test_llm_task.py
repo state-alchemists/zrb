@@ -33,7 +33,6 @@ class TestLLMTaskExecution:
 
     @pytest.mark.asyncio
     async def test_llm_task_passes_tools_to_agent(self, session):
-        # Arrange
         tool = MagicMock()
         task = LLMTask(name="test-task", message="hello")
         task.append_tool(tool)
@@ -82,7 +81,6 @@ class TestLLMTaskExecution:
 
     @pytest.mark.asyncio
     async def test_llm_task_passes_ui_to_run_agent(self, session):
-        # Arrange
         ui = MagicMock()
         task = LLMTask(name="test-task", message="hello")
         task.set_ui(ui)
@@ -224,7 +222,6 @@ class TestLLMTaskExecution:
 
     @pytest.mark.asyncio
     async def test_llm_task_summarization_behavior(self, session):
-        # Arrange
         task = LLMTask(
             name="test-task", message="summarize", summarize_commands=["summarize"]
         )
@@ -241,7 +238,6 @@ class TestLLMTaskExecution:
 
     @pytest.mark.asyncio
     async def test_llm_task_adds_tool_factory_behavior(self, session):
-        # Arrange
         tool = MagicMock()
         factory = MagicMock(return_value=tool)
         task = LLMTask(name="test-task", message="hello")

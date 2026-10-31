@@ -115,7 +115,6 @@ class TestTodoStatusValues:
         await write_todos(todos, session=unique_session)
         result = await get_todos(session=unique_session)
 
-        # Check the new compact format
         assert "2 pending" in result
         assert "1 in progress" in result
         assert "[+]" in result  # completed items use [+]

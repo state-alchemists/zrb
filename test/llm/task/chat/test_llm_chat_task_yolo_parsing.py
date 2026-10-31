@@ -200,7 +200,6 @@ async def test_llm_chat_task_tool_factories():
         mock_run_agent.return_value = ("Done", [])
         await task.async_run(session)
 
-        # Verify that tools from factories were passed to run_agent
         assert mock_run_agent.called
 
 
@@ -310,7 +309,6 @@ def test_a_user_can_swap_the_prompt_manager_after_the_task_is_defined():
     # Act — what a zrb_init.py does
     task.prompt_manager = replacement
 
-    # Assert
     assert task.prompt_manager is replacement
 
 

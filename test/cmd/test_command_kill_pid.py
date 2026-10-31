@@ -36,7 +36,6 @@ class TestKillPidWithChildren:
         kill_pid(pid, print_method=capture_print)
         proc.wait()
 
-        # Verify that some "Killing" messages were printed
         assert any("illing" in msg for msg in printed_messages)
 
 

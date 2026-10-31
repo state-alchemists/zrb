@@ -101,8 +101,7 @@ llm_chat.model_renderer = render_model
 
 ## See Also
 
-- `src/zrb/llm/config/model_resolver.py` — model-name resolution (the old `LLMConfig`
-  singleton is removed in 3.x)
+- `src/zrb/llm/config/model_resolver.py` — model-name resolution (the old `LLMConfig` singleton is removed in 3.x)
 - `src/zrb/llm/task/llm_task.py` — `model_getter` / `model_renderer` (task-scoped properties)
 - `src/zrb/llm/task/chat/task.py` — `custom_model_names` parameter on `LLMChatTask`
 - `examples/llm-hooks/` — hook system for session lifecycle events

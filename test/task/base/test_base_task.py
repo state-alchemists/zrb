@@ -10,7 +10,6 @@ from zrb.input.str_input import StrInput
 from zrb.session.session import Session
 from zrb.task.base.base_task import BaseTask
 
-# Create mock instances
 mock_any_context = Mock()
 mock_any_task = Mock()
 

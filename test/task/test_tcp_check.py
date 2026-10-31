@@ -19,7 +19,6 @@ def mock_session():
 async def test_tcp_check_success(mock_session):
     mock_reader, mock_writer = mock.MagicMock(), mock.MagicMock()
 
-    # Create an async function that returns the mock values
     async def mock_open_connection(host, port):
         return (mock_reader, mock_writer)
 

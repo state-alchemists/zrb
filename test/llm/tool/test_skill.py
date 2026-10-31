@@ -26,10 +26,8 @@ class TestCreateActivateSkillTool:
         mock_manager.get_skill.return_value = mock_skill
         mock_manager.get_skill_content.return_value = "Skill content here"
 
-        # Create tool with mocked manager
         func = create_activate_skill_tool(skill_manager=mock_manager)
 
-        # Call the tool
         result = await func(skill="test-skill")
 
         assert "ACTIVATED_SKILL" in result
