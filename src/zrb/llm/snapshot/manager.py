@@ -48,7 +48,7 @@ from zrb.llm.snapshot.command import (
 )
 from zrb.llm.snapshot.listing import DEFAULT_IGNORE_DIRS, SnapshotBudgetError
 from zrb.llm.snapshot.store import Snapshot as StoreSnapshot
-from zrb.llm.snapshot.store import SnapshotStore
+from zrb.llm.snapshot.store import SnapshotStore, is_repository, plain_path
 from zrb.util.file_lock import FileLockCancelled, FileLockTimeout, hold_file_lock
 from zrb.util.string.conversion import to_safe_filename
 
@@ -144,8 +144,8 @@ class SnapshotManager:
         ignore_dirs: "frozenset[str] | set[str] | None" = None,
         retention_seconds: int = 0,
     ):
-        self._snapshot_dir = os.path.realpath(snapshot_dir)
-        self._workdir = os.path.realpath(workdir)
+        self._snapshot_dir = plain_path(os.path.realpath(snapshot_dir))
+        self._workdir = plain_path(os.path.realpath(workdir))
         self._session_name = session_name
         self._ignore_dirs: frozenset[str] = (
             self.DEFAULT_IGNORE_DIRS if ignore_dirs is None else frozenset(ignore_dirs)
@@ -371,11 +371,14 @@ class SnapshotManager:
         )
 
     def _find_store_to_read(self) -> SnapshotStore | None:
-        """The existing store, without setting one up, or None."""
+        """The existing store, without setting one up, or None.
+
+        Only a store git can use: one a killed setup left half-made holds no
+        history to read, and the next operation sets it up again."""
         if self._store is not None:
             return self._store
         git_dir = self._store_git_dir()
-        if not os.path.isdir(os.path.join(git_dir, "objects")):
+        if not is_repository(git_dir):
             return None
         return self._create_store_object(git_dir)
 
