@@ -106,3 +106,10 @@ def test_a_device_that_cannot_open_reports_no_end(sd):
             utterance.play(timeout=5)
 
     assert heard == []
+
+
+def test_an_empty_source_reports_no_end(sd):
+    heard = []
+    _utterance([], heard).play(timeout=5)
+
+    assert heard == []

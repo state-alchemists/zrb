@@ -755,7 +755,10 @@ class PcmUtterance(Utterance):
             self._note_underrun()
         if not samples.size and is_source_done and not self._buffer:
             self._finished.set()
-            self._heard(b"")
+            # An end is only for audio that was heard: a source that gave
+            # nothing played nothing, and the fallback or error path follows.
+            if self._has_played_audio:
+                self._heard(b"")
 
     def _heard(self, block: bytes) -> None:
         """Tell whoever listens to the voice that *block* is being heard now.
