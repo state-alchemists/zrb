@@ -89,9 +89,7 @@ Send a message to the LLM or respond to tool approval prompts.
 
 Server-Sent Events endpoint. Connect and receive all LLM output in real-time.
 
-**Response Format:** after the `connected` event, each `data:` line is a JSON
-object carrying the output `type` (the UI's print kind — `text`, `streaming`,
-`thinking`, `tool_call`, `usage`, ...) and its `text`:
+**Response Format:** after the `connected` event, each `data:` line is a JSON object carrying the output `type` (the UI's print kind — `text`, `streaming`, `thinking`, `tool_call`, `usage`, ...) and its `text`:
 ```
 event: connected
 data: {"status": "connected"}
@@ -213,7 +211,8 @@ curl -X POST http://localhost:8000/chat \
 **Step 2: Server shows current args with edit instructions**
 
 SSE broadcasts something like:
-```
+
+````
 ✏️ Editing tool 'LS'
 
 Current args:
@@ -222,16 +221,17 @@ Current args:
   "path": "/tmp"
 }
 ```
+````
 
 Send modified args as JSON object:
-```
+
+```bash
 curl -X POST http://localhost:8000/chat \
   -H 'Content-Type: application/json' \
   -d '{"message": {"path": "/tmp"}}'
 ```
 
 Modify the values inside `message` as needed.
-```
 
 **Step 3: Send modified args**
 

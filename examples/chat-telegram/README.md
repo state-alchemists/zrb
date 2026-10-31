@@ -1,7 +1,6 @@
 # Telegram + CLI Chat Example
 
-This example provides **CLI + Telegram dual mode** chat.
-Both Telegram and terminal receive all messages and can respond.
+This example provides **CLI + Telegram dual mode** chat. Both Telegram and terminal receive all messages and can respond.
 
 ## Setup
 

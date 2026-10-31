@@ -153,6 +153,42 @@ def test_serve_cli_wires_the_configured_file(tmp_path, monkeypatch):
             handler.close()
 
 
+def test_an_init_source_can_override_logging(tmp_path, monkeypatch):
+    """`zrb_init.py` loads after the first logging pass; its choice must win.
+
+    The first pass exists to keep startup warnings. Without a second pass, a
+    level or file set by the user's init source would be silently ignored.
+    """
+    log_path = tmp_path / "from-init.log"
+    (tmp_path / "zrb_init.py").write_text(
+        "from zrb.config.config import CFG\n"
+        f"CFG.LOGGING_FILE = {str(log_path)!r}\n"
+        "CFG.LOGGING_LEVEL = 'DEBUG'\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ZRB_INIT_STRICT", "off")
+    monkeypatch.setenv("ZRB_LOGGING_LEVEL", "WARNING")
+    monkeypatch.setenv("ZRB_LOGGING_FILE", "")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["zrb"])
+    before = CFG.LOGGER.handlers[:]
+    before_level = CFG.LOGGER.level
+    try:
+        serve_cli()
+        assert CFG.LOGGING_LEVEL == logging.DEBUG
+        assert CFG.LOGGER.level == logging.DEBUG
+        assert has_file_log_handler(CFG.LOGGER) is True
+        assert log_path.exists()
+    finally:
+        for handler in CFG.LOGGER.handlers[:]:
+            CFG.LOGGER.removeHandler(handler)
+            if handler not in before and isinstance(handler, logging.FileHandler):
+                handler.close()
+        for handler in before:
+            CFG.LOGGER.addHandler(handler)
+        CFG.LOGGER.setLevel(before_level)
+
+
 def test_a_more_verbose_file_keeps_the_screen_quiet(monkeypatch, tmp_path):
     """`LOGGING_FILE_LEVEL` under the terminal's level is the whole reason the
     file has one, and a logger drops a record before its handlers see it — so

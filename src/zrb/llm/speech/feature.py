@@ -93,8 +93,8 @@ def enable_speech(
     switches speech on and off during a session. Calling it again replaces the
     earlier call.
 
-    Speech rides on the hook subsystem, so `ZRB_HOOKS_ENABLED` off silences
-    it; a warning says so at session start.
+    Speech rides on the hook subsystem, so the `HOOKS_ENABLED` setting off
+    silences it; a warning says so at session start.
     """
     sessions = replace_feature_sessions(
         task,

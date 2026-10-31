@@ -1,6 +1,6 @@
 """Named style-theme presets for the CLI and LLM UI.
 
-``ZRB_THEME`` (``CFG.THEME``) selects a theme; each themed style knob takes
+``CFG.THEME`` (the ``THEME`` env var) selects a theme; each themed style knob takes
 its default from it via :func:`theme_default`. An explicitly set style env
 still wins. Must not import config (cycle). See :func:`register_theme` and
 ``examples/themes/``.
@@ -137,7 +137,7 @@ def register_theme(name: str, values: dict[str, str]) -> None:
             "CLI_COLOR_INFO": "#268bd2",
             "LLM_UI_STYLE_TEXT": "#657b83",
         })
-        # then: export ZRB_THEME=solarized
+        # then: export ENV_PREFIX_THEME=solarized
 
     Keys are ``LLM_UI_STYLE_*`` / ``CLI_COLOR_*`` / ``CLI_STYLE_*`` names;
     values are prompt_toolkit (TUI) or Rich (markdown/CLI) style strings.

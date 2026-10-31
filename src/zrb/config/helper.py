@@ -6,8 +6,21 @@ import re
 import shutil
 from functools import lru_cache
 
+# Re-exported for callers that still import `is_termux` from here.
+from zrb.util.platform import is_termux  # noqa: F401
 
-def get_env(env_name: str | list[str], default: str = "", prefix: str = "ZRB") -> str:
+
+def get_env(
+    env_name: str | list[str], default: str = "", prefix: str | None = None
+) -> str:
+    """Read the first set variable among *env_name*, under *prefix*.
+
+    The prefix is resolved at call time from the white-label meta-variable
+    when the caller does not pass one, so a rebranded distribution is not
+    tied to the default ``ZRB`` namespace.
+    """
+    if prefix is None:
+        prefix = os.getenv("_ZRB_ENV_PREFIX", "ZRB")
     env_name_list = env_name if isinstance(env_name, list) else [env_name]
     for name in env_name_list:
         value = os.getenv(f"{prefix}_{name}", None)
@@ -99,21 +112,6 @@ def get_current_shell() -> str:
         if shutil.which(candidate):
             return candidate
     return "sh"
-
-
-def is_termux() -> bool:
-    """Best-effort detection of a Termux (Android) terminal.
-
-    Checks ``TERMUX_VERSION``, a ``com.termux`` ``PREFIX``, then
-    ``ANDROID_ROOT=/system`` (proot distros lose the first two).
-    """
-    if os.getenv("TERMUX_VERSION"):
-        return True
-    if "com.termux" in os.getenv("PREFIX", ""):
-        return True
-    if os.getenv("ANDROID_ROOT") == "/system":
-        return True
-    return False
 
 
 def get_default_diff_edit_command(editor: str) -> str:

@@ -20,7 +20,7 @@ import subprocess
 import sys
 import tempfile
 
-from zrb.util.platform import is_wsl
+from zrb.util.platform import is_termux, is_wsl
 
 
 async def get_clipboard_image() -> bytes | None:
@@ -212,10 +212,6 @@ def copy_text(text: str) -> bool:
 
     Returns ``True`` if the text was successfully placed on the clipboard.
     """
-    # lazy: tests patch zrb.config.helper.is_termux; hoisting would bind
-    # the name at this module's load time and bypass the mock.
-    from zrb.config.helper import is_termux
-
     if is_termux():
         try:
             # Text goes over stdin, not argv: a copied transcript easily exceeds

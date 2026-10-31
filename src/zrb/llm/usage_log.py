@@ -27,6 +27,7 @@ from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RunUsage
+    from zrb.llm.journal_usage_log import JournalEvent
 
 _MONTH_FORMAT = "%Y-%m"
 _FILE_PREFIX = "usage-"
@@ -45,6 +46,13 @@ _INT_FIELDS = (
 _FAILED_OUTCOMES = ("failed", "retried")
 # Record field -> `RunUsage` attribute, where the two names differ.
 _USAGE_ATTR = {"reasoning_tokens": "output_reasoning_tokens"}
+
+
+def record_to_dict(record: "UsageRecord | JournalEvent") -> dict[str, object]:
+    """Serialize a log record, keeping its timestamp readable."""
+    raw = dataclasses.asdict(record)
+    raw["timestamp"] = record.timestamp.isoformat()
+    return raw
 
 
 @dataclass(frozen=True)
@@ -98,9 +106,7 @@ class UsageRecord:
         return get_conversation_key(self.session)
 
     def to_dict(self) -> dict[str, object]:
-        raw = dataclasses.asdict(self)
-        raw["timestamp"] = self.timestamp.isoformat()
-        return raw
+        return record_to_dict(self)
 
     @classmethod
     def from_dict(cls, raw: dict[str, object]) -> UsageRecord:

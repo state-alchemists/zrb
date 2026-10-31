@@ -86,6 +86,7 @@ Five `CFG`/env knobs control the subsystem as a whole, independent of each hook'
 | `PostToolUse` | After a tool succeeds. Can block the result (`decision: "block"`) or replace it (`updatedToolOutput`) | **Yes** |
 | `PostToolUseFailure` | After a tool raises. Carries `error` | No |
 | `PermissionRequest` | A tool call reaches an interactive approval prompt (only when the user is actually asked — not for auto-approved/YOLO/policy-allowed calls). Can auto-resolve via `hookSpecificOutput.decision.behavior` (`allow`/`deny`) | **Yes** |
+| `PermissionResolved` | The interactive approval's answer is known. Carries `tool` and `approved` (`true`, `false`, or `null` when the channel gave no verdict and the policy answers next). Observe-only — it cannot change the decision | No |
 | `Notification` | System notifications (`message`, `title`, `notification_type`). `AskUserQuestion` fires one with `notification_type='elicitation_dialog'` when it blocks for an answer | No |
 | `Stop` | A turn finishes and control returns to the user — the per-turn "done" signal. Can **block-to-continue** (`decision: "block"` + `reason`), extend the turn with `systemMessage` (+ `replaceResponse`), or end it with `continue: false`. See [Extending a Turn](#extending-a-turn-with-system-messages-stop) | **Yes** |
 | `StopFailure` | A turn ends on an unrecoverable API error. Observe-only; matches on `error_type` (`rate_limit`, `overloaded`, `server_error`, `context_length`, `authentication_failed`, `invalid_request`, `model_not_found`, `unknown`) | No |
@@ -223,7 +224,7 @@ With no explicit `timeout`, this runs at the `command` default of 600 seconds.
 | `shell` | boolean | Accepted for compatibility (default: true); the command always runs through the shell |
 | `working_dir` | string | Working directory (optional; defaults to the session's working directory) |
 
-**Input: env vars _and_ stdin.** Both Claude-Code hook styles work: the `CLAUDE_*` [environment variables](#environment-variables) are set, and the Claude-shaped payload is written to **stdin** as JSON (`hook_event_name`, `session_id`, `cwd`, …; tool events and `PermissionRequest` add `tool_name` and `tool_input`, `PostToolUse` adds `tool_response`, and `Stop` adds `last_assistant_message`, the turn's response text):
+**Input: env vars _and_ stdin.** Both Claude-Code hook styles work: the `CLAUDE_*` [environment variables](#environment-variables) are set, and the Claude-shaped payload is written to **stdin** as JSON (`hook_event_name`, `session_id`, `cwd`, …; tool events and `PermissionRequest` add `tool_name` and `tool_input`, `PermissionResolved` adds `tool` and `approved`, `PostToolUse` adds `tool_response`, and `Stop` adds `last_assistant_message`, the turn's response text):
 
 ```bash
 event=$(cat)                                    # read the JSON payload from stdin
@@ -446,7 +447,7 @@ exit 2
 
 The block reason is taken, in this precedence, from a `reason` in stdout JSON, from stderr (the Claude convention, e.g. `echo "reason" >&2; exit 2`), or from plain stdout text.
 
-A block is honored only on the events marked **Yes** in the [lifecycle table](#lifecycle-events) (`UserPromptSubmit`, `PreCommand`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Stop`, `PreCompact`). On an observe-only event (e.g. `Notification`, `SessionStart`, `SubagentStop`) it is ignored and the remaining hooks for that event still run.
+A block is honored only on the events marked **Yes** in the [lifecycle table](#lifecycle-events) (`UserPromptSubmit`, `PreCommand`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Stop`, `PreCompact`). On an observe-only event (e.g. `PermissionResolved`, `Notification`, `SessionStart`, `SubagentStop`) it is ignored and the remaining hooks for that event still run.
 
 ### Halting the run (`continue: false`)
 

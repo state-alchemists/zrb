@@ -28,7 +28,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 # itself.
 # -1 (1055->1054): the shared `*_float` frame builder is gone — the panels dock
 # into the layout, so each builds its own `Frame` from typed state.
-ANY_ANNOTATIONS = 1054
+# -2 (1054->1052): `subtree_model`'s `to_dict` returns `dict[str, object]` — it
+# only passes values through to `json.dumps`.
+ANY_ANNOTATIONS = 1052
 
 
 def _count_any(annotation: ast.expr | None) -> int:
