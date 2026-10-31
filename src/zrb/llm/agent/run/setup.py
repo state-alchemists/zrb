@@ -26,7 +26,7 @@ from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.approval.multiplex_approval_channel import MultiplexApprovalChannel
 from zrb.llm.approval.terminal_approval_channel import TerminalApprovalChannel
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
-from zrb.llm.ui.multi_ui import get_main_ui, resolve_ui
+from zrb.llm.ui_fallback.resolution import get_main_ui, resolve_ui
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:

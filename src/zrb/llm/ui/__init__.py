@@ -3,9 +3,9 @@
 Four levels of abstraction over the same contract, in increasing order of
 control: `SimpleUI` (implement `print`/`get_input`), `EventDrivenUI`
 (callback-driven backends: Telegram, Discord, HTTP/WebSocket), `BaseUI` (full
-control), and the default prompt_toolkit `UI`. `AnyUI` (`any_ui.py`) is the
-minimal contract all of them satisfy; `MultiUI` fans one session out to
-several channels at once.
+control), and the default prompt_toolkit `UI`. `AnyUI` (`zrb/llm/any_ui.py`,
+re-exported here as `any_ui.py`) is the minimal contract all of them satisfy;
+`MultiUI` fans one session out to several channels at once.
 
 `docs/llm/llm-custom-ui.md` owns the how-to — per-level method contracts,
 dual-mode (CLI + external channel) wiring, and complete examples — with

@@ -134,7 +134,7 @@ Tool approval flow (the cascade in `agent/run/deferred_calls.py::_resolve_approv
 - When the approval channel or the terminal prompt produces an answer, the observe-only `PermissionResolved` hook fires.
 - Otherwise the call goes to `current_approval_channel` if one is set, else to `current_tool_confirmation` (the terminal prompt). For HTTP chat, `MultiplexApprovalChannel` lets the SSE backend handle the prompt.
 
-UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `AnyUI`. See `src/zrb/llm/ui/any_ui.py` for the contract (`base/ui.py` is the shared base class); [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
+UI streaming uses `prompt_toolkit` for the default TUI; HTTP chat uses SSE. Both implement the same `AnyUI`. See `src/zrb/llm/any_ui.py` for the contract (`base/ui.py` is the shared base class); [llm-custom-ui.md](./llm-custom-ui.md) for authoring.
 
 Hook events fire at well-defined points (USER_PROMPT_SUBMIT, PRE_TOOL_USE, POST_TOOL_USE, POST_TOOL_USE_FAILURE, PERMISSION_REQUEST, PERMISSION_RESOLVED, NOTIFICATION, SESSION_START, SESSION_END, …). See [hooks.md](./hooks.md) for the full event list and authoring patterns.
 

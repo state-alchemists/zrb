@@ -69,7 +69,7 @@ A lower layer never imports a higher one. Modules that exist to be depended on c
 
 ## 4. What has been done
 
-One file was added and nothing else was changed: **`test/architecture/test_llm_layering_ratchet.py`** (239 lines, untracked).
+The first commit added one file and nothing else: **`test/architecture/test_llm_layering_ratchet.py`** (239 lines at the time).
 
 - Every `llm/` unit must be assigned a layer in `_UNITS_BY_LAYER`.
 - **No new upward import:** 28 are allowlisted in `KNOWN_UPWARD_EDGES`. Only runtime imports count; `if TYPE_CHECKING` blocks are excluded.
@@ -84,7 +84,7 @@ Verified:
 
 **Not run:** the full test suite, pyright, and coverage. The new file is a test only, so it is excluded from coverage and from pyright's `src/zrb` scope.
 
-**Status after the latest turn:** group 1 is done (see section 5). Earlier:  `subagent` was moved to L3 and the allowlists regenerated (28 upward edges, 2 cycles, 5 tests passing). Groups 1 and 2 below were **not started**; context ran out first.
+**Status after the latest turn:** groups 1 and 2 are done (see section 5). The ratchet is at **20 upward edges** and 2 same-layer cycles; `test/architecture` passes (751 tests), as do `test/llm/{ui,agent,tool,task,util,subagent}` (3,313 passed, 1 skipped), `flake8 --select=F` and `pyright src/zrb`. The full suite and coverage were not run. Group 3 (AgentRunner) is next.
 
 ## 5. What still needs to be done
 
@@ -95,25 +95,19 @@ Verified:
    - `append_live_context` / `split_live_context` and their regex moved from `prompt/live_context.py` to the new `util/live_context_block.py`; importers updated and the split tests moved to `test/llm/util/test_live_context_block.py`.
    - The three allowlist lines were deleted. Ratchet is now at 25 upward edges.
    - Verified: `test/architecture`, `test/llm/{util,prompt,tool_call,agent,ui/base}`, `test/util`, `test/runner/chat` all pass (2,943 tests); `flake8 --select=F` clean. Full suite, pyright and coverage not run.
-2. **Ambient lookups (5 edges): half done.**
-   - ~~`current_approval_channel`~~ **DONE.** The `ContextVar` is now defined in `agent_state.py`; `approval/approval_channel.py` re-exports it, so no importer changed. Ratchet is at 24 upward edges. Verified with `test/architecture`, `test/llm/{approval,hook,agent,subagent}`, `test_agent_state.py` and `test_contextvars_index.py` (1,653 passed).
-   - **`ui/multi_ui.resolve_ui` / `get_main_ui` is NOT a pure move, contrary to the first plan.** `resolve_ui` constructs `StdUI` or `MultiUI`, and `get_main_ui` does `isinstance(ui, MultiUI)`, so they need the concrete L4 classes. Callers: `agent/run/setup.py`, `task/chat/execution.py`, `task/chat/running.py`, `tool/delegate.py`, `tool/delegate_background.py`.
-   - **User chose option (a)** (ambient UI factory in `agent_state`, registered by the UI layer). **Not implemented yet; investigation found a blocker to design first:**
-     - `agent/run/setup.py` imports `ui.multi_ui` eagerly today, which *guarantees* `StdUI`/`MultiUI` exist whenever an agent runs. Line 76 calls `resolve_ui(...)` with `None` and relies on the `StdUI` fallback.
-     - With registration, that guarantee goes. `zrb/llm/` has no `__init__.py` (namespace package), so there is no single import point that always registers the resolver. Callers of `run_agent` that may never import `zrb.llm.ui`: `tool/web.py`, `tool/code.py`, `agent/run/multimodal_describe.py`, `dictation/backend/multimodal.py`.
-     - A string-based `importlib` fallback inside `agent_state` would hide the upward dependency from the ratchet. Do not do that.
-   - Design choices still open: (i) register the resolver from `zrb/llm/ui/__init__.py` *and* make `agent/run/setup.py` fail loudly (with a `[SYSTEM SUGGESTION]` message, per R10) when none is registered; (ii) give the headless case its own tiny L0 fallback UI (a no-op `AnyUI`) so `None` never needs `StdUI`; (iii) keep `agent/run/setup.py -> ui/multi_ui.py` allowlisted and fix only `tool/delegate*.py`.
-   - **Final decision (supersedes the `NullUI` idea): keep `StdUI` as the fallback, exactly as today.** Output is unchanged for every caller. Design:
-     - Move `StdUI` (`ui/std_ui.py`, 197 lines) down to L0 along with what it needs: `ui/state_defaults.py` (173 lines, imports only `ui/base/queue_delivery.py`; check that file is small and dependency-free) and `tool_call/choice_spec_format.py` (35 lines, pure). Its other imports are `CFG` and `util.cli.style`, both fine.
-     - Put `resolve_ui` in L0 (`agent_state` or a sibling): `None` -> `StdUI()`; a single `AnyUI` -> itself; an empty list -> `StdUI()`; a one-item list -> that item; **two or more -> a combiner registered by the UI package** (`MultiUI`).
-     - Why registration is safe here: a list of two or more UIs can only exist if their classes were imported, so the UI package is already loaded and has registered. If it is somehow unregistered, raise a `[SYSTEM SUGGESTION]` error.
-     - `get_main_ui`: duck-type with `getattr(ui, "main_ui", None)` (only `MultiUI` defines it), or register it next to the combiner.
-     - Moving `StdUI` touches: `ui/multi_ui.py`, `ui/base/ui.py`, `test/llm/ui/test_std_ui.py` (move it too), `test/llm/ui/test_multi_ui.py`, `test/llm/util/test_stream_response_text_and_tools.py`, `test/llm/task/test_llm_task.py`, `test/llm/subagent/test_live_session_continuation.py` and `docs/adr/adr-0074.md`. Keep the layer-ratchet `_UNITS_BY_LAYER` in step (the new location must be an L0 unit or a contract path) and delete the allowlist lines that disappear: `agent/run/setup.py -> ui/multi_ui.py`, `task/chat/execution.py -> ui/multi_ui.py`, `task/chat/running.py -> ui/multi_ui.py`, `tool/delegate.py -> ui/multi_ui.py`, `tool/delegate_background.py -> ui/multi_ui.py`.
-     - Tests to add: `resolve_ui(None)` is a `StdUI`; a two-item list is combined via the registered combiner; `run_agent` with no UI package imported still works (subprocess).
-     - Leave `task/*` allowlisted if it still needs the concrete UI for other reasons (`task/chat/running.py -> ui/default/ui.py` is a real L3-builds-L4 dependency).
-
-   - `get_main_ui` alone can be duck-typed in L0 (`getattr(ui, "main_ui", None)`, since only `MultiUI` defines `main_ui`) with no interface change, but that removes no edge until `resolve_ui` moves too.
-   - Whichever is chosen: add a test that `run_agent` with no UI imported still works (run it in a subprocess that never imports `zrb.llm.ui`).
+2. ~~**Ambient lookups (5 edges): half done.**~~ **DONE for the UI resolver (4 edges); 1 edge stays by design.**
+   - ~~`current_approval_channel`~~ **DONE.** The `ContextVar` is now defined in `agent_state.py`; `approval/approval_channel.py` re-exports it, so no importer changed.
+   - **The UI resolver is now L0.** `StdUI`, `UIStateDefaultsMixin` and `resolve_ui`/`create_combined_ui`/`get_main_ui` moved to the new `src/zrb/llm/ui_fallback/` package (L0):
+     - `DeliveryOutcome`/`DeliveryReport` moved out of `ui/base/queue_delivery.py` to `util/delivery_report.py`, because `UIStateDefaultsMixin` imported them and that pulled in `ui/base/message_queue.py`. `queue_delivery.py` re-exports them.
+     - `tool_call/choice_spec_format.py` moved to `util/choice_spec_format.py`.
+     - `ui/std_ui.py`, `ui/state_defaults.py` and `ui/any_ui.py` are now compatibility shims; the canonical `AnyUI` is `src/zrb/llm/any_ui.py`. Moving `AnyUI` was necessary: an ABC inside `zrb/llm/ui/` executes `ui/__init__.py` on import, which loads the whole presentation layer. The shim keeps the old path working.
+     - `ui/multi_ui.py` registers `MultiUI` as the combiner (and its `main_ui` unwrapping) at import. `create_combined_ui` raises a `[SYSTEM SUGGESTION]` if a list of two or more arrives with no registration.
+     - Callers switched to `zrb.llm.ui_fallback.resolution`: `agent/run/setup.py`, `task/chat/execution.py`, `tool/delegate.py`, `tool/delegate_background.py`, `ui/base/ui.py`.
+     - **Four allowlist lines deleted:** `agent/run/setup.py`, `task/chat/execution.py`, `tool/delegate.py`, `tool/delegate_background.py` -> `ui/multi_ui.py`.
+     - **`task/chat/running.py -> ui/multi_ui.py` stays allowlisted.** It does not call `resolve_ui`; `_create_multi_ui` constructs a `MultiUI` and calls `set_approval_channel`/`set_tool_call_handler` on it, so it is a real L3-builds-L4 dependency. This is the "leave `task/*` allowlisted" case the plan already names.
+     - Tests: `test/llm/agent/run/test_setup_ui_fallback.py` runs a clean interpreter, asserts `resolve_context_dependencies(None, ...)` returns `StdUI` and that `zrb.llm.ui` never enters `sys.modules`, and pins the unregistered-combiner suggestion.
+     - Verified: `test/architecture` (751), `test/llm/{ui,agent,tool,task,util,subagent}` (3,313 passed, 1 skipped), flake8 `--select=F`, `pyright src/zrb`.
+   - The old design debate (register vs. `NullUI`) is settled by the code above; no `NullUI` was added and output is unchanged.
 
 3. **Add one small `AgentRunner` Protocol in L0 (6 edges).** Register the implementation from the engine layer, the same way as for the UI.
    - Callers: `hook/creator.py`, `history_manager/conversation_naming.py`, `tool/code.py`, `tool/web.py` and `tool/file_analyze.py`.
@@ -152,6 +146,7 @@ Each fix deletes allowlist lines. Do not add a line to admit new code.
 - **Never run `black`, `isort` or any formatter over `src/` or `test/` as a whole.** Doing so reformatted about 37 unrelated files; they had to be reverted one by one. Format only the files you wrote, and check `git diff --stat` stays small.
 - **Do not run a blanket `git checkout -- src test docs`.** The harness blocks it because it would discard all uncommitted work. Revert by explicit file list.
 - Moving a module also means moving its mirrored test, updating docs that name the path, and (for a renamed public path) the upgrading-guide table.
+- **A contract module inside a package is not L0 at runtime.** Importing `zrb.llm.ui.any_ui` executes `zrb/llm/ui/__init__.py`, so a supposedly low-layer module that imports it still loads the presentation layer. Move the contract out (with a shim at the old path) when L0 must stay independent; the ratchet sees module paths, not package `__init__` side effects.
 - **Run `./zrb-test.sh ratchet`** (it runs `test/architecture`) while working.
 - **ADR rules:** rewrite the owning record when a decision changes. Do not add a superseding chain.
 - **Doc rules:** one line per Markdown paragraph. Prompt text under `src/zrb/llm/prompt/markdown/` is out of scope.

@@ -18,7 +18,7 @@ from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
-from zrb.llm.tool_call.choice_spec_format import get_option_label
+from zrb.llm.util.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec

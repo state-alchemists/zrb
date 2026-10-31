@@ -39,7 +39,7 @@ from zrb.llm.tool.delegate import (
     agent_roster_doc,
     run_agent_task,
 )
-from zrb.llm.ui.multi_ui import resolve_ui
+from zrb.llm.ui_fallback.resolution import resolve_ui
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.string.name import get_random_name
 

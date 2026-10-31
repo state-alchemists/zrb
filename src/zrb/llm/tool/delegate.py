@@ -34,7 +34,7 @@ from zrb.llm.subagent.manager import (
 from zrb.llm.subagent.manager import sub_agent_manager as default_sub_agent_manager
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree
 from zrb.llm.ui.buffered_ui import BufferedUI
-from zrb.llm.ui.multi_ui import resolve_ui
+from zrb.llm.ui_fallback.resolution import resolve_ui
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI

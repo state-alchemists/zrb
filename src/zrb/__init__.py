@@ -78,7 +78,7 @@ if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.tool_call.always_approve import register_always_auto_approve
     from zrb.llm.tool_registry import ToolRegistry, tool_registry
-    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.any_ui import AnyUI
     from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
     from zrb.llm.util.capabilities import model_capabilities
     from zrb.llm.voice.manager import (
@@ -325,7 +325,7 @@ _LAZY_EXPORTS = {
     "tts_registry": "zrb.llm.voice.registry",
     "ToolRegistry": "zrb.llm.tool_registry",
     "tool_registry": "zrb.llm.tool_registry",
-    "AnyUI": "zrb.llm.ui.any_ui",
+    "AnyUI": "zrb.llm.any_ui",
     "TriggerMessage": "zrb.llm.ui.trigger",
     "TriggerReply": "zrb.llm.ui.trigger",
     "model_capabilities": "zrb.llm.util.capabilities",

@@ -28,7 +28,7 @@ import textwrap
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from zrb.llm.tool_call.choice_spec_format import get_option_label
+from zrb.llm.util.choice_spec_format import get_option_label
 from zrb.llm.ui.default.app.docking import (
     RowWindow,
     framed_panel_height,

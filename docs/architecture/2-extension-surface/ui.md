@@ -72,16 +72,16 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `AnyUI` | `src/zrb/llm/ui/any_ui.py` | The contract: `ask_user`, `ask_user_choice`, `append_to_output`, `stream_to_parent`, `run_interactive_command`, `run_async`, plus the run-state properties (`is_thinking`, `yolo`, `model`, ...) and cancellation |
+| `AnyUI` | `src/zrb/llm/any_ui.py` | The contract: `ask_user`, `ask_user_choice`, `append_to_output`, `stream_to_parent`, `run_interactive_command`, `run_async`, plus the run-state properties (`is_thinking`, `yolo`, `model`, ...) and cancellation. It lives in L0 so the fallback UI does not load this package; `zrb.llm.ui.any_ui` re-exports it |
 | `BaseUI` | `src/zrb/llm/ui/base/ui.py` | Shared chat logic: the message queue, running a turn (`stream_ai_response`), slash commands, history replay, snapshots, the side-question destination (`begin_side_question` and the three methods that end it), and the text fallback for `ask_user_choice` |
 | `UI` | `src/zrb/llm/ui/default/ui.py` | The full-screen prompt_toolkit terminal, built from parts: `UIOutput` (rendering), `UIConfirmation` (the approval queue), selection and keybindings |
 | `SimpleUI`, `EventDrivenUI` | `src/zrb/llm/ui/simple_ui_base.py`, `src/zrb/llm/ui/event_driven_ui.py` | The small extension levels: write `print` and `get_input`, or `print` and `start_event_loop` |
-| `StdUI` | `src/zrb/llm/ui/std_ui.py` | Plain terminal output and input; the fallback when nothing else is configured |
+| `StdUI` | `src/zrb/llm/ui_fallback/std_ui.py` | Plain terminal output and input; the fallback when nothing else is configured, in L0 so a headless run does not load this package |
 | `MultiUI` | `src/zrb/llm/ui/multi_ui.py` | Several surfaces as one: broadcast output, race input, one shared turn queue, state from the primary child |
 | `BufferedUI` | `src/zrb/llm/ui/buffered_ui.py` | A sub-agent's view: its own output buffer, prompts forwarded to the parent |
 | `HTTPUI` | `src/zrb/runner/chat/http_ui.py` | The web chat: output as session broadcasts, input from the session queue; built by `create_http_ui_factory` |
 | `create_ui_factory` | `src/zrb/llm/ui/ui_factory.py` | Turning a UI class into a factory a chat task can register |
-| `create_combined_ui` | `src/zrb/llm/ui/multi_ui.py` | Normalizing a UI or a list: one stays one, many become a `MultiUI` |
+| `create_combined_ui` | `src/zrb/llm/ui_fallback/resolution.py` | Normalizing a UI or a list: one stays one, many become the `MultiUI` the presentation layer registers |
 
 ### How it runs
 
@@ -112,7 +112,7 @@ sequenceDiagram
     T-->>B: final text, shown by append_markdown
 ```
 
-`run_agent` resolves the UI in `resolve_context_dependencies` (`src/zrb/llm/agent/run/setup.py`): the explicit argument, else the ambient `current_ui`, else a new `StdUI`, normalized by `create_combined_ui`. It binds the result to `current_ui` on an `ExitStack` and resets it when the run ends.
+`run_agent` resolves the UI in `resolve_context_dependencies` (`src/zrb/llm/agent/run/setup.py`): the explicit argument, else the ambient `current_ui`, else a new `StdUI`, normalized by `create_combined_ui` (`src/zrb/llm/ui_fallback/resolution.py`). Two or more UIs become the `MultiUI` that `ui/multi_ui.py` registers when the presentation package loads. The result is bound to `current_ui` on an `ExitStack` and reset when the run ends.
 
 **Asking the user.** An approval goes through `TerminalApprovalChannel`, which writes the prompt with `append_to_output` and waits on `ask_user`. In a `MultiUI` it asks the primary child. The turn is suspended at that `await`; the UI's own event loop keeps running and delivers the answer. In the terminal, `UIConfirmation` queues concurrent prompts and shows one at a time. See [Tool Call & Approval](../3-peripheral-flow/tool-call-approval.md) for what happens to the answer.
 
@@ -132,7 +132,7 @@ sequenceDiagram
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change the UI contract | `src/zrb/llm/ui/any_ui.py` | `test/llm/ui/test_extension_levels.py` |
+| Change the UI contract | `src/zrb/llm/any_ui.py` | `test/llm/ui/test_extension_levels.py` |
 | Change the queue, turn or command handling | `src/zrb/llm/ui/base/` | `test/llm/ui/base/` |
 | Change terminal rendering or keys | `src/zrb/llm/ui/default/` | `test/llm/ui/default/` |
 | Change which UI a chat picks | `src/zrb/llm/task/chat/running.py` | `test/llm/task/chat/test_running_sessions.py` |

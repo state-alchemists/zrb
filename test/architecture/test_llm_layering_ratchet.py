@@ -29,10 +29,10 @@ LLM = SRC / "zrb" / "llm"
 
 _UNITS_BY_LAYER = {
     0: (
-        "agent_activity agent_state agent_tool_result ambient_state config "
+        "agent_activity agent_state agent_tool_result ambient_state any_ui config "
         "factory_resolver input_source journal_index_name journal_usage_log "
         "message message_text shell_cut stream_observer tool_registry "
-        "usage_log util"
+        "ui_fallback usage_log util"
     ),
     1: (
         "approval history_manager hook lsp permission prompt sandbox skill "
@@ -55,12 +55,10 @@ _CONTRACT_PATHS = {"agent/types.py"}
 KNOWN_UPWARD_EDGES: set[str] = {
     "agent/hook_agent.py -> subagent/manager.py",
     "agent/hook_agent.py -> subagent/tool_resolver.py",
-    "agent/run/setup.py -> ui/multi_ui.py",
     "history_manager/conversation_naming.py -> agent/common.py",
     "hook/creator.py -> agent/__init__.py",
     "subagent/live_session.py -> ui/base/message_queue.py",
     "subagent/parent_message.py -> ui/buffered_ui.py",
-    "task/chat/execution.py -> ui/multi_ui.py",
     "task/chat/running.py -> ui/default/app/lexer.py",
     "task/chat/running.py -> ui/default/ui.py",
     "task/chat/running.py -> ui/multi_ui.py",
@@ -70,9 +68,7 @@ KNOWN_UPWARD_EDGES: set[str] = {
     "tool/delegate.py -> subagent/live_session.py",
     "tool/delegate.py -> subagent/manager.py",
     "tool/delegate.py -> ui/buffered_ui.py",
-    "tool/delegate.py -> ui/multi_ui.py",
     "tool/delegate_background.py -> subagent/manager.py",
-    "tool/delegate_background.py -> ui/multi_ui.py",
     "tool/delegate_message.py -> subagent/live_session.py",
     "tool/file_analyze.py -> agent/__init__.py",
     "tool/file_read.py -> agent/run/multimodal_describe.py",

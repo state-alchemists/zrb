@@ -10,13 +10,13 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
     from zrb.llm.agent.types import RequestUsage, RunUsage
+    from zrb.llm.any_ui import ChoiceSpec
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.snapshot.manager import SnapshotManager
 
-    from zrb.llm.ui.any_ui import ChoiceSpec
-
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
+from zrb.llm.any_ui import AnyUI
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
@@ -25,7 +25,6 @@ from zrb.llm.permission.state import (
     get_current_agent_mode,
     set_current_agent_mode,
 )
-from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
@@ -37,10 +36,16 @@ from zrb.llm.ui.base.queue_delivery import (
     DeliveryReport,
     send_queued_messages_now,
 )
-from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
-from zrb.llm.ui.std_ui import StdUI
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
+from zrb.llm.ui_fallback.resolution import (
+    create_combined_ui,
+    get_main_ui,
+    register_ui_combiner,
+    register_ui_main_getter,
+    resolve_ui,
+)
+from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
 from zrb.util.cli.markdown import render_markdown
@@ -967,26 +972,24 @@ def is_shutdown_requested() -> bool:
     return getattr(sys, "zrb_shutdown_requested", False)
 
 
-def create_combined_ui(uis: "AnyUI | list[AnyUI]", fallback: "AnyUI") -> "AnyUI":
-    """One UI for *uis*: itself, its only member, a `MultiUI`, or *fallback*
-    when the list is empty."""
-    if not isinstance(uis, list):
-        return uis
-    if not uis:
-        return fallback
-    return uis[0] if len(uis) == 1 else MultiUI(uis)
+def _combine_uis(uis: "list[AnyUI]") -> "AnyUI":
+    """Build the combined UI the L0 resolver asks for."""
+    return MultiUI(uis)
 
 
-def resolve_ui(uis: "AnyUI | list[AnyUI] | None" = None) -> "AnyUI":
-    """One UI for *uis* (see `create_combined_ui`); stdout's `StdUI` when there
-    is none."""
-    if uis is None:
-        return StdUI()
-    return create_combined_ui(uis, fallback=StdUI())
-
-
-def get_main_ui(ui: "AnyUI") -> "AnyUI":
+def _get_main_ui(ui: "AnyUI") -> "AnyUI":
     """*ui*'s primary member when it is a `MultiUI` that has one, else *ui*."""
     if isinstance(ui, MultiUI) and ui.main_ui is not None:
         return ui.main_ui
     return ui
+
+
+register_ui_combiner(_combine_uis)
+register_ui_main_getter(_get_main_ui)
+
+__all__ = [
+    "MultiUI",
+    "create_combined_ui",
+    "get_main_ui",
+    "resolve_ui",
+]

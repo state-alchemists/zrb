@@ -30,6 +30,7 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent_state import get_current_ui
+from zrb.llm.any_ui import AnyUI
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
@@ -48,8 +49,6 @@ from zrb.llm.tool_call import (
     ToolPolicy,
     default_response_handler,
 )
-from zrb.llm.tool_call.choice_spec_format import format_choice_spec
-from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.message_queue import (
@@ -69,11 +68,12 @@ from zrb.llm.ui.base.status_bar import BaseUIStatusBar, RunningTool
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.usage import BaseUIUsage
-from zrb.llm.ui.multi_ui import create_combined_ui
-from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.ui_fallback.resolution import create_combined_ui
+from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.util.choice_spec_format import format_choice_spec
 from zrb.llm.util.spoken import shown_text
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
@@ -100,7 +100,7 @@ if TYPE_CHECKING:
         UserContent,
     )
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.ui.any_ui import ChoiceSpec
+    from zrb.llm.any_ui import ChoiceSpec
 
 logger = logging.getLogger(__name__)
 

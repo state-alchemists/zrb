@@ -36,7 +36,8 @@ Inside `llm/`:
 | --- | --- |
 | `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `gates.py` enforces permission denials |
 | `subagent/` | Sub-agent definitions, discovery and delegation sessions — a layer above `agent/`, which never imports it |
-| `ui/` | The UI protocol (`any_ui.py`) plus its implementations; the prompt_toolkit TUI lives under `ui/default/app/` |
+| `ui/` | The UI implementations; the `AnyUI` contract is the top-level `any_ui.py`, and the prompt_toolkit TUI lives under `ui/default/app/` |
+| `any_ui.py`, `ui_fallback/` | The `AnyUI` contract and the UI pieces L0 may construct (`StdUI`, `UIStateDefaultsMixin`, the `resolve_ui`/`create_combined_ui` resolver). They live outside `ui/` so a headless run does not load the presentation package |
 | `approval/`, `permission/` | The approval channel, and the permission ruleset (`policy.py`, `state.py`) |
 | `config/` | LLM-specific config: model resolution, the rate limiter |
 | `custom_command/` | Slash commands built from skills and markdown |
