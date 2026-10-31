@@ -78,6 +78,5 @@ See `src/zrb/llm/prompt/manager.py` and `docs/architecture/2-extension-surface/p
 
 - Architecture overview and reading paths: `docs/architecture/README.md`
 - LLM layering quick map: `docs/llm/quick-map.md`
-- LLM unit cards (purpose, entry points): `docs/llm/unit-cards/README.md`
 - ADR index: `docs/adr/README.md`
 - Contributing and conventions: `docs/contributing/README.md`, `docs/contributing/framework-conventions.md`
