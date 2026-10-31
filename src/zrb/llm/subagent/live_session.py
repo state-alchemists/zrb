@@ -10,7 +10,7 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.authority_snapshot import (
@@ -21,6 +21,11 @@ from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
 from zrb.llm.config.limiter import llm_limiter
+from zrb.llm.delegation_api import (
+    LiveSessionRegistryAPI,
+    register_live_session_registry,
+    register_start_titling,
+)
 from zrb.llm.history_manager.conversation_naming import (
     ConversationNamingError,
     suggest_slug,
@@ -437,3 +442,9 @@ def _bind_captured_approval(authority: AuthoritySnapshot | None) -> Generator[No
         scoped(current_approval_channel, authority.approval_channel),
     ):
         yield
+
+
+register_live_session_registry(
+    cast(LiveSessionRegistryAPI, live_subagent_session_registry)
+)
+register_start_titling(start_titling)

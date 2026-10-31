@@ -10,6 +10,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
+from zrb.llm.agent_runner import create_agent
 from zrb.llm.agent_state import get_current_model
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
@@ -354,9 +355,7 @@ async def run_llm_hook(
     come from; *kind* names the one in play for log messages.
     """
     try:
-        # lazy: zrb internal (heavy via transitive) — building an agent pulls
-        # in pydantic_ai; deferred until a prompt/agent hook fires.
-        from zrb.llm.agent import create_agent
+        # lazy: heavy third-party — pydantic_ai's message types.
         from zrb.llm.agent.types import ToolCallPart
 
         # A hook agent is a nested agent inside a run, so an unconfigured one

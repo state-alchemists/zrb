@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.common_tools import apply_common_tools
+from zrb.llm.delegation_api import SubAgentManagerAPI, register_subagent_manager
 from zrb.llm.subagent.building import SubAgentBuilding
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.manager_loading import SubAgentManagerLoading
@@ -286,3 +287,6 @@ sub_agent_manager = SubAgentManager(registry=sub_agent_registry)
 # are pure storage; nothing resolves (and the transitively-imported
 # `pydantic_ai` does not load) until the first agent build.
 apply_common_tools(sub_agent_manager)
+
+# Register for layer-0 callers (tools) without importing this module directly.
+register_subagent_manager(cast(SubAgentManagerAPI, sub_agent_manager))

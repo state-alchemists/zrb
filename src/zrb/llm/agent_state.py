@@ -16,8 +16,6 @@ from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, TypeAlias
 
-from zrb.llm.approval.approval_channel import current_approval_channel
-
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
@@ -40,6 +38,12 @@ else:
     AnyToolConfirmation: TypeAlias = Any
 
 current_ui: ContextVar["AnyUI | None"] = ContextVar("current_ui", default=None)
+
+# Propagates the approval channel to nested agents. Defined here, not in
+# `approval/`, so this layer-0 module imports nothing from a higher one.
+current_approval_channel: ContextVar["AnyApprovalChannel | None"] = ContextVar(
+    "current_approval_channel", default=None
+)
 current_tool_confirmation: ContextVar[AnyToolConfirmation] = ContextVar(
     "current_tool_confirmation", default=None
 )

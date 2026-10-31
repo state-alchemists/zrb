@@ -22,6 +22,9 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Change retries, timeout or readiness | `src/zrb/task/base/execution.py` | [Task Execution](1-spine/task-execution.md) |
 | Add or rename a tool | `src/zrb/llm/tool/` | [Tools](2-extension-surface/tools.md) |
 | Change what the terminal shows | `src/zrb/llm/ui/default/` | [UI](2-extension-surface/ui.md) |
+| Build/run an agent from a tool or hook | `src/zrb/llm/agent_runner.py` | [Tools](2-extension-surface/tools.md) |
+| Use delegation from a tool without importing subagent | `src/zrb/llm/delegation_api.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
+| Describe image/audio for a text-only model | `src/zrb/llm/tool/multimodal_describe.py` | [Tools](2-extension-surface/tools.md) |
 | Change the system prompt or a mandate | `src/zrb/llm/prompt/manager.py` | [Prompts](2-extension-surface/prompts.md) |
 | Add a hook point, or change matching | `src/zrb/llm/hook/manager.py` | [Hooks](2-extension-surface/hooks.md) |
 | Add a config knob | `src/zrb/config/mixins/` | [Config](2-extension-surface/config.md) |

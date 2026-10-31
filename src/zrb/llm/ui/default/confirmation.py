@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
-from zrb.llm.tool_call.choice_spec_format import get_option_label
 from zrb.llm.ui.default.app.focus import focus_widget
+from zrb.llm.util.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
     from zrb.llm.ui.default.ui import UI

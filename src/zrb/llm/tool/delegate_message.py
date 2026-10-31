@@ -15,7 +15,7 @@ from zrb.llm.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
-from zrb.llm.subagent.live_session import live_subagent_session_registry
+from zrb.llm.delegation_api import get_live_session_registry
 
 
 def create_send_message_to_subagent_tool():
@@ -32,7 +32,7 @@ def create_send_message_to_subagent_tool():
         a message to you, not as this call's result.
         """
         session_id = get_session_ownership_key(get_current_tool_session())
-        registry = live_subagent_session_registry
+        registry = get_live_session_registry()
         if not registry.has_message_budget(session_id, agent_id):
             return registry.describe_send_refusal(session_id, agent_id)
         registry.record_agent_message(session_id, agent_id)

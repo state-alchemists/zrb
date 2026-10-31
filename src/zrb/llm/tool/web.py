@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.agent_runner import create_agent, run_agent
 from zrb.llm.agent_state import get_current_ui
 from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
@@ -391,10 +392,6 @@ def convert_html_to_markdown(html_text: str) -> str:
 
 async def _summarize_web_content(markdown_content: str, url: str) -> str:
     """Summarize web content using an agent while preserving references."""
-    # lazy: zrb.llm.agent transitively loads pydantic_ai; also lets this module
-    # be re-exported from zrb.llm.tool before the agent package finishes loading.
-    from zrb.llm.agent import create_agent, run_agent
-
     agent = create_agent(
         model=resolve_configured_model(),
         system_prompt=get_prompt("web_summarizer"),

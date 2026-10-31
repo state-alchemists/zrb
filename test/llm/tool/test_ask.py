@@ -10,7 +10,7 @@ import pytest
 
 from zrb.llm.ambient_state import get_interactive_mode, set_interactive_mode
 from zrb.llm.tool.ask import ask_user_question, build_choice_spec
-from zrb.llm.tool_call.choice_spec_format import format_choice_spec
+from zrb.llm.util.choice_spec_format import format_choice_spec
 
 
 @pytest.fixture(autouse=True)

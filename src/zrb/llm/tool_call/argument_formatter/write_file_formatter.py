@@ -3,11 +3,11 @@ import os
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.tool_call.args import parse_tool_args
 from zrb.llm.tool_call.argument_formatter.util import (
     format_diff,
     render_indented_markdown,
 )
+from zrb.llm.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart

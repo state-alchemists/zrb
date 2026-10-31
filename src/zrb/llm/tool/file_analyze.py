@@ -4,6 +4,10 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.agent_runner import create_agent, run_agent
+from zrb.llm.config.limiter import get_run_llm_limiter
+from zrb.llm.config.model_resolver import resolve_configured_model
+from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.file_read import read_file
 from zrb.llm.tool.file_search import search_files
 from zrb.llm.util.attachment import get_media_type
@@ -16,12 +20,6 @@ async def analyze_file(
     """
     Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.
     """
-    # lazy: transitively heavy via internal — zrb.llm.agent loads pydantic_ai
-    from zrb.llm.agent import create_agent, run_agent
-    from zrb.llm.config.limiter import get_run_llm_limiter
-    from zrb.llm.config.model_resolver import resolve_configured_model
-    from zrb.llm.prompt.prompt import get_prompt
-
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         return (

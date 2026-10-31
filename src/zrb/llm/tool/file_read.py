@@ -120,7 +120,7 @@ def _read_text(path: str, abs_path: str, start_line: int, end_line: int) -> str:
 async def _read_image(path: str, abs_path: str, media_type: str) -> "str | ToolReturn":
     """The image at *abs_path* shown to the model, or why it cannot be."""
     # lazy: transitively heavy — multimodal_describe loads pydantic_ai
-    from zrb.llm.agent.run.multimodal_describe import create_image_tool_return
+    from zrb.llm.tool.multimodal_describe import create_image_tool_return
 
     if not CFG.LLM_ENABLE_READ_IMAGE:
         return (

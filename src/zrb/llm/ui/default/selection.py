@@ -28,7 +28,6 @@ import textwrap
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from zrb.llm.tool_call.choice_spec_format import get_option_label
 from zrb.llm.ui.default.app.docking import (
     RowWindow,
     framed_panel_height,
@@ -37,6 +36,7 @@ from zrb.llm.ui.default.app.docking import (
 )
 from zrb.llm.ui.default.app.focus import focus_widget, invalidate_app
 from zrb.llm.ui.default.app.notice import append_notice
+from zrb.llm.util.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
     from prompt_toolkit.formatted_text import StyleAndTextTuples

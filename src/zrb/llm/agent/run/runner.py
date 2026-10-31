@@ -83,7 +83,6 @@ from zrb.llm.permission.state import (
     enter_agent_mode_scope,
     exit_agent_mode_scope,
 )
-from zrb.llm.prompt.live_context import append_live_context
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
 from zrb.llm.shell_cut import (
     current_shell_cut_signal,
@@ -93,6 +92,7 @@ from zrb.llm.shell_cut import (
 from zrb.llm.snapshot.command import run_in_worker
 from zrb.llm.stream_observer import StreamObserver, create_observed_event_handler
 from zrb.llm.usage_log import count_tool_calls, record_usage
+from zrb.llm.util.live_context_block import append_live_context
 from zrb.llm.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
@@ -1165,7 +1165,7 @@ async def _apply_multimodal_fallback(
     attachments are dropped with a warning.
     """
     # lazy: transitively heavy — multimodal_describe loads pydantic_ai, pdfplumber, prompt_toolkit
-    from zrb.llm.agent.run.multimodal_describe import replace_unsupported_attachments
+    from zrb.llm.tool.multimodal_describe import replace_unsupported_attachments
 
     main_model = getattr(agent, "model", None)
     return await replace_unsupported_attachments(

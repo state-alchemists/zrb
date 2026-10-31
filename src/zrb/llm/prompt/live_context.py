@@ -42,6 +42,7 @@ from zrb.llm.journal_usage_log import (
     record_injected,
 )
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
+from zrb.llm.util.live_context_block import split_live_context
 from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
@@ -58,11 +59,6 @@ LIVE_CONTEXT_ANCHOR = (
     "snapshots from when that turn was sent."
 )
 
-# `append_live_context` always appends the block last, after "\n\n" (or bare).
-_LIVE_CONTEXT_BLOCK_RE = re.compile(
-    r"\n\n(<live-context>.*</live-context>)\s*\Z", re.DOTALL
-)
-
 # A journal index entry: `[title](category/note.md)`.
 _INDEX_LINK = re.compile(r"\[([^\]]+)\]\(([a-z0-9_-]+)/[^)]*\)")
 
@@ -72,41 +68,6 @@ _HUD_NOTE_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$", re.MULTILINE)
 # What this process has shown, by conversation and by note version. A backstop
 # for a usage directory that cannot be written; see `_shown_in_process`.
 _PROCESS_SHOWN: dict[str, set[str]] = {}
-
-
-def append_live_context(prompt_content: Any, live_context: str) -> Any:
-    """Append the ``<live-context>`` block to the end of the current user turn.
-
-    Accepts a ``str``, a multimodal ``list`` or ``None``; a falsy
-    *live_context* is a no-op. Inverse of ``split_live_context``.
-    """
-    if not live_context:
-        return prompt_content
-    if prompt_content is None:
-        return live_context
-    if isinstance(prompt_content, str):
-        return f"{prompt_content}\n\n{live_context}"
-    if isinstance(prompt_content, list):
-        return [*prompt_content, live_context]
-    return prompt_content
-
-
-def split_live_context(content: str) -> tuple[str, str | None]:
-    """Split a trailing ``<live-context>`` block off a stored user message for display.
-
-    Returns ``(message_text, live_context_block)``; the block is ``None`` (and
-    *content* unchanged) when there is none.
-    """
-    if not content or "<live-context>" not in content:
-        return content, None
-    match = _LIVE_CONTEXT_BLOCK_RE.search(content)
-    if not match:
-        # No leading blank line (e.g. the block was the entire prompt).
-        idx = content.find("<live-context>")
-        if content[idx:].rstrip().endswith("</live-context>"):
-            return content[:idx].rstrip(), content[idx:].rstrip()
-        return content, None
-    return content[: match.start()].rstrip(), match.group(1)
 
 
 def previous_git_baseline(message_history: "Sequence[object]") -> str | None:

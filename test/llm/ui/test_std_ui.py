@@ -288,7 +288,7 @@ async def test_ask_user_choice_multi_free_text_combines_checked_and_typed():
 
 
 def test_an_unlabeled_option_is_named_the_same_everywhere():
-    from zrb.llm.tool_call.choice_spec_format import format_choice_spec
+    from zrb.llm.util.choice_spec_format import format_choice_spec
 
     spec = {"question": "Pick", "options": [{"label": "A"}, {"description": "d"}]}
 

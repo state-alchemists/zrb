@@ -352,7 +352,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. A class implementing `AnyUI` directly must define both |
 | `on_exit()` | No-op | Cleanup on shutdown. Called synchronously — schedule async cleanup with `asyncio.ensure_future(...)` |
 | `record_submitted_message(text)` | No-op | Called from `submit_user_message` with every message the user submits; the default TUI appends it to the history `↑` recalls across sessions |
-| `ask_user_choice(spec, agent_id=None)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget. `spec` is a `ChoiceSpec` (`question`, `options` as `ChoiceOption`s with `label`, `description` and `recommended`, `context` — the few facts needed to answer, which the default panel renders above the question — `multi_select`, `header`, and `index`/`total` for "Question 2 of 3"); both `TypedDict`s come from `zrb.llm.ui.any_ui`. Return the chosen label, comma-joined labels for multi-select, or free text |
+| `ask_user_choice(spec, agent_id=None)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget. `spec` is a `ChoiceSpec` (`question`, `options` as `ChoiceOption`s with `label`, `description` and `recommended`, `context` — the few facts needed to answer, which the default panel renders above the question — `multi_select`, `header`, and `index`/`total` for "Question 2 of 3"); both `TypedDict`s come from `zrb.llm.any_ui`. Return the chosen label, comma-joined labels for multi-select, or free text |
 | `stream_to_parent()` | Calls `append_to_output` | For multiplexed UIs |
 | `track_echo_span(entry, echo)` / `redraw_echo(entry)` / `remove_echo(entry)` | No-ops (the default TUI splices its own output buffer) | Keep a queued message's echoed line in step with the message: record where it landed on submit, rewrite it after an edit, take it out when `Ctrl+X` drops the message. `BaseUI` fans all three out to every child of a `MultiUI`, since each child holds its own echo. A class implementing `AnyUI` directly must define all three |
 | `_get_output_field_width()` | None | Custom text width for formatting (read by the diff/markdown formatters through the public `output_field_width` property) |
@@ -374,7 +374,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 
 ### State every `AnyUI` must define
 
-`BaseUI` implements these. A class implementing `AnyUI` directly must define them too, or mix in `UIStateDefaultsMixin` (from `zrb.llm.ui.state_defaults`) for inert defaults:
+`BaseUI` implements these. A class implementing `AnyUI` directly must define them too, or mix in `UIStateDefaultsMixin` (from `zrb.llm.ui_fallback.state_defaults`) for inert defaults:
 
 | Member | What it is |
 |---|---|

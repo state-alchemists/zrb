@@ -74,9 +74,12 @@ Top-level `zrb` exports are unchanged. A deep import of a module that moved to t
 | `zrb.llm.agent.subagent.*` | `zrb.llm.subagent.*` |
 | `zrb.llm.agent.activity`, `zrb.llm.tool.ambient_state`, `zrb.llm.tool.registry` | `zrb.llm.agent_activity`, `zrb.llm.ambient_state`, `zrb.llm.tool_registry` (still re-exported by `zrb.llm.tool`) |
 | `zrb.llm.util.conversation_naming`, `zrb.llm.util.multimodal_describe` | `zrb.llm.history_manager.conversation_naming`, `zrb.llm.agent.run.multimodal_describe` |
-| `zrb.llm.util.tool_args` | merged into `zrb.llm.tool_call.args` |
+| `zrb.llm.tool_call.args` | now `zrb.llm.util.tool_args` |
 | `zrb.llm.tool.file_edit.find_fuzzy_match` | `zrb.util.string.fuzzy_match.find_fuzzy_match` |
 | `zrb.llm.task.shared_getters.apply_model_hooks` | `zrb.llm.config.model_resolver.apply_model_hooks`, which `ModelResolver` now uses instead of its own copy |
+| `zrb.llm.ui.any_ui` | `zrb.llm.any_ui` (the old path still re-exports it) |
+| `zrb.llm.ui.std_ui`, `zrb.llm.ui.state_defaults` | `zrb.llm.ui_fallback.std_ui`, `zrb.llm.ui_fallback.state_defaults` (the old paths still re-export them) |
+| `zrb.llm.tool_call.choice_spec_format` | `zrb.llm.util.choice_spec_format` |
 
 ---
 

@@ -11,8 +11,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent_activity import HasActivityTracking, agent_activity_registry
+from zrb.llm.agent_runner import run_agent
 from zrb.llm.agent_state import get_current_ui
 from zrb.llm.ambient_state import (
     get_active_worktree,
@@ -20,21 +20,19 @@ from zrb.llm.ambient_state import (
     get_session_ownership_key,
 )
 from zrb.llm.config.limiter import get_run_llm_limiter
+from zrb.llm.delegation_api import (
+    SubAgentManagerAPI,
+    default_sub_agent_manager,
+    get_live_session_registry,
+    start_titling,
+)
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shell_cut import get_run_shell_cut_signal
-from zrb.llm.subagent.live_session import (
-    live_subagent_session_registry,
-    start_titling,
-)
-from zrb.llm.subagent.manager import (
-    SubAgentManager,
-)
-from zrb.llm.subagent.manager import sub_agent_manager as default_sub_agent_manager
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree
 from zrb.llm.ui.buffered_ui import BufferedUI
-from zrb.llm.ui.multi_ui import resolve_ui
+from zrb.llm.ui_fallback.resolution import resolve_ui
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI
@@ -100,7 +98,7 @@ async def run_agent_task(
     non_goals: list[str],
     task: str,
     additional_context: str,
-    sub_agent_manager: SubAgentManager,
+    sub_agent_manager: SubAgentManagerAPI,
     ui: AnyUI,
     flush_ui: bool = False,
     yolo: bool | None = None,
@@ -208,7 +206,7 @@ def _register_live_session(
     activity_session_id: str,
     agent_id: str,
     agent_name: str,
-    sub_agent_manager: SubAgentManager,
+    sub_agent_manager: SubAgentManagerAPI,
     yolo: bool | None,
     task_text: str,
 ):
@@ -219,7 +217,7 @@ def _register_live_session(
     """
     if not isinstance(ui, BufferedUI):
         return None
-    session = live_subagent_session_registry.add_session(
+    session = get_live_session_registry().add_session(
         activity_session_id,
         agent_id,
         agent_name,
@@ -246,7 +244,7 @@ def _finalize_successful_run(
     """Close out a finished delegation and note where its transcript was saved."""
     if flush_ui:
         ui.flush_to_parent()
-    live_subagent_session_registry.mark_turn_finished(
+    get_live_session_registry().mark_turn_finished(
         activity_session_id, agent_id, history
     )
     if session is not None:
@@ -351,7 +349,7 @@ async def fire_subagent_hook(event: HookEvent, agent_name: str, agent_id: str) -
         CFG.LOGGER.debug(f"Delegation hook '{event}' failed: {e}")
 
 
-def _delegatable_agents(sub_agent_manager: SubAgentManager) -> list:
+def _delegatable_agents(sub_agent_manager: SubAgentManagerAPI) -> list:
     """Agents the current permission policy permits delegating to."""
     # lazy: tests patch zrb.llm.permission.get_effective_policy; hoisting bypasses the mock
     from zrb.llm.permission import DENY, get_effective_policy
@@ -379,7 +377,7 @@ def _sort_agents(agents: list) -> list:
     )
 
 
-def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
+def agent_roster_doc(sub_agent_manager: SubAgentManagerAPI) -> str:
     """The `AVAILABLE AGENTS` block for a delegation tool's docstring.
 
     Capped by ``LLM_MAX_AGENTS_IN_ROSTER``; the overflow points to ``SearchAgent``.
@@ -395,7 +393,9 @@ def agent_roster_doc(sub_agent_manager: SubAgentManager) -> str:
     return lines
 
 
-def agent_not_found_message(agent_name: str, sub_agent_manager: SubAgentManager) -> str:
+def agent_not_found_message(
+    agent_name: str, sub_agent_manager: SubAgentManagerAPI
+) -> str:
     """Error text for an unknown `agent_name`, with the closest match and the valid names."""
     names = [a.name for a in _sort_agents(_delegatable_agents(sub_agent_manager))]
     if not names:
@@ -578,7 +578,7 @@ async def _run_delegation(
     non_goals: list[str],
     task: str,
     additional_context: str,
-    sub_agent_manager: SubAgentManager,
+    sub_agent_manager: SubAgentManagerAPI,
     buffered_ui: BufferedUI,
 ) -> str:
     """Run one sub-agent for this turn, or step it aside when the user needs the turn.
@@ -621,7 +621,7 @@ async def _run_delegation(
 
 async def _run_parallel(
     tasks: list[dict[str, Any]],
-    sub_agent_manager: SubAgentManager,
+    sub_agent_manager: SubAgentManagerAPI,
 ) -> str:
     """Run several sub-agent tasks concurrently and return combined results.
 
@@ -799,10 +799,10 @@ def _fan_out_report(agent_name: str, run: asyncio.Task) -> str:
 
 
 def create_delegate_to_agent_tool(
-    sub_agent_manager: SubAgentManager | None = None,
+    sub_agent_manager: SubAgentManagerAPI | None = None,
 ):
     if sub_agent_manager is None:
-        sub_agent_manager = default_sub_agent_manager
+        sub_agent_manager = default_sub_agent_manager()
     agent_doc_section = agent_roster_doc(sub_agent_manager)
 
     async def delegate_to_agent(
@@ -924,10 +924,10 @@ def create_delegate_to_agent_tool(
 
 
 def create_search_agent_tool(
-    sub_agent_manager: SubAgentManager | None = None,
+    sub_agent_manager: SubAgentManagerAPI | None = None,
 ):
     if sub_agent_manager is None:
-        sub_agent_manager = default_sub_agent_manager
+        sub_agent_manager = default_sub_agent_manager()
 
     async def search_agent(
         query: Annotated[
