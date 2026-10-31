@@ -23,8 +23,6 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ---
 
-<<<<<<< Updated upstream
-=======
 ## Upgrading to NEXT (unreleased)
 
 Layering refactor for lower-cognitive-load imports. Tools and hooks no longer import the engine or subagent orchestration directly.
@@ -50,7 +48,6 @@ Layering refactor for lower-cognitive-load imports. Tools and hooks no longer im
 
 ---
 
->>>>>>> Stashed changes
 ## Upgrading to 3.16.0
 
 3.16.0 brings an opt-in spoken summary back and moves some modules to the package that owns them ([Moved modules](#moved-modules)). Speech changes only if you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.
