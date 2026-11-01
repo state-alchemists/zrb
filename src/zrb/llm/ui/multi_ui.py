@@ -648,6 +648,18 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """
         self.submit_user_message(self._llm_task, user_message, source)
 
+    def withdraw_message(
+        self, user_message: str, source: InputProvenance | None
+    ) -> None:
+        """Drop the queued message `submit_message` was given, if it is still
+        waiting; each child takes its echo of it out of its own output."""
+        entry = self._message_queue.find_pending(user_message, source)
+        if entry is None:
+            return
+        self._message_queue.remove(entry)
+        for child in self._uis:
+            child.remove_echo(entry)
+
     def submit_message_now(
         self,
         user_message: str,

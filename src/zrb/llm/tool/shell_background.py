@@ -66,6 +66,13 @@ class _BackgroundProcess:
     # How many `MonitorProcess(wait=...)` calls are blocked on this process
     # right now. They return the ending themselves, so a wake-up would repeat it.
     waiters: int = 0
+    # Whether the caller wrote a description, as opposed to `description` being
+    # the command line: a command line can hold a credential, so it never goes
+    # into the transcript on its own.
+    description_given: bool = False
+    # The wake-up this process queued, kept so that consuming the handle can
+    # take it back before it starts a turn about something already read.
+    wake_message: str = ""
 
 
 class _ShellBackgroundRegistry:
@@ -105,6 +112,7 @@ class _ShellBackgroundRegistry:
             description=description or command,
             owner_session_id=get_current_chat_session_id(),
             ui=get_current_ui(),
+            description_given=bool(description),
         )
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
@@ -238,13 +246,20 @@ class _ShellBackgroundRegistry:
             return
         if bp.stop_requested or bp.waiters > 0 or self._procs.get(handle) is not bp:
             return
-        description = (bp.description or "unnamed").replace("\n", " ")[:80]
+        # Named only when the caller wrote the description: without one it is the
+        # command line, which can carry a token, and this lands in the transcript.
+        named = (
+            f": {bp.description.replace(chr(10), ' ')[:80]}"
+            if bp.description_given and bp.description
+            else ""
+        )
         message = (
-            f"[Background process {handle} finished (exit {bp.returncode}): "
-            f"{description}. MonitorProcess(handle='{handle}') reads its output.]"
+            f"[Background process {handle} finished (exit {bp.returncode}){named}. "
+            f"MonitorProcess(handle='{handle}') reads its output.]"
         )
         try:
             bp.ui.submit_message(message, BACKGROUND_INPUT)
+            bp.wake_message = message
         except (RuntimeError, OSError) as e:
             # A UI that is closing or a loop that is gone: the exit is still in
             # the next turn's live context, so this costs the nudge, not the result.
@@ -297,6 +312,7 @@ class _ShellBackgroundRegistry:
             if all(task.done() for task in bp.tasks):
                 # Fully drained: release the entry.
                 lines.append("The handle has been consumed — the process has finished.")
+                self._withdraw_wake(bp)
                 _release_process(bp)
                 self._procs.pop(handle, None)
             else:
@@ -305,6 +321,22 @@ class _ShellBackgroundRegistry:
                     "collected — poll once more for the final output."
                 )
         return "\n".join(lines)
+
+    def _withdraw_wake(self, bp: _BackgroundProcess) -> None:
+        """Take back the wake-up *bp* queued, if it is still waiting.
+
+        Consuming the handle is the model reading the ending, so a wake-up still
+        in the queue would start a turn about something already handled, and
+        point it at a handle that no longer exists. One already delivered is
+        beyond recall and is left alone.
+        """
+        if not bp.wake_message or bp.ui is None:
+            return
+        message, bp.wake_message = bp.wake_message, ""
+        try:
+            bp.ui.withdraw_message(message, BACKGROUND_INPUT)
+        except (RuntimeError, OSError) as e:
+            CFG.LOGGER.debug(f"Could not withdraw a wake-up: {e}")
 
     def summary(self, session_id: str | None = None) -> "list[dict[str, Any]]":
         """A read-only view of the handles this registry holds.

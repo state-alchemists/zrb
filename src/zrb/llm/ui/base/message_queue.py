@@ -165,6 +165,21 @@ class MessageQueue(asyncio.Queue):
                 return newer
         return None
 
+    def find_pending(
+        self, text: str, source: "InputProvenance | None"
+    ) -> "QueuedMessage | None":
+        """The oldest not-yet-started message with *text* from *source*'s channel.
+
+        The channel, not the whole source: a queued entry's source also carries
+        how long the chat was quiet when it arrived, which the sender never knew.
+        """
+        channel = source.channel if source is not None else None
+        for entry in self._queue:
+            entry_channel = entry.source.channel if entry.source is not None else None
+            if entry.text == text and entry_channel == channel:
+                return entry
+        return None
+
     def contains(self, entry: QueuedMessage) -> bool:
         """Whether `entry` is still queued (not yet consumed by `get()`)."""
         return entry in self._queue

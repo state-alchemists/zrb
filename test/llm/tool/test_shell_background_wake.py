@@ -20,12 +20,16 @@ class _RecordingUI:
 
     def __init__(self, fails_with: Exception | None = None):
         self.messages: list[tuple[str, object]] = []
+        self.withdrawn: list[tuple[str, object]] = []
         self._fails_with = fails_with
 
     def submit_message(self, user_message, source):
         if self._fails_with is not None:
             raise self._fails_with
         self.messages.append((user_message, source))
+
+    def withdraw_message(self, user_message, source):
+        self.withdrawn.append((user_message, source))
 
 
 @pytest.fixture
@@ -173,3 +177,57 @@ async def test_a_command_stopped_at_its_deadline_is_reported(ui, monkeypatch):
     ((message, _),) = ui.messages
     assert f"Background process {handle} finished" in message
     await registry.cancel_all()
+
+
+@pytest.mark.asyncio
+async def test_a_command_line_is_not_put_in_the_transcript_unless_described(ui):
+    """With no description the command line is all there is, and it can hold a
+    credential; the wake-up lands in the transcript, so it names nothing."""
+    registry = get_shell_background_registry()
+
+    handle = await registry.start("sleep 0.1 # Bearer SECRET-TOKEN", "", "")
+    await _until(lambda: ui.messages)
+
+    ((message, _),) = ui.messages
+    assert "SECRET-TOKEN" not in message
+    assert f"Background process {handle} finished (exit 0)." in message
+    await registry.collect(handle, wait=10)
+
+
+@pytest.mark.asyncio
+async def test_a_description_the_caller_wrote_is_named(ui):
+    registry = get_shell_background_registry()
+
+    await registry.start("exit 0", "", "Nightly build")
+    await _until(lambda: ui.messages)
+
+    assert "Nightly build" in ui.messages[0][0]
+
+
+@pytest.mark.asyncio
+async def test_consuming_the_handle_takes_back_a_wake_up_still_queued(ui):
+    """The model reading the ending makes the nudge moot: left queued it would
+    start a turn about a handle that no longer exists."""
+    registry = get_shell_background_registry()
+
+    handle = await registry.start("exit 0", "", "Read before the nudge ran")
+    await _until(lambda: ui.messages)
+    ((message, _),) = ui.messages
+
+    for _ in range(100):
+        if "consumed" in registry.poll(handle):
+            break
+        await asyncio.sleep(0.02)
+
+    assert ui.withdrawn == [(message, BACKGROUND_INPUT)]
+
+
+@pytest.mark.asyncio
+async def test_nothing_is_withdrawn_when_nothing_was_sent(ui, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE", False)
+    registry = get_shell_background_registry()
+
+    handle = await registry.start("exit 0", "", "No wake-up")
+    await registry.collect(handle, wait=10)
+
+    assert ui.withdrawn == []

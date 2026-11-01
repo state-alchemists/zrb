@@ -282,6 +282,7 @@
         "submit_message",
         "tool_call_handler",
         "track_echo_span",
+        "withdraw_message",
         "yolo"
       ]
     },

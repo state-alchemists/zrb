@@ -1165,6 +1165,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """Queue *user_message* for the next turn (Ctrl+G sends it sooner)."""
         self.submit_user_message(self.llm_task, user_message, source)
 
+    def withdraw_message(self, user_message: str, source: InputSource) -> None:
+        """Drop the queued message `submit_message` was given, if still waiting."""
+        entry = self.effective_message_queue.find_pending(user_message, source)
+        if entry is not None:
+            self.delete_queued_message(entry)
+
     def submit_message_now(
         self,
         user_message: str,

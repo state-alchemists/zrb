@@ -129,6 +129,17 @@ class AnyUI(ABC):
         the user — a finished background command — never assumes it arrived.
         """
 
+    def withdraw_message(
+        self, user_message: str, source: "InputProvenance | None"
+    ) -> None:
+        """Take back a message `submit_message` queued that has not started.
+
+        For a sender whose message became moot before anything read it — a
+        finished background command whose result the model has since fetched.
+        A message already read, or whose turn started, is beyond recall, and a UI
+        that keeps no queue has nothing to take back: both leave it alone.
+        """
+
     @property
     def is_local(self) -> bool:
         """Whether the user driving this UI sits at the machine zrb runs on.
