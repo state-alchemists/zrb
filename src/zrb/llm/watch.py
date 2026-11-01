@@ -625,7 +625,14 @@ def _render(record: WatchRecord) -> str:
     ending = {
         FINISHED: f"exit {record.exit_code}",
         KILLED: f"killed (exit {record.exit_code})",
-        LOST: "outcome unknown",
+        LOST: (
+            "outcome unknown"
+            if record.pid > 0
+            # No pid was ever recorded: the run that opened this watch ended
+            # between spawning the command and noting it, so the command may
+            # well still be running and nothing here can say.
+            else "outcome unknown, and it may still be running"
+        ),
         FAILED: "never started",
     }.get(record.state, record.state)
     line = f"- Watch {escape(record.id, quote=False)} {ending}: {escape(record.what, quote=False)}"

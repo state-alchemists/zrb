@@ -233,3 +233,25 @@ async def test_killing_a_process_that_already_exited_leaves_it_finished(watch_di
     (record,) = WatchLedger(str(watch_dir), "_").records()
     assert record.state == "finished"
     assert record.exit_code == 0
+
+
+@pytest.mark.asyncio
+async def test_the_spill_pointer_is_flushed_before_it_is_handed_out(
+    watch_dir, monkeypatch
+):
+    """The next turn reads the file the watch names; its tail must be on disk."""
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 50)
+    registry = get_shell_background_registry()
+
+    handle = await registry.start("python3 -c \"print('x' * 400)\"", "", "Spilling")
+    for _ in range(100):
+        records = WatchLedger(str(watch_dir), "_").records()
+        if records and records[0].state != "running":
+            break
+        await asyncio.sleep(0.05)
+
+    (record,) = WatchLedger(str(watch_dir), "_").records()
+    assert record.outcome
+    with open(record.outcome, encoding="utf-8") as stream:
+        assert stream.read().count("x") == 400
+    await registry.collect(handle)

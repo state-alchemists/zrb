@@ -408,3 +408,14 @@ def test_a_row_whose_pid_was_recycled_is_reported_lost(tmp_path):
 
     assert ledger.reconcile() == ["h1"]
     assert ledger.records()[0].state == "lost"
+
+
+def test_a_watch_that_never_got_a_pid_is_not_called_finished_or_gone(tmp_path):
+    """A run that died between the spawn and noting the pid cannot say more."""
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Spawned, then the run died")
+    _rewrite_instance(ledger, "dead-run")
+
+    assert ledger.reconcile() == ["h1"]
+    (line,) = ledger.render_lines()
+    assert "may still be running" in line

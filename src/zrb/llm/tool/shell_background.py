@@ -88,6 +88,10 @@ def _spill_pointer(bp: "_BackgroundProcess") -> str:
     """
     for capture in (bp.stdout_cap, bp.stderr_cap):
         if capture.truncated and capture.spill_path:
+            # The pointer is read before the capture is released, and the spill
+            # file is buffered: without this the next turn reads a file whose
+            # tail is still in memory.
+            capture.flush()
             return capture.spill_path
     return ""
 
