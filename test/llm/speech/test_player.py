@@ -407,6 +407,23 @@ def test_text_going_stale_while_playing_is_cut_off(lock_file):
     speaker.close()
 
 
+def test_a_line_asked_to_finish_is_not_cut_when_it_goes_stale(lock_file):
+    """A tool finishing says nothing about the line being said about it: a
+    narration that has started is heard to its end instead of chopped in the
+    middle, and one that has not started is still dropped before it plays."""
+    backend = HangingBackend()
+    speaker = Speaker(_config(backend, lock_file))
+    finished = threading.Event()
+    speaker.say("Checking the tests.", is_stale=finished.is_set, cut_when_stale=False)
+    assert backend.started.wait(5)
+
+    finished.set()
+    time.sleep(0.3)  # three polls of the staleness check, which runs every 0.1 s
+
+    assert not backend.utterances[0].stopped.is_set()
+    speaker.close()
+
+
 def test_interrupt_stops_what_is_playing_and_drops_the_queue(lock_file):
     backend = HangingBackend()
     speaker = Speaker(_config(backend, lock_file, drain_timeout=1))

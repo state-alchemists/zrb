@@ -199,7 +199,7 @@ class SpeechSession:
             self._say_reply_part, max_chars=config.chunk_max_chars
         )
         self.progress = ProgressNarrator(
-            self._say,
+            self._say_progress,
             self._seconds_since_said,
             config.progress_interval or 0,
             silent_tools=config.progress_silent_tools,
@@ -352,6 +352,18 @@ class SpeechSession:
         # the one that speaks.
         self._clock.mark()
         self.speaker.say(text, is_stale=is_stale, voice=voice)
+
+    def _say_progress(self, text: str, is_stale: IsStale) -> None:
+        """Queue a tool call's narration, to be heard to its end.
+
+        A line whose tool finishes while it is being said is not cut: the tool
+        finishing says nothing about the line, and a sentence chopped in the
+        middle is worse than one heard a second late. One that has not started
+        yet is still dropped — the speaker checks before it plays — so a queue
+        never catches up on narration that no longer matters.
+        """
+        self._clock.mark()
+        self.speaker.say(text, is_stale=is_stale, cut_when_stale=False)
 
     def _say_reply_part(self, text: str) -> None:
         self._say(text, voice=self._get_voice(get_current_reply_emotion()))

@@ -1,6 +1,7 @@
 import logging
 import threading
 from contextlib import contextmanager
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
@@ -70,6 +71,7 @@ class FakeSpeaker:
 
     def __init__(self):
         self.said: list[str] = []
+        self.cut_when_stale: list[bool] = []
         self.cleared = 0
         self.closed = 0
         self.restarted = 0
@@ -79,8 +81,9 @@ class FakeSpeaker:
     def set_volume(self, percent):
         self.volume = clamp_volume(percent)
 
-    def say(self, text, is_stale=None, voice=""):
+    def say(self, text, is_stale=None, voice="", cut_when_stale=True):
         self.said.append(text)
+        self.cut_when_stale.append(cut_when_stale)
 
     def say_later(self, produce):
         """Run *produce* off the test's event loop, as the speaker's thread
@@ -137,6 +140,26 @@ async def test_a_sub_agent_reply_is_not_spoken():
     await session.handle_stop(_stop("inner work", nested=True))
 
     assert session.speaker.said == []
+
+
+def test_a_tool_call_narration_is_queued_to_finish_its_sentence():
+    """A tool finishing says nothing about the line being said about it, so the
+    narration is queued uncut: only a line that never started is dropped."""
+    session = _session(events=["progress"], progress_interval=1)
+
+    session.handle_stream_event(
+        SimpleNamespace(
+            event_kind="function_tool_call",
+            part=SimpleNamespace(
+                tool_name="Shell",
+                tool_call_id="call-1",
+                args={"purpose": "Listing the files"},
+            ),
+        )
+    )
+
+    assert session.speaker.said == ["Listing the files"]
+    assert session.speaker.cut_when_stale == [False]
 
 
 @pytest.mark.asyncio

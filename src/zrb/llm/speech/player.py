@@ -50,6 +50,12 @@ _DEVICE_RETRY_SECONDS = 3.0
 # cannot keep the process from ending.
 _STREAM_CLOSE_WAIT_SECONDS = 2.0
 IsStale = Callable[[], bool] | None
+# One text waiting for its audio: what to say, whether it is still worth
+# starting, the generation it was queued in, its voice, and whether going stale
+# should cut it off mid-word.
+_QueuedSpeech = tuple["str | Callable[[], str]", IsStale, int, str, bool]
+# One made sentence waiting for the player thread: the same tail as above.
+_ReadySpeech = tuple["Utterance", IsStale, int, bool]
 
 
 def is_speaking(lock_file: str | None = None) -> bool:
@@ -113,13 +119,9 @@ class Speaker:
         self._lock_file_held = bool(self._lock_file)
         if self._lock_file_held:
             _register_lock_file(self._lock_file)
-        self._queue: (
-            "queue.Queue[tuple[str | Callable[[], str], IsStale, int, str] | None]"
-        ) = queue.Queue()
+        self._queue: "queue.Queue[_QueuedSpeech | None]" = queue.Queue()
         # Made but not yet played: what the player thread takes next.
-        self._ready: "queue.Queue[tuple[Utterance, IsStale, int] | None]" = queue.Queue(
-            maxsize=1
-        )
+        self._ready: "queue.Queue[_ReadySpeech | None]" = queue.Queue(maxsize=1)
         # Set when the player has finished; the worker then closes backends.
         self._player_finished = threading.Event()
         self._worker: threading.Thread | None = None
@@ -197,11 +199,23 @@ class Speaker:
             return False
         return self._played_in_process is not False
 
-    def say(self, text: str, is_stale: "IsStale" = None, voice: str = "") -> None:
+    def say(
+        self,
+        text: str,
+        is_stale: "IsStale" = None,
+        voice: str = "",
+        cut_when_stale: bool = True,
+    ) -> None:
         """Queue *text* unless it is blank, disabled, or stale, to be said in
-        *voice* (empty: the configured one)."""
+        *voice* (empty: the configured one).
+
+        *cut_when_stale* stops the sentence the moment *is_stale* turns true,
+        even mid-word: what an approval or a question needs, since a prompt
+        answered meanwhile must not be finished in the ear. Narration passes
+        False — it is worth hearing to its end, and it is dropped before it
+        starts once it says nothing useful any more."""
         if text.strip():
-            self._enqueue(text, is_stale, voice)
+            self._enqueue(text, is_stale, voice, cut_when_stale)
 
     def say_later(self, produce: "Callable[[], str]") -> None:
         """Queue text produced on the speaker's thread."""
@@ -212,6 +226,7 @@ class Speaker:
         item: "str | Callable[[], str]",
         is_stale: "IsStale" = None,
         voice: str = "",
+        cut_when_stale: bool = True,
     ) -> None:
         if not self.is_enabled:
             return
@@ -234,7 +249,7 @@ class Speaker:
                 self._worker.start()
                 self._player.start()
                 atexit.register(self._drain_at_exit)
-            self._queue.put((item, is_stale, self._generation, voice))
+            self._queue.put((item, is_stale, self._generation, voice, cut_when_stale))
 
     def _import_audio_before_exit_handler(self) -> None:
         """Import sounddevice before `_drain_at_exit` is registered.
@@ -321,7 +336,11 @@ class Speaker:
         return self._create_with_fallback(text)
 
     def _play_prepared(
-        self, utterance: Utterance, is_stale: "IsStale", generation: int
+        self,
+        utterance: Utterance,
+        is_stale: "IsStale",
+        generation: int,
+        cut_when_stale: bool = True,
     ) -> None:
         with self._lock:
             # Wait while paused unless this utterance was invalidated.
@@ -342,7 +361,7 @@ class Speaker:
                 return
             self._playing = utterance
         played = threading.Event()
-        if is_stale is not None:
+        if is_stale is not None and cut_when_stale:
             threading.Thread(
                 target=_stop_when_stale,
                 args=(utterance, is_stale, played),
@@ -696,7 +715,7 @@ class Speaker:
     def _prepare_queue(self) -> None:
         """Make each queued text's audio, handing it to the player thread."""
         while (entry := self._queue.get()) is not None:
-            item, is_stale, generation, voice = entry
+            item, is_stale, generation, voice, cut_when_stale = entry
             token = current_speech_voice.set(voice)
             try:
                 text = item() if callable(item) else item
@@ -711,7 +730,7 @@ class Speaker:
             if self._is_cut_off:
                 utterance.cleanup()
                 continue
-            self._ready.put((utterance, is_stale, generation))
+            self._ready.put((utterance, is_stale, generation, cut_when_stale))
         self._ready.put(None)
         # The worker closes backends after the player finishes consuming audio.
         self._player_finished.wait()
