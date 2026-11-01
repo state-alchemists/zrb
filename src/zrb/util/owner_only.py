@@ -1,9 +1,8 @@
-"""Narrow a private directory that was written before zrb made one.
+"""Owner-only (`0700`/`0600`) directories and files for private data.
 
-The archive and the journal are now created ``0700``/``0600``, but a directory
-from an earlier version keeps whatever mode it was made with, and its files may
-be readable by others. `tighten_once` fixes that in place, once per directory,
-and leaves a marker beside it so it is never walked twice.
+The archive and the journal are created owner-only. `tighten_once` narrows an
+existing directory whose mode is wider, once per directory, leaving a marker
+beside it so it is never walked twice.
 """
 
 from __future__ import annotations
@@ -36,40 +35,32 @@ def tighten_once(
 ) -> None:
     """Make *directory* and everything under it owner-only, once.
 
-    Only for a directory zrb owns: a symlink is skipped rather than followed, so
-    narrowing cannot be redirected onto somebody else's file, and an entry that
-    refuses the change is left as it is instead of failing the caller — the
-    prune and the journal write that call this must not fail over permissions.
-    Windows has no mode bits to narrow, so there it does nothing.
+    Only for a directory zrb owns. A symlink is skipped rather than followed, so
+    narrowing cannot be redirected onto someone else's file, and an entry that
+    refuses the change is left as it is: the prune and the journal write that
+    call this must not fail over permissions. Does nothing on Windows, which has
+    no mode bits to narrow.
 
-    *owned_entries*, when given, narrows only the direct children of
-    *directory* it accepts (each one's own mode, and everything beneath it) —
-    *directory* itself is left exactly as it is, and anything inside it it
-    rejects is never touched. A fixed set of names (the journal's categories)
-    is given as a collection; an open-ended set (every ``.json`` history file,
-    whatever conversations happen to be named) is given as a predicate over a
-    name. Without it, *directory* and every descendant of it are narrowed,
-    which is only safe when *directory* is a leaf zrb exclusively created and
-    names itself (the archive's ``verbatim`` subdirectory): a directory a user
-    configures directly — the journal or history root — may already hold
-    content from somewhere else entirely, and narrowing all of it, root
-    included, would make that content inaccessible to whatever else reads it.
+    *owned_entries* narrows only the direct children of *directory* it accepts
+    (each one's own mode and everything beneath it), leaving *directory* itself
+    and everything it rejects untouched. Give a collection for a fixed set of
+    names (the journal's categories), or a predicate over a name for an
+    open-ended one (every `.json` history file). Without it the whole tree,
+    *directory* included, is narrowed: only safe for a leaf zrb created
+    exclusively (the archive's `verbatim` directory), since a directory the user
+    configures (the journal or history root) may hold content that other
+    readers still need.
 
-    The marker decides whether the work is already done, so it is read with
-    `lstat` and created exclusively: one planted at its path cannot stand in for
-    a migration that never ran, and cannot redirect the write that records one.
-    A regular file only counts as that marker when it is owned by the caller and
-    carries exactly `FILE_MODE` — another local user sharing the parent
-    directory can create a file at that path, but cannot make it theirs, so it
-    cannot fake a migration that never happened. Anything else at the path
-    (a symlink, or a regular file that fails that check) is unlinked and
-    replaced once narrowing finishes.
+    A marker file beside *directory* records that the work is done. It is read
+    with `lstat` and created with `O_EXCL`, and counts only when it is a regular
+    file owned by the caller with exactly `FILE_MODE`, so a file or symlink that
+    another local user plants at that path cannot fake a migration that never
+    ran. Anything else at the path is unlinked and replaced once narrowing
+    finishes.
 
-    *directory* itself is checked first: `os.walk(directory, followlinks=False)`
-    still visits a symlinked top directory — `followlinks` only governs whether
-    it recurses into a symlink found *during* the walk — so a symlink planted at
-    the configured journal or archive path would otherwise have its target's
-    tree silently narrowed instead.
+    *directory* itself is checked first: `os.walk(followlinks=False)` still
+    visits a symlinked top directory, so a symlink planted at the journal or
+    archive path would otherwise have its target's tree narrowed instead.
     """
     if os.name != "posix":
         return
@@ -112,25 +103,17 @@ def reject_symlinked_ancestors(path: str) -> None:
     """Raise `PermissionError` if *path*, or its nearest *existing* ancestor,
     is a symlink or not a directory.
 
-    Both the journal and the archive create a leaf beneath a configured root
-    that usually already exists (`os.makedirs`, or a hand-rolled walk that
-    stops at the first existing level) — and neither one ever used to look at
-    that root's own type. A symlink planted at the configured path (or an
-    intermediate zrb creates on the way to the leaf) was therefore followed
-    silently by the OS, and everything written beneath the leaf landed
-    wherever that link pointed, even though the leaf itself was never a
-    symlink.
+    The journal and the archive create a leaf beneath a configured root that
+    usually exists already, and the OS follows a symlink silently: a link
+    planted at the configured path (or at an intermediate directory) would send
+    everything written beneath the leaf wherever it points.
 
-    Climbs from *path* only until it finds something already there — a
-    missing level is skipped, since there is nothing yet to be a symlink, and
-    the first existing level is exactly where a planted symlink would have to
-    sit, because an attacker cannot plant anything deeper than a path that
-    does not exist yet. It does not climb past that: a real, valid directory
-    found there is not re-examined by climbing into *its* parents too, which
-    would reach infrastructure no local attacker controls through zrb's own
-    configuration — on macOS, `/var` is itself a symlink to `/private/var`,
-    and a configured path under a system temp directory would otherwise be
-    refused for a reason that has nothing to do with the path zrb was given.
+    Climbs only until something exists. A missing level has nothing to be a
+    symlink, and the first existing level is where a planted link would have to
+    sit. It does not climb past that: validating *its* parents would reach
+    infrastructure no local attacker controls through zrb's configuration, and
+    would refuse a path under a system temp directory because macOS `/var` is
+    itself a symlink to `/private/var`.
     """
     current = os.path.abspath(path)
     while True:
@@ -178,14 +161,11 @@ def _narrow_tree(directory: str) -> None:
 
 
 def _narrow_owned_entries(directory: str, owns_entry: "Callable[[str], bool]") -> None:
-    """Narrow only the direct children of *directory* `owns_entry` accepts by
-    name, leaving *directory* itself, and anything it rejects, untouched.
+    """Narrow the direct children of *directory* that `owns_entry` accepts by
+    name, leaving *directory* itself and everything it rejects untouched.
 
-    An accepted entry that is a directory gets its full subtree narrowed too
-    (`_narrow_tree`), since that subtree is a namespace zrb exclusively owns —
-    a category directory, the activity log, or a backup, never something
-    shared. An accepted entry that is a file is narrowed on its own, since
-    `_narrow_tree` assumes a directory.
+    An accepted directory has its whole subtree narrowed (`_narrow_tree`): zrb
+    exclusively owns that namespace. An accepted file is narrowed on its own.
     """
     try:
         entries = list(os.scandir(directory))
@@ -207,27 +187,21 @@ def _narrow_owned_entries(directory: str, owns_entry: "Callable[[str], bool]") -
 def makedirs_owner_only(path: str) -> None:
     """Create *path*, and any missing ancestor, owner-only.
 
-    `os.makedirs`'s `mode` argument only reaches the directory it was given;
-    an intermediate directory it creates along the way is made with Python's
-    default `0o777`, masked only by the process umask. `reject_symlinked_
-    ancestors` closes the matching permission gap: `os.path.isdir()` follows a
-    symlink, so a symlink planted at *path*, or an ancestor on the way to it,
-    would otherwise read as "the directory is already there," and every later
-    write would land through it.
+    `os.makedirs(mode=...)` applies the mode only to the leaf; intermediate
+    directories get `0o777` masked by the umask. Existing levels are checked
+    with `reject_symlinked_ancestors`, because `os.path.isdir` follows a
+    symlink and a link planted at *path* or an ancestor would read as "already
+    there".
 
     Shared by every subsystem that creates a directory beneath a root the user
-    configures directly — the journal, the conversation history manager —
-    instead of each hand-rolling the same check and inviting the same gap to
-    reappear in a different file. Raises `PermissionError` (an `OSError`) when
-    an existing level is a symlink or not a directory; a caller that wants a
-    different exception type or message catches and re-raises it.
+    configures (the journal, the conversation history manager). Raises
+    `PermissionError` (an `OSError`) when an existing level is a symlink or not
+    a directory; a caller wanting another exception type catches and re-raises
+    it.
 
-    Checked again after creating it, not only before: a `FileExistsError` from
-    `os.mkdir` means something now occupies *path* that did not a moment ago,
-    and treating that as success without looking at what it is would trust
-    whatever got planted there between the check above and this call. The
-    first check still runs, so a *missing* path is validated all the way up
-    before anything is created; this one closes the window right at the leaf.
+    The check runs again after creating the leaf: a `FileExistsError` from
+    `os.mkdir` means something occupied *path* since the first check, and
+    treating that as success would trust whatever was planted there.
     """
     reject_symlinked_ancestors(path)
     if os.path.isdir(path):
@@ -246,14 +220,11 @@ def write_text_owner_only(path: str, content: str) -> None:
     """Write *content* to *path* as UTF-8 text, creating it, and any missing
     directory above it, owner-only.
 
-    A symlink planted at *path* (dangling or not) is refused via `O_NOFOLLOW`
-    rather than truncated and written through. The descriptor is wrapped in a
-    buffered file object rather than written with one raw `os.write()` call,
-    which may write fewer bytes than given without raising — a buffered
-    writer retries until everything is written. Shared by every subsystem
-    that persists private text to a user-configured directory, so this
-    guarantee lives in one place instead of being reimplemented, and
-    potentially forgotten, per module.
+    `O_NOFOLLOW` refuses a symlink planted at *path* (dangling or not) instead
+    of truncating and writing through it. The descriptor is wrapped in a
+    buffered file object because a single `os.write()` may write fewer bytes
+    than given without raising. Shared by every subsystem that persists private
+    text to a user-configured directory.
     """
     makedirs_owner_only(os.path.dirname(path))
     descriptor = os.open(
@@ -291,16 +262,12 @@ def _chmod(path: str, mode: int) -> None:
 def _write_marker(directory: str) -> None:
     """Record that *directory* has been narrowed, so this never runs again.
 
-    Created exclusively (`O_EXCL`), which refuses a path that already exists — a
-    symlink included, without having to resolve it — so nothing standing at the
-    marker can be truncated or written through. `O_NOFOLLOW` is added where the
-    platform has it, for the reader's benefit as much as the kernel's.
-
-    `tighten_once` only calls this after `_has_marker` already rejected whatever
-    is at the path, so anything found here — a symlink, or a regular file owned
-    by someone else, or one with the wrong mode — is untrusted. `unlink` removes
-    only that directory entry, never a symlink's target, before the marker is
-    created in its place.
+    Created with `O_EXCL`, which refuses a path that already exists (a symlink
+    included, without resolving it), so nothing standing at the marker is
+    truncated or written through. `tighten_once` calls this only after
+    `_has_marker` rejected whatever is at the path, so anything found here is
+    untrusted: `unlink` removes just that directory entry, never a symlink's
+    target, before the marker is created in its place.
     """
     target = marker_path(directory)
     try:

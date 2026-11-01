@@ -508,7 +508,7 @@ class __StreamState:
         for part in parts[1:]:
             self.capture_line()
             self.line = part
-        # ponytail: bounds memory on newline-free output by splitting the line.
+        # Bounds memory on newline-free output by splitting the line.
         if len(self.line) > CFG.CMD_BUFFER_LIMIT:
             self.capture_line()
 

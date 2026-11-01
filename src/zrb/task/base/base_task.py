@@ -326,7 +326,7 @@ class BaseTask(AnyTask):
 
     @property
     def fallbacks(self) -> list[AnyTask]:
-        """Returns the list of fallback tasks."""
+        """Tasks to run if this task ultimately fails."""
         return self._fallbacks
 
     def append_fallback(self, fallbacks: "AnyTask | Sequence[AnyTask]"):
@@ -335,7 +335,7 @@ class BaseTask(AnyTask):
 
     @property
     def successors(self) -> list[AnyTask]:
-        """Returns the list of successor tasks."""
+        """Tasks to run after this task succeeds."""
         return self._successors
 
     def append_successor(self, successors: "AnyTask | Sequence[AnyTask]"):
@@ -344,7 +344,7 @@ class BaseTask(AnyTask):
 
     @property
     def readiness_checks(self) -> list[AnyTask]:
-        """Returns the list of readiness check tasks."""
+        """Tasks that must succeed before this task is considered ready."""
         return self._readiness_checks
 
     def append_readiness_check(self, readiness_checks: "AnyTask | Sequence[AnyTask]"):
@@ -353,7 +353,7 @@ class BaseTask(AnyTask):
 
     @property
     def upstreams(self) -> list[AnyTask]:
-        """Returns the list of upstream tasks."""
+        """Tasks that must complete before this one starts."""
         return self._upstreams
 
     def append_upstream(self, upstreams: "AnyTask | Sequence[AnyTask]"):

@@ -19,7 +19,6 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
         - score: A float representing the match quality (lower is better).
     """
     text_cmp = text.lower()
-    # Normalize pattern -> tokens split on path separators or whitespace
     search_pattern = pattern.strip()
     tokens = (
         [t for t in re.split(rf"[{re.escape(os.path.sep)}/\s]+", search_pattern) if t]
@@ -38,7 +37,6 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
     SEPARATORS = {os.path.sep, "/", "_", "-", ".", " "}
 
     for token in tokens:
-        # Contiguous substring first
         idx = text_cmp.find(token, last_pos)
 
         if idx != -1:
@@ -52,7 +50,6 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
             score += token_score
             last_pos = idx + len(token)
         else:
-            # Fall back to subsequence matching
             res = _find_subsequence_range(text_cmp, token, last_pos)
             if res is None:
                 return False, 0.0

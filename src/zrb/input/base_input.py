@@ -163,7 +163,6 @@ class BaseInput(AnyInput):
         return reader.prompt(f"{prompt_message}: ")
 
     def get_default_str(self, shared_ctx: AnySharedContext) -> str:
-        """Get default value as str"""
         default_value = get_attr(shared_ctx, self._default_value, default="")
         if not isinstance(default_value, str):
             return str(default_value)

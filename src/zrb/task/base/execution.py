@@ -374,7 +374,7 @@ async def run_readiness_check(session: AnySession, check: "AnyTask") -> None:
     if session.is_allowed_to_run(check) or not status.is_started:
         await run_async(check.exec_chain(session))
         return
-    # ponytail: polls; switch to a per-task completion event if checks get hot.
+    # Polls; switch to a per-task completion event if shared checks get hot.
     while not (
         status.is_completed
         or status.is_permanently_failed
