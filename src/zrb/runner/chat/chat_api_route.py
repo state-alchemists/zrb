@@ -160,6 +160,10 @@ async def _read_json_body(request: Any) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def _is_string_list(value: object) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
 async def _handle_list_chat_sessions(
     session_manager: ChatSessionManager,
     page: int,
@@ -296,6 +300,11 @@ async def _handle_post_chat_message(
             status_code=400,
         )
     attachments = data.get("attachments") or []
+    if not _is_string_list(attachments):
+        return JSONResponse(
+            content={"error": "Field 'attachments' must be a list of strings"},
+            status_code=400,
+        )
     is_approval_action = data.get("isApprovalAction", False)
     is_json = isinstance(message, dict)
 
