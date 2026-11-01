@@ -182,7 +182,7 @@ class UtteranceCutter:
         if is_echo and not self._is_barge_in_enabled:
             self.reset()
             return None
-        is_over_zrb = self._is_over_zrb(is_echo)
+        is_over_zrb = is_echo
         # An utterance keeps the bar it started with: the user's own voice,
         # measured as zrb's while they talk over it, must not cut them off.
         bar = self._utterance_bar if self._speech else self._get_bar(is_over_zrb)
@@ -207,10 +207,6 @@ class UtteranceCutter:
             self._pre_roll.clear()
             return None
         return self._continue_speech(block, loud, captured_at, is_over_zrb)
-
-    def _is_over_zrb(self, is_echo: bool) -> bool:
-        """Whether a block may hold zrb's voice: captured while it spoke."""
-        return is_echo
 
     def _get_bar(self, is_over_zrb: bool) -> float:
         """The bar a block must reach: over zrb, ``barge_in_margin`` times what
@@ -367,13 +363,10 @@ async def listen(
     loop = asyncio.get_running_loop()
     block_seconds = get_block_seconds(config)
     backlog = _Backlog(to_blocks(config.max_backlog, block_seconds))
+    overflow = _OverflowReport()
 
     def on_audio(indata: Any, frames: int, time_info: Any, status: Any) -> None:
-        # Logging can block, which would make this callback late for the
-        # blocks that follow, so a drop is only timestamped here: the loop
-        # says it.
-        if _should_stamp_overflow(status, last_overflow_report):
-            last_overflow_report[0] = time.monotonic()
+        overflow.stamp(status)
         # Check at capture; queued blocks may be processed after zrb starts speaking.
         captured = _CapturedBlock(indata.copy(), is_speaking(), time.monotonic())
         loop.call_soon_threadsafe(backlog.append, captured)
@@ -393,8 +386,6 @@ async def listen(
         is_echo_cancelled=is_echo_cancelled,
         blocksize=int(SAMPLE_RATE * block_seconds),
     )
-    last_overflow_report = [0.0]
-    reported_overflow = [0.0]
     # The device list is watched only while PortAudio opens its own default,
     # and not for the echo-cancelled microphone: a microphone named in the
     # setting does not move for a speaker being plugged in, and macOS voice
@@ -412,7 +403,7 @@ async def listen(
             while should_listen():
                 # The overflow warning runs here, on the event loop, where
                 # logging cannot make the audio callback late.
-                _say_overflow(last_overflow_report, reported_overflow)
+                overflow.say()
                 item = await backlog.get(timeout=block_seconds * 5)
                 if watcher is not None and watcher.has_changed():
                     # A microphone plugged, unplugged or made default: closing
@@ -462,24 +453,31 @@ async def listen(
 CreateStream = Callable[[], Awaitable["AnyTranscriptionStream | None"]]
 
 
-def _should_stamp_overflow(status: object, last_report: list[float]) -> bool:
-    """Whether PortAudio said audio was dropped (`status.input_overflow`) and
-    the drop has not been stamped within `_OVERFLOW_REPORT_SECONDS` of the
-    last one; *last_report* holds the `time.monotonic()` of the last stamp
-    (the audio callback stamps, where logging is not allowed to run)."""
-    if status is None or not getattr(status, "input_overflow", False):
-        return False
-    return time.monotonic() - last_report[0] >= _OVERFLOW_REPORT_SECONDS
+class _OverflowReport:
+    """Audio the microphone dropped: stamped by the audio callback, said by the
+    event loop. Logging can block, which would make the callback late for the
+    blocks that follow, so the callback only stamps."""
 
+    def __init__(self) -> None:
+        self._stamped_at = 0.0
+        self._said_at = 0.0
 
-def _say_overflow(stamps: list[float], reported: list[float]) -> None:
-    """Say a stamped drop the loop has not said yet. This runs on the event
-    loop, where logging is safe — never inside the audio callback, whose
-    blocks a slow log handler would make late."""
-    if stamps[0] <= reported[0]:
-        return
-    reported[0] = stamps[0]
-    logger.warning("The microphone dropped audio it could not capture in time")
+    def stamp(self, status: object) -> None:
+        """Note a drop PortAudio reports (`status.input_overflow`), at most once
+        per `_OVERFLOW_REPORT_SECONDS`."""
+        if status is None or not getattr(status, "input_overflow", False):
+            return
+        now = time.monotonic()
+        if now - self._stamped_at >= _OVERFLOW_REPORT_SECONDS:
+            self._stamped_at = now
+
+    def say(self) -> None:
+        """Say a stamped drop not said yet. Runs on the event loop, where
+        logging is safe."""
+        if self._stamped_at <= self._said_at:
+            return
+        self._said_at = self._stamped_at
+        logger.warning("The microphone dropped audio it could not capture in time")
 
 
 @dataclass(frozen=True)
@@ -1030,4 +1028,4 @@ async def record(
                 continue
     if not recorded:
         return b""
-    return (np.concatenate(recorded, axis=0) * 32767).astype(np.int16).tobytes()
+    return _to_pcm(np, recorded)

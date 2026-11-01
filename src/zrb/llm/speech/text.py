@@ -66,6 +66,11 @@ def clean_for_speech(text: str) -> str:
     return text.strip()
 
 
+def is_table_line(line: str) -> bool:
+    """Whether *line* is a table's row or its separator row."""
+    return bool(_TABLE_ROW_RE.match(line) or _TABLE_SEPARATOR_RE.match(line))
+
+
 def _strip_tables(text: str) -> str:
     """Drop every table: its header, separator and pipe-separated rows."""
     kept: list[str] = []

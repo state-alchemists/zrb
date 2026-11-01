@@ -17,6 +17,10 @@ _FILLER_WORDS = frozenset({"uh", "um", "er", "erm", "hmm", "oh", "ah", "hey"})
 #: ``stop`` cancels the turn, ``hush`` only quiets the voice, ``redirect`` is a
 #: stop with more to say, so the turn is cancelled and the words are sent.
 BargeInRead = Literal["stop", "hush", "redirect"]
+
+#: What a session does with words said over zrb: a `BargeInRead`, or ``ask``
+#: when the lists cannot tell and the words are a plain request.
+BargeInIntent = Literal["stop", "hush", "redirect", "ask"]
 # What Whisper-like transcribers write for silence or noise. Lowercase, with
 # end punctuation left off.
 _NOISE_GUESSES = frozenset(

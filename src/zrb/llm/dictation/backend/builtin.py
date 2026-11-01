@@ -22,12 +22,6 @@ def get_dictation_backend(
     ``vosk``, ``openai``, ``google``, ``multimodal``, ``sensevoice``, or a speech-to-text
     service registered with ``stt_manager`` (``whisper``, ``moonshine``,
     ``funasr``, or one a project registered)."""
-    return _get_backend(backend, config)
-
-
-def _get_backend(
-    backend: "str | AnyDictationBackend", config: "DictationConfig"
-) -> AnyDictationBackend:
     if isinstance(backend, AnyDictationBackend):
         return backend
     name = backend.strip().lower() or "vosk"

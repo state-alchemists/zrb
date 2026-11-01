@@ -27,6 +27,7 @@ from zrb.llm.dictation.emotion import EmotionDetector, Tone
 from zrb.llm.dictation.listen import MicState, Utterance, import_audio, listen
 from zrb.llm.dictation.load_report import prepare_reported, write_line
 from zrb.llm.dictation.words import (
+    BargeInIntent,
     count_words,
     is_answer,
     is_said_alone,
@@ -726,7 +727,7 @@ class DictationSession:
             await _wait_for_turn_to_end(ui)
         return True
 
-    async def _get_barge_in_intent(self, command: str) -> str:
+    async def _get_barge_in_intent(self, command: str) -> BargeInIntent:
         """What *command*, said over zrb, asks of it: ``"stop"``, ``"hush"``,
         ``"redirect"`` or ``"ask"``.
 
