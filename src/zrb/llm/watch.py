@@ -27,6 +27,7 @@ import threading
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from html import escape
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_current_chat_session_id
@@ -347,17 +348,22 @@ def _write_private(path: str, content: str, append: bool = False) -> None:
 
 
 def _render(record: WatchRecord) -> str:
-    """One watch as the live context shows it: the outcome, not a reminder."""
+    """One watch as the live context shows it: the outcome, not a reminder.
+
+    Every field here can be a command line or a caller's free text, so it is
+    escaped: a description must not be able to close the `<live-context>` block
+    or open one of its own.
+    """
     ending = {
         FINISHED: f"exit {record.exit_code}",
         KILLED: f"killed (exit {record.exit_code})",
         LOST: "outcome unknown",
     }.get(record.state, record.state)
-    line = f"- Watch {record.id} {ending}: {record.what}"
+    line = f"- Watch {escape(record.id, quote=False)} {ending}: {escape(record.what, quote=False)}"
     if record.ended_at:
-        line += f" (ended {record.ended_at})"
+        line += f" (ended {escape(record.ended_at, quote=False)})"
     if record.outcome:
-        line += f"; output at {record.outcome}"
+        line += f"; output at {escape(record.outcome, quote=False)}"
     elif record.state != RUNNING:
         line += "; its output is no longer held by this session"
     return line

@@ -363,8 +363,9 @@ class _ShellBackgroundRegistry:
                 except Exception:  # noqa: BLE001 - atexit backstop, must never raise
                     pass
             # The loop is gone by now, so the exit wait will never run: without
-            # this the row would stay "running" for the next process to puzzle over.
-            _end_watch(bp, handle, killed=True)
+            # this the row would stay "running" for the next process to puzzle
+            # over. A process that had already exited is not a kill.
+            _end_watch(bp, handle, killed=bp.process.returncode is None)
         self._procs.clear()
 
 
