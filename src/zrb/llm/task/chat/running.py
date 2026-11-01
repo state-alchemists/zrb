@@ -214,7 +214,7 @@ class ChatRunning:
 
         with _bound_session_ui(_get_action_ui(ui)):
             await ui.run_async()
-        last_output = getattr(ui, "last_output", "")
+        last_output = ui.last_output
         final_conversation_name = self._llm_chat_task.get_ui_conversation_name(
             ui, initial_conversation_name
         )
@@ -322,7 +322,8 @@ class ChatRunning:
     ) -> None:
         """Load and display session history if it exists.
 
-        Uses the UI's `replay_history` when it has one, else a plain text dump.
+        The UI replays it through `replay_history`; a UI that does not
+        override that writes a plain text dump.
         """
         if not conversation_name:
             return
@@ -330,14 +331,7 @@ class ChatRunning:
             history = history_manager.load(conversation_name)
             if not history:
                 return
-            replay = getattr(ui, "replay_history", None)
-            if callable(replay):
-                replay(history)
-            else:
-                # lazy: zrb.llm.util.history_formatter transitively loads pydantic_ai.
-                from zrb.llm.util.history_formatter import format_history_as_text
-
-                ui.append_to_output(format_history_as_text(history))
+            ui.replay_history(history)
         except FileNotFoundError:
             pass
         except Exception as e:
@@ -370,19 +364,15 @@ def _get_action_ui(ui: "AnyUI") -> "BaseUI":
 
 
 def _append_shown_answer(ui: "AnyUI", shown: str) -> None:
-    """Put a finished turn's answer on *ui* through the richest hook it has.
+    """Put a finished turn's answer on *ui* through `append_answer`.
 
     `append_answer` is where a UI that lays a run's output out in a column puts
-    the answer, so it lands where the streamed copy was; a UI written before
-    that hook still gets the text through `append_markdown`. Skipping it here
+    the answer, so it lands where the streamed copy was; a UI that does not
+    override it gets the text through `append_markdown`. Skipping it here
     would draw a non-interactive answer at the margin while the same answer in
     an interactive session sits in the column.
     """
-    for hook_name in ("append_answer", "append_markdown"):
-        hook = getattr(ui, hook_name, None)
-        if callable(hook):
-            hook(shown)
-            return
+    ui.append_answer(shown)
 
 
 def _is_action_command(message: Any, custom_commands: "list[AnyCustomCommand]") -> bool:

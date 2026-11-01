@@ -250,14 +250,11 @@ def test_buffered_ui_accumulate_usage_drops_context_usage():
     mock_wrapped.accumulate_usage.assert_called_once_with(usage)
 
 
-def test_buffered_ui_accumulate_usage_noop_when_wrapped_lacks_it():
-    """A wrapped UI without accumulate_usage (e.g. a bare AnyUI stub)
-    must not raise."""
+def test_buffered_ui_accumulate_usage_noop_when_wrapped_never_implemented_it():
+    """A wrapped UI that keeps no usage meter takes the declared no-op."""
+    from zrb.llm.ui_fallback.std_ui import StdUI
 
-    class _Parent:
-        pass
-
-    ui = BufferedUI(_Parent())
+    ui = BufferedUI(StdUI())
 
     ui.accumulate_usage(MagicMock())  # must not raise
 

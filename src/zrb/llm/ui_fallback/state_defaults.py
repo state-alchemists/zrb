@@ -1,18 +1,23 @@
 """Inert implementations of `AnyUI`'s state members and side-effect hooks.
 
-For UIs that track none of that state (`StdUI`, `BufferedUI`, `MultiUI`).
-Bodies live here, not on `AnyUI`, because `any_*.py` is excluded from coverage.
-A host that implements a member for real wins on MRO.
+For UIs that track none of that state (`StdUI`, `BufferedUI`, `MultiUI`), and
+the fallback `BaseUI` inherits for any member it does not implement itself.
+Bodies live here, not on `AnyUI`, because `any_*.py` is excluded from coverage
+and `AnyUI` stays a pure contract. A host that implements a member for real wins
+on MRO.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from zrb.llm.agent.types import ModelMessage, RequestUsage, RunUsage, UserContent
     from zrb.llm.ui.base.message_queue import QueuedMessage
 
 
@@ -170,4 +175,98 @@ class UIStateDefaultsMixin:
 
     def send_queued_messages_now(self) -> DeliveryReport:
         """No queue of its own, so nothing to deliver."""
+        return DeliveryReport(DeliveryOutcome.NOTHING_MOVED)
+
+    # Side-effect hooks. The two that write (`append_markdown`,
+    # `record_tool_call_block`) and `replay_history` go through the host's
+    # `append_to_output`; every other default does nothing.
+
+    if TYPE_CHECKING:
+
+        def append_to_output(
+            self,
+            *values: object,
+            sep: str = " ",
+            end: str = "\n",
+            file: TextIO | None = None,
+            flush: bool = False,
+            kind: str = "text",
+        ):
+            """The host's writer, which `AnyUI` declares abstract."""
+
+    def accumulate_usage(
+        self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
+    ) -> None:
+        """No session meter to fold usage into."""
+
+    def reset_context_usage(self) -> None:
+        """No context size to forget."""
+
+    def append_markdown(self, markdown_text: str) -> None:
+        """Render *markdown_text* and write the text."""
+        # lazy: transitively heavy -- the renderer pulls the theme and the
+        # markdown stack.
+        from zrb.util.cli.markdown import render_markdown
+
+        self.append_to_output(render_markdown(markdown_text, width=None), end="")
+
+    def append_answer(self, markdown_text: str) -> None:
+        """No column layout: the answer is shown like any other Markdown."""
+        self.append_markdown(markdown_text)
+
+    def record_tool_call_block(self, collapsed: str, full: str) -> None:
+        """Nothing to expand later: write the collapsed form as a `tool_call` line."""
+        self.append_to_output(collapsed, end="", kind="tool_call")
+
+    def mark_thinking_block_start(self) -> None:
+        """No live thinking block to place."""
+
+    def collapse_thinking_block(self, collapsed: str, full: str) -> bool | None:
+        """No block tracked: the thinking text stays as streamed."""
+        return None
+
+    def mark_text_block_start(self) -> None:
+        """No text block to place."""
+
+    def collapse_text_block(self, collapsed: str, full: str) -> bool | None:
+        """No block tracked: the streamed text stays as it is."""
+        return None
+
+    def settle_text_block(self, source: str) -> None:
+        """The streamed copy stays as it is."""
+
+    def set_stream_indentation(self, indent: str) -> None:
+        """No wrapping of its own to adjust."""
+
+    def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
+        """No status bar to time a tool call in."""
+
+    def end_tool_call(self, tool_call_id: str | None = None) -> None:
+        """No status bar to stop a timer in."""
+
+    def replay_history(self, messages: "list[ModelMessage]") -> None:
+        """Write the resumed conversation as plain text."""
+        # lazy: zrb.llm.util.history_formatter transitively loads pydantic_ai.
+        from zrb.llm.util.history_formatter import format_history_as_text
+
+        self.append_to_output(format_history_as_text(messages))
+
+    async def update_system_info(self) -> None:
+        """No status line to refresh."""
+
+    def record_submitted_message(self, text: str) -> None:
+        """No recall list to remember it in."""
+
+    def take_pending_attachments(self) -> "list[UserContent]":
+        """No attachments wait on a UI that keeps none."""
+        return []
+
+    def track_rendered_echo(self, entry: "QueuedMessage", header: str) -> None:
+        """No output buffer to record an echo span against."""
+
+    def redraw_echoes(self, entries: "Sequence[QueuedMessage]") -> None:
+        """No output buffer to rewrite delivered echoes in."""
+
+    def deliver_queued_messages_early(self) -> DeliveryReport:
+        """No queue of its own, so nothing to hand to the turn."""
         return DeliveryReport(DeliveryOutcome.NOTHING_MOVED)

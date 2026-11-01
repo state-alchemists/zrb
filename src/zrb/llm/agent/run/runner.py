@@ -196,16 +196,10 @@ async def run_agent(
         bind_contextvar(stack, current_tool_confirmation, effective_tool_confirmation)
         bind_contextvar(stack, current_yolo, effective_yolo)
         bind_contextvar(stack, current_hook_manager, effective_hook_manager)
-        # Set by `/model small|multimodal`; most UIs lack them, so readers
+        # Set by `/model small|multimodal`; most UIs hold none, so readers
         # fall back to CFG on None.
-        bind_contextvar(
-            stack, current_small_model, getattr(effective_ui, "small_model", None)
-        )
-        bind_contextvar(
-            stack,
-            current_multimodal_model,
-            getattr(effective_ui, "multimodal_model", None),
-        )
+        bind_contextvar(stack, current_small_model, effective_ui.small_model)
+        bind_contextvar(stack, current_multimodal_model, effective_ui.multimodal_model)
         # Helpers (summarizer, journal judge) fall back to this rather than
         # `CFG.LLM_MODEL`, which after a `/model` switch may lack credentials.
         bind_contextvar(stack, current_model, getattr(agent, "model", None))
@@ -1065,16 +1059,14 @@ def _deliver_queued_messages(effective_ui: AnyUI | None) -> None:
     it. Only entries the queue calls ready go — not the one the user is editing,
     and none inside its grace window — and nothing is interrupted, since the
     model is asking again anyway. A UI that cannot deliver (a custom one, or one
-    with no queue) simply skips it.
+    with no queue) reports that nothing moved.
 
     Nothing is caught here: delivering is queue bookkeeping plus a UI's echo
     redraw, and each of those guards its own failure — swallowing a new class of
     error to keep the turn alive would hide the reason it was thrown.
     """
-    deliver = getattr(effective_ui, "deliver_queued_messages_early", None)
-    if not callable(deliver):
-        return
-    deliver()
+    if effective_ui is not None:
+        effective_ui.deliver_queued_messages_early()
 
 
 def _set_active_run_context(effective_ui: AnyUI | None, ctx: Any) -> None:

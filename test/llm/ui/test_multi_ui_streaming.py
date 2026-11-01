@@ -2,7 +2,45 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from zrb.llm.any_ui import AnyUI
 from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+
+
+class _MinimalChild(UIStateDefaultsMixin, AnyUI):
+    """A child that implements the behavioral half and no optional hook."""
+
+    def __init__(self):
+        self.written: list[tuple[tuple, dict]] = []
+
+    async def ask_user(self, prompt, output_to_parent="", agent_id=None) -> str:
+        return ""
+
+    async def ask_user_choice(self, spec, agent_id=None) -> str:
+        return ""
+
+    def append_to_output(self, *values, **kwargs):
+        self.written.append((values, kwargs))
+
+    def stream_to_parent(self, *values, **kwargs):
+        pass
+
+    async def run_interactive_command(self, cmd, shell=False):
+        return None
+
+    async def run_async(self):
+        return None
+
+
+class _MarkdownOnlyChild(_MinimalChild):
+    """A channel written before `append_answer` existed: its own markdown step."""
+
+    def __init__(self):
+        super().__init__()
+        self.markdown: list[str] = []
+
+    def append_markdown(self, markdown_text):
+        self.markdown.append(markdown_text)
 
 
 @pytest.fixture
@@ -147,14 +185,15 @@ async def test_multi_ui_stream_uses_append_answer_on_main_ui(multi_ui, child_ui_
 
 @pytest.mark.asyncio
 async def test_multi_ui_stream_gives_a_child_without_the_hook_its_markdown(
-    multi_ui, child_ui_1, child_ui_2
+    child_ui_1,
 ):
-    multi_ui.append_to_output = MagicMock()
-    child_ui_1.append_answer = MagicMock()
     # A channel written before `append_answer` existed: it has its own markdown
     # step and nothing else. Losing the layout is acceptable; losing the answer
     # is not.
-    child_ui_2.append_answer = None
+    child_ui_2 = _MarkdownOnlyChild()
+    multi_ui = MultiUI([child_ui_1, child_ui_2])
+    multi_ui.append_to_output = MagicMock()
+    child_ui_1.append_answer = MagicMock()
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
@@ -162,20 +201,18 @@ async def test_multi_ui_stream_gives_a_child_without_the_hook_its_markdown(
 
     await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
-    child_ui_2.append_markdown.assert_called_once_with("# Response")
+    assert child_ui_2.markdown == ["# Response"]
 
 
 @pytest.mark.asyncio
-async def test_multi_ui_stream_gives_a_bare_child_the_rendered_answer(
-    multi_ui, child_ui_1, child_ui_2
-):
+async def test_multi_ui_stream_gives_a_bare_child_the_rendered_answer(child_ui_1):
+    # A minimal UI: `append_to_output` and nothing richer. Both hooks are
+    # optional, so this shape is supported and must still get the answer --
+    # review caught it losing the text entirely.
+    child_ui_2 = _MinimalChild()
+    multi_ui = MultiUI([child_ui_1, child_ui_2])
     multi_ui.append_to_output = MagicMock()
     child_ui_1.append_answer = MagicMock()
-    # A minimal UI: `append_to_output` and nothing richer. Both hooks are
-    # documented as optional, so this shape is supported and must still get the
-    # answer — review caught it losing the text entirely.
-    child_ui_2.append_answer = None
-    child_ui_2.append_markdown = None
     llm_task = MagicMock()
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
@@ -183,8 +220,8 @@ async def test_multi_ui_stream_gives_a_bare_child_the_rendered_answer(
 
     await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
-    child_ui_2.append_to_output.assert_called()
-    assert child_ui_2.append_to_output.call_args.kwargs.get("end") == ""
+    assert child_ui_2.written
+    assert child_ui_2.written[-1][1].get("end") == ""
 
 
 @pytest.mark.asyncio

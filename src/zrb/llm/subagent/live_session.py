@@ -10,7 +10,7 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.authority_snapshot import (
@@ -20,6 +20,7 @@ from zrb.llm.agent.run.authority_snapshot import (
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
+from zrb.llm.any_ui import AnyUI
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.delegation_api import (
     LiveSessionRegistryAPI,
@@ -217,11 +218,16 @@ class LiveSubAgentSessionRegistry:
             "reached for this delegation; finish the work or wait for the result."
         )
 
-    def get_parent_ui(self, session_id: str, agent_id: str) -> "Any | None":
-        """The parent UI that can take a message from *agent_id*, if any."""
+    def get_parent_ui(self, session_id: str, agent_id: str) -> AnyUI | None:
+        """The parent UI that can take a message from *agent_id*, if any.
+
+        Only an `AnyUI` declares `submit_message`; a parent that is not one is
+        reported as absent, so the sender answers with the documented refusal
+        instead of failing on a missing method.
+        """
         entry = self.get(session_id, agent_id)
-        parent = getattr(entry.buffered_ui, "parent_ui", None) if entry else None
-        return parent if hasattr(parent, "submit_message") else None
+        parent = entry.buffered_ui.parent_ui if entry else None
+        return parent if isinstance(parent, AnyUI) else None
 
     def cancel(self, session_id: str, agent_id: str) -> bool:
         """Cancel what the sub-agent is doing: drop its queued messages and
@@ -296,11 +302,7 @@ def start_titling(entry: LiveSubAgentSession, text: str) -> None:
             return
         entry.title = title
         # An open picker would otherwise keep showing the untitled row.
-        invalidate = getattr(
-            getattr(entry.buffered_ui, "parent_ui", None), "invalidate_ui", None
-        )
-        if callable(invalidate):
-            invalidate()
+        entry.buffered_ui.parent_ui.invalidate_ui()
 
     try:
         task = asyncio.get_running_loop().create_task(_title())
@@ -407,9 +409,7 @@ def _report_latest_response_to_parent(entry: LiveSubAgentSession) -> None:
     Best-effort: a missing parent UI, an empty history, or a delivery failure
     must not break the drain.
     """
-    parent = getattr(entry.buffered_ui, "parent_ui", None)
-    if parent is None or not hasattr(parent, "submit_message"):
-        return
+    parent = entry.buffered_ui.parent_ui
     # lazy: zrb.llm.util.history_formatter transitively loads pydantic_ai.
     from zrb.llm.util.history_formatter import extract_last_response_text
 

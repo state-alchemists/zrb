@@ -269,7 +269,7 @@ def submit_user_message_via_queue(
     append_to_output: AppendOutputFunc,
     stream_ai_response: Callable[[object, str, list], Awaitable[None]],
     queue: MessageQueue,
-    attachment_sources: list[Any],
+    attachment_sources: Sequence[AnyUI],
     echo_targets: Sequence[AnyUI],
     llm_task: Any,
     user_message: str,
@@ -354,9 +354,7 @@ def submit_user_message_via_queue(
             # that can track a rendered echo (the default UI) is handed the
             # header and recovers the span from the block the renderer wrote.
             for target in echo_targets:
-                track_rendered = getattr(target, "track_rendered_echo", None)
-                if callable(track_rendered):
-                    track_rendered(entry, header)
+                target.track_rendered_echo(entry, header)
         queue.put_nowait(entry)
         return
 
@@ -426,15 +424,11 @@ def _merge_into(
         _reflect_merged(target, entry, header, text, rendered=rendered)
 
 
-def _collect_attachments(attachment_sources: list[Any]) -> list[Any]:
+def _collect_attachments(attachment_sources: Sequence[AnyUI]) -> list[Any]:
     """Drain every source's pending attachments into one list."""
     attachments: list[Any] = []
     for source in attachment_sources:
-        take: Callable[[], list[Any]] | None = getattr(
-            source, "take_pending_attachments", None
-        )
-        if callable(take):
-            attachments.extend(take())
+        attachments.extend(source.take_pending_attachments())
     return attachments
 
 
@@ -464,10 +458,9 @@ def _reflect_merged(
 def _emit_echo_to(target: AnyUI, header: str, body: str) -> None:
     """Write an ordinary user echo to this target only, never a broadcast,
     so a child that already redrew in place gets no duplicate."""
-    markdown = getattr(target, "append_markdown", None)
     echo_user_message(
         target.append_to_output,
-        markdown if callable(markdown) else None,
+        target.append_markdown,
         header=header,
         body=body,
     )
