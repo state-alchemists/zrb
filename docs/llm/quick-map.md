@@ -4,7 +4,7 @@
 
 Use this page as the short orientation to the LLM subsystem. For deep details, follow the links.
 
-- Layers: L0 (contracts/leafs), L1 (capabilities), L2 (engine), L3 (orchestration), L4 (presentation). Lower layers never import higher ones. Shared behaviour is exposed via L0 facades and registries. See ADR-0120.
+- Layers: L0 (contracts/leafs), L1 (capabilities), L2 (engine), L3 (orchestration), L4 (presentation). Lower layers do not import higher ones, except the lazy edges named in `KNOWN_UPWARD_EDGES` (`test/architecture/test_llm_layering_ratchet.py`). Shared behaviour is exposed via L0 facades and registries. See ADR-0120.
 - Build/run agents from lower layers: import `from zrb.llm.agent_runner import create_agent, run_agent` (not `zrb.llm.agent`).
 - Delegation from tools: `from zrb.llm.delegation_api import default_sub_agent_manager, get_live_session_registry, start_titling`.
 - Multimodal helper: `from zrb.llm.tool.multimodal_describe import ...`.
