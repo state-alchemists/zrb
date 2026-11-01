@@ -44,9 +44,9 @@ def partial_marker(text: str) -> str:
 def shown_text(text: str) -> str:
     """*text* as a screen shows it: everything except the markers, which belong
     to the ear alone, with each block set off as a markdown blockquote so the
-    part that is read aloud stands apart from the rest. A reply with no block
-    comes back unchanged."""
-    if OPEN_TAG not in text:
+    part that is read aloud stands apart from the rest. A reply that marks
+    nothing comes back unchanged."""
+    if OPEN_TAG not in text and CLOSE_TAG not in text:
         return text
     return _quote_blocks(text)
 
@@ -198,22 +198,29 @@ def _quote_blocks(text: str) -> str:
     line of the block marked, and a blank line where a quote would otherwise run
     into the prose beside it. A block that opens mid-sentence is moved onto a
     line of its own — a quote cannot start in the middle of one."""
-    parts: list[str] = []
+    shown = ""
     cursor = 0
     is_spoken = False
     for begin, end in _marker_spans(text):
         body = text[cursor:begin]
-        parts.append(_quoted(body) if is_spoken else body)
+        shown += _quoted(body) if is_spoken else body
         was_quoted = is_spoken and bool(body.strip())
         is_spoken = text[begin:end] == OPEN_TAG
-        if is_spoken and begin and text[begin - 1] != "\n":
-            parts.append("\n")
-        elif not is_spoken and was_quoted:
-            parts.append(_quote_close_gap(text, end))
+        if is_spoken:
+            shown += _quote_open_gap(text, begin, shown)
+        elif was_quoted:
+            shown += _quote_close_gap(text, end)
         cursor = end
     tail = text[cursor:]
-    parts.append(_quoted(tail) if is_spoken else tail)
-    return "".join(parts)
+    return shown + (_quoted(tail) if is_spoken else tail)
+
+
+def _quote_open_gap(text: str, begin: int, shown: str) -> str:
+    """What a quote needs in front of it so it does not open in the middle of a
+    line: nothing when the reply already broke the line."""
+    if not begin or text[begin - 1] == "\n" or shown.endswith("\n"):
+        return ""
+    return "\n"
 
 
 def _quoted(body: str) -> str:
