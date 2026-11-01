@@ -118,6 +118,26 @@ async def test_post_message_rejects_a_non_string_message(client: AsyncClient, me
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("attachments", [5, "abc", [1], [None], {"path": "/a.png"}])
+async def test_post_message_rejects_attachments_that_are_not_a_list_of_strings(
+    client: AsyncClient, attachments
+):
+    """Queued attachments are joined into a string, so a malformed entry would
+    raise inside the session loop and end it; the request is refused instead."""
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.send_input = AsyncMock()
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": "look", "attachments": attachments},
+    )
+
+    assert response.status_code == 400
+    assert "attachments" in response.json()["error"]
+    _mock_sm.send_input.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_approval_action_json_edit_handled(client: AsyncClient):
     _mock_sm.get_session.return_value = MagicMock()
     _mock_sm.is_waiting_for_edit.return_value = True

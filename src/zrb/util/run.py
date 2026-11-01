@@ -8,8 +8,6 @@ CANCEL_SETTLE_TIMEOUT = 5.0
 
 async def run_async(value: Any) -> Any:
     """Await `value` if it's a Task/awaitable, else return it unchanged."""
-    if isinstance(value, asyncio.Task):
-        return await value
     if inspect.isawaitable(value):
         return await value
     return value

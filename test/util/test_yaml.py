@@ -1,3 +1,5 @@
+import yaml
+
 from zrb.util.yaml import edit_obj, yaml_dump
 
 
@@ -272,3 +274,9 @@ def test_get_obj_value_non_list_dict():
 
     result = get_obj_value(42, ["key"])
     assert result is None
+
+
+def test_yaml_dump_does_not_change_how_other_code_dumps_multiline_strings():
+    """`yaml_dump` renders multiline strings as `|` blocks for itself only."""
+    yaml_dump({"message": "a\nb"})
+    assert yaml.dump({"message": "a\nb"}) == "message: 'a\n\n  b'\n"

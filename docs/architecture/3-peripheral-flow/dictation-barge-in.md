@@ -41,7 +41,7 @@ Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. B
    - Every way the listener can end releases a pause it made.
    - `barge_in_hold` turns the hold off, for a room that keeps crossing the bar. Then nothing is held on loudness, and the words alone decide, as early as the live transcript provides them.
 
-4. **Guard against zrb's own voice instead of cancelling it.** zrb does not subtract its voice from the microphone. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, and a minimum word count to interrupt. → [ADR-0105](../../adr/adr-0105.md)
+4. **Guard against zrb's own voice instead of cancelling it.** zrb runs no canceller of its own. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, and a minimum word count to interrupt. On macOS the user can also ask the system's voice processing to take zrb's voice out of the microphone (`enable_echo_cancel`); the guards stay either way. → [ADR-0105](../../adr/adr-0105.md), [ADR-0111](../../adr/adr-0111.md)
 
 5. **Speech listens to the stream beside the UI.** Speech reads a reply as it streams by observing the run's events next to the UI, not through it. An observer that fails is logged and skipped, so speech can never break a run. → [ADR-0104](../../adr/adr-0104.md)
 
@@ -89,6 +89,7 @@ flowchart TD
 | `enable_dictation`, `DictationSession` | `src/zrb/llm/dictation/feature.py` | Registering `/voice` and the hands-free trigger; per session, turning each utterance into a command or nothing, and deciding pause, stop or resume |
 | `listen`, `UtteranceCutter` | `src/zrb/llm/dictation/listen.py` | Keeping the microphone open, cutting audio into `Utterance` values by loudness and silence, and spotting a barge-in early |
 | `count_words`, `is_transcriber_guess`, `is_said_alone`, `read_barge_in` | `src/zrb/llm/dictation/words.py` | The word-level guards, and what the stop and hush lists make of words said over zrb |
+| `EchoCancelledMicrophone` | `src/zrb/llm/dictation/echo_cancel.py` | The microphone opened through macOS voice processing, standing in for the sounddevice stream |
 | `DictationConfig` | `src/zrb/llm/dictation/config.py` | One field per `CFG.LLM_DICTATION_*` setting; `None` means "use the setting" |
 | `enable_speech`, `SpeechSession` | `src/zrb/llm/speech/feature.py` | Registering speech hooks and the stream observer; per session, feeding the speaker |
 | `pause_speech`, `resume_speech`, `interrupt_speech` | `src/zrb/llm/speech/feature.py` | Speech control by chat session key, the only way dictation touches speech |
@@ -173,6 +174,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
 | Barge-in off (the default) | `DictationConfig.barge_in_enabled` | The microphone is deaf while zrb speaks, so there is nothing to pause |
+| Echo cancellation on (macOS) | `DictationConfig.enable_echo_cancel` | `listen` opens `EchoCancelledMicrophone`, so little of zrb's voice reaches the cutter and the bar over it sits near the ordinary one; the guards still run |
 | The hold off | `DictationConfig.barge_in_hold` | Nothing is held on loudness; a stop word or a wake word seen in the live partial stops zrb at once, and anything else stops it once the utterance is transcribed |
 | Wake words set | `DictationConfig.wake_words` | Only words starting with a wake word count; one heard in the live partial transcript stops zrb early |
 | The interrupt judge | `DictationConfig.interrupt_judge_enabled` | What an interrupting utterance asks of zrb is put to the small model when the word lists cannot read it and it is at most `interrupt_judge_max_words` long; a stop or a hush the lists read never reaches the model, and a request is the answer when the judge is off, slow or unsure |
@@ -188,6 +190,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Change utterance cutting, the bar over zrb's voice, or the bar under ordinary speech | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen_barge_in.py`, `test/llm/dictation/test_listen.py` |
 | Change the transcript guards or command routing | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py`, `test/llm/dictation/test_words.py` |
 | Change pause, stop or resume | `src/zrb/llm/dictation/feature.py` | `test/llm/dictation/test_feature_barge_in_pause.py` |
+| Change how the macOS microphone takes zrb's voice out | `src/zrb/llm/dictation/echo_cancel.py` | `test/llm/dictation/test_echo_cancel.py`, `test/llm/dictation/test_listen_echo_cancel.py` |
 | Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py`, `test/llm/speech/test_player_pause.py`, `test/llm/speech/test_player_render_failure.py` |
 | Change how a streamed reply is spoken | `src/zrb/llm/speech/streamed_reply.py`, `src/zrb/llm/speech/feature.py` | `test/llm/speech/test_feature_stream.py` |
 | Change how a spoken reply reaches a prompt | `src/zrb/llm/ui/base/triggers.py` | `test/llm/ui/base/` |

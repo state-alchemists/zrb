@@ -72,7 +72,7 @@ In the web chat or on Telegram, `/screenshot` refuses: it would capture the scre
 
 ## Dictation
 
-**Push-to-talk.** Type `/voice` and talk. A pause of about a second, or `/voice` again, stops the recording. The transcript is inserted at the cursor, where you can edit it before pressing Enter. `/voice` works while the model is still answering.
+**Push-to-talk.** Type `/voice` and talk. A pause of about a second, or `/voice` again, stops the recording. The transcript is submitted like a typed message, so it queues the way typing does and `↑` recalls it while it waits. `/voice` works while the model is still answering.
 
 **Hands-free.** `/handsfree` keeps the microphone open. Every utterance is sent as a turn, and while zrb waits for a tool approval, what you say answers it:
 
@@ -265,7 +265,7 @@ Each feature takes a backend name or an object implementing its interface:
 | Camera | `zrb.llm.camera.AnyCameraBackend` — `async capture(device) -> bytes \| None` | `auto`, `termux`, `ffmpeg` |
 | Screenshot | `zrb.llm.screenshot.AnyScreenshotBackend` — `async capture(display) -> bytes \| None` (PNG or JPEG) | `auto`, `pillow`, `screencapture`, `powershell`, `powershell.exe`, `grim`, `gnome-screenshot`, `spectacle`, `scrot`, `import` |
 | Dictation | `zrb.llm.dictation.AnyDictationBackend` — `async transcribe(audio) -> str`; optionally `async create_stream() -> AnyTranscriptionStream \| None` to transcribe while the user speaks | `vosk`, `openai`, `google`, `multimodal`, `sensevoice`, and the local Pipecat services `whisper`, `moonshine`, `funasr` |
-| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, so dictation knows zrb is heard); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini`, and the local Pipecat services `kokoro`, `piper`, `pocket` |
+| Speech | `zrb.llm.speech.AnySpeechBackend` — `create_utterance(text) -> Utterance` (an `Utterance` subclass overriding `play` calls `report_started()` once sound starts, for whoever asked to be told with `set_on_start`); optionally `create_audio(text) -> SpeechAudio \| None` so zrb plays it itself (and can pause it while you talk) | `auto`, `termux`, `say`, `espeak-ng`, `openai`, `gemini`, and the local Pipecat services `kokoro`, `piper`, `pocket` |
 
 A speech backend that talks to a local TTS server and plays the WAV it returns:
 

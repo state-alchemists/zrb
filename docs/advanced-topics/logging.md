@@ -85,6 +85,7 @@ Some modules create their own named loggers via `logging.getLogger(__name__)`. T
 | Logger Name | Module |
 |---|---|
 | `zrb.util.dir_search` | `src/zrb/util/dir_search.py` |
+| `zrb.util.owner_only` | `src/zrb/util/owner_only.py` |
 | `zrb.llm.hook.*` | Hook system (loader, executor, manager, matcher) |
 | `zrb.llm.snapshot.manager` | Snapshot system |
 | `zrb.llm.ui.*` | UI implementations |
@@ -145,7 +146,7 @@ Zrb persists session state (task execution records) to disk. LLM chat history is
 | `ZRB_SESSION_LOG_RETENTION` | `30d` | How long a session's log is kept (`2w`, `90d`, …; `0` = keep all). Older logs are pruned at most once per `ZRB_SESSION_LOG_PRUNE_INTERVAL`, the first time a session is logged |
 | `ZRB_SESSION_LOG_PRUNE_INTERVAL` | `1d` | How often that retention is enforced per directory (`6h`, `1w`, …; `0` = on every process's first write). Every `zrb` command is its own process, so this keeps each from walking the whole timeline |
 
-These are JSON records of task runs, not Python log output. They are used internally for session restore and audit trails.
+These are JSON records of task runs, not Python log output. The web UI reads them to show a run's progress and its history.
 
 ---
 

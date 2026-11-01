@@ -233,8 +233,6 @@ class PcmUtterance(Utterance):
     the ends a 16-bit sample has.
 
     *prebuffer_seconds* is how much audio stands by before the device starts.
-    It is the newest of these, and sits last for that reason: an older caller
-    passing the others by position still means what it meant.
 
     The play timeout counts playing time only: a pause does not use it up.
     """

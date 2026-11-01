@@ -102,7 +102,9 @@ def test_content_transformer_transform_file_dict():
     ctx = MagicMock(spec=AnyContext)
     ctx.render = MagicMock(return_value="new")
 
-    with patch("zrb.content_transformer.content_transformer.read_file") as mock_read:
+    with patch(
+        "zrb.content_transformer.content_transformer.read_text_file"
+    ) as mock_read:
         mock_read.return_value = "Hello old world"
         with patch(
             "zrb.content_transformer.content_transformer.write_file"
@@ -140,7 +142,9 @@ def test_content_transformer_transform_file_callable_replacement():
     def get_value(ctx):
         return "dynamic value"
 
-    with patch("zrb.content_transformer.content_transformer.read_file") as mock_read:
+    with patch(
+        "zrb.content_transformer.content_transformer.read_text_file"
+    ) as mock_read:
         mock_read.return_value = "Hello old world"
         with patch(
             "zrb.content_transformer.content_transformer.write_file"
@@ -161,7 +165,9 @@ def test_content_transformer_transform_file_renders_tpl_replacement():
     ctx = MagicMock(spec=AnyContext)
     ctx.render = MagicMock(return_value="rendered_value")
 
-    with patch("zrb.content_transformer.content_transformer.read_file") as mock_read:
+    with patch(
+        "zrb.content_transformer.content_transformer.read_text_file"
+    ) as mock_read:
         mock_read.return_value = "Hello ${var} world"
         with patch(
             "zrb.content_transformer.content_transformer.write_file"
@@ -228,7 +234,9 @@ def test_content_transformer_transform_file_keeps_bare_string_literal():
     ctx = MagicMock(spec=AnyContext)
     ctx.render = MagicMock()
 
-    with patch("zrb.content_transformer.content_transformer.read_file") as mock_read:
+    with patch(
+        "zrb.content_transformer.content_transformer.read_text_file"
+    ) as mock_read:
         mock_read.return_value = "Hello ${var} world"
         with patch(
             "zrb.content_transformer.content_transformer.write_file"
@@ -249,7 +257,9 @@ def test_transform_file_resolves_every_replacement_shape():
     ctx = MagicMock(spec=AnyContext)
     ctx.render.side_effect = lambda t: "rendered" if t == "{ctx.input.x}" else t
 
-    with patch("zrb.content_transformer.content_transformer.read_file") as mock_read:
+    with patch(
+        "zrb.content_transformer.content_transformer.read_text_file"
+    ) as mock_read:
         mock_read.return_value = "A_LIT A_TPL A_FN A_NONE"
         with patch(
             "zrb.content_transformer.content_transformer.write_file"

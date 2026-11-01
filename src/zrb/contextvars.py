@@ -10,9 +10,7 @@ own them:
 * `zrb.llm.ambient_state`  - tool-scoped ambient state (worktree, session)
 
 Nothing here owns state. When you add, remove, or rename a `ContextVar`, also
-update:
-  - docs/technical-specs/context-propagation.md  (the count and per-layer table)
-  - docs/contributing/architecture.md      (Implicit State via ContextVars — the count)
+update the per-layer tables in docs/technical-specs/context-propagation.md.
 """
 
 from __future__ import annotations

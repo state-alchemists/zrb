@@ -18,7 +18,6 @@ import re
 import shutil
 import sys
 import time
-from typing import Any
 
 from zrb.llm.camera.backend.any_camera_backend import AnyCameraBackend
 from zrb.llm.util.deadline import (
@@ -50,11 +49,11 @@ class FfmpegCameraBackend(AnyCameraBackend):
         # Whether the last capture went through Linux v4l2, so the hint
         # names the path that failed.
         self._tried_v4l2 = False
-        # {"time": float, "devices": list[str], "refreshing": bool}
-        self._device_cache: dict[str, Any] = {}
-        # The in-flight probe. Held here because `list_devices` ignores the
-        # returned task, and asyncio holds tasks weakly: a collected probe
-        # would leave "refreshing" True and wedge every later refresh.
+        self._cached_devices: list[str] | None = None
+        self._cached_at = 0.0
+        # The in-flight probe, which is also what says one is running. Held here
+        # because `list_devices` ignores the returned task, and asyncio holds
+        # tasks weakly: a collected probe would wedge every later refresh.
         self._refresh_task: "asyncio.Task[None] | None" = None
 
     @property
@@ -176,13 +175,10 @@ class FfmpegCameraBackend(AnyCameraBackend):
         refresh started here has landed.
         """
         self.schedule_device_refresh()
-        cache = self._device_cache
-        cached = cache.get("devices")
-        if isinstance(cached, list) and self._is_cache_fresh():
-            return list(cached)
+        if self._cached_devices is not None and self._is_cache_fresh():
+            return list(self._cached_devices)
         devices = _list_devices_now()
-        cache["time"] = time.monotonic()
-        cache["devices"] = devices
+        self._cache_devices(devices)
         return devices
 
     async def refresh_devices(self) -> list[str]:
@@ -191,8 +187,7 @@ class FfmpegCameraBackend(AnyCameraBackend):
         devices = _list_devices_now()
         if dshow_ffmpeg is not None:
             devices = await _list_dshow_devices(dshow_ffmpeg) + devices
-        self._device_cache["time"] = time.monotonic()
-        self._device_cache["devices"] = devices
+        self._cache_devices(devices)
         return devices
 
     def schedule_device_refresh(self) -> "asyncio.Task[None] | None":
@@ -201,10 +196,9 @@ class FfmpegCameraBackend(AnyCameraBackend):
         Returns the task, or ``None`` when the cache is fresh, a refresh is
         already running, or there is no running loop.
         """
-        cache = self._device_cache
-        if cache.get("refreshing"):
+        if self._refresh_task is not None:
             return None
-        if isinstance(cache.get("devices"), list) and self._is_cache_fresh():
+        if self._cached_devices is not None and self._is_cache_fresh():
             return None
         try:
             loop = asyncio.get_running_loop()
@@ -217,16 +211,17 @@ class FfmpegCameraBackend(AnyCameraBackend):
             except Exception as e:
                 logger.debug(f"Camera device refresh failed: {e}")
             finally:
-                cache["refreshing"] = False
                 self._refresh_task = None
 
-        cache["refreshing"] = True
         self._refresh_task = loop.create_task(refresh())
         return self._refresh_task
 
+    def _cache_devices(self, devices: list[str]) -> None:
+        self._cached_devices = devices
+        self._cached_at = time.monotonic()
+
     def _is_cache_fresh(self) -> bool:
-        age = time.monotonic() - float(self._device_cache.get("time", 0.0))
-        return age < DEVICE_CACHE_TTL_SECONDS
+        return time.monotonic() - self._cached_at < DEVICE_CACHE_TTL_SECONDS
 
     def get_failure_hint(self) -> str:
         hint = _get_platform_hint(self._tried_v4l2)

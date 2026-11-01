@@ -99,7 +99,7 @@ class UISelection:
         self._choice_window = self._create_choice_window()
 
     def has_active_choice(self) -> bool:
-        """Whether a choice widget is currently being shown (public API).
+        """Whether a choice widget is currently being shown.
 
         Viewing a sub-agent supersedes the choice: its live view owns the
         panes, and its Enter routes to the agent's confirmation first.
@@ -267,18 +267,18 @@ class UISelection:
         frags, _ = self._render_panel(spec)
         return min(rendered_row_count(frags), panel_row_cap(self._ui))
 
-    # state transitions (public-testable seams)
+    # state transitions
 
     def move_choice_cursor(self, delta: int) -> None:
-        """Move the selection cursor by `delta`, clamped (public API)."""
+        """Move the selection cursor by `delta`, clamped."""
         self._move_cursor(delta)
 
     def toggle_choice_current(self) -> None:
-        """Toggle the highlighted option in multi-select (public API)."""
+        """Toggle the highlighted option in multi-select."""
         self._toggle_current()
 
     def confirm_choice(self) -> None:
-        """Confirm the current selection, resolving the future (public API)."""
+        """Confirm the current selection, resolving the future."""
         self._confirm_choice()
 
     def _row_count(self) -> int:
@@ -446,7 +446,7 @@ class UISelection:
         lines = _wrap(context, width - 1)
         if not lines:
             return []
-        # The cap now holds the whole panel — it is docked into the layout, so
+        # The cap holds the whole panel — it is docked into the layout, so
         # its rows come out of the transcript — which makes the context's
         # budget what the question, the rows and the hint leave over, minus the
         # blank line that separates the context from the question. On a screen

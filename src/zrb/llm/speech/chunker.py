@@ -15,15 +15,13 @@ from __future__ import annotations
 
 import re
 
-from zrb.llm.speech.text import clean_for_speech
+from zrb.llm.speech.text import clean_for_speech, is_table_line
 
 # A sentence end: punctuation followed by space, so "main.py" and "e.g." do
 # not end one but "I." does. A blank line ends one too.
 _BOUNDARY_RE = re.compile(r"(?<!\.[a-zA-Z])[.!?](?=\s)|\n[ \t]*\n")
 _CLAUSE_END_RE = re.compile(r"[,;:](?=\s)")
 _FENCE_MARKERS = ("```", "~~~")
-_TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
-_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)+\|?\s*$")
 # Characters that may open a fence or a table row, so a line starting with
 # one waits until it can be told apart from prose.
 _AMBIGUOUS_STARTS = "`~|"
@@ -106,7 +104,7 @@ class SpeechChunker:
         return len(stripped) < 3 or stripped.startswith(_FENCE_MARKERS)
 
     def _is_prose_line(self, line: str) -> bool:
-        return not (_TABLE_ROW_RE.match(line) or _TABLE_SEPARATOR_RE.match(line))
+        return not is_table_line(line)
 
     def _drain(self, force: bool) -> list[str]:
         chunks: list[str] = []

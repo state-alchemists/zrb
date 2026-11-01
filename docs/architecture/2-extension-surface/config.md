@@ -51,6 +51,7 @@ Each one fails silently if broken: zrb keeps running on a value the user did not
 | Aliases are read in order, and the first one set wins | A deployment still exporting the old name gets the default | `test/config/test_env_field.py::test_alias_read_order` |
 | Assigning an unknown uppercase name raises, with a suggestion | `CFG.LLM_MODELL = ...` looks accepted and does nothing | `test/config/test_config_assignment_safety.py::test_assigning_an_unknown_uppercase_knob_raises_and_suggests` |
 | A value that cannot be cast fails at the assignment | The bad value is stored and a later, unrelated read crashes | `test/config/test_config_assignment_safety.py::test_assigning_an_uncastable_value_raises_at_the_assignment` |
+| Every setting declares its default; `fallback` answers a bad value, never an unset one | `zrb config explain` shows an empty default for a setting that holds 20, and a white label cannot override it through `DEFAULT_<NAME>` | `test/config/test_env_field_defaults.py::test_a_value_the_cast_rejects_when_empty_is_none_or_has_a_declared_default` |
 | A computed default is recomputed on each read | A derived path or theme colour keeps its import-time value | **unpinned** |
 | No module reads `CFG` while it is being imported | A `zrb_init.py` assignment is silently ignored for that value | `test/architecture/test_deferred_config_reads.py::test_no_cfg_read_happens_at_import_time` |
 | A retired setting is named at startup with its replacement | The user's export is ignored with no word | `test/config/test_config_env_warnings.py::test_a_retired_setting_names_the_one_that_replaced_it` |
@@ -96,7 +97,7 @@ sequenceDiagram
     F-->>C: typed value
 ```
 
-Two details matter. An empty variable (`export ZRB_WEB_HTTP_PORT=`) counts as unset and falls back to the default instead of failing the cast. A cast error re-raises unless the field declares a `fallback`.
+Two details matter. An empty variable (`export ZRB_WEB_HTTP_PORT=`) counts as unset and falls back to the default instead of failing the cast. A cast error re-raises unless the field declares a `fallback`, which answers a bad value; the default of an unset setting is always its declared `DEFAULT_<NAME>`.
 
 Callers read `CFG` where the value is used, not at import. The tool-result cap is read by `SafeToolsetWrapper` in `src/zrb/llm/agent/common.py` each time a result comes back, so a `zrb_init.py` change made after import still applies.
 

@@ -119,13 +119,6 @@ class BaseTaskMonitoring:
                 session.get_task_status(check).is_completed
                 for check in readiness_checks
             )
-        except asyncio.TimeoutError:
-            for check in readiness_checks:
-                if not session.get_task_status(check).is_ready:
-                    session.get_task_status(check).mark_as_failed()
-            raise
-        except (asyncio.CancelledError, KeyboardInterrupt):
-            raise
         except Exception:
             for check in readiness_checks:
                 if not session.get_task_status(check).is_ready:

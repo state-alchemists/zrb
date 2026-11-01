@@ -8,7 +8,7 @@ from zrb.attr.type import StrAttr
 from zrb.content_transformer.any_content_transformer import AnyContentTransformer
 from zrb.context.any_context import AnyContext
 from zrb.util.attr import get_str_attr
-from zrb.util.file import read_file, write_file
+from zrb.util.file import read_text_file, write_file
 
 MatchMode = Literal["auto", "glob", "regex"]
 
@@ -80,7 +80,7 @@ class ContentTransformer(AnyContentTransformer):
             keyword: get_str_attr(ctx, replacement, "")
             for keyword, replacement in self._transform_file.items()
         }
-        content = read_file(file_path)
+        content = read_text_file(file_path)
         for keyword, replacement in transform_map.items():
             content = content.replace(keyword, replacement)
         write_file(file_path, content)

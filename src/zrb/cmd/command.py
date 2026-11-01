@@ -333,17 +333,17 @@ async def run_command(
     actual_print_method = print_method if print_method is not None else print
     if max_display_line is None:
         max_display_line = max(max_output_line, max_error_line)
-    cmd_process = await __spawn(cmd, cwd, env_map, is_interactive)
+    cmd_process = await _spawn(cmd, cwd, env_map, is_interactive)
     if register_pid_method is not None:
         register_pid_method(cmd_process.pid)
     assert cmd_process.stdout is not None and cmd_process.stderr is not None
     display_lines = deque(maxlen=max_display_line if max_display_line > 0 else None)
     states = {
-        "stdout": __StreamState(max_output_line),
-        "stderr": __StreamState(max_error_line),
+        "stdout": _StreamState(max_output_line),
+        "stderr": _StreamState(max_error_line),
     }
     streams_task = asyncio.create_task(
-        __read_streams(
+        _read_streams(
             cmd_process.stdout,
             cmd_process.stderr,
             states,
@@ -357,19 +357,19 @@ async def run_command(
             # closes them; on timeout the group kill reaches a background one.
             await streams_task
             return_code = await wait_for_exit(cmd_process)
-        __report_dropped(states, actual_print_method)
+        _report_dropped(states, actual_print_method)
         stdout = states["stdout"].get_captured()
         stderr = states["stderr"].get_captured()
         display = "\r\n".join(display_lines)
         return CmdResult(stdout, stderr, display=display), return_code
     except (KeyboardInterrupt, asyncio.CancelledError, asyncio.TimeoutError):
-        await __terminate_on_cancel(cmd_process, is_interactive, actual_print_method)
+        await _terminate_on_cancel(cmd_process, is_interactive, actual_print_method)
         raise
     finally:
-        await __release_process(cmd_process, [streams_task])
+        await _release_process(cmd_process, [streams_task])
 
 
-async def __spawn(
+async def _spawn(
     cmd: list[str],
     cwd: str | None,
     env_map: dict[str, str] | None,
@@ -387,14 +387,14 @@ async def __spawn(
         cwd=os.getcwd() if cwd is None else cwd,
         env=child_env,
         start_new_session=not is_interactive,
-        stdin=__get_cmd_stdin(is_interactive),
+        stdin=_get_cmd_stdin(is_interactive),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         limit=CFG.CMD_BUFFER_LIMIT,
     )
 
 
-async def __release_process(
+async def _release_process(
     cmd_process: "asyncio.subprocess.Process", helper_tasks: "list[asyncio.Task]"
 ) -> None:
     """Cancel the helper tasks and close the transport while the loop is alive.
@@ -408,7 +408,7 @@ async def __release_process(
     close_transport(cmd_process)
 
 
-async def __terminate_on_cancel(
+async def _terminate_on_cancel(
     cmd_process: "asyncio.subprocess.Process",
     is_interactive: bool,
     print_method: Callable[..., None],
@@ -441,16 +441,16 @@ async def __terminate_on_cancel(
         _signal_process_group(group, "SIGKILL")
 
 
-def __get_cmd_stdin(is_interactive: bool) -> int | TextIO:
+def _get_cmd_stdin(is_interactive: bool) -> int | TextIO:
     if is_interactive and sys.stdin.isatty():
         return sys.stdin
     return asyncio.subprocess.DEVNULL
 
 
-async def __read_streams(
+async def _read_streams(
     stdout_stream: asyncio.StreamReader,
     stderr_stream: asyncio.StreamReader,
-    states: "dict[str, __StreamState]",
+    states: "dict[str, _StreamState]",
     print_method: Callable[..., None],
     display_queue: deque[Any],
 ) -> None:
@@ -474,19 +474,19 @@ async def __read_streams(
             for name in list(pending.keys()):
                 if pending[name] not in done:
                     continue
-                chunk = __resolve_chunk(pending.pop(name))
+                chunk = _resolve_chunk(pending.pop(name))
                 if not chunk:
-                    __finalize_stream(states[name], print_method, display_queue)
+                    _finalize_stream(states[name], print_method, display_queue)
                     continue
-                __feed_stream(states[name], chunk, print_method, display_queue)
+                _feed_stream(states[name], chunk, print_method, display_queue)
                 pending[name] = asyncio.ensure_future(streams[name].read(65536))
     finally:
         for name, future in pending.items():
             future.cancel()
-            __finalize_stream(states[name], print_method, display_queue)
+            _finalize_stream(states[name], print_method, display_queue)
 
 
-class __StreamState:
+class _StreamState:
     """Decode/line-buffer state for one subprocess stream.
 
     `max_line` is how many trailing lines to retain; non-positive keeps all
@@ -508,7 +508,7 @@ class __StreamState:
         for part in parts[1:]:
             self.capture_line()
             self.line = part
-        # ponytail: bounds memory on newline-free output by splitting the line.
+        # Bounds memory on newline-free output by splitting the line.
         if len(self.line) > CFG.CMD_BUFFER_LIMIT:
             self.capture_line()
 
@@ -523,16 +523,14 @@ class __StreamState:
         return "\n".join(self.captured).rstrip("\n")
 
 
-def __resolve_chunk(future: "asyncio.Future[bytes]") -> bytes:
+def _resolve_chunk(future: "asyncio.Future[bytes]") -> bytes:
     try:
         return future.result()
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        raise
     except Exception:
         return b""
 
 
-def __emit_line(
+def _emit_line(
     line: str,
     print_method: Callable[..., None],
     display_queue: deque[Any],
@@ -547,8 +545,8 @@ def __emit_line(
     display_queue.append(clean_part)
 
 
-def __feed_stream(
-    state: __StreamState,
+def _feed_stream(
+    state: _StreamState,
     chunk: bytes,
     print_method: Callable[..., None],
     display_queue: deque[Any],
@@ -560,15 +558,15 @@ def __feed_stream(
         match = re.search(r"[\r\n]", state.buffer)
         if match is None:
             break
-        __emit_line(state.buffer[: match.start()], print_method, display_queue)
+        _emit_line(state.buffer[: match.start()], print_method, display_queue)
         state.buffer = state.buffer[match.end() :]
     if len(state.buffer) > CFG.CMD_BUFFER_LIMIT:
-        __emit_line(state.buffer, print_method, display_queue)
+        _emit_line(state.buffer, print_method, display_queue)
         state.buffer = ""
 
 
-def __finalize_stream(
-    state: __StreamState,
+def _finalize_stream(
+    state: _StreamState,
     print_method: Callable[..., None],
     display_queue: deque[Any],
 ) -> None:
@@ -577,11 +575,11 @@ def __finalize_stream(
     if state.line:
         state.capture_line()
     state.buffer += text
-    __emit_line(state.buffer, print_method, display_queue)
+    _emit_line(state.buffer, print_method, display_queue)
 
 
-def __report_dropped(
-    states: "dict[str, __StreamState]",
+def _report_dropped(
+    states: "dict[str, _StreamState]",
     print_method: Callable[..., None],
 ) -> None:
     """Say how many lines the capture cap dropped, once the run is over."""

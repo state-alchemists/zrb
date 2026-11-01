@@ -10,7 +10,6 @@ import asyncio
 import re
 from typing import TYPE_CHECKING, Any
 
-from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.ui.default.app.focus import focus_widget
 from zrb.llm.util.choice_spec_format import get_option_label
@@ -192,15 +191,6 @@ class UIConfirmation:
         buff = event.current_buffer
         text = buff.text
         viewing_agent_id = getattr(self._ui, "viewing_agent_id", None)
-        CFG.LOGGER.debug(
-            "confirmation debug: viewing_agent_id=%r queue=%r current_is=%r",
-            viewing_agent_id,
-            [
-                (entry_agent_id, fut.done())
-                for fut, _, _, entry_agent_id in self._ui.confirmation.queue
-            ],
-            "current" if self._ui.confirmation.current is not None else None,
-        )
         if viewing_agent_id is not None:
             # In a sub-agent's view, answer only that agent's own request;
             # with none pending, the text falls through as a chat message.

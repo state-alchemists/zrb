@@ -2,10 +2,9 @@
 
 Everything is spoken by one background thread per session, in order, so a hook
 only queues text and returns. Of a reply, the `<spoken>` blocks are read and
-nothing else is: a reply that opens none is read whole, as it was before the
-block existed. Either is read in full, unless ``summarize_above_chars`` is set:
-that speakable text is then longer than the setting, and is spoken as the small
-model's summary, once the turn ends.
+nothing else; a reply with no block is read whole. Either is read in full,
+unless ``summarize_above_chars`` is set and the speakable text is longer than
+it: the small model's summary is spoken instead, once the turn ends.
 """
 
 from __future__ import annotations

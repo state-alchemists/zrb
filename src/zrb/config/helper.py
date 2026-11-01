@@ -145,14 +145,14 @@ def get_default_diff_edit_command(editor: str) -> str:
 def get_log_level(level: str) -> int:
     level = level.upper()
     log_levels = {
-        "CRITICAL": logging.CRITICAL,  # 50
-        "FATAL": logging.CRITICAL,  # 50
-        "ERROR": logging.ERROR,  # 40
-        "WARN": logging.WARNING,  # 30
-        "WARNING": logging.WARNING,  # 30
-        "INFO": logging.INFO,  # 20
-        "DEBUG": logging.DEBUG,  # 10
-        "NOTSET": logging.NOTSET,  # 0
+        "CRITICAL": logging.CRITICAL,
+        "FATAL": logging.CRITICAL,
+        "ERROR": logging.ERROR,
+        "WARN": logging.WARNING,
+        "WARNING": logging.WARNING,
+        "INFO": logging.INFO,
+        "DEBUG": logging.DEBUG,
+        "NOTSET": logging.NOTSET,
     }
     if level in log_levels:
         return log_levels[level]

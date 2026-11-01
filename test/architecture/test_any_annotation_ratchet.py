@@ -30,10 +30,14 @@ SRC = REPO_ROOT / "src" / "zrb"
 # into the layout, so each builds its own `Frame` from typed state.
 # -2 (1054->1052): `subtree_model`'s `to_dict` returns `dict[str, object]` — it
 # only passes values through to `json.dumps`.
-# -4 (1052->1048): `TerminalApprovalChannel` hands an edit to the handler's
+# -3 (1052->1049): the two echo emitters take an `AnyUI` target and
+# `_restore_snapshot` takes a `SnapshotManager`.
+# -1 (1049->1048): the ffmpeg camera backend's device cache is typed fields
+# rather than a `dict[str, Any]`.
+# -4 (1048->1044): `TerminalApprovalChannel` hands an edit to the handler's
 # response handlers through `run_response_handlers`, typed over `ToolCallHandler`
 # and `ToolCallPart` instead of `Any`.
-ANY_ANNOTATIONS = 1048
+ANY_ANNOTATIONS = 1044
 
 
 def _count_any(annotation: ast.expr | None) -> int:

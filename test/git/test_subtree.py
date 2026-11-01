@@ -102,6 +102,61 @@ async def test_add_subtree_directory_exists(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_add_subtree_checks_the_prefix_inside_the_repository(
+    tmp_path, monkeypatch
+):
+    """A relative prefix is relative to the repository, where `git subtree` runs,
+    not to the directory zrb was started from."""
+    repo_dir = tmp_path / "repo"
+    (repo_dir / "src" / "libA").mkdir(parents=True)
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    with mock.patch(
+        "zrb.git.subtree.run_command", new_callable=mock.AsyncMock
+    ) as mock_run:
+        mock_run.return_value = (CmdResult("", "", ""), 0)
+        with pytest.raises(ValueError, match="Directory exists"):
+            await add_subtree(
+                repo_dir=str(repo_dir),
+                name="libA",
+                repo_url="urlA",
+                branch="main",
+                prefix="src/libA",
+            )
+        mock_run.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_add_subtree_ignores_a_same_named_directory_outside_the_repository(
+    tmp_path, monkeypatch
+):
+    """A directory with the prefix's name under the current directory is not the
+    subtree's destination, so it must not block the add."""
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    elsewhere = tmp_path / "elsewhere"
+    (elsewhere / "src" / "libA").mkdir(parents=True)
+    monkeypatch.chdir(elsewhere)
+
+    with mock.patch(
+        "zrb.git.subtree.run_command", new_callable=mock.AsyncMock
+    ) as mock_run:
+        mock_run.return_value = (CmdResult("", "", ""), 0)
+        await add_subtree(
+            repo_dir=str(repo_dir),
+            name="libA",
+            repo_url="urlA",
+            branch="main",
+            prefix="src/libA",
+        )
+        mock_run.assert_called_once()
+
+    assert "libA" in load_config(str(repo_dir)).data
+
+
+@pytest.mark.asyncio
 async def test_add_subtree_name_exists(tmp_path):
     """Test add_subtree raises error when config name already exists."""
     repo_dir = str(tmp_path)

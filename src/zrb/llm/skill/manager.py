@@ -134,6 +134,7 @@ class SkillManager:
         self._max_depth = max_depth
         self._ignore_dirs = IGNORE_DIRS if ignore_dirs is None else ignore_dirs
         self._scanned = False
+        self._scan_results: dict[str, Skill] = {}
         # Every manager is a possible source of an activation, and compaction
         # asks this set before it re-attaches a body (see `has_skill`).
         # Registering here rather than at each activation factory is the only
@@ -179,7 +180,7 @@ class SkillManager:
             Every skill in the effective collection, in discovery order.
         """
         self._registry.clear_discovered()
-        self._scan_results: dict[str, Skill] = {}
+        self._scan_results = {}
         target_search_dirs = (
             search_dirs if search_dirs is not None else self.search_dirs
         )

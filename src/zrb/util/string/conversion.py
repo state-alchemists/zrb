@@ -57,9 +57,8 @@ def to_snake_case(text: str | None) -> str:
     return "_".join([x.lower() for x in _to_space_separated(text).split(" ")])
 
 
-def _to_alphanum(text: str | None) -> str:
+def _to_alphanum(text: str) -> str:
     """Non-alphanumeric characters replaced by spaces."""
-    text = str(text) if text is not None else ""
     return NON_ALPHA_NUM.sub(" ", text)
 
 
@@ -73,9 +72,8 @@ def to_human_case(text: str | None) -> str:
     )
 
 
-def _to_space_separated(text: str | None) -> str:
+def _to_space_separated(text: str) -> str:
     """Splits on `-`/`_` separators and on camelCase/PascalCase boundaries."""
-    text = str(text) if text is not None else ""
     text = text.replace("-", " ").replace("_", " ")
     parts = text.split(" ")
     new_parts = []

@@ -58,7 +58,6 @@ def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         # lazy: heavy third-party
         from pydantic_ai import Tool as PydanticTool
 
-        # It is a Tool instance (or a duck-typed equivalent)
         original_func = getattr(tool, "function")
         safe_func = create_safe_wrapper(original_func, name=getattr(tool, "name", None))
         metadata = {
@@ -471,8 +470,8 @@ def _with_tool_args(decide: "Callable[..., bool]") -> "Callable[..., bool]":
 
     A callable that accepts the call's arguments receives them, which is what
     lets an `arg_pattern` permission rule be judged here rather than falling
-    through to yolo. A single-argument callable — the shape published before
-    this — keeps working: it is wrapped, never called with what it cannot take.
+    through to yolo. A single-argument callable keeps working: it is wrapped,
+    never called with what it cannot take.
     """
     if can_take_positional(decide, 2, if_unknown=False):
         return decide
@@ -488,10 +487,8 @@ def _own_the_output() -> None:
     into the middle of a conversation zrb owns. `BANNER_ENABLED` is
     pydantic-ai's own switch for a program that would rather own its output;
     setting it in the process leaves the environment alone, unlike
-    `PYDANTIC_AI_NO_BANNER`, which a user would have to export themselves.
-
-    It is process-wide: an agent the user builds with pydantic-ai directly is
-    silent too, which is the point — one process, one output.
+    `PYDANTIC_AI_NO_BANNER`, which a user would have to export themselves. It is
+    process-wide: an agent built with pydantic-ai directly is silent too.
     """
     # lazy: heavy third-party
     import pydantic_ai
@@ -560,8 +557,7 @@ def create_agent(
     except Exception as e:
         # pydantic-ai builds the provider here, so a missing key surfaces now.
         raise add_credential_hint(e)
-    # Ad-hoc attribute on the pydantic-ai agent; setattr keeps it honest
-    # instead of a blanket type suppression.
+    # zrb-owned attribute, read back by `runner._prepare_history`.
     setattr(agent, "zrb_history_processors", history_processors or [])
     return agent
 
@@ -574,14 +570,9 @@ def _apply_request_timeout(
     Without one, a provider that accepts the connection and then stops sending
     blocks the run forever: pydantic-ai waits on the stream, and ``retry_loop``
     only fires on a raised exception, so a stall is indistinguishable from
-    thinking. Observed as two benchmark cells that burned their full 600s
-    wall-clock having produced no output, no history, and no file writes.
-
-    ``LLM_REQUEST_TIMEOUT`` already existed and already documented itself as the
-    "default timeout for LLM requests" — it was never read outside the
-    web session runner. Applied here rather than at a call site so it covers the
-    main agent, programmatic ``LLMTask``, and sub-agents alike. A caller that
-    sets ``timeout`` itself wins; a non-positive value disables the deadline.
+    thinking. Applied here rather than at a call site so it covers the main
+    agent, programmatic ``LLMTask``, and sub-agents alike. A caller that sets
+    ``timeout`` itself wins; a non-positive value disables the deadline.
     """
     timeout_ms = CFG.LLM_REQUEST_TIMEOUT
     if timeout_ms <= 0:

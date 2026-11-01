@@ -9,7 +9,6 @@ capture never returns an earlier screen and nothing is left behind.
 
 from __future__ import annotations
 
-import asyncio
 import base64
 import binascii
 import os
@@ -20,12 +19,8 @@ from dataclasses import dataclass
 
 from zrb.config.config import CFG
 from zrb.llm.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
-from zrb.llm.util.deadline import (
-    communicate_within,
-    create_deadline,
-    get_earlier,
-    get_remaining,
-)
+from zrb.llm.screenshot.backend.program import ProgramFailed, run_program
+from zrb.llm.util.deadline import create_deadline, get_earlier
 
 
 @dataclass(frozen=True)
@@ -112,32 +107,13 @@ class ScreenshotToolBackend(AnyScreenshotBackend):
     ) -> bytes | None:
         """The program's stdout when it exits 0, else ``None`` with
         `last_error` set."""
-        timeout = get_remaining(deadline)
-        if timeout == 0:
-            self._last_error = "no time left for this capture"
-            return None
         try:
-            proc = await asyncio.create_subprocess_exec(
-                self._tool.executable,
-                *args,
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=self._get_env(display),
+            return await run_program(
+                [self._tool.executable, *args], deadline, self._get_env(display)
             )
-        except OSError as error:
+        except ProgramFailed as error:
             self._last_error = str(error)
             return None
-        try:
-            stdout, stderr = await communicate_within(proc, timeout)
-        except asyncio.TimeoutError:
-            self._last_error = f"timed out after {timeout:.1f}s"
-            return None
-        if proc.returncode != 0:
-            message = stderr.decode(errors="ignore").strip()[-500:]
-            self._last_error = message or f"exited with code {proc.returncode}"
-            return None
-        return stdout
 
     def _get_env(self, display: str | None) -> dict[str, str] | None:
         if not (display and self._tool.uses_x_display):

@@ -104,11 +104,10 @@ class PipecatSpeechBackend(AnySpeechBackend):
     def _get_pipeline(self) -> "TTSPipeline":
         """Return the cached pipeline, starting it on first use.
 
-        The start is where a local service loads its model, and waiting for it
-        used to be unbounded: a load that never finished parked every sentence
-        behind it and the session went silent with no error at all. A start
-        that overruns is given up on instead, so the speaker falls back to a
-        voice that is audible.
+        The start is where a local service loads its model. Waiting for it is
+        bounded: a load that never finished would park every sentence behind it
+        and silence the session with no error. A start that overruns is given
+        up on, so the speaker falls back to a voice that is audible.
         """
         if not self._starting.acquire(timeout=PIPELINE_START_TIMEOUT_SECONDS):
             raise RuntimeError(

@@ -35,7 +35,6 @@ class SubAgentManager:
         ignore_dirs: list[str] | None = None,
         registry: SubAgentRegistry | None = None,
     ):
-        # Lightweight: just assign properties, no heavy operations
         """Discover sub-agents and build agents from their definitions.
 
         Args:
@@ -280,7 +279,6 @@ class SubAgentManager:
         return self._building.get_all_toolsets(ctx)
 
 
-# Module-level singleton - lightweight, agents loaded on first access
 sub_agent_manager = SubAgentManager(registry=sub_agent_registry)
 
 # Give the singleton the shared zrb-shipped tool surface. The provider appends

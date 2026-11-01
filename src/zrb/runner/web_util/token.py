@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta, timezone
-from typing import cast
 
 import jwt
-from jwt.types import Options
 
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.runner.web_schema.token import Token
@@ -34,7 +32,7 @@ def regenerate_tokens(web_auth_config: WebAuthConfig, refresh_token: str) -> Tok
             refresh_token,
             web_auth_config.secret_key,
             algorithms=["HS256"],
-            options=cast(Options, {"require_exp": True, "require": ["exp", "sub"]}),
+            options={"require": ["exp", "sub"]},
         )
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
