@@ -28,10 +28,9 @@ from zrb.llm.util.spoken import SpokenSplitter
 class StreamedReply:
     """The part of one turn's reply already spoken, and what is left to cut.
 
-    Every sentence of what the reply says aloud is spoken. A reply that opens
-    no `<spoken>` block says all of itself, so a model that forgets the block is
-    read exactly as before it existed; a session that summarizes long replies
-    does not stream them (`SpeechSession`).
+    Every sentence of a `<spoken>` block is said as it completes. A reply with
+    no block claims nothing here and is read whole when the turn ends. A
+    session that summarizes long replies does not stream them (`SpeechSession`).
 
     *max_chars*, when given, is the longest run of prose said as one piece:
     the speech backend's own limit, which the chunker cannot know. Events
@@ -48,12 +47,10 @@ class StreamedReply:
             SpeechChunker() if max_chars is None else SpeechChunker(max_chars=max_chars)
         )
         self._spoken = SpokenSplitter()
-        # Blocks only, never the prose around them: a stream cannot take back a
-        # sentence once it is in the ear. A reply with no block is read whole
-        # when the turn ends — streaming claims nothing, `has_claimed_turn`
-        # stays false, and the stop hook speaks the message. Guessing instead
-        # cost a merge of prose and block into one chunk; not guessing costs the
-        # silence a forgotten tag causes.
+        # Blocks only: a stream cannot take back a sentence once it is in the
+        # ear, so the prose around a block is never guessed at. A reply with no
+        # block claims nothing (`has_claimed_turn` stays false) and the stop
+        # hook speaks it whole.
         self._spoken.speak_only_blocks()
         self._has_spoken = False
         self._is_muted = False
@@ -136,13 +133,7 @@ class StreamedReply:
 
     def _sayable(self, text: str) -> str:
         """What of *text* is meant for the ear: a `<spoken>` block's own words,
-        and nothing at all while the reply is outside one.
-
-        The prose around a block is for the eye, and a stream cannot take back
-        what it has already said, so none of it is said on the chance that the
-        reply turns out to keep no block. That reply is read whole when the turn
-        ends instead, by the stop hook.
-        """
+        and nothing at all while the reply is outside one."""
         return self._spoken.feed(text)[1]
 
     def _flush(self) -> list[str]:

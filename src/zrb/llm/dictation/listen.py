@@ -105,18 +105,17 @@ class UtteranceCutter:
     speaking, blocks are ignored. A negative duration counts as ``0``.
 
     With ``barge_in_enabled``, blocks captured while zrb speaks are heard
-    too, against a higher bar: the
-    microphone hears zrb's own voice there, so a block is loud only at
-    ``barge_in_margin`` times the typical level zrb's voice reaches it (the
-    median over its last few seconds, robust to the user talking over it
-    for a moment, and not counting an utterance once it is a barge-in, when
-    zrb is paused), and never below ``threshold``. Until that is measured the bar is ``barge_in_margin``
-    times ``threshold``. It follows the volume and the room, and stays at
-    ``threshold`` on headphones, where the microphone hears no zrb. An
-    utterance with ``barge_in_min_speech`` of loud blocks over zrb
-    `is_barge_in`; once `feed` or `flush` returns it, `is_finished_barge_in`
-    says so, and `is_finished_over_speech` whether any of it was loud over
-    zrb.
+    too, against a higher bar: the microphone hears zrb's own voice there, so a
+    block is loud only at ``barge_in_margin`` times the typical level zrb's
+    voice reaches it (the median over its last few seconds, robust to the user
+    talking over it for a moment, and not counting an utterance once it is a
+    barge-in, when zrb is paused), and never below ``threshold``. Until that is
+    measured the bar is ``barge_in_margin`` times ``threshold``. It follows the
+    volume and the room, and stays at ``threshold`` on headphones, where the
+    microphone hears no zrb. An utterance with ``barge_in_min_speech`` of loud
+    blocks over zrb `is_barge_in`; once `feed` or `flush` returns it,
+    `is_finished_barge_in` says so, and `is_finished_over_speech` whether any of
+    it was loud over zrb.
     """
 
     def __init__(self, config: DictationConfig) -> None:

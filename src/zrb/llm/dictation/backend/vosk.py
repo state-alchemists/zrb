@@ -270,9 +270,7 @@ async def download_vosk_model(
     model_url: str,
     timeout: float | None = 120.0,
     limits: "VoskDownloadLimits | None" = None,
-) -> (
-    str
-):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
+) -> str:
     """Download and extract a Vosk model, waiting at most *timeout* seconds
     (``0`` or ``None``: uncapped) for the server to answer.
 

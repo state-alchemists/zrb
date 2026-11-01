@@ -56,9 +56,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 HANDS_FREE = "hands_free"
+BADGE_KEY = "dictation"
 # Badge emoji are wide by default; variation-selector emoji may be counted as two
 # columns by prompt_toolkit while terminals draw them one, causing overlap.
-BADGE_KEY = "dictation"
 _LISTENING = "🎤 listening"
 _MIC_STATE_BADGES = {
     MicState.HEARING: "👂 hearing you…",
@@ -611,10 +611,9 @@ class DictationSession:
             DICTATION_INPUT,
             tone=tone.emotion if tone is not None else "",
             tone_score=tone.score if tone is not None else 0.0,
-            # The listener already knows both of these and the turn used to drop
-            # them here: a message said over a reply reads differently from one
-            # said into silence, and how long it took to say is the only
-            # duration a typed turn never carries.
+            # A message said over a reply reads differently from one said into
+            # silence, and how long it took to say is the only duration a typed
+            # turn never carries.
             spoken_seconds=max(0.0, utterance.ended_at - utterance.started_at),
             is_barge_in=utterance.is_barge_in,
             is_over_speech=utterance.is_over_speech,
@@ -788,8 +787,7 @@ class DictationSession:
     def _listening_badge(self) -> str:
         """What the badge says while the microphone is open.
 
-        A service the user named is shown; the default one is not, so a session
-        on vosk reads exactly as it did before there was a choice. This is where
+        A service the user named is shown; the default one is not. This is where
         that choice becomes visible: `prepare` announces the load into the
         transcript before the UI paints, and that line is not what a user can
         rely on to know whether naming a service took effect.
