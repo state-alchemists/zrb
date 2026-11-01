@@ -39,6 +39,30 @@ from zrb.llm.permission import (
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
 from zrb.llm.sandbox.policy import SandboxPolicy
 
+# Argument keys the sandbox gate treats as filesystem paths (subset of the
+# permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
+# writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
+# because move_file deletes it; "dst" because it gets overwritten).
+# EnterWorktree may receive an existing worktree path to resume; both
+# EnterWorktree and ExitWorktree must stay inside the writable boundary.
+_SANDBOX_READ_KEYS = (
+    "path",
+    "file_path",
+    "file",
+    "filename",
+    "src",
+    "worktree_path",
+)
+_SANDBOX_WRITE_KEYS = (
+    "path",
+    "file_path",
+    "file",
+    "filename",
+    "src",
+    "dst",
+    "worktree_path",
+)
+
 
 def permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
     """Return a blocked ``ToolReturn`` when policy denies the call."""
@@ -62,30 +86,6 @@ def sandbox_gate(
     tool_name: str, capability: Any, args: dict[str, Any], ctx: Any = None
 ) -> Any:
     """Return a blocked ``ToolReturn`` when the sandbox denies a path."""
-    # Argument keys the sandbox gate treats as filesystem paths (subset of the
-    # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
-    # writes additionally check them for EDIT/UNKNOWN tools ("src" is write-checked
-    # because move_file deletes it; "dst" because it gets overwritten).
-    # EnterWorktree may receive an existing worktree path to resume; both
-    # EnterWorktree and ExitWorktree must stay inside the writable boundary.
-    _SANDBOX_READ_KEYS = (
-        "path",
-        "file_path",
-        "file",
-        "filename",
-        "src",
-        "worktree_path",
-    )
-    _SANDBOX_WRITE_KEYS = (
-        "path",
-        "file_path",
-        "file",
-        "filename",
-        "src",
-        "dst",
-        "worktree_path",
-    )
-
     # isinstance, not "is not None": anything that isn't a SandboxPolicy
     # (e.g. a MagicMock's auto-created `.deps`) falls back to the ambient read.
     deps = getattr(ctx, "deps", None)

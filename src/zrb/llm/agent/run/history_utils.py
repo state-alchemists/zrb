@@ -377,10 +377,8 @@ def _tool_return_to_text(part: Any) -> str:
     content = str(raw) if raw is not None else "(no value)"
     content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
     if getattr(part, "outcome", "success") == "retried":
-        return (
-            f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
-        )
-    return f'(sanitized-history) previous result from tool "{name}": ' f"{content}"
+        return f'(sanitized-history) prior retry feedback for tool "{name}": {content}'
+    return f'(sanitized-history) previous result from tool "{name}": {content}'
 
 
 def _legacy_retry_to_text(part: object) -> str:
@@ -389,7 +387,7 @@ def _legacy_retry_to_text(part: object) -> str:
     raw = getattr(part, "content", None)
     content = str(raw) if raw not in (None, "") else "(no value)"
     content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
-    return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
+    return f'(sanitized-history) prior retry feedback for tool "{name}": {content}'
 
 
 def _thinking_part_content(part: Any) -> str:

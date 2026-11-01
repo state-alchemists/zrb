@@ -97,25 +97,29 @@ class HookManagerLoading:
                 and isinstance(data["hooks"], dict)
             ):
                 # Claude Code nested format
-                self._parse_claude_format(data, str(file_path))
+                self.parse_claude_format(data, str(file_path))
             elif isinstance(data, list):
                 # Zrb flat format
                 for item in data:
-                    self._parse_and_register(item, str(file_path))
+                    self.parse_and_register(item, str(file_path))
             elif isinstance(data, dict):
                 if "events" in data and "type" in data:
-                    self._parse_and_register(data, str(file_path))
+                    self.parse_and_register(data, str(file_path))
 
         except Exception as e:
             logger.error(f"Failed to load hooks from {file_path}: {e}")
 
     def parse_claude_format(self, data: dict, source: str) -> None:
-        """Parse a Claude-nested hook config and register its hooks."""
-        self._parse_claude_format(data, source)
+        """Parse a Claude-nested hook block and register its hooks."""
+        for config in self.build_claude_format_configs(data, source):
+            hook_callable = self._hydrate_hook(config)
+            self.add_hook(hook_callable, config.events, config)
+            logger.debug(f"Registered Claude hook '{config.name}' from {source}")
 
     def parse_and_register(self, data: dict, source: str) -> None:
-        """Parse one flat (Zrb-format) hook entry and register it."""
-        self._parse_and_register(data, source)
+        """Parse one flat (Zrb-format) hook entry and register it; a malformed one is logged."""
+        for config in self._build_flat_configs(data, source):
+            self.register_hook_config(config, source=source)
 
     def build_hook_configs(self, data: object, source: str) -> list[HookConfig]:
         """Parse hook declarations into `HookConfig`s without registering them.
@@ -163,13 +167,6 @@ class HookManagerLoading:
                 configs.extend(_build_claude_group_configs(event, group, source))
         return configs
 
-    def _parse_claude_format(self, data: dict, source: str) -> None:
-        """Parse a Claude-nested hook block and register its hooks."""
-        for config in self.build_claude_format_configs(data, source):
-            hook_callable = self._hydrate_hook(config)
-            self.add_hook(hook_callable, config.events, config)
-            logger.debug(f"Registered Claude hook '{config.name}' from {source}")
-
     def _build_flat_configs(self, data: object, source: str) -> list[HookConfig]:
         """Parse one flat entry or a list of them, logging and skipping a bad one."""
         items: list = data if isinstance(data, list) else [data]
@@ -182,11 +179,6 @@ class HookManagerLoading:
                     f"Error registering hook from {source}: {e}", exc_info=True
                 )
         return configs
-
-    def _parse_and_register(self, data: dict, source: str) -> None:
-        """Parse one flat entry and register it; a malformed one is logged."""
-        for config in self._build_flat_configs(data, source):
-            self.register_hook_config(config, source=source)
 
     def register_hook_config(
         self, config: "HookConfig", source: str = "python"

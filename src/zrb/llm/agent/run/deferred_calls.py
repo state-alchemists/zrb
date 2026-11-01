@@ -136,11 +136,7 @@ def _discard_denied_call(
     current_results: "DeferredToolResults", tool_call_id: str
 ) -> None:
     """Drop the call slot a denied call would have executed from."""
-    if not hasattr(current_results, "calls"):
-        return
-    if tool_call_id not in current_results.calls:
-        return
-    del current_results.calls[tool_call_id]
+    current_results.calls.pop(tool_call_id, None)
 
 
 def rebuild_for_denials(
@@ -283,13 +279,9 @@ def _apply_permission_policy(call, force_ask):
             layer="permission", decision="none", tool_name=call.tool_name
         )
         return None, None
-    raw_args = getattr(call, "args", None) or {}
-    if isinstance(raw_args, str):
-        try:
-            raw_args = json.loads(raw_args)
-        except json.JSONDecodeError:
-            raw_args = {}
-    decision = policy.decide(call.tool_name, tool_capability(call), raw_args)
+    decision = policy.decide(
+        call.tool_name, tool_capability(call), parse_tool_args(call) or {}
+    )
     record_policy_decision(
         layer="permission", decision=str(decision), tool_name=call.tool_name
     )
@@ -347,9 +339,9 @@ async def _apply_permission_request_hook(call, hook_manager):
         return None
     perm_results = await hook_manager.execute_hooks(
         HookEvent.PERMISSION_REQUEST,
-        {"tool": call.tool_name, "args": getattr(call, "args", None)},
+        {"tool": call.tool_name, "args": call.args},
         tool_name=call.tool_name,
-        tool_input=_as_tool_input(getattr(call, "args", None)),
+        tool_input=_as_tool_input(call.args),
         message=f"Approval requested to run {call.tool_name}",
     )
     perm_decision = extract_permission_decision(perm_results)
@@ -395,18 +387,9 @@ async def _announce_permission_resolved(call, verdict, hook_manager) -> None:
 async def _request_via_approval_channel(call, approval_channel):
     """Priority 4: ask over the approval channel; the first response wins."""
     CFG.LOGGER.debug(f"Using approval channel for {call.tool_name}")
-    args: dict = {}
-    raw_args = getattr(call, "args", None)
-    if isinstance(raw_args, dict):
-        args = raw_args
-    elif isinstance(raw_args, str):
-        try:
-            args = json.loads(raw_args)
-        except json.JSONDecodeError:
-            pass
     context = ApprovalContext(
         tool_name=call.tool_name,
-        tool_args=args,
+        tool_args=parse_tool_args(call) or {},
         tool_call_id=call.tool_call_id,
     )
     CFG.LOGGER.debug("Calling approval_channel.request_approval()...")

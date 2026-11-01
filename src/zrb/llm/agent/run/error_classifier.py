@@ -83,8 +83,8 @@ def is_invalid_tool_call_error(e: Exception) -> bool:
     err_str = _get_body_message(e).lower()
     entity_keywords = ["tool", "function"]
     problem_keywords = ["unknown", "invalid", "not defined", "not found"]
-    return any(e in err_str for e in entity_keywords) and any(
-        p in err_str for p in problem_keywords
+    return any(k in err_str for k in entity_keywords) and any(
+        k in err_str for k in problem_keywords
     )
 
 
