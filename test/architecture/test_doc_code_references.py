@@ -93,6 +93,11 @@ LINK_EXCEPTIONS: dict[str, set[str]] = {
         # file — it is the format, not a destination.
         "path",
     },
+    "docs/adr/adr-0136.md": {
+        # Same reason: this record ranks a claim above a catalog title, and a
+        # claim is a HUD line spelling its own link. The target is the format.
+        "path",
+    },
 }
 
 

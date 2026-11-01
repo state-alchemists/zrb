@@ -39,7 +39,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_DIR: str = ""
         self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
-        self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "2500"
+        self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "3600"
         self.DEFAULT_LLM_JOURNAL_CLAIMS_PER_TURN: str = "3"
         self.DEFAULT_LLM_JOURNAL_CLAIMS_MAX_CHARS: str = "1000"
         self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
@@ -211,11 +211,14 @@ class LLMContentMixin:
         int,
         fallback=0,
         doc=(
-            "Maximum characters of the journal index injected into context. "
-            "The index is the HUD — it carries the user's identity and standing "
-            "preferences, so overflow is dropped from the end and the file is "
-            "ordered most-durable-first. 0 suppresses the injection entirely; "
-            "a negative value injects the whole index uncapped."
+            "Maximum characters of the journal index injected into context, "
+            "overflow note included. The index is the HUD — it carries the "
+            "user's identity and standing preferences — so what survives the cap "
+            "is ranked, not taken from the top: pinned lines first, then claims, "
+            "then the pointer to the category indexes. Sections take turns, so a "
+            "long one cannot spend the whole cap while a short one loses "
+            "everything. 0 suppresses the injection entirely; a negative value "
+            "injects the whole index uncapped."
         ),
     )
 
