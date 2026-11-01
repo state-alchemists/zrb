@@ -4,6 +4,7 @@ The registry is what starts and ends the work; the ledger is what survives it.
 These tests hold the join between them, and the one line the next turn gets.
 """
 
+import asyncio
 import os
 
 import pytest
@@ -183,3 +184,34 @@ def test_an_unwritable_ledger_costs_a_section_not_the_turn(watch_dir, monkeypatc
     monkeypatch.setattr(CFG, "LLM_WATCH_DIR", "/proc/definitely-not-writable")
 
     assert live_context.watch_lines() == []
+
+
+@pytest.mark.asyncio
+async def test_the_watch_waits_for_the_output_before_recording_its_pointer(
+    watch_dir, monkeypatch
+):
+    """An exit heard before the last output must not close the watch pointer-less."""
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 50)
+    registry = get_shell_background_registry()
+    real_read_pipe = type(registry)._read_pipe
+
+    async def slow_read_pipe(self, handle, stream, name):
+        # The exit is heard long before the output is read.
+        await asyncio.sleep(0.4)
+        await real_read_pipe(self, handle, stream, name)
+
+    monkeypatch.setattr(type(registry), "_read_pipe", slow_read_pipe)
+
+    handle = await registry.start(
+        "python3 -c \"print('x' * 400)\"", "", "Printing a lot"
+    )
+    await registry.collect(handle, wait=10)
+    for _ in range(100):
+        records = WatchLedger(str(watch_dir), "_").records()
+        if records and records[0].state != "running":
+            break
+        await asyncio.sleep(0.05)
+
+    (record,) = WatchLedger(str(watch_dir), "_").records()
+    assert record.state == "finished"
+    assert record.outcome.endswith(".log")

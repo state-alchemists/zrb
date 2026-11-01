@@ -30,6 +30,9 @@ from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.llm.watch import WatchLedger, get_watch_ledger
 from zrb.util.string.name import get_random_name
 
+# How long an exited process's watch waits for its output to finish arriving.
+_DRAIN_GRACE_SECONDS = 2.0
+
 
 def _new_capture() -> StreamCapture:
     # echo=0: background output is never mirrored to the console.
@@ -107,11 +110,17 @@ def _record_end(bp: "_BackgroundProcess", handle: str, ending: tuple) -> None:
     """Write a claimed ending. Blocking: takes the ledger's file lock."""
     exit_code, killed, outcome = ending
     try:
-        get_watch_ledger(bp.owner_session_id or None).end(
-            handle, exit_code, killed=killed, outcome=outcome
-        )
+        ledger = get_watch_ledger(bp.owner_session_id or None)
     except OSError as e:
+        # No ledger to hold the ending, even in memory: let a later path try.
+        bp.watch_closed = False
         CFG.LOGGER.warning(f"Could not close watch {handle}: {e}")
+        return
+    try:
+        ledger.end(handle, exit_code, killed=killed, outcome=outcome)
+    except OSError as e:
+        # The ledger kept the ending and writes it on its next turn at the lock.
+        CFG.LOGGER.warning(f"Could not close watch {handle} yet: {e}")
 
 
 def _end_watch(bp: "_BackgroundProcess", handle: str, killed: bool = False) -> None:
@@ -333,6 +342,13 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is not None:
             bp.returncode = rc
+            # The exit can be heard before the last of the output has been read,
+            # and the ending records where a spilled stream went: close the watch
+            # once the readers are done. Bounded, because a grandchild holding
+            # the pipe open would otherwise keep the watch open forever.
+            readers = [task for task in bp.tasks[:2] if not task.done()]
+            if readers:
+                await asyncio.wait(readers, timeout=_DRAIN_GRACE_SECONDS)
             await _end_watch_async(bp, handle)
 
     async def collect(self, handle: str, wait: float = 0.0) -> str:

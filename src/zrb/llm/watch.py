@@ -31,6 +31,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from html import escape
 
+import psutil
+
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_current_chat_session_id
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
@@ -102,8 +104,27 @@ def _ledger_filename(session: str) -> str:
 _INSTANCE = uuid.uuid4().hex[:8]
 
 
-def _is_alive(pid: int) -> bool:
-    """Whether process *pid* still exists.
+def _process_start(pid: int) -> float:
+    """When process *pid* began, as the OS reports it; 0.0 when it cannot say.
+
+    A pid alone does not name a process: once the child is gone the OS may hand
+    the number to something unrelated. The pair (pid, start time) does.
+    """
+    try:
+        return float(psutil.Process(pid).create_time())
+    except (psutil.Error, OSError, ValueError):
+        return 0.0
+
+
+def _is_alive(pid: int, start: float = 0.0) -> bool:
+    """Whether the process that was *pid* — started at *start* — still exists.
+
+    With a recorded start time, a live process that began at another time is a
+    stranger that inherited the pid, not the child. Without one (an older row, or
+    a platform that would not say) existence has to do.
+
+    Existence alone is asked with signal 0, which reports it without touching the
+    process.
 
     Asked with signal 0, which reports existence without touching the process.
     On Windows `os.kill` is `TerminateProcess`, so asking would end the work this
@@ -112,6 +133,14 @@ def _is_alive(pid: int) -> bool:
     """
     if pid <= 0:
         return False
+    if start > 0:
+        found = _process_start(pid)
+        if found > 0:
+            # create_time is a float of the kernel's own clock; a second of slack
+            # absorbs rounding between two readings of the same process.
+            return abs(found - start) < 1.0
+        if not psutil.pid_exists(pid):
+            return False
     if os.name != "posix":
         return True
     try:
@@ -145,6 +174,7 @@ class WatchRecord:
     # a row left behind by a dead process is told from one still running here.
     instance: str = _INSTANCE
     pid: int = 0
+    pid_start: float = 0.0
 
     def is_unread(self) -> bool:
         """Whether this watch has an outcome nobody has been told yet."""
@@ -164,6 +194,10 @@ class WatchLedger:
         self.session = session
         self.path = os.path.join(directory, _ledger_filename(session))
         self._lock = threading.Lock()
+        # Endings that could not be written when they happened. The process they
+        # describe is gone and no other path will report it, so they are kept
+        # here and written the next time the lock is ours.
+        self._pending: list[tuple[str, str, int | None, str, str]] = []
 
     @contextmanager
     def _hold(self) -> Iterator[None]:
@@ -180,6 +214,7 @@ class WatchLedger:
             os.makedirs(self.directory, exist_ok=True)
             try:
                 with hold_file_lock(f"{self.path}.lock", timeout=LEDGER_LOCK_TIMEOUT):
+                    self._flush_pending()
                     yield
             except FileLockTimeout as e:
                 raise LedgerUnavailable(str(e)) from e
@@ -188,12 +223,48 @@ class WatchLedger:
         """Append one row. Only ever called while `_hold` is held."""
         _write_private(self.path, _encode(row) + "\n", append=True)
 
+    def _flush_pending(self) -> None:
+        """Write the endings that missed their turn. Only while the lock is held.
+
+        A ledger that stays unwritable keeps them for the next try; the work they
+        describe has ended either way, so they are never dropped.
+        """
+        while self._pending:
+            watch_id, state, exit_code, outcome, ended_at = self._pending[0]
+            try:
+                self._write_end(watch_id, state, exit_code, outcome, ended_at)
+            except OSError:
+                return
+            self._pending.pop(0)
+
+    def _close(
+        self,
+        watch_id: str,
+        state: str,
+        exit_code: int | None = None,
+        outcome: str = "",
+    ) -> None:
+        """Close a watch, or keep the ending to write later if it cannot be.
+
+        The ending is stamped now, not when it is finally written, so a retry does
+        not move it. The failure is still raised: the caller logs it, but the
+        record is no longer lost with it.
+        """
+        ended_at = _now()
+        try:
+            with self._hold():
+                self._write_end(watch_id, state, exit_code, outcome, ended_at)
+        except OSError:
+            self._pending.append((watch_id, state, exit_code, outcome, ended_at))
+            raise
+
     def _write_end(
         self,
         watch_id: str,
         state: str,
         exit_code: int | None = None,
         outcome: str = "",
+        ended_at: str = "",
     ) -> None:
         """Write the one row that closes a watch. Only while `_hold` is held."""
         self._write_row(
@@ -203,7 +274,7 @@ class WatchLedger:
                 "state": state,
                 "exit_code": exit_code,
                 "outcome": outcome,
-                "ended_at": _now(),
+                "ended_at": ended_at or _now(),
             }
         )
 
@@ -234,7 +305,14 @@ class WatchLedger:
         the row that lets a later run tell "the work is still going" from "the
         run that started it is gone".
         """
-        self._append({"op": SPAWNED, "id": watch_id, "pid": pid})
+        self._append(
+            {
+                "op": SPAWNED,
+                "id": watch_id,
+                "pid": pid,
+                "pid_start": _process_start(pid),
+            }
+        )
 
     def end(
         self,
@@ -249,19 +327,15 @@ class WatchLedger:
         to point: the next turn may read it, but the ledger keeps the pointer and
         never the output.
         """
-        state = KILLED if killed else FINISHED
-        with self._hold():
-            self._write_end(watch_id, state, exit_code, outcome)
+        self._close(watch_id, KILLED if killed else FINISHED, exit_code, outcome)
 
     def lose(self, watch_id: str) -> None:
         """Record that a watch's ending was never seen — not that it is running."""
-        with self._hold():
-            self._write_end(watch_id, LOST)
+        self._close(watch_id, LOST)
 
     def fail(self, watch_id: str) -> None:
         """Record that the work never started, which is not an unknown outcome."""
-        with self._hold():
-            self._write_end(watch_id, FAILED)
+        self._close(watch_id, FAILED)
 
     def mark_delivered(self, watch_ids: list[str]) -> None:
         """Say that these outcomes have been shown, once and for all."""
@@ -294,6 +368,7 @@ class WatchLedger:
                 state[watch_id] = WatchRecord(**fields)  # type: ignore[arg-type]
             elif row.get("op") == SPAWNED and watch_id in state:
                 state[watch_id].pid = _as_int(row.get("pid")) or 0
+                state[watch_id].pid_start = _as_float(row.get("pid_start"))
             elif row.get("op") == ENDED and watch_id in state:
                 record = state[watch_id]
                 record.state = str(row.get("state", FINISHED))
@@ -328,7 +403,7 @@ class WatchLedger:
         for record in self.records():
             if record.state != RUNNING or record.instance == _INSTANCE:
                 continue
-            if _is_alive(record.pid):
+            if _is_alive(record.pid, record.pid_start):
                 continue
             self._write_end(record.id, LOST)
             lost.append(record.id)
@@ -422,6 +497,7 @@ _RECORD_FIELDS = {
     "opened_at",
     "instance",
     "pid",
+    "pid_start",
     "state",
     "exit_code",
     "ended_at",
@@ -430,7 +506,17 @@ _RECORD_FIELDS = {
 }
 
 
-_TEXT_FIELDS = _RECORD_FIELDS - {"pid", "exit_code"}
+_TEXT_FIELDS = _RECORD_FIELDS - {"pid", "pid_start", "exit_code"}
+
+
+def _as_float(value: object) -> float:
+    """*value* as a float, or 0.0 when it is not a number (including a bool)."""
+    if isinstance(value, bool):
+        return 0.0
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _as_int(value: object) -> int | None:
@@ -455,6 +541,8 @@ def _clean_fields(row: dict) -> dict:
             continue
         if key == "pid":
             fields[key] = _as_int(value) or 0
+        elif key == "pid_start":
+            fields[key] = _as_float(value)
         elif key == "exit_code":
             fields[key] = _as_int(value)
         elif key in _TEXT_FIELDS and value is not None:
@@ -504,6 +592,7 @@ def _fold_lines(record: WatchRecord) -> list[str]:
                 "recheck": record.recheck,
                 "instance": record.instance,
                 "pid": record.pid,
+                "pid_start": record.pid_start,
                 "state": RUNNING,
                 "exit_code": None,
                 "ended_at": "",

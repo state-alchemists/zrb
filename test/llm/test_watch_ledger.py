@@ -361,3 +361,50 @@ def test_a_malformed_row_costs_that_row_not_the_render(tmp_path):
 
     assert len(lines) == 2
     assert any("Watch odd" in line and "42" in line for line in lines)
+
+
+def test_an_ending_that_could_not_be_written_is_kept_and_written_later(
+    tmp_path, monkeypatch
+):
+    """A ledger busy at the moment of exit must not lose the outcome for good."""
+    from zrb.llm import watch as watch_module
+
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Slow to close")
+    monkeypatch.setattr(watch_module, "LEDGER_LOCK_TIMEOUT", 0.1)
+
+    with hold_file_lock(f"{ledger.path}.lock", timeout=1):
+        with pytest.raises(OSError):
+            ledger.end("h1", 0)
+
+    assert ledger.records()[0].state == RUNNING
+    (line,) = ledger.render_lines()
+    assert "Watch h1 exit 0" in line
+
+
+def test_a_recycled_pid_is_not_the_child(tmp_path):
+    """A live process that began at another time is a stranger on the old pid."""
+    from zrb.llm.watch import _is_alive, _process_start
+
+    start = _process_start(os.getpid())
+    assert start > 0
+    assert _is_alive(os.getpid(), start)
+    assert not _is_alive(os.getpid(), start - 3600)
+
+
+def test_a_row_whose_pid_was_recycled_is_reported_lost(tmp_path):
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Orphaned")
+    ledger.started("h1", os.getpid())
+    with open(ledger.path, encoding="utf-8") as stream:
+        rows = [json.loads(line) for line in stream.read().splitlines()]
+    for row in rows:
+        if row["op"] == "opened":
+            row["instance"] = "dead-run"
+        if row["op"] == "spawned":
+            row["pid_start"] = row["pid_start"] - 3600
+    with open(ledger.path, "w", encoding="utf-8") as stream:
+        stream.writelines(json.dumps(row) + "\n" for row in rows)
+
+    assert ledger.reconcile() == ["h1"]
+    assert ledger.records()[0].state == "lost"
