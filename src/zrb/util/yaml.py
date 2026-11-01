@@ -1,3 +1,4 @@
+from functools import cache
 from typing import Any
 
 
@@ -16,9 +17,9 @@ def yaml_dump(obj: Any, key: str = "") -> str:
         obj_to_dump = get_obj_value(processed_obj, key_parts)
     else:
         obj_to_dump = processed_obj
-    yaml.add_representer(str, _multiline_string_presenter)
     yaml_str = yaml.dump(
         obj_to_dump,
+        Dumper=_multiline_dumper(),
         default_flow_style=False,
         allow_unicode=True,
         sort_keys=False,
@@ -70,6 +71,23 @@ def _is_complex_obj(obj: Any) -> bool:
     return obj is not None and not isinstance(
         obj, (int, float, bool, str, list, tuple, dict, set)
     )
+
+
+@cache
+def _multiline_dumper() -> type:
+    """A `yaml.Dumper` that renders multiline strings as blocks.
+
+    A subclass, so the representer does not leak into every other
+    `yaml.dump` in the process, as registering it on `yaml.Dumper` would.
+    """
+    # lazy: heavy third-party
+    import yaml
+
+    class MultilineDumper(yaml.Dumper):
+        pass
+
+    MultilineDumper.add_representer(str, _multiline_string_presenter)
+    return MultilineDumper
 
 
 def _multiline_string_presenter(dumper, data):
