@@ -9,6 +9,10 @@ shown on screen and never spoken. The markers themselves reach neither. A reply
 with no block is spoken whole, so a model that forgets the block degrades to
 that instead of falling silent.
 
+On screen the block is set off as a markdown blockquote, so a reader sees at a
+glance which part of the reply is also being read aloud — the markers are gone,
+and without the quote the spoken sentences would look like just more prose.
+
 `split_spoken` cuts a whole reply; `SpokenSplitter` cuts one while it streams.
 They share the rules below, so the two copies of a reply cannot disagree: a
 block is opened by `<spoken>` and closed by the next `</spoken>`, markers do not
@@ -19,9 +23,13 @@ which opens nothing and leaves the whole reply spoken.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 OPEN_TAG = "<spoken>"
 CLOSE_TAG = "</spoken>"
 _TAGS = (OPEN_TAG, CLOSE_TAG)
+# What a screen puts in front of each line of a block: markdown's own quote.
+QUOTE_MARKER = "> "
 # The longest tag less its last character: a delta can end anywhere inside one.
 _LONGEST_PARTIAL_TAG = max(len(tag) for tag in _TAGS) - 1
 
@@ -35,8 +43,12 @@ def partial_marker(text: str) -> str:
 
 def shown_text(text: str) -> str:
     """*text* as a screen shows it: everything except the markers, which belong
-    to the ear alone. A reply with no block comes back unchanged."""
-    return split_spoken(text)[1]
+    to the ear alone, with each block set off as a markdown blockquote so the
+    part that is read aloud stands apart from the rest. A reply with no block
+    comes back unchanged."""
+    if OPEN_TAG not in text:
+        return text
+    return _quote_blocks(text)
 
 
 def split_spoken(text: str) -> tuple[str | None, str]:
@@ -168,6 +180,62 @@ def _next_tag(text: str, start: int) -> tuple[int, int] | None:
         if found is None or index < found[0]:
             found = (index, index + len(tag))
     return found
+
+
+def _marker_spans(text: str) -> Iterator[tuple[int, int]]:
+    """Every marker in *text*, in order, as ``(begin, end)``."""
+    cursor = 0
+    while True:
+        found = _next_tag(text, cursor)
+        if found is None:
+            return
+        yield found
+        cursor = found[1]
+
+
+def _quote_blocks(text: str) -> str:
+    """*text* with each block set off as a blockquote: the markers out, every
+    line of the block marked, and a blank line where a quote would otherwise run
+    into the prose beside it. A block that opens mid-sentence is moved onto a
+    line of its own — a quote cannot start in the middle of one."""
+    parts: list[str] = []
+    cursor = 0
+    is_spoken = False
+    for begin, end in _marker_spans(text):
+        body = text[cursor:begin]
+        parts.append(_quoted(body) if is_spoken else body)
+        was_quoted = is_spoken and bool(body.strip())
+        is_spoken = text[begin:end] == OPEN_TAG
+        if is_spoken and begin and text[begin - 1] != "\n":
+            parts.append("\n")
+        elif not is_spoken and was_quoted:
+            parts.append(_quote_close_gap(text, end))
+        cursor = end
+    tail = text[cursor:]
+    parts.append(_quoted(tail) if is_spoken else tail)
+    return "".join(parts)
+
+
+def _quoted(body: str) -> str:
+    """*body* as a blockquote, with the blank lines at either end left outside:
+    they belong to the reply, not to what is being quoted."""
+    body = body.strip("\n")
+    if not body:
+        return ""
+    marked = [
+        QUOTE_MARKER + line if line else QUOTE_MARKER.rstrip()
+        for line in body.split("\n")
+    ]
+    return "\n".join(marked)
+
+
+def _quote_close_gap(text: str, end: int) -> str:
+    """What a quote needs after it so the prose that follows starts a paragraph
+    of its own rather than a lazy continuation of the quote."""
+    rest = text[end:]
+    if not rest or rest.startswith("\n\n"):
+        return ""
+    return "\n" if rest.startswith("\n") else "\n\n"
 
 
 def _split_partial_tag(text: str) -> tuple[str, str]:
