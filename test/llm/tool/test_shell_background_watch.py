@@ -115,6 +115,26 @@ async def test_a_shutdown_does_not_relabel_a_finished_process(watch_dir):
     assert record.exit_code == 0
 
 
+@pytest.mark.asyncio
+async def test_a_ledger_that_fails_after_the_spawn_does_not_orphan_the_process(
+    watch_dir, monkeypatch
+):
+    """The command is already running: bookkeeping must not lose track of it."""
+
+    def refuse(self, watch_id, pid):
+        raise OSError("the ledger went away")
+
+    monkeypatch.setattr(WatchLedger, "started", refuse)
+    registry = get_shell_background_registry()
+
+    handle = await registry.start("exit 0", "", "Bookkeeping failed after the spawn")
+    await registry.collect(handle, wait=10)
+
+    (record,) = WatchLedger(str(watch_dir), "_").records()
+    assert record.state == "finished"
+    assert record.exit_code == 0
+
+
 def test_the_live_context_names_an_outcome_the_registry_has_dropped(
     watch_dir, monkeypatch
 ):

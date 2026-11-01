@@ -8,10 +8,13 @@ import json
 import os
 import stat
 import sys
+import threading
+import time
 
 import pytest
 
 from zrb.llm.watch import FINISHED, KILLED, RUNNING, WatchLedger
+from zrb.util.file_lock import hold_file_lock
 
 
 def _ledger(tmp_path, session: str = "s") -> WatchLedger:
@@ -176,6 +179,44 @@ def test_two_processes_on_one_session_do_not_drop_each_others_rows(tmp_path):
     one.compact()
 
     assert {record.id for record in two.records()} == {"mine", "theirs"}
+
+
+def test_an_append_waits_while_the_file_is_being_folded(tmp_path):
+    """A compaction reads and rewrites the whole file; nothing lands in between."""
+    ledger = _ledger(tmp_path)
+    ledger.open("before", kind="process", what="Opened first")
+    appended = threading.Event()
+
+    def append_from_another_zrb():
+        _ledger(tmp_path).open("during", kind="process", what="Opened mid-fold")
+        appended.set()
+
+    with hold_file_lock(f"{ledger.path}.lock", timeout=5):
+        thread = threading.Thread(target=append_from_another_zrb)
+        thread.start()
+        assert not appended.wait(0.3), "an append landed while the fold held the file"
+    thread.join(5)
+
+    assert {record.id for record in ledger.records()} == {"before", "during"}
+
+
+def test_only_one_turn_claims_an_outcome_even_if_both_render_at_once(tmp_path):
+    """Choosing the rows and marking them delivered are one step, not two."""
+    one = _ledger(tmp_path, "shared")
+    one.open("h1", kind="process", what="Finished before either looked")
+    one.end("h1", 0)
+    other = _ledger(tmp_path, "shared")
+    rendered: list[str] = []
+
+    with hold_file_lock(f"{one.path}.lock", timeout=5):
+        thread = threading.Thread(target=lambda: rendered.extend(other.render_lines()))
+        thread.start()
+        time.sleep(0.2)
+        assert thread.is_alive(), "rendering did not wait for the ledger"
+    thread.join(5)
+
+    assert len(rendered) == 1
+    assert one.render_lines() == []
 
 
 def test_a_running_row_from_this_process_is_left_alone(tmp_path):

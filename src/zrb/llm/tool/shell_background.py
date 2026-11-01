@@ -61,6 +61,21 @@ def _fail_watch(ledger: "WatchLedger | None", handle: str) -> None:
         CFG.LOGGER.warning(f"Could not close watch {handle}: {e}")
 
 
+def _start_watch(ledger: "WatchLedger | None", handle: str, pid: int) -> None:
+    """Record the child's pid, once it exists. Best-effort, like `_open_watch`.
+
+    The process is already running when this is called, so a ledger that cannot
+    be written must cost the record and nothing else: raising here would fail
+    the call while leaving behind a process no registry would ever reap.
+    """
+    if ledger is None:
+        return
+    try:
+        ledger.started(handle, pid)
+    except OSError as e:
+        CFG.LOGGER.warning(f"Could not record the pid of watch {handle}: {e}")
+
+
 def _end_watch(bp: "_BackgroundProcess", handle: str, killed: bool = False) -> None:
     """Close a watch once, with the exit code the process ended on.
 
@@ -149,13 +164,14 @@ class _ShellBackgroundRegistry:
             description=description or command,
             owner_session_id=get_current_chat_session_id(),
         )
-        if ledger is not None:
-            # The pid is known only now; `started` is what lets a later run tell
-            # a command that is still going from one whose watcher is gone.
-            ledger.started(handle, proc.pid)
+        # Registered before the ledger hears anything more: from here the process
+        # is ours to stop and to reap, whatever happens to the bookkeeping.
+        self._procs[handle] = bp
+        # The pid is known only now; `started` is what lets a later run tell a
+        # command that is still going from one whose watcher is gone.
+        _start_watch(ledger, handle, proc.pid)
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
-        self._procs[handle] = bp
         # Tracked so kill()/cancel_all() can stop them.
         bp.tasks = [
             asyncio.ensure_future(self._read_pipe(handle, proc.stdout, "stdout")),
@@ -187,8 +203,6 @@ class _ShellBackgroundRegistry:
         # Before the registry entry, for the same reason as `start`: the process
         # is already running, so a crash here must not lose it.
         ledger = _open_watch(handle, command)
-        if ledger is not None:
-            ledger.started(handle, process.pid)
         bp = _BackgroundProcess(
             process=process,
             stdout_cap=stdout_cap,
@@ -197,6 +211,7 @@ class _ShellBackgroundRegistry:
             owner_session_id=get_current_chat_session_id(),
         )
         self._procs[handle] = bp
+        _start_watch(ledger, handle, process.pid)
         bp.tasks = [
             asyncio.ensure_future(self._read_pipe(handle, process.stdout, "stdout")),
             asyncio.ensure_future(self._read_pipe(handle, process.stderr, "stderr")),

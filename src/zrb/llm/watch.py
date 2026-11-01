@@ -25,6 +25,8 @@ import os
 import re
 import threading
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from html import escape
@@ -50,11 +52,19 @@ DELIVERED = "delivered"
 # Sessions kept apart in the prompt: a long-lived session should not crowd the
 # live context out with watches nobody will read.
 MAX_RENDERED_WATCHES = 5
-# How long a compaction waits for another zrb process to finish folding the same
-# session's file, before leaving it alone this time.
-COMPACT_LOCK_TIMEOUT = 1.0
+# How long a write waits for another zrb process working on the same session's
+# file. A ledger that cannot be written costs the record, never the work it was
+# recording, so this is short enough to give up and long enough to outlast the
+# one thing that holds it: another process folding the same file.
+LEDGER_LOCK_TIMEOUT = 5.0
 # How much of a command or purpose the ledger keeps.
 MAX_WHAT_CHARS = 120
+
+
+class LedgerUnavailable(OSError):
+    """This ledger could not be written just now: another zrb holds it, or the
+    disk refused. It is an `OSError` because that is what every caller already
+    treats as "the record is lost, not the work"."""
 
 
 def _now() -> str:
@@ -153,6 +163,43 @@ class WatchLedger:
         self.path = os.path.join(directory, _ledger_filename(session))
         self._lock = threading.Lock()
 
+    @contextmanager
+    def _hold(self) -> Iterator[None]:
+        """Hold the lock that makes a read-modify-write of this file one step.
+
+        Two zrb processes can share one session's ledger, so every write takes
+        the file lock. An append is a single small write and would survive on its
+        own; a compaction rewrites the whole file from what it read, and a row
+        appended between that read and the replace would be gone. So the fold
+        reads inside the lock, and appends take the same lock, because the point
+        of the lock is that nobody writes outside it.
+        """
+        with self._lock:
+            os.makedirs(self.directory, exist_ok=True)
+            try:
+                with hold_file_lock(f"{self.path}.lock", timeout=LEDGER_LOCK_TIMEOUT):
+                    yield
+            except FileLockTimeout as e:
+                raise LedgerUnavailable(str(e)) from e
+
+    def _write_row(self, row: dict) -> None:
+        """Append one row. Only ever called while `_hold` is held."""
+        _write_private(self.path, _encode(row) + "\n", append=True)
+
+    def _write_end(
+        self, watch_id: str, state: str, exit_code: int | None = None
+    ) -> None:
+        """Write the one row that closes a watch. Only while `_hold` is held."""
+        self._write_row(
+            {
+                "op": ENDED,
+                "id": watch_id,
+                "state": state,
+                "exit_code": exit_code,
+                "ended_at": _now(),
+            }
+        )
+
     def open(
         self,
         watch_id: str,
@@ -186,43 +233,30 @@ class WatchLedger:
         self, watch_id: str, exit_code: int | None = None, killed: bool = False
     ) -> None:
         """Record how a watch ended: its exit code, or that it was killed."""
-        self._append(
-            {
-                "op": ENDED,
-                "id": watch_id,
-                "state": KILLED if killed else FINISHED,
-                "exit_code": exit_code,
-                "ended_at": _now(),
-            }
-        )
+        state = KILLED if killed else FINISHED
+        with self._hold():
+            self._write_end(watch_id, state, exit_code)
 
     def lose(self, watch_id: str) -> None:
         """Record that a watch's ending was never seen — not that it is running."""
-        self._append(
-            {
-                "op": ENDED,
-                "id": watch_id,
-                "state": LOST,
-                "ended_at": _now(),
-            }
-        )
+        with self._hold():
+            self._write_end(watch_id, LOST)
 
     def fail(self, watch_id: str) -> None:
         """Record that the work never started, which is not an unknown outcome."""
-        self._append(
-            {
-                "op": ENDED,
-                "id": watch_id,
-                "state": FAILED,
-                "ended_at": _now(),
-            }
-        )
+        with self._hold():
+            self._write_end(watch_id, FAILED)
 
     def mark_delivered(self, watch_ids: list[str]) -> None:
         """Say that these outcomes have been shown, once and for all."""
+        with self._hold():
+            self._mark_delivered(watch_ids)
+
+    def _mark_delivered(self, watch_ids: list[str]) -> None:
+        """Mark rows delivered. Only while `_hold` is held."""
         at = _now()
         for watch_id in watch_ids:
-            self._append({"op": DELIVERED, "id": watch_id, "at": at})
+            self._write_row({"op": DELIVERED, "id": watch_id, "at": at})
 
     def records(self) -> list[WatchRecord]:
         """Every watch this session has opened, folded to its current state."""
@@ -263,73 +297,39 @@ class WatchLedger:
         process is confirmed absent.
         """
         lost: list[str] = []
-        for record in self.records():
-            if record.state != RUNNING or record.instance == _INSTANCE:
-                continue
-            if _is_alive(record.pid):
-                continue
-            self.lose(record.id)
-            lost.append(record.id)
+        with self._hold():
+            for record in self.records():
+                if record.state != RUNNING or record.instance == _INSTANCE:
+                    continue
+                if _is_alive(record.pid):
+                    continue
+                self._write_end(record.id, LOST)
+                lost.append(record.id)
         return lost
 
     def compact(self) -> None:
         """Rewrite the file with only the watches that still say something.
 
         A session that opens its ledger does this once, so a year of finished
-        and delivered watches cannot become a megabyte read on every turn.
+        and delivered watches cannot become a megabyte read on every turn. The
+        rows are read *inside* the lock that guards the rewrite: reading first
+        and locking later would fold a file that has already moved on, and every
+        row appended in between would be silently rewritten away.
         """
-        keep = [
-            record
-            for record in self.records()
-            if record.state == RUNNING or record.is_unread()
-        ]
-        lines: list[str] = []
-        for record in keep:
-            lines.append(
-                _encode(
-                    {
-                        "op": OPENED,
-                        "id": record.id,
-                        "session": record.session,
-                        "kind": record.kind,
-                        "what": record.what,
-                        "opened_at": record.opened_at,
-                        "outcome": record.outcome,
-                        "recheck": record.recheck,
-                        "instance": record.instance,
-                        "pid": record.pid,
-                        "state": RUNNING,
-                        "exit_code": None,
-                        "ended_at": "",
-                    }
-                )
-            )
-            if record.state != RUNNING:
-                lines.append(
-                    _encode(
-                        {
-                            "op": ENDED,
-                            "id": record.id,
-                            "state": record.state,
-                            "exit_code": record.exit_code,
-                            "ended_at": record.ended_at,
-                        }
-                    )
-                )
-        with self._lock:
-            try:
-                # Two zrb processes can share one session's file. An append is a
-                # single small write, but a rewrite is read-modify-write: without
-                # this lock, one process compaction would silently drop the rows
-                # the other had just appended.
-                with hold_file_lock(f"{self.path}.lock", timeout=COMPACT_LOCK_TIMEOUT):
-                    os.makedirs(self.directory, exist_ok=True)
-                    temporary = f"{self.path}.tmp"
-                    _write_private(temporary, "".join(line + "\n" for line in lines))
-                    os.replace(temporary, self.path)
-            except FileLockTimeout:
-                # Another process is folding the same file; its result serves.
-                return
+        try:
+            with self._hold():
+                lines = [
+                    line
+                    for record in self.records()
+                    if record.state == RUNNING or record.is_unread()
+                    for line in _fold_lines(record)
+                ]
+                temporary = f"{self.path}.tmp"
+                _write_private(temporary, "".join(line + "\n" for line in lines))
+                os.replace(temporary, self.path)
+        except LedgerUnavailable:
+            # Another process is folding the same file; its result serves.
+            return
 
     def render_lines(self, skip: "set[str] | None" = None) -> list[str]:
         """The live-context lines for this session's unread watches.
@@ -337,24 +337,31 @@ class WatchLedger:
         *skip* names the watches the caller already reports in full — a handle
         the live registry still holds — so the block says each fact once.
         Rendering is delivery: an outcome is shown once and then marked, so a
-        quiet session costs no prompt at all.
+        quiet session costs no prompt at all. Choosing the rows and marking them
+        happen under one lock, because two turns rendering at the same moment
+        would otherwise both see an unread outcome and both show it.
         """
         hidden_ids = skip or set()
-        unread = [record for record in self.unread() if record.id not in hidden_ids]
-        if not unread:
+        try:
+            with self._hold():
+                unread = [
+                    record for record in self.unread() if record.id not in hidden_ids
+                ]
+                shown = unread[:MAX_RENDERED_WATCHES]
+                self._mark_delivered([record.id for record in shown])
+                hidden = len(unread) - len(shown)
+        except LedgerUnavailable:
+            # Another zrb is writing this ledger; nothing is marked, so the next
+            # turn can show these rather than dropping them.
             return []
-        shown = unread[:MAX_RENDERED_WATCHES]
         lines = [_render(record) for record in shown]
-        hidden = len(unread) - len(shown)
         if hidden:
             lines.append(f"  {hidden} more watch(es) finished; see {self.path}")
-        self.mark_delivered([record.id for record in shown])
         return lines
 
     def _append(self, row: dict) -> None:
-        with self._lock:
-            os.makedirs(self.directory, exist_ok=True)
-            _write_private(self.path, _encode(row) + "\n", append=True)
+        with self._hold():
+            self._write_row(row)
 
     def _read_rows(self) -> list[dict]:
         try:
@@ -408,6 +415,47 @@ def _write_private(path: str, content: str, append: bool = False) -> None:
         pass
     with os.fdopen(descriptor, "a", encoding="utf-8") as stream:
         stream.write(content)
+
+
+def _fold_lines(record: WatchRecord) -> list[str]:
+    """The rows that keep *record* as it stands, after a compaction.
+
+    A kept watch is written as the pair its two events fold to: what was opened,
+    and — for one that has ended — how. Nothing is lost by dropping the rest of
+    its history, because the fold of these two rows is the same record.
+    """
+    lines = [
+        _encode(
+            {
+                "op": OPENED,
+                "id": record.id,
+                "session": record.session,
+                "kind": record.kind,
+                "what": record.what,
+                "opened_at": record.opened_at,
+                "outcome": record.outcome,
+                "recheck": record.recheck,
+                "instance": record.instance,
+                "pid": record.pid,
+                "state": RUNNING,
+                "exit_code": None,
+                "ended_at": "",
+            }
+        )
+    ]
+    if record.state != RUNNING:
+        lines.append(
+            _encode(
+                {
+                    "op": ENDED,
+                    "id": record.id,
+                    "state": record.state,
+                    "exit_code": record.exit_code,
+                    "ended_at": record.ended_at,
+                }
+            )
+        )
+    return lines
 
 
 def _render(record: WatchRecord) -> str:
