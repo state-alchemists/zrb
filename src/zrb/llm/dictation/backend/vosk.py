@@ -310,9 +310,13 @@ async def download_vosk_model(
     except Exception as exc:
         raise _download_error(exc) from exc
 
-    download, zip_path = tempfile.mkstemp(
-        prefix=f".{model_name}-", suffix=".zip", dir=cache
-    )
+    try:
+        download, zip_path = tempfile.mkstemp(
+            prefix=f".{model_name}-", suffix=".zip", dir=cache
+        )
+    except OSError:
+        resp.close()
+        raise
     try:
         downloaded = 0
         try:
