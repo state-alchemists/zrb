@@ -1,6 +1,6 @@
 import pytest
 
-from zrb.llm.speech.text import clean_for_speech, fill_template
+from zrb.llm.speech.text import clean_for_speech, fill_template, without_blockquotes
 
 
 def test_clean_drops_code_tables_urls_and_markup():
@@ -31,6 +31,33 @@ print("never read aloud")
 
 def test_clean_turns_arrows_and_dashes_into_words():
     assert clean_for_speech("a → b — c") == "a to b, c"
+
+
+def test_a_quote_is_left_out_of_what_is_read_aloud():
+    """A quote in a reply is typography: shown set off, never said. A reply that
+    opens no block is read whole except for the paragraphs it quoted."""
+    reply = "Here is the line:\n\n> the whole world is a stage\n\nand that is it."
+
+    assert without_blockquotes(reply) == "Here is the line:\n\n\nand that is it."
+    assert "stage" not in clean_for_speech(without_blockquotes(reply))
+    assert "the whole world is a stage" in clean_for_speech(reply)
+
+
+def test_a_quote_takes_its_lazy_continuation_lines_with_it():
+    """A quoted paragraph keeps the lines under it that carry no `>`, so removing
+    only the marked line would leave half of the quote in the ear."""
+    reply = "The excerpt is:\n\n> first line of the quote\nand its continuation.\n\nDone."
+
+    spoken = clean_for_speech(without_blockquotes(reply))
+
+    assert "continuation" not in spoken
+    assert "The excerpt is" in spoken and "Done" in spoken
+
+
+def test_a_line_that_begins_a_block_ends_the_quote():
+    reply = "> quoted\n- item one\n> quoted again"
+
+    assert without_blockquotes(reply) == "- item one"
 
 
 @pytest.mark.parametrize(

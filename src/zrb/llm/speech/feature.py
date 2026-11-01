@@ -30,7 +30,12 @@ from zrb.llm.speech.progress import (
 )
 from zrb.llm.speech.streamed_reply import StreamedReply
 from zrb.llm.speech.summary import SpeechSummarizer
-from zrb.llm.speech.text import clean_for_speech, fill_template, match_tool_phrase
+from zrb.llm.speech.text import (
+    clean_for_speech,
+    fill_template,
+    match_tool_phrase,
+    without_blockquotes,
+)
 from zrb.llm.util.feature_config import (
     current_session_key,
     get_session_ui,
@@ -473,7 +478,9 @@ class SpeechSession:
             # A block with nothing in it: the model said nothing is to be read
             # aloud, which is not the same as saying nothing about what is.
             return
-        text = clean_for_speech(reply if spoken is None else spoken)
+        text = clean_for_speech(
+            without_blockquotes(reply) if spoken is None else spoken
+        )
         voice = self._get_voice(get_current_reply_emotion())
         if not self._summarize_above_chars or len(text) <= self._summarize_above_chars:
             self._say(text, voice=voice)
