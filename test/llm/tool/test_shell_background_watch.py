@@ -6,15 +6,13 @@ These tests hold the join between them, and the one line the next turn gets.
 
 import asyncio
 import os
+import sys
 
 import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.prompt import live_context
-from zrb.llm.tool.shell_background import (
-    _release_process,
-    get_shell_background_registry,
-)
+from zrb.llm.tool.shell_background import get_shell_background_registry
 from zrb.llm.watch import WatchLedger, reset_watch_ledgers
 
 
@@ -100,12 +98,11 @@ async def test_a_shutdown_kill_closes_the_watch(watch_dir):
     registry = get_shell_background_registry()
 
     handle = await registry.start("sleep 30", "", "Killed at shutdown")
-    bp = registry._procs[handle]
     registry.force_kill_all()
     # The atexit path never looks back; the test must, or the dead process's
-    # transport is collected unclosed inside whichever test runs next.
-    await bp.process.wait()
-    _release_process(bp)
+    # transport is collected unclosed inside whichever test runs next. Once the
+    # loop turns, it sees the pipes close and the transport closes itself.
+    await asyncio.sleep(0.5)
 
     (record,) = WatchLedger(str(watch_dir), "_").records()
     assert record.id == handle
@@ -126,6 +123,9 @@ async def test_a_shutdown_does_not_relabel_a_finished_process(watch_dir):
     assert record.exit_code == 0
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows has no sh to wrap the command"
+)
 @pytest.mark.asyncio
 async def test_a_ledger_that_cannot_record_the_ending_still_leaves_one(
     watch_dir, monkeypatch
