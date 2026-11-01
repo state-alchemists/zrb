@@ -6,6 +6,8 @@ the note being contradicted in front of it too, and pin that a write about an
 unrelated subject stays quiet.
 """
 
+import os
+
 import pytest
 
 
@@ -25,7 +27,12 @@ def writable_journal(tmp_path):
         yield str(root)
 
 
-def _write(title: str, slug: str, keywords: list[str]) -> str:
+def _read(*parts: str) -> str:
+    with open(os.path.join(*parts), "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _write(title: str, slug: str, keywords: list[str] | None) -> str:
     from zrb.llm.tool.journal_write import write_journal_note
 
     return write_journal_note(
@@ -78,3 +85,20 @@ def test_a_write_about_something_else_names_nothing(writable_journal):
     )
 
     assert "Nearby:" not in result
+
+
+def test_a_revision_without_keywords_scores_the_ones_the_file_keeps(writable_journal):
+    """A revision that omits `keywords` keeps the file's, so the neighbour search
+    must score those — not the empty list the caller passed. Otherwise a note whose
+    only tie to another is its keyword list is one the write can never see, and the
+    hint fails exactly where it is most needed: on a revision."""
+    _write("Retries exhaust the pool", "db-retry", ["postgres", "database"])
+    _write("Sizing the read replica", "pool-sizing", ["postgres", "database"])
+
+    result = _write("Retries exhaust the pool on a cold start", "db-retry", None)
+
+    assert "keywords: postgres, database" in _read(
+        writable_journal, "technical", "db-retry.md"
+    )
+    assert "Nearby:" in result
+    assert "technical/pool-sizing.md" in result

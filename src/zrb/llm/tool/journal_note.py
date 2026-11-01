@@ -238,6 +238,23 @@ def derive_keywords(slug: str, title: str) -> str:
     )
 
 
+def effective_keywords(slug: str, title: str, given: str, prior: str) -> str:
+    """The `keywords:` value a write actually stores: given, else the file's, else ours.
+
+    The fallback is why anything reading a note's subject must come through here
+    rather than use the words the caller happened to pass. A revision that omits
+    `keywords` keeps the ones already on disk, and a brand-new note derives them
+    from its own slug and title, so what the caller supplied is not what the note
+    says — and two callers computing "what is this note about" two different ways
+    is how a note ends up with a neighbour it cannot see.
+    """
+    return (
+        normalize_keywords(given.split(","))
+        or normalize_keywords(prior.split(","))
+        or derive_keywords(slug, title)
+    )
+
+
 def _keyword(value: str) -> str:
     """One keyword: lower-case, no surrounding punctuation a sentence brought."""
     return one_line(value).strip().lower().strip(",.`'\"()[]:;!?")
@@ -422,15 +439,16 @@ def claim_frontmatter(fields: "dict[str, str]", existing: str) -> list[str]:
 
     `hud_line` is mandatory and arrives already checked, so it is written as
     given — nothing here invents or replaces one. `keywords` is the only field a
-    caller may omit, and it has a fallback rather than an absence: the keywords
-    come from the file when it has them and from the slug and title when it does
-    not, so a note nobody chose keywords for is still one a later session finds.
+    caller may omit, and it has a fallback rather than an absence (see
+    `effective_keywords`), so a note nobody chose keywords for is still one a
+    later session finds.
     """
     prior = parse_frontmatter(existing)
-    keywords = (
-        normalize_keywords(fields.get("keywords", "").split(","))
-        or normalize_keywords(prior.get("keywords", "").split(","))
-        or derive_keywords(fields["slug"], fields["title"])
+    keywords = effective_keywords(
+        fields["slug"],
+        fields["title"],
+        fields.get("keywords", ""),
+        prior.get("keywords", ""),
     )
     lines = [
         f"slug: {fields['slug']}",

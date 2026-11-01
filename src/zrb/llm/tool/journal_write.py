@@ -61,10 +61,10 @@ from zrb.llm.tool.journal_note import (
     check_hud_line,
     check_slug,
     compose_note,
+    effective_keywords,
     format_stamp,
     list_notes,
     next_stamp,
-    normalize_keywords,
     one_line,
     parse_frontmatter,
     read_text,
@@ -621,7 +621,15 @@ def _write_note_locked(
     previous = next((note for note in notes if note.rel == note_rel), None)
     line, is_pinned = _hud_state(hud_line, pinned, previous, notes, note_rel)
     targets = _resolve_links(root, links or [])
-    words = normalize_keywords(keywords or [])
+    # The keywords the note will *store*, not the ones the caller passed: a
+    # revision that omits them keeps the file's, so scoring the neighbour search
+    # on the caller's empty list would read the note as having no subject.
+    words = effective_keywords(
+        slug,
+        title,
+        ", ".join(keywords or []),
+        previous.keywords if previous else "",
+    )
     fields = {
         "slug": slug,
         "title": title,
