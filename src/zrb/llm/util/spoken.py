@@ -11,7 +11,9 @@ that instead of falling silent.
 
 On screen the block is set off as a markdown blockquote, so a reader sees at a
 glance which part of the reply is also being read aloud — the markers are gone,
-and without the quote the spoken sentences would look like just more prose.
+and without the quote the spoken sentences would look like just more prose. A
+quote the reply writes for itself is the other way round: typography, shown and
+never said, because only a block reaches the ear.
 
 That quote belongs to the durable copy, the one `shown_text` renders once the
 turn ends. The copy a reply streams into while it is still being written stays
@@ -25,7 +27,9 @@ They share the rules below, so the two copies of a reply cannot disagree: a
 block is opened by `<spoken>` and closed by the next `</spoken>`, markers do not
 nest, an unclosed block runs to the end, and several blocks are read in order.
 A marker is always taken out of the screen copy — a stray `</spoken>` included,
-which opens nothing and leaves the whole reply spoken.
+which opens nothing and leaves the whole reply spoken. A tag written inside an
+inline code span or a fenced block is the tag being quoted, not used: it opens
+nothing, and both copies leave it where the reply put it.
 """
 
 from __future__ import annotations
@@ -39,6 +43,8 @@ _TAGS = (OPEN_TAG, CLOSE_TAG)
 QUOTE_MARKER = "> "
 # The longest tag less its last character: a delta can end anywhere inside one.
 _LONGEST_PARTIAL_TAG = max(len(tag) for tag in _TAGS) - 1
+# How many backticks or tildes open a fenced block; one or two are inline code.
+_FENCE_MIN = 3
 
 
 def partial_marker(text: str) -> str:
@@ -71,12 +77,13 @@ def split_spoken(text: str) -> tuple[str | None, str]:
     (`SpokenSplitter`).
     """
     splitter = SpokenSplitter()
-    if OPEN_TAG in text:
+    is_spoken = _is_spoken_reply(text)
+    if is_spoken:
         splitter.speak_only_blocks()
     shown, spoken = splitter.feed(text)
     rest_shown, rest_spoken = splitter.flush()
     shown, spoken = shown + rest_shown, spoken + rest_spoken
-    if OPEN_TAG not in text:
+    if not is_spoken:
         return None, shown
     return spoken, shown
 
@@ -107,6 +114,7 @@ class SpokenSplitter:
         self._speaks_outside = True
         self._has_spoken = False
         self._has_block = False
+        self._scanner = _MarkerScanner()
         self._held = ""
 
     @property
@@ -148,7 +156,7 @@ class SpokenSplitter:
         spoken: list[str] = []
         cursor = 0
         while cursor < len(text):
-            found = _next_tag(text, cursor)
+            found = self._scanner.find(text, cursor)
             end = len(text) if found is None else found[0]
             piece = text[cursor:end]
             if piece:
@@ -191,13 +199,116 @@ def _next_tag(text: str, start: int) -> tuple[int, int] | None:
 
 def _marker_spans(text: str) -> Iterator[tuple[int, int]]:
     """Every marker in *text*, in order, as ``(begin, end)``."""
+    scanner = _MarkerScanner()
     cursor = 0
     while True:
-        found = _next_tag(text, cursor)
+        found = scanner.find(text, cursor)
         if found is None:
             return
         yield found
         cursor = found[1]
+
+
+def _is_spoken_reply(text: str) -> bool:
+    """Whether *text* opens a block, as opposed to naming the tag in code."""
+    scanner = _MarkerScanner()
+    cursor = 0
+    while True:
+        found = scanner.find(text, cursor)
+        if found is None:
+            return False
+        if text[found[0] : found[1]] == OPEN_TAG:
+            return True
+        cursor = found[1]
+
+
+class _MarkerScanner:
+    """Which tags in a reply are markers, and which are the tag being written
+    about.
+
+    A reply explaining the syntax writes `<spoken>` inside backticks or a fenced
+    block, and that is content: read as a marker it opens a block that never
+    closes, so the rest of the reply is shown as a quote and said aloud. The
+    state that tells the two apart — the fence we are in, the backticks opened on
+    the line so far — is kept across calls, so the whole-reply and streaming
+    copies decide with one rule.
+
+    Only the shapes a reply actually writes are recognized: a fenced block, and a
+    same-line backtick span. An indented code block is not, no more than it is
+    for `clean_for_speech`.
+    """
+
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        """Start a reply: no fence open, no line begun."""
+        self._fence_mark = ""
+        self._fence_size = 0
+        self._line = ""
+
+    def find(self, text: str, start: int) -> tuple[int, int] | None:
+        """The first marker in *text* at or after *start*, or ``None``.
+
+        Everything read on the way is taken into the code state, so a tag that
+        sits in code is passed over as content instead of being yielded.
+        """
+        cursor = start
+        while True:
+            found = _next_tag(text, cursor)
+            if found is None:
+                self._take(text[cursor:])
+                return None
+            self._take(text[cursor : found[0]])
+            if not self._is_code():
+                return found
+            self._take(text[found[0] : found[1]])
+            cursor = found[1]
+
+    def _take(self, chunk: str) -> None:
+        """Read *chunk* into the open line and the fence state, a finished line
+        at a time; the last line is still open and may grow."""
+        lines = (self._line + chunk).split("\n")
+        self._line = lines.pop()
+        for line in lines:
+            self._close_line(line)
+
+    def _close_line(self, line: str) -> None:
+        """Let *line* decide the fence the next one starts in: an opening run of
+        three or more, then a run at least as long with nothing after it."""
+        mark, size = _leading_run(line)
+        if not self._fence_mark:
+            if size >= _FENCE_MIN:
+                self._fence_mark, self._fence_size = mark, size
+            return
+        is_closer = (
+            mark == self._fence_mark
+            and size >= self._fence_size
+            and not line.lstrip(" \t")[size:].strip()
+        )
+        if is_closer:
+            self._fence_mark, self._fence_size = "", 0
+
+    def _is_code(self) -> bool:
+        """Whether a tag at the end of the open line is code: inside a fence, on
+        the line that opens one, or between the backticks of a span."""
+        if self._fence_mark:
+            return True
+        mark, size = _leading_run(self._line)
+        if mark == "`" and size >= _FENCE_MIN:
+            return True
+        return self._line.count("`") % 2 == 1
+
+
+def _leading_run(line: str) -> tuple[str, int]:
+    """The fence candidate *line* opens with: the character and how many of it,
+    counted from the first one that is not indentation."""
+    stripped = line.lstrip(" \t")
+    if not stripped or stripped[0] not in "`~":
+        return "", 0
+    mark = stripped[0]
+    return mark, len(stripped) - len(stripped.lstrip(mark))
+
 
 
 def _quote_blocks(text: str) -> str:

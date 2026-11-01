@@ -18,6 +18,8 @@ _LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 _URL_RE = re.compile(r"<?https?://(?:[^\s<>()]|\([^\s<>()]*\))+(?<![.,;:!?])>?")
 _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
 _QUOTE_RE = re.compile(r"^\s{0,3}>\s?", re.MULTILINE)
+# A whole quoted line, marker and words: a quote is shown, never read aloud.
+_QUOTE_LINE_RE = re.compile(r"^[ \t]{0,3}>.*\n?", re.MULTILINE)
 _RULE_RE = re.compile(r"^\s*([-*_])(\s*\1){2,}\s*$", re.MULTILINE)
 _BULLET_RE = re.compile(r"^\s*[-*+]\s+", re.MULTILINE)
 # Emphasis markers, matched as pairs and never inside a word, so
@@ -69,6 +71,18 @@ def clean_for_speech(text: str) -> str:
 def is_table_line(line: str) -> bool:
     """Whether *line* is a table's row or its separator row."""
     return bool(_TABLE_ROW_RE.match(line) or _TABLE_SEPARATOR_RE.match(line))
+
+
+def without_blockquotes(text: str) -> str:
+    """*text* with the lines it quoted taken out.
+
+    A quote in a reply is typography: set off on screen, never read aloud. Only
+    a `<spoken>` block reaches the ear, so a reply that opens no block is read
+    whole except for the paragraphs it quoted — quoting the changelog is not
+    asking to have the changelog read out. A quote *inside* a block is left
+    alone: there the model asked for it.
+    """
+    return _QUOTE_LINE_RE.sub("", text)
 
 
 def _strip_tables(text: str) -> str:
