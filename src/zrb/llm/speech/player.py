@@ -533,8 +533,7 @@ class Speaker:
 
         Asked for at the start of every turn and answered once per backend set:
         a call made while one is loading, or after one has loaded, does nothing.
-        The model is what the wait was ever for — a thread per turn queued
-        behind the same load is how one chat ended up with 38 of them parked.
+        A thread per turn would only queue behind the same load.
 
         The set this warm-up belongs to is read here, with the generation, when
         it is already cached: a set built later is the thread's to build, and it
@@ -568,10 +567,9 @@ class Speaker:
         finally:
             with self._lock:
                 # The thread is over, whatever generation it served. A restart
-                # that cleared this flag instead is what let every turn park
-                # another thread behind a load that never finished; leaving it
-                # up here only costs the next `warm_up`, which the turn after
-                # the restart makes.
+                # clearing this flag instead would let every turn park another
+                # thread behind a load that never finishes; clearing it here
+                # only costs the next `warm_up`, which the next turn makes.
                 self._is_warming_up = False
                 if generation == self._warm_up_generation:
                     self._is_warmed_up = True
@@ -655,8 +653,8 @@ class Speaker:
             # A warm-up still running is warming what `_backends` no longer
             # holds: its completion must not mark the fresh set warm, and the
             # set it leaves behind is a new generation's to warm. The guard
-            # stays up until that thread ends — clearing it here is what let
-            # every turn park another one behind the same stuck load.
+            # stays up until that thread ends: clearing it here would let every
+            # turn park another one behind the same stuck load.
             self._warm_up_generation += 1
             self._is_warmed_up = False
         if failed_renders:
@@ -812,8 +810,8 @@ class Speaker:
         """Let the backends go for good; a closed speaker builds no more.
 
         Only the ones zrb built are closed. A backend the caller supplied is the
-        caller's to close: closing it left every later session of a chat reusing
-        a dead one, and each of its sentences falling back to another voice."""
+        caller's to close: closing it would leave every later session of a chat
+        reusing a dead one, each sentence falling back to another voice."""
         with self._lock:
             self._backends = []
             owned, self._owned_backends = self._owned_backends, []

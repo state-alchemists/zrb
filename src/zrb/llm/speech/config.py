@@ -26,9 +26,8 @@ class SpeechConfig:
     *volume* is a percentage of the speech's own level, 0-200, and applies
     where zrb plays the audio itself — a player program keeps its own.
 
-    *player_prebuffer_seconds* is the newest field but one, and *chunk_max_chars*
-    the newest: a dataclass is positional too, so a field added in the middle
-    would rebind every field after it for a caller that passes them that way.
+    New fields go at the end: a caller may pass them positionally, and a field
+    inserted earlier would shift every argument after it.
     """
 
     enabled: bool | None = None

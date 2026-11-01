@@ -32,7 +32,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 # only passes values through to `json.dumps`.
 # -3 (1052->1049): the two echo emitters take an `AnyUI` target and
 # `_restore_snapshot` takes a `SnapshotManager`.
-ANY_ANNOTATIONS = 1049
+# -1 (1049->1048): the ffmpeg camera backend's device cache is typed fields
+# rather than a `dict[str, Any]`.
+ANY_ANNOTATIONS = 1048
 
 
 def _count_any(annotation: ast.expr | None) -> int:

@@ -10,7 +10,7 @@ import platform
 import shutil
 import tempfile
 from collections.abc import Callable
-from typing import Any
+from typing import Any, BinaryIO
 
 from zrb.config.config import CFG
 from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
@@ -35,7 +35,8 @@ class VoskDownloadLimits:
 
     A model zip comes from a URL the user configures, so it is untrusted
     input: a hostile or mistyped one can claim any size, and an archive that
-    looks small can expand without bound. Every limit is ``0`` for no limit.
+    looks small can expand without bound. Every limit is ``0`` for no limit; one
+    left ``None`` is read from its `CFG.LLM_DICTATION_VOSK_MAX_*` setting.
     """
 
     def __init__(
@@ -45,24 +46,18 @@ class VoskDownloadLimits:
         max_file_mb: float | None = None,
         max_files: float | None = None,
     ) -> None:
-        prefix = "LLM_DICTATION_VOSK"
-        self.max_download = _megabytes(max_download_mb, f"{prefix}_MAX_DOWNLOAD_MB")
-        self.max_uncompressed = _megabytes(
-            max_uncompressed_mb, f"{prefix}_MAX_UNCOMPRESSED_MB"
-        )
-        self.max_file = _megabytes(max_file_mb, f"{prefix}_MAX_FILE_MB")
-        self.max_files = _count(max_files, f"{prefix}_MAX_FILES")
-
-
-def _megabytes(value: float | None, knob: str) -> int:
-    """Megabytes as bytes; ``None`` reads the knob, ``0`` means no limit."""
-    megabytes = getattr(CFG, knob) if value is None else value
-    return int(megabytes * MEGABYTE)
-
-
-def _count(value: float | None, knob: str) -> int:
-    """A member count; ``None`` reads the knob, ``0`` means no limit."""
-    return int(getattr(CFG, knob) if value is None else value)
+        if max_download_mb is None:
+            max_download_mb = CFG.LLM_DICTATION_VOSK_MAX_DOWNLOAD_MB
+        if max_uncompressed_mb is None:
+            max_uncompressed_mb = CFG.LLM_DICTATION_VOSK_MAX_UNCOMPRESSED_MB
+        if max_file_mb is None:
+            max_file_mb = CFG.LLM_DICTATION_VOSK_MAX_FILE_MB
+        if max_files is None:
+            max_files = CFG.LLM_DICTATION_VOSK_MAX_FILES
+        self.max_download = int(max_download_mb * MEGABYTE)
+        self.max_uncompressed = int(max_uncompressed_mb * MEGABYTE)
+        self.max_file = int(max_file_mb * MEGABYTE)
+        self.max_files = int(max_files)
 
 
 class _TooLarge(RuntimeError):
@@ -108,8 +103,8 @@ class VoskDictationBackend(AnyDictationBackend):
         await self._download()
 
     async def transcribe(self, audio: bytes) -> str:
-        """Everything spoken in *audio*: push-to-talk submits this to the input
-        box for the user to edit, so no word of it is dropped as doubtful."""
+        """Everything spoken in *audio*: push-to-talk submits this like typed
+        text, so no word of it is dropped as doubtful."""
         return (await self._recognize(audio)).get("text", "")
 
     async def transcribe_speech(self, audio: bytes) -> str:
@@ -270,9 +265,7 @@ async def download_vosk_model(
     model_url: str,
     timeout: float | None = 120.0,
     limits: "VoskDownloadLimits | None" = None,
-) -> (
-    str
-):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
+) -> str:
     """Download and extract a Vosk model, waiting at most *timeout* seconds
     (``0`` or ``None``: uncapped) for the server to answer.
 
@@ -317,9 +310,13 @@ async def download_vosk_model(
     except Exception as exc:
         raise _download_error(exc) from exc
 
-    download, zip_path = tempfile.mkstemp(
-        prefix=f".{model_name}-", suffix=".zip", dir=cache
-    )
+    try:
+        download, zip_path = tempfile.mkstemp(
+            prefix=f".{model_name}-", suffix=".zip", dir=cache
+        )
+    except OSError:
+        resp.close()
+        raise
     try:
         downloaded = 0
         try:
@@ -455,15 +452,12 @@ def _mb(size: int) -> str:
     return f"{size / MEGABYTE:g}"
 
 
-def _close_response_quietly(response: object) -> None:
+def _close_response_quietly(response: BinaryIO) -> None:
     """Close a response left by a cancelled ``urlopen`` worker.
 
     Suppress errors because the download already failed with cancellation.
     """
-    close = getattr(response, "close", None)
-    if close is None:
-        return
     try:
-        close()
+        response.close()
     except OSError:
         pass
