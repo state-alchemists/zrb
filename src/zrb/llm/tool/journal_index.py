@@ -91,6 +91,16 @@ def hud_line_of(note: Note) -> str:
     return f"- {pin}{note.hud_line} ([note]({note.rel}))"
 
 
+def is_pinned_line(line: str) -> bool:
+    """Whether a HUD line carries the pin marker where `hud_line_of` writes it.
+
+    The marker is looked for after the bullet rather than anywhere in the line: a
+    note's own text may contain `📌 ` without the note being pinned, and the
+    reader that ranks a capped index would otherwise promote that line over a
+    constraint that really holds every turn."""
+    return line.removeprefix("- ").lstrip().startswith(PIN_MARKER)
+
+
 def plan_hud(notes: list[Note], cap: int) -> dict[str, HudSection]:
     """Each HUD section's lines from the active notes that have a `hud_line`.
 

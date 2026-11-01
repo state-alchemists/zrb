@@ -217,7 +217,9 @@ def test_the_injected_snapshot_keeps_the_newest_recent_lines(
 ):
     _notes(10)
     text = _read(writable_journal)
-    limit = text.index("- Headline 07") + 5
+    # A cap that covers the newest seven lines: a quarter of it pays for the note
+    # that says what did not fit, so the body lands around the newest five.
+    limit = text.index("- Headline 03") + 5
 
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = writable_journal
