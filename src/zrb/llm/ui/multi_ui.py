@@ -19,7 +19,7 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.any_ui import AnyUI
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT, InputProvenance
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
@@ -621,7 +621,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """
         main_ui = self.main_ui
         recorder = getattr(main_ui, "record_submitted_message", None)
-        if recorder is not None:
+        # A background notice is not something the user typed: no recall for it.
+        if recorder is not None and source != BACKGROUND_INPUT:
             recorder(user_message)
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,

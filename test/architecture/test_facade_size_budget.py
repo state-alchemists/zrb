@@ -120,7 +120,8 @@ FACADE_BUDGETS = {
     # +6 (1313->1319): `withdraw_message`, the counterpart of `submit_message` --
     # a sender whose queued message became moot (a background command's wake-up,
     # after the model fetched the result) takes it back; new surface.
-    "llm/ui/base/ui.py": 1319,
+    # +1 (1319->1320): a background notice is not recorded for input recall.
+    "llm/ui/base/ui.py": 1320,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
