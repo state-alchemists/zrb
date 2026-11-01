@@ -73,7 +73,10 @@ target_inventory.add(
 |------|---------|
 | `✅ ok` | TCP port accepted a connection |
 | `✅ 200`, `✅ 404` | HTTP got a response; any status code counts as connected |
-| `❌ fail` | No connection, or no response within 5 seconds |
+| `❌ refused` | The host answered and nothing listens on that port |
+| `❌ timeout` | No answer within 5 seconds, usually a firewall |
+| `❌ dns` | The name did not resolve from the checking host |
+| `❌ fail` | Any other failure, such as no route to the host |
 | `➖ n/a` | The host has no `bash`/`nc` (TCP) or `curl` (HTTP); no Python is needed |
 | `❌ error` | The host never reported: SSH failed, the host timed out, or the command failed |
 

@@ -54,7 +54,12 @@ class WebMixin:
     )
 
     WEB_COLOR = EnvField(
-        str, doc="Primary brand color for the web UI (CSS color value, e.g. #3b82f6)."
+        str,
+        doc=(
+            "Pico CSS theme color name for the web UI (`amber`, `blue`, ...); it "
+            "selects the bundled `pico.<color>.min.css`, so it is a name, not a "
+            "CSS color value. Empty uses Pico's default theme."
+        ),
     )
 
     WEB_HTTP_HOST = EnvField(
