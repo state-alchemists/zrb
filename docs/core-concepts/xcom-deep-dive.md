@@ -20,7 +20,7 @@ XCom (Cross-Communication) is Zrb's built-in mechanism for passing data between 
 
 ## How XCom Works
 
-Each session holds an `XCom` object that maps a task name to an `Xcom` queue (a `collections.deque` subclass, exported as `zrb.Xcom`); a task's queue is created on first use. The `XCom` is accessible via `ctx.xcom`:
+Each session holds a `DotDict` that maps a task name to an `Xcom` queue (a `collections.deque` subclass, exported as `zrb.Xcom`). Every task in the run's graph gets an empty queue when the run starts. The mapping is accessible via `ctx.xcom`:
 
 ```python
 # Access another task's queue
@@ -251,7 +251,7 @@ cli.add_task(
 | Issue | Behavior | Mitigation |
 |-------|----------|------------|
 | **Pop from empty queue** | `pop()` raises `IndexError` | Use `.get()` which returns `None` |
-| **Reading a task that hasn't run yet** | `ctx.xcom["other"]` raises `KeyError` if that task hasn't executed in this session at all; `.pop()`/`.peek()` raise `IndexError` if the task ran but hasn't pushed a value yet (or the value was already popped) | `ctx.xcom` is one shared, session-wide dict — `upstream` only controls execution *order*, it does not restrict xcom visibility. Make sure the producing task has actually run and pushed before you read from it |
+| **Reading a task that hasn't run yet** | `ctx.xcom["other"]` raises `KeyError` if that task is not part of this run's graph; `.pop()`/`.peek()` raise `IndexError` if the task hasn't pushed a value yet (or the value was already popped) | `ctx.xcom` is one shared, session-wide dict — `upstream` only controls execution *order*, it does not restrict xcom visibility. Make sure the producing task has actually run and pushed before you read from it |
 | **Action returns nothing** | The implicit `None` is still pushed, after anything the action pushed manually | Account for the trailing `None` when popping, or return the value instead of pushing it |
 | **Multiple pops** | Each `.pop()` removes one item | Push once per consumer, or use `.peek()` for read-only |
 | **Task name with hyphens** | `ctx.xcom.my-task` is invalid Python | Use bracket notation: `ctx.xcom["my-task"]` |

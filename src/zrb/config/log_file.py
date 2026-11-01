@@ -15,17 +15,19 @@ import os
 from zrb.config.config import CFG
 from zrb.config.helper import get_log_level
 
-# Marks the handler this module added: asking twice must not write twice.
-_FILE_HANDLER_MARK = "_zrb_log_file_handler"
 _FORMAT = "%(asctime)s %(levelname)s %(name)s: %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
+class _LogFileHandler(logging.handlers.RotatingFileHandler):
+    """The handler this module adds; its type is how a second call recognizes it."""
 
 
 def install_file_log_handler(logger: logging.Logger | None = None) -> None:
     """Write logs to `CFG.LOGGING_FILE` as well, when one is configured.
 
-    Asking twice adds nothing, recognized by `_FILE_HANDLER_MARK`, so a CLI
-    that configures logging twice does not write every line twice. The file's
+    Asking twice adds nothing, so a CLI that configures logging twice does not
+    write every line twice. The file's
     directory is created when missing.
 
     A file that cannot be opened is reported and left alone rather than
@@ -72,7 +74,7 @@ def _file_handler(logger: logging.Logger) -> logging.Handler | None:
         (
             handler
             for handler in logger.handlers
-            if getattr(handler, _FILE_HANDLER_MARK, False)
+            if isinstance(handler, _LogFileHandler)
         ),
         None,
     )
@@ -86,7 +88,7 @@ def has_file_log_handler(logger: logging.Logger | None = None) -> bool:
 
 def _build_handler(path: str) -> logging.Handler:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    handler = logging.handlers.RotatingFileHandler(
+    handler = _LogFileHandler(
         path,
         maxBytes=max(0, CFG.LOGGING_FILE_MAX_BYTES),
         backupCount=max(0, CFG.LOGGING_FILE_BACKUP_COUNT),
@@ -94,7 +96,6 @@ def _build_handler(path: str) -> logging.Handler:
     )
     handler.setLevel(_file_level())
     handler.setFormatter(logging.Formatter(_FORMAT, _DATE_FORMAT))
-    setattr(handler, _FILE_HANDLER_MARK, True)
     return handler
 
 

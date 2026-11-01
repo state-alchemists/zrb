@@ -109,8 +109,7 @@ async def ask_user_question(
                 "Stop and report what you've done so far."
             )
         resolved = _resolve_answer(q, raw)
-        header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
-        answers.append(f"Q{idx} ({header}): {resolved}")
+        answers.append(f"Q{idx} ({_question_header(q)}): {resolved}")
     return "\n".join(answers)
 
 
@@ -130,8 +129,12 @@ async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
         CFG.LOGGER.debug(f"Notification hook for ask failed: {e}")
 
 
+def _question_header(q: dict[str, Any]) -> str:
+    """The chip label: the question's `header`, else its text cut to 40 characters."""
+    return q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
+
+
 def build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
-    header = q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
     return {
         "question": q["question"],
         # Options go through verbatim: a UI may render any per-option key
@@ -139,7 +142,7 @@ def build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]
         "options": q["options"],
         "context": str(q.get("context") or ""),
         "multi_select": bool(q.get("multi_select")),
-        "header": header,
+        "header": _question_header(q),
         "index": idx,
         "total": total,
     }

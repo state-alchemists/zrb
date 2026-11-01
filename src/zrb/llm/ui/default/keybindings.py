@@ -2,10 +2,9 @@
 
 `setup_app_keybindings` is a registration table: it wires each
 prompt-toolkit key to a thin closure that delegates to a named `_on_*`
-handler method. The involved handlers (Enter dispatch, clipboard and
-bracketed paste)
-live in those methods rather than as nested
-closures, so each is a reviewable, individually testable unit.
+handler method. The involved handlers (Enter dispatch, clipboard and bracketed
+paste) live in those methods rather than as nested closures, so each is a
+reviewable, individually testable unit.
 """
 
 from __future__ import annotations
@@ -88,7 +87,7 @@ class UIKeybindings:
 
         # Paging walks the transcript whatever pane holds the focus. The output
         # pane binds the same keys for its own focus and the `/btw` panel pages
-        # itself; the choice panel binds neither, and a docked panel now leaves
+        # itself; the choice panel binds neither, and a docked panel leaves
         # the transcript visible, so without these two an active choice would
         # freeze the very transcript the user wants to read.
         @app_keybindings.add("pageup")

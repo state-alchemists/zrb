@@ -4,6 +4,7 @@ from collections.abc import Callable
 from typing import Any
 
 from zrb.cmd.command import run_command
+from zrb.git.commands import ensure_success
 from zrb.git.subtree_model import SingleSubTreeConfig, SubTreeConfig
 from zrb.util.file import read_file, write_file
 
@@ -35,10 +36,11 @@ async def add_subtree(
 ):
     """Add a subtree at `prefix` and record it under `name` in `subtrees.json`.
 
-    Rejects a `prefix` that already exists or a `name` already configured.
+    Rejects a `prefix` that already exists in `repo_dir` or a `name` already
+    configured.
     """
     config = load_config(repo_dir)
-    if os.path.isdir(prefix):
+    if os.path.isdir(os.path.join(repo_dir, prefix)):
         raise ValueError(f"Directory exists: {prefix}")
     if name in config.data:
         raise ValueError(f"Subtree config already exists: {name}")
@@ -55,8 +57,7 @@ async def add_subtree(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
     config.data[name] = SingleSubTreeConfig(
         repo_url=repo_url, branch=branch, prefix=prefix
     )
@@ -84,8 +85,7 @@ async def pull_subtree(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
 
 
 async def push_subtree(
@@ -109,5 +109,4 @@ async def push_subtree(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)

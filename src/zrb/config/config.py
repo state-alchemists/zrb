@@ -19,7 +19,7 @@ To find a setting:
 - LLM prompt dirs/INCLUDE_* toggles          -> mixins/llm_prompt.py
 - LLM sandbox (FS gate, shell wrapper)       -> mixins/llm_sandbox.py
 - LLM plugin/skill/agent search dirs         -> mixins/llm_search.py
-- RAG embedding/chunking                     -> mixins/rag.py
+- LLM tool allowlist                         -> mixins/llm_tools.py
 - Internet search (SerpAPI/Brave/SearXNG)    -> mixins/internet_search.py
 - Hooks                                      -> mixins/hooks.py
 - Task runtime intervals/cmd buffer          -> mixins/task_runtime.py

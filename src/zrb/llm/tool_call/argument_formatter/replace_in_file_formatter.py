@@ -36,15 +36,13 @@ async def replace_in_file_formatter(
             return None
 
         # Blocking IO/CPU; inline it would freeze the TUI event loop.
-        return await asyncio.to_thread(
-            _format_replace, path, old_text, new_text, count, ui
-        )
+        return await asyncio.to_thread(_format_replace, path, old_text, new_text, count)
 
     except Exception:
         return None
 
 
-def _format_replace(path, old_text, new_text, count, ui) -> str | None:
+def _format_replace(path, old_text, new_text, count) -> str | None:
     abs_path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(abs_path):
         return None

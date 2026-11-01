@@ -108,12 +108,8 @@ class BaseTaskLifecycle:
         # Wakes `log_session_state` on termination instead of waiting out its tick.
         wakeup = asyncio.Event()
 
-        log_state_task = None
+        log_state_task = asyncio.create_task(self.log_session_state(session, wakeup))
         try:
-            log_state_task = asyncio.create_task(
-                self.log_session_state(session, wakeup)
-            )
-
             root_tasks = [
                 t for t in session.get_root_tasks(task) if session.is_allowed_to_run(t)
             ]
@@ -136,7 +132,7 @@ class BaseTaskLifecycle:
 
             session.terminate()
             wakeup.set()
-            if log_state_task and not log_state_task.done():
+            if not log_state_task.done():
                 await log_state_task
             ctx.log_info("Session finished.")
             return session.final_result
@@ -148,16 +144,13 @@ class BaseTaskLifecycle:
         finally:
             if not session.is_terminated:
                 session.terminate()
-            if log_state_task:
-                if not log_state_task.done():
-                    log_state_task.cancel()
-                    try:
-                        await log_state_task
-                    except asyncio.CancelledError:
-                        pass
-                session.state_logger.write(session.as_state_log())
-            else:
-                session.state_logger.write(session.as_state_log())
+            if not log_state_task.done():
+                log_state_task.cancel()
+                try:
+                    await log_state_task
+                except asyncio.CancelledError:
+                    pass
+            session.state_logger.write(session.as_state_log())
 
             ctx.log_debug(f"Final session state: {session}")
 

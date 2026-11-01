@@ -1,3 +1,4 @@
+import errno
 import os
 import shutil
 from typing import Annotated
@@ -48,7 +49,13 @@ def remove_file(
         try:
             os.rmdir(abs_path)
             return f"Removed empty directory: {path}"
-        except OSError:
+        except OSError as e:
+            if e.errno not in (errno.ENOTEMPTY, errno.EEXIST):
+                return (
+                    f"Error removing directory {path}: {e}. "
+                    "[SYSTEM SUGGESTION]: Verify your permissions and that no process "
+                    "is using the directory, then retry."
+                )
             return (
                 f"Error: {path} is a non-empty directory. "
                 "[SYSTEM SUGGESTION]: Pass recursive=True to remove it and all its "

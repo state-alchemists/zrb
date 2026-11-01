@@ -244,7 +244,7 @@ class LocalTTS(AnySpeechBackend):
 enable_speech(chat, SpeechConfig(enabled=True, backend=LocalTTS()))
 ```
 
-A speech backend returns an utterance that zrb can queue, interrupt, and close. If it also provides renderable audio, zrb can play that audio itself and report when playback starts, which lets dictation distinguish zrb's voice from the user's speech as accurately as the backend permits. See the complete backend contract and fallback behavior in [Voice and Camera → Your own backend](voice-camera.md#your-own-backend).
+A speech backend returns an utterance that zrb can queue, interrupt, and close. If it also provides renderable audio (`create_audio`), zrb can play that audio itself, which is what lets a barge-in pause it mid-sentence. See the complete backend contract and fallback behavior in [Voice and Camera → Your own backend](voice-camera.md#your-own-backend).
 
 ## Attach voice to your own chat task
 
@@ -381,7 +381,7 @@ stt_manager.register(
 | `provider` | A module that is importable only when the service can run. If it is missing, zrb names it instead of failing inside the factory. Name the provider's own package (`pipecat_floe`), or the Pipecat service module (`pipecat.services.groq.stt`) when the service needs nothing beyond `zrb[voice]` — not a package zrb always installs, such as `openai`, which would pass the check even without Pipecat |
 | `is_local`, `doc` | How the service is labelled when zrb lists the choices |
 
-Pick a name zrb does not already handle itself. A registration replaces a Pipecat built-in of the same name (`kokoro`, `piper`, `pocket`; `whisper`, `moonshine`, `funasr`), but the backends zrb implements directly are matched first, so a service registered as `auto`, `termux`, `say`, `espeak-ng`, `openai` or `gemini` for speech, or `vosk`, `openai`, `google` or `multimodal` for dictation, is never used.
+Pick a name zrb does not already handle itself. A registration replaces a Pipecat built-in of the same name (`kokoro`, `piper`, `pocket`; `whisper`, `moonshine`, `funasr`), but the backends zrb implements directly are matched first, so a service registered as `auto`, `termux`, `say`, `espeak-ng`, `openai` or `gemini` for speech, or `vosk`, `openai`, `google`, `multimodal` or `sensevoice` for dictation, is never used.
 
 Import the provider inside the factory, as above: `zrb_init.py` loads on every `zrb` command, and Pipecat takes seconds to import.
 
@@ -391,7 +391,7 @@ zrb drives a service in its own small pipeline rather than a Pipecat transport.
 
 **Text-to-speech: every Pipecat TTS service fits.** zrb sends one sentence at a time, plays the returned audio at its own sample rate, and ends the sentence at `TTSStoppedFrame`. Pipecat's TTS services all emit it (or set `push_stop_frames=True`); a service you write yourself must do the same, or each sentence waits 60 seconds before it is cut off.
 
-**Speech-to-text: segmented services fit as they are.** zrb cuts the microphone audio into finished utterances itself, sends one at a time framed by `VADUserStartedSpeakingFrame` and `VADUserStoppedSpeakingFrame`, and takes the first final `TranscriptionFrame` as the whole utterance. In Pipecat 1.12 these are segmented (`SegmentedSTTService`):
+**Speech-to-text: segmented services fit as they are.** zrb cuts the microphone audio into finished utterances itself, sends one at a time framed by `VADUserStartedSpeakingFrame` and `VADUserStoppedSpeakingFrame`, and takes the first final `TranscriptionFrame` as the whole utterance. In Pipecat 1.14 these are segmented (`SegmentedSTTService`):
 
 | Provider | Class |
 |---|---|

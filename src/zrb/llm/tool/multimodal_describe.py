@@ -141,16 +141,11 @@ async def replace_unsupported_attachments(
 
     Strings and unknown content types are passed through unchanged.
     """
-    if prompt_content is None or isinstance(prompt_content, str):
-        return prompt_content
     if not isinstance(prompt_content, list):
         return prompt_content
 
     # lazy: zrb internal (heavy via transitive)
-    try:
-        from zrb.llm.agent.types import BinaryContent
-    except ImportError:
-        return prompt_content
+    from zrb.llm.agent.types import BinaryContent
 
     out: list[Any] = []
     notify = print_fn or (lambda *a, **k: None)

@@ -189,8 +189,7 @@ class STTPipeline:
 
     `transcribe` pushes audio between `VADUserStartedSpeakingFrame` and
     `VADUserStoppedSpeakingFrame`, then waits for `TranscriptionFrame`. zrb emits
-    those boundaries because `UtteranceCutter` already cut the audio; detector
-    ownership waits for recorded-audio validation (`voice-on-pipecat.md`, stage 2).
+    those boundaries because `UtteranceCutter` already cut the audio (ADR-0107).
     No input transport is used: its separate audio task could let the stop frame
     overtake the segment, while the worker queue preserves one ordering path.
     """

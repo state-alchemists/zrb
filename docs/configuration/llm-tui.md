@@ -46,6 +46,8 @@ Customize the tokens that trigger built-in UI commands. Each value is a **comma-
 | `ZRB_LLM_UI_COMMAND_SET` | `<cmd> <name> <value>` — set a config value for the rest of the process (`/set LLM_SHOW_TOOL_CALL_RESULT on`), or switch a model slot live (`/set model`, `/set small_model`, `/set multimodal_model`) | `/set` |
 | `ZRB_LLM_UI_COMMAND_SET_MODEL` | Switch the model mid-session | `/model` |
 | `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
+| `ZRB_LLM_UI_COMMAND_USAGE` | `<cmd> [session\|today\|week\|all]` — show what the session, the day or the week consumed: tokens, prompt-cache hits and cost where the model is priced | `/usage` |
+| `ZRB_LLM_UI_COMMAND_VOLUME` | `<cmd> +++` raises the speech volume three steps, `<cmd> --` lowers it two; bare `<cmd>` reports the level | `/volume` |
 | `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |
 
 > ⚠️ **Don't guess the variable from the command.** Several differ: `/yolo` → `YOLO_TOGGLE`, `/plan` → `PLAN_TOGGLE`, `/model` → `SET_MODEL`, `/compress` → `SUMMARIZE`, `>` → `REDIRECT_OUTPUT`. A wrong name is ignored; zrb warns about it at startup, but the "did you mean" it suggests can be the wrong knob (`ZRB_LLM_UI_COMMAND_YOLO` suggests `..._LOAD`).

@@ -1,26 +1,22 @@
 """A task stand-in whose declaring module loads only when the CLI reaches it.
 
-Every `zrb` run imports `zrb.builtin` — the entry point needs the tasks on the
-tree, and `zrb --help` needs to list them — so whatever a built-in module
-imports at module level is paid by every run, including the ones that never
-touch that task. The built-in chat task is the worst of them: declaring it means
-constructing an `LLMChatTask` out of pydantic and pydantic-ai, measured at
-~0.21s of the ~0.30s a help listing then costs.
+Every `zrb` run imports `zrb.builtin`, so whatever a built-in module imports at
+module level is paid by every run, including those that never touch that task.
+The built-in chat task is the worst case: declaring it constructs an
+`LLMChatTask`, which pulls in pydantic and pydantic-ai.
 
-So the registration list holds this stand-in instead. It carries the three
-attributes the tree reads before a command line addresses it — `name`,
-`description`, `cli_only` — and `Group.extract_node` swaps it for the real task
-the moment the command line does address it, which is also the moment someone
-asked to pay for it.
+The registration list holds this stand-in instead. It carries the three
+attributes the tree reads before a command line addresses it (`name`,
+`description`, `cli_only`), and `Group.extract_node` swaps it for the real task
+when the command line does address it.
 
-The action raises because a stand-in that reaches execution means a dispatch
-path skipped `extract_node`; running nothing would be the silent version of that
-bug.
+The action raises: a stand-in that reaches execution means a dispatch path
+skipped `extract_node`, and running nothing would hide that bug.
 
-A registration site that wants to add to the task — a tool, a hook, a policy —
-cannot reach it before it loads, and importing it defeats the deferral.
-`on_resolve` takes the work instead, and runs it when the module loads, before
-anyone else sees the task.
+A registration site that wants to add a tool, hook or policy to the task cannot
+reach it before it loads, and importing it defeats the deferral. `on_resolve`
+takes the work instead and runs it when the module loads, before anyone else
+sees the task.
 """
 
 from __future__ import annotations

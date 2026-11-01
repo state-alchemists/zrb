@@ -35,7 +35,6 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     ):
         self._wrapped = wrapped_ui
         self._prefix = prefix
-        self._buffer: list[str] = []
         self._merged_output: str = ""
         # Ctrl+O blocks of this sub-agent's own live view.
         self._rendered_blocks: list = []
@@ -134,7 +133,6 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         )
         if rebase_from >= 0:
             self._spans.rebase(rebase_from, len(self._merged_output) - len(previous))
-        self._buffer.append(styled_text)
 
     def _set_merged_output(self, text: str) -> None:
         self._merged_output = text
@@ -274,11 +272,9 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
                 for line in output.split("\n")
             )
         self._wrapped.append_to_output(output)
-        self._buffer.clear()
 
     def clear_buffer(self) -> None:
         """Clear the buffer without flushing."""
-        self._buffer.clear()
         self._merged_output = ""
         self._rendered_blocks = []
         self._spans.reset()

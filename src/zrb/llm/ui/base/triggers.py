@@ -92,10 +92,7 @@ class BaseUITriggers:
         # it raises, so they don't leak into the next turn.
         owner.pending_attachments.extend(attachments)
         try:
-            if source is None:
-                owner.submit_user_message(owner.llm_task, text)
-            else:
-                owner.submit_user_message(owner.llm_task, text, source)
+            self._submit_turn(text, source)
         except BaseException:
             _unstage(owner.pending_attachments, attachments)
             raise
@@ -134,10 +131,17 @@ class BaseUITriggers:
                     reply.text, reply.source or KEYBOARD_INPUT, may_interrupt=False
                 )
             return
-        if reply.source is None:
-            owner.submit_user_message(owner.llm_task, reply.text)
+        self._submit_turn(reply.text, reply.source)
+
+    def _submit_turn(self, text: str, source: InputProvenance | None) -> None:
+        """Submit *text* as a user turn. A source-less item takes the UI's own
+        default provenance, so a UI that overrides `submit_user_message` without
+        a `source` parameter still receives plain strings."""
+        owner = self._owner
+        if source is None:
+            owner.submit_user_message(owner.llm_task, text)
         else:
-            owner.submit_user_message(owner.llm_task, reply.text, reply.source)
+            owner.submit_user_message(owner.llm_task, text, source)
 
     def _is_said_to_pending(self, reply: TriggerReply) -> bool:
         if reply.started_at is None:

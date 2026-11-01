@@ -279,10 +279,7 @@ class BaseUIModelCommands:
         field = CFG.get_settable_field(name)
         try:
             converted = CFG.convert_setting_value(name, value)
-        except AttributeError as error:
-            self._base_ui.append_to_output(stylize_error(f"\n  ❌ {error}\n"))
-            return
-        except ValueError as error:
+        except (AttributeError, ValueError) as error:
             self._base_ui.append_to_output(stylize_error(f"\n  ❌ {error}\n"))
             return
         setattr(CFG, name, converted)

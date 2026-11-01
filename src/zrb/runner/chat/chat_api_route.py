@@ -45,8 +45,8 @@ def _ensure_private_dir(path: str) -> None:
 def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
     """Persist an uploaded attachment to a per-session temp dir, return its path.
 
-    Uploads are never cleaned up. Add a retention sweep if the temp
-    dir's growth becomes a real problem.
+    Uploads are not cleaned up; the operating system's temp-dir policy is the
+    only retention.
     """
     upload_root = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
     _ensure_private_dir(upload_root)
@@ -160,6 +160,10 @@ async def _read_json_body(request: Any) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def _is_string_list(value: object) -> bool:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
 async def _handle_list_chat_sessions(
     session_manager: ChatSessionManager,
     page: int,
@@ -240,7 +244,6 @@ async def _handle_get_chat_messages(
 
 
 async def _handle_upload_chat_attachment(
-    session_manager: ChatSessionManager,
     session_id: str,
     file: Any,
 ) -> "JSONResponse":
@@ -297,6 +300,11 @@ async def _handle_post_chat_message(
             status_code=400,
         )
     attachments = data.get("attachments") or []
+    if not _is_string_list(attachments):
+        return JSONResponse(
+            content={"error": "Field 'attachments' must be a list of strings"},
+            status_code=400,
+        )
     is_approval_action = data.get("isApprovalAction", False)
     is_json = isinstance(message, dict)
 
@@ -493,7 +501,7 @@ def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums the on
             forbidden := await _require_auth(web_auth_config, root_group, request)
         ) is not None:
             return forbidden
-        return await _handle_upload_chat_attachment(session_manager, session_id, file)
+        return await _handle_upload_chat_attachment(session_id, file)
 
     @app.post("/api/v1/chat/sessions/{session_id}/messages")
     async def post_chat_message(

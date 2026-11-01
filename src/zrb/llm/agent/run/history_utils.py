@@ -250,7 +250,9 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     not call syntax, so the model does not imitate it:
 
     ``ModelResponse`` (assistant role):
-        ``BaseToolCallPart``      → ``TextPart("(sanitized-history) previously attempted to call tool …")``
+        ``ToolCallPart``          → ``TextPart("(sanitized-history) previously attempted to call tool …")``
+        ``NativeToolCallPart``    → empty ``TextPart``: a provider-run call is not narrated, and the
+                                    next ``sanitize_history`` pass turns the blank into ``"(empty)"``
         ``NativeToolReturnPart`` → ``TextPart("(sanitized-history) previous result from tool …")``
         ``ThinkingPart``          → ``TextPart(content)``
         ``TextPart``              → kept (empty content normalised to ``"(empty)"``)
@@ -377,10 +379,8 @@ def _tool_return_to_text(part: Any) -> str:
     content = str(raw) if raw is not None else "(no value)"
     content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
     if getattr(part, "outcome", "success") == "retried":
-        return (
-            f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
-        )
-    return f'(sanitized-history) previous result from tool "{name}": ' f"{content}"
+        return f'(sanitized-history) prior retry feedback for tool "{name}": {content}'
+    return f'(sanitized-history) previous result from tool "{name}": {content}'
 
 
 def _legacy_retry_to_text(part: object) -> str:
@@ -389,7 +389,7 @@ def _legacy_retry_to_text(part: object) -> str:
     raw = getattr(part, "content", None)
     content = str(raw) if raw not in (None, "") else "(no value)"
     content = truncate_display(content, _TOOL_RESULT_MAX_CHARS)
-    return f'(sanitized-history) prior retry feedback for tool "{name}": ' f"{content}"
+    return f'(sanitized-history) prior retry feedback for tool "{name}": {content}'
 
 
 def _thinking_part_content(part: Any) -> str:

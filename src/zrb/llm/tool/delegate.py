@@ -33,10 +33,6 @@ from zrb.llm.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree
 from zrb.llm.ui.buffered_ui import BufferedUI
 from zrb.llm.ui_fallback.resolution import resolve_ui
-
-if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
-
 from zrb.llm.util.roster import cap_items, search_roster
 from zrb.llm.util.subagent_session_naming import (
     format_delegated_session_name,
@@ -45,6 +41,9 @@ from zrb.llm.util.subagent_session_naming import (
 )
 from zrb.util.string.name import get_random_name
 from zrb.util.string.suggestion import suggest_name
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 @dataclass
@@ -584,9 +583,8 @@ async def _run_delegation(
     """Run one sub-agent for this turn, or step it aside when the user needs the turn.
 
     The sub-agent is a `Task` from the start, so a cut hands exactly that task to
-    the background registry: an awaited task nobody waits on any more keeps
-    running, which is what keeps the work alive when the turn is interrupted
-    instead of waiting.
+    the background registry: a task nobody awaits keeps running, which keeps the
+    work alive when the turn is interrupted instead of waiting.
     """
     run = asyncio.ensure_future(
         run_agent_task(
@@ -780,8 +778,7 @@ def _fan_out_reports(
 def _fan_out_report(agent_name: str, run: asyncio.Task) -> str:
     """One finished delegation's report; its own failure stays its own line.
 
-    An unanticipated raise fails one task, not every sibling — the guarantee
-    `gather(return_exceptions=True)` used to give this loop.
+    An unanticipated raise fails one task, not every sibling.
     """
     if run.cancelled():
         return f"[{agent_name}] Error: cancelled"
@@ -864,7 +861,6 @@ def create_delegate_to_agent_tool(
             ),
         ] = [],  # noqa: B006
     ) -> str:
-        """See module docstring; required-arg signature is the scope clamp."""
         if tasks:
             return await _run_parallel(tasks, sub_agent_manager)
         missing = [

@@ -18,7 +18,6 @@ def _get_hint(
     error_hint: str | Callable[..., str] | None,
     args: Any,
     kwargs: Any,
-    exc: Exception,
 ) -> str:
     if error_hint is None:
         return ""
@@ -31,13 +30,7 @@ def _get_hint(
     return error_hint
 
 
-def _format_error(
-    func_name: str,
-    args: Any,
-    kwargs: Any,
-    exc: Exception,
-    hint: str,
-) -> str:
+def _format_error(func_name: str, exc: Exception, hint: str) -> str:
     error_msg = str(exc).strip()
     if not error_msg:
         error_msg = f"{type(exc).__name__}"
@@ -77,8 +70,8 @@ def tool_safe_async(
             try:
                 return await cast(Awaitable[object], fn(*args, **kwargs))
             except Exception as e:  # noqa: BLE001
-                hint = _get_hint(error_hint, args, kwargs, e)
-                formatted = _format_error(fn.__name__, args, kwargs, e, hint)
+                hint = _get_hint(error_hint, args, kwargs)
+                formatted = _format_error(fn.__name__, e, hint)
                 return tool_return(formatted, error=True)
 
         return wrapper  # pyright: ignore[reportReturnType]

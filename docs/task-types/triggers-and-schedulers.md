@@ -48,7 +48,7 @@ my_callback = Callback(
 
 For behavior a `Callback` cannot express, subclass `AnyCallback` (`from zrb import AnyCallback`) and implement `async_run(parent_session, session)`: `parent_session` is the trigger's, `session` is the fresh one created for this event.
 
-The callback's task does not need to be registered with `cli.add_task`. Zrb currently warns at load time that such a task "is not registered and no task references it"; the warning is harmless here.
+The callback's task does not need to be registered with `cli.add_task`: a task that a registered trigger runs through its callback counts as reachable, so it is not reported as unregistered.
 
 ---
 
@@ -155,15 +155,7 @@ daily_scheduler = cli.add_task(
 
 When you run `zrb daily-report-scheduler`, the process remains alive in the foreground, executing the `generate_report` task every minute.
 
-### Schedule Presets
-
-| Preset | Equivalent Cron |
-|--------|-----------------|
-| `@minutely` | `* * * * *` |
-| `@hourly` | `0 * * * *` |
-| `@daily` | `0 0 * * *` |
-| `@weekly` | `0 0 * * 1` |
-| `@monthly` | `0 0 1 * *` |
+The presets and the full cron format are listed under [Schedule Syntax](#schedule-syntax-crontab).
 
 ---
 

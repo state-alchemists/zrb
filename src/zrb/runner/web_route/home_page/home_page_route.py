@@ -4,6 +4,7 @@ from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
 from zrb.group.any_group import AnyGroup
 from zrb.runner.web_route.jinja_env import get_jinja_env
+from zrb.runner.web_util.branding import get_web_jargon, get_web_title
 from zrb.runner.web_util.html import (
     get_html_auth_link,
     get_html_subgroup_info,
@@ -28,10 +29,8 @@ def serve_home_page(
     @app.get("/ui", response_class=HTMLResponse, include_in_schema=False)
     @app.get("/ui/", response_class=HTMLResponse, include_in_schema=False)
     async def home_page_ui(request: Request) -> HTMLResponse:
-        web_title = CFG.WEB_TITLE if CFG.WEB_TITLE.strip() != "" else root_group.name
-        web_jargon = (
-            CFG.WEB_JARGON if CFG.WEB_JARGON.strip() != "" else root_group.description
-        )
+        web_title = get_web_title(root_group)
+        web_jargon = get_web_jargon(root_group)
         user = await get_user_from_request(web_auth_config, request)
         group_info = get_html_subgroup_info(user, "/ui/", root_group)
         task_info = get_html_subtask_info(user, "/ui/", root_group)

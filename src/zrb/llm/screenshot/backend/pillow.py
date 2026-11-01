@@ -16,16 +16,11 @@ limit; those are `ScreenshotToolBackend`'s job.
 
 from __future__ import annotations
 
-import asyncio
 import sys
 
 from zrb.llm.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
-from zrb.llm.util.deadline import (
-    communicate_within,
-    create_deadline,
-    get_earlier,
-    get_remaining,
-)
+from zrb.llm.screenshot.backend.program import ProgramFailed, run_program
+from zrb.llm.util.deadline import create_deadline, get_earlier
 
 # Runs in a subprocess: `-c` with this source, the display as argv[1]. Kept
 # out of the shared asyncio thread pool so a timed-out grab is killable.
@@ -76,33 +71,12 @@ class PillowScreenshotBackend(AnyScreenshotBackend):
         this backend's own timeout, whichever comes first."""
         deadline = get_earlier(deadline, create_deadline(self._timeout))
         self._last_error = None
-        timeout = get_remaining(deadline)
-        if timeout == 0:
-            self._last_error = "no time left for this capture"
-            return None
         try:
-            proc = await asyncio.create_subprocess_exec(
-                sys.executable,
-                "-c",
-                _GRAB,
-                display or "",
-                stdin=asyncio.subprocess.DEVNULL,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+            stdout = await run_program(
+                [sys.executable, "-c", _GRAB, display or ""], deadline
             )
-        except OSError as error:
+        except ProgramFailed as error:
             self._last_error = str(error)
-            return None
-        try:
-            stdout, stderr = await communicate_within(proc, timeout)
-        except asyncio.TimeoutError:
-            self._last_error = f"timed out after {timeout:.1f}s"
-            return None
-        if proc.returncode != 0:
-            self._last_error = (
-                stderr.decode(errors="ignore").strip()[-500:]
-                or f"exited with code {proc.returncode}"
-            )
             return None
         return stdout or None
 

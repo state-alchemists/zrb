@@ -1,6 +1,6 @@
 """Sandbox policy: what LLM-initiated tool calls may touch on the filesystem.
 
-Consumed by both the in-process FS gate (``zrb.llm.agent.common``) and the
+Consumed by both the in-process FS gate (``zrb.llm.agent.gates``) and the
 OS shell wrapper (``os_sandbox``). With ``enabled=False`` (the default) every
 consumer is a no-op.
 """

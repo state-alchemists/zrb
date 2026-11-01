@@ -43,6 +43,13 @@ async def write_file(
     so do not re-send them. Read the file and make a targeted fix — the
     requested change is not complete until those errors are gone.
     """
+    if mode not in ("w", "a"):
+        # The overwrite gate below keys on "w": any other open() mode would skip it.
+        return (
+            f'Error: mode must be "w" or "a", got {mode!r}. '
+            '[SYSTEM SUGGESTION]: Use "w" to create or replace a file and "a" '
+            "to append to one."
+        )
     abs_path = os.path.abspath(os.path.expanduser(path))
     async with path_write_lock(abs_path):
         return await _write_file_locked(path, abs_path, content, mode)

@@ -1,7 +1,10 @@
 import os
 import re
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from zrb.config.config import Config
 
 BLACK = 30
 RED = 31
@@ -253,15 +256,19 @@ def _resolve_style(name: str) -> int | None:
     return _STYLE_NAME_MAP.get(name.lower().strip()) if name else None
 
 
-def stylize_muted(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
+def _cfg() -> "Config":
+    # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
+    from zrb.config.config import CFG
 
+    return CFG
+
+
+def stylize_muted(text: str) -> str:
+    cfg = _cfg()
     return stylize(
         text,
-        color=_resolve_color(CFG.CLI_COLOR_MUTED),
-        style=_resolve_style(CFG.CLI_STYLE_MUTED),
+        color=_resolve_color(cfg.CLI_COLOR_MUTED),
+        style=_resolve_style(cfg.CLI_STYLE_MUTED),
     )
 
 
@@ -274,84 +281,60 @@ def stylize_log(text: str) -> str:
 
 
 def stylize_warning(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
-
+    cfg = _cfg()
     return stylize(
         text,
-        color=_resolve_color(CFG.CLI_COLOR_WARNING),
-        style=_resolve_style(CFG.CLI_STYLE_WARNING),
+        color=_resolve_color(cfg.CLI_COLOR_WARNING),
+        style=_resolve_style(cfg.CLI_STYLE_WARNING),
     )
 
 
 def stylize_error(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
-
+    cfg = _cfg()
     return stylize(
         text,
-        color=_resolve_color(CFG.CLI_COLOR_ERROR),
-        style=_resolve_style(CFG.CLI_STYLE_ERROR),
+        color=_resolve_color(cfg.CLI_COLOR_ERROR),
+        style=_resolve_style(cfg.CLI_STYLE_ERROR),
     )
 
 
 def stylize_success(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
-
+    cfg = _cfg()
     return stylize(
         text,
-        color=_resolve_color(CFG.CLI_COLOR_SUCCESS),
-        style=_resolve_style(CFG.CLI_STYLE_SUCCESS),
+        color=_resolve_color(cfg.CLI_COLOR_SUCCESS),
+        style=_resolve_style(cfg.CLI_STYLE_SUCCESS),
     )
 
 
 def stylize_highlight(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
-
+    cfg = _cfg()
     return stylize(
         text,
-        color=_resolve_color(CFG.CLI_COLOR_HIGHLIGHT),
-        style=_resolve_style(CFG.CLI_STYLE_HIGHLIGHT),
+        color=_resolve_color(cfg.CLI_COLOR_HIGHLIGHT),
+        style=_resolve_style(cfg.CLI_STYLE_HIGHLIGHT),
     )
 
 
 def stylize_info(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
-
+    cfg = _cfg()
     return stylize(
         text,
-        color=_resolve_color(CFG.CLI_COLOR_INFO),
-        style=_resolve_style(CFG.CLI_STYLE_INFO),
+        color=_resolve_color(cfg.CLI_COLOR_INFO),
+        style=_resolve_style(cfg.CLI_STYLE_INFO),
     )
 
 
 def stylize_todo_project(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
-
-    return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_PROJECT))
+    cfg = _cfg()
+    return stylize(text, color=_resolve_color(cfg.CLI_COLOR_TODO_PROJECT))
 
 
 def stylize_todo_context(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
-
-    return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_CONTEXT))
+    cfg = _cfg()
+    return stylize(text, color=_resolve_color(cfg.CLI_COLOR_TODO_CONTEXT))
 
 
 def stylize_todo_keyval(text: str) -> str:
-    from zrb.config.config import (
-        CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
-    )
-
-    return stylize(text, color=_resolve_color(CFG.CLI_COLOR_TODO_KEYVAL))
+    cfg = _cfg()
+    return stylize(text, color=_resolve_color(cfg.CLI_COLOR_TODO_KEYVAL))

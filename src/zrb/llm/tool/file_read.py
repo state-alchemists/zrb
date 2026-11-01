@@ -91,8 +91,7 @@ def _read_text(path: str, abs_path: str, start_line: int, end_line: int) -> str:
         if range_error:
             return range_error
 
-        start = max(1, start_line)
-        end = total_lines if end_line == -1 else min(end_line, total_lines)
+        start, end = _clamp_range(start_line, end_line, total_lines)
         kept, truncated = _select_lines(
             lines[start - 1 : end], CFG.LLM_MAX_OUTPUT_CHARS
         )
@@ -223,6 +222,12 @@ def _validate_path_for_reading(abs_path: str) -> str | None:
     return None
 
 
+def _clamp_range(start_line: int, end_line: int, total_lines: int) -> tuple[int, int]:
+    """The 1-indexed `(start, end)` lines to show, once `_validate_range` passed."""
+    end = total_lines if end_line == -1 else min(end_line, total_lines)
+    return max(1, start_line), end
+
+
 def _validate_range(start_line: int, end_line: int, total_lines: int) -> str | None:
     if end_line != -1 and end_line < 1:
         return (
@@ -308,8 +313,7 @@ def _read_pdf(path: str, abs_path: str, start_line: int, end_line: int) -> str:
     if range_error:
         return range_error
 
-    start = max(1, start_line)
-    end = total_lines if end_line == -1 else min(end_line, total_lines)
+    start, end = _clamp_range(start_line, end_line, total_lines)
     # Not numbered: PDF line breaks are an extraction artifact.
     selected = "".join(lines[start - 1 : end])
 

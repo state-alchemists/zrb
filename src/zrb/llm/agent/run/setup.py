@@ -76,12 +76,10 @@ def resolve_context_dependencies(
     effective_ui = resolve_ui(ui if ui is not None else current_ui.get())
 
     effective_tool_confirmation = tool_confirmation or current_tool_confirmation.get()
-    # A nested run inherits the manager its parent is running on, the way it
-    # already inherits the UI, the confirmation mode and the approval channel.
-    # Falling straight through to the singleton made a sub-agent's own
-    # PreToolUse/Stop fire on the process-wide manager, so a deny rule a task
-    # registered with `append_hook_factory` did not bind a delegated
-    # sub-agent's tools.
+    # A nested run inherits the manager its parent is running on, as it does the
+    # UI, the confirmation mode and the approval channel: a deny rule a task
+    # registered with `append_hook_factory` must bind a delegated sub-agent's
+    # tools, which the process-wide singleton would not.
     effective_hook_manager = (
         hook_manager or current_hook_manager.get() or default_hook_manager
     )
@@ -163,7 +161,7 @@ def setup_print_and_events(print_fn, event_handler, effective_ui):
     # The column a settled block keeps is the stream's own: told once, here,
     # rather than as an argument to the documented one-argument
     # `settle_text_block(source)` hook. A UI without the hook lays it out its
-    # own way, which is what it did before this column existed.
+    # own way.
     set_indentation = getattr(effective_ui, "set_stream_indentation", None)
     continuation = getattr(effective_event_handler, "continuation", "")
     if callable(set_indentation) and continuation:

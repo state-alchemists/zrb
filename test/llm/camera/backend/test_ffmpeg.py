@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -481,8 +480,7 @@ async def test_a_scheduled_probe_runs_to_completion_and_is_not_scheduled_twice(
     async def slow_probe(self):
         started.set()
         await release.wait()
-        self._device_cache["time"] = time.monotonic()
-        self._device_cache["devices"] = ["USB Camera"]
+        self._cache_devices(["USB Camera"])
 
     with patch.object(FfmpegCameraBackend, "refresh_devices", new=slow_probe):
         assert backend.list_devices() == []

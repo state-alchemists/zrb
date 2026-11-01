@@ -36,9 +36,6 @@ _ROWS_PER_FILE = 3
 # otherwise put every note in the answer.
 MAX_FILES = 5
 
-# The whole result, so a broad query stays readable.
-_MAX_ROWS = 60
-
 # Where a file sits in the ranking. A title match is a note *about* the query; a
 # note that merely mentions it still beats the indexes and the activity log,
 # which mention everything.
@@ -153,9 +150,9 @@ def _query_words(query: str) -> list[str]:
     """The words of a plain multi-word *query*, or `[]` when it is a regex.
 
     A question is longer than any title and carries no regex syntax, so reading
-    it as one literal string matched nothing at all. Several plain words now
-    mean "any of these words", and the words that say nothing about the subject
-    — `the`, `of`, `how` — are dropped first. Any-of rather than all-of is a
+    it as one literal string would match nothing. Several plain words mean "any
+    of these words", and the words that say nothing about the subject — `the`,
+    `of`, `how` — are dropped first. Any-of rather than all-of is a
     measurement, not a preference: requiring every word found 2 of 8
     question-style queries against 8 of 8, because a question is prose and no
     note repeats its words verbatim. Precision comes from the ranking instead —
@@ -187,43 +184,6 @@ def _matches_any_word(
             seen.add(key)
             found.append(match)
     return found
-
-
-def _matches_every_word(
-    words: list[str], abs_dir: str, case_sensitive: bool
-) -> "list[tuple[str, int, str]] | dict[str, Any]":
-    """The matching lines of every file that holds every one of *words*.
-
-    Kept because it is the alternative `_matches_any_word` was chosen over, and
-    the choice was measured rather than argued: requiring every word found 2 of
-    8 question-style queries against 8 of 8 for any-of, since a question is
-    prose and no note repeats it verbatim. Not on the search path — the test
-    `test_requiring_every_word_would_miss_the_note_a_question_asks_for` pins
-    the difference, so a later reader does not have to take this on faith.
-
-    One pass per word, intersected by file, because the regex engine here has
-    no look-around to ask for all of them at once."""
-    per_word: "list[dict[str, list[tuple[str, int, str]]]]" = []
-    for word in words:
-        found = _all_matches(word, abs_dir, case_sensitive)
-        if isinstance(found, dict):
-            return found
-        grouped: dict[str, list[tuple[str, int, str]]] = {}
-        for match in found:
-            grouped.setdefault(match[0], []).append(match)
-        per_word.append(grouped)
-    keep = set(per_word[0])
-    for grouped in per_word[1:]:
-        keep &= set(grouped)
-    if not keep:
-        return []
-    return [
-        match
-        for grouped in per_word
-        for path, rows in grouped.items()
-        if path in keep
-        for match in rows
-    ]
 
 
 def _all_matches(
@@ -340,7 +300,7 @@ def _format_results(
     summary = f"Found {len(matches)} matches in {len(grouped)} files."
     if by_title:
         summary += f" {by_title} of them about it by title."
-    if len(results) < min(len(matches), _MAX_ROWS):
+    if len(results) < len(matches):
         summary += f" Showing {len(results)}."
     return {"summary": summary, "results": results}
 

@@ -27,12 +27,10 @@ from zrb.util.load import (
     load_module_with_result,
 )
 
-# `zrb` resolves its exports lazily, so `import zrb` no longer imports
-# `zrb.builtin` — and with it the built-in tasks that import registers on `cli`
-# (see `zrb/__init__.py`). This is the entry point's job now, at import time:
-# after the built-ins exist, and before `serve_cli` loads any init source, so a
-# task an earlier run registered on the process-wide `cli` tree is never frozen
-# as a built-in.
+# `import zrb` does not import `zrb.builtin` (see `zrb/__init__.py`), so the
+# entry point does, above. The snapshot runs once the built-ins exist and before
+# `serve_cli` loads any init source: a task an earlier run registered on the
+# process-wide `cli` tree must not be frozen as a built-in.
 snapshot_builtin_task_ids(cli)
 
 

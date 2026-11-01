@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 from typing import Any
 from unittest.mock import Mock
 
@@ -9,6 +10,8 @@ from zrb.env.env import Env
 from zrb.input.str_input import StrInput
 from zrb.session.session import Session
 from zrb.task.base.base_task import BaseTask
+from zrb.task.cmd_task import CmdTask
+from zrb.task.make_task import make_task
 
 mock_any_context = Mock()
 mock_any_task = Mock()
@@ -283,6 +286,51 @@ async def test_exec_action_enriches_exceptions_from_overridden_exec_action():
 
     notes = getattr(exc_info.value, "__notes__", [])
     assert any("Task: raising_task" in note for note in notes)
+
+
+class _RaisingCmdTask(CmdTask):
+    async def _exec_action(self, ctx):
+        raise ValueError("boom")
+
+
+class _RaisingCustomTask(BaseTask):
+    """A user-defined task whose own `__init__` calls `super().__init__`."""
+
+    def __init__(self, name: str):
+        super().__init__(name=name)
+
+    async def _exec_action(self, ctx):
+        raise ValueError("boom")
+
+
+def _declaration_note(task: BaseTask) -> str:
+    with pytest.raises(ValueError) as exc_info:
+        asyncio.run(task.exec_action(mock_any_context))
+    (note,) = [n for n in exc_info.value.__notes__ if n.startswith("Task: ")]
+    return note
+
+
+class TestDeclarationSiteNote:
+    """The note on a failure names the line that declared the task, not a line
+    inside zrb, however the task was constructed."""
+
+    def test_names_the_line_that_constructed_a_task_subclass(self):
+        line = inspect.currentframe().f_lineno + 1  # type: ignore[union-attr]
+        task = _RaisingCmdTask(name="declared-cmd", cmd="")
+        assert _declaration_note(task).endswith(f"({__file__}:{line})")
+
+    def test_names_the_line_that_constructed_a_user_subclass_with_its_own_init(self):
+        line = inspect.currentframe().f_lineno + 1  # type: ignore[union-attr]
+        task = _RaisingCustomTask("declared-custom")
+        assert _declaration_note(task).endswith(f"({__file__}:{line})")
+
+    def test_names_the_decorated_function_of_make_task(self):
+        @make_task(name="declared-decorated", retries=0)
+        def decorated(ctx):
+            raise ValueError("boom")
+
+        note = _declaration_note(decorated)
+        assert f"({__file__}:" in note
 
 
 class TestBaseTaskToFunction:

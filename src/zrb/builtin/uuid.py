@@ -73,7 +73,7 @@ def generate_uuid_v1(ctx: AnyContext) -> str:
             name="namespace",
             description="Namespace for v3",
             prompt="Select a namespace",
-            options=["dns", "url", "oid", "x500"],
+            options=list(_NAMESPACES),
         ),
         StrInput(
             name="name",
@@ -114,7 +114,7 @@ uuid_group.add_task(generate_uuid_v4, alias="generate")
             name="namespace",
             description="Namespace for v5",
             prompt="Select a namespace",
-            options=["dns", "url", "oid", "x500"],
+            options=list(_NAMESPACES),
         ),
         StrInput(
             name="name",

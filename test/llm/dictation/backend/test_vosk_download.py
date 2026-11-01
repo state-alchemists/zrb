@@ -231,6 +231,27 @@ async def test_a_connection_opened_after_cancellation_is_closed(tmp_home, monkey
 
 
 @pytest.mark.asyncio
+async def test_a_connection_is_closed_when_the_archive_file_cannot_be_made(
+    tmp_home, monkeypatch
+):
+    """The server answered, but there is nowhere to write what it sends (a full
+    or read-only disk): the open connection is let go, not left to the
+    collector."""
+    resp = MagicMock()
+    monkeypatch.setattr("urllib.request.urlopen", lambda url, timeout=None: resp)
+
+    def refuse(**kwargs):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr("tempfile.mkstemp", refuse)
+
+    with pytest.raises(OSError, match="no space left"):
+        await download_vosk_model("m", "http://host")
+
+    resp.close.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_a_cancelled_extraction_still_removes_the_archive(
     tmp_home, cache_dir, monkeypatch
 ):

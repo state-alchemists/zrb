@@ -6,6 +6,12 @@ from zrb.cmd.command import run_command
 from zrb.git.diff_model import DiffResult
 
 
+def ensure_success(exit_code: int) -> None:
+    """Raise `RuntimeError` unless a command exited with 0."""
+    if exit_code != 0:
+        raise RuntimeError(f"Non zero exit code: {exit_code}")
+
+
 async def get_diff(
     repo_dir: str,
     source_commit: str,
@@ -18,8 +24,7 @@ async def get_diff(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
     diff = _parse_diff_file_markers(cmd_result.output.strip().split("\n"))
     return DiffResult(
         created=[
@@ -58,8 +63,7 @@ async def get_repo_dir(print_method: Callable[..., Any] = print) -> str:
         cmd=["git", "rev-parse", "--show-toplevel"],
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
     return os.path.abspath(cmd_result.output.strip())
 
 
@@ -72,8 +76,7 @@ async def get_current_branch(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
     return cmd_result.output.strip()
 
 
@@ -86,17 +89,17 @@ async def get_branches(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
+    return _parse_branch_names(cmd_result.output)
+
+
+def _parse_branch_names(output: str) -> list[str]:
+    """Branch names from `git branch` output, without the `*`/`+` markers."""
     return [
-        _parse_branch_name(branch)
-        for branch in cmd_result.output.strip().split("\n")
+        branch.lstrip("*+").strip()
+        for branch in output.strip().split("\n")
         if branch.strip()
     ]
-
-
-def _parse_branch_name(branch: str) -> str:
-    return branch.lstrip("*+").strip()
 
 
 async def get_worktrees(
@@ -116,8 +119,7 @@ async def get_worktrees(
         print_method=print_method,
         max_output_line=0,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
     return _parse_worktrees(cmd_result.output)
 
 
@@ -188,8 +190,7 @@ async def remove_worktree(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
 
 
 async def is_branch_merged(
@@ -204,14 +205,8 @@ async def is_branch_merged(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
-    merged_branches = [
-        _parse_branch_name(branch)
-        for branch in cmd_result.output.strip().split("\n")
-        if branch.strip()
-    ]
-    return branch_name in merged_branches
+    ensure_success(exit_code)
+    return branch_name in _parse_branch_names(cmd_result.output)
 
 
 async def delete_branch(
@@ -223,8 +218,7 @@ async def delete_branch(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
     return cmd_result.output.strip()
 
 
@@ -235,8 +229,7 @@ async def add(repo_dir: str, print_method: Callable[..., Any] = print):
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
 
 
 async def commit(
@@ -257,7 +250,7 @@ async def commit(
             ignored_error_message not in cmd_result.error
             and ignored_error_message not in cmd_result.output
         ):
-            raise RuntimeError(f"Non zero exit code: {exit_code}")
+            ensure_success(exit_code)
 
 
 async def pull(
@@ -269,8 +262,7 @@ async def pull(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)
 
 
 async def push(
@@ -282,5 +274,4 @@ async def push(
         cwd=repo_dir,
         print_method=print_method,
     )
-    if exit_code != 0:
-        raise RuntimeError(f"Non zero exit code: {exit_code}")
+    ensure_success(exit_code)

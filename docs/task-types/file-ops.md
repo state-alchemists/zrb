@@ -57,7 +57,7 @@ create_project = cli.add_task(
 )
 ```
 
-When a user runs `zrb create-project --project_name my-cool-app`, Zrb creates the new directory and injects `my-cool-app` wherever the placeholder existed in the templates — inside files, and in names such as `APP_NAME_PLACEHOLDER.py`, which becomes `my-cool-app.py`.
+When a user runs `zrb create-project --project_name my-cool-app`, Zrb creates the new directory and injects `my-cool-app` wherever the placeholder existed in the templates — inside files, and in names such as `APP_NAME_PLACEHOLDER.py`, which becomes `my-cool-app.py`. A file that is not UTF-8 text (an image, a font, a PDF) is copied untouched.
 
 ### Per-File Transforms with `ContentTransformer`
 

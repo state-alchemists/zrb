@@ -179,3 +179,45 @@ async def test_handler_feedback_denial():
         "User denied execution with message: I don't think this is safe"
         in result.message
     )
+
+
+@pytest.mark.asyncio
+async def test_response_handlers_run_in_order_and_the_fallback_answers_last():
+    from zrb.llm.tool_call.handler import run_response_handlers
+
+    seen = []
+
+    async def first(ui, call, response, next_handler):
+        seen.append("first")
+        return await next_handler(ui, call, response + "+first")
+
+    async def second(ui, call, response, next_handler):
+        seen.append("second")
+        return await next_handler(ui, call, response + "+second")
+
+    async def fallback(ui, call, response):
+        seen.append("fallback")
+        return response
+
+    result = await run_response_handlers([first, second], None, None, "r", fallback)
+
+    assert result == "r+first+second"
+    assert seen == ["first", "second", "fallback"]
+
+
+@pytest.mark.asyncio
+async def test_a_response_handler_that_answers_skips_the_rest_and_the_fallback():
+    from zrb.llm.tool_call.handler import run_response_handlers
+
+    async def answers(ui, call, response, next_handler):
+        return ToolDenied("stop")
+
+    async def never(ui, call, response, next_handler):
+        raise AssertionError("not reached")
+
+    async def fallback(ui, call, response):
+        raise AssertionError("not reached")
+
+    result = await run_response_handlers([answers, never], None, None, "r", fallback)
+
+    assert isinstance(result, ToolDenied)

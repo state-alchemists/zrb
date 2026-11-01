@@ -129,6 +129,19 @@ class TestMultiUI:
             # Should raise because there's no main_ui to delegate to
             asyncio.run(multi_ui.run_interactive_command("ls"))
 
+    def test_main_ui_index_outside_the_children_is_rejected_at_construction(
+        self, mock_child_ui
+    ):
+        """A bad index names itself when the `MultiUI` is built, not as an
+        `IndexError` the first time the primary is read."""
+        with pytest.raises(ValueError, match="main_ui_index=2"):
+            MultiUI([mock_child_ui, MagicMock()], main_ui_index=2)
+
+    def test_negative_main_ui_index_counts_from_the_end(self, mock_child_ui):
+        last = MagicMock()
+
+        assert MultiUI([mock_child_ui, last], main_ui_index=-1).main_ui is last
+
     def test_set_llm_task_sets_on_children(self, mock_child_ui):
         """Test set_llm_task sets llm_task on all children."""
         other_ui = MagicMock()
@@ -244,6 +257,26 @@ async def test_multi_ui_run_async(multi_ui, child_ui_1, child_ui_2):
     assert res == "Final Output"
     child_ui_1.run_async.assert_called_once()
     child_ui_2.start_event_loop.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_run_async_with_a_negative_primary_index_starts_the_primary_once(
+    child_ui_1, child_ui_2
+):
+    """The primary runs through `run_async`; only the other children are
+    started as secondaries, whichever way the primary index is spelled."""
+    child_ui_1.start_event_loop = AsyncMock()
+    child_ui_2.start_event_loop = AsyncMock()
+    child_ui_2.run_async = AsyncMock(return_value="done 2")
+    child_ui_2.last_output = ""
+    multi = MultiUI([child_ui_1, child_ui_2], main_ui_index=-1)
+    multi.set_llm_task(MagicMock())
+
+    await multi.run_async()
+
+    child_ui_2.run_async.assert_called_once()
+    child_ui_2.start_event_loop.assert_not_called()
+    child_ui_1.start_event_loop.assert_called_once()
 
 
 @pytest.mark.asyncio

@@ -32,23 +32,19 @@ BACKLINKS_HEADING = "## Backlinks"
 HISTORY_MAX_ENTRIES = 3
 STATUS_ACTIVE = "active"
 STATUS_SUPERSEDED = "superseded"
-# A note's frontmatter says when it stops applying, and whether it already has.
-# The condition is the half of a finding that lets a later session retire it
-# instead of re-reading it: "safe to delete" is a claim somebody has to be able
-# to check, and a finding whose expiry nobody wrote down is a finding nobody can
-# retire. `NO_APPLIES_WHEN` is what a version before that rule stored in the
-# condition's place: it is read, so an old note still loads, and refused, so it is
-# never written again.
+# `applies_when` is the condition under which a note still holds. A finding whose
+# expiry nobody wrote down is one nobody can check, so nobody can retire it.
+# `NO_APPLIES_WHEN` is the placeholder older notes store in its place: it is read,
+# so those notes still load, and refused, so it is never written again.
 NO_APPLIES_WHEN = "not stated"
-# The index spends its budget on one line per note, and a line longer than this is
-# not a headline any more: a claim that long is a paragraph, and the note already
-# has one of those. The line is the caller's, so this is a refusal with a number,
+# The index spends one line per note; a longer claim is a paragraph, and the note
+# already has one. The line is the caller's, so this is a refusal with a number,
 # not a cut — a silent trim would store a claim nobody wrote.
 HUD_LINE_MAX_CHARS = 160
 # A keyword is something to search for, so a word this short (`the`, `and`, `for`)
 # matches most notes and ranks none of them.
 KEYWORDS_MIN_WORD_LENGTH = 4
-_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _FRONTMATTER_FENCE = "---"
 
 
@@ -79,10 +75,10 @@ class Note:
 
     @property
     def is_migrated(self) -> bool:
-        """Whether a version that keeps the index derived has written this note.
+        """Whether this note's frontmatter owns its pin and HUD line.
 
-        Only such a note carries an `updated:` stamp; one that lacks it was
-        written when the index was the only place a pin lived."""
+        Only such a note carries an `updated:` stamp; one without it predates
+        the derived index, when `index.md` was the only place a pin lived."""
         return self.has_stamp
 
 
@@ -102,7 +98,7 @@ def check_slug(slug: str) -> None:
     frontmatter into a file it never meant to touch. Categories are a fixed list
     but a slug is free text, so this is the boundary that has to hold.
     """
-    if not _SLUG_RE.match(slug):
+    if not _SLUG_RE.fullmatch(slug):
         raise ValueError(
             f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
             "(lowercase letters, digits, single hyphens)."
@@ -126,8 +122,8 @@ def check_applies_when(applies_when: str | None) -> str:
     """The condition a note holds under, or a refusal the model can act on.
 
     A finding with no expiry can only be re-read: nothing says when it stopped
-    being true, so nothing retires it. `not stated` is the placeholder an earlier
-    version wrote in the condition's place, and it is not a condition either.
+    being true, so nothing retires it. `not stated` is a placeholder, not a
+    condition either.
     """
     text = one_line(applies_when or "")
     if not text:

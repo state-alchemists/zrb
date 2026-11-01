@@ -2,9 +2,12 @@
 
 from datetime import datetime, timedelta
 
+import pytest
+
 from zrb.llm.tool.journal_note import (
     Note,
     check_applies_when,
+    check_slug,
     compose_note,
     derive_keywords,
     list_notes,
@@ -147,3 +150,14 @@ def test_a_composed_note_with_no_keyword_left_omits_the_field():
     )
 
     assert "keywords" not in head
+
+
+@pytest.mark.parametrize("slug", ["a", "retry-policy", "v2-notes"])
+def test_a_kebab_case_slug_is_accepted(slug):
+    check_slug(slug)
+
+
+@pytest.mark.parametrize("slug", ["retry-policy\n", "\n", "retry-policy\n\n", "../x"])
+def test_a_slug_with_a_line_break_or_a_path_is_refused(slug):
+    with pytest.raises(ValueError, match="kebab-case"):
+        check_slug(slug)

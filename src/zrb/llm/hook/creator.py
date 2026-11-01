@@ -157,12 +157,10 @@ def _build_hook_env(
     env["CLAUDE_CWD"] = context.cwd or ""
     env["CLAUDE_TRANSCRIPT_PATH"] = context.transcript_path or ""
     env["CLAUDE_PERMISSION_MODE"] = context.permission_mode
-    # Best guess for project root
     env["CLAUDE_PROJECT_DIR"] = context.cwd or os.getcwd()
     env["CLAUDE_PLUGIN_ROOT"] = plugin_root or ""
     env["CLAUDE_CODE_REMOTE"] = "true" if context.metadata.get("remote") else "false"
     try:
-        # Try to serialize event_data, fall back to string representation
         if context.event_data is not None:
             _set_bounded_env(env, "CLAUDE_EVENT_DATA", json.dumps(context.event_data))
         else:
@@ -228,22 +226,24 @@ def _interpret_exit(
     return _failure_result(exit_code, output, stderr_output)
 
 
+def _json_object(output: str) -> dict | None:
+    """*output* parsed as a JSON object, or None when it is anything else."""
+    try:
+        data = json.loads(output)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def _blocked_result(output: str, stderr_output: str) -> HookResult:
     """Build the result for exit code 2, preserving the block reason."""
-    modifications: dict = {}
-    stdout_is_json = False
-    try:
-        # Claude Code format: {"decision": "block", "reason": "...", ...}
-        data = json.loads(output)
-        if isinstance(data, dict):
-            modifications = data
-            stdout_is_json = True
-    except json.JSONDecodeError:
-        pass
+    # Claude Code format: {"decision": "block", "reason": "...", ...}
+    control = _json_object(output)
+    modifications = control or {}
 
     # Only treat stdout as the reason when it was NOT a JSON control object (a
     # JSON object without a reason key keeps the default).
-    plain_stdout = None if stdout_is_json else (output or None)
+    plain_stdout = None if control is not None else (output or None)
     reason = (
         modifications.get("reason")
         or stderr_output
@@ -251,7 +251,6 @@ def _blocked_result(output: str, stderr_output: str) -> HookResult:
         or "Blocked by hook"
     )
 
-    # Merge provided modifications with blocking modifications
     blocking_modifications = {
         "decision": "block",
         "reason": reason,
@@ -260,7 +259,7 @@ def _blocked_result(output: str, stderr_output: str) -> HookResult:
     blocking_modifications.update(modifications)
     return HookResult(
         success=False,
-        output=output,  # Include output for logging/debugging
+        output=output,
         should_stop=True,
         modifications=blocking_modifications,
     )
@@ -268,14 +267,7 @@ def _blocked_result(output: str, stderr_output: str) -> HookResult:
 
 def _success_result(output: str, context: HookContext) -> HookResult:
     """Build a success result, parsing JSON control output when present."""
-    modifications: dict = {}
-    try:
-        data = json.loads(output)
-        if isinstance(data, dict):
-            modifications = data
-    except json.JSONDecodeError:
-        # Not JSON, treat as plain output
-        pass
+    modifications = _json_object(output) or {}
 
     if output and not modifications and context.event in _STDOUT_CONTEXT_EVENTS:
         modifications = {"additionalContext": output}

@@ -3,8 +3,7 @@
 A backend that can render speech (rather than play it through a program of
 its own) returns a `SpeechAudio`: 16-bit mono PCM, its sample rate, and its
 chunks, read as they arrive so a streamed download starts playing early.
-zrb playing the audio is what lets dictation cancel zrb's own voice out of
-the microphone (it knows every sample it plays) and pause it mid-sentence.
+zrb playing the audio is what lets it pause the voice mid-sentence.
 """
 
 from __future__ import annotations

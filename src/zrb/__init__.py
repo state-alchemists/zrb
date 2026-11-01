@@ -3,14 +3,12 @@
 Every name in `__all__` resolves on first access (PEP 562), so `import zrb`
 stays cheap: a caller who wants `Task` and `make_task` does not pay for the
 agent stack, the CLI, or the built-in task tree. `from zrb import X`, `zrb.X`,
-`dir(zrb)` and `from zrb import *` behave exactly as they did when the imports
-here were eager.
+`dir(zrb)` and `from zrb import *` all work.
 
-One side effect is deliberately *not* here: importing this package no longer
-imports `zrb.builtin`, which is what registers the built-in tasks on `cli`.
-`zrb.__main__` imports it before loading any init source, so the CLI still sees
-the full tree; a library that wants the built-ins does `from zrb import
-builtin`.
+Importing this package does not import `zrb.builtin`, which registers the
+built-in tasks on `cli`. `zrb.__main__` imports it before loading any init
+source, so the CLI sees the full tree; a library that wants the built-ins does
+`from zrb import builtin`.
 """
 
 import importlib
