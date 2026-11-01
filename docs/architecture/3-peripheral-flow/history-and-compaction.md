@@ -76,6 +76,7 @@ flowchart TD
 | `process_message_for_summarization` | `src/zrb/llm/summarizer/message_processor.py` | Tier one: shrinks one oversized tool result, or truncates it if summarizing fails |
 | `summarize_history` | `src/zrb/llm/summarizer/history_summarizer.py` | Tier two: splits the list, summarizes the old part, rebuilds the list |
 | `split_history` | `src/zrb/llm/summarizer/history_splitter.py` | Finds a token-budget cut, preferring the start of a turn |
+| `archive_verbatim_history` | `src/zrb/llm/summarizer/verbatim_archive.py` | Appends the messages a summary replaced to a private, append-only markdown file; returns `None` instead of raising when it cannot |
 | `sanitize_history` | `src/zrb/llm/agent/run/history_utils.py` | The provider-boundary repair pipeline: a fixed tuple of steps, run in order |
 | `PartialRunAccumulator` | `src/zrb/llm/agent/run/partial_run.py` | Records what a turn did as it streams, so a failed turn can be saved honestly |
 
@@ -99,16 +100,24 @@ sequenceDiagram
     T->>M: update, then save
 ```
 
-**Loading.** `load` serves the cache while the file's modification time is unchanged, or while the entry has unsaved updates. Otherwise it reads the file, cleans broken parts, and validates it. A missing, empty or invalid file gives an empty list with a warning, so a bad file never blocks a turn.
+**Loading.** `load` serves the cache while the file's modification time is unchanged, or while the entry has unsaved updates. Otherwise it reads the file, cleans broken parts, and validates it. A missing or empty file gives an empty list; an unreadable or invalid one gives an empty list with a warning, so a bad file never blocks a turn.
 
 **Compacting.** The processor runs inside `run_agent`, between the `PreCompact` and `PostCompact` hooks, and counts the system prompt against the threshold. Tier one runs on every turn. Tier two runs only when the list is over the message window or the token threshold. When only the message count is over, it is skipped if summarizing would free too small a share of the token budget to be worth a model call. `summarize_history` then:
 
 1. splits the list with `split_history` into an old part and a kept tail;
 2. summarizes the old part in chunks, consolidating the snapshots if there are many;
-3. adds the journal index to the summary text;
-4. returns the restoration message, then the first real user message, then the kept tail rendered as text, then any still-unresolved tool call kept in native message form (orphaned tool results dropped from that native tail, same-role neighbours merged).
+3. adds the journal index and a pointer to the verbatim archive to the summary text, all held under the summary cap (`LLM_SUMMARY_MAX_TOKEN_RATIO`);
+4. returns the restoration message, then the first real user message, then the kept tail rendered as text, then any still-unresolved tool call kept in native message form (orphaned tool results dropped from that native tail, same-role neighbours merged);
+5. appends the replaced messages, word for word, to the verbatim archive, one markdown file per conversation under `<LLM_HISTORY_DIR>/verbatim/`. If that write fails, the summary is rebuilt without the pointer.
 
-The cut in step 1 is chosen by budget, not by count: `LLM_HISTORY_TAIL_BUDGET_RATIO` of the trigger threshold, held under `LLM_HISTORY_TAIL_MAX_TOKENS`, landing on a turn boundary when one still keeps half of it, and retried at twice the ratio when the newest message alone overflows. A tail is measured as the text it is sent as (`count_tail_tokens` renders it with the same clip step 4 applies), not as the messages it came from and not with the provider's usage count on its newest response: that count covers the whole history before it, so read as the size of a suffix it reports the unsplit list, and the unclipped messages are up to four times what the request is actually charged for. The whole history is the exception that proves the rule — at split zero nothing is rendered, so `count_history_tokens` asks for its content size instead, or a tool-heavy history would "fit" a budget it overruns by an order of magnitude and be left whole by a compaction that summarized nothing. A counting subclass keeps its own counter, the same reason the bisected scan declines to trust one. → [ADR-0130](../../adr/adr-0130.md)
+The cut in step 1 is chosen by budget, not by count ([ADR-0130](../../adr/adr-0130.md)):
+
+- The tail may fill `LLM_HISTORY_TAIL_BUDGET_RATIO` of the trigger threshold, and never more than `LLM_HISTORY_TAIL_MAX_TOKENS`.
+- The cut lands on a turn boundary when one still keeps half of that budget.
+- When the newest message alone overflows the budget, the split is retried at twice the ratio (never above 0.8).
+- A tail is measured as the text it is sent as: `count_tail_tokens` renders it with the same clip step 4 applies. It does not use the provider's usage count on the newest response, which covers the whole history before it and so reports the unsplit list as the size of any suffix.
+- The whole history is the one exception. At split zero nothing is rendered, so `count_history_tokens` counts its content instead; otherwise a tool-heavy history would "fit" a budget it overruns, and a compaction that summarized nothing would leave it whole.
+- A counting subclass keeps its own counter, because the bisected scan declines to trust one.
 
 **Saving.** `save` serializes the list, validates it, writes a sibling `.tmp` file and renames it over the live one. The final save of a turn may also write a timestamped backup; mid-turn checkpoints pass `write_backup=False`.
 
@@ -123,7 +132,7 @@ The cut in step 1 is chosen by budget, not by count: `LLM_HISTORY_TAIL_BUDGET_RA
 | `/compress` | `LLMTask`, before any agent is built | Runs `summarize_history` with `force=True`, even under the threshold |
 | A `PreCompact` hook blocks | `run_agent` history preparation | Summarization is skipped; the emergency prune to the last message still runs if the list does not fit |
 | A delegated sub-agent's transcript | `src/zrb/llm/util/subagent_session_naming.py` | Saved under `subagent/{agent}/` with no backup, and pruned by count — see [Sub-agents](../2-extension-surface/sub-agents.md) |
-| An old auto-named conversation | `FileHistoryManager` on its first save | Deleted once it is older than `LLM_HISTORY_RETENTION`, whether it still has just its generated name or a `-topic` after it (see `LLM_AUTO_NAME_ENABLED`); a name someone chose is never pruned |
+| An old auto-named conversation | `FileHistoryManager` on its first save | Deleted once it is older than `LLM_HISTORY_RETENTION`, whether it still has just its generated name or a `-topic` after it (see `LLM_AUTO_NAME_ENABLED`); a name someone chose is never pruned. A verbatim archive that no saved history refers to is deleted by the same cutoff |
 
 ### Change it here
 
