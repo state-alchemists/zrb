@@ -75,7 +75,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 f"it must be between {-len(uis)} and {len(uis) - 1}."
             )
         self._uis = uis
-        self._main_ui_index = main_ui_index
+        # Normalized so `run_async` can compare it with `enumerate` positions.
+        self._main_ui_index = main_ui_index % len(uis) if uis else main_ui_index
         self._last_output: str = ""
         self._child_tasks: list[asyncio.Task] = []
         self._pending_input_tasks: list[asyncio.Task] = []

@@ -260,6 +260,26 @@ async def test_multi_ui_run_async(multi_ui, child_ui_1, child_ui_2):
 
 
 @pytest.mark.asyncio
+async def test_run_async_with_a_negative_primary_index_starts_the_primary_once(
+    child_ui_1, child_ui_2
+):
+    """The primary runs through `run_async`; only the other children are
+    started as secondaries, whichever way the primary index is spelled."""
+    child_ui_1.start_event_loop = AsyncMock()
+    child_ui_2.start_event_loop = AsyncMock()
+    child_ui_2.run_async = AsyncMock(return_value="done 2")
+    child_ui_2.last_output = ""
+    multi = MultiUI([child_ui_1, child_ui_2], main_ui_index=-1)
+    multi.set_llm_task(MagicMock())
+
+    await multi.run_async()
+
+    child_ui_2.run_async.assert_called_once()
+    child_ui_2.start_event_loop.assert_not_called()
+    child_ui_1.start_event_loop.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_multi_ui_run_interactive_command(multi_ui, child_ui_1):
     res = await multi_ui.run_interactive_command("ls")
     assert res == 0
