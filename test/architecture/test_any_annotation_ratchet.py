@@ -30,7 +30,9 @@ SRC = REPO_ROOT / "src" / "zrb"
 # into the layout, so each builds its own `Frame` from typed state.
 # -2 (1054->1052): `subtree_model`'s `to_dict` returns `dict[str, object]` — it
 # only passes values through to `json.dumps`.
-ANY_ANNOTATIONS = 1052
+# -3 (1052->1049): the two echo emitters take an `AnyUI` target and
+# `_restore_snapshot` takes a `SnapshotManager`.
+ANY_ANNOTATIONS = 1049
 
 
 def _count_any(annotation: ast.expr | None) -> int:

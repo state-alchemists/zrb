@@ -87,6 +87,7 @@ class UI(BaseUI):
     ):
         self._pending_invalidate = False
         self._invalidate_task: asyncio.Task | None = None
+        self._last_render_error: str | None = None
         # [start, end, source, renderer] per width-dependent block appended
         # through `append_rendered` — see that method and `rewrap_output`.
         self._rendered_blocks: list[list] = []
@@ -207,7 +208,7 @@ class UI(BaseUI):
             # Runs every frame: never kill the paint, and log each distinct
             # failure once instead of once per redraw.
             message = f"Output re-wrap skipped: {e}"
-            if message != getattr(self, "_last_render_error", None):
+            if message != self._last_render_error:
                 self._last_render_error = message
                 logger.warning(message)
 
@@ -236,10 +237,9 @@ class UI(BaseUI):
         self._message_editing.reset_previous_recall()
 
     def record_submitted_message(self, text: str) -> None:
-        """Override `BaseUI.record_submitted_message`: append `text` to the
-        input box's cross-session history, keeping prompt_toolkit's own
-        buffer-history navigation in sync (`append_string` updates both the
-        loaded strings and the persisted list)."""
+        """Append `text` to the input box's cross-session history;
+        `append_string` updates both prompt_toolkit's loaded strings and the
+        persisted list."""
         self.previous_messages.append_string(text)
 
     @property

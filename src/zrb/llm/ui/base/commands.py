@@ -23,6 +23,7 @@ from zrb.util.cli.terminal import get_terminal_size
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from zrb.llm.hook.executor import HookExecutionResult
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
@@ -349,38 +350,36 @@ def _split_command(text: str) -> tuple[str, str]:
     return name, args
 
 
-def _command_blocked(results: list) -> bool:
+def _command_blocked(results: "list[HookExecutionResult]") -> bool:
     """True if any PreCommand hook result asked to block the command."""
-    for r in results or []:
-        if getattr(r, "blocked", False) or getattr(r, "exit_code", 0) == 2:
+    for r in results:
+        if r.blocked or r.exit_code == 2:
             return True
-        if getattr(r, "decision", None) == "block":
+        if r.decision == "block":
             return True
-        if getattr(r, "permission_decision", None) == "deny":
+        if r.permission_decision == "deny":
             return True
-        if not getattr(r, "continue_execution", True):
+        if not r.continue_execution:
             return True
     return False
 
 
-def _command_arg_override(results: list) -> "str | None":
+def _command_arg_override(results: "list[HookExecutionResult]") -> "str | None":
     """A `command_args` override returned by a PreCommand hook, if any.
 
     Read from each result's ``data``; the highest-priority hook wins.
     """
-    for r in results or []:
-        value = (getattr(r, "data", None) or {}).get("command_args")
+    for r in results:
+        value = r.data.get("command_args")
         if value is not None:
             return str(value)
     return None
 
 
-def _command_block_reason(results: list) -> str | None:
+def _command_block_reason(results: "list[HookExecutionResult]") -> str | None:
     """First human-readable reason from a blocking PreCommand result."""
-    for r in results or []:
-        reason = getattr(r, "permission_decision_reason", None) or getattr(
-            r, "reason", None
-        )
+    for r in results:
+        reason = r.permission_decision_reason or r.reason
         if reason:
             return reason
     return None

@@ -461,27 +461,21 @@ def _reflect_merged(
         CFG.LOGGER.debug(f"Child UI merged-echo fallback failed: {e}")
 
 
-def _emit_echo_to(target: Any, header: str, body: str) -> None:
+def _emit_echo_to(target: AnyUI, header: str, body: str) -> None:
     """Write an ordinary user echo to this target only, never a broadcast,
     so a child that already redrew in place gets no duplicate."""
-    append = getattr(target, "append_to_output", None)
-    if not callable(append):
-        return
     markdown = getattr(target, "append_markdown", None)
     echo_user_message(
-        append,
+        target.append_to_output,
         markdown if callable(markdown) else None,
         header=header,
         body=body,
     )
 
 
-def _emit_echo_verbatim_to(target: Any, header: str, body: str) -> None:
+def _emit_echo_verbatim_to(target: AnyUI, header: str, body: str) -> None:
     """Write one target's merged paste line verbatim, never rendered."""
-    append = getattr(target, "append_to_output", None)
-    if not callable(append):
-        return
-    append(f"{header}{body}\n")
+    target.append_to_output(f"{header}{body}\n")
 
 
 def _is_paste_burst(

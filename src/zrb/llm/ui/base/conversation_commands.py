@@ -473,7 +473,7 @@ class BaseUIConversationCommands:
 
     async def _restore_snapshot(
         self,
-        snapshot_manager: Any,
+        snapshot_manager: "SnapshotManager",
         sha: str | None,
         message_count: int | None,
     ) -> None:

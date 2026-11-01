@@ -149,11 +149,7 @@ class UILifecycle:
                 CFG.LOGGER.debug(f"Refresh loop repaint failed: {e}")
             try:
                 # Fast refresh animates thinking/confirmation; slow saves CPU.
-                if (
-                    getattr(ui, "is_thinking", False)
-                    or getattr(getattr(ui, "confirmation", None), "current", None)
-                    is not None
-                ):
+                if ui.is_thinking or ui.confirmation.current is not None:
                     await asyncio.sleep(0.25)
                 else:
                     await asyncio.sleep(3.0)
