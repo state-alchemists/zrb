@@ -1,18 +1,17 @@
-"""MultiUI dispatches optional child hooks by string, which no type checker sees.
+"""MultiUI reaches its children through `AnyUI`'s declared hooks, not by string.
 
-A child UI is not required to implement these -- the dispatch skips any child
-that doesn't, deliberately, so a Telegram channel can ignore the TUI's
-block-collapsing hooks. That optional-capability shape is fine. What it cannot
-survive is a *typo*: `_fanout("accumulat_usage")` silently does nothing on
-every child, forever, and nothing fails.
+Almost every optional hook a child may implement is declared on `AnyUI` with a
+default, so `MultiUI` calls it as `ui.hook(...)` and pyright sees a typo. Three
+are left undeclared on purpose -- a UI that has them behaves differently from
+one that does not, not merely less (the stream prints its own "Prepare tool
+parameters" line without `update_tool_prepare`; the shell tool prints a
+command's output live without `update_shell_output`/`finish_shell_output`) --
+so declaring a no-op default would change what a UI without them gets. Those
+three are dispatched by name, and a typo there silently does nothing on every
+child: so the names are pinned here.
 
-Two dispatch shapes carry these names and both are checked: `_fanout("name")`,
-and the ad-hoc `getattr(ui, "name", None)` used by the hooks that need a
-fallback for children lacking them (`append_markdown` renders for the child,
-`record_tool_call_block` degrades to a plain line).
-
-So the names are pinned here instead. `FANOUT_METHODS` is also the canonical
-list of the optional enrichment hooks a custom UI may implement, documented in
+`DECLARED_HOOKS` and `OFFERED_HOOKS` together are the canonical list of the
+optional hooks a custom UI may implement, documented in
 `docs/llm/llm-custom-ui.md`.
 """
 
@@ -21,10 +20,11 @@ import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
 MULTI_UI = REPO_ROOT / "src" / "zrb" / "llm" / "ui" / "multi_ui.py"
+CUSTOM_UI_DOC = REPO_ROOT / "docs" / "llm" / "llm-custom-ui.md"
 
-# Every method MultiUI fans out to children by name. Adding one here means
-# adding it to the custom-UI doc's optional-hooks list in the same diff.
-FANOUT_METHODS = frozenset(
+# Hooks `MultiUI` forwards to children as typed calls; each is declared on
+# `AnyUI`. Adding one means adding it to the custom-UI doc in the same diff.
+DECLARED_HOOKS = frozenset(
     {
         "accumulate_usage",
         "append_answer",
@@ -32,7 +32,6 @@ FANOUT_METHODS = frozenset(
         "collapse_text_block",
         "collapse_thinking_block",
         "end_tool_call",
-        "finish_shell_output",
         "mark_text_block_start",
         "mark_thinking_block_start",
         "record_tool_call_block",
@@ -42,83 +41,108 @@ FANOUT_METHODS = frozenset(
         "set_stream_indentation",
         "settle_text_block",
         "start_tool_call",
-        "update_shell_output",
         "update_system_info",
-        "update_tool_prepare",
     }
 )
 
-# Probed on a child but NOT an output-enrichment hook, so not in the doc's
-# optional-hooks table: `start_event_loop` is `EventDrivenUI`'s alone and the
-# default TUI deliberately lacks it.
+# Hooks `MultiUI` forwards to the children that offer them, by name.
+OFFERED_HOOKS = frozenset(
+    {"update_shell_output", "finish_shell_output", "update_tool_prepare"}
+)
+
+# Probed on a child but NOT an output-enrichment hook: `start_event_loop` is
+# `EventDrivenUI`'s alone and the default TUI deliberately lacks it.
 CHILD_CAPABILITY_PROBES = frozenset({"start_event_loop"})
 
 
-def _dispatched_names() -> set[str]:
-    """Every hook name MultiUI looks up on a child by string, via either shape."""
+def _calls_named(attr: str) -> list[ast.Call]:
+    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    return [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == attr
+    ]
+
+
+def _offered_names() -> set[str]:
+    """Every hook name `MultiUI` looks up on a child by string."""
+    names: set[str] = set()
+    for node in _calls_named("_fanout_if_offered"):
+        first = node.args[0]
+        assert isinstance(first, ast.Constant) and isinstance(first.value, str), (
+            "_fanout_if_offered's method name must be a string literal so this "
+            f"test can see it; got {ast.dump(first)}"
+        )
+        names.add(first.value)
+    return names
+
+
+def _child_getattr_names() -> set[str]:
+    """Literal names probed with `getattr(ui, "name", ...)` on a child."""
     tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
     names: set[str] = set()
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
-            continue
-        func = node.func
-        if isinstance(func, ast.Attribute) and func.attr == "_fanout":
-            assert node.args, "_fanout called with no method name"
-            first = node.args[0]
-            assert isinstance(first, ast.Constant) and isinstance(first.value, str), (
-                "_fanout's method name must be a string literal so this test "
-                f"can see it; got {ast.dump(first)}"
-            )
-            names.add(first.value)
-            continue
-        # `_append_prose(text, "hook", "older-hook")` — the per-child hook
-        # chain, newest first. Every name in it is dispatch too.
-        if isinstance(func, ast.Attribute) and func.attr == "_append_prose":
-            for arg in node.args[1:]:
-                assert isinstance(arg, ast.Constant) and isinstance(arg.value, str), (
-                    "_append_prose's hook names must be string literals so this "
-                    f"test can see them; got {ast.dump(arg)}"
-                )
-                names.add(arg.value)
-            continue
-        # `getattr(ui, "name", None)` — `ui` is the loop variable over
-        # `self._uis`; probes against `self.main_ui`, `sys` etc. are not
-        # child-hook dispatch and are skipped.
         if (
-            isinstance(func, ast.Name)
-            and func.id == "getattr"
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
             and len(node.args) >= 2
             and isinstance(node.args[0], ast.Name)
             and node.args[0].id == "ui"
             and isinstance(node.args[1], ast.Constant)
             and isinstance(node.args[1].value, str)
         ):
-            name = node.args[1].value
-            if name not in CHILD_CAPABILITY_PROBES:
-                names.add(name)
+            names.add(node.args[1].value)
     return names
 
 
-def test_every_fanout_name_is_recorded():
-    called = _dispatched_names()
-    assert called == set(FANOUT_METHODS), (
-        "Child-hook dispatch on MultiUI drifted from the recorded list. A name "
-        "here that is not a real method silently does nothing on every child: "
-        f"added={sorted(called - FANOUT_METHODS)} "
-        f"removed={sorted(FANOUT_METHODS - called)}"
+def test_only_the_offered_hooks_are_dispatched_by_string():
+    assert _offered_names() == set(OFFERED_HOOKS)
+    assert _child_getattr_names() <= set(CHILD_CAPABILITY_PROBES), (
+        "MultiUI probes a child by string for "
+        f"{sorted(_child_getattr_names() - CHILD_CAPABILITY_PROBES)}. Declare the "
+        "hook on AnyUI with a default and call it directly."
     )
 
 
-def test_every_fanout_name_exists_on_the_default_ui():
+def test_every_declared_hook_is_declared_on_any_ui():
+    from zrb.llm.any_ui import AnyUI
+
+    missing = sorted(name for name in DECLARED_HOOKS if not hasattr(AnyUI, name))
+    assert not missing, f"MultiUI calls {missing}, which AnyUI does not declare."
+
+
+def test_the_offered_hooks_stay_undeclared():
+    """Declaring one would make a UI without it look like it has it: the stream
+    would stop printing its own prepare line and the shell tool would stop
+    printing a command's output live."""
+    from zrb.llm.any_ui import AnyUI
+
+    declared = sorted(name for name in OFFERED_HOOKS if hasattr(AnyUI, name))
+    assert not declared
+
+
+def test_every_hook_exists_on_the_default_ui():
     """The default TUI implements the full optional surface -- it is what the
     hooks were written for, so a typo shows up as a name it lacks."""
     from zrb.llm.ui.default.ui import UI
 
-    missing = sorted(name for name in FANOUT_METHODS if not hasattr(UI, name))
-    assert not missing, (
-        f"MultiUI fans out to {missing}, which the default UI does not "
-        "implement -- either a typo, or a hook that no longer exists."
+    missing = sorted(
+        name for name in DECLARED_HOOKS | OFFERED_HOOKS if not hasattr(UI, name)
     )
+    assert not missing, f"The default UI does not implement {missing}."
+
+
+def test_every_hook_is_documented():
+    doc = CUSTOM_UI_DOC.read_text(encoding="utf-8")
+    undocumented = sorted(
+        name
+        for name in DECLARED_HOOKS | OFFERED_HOOKS
+        if f"`{name}(" not in doc and f"`{name}`" not in doc
+    )
+    assert not undocumented, f"Add {undocumented} to {CUSTOM_UI_DOC.name}."
 
 
 def _primary_child_probes() -> set[str]:
@@ -183,7 +207,7 @@ def test_the_primary_child_is_read_through_the_declared_contract():
         f"{sorted(probed)} instead of reading it as declared state. Add the "
         "member to AnyUI (with a default in UIStateDefaultsMixin) and use "
         "attribute access, or -- if it really is optional -- fan it out to "
-        "every child through FANOUT_METHODS rather than the primary alone."
+        "every child through DECLARED_HOOKS rather than the primary alone."
     )
 
 

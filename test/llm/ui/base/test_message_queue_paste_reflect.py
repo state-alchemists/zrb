@@ -31,7 +31,13 @@ class BurstTarget:
         self._attachment_index += 1
         return [f"img-{self._attachment_index}"]
 
+    def append_markdown(self, markdown_text):
+        self.append_to_output(markdown_text, end="")
+
     def track_echo_span(self, entry, echo):
+        pass
+
+    def track_rendered_echo(self, entry, header):
         pass
 
     def redraw_echo(self, entry):

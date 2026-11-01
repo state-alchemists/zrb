@@ -357,20 +357,20 @@ def test_non_keyboard_source_does_not_merge_with_keyboard_burst():
 
 
 def test_submit_user_message_via_queue_ignores_sources_without_attachments():
-    """A source with no `take_pending_attachments` must not break the loop.
+    """A UI that never implemented `take_pending_attachments` adds none.
 
-    Every echo target is required to be an `AnyUI` (every `BaseUI` is
-    one), so the tolerance that used to cover "a target with no hooks" is gone;
-    what stays tolerant is attachment collection, which skips a source without
-    the method.
+    `AnyUI` declares the hook with an empty default, so attachment collection
+    calls it on every source and a bare UI contributes nothing.
     """
+    from zrb.llm.ui_fallback.std_ui import StdUI
+
     queue = MessageQueue()
 
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
         stream_ai_response=_stub_stream_ai_response,
         queue=queue,
-        attachment_sources=[object()],
+        attachment_sources=[StdUI()],
         echo_targets=[_NoOpEchoTarget()],
         llm_task=object(),
         user_message="hi",
@@ -402,6 +402,9 @@ def test_submit_user_message_via_queue_renders_markdownish_echo():
 
         def track_echo_span(self, entry, echo):
             raise AssertionError("a rendered echo must not claim a span")
+
+        def track_rendered_echo(self, entry, header):
+            pass
 
     queue = MessageQueue()
     body = "## Plan\n\n- a\n- b"
