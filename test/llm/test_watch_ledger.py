@@ -7,6 +7,7 @@ assertions here are about order, privacy and delivery — not about any tool.
 import json
 import os
 import stat
+import subprocess
 import sys
 import threading
 import time
@@ -198,6 +199,32 @@ def test_an_append_waits_while_the_file_is_being_folded(tmp_path):
     thread.join(5)
 
     assert {record.id for record in ledger.records()} == {"before", "during"}
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows cannot probe a pid without ending it"
+)
+def test_a_child_that_dies_after_the_restart_is_still_reported(tmp_path):
+    """Asking once at open is not enough: the child can die after that answer."""
+    child = subprocess.Popen(["sleep", "30"])
+    try:
+        ledger = _ledger(tmp_path)
+        ledger.open("h1", kind="process", what="Outlived the restart, then died")
+        _rewrite_instance(ledger, "someone-else")
+        ledger.started("h1", child.pid)
+
+        # Still working: nothing to report, and nothing to call lost.
+        assert ledger.render_lines() == []
+
+        child.kill()
+        child.wait()
+        (line,) = ledger.render_lines()
+    finally:
+        if child.poll() is None:
+            child.kill()
+            child.wait()
+
+    assert "outcome unknown" in line
 
 
 def test_only_one_turn_claims_an_outcome_even_if_both_render_at_once(tmp_path):

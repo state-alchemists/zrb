@@ -187,7 +187,11 @@ class WatchLedger:
         _write_private(self.path, _encode(row) + "\n", append=True)
 
     def _write_end(
-        self, watch_id: str, state: str, exit_code: int | None = None
+        self,
+        watch_id: str,
+        state: str,
+        exit_code: int | None = None,
+        outcome: str = "",
     ) -> None:
         """Write the one row that closes a watch. Only while `_hold` is held."""
         self._write_row(
@@ -196,6 +200,7 @@ class WatchLedger:
                 "id": watch_id,
                 "state": state,
                 "exit_code": exit_code,
+                "outcome": outcome,
                 "ended_at": _now(),
             }
         )
@@ -230,12 +235,21 @@ class WatchLedger:
         self._append({"op": SPAWNED, "id": watch_id, "pid": pid})
 
     def end(
-        self, watch_id: str, exit_code: int | None = None, killed: bool = False
+        self,
+        watch_id: str,
+        exit_code: int | None = None,
+        killed: bool = False,
+        outcome: str = "",
     ) -> None:
-        """Record how a watch ended: its exit code, or that it was killed."""
+        """Record how a watch ended: its exit code, or that it was killed.
+
+        *outcome* is where the full output still is, when the watch has somewhere
+        to point: the next turn may read it, but the ledger keeps the pointer and
+        never the output.
+        """
         state = KILLED if killed else FINISHED
         with self._hold():
-            self._write_end(watch_id, state, exit_code)
+            self._write_end(watch_id, state, exit_code, outcome)
 
     def lose(self, watch_id: str) -> None:
         """Record that a watch's ending was never seen — not that it is running."""
@@ -278,6 +292,7 @@ class WatchLedger:
                 record = state[watch_id]
                 record.state = str(row.get("state", FINISHED))
                 record.exit_code = row.get("exit_code")
+                record.outcome = str(row.get("outcome", "") or record.outcome)
                 record.ended_at = str(row.get("ended_at", ""))
             elif row.get("op") == DELIVERED and watch_id in state:
                 state[watch_id].delivered_at = str(row.get("at", ""))
@@ -294,17 +309,23 @@ class WatchLedger:
         of zrb that is gone. That alone does not mean the work ended: the child
         process may still be running, which is exactly the case where calling it
         lost would be a lie. The recorded pid decides — lost only when that
-        process is confirmed absent.
+        process is confirmed absent. `render_lines` asks again every turn, because
+        the child that was still alive when this ledger was opened can die later,
+        and no process is left to write the ending when it does.
         """
-        lost: list[str] = []
         with self._hold():
-            for record in self.records():
-                if record.state != RUNNING or record.instance == _INSTANCE:
-                    continue
-                if _is_alive(record.pid):
-                    continue
-                self._write_end(record.id, LOST)
-                lost.append(record.id)
+            return self._reconcile()
+
+    def _reconcile(self) -> list[str]:
+        """The body of `reconcile`, for a caller already holding the lock."""
+        lost: list[str] = []
+        for record in self.records():
+            if record.state != RUNNING or record.instance == _INSTANCE:
+                continue
+            if _is_alive(record.pid):
+                continue
+            self._write_end(record.id, LOST)
+            lost.append(record.id)
         return lost
 
     def compact(self) -> None:
@@ -339,11 +360,15 @@ class WatchLedger:
         Rendering is delivery: an outcome is shown once and then marked, so a
         quiet session costs no prompt at all. Choosing the rows and marking them
         happen under one lock, because two turns rendering at the same moment
-        would otherwise both see an unread outcome and both show it.
+        would otherwise both see an unread outcome and both show it. Reconciliation
+        runs first, in the same lock: a watch whose child was still alive when the
+        ledger opened, and died since, would otherwise stay `running` for as long
+        as this process lives — a result nobody is told about.
         """
         hidden_ids = skip or set()
         try:
             with self._hold():
+                self._reconcile()
                 unread = [
                     record for record in self.unread() if record.id not in hidden_ids
                 ]
@@ -451,6 +476,7 @@ def _fold_lines(record: WatchRecord) -> list[str]:
                     "id": record.id,
                     "state": record.state,
                     "exit_code": record.exit_code,
+                    "outcome": record.outcome,
                     "ended_at": record.ended_at,
                 }
             )

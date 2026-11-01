@@ -76,6 +76,19 @@ def _start_watch(ledger: "WatchLedger | None", handle: str, pid: int) -> None:
         CFG.LOGGER.warning(f"Could not record the pid of watch {handle}: {e}")
 
 
+def _spill_pointer(bp: "_BackgroundProcess") -> str:
+    """Where the complete output still is, when a stream overflowed its capture.
+
+    The retained tail dies with the process, but a spilled stream is on disk and
+    outlives the turn, so the watch records it as its outcome: a pointer the next
+    turn can read, never the output itself.
+    """
+    for capture in (bp.stdout_cap, bp.stderr_cap):
+        if capture.truncated and capture.spill_path:
+            return capture.spill_path
+    return ""
+
+
 def _end_watch(bp: "_BackgroundProcess", handle: str, killed: bool = False) -> None:
     """Close a watch once, with the exit code the process ended on.
 
@@ -87,7 +100,10 @@ def _end_watch(bp: "_BackgroundProcess", handle: str, killed: bool = False) -> N
     bp.watch_closed = True
     try:
         get_watch_ledger(bp.owner_session_id or None).end(
-            handle, bp.process.returncode, killed=killed or bp.killed
+            handle,
+            bp.process.returncode,
+            killed=killed or bp.killed,
+            outcome=_spill_pointer(bp),
         )
     except OSError as e:
         CFG.LOGGER.warning(f"Could not close watch {handle}: {e}")

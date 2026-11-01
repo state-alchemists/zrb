@@ -4,6 +4,8 @@ The registry is what starts and ends the work; the ledger is what survives it.
 These tests hold the join between them, and the one line the next turn gets.
 """
 
+import os
+
 import pytest
 
 from zrb.config.config import CFG
@@ -133,6 +135,24 @@ async def test_a_ledger_that_fails_after_the_spawn_does_not_orphan_the_process(
     (record,) = WatchLedger(str(watch_dir), "_").records()
     assert record.state == "finished"
     assert record.exit_code == 0
+
+
+@pytest.mark.asyncio
+async def test_a_spilled_output_leaves_a_pointer_in_the_watch(watch_dir, monkeypatch):
+    """The retained tail dies with the process; a spill file does not."""
+    monkeypatch.setattr(CFG, "LLM_MAX_OUTPUT_CHARS", 16)
+    registry = get_shell_background_registry()
+
+    handle = await registry.start(
+        'python -c "print(chr(120) * 400)"', "", "More output than the capture keeps"
+    )
+    await registry.collect(handle, wait=20)
+
+    (record,) = WatchLedger(str(watch_dir), "_").records()
+    assert record.outcome, "a truncated stream has somewhere to point"
+    assert os.path.exists(record.outcome)
+    (line,) = WatchLedger(str(watch_dir), "_").render_lines()
+    assert record.outcome in line
 
 
 def test_the_live_context_names_an_outcome_the_registry_has_dropped(
