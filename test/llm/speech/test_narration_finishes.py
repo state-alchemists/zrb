@@ -104,9 +104,16 @@ def test_a_line_asked_to_finish_is_not_cut_when_it_goes_stale(lock_file):
     speaker.close()
 
 
-def test_a_tool_call_narration_is_queued_to_finish_its_sentence():
+def test_a_tool_call_narration_is_queued_to_finish_its_sentence(monkeypatch):
     """The session asks for the line to finish; only a reply, an approval or a
-    question is cut when it stops mattering."""
+    question is cut when it stops mattering.
+
+    `is_speaking` is pinned off, as the streaming tests do: narration is
+    silenced while anything holds a speech lock file, which is right in a chat
+    and makes this test depend on what ran before it — a speech still playing
+    in another test's thread, or another zrb process talking.
+    """
+    monkeypatch.setattr("zrb.llm.speech.feature.is_speaking", lambda lock: False)
     session = SpeechSession(
         SpeechConfig(enabled=True, events=["progress"], progress_interval=1).resolve()
     )
