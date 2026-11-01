@@ -103,8 +103,8 @@ class VoskDictationBackend(AnyDictationBackend):
         await self._download()
 
     async def transcribe(self, audio: bytes) -> str:
-        """Everything spoken in *audio*: push-to-talk submits this to the input
-        box for the user to edit, so no word of it is dropped as doubtful."""
+        """Everything spoken in *audio*: push-to-talk submits this like typed
+        text, so no word of it is dropped as doubtful."""
         return (await self._recognize(audio)).get("text", "")
 
     async def transcribe_speech(self, audio: bytes) -> str:
