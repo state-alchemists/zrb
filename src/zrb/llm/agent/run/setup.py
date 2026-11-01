@@ -61,12 +61,11 @@ def session_model_scope(ui: "AnyUI | list[AnyUI] | None") -> "Iterator[None]":
     """
     effective_ui = None if ui is None else resolve_ui(ui)
     with ExitStack() as stack:
-        small_model = getattr(effective_ui, "small_model", None)
-        if small_model is not None:
-            bind_contextvar(stack, current_small_model, small_model)
-        model = getattr(effective_ui, "model", None)
-        if model is not None:
-            bind_contextvar(stack, current_model, model)
+        if effective_ui is not None:
+            if effective_ui.small_model is not None:
+                bind_contextvar(stack, current_small_model, effective_ui.small_model)
+            if effective_ui.model is not None:
+                bind_contextvar(stack, current_model, effective_ui.model)
         yield
 
 
@@ -147,23 +146,23 @@ def setup_print_and_events(print_fn, event_handler, effective_ui):
             _event_print_fn,
             show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
             show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
-            usage_callback=getattr(effective_ui, "accumulate_usage", None),
-            tool_block_recorder=getattr(effective_ui, "record_tool_call_block", None),
-            on_thinking_start=getattr(effective_ui, "mark_thinking_block_start", None),
-            on_thinking_collapse=getattr(effective_ui, "collapse_thinking_block", None),
-            on_text_start=getattr(effective_ui, "mark_text_block_start", None),
-            on_text_collapse=getattr(effective_ui, "collapse_text_block", None),
-            on_text_settle=getattr(effective_ui, "settle_text_block", None),
+            usage_callback=effective_ui.accumulate_usage,
+            tool_block_recorder=effective_ui.record_tool_call_block,
+            on_thinking_start=effective_ui.mark_thinking_block_start,
+            on_thinking_collapse=effective_ui.collapse_thinking_block,
+            on_text_start=effective_ui.mark_text_block_start,
+            on_text_collapse=effective_ui.collapse_text_block,
+            on_text_settle=effective_ui.settle_text_block,
+            # Not declared on `AnyUI`: a UI without it gets the stream's own
+            # "Prepare tool parameters" line, which a no-op default would drop.
             on_tool_prepare_update=getattr(effective_ui, "update_tool_prepare", None),
-            on_tool_call_start=getattr(effective_ui, "start_tool_call", None),
-            on_tool_call_end=getattr(effective_ui, "end_tool_call", None),
+            on_tool_call_start=effective_ui.start_tool_call,
+            on_tool_call_end=effective_ui.end_tool_call,
         )
     # The column a settled block keeps is the stream's own: told once, here,
     # rather than as an argument to the documented one-argument
-    # `settle_text_block(source)` hook. A UI without the hook lays it out its
-    # own way.
-    set_indentation = getattr(effective_ui, "set_stream_indentation", None)
+    # `settle_text_block(source)` hook. A UI that keeps its own layout ignores it.
     continuation = getattr(effective_event_handler, "continuation", "")
-    if callable(set_indentation) and continuation:
-        set_indentation(continuation)
+    if continuation:
+        effective_ui.set_stream_indentation(continuation)
     return effective_print_fn, effective_event_handler

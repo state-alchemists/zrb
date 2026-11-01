@@ -16,6 +16,7 @@ from zrb.llm.agent.run.runner import (
     _build_event_stream_handler,
     _deliver_queued_messages,
 )
+from zrb.llm.ui_fallback.std_ui import StdUI
 
 
 def _handler(ui):
@@ -38,8 +39,9 @@ async def _drive(handler, messages):
 
 
 def test_a_ui_that_cannot_deliver_is_skipped():
-    """A custom UI, or one with no queue, has no such method: the run goes on."""
-    _deliver_queued_messages(MagicMock(spec=[]))
+    """A UI with no queue moves nothing, and no UI at all is skipped: the run
+    goes on."""
+    _deliver_queued_messages(StdUI())
     _deliver_queued_messages(None)
 
 
