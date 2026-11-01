@@ -27,7 +27,7 @@ class StaleCheckSpeaker:
     def __init__(self):
         self.stale_checks: list = []
 
-    def say(self, text, is_stale=None, voice=""):
+    def say(self, text, is_stale=None, voice="", cut_when_stale=True):
         self.stale_checks.append(is_stale)
 
     def close(self):

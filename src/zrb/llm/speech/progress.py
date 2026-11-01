@@ -7,7 +7,8 @@ the biggest file in the directory"), else a template from a tool-name phrase
 map ("Running a command."). A template, not a model call, as for approvals:
 the moment has passed by the time a model answers.
 
-A line still queued when its tool finishes is dropped, and nothing is said
+A line still queued when its tool finishes is dropped before it starts, and one
+already being said is finished rather than cut in the middle; nothing is said
 while the model's own words are being spoken, so the narration only fills
 silence.
 """

@@ -21,7 +21,7 @@ class FakeSpeaker:
         self.stale_checks = []
         self.is_enabled = True
 
-    def say(self, text, is_stale=None, voice=""):
+    def say(self, text, is_stale=None, voice="", cut_when_stale=True):
         self.said.append(text)
         self.stale_checks.append(is_stale)
 

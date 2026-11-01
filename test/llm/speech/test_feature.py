@@ -70,6 +70,7 @@ class FakeSpeaker:
 
     def __init__(self):
         self.said: list[str] = []
+        self.cut_when_stale: list[bool] = []
         self.cleared = 0
         self.closed = 0
         self.restarted = 0
@@ -79,8 +80,9 @@ class FakeSpeaker:
     def set_volume(self, percent):
         self.volume = clamp_volume(percent)
 
-    def say(self, text, is_stale=None, voice=""):
+    def say(self, text, is_stale=None, voice="", cut_when_stale=True):
         self.said.append(text)
+        self.cut_when_stale.append(cut_when_stale)
 
     def say_later(self, produce):
         """Run *produce* off the test's event loop, as the speaker's thread
