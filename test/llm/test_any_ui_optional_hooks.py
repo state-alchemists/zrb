@@ -12,7 +12,6 @@ from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.delivery_report import DeliveryOutcome
 from zrb.util.cli.markdown import render_markdown
 
-
 HOOKS = {
     "accumulate_usage",
     "reset_context_usage",

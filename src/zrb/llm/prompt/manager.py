@@ -19,9 +19,11 @@ from zrb.llm.prompt.registry import (
     PromptList,
     PromptRegistry,
     PromptSetValue,
-    resolve_prompt_set,
 )
 from zrb.llm.prompt.registry import prompt_registry as default_prompt_registry
+from zrb.llm.prompt.registry import (
+    resolve_prompt_set,
+)
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
