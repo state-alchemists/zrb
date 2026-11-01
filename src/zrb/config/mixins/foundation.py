@@ -20,8 +20,8 @@ from zrb.config.helper import (
     get_current_shell,
     get_default_diff_edit_command,
     get_log_level,
-    is_termux,
 )
+from zrb.util.platform import is_termux
 from zrb.util.string.conversion import to_boolean
 from zrb.util.string.format import fstring_format
 
