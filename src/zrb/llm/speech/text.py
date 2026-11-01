@@ -18,8 +18,10 @@ _LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
 _URL_RE = re.compile(r"<?https?://(?:[^\s<>()]|\([^\s<>()]*\))+(?<![.,;:!?])>?")
 _HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s*", re.MULTILINE)
 _QUOTE_RE = re.compile(r"^\s{0,3}>\s?", re.MULTILINE)
-# A whole quoted line, marker and words: a quote is shown, never read aloud.
-_QUOTE_LINE_RE = re.compile(r"^[ \t]{0,3}>.*\n?", re.MULTILINE)
+# The line that opens a blockquote, and the lines that begin something else and
+# so cannot be a lazy continuation of one.
+_QUOTE_START_RE = re.compile(r"^[ \t]{0,3}>")
+_LIST_ITEM_RE = re.compile(r"^[ \t]{0,3}(?:[-*+]|\d+[.)])[ \t]")
 _RULE_RE = re.compile(r"^\s*([-*_])(\s*\1){2,}\s*$", re.MULTILINE)
 _BULLET_RE = re.compile(r"^\s*[-*+]\s+", re.MULTILINE)
 # Emphasis markers, matched as pairs and never inside a word, so
@@ -74,15 +76,43 @@ def is_table_line(line: str) -> bool:
 
 
 def without_blockquotes(text: str) -> str:
-    """*text* with the lines it quoted taken out.
+    """*text* with the paragraphs it quoted taken out.
 
     A quote in a reply is typography: set off on screen, never read aloud. Only
     a `<spoken>` block reaches the ear, so a reply that opens no block is read
     whole except for the paragraphs it quoted — quoting the changelog is not
     asking to have the changelog read out. A quote *inside* a block is left
     alone: there the model asked for it.
+
+    A quoted paragraph keeps absorbing the lines under it that carry no `>`,
+    which is how markdown's lazy continuation works, so those go too; anything
+    that begins a block of its own — a heading, a list item, a fence, a rule, a
+    blank line — ends the quote there.
     """
-    return _QUOTE_LINE_RE.sub("", text)
+    kept: list[str] = []
+    is_quoted = False
+    for line in text.split("\n"):
+        if _QUOTE_START_RE.match(line):
+            is_quoted = True
+            continue
+        if is_quoted and _continues_a_quote(line):
+            continue
+        is_quoted = False
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def _continues_a_quote(line: str) -> bool:
+    """Whether *line* is pulled into the quote above it rather than beginning
+    anything of its own: prose, with no marker, that the paragraph swallows."""
+    stripped = line.lstrip(" \t")
+    if not stripped or stripped.startswith(("```", "~~~")):
+        return False
+    if _QUOTE_START_RE.match(line) or _HEADING_RE.match(line):
+        return False
+    if _LIST_ITEM_RE.match(line) or _BULLET_RE.match(line):
+        return False
+    return not _RULE_RE.match(line)
 
 
 def _strip_tables(text: str) -> str:

@@ -43,6 +43,23 @@ def test_a_quote_is_left_out_of_what_is_read_aloud():
     assert "the whole world is a stage" in clean_for_speech(reply)
 
 
+def test_a_quote_takes_its_lazy_continuation_lines_with_it():
+    """A quoted paragraph keeps the lines under it that carry no `>`, so removing
+    only the marked line would leave half of the quote in the ear."""
+    reply = "The excerpt is:\n\n> first line of the quote\nand its continuation.\n\nDone."
+
+    spoken = clean_for_speech(without_blockquotes(reply))
+
+    assert "continuation" not in spoken
+    assert "The excerpt is" in spoken and "Done" in spoken
+
+
+def test_a_line_that_begins_a_block_ends_the_quote():
+    reply = "> quoted\n- item one\n> quoted again"
+
+    assert without_blockquotes(reply) == "- item one"
+
+
 @pytest.mark.parametrize(
     "text, spoken",
     [
