@@ -163,3 +163,24 @@ def test_generate_copies_directory_tree_structure(tmp_path):
     scaffolder.run()
     leaf = tmp_path / "generated" / "deep" / "nested" / "leaf.txt"
     assert leaf.read_text() == "leaf"
+
+
+def test_generate_copies_binary_files_untouched_next_to_rewritten_text(tmp_path):
+    """A dict transform matches every file; a binary one must come out byte-identical."""
+    src_dir = tmp_path / "template"
+    src_dir.mkdir()
+    png = b"\x89PNG\r\n\x1a\n\x00\x00\xff\xfe\x80Project Name"
+    (src_dir / "logo.png").write_bytes(png)
+    (src_dir / "readme.txt").write_text("Welcome to Project Name\n")
+
+    scaffolder = Scaffolder(
+        name="scaffold-binary-next-to-text",
+        source_path=str(src_dir),
+        destination_path=str(tmp_path / "out"),
+        transform_path={},
+        transform_content={"Project Name": "Test App"},
+    )
+    scaffolder.run()
+
+    assert (tmp_path / "out" / "logo.png").read_bytes() == png
+    assert (tmp_path / "out" / "readme.txt").read_text() == "Welcome to Test App\n"
