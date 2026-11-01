@@ -473,7 +473,7 @@ class BaseUIConversationCommands:
 
     async def _restore_snapshot(
         self,
-        snapshot_manager: Any,
+        snapshot_manager: "SnapshotManager",
         sha: str | None,
         message_count: int | None,
     ) -> None:
@@ -707,10 +707,10 @@ def _redirect_target(argument: str) -> str | None:
 
     A redirect's argument is a filename, and a filename is one word: a shell
     refuses `> a b` as an "ambiguous redirect", and prose pasted after the
-    command arrives with spaces or a newline in it. Writing that as a file --
-    which is what happened -- leaves a document named after the paragraph, so
-    the line is treated as the text it is instead. Quoting or escaping a path
-    with spaces still works, exactly as a shell wants it.
+    command arrives with spaces or a newline in it. Writing that as a file
+    would leave a document named after the paragraph, so the line is treated as
+    the text it is. Quoting or escaping a path with spaces still works, exactly
+    as a shell wants it.
     """
     argument = argument.strip()
     if not argument:

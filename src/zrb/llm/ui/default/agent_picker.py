@@ -58,7 +58,7 @@ class UIAgentPicker:
         self._agent_picker_window = self._create_agent_picker_window()
 
     def has_active_agent_picker(self) -> bool:
-        """Whether the sub-agent picker is currently being shown (public API)."""
+        """Whether the sub-agent picker is currently being shown."""
         return bool(self._picker_sessions)
 
     @property
@@ -134,7 +134,7 @@ class UIAgentPicker:
         append_notice(self._ui, "  ⚠ the sub-agent picker needs more screen rows\n")
 
     def close_agent_picker(self) -> None:
-        """Dismiss the picker without entering any view (public API)."""
+        """Dismiss the picker without entering any view."""
         if not self._picker_sessions:
             return
         self._picker_sessions = []
@@ -143,7 +143,7 @@ class UIAgentPicker:
         self._invalidate()
 
     def move_agent_picker_cursor(self, delta: int) -> None:
-        """Move the picker cursor by `delta`, clamped (public API)."""
+        """Move the picker cursor by `delta`, clamped."""
         if not self._picker_sessions:
             return
         count = len(self._picker_sessions)
@@ -151,7 +151,7 @@ class UIAgentPicker:
         self._invalidate()
 
     def confirm_agent_picker(self) -> bool:
-        """Enter the highlighted sub-agent's live view (public API).
+        """Enter the highlighted sub-agent's live view.
 
         Returns ``False`` when the picker is not active; ``True`` after
         switching (or when already viewing that agent).
@@ -225,7 +225,7 @@ class UIAgentPicker:
 
     def toggle_viewed_agent_block(self) -> bool:
         """Toggle the collapsible block at the output cursor in the viewed
-        sub-agent's own `BufferedUI` scope (public API).
+        sub-agent's own `BufferedUI` scope.
 
         Returns `False` when not viewing, the session vanished, or nothing
         was toggled.
