@@ -69,6 +69,11 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     """
 
     def __init__(self, uis: list[AnyUI], main_ui_index: int = 0):
+        if uis and not -len(uis) <= main_ui_index < len(uis):
+            raise ValueError(
+                f"MultiUI got main_ui_index={main_ui_index} for {len(uis)} UI(s); "
+                f"it must be between {-len(uis)} and {len(uis) - 1}."
+            )
         self._uis = uis
         self._main_ui_index = main_ui_index
         self._last_output: str = ""

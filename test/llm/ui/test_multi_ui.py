@@ -129,6 +129,19 @@ class TestMultiUI:
             # Should raise because there's no main_ui to delegate to
             asyncio.run(multi_ui.run_interactive_command("ls"))
 
+    def test_main_ui_index_outside_the_children_is_rejected_at_construction(
+        self, mock_child_ui
+    ):
+        """A bad index names itself when the `MultiUI` is built, not as an
+        `IndexError` the first time the primary is read."""
+        with pytest.raises(ValueError, match="main_ui_index=2"):
+            MultiUI([mock_child_ui, MagicMock()], main_ui_index=2)
+
+    def test_negative_main_ui_index_counts_from_the_end(self, mock_child_ui):
+        last = MagicMock()
+
+        assert MultiUI([mock_child_ui, last], main_ui_index=-1).main_ui is last
+
     def test_set_llm_task_sets_on_children(self, mock_child_ui):
         """Test set_llm_task sets llm_task on all children."""
         other_ui = MagicMock()
