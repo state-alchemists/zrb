@@ -13,6 +13,13 @@ On screen the block is set off as a markdown blockquote, so a reader sees at a
 glance which part of the reply is also being read aloud — the markers are gone,
 and without the quote the spoken sentences would look like just more prose.
 
+That quote belongs to the durable copy, the one `shown_text` renders once the
+turn ends. The copy a reply streams into while it is still being written stays
+raw, on purpose: it is an echo that folds into a placeholder when the run ends,
+because `BaseUI.stream_ai_response` appends the answer itself, and quoting an
+echo would make the text reflow into quotes as it arrives for a copy nobody
+keeps. `SpokenSplitter` therefore holds no quoting state; only `shown_text` does.
+
 `split_spoken` cuts a whole reply; `SpokenSplitter` cuts one while it streams.
 They share the rules below, so the two copies of a reply cannot disagree: a
 block is opened by `<spoken>` and closed by the next `</spoken>`, markers do not
