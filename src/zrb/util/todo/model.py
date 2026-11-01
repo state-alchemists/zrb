@@ -41,9 +41,9 @@ class TodoTaskModel:
         """
         results = []
         for project in self.projects:
-            results.append(f"@{project}")
+            results.append(f"+{project}")
         for context in self.contexts:
-            results.append(f"+{context}")
+            results.append(f"@{context}")
         for key, val in self.keyval.items():
             results.append(f"{key}:{val}")
         return len(", ".join(results))

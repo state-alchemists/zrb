@@ -71,7 +71,7 @@ class CmdTaskParams(BaseTaskParams, total=False):
     remote_user: StrAttr | None
     remote_password: StrAttr | None
     remote_ssh_key: StrAttr | None
-    cwd: str | None
+    cwd: StrAttr | None
     plain_print: bool
     max_output_line: int
     max_error_line: int

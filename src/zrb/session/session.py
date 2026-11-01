@@ -37,10 +37,9 @@ from zrb.util.cli.style import (
     remove_style,
 )
 from zrb.util.run import cancel_and_settle, gather_isolated
+from zrb.util.secret import SECRET_MASK
 from zrb.util.string.name import get_random_name
 from zrb.xcom.xcom import Xcom
-
-SECRET_MASK = "***"
 
 
 class Session(AnySession):

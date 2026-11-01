@@ -18,6 +18,10 @@ if TYPE_CHECKING:
 DIR_MODE = 0o700
 FILE_MODE = 0o600
 
+# Neither flag exists on every platform: Windows has no `O_NOFOLLOW`, and
+# `O_BINARY` exists only there.
+_OPEN_FLAGS = getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+
 # Written beside the directory, not inside it: a marker inside the journal would
 # show up in the journal's own git history, and one inside the archive directory
 # would sit among the archives it is not.
@@ -229,11 +233,7 @@ def write_text_owner_only(path: str, content: str) -> None:
     makedirs_owner_only(os.path.dirname(path))
     descriptor = os.open(
         path,
-        os.O_WRONLY
-        | os.O_CREAT
-        | os.O_TRUNC
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_BINARY", 0),
+        os.O_WRONLY | os.O_CREAT | os.O_TRUNC | _OPEN_FLAGS,
         FILE_MODE,
     )
     with os.fdopen(descriptor, "w", encoding="utf-8") as f:
@@ -281,11 +281,7 @@ def _create_marker(target: str) -> None:
     """Create *target* empty, failing if anything is already at that path."""
     descriptor = os.open(
         target,
-        os.O_WRONLY
-        | os.O_CREAT
-        | os.O_EXCL
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_BINARY", 0),
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL | _OPEN_FLAGS,
         FILE_MODE,
     )
     os.close(descriptor)
