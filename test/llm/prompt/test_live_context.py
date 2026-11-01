@@ -161,6 +161,23 @@ def test_zero_suppresses_the_injection(tmp_path):
         assert render_journal_index() is None
 
 
+def test_a_cap_with_no_room_for_a_line_injects_nothing(tmp_path):
+    """The wrapper is instruction, not journal. Under a cap too small to carry one
+    line of the index the block would arrive with nothing under a sentence saying
+    what to search — 566 characters of prompt to say nothing, measured on the real
+    index with the cap at 9 (review on #791). The cap is meant to bound what the
+    index costs, so a cap that cannot pay for any of it pays for none."""
+    filler = "\n".join(f"- preference number {i} stated by the user" for i in range(50))
+    journal_dir = _write_index(tmp_path, f"# Journal\n\n{filler}\n")
+    for cap in (1, 5, 9):
+        with patch("zrb.llm.prompt.live_context.CFG") as cfg:
+            cfg.LLM_JOURNAL_DIR = journal_dir
+            cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
+            cfg.LLM_JOURNAL_INDEX_MAX_CHARS = cap
+
+            assert render_journal_index() is None, cap
+
+
 def test_journal_disabled_suppresses_the_injection(tmp_path, monkeypatch):
     "The disabled setting suppresses injection."
     journal_dir = _write_index(tmp_path, "# Journal\n\n- Name: Go\n")

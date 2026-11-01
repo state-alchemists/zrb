@@ -103,9 +103,11 @@ def plan_index_core(content: str, budget: int) -> tuple[str, str]:
     appended the summary on top, for a 4,049-char block. `<= 0` keeps everything,
     for a caller that has already decided what a zero or negative cap means.
 
-    The result is `("", "")` when the cap cannot hold even the marker: a
-    truncated index that does not say it is truncated reads as the whole index,
-    which is the failure this module exists to prevent.
+    The result is `("", "")` when the cap keeps no line of the index, or cannot
+    hold the note that says so: a truncated index that does not say it is
+    truncated reads as the whole index, and a bare `(...more)` with nothing above
+    it is not an index either. Both are the failures this module exists to
+    prevent, and `render_journal_index` turns either into no block at all.
     """
     if budget <= 0 or len(content) <= budget:
         return content, ""
@@ -117,6 +119,10 @@ def plan_index_core(content: str, budget: int) -> tuple[str, str]:
     reserve = min(_MAX_NOTE, budget // 4)
     kept = _fill(blocks, budget - reserve)
     body = _render(blocks, kept)
+    if not body:
+        # No line of the index fitted. A marker alone says only that something was
+        # cut, and there is nothing to cut it from.
+        return "", ""
     note = _overflow(blocks, kept, body, budget)
     if not note:
         return "", ""
@@ -127,8 +133,12 @@ def join_overflow(body: str, note: str) -> str:
     """The injected text: the kept index, then the note standing in for the rest.
 
     `live_context` injects this, and `plan_index_core` measures the cap against
-    it, so the two cannot disagree about where the newline goes."""
-    return f"{body}{_JOIN}{note}" if note else body
+    it, so the two cannot disagree about where the newline goes. An empty body
+    takes no newline: under a cap that keeps nothing there is only the note.
+    """
+    if not note:
+        return body
+    return f"{body}{_JOIN}{note}" if body else note
 
 
 def _heading_name(heading: str) -> str:

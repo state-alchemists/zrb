@@ -457,8 +457,9 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     (journaling would invalidate it). *first_message* adds an auto-search
     ``## Possibly Related`` section. Returns ``None`` when the journal is
     disabled, the index is missing or empty, ``LLM_JOURNAL_INDEX_MAX_CHARS`` is
-    0, or ``LLM_JOURNAL_INDEX_FILE`` is not a bare filename — the same check
-    the writers apply, so this can never be pointed outside the journal.
+    0 (or too small to hold one line of it), or ``LLM_JOURNAL_INDEX_FILE`` is
+    not a bare filename — the same check the writers apply, so this can never be
+    pointed outside the journal.
     """
     if not CFG.LLM_JOURNAL_ENABLED:
         return None
@@ -485,6 +486,12 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     if limit == 0:
         return None
     content, overflow = plan_index_core(content, limit)
+    if not content:
+        # No line of the index fitted the cap. The wrapper is instruction, not
+        # journal: injecting it alone costs prompt to say nothing, and under a
+        # cap too small even for the marker there is nothing to say. The usage
+        # log records nothing either, because nothing was injected.
+        return None
     hint = "Truncated at `(...more)`. " if overflow else ""
     content = join_overflow(content, overflow)
     possibly_related = ""
