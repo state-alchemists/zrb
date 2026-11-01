@@ -73,6 +73,9 @@ class _BackgroundProcess:
     # The wake-up this process queued, kept so that consuming the handle can
     # take it back before it starts a turn about something already read.
     wake_message: str = ""
+    # Whether the session has been told, so the two ways an ending is noticed
+    # (the exit wait and the deadline stop) cannot both tell it.
+    wake_sent: bool = False
 
 
 class _ShellBackgroundRegistry:
@@ -246,6 +249,9 @@ class _ShellBackgroundRegistry:
             return
         if bp.stop_requested or bp.waiters > 0 or self._procs.get(handle) is not bp:
             return
+        if bp.wake_sent:
+            return
+        bp.wake_sent = True
         # Named only when the caller wrote the description: without one it is the
         # command line, which can carry a token, and this lands in the transcript.
         named = (
