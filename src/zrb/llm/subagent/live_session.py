@@ -20,6 +20,7 @@ from zrb.llm.agent.run.authority_snapshot import (
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
+from zrb.llm.any_ui import AnyUI
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.delegation_api import (
     LiveSessionRegistryAPI,
@@ -217,10 +218,16 @@ class LiveSubAgentSessionRegistry:
             "reached for this delegation; finish the work or wait for the result."
         )
 
-    def get_parent_ui(self, session_id: str, agent_id: str) -> "Any | None":
-        """The parent UI that can take a message from *agent_id*, if any."""
+    def get_parent_ui(self, session_id: str, agent_id: str) -> AnyUI | None:
+        """The parent UI that can take a message from *agent_id*, if any.
+
+        Only an `AnyUI` declares `submit_message`; a parent that is not one is
+        reported as absent, so the sender answers with the documented refusal
+        instead of failing on a missing method.
+        """
         entry = self.get(session_id, agent_id)
-        return entry.buffered_ui.parent_ui if entry else None
+        parent = entry.buffered_ui.parent_ui if entry else None
+        return parent if isinstance(parent, AnyUI) else None
 
     def cancel(self, session_id: str, agent_id: str) -> bool:
         """Cancel what the sub-agent is doing: drop its queued messages and

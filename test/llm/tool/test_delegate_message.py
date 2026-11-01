@@ -2,6 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from zrb.llm.any_ui import AnyUI
 from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.subagent.parent_message import send_message_to_parent
 from zrb.llm.tool.delegate_message import create_send_message_to_subagent_tool
@@ -32,7 +33,7 @@ def _add(registry, parent):
 
 @pytest.mark.asyncio
 async def test_sub_agent_message_reaches_parent_with_sender(registry):
-    parent = MagicMock()
+    parent = MagicMock(spec=AnyUI)
     ui = _add(registry, parent)
     with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui):
         result = await send_message_to_parent("need the repo path")
@@ -44,7 +45,7 @@ async def test_sub_agent_message_reaches_parent_with_sender(registry):
 
 @pytest.mark.asyncio
 async def test_parent_message_names_the_main_agent(registry):
-    _add(registry, MagicMock())
+    _add(registry, MagicMock(spec=AnyUI))
     tool = create_send_message_to_subagent_tool()
     with (
         patch(
@@ -61,7 +62,7 @@ async def test_parent_message_names_the_main_agent(registry):
 
 @pytest.mark.asyncio
 async def test_unknown_agent_lists_live_ids(registry):
-    _add(registry, MagicMock())
+    _add(registry, MagicMock(spec=AnyUI))
     tool = create_send_message_to_subagent_tool()
     with patch(
         "zrb.llm.tool.delegate_message.get_session_ownership_key",
@@ -74,7 +75,7 @@ async def test_unknown_agent_lists_live_ids(registry):
 @pytest.mark.asyncio
 async def test_message_limit_stops_ping_pong(registry, monkeypatch):
     monkeypatch.setenv("ZRB_LLM_AGENT_MESSAGE_LIMIT", "1")
-    parent = MagicMock()
+    parent = MagicMock(spec=AnyUI)
     ui = _add(registry, parent)
     with (patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui),):
         first = await send_message_to_parent("a")
@@ -82,6 +83,17 @@ async def test_message_limit_stops_ping_pong(registry, monkeypatch):
     assert "sent" in first
     assert "limit" in second
     assert parent.submit_message.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_a_parent_that_is_not_a_ui_cannot_receive_a_message(registry):
+    """Only an `AnyUI` declares `submit_message`; any other parent is reported as
+    unable to take one, not left to fail on the missing method."""
+    ui = _add(registry, object())
+    with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui):
+        result = await send_message_to_parent("need the repo path")
+    assert "cannot receive messages" in result
+    assert registry.get(SESSION, "abcd1234").agent_messages_sent == 0
 
 
 @pytest.mark.asyncio
