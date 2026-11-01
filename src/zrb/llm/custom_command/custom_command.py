@@ -41,9 +41,11 @@ class CustomCommand(AnyCustomCommand):
         replacements["ARGUMENTS"] = " ".join(kwargs.values())
 
         # Most specific form first: ${name:-default}, then ${name}, then $name.
+        # Dispatch gives a declared argument the user left out as "", so empty
+        # counts as unset here, as it does for the shell's `:-`.
         prompt = re.sub(
             r"\${([a-zA-Z0-9_]+):-([^}]+)}",
-            lambda m: replacements.get(m.group(1), m.group(2)),
+            lambda m: replacements.get(m.group(1)) or m.group(2),
             prompt,
         )
         prompt = re.sub(
