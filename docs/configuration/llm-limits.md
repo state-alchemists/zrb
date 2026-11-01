@@ -26,6 +26,8 @@ Values are in **milliseconds** unless the row says otherwise.
 | `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
 | `ZRB_LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS` | How long a command that outran its `Shell` timeout keeps running in the background before zrb kills it; `0` kills it at the timeout instead (**seconds**) | `1800` |
 | `ZRB_LLM_BACKGROUND_WAIT_MAX` | Max time a single `GetDelegationResult`/`MonitorProcess` `wait=` call may block before returning "still running" (**seconds**, not ms) | `300` |
+| `ZRB_LLM_BACKGROUND_WAKE` | Whether a session is told when a background `Shell` command ends. A running turn reads it at its next model request; an idle session takes a turn of its own. `off` leaves the exit to the next turn's live context | `on` |
+| `ZRB_LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE` | How many wake-ups may reach a session in a row with no message from the user in between; later ones wait for the next turn's live context. `0` removes the limit | `5` |
 | `ZRB_LLM_WEB_PAGE_TIMEOUT` | Playwright page load timeout (ms) | `30000` |
 | `ZRB_LLM_WEB_HTTP_TIMEOUT` | HTTP request timeout for web tools and search (ms) | `30000` |
 | `ZRB_LLM_MODEL_FETCH_TIMEOUT` | Timeout for fetching Ollama model list (ms) | `5000` |

@@ -35,7 +35,7 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT, InputProvenance
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
@@ -1141,7 +1141,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if parent_multi_ui is not None:
             # The parent broadcasts and records the message once.
             return parent_multi_ui.submit_user_message(llm_task, user_message, source)
-        self.record_submitted_message(user_message)
+        if source != BACKGROUND_INPUT:  # a notice is not something the user typed
+            self.record_submitted_message(user_message)
         # Mid-turn the message only joins the queue; the marker says so.
         marker = "⏳" if self.is_thinking else "💬"
         submit_user_message_via_queue(
@@ -1164,6 +1165,12 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     ) -> None:
         """Queue *user_message* for the next turn (Ctrl+G sends it sooner)."""
         self.submit_user_message(self.llm_task, user_message, source)
+
+    def withdraw_message(self, user_message: str, source: InputSource) -> None:
+        """Drop the queued message `submit_message` was given, if still waiting."""
+        entry = self.effective_message_queue.find_pending(user_message, source)
+        if entry is not None:
+            self.delete_queued_message(entry)
 
     def submit_message_now(
         self,

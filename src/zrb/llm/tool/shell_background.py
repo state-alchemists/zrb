@@ -11,7 +11,7 @@ import atexit
 import os
 import time
 from dataclasses import dataclass, field
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import Field
 
@@ -22,12 +22,17 @@ from zrb.cmd.command import (
     terminate_process,
 )
 from zrb.config.config import CFG
+from zrb.llm.agent_state import get_current_ui
 from zrb.llm.ambient_state import get_current_chat_session_id
+from zrb.llm.input_source import BACKGROUND_INPUT
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
 from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.string.name import get_random_name
+
+if TYPE_CHECKING:
+    from zrb.llm.any_ui import AnyUI
 
 
 def _new_capture() -> StreamCapture:
@@ -51,6 +56,26 @@ class _BackgroundProcess:
     owner_session_id: str = ""
     # Monotonic start, so a live-context summary can say how long it has run.
     started_at: float = field(default_factory=time.monotonic)
+    # The UI of the run that started this process: where its ending is
+    # reported, because the registry outlives any one turn and has no other way
+    # to reach the session that is waiting on it. None for a run with no UI.
+    ui: "AnyUI | None" = None
+    # Set when the model, the user or a shutdown asked for the stop. A stop
+    # someone asked for is not news to the session, so it is not reported.
+    stop_requested: bool = False
+    # How many `MonitorProcess(wait=...)` calls are blocked on this process
+    # right now. They return the ending themselves, so a wake-up would repeat it.
+    waiters: int = 0
+    # Whether the caller wrote a description, as opposed to `description` being
+    # the command line: a command line can hold a credential, so it never goes
+    # into the transcript on its own.
+    description_given: bool = False
+    # The wake-up this process queued, kept so that consuming the handle can
+    # take it back before it starts a turn about something already read.
+    wake_message: str = ""
+    # Whether the session has been told, so the two ways an ending is noticed
+    # (the exit wait and the deadline stop) cannot both tell it.
+    wake_sent: bool = False
 
 
 class _ShellBackgroundRegistry:
@@ -89,6 +114,8 @@ class _ShellBackgroundRegistry:
             process=proc,
             description=description or command,
             owner_session_id=get_current_chat_session_id(),
+            ui=get_current_ui(),
+            description_given=bool(description),
         )
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
@@ -127,6 +154,7 @@ class _ShellBackgroundRegistry:
             stderr_cap=stderr_cap,
             description=command,
             owner_session_id=get_current_chat_session_id(),
+            ui=get_current_ui(),
         )
         self._procs[handle] = bp
         bp.tasks = [
@@ -170,6 +198,9 @@ class _ShellBackgroundRegistry:
         # `_stop_process` cancels the wait task, so the exit code it would have
         # recorded is set here; a poll after the kill must not read "running".
         bp.returncode = bp.process.returncode
+        # Nobody asked for this stop: it is the end of the time the process was
+        # given, which the session should hear like any other ending.
+        self._wake_session(handle, bp)
 
     async def _read_pipe(
         self, handle: str, stream: asyncio.StreamReader | None, name: str
@@ -197,6 +228,56 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is not None:
             bp.returncode = rc
+            # The exit can be heard before the last of the output has been read.
+            # `poll` calls a process finished only once every task is done, and a
+            # wake-up that arrived earlier would send the model to a result that
+            # still says "poll once more" with nothing to announce the rest. So
+            # the session is told when the readers are done too.
+            readers = [t for t in bp.tasks if t is not asyncio.current_task()]
+            if readers:
+                await asyncio.wait(readers)
+            self._wake_session(handle, bp)
+
+    def _wake_session(self, handle: str, bp: _BackgroundProcess) -> None:
+        """Tell the session that started *bp* that it ended, once.
+
+        The process ending is the only moment its result exists, and a session
+        with nobody typing would otherwise not look until the next message. The
+        message goes through the UI's own queue: a running turn reads it at its
+        next model request, an idle session takes a turn of its own, and the
+        UI's limit on consecutive wake-ups applies to it like any other.
+
+        Skipped when the ending is already known to whoever would read it: the
+        stop was asked for, the handle was consumed by a poll, or a
+        `MonitorProcess(wait=...)` is blocked on it. It carries the handle and
+        the exit code and never the output, which can hold a token and is the
+        model's to read with `MonitorProcess`.
+        """
+        if not CFG.LLM_BACKGROUND_WAKE or bp.ui is None:
+            return
+        if bp.stop_requested or bp.waiters > 0 or self._procs.get(handle) is not bp:
+            return
+        if bp.wake_sent:
+            return
+        bp.wake_sent = True
+        # Named only when the caller wrote the description: without one it is the
+        # command line, which can carry a token, and this lands in the transcript.
+        named = (
+            f": {bp.description.replace(chr(10), ' ')[:80]}"
+            if bp.description_given and bp.description
+            else ""
+        )
+        message = (
+            f"[Background process {handle} finished (exit {bp.returncode}){named}. "
+            f"MonitorProcess(handle='{handle}') reads its output.]"
+        )
+        try:
+            bp.ui.submit_message(message, BACKGROUND_INPUT)
+            bp.wake_message = message
+        except (RuntimeError, OSError) as e:
+            # A UI that is closing or a loop that is gone: the exit is still in
+            # the next turn's live context, so this costs the nudge, not the result.
+            CFG.LOGGER.debug(f"Could not wake the session for {handle}: {e}")
 
     async def collect(self, handle: str, wait: float = 0.0) -> str:
         """Poll a handle, blocking up to ``wait`` seconds for exit and full drain.
@@ -208,7 +289,11 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is not None and bp.returncode is None and wait > 0:
             capped = min(wait, CFG.LLM_BACKGROUND_WAIT_MAX)
-            was_cut = await is_cut_while_waiting(set(bp.tasks), capped)
+            bp.waiters += 1
+            try:
+                was_cut = await is_cut_while_waiting(set(bp.tasks), capped)
+            finally:
+                bp.waiters -= 1
             # A process that exited as the cut landed is reported, not waited
             # on: `poll` consumes the handle of a finished process.
             if was_cut and bp.returncode is None:
@@ -241,6 +326,7 @@ class _ShellBackgroundRegistry:
             if all(task.done() for task in bp.tasks):
                 # Fully drained: release the entry.
                 lines.append("The handle has been consumed — the process has finished.")
+                self._withdraw_wake(bp)
                 _release_process(bp)
                 self._procs.pop(handle, None)
             else:
@@ -249,6 +335,22 @@ class _ShellBackgroundRegistry:
                     "collected — poll once more for the final output."
                 )
         return "\n".join(lines)
+
+    def _withdraw_wake(self, bp: _BackgroundProcess) -> None:
+        """Take back the wake-up *bp* queued, if it is still waiting.
+
+        Consuming the handle is the model reading the ending, so a wake-up still
+        in the queue would start a turn about something already handled, and
+        point it at a handle that no longer exists. One already delivered is
+        beyond recall and is left alone.
+        """
+        if not bp.wake_message or bp.ui is None:
+            return
+        message, bp.wake_message = bp.wake_message, ""
+        try:
+            bp.ui.withdraw_message(message, BACKGROUND_INPUT)
+        except (RuntimeError, OSError) as e:
+            CFG.LOGGER.debug(f"Could not withdraw a wake-up: {e}")
 
     def summary(self, session_id: str | None = None) -> "list[dict[str, Any]]":
         """A read-only view of the handles this registry holds.
@@ -280,6 +382,7 @@ class _ShellBackgroundRegistry:
             return (
                 f"Process '{handle}' has already exited (code {bp.process.returncode})."
             )
+        bp.stop_requested = True
         await _stop_process(bp)
         self._procs.pop(handle, None)
         return f"Killed process '{handle}'."
@@ -287,6 +390,7 @@ class _ShellBackgroundRegistry:
     async def cancel_all(self) -> None:
         """Kill and reap every background process, so none outlives the event loop."""
         for bp in list(self._procs.values()):
+            bp.stop_requested = True
             await _stop_process(bp)
         self._procs.clear()
 
@@ -298,6 +402,7 @@ class _ShellBackgroundRegistry:
         for handle, bp in list(self._procs.items()):
             if bp.owner_session_id != session_id:
                 continue
+            bp.stop_requested = True
             await _stop_process(bp)
             self._procs.pop(handle, None)
 

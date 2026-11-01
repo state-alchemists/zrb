@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TextIO, TypedDict
 
 if TYPE_CHECKING:
+    from zrb.llm.input_source import InputProvenance
     from zrb.llm.ui.base.message_queue import QueuedMessage
     from zrb.llm.ui.base.queue_delivery import DeliveryReport
 
@@ -113,6 +114,30 @@ class AnyUI(ABC):
 
         Called when a still-queued message is dropped. A UI with no output
         buffer leaves the entry alone.
+        """
+
+    def submit_message(
+        self, user_message: str, source: "InputProvenance | None"
+    ) -> None:
+        """Queue *user_message* the way a typed one is queued: steered into the
+        running turn at its next model request, or run as the next turn when the
+        session is idle.
+
+        *source* names where the words came from, or is None for words that are
+        not the user's. A UI that keeps no queue (a headless run has no idle
+        session to wake) leaves the message alone, so a sender that is not
+        the user — a finished background command — never assumes it arrived.
+        """
+
+    def withdraw_message(
+        self, user_message: str, source: "InputProvenance | None"
+    ) -> None:
+        """Take back a message `submit_message` queued that has not started.
+
+        For a sender whose message became moot before anything read it — a
+        finished background command whose result the model has since fetched.
+        A message already read, or whose turn started, is beyond recall, and a UI
+        that keeps no queue has nothing to take back: both leave it alone.
         """
 
     @property

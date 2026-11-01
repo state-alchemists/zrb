@@ -19,7 +19,7 @@ from zrb.context.shared_context import SharedContext
 from zrb.llm.any_ui import AnyUI
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT, InputProvenance
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
@@ -621,7 +621,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """
         main_ui = self.main_ui
         recorder = getattr(main_ui, "record_submitted_message", None)
-        if recorder is not None:
+        # A background notice is not something the user typed: no recall for it.
+        if recorder is not None and source != BACKGROUND_INPUT:
             recorder(user_message)
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,
@@ -647,6 +648,18 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         caller submitting words that are not the user's own passes `None`.
         """
         self.submit_user_message(self._llm_task, user_message, source)
+
+    def withdraw_message(
+        self, user_message: str, source: InputProvenance | None
+    ) -> None:
+        """Drop the queued message `submit_message` was given, if it is still
+        waiting; each child takes its echo of it out of its own output."""
+        entry = self._message_queue.find_pending(user_message, source)
+        if entry is None:
+            return
+        self._message_queue.remove(entry)
+        for child in self._uis:
+            child.remove_echo(entry)
 
     def submit_message_now(
         self,
