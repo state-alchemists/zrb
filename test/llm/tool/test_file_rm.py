@@ -125,3 +125,17 @@ def test_remove_directory_recursive_propagates_rmtree_error(temp_dir):
         result = remove_file(d, recursive=True)
     assert "Error removing directory" in result
     assert "denied" in result
+
+
+def test_remove_directory_denied_is_not_reported_as_non_empty(temp_dir):
+    """A refused rmdir that is not ENOTEMPTY must not send the model to
+    recursive=True, which would not fix a permission error and is irreversible."""
+    d = os.path.join(temp_dir, "locked")
+    os.mkdir(d)
+    list_files(d)
+    with patch("zrb.llm.tool.file_rm.os.rmdir", side_effect=PermissionError("denied")):
+        result = remove_file(d)
+    assert "Error removing directory" in result
+    assert "denied" in result
+    assert "non-empty" not in result
+    assert "recursive" not in result
