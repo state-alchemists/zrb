@@ -157,12 +157,10 @@ def _build_hook_env(
     env["CLAUDE_CWD"] = context.cwd or ""
     env["CLAUDE_TRANSCRIPT_PATH"] = context.transcript_path or ""
     env["CLAUDE_PERMISSION_MODE"] = context.permission_mode
-    # Best guess for project root
     env["CLAUDE_PROJECT_DIR"] = context.cwd or os.getcwd()
     env["CLAUDE_PLUGIN_ROOT"] = plugin_root or ""
     env["CLAUDE_CODE_REMOTE"] = "true" if context.metadata.get("remote") else "false"
     try:
-        # Try to serialize event_data, fall back to string representation
         if context.event_data is not None:
             _set_bounded_env(env, "CLAUDE_EVENT_DATA", json.dumps(context.event_data))
         else:
@@ -251,7 +249,6 @@ def _blocked_result(output: str, stderr_output: str) -> HookResult:
         or "Blocked by hook"
     )
 
-    # Merge provided modifications with blocking modifications
     blocking_modifications = {
         "decision": "block",
         "reason": reason,
@@ -260,7 +257,7 @@ def _blocked_result(output: str, stderr_output: str) -> HookResult:
     blocking_modifications.update(modifications)
     return HookResult(
         success=False,
-        output=output,  # Include output for logging/debugging
+        output=output,
         should_stop=True,
         modifications=blocking_modifications,
     )
@@ -274,7 +271,6 @@ def _success_result(output: str, context: HookContext) -> HookResult:
         if isinstance(data, dict):
             modifications = data
     except json.JSONDecodeError:
-        # Not JSON, treat as plain output
         pass
 
     if output and not modifications and context.event in _STDOUT_CONTEXT_EVENTS:

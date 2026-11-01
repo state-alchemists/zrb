@@ -34,12 +34,12 @@ def _typed_model_errors() -> dict[str, type[Exception]]:
 def _is_typed_model_error(e: BaseException, *kinds: str) -> bool:
     """True when *e* is one of pydantic-ai's typed model errors.
 
-    Since 2.59 the provider answer is classified where it is received, for the
+    pydantic-ai classifies the provider answer where it is received, for the
     OpenAI-compatible path too (`_model_errors.openai_compatible_category`, which
     reads `context_length_exceeded` and the wording OpenRouter, vLLM and Groq
     use), and for Bedrock and Google by their own mappings. So the type is the
     precise answer and the status code is the approximation; these checks run
-    first and the older heuristics stay for errors that arrive untyped.
+    first and the heuristics stay for errors that arrive untyped.
     """
     errors = _typed_model_errors()
     return isinstance(e, tuple(errors[kind] for kind in kinds))
