@@ -34,7 +34,7 @@ _UNITS_BY_LAYER = {
         "any_live_sub_agent_session any_sub_agent_definition any_sub_agent_manager "
         "any_ui config delegation_api factory_resolver input_source journal_index_name "
         "journal_usage_log message message_text shell_cut stream_observer "
-        "tool_registry ui_fallback usage_log util"
+        "tool_registry ui_fallback usage_log util watch"
     ),
     1: (
         "approval history_manager hook lsp permission prompt sandbox skill "

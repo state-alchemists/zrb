@@ -440,6 +440,38 @@ def _background_process_lines() -> list[str]:
     return lines
 
 
+def watch_lines() -> list[str]:
+    """Watches whose outcome outlived the handle that made it.
+
+    `_background_process_lines` reports what this process still holds. This is
+    the other half: a handle already polled away, a process from before a
+    restart, one killed on its deadline. Each is shown once and then marked
+    delivered, which is what a result arriving while nobody was looking needs.
+    """
+    try:
+        # lazy: transitively heavy via internal — the shell tool pulls
+        # pydantic (~50ms on every `import zrb`).
+        from zrb.llm.tool.shell_background import get_shell_background_registry
+
+        live = {
+            str(row["handle"])
+            for row in get_shell_background_registry().summary(
+                get_current_chat_session_id()
+            )
+        }
+    except (ImportError, RuntimeError) as e:
+        CFG.LOGGER.debug(f"Failed to read background processes for watches: {e}")
+        live = set()
+    try:
+        from zrb.llm.watch import get_watch_ledger
+
+        return get_watch_ledger().render_lines(skip=live)
+    except OSError as e:
+        # An unreadable ledger costs a section, never the turn.
+        CFG.LOGGER.debug(f"Failed to read the watch ledger: {e}")
+        return []
+
+
 def _format_mode_line() -> str | None:
     """Render the agent-mode line, or None outside PLAN mode."""
     if get_current_agent_mode() != AgentMode.PLAN:
@@ -1063,6 +1095,7 @@ def _render_parts(
             CFG.LOGGER.debug(f"Failed to format todo lines for live context: {e}")
 
     parts.extend(_background_process_lines())
+    parts.extend(watch_lines())
 
     if inject_journal_index:
         journal_block = render_journal_index(first_message)

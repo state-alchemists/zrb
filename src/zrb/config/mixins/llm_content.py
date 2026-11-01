@@ -20,6 +20,7 @@ class LLMContentMixin:
 
     def __init__(self) -> None:
         self.DEFAULT_LLM_HISTORY_DIR: str = ""
+        self.DEFAULT_LLM_WATCH_DIR: str = ""
         self.DEFAULT_LLM_USAGE_DIR: str = ""
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_DIR: str = ""
@@ -74,6 +75,18 @@ class LLMContentMixin:
             )
         ),
         doc="Directory for LLM conversation history files.",
+    )
+
+    LLM_WATCH_DIR = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_WATCH_DIR
+            if cfg.DEFAULT_LLM_WATCH_DIR
+            else os.path.expanduser(
+                os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-watch")
+            )
+        ),
+        doc="Directory for watch ledgers: work that outlived a turn, and how it ended.",
     )
 
     LLM_USAGE_DIR = EnvField(

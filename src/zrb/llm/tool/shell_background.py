@@ -27,12 +27,44 @@ from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
 from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.tool.stream_capture import StreamCapture
+from zrb.llm.watch import get_watch_ledger
 from zrb.util.string.name import get_random_name
 
 
 def _new_capture() -> StreamCapture:
     # echo=0: background output is never mirrored to the console.
     return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0)
+
+
+def _open_watch(handle: str, bp: "_BackgroundProcess") -> None:
+    """Record the watch before the work starts, so a crash still shows it.
+
+    The ledger is a convenience for the next turn, never a reason to fail the
+    call: a directory that cannot be written costs the record, not the command.
+    """
+    try:
+        get_watch_ledger(bp.owner_session_id or None).open(
+            handle, kind="process", what=bp.description
+        )
+    except OSError as e:
+        CFG.LOGGER.warning(f"Could not record watch {handle}: {e}")
+
+
+def _end_watch(bp: "_BackgroundProcess", handle: str, killed: bool = False) -> None:
+    """Close a watch once, with the exit code the process ended on.
+
+    Only one path reaches a process's end — the exit wait, a kill, a deadline —
+    and each sets `watch_closed` so a second one cannot report a second ending.
+    """
+    if bp.watch_closed:
+        return
+    bp.watch_closed = True
+    try:
+        get_watch_ledger(bp.owner_session_id or None).end(
+            handle, bp.process.returncode, killed=killed or bp.killed
+        )
+    except OSError as e:
+        CFG.LOGGER.warning(f"Could not close watch {handle}: {e}")
 
 
 @dataclass
@@ -51,6 +83,12 @@ class _BackgroundProcess:
     owner_session_id: str = ""
     # Monotonic start, so a live-context summary can say how long it has run.
     started_at: float = field(default_factory=time.monotonic)
+    # Whether the watch ledger has heard how this process ended, so the exit
+    # report and the kill paths cannot both close the same watch.
+    watch_closed: bool = False
+    # Whether the ending was a kill. Set before stopping, because the exit wait
+    # can fire while the stop is still in progress and must record the kill.
+    killed: bool = False
 
 
 class _ShellBackgroundRegistry:
@@ -93,6 +131,7 @@ class _ShellBackgroundRegistry:
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
         self._procs[handle] = bp
+        _open_watch(handle, bp)
         # Tracked so kill()/cancel_all() can stop them.
         bp.tasks = [
             asyncio.ensure_future(self._read_pipe(handle, proc.stdout, "stdout")),
@@ -129,6 +168,7 @@ class _ShellBackgroundRegistry:
             owner_session_id=get_current_chat_session_id(),
         )
         self._procs[handle] = bp
+        _open_watch(handle, bp)
         bp.tasks = [
             asyncio.ensure_future(self._read_pipe(handle, process.stdout, "stdout")),
             asyncio.ensure_future(self._read_pipe(handle, process.stderr, "stderr")),
@@ -166,10 +206,12 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is None:
             return
+        bp.killed = True
         await _stop_process(bp)
         # `_stop_process` cancels the wait task, so the exit code it would have
         # recorded is set here; a poll after the kill must not read "running".
         bp.returncode = bp.process.returncode
+        _end_watch(bp, handle, killed=True)
 
     async def _read_pipe(
         self, handle: str, stream: asyncio.StreamReader | None, name: str
@@ -197,6 +239,7 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is not None:
             bp.returncode = rc
+            _end_watch(bp, handle)
 
     async def collect(self, handle: str, wait: float = 0.0) -> str:
         """Poll a handle, blocking up to ``wait`` seconds for exit and full drain.
@@ -280,14 +323,18 @@ class _ShellBackgroundRegistry:
             return (
                 f"Process '{handle}' has already exited (code {bp.process.returncode})."
             )
+        bp.killed = True
         await _stop_process(bp)
+        _end_watch(bp, handle, killed=True)
         self._procs.pop(handle, None)
         return f"Killed process '{handle}'."
 
     async def cancel_all(self) -> None:
         """Kill and reap every background process, so none outlives the event loop."""
-        for bp in list(self._procs.values()):
+        for handle, bp in list(self._procs.items()):
+            bp.killed = True
             await _stop_process(bp)
+            _end_watch(bp, handle, killed=True)
         self._procs.clear()
 
     async def cancel_for_session(self, session_id: str) -> None:
@@ -298,7 +345,9 @@ class _ShellBackgroundRegistry:
         for handle, bp in list(self._procs.items()):
             if bp.owner_session_id != session_id:
                 continue
+            bp.killed = True
             await _stop_process(bp)
+            _end_watch(bp, handle, killed=True)
             self._procs.pop(handle, None)
 
     def force_kill_all(self) -> None:
