@@ -6,8 +6,8 @@ A reply may mark what belongs to the ear:
 
 Inside the block is spoken, after `clean_for_speech`; everything outside it is
 shown on screen and never spoken. The markers themselves reach neither. A reply
-with no block is spoken whole, exactly as before the block existed, so a model
-that forgets it degrades to that behaviour instead of falling silent.
+with no block is spoken whole, so a model that forgets the block degrades to
+that instead of falling silent.
 
 `split_spoken` cuts a whole reply; `SpokenSplitter` cuts one while it streams.
 They share the rules below, so the two copies of a reply cannot disagree: a
@@ -43,9 +43,9 @@ def split_spoken(text: str) -> tuple[str | None, str]:
     """``(spoken, shown)`` for the whole *text*.
 
     *spoken* is ``None`` when the reply opens no block at all: the whole reply
-    is meant for the ear then, as it was before the block existed. An empty
-    block reads as ``""`` instead — the model said nothing is to be read
-    aloud, which is not the same thing as saying nothing about it.
+    is meant for the ear then. An empty block reads as ``""`` instead — the
+    model said nothing is to be read aloud, which is not the same thing as
+    saying nothing about it.
 
     The whole reply is in hand, so prose in front of the first block is known to
     be for the eye alone and stays unspoken; a stream cannot know that
@@ -74,9 +74,8 @@ class SpokenSplitter:
 
     A stream speaks the prose outside a block until one opens: what it has
     already said cannot be taken back, and a reply that keeps no block must be
-    read whole as it was before the block existed. `speak_only_blocks` drops
-    that, for a caller holding the whole reply, which knows whether a block is
-    coming.
+    read whole. `speak_only_blocks` drops that, for a caller holding the whole
+    reply, which knows whether a block is coming.
     """
 
     def __init__(self) -> None:

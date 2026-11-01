@@ -1,9 +1,9 @@
 """The notes a write sits beside, so the advice it contradicts is in front of it.
 
 A note is written on its own, and the note it makes wrong is usually one the
-writer never opened: on 2026-11-01 a Windows CI note kept saying "re-run the
-failed job" for an hour after another write had shown that a re-run repeats the
-failure. Nothing was missing from the journal — the two notes simply never met.
+writer never opened: a CI note can keep saying "re-run the failed job" after
+another write has shown that a re-run repeats the failure. Nothing is missing
+from the journal — the two notes simply never met.
 
 So a write is answered with its neighbours: the few notes that share the words
 this one is about. It is a hint, not a ranking, because the writer still has to

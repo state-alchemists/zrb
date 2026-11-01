@@ -1,15 +1,13 @@
 """A message as text: labelled for a reader, raw for a scanner.
 
-Two callers want the same conversion for different reasons. Summarization wants
-what a reader sees — ``User: …``, ``AI: …``, ``Tool Result (x): …`` — because
-that text is handed to a model. A scan for a marker inside the content wants
-the parts joined with no decoration, because a label in front of the marker
-moves it off the start of the line it was written on.
+Summarization wants what a reader sees — ``User: …``, ``AI: …``,
+``Tool Result (x): …`` — because that text is handed to a model. A scan for a
+marker inside the content wants the parts joined with no decoration, because a
+label in front of the marker moves it off the start of the line it was written
+on.
 
-Both live here, and here is a leaf: a compaction repair needs the same text the
-summarizer does, and neither should have to import the package that happens to
-own the other. That is what forced a second, subtly different extractor the
-last time this was needed.
+Both live here, in a leaf module, so the summarizer and a compaction repair
+share one extractor without importing the package that owns the other.
 """
 
 from collections.abc import Sequence
@@ -33,10 +31,9 @@ output nobody will read again.
 def message_to_text(msg: Any, tool_output_limit: int | None = None) -> str:
     """A message as a reader sees it — `User: …`, `AI: …` — for a summary.
 
-    *tool_output_limit* shortens each tool result to that many characters. It is
-    for a caller that keeps the message as a handover rather than as evidence: a
-    verbatim tail carrying an unchecked 40,000-character test log spends the next
-    turn's window on output nobody will read again.
+    *tool_output_limit* shortens each tool result to that many characters, for a
+    caller that keeps the message as a handover rather than as evidence (see
+    `TAIL_TOOL_OUTPUT_LIMIT`).
     """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, ModelResponse

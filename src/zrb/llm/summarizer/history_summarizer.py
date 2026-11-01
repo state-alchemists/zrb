@@ -49,14 +49,14 @@ else:
     ModelMessage = Any
 
 # Mirrors LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
-# AND its two-bound shape (`config/mixins/llm_content.py`'s
+# and its two-bound shape (`config/mixins/llm_content.py`'s
 # get_max_token_threshold(ratio, max_token_per_minute, max_token_per_request)):
-# the rate-limit budget still caps the trigger, same as before, with the
-# model's real context window standing in for the model-blind request cap.
+# the rate-limit budget caps the trigger, with the model's real context window
+# standing in for the model-blind request cap.
 _CONVERSATIONAL_TRIGGER_RATIO = 0.75
 
 # Mirrors LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
-# against the conversational threshold (half of it), recomputed here from the
+# against the conversational threshold (half of it), recomputed from the
 # model-aware conversational threshold instead of the model-blind CFG default.
 _MESSAGE_THRESHOLD_RATIO = 0.5
 
@@ -464,8 +464,7 @@ def _print_split(
     """The banner: what is replaced, what is read, and what is kept.
 
     The tail is kept verbatim and read by the summarizer as well, so the count
-    read is named whenever a tail exists: "summarizing 8 of them" no longer
-    means the model read 8.
+    read is named whenever a tail exists.
     """
     read_note = f", reading all {len(messages)}" if to_keep else ""
     zrb_print(
@@ -1033,10 +1032,9 @@ def _assemble_summarized_history(
 def _create_verbatim_tail_model_request(text: str) -> "ModelMessage":
     """Wrap the rendered recent tail in the user turn that carries it.
 
-    Unlike the summary block, this text is not capped: it is the same budget
-    (`TAIL_BUDGET_RATIO` of the trigger threshold) a structured kept tail
-    would have used, just rendered to text instead of resent as separate
-    messages.
+    Unlike the summary block, this text is not capped: it is held to the tail
+    budget (`LLM_HISTORY_TAIL_BUDGET_RATIO` of the trigger threshold) by the
+    split, not by a cap on the rendered text.
     """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart

@@ -4,10 +4,8 @@ Two of them can load in the same chat process: emotion2vec+ (dictation's tone)
 and the local speech service (Pocket TTS). Each costs far more while it loads
 than it keeps afterwards — measured on a 6.8 GB WSL2 machine, funasr reads a
 1.1 GB checkpoint and then copies it into the model, so the process peaks at
-2.9 GB and settles at 977 MB, and importing torch is another 517 MB. A session
-that starts speech and dictation together used to run both loads at once, and
-the two peaks added up: the chat was killed by the kernel's OOM killer at
-3 GB of anonymous memory, four times in three days.
+2.9 GB and settles at 977 MB, and importing torch is another 517 MB. Two loads
+at once add those peaks up, which can get the process OOM-killed.
 
 Loading them one after another does not make either peak smaller. It stops two
 spikes from stacking, which is what decides whether the process survives on a

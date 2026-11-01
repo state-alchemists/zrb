@@ -835,8 +835,8 @@ def _reserve_for_later(sections: list[str]) -> int:
 
     Without this the first section — the handover, which nothing can reconstruct
     later — fills the cap on its own and the day lines it exists to sit beside
-    never arrive. Measured on 2026-10-27: a 2,300-character handover rendered a
-    1,484-character block with no today and no yesterday in it.
+    never arrive: a 2,300-character handover once rendered a 1,484-character
+    block with no today and no yesterday in it.
     """
     return sum(
         _room_for_first_line(section) + len(_SECTION_SEPARATOR) for section in sections

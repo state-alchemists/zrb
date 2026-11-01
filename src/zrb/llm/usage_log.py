@@ -1,15 +1,14 @@
 """A local, append-only record of what each LLM run cost.
 
-`RunUsage` already carries every number a cost review needs — input, output,
-cache read and write, request and tool-call counts, and a `cost` when the model
-is priced — but zrb printed three of those fields and kept none of them. This
-module writes one JSON line per completed run, so `/usage` can answer what a
-session, a day or a week consumed without asking a provider anything.
+`RunUsage` carries every number a cost review needs — input, output, cache read
+and write, request and tool-call counts, and a `cost` when the model is priced.
+This module writes one JSON line per completed run, so `/usage` can answer what
+a session, a day or a week consumed without asking a provider anything.
 
 The record holds numbers only: no prompt text, no tool arguments, no file
 content. Tool *names* are the one non-numeric field — they say which tool ran,
-never what it was given. That is what lets it be written by default instead of behind an opt-in
-— the same reason history files are not needed to answer "what did this cost".
+never what it was given. That is what lets it be written by default instead of
+behind an opt-in.
 """
 
 from __future__ import annotations
@@ -73,8 +72,7 @@ class UsageRecord:
     unmeasured_requests: int
     duration_ms: int
     cost: float | None
-    # Calls and failures per tool name. Absent from lines written before they
-    # existed, which read back as empty.
+    # Calls and failures per tool name. A line without them reads back as empty.
     tool_counts: dict[str, int] = field(default_factory=dict)
     tool_errors: dict[str, int] = field(default_factory=dict)
 
@@ -310,10 +308,10 @@ def count_tool_calls(
     Read off the messages the run already holds, once per round, so nothing
     runs per token or per tool call. A call is a tool-call part; a failure is a
     tool return whose outcome is `failed` or `retried` (the tool raised, the model
-    sent bad arguments, or the tool asked to be retried), or the older retry prompt
-    addressed to a tool. Parts are
-    read by their `part_kind` rather than their class, which keeps this module
-    free of a `pydantic_ai` import. Only names are kept — never arguments.
+    sent bad arguments, or the tool asked to be retried), or the older retry
+    prompt addressed to a tool. Parts are read by their `part_kind` rather than
+    their class, which keeps this module free of a `pydantic_ai` import. Only
+    names are kept — never arguments.
     """
     calls: dict[str, int] = {}
     errors: dict[str, int] = {}
