@@ -179,12 +179,12 @@ class UIOutput:
 
     @property
     def output_field(self) -> Any:
-        """Public read accessor for the raw output-field widget."""
+        """The prompt-toolkit output-field widget."""
         return self._ui.output_field
 
     @property
     def input_field(self) -> Any:
-        """Public read accessor for the raw input-field widget."""
+        """The prompt-toolkit input-field widget."""
         return self._ui.input_field
 
     def append_to_output(
@@ -274,7 +274,7 @@ class UIOutput:
         self.schedule_invalidate()
 
     def append_markdown(self, markdown_text: str) -> None:
-        """Append rendered markdown, remembering the source (public API)."""
+        """Append rendered markdown, remembering the source."""
         self.append_rendered(markdown_text, self._render_markdown_block)
 
     def render_markdown(self, markdown_text: str, width: int | None = None) -> str:
@@ -284,7 +284,7 @@ class UIOutput:
         return self._render_markdown_block(markdown_text, width)
 
     def print_help(self) -> None:
-        """Append the help panel as a re-renderable block (public API).
+        """Append the help panel as a re-renderable block.
 
         Overrides `BaseUICommands.print_help` so `/help` re-lays out on resize
         the same way the greeting panel does.
@@ -488,7 +488,7 @@ class UIOutput:
         self.append_to_output(text, end="", kind="progress")
 
     def rewrap_output(self) -> None:
-        """Re-render tracked blocks at the current width (public API).
+        """Re-render tracked blocks at the current width.
 
         Called from the app's after-render hook; a no-op unless the terminal
         width actually changed.

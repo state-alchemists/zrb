@@ -6,7 +6,7 @@ running turn as soon as that turn reaches a safe checkpoint (the start of its
 next model request), so an instruction given mid-turn is read without waiting
 for the turn to end; an entry the user is editing, and one younger than
 `EARLY_DELIVERY_GRACE_SECONDS`, is left until the next checkpoint so Up Arrow
-can still catch it (ADR-0078, revised). `Ctrl+G` (`send_queued_messages_now`)
+can still catch it (ADR-0078). `Ctrl+G` (`send_queued_messages_now`)
 skips both waits, for a user who wants the words in now.
 
 Entries are mutable and `run` reads `entry.text` at execution time, so
@@ -284,10 +284,8 @@ def submit_user_message_via_queue(
     Every submission is queued, whether or not a turn is running. A message
     typed mid-turn therefore waits where the user can see it, edit it
     (Up/Enter), delete it (Ctrl+X) or send it into the live run on demand
-    (Ctrl+G, `send_queued_messages_now`). Handing it to the live run at submit
-    time — what this did before — made that message uneditable the moment it
-    was sent, and made Up Arrow's meaning depend on whether a run context
-    happened to be registered.
+    (Ctrl+G, `send_queued_messages_now`); Up Arrow means the same whatever
+    run context happens to be registered.
 
     A standalone UI passes `[self]` as `attachment_sources` and `echo_targets`;
     a `MultiUI` passes its children.

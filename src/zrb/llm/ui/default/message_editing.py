@@ -65,7 +65,7 @@ class UIMessageEditing:
     def queued_edit_entry(self, value: QueuedMessage | None) -> None:
         # The entry carries the flag, not this helper: a checkpoint delivers
         # from the turn's own thread, where this object is not in hand, and it
-        # has to see that the message is being edited (ADR-0078, revised).
+        # has to see that the message is being edited (ADR-0078).
         current = self._queued_edit_entry
         if current is not None and current is not value:
             current.is_being_edited = False

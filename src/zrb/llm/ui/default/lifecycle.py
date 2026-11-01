@@ -105,7 +105,7 @@ class UILifecycle:
             # Nested `finally`s: the capture teardown, the buffered output and
             # the background tasks each get their chance even when an earlier
             # step fails — a closed stdout pipe, for instance — and the pending
-            # history is flushed last, whatever happened (review on #580).
+            # history is flushed last, whatever happened.
             try:
                 try:
                     ui.capture.stop()
