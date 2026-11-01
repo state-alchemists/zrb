@@ -11,7 +11,10 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.prompt import live_context
-from zrb.llm.tool.shell_background import get_shell_background_registry
+from zrb.llm.tool.shell_background import (
+    _release_process,
+    get_shell_background_registry,
+)
 from zrb.llm.watch import WatchLedger, reset_watch_ledgers
 
 
@@ -97,7 +100,12 @@ async def test_a_shutdown_kill_closes_the_watch(watch_dir):
     registry = get_shell_background_registry()
 
     handle = await registry.start("sleep 30", "", "Killed at shutdown")
+    bp = registry._procs[handle]
     registry.force_kill_all()
+    # The atexit path never looks back; the test must, or the dead process's
+    # transport is collected unclosed inside whichever test runs next.
+    await bp.process.wait()
+    _release_process(bp)
 
     (record,) = WatchLedger(str(watch_dir), "_").records()
     assert record.id == handle
@@ -248,14 +256,11 @@ async def test_the_spill_pointer_is_flushed_before_it_is_handed_out(
     registry = get_shell_background_registry()
 
     handle = await registry.start("python3 -c \"print('x' * 400)\"", "", "Spilling")
-    for _ in range(100):
-        records = WatchLedger(str(watch_dir), "_").records()
-        if records and records[0].state != "running":
-            break
-        await asyncio.sleep(0.05)
+    # Wait until the exit has been heard and drained: the command's own exit file
+    # settles the state sooner than the ending row that carries the pointer.
+    await registry.collect(handle, wait=10)
 
     (record,) = WatchLedger(str(watch_dir), "_").records()
     assert record.outcome
     with open(record.outcome, encoding="utf-8") as stream:
         assert stream.read().count("x") == 400
-    await registry.collect(handle)

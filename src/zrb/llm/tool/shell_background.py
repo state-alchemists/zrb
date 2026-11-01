@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import atexit
 import os
+import signal
 import time
 from dataclasses import dataclass, field
 from typing import Annotated, Any
@@ -452,11 +453,28 @@ class _ShellBackgroundRegistry:
                     kill_pid(bp.process.pid, print_method=CFG.LOGGER.debug)
                 except Exception:  # noqa: BLE001 - atexit backstop, must never raise
                     pass
+                _kill_process_group(bp.process.pid)
             # The loop is gone by now, so the exit wait will never run: without
             # this the row would stay "running" for the next process to puzzle
             # over. A process that had already exited is not a kill.
             _end_watch(bp, handle, killed=bp.process.returncode is None)
         self._procs.clear()
+
+
+def _kill_process_group(pid: int) -> None:
+    """Kill the process group *pid* leads, for what `kill_pid`'s snapshot missed.
+
+    The command runs under a wrapper in its own session, so the wrapper's pid is
+    the group's id. A child forked after the snapshot `kill_pid` took is in that
+    group and would otherwise outlive both the wrapper and zrb. Best effort: no
+    groups on Windows, and a group that is already gone is the goal, not a fault.
+    """
+    if os.name != "posix":
+        return
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except OSError:
+        pass
 
 
 def _unknown_handle_message(handle: str) -> str:
