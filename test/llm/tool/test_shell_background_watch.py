@@ -119,23 +119,27 @@ async def test_a_shutdown_does_not_relabel_a_finished_process(watch_dir):
 
 
 @pytest.mark.asyncio
-async def test_a_ledger_that_fails_after_the_spawn_does_not_orphan_the_process(
+async def test_a_ledger_that_cannot_record_the_ending_still_leaves_one(
     watch_dir, monkeypatch
 ):
-    """The command is already running: bookkeeping must not lose track of it."""
+    """The command wrote its own exit code, so a lost ending row is not lost."""
 
-    def refuse(self, watch_id, pid):
+    def refuse(self, *args, **kwargs):
         raise OSError("the ledger went away")
 
-    monkeypatch.setattr(WatchLedger, "started", refuse)
+    monkeypatch.setattr(WatchLedger, "end", refuse)
     registry = get_shell_background_registry()
 
-    handle = await registry.start("exit 0", "", "Bookkeeping failed after the spawn")
+    handle = await registry.start("exit 5", "", "Bookkeeping failed at the end")
     await registry.collect(handle, wait=10)
+    for _ in range(100):
+        if os.path.exists(WatchLedger(str(watch_dir), "_").exit_file_for(handle)):
+            break
+        await asyncio.sleep(0.05)
 
     (record,) = WatchLedger(str(watch_dir), "_").records()
     assert record.state == "finished"
-    assert record.exit_code == 0
+    assert record.exit_code == 5
 
 
 @pytest.mark.asyncio

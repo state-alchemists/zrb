@@ -135,41 +135,6 @@ def test_two_session_names_that_sanitise_alike_stay_apart(tmp_path):
     assert second.records() == []
 
 
-def test_a_row_left_by_a_dead_process_is_reported_lost(tmp_path):
-    """`running` from another run of zrb means the ending was never seen."""
-    ledger = _ledger(tmp_path)
-    ledger.open("h1", kind="process", what="Killed with the process")
-    foreign = _rewrite_instance(ledger, "someone-else")
-
-    assert ledger.reconcile() == ["h1"]
-    assert ledger.unread()[0].state == "lost"
-    assert foreign
-
-
-def test_a_running_row_from_a_live_process_is_not_called_lost(tmp_path):
-    """The child can outlive the zrb that started it; that is not an ending."""
-    ledger = _ledger(tmp_path)
-    ledger.open("h1", kind="process", what="Still running elsewhere")
-    _rewrite_instance(ledger, "someone-else")
-    ledger.started("h1", os.getpid())
-
-    assert ledger.reconcile() == []
-    assert ledger.unread() == []
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="Windows cannot probe a pid without ending it"
-)
-def test_a_running_row_whose_process_is_gone_is_reported_lost(tmp_path):
-    ledger = _ledger(tmp_path)
-    ledger.open("h1", kind="process", what="Its run died")
-    _rewrite_instance(ledger, "someone-else")
-    ledger.started("h1", 2**31 - 1)
-
-    assert ledger.reconcile() == ["h1"]
-    assert ledger.unread()[0].state == "lost"
-
-
 def test_two_processes_on_one_session_do_not_drop_each_others_rows(tmp_path):
     """Appends from two runs must survive a compaction in either."""
     one = _ledger(tmp_path, "shared")
@@ -201,32 +166,6 @@ def test_an_append_waits_while_the_file_is_being_folded(tmp_path):
     assert {record.id for record in ledger.records()} == {"before", "during"}
 
 
-@pytest.mark.skipif(
-    sys.platform == "win32", reason="Windows cannot probe a pid without ending it"
-)
-def test_a_child_that_dies_after_the_restart_is_still_reported(tmp_path):
-    """Asking once at open is not enough: the child can die after that answer."""
-    child = subprocess.Popen(["sleep", "30"])
-    try:
-        ledger = _ledger(tmp_path)
-        ledger.open("h1", kind="process", what="Outlived the restart, then died")
-        _rewrite_instance(ledger, "someone-else")
-        ledger.started("h1", child.pid)
-
-        # Still working: nothing to report, and nothing to call lost.
-        assert ledger.render_lines() == []
-
-        child.kill()
-        child.wait()
-        (line,) = ledger.render_lines()
-    finally:
-        if child.poll() is None:
-            child.kill()
-            child.wait()
-
-    assert "outcome unknown" in line
-
-
 def test_only_one_turn_claims_an_outcome_even_if_both_render_at_once(tmp_path):
     """Choosing the rows and marking them delivered are one step, not two."""
     one = _ledger(tmp_path, "shared")
@@ -244,14 +183,6 @@ def test_only_one_turn_claims_an_outcome_even_if_both_render_at_once(tmp_path):
 
     assert len(rendered) == 1
     assert one.render_lines() == []
-
-
-def test_a_running_row_from_this_process_is_left_alone(tmp_path):
-    ledger = _ledger(tmp_path)
-    ledger.open("h1", kind="process", what="Still running here")
-
-    assert ledger.reconcile() == []
-    assert ledger.unread() == []
 
 
 def test_a_torn_line_costs_one_row_not_the_file(tmp_path):
@@ -363,59 +294,112 @@ def test_a_malformed_row_costs_that_row_not_the_render(tmp_path):
     assert any("Watch odd" in line and "42" in line for line in lines)
 
 
-def test_an_ending_that_could_not_be_written_is_kept_and_written_later(
-    tmp_path, monkeypatch
+def test_a_watch_left_open_by_a_gone_run_is_reported_once_as_not_known_to_have_ended(
+    tmp_path,
 ):
-    """A ledger busy at the moment of exit must not lose the outcome for good."""
-    from zrb.llm import watch as watch_module
-
+    """Nothing is inferred: no ending was seen, so the line says exactly that."""
     ledger = _ledger(tmp_path)
-    ledger.open("h1", kind="process", what="Slow to close")
-    monkeypatch.setattr(watch_module, "LEDGER_LOCK_TIMEOUT", 0.1)
+    ledger.open("h1", kind="process", what="Started by a run that is gone")
+    _rewrite_instance(ledger, "someone-else")
 
-    with hold_file_lock(f"{ledger.path}.lock", timeout=1):
-        with pytest.raises(OSError):
-            ledger.end("h1", 0)
+    (line,) = ledger.render_lines()
+
+    assert "no ending recorded" in line
+    assert "may still be running" in line
+    assert ledger.render_lines() == []
+
+
+def test_a_watch_open_in_this_run_is_left_to_the_registry(tmp_path):
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Still running here")
+
+    assert ledger.unread() == []
+    assert ledger.render_lines() == []
+
+
+def test_the_exit_code_a_command_wrote_settles_its_watch(tmp_path):
+    """The command outlives the run that started it, and says how it ended."""
+    ledger = _ledger(tmp_path)
+    exit_file = ledger.exit_file_for("h1")
+    ledger.open("h1", kind="process", what="Wrote its own ending", exit_file=exit_file)
+    _rewrite_instance(ledger, "someone-else")
+    ledger.render_lines()  # "not known to have ended", said once
+
+    with open(exit_file, "w", encoding="utf-8") as stream:
+        stream.write("3")
+    (line,) = ledger.render_lines()
+
+    assert "exit 3" in line
+    assert ledger.render_lines() == []
+
+
+def test_an_exit_file_that_is_not_a_number_settles_nothing(tmp_path):
+    ledger = _ledger(tmp_path)
+    exit_file = ledger.exit_file_for("h1")
+    ledger.open("h1", kind="process", what="Half written", exit_file=exit_file)
+    with open(exit_file, "w", encoding="utf-8") as stream:
+        stream.write("not a number")
 
     assert ledger.records()[0].state == RUNNING
-    (line,) = ledger.render_lines()
-    assert "Watch h1 exit 0" in line
 
 
-def test_a_recycled_pid_is_not_the_child(tmp_path):
-    """A live process that began at another time is a stranger on the old pid."""
-    from zrb.llm.watch import _is_alive, _process_start
-
-    start = _process_start(os.getpid())
-    assert start > 0
-    assert _is_alive(os.getpid(), start)
-    assert not _is_alive(os.getpid(), start - 3600)
-
-
-def test_a_row_whose_pid_was_recycled_is_reported_lost(tmp_path):
+def test_an_ending_row_outranks_the_exit_file(tmp_path):
+    """A kill zrb recorded must not be rewritten by a file written as it died."""
     ledger = _ledger(tmp_path)
-    ledger.open("h1", kind="process", what="Orphaned")
-    ledger.started("h1", os.getpid())
-    with open(ledger.path, encoding="utf-8") as stream:
-        rows = [json.loads(line) for line in stream.read().splitlines()]
-    for row in rows:
-        if row["op"] == "opened":
-            row["instance"] = "dead-run"
-        if row["op"] == "spawned":
-            row["pid_start"] = row["pid_start"] - 3600
-    with open(ledger.path, "w", encoding="utf-8") as stream:
-        stream.writelines(json.dumps(row) + "\n" for row in rows)
+    exit_file = ledger.exit_file_for("h1")
+    ledger.open("h1", kind="process", what="Killed", exit_file=exit_file)
+    ledger.end("h1", -15, killed=True)
+    with open(exit_file, "w", encoding="utf-8") as stream:
+        stream.write("0")
 
-    assert ledger.reconcile() == ["h1"]
-    assert ledger.records()[0].state == "lost"
+    assert ledger.records()[0].state == KILLED
 
 
-def test_a_watch_that_never_got_a_pid_is_not_called_finished_or_gone(tmp_path):
-    """A run that died between the spawn and noting the pid cannot say more."""
+def test_compaction_removes_the_exit_file_of_a_watch_it_drops(tmp_path):
     ledger = _ledger(tmp_path)
-    ledger.open("h1", kind="process", what="Spawned, then the run died")
-    _rewrite_instance(ledger, "dead-run")
+    exit_file = ledger.exit_file_for("h1")
+    ledger.open("h1", kind="process", what="Reported long ago", exit_file=exit_file)
+    with open(exit_file, "w", encoding="utf-8") as stream:
+        stream.write("0")
+    ledger.render_lines()
+    _rewrite_instance(ledger, "someone-else")
+    ledger.render_lines()
 
-    assert ledger.reconcile() == ["h1"]
-    (line,) = ledger.render_lines()
-    assert "may still be running" in line
+    ledger.compact()
+
+    assert not os.path.exists(exit_file)
+
+
+def test_a_settled_watch_keeps_its_ending_through_a_compaction(tmp_path):
+    ledger = _ledger(tmp_path)
+    exit_file = ledger.exit_file_for("h1")
+    ledger.open("h1", kind="process", what="Unread ending", exit_file=exit_file)
+    with open(exit_file, "w", encoding="utf-8") as stream:
+        stream.write("4")
+    _rewrite_instance(ledger, "someone-else")
+    ledger.compact()
+    os.remove(exit_file)
+
+    record = ledger.records()[0]
+
+    assert (record.state, record.exit_code) == (FINISHED, 4)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the wrapper needs a POSIX sh")
+def test_the_wrapper_writes_the_exit_code_of_the_command_it_runs(tmp_path):
+    from zrb.llm.watch import wrap_to_report
+
+    exit_file = str(tmp_path / "h1.exit")
+
+    result = subprocess.run(wrap_to_report(["sh", "-c", "exit 7"], exit_file))
+
+    assert result.returncode == 7
+    with open(exit_file, encoding="utf-8") as stream:
+        assert stream.read() == "7"
+    assert not os.path.exists(f"{exit_file}.tmp")
+
+
+def test_a_command_with_no_exit_file_is_not_wrapped():
+    from zrb.llm.watch import wrap_to_report
+
+    assert wrap_to_report(["echo", "hi"], "") == ["echo", "hi"]

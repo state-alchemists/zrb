@@ -27,7 +27,7 @@ from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
 from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.tool.stream_capture import StreamCapture
-from zrb.llm.watch import WatchLedger, get_watch_ledger
+from zrb.llm.watch import WatchLedger, get_watch_ledger, wrap_to_report
 from zrb.util.string.name import get_random_name
 
 # How long an exited process's watch waits for its output to finish arriving.
@@ -39,19 +39,26 @@ def _new_capture() -> StreamCapture:
     return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0)
 
 
-def _open_watch(handle: str, what: str) -> "WatchLedger | None":
-    """Record the watch before the work starts, and return the ledger holding it.
+def _open_watch(
+    handle: str, what: str, reports_exit: bool = False
+) -> "tuple[WatchLedger | None, str]":
+    """Record the watch before the work starts; returns its ledger and exit file.
+
+    *reports_exit* says the command will be wrapped to write its own exit code,
+    which is what a later run reads when this one is gone. The exit file is empty
+    when there is nothing to write it.
 
     The ledger is a convenience for the next turn, never a reason to fail the
     call: a directory that cannot be written costs the record, not the command.
     """
     try:
         ledger = get_watch_ledger()
-        ledger.open(handle, kind="process", what=what)
-        return ledger
+        exit_file = ledger.exit_file_for(handle) if reports_exit else ""
+        ledger.open(handle, kind="process", what=what, exit_file=exit_file)
+        return ledger, exit_file
     except OSError as e:
         CFG.LOGGER.warning(f"Could not record watch {handle}: {e}")
-        return None
+        return None, ""
 
 
 def _fail_watch(ledger: "WatchLedger | None", handle: str) -> None:
@@ -62,21 +69,6 @@ def _fail_watch(ledger: "WatchLedger | None", handle: str) -> None:
         ledger.fail(handle)
     except OSError as e:
         CFG.LOGGER.warning(f"Could not close watch {handle}: {e}")
-
-
-def _start_watch(ledger: "WatchLedger | None", handle: str, pid: int) -> None:
-    """Record the child's pid, once it exists. Best-effort, like `_open_watch`.
-
-    The process is already running when this is called, so a ledger that cannot
-    be written must cost the record and nothing else: raising here would fail
-    the call while leaving behind a process no registry would ever reap.
-    """
-    if ledger is None:
-        return
-    try:
-        ledger.started(handle, pid)
-    except OSError as e:
-        CFG.LOGGER.warning(f"Could not record the pid of watch {handle}: {e}")
 
 
 def _spill_pointer(bp: "_BackgroundProcess") -> str:
@@ -116,15 +108,15 @@ def _record_end(bp: "_BackgroundProcess", handle: str, ending: tuple) -> None:
     try:
         ledger = get_watch_ledger(bp.owner_session_id or None)
     except OSError as e:
-        # No ledger to hold the ending, even in memory: let a later path try.
+        # No ledger to hold the ending: let a later path try.
         bp.watch_closed = False
         CFG.LOGGER.warning(f"Could not close watch {handle}: {e}")
         return
     try:
         ledger.end(handle, exit_code, killed=killed, outcome=outcome)
     except OSError as e:
-        # The ledger kept the ending and writes it on its next turn at the lock.
-        CFG.LOGGER.warning(f"Could not close watch {handle} yet: {e}")
+        # The command's own exit file, when it wrote one, still says how it ended.
+        CFG.LOGGER.warning(f"Could not close watch {handle}: {e}")
 
 
 def _end_watch(bp: "_BackgroundProcess", handle: str, killed: bool = False) -> None:
@@ -197,11 +189,15 @@ class _ShellBackgroundRegistry:
         # Recorded before the process exists. A crash between the spawn and the
         # record would leave work running that no later session could account
         # for, which is the one thing this ledger exists to prevent.
-        ledger = _open_watch(handle, description or command)
+        ledger, exit_file = _open_watch(
+            handle, description or command, reports_exit=True
+        )
         try:
             # Own process group; DEVNULL stdin prevents hangs on stdin reads.
+            # The command writes its own exit code when it ends, so a run that
+            # started it and is gone still leaves an ending behind.
             proc = await asyncio.create_subprocess_exec(
-                *create_yielding_argv(argv),
+                *wrap_to_report(create_yielding_argv(argv), exit_file),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 stdin=asyncio.subprocess.DEVNULL,
@@ -218,12 +214,7 @@ class _ShellBackgroundRegistry:
             description=description or command,
             owner_session_id=get_current_chat_session_id(),
         )
-        # Registered before the ledger hears anything more: from here the process
-        # is ours to stop and to reap, whatever happens to the bookkeeping.
         self._procs[handle] = bp
-        # The pid is known only now; `started` is what lets a later run tell a
-        # command that is still going from one whose watcher is gone.
-        _start_watch(ledger, handle, proc.pid)
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
         # Tracked so kill()/cancel_all() can stop them.
@@ -256,7 +247,7 @@ class _ShellBackgroundRegistry:
         handle = get_random_name(separator="-", add_random_digit=True)
         # Before the registry entry, for the same reason as `start`: the process
         # is already running, so a crash here must not lose it.
-        ledger = _open_watch(handle, command)
+        _open_watch(handle, command)
         bp = _BackgroundProcess(
             process=process,
             stdout_cap=stdout_cap,
@@ -265,7 +256,6 @@ class _ShellBackgroundRegistry:
             owner_session_id=get_current_chat_session_id(),
         )
         self._procs[handle] = bp
-        _start_watch(ledger, handle, process.pid)
         bp.tasks = [
             asyncio.ensure_future(self._read_pipe(handle, process.stdout, "stdout")),
             asyncio.ensure_future(self._read_pipe(handle, process.stderr, "stderr")),
