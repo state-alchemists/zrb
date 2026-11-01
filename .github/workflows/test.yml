@@ -41,6 +41,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
+        id: setup-python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -67,7 +68,12 @@ jobs:
           # Poetry's default cache dir (it nests virtualenvs under it) differs
           # per platform, and all three already sit outside the checkout.
           path: ${{ runner.os == 'Windows' && '~\AppData\Local\pypoetry\Cache' || (runner.os == 'macOS' && '~/Library/Caches/pypoetry' || '~/.cache/pypoetry') }}
-          key: poetry-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
+          # The exact interpreter is part of the key: a cached virtualenv points at
+          # the base python it was built from (e.g. ...\Python\3.13.16\x64), and
+          # the runner pool serves images with different patch releases, so a venv
+          # restored onto 3.13.17 fails `poetry install` with "did not find
+          # executable".
+          key: poetry-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('poetry.lock') }}
 
       - name: Install dependencies
         run: poetry install --all-extras --no-interaction
