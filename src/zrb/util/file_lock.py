@@ -8,6 +8,7 @@ exits or is killed, and nothing is ever left behind to clean up.
 from __future__ import annotations
 
 import errno
+import os
 import sys
 import threading
 import time
@@ -21,6 +22,9 @@ _POLL_SECONDS = 0.05
 
 if sys.platform == "win32":  # pragma: no cover - exercised on Windows CI
     import msvcrt
+
+    # Windows has no `O_NOFOLLOW`; `O_BINARY` exists only there.
+    _OPEN_FLAGS = os.O_BINARY
 
     def _has_taken_lock(handle: IO[bytes]) -> bool:
         # Locking past the end of a file is allowed, so an empty one will do.
@@ -39,6 +43,10 @@ if sys.platform == "win32":  # pragma: no cover - exercised on Windows CI
 
 else:
     import fcntl
+
+    # A symlink at the lock path is refused, not followed (and, if dangling,
+    # not created through).
+    _OPEN_FLAGS = os.O_NOFOLLOW
 
     def _has_taken_lock(handle: IO[bytes]) -> bool:
         try:
@@ -63,7 +71,8 @@ class FileLockCancelled(Exception):
 def hold_file_lock(
     path: str, timeout: float | None = None, cancel: threading.Event | None = None
 ) -> Iterator[None]:
-    """Hold an exclusive lock on *path*, created if missing, waiting while
+    """Hold an exclusive lock on *path*, created if missing (owner-only, never
+    through a symlink: a symlink at *path* raises `OSError`), waiting while
     another thread or process holds it — at most *timeout* seconds, then
     `FileLockTimeout`, and `FileLockCancelled` as soon as *cancel* is set.
     An error other than the lock being held is raised at once rather than
@@ -71,7 +80,10 @@ def hold_file_lock(
 
     *cancel* is checked before every attempt, the first included; a cancel
     landing after the lock is taken is the caller's to check."""
-    with open(path, "ab") as handle:
+    descriptor = os.open(
+        path, os.O_WRONLY | os.O_CREAT | os.O_APPEND | _OPEN_FLAGS, 0o600
+    )
+    with os.fdopen(descriptor, "ab") as handle:
         give_up = None if timeout is None else time.monotonic() + timeout
         while True:
             if cancel is not None and cancel.is_set():

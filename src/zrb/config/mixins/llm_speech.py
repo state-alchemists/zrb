@@ -15,7 +15,6 @@ any of these after importing zrb.
 from __future__ import annotations
 
 import os
-import tempfile
 
 from zrb.config.env_field import (
     EnvField,
@@ -504,13 +503,15 @@ class LLMSpeechMixin:
 
     LLM_SPEECH_LOCK_FILE = EnvField(
         str,
-        default_factory=lambda host: os.path.join(
-            tempfile.gettempdir(), f"{host.ROOT_GROUP_NAME}-speech.lock"
+        default_factory=lambda host: os.path.expanduser(
+            os.path.join("~", f".{host.ROOT_GROUP_NAME}", "llm-speech", "speech.lock")
         ),
         doc=(
-            "File locked while speech plays, so sessions on this machine "
-            "take turns and dictation ignores the assistant's own voice. "
-            "Default: <tmp>/<root group name>-speech.lock."
+            "File locked while speech plays, so sessions of this user take "
+            "turns and dictation ignores the assistant's own voice. Default: "
+            "~/.<root group name>/llm-speech/speech.lock, a per-user "
+            "directory: a fixed name in the shared temp dir could be planted "
+            "by another local user."
         ),
     )
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import atexit
 import logging
+import os
 import queue
 import threading
 import time
@@ -28,6 +29,7 @@ from zrb.llm.speech.pcm_player import (
     wait_for_streams_to_close,
 )
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
+from zrb.util.owner_only import makedirs_owner_only
 
 if TYPE_CHECKING:
     from zrb.llm.speech.backend.audio import SpeechAudio
@@ -844,9 +846,11 @@ def play(utterance: Utterance, config: SpeechConfig) -> None:
     Raises `FileLockTimeout` when another session holds the lock past
     *config.lock_timeout*, and whatever the utterance's player raises.
     """
-    with hold_file_lock(
-        config.lock_file or CFG.LLM_SPEECH_LOCK_FILE, timeout=config.lock_timeout
-    ):
+    lock_file = config.lock_file or CFG.LLM_SPEECH_LOCK_FILE
+    lock_dir = os.path.dirname(lock_file)
+    if lock_dir and not os.path.isdir(lock_dir):
+        makedirs_owner_only(lock_dir)
+    with hold_file_lock(lock_file, timeout=config.lock_timeout):
         _set_playing(+1)
         try:
             utterance.play(config.player_timeout or None)

@@ -138,7 +138,9 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 | **Permission Policy** | Fine-grained `ALLOW`/`DENY`/`ASK` rules that can override YOLO |
 | **Plan Mode** | Strict read-only mode for discovery. See [Plan Mode](./plan-mode.md) |
 
-**Safe Command Policy:** The `Shell` tool automatically approves known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&`, `` ` ``, `$()`, `\n`, `\r`) always require explicit approval. Known-safe prefixes include `ls`, `cat`, `grep`, `git status`, `printenv`, and similar read-only commands — note that bare `env` is intentionally excluded as `env FOO=1 rm -rf x` can execute arbitrary commands.
+**Safe Command Policy:** The `Shell` tool automatically approves known-safe read-only commands (e.g., `ls`, `git status`, `cat`, `grep`) without requiring YOLO mode. Commands with dangerous shell metacharacters (`>`, `|`, `;`, `&`, `` ` ``, `$()`, `<()`, `\n`, `\r`) always require explicit approval. Known-safe prefixes include `ls`, `cat`, `grep`, `git status`, `printenv`, and similar read-only commands — note that bare `env` is intentionally excluded as `env FOO=1 rm -rf x` can execute arbitrary commands.
+
+An allowlisted command stops being auto-approved, and goes to the normal approval prompt, when it carries a flag that runs a program or writes a file: `rg --pre` / `--pre-glob` / `--hostname-bin`, `git diff|log|show` with `--output`, `--ext-diff` or `--textconv`, `sort -o` / `--output` / `--compress-program`, `uniq INPUT OUTPUT` (the second file is written), and `file -C` / `--compile`. Abbreviated long options (`git log --out=x`) count as well, and so does an argument for these five commands that begins with `$` or `{`, because the shell could expand it into one of those flags after the check. The same commands without those flags (`rg pattern`, `sort file`, `uniq file`, `git diff`) stay auto-approved.
 
 ### Troubleshooting: Voice & Photo
 

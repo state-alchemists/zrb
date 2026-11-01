@@ -2,11 +2,16 @@
 
 import asyncio
 import json
+import os
+import sys
+import tempfile as tempfile_module
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from conftest import _mock_sm
 from httpx import AsyncClient
+
+from zrb.runner.chat.chat_api_route import save_uploaded_attachment
 
 
 @pytest.mark.asyncio
@@ -77,32 +82,136 @@ async def test_post_message_creates_session(client: AsyncClient):
     assert response.json().get("status") == "sent"
 
 
+@pytest.fixture
+def uploaded_png(tmp_path, monkeypatch) -> str:
+    """A file the upload handler wrote, in an upload dir under `tmp_path`."""
+    monkeypatch.setattr(tempfile_module, "tempdir", str(tmp_path))
+    return save_uploaded_attachment("test", "a.png", b"\x89PNG\r\n\x1a\n")
+
+
 @pytest.mark.asyncio
-async def test_post_message_forwards_attachments(client: AsyncClient):
+async def test_post_message_forwards_attachments(client: AsyncClient, uploaded_png):
     """Attachment paths in the request body reach send_input as a kwarg."""
     _mock_sm.get_session.return_value = MagicMock()
     _mock_sm.send_input = AsyncMock()
 
     response = await client.post(
         "/api/v1/chat/sessions/test/messages",
-        json={"message": "look", "attachments": ["/tmp/a.png"]},
+        json={"message": "look", "attachments": [uploaded_png]},
     )
 
     assert response.status_code == 200
-    assert _mock_sm.send_input.await_args.kwargs["attachments"] == ["/tmp/a.png"]
+    assert _mock_sm.send_input.await_args.kwargs["attachments"] == [uploaded_png]
 
 
 @pytest.mark.asyncio
-async def test_post_message_defaults_attachments_to_empty_list(client: AsyncClient):
+@pytest.mark.parametrize("body", [{}, {"attachments": []}, {"attachments": None}])
+async def test_post_message_defaults_attachments_to_empty_list(
+    client: AsyncClient, body
+):
     _mock_sm.get_session.return_value = MagicMock()
     _mock_sm.send_input = AsyncMock()
 
     response = await client.post(
-        "/api/v1/chat/sessions/test/messages", json={"message": "hi"}
+        "/api/v1/chat/sessions/test/messages", json={"message": "hi", **body}
     )
 
     assert response.status_code == 200
     assert _mock_sm.send_input.await_args.kwargs["attachments"] == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("attachments", [0, False, "", {}])
+async def test_post_message_rejects_falsy_attachments_that_are_not_a_list(
+    client: AsyncClient, attachments
+):
+    """`0`, `false`, `""` and `{}` used to be swallowed into an empty list."""
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.send_input = AsyncMock()
+
+    response = await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": "look", "attachments": attachments},
+    )
+
+    assert response.status_code == 400
+    assert "attachments" in response.json()["error"]
+    _mock_sm.send_input.assert_not_called()
+
+
+async def _post_attachment_path(client: AsyncClient, path: str):
+    _mock_sm.get_session.return_value = MagicMock()
+    _mock_sm.send_input = AsyncMock()
+    return await client.post(
+        "/api/v1/chat/sessions/test/messages",
+        json={"message": "look", "attachments": [path]},
+    )
+
+
+@pytest.mark.asyncio
+async def test_post_message_rejects_a_path_outside_the_upload_dir(
+    client: AsyncClient, uploaded_png, tmp_path
+):
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"\x89PNG\r\n\x1a\n")
+
+    response = await _post_attachment_path(client, str(outside))
+
+    assert response.status_code == 400
+    assert "upload" in response.json()["error"]
+    _mock_sm.send_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_post_message_rejects_dotdot_traversal_out_of_the_upload_dir(
+    client: AsyncClient, uploaded_png, tmp_path
+):
+    (tmp_path / "outside.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+    # <upload root>/<session>/../../outside.png
+    traversal = os.path.join(os.path.dirname(uploaded_png), "..", "..", "outside.png")
+
+    response = await _post_attachment_path(client, traversal)
+
+    assert response.status_code == 400
+    _mock_sm.send_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+async def test_post_message_rejects_a_symlink_out_of_the_upload_dir(
+    client: AsyncClient, uploaded_png, tmp_path
+):
+    outside = tmp_path / "outside.png"
+    outside.write_bytes(b"\x89PNG\r\n\x1a\n")
+    link = os.path.join(os.path.dirname(uploaded_png), "link.png")
+    os.symlink(outside, link)
+
+    response = await _post_attachment_path(client, link)
+
+    assert response.status_code == 400
+    _mock_sm.send_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_post_message_rejects_an_upload_path_that_is_not_a_file(
+    client: AsyncClient, uploaded_png
+):
+    missing = os.path.join(os.path.dirname(uploaded_png), "missing.png")
+
+    response = await _post_attachment_path(client, missing)
+
+    assert response.status_code == 400
+    _mock_sm.send_input.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_post_message_rejects_a_path_with_a_nul_byte(
+    client: AsyncClient, uploaded_png
+):
+    response = await _post_attachment_path(client, uploaded_png + "\0.png")
+
+    assert response.status_code == 400
+    _mock_sm.send_input.assert_not_called()
 
 
 @pytest.mark.asyncio

@@ -101,3 +101,37 @@ def test_subgroup_info_renders_when_accessible():
     html = get_html_subgroup_info(user, "/api", parent)
     assert "<h5>Groups</h5>" in html
     assert "Child group" in html
+
+
+_PAYLOAD = "<script>alert(\"x\")</script> & 'quoted'"
+_ESCAPED_PAYLOAD = (
+    "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &#x27;quoted&#x27;"
+)
+
+
+def test_auth_link_escapes_the_username():
+    for user in (
+        User(username=_PAYLOAD, is_guest=True, is_super_admin=True),
+        User(username=_PAYLOAD, is_guest=True, is_super_admin=False),
+        User(username=_PAYLOAD, is_guest=False, is_super_admin=False),
+    ):
+        html = get_html_auth_link(user)
+        assert "<script>" not in html
+        assert f"Hi, {_ESCAPED_PAYLOAD}" in html
+
+
+def test_task_li_escapes_the_name_and_the_description():
+    task = _mk_task("ignored", _PAYLOAD)
+    html = get_html_task_li("/ui/", '"><script>x</script>', task)
+    assert "<script>" not in html
+    assert html.endswith(f"</a> {_ESCAPED_PAYLOAD}</li>")
+    # The name cannot break out of the href attribute.
+    assert html.startswith('<li><a href="/ui/&quot;&gt;&lt;script&gt;')
+
+
+def test_group_li_escapes_the_name_and_the_description():
+    group = _mk_group(_PAYLOAD)
+    html = get_html_group_li("/ui/", '"><script>x</script>', group)
+    assert "<script>" not in html
+    assert html.endswith(f"</a> {_ESCAPED_PAYLOAD}</li>")
+    assert html.startswith('<li><a href="/ui/&quot;&gt;&lt;script&gt;')

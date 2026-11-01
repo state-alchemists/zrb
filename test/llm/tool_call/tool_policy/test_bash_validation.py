@@ -86,6 +86,23 @@ class TestIsSafeCommand:
         """Test that $() subshells are rejected."""
         assert is_safe_command("echo $(date)") is False
 
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "cat <(touch /tmp/marker)",
+            "grep x <(cmd)",
+            "head -n 1 <( cmd )",
+            "echo <(cmd)",
+        ],
+    )
+    def test_unsafe_command_with_process_substitution(self, command):
+        """`<(cmd)` runs cmd, so an allowlisted prefix must not hide it."""
+        assert is_safe_command(command) is False
+
+    def test_input_redirection_from_a_file_stays_safe(self):
+        """`< file` only reads, so it is not treated like `<(cmd)`."""
+        assert is_safe_command("grep x < notes.txt") is True
+
     def test_unsafe_command_rm(self):
         """Test that rm is not in safe list."""
         assert is_safe_command("rm file.txt") is False
@@ -265,4 +282,114 @@ class TestBashSafeCommandPolicy:
 
         # Should fall through to next handler
         assert result == "next_result"
+        assert next_handler.called is True
+
+
+# Forms of allowlisted commands that run a program or write a file.
+_FLAG_LEAKS = [
+    "rg --pre cat pattern",
+    "rg --pre=cat pattern",
+    "rg --pre-glob '*.txt' pattern",
+    "rg --pre-glob=*.txt pattern",
+    "rg --hostname-bin=hostname pattern",
+    "rg pattern --pre ./evil.sh",
+    "git log --output=out.txt",
+    "git diff --output out.txt",
+    "git show --output=out.txt HEAD",
+    "git diff --out=out.txt",
+    "git diff --ext-diff",
+    "git log --ext-diff -p",
+    "git show --textconv HEAD:file",
+    "git log -p --textconv",
+    "git diff --ext HEAD",
+    "sort -o out.txt in.txt",
+    "sort -uo out.txt in.txt",
+    "sort -oout.txt in.txt",
+    "sort --output=out.txt in.txt",
+    "sort --output out.txt in.txt",
+    "sort --out=out.txt in.txt",
+    "sort -S 1 --compress-program=sh in.txt",
+    "uniq in.txt out.txt",
+    "uniq -c in.txt out.txt",
+    "uniq -f 1 in.txt out.txt",
+    "uniq -f1 in.txt out.txt",
+    "uniq --skip-fields 1 in.txt out.txt",
+    "uniq -- in.txt out.txt",
+    "uniq - out.txt",
+    "file -C",
+    "file -C -m magic",
+    "file -bC",
+    "file --compile",
+    "file --comp",
+    # Quoting or expansion that hides the option from a plain text match.
+    "rg '--pre'=cat pattern",
+    'rg --p""re=cat pattern',
+    "rg --pr${UNSET}e=cat pattern",
+    "rg ${UNSET:---pre=cat} pattern",
+    "rg --pr{e,x}=cat pattern",
+    "rg {--pre=cat,x} pattern",
+    "rg --pre='unterminated pattern",
+]
+
+# Harmless forms of the same commands that stay auto-approved.
+_HARMLESS_FORMS = [
+    "rg pattern",
+    "rg -n -i pattern src",
+    "rg --no-pre pattern",
+    "rg --pretty pattern",
+    "rg -e pattern -- --pre",
+    "git diff",
+    "git diff HEAD~1 -- src",
+    "git diff --stat",
+    "git diff --no-ext-diff",
+    "git diff --no-textconv",
+    "git diff --output-indicator-new=+",
+    "git log --oneline -n 5",
+    "git log HEAD@{1}..HEAD",
+    "git show HEAD:README.md",
+    "git show --stat",
+    "sort file",
+    "sort -n -r file",
+    "sort -u -k 2,2 file",
+    "sort -t, -k2 file",
+    "sort -T/tmp/scratch file",
+    "sort --reverse file",
+    "uniq file",
+    "uniq -c file",
+    "uniq -f 1 file",
+    "uniq -f1 file",
+    "uniq --skip-fields 1 file",
+    "uniq --skip-fields=1 file",
+    "uniq -i -d",
+    "uniq",
+    "file photo.png",
+    "file -b photo.png",
+    "file --mime-type photo.png",
+    "file -m magic photo.png",
+    "file -i a b",
+]
+
+
+class TestFlagsThatRunProgramsOrWriteFiles:
+    """An allowlisted command with such a flag needs the normal approval prompt."""
+
+    @pytest.mark.parametrize("command", _FLAG_LEAKS)
+    def test_unsafe_form_is_not_auto_approved(self, command):
+        assert is_safe_command(command) is False
+
+    @pytest.mark.parametrize("command", _HARMLESS_FORMS)
+    def test_harmless_form_stays_auto_approved(self, command):
+        assert is_safe_command(command) is True
+
+    @pytest.mark.asyncio
+    async def test_policy_hands_unsafe_form_to_the_prompt(self):
+        policy = bash_safe_command_policy()
+        call = MagicMock()
+        call.tool_name = "Shell"
+        call.args = {"command": "rg --pre ./evil.sh pattern"}
+        next_handler = AsyncMock(return_value="prompted")
+
+        result = await policy(MagicMock(), call, next_handler)
+
+        assert result == "prompted"
         assert next_handler.called is True

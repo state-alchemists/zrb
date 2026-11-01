@@ -53,7 +53,7 @@ start_searxng = searxng_group.add_task(
         cmd=Tpl(
             "docker run --rm -p {ctx.input.port}:8080 -e SEARXNG_LIMITER=false"
             " -v ./.config/searxng/:/etc/searxng/"
-            " docker.io/searxng/searxng:2026.5.6-36bcd6b55 -d"
+            " docker.io/searxng/searxng:2026.5.6-36bcd6b55"
         ),
         readiness_check=HttpCheck(
             "check-searxng",

@@ -6,10 +6,14 @@ from zrb.task.make_task import make_task
 _COMPLETION_SCRIPT = """
 _{command_name}_complete() {
     local cur cmd_input subcmd_output cache_dir cache_file
-    local -a subcommands
+    local -a subcommands cmd_words
 
     cur="${COMP_WORDS[COMP_CWORD]}"
-    cmd_input="{command_name} shell autocomplete subcmd ${COMP_WORDS[@]:0:$COMP_CWORD}"
+    # The words typed so far are data: they are passed to the command as
+    # separate arguments and never parsed by the shell again, so a pasted
+    # $(...) or backtick in the line being completed does not run on Tab.
+    cmd_words=("${COMP_WORDS[@]:0:$COMP_CWORD}")
+    cmd_input="{command_name} shell autocomplete subcmd ${cmd_words[*]}"
 
     # Cache the subcommand list for a minute, keyed by cwd + the command
     # being completed, so repeated Tab presses don't pay a fresh process
@@ -25,7 +29,7 @@ _{command_name}_complete() {
     if [ -n "$(find "$cache_file" -mmin -1 2>/dev/null)" ]; then
         subcmd_output=$(cat "$cache_file")
     else
-        subcmd_output=$(eval "$cmd_input 2>/dev/null")
+        subcmd_output=$({command_name} shell autocomplete subcmd "${cmd_words[@]}" 2>/dev/null)
         printf '%s' "$subcmd_output" > "$cache_file"
     fi
 
