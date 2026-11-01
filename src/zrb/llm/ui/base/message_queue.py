@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import input_provenance
 from zrb.llm.any_ui import AnyUI
-from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT, InputProvenance
 from zrb.llm.ui.base.user_echo import (
     AppendOutputFunc,
     echo_user_message,
@@ -120,6 +120,10 @@ class MessageQueue(asyncio.Queue):
         # Set while a queued turn runs. A submission that arrives during one has
         # no silence to report: the model has just seen this conversation.
         self.turn_started_at: float | None = None
+        # Background-process wake-ups queued since the user last wrote. A turn
+        # a wake-up starts can start another command, which wakes it again; this
+        # is what `submit_user_message_via_queue` counts to stop that loop.
+        self.unattended_wakes: int = 0
 
     def peek_latest(self) -> "QueuedMessage | None":
         """The newest not-yet-started entry, or None."""
@@ -283,7 +287,23 @@ def submit_user_message_via_queue(
     sentence in flight is cut. It is the hush a barge-in does from the
     microphone, reached from the keyboard too; the turn itself is untouched.
     """
-    _hush_speech()
+    if source == BACKGROUND_INPUT:
+        # Not the user moving on: nothing here cuts the voice, and a wake-up
+        # that would be one too many is left to the next turn's live context,
+        # which still lists the command as exited.
+        limit = CFG.LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE
+        if 0 < limit <= queue.unattended_wakes:
+            append_to_output(
+                f"\n[{limit} background wake-ups in a row with no message from "
+                "you: this one waits for your next message.]\n"
+            )
+            return
+        queue.unattended_wakes += 1
+    else:
+        if source is not None:
+            # The user's own words: the next wake-up has a fresh allowance.
+            queue.unattended_wakes = 0
+        _hush_speech()
     now = datetime.now()
     timestamp = now.strftime("%H:%M")
     header = f"\n{marker} {timestamp} >> "

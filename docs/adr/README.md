@@ -167,6 +167,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0069** — [Background work inherits permissions and can be waited on](adr-0069.md)
 - **ADR-0070** — [`BufferedUI` and a confirmation queue](adr-0070.md)
 - **ADR-0083** — [Delegated sub-agent sessions: persisted, listed, resumable, and swappable in place](adr-0083.md)
+- **ADR-0137** — [A background command that ends wakes the session that started it](adr-0137.md)
 
 ### Extending the chat
 

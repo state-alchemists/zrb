@@ -55,6 +55,8 @@ def _spoken(seconds: float) -> str:
 
 KEYBOARD_INPUT = InputProvenance("keyboard")
 WEB_INPUT = InputProvenance("web")
+# Not the user's words: a background command reporting that it ended.
+BACKGROUND_INPUT = InputProvenance("background process")
 DICTATION_INPUT = InputProvenance(
     "microphone", modality="dictation", transcription=True
 )

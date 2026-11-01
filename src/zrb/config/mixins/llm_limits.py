@@ -36,6 +36,12 @@ class LLMLimitsMixin:
         # it, because a misheard word must not disturb a build.
         self.DEFAULT_LLM_VOICE_MOVES_SHELL: str = "0"
         self.DEFAULT_LLM_BACKGROUND_WAIT_MAX: str = "300"
+        # On: a command that ends while the session is idle is a result nobody
+        # is waiting on, which is the case a wake-up exists for.
+        self.DEFAULT_LLM_BACKGROUND_WAKE: str = "1"
+        # Five unattended turns in a row is enough to act on a result and see
+        # what it started; more is a loop, not a conversation.
+        self.DEFAULT_LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE: str = "5"
         self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
@@ -182,6 +188,29 @@ class LLMLimitsMixin:
             "Maximum seconds a single GetDelegationResult/MonitorProcess `wait` "
             "call may block before returning a 'still running' status. This one "
             "is in SECONDS (LLM-facing), unlike the millisecond timeouts above."
+        ),
+    )
+
+    LLM_BACKGROUND_WAKE = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Tell the session when a background Shell command ends, so a result "
+            "that arrives while nobody is typing is read instead of waiting for "
+            "the next message. A running turn reads it at its next model "
+            "request; an idle session takes a turn of its own. Off leaves the "
+            "exit to show up in the live context of the next turn."
+        ),
+    )
+
+    LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE = EnvField(
+        int,
+        doc=(
+            "How many background-command wake-ups may reach a session in a row "
+            "with no message from the user in between; a wake-up past that is "
+            "left to the live context of the next turn. A turn started by a "
+            "wake-up can start another command, which wakes it again, so this "
+            "is what stops a loop. 0 removes the limit."
         ),
     )
 

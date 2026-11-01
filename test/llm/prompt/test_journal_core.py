@@ -67,7 +67,9 @@ def test_a_long_section_does_not_empty_a_short_one():
     """The failure this module exists for: the head-first cut spent the whole cap
     on `## User` and left every section below it empty, pinned lines included."""
     filler = [_title(f"insight {i}", f"technical/n{i}.md") for i in range(60)]
-    content = _index(("User", [_claim("Name: Go.", "name-go", "user")]), ("Recent", filler))
+    content = _index(
+        ("User", [_claim("Name: Go.", "name-go", "user")]), ("Recent", filler)
+    )
     kept, _ = plan_index_core(content, 500)
     assert "## User" in kept
     assert "Name: Go." in kept
@@ -157,7 +159,9 @@ def test_the_budget_bounds_the_kept_text_and_the_note():
     """The old cap took a slice and then appended the summary on top, so a
     2,500-char cap produced a 4,049-char block. A cap that exempts the text
     standing in for what it dropped is not a cap."""
-    filler = [_claim(f"claim number {i} with some length to it", f"n{i}") for i in range(50)]
+    filler = [
+        _claim(f"claim number {i} with some length to it", f"n{i}") for i in range(50)
+    ]
     content = _index(("Recent", filler))
     for budget in (150, 300, 900, 2_000):
         kept, note = plan_index_core(content, budget)
@@ -187,7 +191,9 @@ def test_a_bullet_index_without_headings_is_trimmed_too():
     assert "preference number 49" not in kept
     assert note.endswith("(...more)")
     for line in kept.splitlines():
-        assert not line.startswith("- preference") or line.endswith("stated by the user")
+        assert not line.startswith("- preference") or line.endswith(
+            "stated by the user"
+        )
 
 
 def test_a_hand_written_line_that_links_a_claimed_note_is_not_a_duplicate():
@@ -266,7 +272,9 @@ def _shapes() -> dict[str, str]:
         "preamble only": "# Journal\n\n"
         + "\n".join(f"- hand-written line {i} above every heading" for i in range(20))
         + "\n",
-        "one oversized line": "# Journal\n\n## Recent\n\n" + _claim("x" * 400, "huge") + "\n",
+        "one oversized line": "# Journal\n\n## Recent\n\n"
+        + _claim("x" * 400, "huge")
+        + "\n",
         "no headings at all": "# Journal\n\n"
         + "\n".join(f"- preference number {i} stated by the user" for i in range(40))
         + "\n",
@@ -280,22 +288,37 @@ def _shapes() -> dict[str, str]:
         "pin heavy": _index(
             (
                 "Constraints",
-                [_claim(f"constraint {i} that holds", f"c{i}", pinned=True) for i in range(15)],
+                [
+                    _claim(f"constraint {i} that holds", f"c{i}", pinned=True)
+                    for i in range(15)
+                ],
             ),
         ),
         "a hand-written line beside a claim": _index(
             (
                 "User",
-                [_claim("Name: Go.", "x", "user"), "- See [details](user/x.md) for the rest"],
+                [
+                    _claim("Name: Go.", "x", "user"),
+                    "- See [details](user/x.md) for the rest",
+                ],
             ),
             ("Recent Insights", [_title("Name: Go", "user/x.md")]),
         ),
         "the real shape": _index(
-            ("User", [_claim(f"a preference the user stated, number {i}", f"p{i}") for i in range(20)]),
+            (
+                "User",
+                [
+                    _claim(f"a preference the user stated, number {i}", f"p{i}")
+                    for i in range(20)
+                ],
+            ),
             ("Constraints", [_claim("Never push to main", "c1", pinned=True)]),
             ("Agent", []),
             ("Recent", [_claim(f"headline {i}", f"h{i}") for i in range(10)]),
-            ("Directories", ["- [user](user/index.md) · [technical](technical/index.md)"]),
+            (
+                "Directories",
+                ["- [user](user/index.md) · [technical](technical/index.md)"],
+            ),
         ),
     }
 

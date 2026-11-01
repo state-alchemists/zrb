@@ -177,11 +177,7 @@ def _read_blocks(content: str) -> list[_Block]:
     return [
         _Block(
             heading,
-            tuple(
-                _rank(line, heading, roles, claims)
-                for line in body
-                if line.strip()
-            ),
+            tuple(_rank(line, heading, roles, claims) for line in body if line.strip()),
         )
         for heading, body in raw
     ]
@@ -270,9 +266,7 @@ def _render(blocks: list[_Block], kept: list[set[int]]) -> str:
     compares the result against the cap, so nothing can be charged for text that
     is not emitted, and nothing emitted can go uncharged."""
     parts = [
-        _render_block(block, kept_at)
-        for block, kept_at in zip(blocks, kept)
-        if kept_at
+        _render_block(block, kept_at) for block, kept_at in zip(blocks, kept) if kept_at
     ]
     return _BLOCK_GAP.join(parts)
 
@@ -306,9 +300,7 @@ def _overflow(
     return _MARKER if len(join_overflow(body, _MARKER)) <= budget else ""
 
 
-def _lost_sections(
-    blocks: list[_Block], kept: list[set[int]]
-) -> list[tuple[str, int]]:
+def _lost_sections(blocks: list[_Block], kept: list[set[int]]) -> list[tuple[str, int]]:
     """Each section that held back a line worth reading, with how many.
 
     Ordered by the best line it lost, then by how many: a section missing a
