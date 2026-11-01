@@ -1,7 +1,8 @@
-"""`AnyUI`'s optional hooks: a UI that never heard of them behaves as it always did.
+"""`AnyUI`'s side-effect hooks: declared abstract, defaulted by the mixin.
 
 Callers used to ask a UI whether it had a hook before calling it. The hooks are
-declared now, so these tests pin each default to what the absent hook meant.
+declared now, so these tests pin that `AnyUI` carries no body for any of them
+and that each default in `UIStateDefaultsMixin` is what the absent hook meant.
 """
 
 import pytest
@@ -10,6 +11,38 @@ from zrb.llm.any_ui import AnyUI
 from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.delivery_report import DeliveryOutcome
 from zrb.util.cli.markdown import render_markdown
+
+
+HOOKS = {
+    "accumulate_usage",
+    "reset_context_usage",
+    "append_markdown",
+    "append_answer",
+    "record_tool_call_block",
+    "mark_thinking_block_start",
+    "collapse_thinking_block",
+    "mark_text_block_start",
+    "collapse_text_block",
+    "settle_text_block",
+    "set_stream_indentation",
+    "start_tool_call",
+    "end_tool_call",
+    "replay_history",
+    "update_system_info",
+    "record_submitted_message",
+    "take_pending_attachments",
+    "track_rendered_echo",
+    "redraw_echoes",
+    "deliver_queued_messages_early",
+}
+
+
+def test_anyui_declares_every_hook_without_a_body():
+    assert HOOKS <= AnyUI.__abstractmethods__
+
+
+def test_the_mixin_implements_every_hook():
+    assert HOOKS <= UIStateDefaultsMixin.__dict__.keys()
 
 
 class _BareUI(UIStateDefaultsMixin, AnyUI):

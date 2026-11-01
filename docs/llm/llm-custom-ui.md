@@ -370,7 +370,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `fail_side_question(message, request=None)` | Writes the error into the transcript | Report a side question that could not be answered |
 | `cancel_side_question(request=None)` | Writes `[Cancelled]` | Note that a side question was cancelled, and close whatever showed it |
 
-`record_tool_call_block`, `mark_thinking_block_start` and `collapse_thinking_block` are methods of `AnyUI` with defaults, called directly — override them only for collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`).
+`record_tool_call_block`, `mark_thinking_block_start` and `collapse_thinking_block` are declared by `AnyUI` and called directly; `BaseUI` and `UIStateDefaultsMixin` supply the defaults — override them only for collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`).
 
 ### State every `AnyUI` must define
 
@@ -653,7 +653,7 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 
 ### Optional enrichment hooks
 
-`AnyUI` declares these as concrete methods, so a UI implements none of them and every caller invokes them directly. `MultiUI` forwards each one to all of its children; a child that does not override a hook gets the default, which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`. Override one only when your channel renders it better than the default:
+`AnyUI` declares these as abstract methods and every caller invokes them directly. The defaults in the table live in `BaseUI` and `UIStateDefaultsMixin`, so a UI built on either overrides only the hooks it renders better; a class that implements `AnyUI` without them must define every hook itself. `MultiUI` forwards each one to all of its children; a child that does not override a hook gets the default, which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`:
 
 | Hook | Fired when | Default |
 | --- | --- | --- |
