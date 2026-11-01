@@ -42,7 +42,7 @@ from zrb.llm.journal_usage_log import (
     record_injected,
 )
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
-from zrb.llm.prompt.journal_core import plan_index_core
+from zrb.llm.prompt.journal_core import join_overflow, plan_index_core
 from zrb.llm.util.live_context_block import split_live_context
 from zrb.util.string.name import get_conversation_key
 
@@ -486,8 +486,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         return None
     content, overflow = plan_index_core(content, limit)
     hint = "Truncated at `(...more)`. " if overflow else ""
-    if overflow:
-        content = f"{content}\n{overflow}"
+    content = join_overflow(content, overflow)
     possibly_related = ""
     if first_message and CFG.LLM_JOURNAL_AUTO_SEARCH_ENABLED:
         possibly_related = _render_possibly_related(first_message)

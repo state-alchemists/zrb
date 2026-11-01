@@ -17,42 +17,48 @@ This module decides what the cap keeps instead, in four ranks:
 Within one rank the sections take turns, so a section holding twice the lines
 does not take twice the budget and leave a shorter one empty: identity, standing
 preferences and constraints live in different sections and all three have to
-arrive. A catalog title whose note already shows as a claim is dropped outright
-— the block would otherwise state one fact twice, the second time in the weaker
-form, for a quarter of the budget.
+arrive. A catalog title whose note already shows as a claim is tried last and
+dropped once the claim is in — the block would otherwise state one fact twice,
+the second time in the weaker form, for a quarter of the budget.
+
+Two structural rules keep the result honest, because the failure this module
+exists to fix was a rule stated in prose and implemented three times:
+
+* **The cap is measured, never predicted.** A line is kept only when the text
+  re-rendered with it still fits, so there is no second copy of the layout
+  arithmetic to drift from the emitter.
+* **The document is parsed by its writer.** `journal_index` owns what a heading,
+  a claim and a catalog entry are; this module imports them rather than reading
+  the rendered text a second time with regular expressions of its own.
 
 Pure: strings in, strings out. No `CFG`, no I/O, so the caller owns both.
 """
 
 from __future__ import annotations
 
-import re
+from collections.abc import Iterator
 from dataclasses import dataclass
-
-# A claim ends with a link to the note it came from. That link is how an entry is
-# told apart from a catalog title, and how a note's claim is matched against the
-# title that would otherwise repeat it.
-_CLAIM_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$")
-_ANY_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
-# A catalog entry: the writers render one as `- [title](category/slug.md)` and
-# nothing else. A hand-written line that merely links the same note is not one.
-_BARE_LINK = re.compile(r"^- \[.*\]\([^)]+\)[ \t]*$")
 
 # Ranks, best first. A claim outranks a pointer: the block's own header already
 # says that each category's own index lists every note ever written in it, so the
-# `## Directories` line is the cheaper thing to lose. `ORPHAN` is a catalog title
-# whose note also has a claim: it is a duplicate *if that claim was kept*, so it
-# goes last and the fill drops it once the claim is in — a claim too long to fit
-# leaves the short title as the note's only trace.
-PINNED, CLAIM, POINTER, REST, ORPHAN = range(5)
-_KEPT_RANKS = (PINNED, CLAIM, POINTER, REST, ORPHAN)
+# `## Directories` line is the cheaper thing to lose. `DUPLICATE` is a catalog
+# title whose note also has a claim in the file: it is a duplicate *if that claim
+# was kept*, so it is tried last and dropped once the claim is in — a claim too
+# long to fit leaves the short title as the note's only trace.
+PINNED, CLAIM, POINTER, REST, DUPLICATE = range(5)
+_BEST_FIRST = (PINNED, CLAIM, POINTER, REST)
+
+# The newline between the kept text and the note that stands in for the rest.
+_JOIN = "\n"
+# The blank line between two rendered blocks, which is layout rather than cost:
+# nothing is measured from it, so it cannot fall out of step with `_render`.
+_BLOCK_GAP = "\n\n"
 
 # How many hidden sections the overflow note names before it counts the rest,
 # and how many characters of the cap the note may spend at most.
 _NAMED_SECTIONS = 3
 _MAX_NOTE = 200
 _MARKER = "(...more)"
-_MARKER_CHARS = len("\n" + _MARKER)
 
 
 @dataclass(frozen=True)
@@ -79,9 +85,9 @@ class _Roles:
     marked, and which two sections are the directory pointer and the catalog.
 
     Read from `journal_index` rather than spelled again here, so a rename reaches
-    both sides. The catalog is named rather than inferred because `ORPHAN`
-    suppresses a line: dropping a hand-written one that happens to link a claimed
-    note would lose content that exists nowhere else."""
+    both sides. The catalog is named rather than inferred because a duplicate
+    title is dropped: suppressing a hand-written line that happens to link a
+    claimed note would lose content that exists nowhere else."""
 
     pin: str
     pointer: str
@@ -91,190 +97,153 @@ class _Roles:
 def plan_index_core(content: str, budget: int) -> tuple[str, str]:
     """Split *content* into the text the cap keeps and a note about the rest.
 
-    *budget* bounds the kept text in characters — the overflow note is charged
-    to it as well, because a cap that exempts what stands in for the dropped
-    text is not a cap: the old one took a 2,500-char slice and then appended the
-    summary on top, for a 4,049-char block. `<= 0` keeps everything, for a
-    caller that has already decided what a zero or negative cap means.
+    *budget* bounds the whole injection in characters — the overflow note is
+    charged to it as well, because a cap that exempts what stands in for the
+    dropped text is not a cap: the old one took a 2,500-char slice and then
+    appended the summary on top, for a 4,049-char block. `<= 0` keeps everything,
+    for a caller that has already decided what a zero or negative cap means.
 
-    The returned note is `""` when nothing readable was hidden.
+    The result is `("", "")` when the cap cannot hold even the marker: a
+    truncated index that does not say it is truncated reads as the whole index,
+    which is the failure this module exists to prevent.
     """
     if budget <= 0 or len(content) <= budget:
         return content, ""
-    if budget < len(_MARKER):
-        return "", ""
-    if budget <= _MARKER_CHARS:
-        return "", _MARKER
-    # Deferred: a module-level import of `zrb.llm.tool` here would close a
-    # package cycle — two tool modules read `zrb.llm.prompt.prompt`.
-    from zrb.llm.tool.journal_index import (
-        CATALOG_HEADING,
-        DIRECTORIES_HEADING,
-        PIN_MARKER,
-    )
-
-    blocks = _split_sections(
-        content,
-        _Roles(
-            pin=PIN_MARKER,
-            pointer=_heading_name(DIRECTORIES_HEADING),
-            catalog=_heading_name(CATALOG_HEADING),
-        ),
-    )
+    blocks = _read_blocks(content)
     # A quarter of the cap, at most, explains what the rest of it left out. Fixed
     # before the fill rather than measured after it, because the note grows as
     # the body shrinks — the two would chase each other, and the line that paid
     # for the note was a claim.
     reserve = min(_MAX_NOTE, budget // 4)
-    kept = _fill(blocks, budget - reserve - _MARKER_CHARS)
-    return _emit(blocks, kept), _hidden_note(blocks, kept, reserve)
+    kept = _fill(blocks, budget - reserve)
+    body = _render(blocks, kept)
+    note = _overflow(blocks, kept, body, budget)
+    if not note:
+        return "", ""
+    return body, note
+
+
+def join_overflow(body: str, note: str) -> str:
+    """The injected text: the kept index, then the note standing in for the rest.
+
+    `live_context` injects this, and `plan_index_core` measures the cap against
+    it, so the two cannot disagree about where the newline goes."""
+    return f"{body}{_JOIN}{note}" if note else body
 
 
 def _heading_name(heading: str) -> str:
-    """A `## heading` constant as the reader stores it: the words alone."""
+    """A `## heading` constant as the writer's parser reports it: the words alone."""
     return heading.removeprefix("## ").strip()
 
 
-def _split_sections(content: str, roles: _Roles) -> list[_Block]:
-    """Every block of the index, in file order.
+def _read_blocks(content: str) -> list[_Block]:
+    """The index as blocks of ranked lines, read with the writer's own parser.
 
-    The lines above the first `## ` heading — the title, and any hand-written
-    lines a journal keeps there — are a block of their own with no heading, so
-    they are ranked and trimmed like any other. Charging them to the budget
-    without being able to drop one returned more than the cap whenever the
-    preamble was larger than it.
+    The preamble — the title, and any hand-written lines above the first `## `
+    heading — is one more block, with no heading, rather than fixed text, so no
+    part of the file can push the block past the cap on its own.
 
-    Blank lines are not candidates: they carry nothing, and letting one compete
-    for the budget opened a section whose heading then stood over no lines at
-    all."""
-    lines = content.splitlines()
-    start = len(lines)
-    for index, line in enumerate(lines):
-        if line.startswith("## "):
-            start = index
-            break
-    head = _without_blank_edges(lines[:start])
-    raw = [("", head), *_raw_blocks(lines[start:])] if head else _raw_blocks(lines[start:])
-    claimed = {path for _, body in raw for path in map(_note_path, body) if path}
+    Blank lines are dropped: a section's layout is rebuilt when it is emitted, so
+    a blank one is not a candidate for the budget, and letting one compete opened
+    a section whose heading then stood over no lines at all.
+    """
+    # Deferred: a module-level import of `zrb.llm.tool` here would close a
+    # package cycle — two tool modules read `zrb.llm.prompt.prompt`.
+    from zrb.llm.tool import journal_index
+
+    roles = _Roles(
+        pin=journal_index.PIN_MARKER,
+        pointer=_heading_name(journal_index.DIRECTORIES_HEADING),
+        catalog=_heading_name(journal_index.CATALOG_HEADING),
+    )
+    preamble, sections = journal_index.split_index_sections(content)
+    raw = [("", preamble), *sections]
+    claims = {
+        owner
+        for _, body in raw
+        for owner in map(journal_index.hud_owner, body)
+        if owner
+    }
     return [
         _Block(
             heading,
-            tuple(_rank_line(line, heading, roles, claimed) for line in body),
+            tuple(
+                _rank(line, heading, roles, claims)
+                for line in body
+                if line.strip()
+            ),
         )
         for heading, body in raw
     ]
 
 
-def _raw_blocks(tail: list[str]) -> list[tuple[str, list[str]]]:
-    """Split lines at `## ` headings, keeping each heading with its own lines.
-
-    Blank lines are dropped: a section's layout is rebuilt when it is emitted, so
-    a blank one is not a candidate for the budget."""
-    blocks: list[tuple[str, list[str]]] = []
-    for line in tail:
-        if line.startswith("## "):
-            blocks.append((line[3:].strip(), []))
-        elif blocks and line.strip():
-            blocks[-1][1].append(line)
-    return blocks
-
-
-def _without_blank_edges(lines: list[str]) -> list[str]:
-    """*lines* without the blank lines that separate it from the next section."""
-    end = len(lines)
-    while end and not lines[end - 1].strip():
-        end -= 1
-    start = 0
-    while start < end and not lines[start].strip():
-        start += 1
-    return lines[start:end]
-
-
-def _note_path(line: str) -> str:
-    """The note a claim line came from, or `""` for any other line."""
-    found = _CLAIM_LINK.search(line)
-    return found.group(1) if found else ""
-
-
-def _rank_line(line: str, heading: str, roles: _Roles, claimed: set[str]) -> _Line:
+def _rank(line: str, heading: str, roles: _Roles, claims: set[str]) -> _Line:
     """What this line is worth, and the note it names."""
-    claim = _note_path(line)
-    if claim:
-        return _Line(line, PINNED if roles.pin in line else CLAIM, claim)
-    link = _ANY_LINK.search(line)
-    path = link.group(1) if link else ""
+    # Deferred, as in `_read_blocks`.
+    from zrb.llm.tool.journal_index import bare_target, hud_owner
+
+    owner = hud_owner(line)
+    if owner:
+        return _Line(line, PINNED if roles.pin in line else CLAIM, owner)
+    target = bare_target(line) or ""
     if heading == roles.pointer:
-        return _Line(line, POINTER, path)
-    if heading == roles.catalog and _BARE_LINK.match(line):
-        return _Line(line, ORPHAN if path in claimed else REST, path)
-    return _Line(line, REST, path)
+        return _Line(line, POINTER, target)
+    if heading == roles.catalog and target in claims:
+        return _Line(line, DUPLICATE, target)
+    return _Line(line, REST, target)
 
 
-def _fill(blocks: list[_Block], budget: int) -> list[set[int]]:
-    """Which line indexes each block keeps.
+def _fill(blocks: list[_Block], room: int) -> list[set[int]]:
+    """Which line indexes each block keeps, best rank first.
 
-    The budget is charged as the text is built: a block pays for its heading and
-    its separator the first time it is opened, and every kept line pays for
-    itself. Nothing is charged for a block that keeps nothing, so a heading can
-    never appear over an empty section."""
+    The section that comes first in the file no longer decides: a rank is spent
+    across the sections in turn, and a line is kept only when the text re-rendered
+    with it still fits *room*. A line that does not fit is dropped for good —
+    keeping more never shortens what is already there.
+
+    `DUPLICATE` runs last, so by then every claim's fate is settled: a title whose
+    note is already in the block is the duplicate this rank exists to suppress,
+    and one whose claim did not survive is the note's only remaining trace.
+    """
     kept = [set() for _ in blocks]
-    opened = [False for _ in blocks]
-    used = 0
-    for rank in _KEPT_RANKS:
-        used = _take_rank(blocks, kept, opened, rank, used, budget)
+    for rank in _BEST_FIRST:
+        _admit(blocks, kept, _in_turn(blocks, rank), room)
+    shown = _claimed_paths(blocks, kept)
+    duplicates = (
+        place
+        for place in _in_turn(blocks, DUPLICATE)
+        if blocks[place[0]].lines[place[1]].path not in shown
+    )
+    _admit(blocks, kept, duplicates, room)
     return kept
 
 
-def _take_rank(
+def _in_turn(blocks: list[_Block], rank: int) -> Iterator[tuple[int, int]]:
+    """One rank's lines as `(block, line)`, each section taking one per round."""
+    queues = [
+        [index for index, line in enumerate(block.lines) if line.rank == rank]
+        for block in blocks
+    ]
+    while any(queues):
+        for position, queue in enumerate(queues):
+            if queue:
+                yield position, queue.pop(0)
+
+
+def _admit(
     blocks: list[_Block],
     kept: list[set[int]],
-    opened: list[bool],
-    rank: int,
-    used: int,
-    budget: int,
-) -> int:
-    """Give one rank's lines to the blocks in turn, one line each per round.
-
-    A round ends when no block takes a line: either every line of this rank is
-    kept, or what is left is too long for the remainder — and the remainder only
-    shrinks, so a line that did not fit is taken off the queue for good.
-
-    *ORPHAN* runs last, so by then every claim's fate is settled: a title whose
-    note is already in the block is the duplicate this rank exists to suppress,
-    and one whose claim did not fit is the note's only remaining trace."""
-    shown = _kept_claim_paths(blocks, kept)
-    queues = [
-        [
-            index
-            for index, line in enumerate(block.lines)
-            if line.rank == rank
-            and index not in kept_at
-            and not (line.rank == ORPHAN and line.path in shown)
-        ]
-        for block, kept_at in zip(blocks, kept)
-    ]
-    while True:
-        taken = False
-        for position, block in enumerate(blocks):
-            while queues[position]:
-                index = queues[position][0]
-                cost = len(block.lines[index].text) + 1
-                if not opened[position]:
-                    cost += _open_cost(block.heading, any(opened))
-                if used + cost > budget:
-                    queues[position].pop(0)
-                    continue
-                queues[position].pop(0)
-                kept[position].add(index)
-                opened[position] = True
-                used += cost
-                taken = True
-                break
-        if not taken:
-            return used
+    candidates: Iterator[tuple[int, int]],
+    room: int,
+) -> None:
+    """Keep each candidate the re-rendered text still has room for."""
+    for position, index in candidates:
+        kept[position].add(index)
+        if len(_render(blocks, kept)) > room:
+            kept[position].discard(index)
 
 
-def _kept_claim_paths(blocks: list[_Block], kept: list[set[int]]) -> set[str]:
+def _claimed_paths(blocks: list[_Block], kept: list[set[int]]) -> set[str]:
     """The notes whose own claim is already in the block."""
     return {
         block.lines[index].path
@@ -284,63 +253,70 @@ def _kept_claim_paths(blocks: list[_Block], kept: list[set[int]]) -> set[str]:
     }
 
 
-def _open_cost(heading: str, separator: bool) -> int:
-    """The heading, its blank line, and the separator before the block."""
-    return (len(heading) + 4 if heading else 0) + (2 if separator else 0)
+def _render(blocks: list[_Block], kept: list[set[int]]) -> str:
+    """The kept text, still shaped like an index.
 
-
-def _emit(blocks: list[_Block], kept: list[set[int]]) -> str:
-    """The kept text, still shaped like an index."""
-    parts = []
-    for block, kept_at in zip(blocks, kept):
-        if not kept_at:
-            continue
-        body = [block.lines[index].text for index in sorted(kept_at)]
-        if block.heading:
-            body = [f"## {block.heading}", "", *body]
-        parts.append("\n".join(body))
-    return "\n\n".join(parts)
-
-
-def _hidden_note(blocks: list[_Block], kept: list[set[int]], limit: int) -> str:
-    """One line naming the sections the cap had to leave out, plus `(...more)`.
-
-    A section name is what the model needs to decide whether to search: the old
-    summary named note categories, so a section lost whole read as a handful of
-    notes. A duplicate title is not counted — its claim is already in the block,
-    so nothing was withheld. The pinned count is called out because a hidden pin
-    is the one loss that can change an answer rather than delay it. Sections are
-    named biggest loss first, and only while the line still fits *limit*: under a
-    tight cap a bare marker beats an index with no claims in it at all."""
-    hidden = [
-        [index for index in range(len(block.lines)) if index not in kept_at]
+    This is the only place the size of the block is decided: `_admit` calls it and
+    compares the result against the cap, so nothing can be charged for text that
+    is not emitted, and nothing emitted can go uncharged."""
+    parts = [
+        _render_block(block, kept_at)
         for block, kept_at in zip(blocks, kept)
+        if kept_at
     ]
-    lost = _lost_sections(blocks, hidden, _kept_claim_paths(blocks, kept))
-    if not lost:
-        return _MARKER
-    pins = _pinned_count(blocks, hidden)
-    names = _fit_names(lost, pins, limit)
-    if not names:
-        return _MARKER
-    return f"{_render_note(names, pins, len(lost) - len(names))}\n{_MARKER}"
+    return _BLOCK_GAP.join(parts)
+
+
+def _render_block(block: _Block, kept_at: set[int]) -> str:
+    """One section: its heading over the lines it kept, or the lines alone."""
+    body = [block.lines[index].text for index in sorted(kept_at)]
+    if not block.heading:
+        return _JOIN.join(body)
+    return _BLOCK_GAP.join((f"## {block.heading}", *body))
+
+
+def _overflow(
+    blocks: list[_Block], kept: list[set[int]], body: str, budget: int
+) -> str:
+    """The overflow note, or `""` when not even the marker fits.
+
+    Candidates run from the most informative to the least — every section the
+    cap could name, then fewer, then the bare marker — and the first one that
+    still fits *budget* once joined to *body* wins. A section name is what the
+    model needs in order to decide whether to search, so a bare count of notes
+    reads as "nothing important". The pinned count is called out because a hidden
+    pin is the one loss that can change an answer rather than delay it.
+    """
+    lost = _lost_sections(blocks, kept)
+    pins = _hidden_pins(blocks, kept)
+    for named in range(min(len(lost), _NAMED_SECTIONS), 0, -1):
+        note = f"{_note_line(lost[:named], len(lost) - named, pins)}{_JOIN}{_MARKER}"
+        if len(join_overflow(body, note)) <= budget:
+            return note
+    return _MARKER if len(join_overflow(body, _MARKER)) <= budget else ""
 
 
 def _lost_sections(
-    blocks: list[_Block], hidden: list[list[int]], shown: set[str]
+    blocks: list[_Block], kept: list[set[int]]
 ) -> list[tuple[str, int]]:
     """Each section that held back a line worth reading, with how many.
 
     Ordered by the best line it lost, then by how many: a section missing a
     pinned line is a different loss from one missing twenty catalog titles, and
     counting alone would let the catalog — whose lines are the weakest in the
-    index — lead the note every time it is the longest."""
+    index — lead the note every time it is the longest.
+
+    A duplicate title is not counted when its claim is in the block: nothing was
+    withheld, since the claim says the same thing, so calling it hidden would
+    send the model looking for a fact it already has."""
+    shown = _claimed_paths(blocks, kept)
     lost = []
-    for block, indexes in zip(blocks, hidden):
+    for block, kept_at in zip(blocks, kept):
         withheld = [
-            block.lines[index]
-            for index in indexes
-            if _is_withheld(block, index, shown)
+            line
+            for index, line in enumerate(block.lines)
+            if index not in kept_at
+            and (line.rank != DUPLICATE or line.path not in shown)
         ]
         if withheld:
             best = min(line.rank for line in withheld)
@@ -349,42 +325,22 @@ def _lost_sections(
     return [(heading, count) for _, heading, count in lost]
 
 
-def _is_withheld(block: _Block, index: int, shown: set[str]) -> bool:
-    """Whether leaving this line out cost the reader anything.
-
-    A catalog title is a duplicate only once its note's claim is in the block. If
-    that claim did not fit either, the title was the note's only trace, and
-    losing it lost the note."""
-    line = block.lines[index]
-    return line.rank != ORPHAN or line.path not in shown
-
-
-def _pinned_count(blocks: list[_Block], hidden: list[list[int]]) -> int:
+def _hidden_pins(blocks: list[_Block], kept: list[set[int]]) -> int:
     """How many pinned lines the cap left out."""
     return sum(
         1
-        for block, indexes in zip(blocks, hidden)
-        for index in indexes
-        if block.lines[index].rank == PINNED
+        for block, kept_at in zip(blocks, kept)
+        for index, line in enumerate(block.lines)
+        if index not in kept_at and line.rank == PINNED
     )
 
 
-def _fit_names(lost: list[tuple[str, int]], pins: int, limit: int) -> list[str]:
-    """As many section names as the note line still fits, biggest loss first."""
-    names: list[str] = []
-    for heading, count in lost[:_NAMED_SECTIONS]:
-        candidate = [*names, _name_loss(heading, count)]
-        if len(_render_note(candidate, pins, len(lost) - len(candidate))) > limit:
-            break
-        names = candidate
-    return names
-
-
-def _render_note(names: list[str], pins: int, rest: int) -> str:
+def _note_line(names: list[tuple[str, int]], rest: int, pins: int) -> str:
     """The note line: each named section, then what is left to say."""
     more = f" and {rest} more section{'s' if rest > 1 else ''}" if rest else ""
     tail = f"; {pins} pinned line{'s' if pins > 1 else ''} did not fit" if pins else ""
-    return f"- Hidden {', '.join(names)}{more} — use SearchJournal{tail}."
+    listed = ", ".join(_name_loss(heading, count) for heading, count in names)
+    return f"- Hidden {listed}{more} — use SearchJournal{tail}."
 
 
 def _name_loss(heading: str, count: int) -> str:

@@ -5,9 +5,10 @@ one trade: the block has to carry the claims that hold every turn, and a section
 that happens to be long must not be the reason a shorter one arrives empty.
 """
 
-from zrb.llm.prompt.journal_core import plan_index_core
+from zrb.llm.prompt.journal_core import join_overflow, plan_index_core
 
 PIN = "📌 "
+MORE = "(...more)"
 
 
 def _claim(text: str, slug: str, category: str = "technical", pinned: bool = False):
@@ -123,14 +124,19 @@ def test_the_note_counts_the_pinned_lines_that_did_not_fit():
     assert "pinned lines did not fit" in note
 
 
-def test_a_tight_cap_gives_up_the_note_before_it_gives_up_a_claim():
-    """Under a cap too small for both, the index itself wins: a bare marker beats
-    an index with no claims in it."""
+def test_a_note_never_costs_a_claim():
+    """The body is filled against a cap already reduced by the note's share, so a
+    sentence about what is missing is never paid for with a claim. Room the body
+    could not use then goes to the note — which is why the same content names a
+    section at 150 and can only afford the bare marker at 120."""
     filler = [_claim(f"filler {i} " * 3, f"f{i}") for i in range(10)]
     content = _index(("Recent", [_claim("a claim worth keeping", "kept"), *filler]))
-    kept, note = plan_index_core(content, 150)
-    assert "a claim worth keeping" in kept
+    bare, note = plan_index_core(content, 120)
+    assert "a claim worth keeping" in bare
     assert note == "(...more)"
+    named, note = plan_index_core(content, 150)
+    assert "a claim worth keeping" in named
+    assert "under ## Recent" in note
 
 
 def test_the_budget_bounds_the_kept_text_and_the_note():
@@ -232,3 +238,93 @@ def test_an_oversized_preamble_is_trimmed_like_a_section():
 def test_a_zero_budget_is_the_callers_decision_not_this_modules():
     content = _index(("User", [_claim("Name: Go.", "name-go", "user")]))
     assert plan_index_core(content, 0) == (content, "")
+
+
+def _shapes() -> dict[str, str]:
+    """Indices shaped for the edges, one per finding review raised on #791.
+
+    The four findings were a preamble bigger than the cap, a claim too long to
+    fit, a catalog line that was not a catalog entry, and a cap below the marker.
+    Each shape below makes one of those the ordinary case rather than the corner."""
+    return {
+        "empty": "",
+        "title alone": "# Journal\n",
+        "preamble only": "# Journal\n\n"
+        + "\n".join(f"- hand-written line {i} above every heading" for i in range(20))
+        + "\n",
+        "one oversized line": "# Journal\n\n## Recent\n\n" + _claim("x" * 400, "huge") + "\n",
+        "no headings at all": "# Journal\n\n"
+        + "\n".join(f"- preference number {i} stated by the user" for i in range(40))
+        + "\n",
+        "catalog heavy": _index(
+            ("Recent", [_claim("A claim about retries.", "retries")]),
+            (
+                "Recent Insights",
+                [_title(f"note {i}", f"technical/n{i}.md") for i in range(30)],
+            ),
+        ),
+        "pin heavy": _index(
+            (
+                "Constraints",
+                [_claim(f"constraint {i} that holds", f"c{i}", pinned=True) for i in range(15)],
+            ),
+        ),
+        "a hand-written line beside a claim": _index(
+            (
+                "User",
+                [_claim("Name: Go.", "x", "user"), "- See [details](user/x.md) for the rest"],
+            ),
+            ("Recent Insights", [_title("Name: Go", "user/x.md")]),
+        ),
+        "the real shape": _index(
+            ("User", [_claim(f"a preference the user stated, number {i}", f"p{i}") for i in range(20)]),
+            ("Constraints", [_claim("Never push to main", "c1", pinned=True)]),
+            ("Agent", []),
+            ("Recent", [_claim(f"headline {i}", f"h{i}") for i in range(10)]),
+            ("Directories", ["- [user](user/index.md) · [technical](technical/index.md)"]),
+        ),
+    }
+
+
+def _budgets(content: str) -> list[int]:
+    """Every small cap, where the marker and the first section straddle a boundary,
+    then a spread up to the index's own length."""
+    step = max(1, len(content) // 12)
+    return sorted(
+        {
+            *range(1, min(len(content), 160) + 1),
+            *range(160, len(content) + 1, step),
+            len(content),
+        }
+    )
+
+
+def test_the_cap_holds_on_every_edge_of_every_shape():
+    """The four findings review raised on #791 were all boundaries — a preamble
+    bigger than the cap, a claim too long to fit, a cap below the marker — and the
+    suite was green through all of them because every test sat in the middle of
+    the range. This walks the boundaries instead: nine adversarial indices crossed
+    with every small cap and a spread up to the index's own length.
+
+    Four statements are checked at each point, and they are the module's contract
+    rather than its shape: the cap holds, a truncated block says it is truncated,
+    nothing is emitted that is not a whole line of the index, and no heading stands
+    over an empty section."""
+    for name, content in _shapes().items():
+        source = set(content.splitlines())
+        for budget in _budgets(content):
+            kept, note = plan_index_core(content, budget)
+            assert len(join_overflow(kept, note)) <= budget, (name, budget)
+            if budget >= len(content):
+                assert (kept, note) == (content, ""), (name, budget)
+            if kept and len(content) > budget:
+                assert note.endswith(MORE), (name, budget, note)
+            plainly_fits = any(len(line) + 40 <= budget for line in source)
+            if plainly_fits and len(content) > budget:
+                assert kept, (name, budget, "a line that plainly fits was not kept")
+            lines = kept.splitlines()
+            assert set(lines) <= source, (name, budget, set(lines) - source)
+            for index, line in enumerate(lines):
+                if line.startswith("## "):
+                    assert index + 1 < len(lines), (name, budget, line)
+                    assert not lines[index + 1].startswith("## "), (name, budget, line)
