@@ -149,6 +149,10 @@ class _ShellBackgroundRegistry:
             description=description or command,
             owner_session_id=get_current_chat_session_id(),
         )
+        if ledger is not None:
+            # The pid is known only now; `started` is what lets a later run tell
+            # a command that is still going from one whose watcher is gone.
+            ledger.started(handle, proc.pid)
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
         self._procs[handle] = bp
@@ -182,7 +186,9 @@ class _ShellBackgroundRegistry:
         handle = get_random_name(separator="-", add_random_digit=True)
         # Before the registry entry, for the same reason as `start`: the process
         # is already running, so a crash here must not lose it.
-        _open_watch(handle, command)
+        ledger = _open_watch(handle, command)
+        if ledger is not None:
+            ledger.started(handle, process.pid)
         bp = _BackgroundProcess(
             process=process,
             stdout_cap=stdout_cap,

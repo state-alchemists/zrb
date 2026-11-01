@@ -142,6 +142,42 @@ def test_a_row_left_by_a_dead_process_is_reported_lost(tmp_path):
     assert foreign
 
 
+def test_a_running_row_from_a_live_process_is_not_called_lost(tmp_path):
+    """The child can outlive the zrb that started it; that is not an ending."""
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Still running elsewhere")
+    _rewrite_instance(ledger, "someone-else")
+    ledger.started("h1", os.getpid())
+
+    assert ledger.reconcile() == []
+    assert ledger.unread() == []
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows cannot probe a pid without ending it"
+)
+def test_a_running_row_whose_process_is_gone_is_reported_lost(tmp_path):
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Its run died")
+    _rewrite_instance(ledger, "someone-else")
+    ledger.started("h1", 2**31 - 1)
+
+    assert ledger.reconcile() == ["h1"]
+    assert ledger.unread()[0].state == "lost"
+
+
+def test_two_processes_on_one_session_do_not_drop_each_others_rows(tmp_path):
+    """Appends from two runs must survive a compaction in either."""
+    one = _ledger(tmp_path, "shared")
+    two = _ledger(tmp_path, "shared")
+
+    one.open("mine", kind="process", what="Opened by the first zrb")
+    two.open("theirs", kind="process", what="Opened by the second zrb")
+    one.compact()
+
+    assert {record.id for record in two.records()} == {"mine", "theirs"}
+
+
 def test_a_running_row_from_this_process_is_left_alone(tmp_path):
     ledger = _ledger(tmp_path)
     ledger.open("h1", kind="process", what="Still running here")

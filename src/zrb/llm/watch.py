@@ -31,6 +31,7 @@ from html import escape
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_current_chat_session_id
+from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 RUNNING = "running"
 FINISHED = "finished"
@@ -42,12 +43,16 @@ FAILED = "failed"
 # current state of a watch is the fold of its events, so an append costs one
 # line and a crash costs at most the line being written.
 OPENED = "opened"
+SPAWNED = "spawned"
 ENDED = "ended"
 DELIVERED = "delivered"
 
 # Sessions kept apart in the prompt: a long-lived session should not crowd the
 # live context out with watches nobody will read.
 MAX_RENDERED_WATCHES = 5
+# How long a compaction waits for another zrb process to finish folding the same
+# session's file, before leaving it alone this time.
+COMPACT_LOCK_TIMEOUT = 1.0
 # How much of a command or purpose the ledger keeps.
 MAX_WHAT_CHARS = 120
 
@@ -83,6 +88,30 @@ def _ledger_filename(session: str) -> str:
 # id was never closed, because that process is gone: its ending was not seen and
 # saying nothing about it would leave it invisible forever.
 _INSTANCE = uuid.uuid4().hex[:8]
+
+
+def _is_alive(pid: int) -> bool:
+    """Whether process *pid* still exists.
+
+    Asked with signal 0, which reports existence without touching the process.
+    On Windows `os.kill` is `TerminateProcess`, so asking would end the work this
+    question is about — there the answer is "assume alive", which keeps the watch
+    open rather than declaring a running command lost.
+    """
+    if pid <= 0:
+        return False
+    if os.name != "posix":
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # It exists; it just belongs to someone else.
+        return True
+    except OSError:
+        return False
+    return True
 
 
 @dataclass
@@ -140,10 +169,18 @@ class WatchLedger:
             what=_shorten(what),
             outcome=outcome,
             recheck=recheck,
-            pid=os.getpid(),
         )
         self._append({"op": OPENED, **asdict(record)})
         return record
+
+    def started(self, watch_id: str, pid: int) -> None:
+        """Record the pid that runs the work, once the process exists.
+
+        `opened` is written before the spawn, so it cannot know the pid; this is
+        the row that lets a later run tell "the work is still going" from "the
+        run that started it is gone".
+        """
+        self._append({"op": SPAWNED, "id": watch_id, "pid": pid})
 
     def end(
         self, watch_id: str, exit_code: int | None = None, killed: bool = False
@@ -201,6 +238,8 @@ class WatchLedger:
                 if fields.get("session", self.session) != self.session:
                     continue
                 state[watch_id] = WatchRecord(**fields)  # type: ignore[arg-type]
+            elif row.get("op") == SPAWNED and watch_id in state:
+                state[watch_id].pid = int(row.get("pid") or 0)
             elif row.get("op") == ENDED and watch_id in state:
                 record = state[watch_id]
                 record.state = str(row.get("state", FINISHED))
@@ -217,14 +256,17 @@ class WatchLedger:
     def reconcile(self) -> list[str]:
         """Report a previous run's unfinished watches as lost, and return their ids.
 
-        A row still `running` under another instance's id was never closed: that
-        process died, or was killed without the exit path running. Leaving it as
-        "running" would make it invisible forever — worse than saying the ending
-        was not seen.
+        A row still `running` under another instance's id was left open by a run
+        of zrb that is gone. That alone does not mean the work ended: the child
+        process may still be running, which is exactly the case where calling it
+        lost would be a lie. The recorded pid decides — lost only when that
+        process is confirmed absent.
         """
         lost: list[str] = []
         for record in self.records():
             if record.state != RUNNING or record.instance == _INSTANCE:
+                continue
+            if _is_alive(record.pid):
                 continue
             self.lose(record.id)
             lost.append(record.id)
@@ -275,10 +317,19 @@ class WatchLedger:
                     )
                 )
         with self._lock:
-            os.makedirs(self.directory, exist_ok=True)
-            temporary = f"{self.path}.tmp"
-            _write_private(temporary, "".join(line + "\n" for line in lines))
-            os.replace(temporary, self.path)
+            try:
+                # Two zrb processes can share one session's file. An append is a
+                # single small write, but a rewrite is read-modify-write: without
+                # this lock, one process compaction would silently drop the rows
+                # the other had just appended.
+                with hold_file_lock(f"{self.path}.lock", timeout=COMPACT_LOCK_TIMEOUT):
+                    os.makedirs(self.directory, exist_ok=True)
+                    temporary = f"{self.path}.tmp"
+                    _write_private(temporary, "".join(line + "\n" for line in lines))
+                    os.replace(temporary, self.path)
+            except FileLockTimeout:
+                # Another process is folding the same file; its result serves.
+                return
 
     def render_lines(self, skip: "set[str] | None" = None) -> list[str]:
         """The live-context lines for this session's unread watches.
