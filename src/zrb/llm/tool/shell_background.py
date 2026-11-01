@@ -228,6 +228,14 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is not None:
             bp.returncode = rc
+            # The exit can be heard before the last of the output has been read.
+            # `poll` calls a process finished only once every task is done, and a
+            # wake-up that arrived earlier would send the model to a result that
+            # still says "poll once more" with nothing to announce the rest. So
+            # the session is told when the readers are done too.
+            readers = [t for t in bp.tasks if t is not asyncio.current_task()]
+            if readers:
+                await asyncio.wait(readers)
             self._wake_session(handle, bp)
 
     def _wake_session(self, handle: str, bp: _BackgroundProcess) -> None:

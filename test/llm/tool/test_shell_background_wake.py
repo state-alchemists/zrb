@@ -267,3 +267,29 @@ async def test_a_process_that_exits_as_its_deadline_fires_is_reported_once(
     await asyncio.sleep(0.5)
 
     assert len(ui.messages) == 1
+
+
+@pytest.mark.asyncio
+async def test_the_session_is_told_only_when_the_output_can_be_read_whole(
+    ui, monkeypatch
+):
+    """The exit is heard before the output is read. A wake-up then would send the
+    model to a result that still says "poll once more", with nothing to announce
+    the rest."""
+    registry = get_shell_background_registry()
+    real_read_pipe = type(registry)._read_pipe
+
+    async def slow_read_pipe(self, handle, stream, name):
+        await asyncio.sleep(0.6)
+        await real_read_pipe(self, handle, stream, name)
+
+    monkeypatch.setattr(type(registry), "_read_pipe", slow_read_pipe)
+
+    handle = await registry.start("echo WHOLE-OUTPUT", "", "Slow to read")
+    await _until(lambda: registry.summary()[0]["returncode"] == 0)
+    assert ui.messages == []  # exited, but its output is still being read
+
+    await _until(lambda: ui.messages)
+    result = registry.poll(handle)
+    assert "WHOLE-OUTPUT" in result
+    assert "consumed" in result
