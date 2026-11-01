@@ -309,7 +309,24 @@ class LSPServer(LSPServerOperations):
         try:
             msg = json.loads(body)
 
-            if "id" in msg:
+            # A message with a method is a notification or a request from the
+            # server; its id, if any, is the server's own and says nothing
+            # about our pending requests.
+            if "method" in msg:
+                method = msg["method"]
+                params = msg.get("params", {})
+                if method == "textDocument/publishDiagnostics":
+                    uri = params.get("uri")
+                    if uri:
+                        # Servers publish the complete set per pass, so
+                        # overwrite; the optional version rejects stale ones.
+                        version = params.get("version")
+                        self._diagnostics[uri] = (
+                            version,
+                            params.get("diagnostics") or [],
+                        )
+
+            elif "id" in msg:
                 request_id = msg["id"]
                 future = self.pending_requests.pop(request_id, None)
                 if future and not future.done():
@@ -324,20 +341,6 @@ class LSPServer(LSPServerOperations):
                         )
                     elif "result" in msg:
                         future.set_result(msg["result"])
-
-            elif "method" in msg:
-                method = msg["method"]
-                params = msg.get("params", {})
-                if method == "textDocument/publishDiagnostics":
-                    uri = params.get("uri")
-                    if uri:
-                        # Servers publish the complete set per pass, so
-                        # overwrite; the optional version rejects stale ones.
-                        version = params.get("version")
-                        self._diagnostics[uri] = (
-                            version,
-                            params.get("diagnostics") or [],
-                        )
 
         except json.JSONDecodeError:
             pass
