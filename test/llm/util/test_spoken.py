@@ -1,6 +1,12 @@
 """`<spoken>`: the part of a reply read aloud, cut out of the part only shown."""
 
-from zrb.llm.util.spoken import SpokenSplitter, split_spoken
+from zrb.llm.util.spoken import (
+    CLOSE_TAG,
+    OPEN_TAG,
+    SpokenSplitter,
+    shown_text,
+    split_spoken,
+)
 
 
 def test_a_reply_that_opens_no_block_is_spoken_whole():
@@ -111,3 +117,100 @@ def test_a_new_turn_speaks_from_the_start_again():
     _screen, speech = splitter.feed("A whole reply.")
 
     assert speech == "A whole reply."
+
+
+def test_a_block_is_shown_as_a_blockquote():
+    """The markers are gone and the block is not, so without the quote the words
+    read aloud would look like just more prose on screen."""
+    shown = shown_text("<spoken>😊 Fixed the parser. The tests pass.</spoken>")
+
+    assert shown == "> 😊 Fixed the parser. The tests pass."
+
+
+def test_the_prose_beside_a_block_keeps_its_own_paragraph():
+    """A quote that closes into a line of prose swallows it as a lazy
+    continuation, so a blank line goes between them."""
+    shown = shown_text("<spoken>😊 Fixed the parser.</spoken>\n\nBody paragraph here.")
+
+    assert shown == "> 😊 Fixed the parser.\n\nBody paragraph here."
+
+
+def test_every_line_of_a_block_is_quoted():
+    shown = shown_text("<spoken>Line one.\nLine two.</spoken>")
+
+    assert shown == "> Line one.\n> Line two."
+
+
+def test_a_block_that_opens_after_prose_moves_onto_its_own_line():
+    shown = shown_text("Prose first.\n<spoken>Done.</spoken>\nTwo files changed.")
+
+    assert shown == "Prose first.\n> Done.\n\nTwo files changed."
+
+
+def test_an_unclosed_block_is_quoted_to_the_end_of_the_reply():
+    shown = shown_text("<spoken>Unclosed to the end.")
+
+    assert shown == "> Unclosed to the end."
+
+
+def test_two_blocks_are_two_quotes():
+    shown = shown_text("<spoken>One.</spoken> Detail. <spoken>Two.</spoken>")
+
+    assert shown == "> One.\n\n Detail. \n> Two."
+
+
+def test_an_empty_block_leaves_the_reply_shown_as_written():
+    """Nothing was quoted, so there is no quote to set off and no gap to add:
+    a reply the model kept to itself is on screen exactly as it wrote it."""
+    shown = shown_text("<spoken></spoken>\nTwo files changed.")
+
+    assert shown == "\nTwo files changed."
+
+
+def test_a_reply_with_no_block_is_shown_unchanged():
+    assert shown_text("No block at all.") == "No block at all."
+
+
+def test_a_stray_close_marker_quotes_nothing_and_still_leaves_the_screen():
+    """It opens no block, so none of the reply is a quote, and the marker is
+    still taken out: a marker that reaches the screen is the one thing the
+    block promises never happens, stray or not."""
+    shown = shown_text("Done.</spoken> stray close.")
+
+    assert shown == "Done. stray close."
+
+
+def test_no_marker_reaches_the_screen_whatever_the_reply_does_with_them():
+    """The contract `shown_text` has always kept, kept by the quoting path too:
+    a marker is never shown, whether it opens a block, closes one, is left
+    unclosed, or arrives with nothing to open."""
+    replies = [
+        "<spoken>Ok.</spoken>",
+        "<spoken>Unclosed",
+        "<spoken></spoken>",
+        "A <spoken>B</spoken> C",
+        "Done.</spoken> stray close.",
+        "</spoken>",
+        "one</spoken>two</spoken>three",
+        "x</spoken>y<spoken>z</spoken>w",
+        "<spoken>a</spoken><spoken>b</spoken>",
+    ]
+
+    for reply in replies:
+        shown = shown_text(reply)
+        assert OPEN_TAG not in shown, reply
+        assert CLOSE_TAG not in shown, reply
+
+
+def test_two_blocks_in_a_row_are_two_quotes_apart():
+    shown = shown_text("<spoken>One.</spoken><spoken>Two.</spoken>")
+
+    assert shown == "> One.\n\n> Two."
+
+
+def test_the_voice_never_hears_the_quote_marker():
+    """The quote belongs to the eye: what is read aloud keeps the block's own
+    words, marker and quote both out of it."""
+    spoken, _shown = split_spoken("<spoken>Fixed it.</spoken>")
+
+    assert spoken == "Fixed it."
