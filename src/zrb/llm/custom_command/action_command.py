@@ -106,9 +106,9 @@ class ActionCommand(AnyCustomCommand):
 
 
 def _show_result(
-    task: "asyncio.Future[Any]", ui: "BaseUI", panel_title: str | None = None
+    task: "asyncio.Task[Any]", ui: "BaseUI", panel_title: str | None = None
 ) -> None:
-    ui.background_tasks.discard(task)  # type: ignore[arg-type]
+    ui.background_tasks.discard(task)
     if task.cancelled():
         return
     exc = task.exception()

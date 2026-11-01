@@ -86,7 +86,7 @@ class LLMTask(BaseTask):
             | list[UserContent]
             | Callable[[AnyContext], UserContent | list[UserContent]]
             | None
-        ) = None,  # noqa
+        ) = None,
         history_processors: list[HistoryProcessor] | None = None,
         capabilities: "list[AbstractCapability[Any]] | None" = None,
         llm_limiter: LLMLimiter | None = None,

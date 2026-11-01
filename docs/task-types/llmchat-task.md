@@ -236,7 +236,7 @@ chat.append_custom_command(my_command)
 
 A custom command is a slash command added to the chat, listed in `/help`. There are two kinds:
 
-- **`CustomCommand`** expands into a prompt for the LLM. `$name`, `${name}`, `${name:-default}` and `$1`, `$2`, … are replaced with the arguments.
+- **`CustomCommand`** expands into a prompt for the LLM. `$name`, `${name}`, `${name:-default}` (the default stands in for an argument the user left out) and `$1`, `$2`, … are replaced with the arguments.
 - **`ActionCommand`** runs a Python callable instead and starts no LLM turn. The callable receives the parsed arguments as a dict and the chat UI (`None` when there is none, as for the initial message of a non-interactive run), and returns the text to show the user, or `None` to show nothing.
 
 ```python

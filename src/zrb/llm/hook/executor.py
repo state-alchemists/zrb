@@ -180,13 +180,9 @@ class ThreadPoolHookExecutor:
 
     @asynccontextmanager
     async def execution_context(self):
-        """Context manager for hook execution."""
-        try:
-            self.start()
-            yield self
-        finally:
-            # Don't shutdown automatically - let the manager handle lifecycle
-            pass
+        """Start the pool and yield it; shutdown stays with the manager's lifecycle."""
+        self.start()
+        yield self
 
     async def execute_hook(
         self,

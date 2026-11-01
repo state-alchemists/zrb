@@ -956,8 +956,8 @@ class _CheckpointWriter:
 
     A checkpoint is a recovery boundary, not a journal: a snapshot a newer one
     has already replaced holds nothing a resumed process would want, and it
-    costs a full serialization of the history to write — 19 ms and 4.3 MB on a
-    406-message history, once per tool round. So one write runs at a time, and a
+    costs a full serialization of the history to write, once per tool round. So
+    one write runs at a time, and a
     boundary that arrives behind it replaces the snapshot waiting instead of
     queueing behind it: a twenty-round turn writes the history twice, not
     twenty times, and the last snapshot still goes out before `drain` returns.
@@ -1039,7 +1039,7 @@ def _build_event_stream_handler(
                 last_checkpoint_len = len(ctx.messages)
                 # A structurally complete history: the moment a message held in
                 # the queue can join this turn and be read by its next request
-                # (ADR-0078, revised).
+                # (ADR-0078).
                 _deliver_queued_messages(effective_ui)
                 if checkpoint_writer is not None:
                     # Copy now: the source list keeps growing.
