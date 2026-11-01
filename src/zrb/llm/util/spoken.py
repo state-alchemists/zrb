@@ -297,7 +297,29 @@ class _MarkerScanner:
         mark, size = _leading_run(self._line)
         if mark == "`" and size >= _FENCE_MIN:
             return True
-        return self._line.count("`") % 2 == 1
+        return _is_inside_span(self._line)
+
+
+def _is_inside_span(line: str) -> bool:
+    """Whether *line* ends inside an inline code span.
+
+    A span is opened by a run of backticks and closed by the next run of the same
+    length, so `` `a` `` and ``` ``a`b`` ``` both work: the delimiters are
+    matched by size rather than counted, since a longer run is how a span holds a
+    backtick of its own.
+    """
+    size = 0
+    cursor = 0
+    while True:
+        start = line.find("`", cursor)
+        if start < 0:
+            return size != 0
+        run = len(line) - start - len(line[start:].lstrip("`"))
+        if size == 0:
+            size = run
+        elif run == size:
+            size = 0
+        cursor = start + run
 
 
 def _leading_run(line: str) -> tuple[str, int]:

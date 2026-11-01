@@ -228,6 +228,25 @@ def test_a_tag_written_in_backticks_is_a_quotation_and_not_a_marker():
     assert shown == reply
 
 
+def test_a_tag_in_a_double_backtick_span_is_a_quotation_too():
+    """A span delimited by two backticks holds a backtick of its own, so the
+    delimiters are matched by length: counting them reads this one as prose."""
+    reply = "Use ``" + OPEN_TAG + "`` in prose."
+
+    spoken, shown = split_spoken(reply)
+
+    assert spoken is None
+    assert shown == reply
+
+
+def test_a_span_that_closes_before_the_tag_leaves_it_a_marker():
+    reply = "Write `x` then " + OPEN_TAG + "Done." + CLOSE_TAG
+
+    spoken, _shown = split_spoken(reply)
+
+    assert spoken == "Done."
+
+
 def test_a_tag_written_in_a_fence_is_a_quotation_and_not_a_marker():
     reply = (
         "Write it like this:\n\n```\n"
