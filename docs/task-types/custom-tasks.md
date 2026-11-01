@@ -118,7 +118,7 @@ class FlakyTask(BaseTask):
 
 ## Full Lifecycle Hooks
 
-`BaseTask` exposes several methods you can override for finer control:
+`BaseTask` has two extension points:
 
 | Method | When It's Called | Override For |
 |--------|-----------------|--------------|

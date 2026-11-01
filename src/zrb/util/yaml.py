@@ -36,10 +36,10 @@ def edit_obj(obj: Any, key: str, val: str) -> Any:
     """`key` nests with '.' as separator; `val` is parsed as YAML before being set.
 
     Example:
-        edit({"a": {"b": 1}}, "a.b", "2") -> {"a": {"b": 2}}
-        edit({"flag": False}, "flag", "true") -> {"flag": True}
-        edit({"a": 1}, "", "2") -> 2  # Replace entire object with scalar
-        edit({"a": 1}, "", "b: 2") -> {"a": 1, "b": 2}  # Patch dict if obj is dict
+        edit_obj({"a": {"b": 1}}, "a.b", "2") -> {"a": {"b": 2}}
+        edit_obj({"flag": False}, "flag", "true") -> {"flag": True}
+        edit_obj({"a": 1}, "", "2") -> 2  # Replace entire object with scalar
+        edit_obj({"a": 1}, "", "b: 2") -> {"a": 1, "b": 2}  # Patch dict if obj is dict
     """
     parsed_value = load_yaml(val)
 

@@ -132,7 +132,7 @@ sequenceDiagram
 | --- | --- | --- |
 | Condition is false | `BaseTaskExecution.execute_task_action` | Marked skipped; pushes nothing to XCom, runs no fallback, and still unblocks downstreams ([ADR-0013](../../adr/adr-0013.md)) |
 | `monitor_readiness=True` | `BaseTaskMonitoring.monitor_task_readiness` | Checks keep running after ready; after `readiness_failure_threshold` failures the action is restarted |
-| Several long-running tasks | `Session.wait_deferred` | Deferred actions use `gather_fail_fast`: the first crash cancels the rest instead of waiting for a server that never exits |
+| Several long-running tasks | `Session.wait_deferred` | Deferred actions and monitors are watched together: the first crash cancels the rest instead of waiting for a server that never exits |
 | Caller already in an event loop | `BaseTask.async_run` | Same path without `asyncio.run` and without the pending-task cleanup |
 | Run from the CLI | `Cli.run` in `src/zrb/runner/cli.py` | A run that ended neither completed nor skipped is raised as `KeyboardInterrupt`, so the shell sees a failure |
 | Run from the web | `serve_task_session_api` | Scheduled with `async_run` and returned at once — see [Web Requests](../3-peripheral-flow/web-requests.md) |
