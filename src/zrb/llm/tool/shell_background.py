@@ -27,7 +27,7 @@ from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
 from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.tool.stream_capture import StreamCapture
-from zrb.llm.watch import get_watch_ledger
+from zrb.llm.watch import WatchLedger, get_watch_ledger
 from zrb.util.string.name import get_random_name
 
 
@@ -36,18 +36,29 @@ def _new_capture() -> StreamCapture:
     return StreamCapture(CFG.LLM_MAX_OUTPUT_CHARS, 0)
 
 
-def _open_watch(handle: str, bp: "_BackgroundProcess") -> None:
-    """Record the watch before the work starts, so a crash still shows it.
+def _open_watch(handle: str, what: str) -> "WatchLedger | None":
+    """Record the watch before the work starts, and return the ledger holding it.
 
     The ledger is a convenience for the next turn, never a reason to fail the
     call: a directory that cannot be written costs the record, not the command.
     """
     try:
-        get_watch_ledger(bp.owner_session_id or None).open(
-            handle, kind="process", what=bp.description
-        )
+        ledger = get_watch_ledger()
+        ledger.open(handle, kind="process", what=what)
+        return ledger
     except OSError as e:
         CFG.LOGGER.warning(f"Could not record watch {handle}: {e}")
+        return None
+
+
+def _fail_watch(ledger: "WatchLedger | None", handle: str) -> None:
+    """Close a watch whose work never started."""
+    if ledger is None:
+        return
+    try:
+        ledger.fail(handle)
+    except OSError as e:
+        CFG.LOGGER.warning(f"Could not close watch {handle}: {e}")
 
 
 def _end_watch(bp: "_BackgroundProcess", handle: str, killed: bool = False) -> None:
@@ -114,15 +125,25 @@ class _ShellBackgroundRegistry:
             get_effective_sandbox_policy(),
             skip=dangerously_skip_sandbox,
         )
-        # Own process group; DEVNULL stdin prevents hangs on stdin reads.
-        proc = await asyncio.create_subprocess_exec(
-            *create_yielding_argv(argv),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            stdin=asyncio.subprocess.DEVNULL,
-            cwd=effective_cwd,
-            start_new_session=True,
-        )
+        # Recorded before the process exists. A crash between the spawn and the
+        # record would leave work running that no later session could account
+        # for, which is the one thing this ledger exists to prevent.
+        ledger = _open_watch(handle, description or command)
+        try:
+            # Own process group; DEVNULL stdin prevents hangs on stdin reads.
+            proc = await asyncio.create_subprocess_exec(
+                *create_yielding_argv(argv),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                stdin=asyncio.subprocess.DEVNULL,
+                cwd=effective_cwd,
+                start_new_session=True,
+            )
+        except BaseException:
+            # Nothing ran, so nothing outlived the turn: that is not an unknown
+            # outcome, and it must not be left looking like one.
+            _fail_watch(ledger, handle)
+            raise
         bp = _BackgroundProcess(
             process=proc,
             description=description or command,
@@ -131,7 +152,6 @@ class _ShellBackgroundRegistry:
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
         self._procs[handle] = bp
-        _open_watch(handle, bp)
         # Tracked so kill()/cancel_all() can stop them.
         bp.tasks = [
             asyncio.ensure_future(self._read_pipe(handle, proc.stdout, "stdout")),
@@ -160,6 +180,9 @@ class _ShellBackgroundRegistry:
         adoption never gets here.
         """
         handle = get_random_name(separator="-", add_random_digit=True)
+        # Before the registry entry, for the same reason as `start`: the process
+        # is already running, so a crash here must not lose it.
+        _open_watch(handle, command)
         bp = _BackgroundProcess(
             process=process,
             stdout_cap=stdout_cap,
@@ -168,7 +191,6 @@ class _ShellBackgroundRegistry:
             owner_session_id=get_current_chat_session_id(),
         )
         self._procs[handle] = bp
-        _open_watch(handle, bp)
         bp.tasks = [
             asyncio.ensure_future(self._read_pipe(handle, process.stdout, "stdout")),
             asyncio.ensure_future(self._read_pipe(handle, process.stderr, "stderr")),

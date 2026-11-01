@@ -36,6 +36,7 @@ RUNNING = "running"
 FINISHED = "finished"
 KILLED = "killed"
 LOST = "lost"
+FAILED = "failed"
 
 # Ledger operations, as written on disk. A row is an event, not a state: the
 # current state of a watch is the fold of its events, so an append costs one
@@ -106,7 +107,7 @@ class WatchRecord:
 
     def is_unread(self) -> bool:
         """Whether this watch has an outcome nobody has been told yet."""
-        return self.state in (FINISHED, KILLED, LOST) and not self.delivered_at
+        return self.state in (FINISHED, KILLED, LOST, FAILED) and not self.delivered_at
 
 
 class WatchLedger:
@@ -165,6 +166,17 @@ class WatchLedger:
                 "op": ENDED,
                 "id": watch_id,
                 "state": LOST,
+                "ended_at": _now(),
+            }
+        )
+
+    def fail(self, watch_id: str) -> None:
+        """Record that the work never started, which is not an unknown outcome."""
+        self._append(
+            {
+                "op": ENDED,
+                "id": watch_id,
+                "state": FAILED,
                 "ended_at": _now(),
             }
         )
@@ -358,6 +370,7 @@ def _render(record: WatchRecord) -> str:
         FINISHED: f"exit {record.exit_code}",
         KILLED: f"killed (exit {record.exit_code})",
         LOST: "outcome unknown",
+        FAILED: "never started",
     }.get(record.state, record.state)
     line = f"- Watch {escape(record.id, quote=False)} {ending}: {escape(record.what, quote=False)}"
     if record.ended_at:

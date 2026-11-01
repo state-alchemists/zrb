@@ -49,6 +49,46 @@ async def test_a_killed_process_is_not_recorded_as_finished(watch_dir):
 
 
 @pytest.mark.asyncio
+async def test_the_watch_is_on_disk_before_the_process_exists(watch_dir, monkeypatch):
+    """A crash between the spawn and the record would lose the work entirely."""
+    import asyncio
+
+    seen: dict[str, list[str]] = {}
+    spawn = asyncio.create_subprocess_exec
+
+    async def spy(*args, **kwargs):
+        seen["rows"] = [
+            record.id for record in WatchLedger(str(watch_dir), "_").records()
+        ]
+        return await spawn(*args, **kwargs)
+
+    monkeypatch.setattr("asyncio.create_subprocess_exec", spy)
+    registry = get_shell_background_registry()
+
+    handle = await registry.start("exit 0", "", "Recorded before it ran")
+    await registry.collect(handle, wait=10)
+
+    assert seen["rows"] == [handle]
+
+
+@pytest.mark.asyncio
+async def test_a_command_that_never_started_says_so(watch_dir, monkeypatch):
+    """A failed spawn is not "outcome unknown": nothing ran."""
+
+    async def refuse(*args, **kwargs):
+        raise OSError("no such shell")
+
+    monkeypatch.setattr("asyncio.create_subprocess_exec", refuse)
+    registry = get_shell_background_registry()
+
+    with pytest.raises(OSError):
+        await registry.start("exit 0", "", "Never ran")
+
+    (record,) = WatchLedger(str(watch_dir), "_").records()
+    assert record.state == "failed"
+
+
+@pytest.mark.asyncio
 async def test_a_shutdown_kill_closes_the_watch(watch_dir):
     """`atexit` has no event loop left, so the row must be closed by hand."""
     registry = get_shell_background_registry()
