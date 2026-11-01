@@ -19,10 +19,12 @@ nobody is looking stops being something a model has to remember to fetch.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import threading
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
@@ -60,8 +62,25 @@ def _shorten(text: str) -> str:
 
 
 def _safe_name(session: str) -> str:
-    """A session key as a filename: the same key always names the same file."""
+    """A session key as a filename stem: readable, but not the whole answer."""
     return re.sub(r"[^A-Za-z0-9_.-]", "_", session).strip("._") or "_"
+
+
+def _ledger_filename(session: str) -> str:
+    """The file of *session*.
+
+    Sanitising alone is not injective — `team/a` and `team_a` would share one
+    file and each would render the other's watches — so a digest of the exact
+    key follows the readable stem.
+    """
+    digest = hashlib.sha1(session.encode("utf-8")).hexdigest()[:8]
+    return f"{_safe_name(session)}-{digest}.jsonl"
+
+
+# Which run of zrb opened a watch. A `running` row carrying another instance's
+# id was never closed, because that process is gone: its ending was not seen and
+# saying nothing about it would leave it invisible forever.
+_INSTANCE = uuid.uuid4().hex[:8]
 
 
 @dataclass
@@ -79,6 +98,10 @@ class WatchRecord:
     outcome: str = ""
     recheck: str = ""
     delivered_at: str = ""
+    # Which run of zrb opened it, and the pid that ran the work: the pair is how
+    # a row left behind by a dead process is told from one still running here.
+    instance: str = _INSTANCE
+    pid: int = 0
 
     def is_unread(self) -> bool:
         """Whether this watch has an outcome nobody has been told yet."""
@@ -96,7 +119,7 @@ class WatchLedger:
     def __init__(self, directory: str, session: str) -> None:
         self.directory = directory
         self.session = session
-        self.path = os.path.join(directory, f"{_safe_name(session)}.jsonl")
+        self.path = os.path.join(directory, _ledger_filename(session))
         self._lock = threading.Lock()
 
     def open(
@@ -115,6 +138,7 @@ class WatchLedger:
             what=_shorten(what),
             outcome=outcome,
             recheck=recheck,
+            pid=os.getpid(),
         )
         self._append({"op": OPENED, **asdict(record)})
         return record
@@ -159,6 +183,10 @@ class WatchLedger:
                 continue
             if row.get("op") == OPENED:
                 fields = {k: v for k, v in row.items() if k in _RECORD_FIELDS}
+                # A shared or hand-edited file must not lend one session
+                # another's watches: the row says whose it is, so check.
+                if fields.get("session", self.session) != self.session:
+                    continue
                 state[watch_id] = WatchRecord(**fields)  # type: ignore[arg-type]
             elif row.get("op") == ENDED and watch_id in state:
                 record = state[watch_id]
@@ -172,6 +200,22 @@ class WatchLedger:
     def unread(self) -> list[WatchRecord]:
         """The watches whose outcome has not been shown yet, oldest first."""
         return [record for record in self.records() if record.is_unread()]
+
+    def reconcile(self) -> list[str]:
+        """Report a previous run's unfinished watches as lost, and return their ids.
+
+        A row still `running` under another instance's id was never closed: that
+        process died, or was killed without the exit path running. Leaving it as
+        "running" would make it invisible forever — worse than saying the ending
+        was not seen.
+        """
+        lost: list[str] = []
+        for record in self.records():
+            if record.state != RUNNING or record.instance == _INSTANCE:
+                continue
+            self.lose(record.id)
+            lost.append(record.id)
+        return lost
 
     def compact(self) -> None:
         """Rewrite the file with only the watches that still say something.
@@ -197,6 +241,8 @@ class WatchLedger:
                         "opened_at": record.opened_at,
                         "outcome": record.outcome,
                         "recheck": record.recheck,
+                        "instance": record.instance,
+                        "pid": record.pid,
                         "state": RUNNING,
                         "exit_code": None,
                         "ended_at": "",
@@ -268,6 +314,8 @@ _RECORD_FIELDS = {
     "kind",
     "what",
     "opened_at",
+    "instance",
+    "pid",
     "state",
     "exit_code",
     "ended_at",
@@ -281,8 +329,19 @@ def _encode(row: dict) -> str:
 
 
 def _write_private(path: str, content: str, append: bool = False) -> None:
+    """Write *content*, keeping the file readable only by its owner.
+
+    The mode is applied on every write, not only on create: a ledger restored
+    with different permissions, or created by another tool, must not be appended
+    to while it is still world-readable.
+    """
     flags = os.O_APPEND if append else os.O_TRUNC
     descriptor = os.open(path, os.O_CREAT | os.O_WRONLY | flags, 0o600)
+    try:
+        os.fchmod(descriptor, 0o600)
+    except (AttributeError, OSError):
+        # Windows has no POSIX bits; the mode passed at create still applies.
+        pass
     with os.fdopen(descriptor, "a", encoding="utf-8") as stream:
         stream.write(content)
 
@@ -300,7 +359,7 @@ def _render(record: WatchRecord) -> str:
     if record.outcome:
         line += f"; output at {record.outcome}"
     elif record.state != RUNNING:
-        line += "; its output did not outlive the process"
+        line += "; its output is no longer held by this session"
     return line
 
 
@@ -317,6 +376,7 @@ def get_watch_ledger(session: str | None = None) -> WatchLedger:
         ledger = _LEDGERS.get((directory, key))
         if ledger is None:
             ledger = WatchLedger(directory, key)
+            ledger.reconcile()
             ledger.compact()
             _LEDGERS[(directory, key)] = ledger
         return ledger

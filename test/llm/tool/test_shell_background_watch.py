@@ -48,6 +48,19 @@ async def test_a_killed_process_is_not_recorded_as_finished(watch_dir):
     assert record.state == "killed"
 
 
+@pytest.mark.asyncio
+async def test_a_shutdown_kill_closes_the_watch(watch_dir):
+    """`atexit` has no event loop left, so the row must be closed by hand."""
+    registry = get_shell_background_registry()
+
+    handle = await registry.start("sleep 30", "", "Killed at shutdown")
+    registry.force_kill_all()
+
+    (record,) = WatchLedger(str(watch_dir), "_").records()
+    assert record.id == handle
+    assert record.state == "killed"
+
+
 def test_the_live_context_names_an_outcome_the_registry_has_dropped(
     watch_dir, monkeypatch
 ):

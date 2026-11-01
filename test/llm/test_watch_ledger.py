@@ -23,6 +23,19 @@ def _rows(ledger: WatchLedger) -> list[dict]:
         return [json.loads(line) for line in stream.read().splitlines()]
 
 
+def _rewrite_instance(ledger: WatchLedger, instance: str) -> int:
+    """Rewrite every `opened` row as if another run of zrb had written it."""
+    with open(ledger.path, encoding="utf-8") as stream:
+        rows = [json.loads(line) for line in stream.read().splitlines()]
+    for row in rows:
+        if row.get("op") == "opened":
+            row["instance"] = instance
+    with open(ledger.path, "w", encoding="utf-8") as stream:
+        for row in rows:
+            stream.write(json.dumps(row, sort_keys=True) + "\n")
+    return len(rows)
+
+
 def test_a_watch_is_on_disk_before_the_work_starts(tmp_path):
     """`opened` is written first, so a crash still shows what was about to run."""
     ledger = _ledger(tmp_path)
@@ -104,7 +117,37 @@ def test_a_process_with_no_output_to_point_at_says_so(tmp_path):
     ledger.end("h1", 0)
 
     (line,) = ledger.render_lines()
-    assert "did not outlive the process" in line
+    assert "no longer held by this session" in line
+
+
+def test_two_session_names_that_sanitise_alike_stay_apart(tmp_path):
+    """`team/a` and `team_a` must not share a file and each other's watches."""
+    first = _ledger(tmp_path, "team/a")
+    second = _ledger(tmp_path, "team_a")
+
+    first.open("h1", kind="process", what="The first session's secret")
+
+    assert first.path != second.path
+    assert second.records() == []
+
+
+def test_a_row_left_by_a_dead_process_is_reported_lost(tmp_path):
+    """`running` from another run of zrb means the ending was never seen."""
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Killed with the process")
+    foreign = _rewrite_instance(ledger, "someone-else")
+
+    assert ledger.reconcile() == ["h1"]
+    assert ledger.unread()[0].state == "lost"
+    assert foreign
+
+
+def test_a_running_row_from_this_process_is_left_alone(tmp_path):
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Still running here")
+
+    assert ledger.reconcile() == []
+    assert ledger.unread() == []
 
 
 def test_a_torn_line_costs_one_row_not_the_file(tmp_path):
@@ -149,6 +192,20 @@ def test_a_session_name_with_a_slash_is_still_a_safe_filename(tmp_path):
 
     assert os.path.dirname(ledger.path) == str(tmp_path)
     assert "/" not in os.path.basename(ledger.path)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="Windows offers no POSIX permission bits"
+)
+def test_an_existing_world_readable_ledger_is_tightened(tmp_path):
+    """A restored or externally created file must not stay readable."""
+    ledger = _ledger(tmp_path)
+    ledger.open("h1", kind="process", what="Something private")
+    os.chmod(ledger.path, 0o644)
+
+    ledger.end("h1", 0)
+
+    assert stat.S_IMODE(os.stat(ledger.path).st_mode) == 0o600
 
 
 def test_a_long_description_is_shortened_rather_than_stored_whole(tmp_path):

@@ -356,13 +356,15 @@ class _ShellBackgroundRegistry:
         Loop-free `atexit` backstop, for when the event loop is already closed.
         Never raises.
         """
-        for bp in list(self._procs.values()):
-            if bp.process.returncode is not None:
-                continue
-            try:
-                kill_pid(bp.process.pid, print_method=CFG.LOGGER.debug)
-            except Exception:  # noqa: BLE001 - atexit backstop, must never raise
-                pass
+        for handle, bp in list(self._procs.items()):
+            if bp.process.returncode is None:
+                try:
+                    kill_pid(bp.process.pid, print_method=CFG.LOGGER.debug)
+                except Exception:  # noqa: BLE001 - atexit backstop, must never raise
+                    pass
+            # The loop is gone by now, so the exit wait will never run: without
+            # this the row would stay "running" for the next process to puzzle over.
+            _end_watch(bp, handle, killed=True)
         self._procs.clear()
 
 
