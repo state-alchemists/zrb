@@ -34,6 +34,9 @@ from dataclasses import dataclass
 # title that would otherwise repeat it.
 _CLAIM_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$")
 _ANY_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
+# A catalog entry: the writers render one as `- [title](category/slug.md)` and
+# nothing else. A hand-written line that merely links the same note is not one.
+_BARE_LINK = re.compile(r"^- \[.*\]\([^)]+\)[ \t]*$")
 
 # Ranks, best first. A claim outranks a pointer: the block's own header already
 # says that each category's own index lists every note ever written in it, so the
@@ -70,6 +73,21 @@ class _Block:
     lines: tuple[_Line, ...]
 
 
+@dataclass(frozen=True)
+class _Roles:
+    """What this reader takes from the writer's vocabulary: how a pinned line is
+    marked, and which two sections are the directory pointer and the catalog.
+
+    Read from `journal_index` rather than spelled again here, so a rename reaches
+    both sides. The catalog is named rather than inferred because `ORPHAN`
+    suppresses a line: dropping a hand-written one that happens to link a claimed
+    note would lose content that exists nowhere else."""
+
+    pin: str
+    pointer: str
+    catalog: str
+
+
 def plan_index_core(content: str, budget: int) -> tuple[str, str]:
     """Split *content* into the text the cap keeps and a note about the rest.
 
@@ -83,12 +101,26 @@ def plan_index_core(content: str, budget: int) -> tuple[str, str]:
     """
     if budget <= 0 or len(content) <= budget:
         return content, ""
+    if budget < len(_MARKER):
+        return "", ""
+    if budget <= _MARKER_CHARS:
+        return "", _MARKER
     # Deferred: a module-level import of `zrb.llm.tool` here would close a
     # package cycle — two tool modules read `zrb.llm.prompt.prompt`.
-    from zrb.llm.tool.journal_index import DIRECTORIES_HEADING, PIN_MARKER
+    from zrb.llm.tool.journal_index import (
+        CATALOG_HEADING,
+        DIRECTORIES_HEADING,
+        PIN_MARKER,
+    )
 
-    pointer = DIRECTORIES_HEADING.removeprefix("## ").strip()
-    blocks = _split_sections(content, pointer, PIN_MARKER)
+    blocks = _split_sections(
+        content,
+        _Roles(
+            pin=PIN_MARKER,
+            pointer=_heading_name(DIRECTORIES_HEADING),
+            catalog=_heading_name(CATALOG_HEADING),
+        ),
+    )
     # A quarter of the cap, at most, explains what the rest of it left out. Fixed
     # before the fill rather than measured after it, because the note grows as
     # the body shrinks — the two would chase each other, and the line that paid
@@ -98,9 +130,12 @@ def plan_index_core(content: str, budget: int) -> tuple[str, str]:
     return _emit(blocks, kept), _hidden_note(blocks, kept, reserve)
 
 
-def _split_sections(
-    content: str, pointer_heading: str, pin_marker: str
-) -> list[_Block]:
+def _heading_name(heading: str) -> str:
+    """A `## heading` constant as the reader stores it: the words alone."""
+    return heading.removeprefix("## ").strip()
+
+
+def _split_sections(content: str, roles: _Roles) -> list[_Block]:
     """Every block of the index, in file order.
 
     The lines above the first `## ` heading — the title, and any hand-written
@@ -124,10 +159,7 @@ def _split_sections(
     return [
         _Block(
             heading,
-            tuple(
-                _rank_line(line, heading == pointer_heading, pin_marker, claimed)
-                for line in body
-            ),
+            tuple(_rank_line(line, heading, roles, claimed) for line in body),
         )
         for heading, body in raw
     ]
@@ -164,18 +196,18 @@ def _note_path(line: str) -> str:
     return found.group(1) if found else ""
 
 
-def _rank_line(
-    line: str, in_pointer_section: bool, pin_marker: str, claimed: set[str]
-) -> _Line:
+def _rank_line(line: str, heading: str, roles: _Roles, claimed: set[str]) -> _Line:
     """What this line is worth, and the note it names."""
     claim = _note_path(line)
     if claim:
-        return _Line(line, PINNED if pin_marker in line else CLAIM, claim)
+        return _Line(line, PINNED if roles.pin in line else CLAIM, claim)
     link = _ANY_LINK.search(line)
     path = link.group(1) if link else ""
-    if in_pointer_section:
+    if heading == roles.pointer:
         return _Line(line, POINTER, path)
-    return _Line(line, ORPHAN if path in claimed else REST, path)
+    if heading == roles.catalog and _BARE_LINK.match(line):
+        return _Line(line, ORPHAN if path in claimed else REST, path)
+    return _Line(line, REST, path)
 
 
 def _fill(blocks: list[_Block], budget: int) -> list[set[int]]:

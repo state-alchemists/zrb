@@ -170,6 +170,36 @@ def test_a_bullet_index_without_headings_is_trimmed_too():
         assert not line.startswith("- preference") or line.endswith("stated by the user")
 
 
+def test_a_hand_written_line_that_links_a_claimed_note_is_not_a_duplicate():
+    """Only a catalog entry restates a claim. A hand-written line inside a HUD
+    section is user content that exists nowhere else, so it is not suppressed for
+    naming a note whose claim is already in the block (review on #791)."""
+    titles = [_title(f"other {i}", f"technical/o{i}.md") for i in range(30)]
+    content = _index(
+        (
+            "User",
+            [
+                _claim("Name: Go.", "x", "user"),
+                "- See [details](user/x.md) for the rest",
+            ],
+        ),
+        ("Recent Insights", [_title("Name: Go", "user/x.md"), *titles]),
+    )
+    kept, _ = plan_index_core(content, 800)
+    assert "- See [details](user/x.md) for the rest" in kept
+    assert _title("Name: Go", "user/x.md") not in kept
+
+
+def test_a_cap_below_the_marker_injects_nothing():
+    """The marker is ten characters including its newline. Under that, there is
+    nothing honest to return — returning the marker anyway spends more than the
+    cap it is supposed to stay inside (review on #791)."""
+    content = _index(("Recent", [_claim("x" * 200, "long")]))
+    for budget in (1, 5, 9):
+        kept, note = plan_index_core(content, budget)
+        assert len(kept) + len(note) <= budget, budget
+
+
 def test_a_title_is_kept_when_its_claim_did_not_fit():
     """Suppressing a title because *some* claim names the same note is only right
     when that claim reached the block. Otherwise a long pin that does not fit
