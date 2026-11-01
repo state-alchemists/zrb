@@ -82,7 +82,7 @@ flowchart TD
 | `TurnCursor` | `src/zrb/llm/agent/run/turn_cursor.py` | The loop's state across rounds: history, pending tool results, this turn's new messages |
 | `handle_stream_error` | `src/zrb/llm/agent/run/retry_loop.py` | Classifies a failed round and decides the one-shot fix |
 | `process_deferred_requests` | `src/zrb/llm/agent/run/deferred_calls.py` | Asks for approval of the tool calls the model made, and returns their results |
-| `setup_print_and_events` | `src/zrb/llm/agent/run/setup.py` | Resolves the UI and other dependencies; builds the handler that renders streamed events |
+| `resolve_context_dependencies`, `setup_print_and_events` | `src/zrb/llm/agent/run/setup.py` | Resolve the UI, confirmation, yolo, approval channel and hook manager a run uses; build the print function and the handler that renders streamed events |
 | `ModelResolver`, `resolve_configured_model` | `src/zrb/llm/config/model_resolver.py` | Turning a configured model name, API key and base URL into a pydantic-ai model; the small and multimodal models resolve the same way |
 | `LLMLimiter` | `src/zrb/llm/config/limiter.py` | Request and token rate limits, token counting, and fitting history into `max_token_per_request` before each request |
 

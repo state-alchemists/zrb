@@ -250,7 +250,9 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     not call syntax, so the model does not imitate it:
 
     ``ModelResponse`` (assistant role):
-        ``BaseToolCallPart``      → ``TextPart("(sanitized-history) previously attempted to call tool …")``
+        ``ToolCallPart``          → ``TextPart("(sanitized-history) previously attempted to call tool …")``
+        ``NativeToolCallPart``    → empty ``TextPart``: a provider-run call is not narrated, and the
+                                    next ``sanitize_history`` pass turns the blank into ``"(empty)"``
         ``NativeToolReturnPart`` → ``TextPart("(sanitized-history) previous result from tool …")``
         ``ThinkingPart``          → ``TextPart(content)``
         ``TextPart``              → kept (empty content normalised to ``"(empty)"``)
