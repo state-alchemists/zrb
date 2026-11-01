@@ -37,7 +37,10 @@ SRC = REPO_ROOT / "src" / "zrb"
 # -4 (1048->1044): `TerminalApprovalChannel` hands an edit to the handler's
 # response handlers through `run_response_handlers`, typed over `ToolCallHandler`
 # and `ToolCallPart` instead of `Any`.
-ANY_ANNOTATIONS = 1044
+# -3 (1044->1041): `_render_parts` dropped its unused `model` parameter,
+# `_create_summary_model_request` returns `ModelMessage`, and the
+# `_summarize_fat_messages` wrapper is gone.
+ANY_ANNOTATIONS = 1041
 
 
 def _count_any(annotation: ast.expr | None) -> int:

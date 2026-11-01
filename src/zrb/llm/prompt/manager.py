@@ -19,6 +19,7 @@ from zrb.llm.prompt.registry import (
     PromptList,
     PromptRegistry,
     PromptSetValue,
+    resolve_prompt_set,
 )
 from zrb.llm.prompt.registry import prompt_registry as default_prompt_registry
 from zrb.llm.prompt.system_context import system_context
@@ -154,13 +155,8 @@ class PromptManager:
         if self._middlewares is None:
             base = self._prompt_registry.get_prompts()
         else:
-            base = self._resolve_own_prompts(self._middlewares)
+            base = resolve_prompt_set(self._middlewares)
         return self._deltas.apply(base)
-
-    def _resolve_own_prompts(self, value: PromptSetValue) -> PromptList:
-        if callable(value):
-            value = value()
-        return [] if value is None else list(value)
 
     def append_prompt(self, *middleware: PromptMiddleware | str):
         """Append content emitted after all built-in sections.
@@ -244,32 +240,6 @@ class PromptManager:
             return ""
         return f"<live-context>\n{body}\n</live-context>"
 
-    def _create_system_context_middleware(self) -> FullMiddleware:
-        """Build the ``system_context`` section middleware."""
-        _builtin = partial(system_context, model=self._model)
-
-        def system_context_middleware(
-            ctx: AnyContext,
-            current_prompt: str,
-            next_handler: Callable[[AnyContext, str], str],
-        ) -> str:
-            return _builtin(ctx, current_prompt, next_handler)
-
-        return system_context_middleware
-
-    def _create_project_context_middleware(self) -> FullMiddleware:
-        """Build the ``project_context`` section middleware."""
-        _builtin = create_project_context_prompt()
-
-        def project_context_middleware(
-            ctx: AnyContext,
-            current_prompt: str,
-            next_handler: Callable[[AnyContext, str], str],
-        ) -> str:
-            return _builtin(ctx, current_prompt, next_handler)
-
-        return project_context_middleware
-
     def compose_prompt(self) -> Callable[[AnyContext], str]:
         """Compose the sections and middlewares into one ``ctx -> prompt`` factory.
 
@@ -329,9 +299,9 @@ class PromptManager:
         middlewares: list[PromptMiddleware | str] = []
         for section in sections:
             if section == "system_context":
-                middlewares.append(self._create_system_context_middleware())
+                middlewares.append(partial(system_context, model=self._model))
             elif section == "project_context":
-                middlewares.append(self._create_project_context_middleware())
+                middlewares.append(create_project_context_prompt())
             elif section not in _SECTION_NAMES:
                 self._warn_empty_section(ctx, section)
                 continue

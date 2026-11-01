@@ -12,8 +12,7 @@ TAIL_BUDGET_RATIO = 0.4
 
 Compaction runs when the history reaches the trigger threshold. Keeping 40% of
 it leaves the rest of the window for the turns that follow, so the summarizer
-does not run again on the very next request — the old 70% left so little room
-that a compaction could be followed by another almost at once.
+does not run again on the very next request.
 """
 
 TURN_START_MIN_SHARE = 0.5
@@ -42,7 +41,7 @@ FALLBACK_BUDGET_MULTIPLIER = 2
 The retry follows the configured ratio instead of holding a fixed 80%, so
 lowering the tail budget cannot be defeated by a retry several times its size:
 twice the ratio, capped at `FALLBACK_BUDGET_RATIO`. The default 0.4 therefore
-still retries at 0.8, exactly as before.
+retries at 0.8.
 """
 
 MIN_TAIL_BUDGET_RATIO = 0.05
@@ -79,13 +78,10 @@ def split_history(
 
     The kept tail is rendered to plain text by the caller
     (`message_text.render_verbatim_messages`), not resent as structured
-    API messages, so — unlike earlier versions of this function — the split
-    does not need to avoid landing inside a tool call/return pair: that
-    constraint only binds structured messages, and nothing this function
-    returns is sent back to the model in structured form once the caller has
-    rendered it. The one remaining structural concern, a still-unresolved
-    (deferred) tool call, is a narrower one the caller handles separately via
-    `zrb.llm.message.pending_tail_start`.
+    API messages, so the split does not need to avoid landing inside a tool
+    call/return pair: that constraint only binds structured messages. The one
+    structural concern, a still-unresolved (deferred) tool call, is handled by
+    the caller via `zrb.llm.message.pending_tail_start`.
 
     `tail_budget_ratio` is clamped into `MIN_TAIL_BUDGET_RATIO` to
     `MAX_TAIL_BUDGET_RATIO`, so a configured `0` still leaves a tail and a
@@ -205,16 +201,13 @@ def count_tail_tokens(limiter: LLMLimiter, messages: "list[ModelMessage]") -> in
     with the usage anchor on the newest response — the size of the request that
     produced it, which covered the *whole* history — so no tail including that
     response could fit a budget below the history's size, and compaction, which
-    only runs once the history is at the threshold, kept nothing every time. On
-    a real 414-message history that was 0 kept against 62 messages / 23,977
-    tokens.
+    only runs once the history is at the threshold, kept nothing every time.
 
     The other is the clip. A kept tail is rendered to text with each tool result
     cut to `TAIL_TOOL_OUTPUT_LIMIT` characters, so the unclipped messages are not
-    what the next request pays for: budgeting on them left a tail that measured
-    22,614 tokens in hand and sent 5,358, on a history whose kept fraction could
-    have been much larger for the same cost. Measuring the rendered form makes
-    the budget and the banner describe the handover itself.
+    what the next request pays for: budgeting on them kept a tail far smaller
+    than the budget allowed. Measuring the rendered form makes the budget and
+    the banner describe the handover itself.
 
     A still-unresolved tool call comes along in native form so pydantic-ai can
     resume it, and is counted here through the same rendering. The difference is

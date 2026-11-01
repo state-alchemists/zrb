@@ -61,7 +61,9 @@ The `is_invalid_tool_call_error` classifier retries only when the error has **bo
 
 ## The Orphaned Tool Pair Problem
 
-History compression (when the conversation exceeds the token limit) splits history into "to summarize" and "to keep" slices at a turn boundary. But a turn can span an assistant message that calls a tool and the following user message holding its result. If a `ToolCallPart` (in the `ModelResponse`) and its `ToolReturnPart` (in the next `ModelRequest`) end up on different sides, the kept slice has a return with no call (or a call with no return), and Bedrock and other providers return `ValidationException`. `split_history` looks for a split point that keeps complete pairs together, and `summarize_history` drops any orphaned *return* left in the kept slice; an orphaned *call* is left for the run loop's sanitizer (it may be a legitimately pending deferred call).
+A tool call whose result is missing, or a result whose call is missing, makes Bedrock and other providers return `ValidationException`. zrb's own cuts can produce one: history compression (when the conversation exceeds the token limit) splits the list into a part to summarize and a kept tail, and a call (in a `ModelResponse`) and its result (in the next `ModelRequest`) can land on different sides.
+
+The cut itself is a token-budget cut, not a pair-aware one, because the kept tail is rendered to plain text and a cut pair therefore reaches the provider as prose. The exception is a call still awaiting its result (a pending deferred call, such as an approval in flight): it has to stay a structured `ToolCallPart` so pydantic-ai can resume it. `summarize_history` widens the tail to cover it (`pending_tail_start`) and drops any return in that structured tail whose call went into the summary (`strip_orphaned_returns`). An orphaned *call* is left for the run loop's sanitizer, because it may be legitimately pending.
 
 ## The Sanitization Layer
 
@@ -165,7 +167,7 @@ Audited against **2.61.0** (the version `pyproject.toml` pins); every layer is s
 |---|---|
 | `filter_nil_content` | Keep. Object-level guard against `None`/`""` content; nothing upstream normalizes this. |
 | `openai_patch` | Keep. `_into_message_param` still writes `content = None` beside `tool_calls`, and no profile flag disables it. |
-| `sanitize_orphaned_tool_calls` | Keep. The orphans are created by *zrb's* summarizer splitting a turn, so no upstream change can remove them. |
+| `sanitize_orphaned_tool_calls` | Keep. The orphans come from *zrb's* own cuts (compaction, the emergency prune to fit the window), so no upstream change can remove them. |
 | `ensure_alternating_roles` | Keep. Same origin as above. |
 | `strip_thinking_parts` retry | Keep. Error-triggered and free when it does not fire; the providers that reject echoed thinking still exist. |
 | Opaque-400 text-only fallback | Keep. Deliberately provider-agnostic; upstream classifies transport errors, not provider quirks. |

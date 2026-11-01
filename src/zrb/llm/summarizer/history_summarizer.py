@@ -49,14 +49,14 @@ else:
     ModelMessage = Any
 
 # Mirrors LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
-# AND its two-bound shape (`config/mixins/llm_content.py`'s
+# and its two-bound shape (`config/mixins/llm_content.py`'s
 # get_max_token_threshold(ratio, max_token_per_minute, max_token_per_request)):
-# the rate-limit budget still caps the trigger, same as before, with the
-# model's real context window standing in for the model-blind request cap.
+# the rate-limit budget caps the trigger, with the model's real context window
+# standing in for the model-blind request cap.
 _CONVERSATIONAL_TRIGGER_RATIO = 0.75
 
 # Mirrors LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
-# against the conversational threshold (half of it), recomputed here from the
+# against the conversational threshold (half of it), recomputed from the
 # model-aware conversational threshold instead of the model-blind CFG default.
 _MESSAGE_THRESHOLD_RATIO = 0.5
 
@@ -142,7 +142,7 @@ def create_summarizer_history_processor(
         # pass below, and an archive of those would record the summary where
         # the tool wrote its output. This is the text the conversation had.
         verbatim_source: "list[ModelMessage]" = list(messages)
-        messages = await _summarize_fat_messages(
+        messages = await summarize_messages(
             messages,
             agent=active_message_agent,
             limiter=llm_limiter,
@@ -164,30 +164,6 @@ def create_summarizer_history_processor(
         )
 
     return process_history
-
-
-async def _summarize_fat_messages(
-    messages: "list[ModelMessage]",
-    agent: Any,
-    limiter: "LLMLimiter",
-    message_token_threshold: int,
-    conversational_token_threshold: int,
-) -> "list[ModelMessage]":
-    """Summarize individual fat messages first; keeps the originals on error."""
-    try:
-        return await summarize_messages(
-            messages,
-            agent=agent,
-            limiter=limiter,
-            message_token_threshold=message_token_threshold,
-            conversational_token_threshold=conversational_token_threshold,
-        )
-    except Exception as e:
-        zrb_print(
-            stylize_error(f"  Error processing messages in history processor: {e}"),
-            plain=True,
-        )
-        return messages
 
 
 async def _maybe_compress_history(
@@ -399,8 +375,6 @@ async def summarize_history(
             )
             return messages
         summary_message = _create_summary_model_request(fitted.render())
-        if summary_message is None:
-            return messages
         result = _assemble_summarized_history(
             summary_message,
             messages,
@@ -464,8 +438,7 @@ def _print_split(
     """The banner: what is replaced, what is read, and what is kept.
 
     The tail is kept verbatim and read by the summarizer as well, so the count
-    read is named whenever a tail exists: "summarizing 8 of them" no longer
-    means the model read 8.
+    read is named whenever a tail exists.
     """
     read_note = f", reading all {len(messages)}" if to_keep else ""
     zrb_print(
@@ -565,8 +538,6 @@ def _without_archive_pointer(
     summary_message = _create_summary_model_request(
         _render_summary_content(fitted.model_text, fitted.journal_block, "")
     )
-    if summary_message is None:
-        return messages
     return _assemble_summarized_history(
         summary_message,
         messages,
@@ -1033,10 +1004,9 @@ def _assemble_summarized_history(
 def _create_verbatim_tail_model_request(text: str) -> "ModelMessage":
     """Wrap the rendered recent tail in the user turn that carries it.
 
-    Unlike the summary block, this text is not capped: it is the same budget
-    (`TAIL_BUDGET_RATIO` of the trigger threshold) a structured kept tail
-    would have used, just rendered to text instead of resent as separate
-    messages.
+    Unlike the summary block, this text is not capped: it is held to the tail
+    budget (`LLM_HISTORY_TAIL_BUDGET_RATIO` of the trigger threshold) by the
+    split, not by a cap on the rendered text.
     """
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
@@ -1157,9 +1127,7 @@ def _is_synthetic_part(part: object, msg: object) -> bool:
 
 def _drop_synthetic_parts(msg: "ModelMessage") -> "ModelMessage":
     """*msg* without the parts compaction wrote."""
-    parts = [
-        part for part in getattr(msg, "parts", []) if not _is_synthetic_part(part, msg)
-    ]
+    parts = [part for part in msg.parts if not _is_synthetic_part(part, msg)]
     if len(parts) == len(msg.parts):
         return msg
     return replace(msg, parts=parts)
@@ -1182,13 +1150,13 @@ def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
             continue
         if any(
             isinstance(part, UserPromptPart) and not _is_synthetic_part(part, msg)
-            for part in getattr(msg, "parts", [])
+            for part in msg.parts
         ):
             return _drop_synthetic_parts(msg)
     return None
 
 
-def _create_summary_model_request(summary_content: str) -> Any:
+def _create_summary_model_request(summary_content: str) -> "ModelMessage":
     """Wrap the finished summary block in the user turn that carries it.
 
     The framing — header, derived-data preamble, end marker — is written by
@@ -1198,8 +1166,4 @@ def _create_summary_model_request(summary_content: str) -> Any:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
-    try:
-        return ModelRequest(parts=[UserPromptPart(content=summary_content)])
-    except Exception as e:
-        zrb_print(stylize_error(f"  Failed to create summary message: {e}"), plain=True)
-        return None
+    return ModelRequest(parts=[UserPromptPart(content=summary_content)])

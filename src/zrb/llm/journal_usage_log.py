@@ -32,7 +32,14 @@ from datetime import datetime, timezone
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_current_context_session
-from zrb.llm.usage_log import as_datetime, record_to_dict, store_files, store_path
+from zrb.llm.usage_log import (
+    as_datetime,
+    parse_line,
+    read_month_file,
+    record_to_dict,
+    store_files,
+    store_path,
+)
 from zrb.util.string.name import get_conversation_key
 
 _FILE_PREFIX = "journal-"
@@ -208,7 +215,15 @@ def read_events(
     """Every event in the window, oldest first; an unreadable line is skipped."""
     events: list[JournalEvent] = []
     for path in store_files(_FILE_PREFIX, since, until, directory):
-        events.extend(_read_file(path, since, until, session_key))
+        events.extend(
+            read_month_file(
+                path,
+                _parse_line,
+                since,
+                until,
+                lambda event: session_key is None or event.session == session_key,
+            )
+        )
     events.sort(key=lambda event: event.timestamp)
     return events
 
@@ -266,41 +281,8 @@ def _append(
         CFG.LOGGER.debug("Journal usage log not written", exc_info=True)
 
 
-def _read_file(
-    path: str,
-    since: datetime | None,
-    until: datetime | None,
-    session_key: str | None,
-) -> list[JournalEvent]:
-    try:
-        with open(path, encoding="utf-8") as handle:
-            lines = handle.readlines()
-    except OSError:
-        return []
-    events: list[JournalEvent] = []
-    for line in lines:
-        event = _parse_line(line)
-        if event is None:
-            continue
-        if since is not None and event.timestamp < as_datetime(since):
-            continue
-        if until is not None and event.timestamp > as_datetime(until):
-            continue
-        if session_key is not None and event.session != session_key:
-            continue
-        events.append(event)
-    return events
-
-
 def _parse_line(line: str) -> JournalEvent | None:
-    text = line.strip()
-    if not text:
-        return None
-    try:
-        return JournalEvent.from_dict(json.loads(text))
-    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-        CFG.LOGGER.debug(f"Skipping an unreadable journal event: {text[:80]}")
-        return None
+    return parse_line(line, JournalEvent.from_dict, "journal event")
 
 
 def _as_int(value: object) -> int:

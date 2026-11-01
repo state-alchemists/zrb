@@ -75,8 +75,6 @@ def _strip_live_context(content):
     History persists the block inline (a string suffix, or a trailing string
     item of a multimodal prompt); recall must not show it as typed text.
     """
-    # lazy: zrb internal (heavy via transitive)
-
     if isinstance(content, str):
         return split_live_context(content)[0]
     if isinstance(content, Sequence):

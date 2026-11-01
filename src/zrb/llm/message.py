@@ -25,36 +25,21 @@ def ensure_alternating_roles(messages: list[Any]) -> list[Any]:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, ModelResponse
 
-    new_messages: list[Any] = []
+    merged: list[Any] = []
     for msg in messages:
-        if not new_messages:
-            new_messages.append(msg)
-            continue
+        is_same_role = bool(merged) and any(
+            isinstance(msg, role) and isinstance(merged[-1], role)
+            for role in (ModelRequest, ModelResponse)
+        )
+        if is_same_role:
+            # replace() keeps non-part fields (instructions, run_id, ...) that a
+            # freshly constructed message would silently drop.
+            last_msg = merged[-1]
+            merged[-1] = replace(last_msg, parts=list(last_msg.parts) + list(msg.parts))
+        else:
+            merged.append(msg)
 
-        last_msg = new_messages[-1]
-
-        # Case 1: Sequential ModelRequests (User -> User) - MERGE
-        # replace() keeps non-part fields (instructions, run_id, ...) that a
-        # freshly constructed ModelRequest would silently drop.
-        if isinstance(msg, ModelRequest) and isinstance(last_msg, ModelRequest):
-            new_last_msg = replace(
-                last_msg, parts=list(last_msg.parts) + list(msg.parts)
-            )
-            new_messages[-1] = new_last_msg
-            continue
-
-        # Case 2: Sequential ModelResponses (Assistant -> Assistant) - MERGE
-        if isinstance(msg, ModelResponse) and isinstance(last_msg, ModelResponse):
-
-            new_last_msg = replace(
-                last_msg, parts=list(last_msg.parts) + list(msg.parts)
-            )
-            new_messages[-1] = new_last_msg
-            continue
-
-        new_messages.append(msg)
-
-    return new_messages
+    return merged
 
 
 def _is_tool_call(part: object) -> bool:
@@ -138,13 +123,7 @@ def sanitize_orphaned_tool_calls(messages: list[Any]) -> list[Any]:
         ModelResponse,
     )
 
-    call_ids: set[str] = set()
-    return_ids: set[str] = set()
-    for _msg_idx, tool_call_id, kind in _iter_tool_events(messages):
-        if kind == "call":
-            call_ids.add(tool_call_id)
-        else:
-            return_ids.add(tool_call_id)
+    call_ids, return_ids = _tool_call_ids(messages)
 
     orphaned_calls = call_ids - return_ids
     orphaned_returns = return_ids - call_ids
@@ -180,13 +159,7 @@ def strip_orphaned_returns(messages: list[Any]) -> list[Any]:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest
 
-    call_ids: set[str] = set()
-    return_ids: set[str] = set()
-    for _msg_idx, tool_call_id, kind in _iter_tool_events(messages):
-        if kind == "call":
-            call_ids.add(tool_call_id)
-        else:
-            return_ids.add(tool_call_id)
+    call_ids, return_ids = _tool_call_ids(messages)
 
     orphaned_returns = return_ids - call_ids
     if not orphaned_returns:
@@ -229,11 +202,11 @@ def get_tool_pairs(messages: list[Any]) -> dict[str, dict[str, int | None]]:
     where indices are message indices containing the call/return.
     """
     tool_pairs: dict[str, dict[str, int | None]] = {}
-    for _msg_idx, tool_call_id, kind in _iter_tool_events(messages):
+    for msg_idx, tool_call_id, kind in _iter_tool_events(messages):
         pair = tool_pairs.setdefault(
             tool_call_id, {"call_idx": None, "return_idx": None}
         )
-        pair[f"{kind}_idx"] = _msg_idx
+        pair[f"{kind}_idx"] = msg_idx
     return tool_pairs
 
 
@@ -264,6 +237,15 @@ def validate_tool_pair_integrity(messages: list[Any]) -> tuple[bool, list[str]]:
         ),
     ]
     return len(problems) == 0, problems
+
+
+def _tool_call_ids(messages: list[object]) -> tuple[set[str], set[str]]:
+    """The ids of every tool call and of every tool return in *messages*."""
+    call_ids: set[str] = set()
+    return_ids: set[str] = set()
+    for _, tool_call_id, kind in _iter_tool_events(messages):
+        (call_ids if kind == "call" else return_ids).add(tool_call_id)
+    return call_ids, return_ids
 
 
 def _iter_tool_events(

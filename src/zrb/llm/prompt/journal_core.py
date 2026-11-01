@@ -1,11 +1,10 @@
 """What the first turn is given when the journal index does not fit.
 
 One journal file is injected unprompted, and it is capped. The index is ordered
-most-durable-first, so the old head-first cut spent the whole cap inside
-`## User` and lost every `📌` constraint, all of `## Agent`, and the pointer to
-the category indexes below them. Measured on a real journal on 2026-11-01: a
-2,500-char cap on a 15,167-char index kept one section out of seven and named
-none of the six it lost.
+most-durable-first, so a head-first cut spends the whole cap inside `## User`
+and loses every `📌` constraint, all of `## Agent`, and the pointer to the
+category indexes below them: on a real 15,167-char index, a 2,500-char cap kept
+one section out of seven and named none of the six it lost.
 
 This module decides what the cap keeps instead, in four ranks:
 
@@ -100,9 +99,8 @@ def plan_index_core(content: str, budget: int) -> tuple[str, str]:
 
     *budget* bounds the whole injection in characters — the overflow note is
     charged to it as well, because a cap that exempts what stands in for the
-    dropped text is not a cap: the old one took a 2,500-char slice and then
-    appended the summary on top, for a 4,049-char block. `<= 0` keeps everything,
-    for a caller that has already decided what a zero or negative cap means.
+    dropped text is not a cap. `<= 0` keeps everything, for a caller that has
+    already decided what a zero or negative cap means.
 
     The result is `("", "")` when the cap keeps no line of the index, or cannot
     hold the note that says so: a truncated index that does not say it is
@@ -202,10 +200,10 @@ def _rank(line: str, heading: str, roles: _Roles, claims: set[str]) -> _Line:
 def _fill(blocks: list[_Block], room: int) -> list[set[int]]:
     """Which line indexes each block keeps, best rank first.
 
-    The section that comes first in the file no longer decides: a rank is spent
-    across the sections in turn, and a line is kept only when the text re-rendered
-    with it still fits *room*. A line that does not fit is dropped for good —
-    keeping more never shortens what is already there.
+    A rank is spent across the sections in turn, not in file order, and a line is
+    kept only when the text re-rendered with it still fits *room*. A line that
+    does not fit is dropped for good — keeping more never shortens what is
+    already there.
 
     `DUPLICATE` runs last, so by then every claim's fate is settled: a title whose
     note is already in the block is the duplicate this rank exists to suppress,

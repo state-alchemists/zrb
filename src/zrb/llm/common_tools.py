@@ -23,6 +23,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
+from zrb.llm.ambient_state import get_interactive_mode
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 from zrb.llm.tool_registry import tool_name, tool_registry
@@ -180,7 +181,6 @@ def _seed_tool_factories() -> tuple[list, list]:
     from zrb.llm.agent.types import Tool
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai
-    from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.journal import search_journal
     from zrb.llm.tool.journal_write import (
@@ -272,8 +272,6 @@ def _seed_tool_factories() -> tuple[list, list]:
 
 def _resolve_interactive(ctx: "AnyContext") -> bool:
     """Interactivity from ``ctx.input.interactive``, else the ``interactive_mode`` ContextVar."""
-    from zrb.llm.ambient_state import get_interactive_mode
-
     val = getattr(getattr(ctx, "input", None), "interactive", None)
     if isinstance(val, bool):
         return val

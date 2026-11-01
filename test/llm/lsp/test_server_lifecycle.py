@@ -240,6 +240,50 @@ async def test_error_response_raises_server_error(lsp_server):
     await feeder
 
 
+@pytest.mark.asyncio
+async def test_a_request_from_the_server_is_not_the_answer_to_ours(lsp_server):
+    """A server may send a request (it carries a method) whose id equals the id
+    of one of ours in flight. It is not the response to ours and must not
+    consume it, or the real response finds no one waiting."""
+    queue = asyncio.Queue()
+    queue.put_nowait(
+        _frame({"jsonrpc": "2.0", "id": 1, "result": {"capabilities": {}}})
+    )
+    with patch("asyncio.create_subprocess_exec") as mock_exec:
+        mock_exec.return_value = _queued_subprocess(queue)
+        assert await lsp_server.start() is True
+
+    async def server_side():
+        while 2 not in lsp_server.pending_requests:
+            await asyncio.sleep(0.005)
+        queue.put_nowait(
+            _frame(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "window/workDoneProgress/create",
+                    "params": {"token": "t"},
+                }
+            )
+        )
+        await asyncio.sleep(0.05)
+        queue.put_nowait(
+            _frame(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "result": [{"uri": "file:///a.py", "range": {}}],
+                }
+            )
+        )
+
+    feeder = asyncio.create_task(server_side())
+    lsp_server.config.timeout = 2
+    found = await lsp_server.goto_definition("/never/here.py", 0, 0)
+    await feeder
+    assert found == [{"uri": "file:///a.py", "range": {}}]
+
+
 def _frame(payload):
     body = json.dumps(payload)
     return f"Content-Length: {len(body)}\r\n\r\n{body}".encode()

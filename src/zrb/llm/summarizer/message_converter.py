@@ -1,7 +1,6 @@
-"""Compatibility surface: the converter now lives in `zrb.llm.message_text`.
+"""The summarizer's name for the message-to-text converters in `zrb.llm.message_text`.
 
-Kept as its own module because the summarizer package re-exports from this
-path, and a patch written against it must still take effect.
+The summarizer package and its modules import the converters from here.
 """
 
 from zrb.llm.message_text import (

@@ -372,7 +372,11 @@ class FileHistoryManager(AnyHistoryManager):
             else [self._history_dir]
         )
         for directory in directories:
-            for filename in os.listdir(directory):
+            try:
+                filenames = os.listdir(directory)
+            except OSError:
+                continue
+            for filename in filenames:
                 if not filename.endswith(".json"):
                     continue
 

@@ -243,3 +243,25 @@ def test_search_without_delegated_keeps_root_sessions_that_look_delegated(
     results = manager.search("", include_delegated=False)
 
     assert results == ["foo-sub-bar-deadbeef"]
+
+
+def test_search_skips_a_directory_it_cannot_list(temp_history_dir, monkeypatch):
+    "One unreadable transcript directory must not take `/load` down with it."
+    from zrb.llm.util.subagent_session_naming import format_delegated_session_name
+
+    researcher = format_delegated_session_name("sess1", "researcher", "a1b2c3d4")
+    manager = FileHistoryManager(temp_history_dir)
+    manager.update(researcher, _sample_messages())
+    manager.save(researcher, write_backup=False)
+    open(os.path.join(temp_history_dir, "apple.json"), "w").close()
+    unreadable = os.path.join(temp_history_dir, "subagent", "researcher")
+    real_listdir = os.listdir
+
+    def listdir(path):
+        if os.fspath(path) == unreadable:
+            raise PermissionError(13, "Permission denied", unreadable)
+        return real_listdir(path)
+
+    monkeypatch.setattr(os, "listdir", listdir)
+
+    assert manager.search("") == ["apple"]

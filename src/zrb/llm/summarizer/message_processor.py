@@ -32,8 +32,7 @@ async def process_message_for_summarization(
         return msg
     new_parts = []
     msg_modified = False
-    msg_parts = getattr(msg, "parts", [])
-    for p in msg_parts:
+    for p in msg.parts:
         if not isinstance(p, ToolReturnPart):
             new_parts.append(p)
             continue

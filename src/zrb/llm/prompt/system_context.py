@@ -11,7 +11,6 @@ from collections.abc import Callable
 from functools import lru_cache
 from typing import Any
 
-from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.prompt.live_context import LIVE_CONTEXT_ANCHOR
 from zrb.llm.sandbox.state import get_effective_sandbox_policy
@@ -240,13 +239,10 @@ def _detect_infra_types(cwd: str, home: str) -> tuple[str, ...]:
     k8s_markers = ("Chart.yaml", "k8s", "kubernetes", "manifests")
     if any(os.path.exists(os.path.join(cwd, m)) for m in k8s_markers):
         found.append("Kubernetes")
-    try:
-        if os.path.isdir(os.path.join(home, ".aws")):
-            found.append("AWS")
-        if os.path.isdir(os.path.join(home, ".config", "gcloud")):
-            found.append("GCP")
-        if os.path.isdir(os.path.join(home, ".azure")):
-            found.append("Azure")
-    except Exception as e:
-        CFG.LOGGER.debug(f"Infra-type detection failed: {e}")
+    if os.path.isdir(os.path.join(home, ".aws")):
+        found.append("AWS")
+    if os.path.isdir(os.path.join(home, ".config", "gcloud")):
+        found.append("GCP")
+    if os.path.isdir(os.path.join(home, ".azure")):
+        found.append("Azure")
     return tuple(found)

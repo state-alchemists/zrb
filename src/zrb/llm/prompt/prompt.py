@@ -43,36 +43,34 @@ def _load_prompt_for_profile(name: str, profile: str | None) -> str:
     return get_default_prompt(name)
 
 
-# ── Prompt loading ──────────────────────────────────────────────────────
-
-
 def get_default_prompt(name: str) -> str:
+    """The raw text of prompt *name*, from the first of these that has it:
+
+    1. a ``{LLM_PROMPT_DIR}/{name}.md`` override in the project or home search path;
+    2. the ``{ENV_PREFIX}_LLM_PROMPT_{NAME}`` environment variable;
+    3. ``{LLM_BASE_PROMPT_DIR}/{name}.md``;
+    4. the file bundled in ``prompt/markdown/``.
+    """
     cwd = os.getcwd()
     prompt_dir = CFG.LLM_PROMPT_DIR
 
-    # 1. Check for local project override (configured via LLM_PROMPT_DIR)
     custom = _find_custom_prompt(name, cwd, prompt_dir)
     if custom:
         return custom
 
-    # 2. Load from environment
     env_prefix = CFG.ENV_PREFIX
     env_value = os.getenv(f"{env_prefix}_LLM_PROMPT_{to_snake_case(name).upper()}", "")
     if env_value:
         return env_value
 
-    # 3. Check for base prompt directory (configured via LLM_BASE_PROMPT_DIR)
     base_prompt_dir = CFG.LLM_BASE_PROMPT_DIR
     if base_prompt_dir:
-        base_prompt_path = os.path.abspath(os.path.join(base_prompt_dir, f"{name}.md"))
-        if os.path.exists(base_prompt_path):
-            try:
-                with open(base_prompt_path, "r", encoding="utf-8") as f:
-                    return f.read()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Failed to read prompt {base_prompt_path}: {e}")
+        base = _read_prompt_file(
+            os.path.abspath(os.path.join(base_prompt_dir, f"{name}.md"))
+        )
+        if base is not None:
+            return base
 
-    # 4. Fallback to package default
     return _read_package_prompt(name)
 
 
@@ -82,16 +80,25 @@ def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
     Not cached: local overrides may be edited mid-session.
     """
     for search_path in _get_default_prompt_search_path(cwd):
-        local_prompt_path = os.path.abspath(
-            os.path.join(search_path, prompt_dir, f"{name}.md")
+        local = _read_prompt_file(
+            os.path.abspath(os.path.join(search_path, prompt_dir, f"{name}.md"))
         )
-        if os.path.exists(local_prompt_path):
-            try:
-                with open(local_prompt_path, "r", encoding="utf-8") as f:
-                    return f.read()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Failed to read prompt {local_prompt_path}: {e}")
+        if local is not None:
+            return local
     return ""
+
+
+def _read_prompt_file(path: str) -> str | None:
+    """The text of the prompt file at *path*; ``None`` when it is missing or
+    unreadable."""
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        CFG.LOGGER.debug(f"Failed to read prompt {path}: {e}")
+        return None
 
 
 def _get_default_prompt_search_path(cwd: str) -> tuple[str, ...]:
