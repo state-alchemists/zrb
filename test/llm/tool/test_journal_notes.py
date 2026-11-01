@@ -209,7 +209,9 @@ def test_write_journal_note_rejects_a_link_outside_the_journal(writable_journal)
     assert "outside the journal" in str(excinfo.value)
 
 
-@pytest.mark.parametrize("bad", ["Not Kebab", "trailing-", "under_score", ""])
+@pytest.mark.parametrize(
+    "bad", ["Not Kebab", "trailing-", "under_score", "", "kebab-case\n"]
+)
 def test_write_journal_note_rejects_a_bad_slug(writable_journal, bad):
     from zrb.llm.tool.journal_write import write_journal_note
 

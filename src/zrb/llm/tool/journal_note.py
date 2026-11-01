@@ -44,7 +44,7 @@ HUD_LINE_MAX_CHARS = 160
 # A keyword is something to search for, so a word this short (`the`, `and`, `for`)
 # matches most notes and ranks none of them.
 KEYWORDS_MIN_WORD_LENGTH = 4
-_SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_SLUG_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
 _FRONTMATTER_FENCE = "---"
 
 
@@ -98,7 +98,7 @@ def check_slug(slug: str) -> None:
     frontmatter into a file it never meant to touch. Categories are a fixed list
     but a slug is free text, so this is the boundary that has to hold.
     """
-    if not _SLUG_RE.match(slug):
+    if not _SLUG_RE.fullmatch(slug):
         raise ValueError(
             f"[SYSTEM SUGGESTION]: slug {slug!r} must be kebab-case "
             "(lowercase letters, digits, single hyphens)."
