@@ -26,11 +26,10 @@ class PasswordInput(BaseInput):
             allow_positional_parsing=allow_positional_parsing,
             always_prompt=always_prompt,
         )
-        self._is_secret = True
 
     @property
     def is_secret(self) -> bool:
-        return self._is_secret
+        return True
 
     def to_html(self, shared_ctx: AnySharedContext) -> str:
         name = html.escape(self.name)

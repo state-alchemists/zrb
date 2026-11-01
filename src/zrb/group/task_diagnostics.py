@@ -25,9 +25,6 @@ from zrb.task.any_task import AnyTask
 if TYPE_CHECKING:
     from zrb.callback.any_callback import AnyCallback
 
-# Edges that make a task reachable without a CLI word of its own.
-_TASK_EDGES = ("upstreams", "fallbacks", "successors", "readiness_checks")
-
 
 class TaskDiagnostic(NamedTuple):
     """One declared task, and why the CLI will not offer it as expected."""
@@ -236,8 +233,11 @@ def _reachable_tasks(root: AnyGroup) -> set[int]:
         if id(task) in ids:
             continue
         ids.add(id(task))
-        for edge in _TASK_EDGES:
-            pending.extend(getattr(task, edge, None) or [])
+        # Edges that make a task reachable without a CLI word of its own.
+        pending.extend(task.upstreams)
+        pending.extend(task.fallbacks)
+        pending.extend(task.successors)
+        pending.extend(task.readiness_checks)
         pending.extend(_callback_tasks(task))
     return ids
 

@@ -1,6 +1,6 @@
 from collections import deque
 from collections.abc import Callable, Iterable
-from typing import Any, SupportsIndex
+from typing import Any, Self, SupportsIndex
 
 
 class Xcom(deque[Any]):
@@ -14,6 +14,18 @@ class Xcom(deque[Any]):
     * **Single variable** — `set`/`get`. `set` keeps only the new value, and
       `get` returns the newest value.
     """
+
+    push_callbacks: list[Callable[[], Any]]
+    pop_callbacks: list[Callable[[], Any]]
+
+    def __new__(cls, *args: object, **kwargs: object) -> Self:
+        # `deque`'s constructor arguments are consumed by its own `__init__`;
+        # `__new__` only adds the callback lists, so `Xcom`'s public
+        # constructor stays `deque`'s.
+        xcom = super().__new__(cls)
+        xcom.push_callbacks = []
+        xcom.pop_callbacks = []
+        return xcom
 
     def __repr__(self) -> str:
         class_name = self.__class__.__name__
@@ -123,8 +135,6 @@ class Xcom(deque[Any]):
 
         Callbacks run in registration order; read the queue for the value.
         """
-        if not hasattr(self, "push_callbacks"):
-            self.push_callbacks: list[Callable[[], Any]] = []
         self.push_callbacks.append(callback)
 
     def append_pop_callback(self, callback: Callable[[], Any]) -> None:
@@ -132,18 +142,12 @@ class Xcom(deque[Any]):
 
         Fires for `pop`, `popleft`, and `popright` alike.
         """
-        if not hasattr(self, "pop_callbacks"):
-            self.pop_callbacks: list[Callable[[], Any]] = []
         self.pop_callbacks.append(callback)
 
     def __call_push_callbacks(self) -> None:
-        if not hasattr(self, "push_callbacks"):
-            return
         for callback in self.push_callbacks:
             callback()
 
     def __call_pop_callbacks(self) -> None:
-        if not hasattr(self, "pop_callbacks"):
-            return
         for callback in self.pop_callbacks:
             callback()

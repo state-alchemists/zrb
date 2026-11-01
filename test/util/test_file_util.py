@@ -2,7 +2,13 @@ import os
 
 import pytest
 
-from zrb.util.file import list_files, matches_any_pattern, read_file, write_file
+from zrb.util.file import (
+    list_files,
+    matches_any_pattern,
+    read_file,
+    read_text_file,
+    write_file,
+)
 
 
 def test_matches_any_pattern():
@@ -138,3 +144,17 @@ def test_matches_any_pattern_part_match():
     patterns = ["__pycache__"]
     assert matches_any_pattern("src/__pycache__/module.pyc", patterns) is True
     assert matches_any_pattern("node_modules/pkg/index.js", ["node_modules"]) is True
+
+
+def test_read_text_file_returns_text(tmp_path):
+    f = tmp_path / "note.txt"
+    f.write_text("hello", encoding="utf-8")
+    assert read_text_file(str(f)) == "hello"
+
+
+def test_read_text_file_raises_on_binary_where_read_file_returns_base64(tmp_path):
+    f = tmp_path / "blob.bin"
+    f.write_bytes(b"\x80\x81\xff")
+    assert read_file(str(f)) == "gIH/"
+    with pytest.raises(UnicodeDecodeError):
+        read_text_file(str(f))

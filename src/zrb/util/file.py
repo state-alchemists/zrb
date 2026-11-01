@@ -47,6 +47,16 @@ def read_file(file_path: str, replace_map: dict[str, str] | None = None) -> str:
     return content
 
 
+def read_text_file(file_path: str) -> str:
+    """Read *file_path* as UTF-8 text.
+
+    Unlike `read_file`, which hands binary content back as base64, this raises
+    `UnicodeDecodeError`: use it where the text is written back, so a binary
+    file is skipped rather than overwritten with its encoding.
+    """
+    return _read_text_file_content(os.path.abspath(os.path.expanduser(file_path)))
+
+
 def _read_text_file_content(file_path: str) -> str:
     with open(file_path, "r", encoding="utf-8") as f:
         return f.read()

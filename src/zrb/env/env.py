@@ -33,22 +33,22 @@ class Env(AnyEnv):
 
     @property
     def name(self) -> str:
-        """Get the environment variable name."""
+        """The variable's name on `ctx.env`."""
         return self._name
 
     @property
     def default(self) -> StrAttr:
-        """Get the default value."""
+        """The value used when the OS does not provide one."""
         return self._default
 
     @property
     def link_to_os(self) -> bool:
-        """Check if link_to_os is enabled."""
+        """Whether the value is read from the OS environment."""
         return self._link_to_os
 
     @property
     def os_name(self) -> str | None:
-        """Get the custom OS environment variable name."""
+        """The OS variable read instead of `name`, if one was set."""
         return self._os_name
 
     def update_context(self, shared_ctx: AnySharedContext):
