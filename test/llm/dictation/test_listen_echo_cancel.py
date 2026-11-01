@@ -130,12 +130,28 @@ async def _collect_echo_cancelled(
         ),
     ):
         task = asyncio.create_task(consume())
-        await asyncio.sleep(0)
         microphones = _FakeEchoCancelledMicrophone.instances
-        is_heard = microphones and not (fails or is_silent)
-        feed = microphones[0].callback if is_heard else None
+        will_hear_through_voice_processing = reason is None and not (fails or is_silent)
+
+        def feed_ready() -> bool:
+            if will_hear_through_voice_processing:
+                return bool(microphones) and hasattr(microphones[0], "callback")
+            return "callback" in captured
+
+        # How many loop turns `listen` needs before its input is open depends
+        # on the path it takes (a silent microphone is confirmed first, then the
+        # fallback opens PortAudio), so wait for the callback instead of
+        # guessing a count. A task that dies first stops the wait too.
+        for _ in range(2000):
+            if feed_ready() or task.done():
+                break
+            await asyncio.sleep(0.001)
+        if will_hear_through_voice_processing:
+            feed = microphones[0].callback
+        else:
+            feed = captured["callback"]
         for block in blocks:
-            (feed or captured["callback"])(block, len(block), None, None)
+            feed(block, len(block), None, None)
         return await task, captured, microphones
 
 
