@@ -71,9 +71,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     def __init__(self, uis: list[AnyUI], main_ui_index: int = 0):
         self._uis = uis
         self._main_ui_index = main_ui_index
-        self._responses: dict[int, asyncio.Future[str]] = {}
         self._last_output: str = ""
-        self._shutdown_event: asyncio.Event | None = None
         self._child_tasks: list[asyncio.Task] = []
         self._pending_input_tasks: list[asyncio.Task] = []
         self._message_queue: MessageQueue = MessageQueue()
@@ -903,8 +901,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
         self._last_result_data = None
 
-        self._shutdown_event = asyncio.Event()
-
         self._process_messages_task = asyncio.create_task(self.process_messages_loop())
 
         self.set_llm_task(main_ui.llm_task)
@@ -967,8 +963,6 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self._pending_input_tasks = []
 
     def on_exit(self):
-        if self._shutdown_event:
-            self._shutdown_event.set()
         for task in self._child_tasks:
             task.cancel()
         for task in self._pending_input_tasks:
