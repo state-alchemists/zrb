@@ -10,8 +10,13 @@ _{command_name}_complete() {
     local subcmd_output
     local cache_dir
     local cache_file
+    local -a cmd_words
 
-    cmd_input="{command_name} shell autocomplete subcmd ${words[1,CURRENT-1]}"
+    # The words typed so far are data: they are passed to the command as
+    # separate arguments and never parsed by the shell again, so a pasted
+    # $(...) or backtick in the line being completed does not run on Tab.
+    cmd_words=("${(@)words[1,CURRENT-1]}")
+    cmd_input="{command_name} shell autocomplete subcmd ${cmd_words[*]}"
 
     # Cache the subcommand list for a minute, keyed by cwd + the command
     # being completed, so repeated Tab presses don't pay a fresh process
@@ -27,7 +32,7 @@ _{command_name}_complete() {
     if [ -n "$(find "$cache_file" -mmin -1 2>/dev/null)" ]; then
         subcmd_output=$(cat "$cache_file")
     else
-        subcmd_output=$(eval "$cmd_input 2>/dev/null")
+        subcmd_output=$({command_name} shell autocomplete subcmd "${cmd_words[@]}" 2>/dev/null)
         printf '%s' "$subcmd_output" > "$cache_file"
     fi
 
