@@ -2,6 +2,8 @@
 released by the OS when its holder dies, and given up on by a caller that
 cancelled or ran out of time."""
 
+import os
+import stat
 import subprocess
 import sys
 import threading
@@ -154,3 +156,31 @@ def test_a_caller_cancelled_already_never_takes_a_free_lock(tmp_path):
 
     with hold_file_lock(path, timeout=0):  # free: nothing kept it
         pass
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX modes and symlinks")
+def test_a_new_lock_file_is_owner_only(tmp_path):
+    path = tmp_path / "op.lock"
+    previous_umask = os.umask(0o022)
+    try:
+        with hold_file_lock(str(path)):
+            pass
+    finally:
+        os.umask(previous_umask)
+
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX modes and symlinks")
+def test_a_symlink_at_the_lock_path_is_refused_not_written_through(tmp_path):
+    """Another local user can plant a symlink at a predictable lock path; the
+    lock must neither follow it nor create the file it dangles to."""
+    victim = tmp_path / "victim"
+    link = tmp_path / "op.lock"
+    link.symlink_to(victim)
+
+    with pytest.raises(OSError):
+        with hold_file_lock(str(link)):
+            pytest.fail("locked through a symlink")
+
+    assert not victim.exists()
