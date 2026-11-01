@@ -18,7 +18,8 @@ _BROAD = {"Exception", "BaseException"}
 # -3 (304->301): three handlers around code that cannot raise were removed (a
 # wrapper around `summarize_messages`, which already catches everything; the
 # construction of a `ModelRequest`; `os.path.isdir`).
-SWALLOWED_BROAD_EXCEPTS = 301
+# -1 (301->300): the two prompt-file reads share one handler.
+SWALLOWED_BROAD_EXCEPTS = 300
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:

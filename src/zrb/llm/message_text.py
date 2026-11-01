@@ -93,10 +93,9 @@ def model_request_to_text(
     from zrb.llm.util.history_formatter import format_multimodal_item
 
     parts = []
-    msg_parts = getattr(msg, "parts", [])
-    for p in msg_parts:
+    for p in getattr(msg, "parts", []):
         if isinstance(p, UserPromptPart):
-            content = getattr(p, "content", "")
+            content = p.content
             if isinstance(content, str):
                 parts.append(f"User: {content}")
             elif isinstance(content, Sequence):
@@ -108,17 +107,14 @@ def model_request_to_text(
             else:
                 parts.append(f"User: {str(content)}")
         elif isinstance(p, ToolReturnPart):
-            tool_name = getattr(p, "tool_name", "unknown_tool")
-            content = getattr(p, "content", None)
-            if content is not None:
-                clipped = _clip_tool_output(content, tool_output_limit)
-                parts.append(f"Tool Result ({tool_name}): {clipped}")
+            if p.content is not None:
+                clipped = _clip_tool_output(p.content, tool_output_limit)
+                parts.append(f"Tool Result ({p.tool_name}): {clipped}")
             else:
-                parts.append(f"Tool Result ({tool_name}): [No content]")
+                parts.append(f"Tool Result ({p.tool_name}): [No content]")
         elif isinstance(p, SystemPromptPart):
-            content = getattr(p, "content", "")
-            if content is not None:
-                parts.append(f"System: {content}")
+            if p.content is not None:
+                parts.append(f"System: {p.content}")
         else:
             parts.append(f"[Unknown part type: {type(p).__name__}]")
     return "\n".join(parts) if parts else "[Empty ModelRequest]"
@@ -131,30 +127,22 @@ def model_response_to_text(
     from zrb.llm.agent.types import FilePart, TextPart, ToolCallPart, ToolReturnPart
 
     parts = []
-    msg_parts = getattr(msg, "parts", [])
-    for p in msg_parts:
+    for p in getattr(msg, "parts", []):
         if isinstance(p, TextPart):
-            content = getattr(p, "content", "")
-            if content is not None:
-                parts.append(f"AI: {content}")
+            if p.content is not None:
+                parts.append(f"AI: {p.content}")
         elif isinstance(p, ToolCallPart):
-            tool_name = getattr(p, "tool_name", "unknown_tool")
-            args = getattr(p, "args", {})
-            args_str = str(args) if args is not None else "{}"
-            tool_call_id = getattr(p, "tool_call_id", "unknown_id")
-            parts.append(f"AI Tool Call [{tool_call_id}]: {tool_name}({args_str})")
+            args_str = str(p.args) if p.args is not None else "{}"
+            parts.append(f"AI Tool Call [{p.tool_call_id}]: {p.tool_name}({args_str})")
         elif isinstance(p, FilePart):
-            content = getattr(p, "content", None)
-            media_type = "unknown"
-            if content:
-                media_type = getattr(content, "media_type", "unknown")
+            media_type = (
+                getattr(p.content, "media_type", "unknown") if p.content else "unknown"
+            )
             parts.append(f"[AI Generated File: {media_type}]")
         elif isinstance(p, ToolReturnPart):
-            tool_name = getattr(p, "tool_name", "unknown_tool")
-            content = getattr(p, "content", None)
-            if content is not None:
-                clipped = _clip_tool_output(content, tool_output_limit)
-                parts.append(f"AI Tool Result ({tool_name}): {clipped}")
+            if p.content is not None:
+                clipped = _clip_tool_output(p.content, tool_output_limit)
+                parts.append(f"AI Tool Result ({p.tool_name}): {clipped}")
         else:
             parts.append(f"[Unknown response part: {type(p).__name__}]")
     return "\n".join(parts) if parts else "[Empty ModelResponse]"

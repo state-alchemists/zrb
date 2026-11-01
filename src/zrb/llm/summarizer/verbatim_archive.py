@@ -306,7 +306,7 @@ def _role_label(message: object) -> str:
     )
 
     if isinstance(message, ModelRequest):
-        parts = getattr(message, "parts", [])
+        parts = message.parts
         if any(isinstance(part, UserPromptPart) for part in parts):
             return "User"
         if any(isinstance(part, ToolReturnPart) for part in parts):

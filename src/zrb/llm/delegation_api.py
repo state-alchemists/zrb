@@ -7,6 +7,8 @@ time. This keeps layer-1 tools from importing layer-3 orchestration.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from zrb.llm.any_live_session_registry import AnyLiveSessionRegistry
 from zrb.llm.any_live_sub_agent_session import AnyLiveSubAgentSession
 from zrb.llm.any_sub_agent_manager import AnySubAgentManager as SubAgentManagerAPI
@@ -17,7 +19,7 @@ LiveSubAgentSessionLike = AnyLiveSubAgentSession
 
 _manager: SubAgentManagerAPI | None = None
 _live_registry: LiveSessionRegistryAPI | None = None
-_start_titling: callable | None = None  # type: ignore[assignment]
+_start_titling: Callable[..., None] | None = None
 
 
 def register_subagent_manager(manager: SubAgentManagerAPI) -> None:
@@ -48,7 +50,7 @@ def get_live_session_registry() -> LiveSessionRegistryAPI:
     return _live_registry
 
 
-def register_start_titling(func) -> None:  # object-typed callable
+def register_start_titling(func: Callable[..., None]) -> None:
     global _start_titling
     _start_titling = func
 
@@ -57,4 +59,4 @@ def start_titling(entry: object, text: str) -> None:
     """Start background titling for a live session, or no-op when unregistered."""
     fn = _start_titling
     if callable(fn):
-        fn(entry, text)  # type: ignore[misc]
+        fn(entry, text)

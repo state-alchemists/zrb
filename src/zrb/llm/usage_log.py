@@ -16,10 +16,10 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeVar
 
 from zrb.config.config import CFG
 from zrb.util.string.name import get_conversation_key
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from zrb.llm.agent.types import RunUsage
     from zrb.llm.journal_usage_log import JournalEvent
 
+_Record = TypeVar("_Record", "UsageRecord", "JournalEvent")
 _MONTH_FORMAT = "%Y-%m"
 _FILE_PREFIX = "usage-"
 _FILE_SUFFIX = ".jsonl"
@@ -201,7 +202,15 @@ def read_records(
     """
     records: list[UsageRecord] = []
     for path in store_files(_FILE_PREFIX, since, until, directory):
-        records.extend(_read_file(path, since, until, session_key))
+        records.extend(
+            read_month_file(
+                path,
+                _parse_line,
+                since,
+                until,
+                lambda record: session_key is None or record.session_key == session_key,
+            )
+        )
     records.sort(key=lambda record: record.timestamp)
     return records
 
@@ -261,43 +270,56 @@ def _files_in(base: str, prefix: str) -> list[str]:
     ]
 
 
-def _read_file(
+def read_month_file(
     path: str,
+    parse: Callable[[str], _Record | None],
     since: datetime | None,
     until: datetime | None,
-    session_key: str | None,
-) -> list[UsageRecord]:
-    """The records in one month file that fall inside the window."""
+    in_session: Callable[[_Record], bool],
+) -> list[_Record]:
+    """The records of one month file that *parse* accepts, that fall inside the
+    window and that satisfy *in_session*.
+
+    Shared with the journal event log, so both logs read a damaged file the same
+    way: an unreadable file is empty and an unreadable line is skipped.
+    """
     try:
         with open(path, encoding="utf-8") as handle:
             lines = handle.readlines()
     except OSError:
         return []
-    records: list[UsageRecord] = []
+    records: list[_Record] = []
     for line in lines:
-        record = _parse_line(line)
+        record = parse(line)
         if record is None:
             continue
         if since is not None and record.timestamp < as_datetime(since):
             continue
         if until is not None and record.timestamp > as_datetime(until):
             continue
-        if session_key is not None and record.session_key != session_key:
+        if not in_session(record):
             continue
         records.append(record)
     return records
 
 
-def _parse_line(line: str) -> UsageRecord | None:
-    """One JSONL line as a record, or ``None`` when it is not one."""
+def parse_line(
+    line: str, from_dict: Callable[[dict[str, object]], _Record], what: str
+) -> _Record | None:
+    """One JSONL line as a record via *from_dict*, or ``None`` when it is not
+    one. *what* names the line in the debug log."""
     text = line.strip()
     if not text:
         return None
     try:
-        return UsageRecord.from_dict(json.loads(text))
+        return from_dict(json.loads(text))
     except (json.JSONDecodeError, KeyError, TypeError, ValueError):
-        CFG.LOGGER.debug(f"Skipping an unreadable usage line: {text[:80]}")
+        CFG.LOGGER.debug(f"Skipping an unreadable {what}: {text[:80]}")
         return None
+
+
+def _parse_line(line: str) -> UsageRecord | None:
+    return parse_line(line, UsageRecord.from_dict, "usage line")
 
 
 def count_tool_calls(

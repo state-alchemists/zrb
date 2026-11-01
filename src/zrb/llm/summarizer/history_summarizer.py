@@ -1127,9 +1127,7 @@ def _is_synthetic_part(part: object, msg: object) -> bool:
 
 def _drop_synthetic_parts(msg: "ModelMessage") -> "ModelMessage":
     """*msg* without the parts compaction wrote."""
-    parts = [
-        part for part in getattr(msg, "parts", []) if not _is_synthetic_part(part, msg)
-    ]
+    parts = [part for part in msg.parts if not _is_synthetic_part(part, msg)]
     if len(parts) == len(msg.parts):
         return msg
     return replace(msg, parts=parts)
@@ -1152,7 +1150,7 @@ def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
             continue
         if any(
             isinstance(part, UserPromptPart) and not _is_synthetic_part(part, msg)
-            for part in getattr(msg, "parts", [])
+            for part in msg.parts
         ):
             return _drop_synthetic_parts(msg)
     return None

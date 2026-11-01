@@ -65,13 +65,11 @@ def get_default_prompt(name: str) -> str:
 
     base_prompt_dir = CFG.LLM_BASE_PROMPT_DIR
     if base_prompt_dir:
-        base_prompt_path = os.path.abspath(os.path.join(base_prompt_dir, f"{name}.md"))
-        if os.path.exists(base_prompt_path):
-            try:
-                with open(base_prompt_path, "r", encoding="utf-8") as f:
-                    return f.read()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Failed to read prompt {base_prompt_path}: {e}")
+        base = _read_prompt_file(
+            os.path.abspath(os.path.join(base_prompt_dir, f"{name}.md"))
+        )
+        if base is not None:
+            return base
 
     return _read_package_prompt(name)
 
@@ -82,16 +80,25 @@ def _find_custom_prompt(name: str, cwd: str, prompt_dir: str) -> str:
     Not cached: local overrides may be edited mid-session.
     """
     for search_path in _get_default_prompt_search_path(cwd):
-        local_prompt_path = os.path.abspath(
-            os.path.join(search_path, prompt_dir, f"{name}.md")
+        local = _read_prompt_file(
+            os.path.abspath(os.path.join(search_path, prompt_dir, f"{name}.md"))
         )
-        if os.path.exists(local_prompt_path):
-            try:
-                with open(local_prompt_path, "r", encoding="utf-8") as f:
-                    return f.read()
-            except Exception as e:
-                CFG.LOGGER.debug(f"Failed to read prompt {local_prompt_path}: {e}")
+        if local is not None:
+            return local
     return ""
+
+
+def _read_prompt_file(path: str) -> str | None:
+    """The text of the prompt file at *path*; ``None`` when it is missing or
+    unreadable."""
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        CFG.LOGGER.debug(f"Failed to read prompt {path}: {e}")
+        return None
 
 
 def _get_default_prompt_search_path(cwd: str) -> tuple[str, ...]:

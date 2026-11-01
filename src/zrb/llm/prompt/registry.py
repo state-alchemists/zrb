@@ -20,6 +20,13 @@ PromptList: TypeAlias = list[Any]
 PromptSetValue: TypeAlias = PromptList | Callable[[], PromptList] | None
 
 
+def resolve_prompt_set(value: PromptSetValue) -> PromptList:
+    """*value* as a list: a zero-argument callable is called, ``None`` is empty."""
+    if callable(value):
+        value = value()
+    return [] if value is None else list(value)
+
+
 class PromptDelta:
     """Ordered append/prepend/remove ops replayed over a base list."""
 
@@ -68,17 +75,10 @@ class PromptRegistry:
         self._prompts: PromptSetValue = None
         self._deltas = PromptDelta()
 
-    def _resolve(self, value: PromptSetValue) -> PromptList:
-        if callable(value):
-            value = value()
-        if value is None:
-            return []
-        return list(value)
-
     def get_prompts(self) -> PromptList:
         """The resolved prompts, with delta ops applied over the current base."""
         base = self._prompts if self._prompts is not None else self._default
-        return self._deltas.apply(self._resolve(base))
+        return self._deltas.apply(resolve_prompt_set(base))
 
     def set_prompts(self, value: PromptSetValue) -> None:
         """Replace the base wholesale (list or deferred callable) and clear delta ops."""
