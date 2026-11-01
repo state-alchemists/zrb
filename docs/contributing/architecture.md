@@ -32,7 +32,7 @@ Execution is highly abstracted and deeply nested to handle DAG (Directed Acyclic
 1. `run()` (or `async_run()`): Initializes the `Session` and `SharedContext`.
 2. `exec_root_tasks()`: Identifies tasks with no upstreams and starts their chains.
 3. `exec_chain()`: Concurrently runs a task and, upon success, its `successors`.
-4. `execute_action_until_ready()`: Evaluates `execute_condition` and runs `readiness_checks` concurrently before executing the main action.
+4. `execute_task_action()` evaluates `execute_condition`; `execute_action_until_ready()` then runs `readiness_checks` concurrently with the main action.
 5. `execute_action_with_retry()`: Contains the core try/catch, retry loop, XCom pushing, and triggers `fallbacks` on failure.
 
 For the design behind this flow and a diagram of it, see [Architecture → Task Execution](../architecture/1-spine/task-execution.md).
@@ -80,7 +80,7 @@ Because Zrb is highly decoupled, objects often need to reference each other (e.g
 
 ### Developer-Centric Error Tracking
 When an exception occurs deep within `asyncio.gather`, standard tracebacks are often useless.
-* **Convention:** The `BaseTask` constructor captures the exact file and line number where the user defined the task (`self.__decl_file`, `self.__decl_line`) using the `inspect` module.
+* **Convention:** The `BaseTask` constructor captures the file and line where the user declared the task, skipping the task's own `__init__` chain and `make_task` so a `CmdTask(...)` or `@make_task` reports the user's line (`_declaration_site` in `src/zrb/task/base/base_task.py`).
 * **Usage:** When an action fails, this metadata is injected into the exception notes (`e.add_note()`). Always preserve this mechanism so the user knows *which of their defined tasks* caused the crash.
 
 ### F-String Rendering

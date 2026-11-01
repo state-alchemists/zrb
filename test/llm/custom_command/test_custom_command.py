@@ -3,6 +3,7 @@
 import pytest
 
 from zrb.llm.custom_command.custom_command import CustomCommand
+from zrb.llm.custom_command.resolver import get_custom_command_match
 
 
 class TestCustomCommandInit:
@@ -283,3 +284,32 @@ class TestCustomCommandArgOrder:
         third_idx = desc.index("<third>")
 
         assert first_idx < second_idx < third_idx
+
+
+class TestDefaultsThroughDispatch:
+    "`${name:-default}` must apply when the user leaves the argument out."
+
+    def test_default_applies_when_the_user_omits_the_argument(self):
+        # Dispatch fills every declared argument, with "" for one not typed.
+        cmd = CustomCommand(
+            command="/deploy",
+            prompt="deploy to ${env:-production} using ${target:-all}",
+            args=["env", "target"],
+        )
+
+        match = get_custom_command_match("/deploy staging", [cmd])
+
+        assert match is not None
+        assert cmd.get_prompt(match[1]) == "deploy to staging using all"
+
+    def test_default_applies_when_no_argument_is_typed(self):
+        cmd = CustomCommand(
+            command="/deploy",
+            prompt="deploy to ${env:-production}",
+            args=["env"],
+        )
+
+        match = get_custom_command_match("/deploy", [cmd])
+
+        assert match is not None
+        assert cmd.get_prompt(match[1]) == "deploy to production"

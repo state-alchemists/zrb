@@ -6,7 +6,7 @@ running turn as soon as that turn reaches a safe checkpoint (the start of its
 next model request), so an instruction given mid-turn is read without waiting
 for the turn to end; an entry the user is editing, and one younger than
 `EARLY_DELIVERY_GRACE_SECONDS`, is left until the next checkpoint so Up Arrow
-can still catch it (ADR-0078, revised). `Ctrl+G` (`send_queued_messages_now`)
+can still catch it (ADR-0078). `Ctrl+G` (`send_queued_messages_now`)
 skips both waits, for a user who wants the words in now.
 
 Entries are mutable and `run` reads `entry.text` at execution time, so
@@ -284,10 +284,8 @@ def submit_user_message_via_queue(
     Every submission is queued, whether or not a turn is running. A message
     typed mid-turn therefore waits where the user can see it, edit it
     (Up/Enter), delete it (Ctrl+X) or send it into the live run on demand
-    (Ctrl+G, `send_queued_messages_now`). Handing it to the live run at submit
-    time — what this did before — made that message uneditable the moment it
-    was sent, and made Up Arrow's meaning depend on whether a run context
-    happened to be registered.
+    (Ctrl+G, `send_queued_messages_now`); Up Arrow means the same whatever
+    run context happens to be registered.
 
     A standalone UI passes `[self]` as `attachment_sources` and `echo_targets`;
     a `MultiUI` passes its children.
@@ -463,27 +461,21 @@ def _reflect_merged(
         CFG.LOGGER.debug(f"Child UI merged-echo fallback failed: {e}")
 
 
-def _emit_echo_to(target: Any, header: str, body: str) -> None:
+def _emit_echo_to(target: AnyUI, header: str, body: str) -> None:
     """Write an ordinary user echo to this target only, never a broadcast,
     so a child that already redrew in place gets no duplicate."""
-    append = getattr(target, "append_to_output", None)
-    if not callable(append):
-        return
     markdown = getattr(target, "append_markdown", None)
     echo_user_message(
-        append,
+        target.append_to_output,
         markdown if callable(markdown) else None,
         header=header,
         body=body,
     )
 
 
-def _emit_echo_verbatim_to(target: Any, header: str, body: str) -> None:
+def _emit_echo_verbatim_to(target: AnyUI, header: str, body: str) -> None:
     """Write one target's merged paste line verbatim, never rendered."""
-    append = getattr(target, "append_to_output", None)
-    if not callable(append):
-        return
-    append(f"{header}{body}\n")
+    target.append_to_output(f"{header}{body}\n")
 
 
 def _is_paste_burst(

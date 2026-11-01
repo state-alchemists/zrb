@@ -209,7 +209,6 @@ class SubAgentBuilding:
         else:
             effective_yolo = make_yolo_inheritance_checker()
 
-        # Resolve model so section factories can use it
         final_model = resolve_configured_model(definition.model)
 
         # Sections named in the agent's ``inherit_sections`` frontmatter come

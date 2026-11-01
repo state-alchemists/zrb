@@ -30,9 +30,11 @@ SRC = REPO_ROOT / "src" / "zrb"
 # into the layout, so each builds its own `Frame` from typed state.
 # -2 (1054->1052): `subtree_model`'s `to_dict` returns `dict[str, object]` — it
 # only passes values through to `json.dumps`.
-# -1 (1052->1051): the ffmpeg camera backend's device cache is typed fields
+# -3 (1052->1049): the two echo emitters take an `AnyUI` target and
+# `_restore_snapshot` takes a `SnapshotManager`.
+# -1 (1049->1048): the ffmpeg camera backend's device cache is typed fields
 # rather than a `dict[str, Any]`.
-ANY_ANNOTATIONS = 1051
+ANY_ANNOTATIONS = 1048
 
 
 def _count_any(annotation: ast.expr | None) -> int:

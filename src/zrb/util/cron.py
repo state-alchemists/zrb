@@ -78,11 +78,9 @@ def match_cron(cron_pattern: str, dt: datetime.datetime):
     hours = parse_cron_field(hour, 0, 23)
     days = parse_cron_field(day, 1, 31)
     months = parse_cron_field(month, 1, 12)
-    # Max 7, not 6: cron accepts 7 for Sunday (the match below maps it to 0).
+    # Max 7, not 6: cron accepts 7 for Sunday, treated as equivalent to 0.
     days_of_week = parse_cron_field(day_of_week, 0, 7)
-    # Convert Python's weekday (Mon=0..Sun=6) to cron's convention (Sun=0..Sat=6).
-    # `isoweekday() % 7` maps Sun(7)->0, Mon(1)->1, ..., Sat(6)->6. Cron also
-    # accepts 7 for Sunday, so treat it as equivalent to 0.
+    # Cron's day of week is Sun=0..Sat=6; `isoweekday() % 7` maps Sun(7) to 0.
     cron_dow = dt.isoweekday() % 7
     day_of_month_match = dt.day in days
     weekday_match = cron_dow in days_of_week or (cron_dow == 0 and 7 in days_of_week)

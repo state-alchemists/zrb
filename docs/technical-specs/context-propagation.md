@@ -118,7 +118,7 @@ Client-supplied display names are fine for labels and history files, never for o
 Zrb is fully asyncio-based, and thread-locals don't work with coroutines (many share a thread). A global dict keyed on task/session ID would work but needs lookups and manual lifecycle management. `ContextVar` integrates with the asyncio scheduler:
 
 - `asyncio.create_task()` automatically copies the current context to the new task (PEP 567).
-- `asyncio.gather()` runs coroutines in-place, sharing the caller's context.
+- `asyncio.gather()` wraps each coroutine in a task, so each one starts with a copy of the caller's context; a `ContextVar` set inside one does not reach the caller or its siblings.
 - Token-based `reset()` ensures correct cleanup even if exceptions occur.
 
 ## Known Inefficiency: `env` Dict Copy

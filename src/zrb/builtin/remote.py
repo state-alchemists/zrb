@@ -2,6 +2,7 @@ import json
 from collections.abc import Sequence
 
 from zrb.builtin.group import remote_group
+from zrb.config.env_field import comma_list
 from zrb.context.any_context import AnyContext
 from zrb.input.int_input import IntInput
 from zrb.input.option_input import OptionInput
@@ -37,12 +38,8 @@ _timeout_input = IntInput(
 )
 
 
-def _split_labels(text: str) -> list[str]:
-    return [label.strip() for label in text.split(",") if label.strip()]
-
-
 def _select_hosts(ctx: AnyContext) -> list[Host]:
-    hosts = host_inventory.select(_split_labels(ctx.input.host_labels))
+    hosts = host_inventory.select(comma_list(ctx.input.host_labels))
     if not hosts:
         raise ValueError(
             "[SYSTEM SUGGESTION] No host matches the given labels. Register hosts "
@@ -145,7 +142,7 @@ async def remote_run(ctx: AnyContext) -> str:
 )
 async def remote_check(ctx: AnyContext) -> str:
     hosts = _select_hosts(ctx)
-    targets = target_inventory.select(_split_labels(ctx.input.target_labels))
+    targets = target_inventory.select(comma_list(ctx.input.target_labels))
     if not targets:
         raise ValueError(
             "[SYSTEM SUGGESTION] No target matches the given labels. Register "

@@ -40,21 +40,26 @@ async def get_clipboard_image() -> bytes | None:
         return None
 
 
+def _grab_clipboard_png() -> bytes | None:
+    """The clipboard image as PNG bytes through Pillow; `ImportError` without it."""
+    # lazy: heavy third-party
+    from PIL import ImageGrab
+
+    img = ImageGrab.grabclipboard()
+    # grabclipboard() returns an Image, a list of file paths, or None.
+    if img is None or isinstance(img, list):
+        return None
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 # macOS
 
 
 async def _macos() -> bytes | None:
     try:
-        # lazy: heavy third-party
-        from PIL import ImageGrab
-
-        img = await asyncio.to_thread(ImageGrab.grabclipboard)
-        # grabclipboard() returns an Image, a list of file paths, or None.
-        if img is None or isinstance(img, list):
-            return None
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        return buf.getvalue()
+        return await asyncio.to_thread(_grab_clipboard_png)
     except ImportError:
         return await _macos_osascript()
 
@@ -104,16 +109,7 @@ async def _macos_osascript() -> bytes | None:
 
 def _windows() -> bytes | None:
     try:
-        # lazy: heavy third-party
-        from PIL import ImageGrab
-
-        img = ImageGrab.grabclipboard()
-        # grabclipboard() returns an Image, a list of file paths, or None.
-        if img is None or isinstance(img, list):
-            return None
-        buf = io.BytesIO()
-        img.save(buf, format="PNG")
-        return buf.getvalue()
+        return _grab_clipboard_png()
     except ImportError:
         return None  # Pillow is required on Windows; handled by caller
 

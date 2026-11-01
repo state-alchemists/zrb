@@ -1,7 +1,7 @@
 """Omit ``content: null`` from tool-call-only OpenAI-compatible messages.
 
-The patch runs at import time against pydantic-ai's private serializer; history
-sanitization remains the complementary object-layer safeguard."""
+The patch targets pydantic-ai's private serializer; history sanitization is the
+complementary object-layer safeguard. `run_agent` applies it once per process."""
 
 from typing import Any
 
@@ -11,11 +11,11 @@ from zrb.config.config import CFG
 def patch_openai_model_response_serialization():
     """Monkey-patch pydantic-ai's OpenAI model to omit ``content: null`` in assistant messages with tool calls.
 
-    Applied once at module load. If pydantic-ai renames or restructures the
-    internal it targets, the patch can no longer apply — and DeepSeek (and
-    other OpenAI-compatible providers) silently regress to ``content: null``
-    rejections. To make that regression diagnosable rather than invisible, the
-    failure path logs a warning instead of swallowing the exception.
+    If pydantic-ai renames or restructures the internal it targets, the patch can
+    no longer apply — and DeepSeek (and other OpenAI-compatible providers)
+    silently regress to ``content: null`` rejections. The failure path logs a
+    warning instead of swallowing the exception, so that regression is
+    diagnosable.
     """
     try:
         # lazy: heavy third-party

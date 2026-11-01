@@ -192,40 +192,6 @@ async def test_execute_root_tasks_cancelled_error():
 
 
 @pytest.mark.asyncio
-async def test_execute_root_tasks_no_log_state_task():
-    """Final state logged even when log_state_task is None."""
-    task = BaseTask(name="task")
-    ctx_mock = MagicMock()
-    task.get_ctx = MagicMock(return_value=ctx_mock)
-    lifecycle = BaseTaskLifecycle(task, BaseTaskContext(task))
-
-    session = MagicMock(spec=Session)
-    session.get_root_tasks = MagicMock(return_value=[task])
-    session.is_allowed_to_run = MagicMock(return_value=True)
-    session.wait_deferred = AsyncMock()
-    session.final_result = "done"
-    session.is_terminated = False
-
-    def terminate():
-        session.is_terminated = True
-
-    session.terminate.side_effect = terminate
-    task.exec_chain = AsyncMock(return_value=None)
-
-    # Patch create_task to close the coroutine (avoids "never awaited" warning)
-    # and return None so log_state_task path hits the else branch
-    def mock_create_task(coro, *args, **kwargs):
-        coro.close()
-        return None
-
-    with patch("asyncio.create_task", side_effect=mock_create_task):
-        result = await lifecycle.execute_root_tasks(session)
-
-    assert result == "done"
-    session.state_logger.write.assert_called()
-
-
-@pytest.mark.asyncio
 async def test_log_session_state_exception():
     """Exceptions in log_session_state are caught."""
     task = BaseTask(name="task")

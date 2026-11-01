@@ -144,8 +144,8 @@ def _notes_line(events: list[JournalEvent]) -> str:
 def _judge_line(events: list[JournalEvent]) -> str:
     """How often the compliance judge ran, and what came of it.
 
-    A dispatch with no completion is a run that never came back — the case that
-    used to look identical to a judge deciding to skip."""
+    A dispatch with no completion is a run that never came back, which is not the
+    same as a judge deciding to skip."""
     dispatched = sum(1 for event in events if event.event == JUDGING)
     finished = [event for event in events if event.event == JUDGED]
     if not dispatched and not finished:

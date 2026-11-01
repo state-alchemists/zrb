@@ -255,7 +255,7 @@ def test_running_the_cli_twice_does_not_leak_a_file_handler(tmp_path, monkeypatc
         first = [
             handler
             for handler in CFG.LOGGER.handlers
-            if getattr(handler, "_zrb_log_file_handler", False)
+            if isinstance(handler, logging.FileHandler)
         ]
         assert len(first) == 1
 

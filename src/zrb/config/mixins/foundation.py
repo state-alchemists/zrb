@@ -20,8 +20,8 @@ from zrb.config.helper import (
     get_current_shell,
     get_default_diff_edit_command,
     get_log_level,
-    is_termux,
 )
+from zrb.util.platform import is_termux
 from zrb.util.string.conversion import to_boolean
 from zrb.util.string.format import fstring_format
 
@@ -74,6 +74,8 @@ class FoundationMixin:
         self.DEFAULT_INIT_FILE_NAME: str = "zrb_init.py"
         self.DEFAULT_INIT_STRICT: str = "auto"
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
+        self.DEFAULT_LOGGING_FILE_MAX_BYTES: str = str(10 * 1024 * 1024)
+        self.DEFAULT_LOGGING_FILE_BACKUP_COUNT: str = "3"
         self.DEFAULT_ENABLE_BUILTIN_TASKS: str = "on"
         self.DEFAULT_SHOW_UNRECOMMENDED_COMMAND_WARNING: str = "on"
         # Name fragments that mark an environment variable as holding a

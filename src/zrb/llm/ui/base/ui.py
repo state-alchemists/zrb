@@ -367,17 +367,17 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def history_manager(self) -> AnyHistoryManager:
-        """Public read accessor for the conversation history manager."""
+        """The conversation history manager."""
         return self._history_manager
 
     @property
     def snapshot_manager(self) -> "SnapshotManager | None":
-        """Public read accessor for the snapshot manager (may be None)."""
+        """The snapshot manager, or None when rewind is off."""
         return self._snapshot_manager
 
     @property
     def background_tasks(self) -> "set[asyncio.Task]":
-        """Public read accessor for the background-task set."""
+        """Tasks kept referenced so the event loop does not drop them."""
         return self._background_tasks
 
     @property
@@ -400,7 +400,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def pending_attachments(self) -> list[Any]:
-        """Public read accessor for attachments queued for the next turn."""
+        """Attachments queued for the next turn."""
         return self._pending_attachments
 
     @property
@@ -414,7 +414,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     @property
     def message_queue(self) -> Any:
-        """Public read accessor for the pending-message queue."""
+        """The pending-message queue."""
         return self._message_queue
 
     btw_commands = _command_alias_property("btw", "`/btw` (side-question)")
@@ -1010,8 +1010,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         Called by the run loop as it builds its next model request, so a
         message typed mid-turn is read within that turn instead of after it.
         Only the entries the queue calls ready go — not one being edited, and
-        none inside its grace window — and nothing is interrupted (ADR-0078,
-        revised).
+        none inside its grace window — and nothing is interrupted (ADR-0078).
         """
         return self.send_queued_messages_now(may_interrupt=False, only_ready=True)
 
@@ -1070,7 +1069,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
         A UI that lays a run's output out in a column overrides this, so the
         answer lands in that column instead of jumping to the margin; without
-        an override it is rendered at the margin, as it always was.
+        an override it is rendered at the margin.
         """
         self.append_markdown(markdown_text)
 

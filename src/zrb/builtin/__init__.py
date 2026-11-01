@@ -4,7 +4,7 @@
 #
 # `llm_chat` is the one name reached through `__getattr__` below, because its
 # module builds an `LLMChatTask` out of pydantic and pydantic-ai: importing it
-# here would put ~0.21s on every command, `zrb --help` included.
+# here would load both on every command, `zrb --help` included.
 # `builtin/llm/deferred.py` registers a stand-in the CLI resolves on dispatch.
 
 # `import typing` rather than `from typing import TYPE_CHECKING`: the AST check in

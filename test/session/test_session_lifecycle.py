@@ -399,7 +399,7 @@ def test_as_state_log_masks_secret_input():
     """Secret input values must be masked before reaching the state log."""
     from zrb.context.shared_context import SharedContext
     from zrb.input.password_input import PasswordInput
-    from zrb.session.session import SECRET_MASK
+    from zrb.util.secret import SECRET_MASK
 
     shared_ctx = SharedContext()
     shared_ctx.input["password"] = "hunter2"

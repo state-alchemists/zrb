@@ -184,7 +184,7 @@ class UISideQuestion:
         self._invalidate()
 
     def rewrap(self) -> None:
-        """Re-render the shown answer at the current width (public API).
+        """Re-render the shown answer at the current width.
 
         `end` renders markdown to plain styled lines once; without this, a
         resize after the answer lands would leave it wrapped for the old
