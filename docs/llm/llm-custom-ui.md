@@ -362,7 +362,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `send_queued_messages_now()` | `BaseUI` and `MultiUI` run the ladder; a UI with no queue reports `NOTHING_MOVED` | Deliver the queued messages into the running turn on demand — the default TUI's `Ctrl+G`. Returns a `DeliveryReport` from `zrb.llm.ui.base.queue_delivery` (`DELIVERED_EARLY`, `DELIVERED_PARTIAL`, `FELL_BACK_TO_CANCEL`, `WAITING_ON_DIALOG` or `NOTHING_MOVED`, plus how many messages moved); the ladder waits while a dialog owns the input, else steers into the live run, else interrupts the turn. It takes *everything* queued, since the user asked: no edit hold, no grace. See [ADR-0116](../adr/adr-0116.md). A class implementing `AnyUI` directly must define it |
 | `submit_message(text, source=KEYBOARD_INPUT)` / `submit_user_message(task, text, source=KEYBOARD_INPUT)` | Queues the text for the next turn | Feed a message in from your backend. It always joins the queue and stays editable there; a turn that is already running takes it at its next checkpoint, once it is neither being edited nor inside its one-second grace. `source` is the turn's [input provenance](#input-provenance) |
 | `submit_message_now(text, source=None, may_interrupt=True)` | Submits, then asks the ladder for the ready entries | Submit and hand the message to the running turn at its earliest safe model request — hands-free speech's path, which passes `may_interrupt=False` so a spoken message never stops work. It skips the grace for *its own* new entry only: a message being edited, or another draft inside its grace, still waits. `Ctrl+G` is the only caller that drains everything |
-| `deliver_queued_messages_early()` | `BaseUI` and `MultiUI` implement it | The checkpoint's own call: the run loop asks the UI at each checkpoint to deliver the ready entries, interrupting nothing. It is looked up with `getattr`, so a backend that keeps a queue of its own needs a method of this name to get mid-turn delivery without a key press |
+| `deliver_queued_messages_early()` | `BaseUI` and `MultiUI` run the ladder; any other UI reports `NOTHING_MOVED` | The checkpoint's own call: the run loop asks the UI at each checkpoint to deliver the ready entries, interrupting nothing. A backend that keeps a queue of its own overrides it to get mid-turn delivery without a key press |
 | `submit_answer(text)` | Submits `text` as a message (`EventDrivenUI` and the default TUI answer the pending prompt instead) | Answer the pending approval or question; `TriggerReply` uses it |
 | `is_waiting_for_choice` / `pending_answer_since` | `False` / `None` | Whether the pending prompt is a multiple-choice question rather than an approval, and the `time.monotonic()` time it appeared. A UI that returns `None` gets no timed `TriggerReply` answers |
 | `begin_side_question(question)` | Echoes the question into the transcript, flagged as not saved to history | Show a `/btw` side question while its answer is on the way, and return a token naming it. Override this and the three methods below to put it somewhere other than the transcript — the terminal UI fills a panel above the input instead, where `Enter` or `Esc` closes it and gives the input its focus back without sending the draft it holds |
@@ -370,7 +370,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `fail_side_question(message, request=None)` | Writes the error into the transcript | Report a side question that could not be answered |
 | `cancel_side_question(request=None)` | Writes `[Cancelled]` | Note that a side question was cancelled, and close whatever showed it |
 
-`record_tool_call_block`, `mark_thinking_block_start` and `collapse_thinking_block` are looked up with `getattr(ui, name, None)` — implement them only for collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`).
+`record_tool_call_block`, `mark_thinking_block_start` and `collapse_thinking_block` are declared by `AnyUI` and called directly; `BaseUI` and `UIStateDefaultsMixin` supply the defaults — override them only for collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`).
 
 ### State every `AnyUI` must define
 
@@ -653,29 +653,39 @@ All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDe
 
 ### Optional enrichment hooks
 
-`MultiUI` forwards these richer output events to children that implement them, and skips children that don't — which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`. All but `set_status_badge` are left out of `AnyUI` for the same reason. Implement one only when your channel renders it better than a plain line:
+`AnyUI` declares these as abstract methods and every caller invokes them directly. The defaults in the table live in `BaseUI` and `UIStateDefaultsMixin`, so a UI built on either overrides only the hooks it renders better; a class that implements `AnyUI` without them must define every hook itself. `MultiUI` forwards each one to all of its children; a child that does not override a hook gets the default, which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`:
 
-| Hook | Fired when |
-| --- | --- |
-| `accumulate_usage(usage, context_usage)` | A run reports token totals — needed for a session token meter |
-| `reset_context_usage()` | `/compress` compacted the history, so the meter's context size is stale until the next run |
-| `append_markdown(markdown_text)` | Markdown reaches the pane (the assistant's answer, or a markdownish user paste) — a child without it gets the pre-rendered text |
-| `append_answer(markdown_text)` | The turn's answer, the text the reader keeps — a channel that lays a run's output out in a column renders it there, so it stays where the streamed copy was instead of jumping to the margin. A child without it still gets the answer, through `append_markdown` |
-| `mark_text_block_start()` | The assistant begins a text block |
-| `collapse_text_block(collapsed, full)` | The run's final text block ends, with a short and a full form |
-| `settle_text_block(source)` | A text block ends because a tool call (or another part) follows, not because the turn answered — render `source`, the block's own text, in full instead of collapsing it; the final reply follows through `append_answer`. The column the block was streamed at arrives separately, through `set_stream_indentation` |
-| `set_stream_indentation(indent)` | The run's streamed lines wrap at this column (five spaces in the default layout). `settle_text_block` puts the settled prose there so it stays where the reader was reading; a channel without this hook keeps its own layout. The default UI starts at that five-space column, so a replayed answer lands there before any run has reported its own |
-| `mark_thinking_block_start()` | The assistant begins a reasoning block |
-| `collapse_thinking_block(collapsed, full)` | That reasoning block ends |
-| `update_tool_prepare(key, text)` | A tool call is being prepared |
-| `start_tool_call(tool_name, tool_call_id)` | A tool call is about to execute — a child records the running tool for its status-bar timer |
-| `end_tool_call(tool_call_id)` | That tool call finished — a child clears its running-tool timer; `tool_call_id` is `None` at run end and turn start, where every active call is cleared |
-| `update_shell_output(key, text)` | A running shell command emits output |
-| `finish_shell_output(key, collapsed, full)` | That shell command completes |
-| `record_tool_call_block(collapsed, full)` | A tool call and its result are printed — a child without it gets the collapsed line |
-| `replay_history(messages)` | A conversation is replayed on resume |
-| `set_status_badge(key, text)` | A feature sets or clears its one-line status badge |
-| `update_system_info()` | A turn ended and the child should refresh its system/git status line |
+| Hook | Fired when | Default |
+| --- | --- | --- |
+| `accumulate_usage(usage, context_usage=None)` | A run reports token totals — needed for a session token meter | No-op |
+| `reset_context_usage()` | `/compress` compacted the history, so the meter's context size is stale until the next run | No-op |
+| `append_markdown(markdown_text)` | Markdown reaches the pane (the assistant's answer, or a markdownish user paste) | Renders the text and writes it with `append_to_output` |
+| `append_answer(markdown_text)` | The turn's answer, the text the reader keeps — a channel that lays a run's output out in a column renders it there, so it stays where the streamed copy was instead of jumping to the margin | Calls `append_markdown` |
+| `mark_text_block_start()` | The assistant begins a text block | No-op |
+| `collapse_text_block(collapsed, full)` | The run's final text block ends, with a short and a full form | No-op, returns `None` |
+| `settle_text_block(source)` | A text block ends because a tool call (or another part) follows, not because the turn answered — render `source`, the block's own text, in full instead of collapsing it; the final reply follows through `append_answer`. The column the block was streamed at arrives separately, through `set_stream_indentation` | No-op: the streamed copy stays |
+| `set_stream_indentation(indent)` | The run's streamed lines wrap at this column (five spaces in the default layout). `settle_text_block` puts the settled prose there so it stays where the reader was reading. The default UI starts at that five-space column, so a replayed answer lands there before any run has reported its own | No-op: the channel keeps its own layout |
+| `mark_thinking_block_start()` | The assistant begins a reasoning block | No-op |
+| `collapse_thinking_block(collapsed, full)` | That reasoning block ends | No-op, returns `None` |
+| `start_tool_call(tool_name, tool_call_id)` | A tool call is about to execute — a child records the running tool for its status-bar timer | No-op |
+| `end_tool_call(tool_call_id)` | That tool call finished — a child clears its running-tool timer; `tool_call_id` is `None` at run end and turn start, where every active call is cleared | No-op |
+| `record_tool_call_block(collapsed, full)` | A tool call and its result are printed | Writes the collapsed line with `append_to_output(collapsed, end="", kind="tool_call")` |
+| `replay_history(messages)` | A conversation is replayed on resume | Writes the history as plain text with `append_to_output` |
+| `update_system_info()` | A turn ended and the child should refresh its system/repository status line (a coroutine) | No-op |
+| `record_submitted_message(text)` | The user submitted a message | No-op |
+| `take_pending_attachments()` | A message is about to be queued and collects the attachments every UI holds | Returns `[]` |
+| `track_rendered_echo(entry, header)` | A user message whose body was rendered as Markdown is echoed, so the UI can record where the echo landed | No-op |
+| `redraw_echoes(entries)` | Queued messages were just delivered into the running turn, so their echoed lines change marker | No-op |
+| `deliver_queued_messages_early()` | The run loop reaches a checkpoint | Reports `NOTHING_MOVED` |
+| `set_status_badge(key, text)` | A feature sets or clears its one-line status badge | No-op |
+
+Three more hooks are not declared on `AnyUI`, because a UI that has them behaves differently from one that does not, not merely less. The run asks each UI whether it offers them:
+
+| Hook | Fired when | A UI without it |
+| --- | --- | --- |
+| `update_tool_prepare(key, text)` | A tool call is being prepared | The stream prints its own `\r`-animated "Prepare tool parameters" line |
+| `update_shell_output(key, text)` | A running shell command emits output | The command's output is printed live, line by line |
+| `finish_shell_output(key, collapsed, full)` | That shell command completes | Same: together with `update_shell_output`, the pair turns the output into one collapsible line |
 
 ---
 

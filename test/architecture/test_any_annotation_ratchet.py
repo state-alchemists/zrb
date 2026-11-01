@@ -40,7 +40,10 @@ SRC = REPO_ROOT / "src" / "zrb"
 # -3 (1044->1041): `_render_parts` dropped its unused `model` parameter,
 # `_create_summary_model_request` returns `ModelMessage`, and the
 # `_summarize_fat_messages` wrapper is gone.
-ANY_ANNOTATIONS = 1041
+# -3 (1041->1038): `submit_user_message_via_queue` and `_collect_attachments`
+# take `Sequence[AnyUI]` sources now that `take_pending_attachments` is declared
+# on `AnyUI`, and `_collect_attachments` no longer types a probed callable.
+ANY_ANNOTATIONS = 1038
 
 
 def _count_any(annotation: ast.expr | None) -> int:

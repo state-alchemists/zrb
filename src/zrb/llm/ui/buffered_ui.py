@@ -253,9 +253,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         `context_usage` is not forwarded: this sub-agent's context window is
         not the parent's.
         """
-        accumulate = getattr(self._wrapped, "accumulate_usage", None)
-        if accumulate is not None:
-            accumulate(usage)
+        self._wrapped.accumulate_usage(usage)
 
     def get_buffered_output(self) -> str:
         """Get all buffered output."""

@@ -2,8 +2,22 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.llm.any_ui import AnyUI
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.ui.ui_config import UIConfig
+from zrb.llm.ui_fallback.std_ui import StdUI
+from zrb.util.cli.markdown import render_markdown
+
+
+class _TextOnlyUI(StdUI):
+    """A UI that keeps no markdown step and records what it is asked to write."""
+
+    def __init__(self):
+        super().__init__()
+        self.appended: list[str] = []
+
+    def append_to_output(self, text="", **kwargs):
+        self.appended.append(text)
 
 
 class MockLLMChatTask:
@@ -117,13 +131,14 @@ async def test_run_non_interactive_session(runner):
 
 @pytest.mark.asyncio
 async def test_run_non_interactive_session_finalizes_attached_uis(runner):
-    """A string result is handed to every attached UI's append_markdown."""
+    """A string result is handed to every attached UI's append_answer; one with
+    no markdown step of its own gets it rendered."""
     ctx = MagicMock()
     ctx.shared_print = MagicMock()
     ctx.xcom = {}
 
-    ui_with_markdown = MagicMock(spec=["append_markdown"])
-    ui_without_markdown = MagicMock(spec=[])  # e.g. a UI with no rich rendering
+    ui_with_markdown = MagicMock(spec=AnyUI)
+    ui_without_markdown = _TextOnlyUI()  # e.g. a UI with no rich rendering
 
     llm_task_core = MagicMock()
     llm_task_core.async_run = AsyncMock(return_value="AI Output")
@@ -141,7 +156,8 @@ async def test_run_non_interactive_session_finalizes_attached_uis(runner):
     )
 
     assert res == "AI Output"
-    ui_with_markdown.append_markdown.assert_called_once_with("AI Output")
+    ui_with_markdown.append_answer.assert_called_once_with("AI Output")
+    assert ui_without_markdown.appended == [render_markdown("AI Output", width=None)]
 
 
 @pytest.mark.asyncio
@@ -440,18 +456,11 @@ def test_load_session_history_uses_replay_when_available(runner):
 
 
 def test_load_session_history_falls_back_to_text_dump(runner):
-    """UIs without replay_history fall back to append_to_output with formatted text."""
+    """UIs that never implemented replay_history get the formatted text."""
     history_manager = MagicMock()
     history_manager.load.return_value = ["msg1"]
 
-    class TextOnlyUI:
-        def __init__(self):
-            self.appended: list[str] = []
-
-        def append_to_output(self, text):
-            self.appended.append(text)
-
-    ui = TextOnlyUI()
+    ui = _TextOnlyUI()
 
     with patch(
         "zrb.llm.util.history_formatter.format_history_as_text",

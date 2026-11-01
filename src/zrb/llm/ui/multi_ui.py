@@ -1,5 +1,4 @@
 import asyncio
-import inspect
 import logging
 import sys
 from collections.abc import Callable, Coroutine
@@ -48,7 +47,6 @@ from zrb.llm.ui_fallback.resolution import (
 from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
-from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
 from zrb.util.exception import exception_summary
 
@@ -296,17 +294,30 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
 
     def set_status_badge(self, key: str, text: str | None) -> None:
-        self._fanout("set_status_badge", key, text)
+        self._fanout("set_status_badge", lambda ui: ui.set_status_badge(key, text))
 
-    def _fanout(self, method_name: str, /, *args, **kwargs) -> None:
-        """Call `method_name` on every child that implements it, best-effort:
-        a dead channel is not a dead run."""
+    def _fanout(self, name: str, call: Callable[[AnyUI], object]) -> None:
+        """Run `call` on every child, best-effort: a dead channel is not a dead
+        run. `name` labels the debug line when a child fails."""
+        for ui in self._uis:
+            try:
+                call(ui)
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI {name} failed: {e}")
+
+    def _fanout_if_offered(self, method_name: str, /, *args) -> None:
+        """Call `method_name` on each child that offers it, best-effort.
+
+        Only for the hooks `AnyUI` leaves undeclared because a child without
+        them behaves differently, not merely less (`update_tool_prepare`,
+        `update_shell_output`, `finish_shell_output`).
+        """
         for ui in self._uis:
             fn = getattr(ui, method_name, None)
             if not callable(fn):
                 continue
             try:
-                fn(*args, **kwargs)
+                fn(*args)
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI {method_name} failed: {e}")
 
@@ -314,11 +325,13 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
     ) -> None:
         """Forward one run's usage totals to every child UI."""
-        self._fanout("accumulate_usage", usage, context_usage)
+        self._fanout(
+            "accumulate_usage", lambda ui: ui.accumulate_usage(usage, context_usage)
+        )
 
     def reset_context_usage(self) -> None:
         """Forward a context-size reset to every child UI."""
-        self._fanout("reset_context_usage")
+        self._fanout("reset_context_usage", lambda ui: ui.reset_context_usage())
 
     def append_markdown(self, markdown_text: str) -> None:
         """Render `markdown_text` on every child.
@@ -326,53 +339,31 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         Children with their own `append_markdown` get the source; others get
         pre-rendered output.
         """
-        self._append_prose(markdown_text, "append_markdown")
+        self._fanout("append_markdown", lambda ui: ui.append_markdown(markdown_text))
 
     def append_answer(self, markdown_text: str) -> None:
         """Append the turn's answer on every child, at the column it keeps.
 
-        The hooks are tried newest first, and a child that has neither still
-        gets the answer as pre-rendered text: the layout may differ, the text
-        never disappears.
+        A child with its own `append_answer` gets it there; one with only
+        `append_markdown` gets the answer through that; a minimal UI with only
+        `append_to_output` gets it pre-rendered, by `AnyUI`'s defaults: the
+        layout may differ, the text never disappears.
         """
-        self._append_prose(markdown_text, "append_answer", "append_markdown")
-
-    def _append_prose(self, markdown_text: str, *hook_names: str) -> None:
-        """Hand prose to each child through the first hook it implements.
-
-        A child that implements none of *hook_names* — a minimal UI with only
-        `append_to_output`, which is a supported shape — gets the pre-rendered
-        text instead. An answer must never depend on a channel having opted
-        into a richer hook.
-        """
-        rendered = render_markdown(markdown_text, width=None)
-        for ui in self._uis:
-            try:
-                for hook_name in hook_names:
-                    hook = getattr(ui, hook_name, None)
-                    if callable(hook):
-                        hook(markdown_text)
-                        break
-                else:
-                    ui.append_to_output(rendered, end="")
-            except Exception as e:
-                CFG.LOGGER.debug(f"Child UI {hook_names[0]} failed: {e}")
+        self._fanout("append_answer", lambda ui: ui.append_answer(markdown_text))
 
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.
 
-        Children without `record_tool_call_block` get a plain
-        `append_to_output`: the caller sends the line through only one of the
-        two, so every child must be reached here.
+        A child that fails to record the block gets a plain `append_to_output`
+        instead: the caller sends the line through only one of the two, so
+        every child must be reached here.
         """
         for ui in self._uis:
-            record = getattr(ui, "record_tool_call_block", None)
-            if callable(record):
-                try:
-                    record(collapsed, full)
-                    continue
-                except Exception as e:
-                    CFG.LOGGER.debug(f"Child UI record_tool_call_block failed: {e}")
+            try:
+                ui.record_tool_call_block(collapsed, full)
+                continue
+            except Exception as e:
+                CFG.LOGGER.debug(f"Child UI record_tool_call_block failed: {e}")
             try:
                 ui.append_to_output(collapsed, end="", kind="tool_call")
             except Exception as e:
@@ -384,19 +375,26 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         No fallback needed: the text itself reaches every child through
         `append_to_output`.
         """
-        self._fanout("mark_thinking_block_start")
+        self._fanout(
+            "mark_thinking_block_start", lambda ui: ui.mark_thinking_block_start()
+        )
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> None:
         """Collapse the block opened by `mark_thinking_block_start`."""
-        self._fanout("collapse_thinking_block", collapsed, full)
+        self._fanout(
+            "collapse_thinking_block",
+            lambda ui: ui.collapse_thinking_block(collapsed, full),
+        )
 
     def mark_text_block_start(self) -> None:
         """Mark the reply block's start on toggle-capable children."""
-        self._fanout("mark_text_block_start")
+        self._fanout("mark_text_block_start", lambda ui: ui.mark_text_block_start())
 
     def collapse_text_block(self, collapsed: str, full: str) -> None:
         """Collapse the block opened by `mark_text_block_start`."""
-        self._fanout("collapse_text_block", collapsed, full)
+        self._fanout(
+            "collapse_text_block", lambda ui: ui.collapse_text_block(collapsed, full)
+        )
 
     def settle_text_block(self, source: str) -> None:
         """Show an intermediate text block's prose in full on children that can.
@@ -404,7 +402,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         No fallback: a child without the hook keeps the streamed copy it
         already printed, which is the whole text anyway.
         """
-        self._fanout("settle_text_block", source)
+        self._fanout("settle_text_block", lambda ui: ui.settle_text_block(source))
 
     def set_stream_indentation(self, indent: str) -> None:
         """Tell children that render a settled block the column to keep.
@@ -413,31 +411,35 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         rule as the hooks above: it is a channel that never asked for the
         column in the first place.
         """
-        self._fanout("set_stream_indentation", indent)
+        self._fanout(
+            "set_stream_indentation", lambda ui: ui.set_stream_indentation(indent)
+        )
 
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Forward a tool call's start to children tracking the running-tool timer."""
-        self._fanout("start_tool_call", tool_name, tool_call_id)
+        self._fanout(
+            "start_tool_call", lambda ui: ui.start_tool_call(tool_name, tool_call_id)
+        )
 
     def end_tool_call(self, tool_call_id: str | None = None) -> None:
         """Forward a tool call's end to children tracking the running-tool timer."""
-        self._fanout("end_tool_call", tool_call_id)
+        self._fanout("end_tool_call", lambda ui: ui.end_tool_call(tool_call_id))
 
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Forward a "Prepare tool parameters" update to children that support it."""
-        self._fanout("update_tool_prepare", key, text)
+        self._fanout_if_offered("update_tool_prepare", key, text)
 
     def update_shell_output(self, key: str, text: str) -> None:
         """Forward a live shell-output update to children that support it."""
-        self._fanout("update_shell_output", key, text)
+        self._fanout_if_offered("update_shell_output", key, text)
 
     def finish_shell_output(self, key: str, collapsed: str, full: str) -> None:
         """Collapse `key`'s live shell-output line on children that support it."""
-        self._fanout("finish_shell_output", key, collapsed, full)
+        self._fanout_if_offered("finish_shell_output", key, collapsed, full)
 
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
-        self._fanout("replay_history", messages)
+        self._fanout("replay_history", lambda ui: ui.replay_history(messages))
 
     async def _take_pre_turn_snapshot(self, user_message: str, timestamp: str) -> None:
         main_ui = self.main_ui
@@ -521,12 +523,10 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             # repaints stale values.
             self.set_thinking(False, repaint=False)
             for ui in self._uis:
-                update_info = getattr(ui, "update_system_info", None)
-                if inspect.iscoroutinefunction(update_info):
-                    try:
-                        await update_info()
-                    except Exception as e:
-                        CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
+                try:
+                    await ui.update_system_info()
+                except Exception as e:
+                    CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
             self.invalidate_ui()
 
     def set_thinking(self, value: bool, repaint: bool = True) -> None:
@@ -588,7 +588,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             return await self._tool_call_handler.handle(self, call)
 
         winning_ui = self.last_winning_ui
-        winning_handler = getattr(winning_ui, "tool_call_handler", None)
+        winning_handler = (
+            winning_ui.tool_call_handler if winning_ui is not None else None
+        )
         if winning_handler is not None:
             return await winning_handler.handle(self, call)
 
@@ -624,10 +626,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         once, on the primary child, since all children share one history file.
         """
         main_ui = self.main_ui
-        recorder = getattr(main_ui, "record_submitted_message", None)
         # A background notice is not something the user typed: no recall for it.
-        if recorder is not None and source != BACKGROUND_INPUT:
-            recorder(user_message)
+        if main_ui is not None and source != BACKGROUND_INPUT:
+            main_ui.record_submitted_message(user_message)
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,
             stream_ai_response=self.stream_ai_response,
@@ -850,9 +851,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             move_shell=move_shell,
         )
         main_ui = self.main_ui
-        redraw = getattr(main_ui, "redraw_echoes", None)
-        if callable(redraw):
-            redraw(report.delivered_entries)
+        if main_ui is not None:
+            main_ui.redraw_echoes(report.delivered_entries)
         return report
 
     def deliver_queued_messages_early(self) -> DeliveryReport:

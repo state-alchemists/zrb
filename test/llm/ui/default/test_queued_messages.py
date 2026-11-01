@@ -1,7 +1,9 @@
 from types import SimpleNamespace
 
 from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
+from zrb.llm.input_source import KEYBOARD_INPUT
 from zrb.llm.ui.base.ui import BaseUI
+from zrb.llm.ui.default.ui import UI
 
 
 def make_entry(text="original", marker="💬", ts="10:00"):
@@ -303,3 +305,39 @@ def test_a_markdown_echo_that_will_not_re_render_is_left_to_its_renderer(
 
     assert entry.echo_spans == {}
     assert editing_ui.rendered_blocks == [block]
+
+
+def test_a_markdown_message_queued_in_the_real_ui_can_be_marked_delivered(
+    mock_ui_deps,
+):
+    """The mock hosts above forward any name to the editing part; the real UI
+    does not, so the queue's hand-off of a rendered echo must reach the part
+    through a `UI` method. Without it a queued Markdown message kept its `⏳`
+    and an edit could not reach the transcript."""
+    ui = UI(**mock_ui_deps)
+    ui.is_thinking = True  # mid-turn: the message waits, marked ⏳
+
+    ui.submit_message("**bold** answer")
+
+    entry = ui.effective_message_queue.find_pending("**bold** answer", KEYBOARD_INPUT)
+    assert entry is not None
+    assert ui in entry.echo_spans, "the rendered echo was never tracked"
+    assert "⏳" in ui.output_text
+    entry.echo_marker = "⏩"
+    assert ui.redraw_echo(entry) is not None
+    assert "⏩" in ui.output_text
+    assert "⏳" not in ui.output_text
+
+
+def test_dropping_a_markdown_message_queued_in_the_real_ui_takes_its_echo_out(
+    mock_ui_deps,
+):
+    ui = UI(**mock_ui_deps)
+    ui.is_thinking = True
+    ui.submit_message("**bold** answer")
+    entry = ui.effective_message_queue.find_pending("**bold** answer", KEYBOARD_INPUT)
+    assert entry is not None
+
+    ui.delete_queued_message(entry)
+
+    assert "bold" not in ui.output_text

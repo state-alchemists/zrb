@@ -79,6 +79,20 @@ class SettleUI:
     def invalidate_ui(self):
         pass
 
+    # The `AnyUI` hooks the run wires that the composed part does not carry,
+    # with the defaults `AnyUI` gives a UI that never implemented them.
+    def accumulate_usage(self, usage, context_usage=None):
+        pass
+
+    def record_tool_call_block(self, collapsed, full):
+        self.append_to_output(collapsed, end="", kind="tool_call")
+
+    def start_tool_call(self, tool_name, tool_call_id):
+        pass
+
+    def end_tool_call(self, tool_call_id=None):
+        pass
+
     def __getattr__(self, name):
         output = self.__dict__.get("output_part")
         if output is None:

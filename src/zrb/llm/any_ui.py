@@ -4,10 +4,14 @@ import asyncio
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, TextIO, TypedDict
 
+from zrb.llm.util.delivery_report import DeliveryReport
+
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from zrb.llm.agent.types import ModelMessage, RequestUsage, RunUsage, UserContent
     from zrb.llm.input_source import InputProvenance
     from zrb.llm.ui.base.message_queue import QueuedMessage
-    from zrb.llm.ui.base.queue_delivery import DeliveryReport
 
 
 class ChoiceOption(TypedDict, total=False):
@@ -37,11 +41,12 @@ class ChoiceSpec(TypedDict, total=False):
 class AnyUI(ABC):
     """The UI contract every task's `ui` slot is typed against.
 
-    Eight behavioral methods every UI performs, then the state members and
-    side-effect hooks a full UI keeps. `BaseUI` implements all of them; a UI
-    that keeps none mixes in `UIStateDefaultsMixin`. The state half is
-    abstract because `MultiUI` reads it off its primary child, so a custom UI
-    missing it fails with `TypeError` at construction.
+    Everything here is abstract: eight behavioral methods every UI performs,
+    then the state members and side-effect hooks a full UI keeps. `BaseUI`
+    implements all of them; a UI that keeps none mixes in
+    `UIStateDefaultsMixin`, which holds the inert defaults. A UI built on
+    neither must implement every member itself, and one missing a member fails
+    with `TypeError` at construction.
     """
 
     @abstractmethod
@@ -314,10 +319,112 @@ class AnyUI(ABC):
         """
 
     @abstractmethod
-    def send_queued_messages_now(self) -> "DeliveryReport":
+    def send_queued_messages_now(self) -> DeliveryReport:
         """Deliver the queued messages into the running turn, now.
 
         The report says what the attempt did: delivered into the live run,
         fell back to interrupting the turn, or moved nothing. A UI with no
         queue of its own moves nothing.
+        """
+
+    # Side-effect hooks the agent run, the queue and `MultiUI` call directly.
+    # Abstract like the rest of the contract; `BaseUI` and `UIStateDefaultsMixin`
+    # carry the defaults, so a UI built on either overrides only what it renders.
+
+    @abstractmethod
+    def accumulate_usage(
+        self, usage: "RunUsage", context_usage: "RequestUsage | None" = None
+    ) -> None:
+        """Fold one run's token totals into a session meter."""
+
+    @abstractmethod
+    def reset_context_usage(self) -> None:
+        """Forget the context size, stale after `/compress`."""
+
+    @abstractmethod
+    def append_markdown(self, markdown_text: str) -> None:
+        """Show *markdown_text*. A pane that renders Markdown itself takes the
+        source; any other UI renders it and writes the text."""
+
+    @abstractmethod
+    def append_answer(self, markdown_text: str) -> None:
+        """Show the turn's answer, where the streamed copy was if the UI lays a
+        run's output out in a column."""
+
+    @abstractmethod
+    def record_tool_call_block(self, collapsed: str, full: str) -> None:
+        """Print a tool-call/result line a toggle-capable UI can later expand."""
+
+    @abstractmethod
+    def mark_thinking_block_start(self) -> None:
+        """Note where a live thinking block begins."""
+
+    @abstractmethod
+    def collapse_thinking_block(self, collapsed: str, full: str) -> bool | None:
+        """Collapse the block `mark_thinking_block_start` opened.
+
+        Returns whether a block was collapsed, or None for a UI that tracks none.
+        """
+
+    @abstractmethod
+    def mark_text_block_start(self) -> None:
+        """Note where the reply's text block begins."""
+
+    @abstractmethod
+    def collapse_text_block(self, collapsed: str, full: str) -> bool | None:
+        """Collapse the block `mark_text_block_start` opened.
+
+        Returns whether a block was collapsed, or None for a UI that tracks none.
+        """
+
+    @abstractmethod
+    def settle_text_block(self, source: str) -> None:
+        """Keep a text block that a tool call ended, rendering *source* in full."""
+
+    @abstractmethod
+    def set_stream_indentation(self, indent: str) -> None:
+        """Learn the column a run's streamed lines wrap at."""
+
+    @abstractmethod
+    def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
+        """Note that a tool call is about to run."""
+
+    @abstractmethod
+    def end_tool_call(self, tool_call_id: str | None = None) -> None:
+        """Note that a tool call finished; ``None`` means every call."""
+
+    @abstractmethod
+    def replay_history(self, messages: "list[ModelMessage]") -> None:
+        """Show a resumed conversation."""
+
+    @abstractmethod
+    async def update_system_info(self) -> None:
+        """Refresh the system and repository status line after a turn."""
+
+    @abstractmethod
+    def record_submitted_message(self, text: str) -> None:
+        """Remember a message the user submitted, for recall."""
+
+    @abstractmethod
+    def take_pending_attachments(self) -> "list[UserContent]":
+        """Hand over, and clear, the attachments waiting for the next message."""
+
+    @abstractmethod
+    def track_rendered_echo(self, entry: "QueuedMessage", header: str) -> None:
+        """Record the span of an echo whose body was rendered as Markdown.
+
+        *header* is the verbatim part written before the rendered body. The
+        counterpart of `track_echo_span` for an echo that landed rendered.
+        """
+
+    @abstractmethod
+    def redraw_echoes(self, entries: "Sequence[QueuedMessage]") -> None:
+        """Rewrite the echoed lines of *entries* just delivered into a turn."""
+
+    @abstractmethod
+    def deliver_queued_messages_early(self) -> DeliveryReport:
+        """Hand the ready queued messages to the running turn at a checkpoint.
+
+        The run loop calls it as it builds each model request, and nothing is
+        interrupted. A UI with no queue moves nothing.
         """
