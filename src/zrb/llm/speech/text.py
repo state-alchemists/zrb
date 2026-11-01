@@ -95,14 +95,14 @@ def without_blockquotes(text: str) -> str:
         if _QUOTE_START_RE.match(line):
             is_quoted = True
             continue
-        if is_quoted and _continues_a_quote(line):
+        if is_quoted and _is_quote_continuation(line):
             continue
         is_quoted = False
         kept.append(line)
     return "\n".join(kept)
 
 
-def _continues_a_quote(line: str) -> bool:
+def _is_quote_continuation(line: str) -> bool:
     """Whether *line* is pulled into the quote above it rather than beginning
     anything of its own: prose, with no marker, that the paragraph swallows."""
     stripped = line.lstrip(" \t")
