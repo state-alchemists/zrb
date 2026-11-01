@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.tool_call.middleware import (
@@ -22,6 +23,10 @@ if TYPE_CHECKING:
 # history as a tool result.
 MAX_DENIAL_REASON_CHARS = 500
 
+# What a user types at an approval prompt to approve or deny, case-insensitively.
+APPROVE_RESPONSES = frozenset({"y", "yes", "ok", "accept", "✅", ""})
+DENY_RESPONSES = frozenset({"n", "no", "deny", "cancel", "🛑"})
+
 
 async def check_tool_policies(
     policies: list[ToolPolicy],
@@ -39,6 +44,27 @@ async def check_tool_policies(
         )
 
     return await _next_policy(ui, call, 0)
+
+
+async def run_response_handlers(
+    handlers: list[ResponseHandler],
+    ui: AnyAgentOutput,
+    call: ToolCallPart,
+    response: str,
+    fallback: Callable[[AnyAgentOutput, ToolCallPart, str], Awaitable[Any]],
+) -> Any:
+    """Offer *response* to each handler in order; *fallback* answers when all pass."""
+
+    async def _next_handler(
+        ui: AnyAgentOutput, call: ToolCallPart, response: str, index: int
+    ) -> Any:
+        if index >= len(handlers):
+            return await fallback(ui, call, response)
+        return await handlers[index](
+            ui, call, response, lambda u, c, r: _next_handler(u, c, r, index + 1)
+        )
+
+    return await _next_handler(ui, call, response, 0)
 
 
 class ToolCallHandler:
@@ -69,6 +95,17 @@ class ToolCallHandler:
         # lazy: zrb internal (heavy via transitive)
         from zrb.llm.agent.types import ToolApproved, ToolDenied
 
+        async def answer_by_vocabulary(
+            ui: AnyAgentOutput, call: ToolCallPart, response: str
+        ) -> ToolApproved | ToolDenied:
+            r = response.lower().strip()
+            if r in APPROVE_RESPONSES:
+                return ToolApproved()
+            if r in DENY_RESPONSES:
+                return ToolDenied("User denied")
+            reason = truncate_chars(response, MAX_DENIAL_REASON_CHARS)
+            return ToolDenied(f"User denied execution with message: {reason}")
+
         policy_result = await self.check_policies(ui, call)
         if policy_result is not None:
             return policy_result
@@ -77,32 +114,13 @@ class ToolCallHandler:
             message = await self.format_approval_message(ui, call)
             ui.append_to_output(f"\n{message}", end="")
             user_input = await ui.ask_user("", output_to_parent=f"\n{message}")
-            user_response = user_input.strip()
-
-            async def _next_handler(
-                ui: AnyAgentOutput,
-                call: ToolCallPart,
-                response: str,
-                index: int,
-            ) -> Any:
-                if index >= len(self._response_handlers):
-                    r = response.lower().strip()
-                    if r in ("y", "yes", "ok", "accept", "✅", ""):
-                        return ToolApproved()
-                    if r in ("n", "no", "deny", "cancel", "🛑"):
-                        return ToolDenied("User denied")
-                    reason = truncate_chars(response, MAX_DENIAL_REASON_CHARS)
-                    return ToolDenied(f"User denied execution with message: {reason}")
-
-                handler = self._response_handlers[index]
-                return await handler(
-                    ui,
-                    call,
-                    response,
-                    lambda u, c, r: _next_handler(u, c, r, index + 1),
-                )
-
-            result = await _next_handler(ui, call, user_response, 0)
+            result = await run_response_handlers(
+                self._response_handlers,
+                ui,
+                call,
+                user_input.strip(),
+                answer_by_vocabulary,
+            )
             if result is None:
                 continue
             return result

@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 from pydantic import Field
 
 from zrb.cmd.command import (
+    close_transport,
     create_yielding_argv,
     kill_pid,
     resolve_shell,
@@ -92,7 +93,6 @@ class _ShellBackgroundRegistry:
         shell: str = "",
         dangerously_skip_sandbox: bool = False,
     ) -> str:
-        handle = get_random_name(separator="-", add_random_digit=True)
         resolved_shell, shell_flag = resolve_shell(shell)
         effective_cwd = cwd or os.getcwd()
         # Raises SandboxUnavailableError in fallback="deny" mode.
@@ -119,14 +119,7 @@ class _ShellBackgroundRegistry:
         )
         if sandbox_note:
             bp.stderr_cap.feed(f"{sandbox_note}\n")
-        self._procs[handle] = bp
-        # Tracked so kill()/cancel_all() can stop them.
-        bp.tasks = [
-            asyncio.ensure_future(self._read_pipe(handle, proc.stdout, "stdout")),
-            asyncio.ensure_future(self._read_pipe(handle, proc.stderr, "stderr")),
-            asyncio.ensure_future(self._wait_exit(handle, proc)),
-        ]
-        return handle
+        return self._register(bp)
 
     async def adopt(
         self,
@@ -147,7 +140,6 @@ class _ShellBackgroundRegistry:
         ``LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS``; a caller that disables
         adoption never gets here.
         """
-        handle = get_random_name(separator="-", add_random_digit=True)
         bp = _BackgroundProcess(
             process=process,
             stdout_cap=stdout_cap,
@@ -156,13 +148,22 @@ class _ShellBackgroundRegistry:
             owner_session_id=get_current_chat_session_id(),
             ui=get_current_ui(),
         )
+        handle = self._register(bp)
+        self._arm_deadline(handle, bp)
+        return handle
+
+    def _register(self, bp: _BackgroundProcess) -> str:
+        """Store *bp* under a new handle and start the tasks that feed and reap it.
+
+        The tasks are tracked on *bp* so `kill` and `cancel_all` can stop them.
+        """
+        handle = get_random_name(separator="-", add_random_digit=True)
         self._procs[handle] = bp
         bp.tasks = [
-            asyncio.ensure_future(self._read_pipe(handle, process.stdout, "stdout")),
-            asyncio.ensure_future(self._read_pipe(handle, process.stderr, "stderr")),
-            asyncio.ensure_future(self._wait_exit(handle, process)),
+            asyncio.ensure_future(self._read_pipe(handle, bp.process.stdout, "stdout")),
+            asyncio.ensure_future(self._read_pipe(handle, bp.process.stderr, "stderr")),
+            asyncio.ensure_future(self._wait_exit(handle, bp.process)),
         ]
-        self._arm_deadline(handle, bp)
         return handle
 
     def _arm_deadline(self, handle: str, bp: _BackgroundProcess) -> None:
@@ -324,7 +325,6 @@ class _ShellBackgroundRegistry:
             lines.append(truncation_note)
         if bp.returncode is not None:
             if all(task.done() for task in bp.tasks):
-                # Fully drained: release the entry.
                 lines.append("The handle has been consumed — the process has finished.")
                 self._withdraw_wake(bp)
                 _release_process(bp)
@@ -481,9 +481,7 @@ def _release_process(bp: _BackgroundProcess) -> None:
         bp.deadline = None
     bp.stdout_cap.close()
     bp.stderr_cap.close()
-    transport = getattr(bp.process, "_transport", None)
-    if transport is not None:
-        transport.close()
+    close_transport(bp.process)
 
 
 _registry = _ShellBackgroundRegistry()

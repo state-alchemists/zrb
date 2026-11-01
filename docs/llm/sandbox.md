@@ -17,7 +17,7 @@ One `SandboxPolicy` (`zrb/llm/sandbox/`) drives two enforcement layers:
    - **macOS** — `sandbox-exec -p <generated SBPL profile>` (Seatbelt). Deprecated-but-functional; Chrome, Bazel, and Codex still ship on it.
    - **Linux** — `bwrap` (bubblewrap): read-only root bind, read-write binds for the writable roots, `tmpfs`/`/dev/null` masks over the deny-read paths. No PID/network unsharing, so process-group handling, timeout kill, and background-PID tracking keep working.
 
-In v1 the sandbox isolates the **filesystem only** — network stays open (commands like `git pull` and `pip install` keep working).
+The sandbox isolates the **filesystem only** — network stays open (commands like `git pull` and `pip install` keep working).
 
 ## Platform Matrix
 
@@ -37,10 +37,10 @@ When no OS mechanism is available (Windows, or Linux without `bwrap`), the polic
 | Variable | Default | Meaning |
 |---|---|---|
 | `ZRB_LLM_SANDBOX_ENABLED` | `false` | Master switch for both layers. |
-| `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` | `auto` wraps spawned subprocesses (shell commands, worktree git calls) when a mechanism exists; `off` keeps only the Python FS gate. |
+| `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` | `auto` wraps spawned subprocesses (shell commands, worktree git calls) when a mechanism exists; `off` keeps only the Python FS gate. Any other value behaves as `auto`. |
 | `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | (empty) | Colon-separated (semicolon on Windows) writable roots. Empty = automatic: the directory zrb was started in + system temp dir. A tool's `cwd` argument never adds a root. The worktree tools write under the git root, so start zrb at the repository root or list the root here. |
 | `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | built-in list | Colon-separated (semicolon on Windows) never-read paths; setting it replaces the default credential-store list. |
-| `ZRB_LLM_SANDBOX_FALLBACK` | `warn` | `warn` / `deny` when no OS mechanism exists. |
+| `ZRB_LLM_SANDBOX_FALLBACK` | `warn` | `warn` / `deny` when no OS mechanism exists. Any value other than `deny` behaves as `warn`, so check the spelling. |
 | `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | `true` | Whether `dangerously_skip_sandbox` is honored at all. Set `false` for non-interactive (CI) deployments. |
 
 The default deny-read list covers `~/.ssh`, `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.kube`, `~/.gnupg`, `~/.netrc`, `~/.npmrc`, `~/.pypirc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.config/gh`, `~/Library/Keychains`, and `~/AppData/Roaming/gcloud`. Entries absent on a machine are skipped at resolve time, so the list is cross-platform-safe.
@@ -59,9 +59,9 @@ Python API: both `LLMTask(..., sandbox=...)` and `LLMChatTask(..., sandbox=...)`
 
 ## Threat Model and Non-Goals
 
-The sandbox contains LLM-initiated filesystem damage: prompt injection, model mistakes, and over-broad approved commands. It is **not** a complete security boundary in v1. Known limits, by design:
+The sandbox contains LLM-initiated filesystem damage: prompt injection, model mistakes, and over-broad approved commands. It is **not** a complete security boundary. Known limits, by design:
 
-- **No network isolation** — data exfiltration over the network is not prevented (a later phase can add a domain-filtering proxy).
+- **No network isolation** — data exfiltration over the network is not prevented.
 - **Python-layer TOCTOU** — the FS gate realpaths at check time; a race between check and `open()` is theoretically possible for in-process tools. The OS shell layer has no such race (kernel-enforced per syscall).
 - **Windows shell gap** — no OS-level shell isolation exists; see the platform matrix.
 - **Setuid binaries on macOS** — a Seatbelt-sandboxed process cannot exec set[ug]id binaries regardless of profile. Notably `/bin/ps` (setuid root) and `sudo` fail with `Operation not permitted`; `pgrep`/`pkill` keep working.

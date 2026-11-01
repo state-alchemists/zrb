@@ -192,8 +192,7 @@ def _append_day_line(text: str, entry: str) -> str:
 
     Not `insert_before_backlinks`, which reaches that spot only past a
     `## Handover`: a handover owns everything from its heading to the next one,
-    so the next write deleted every line logged since the previous handover
-    (2026-10-28: twenty-three of them, a whole afternoon).
+    so a line placed there would be deleted by the next handover rewrite.
     """
     if entry in text:
         return text
@@ -324,13 +323,12 @@ def _acceptable_handover(handover: str) -> str:
 def _without_handover(text: str) -> str:
     """*text* with any Handover section removed and the rest left as it was.
 
-    A day line is kept wherever it sits. `log_activity` used to add one before
-    the Backlinks block, which is inside this section once a handover exists, so
-    a file written by that version carries day lines here — dropping them would
-    delete the only copy of those hours.
+    A day line is kept wherever it sits: an older `log_activity` added lines
+    before the Backlinks block, which is inside this section once a handover
+    exists, and dropping them would delete the only copy of those hours.
 
     One lifted out of the section is marked, because the shape cannot say which
-    it was: an event stranded there by the old writer, or a step of the handover's
+    it was: an event stranded there by that writer, or a step of the handover's
     own. It stays in the day's lines where the next session will see it, and the
     mark says the reading is open rather than settled.
     """
@@ -828,7 +826,7 @@ def _delete_note_locked(root: str, category: str, slug: str) -> str:
     result = f"Deleted {note_rel}"
     if cleared:
         result += (
-            " Cleared the superseded_by that named it from: " f"{', '.join(cleared)}."
+            f" Cleared the superseded_by that named it from: {', '.join(cleared)}."
         )
     return result
 
@@ -860,14 +858,12 @@ def journal_transaction(
 ) -> Iterator["JournalTransaction"]:
     """Make many journal changes under one lock and one commit.
 
-    The Python seam a script or an import needs: batching used to mean reaching
-    past the tools into the private helpers, because a tool called inside
-    another write waited out the lock timeout against a lock its own thread
-    held. A journal tool called inside this block now re-enters the lock its
-    caller holds, so both shapes work; this one is still the better shape for a
-    batch, since it commits once instead of once per call. This is not a
-    model-facing tool — the model keeps writing one note per call, because each
-    of its writes has to be confirmed by its own result.
+    The Python seam a script or an import needs. A journal tool called inside
+    this block re-enters the lock its caller holds and rides the block's single
+    commit, but the transaction object is the better shape for a batch: it
+    commits once instead of once per call. This is not a model-facing tool —
+    the model keeps writing one note per call, because each of its writes has to
+    be confirmed by its own result.
 
     *message* is the commit's subject; with none, the commit counts the
     changes. A body that raises makes no commit: every file it touched is put
@@ -1073,11 +1069,11 @@ _lock_state = threading.local()
 def _commit_or_defer(root: str, message: str) -> None:
     """Commit now, or hand the change to the open transaction.
 
-    `journal_transaction` promises one commit and none at all when its body
-    raises. A tool called inside that body used to commit straight away, which
-    broke both halves: the rollback restored the files but the commit stayed in
-    history, and the transaction then committed again at exit. The change is
-    counted here instead, and rides the transaction's single commit.
+    `journal_transaction` promises one commit, and none at all when its body
+    raises. A tool that committed on its own inside that body would break both
+    halves: a rollback would restore the files but leave the commit in history,
+    and the transaction would commit again at exit. The change is counted here
+    instead, and rides the transaction's single commit.
     """
     if getattr(_lock_state, "in_transaction", 0):
         _lock_state.deferred_changes = getattr(_lock_state, "deferred_changes", 0) + 1
@@ -1380,9 +1376,8 @@ def _register_link(index_path: str, rel_target: str, label: str) -> None:
 def _eviction_note(section: str, evicted: list[str]) -> str:
     """Say what the section's cap dropped, and how to keep a line next time.
 
-    The write used to report success while an older pinned constraint vanished;
-    the model can only re-pin what it is told about. The list bullet is dropped
-    from each line so the quote reads as the line itself."""
+    The model can only re-pin a line it is told about. The list bullet is
+    dropped from each line so the quote reads as the line itself."""
     lines = ", ".join(f'"{line.removeprefix("- ")}"' for line in evicted)
     cap = CFG.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION
     return (
@@ -1401,9 +1396,7 @@ def _nearby_note(notes: list[Note], written: Written) -> str:
     nearby = nearby_notes(notes, written, _NEARBY_LIMIT)
     if not nearby:
         return ""
-    listed = ", ".join(
-        f'{note.rel} "{note.hud_line or note.title}"' for note in nearby
-    )
+    listed = ", ".join(f'{note.rel} "{note.hud_line or note.title}"' for note in nearby)
     return (
         f". Nearby: {listed} — if this write makes one of them wrong or out of "
         "date, revise it now with WriteJournalNote."

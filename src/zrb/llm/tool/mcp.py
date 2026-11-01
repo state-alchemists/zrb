@@ -41,7 +41,6 @@ def _get_config_files(config_file_name: str) -> list[str]:
     config_files: list[str] = []
 
     if cwd == home or cwd.startswith(home + os.sep):
-        # Traverse from home down to cwd
         rel_path = os.path.relpath(cwd, home)
         current = home
         path = os.path.join(current, config_file_name)
@@ -55,7 +54,6 @@ def _get_config_files(config_file_name: str) -> list[str]:
                 if os.path.isfile(path):
                     config_files.append(path)
     else:
-        # Only check current directory
         path = os.path.join(cwd, config_file_name)
         if os.path.isfile(path):
             config_files.append(path)

@@ -212,6 +212,12 @@ def _collect_matching_files(
     return matches
 
 
+def _read_content(file_path: str) -> str:
+    """The file's text, with undecodable bytes dropped."""
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        return f.read()
+
+
 def get_file_metadatas(
     dir_path: str,
     extensions: list[str],
@@ -225,8 +231,9 @@ def get_file_metadatas(
         dir_path, extensions, include_patterns, exclude_patterns, visible=visible
     ):
         try:
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                metadata_list.append({"path": rel_path, "content": f.read()})
+            metadata_list.append(
+                {"path": rel_path, "content": _read_content(file_path)}
+            )
         except Exception as e:
             zrb_print(f"Error reading file {file_path}: {e}", plain=True)
     metadata_list.sort(key=lambda m: m["path"])
@@ -255,8 +262,9 @@ async def _get_file_metadatas_with_lsp(
                 lsp_tasks.append(get_lsp_context(rel_path, dir_path))
                 file_paths.append(rel_path)
             else:
-                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                    metadata_list.append({"path": rel_path, "content": f.read()})
+                metadata_list.append(
+                    {"path": rel_path, "content": _read_content(file_path)}
+                )
 
         except Exception as e:
             zrb_print(f"Error reading file {file_path}: {e}", plain=True)
@@ -270,13 +278,12 @@ async def _get_file_metadatas_with_lsp(
                 metadata_list.append(lsp_result)
             else:
                 try:
-                    with open(
-                        os.path.join(dir_path, rel_path),
-                        "r",
-                        encoding="utf-8",
-                        errors="ignore",
-                    ) as f:
-                        metadata_list.append({"path": rel_path, "content": f.read()})
+                    metadata_list.append(
+                        {
+                            "path": rel_path,
+                            "content": _read_content(os.path.join(dir_path, rel_path)),
+                        }
+                    )
                 except Exception as e:
                     CFG.LOGGER.debug(
                         f"analyze_code: skipped unreadable file {rel_path}: {e}"

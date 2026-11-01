@@ -92,8 +92,8 @@ def plan_adoptions(text: str, notes: list[Note]) -> dict[str, Adoption]:
 def _read_line(line: str, rel: str) -> Adoption:
     """The text and pin of a legacy HUD line: no bullet, marker or own link.
 
-    An earlier version could write the note's own link twice, so it comes off
-    until none is left; a link to another note stays, as part of the text."""
+    The note's own link may appear twice, so it comes off until none is left; a
+    link to another note stays, as part of the text."""
     text = line.strip().removeprefix("- ").strip()
     pinned = text.startswith(PIN_MARKER)
     text = text.removeprefix(PIN_MARKER).strip()

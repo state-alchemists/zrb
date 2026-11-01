@@ -139,11 +139,8 @@ async def run_shell_command(
     except SandboxUnavailableError as e:
         _cleanup_temp_file(temp_pid_file)
         return (
-            f"Command refused by sandbox policy: {e}. "
-            "[SYSTEM SUGGESTION]: this deployment requires OS-level sandboxing "
-            f"for shell commands ({CFG.ENV_PREFIX}_LLM_SANDBOX_FALLBACK=deny). Use the in-process "
-            "file tools instead, or ask the user to adjust the sandbox "
-            "configuration."
+            f"{format_sandbox_denied_message(e)} Use the in-process file tools "
+            "instead, or ask the user to adjust the sandbox configuration."
         )
 
     process = None
@@ -550,9 +547,8 @@ def _can_adopt(command: str) -> bool:
     """Whether this command may be moved out of the foreground.
 
     Adoption turned off (``LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS`` is 0) leaves
-    nowhere to move it. A `sleep` is a delay the caller wrote on purpose: it is
-    the work, so moving it aside would let the next command run before the wait
-    it was waiting for was over.
+    nowhere to move it, and a deliberate wait (`_is_deliberate_wait`) is never
+    moved.
     """
     return CFG.LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS > 0 and not _is_deliberate_wait(
         command
@@ -592,11 +588,10 @@ async def _adopt_process(
 
 
 def _is_deliberate_wait(command: str) -> bool:
-    """True for a command whose whole job is to wait.
+    """True for a command whose whole job is to wait: a `sleep`.
 
-    A `sleep` is a delay the caller wrote on purpose. Moving it to the
-    background would let the next command run before the wait it was waiting
-    for was over, and nothing would be gained: the delay is the work.
+    The delay is the work, so moving it to the background would only let the
+    next command run before the wait it was waiting for was over.
     """
     try:
         tokens = shlex.split(command)

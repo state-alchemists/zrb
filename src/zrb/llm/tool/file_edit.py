@@ -117,7 +117,7 @@ async def _replace_in_file_locked(
         )
     record_observed(abs_path, new_content)
 
-    replacements = match_count if count == -1 else min(match_count, count)
+    replacements = match_count if count < 0 else min(match_count, count)
     return compose_write_result(
         f"Successfully updated {path} ({replacements} replacement(s))"
         f"{fuzzy_note}{newline_note}",

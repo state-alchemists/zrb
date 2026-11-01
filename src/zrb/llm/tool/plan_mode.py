@@ -52,7 +52,7 @@ async def exit_plan_mode(
     Leave PLAN mode and present the completed plan so execution can begin.
     """
     set_current_agent_mode(AgentMode.BUILD)
-    return "Exited PLAN mode; resuming BUILD mode. Proposed plan:\n\n" f"{plan}"
+    return f"Exited PLAN mode; resuming BUILD mode. Proposed plan:\n\n{plan}"
 
 
 enter_plan_mode.__name__ = "EnterPlanMode"
