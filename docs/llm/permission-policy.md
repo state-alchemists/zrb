@@ -146,6 +146,8 @@ You can set the default policy globally or per-task.
 export ZRB_LLM_PERMISSIONS="read:allow,edit:ask,execute:ask,*:deny"
 ```
 
+The value is a comma- or semicolon-separated list of `key:action` rules, or one bare `allow`, `ask` or `deny` for every tool. An entry without a `:` is skipped. An action other than `allow`, `ask` or `deny` is not rejected: the rule still matches first, but it decides nothing, so a misspelt `deny` silently stops denying. Check the spelling.
+
 ### Gating the built-in `zrb llm chat`
 
 To constrain the chat task that `zrb llm chat` runs, set `permissions` on the built-in `llm_chat` task in your `zrb_init.py`:

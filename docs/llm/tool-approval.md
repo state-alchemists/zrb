@@ -139,9 +139,9 @@ chat.prepend_response_handler(always_for_session)
 
 Register handlers and policies before the chat starts: the interactive UI takes its copy of the three lists when it is created, so a later `prepend_*` call does not reach a session already running. Mutable state the callables close over, like `always_allowed` above, is the way to change behavior mid-session.
 
-Return `ToolApproved(override_args={...})` to run the call with edited arguments; the model is told its arguments were changed. The interactive UI ends the chain with `default_response_handler`, which handles `y`/`n`/`e` (`e` opens `ZRB_EDITOR` on the arguments) and treats any other text as a denial reason sent back to the model — so prepend your handler, or the default answers first.
+Return `ToolApproved(override_args={...})` to run the call with edited arguments; the model is told its arguments were changed. The interactive UI ends the chain with `default_response_handler`, which handles `y`/`n`/`e` (`e` opens `ZRB_EDITOR` on the arguments) and treats any other text as a denial reason sent back to the model, cut at 500 characters — so prepend your handler, or the default answers first.
 
-When the prompt arrives through the terminal side of an [approval channel](llm-custom-ui.md#approval-channels), only an `e`/`edit` answer reaches the response handlers; `y`, `n` and free text are decided by the channel itself.
+When the prompt arrives through the terminal side of an [approval channel](llm-custom-ui.md#approval-channels), only an `e`/`edit` answer reaches the response handlers; `y`, `n` and free text are decided by the channel itself, which cuts a free-text denial reason at 500 characters too.
 
 The prompt's instruction line (`❓ Allow tool Execution? ...`) is fixed; if you add answers of your own, say so from a formatter.
 
