@@ -81,15 +81,16 @@ class _Block:
 
 @dataclass(frozen=True)
 class _Roles:
-    """What this reader takes from the writer's vocabulary: how a pinned line is
-    marked, and which two sections are the directory pointer and the catalog.
+    """What this reader takes from the writer's vocabulary: which two sections are
+    the directory pointer and the catalog.
 
     Read from `journal_index` rather than spelled again here, so a rename reaches
     both sides. The catalog is named rather than inferred because a duplicate
     title is dropped: suppressing a hand-written line that happens to link a
-    claimed note would lose content that exists nowhere else."""
+    claimed note would lose content that exists nowhere else. The pin marker is
+    not here: `journal_index.is_pinned_line` reads it, next to the function that
+    writes it."""
 
-    pin: str
     pointer: str
     catalog: str
 
@@ -162,7 +163,6 @@ def _read_blocks(content: str) -> list[_Block]:
     from zrb.llm.tool import journal_index
 
     roles = _Roles(
-        pin=journal_index.PIN_MARKER,
         pointer=_heading_name(journal_index.DIRECTORIES_HEADING),
         catalog=_heading_name(journal_index.CATALOG_HEADING),
     )
@@ -190,11 +190,11 @@ def _read_blocks(content: str) -> list[_Block]:
 def _rank(line: str, heading: str, roles: _Roles, claims: set[str]) -> _Line:
     """What this line is worth, and the note it names."""
     # Deferred, as in `_read_blocks`.
-    from zrb.llm.tool.journal_index import bare_target, hud_owner
+    from zrb.llm.tool.journal_index import bare_target, hud_owner, is_pinned_line
 
     owner = hud_owner(line)
     if owner:
-        return _Line(line, PINNED if roles.pin in line else CLAIM, owner)
+        return _Line(line, PINNED if is_pinned_line(line) else CLAIM, owner)
     target = bare_target(line) or ""
     if heading == roles.pointer:
         return _Line(line, POINTER, target)

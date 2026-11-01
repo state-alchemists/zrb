@@ -37,6 +37,20 @@ def test_an_index_that_fits_is_returned_untouched():
     assert note == ""
 
 
+def test_a_marker_inside_a_sentence_is_not_a_pin():
+    """The writer puts the marker straight after the bullet; a note's own text may
+    contain the same character. Searching the whole line ranked such a line as
+    pinned, so at a tight cap it displaced a constraint that really holds every
+    turn (review on #791)."""
+    content = _index(
+        ("User", [_claim("Remember 📌 tomorrow", "a", "user")]),
+        ("Constraints", [_claim("Never push to main", "b", pinned=True)]),
+    )
+    kept, _ = plan_index_core(content, 90)
+    assert "Never push to main" in kept
+    assert "Remember 📌 tomorrow" not in kept
+
+
 def test_a_pinned_line_outranks_a_claim_that_fits_easier():
     """A pin is a note that said it holds every turn: it is the one line whose
     loss changes an answer instead of delaying one, so it goes in first even
