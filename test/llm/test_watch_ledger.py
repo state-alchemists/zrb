@@ -330,3 +330,34 @@ def test_a_long_description_is_shortened_rather_than_stored_whole(tmp_path):
     ledger.open("h1", kind="process", what="x" * 400)
 
     assert len(ledger.records()[0].what) <= 120
+
+
+def test_a_malformed_row_costs_that_row_not_the_render(tmp_path):
+    """The file is hand-editable: junk values and non-row lines are skipped."""
+    ledger = _ledger(tmp_path)
+    ledger.open("good", kind="process", what="Fine")
+    ledger.end("good", 0)
+    with open(ledger.path, "a", encoding="utf-8") as stream:
+        stream.write("123\n[1, 2]\n")
+        stream.write(
+            json.dumps(
+                {
+                    "op": "opened",
+                    "id": "odd",
+                    "session": "s",
+                    "kind": "process",
+                    "what": 42,
+                    "pid": "junk",
+                }
+            )
+            + "\n"
+        )
+        stream.write(json.dumps({"op": "spawned", "id": "odd", "pid": "x"}) + "\n")
+        stream.write(
+            json.dumps({"op": "ended", "id": "odd", "state": "finished"}) + "\n"
+        )
+
+    lines = ledger.render_lines()
+
+    assert len(lines) == 2
+    assert any("Watch odd" in line and "42" in line for line in lines)

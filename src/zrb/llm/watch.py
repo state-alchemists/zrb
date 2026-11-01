@@ -90,7 +90,9 @@ def _ledger_filename(session: str) -> str:
     file and each would render the other's watches — so a digest of the exact
     key follows the readable stem.
     """
-    digest = hashlib.sha1(session.encode("utf-8")).hexdigest()[:8]
+    digest = hashlib.sha1(session.encode("utf-8"), usedforsecurity=False).hexdigest()[
+        :8
+    ]
     return f"{_safe_name(session)}-{digest}.jsonl"
 
 
@@ -280,18 +282,22 @@ class WatchLedger:
             if not watch_id:
                 continue
             if row.get("op") == OPENED:
-                fields = {k: v for k, v in row.items() if k in _RECORD_FIELDS}
+                fields = _clean_fields(row)
                 # A shared or hand-edited file must not lend one session
                 # another's watches: the row says whose it is, so check.
                 if fields.get("session", self.session) != self.session:
                     continue
+                fields.setdefault("session", self.session)
+                fields.setdefault("kind", "")
+                fields.setdefault("what", "")
+                fields["id"] = watch_id
                 state[watch_id] = WatchRecord(**fields)  # type: ignore[arg-type]
             elif row.get("op") == SPAWNED and watch_id in state:
-                state[watch_id].pid = int(row.get("pid") or 0)
+                state[watch_id].pid = _as_int(row.get("pid")) or 0
             elif row.get("op") == ENDED and watch_id in state:
                 record = state[watch_id]
                 record.state = str(row.get("state", FINISHED))
-                record.exit_code = row.get("exit_code")
+                record.exit_code = _as_int(row.get("exit_code"))
                 record.outcome = str(row.get("outcome", "") or record.outcome)
                 record.ended_at = str(row.get("ended_at", ""))
             elif row.get("op") == DELIVERED and watch_id in state:
@@ -397,10 +403,14 @@ class WatchLedger:
         rows: list[dict] = []
         for line in lines:
             try:
-                rows.append(json.loads(line))
+                row = json.loads(line)
             except ValueError:
                 # A torn last line from a crash costs that one row, not the file.
                 continue
+            # Valid JSON that is not a row (a hand edit, a stray number) is the
+            # same loss: one line, never the turn that was reading it.
+            if isinstance(row, dict):
+                rows.append(row)
         return rows
 
 
@@ -418,6 +428,38 @@ _RECORD_FIELDS = {
     "outcome",
     "recheck",
 }
+
+
+_TEXT_FIELDS = _RECORD_FIELDS - {"pid", "exit_code"}
+
+
+def _as_int(value: object) -> int | None:
+    """*value* as an int, or None when it is not one (including a bool)."""
+    if isinstance(value, bool):
+        return None
+    try:
+        return int(value)  # type: ignore[call-overload]
+    except (TypeError, ValueError):
+        return None
+
+
+def _clean_fields(row: dict) -> dict:
+    """The record fields of an `opened` row, each of the type the code expects.
+
+    The ledger is a file a person can edit, so a field of the wrong type must
+    cost that value, not the render that escapes and formats it.
+    """
+    fields: dict = {}
+    for key, value in row.items():
+        if key not in _RECORD_FIELDS:
+            continue
+        if key == "pid":
+            fields[key] = _as_int(value) or 0
+        elif key == "exit_code":
+            fields[key] = _as_int(value)
+        elif key in _TEXT_FIELDS and value is not None:
+            fields[key] = str(value)
+    return fields
 
 
 def _encode(row: dict) -> str:
