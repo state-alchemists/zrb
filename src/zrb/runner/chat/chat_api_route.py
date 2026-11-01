@@ -4,7 +4,8 @@ import os
 import stat
 import tempfile
 import uuid
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, TypeGuard
 
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
@@ -42,13 +43,34 @@ def _ensure_private_dir(path: str) -> None:
     os.chmod(path, 0o700)
 
 
+def _upload_root() -> str:
+    """The directory every web chat upload is written under."""
+    return os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
+
+
+def _is_uploaded_attachment(path: str) -> bool:
+    """True when *path* resolves, symlinks followed, to a file inside the upload root.
+
+    The web endpoint takes attachment paths from the client, so it may only
+    accept files `save_uploaded_attachment` wrote: anything else would let a
+    client read any server file the process can see (images and PDFs) without
+    a tool approval.
+    """
+    root = os.path.realpath(_upload_root())
+    try:
+        resolved = os.path.realpath(path)
+    except ValueError:  # an embedded NUL byte
+        return False
+    return os.path.isfile(resolved) and Path(resolved).is_relative_to(root)
+
+
 def save_uploaded_attachment(session_id: str, filename: str, data: bytes) -> str:
     """Persist an uploaded attachment to a per-session temp dir, return its path.
 
     Uploads are not cleaned up; the operating system's temp-dir policy is the
     only retention.
     """
-    upload_root = os.path.join(tempfile.gettempdir(), "zrb_web_chat_uploads")
+    upload_root = _upload_root()
     _ensure_private_dir(upload_root)
     # `session_id` is untrusted: `..` would chmod the shared temp dir.
     safe_session = to_safe_filename(session_id)
@@ -160,8 +182,26 @@ async def _read_json_body(request: Any) -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def _is_string_list(value: object) -> bool:
+def _is_string_list(value: object) -> TypeGuard[list[str]]:
     return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def _attachments_problem(attachments: object) -> str | None:
+    """Why the client's `attachments` value is refused, or None when it is fine.
+
+    A missing field or `null` means no attachments. Anything else must be a list
+    of paths the upload endpoint returned.
+    """
+    if attachments is None:
+        return None
+    if not _is_string_list(attachments):
+        return "Field 'attachments' must be a list of strings"
+    if not all(_is_uploaded_attachment(path) for path in attachments):
+        return (
+            "Field 'attachments' must only hold paths returned by the "
+            "attachment upload endpoint"
+        )
+    return None
 
 
 async def _handle_list_chat_sessions(
@@ -299,12 +339,10 @@ async def _handle_post_chat_message(
             content={"error": "Field 'message' must be a string or an object"},
             status_code=400,
         )
-    attachments = data.get("attachments") or []
-    if not _is_string_list(attachments):
-        return JSONResponse(
-            content={"error": "Field 'attachments' must be a list of strings"},
-            status_code=400,
-        )
+    attachments = data.get("attachments")
+    attachments_problem = _attachments_problem(attachments)
+    if attachments_problem is not None:
+        return JSONResponse(content={"error": attachments_problem}, status_code=400)
     is_approval_action = data.get("isApprovalAction", False)
     is_json = isinstance(message, dict)
 
@@ -361,7 +399,7 @@ async def _handle_post_chat_message(
     if isinstance(message, dict):
         message = json.dumps(message)
     CFG.LOGGER.info(f"Sending to input queue: {message[:100]}")
-    await session_manager.send_input(session_id, message, attachments=attachments)
+    await session_manager.send_input(session_id, message, attachments=attachments or [])
     return JSONResponse(content={"status": "sent"})
 
 

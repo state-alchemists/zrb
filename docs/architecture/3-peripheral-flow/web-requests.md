@@ -51,6 +51,7 @@
 | A session log is served only under the task that wrote it | Access to one task leaks every other task's results | `test/runner/web_route/test_task_session_api_route.py::test_get_task_session_api_read_foreign_session` |
 | Every chat route checks access to the `llm chat` task | An unauthorized user reaches the agent and its shell tool | `test/runner/chat/test_chat_api.py::test_routes_forbid_user_without_task_access` |
 | The shared chat task's wiring is restored after each message, even on cancel | One session's replies and approvals go to another session's browser | `test/runner/chat/test_chat_session_runner.py::test_cancel_mid_run_cancels_inflight_llm_task_and_restores_config` |
+| A web chat message may attach only files the upload endpoint wrote (the path must resolve, symlinks followed, inside the upload directory) | A client names any server path and the agent reads it without a tool approval | `test/runner/chat/test_chat_api.py::test_post_message_rejects_a_path_outside_the_upload_dir` |
 | Web chat messages run with `interactive` off | Every message replays full history and fires session-end hooks | `test/runner/chat/test_chat_session_runner.py::test_run_chat_session_success` |
 
 ## Realization
