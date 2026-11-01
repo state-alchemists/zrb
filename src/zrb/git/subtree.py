@@ -36,10 +36,11 @@ async def add_subtree(
 ):
     """Add a subtree at `prefix` and record it under `name` in `subtrees.json`.
 
-    Rejects a `prefix` that already exists or a `name` already configured.
+    Rejects a `prefix` that already exists in `repo_dir` or a `name` already
+    configured.
     """
     config = load_config(repo_dir)
-    if os.path.isdir(prefix):
+    if os.path.isdir(os.path.join(repo_dir, prefix)):
         raise ValueError(f"Directory exists: {prefix}")
     if name in config.data:
         raise ValueError(f"Subtree config already exists: {name}")
