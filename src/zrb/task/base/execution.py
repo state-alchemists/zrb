@@ -66,11 +66,7 @@ class BaseTaskExecution:
     def check_execute_condition(self, session: AnySession) -> bool:
         """Evaluate the task's execute_condition."""
         task = self._task
-        ctx = task.get_ctx(session)
-        execute_condition_attr = (
-            task.execute_condition if task.execute_condition is not None else True
-        )
-        return get_bool_attr(ctx, execute_condition_attr, True)
+        return get_bool_attr(task.get_ctx(session), task.execute_condition, True)
 
     async def execute_action_until_ready(self, session: AnySession):
         """Run the action, concurrently with readiness checks when any exist."""

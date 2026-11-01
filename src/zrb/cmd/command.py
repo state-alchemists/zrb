@@ -526,8 +526,6 @@ class __StreamState:
 def __resolve_chunk(future: "asyncio.Future[bytes]") -> bytes:
     try:
         return future.result()
-    except (KeyboardInterrupt, asyncio.CancelledError):
-        raise
     except Exception:
         return b""
 

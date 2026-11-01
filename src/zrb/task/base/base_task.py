@@ -453,13 +453,7 @@ class BaseTask(AnyTask):
         except (KeyboardInterrupt, GeneratorExit):
             raise
         except BaseException as e:
-            additional_error_note = (
-                f"Task: {self.name} ({self.__decl_file}:{self.__decl_line})"
-            )
-            if hasattr(e, "add_note"):
-                e.add_note(additional_error_note)
-            elif hasattr(e, "__notes__"):
-                e.__notes__ = getattr(e, "__notes__", []) + [additional_error_note]
+            e.add_note(f"Task: {self.name} ({self.__decl_file}:{self.__decl_line})")
             raise e
 
     async def _exec_action(self, ctx: AnyContext) -> Any:

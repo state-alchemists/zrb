@@ -222,6 +222,7 @@ class Session(AnySession):
         """Snapshot this session as a serializable log (polled by the web UI, persisted by the state logger)."""
         task_status_log, log_start_time = self._build_task_status_log()
         sanitized_input = self._sanitize_input()
+        final_result = self.final_result
 
         return _state_log_models().SessionStateLog(
             name=self.name,
@@ -229,9 +230,7 @@ class Session(AnySession):
             main_task_name="" if self._main_task is None else self._main_task.name,
             path=self.task_path,
             final_result=(
-                remove_style(f"{self.final_result}")
-                if self.final_result is not None
-                else ""
+                remove_style(f"{final_result}") if final_result is not None else ""
             ),
             finished=self.is_terminated,
             log=self.shared_ctx.shared_log,
@@ -341,17 +340,11 @@ class Session(AnySession):
         return task in self._monitoring_coros and not self._is_terminated
 
     def register_task(self, task: AnyTask):
-        self._register_task_graph(task)
-
-    def _register_task_graph(
-        self, task: AnyTask, ancestors: set[int] | None = None
-    ) -> None:
         # Iterative to avoid recursion limits. `done` marks fully registered
         # subtrees so diamonds are walked once; a task reappearing on `path`
         # (the ancestor chain) is a cycle.
         done: set[int] = set()
-        path: list[int] = list(ancestors) if ancestors else []
-        path_set: set[int] = set(path)
+        path: set[int] = set()
 
         def _children(t: AnyTask) -> Iterator[AnyTask]:
             yield from t.readiness_checks
@@ -362,13 +355,12 @@ class Session(AnySession):
         def _enter(t: AnyTask) -> bool:
             if id(t) in done:
                 return False
-            if id(t) in path_set:
+            if id(t) in path:
                 raise ValueError(
                     f"Circular task dependency detected involving '{t.name}'"
                 )
             self._register_single_task(t)
-            path.append(id(t))
-            path_set.add(id(t))
+            path.add(id(t))
             return True
 
         if not _enter(task):
@@ -387,8 +379,7 @@ class Session(AnySession):
                     if upstream not in self._upstreams[parent]:
                         self._upstreams[parent].append(upstream)
                 done.add(id(parent))
-                path.pop()
-                path_set.discard(id(parent))
+                path.discard(id(parent))
                 stack.pop()
                 continue
             if not _enter(child):

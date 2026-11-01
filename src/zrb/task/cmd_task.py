@@ -220,10 +220,7 @@ class CmdTask(BaseTask):
         return get_str_attr(ctx, self._remote_ssh_key, "")
 
     def _get_cwd(self, ctx: AnyContext) -> str:
-        cwd = get_str_attr(ctx, self._cwd, os.getcwd())
-        if cwd is None:
-            cwd = os.getcwd()
-        return os.path.abspath(cwd)
+        return os.path.abspath(get_str_attr(ctx, self._cwd, os.getcwd()))
 
     def _get_cmd_script(self, ctx: AnyContext) -> str:
         if self._remote_host is None:

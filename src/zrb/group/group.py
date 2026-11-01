@@ -234,7 +234,7 @@ class Group(AnyGroup):
         return {
             alias: subtask
             for alias, subtask in self.subtasks.items()
-            if not web_only or (web_only and not subtask.is_cli_only)
+            if not web_only or not subtask.is_cli_only
         }
 
     def get_all_subtasks(self, web_only: bool = False) -> list[AnyTask]:
@@ -242,7 +242,7 @@ class Group(AnyGroup):
         subtasks = [
             subtask
             for subtask in self.subtasks.values()
-            if not web_only or (web_only and not subtask.is_cli_only)
+            if not web_only or not subtask.is_cli_only
         ]
         for subgroup in self.subgroups.values():
             subtasks += subgroup.get_all_subtasks(web_only)

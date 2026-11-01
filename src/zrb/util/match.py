@@ -19,13 +19,11 @@ def fuzzy_match(text: str, pattern: str) -> tuple[bool, float]:
         - score: A float representing the match quality (lower is better).
     """
     text_cmp = text.lower()
-    search_pattern = pattern.strip()
-    tokens = (
-        [t for t in re.split(rf"[{re.escape(os.path.sep)}/\s]+", search_pattern) if t]
-        if search_pattern
-        else []
-    )
-    tokens = [t.lower() for t in tokens]
+    tokens = [
+        t.lower()
+        for t in re.split(rf"[{re.escape(os.path.sep)}/\s]+", pattern.strip())
+        if t
+    ]
     if not tokens:
         return True, 0.0
 

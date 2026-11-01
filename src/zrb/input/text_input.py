@@ -102,7 +102,7 @@ class TextInput(BaseInput):
     def _prompt_cli_str(self, shared_ctx: AnySharedContext) -> str:
         if self.editor_cmd is None or self.editor_cmd.strip() == "":
             return super()._prompt_cli_str(shared_ctx)
-        prompt_message = super().prompt_message
+        prompt_message = self.prompt_message
         comment_prompt_message = (
             f"{self.comment_start}{prompt_message}{self.comment_end}"
         )
