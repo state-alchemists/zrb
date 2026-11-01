@@ -332,7 +332,6 @@ def _leading_run(line: str) -> tuple[str, int]:
     return mark, len(stripped) - len(stripped.lstrip(mark))
 
 
-
 def _quote_blocks(text: str) -> str:
     """*text* with each block set off as a blockquote: the markers out, every
     line of the block marked, and a blank line where a quote would otherwise run

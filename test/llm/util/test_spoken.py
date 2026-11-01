@@ -279,4 +279,3 @@ def test_a_fence_split_across_pieces_still_hides_the_tag_inside_it():
 
     assert screen == reply
     assert speech == reply
-
