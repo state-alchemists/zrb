@@ -35,6 +35,7 @@ from zrb.llm.journal_usage_log import (
     WRITTEN,
     record_note_event,
 )
+from zrb.llm.prompt.journal_nearby import Written, nearby_notes
 from zrb.llm.tool.journal_index import (
     ACTIVITY_DIR,
     hud_lines_of,
@@ -74,6 +75,10 @@ from zrb.llm.tool.journal_note import (
 )
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.owner_only import makedirs_owner_only, tighten_once, write_text_owner_only
+
+# How many neighbouring notes a write names. Enough to catch the family a note
+# belongs to, few enough that the line stays a hint rather than a list.
+_NEARBY_LIMIT = 3
 
 
 def log_activity(
@@ -488,6 +493,12 @@ def write_journal_note(
     This tool maintains the indexes, backlinks, and git history, so never edit
     journal files directly: revise here or remove with DeleteJournalNote.
     Unless the user asked for the write, do not announce it.
+
+    A write also answers with the notes it **sits beside**: the nearest few by
+    shared title, keyword and name words. If what you just wrote makes one of
+    them wrong or out of date, revise it with this tool in the same turn — the
+    note a finding contradicts is usually one nobody opened, and two notes that
+    disagree are worse than one that is stale.
     """
     # Before the journal is opened: a refused request must not create a tree.
     check_category(category)
@@ -610,6 +621,7 @@ def _write_note_locked(
     previous = next((note for note in notes if note.rel == note_rel), None)
     line, is_pinned = _hud_state(hud_line, pinned, previous, notes, note_rel)
     targets = _resolve_links(root, links or [])
+    words = normalize_keywords(keywords or [])
     fields = {
         "slug": slug,
         "title": title,
@@ -619,7 +631,7 @@ def _write_note_locked(
         "applies_when": condition,
         "status": STATUS_ACTIVE,
         "hud_line": line,
-        "keywords": normalize_keywords(keywords or []),
+        "keywords": words,
         "pinned": "true" if is_pinned else "",
         "updated": format_stamp(next_stamp(notes, datetime.now())),
     }
@@ -641,6 +653,7 @@ def _write_note_locked(
     result = f"Wrote {note_rel}"
     if evicted:
         result += _eviction_note(section, evicted)
+    result += _nearby_note(notes, Written(note_rel, title, words))
     return result
 
 
@@ -1367,6 +1380,25 @@ def _eviction_note(section: str, evicted: list[str]) -> str:
     return (
         f". Evicted from ## {section} (cap {cap}): {lines} — re-pin with "
         "pinned=True or raise LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION."
+    )
+
+
+def _nearby_note(notes: list[Note], written: Written) -> str:
+    """Name the notes this write sits beside, so a contradiction is visible now.
+
+    The failure this answers: a note is written against advice the writer never
+    read, and the advice keeps reaching later sessions for as long as nobody
+    notices the two disagree. The write is the one moment the contradiction is
+    known to exist, so it is the moment to spend a line on it."""
+    nearby = nearby_notes(notes, written, _NEARBY_LIMIT)
+    if not nearby:
+        return ""
+    listed = ", ".join(
+        f'{note.rel} "{note.hud_line or note.title}"' for note in nearby
+    )
+    return (
+        f". Nearby: {listed} — if this write makes one of them wrong or out of "
+        "date, revise it now with WriteJournalNote."
     )
 
 
