@@ -30,7 +30,10 @@ SRC = REPO_ROOT / "src" / "zrb"
 # into the layout, so each builds its own `Frame` from typed state.
 # -2 (1054->1052): `subtree_model`'s `to_dict` returns `dict[str, object]` — it
 # only passes values through to `json.dumps`.
-ANY_ANNOTATIONS = 1052
+# -3 (1052->1049): `_render_parts` dropped its unused `model` parameter,
+# `_create_summary_model_request` returns `ModelMessage`, and the
+# `_summarize_fat_messages` wrapper is gone.
+ANY_ANNOTATIONS = 1049
 
 
 def _count_any(annotation: ast.expr | None) -> int:

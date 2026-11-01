@@ -142,7 +142,7 @@ def create_summarizer_history_processor(
         # pass below, and an archive of those would record the summary where
         # the tool wrote its output. This is the text the conversation had.
         verbatim_source: "list[ModelMessage]" = list(messages)
-        messages = await _summarize_fat_messages(
+        messages = await summarize_messages(
             messages,
             agent=active_message_agent,
             limiter=llm_limiter,
@@ -164,30 +164,6 @@ def create_summarizer_history_processor(
         )
 
     return process_history
-
-
-async def _summarize_fat_messages(
-    messages: "list[ModelMessage]",
-    agent: Any,
-    limiter: "LLMLimiter",
-    message_token_threshold: int,
-    conversational_token_threshold: int,
-) -> "list[ModelMessage]":
-    """Summarize individual fat messages first; keeps the originals on error."""
-    try:
-        return await summarize_messages(
-            messages,
-            agent=agent,
-            limiter=limiter,
-            message_token_threshold=message_token_threshold,
-            conversational_token_threshold=conversational_token_threshold,
-        )
-    except Exception as e:
-        zrb_print(
-            stylize_error(f"  Error processing messages in history processor: {e}"),
-            plain=True,
-        )
-        return messages
 
 
 async def _maybe_compress_history(
@@ -399,8 +375,6 @@ async def summarize_history(
             )
             return messages
         summary_message = _create_summary_model_request(fitted.render())
-        if summary_message is None:
-            return messages
         result = _assemble_summarized_history(
             summary_message,
             messages,
@@ -564,8 +538,6 @@ def _without_archive_pointer(
     summary_message = _create_summary_model_request(
         _render_summary_content(fitted.model_text, fitted.journal_block, "")
     )
-    if summary_message is None:
-        return messages
     return _assemble_summarized_history(
         summary_message,
         messages,
@@ -1186,7 +1158,7 @@ def _find_first_user_message(messages: "list[ModelMessage]") -> Any:
     return None
 
 
-def _create_summary_model_request(summary_content: str) -> Any:
+def _create_summary_model_request(summary_content: str) -> "ModelMessage":
     """Wrap the finished summary block in the user turn that carries it.
 
     The framing — header, derived-data preamble, end marker — is written by
@@ -1196,8 +1168,4 @@ def _create_summary_model_request(summary_content: str) -> Any:
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
 
-    try:
-        return ModelRequest(parts=[UserPromptPart(content=summary_content)])
-    except Exception as e:
-        zrb_print(stylize_error(f"  Failed to create summary message: {e}"), plain=True)
-        return None
+    return ModelRequest(parts=[UserPromptPart(content=summary_content)])

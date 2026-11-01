@@ -15,7 +15,10 @@ _BROAD = {"Exception", "BaseException"}
 # -9 (312->303): the RAG tool's registration loop and its config mixin were removed.
 # +1 (303->304): the speech player's audio callback must survive a listener's
 # bug of any type (a raise there would kill playback), so it cannot be narrowed.
-SWALLOWED_BROAD_EXCEPTS = 304
+# -3 (304->301): three handlers around code that cannot raise were removed (a
+# wrapper around `summarize_messages`, which already catches everything; the
+# construction of a `ModelRequest`; `os.path.isdir`).
+SWALLOWED_BROAD_EXCEPTS = 301
 
 
 def _is_broad(handler: ast.ExceptHandler) -> bool:

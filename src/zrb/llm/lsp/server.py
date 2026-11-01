@@ -50,7 +50,6 @@ class LSPServer(LSPServerOperations):
         self.initialized = False
         self._read_task: asyncio.Task | None = None
         self._stderr_task: asyncio.Task | None = None
-        self._message_buffer = ""
         # Push diagnostics (most servers lack pull), cached per URI as
         # (version_or_None, diagnostics). The version lets get_diagnostics
         # reject a late publish for an older didChange; unversioned publishes

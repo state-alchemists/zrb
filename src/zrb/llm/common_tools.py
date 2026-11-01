@@ -180,7 +180,6 @@ def _seed_tool_factories() -> tuple[list, list]:
     from zrb.llm.agent.types import Tool
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai
-    from zrb.llm.permission import Capability, tag
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.journal import search_journal
     from zrb.llm.tool.journal_write import (

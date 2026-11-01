@@ -925,7 +925,6 @@ def render_live_context(
         todos_data,
         interactive_bool,
         inject_journal_index,
-        model,
         first_message,
         previous_live_context,
     )
@@ -952,7 +951,6 @@ async def render_live_context_async(
         todos_data,
         interactive_bool,
         inject_journal_index,
-        model,
         first_message,
         previous_live_context,
     )
@@ -980,7 +978,6 @@ def _render_parts(
     todos_data: "dict[str, Any] | None",
     interactive_bool: bool,
     inject_journal_index: bool,
-    model: "Any" = None,
     first_message: str | None = None,
     previous_live_context: str | None = None,
 ) -> str:
