@@ -30,7 +30,10 @@ SRC = REPO_ROOT / "src" / "zrb"
 # into the layout, so each builds its own `Frame` from typed state.
 # -2 (1054->1052): `subtree_model`'s `to_dict` returns `dict[str, object]` — it
 # only passes values through to `json.dumps`.
-ANY_ANNOTATIONS = 1052
+# -4 (1052->1048): `TerminalApprovalChannel` hands an edit to the handler's
+# response handlers through `run_response_handlers`, typed over `ToolCallHandler`
+# and `ToolCallPart` instead of `Any`.
+ANY_ANNOTATIONS = 1048
 
 
 def _count_any(annotation: ast.expr | None) -> int:

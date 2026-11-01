@@ -17,6 +17,11 @@ from zrb.llm.sandbox.os_sandbox import (
 )
 from zrb.llm.tool.shell import start_process
 
+_MAIN_WORKTREE_ERROR = (
+    "Error: The main working tree cannot be resumed as a linked worktree. "
+    "Pass a path from ListWorktrees that is a linked worktree."
+)
+
 
 async def enter_worktree(
     branch_name: Annotated[
@@ -130,10 +135,7 @@ async def _resume_worktree(
             "their exact paths."
         )
     if requested_path == os.path.realpath(git_root):
-        return (
-            "Error: The main working tree cannot be resumed as a linked worktree. "
-            "Pass a path from ListWorktrees that is a linked worktree."
-        )
+        return _MAIN_WORKTREE_ERROR
 
     policy = get_effective_sandbox_policy()
     if policy.enabled:
@@ -163,11 +165,7 @@ async def _resume_worktree(
 
     worktree_list = list_out.decode()
     if _find_main_worktree_path(worktree_list) == requested_path:
-        return _prepend_notes(
-            notes,
-            "Error: The main working tree cannot be resumed as a linked worktree. "
-            "Pass a path from ListWorktrees that is a linked worktree.",
-        )
+        return _prepend_notes(notes, _MAIN_WORKTREE_ERROR)
 
     branch_name = _find_worktree_branch(worktree_list, requested_path)
     if branch_name is None:

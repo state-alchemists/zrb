@@ -55,5 +55,5 @@ def check_write(path: str, policy: SandboxPolicy) -> str | None:
     roots = resolved_writable_roots(policy)
     if not any(is_within(real, root) for root in roots):
         readable_roots = ", ".join(f"'{r}'" for r in roots)
-        return f"'{path}' is outside the sandbox writable roots " f"({readable_roots})"
+        return f"'{path}' is outside the sandbox writable roots ({readable_roots})"
     return None

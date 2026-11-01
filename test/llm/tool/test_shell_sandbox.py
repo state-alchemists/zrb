@@ -6,7 +6,10 @@ import shutil
 import pytest
 
 from zrb.llm.sandbox import SandboxPolicy
-from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
+from zrb.llm.sandbox.os_sandbox import (
+    SandboxUnavailableError,
+    format_sandbox_denied_message,
+)
 from zrb.llm.tool import shell as shell_mod
 from zrb.llm.tool.shell import run_shell_command
 
@@ -44,6 +47,22 @@ async def test_run_shell_command_foreground_sandbox_deny(monkeypatch):
     res = await run_shell_command("echo hi")
     assert "refused by sandbox policy" in res
     assert "deny mode" in res
+
+
+@pytest.mark.asyncio
+async def test_foreground_refusal_is_the_shared_message_plus_the_file_tool_hint(
+    monkeypatch,
+):
+    def _deny(*args, **kwargs):
+        raise SandboxUnavailableError("deny mode")
+
+    monkeypatch.setattr("zrb.llm.sandbox.build_sandboxed_argv", _deny)
+    res = await run_shell_command("echo hi")
+    shared = format_sandbox_denied_message(SandboxUnavailableError("deny mode"))
+    assert res == (
+        f"{shared} Use the in-process file tools instead, or ask the user to "
+        "adjust the sandbox configuration."
+    )
 
 
 @pytest.mark.asyncio

@@ -826,7 +826,7 @@ def _delete_note_locked(root: str, category: str, slug: str) -> str:
     result = f"Deleted {note_rel}"
     if cleared:
         result += (
-            " Cleared the superseded_by that named it from: " f"{', '.join(cleared)}."
+            f" Cleared the superseded_by that named it from: {', '.join(cleared)}."
         )
     return result
 

@@ -33,10 +33,6 @@ from zrb.llm.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree
 from zrb.llm.ui.buffered_ui import BufferedUI
 from zrb.llm.ui_fallback.resolution import resolve_ui
-
-if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
-
 from zrb.llm.util.roster import cap_items, search_roster
 from zrb.llm.util.subagent_session_naming import (
     format_delegated_session_name,
@@ -45,6 +41,9 @@ from zrb.llm.util.subagent_session_naming import (
 )
 from zrb.util.string.name import get_random_name
 from zrb.util.string.suggestion import suggest_name
+
+if TYPE_CHECKING:
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 @dataclass

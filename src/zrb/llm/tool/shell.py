@@ -139,11 +139,8 @@ async def run_shell_command(
     except SandboxUnavailableError as e:
         _cleanup_temp_file(temp_pid_file)
         return (
-            f"Command refused by sandbox policy: {e}. "
-            "[SYSTEM SUGGESTION]: this deployment requires OS-level sandboxing "
-            f"for shell commands ({CFG.ENV_PREFIX}_LLM_SANDBOX_FALLBACK=deny). Use the in-process "
-            "file tools instead, or ask the user to adjust the sandbox "
-            "configuration."
+            f"{format_sandbox_denied_message(e)} Use the in-process file tools "
+            "instead, or ask the user to adjust the sandbox configuration."
         )
 
     process = None

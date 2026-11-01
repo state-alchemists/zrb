@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.approval.any_approval_channel import (
@@ -10,9 +10,16 @@ from zrb.llm.approval.any_approval_channel import (
     ApprovalResult,
 )
 from zrb.llm.tool_call.edit_util import edit_content_via_editor
-from zrb.llm.tool_call.handler import ToolCallHandler
+from zrb.llm.tool_call.handler import (
+    APPROVE_RESPONSES,
+    DENY_RESPONSES,
+    ToolCallHandler,
+    run_response_handlers,
+)
 
 if TYPE_CHECKING:
+    from zrb.llm.agent.types import ToolCallPart
+    from zrb.llm.ui.any_agent_output import AnyAgentOutput
     from zrb.llm.ui.any_ui import AnyUI
 
 
@@ -63,9 +70,9 @@ class TerminalApprovalChannel(AnyApprovalChannel):
         )
 
         r = user_response.lower()
-        if r in ("y", "yes", "ok", "accept", "✅", ""):
+        if r in APPROVE_RESPONSES:
             return ApprovalResult(approved=True)
-        if r in ("n", "no", "deny", "cancel", "🛑"):
+        if r in DENY_RESPONSES:
             return ApprovalResult(approved=False, message="User denied")
 
         if r in ("e", "edit"):
@@ -84,30 +91,22 @@ class TerminalApprovalChannel(AnyApprovalChannel):
 
     async def _handle_via_response_handler(
         self,
-        handler: Any,
-        call: Any,
+        handler: ToolCallHandler,
+        call: "ToolCallPart",
         response: str,
     ) -> ApprovalResult | None:
-        """Handle edit via response handler chain (like ToolCallHandler does)."""
+        """Offer the edit to the handler's response handlers, as `handle` does."""
         # lazy: zrb internal (heavy via transitive)
         from zrb.llm.agent.types import ToolApproved, ToolDenied
 
-        response_handlers = handler.get_response_handlers()
+        async def not_handled(
+            ui: "AnyAgentOutput", call: "ToolCallPart", response: str
+        ) -> ToolDenied:
+            return ToolDenied("Edit not handled")
 
-        async def next_handler(
-            ui: Any,
-            c: Any,
-            r: str,
-            index: int,
-        ) -> Any:
-            if index >= len(response_handlers):
-                return ToolDenied("Edit not handled")
-            resp_handler = response_handlers[index]
-            return await resp_handler(
-                ui, c, r, lambda u, cc, rr: next_handler(u, cc, rr, index + 1)
-            )
-
-        result = await next_handler(self._ui, call, response, 0)
+        result = await run_response_handlers(
+            handler.get_response_handlers(), self._ui, call, response, not_handled
+        )
         if isinstance(result, ToolApproved):
             return ApprovalResult(approved=True, override_args=result.override_args)
         return None
