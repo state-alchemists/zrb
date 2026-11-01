@@ -86,6 +86,23 @@ class TestIsSafeCommand:
         """Test that $() subshells are rejected."""
         assert is_safe_command("echo $(date)") is False
 
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "cat <(touch /tmp/marker)",
+            "grep x <(cmd)",
+            "head -n 1 <( cmd )",
+            "echo <(cmd)",
+        ],
+    )
+    def test_unsafe_command_with_process_substitution(self, command):
+        """`<(cmd)` runs cmd, so an allowlisted prefix must not hide it."""
+        assert is_safe_command(command) is False
+
+    def test_input_redirection_from_a_file_stays_safe(self):
+        """`< file` only reads, so it is not treated like `<(cmd)`."""
+        assert is_safe_command("grep x < notes.txt") is True
+
     def test_unsafe_command_rm(self):
         """Test that rm is not in safe list."""
         assert is_safe_command("rm file.txt") is False

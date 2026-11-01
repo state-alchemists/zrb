@@ -10,8 +10,9 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_agent_output import AnyAgentOutput
 
 # Plain-substring check, so even quoted occurrences require approval. "&"
-# covers "&&"; "\n"/"\r" catch multi-command payloads.
-_DANGEROUS_SUBSTRINGS = (">", "|", ";", "&", "`", "$(", "\n", "\r")
+# covers "&&"; "\n"/"\r" catch multi-command payloads; "<(" is process
+# substitution, which runs its command just as "$(" does.
+_DANGEROUS_SUBSTRINGS = (">", "|", ";", "&", "`", "$(", "<(", "\n", "\r")
 
 # Read-only prefixes, matched case-insensitively and followed by end, space or tab.
 _SAFE_PREFIXES = (
