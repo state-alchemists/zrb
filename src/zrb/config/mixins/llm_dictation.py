@@ -76,6 +76,7 @@ class LLMDictationMixin:
             "that's enough"
         )
         self.DEFAULT_LLM_DICTATION_INTERRUPT_JUDGE_MAX_WORDS: str = "5"
+        self.DEFAULT_LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT: str = "2.0"
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
         self.DEFAULT_LLM_DICTATION_DEVICE: str = ""

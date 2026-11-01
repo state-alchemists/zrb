@@ -9,8 +9,8 @@ from zrb.config.helper import (
     get_current_shell,
     get_shell_name,
     get_windows_posix_shell,
-    is_termux,
 )
+from zrb.util.platform import is_termux
 
 
 def test_default_shell_env_var_set(monkeypatch):

@@ -104,6 +104,8 @@ class EnvField(Generic[T]):
         Value returned when ``cast`` raises ``ValueError`` or ``TypeError``
         (e.g. an env var set to ``"abc"`` with ``cast=int``). Lets fields
         degrade gracefully instead of raising. Unset by default (re-raises).
+        It answers a bad value only: an unset setting reads its declared
+        default (``DEFAULT_<NAME>``), which ``zrb config explain`` shows.
     nullable:
         When ``True``, an unset/empty value reads as ``None`` and assigning
         ``None`` deletes the env var instead of writing ``"None"``.

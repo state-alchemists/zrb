@@ -1,4 +1,5 @@
 from zrb.builtin.group import git_branch_group, git_group
+from zrb.config.env_field import comma_list
 from zrb.context.any_context import AnyContext
 from zrb.git.commands import (
     add,
@@ -110,11 +111,7 @@ async def prune_local_branches(ctx: AnyContext) -> None:
     current_branch = await get_current_branch(repo_dir, print_method=ctx.print)
     ctx.print(stylize_muted("Get existing worktrees"))
     worktrees = await get_worktrees(repo_dir, print_method=ctx.print)
-    preserved_branches = [
-        branch.strip()
-        for branch in ctx.input.preserved_branch.split(",")
-        if branch.strip() != ""
-    ]
+    preserved_branches = comma_list(ctx.input.preserved_branch)
     for branch in branches:
         if branch == current_branch or branch in preserved_branches:
             continue

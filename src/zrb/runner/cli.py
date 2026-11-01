@@ -8,7 +8,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.group.any_group import AnyGroup
 from zrb.group.group import Group
-from zrb.runner.common_util import get_residual_args, get_task_str_kwargs
+from zrb.runner.common_util import HELP_FLAGS, get_residual_args, get_task_str_kwargs
 from zrb.session.session import Session
 from zrb.session_state_logger.session_state_logger_factory import session_state_logger
 from zrb.task.any_task import AnyTask
@@ -59,7 +59,7 @@ class Cli(Group):
         if isinstance(node, AnyGroup):
             self._show_group_info(node)
             return
-        if "h" in str_kwargs or "help" in str_kwargs:
+        if HELP_FLAGS & str_kwargs.keys():
             self._show_task_info(node)
             return
         task_str_kwargs = get_task_str_kwargs(

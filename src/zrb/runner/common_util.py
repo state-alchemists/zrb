@@ -44,7 +44,7 @@ def get_residual_args(
 
 
 # Flags the CLI consumes before a task sees them.
-_CLI_RESERVED_KWARGS = frozenset(("h", "help"))
+HELP_FLAGS = frozenset(("h", "help"))
 
 
 def _reject_unknown_kwargs(task: AnyTask, str_kwargs: dict[str, str]) -> None:
@@ -53,11 +53,7 @@ def _reject_unknown_kwargs(task: AnyTask, str_kwargs: dict[str, str]) -> None:
     Only keyword arguments are checked; leftover positionals become `ctx.args`.
     """
     known = {task_input.name for task_input in task.inputs}
-    unknown = [
-        key
-        for key in str_kwargs
-        if key not in known and key not in _CLI_RESERVED_KWARGS
-    ]
+    unknown = [key for key in str_kwargs if key not in known and key not in HELP_FLAGS]
     if not unknown:
         return
     sorted_known = sorted(known)
