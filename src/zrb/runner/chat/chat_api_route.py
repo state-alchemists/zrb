@@ -240,7 +240,6 @@ async def _handle_get_chat_messages(
 
 
 async def _handle_upload_chat_attachment(
-    session_manager: ChatSessionManager,
     session_id: str,
     file: Any,
 ) -> "JSONResponse":
@@ -493,7 +492,7 @@ def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums the on
             forbidden := await _require_auth(web_auth_config, root_group, request)
         ) is not None:
             return forbidden
-        return await _handle_upload_chat_attachment(session_manager, session_id, file)
+        return await _handle_upload_chat_attachment(session_id, file)
 
     @app.post("/api/v1/chat/sessions/{session_id}/messages")
     async def post_chat_message(
