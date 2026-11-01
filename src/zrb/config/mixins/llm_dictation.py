@@ -1,7 +1,7 @@
 """Dictation config mixin: speech-to-text input for `enable_dictation`.
 
 Two modes. ``ptt``: the dictation command starts recording, and the same
-command or a pause stops it; the transcript lands in the input box.
+command or a pause stops it; the transcript is submitted as typed words are.
 ``hands_free``: the microphone stays open and every utterance is submitted as
 a turn, or answers a pending approval or question. With wake words set, only
 utterances starting with one count. The hands-free command switches between
