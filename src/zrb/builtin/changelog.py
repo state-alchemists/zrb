@@ -102,8 +102,9 @@ async def _matching_tags(ctx, repo_dir, sort, regex):
     )
     if code != 0:
         raise RuntimeError(
-            f"`git tag` exited {code}. Check that the tag does not already exist "
-            f"and that the working tree is clean."
+            f"`git tag` exited {code}. Run it inside a git repository, with a "
+            f"`sort` key it accepts (got {sort!r}; e.g. creatordate or "
+            "version:refname)."
         )
     # splitlines(), not split("\n"): run_command yields CRLF, and a trailing
     # \r both breaks the `$`-anchored regex and produces "ambiguous argument"
