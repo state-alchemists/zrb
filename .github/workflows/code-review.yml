@@ -31,7 +31,17 @@ jobs:
           echo "⏭️  OPENAI_API_KEY is not configured; skipping the LLM review."
           exit 0
         fi
-        zrb submit-comment --range "origin/$GITHUB_BASE_REF...HEAD"
+        # The review prints what its tools read (diffs, file contents, pages it
+        # fetched), and the runner executes any line of the log that looks like a
+        # workflow command. A review that read the source of an action containing
+        # `##[add-matcher]` made this step fail after it had posted its report.
+        # Between these two markers the runner treats the log as plain text.
+        stop_token="$(cat /proc/sys/kernel/random/uuid)"
+        echo "::stop-commands::$stop_token"
+        status=0
+        zrb submit-comment --range "origin/$GITHUB_BASE_REF...HEAD" || status=$?
+        echo "::$stop_token::"
+        exit "$status"
     secrets:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       ZRB_LLM_MODEL: ${{ secrets.ZRB_LLM_MODEL }}
