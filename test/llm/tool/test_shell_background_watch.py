@@ -215,3 +215,21 @@ async def test_the_watch_waits_for_the_output_before_recording_its_pointer(
     (record,) = WatchLedger(str(watch_dir), "_").records()
     assert record.state == "finished"
     assert record.outcome.endswith(".log")
+
+
+@pytest.mark.asyncio
+async def test_killing_a_process_that_already_exited_leaves_it_finished(watch_dir):
+    """A kill asked for after a natural exit must not rewrite that exit."""
+    registry = get_shell_background_registry()
+
+    handle = await registry.start("exit 0", "", "Done before the kill")
+    for _ in range(100):
+        records = WatchLedger(str(watch_dir), "_").records()
+        if records and records[0].state != "running":
+            break
+        await asyncio.sleep(0.05)
+    await registry.kill(handle)
+
+    (record,) = WatchLedger(str(watch_dir), "_").records()
+    assert record.state == "finished"
+    assert record.exit_code == 0

@@ -143,16 +143,6 @@ async def _end_watch_async(
         await asyncio.to_thread(_record_end, bp, handle, ending)
 
 
-def _mark_killed(bp: "_BackgroundProcess") -> None:
-    """Note that a stop is about to be sent, unless the process already exited.
-
-    Set before stopping, because the exit wait can land while the stop is in
-    progress and must record a kill. A process that had already exited on its own
-    is not a kill, whichever path happens to reap it.
-    """
-    bp.killed = bp.process.returncode is None
-
-
 @dataclass
 class _BackgroundProcess:
     process: asyncio.subprocess.Process
@@ -309,7 +299,6 @@ class _ShellBackgroundRegistry:
         bp = self._procs.get(handle)
         if bp is None:
             return
-        _mark_killed(bp)
         await _stop_process(bp)
         # `_stop_process` cancels the wait task, so the exit code it would have
         # recorded is set here; a poll after the kill must not read "running".
@@ -433,7 +422,6 @@ class _ShellBackgroundRegistry:
             return (
                 f"Process '{handle}' has already exited (code {bp.process.returncode})."
             )
-        _mark_killed(bp)
         await _stop_process(bp)
         await _end_watch_async(bp, handle)
         self._procs.pop(handle, None)
@@ -442,7 +430,6 @@ class _ShellBackgroundRegistry:
     async def cancel_all(self) -> None:
         """Kill and reap every background process, so none outlives the event loop."""
         for handle, bp in list(self._procs.items()):
-            _mark_killed(bp)
             await _stop_process(bp)
             await _end_watch_async(bp, handle)
         self._procs.clear()
@@ -455,7 +442,6 @@ class _ShellBackgroundRegistry:
         for handle, bp in list(self._procs.items()):
             if bp.owner_session_id != session_id:
                 continue
-            _mark_killed(bp)
             await _stop_process(bp)
             await _end_watch_async(bp, handle)
             self._procs.pop(handle, None)
@@ -489,8 +475,16 @@ def _unknown_handle_message(handle: str) -> str:
 
 
 async def _stop_process(bp: _BackgroundProcess) -> None:
-    """Terminate *bp* if still running, then release it."""
+    """Terminate *bp* if still running, then release it.
+
+    The watch is marked killed here, in the same step that finds the process
+    still running and before the first `await`: nothing can exit between the
+    check and the mark, and the exit wait can land while the stop is in progress
+    and must record a kill. A process that had already exited on its own is
+    never marked, whichever path happens to reap it.
+    """
     if bp.process.returncode is None:
+        bp.killed = True
         await terminate_process(
             bp.process,
             CFG.LLM_SHELL_KILL_WAIT_TIMEOUT / 1000,
