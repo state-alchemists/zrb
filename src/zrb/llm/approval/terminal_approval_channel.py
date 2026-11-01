@@ -13,9 +13,11 @@ from zrb.llm.tool_call.edit_util import edit_content_via_editor
 from zrb.llm.tool_call.handler import (
     APPROVE_RESPONSES,
     DENY_RESPONSES,
+    MAX_DENIAL_REASON_CHARS,
     ToolCallHandler,
     run_response_handlers,
 )
+from zrb.util.truncate import truncate_chars
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ToolCallPart
@@ -85,9 +87,8 @@ class TerminalApprovalChannel(AnyApprovalChannel):
                 return result
             return await self._handle_edit(context)
 
-        return ApprovalResult(
-            approved=False, message=f"User denied with: {user_response}"
-        )
+        reason = truncate_chars(user_response, MAX_DENIAL_REASON_CHARS)
+        return ApprovalResult(approved=False, message=f"User denied with: {reason}")
 
     async def _handle_via_response_handler(
         self,
