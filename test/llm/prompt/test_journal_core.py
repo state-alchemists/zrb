@@ -170,6 +170,22 @@ def test_a_bullet_index_without_headings_is_trimmed_too():
         assert not line.startswith("- preference") or line.endswith("stated by the user")
 
 
+def test_an_oversized_preamble_is_trimmed_like_a_section():
+    """The lines above the first heading are part of the index too. Charging them
+    to the budget without being able to drop one returned more than the cap
+    whenever the preamble was bigger than it — 337 characters for a 10-character
+    budget, found in review on #791."""
+    lines = [f"- hand-written line {i} above every heading" for i in range(30)]
+    content = "# Journal\n" + "\n".join(lines) + "\n\n## User\n\n- Name: Go\n"
+    for budget in (10, 60, 300):
+        kept, note = plan_index_core(content, budget)
+        assert len(kept) + 1 + len(note) <= budget, budget
+    kept, note = plan_index_core(content, 300)
+    assert "hand-written line 0" in kept
+    assert "hand-written line 29" not in kept
+    assert "at the top of the file" in note
+
+
 def test_a_zero_budget_is_the_callers_decision_not_this_modules():
     content = _index(("User", [_claim("Name: Go.", "name-go", "user")]))
     assert plan_index_core(content, 0) == (content, "")

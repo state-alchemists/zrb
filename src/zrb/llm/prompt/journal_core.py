@@ -86,39 +86,40 @@ def plan_index_core(content: str, budget: int) -> tuple[str, str]:
     from zrb.llm.tool.journal_index import DIRECTORIES_HEADING, PIN_MARKER
 
     pointer = DIRECTORIES_HEADING.removeprefix("## ").strip()
-    preamble, blocks = _split_sections(content, pointer, PIN_MARKER)
+    blocks = _split_sections(content, pointer, PIN_MARKER)
     # A quarter of the cap, at most, explains what the rest of it left out. Fixed
     # before the fill rather than measured after it, because the note grows as
     # the body shrinks — the two would chase each other, and the line that paid
     # for the note was a claim.
     reserve = min(_MAX_NOTE, budget // 4)
-    kept = _fill(preamble, blocks, budget - reserve - _MARKER_CHARS)
-    return _emit(preamble, blocks, kept), _hidden_note(blocks, kept, reserve)
+    kept = _fill(blocks, budget - reserve - _MARKER_CHARS)
+    return _emit(blocks, kept), _hidden_note(blocks, kept, reserve)
 
 
 def _split_sections(
     content: str, pointer_heading: str, pin_marker: str
-) -> tuple[list[str], list[_Block]]:
-    """The lines above the first `## ` heading, and the blocks below it.
+) -> list[_Block]:
+    """Every block of the index, in file order.
+
+    The lines above the first `## ` heading — the title, and any hand-written
+    lines a journal keeps there — are a block of their own with no heading, so
+    they are ranked and trimmed like any other. Charging them to the budget
+    without being able to drop one returned more than the cap whenever the
+    preamble was larger than it.
 
     Blank lines are not candidates: they carry nothing, and letting one compete
     for the budget opened a section whose heading then stood over no lines at
-    all. A journal written before the HUD sections existed has bullets and no
-    headings; those become one unnamed block, so they are ranked and trimmed
-    like any other."""
+    all."""
     lines = content.splitlines()
     start = len(lines)
     for index, line in enumerate(lines):
         if line.startswith("## "):
             start = index
             break
-    preamble, tail = lines[:start], lines[start:]
-    raw = _raw_blocks(tail) or _implicit_block(preamble)
-    if raw and raw[0][0] == "":
-        preamble = preamble[: _first_bullet(preamble)]
-    preamble = _without_blank_edges(preamble)
+    head = _without_blank_edges(lines[:start])
+    raw = [("", head), *_raw_blocks(lines[start:])] if head else _raw_blocks(lines[start:])
     claimed = {path for _, body in raw for path in map(_note_path, body) if path}
-    blocks = [
+    return [
         _Block(
             heading,
             tuple(
@@ -128,7 +129,6 @@ def _split_sections(
         )
         for heading, body in raw
     ]
-    return preamble, blocks
 
 
 def _raw_blocks(tail: list[str]) -> list[tuple[str, list[str]]]:
@@ -156,21 +156,6 @@ def _without_blank_edges(lines: list[str]) -> list[str]:
     return lines[start:end]
 
 
-def _implicit_block(preamble: list[str]) -> list[tuple[str, list[str]]]:
-    """The preamble's bullets as one unnamed block, or nothing when it has none."""
-    start = _first_bullet(preamble)
-    if start >= len(preamble):
-        return []
-    return [("", preamble[start:])]
-
-
-def _first_bullet(lines: list[str]) -> int:
-    for index, line in enumerate(lines):
-        if line.startswith("- "):
-            return index
-    return len(lines)
-
-
 def _note_path(line: str) -> str:
     """The note a claim line came from, or `""` for any other line."""
     found = _CLAIM_LINK.search(line)
@@ -191,7 +176,7 @@ def _rank_line(
     return _Line(line, REPEAT if path in claimed else REST, path)
 
 
-def _fill(preamble: list[str], blocks: list[_Block], budget: int) -> list[set[int]]:
+def _fill(blocks: list[_Block], budget: int) -> list[set[int]]:
     """Which line indexes each block keeps.
 
     The budget is charged as the text is built: a block pays for its heading and
@@ -200,9 +185,9 @@ def _fill(preamble: list[str], blocks: list[_Block], budget: int) -> list[set[in
     never appear over an empty section."""
     kept = [set() for _ in blocks]
     opened = [False for _ in blocks]
-    used = _cost(preamble, blocks, kept)
+    used = 0
     for rank in _KEPT_RANKS:
-        used = _take_rank(blocks, kept, opened, preamble, rank, used, budget)
+        used = _take_rank(blocks, kept, opened, rank, used, budget)
     return kept
 
 
@@ -210,7 +195,6 @@ def _take_rank(
     blocks: list[_Block],
     kept: list[set[int]],
     opened: list[bool],
-    preamble: list[str],
     rank: int,
     used: int,
     budget: int,
@@ -235,7 +219,7 @@ def _take_rank(
                 index = queues[position][0]
                 cost = len(block.lines[index].text) + 1
                 if not opened[position]:
-                    cost += _open_cost(block.heading, bool(preamble))
+                    cost += _open_cost(block.heading, any(opened))
                 if used + cost > budget:
                     queues[position].pop(0)
                     continue
@@ -249,29 +233,14 @@ def _take_rank(
             return used
 
 
-def _open_cost(heading: str, preamble_present: bool) -> int:
+def _open_cost(heading: str, separator: bool) -> int:
     """The heading, its blank line, and the separator before the block."""
-    return (len(heading) + 4 if heading else 0) + (2 if preamble_present else 0)
+    return (len(heading) + 4 if heading else 0) + (2 if separator else 0)
 
 
-def _cost(preamble: list[str], blocks: list[_Block], kept: list[set[int]]) -> int:
-    """What the kept text costs, counted the way `_emit` builds it.
-
-    Deliberately over-counts by one newline per part — the last line of a part
-    contributes none — so the emitted text can never come out over budget."""
-    parts = [len("\n".join(preamble))] if preamble else []
-    for block, kept_at in zip(blocks, kept):
-        if not kept_at:
-            continue
-        if block.heading:
-            parts.append(len(block.heading) + 3)
-        parts.append(sum(len(block.lines[i].text) + 1 for i in kept_at))
-    return sum(parts) + 2 * max(0, len(parts) - 1)
-
-
-def _emit(preamble: list[str], blocks: list[_Block], kept: list[set[int]]) -> str:
+def _emit(blocks: list[_Block], kept: list[set[int]]) -> str:
     """The kept text, still shaped like an index."""
-    parts = ["\n".join(preamble)] if preamble else []
+    parts = []
     for block, kept_at in zip(blocks, kept):
         if not kept_at:
             continue
