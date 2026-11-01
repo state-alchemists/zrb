@@ -170,6 +170,19 @@ def test_a_bullet_index_without_headings_is_trimmed_too():
         assert not line.startswith("- preference") or line.endswith("stated by the user")
 
 
+def test_a_title_is_kept_when_its_claim_did_not_fit():
+    """Suppressing a title because *some* claim names the same note is only right
+    when that claim reached the block. Otherwise a long pin that does not fit
+    takes the note's only remaining trace with it (review on #791)."""
+    content = _index(
+        ("Recent", [_claim("a very long claim " * 12, "long", pinned=True)]),
+        ("Recent Insights", [_title("Short title", "technical/long.md")]),
+    )
+    kept, _ = plan_index_core(content, 200)
+    assert "a very long claim" not in kept
+    assert _title("Short title", "technical/long.md") in kept
+
+
 def test_an_oversized_preamble_is_trimmed_like_a_section():
     """The lines above the first heading are part of the index too. Charging them
     to the budget without being able to drop one returned more than the cap

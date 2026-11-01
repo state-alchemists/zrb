@@ -37,10 +37,12 @@ _ANY_LINK = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 # Ranks, best first. A claim outranks a pointer: the block's own header already
 # says that each category's own index lists every note ever written in it, so the
-# `## Directories` line is the cheaper thing to lose. `REPEAT` is never kept: its
-# note's claim is already in the block, so it is not a fallback, it is a duplicate.
-PINNED, CLAIM, POINTER, REST, REPEAT = range(5)
-_KEPT_RANKS = (PINNED, CLAIM, POINTER, REST)
+# `## Directories` line is the cheaper thing to lose. `ORPHAN` is a catalog title
+# whose note also has a claim: it is a duplicate *if that claim was kept*, so it
+# goes last and the fill drops it once the claim is in — a claim too long to fit
+# leaves the short title as the note's only trace.
+PINNED, CLAIM, POINTER, REST, ORPHAN = range(5)
+_KEPT_RANKS = (PINNED, CLAIM, POINTER, REST, ORPHAN)
 
 # How many hidden sections the overflow note names before it counts the rest,
 # and how many characters of the cap the note may spend at most.
@@ -173,7 +175,7 @@ def _rank_line(
     path = link.group(1) if link else ""
     if in_pointer_section:
         return _Line(line, POINTER, path)
-    return _Line(line, REPEAT if path in claimed else REST, path)
+    return _Line(line, ORPHAN if path in claimed else REST, path)
 
 
 def _fill(blocks: list[_Block], budget: int) -> list[set[int]]:
@@ -203,12 +205,19 @@ def _take_rank(
 
     A round ends when no block takes a line: either every line of this rank is
     kept, or what is left is too long for the remainder — and the remainder only
-    shrinks, so a line that did not fit is taken off the queue for good."""
+    shrinks, so a line that did not fit is taken off the queue for good.
+
+    *ORPHAN* runs last, so by then every claim's fate is settled: a title whose
+    note is already in the block is the duplicate this rank exists to suppress,
+    and one whose claim did not fit is the note's only remaining trace."""
+    shown = _kept_claim_paths(blocks, kept)
     queues = [
         [
             index
             for index, line in enumerate(block.lines)
-            if line.rank == rank and index not in kept_at
+            if line.rank == rank
+            and index not in kept_at
+            and not (line.rank == ORPHAN and line.path in shown)
         ]
         for block, kept_at in zip(blocks, kept)
     ]
@@ -231,6 +240,16 @@ def _take_rank(
                 break
         if not taken:
             return used
+
+
+def _kept_claim_paths(blocks: list[_Block], kept: list[set[int]]) -> set[str]:
+    """The notes whose own claim is already in the block."""
+    return {
+        block.lines[index].path
+        for block, kept_at in zip(blocks, kept)
+        for index in kept_at
+        if block.lines[index].rank in (PINNED, CLAIM)
+    }
 
 
 def _open_cost(heading: str, separator: bool) -> int:
@@ -265,7 +284,7 @@ def _hidden_note(blocks: list[_Block], kept: list[set[int]], limit: int) -> str:
         [index for index in range(len(block.lines)) if index not in kept_at]
         for block, kept_at in zip(blocks, kept)
     ]
-    lost = _lost_sections(blocks, hidden)
+    lost = _lost_sections(blocks, hidden, _kept_claim_paths(blocks, kept))
     if not lost:
         return _MARKER
     pins = _pinned_count(blocks, hidden)
@@ -275,18 +294,37 @@ def _hidden_note(blocks: list[_Block], kept: list[set[int]], limit: int) -> str:
     return f"{_render_note(names, pins, len(lost) - len(names))}\n{_MARKER}"
 
 
-def _lost_sections(blocks: list[_Block], hidden: list[list[int]]) -> list[tuple[str, int]]:
-    """Each section that held back a line worth reading, with how many, biggest first."""
-    lost = [
-        (
-            block.heading,
-            sum(1 for index in indexes if block.lines[index].rank != REPEAT),
-        )
-        for block, indexes in zip(blocks, hidden)
-        if any(block.lines[index].rank != REPEAT for index in indexes)
-    ]
-    lost.sort(key=lambda pair: -pair[1])
-    return lost
+def _lost_sections(
+    blocks: list[_Block], hidden: list[list[int]], shown: set[str]
+) -> list[tuple[str, int]]:
+    """Each section that held back a line worth reading, with how many.
+
+    Ordered by the best line it lost, then by how many: a section missing a
+    pinned line is a different loss from one missing twenty catalog titles, and
+    counting alone would let the catalog — whose lines are the weakest in the
+    index — lead the note every time it is the longest."""
+    lost = []
+    for block, indexes in zip(blocks, hidden):
+        withheld = [
+            block.lines[index]
+            for index in indexes
+            if _is_withheld(block, index, shown)
+        ]
+        if withheld:
+            best = min(line.rank for line in withheld)
+            lost.append((best, block.heading, len(withheld)))
+    lost.sort(key=lambda item: (item[0], -item[2]))
+    return [(heading, count) for _, heading, count in lost]
+
+
+def _is_withheld(block: _Block, index: int, shown: set[str]) -> bool:
+    """Whether leaving this line out cost the reader anything.
+
+    A catalog title is a duplicate only once its note's claim is in the block. If
+    that claim did not fit either, the title was the note's only trace, and
+    losing it lost the note."""
+    line = block.lines[index]
+    return line.rank != ORPHAN or line.path not in shown
 
 
 def _pinned_count(blocks: list[_Block], hidden: list[list[int]]) -> int:
