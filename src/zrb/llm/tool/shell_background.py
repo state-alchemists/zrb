@@ -324,7 +324,6 @@ class _ShellBackgroundRegistry:
             lines.append(truncation_note)
         if bp.returncode is not None:
             if all(task.done() for task in bp.tasks):
-                # Fully drained: release the entry.
                 lines.append("The handle has been consumed — the process has finished.")
                 self._withdraw_wake(bp)
                 _release_process(bp)

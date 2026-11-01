@@ -187,9 +187,6 @@ class TodoManager:
 todo_manager = TodoManager()
 
 
-# ── Progress visualization ─────────────────────────────────────────────────
-
-
 # Plain-text status markers for the model-facing tool results.
 _STATUS_CHARS = {
     "completed": "[+]",

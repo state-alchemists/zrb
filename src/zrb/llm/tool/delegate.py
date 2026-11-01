@@ -584,9 +584,8 @@ async def _run_delegation(
     """Run one sub-agent for this turn, or step it aside when the user needs the turn.
 
     The sub-agent is a `Task` from the start, so a cut hands exactly that task to
-    the background registry: an awaited task nobody waits on any more keeps
-    running, which is what keeps the work alive when the turn is interrupted
-    instead of waiting.
+    the background registry: a task nobody awaits keeps running, which keeps the
+    work alive when the turn is interrupted instead of waiting.
     """
     run = asyncio.ensure_future(
         run_agent_task(
@@ -780,8 +779,7 @@ def _fan_out_reports(
 def _fan_out_report(agent_name: str, run: asyncio.Task) -> str:
     """One finished delegation's report; its own failure stays its own line.
 
-    An unanticipated raise fails one task, not every sibling — the guarantee
-    `gather(return_exceptions=True)` used to give this loop.
+    An unanticipated raise fails one task, not every sibling.
     """
     if run.cancelled():
         return f"[{agent_name}] Error: cancelled"
@@ -864,7 +862,6 @@ def create_delegate_to_agent_tool(
             ),
         ] = [],  # noqa: B006
     ) -> str:
-        """See module docstring; required-arg signature is the scope clamp."""
         if tasks:
             return await _run_parallel(tasks, sub_agent_manager)
         missing = [
