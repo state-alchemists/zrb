@@ -10,7 +10,7 @@ import uuid
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.authority_snapshot import (
