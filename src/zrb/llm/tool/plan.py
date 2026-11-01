@@ -125,6 +125,7 @@ class TodoManager:
 
         todo_file = self.get_todo_file(session_name)
         try:
+            todo_file.parent.mkdir(parents=True, exist_ok=True)
             with open(todo_file, "w", encoding="utf-8") as f:
                 json.dump(self._todos[session_name], f, indent=2)
         except Exception as e:
