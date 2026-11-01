@@ -42,6 +42,7 @@ from zrb.llm.journal_usage_log import (
     record_injected,
 )
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
+from zrb.llm.prompt.journal_core import plan_index_core
 from zrb.llm.util.live_context_block import split_live_context
 from zrb.util.string.name import get_conversation_key
 
@@ -58,9 +59,6 @@ LIVE_CONTEXT_ANCHOR = (
     "most recent <live-context> as authoritative; earlier ones are stale "
     "snapshots from when that turn was sent."
 )
-
-# A journal index entry: `[title](category/note.md)`.
-_INDEX_LINK = re.compile(r"\[([^\]]+)\]\(([a-z0-9_-]+)/[^)]*\)")
 
 # The trailing link of a HUD line: `- text ([note](category/slug.md))`.
 _HUD_NOTE_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$", re.MULTILINE)
@@ -481,22 +479,15 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         return None
     if not content.strip():
         return None
-    # Negative disables the cap; 0 means "inject nothing", since EnvField
+    # A negative cap keeps the index whole; 0 injects nothing, since EnvField
     # parses a typo to 0 and that must not uncap.
     limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
     if limit == 0:
         return None
-    hint = ""
-    if limit > 0 and len(content) > limit:
-        # Cut on a line boundary: half a fact is worse than none. Overflow
-        # drops from the end, so the summary says which categories were lost
-        # and names the newest note in each — otherwise the model cannot tell
-        # whether the missing part matters.
-        head = content[:limit]
-        cut = head.rfind("\n")
-        kept = head[:cut] if cut > 0 else head
-        content = kept + "\n" + _overflow_summary(content[len(kept) :])
-        hint = "Truncated at `(...more)`. "
+    content, overflow = plan_index_core(content, limit)
+    hint = "Truncated at `(...more)`. " if overflow else ""
+    if overflow:
+        content = f"{content}\n{overflow}"
     possibly_related = ""
     if first_message and CFG.LLM_JOURNAL_AUTO_SEARCH_ENABLED:
         possibly_related = _render_possibly_related(first_message)
@@ -662,39 +653,6 @@ def _remember_shown(session: str, notes: list[Note]) -> None:
 def _version_of(note: Note) -> str:
     """A note's identity at one revision: the key the shown-records compare on."""
     return f"{note.category}/{note.slug}@{note.updated.isoformat()}"
-
-
-def _overflow_summary(dropped: str) -> str:
-    """One line per note category the cap hid, plus the newest title in it."""
-    counts: dict[str, int] = {}
-    newest: dict[str, str] = {}
-    for line in dropped.splitlines():
-        seen_here: set[str] = set()
-        for title, category in _INDEX_LINK.findall(line):
-            if category in seen_here:
-                continue
-            seen_here.add(category)
-            counts[category] = counts.get(category, 0) + 1
-            # The index lists newest first, so the first line seen is the newest.
-            newest.setdefault(
-                category, title if title != "note" else _title_before_link(line)
-            )
-    if not counts:
-        return "(...more)"
-    lines = []
-    for category in sorted(counts):
-        detail = f'; newest "{newest[category]}"' if newest.get(category) else ""
-        lines.append(
-            f"- Hidden {category} notes ({counts[category]}{detail}) — "
-            "use SearchJournal."
-        )
-    lines.append("(...more)")
-    return "\n".join(lines)
-
-
-def _title_before_link(line: str) -> str:
-    """The entry text before a `([note](...))` link, which is its title."""
-    return line.split(" ([note]", 1)[0].lstrip("- ").strip()
 
 
 def _render_possibly_related(first_message: str) -> str:

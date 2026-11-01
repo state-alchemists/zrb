@@ -105,8 +105,9 @@ def test_overflow_is_cut_on_a_line_boundary(tmp_path):
         assert line.endswith("stated by the user")
 
 
-def test_head_survives_so_ordering_decides_what_is_kept(tmp_path):
-    """Overflow drops from the end — the HUD is written most-durable-first."""
+def test_a_short_section_survives_a_long_one(tmp_path):
+    """The cap is spent across sections, not from the top: a section that happens
+    to come first must not be the reason the one below it arrives empty."""
     filler = "\n".join(
         f"- [insight {i}](technical/n{i}.md)" for i in reversed(range(200))
     )
@@ -122,35 +123,31 @@ def test_head_survives_so_ordering_decides_what_is_kept(tmp_path):
 
     assert result is not None
     assert "- Name: Go" in result
-    # The index lists newest first, so the cut drops the oldest and the summary
-    # names the first hidden entry, the newest of them.
+    assert "## Recent" in result
+    # A section renders newest first, so what survives is its newest entries.
     assert "- [insight 199]" in result
     assert "- [insight 0]" not in result
-    hidden_newest = max(i for i in range(200) if f"- [insight {i}]" not in result)
-    assert f'newest "insight {hidden_newest}"' in result
 
 
-def test_overflow_names_each_hidden_category(tmp_path):
-    """A cut that drops Technical and Projects must say so: '(...more)' alone
-    reads as 'nothing important', and the model re-derives what is already
-    recorded."""
-    lines = [f"- [tech {i}](technical/n{i}.md)" for i in reversed(range(40))]
-    lines += [f"- [proj {i}](projects/p{i}.md)" for i in reversed(range(10))]
-    journal_dir = _write_index(tmp_path, "# Journal\n" + "\n".join(lines) + "\n")
+def test_the_overflow_note_names_the_section_that_lost_lines(tmp_path):
+    """A cap that empties a section must say which one: '(...more)' alone reads as
+    'nothing important', and the model re-derives what is already recorded."""
+    filler = "\n".join(f"- [tech {i}](technical/n{i}.md)" for i in reversed(range(40)))
+    journal_dir = _write_index(
+        tmp_path,
+        "# Journal\n\n## User\n\n- Name: Go\n\n"
+        f"## Recent\n\n{filler}\n\n## Agent\n\n- [who](agent/who.md)\n",
+    )
     with patch("zrb.llm.prompt.live_context.CFG") as cfg:
         cfg.LLM_JOURNAL_DIR = journal_dir
         cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
-        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 300
+        cfg.LLM_JOURNAL_INDEX_MAX_CHARS = 400
 
         result = render_journal_index()
 
     assert result is not None
-    assert "Hidden technical notes" in result
-    assert "Hidden projects notes" in result
-    hidden_tech = max(i for i in range(40) if f"[tech {i}]" not in result)
-    assert f'newest "tech {hidden_tech}"' in result
-    assert 'newest "proj 9"' in result
-    assert "use SearchJournal" in result
+    assert "under ## Recent" in result
+    assert "(...more)" in result
 
 
 def test_zero_suppresses_the_injection(tmp_path):
