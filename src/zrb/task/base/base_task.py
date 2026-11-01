@@ -21,6 +21,31 @@ from zrb.task.base.monitoring import BaseTaskMonitoring
 from zrb.task.base.operators import BaseTaskOperators
 from zrb.util.string.conversion import to_snake_case
 
+# `make_task` builds the task on behalf of the code that decorates a function.
+_MAKE_TASK_MODULE = "zrb.task.make_task"
+
+
+def _declaration_site(task: "BaseTask") -> tuple[str, int]:
+    """The file and line of the code that declared *task*.
+
+    Skips the task's own `__init__` chain and `make_task`, so a failure names
+    the user's `CmdTask(...)` or `@make_task` line and not a line inside zrb.
+    """
+    frame = inspect.currentframe()
+    while frame is not None:
+        is_own_init = (
+            frame.f_code.co_name == "__init__" and frame.f_locals.get("self") is task
+        )
+        is_this_helper = frame.f_code is _declaration_site.__code__
+        if not (
+            is_this_helper
+            or is_own_init
+            or frame.f_globals.get("__name__") == _MAKE_TASK_MODULE
+        ):
+            return frame.f_code.co_filename, frame.f_lineno
+        frame = frame.f_back
+    return "unknown", 0
+
 
 class BaseTask(AnyTask):
     """The concrete `AnyTask`: an action plus dependency wiring, retries and
@@ -110,17 +135,8 @@ class BaseTask(AnyTask):
             print_fn: Callable receiving this task's output lines. Defaults to
                 printing to stdout.
         """
-        # Declaration site, attached to raised exceptions by `exec_action`.
-        frame = inspect.currentframe()
-        if frame is not None:
-            caller_frame = frame.f_back
-            self.__decl_file = (
-                caller_frame.f_code.co_filename if caller_frame else "unknown"
-            )
-            self.__decl_line = caller_frame.f_lineno if caller_frame else 0
-        else:
-            self.__decl_file = "unknown"
-            self.__decl_line = 0
+        # Attached to raised exceptions by `exec_action`.
+        self.__decl_file, self.__decl_line = _declaration_site(self)
 
         self._name = name
         self._color = color
