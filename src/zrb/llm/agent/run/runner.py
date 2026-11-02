@@ -868,8 +868,8 @@ async def _take_turn_snapshot(snapshot: TurnSnapshot | None) -> None:
     await run_in_worker(snapshot.take, workdir)
 
 
-def journal_due_for_turn(
-    turn: list[Any], wrote_files: bool, periodic_check: bool
+def is_journal_due_for_turn(
+    turn: Sequence[object], wrote_files: bool, periodic_check: bool
 ) -> bool:
     """Whether the compliance judge runs at the end of this turn.
 
@@ -921,7 +921,7 @@ async def _finish_turn(
             "nested_run": nested_run,
             # wrote_files OR a stated preference OR a periodic check, precomputed
             # because MatcherConfig has no OR primitive (journal_compliance.py).
-            "journal_due": journal_due_for_turn(
+            "journal_due": is_journal_due_for_turn(
                 cursor.accumulated, wrote_files, periodic_check
             ),
         },

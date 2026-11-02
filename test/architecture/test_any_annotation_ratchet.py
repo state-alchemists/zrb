@@ -43,7 +43,10 @@ SRC = REPO_ROOT / "src" / "zrb"
 # -3 (1041->1038): `submit_user_message_via_queue` and `_collect_attachments`
 # take `Sequence[AnyUI]` sources now that `take_pending_attachments` is declared
 # on `AnyUI`, and `_collect_attachments` no longer types a probed callable.
-ANY_ANNOTATIONS = 1036
+# -1 (1036->1035): `turn_states_preference` and `is_journal_due_for_turn` read a
+# message list only by asking each message what it is, so both take
+# `Sequence[object]` rather than `list[Any]`.
+ANY_ANNOTATIONS = 1035
 
 
 def _count_any(annotation: ast.expr | None) -> int:

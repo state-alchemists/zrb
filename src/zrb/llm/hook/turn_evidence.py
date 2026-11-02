@@ -134,7 +134,7 @@ def count_user_turn(run_scope: str) -> int:
     return count
 
 
-def turn_states_preference(turn_messages: list[Any]) -> bool:
+def turn_states_preference(turn_messages: Sequence[object]) -> bool:
     """Whether a user prompt in *turn_messages* reads like a standing preference."""
     from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ModelRequest,
