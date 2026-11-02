@@ -88,11 +88,20 @@ def resolved_writable_roots(policy: SandboxPolicy) -> tuple[str, ...]:
     dir is always included because the shell tool's PID-tracking wrapper
     writes a temp file from inside the sandbox; realpath covers Darwin's
     ``/tmp`` → ``/private/tmp`` symlink.
+
+    The configured worktree root joins the automatic set: linked worktrees
+    live outside the checkout, so without it a sandboxed session could not
+    create — or later write inside — the worktree it just asked for. It is
+    not added to an explicit list: that list is the user's boundary, and a
+    worktree outside it is refused with a message naming the setting.
     """
     if policy.writable_paths:
         roots = [resolve_real(p) for p in policy.writable_paths]
     else:
-        roots = [resolve_real(os.getcwd())]
+        roots = [
+            resolve_real(os.getcwd()),
+            resolve_real(CFG.LLM_WORKTREE_DIR),
+        ]
     roots.append(resolve_real(tempfile.gettempdir()))
     if os.name == "posix":
         roots.append(resolve_real("/tmp"))

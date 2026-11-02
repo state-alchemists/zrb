@@ -147,7 +147,7 @@ Empty (default) uses installation/registry order. See [LSP Support](../llm/lsp-s
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_WORKTREE_DIR` | Where linked worktrees are created. Each repository gets its own `<repo>-<digest>` subdirectory inside it, so two checkouts that share a name never share a path. | `~/.zrb/wt` |
+| `ZRB_LLM_WORKTREE_DIR` | Where linked worktrees are created. A relative value is resolved against the directory zrb was started in. Each repository gets its own `<repo>-<digest>` subdirectory inside it, so two checkouts that share a name never share a path. | `~/.zrb/wt` |
 
 ```python
 from zrb import CFG
@@ -156,13 +156,13 @@ CFG.LLM_WORKTREE_DIR = "/Volumes/fast/worktrees"
 
 A worktree under `LLM_WORKTREE_DIR` is outside the checkout on purpose: one nested in the repository is a second copy of it that every `Grep`, `Glob` and `git status` would have to skip.
 
-In a sandboxed session the sandbox judges the destination, so `LLM_WORKTREE_DIR` has to be writable — **and the repository has to stay writable with it**. `git worktree add` records the new branch and the worktree's own files inside the repository (`.git/refs/heads/<branch>`, `.git/worktrees/<name>`), so a writable list that names the worktree root *instead of* the project stops here with git's own "Operation not permitted" on a `.git` lock, and stops every edit in the project too. Add it alongside the project:
+In a sandboxed session the sandbox judges the destination, so `LLM_WORKTREE_DIR` has to be writable — **and the repository has to stay writable with it**. `git worktree add` records the new branch and the worktree's own files inside the repository (`.git/refs/heads/<branch>`, `.git/worktrees/<name>`), so a writable list that names the worktree root *instead of* the project stops here with git's own "Operation not permitted" on a `.git` lock, and stops every edit in the project too. With an explicit list, add it alongside the project:
 
 ```bash
 export ZRB_LLM_SANDBOX_WRITABLE_PATHS="$PWD:$HOME/.zrb/wt"
 ```
 
-Leaving `LLM_SANDBOX_WRITABLE_PATHS` empty already makes the current directory writable, which covers both.
+Leaving `LLM_SANDBOX_WRITABLE_PATHS` empty is the automatic set: the current directory, the system temp directory, and `LLM_WORKTREE_DIR`. The default configuration therefore needs no entry.
 
 ## Sandbox Configuration
 

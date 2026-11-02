@@ -16,7 +16,7 @@ def _expected_worktree_path(repo: str, branch: str) -> str:
     real_repo = os.path.realpath(repo)
     digest = hashlib.sha256(real_repo.encode("utf-8")).hexdigest()[:8]
     return os.path.join(
-        os.path.expanduser("~"),
+        os.path.realpath(os.path.expanduser("~")),
         ".zrb",
         "wt",
         f"{os.path.basename(real_repo)}-{digest}",
@@ -87,6 +87,42 @@ async def test_worktree_root_follows_the_setting(
     res = await enter_worktree(branch_name="test-branch", cwd=str(repo))
 
     assert str(custom_root) in res
+
+
+@pytest.mark.asyncio
+async def test_a_relative_worktree_root_is_absolute_when_git_sees_it(
+    mock_subprocess, tmp_path, monkeypatch
+):
+    """git resolves a relative destination against its own cwd, not the process one.
+
+    The sandbox check and `os.makedirs` use the process directory, so a
+    relative `LLM_WORKTREE_DIR` has to be made absolute first; otherwise the
+    repository can receive a worktree at a path nothing judged.
+    """
+    process_dir = tmp_path / "process"
+    process_dir.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.chdir(process_dir)
+    monkeypatch.setenv("ZRB_LLM_WORKTREE_DIR", "worktrees")
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=str(repo).encode()),
+        create_mock_process(returncode=0),
+    ]
+
+    with patch(
+        "zrb.llm.tool.worktree.build_sandboxed_argv",
+        side_effect=lambda argv, policy, skip=False: (argv, None),
+    ) as mock_build:
+        res = await enter_worktree(branch_name="test-branch", cwd=str(repo))
+
+    target = mock_build.call_args_list[1].args[0][-1]
+    assert os.path.isabs(target)
+    assert os.path.realpath(target).startswith(
+        os.path.realpath(str(process_dir / "worktrees"))
+    )
+    assert not os.path.exists(os.path.join(repo, "worktrees"))
+    assert "Worktree created:" in res
 
 
 @pytest.mark.asyncio

@@ -11,6 +11,7 @@ from zrb.llm.sandbox import (
     build_sandboxed_argv,
     check_write,
     get_effective_sandbox_policy,
+    resolve_real,
 )
 from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
@@ -38,10 +39,10 @@ async def enter_worktree(
     """
     Creates a new isolated git worktree, or resumes an existing linked worktree.
 
-    New worktrees live under ``~/.zrb/wt/<repo>/``, outside the checkout: a
-    worktree nested inside the repository is a second copy of the repo inside
-    the repo, which every ``Grep``, ``Glob`` and ``git status`` then has to
-    learn to ignore.
+    New worktrees live under ``~/.zrb/wt/<repo>-<digest>/``, outside the
+    checkout: a worktree nested inside the repository is a second copy of the
+    repo inside the repo, which every ``Grep``, ``Glob`` and ``git status``
+    then has to learn to ignore.
 
     Pass ``worktree_path`` from ``ListWorktrees`` to continue work in place;
     ``ExitWorktree`` removes one.
@@ -124,8 +125,8 @@ def _create_failed_message(err_msg: str, git_root: str) -> str:
             f"git writes the new branch and the worktree's records into the "
             f"repository, so the sandbox has to allow that too: add {git_root} to "
             f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS alongside "
-            f"{_worktree_root()}, or leave that setting empty to make the current "
-            "directory writable automatically."
+            f"{_worktree_root()}, or leave that setting empty: the automatic "
+            "roots include the current directory and the worktree root."
         )
     return (
         f"Error: Failed to create worktree: {err_msg}\n"
@@ -148,10 +149,14 @@ def _repo_slug(git_root: str) -> str:
 
 
 def _worktree_root() -> str:
-    """The configured root for linked worktrees, ``~`` expanded (``LLM_WORKTREE_DIR``)."""
-    return os.path.expanduser(
-        CFG.LLM_WORKTREE_DIR or os.path.join("~", f".{CFG.ROOT_GROUP_NAME}", "wt")
-    )
+    """The configured root for linked worktrees, as an absolute canonical path.
+
+    ``LLM_WORKTREE_DIR`` may be relative or use ``~``. It is resolved once
+    here, so the sandbox check, ``os.makedirs`` and the path handed to git all
+    name the same directory: git resolves a relative destination against the
+    ``cwd`` it is given, which is not the process directory the check used.
+    """
+    return resolve_real(CFG.LLM_WORKTREE_DIR)
 
 
 def _worktree_parent(git_root: str) -> str:
@@ -185,7 +190,8 @@ def _prepare_worktree_dir(git_root: str, branch_name: str) -> tuple[str, str | N
                 f"[SYSTEM SUGGESTION]: ask the user to add {root} to "
                 f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS — and keep {git_root} "
                 "writable too, since git records the branch and the worktree "
-                "inside the repository."
+                "inside the repository. The automatic (empty) list already "
+                "includes the worktree root."
             )
     try:
         os.makedirs(worktree_dir, exist_ok=True)

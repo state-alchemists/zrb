@@ -66,8 +66,9 @@ class LLMSandboxMixin:
         doc=(
             "Colon-separated (semicolon on Windows) directories LLM tool "
             "calls may write to. Empty "
-            "(default) means automatic: the current working directory plus the "
-            "system temp directory."
+            "(default) means automatic: the current working directory, the "
+            "system temp directory, and LLM_WORKTREE_DIR. An explicit list is "
+            "exact; add the worktree directory there to use worktrees."
         ),
     )
 

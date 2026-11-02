@@ -38,7 +38,7 @@ When no OS mechanism is available (Windows, or Linux without `bwrap`), the polic
 |---|---|---|
 | `ZRB_LLM_SANDBOX_ENABLED` | `false` | Master switch for both layers. |
 | `ZRB_LLM_SANDBOX_OS_SHELL` | `auto` | `auto` wraps spawned subprocesses (shell commands, worktree git calls) when a mechanism exists; `off` keeps only the Python FS gate. Any other value behaves as `auto`. |
-| `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | (empty) | Colon-separated (semicolon on Windows) writable roots. Empty = automatic: the directory zrb was started in + system temp dir. A tool's `cwd` argument never adds a root. The worktree tools write under the git root, so start zrb at the repository root or list the root here. |
+| `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | (empty) | Colon-separated (semicolon on Windows) writable roots. Empty = automatic: the directory zrb was started in, the system temp dir, and `LLM_WORKTREE_DIR`. An explicit list is exact — add the worktree root to use worktrees. A tool's `cwd` argument never adds a root. The worktree tools' git calls write under the repository's `.git`, so start zrb at the repository root or list the root here. |
 | `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | built-in list | Colon-separated (semicolon on Windows) never-read paths; setting it replaces the default credential-store list. |
 | `ZRB_LLM_SANDBOX_FALLBACK` | `warn` | `warn` / `deny` when no OS mechanism exists. Any value other than `deny` behaves as `warn`, so check the spelling. |
 | `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | `true` | Whether `dangerously_skip_sandbox` is honored at all. Set `false` for non-interactive (CI) deployments. |

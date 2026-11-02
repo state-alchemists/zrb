@@ -19,7 +19,7 @@ def _expected_worktree_path(repo: str, branch: str) -> str:
     real_repo = os.path.realpath(repo)
     digest = hashlib.sha256(real_repo.encode("utf-8")).hexdigest()[:8]
     return os.path.join(
-        os.path.expanduser("~"),
+        os.path.realpath(os.path.expanduser("~")),
         ".zrb",
         "wt",
         f"{os.path.basename(real_repo)}-{digest}",

@@ -41,7 +41,9 @@ class LLMToolsMixin:
             "Directory holding the linked git worktrees EnterWorktree creates. "
             "Each repository gets its own `<repo>-<digest>` subdirectory inside "
             "this one, so two checkouts that share a name never share a path. "
-            "Default: ~/.zrb/wt. A sandboxed session must also list this "
-            "directory in LLM_SANDBOX_WRITABLE_PATHS, or creation is refused."
+            "A relative path is resolved against the starting directory. "
+            "Default: ~/.zrb/wt. A sandboxed session with an explicit "
+            "LLM_SANDBOX_WRITABLE_PATHS must list this directory there; the "
+            "automatic (empty) list already includes it."
         ),
     )
