@@ -24,6 +24,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from zrb.llm.tool.journal_scope import normalize_scope
 from zrb.util.markdown import get_first_heading
 
 NOTE_CATEGORIES = ("user", "agent", "preferences", "projects", "technical")
@@ -63,6 +64,10 @@ class Note:
     # The `keywords:` line, comma-separated, as the note stores it. Ranking reads
     # it, and it is the only field a search can match that the prose does not.
     keywords: str = ""
+    # The repository this note is about, or `""` when it is about no one place.
+    # Read from frontmatter; the index filter compares it with the checkout in
+    # hand (`journal_scope`).
+    repo: str = ""
 
     @property
     def rel(self) -> str:
@@ -351,6 +356,7 @@ def read_note(root: str, category: str, filename: str) -> Note | None:
         updated=stamp or _modified_at(path),
         has_stamp=stamp is not None,
         keywords=front.get("keywords", ""),
+        repo=normalize_scope(front.get("repo", "")),
     )
 
 
@@ -466,6 +472,8 @@ def claim_frontmatter(fields: "dict[str, str]", existing: str) -> list[str]:
         lines.append("pinned: true")
     if keywords:
         lines.append(f"keywords: {keywords}")
+    if fields.get("repo"):
+        lines.append(f"repo: {fields['repo']}")
     lines.append(f"updated: {fields['updated']}")
     return lines
 

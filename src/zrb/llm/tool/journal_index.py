@@ -474,3 +474,66 @@ def _is_echo(text: str, notes: list[Note]) -> bool:
         note.rel == match.group(1) and strip_note_links(note.hud_line) == prose
         for note in notes
     )
+
+
+def scope_index(text: str, notes: list[Note], current: str) -> str:
+    """*text* without the lines that link a note this repository does not show.
+
+    A note is shown when it is untagged, tagged ``global``, or tagged with
+    *current* — see `journal_scope`. Only a line that links a note *known to be*
+    out of scope is dropped: a heading, a hand-written line, an overflow marker,
+    and a link to a file that is not a note at all all stay, which is the same
+    rule the renderer already follows for foreign lines.
+
+    A section left with no lines goes with them. An empty `## Constraints`
+    heading is a heading that says a constraint exists and then does not say
+    what it is, which is worse than not mentioning it."""
+    from zrb.llm.tool.journal_scope import is_in_scope
+
+    scopes = {note.rel: note.repo for note in notes}
+    kept = [line for line in text.splitlines() if _is_line_shown(line, scopes, current)]
+    return _without_empty_sections(kept)
+
+
+def _is_line_shown(line: str, scopes: dict[str, str], current: str) -> bool:
+    """Whether *line* links no note, an unknown one, or one this view keeps."""
+    from zrb.llm.tool.journal_scope import is_in_scope
+
+    linked = _linked_note_rel(line)
+    if linked is None or linked not in scopes:
+        return True
+    return is_in_scope(scopes[linked], current)
+
+
+def _linked_note_rel(line: str) -> str | None:
+    """The journal-relative note a line links, or ``None`` when it links none."""
+    hud = _NOTE_LINK_RE.search(line)
+    if hud:
+        return hud.group(1)
+    catalog = _BARE_LINK_RE.match(line)
+    if catalog:
+        target = catalog.group(1)
+        if not target.startswith(("http://", "https://", "#")):
+            return target
+    return None
+
+
+def _without_empty_sections(lines: list[str]) -> str:
+    """*lines* without a `## ` heading whose section holds no line at all."""
+    kept: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        index += 1
+        if not line.startswith("## "):
+            kept.append(line)
+            continue
+        body: list[str] = []
+        while index < len(lines) and not lines[index].startswith("## "):
+            body.append(lines[index])
+            index += 1
+        if any(item.strip() for item in body):
+            kept.append(line)
+            kept.extend(body)
+    return "\n".join(kept)
+

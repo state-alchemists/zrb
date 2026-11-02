@@ -480,6 +480,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         return None
     if not content.strip():
         return None
+    content = _scoped_index(content, journal_dir, index_name)
     # A negative cap keeps the index whole; 0 injects nothing, since EnvField
     # parses a typo to 0 and that must not uncap.
     limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
@@ -522,6 +523,35 @@ def _hud_note_paths(content: str) -> list[str]:
     return [m.group(1) for m in _HUD_NOTE_LINK.finditer(content)]
 
 
+def _scoped_index(content: str, journal_dir: str, index_name: str) -> str:
+    """*content* without the lines of notes written about another repository.
+
+    Scoping is a property of the injected view, not of the file: `index.md` stays
+    whole, and `SearchJournal` reads it whole. A chat opened outside any checkout
+    has nothing to compare against and is shown everything."""
+    # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
+    from zrb.llm.tool.journal_index import scope_index
+    from zrb.llm.tool.journal_note import list_notes
+    from zrb.llm.tool.journal_scope import repo_of
+
+    current = repo_of(os.getcwd())
+    if not current:
+        return content
+    return scope_index(content, list_notes(journal_dir, (index_name, "index.md")), current)
+
+
+def _scoped_notes(notes: list) -> list:
+    """*notes* without those about another repository, for the claim selector.
+
+    The same rule as the index, applied to the objects rather than to their
+    lines: untagged and `global` notes always pass, and everything passes when
+    there is no repository in hand."""
+    from zrb.llm.tool.journal_scope import is_in_scope, repo_of
+
+    current = repo_of(os.getcwd())
+    return [note for note in notes if is_in_scope(note.repo, current)]
+
+
 def render_journal_claims(first_message: str | None = None) -> str | None:
     """The journal claims a turn after the first has not been shown yet.
 
@@ -556,6 +586,7 @@ def render_journal_claims(first_message: str | None = None) -> str | None:
 
     journal_dir = os.path.expanduser(CFG.LLM_JOURNAL_DIR)
     notes = list_notes(journal_dir, (index_name, "index.md"))
+    notes = _scoped_notes(notes)
     if not notes:
         return None
     session = get_conversation_key(get_current_context_session())
@@ -673,8 +704,11 @@ def _render_possibly_related(first_message: str) -> str:
     files = [
         str(hit["file"]) for hit in hits if isinstance(hit, dict) and "file" in hit
     ]
+    hits = _scoped_hits(hits)
     # Recorded even with no hits: an auto-search that found nothing is the
     # measurement of the automatic retrieval, not a turn that never happened.
+    # It records what the search *found*, before scoping, so the measurement
+    # stays comparable across repositories.
     record_auto_searched(first_message, files, len(hits))
     if not hits:
         return ""
@@ -686,6 +720,36 @@ def _render_possibly_related(first_message: str) -> str:
     for hit in hits[:max_hits]:
         lines.append(f"- {hit['file']}:{hit['line']}: {hit['content']}")
     return "\n".join(lines) + "\n"
+
+
+def _scoped_hits(hits: list) -> list:
+    """*hits* without the ones in notes written about another repository."""
+    hidden = _hidden_note_rels()
+    if hidden is None:
+        return hits
+    return [hit for hit in hits if hit.get("file") not in hidden]
+
+
+def _hidden_note_rels() -> "set[str] | None":
+    """The notes this checkout does not show, or ``None`` when there is no checkout.
+
+    A set of the *hidden* ones rather than of the visible ones, so a hit in a file
+    that is not a note — an index, a hand-written page — stays: nothing is
+    dropped that was not positively placed elsewhere. ``None`` outside a
+    repository, where there is nothing to compare a tag against."""
+    from zrb.llm.tool.journal_note import list_notes
+    from zrb.llm.tool.journal_scope import is_in_scope, repo_of
+
+    current = repo_of(os.getcwd())
+    if not current or not CFG.LLM_JOURNAL_ENABLED:
+        return None
+    try:
+        index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
+    except ValueError:
+        return None
+    journal_dir = os.path.expanduser(CFG.LLM_JOURNAL_DIR)
+    notes = list_notes(journal_dir, (index_name, "index.md"))
+    return {note.rel for note in notes if not is_in_scope(note.repo, current)}
 
 
 DAY_LINE_COUNT = 5
