@@ -41,15 +41,25 @@ class BaseUIExecCommands:
                 if not shell_cmd:
                     return True
 
-                entry = QueuedMessage(
-                    text=shell_cmd,
-                    attachments=[],
-                    kind="exec",
-                    run=lambda: self.run_shell_command(entry.text),
-                )
-                self._base_ui.effective_message_queue.put_nowait(entry)
+                self._enqueue_exec(shell_cmd)
                 return True
         return False
+
+    def _enqueue_exec(self, shell_cmd: str) -> None:
+        """Queue one `/exec` job, run when the turn queue reaches it.
+
+        Outside the dispatch loop on purpose: the job's closure reads
+        `entry.text` when it runs, so an edit made while it waits applies, and
+        keeping it out of the loop leaves no loop variable for that closure to
+        follow to a later match.
+        """
+        entry = QueuedMessage(
+            text=shell_cmd,
+            attachments=[],
+            kind="exec",
+            run=lambda: self.run_shell_command(entry.text),
+        )
+        self._base_ui.effective_message_queue.put_nowait(entry)
 
     async def run_shell_command(self, cmd: str):
         self._base_ui.is_thinking = True
