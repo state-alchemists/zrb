@@ -1,4 +1,4 @@
-"""The 15 evaluation tasks.
+"""The 16 evaluation tasks.
 
 Each one is a small, self-contained repository state plus a request a user could
 plausibly make. Checks run the result instead of reading it where they can:
@@ -6,10 +6,11 @@ importing the module or running the suite is what a user would do, and it
 catches a plausible-looking edit that does not work.
 
 The mix is deliberate — creation, a failing-test fix, a rename across files, a
-deletion, restraint (one task fails if an unrelated file changes), and refactors.
-Together they cover the mistakes an agent actually makes: not reading before
-editing, leaving a stale reference, over-reaching, and reporting success on code
-that does not run.
+deletion, restraint (one task fails if an unrelated file changes), refactors,
+and one task whose answer sits in the middle of a tool result too big to arrive
+whole. Together they cover the mistakes an agent actually makes: not reading
+before editing, leaving a stale reference, over-reaching, reporting success on
+code that does not run, and trusting the first screenful of output.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from harness import (
     read_text,
     run_pytest,
     run_python,
+    run_script,
     sha256_text,
 )
 
@@ -47,6 +49,57 @@ UNTOUCHED_FIXTURE = """\
 def untouched():
     return "do not touch"
 """
+
+BROKEN_FIXTURE = """\
+def compute():
+    total = 0
+    for value in (1, 2, 3):
+        total += value
+    return total + missing_offset
+
+
+if __name__ == "__main__":
+    print(compute())
+"""
+
+# The one name a reader of the log has to find, placed deep enough that a
+# head-and-tail prune would remove it.
+FAILING_TEST_IN_LOG = "test_reconcile_partial_refund"
+LOG_FIXTURE_LINES = 2_400
+
+
+def _build_log_fixture() -> str:
+    """A build log bigger than the per-result budget `#811` will prune at.
+
+    Each line costs about thirty characters, so the fixture lands near 76,000
+    chars — 19,000 tokens by the repo's own counter, more than twice the
+    8,000-token default that `#811` prunes at. Until that lands the log arrives
+    intact and the task measures reading a result this size without editing it;
+    afterwards the middle is removed and the answer has to be searched for or
+    re-read in slices.
+
+    `test_the_large_log_fixture_stays_over_the_prune_budget` measures the token
+    count and the budget from the live config rather than trusting these
+    literals; it skips until `#811` lands, and fails then if the budget has
+    risen past the fixture.
+    """
+    lines = [
+        f"[build] step {index:04d}: ok in {index * 13 % 900} ms"
+        for index in range(LOG_FIXTURE_LINES)
+    ]
+    middle = int(LOG_FIXTURE_LINES * 0.6)
+    # Replace the step rather than inserting beside it: two lines claiming the
+    # same step number is the kind of contradiction a careful model stops to
+    # investigate, and this fixture's job is the answer, not a puzzle.
+    lines[middle] = f"[build] step {middle:04d}: FAILED"
+    lines[middle + 1 : middle + 1] = [
+        f"[build] the only failing test is {FAILING_TEST_IN_LOG}",
+        f"[build] 1 failed, {LOG_FIXTURE_LINES - 1} passed",
+    ]
+    return "\n".join(lines) + "\n"
+
+
+LOG_FIXTURE = _build_log_fixture()
 
 
 def _digest(text: str) -> str:
@@ -122,6 +175,8 @@ def _check_add_test_for_function(workspace):
         return "test_slugify.py was not created"
     if source.count("def test_") < 2:
         return "test_slugify.py has fewer than two tests"
+    if "slugify(" not in source:
+        return "the tests never exercise slugify()"
     code, report = run_pytest(workspace)
     if code != 0:
         return f"pytest fails: {report.strip()[-300:]}"
@@ -172,9 +227,17 @@ def _check_multi_file_constant(workspace):
 
 
 def _check_fix_runtime_error(workspace):
-    code, out, err = run_python(workspace, "exec(open('broken.py').read(), {'__name__': 'x'})")
+    """Run the script as a script: the request is about its printed output.
+
+    An import or an `exec` with a rewritten `__name__` skips the
+    `if __name__ == "__main__"` block, so the crash the task is about never
+    happens and a wrong fix — `missing_offset = 0` prints 6 — would pass.
+    """
+    code, out, err = run_script(workspace, "broken.py")
     if code != 0:
-        return f"broken.py still raises: {err.strip()[-200:]}"
+        return f"running broken.py failed: {err.strip()[-200:]}"
+    if out.strip() != "42":
+        return f"broken.py printed {out.strip()!r}, expected '42'"
     if "for value in (1, 2, 3)" not in read_text(workspace, "broken.py"):
         return "the loop was changed instead of the missing name"
     return None
@@ -184,6 +247,9 @@ def _check_refactor_extract(workspace):
     source = read_text(workspace, "report_text.py")
     if "def normalize(" not in source:
         return "report_text.py does not define normalize()"
+    # def + two call sites: a helper defined but not used leaves the duplication.
+    if source.count("normalize(") < 3:
+        return "normalize() is defined but not used by both header() and footer()"
     code, out, _ = run_python(
         workspace,
         "import report_text as r; "
@@ -211,6 +277,24 @@ def _check_create_package(workspace):
         return f"import main failed: {err.strip()[:200]}"
     if out.strip() != "HI!":
         return f"main.run() returned {out.strip()!r}, expected 'HI!'"
+    return None
+
+
+def _check_find_in_large_log(workspace):
+    if sha256_text(workspace, "logs/build.log") != _digest(LOG_FIXTURE):
+        return "build.log was modified; the task said to read it"
+    answer = read_text(workspace, "answer.txt").strip()
+    answer = answer.strip("`'\"").strip()
+    if not answer:
+        return "answer.txt was not created, or says nothing"
+    if answer != FAILING_TEST_IN_LOG:
+        # The request says "and nothing else": an answer that merely contains
+        # the name (or dumps the log) did not follow it, and a check that only
+        # searched for the substring would call that a pass.
+        return (
+            f"answer.txt should hold only {FAILING_TEST_IN_LOG!r}, "
+            f"got {answer[:160]!r}"
+        )
     return None
 
 
@@ -354,19 +438,7 @@ TASKS: tuple[EvalTask, ...] = (
             "Running broken.py raises NameError: name 'missing_offset' is not "
             "defined. Make it run and print 42, without rewriting the loop."
         ),
-        files={
-            "broken.py": (
-                "def compute():\n"
-                "    total = 0\n"
-                "    for value in (1, 2, 3):\n"
-                "        total += value\n"
-                "    return total + missing_offset\n"
-                "\n"
-                "\n"
-                'if __name__ == "__main__":\n'
-                "    print(compute())\n"
-            )
-        },
+        files={"broken.py": BROKEN_FIXTURE},
         checks=(_check_fix_runtime_error,),
     ),
     EvalTask(
@@ -411,6 +483,15 @@ TASKS: tuple[EvalTask, ...] = (
             )
         },
         checks=(_check_create_package,),
+    ),
+    EvalTask(
+        name="find_in_large_log",
+        prompt=(
+            "logs/build.log is a long build log from this project. Exactly one test "
+            "failed. Write the failing test's name, and nothing else, to answer.txt."
+        ),
+        files={"logs/build.log": LOG_FIXTURE},
+        checks=(_check_find_in_large_log,),
     ),
 )
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import signal
 import subprocess
 import sys
 import time
@@ -126,42 +127,77 @@ def child_env() -> dict[str, str]:
 
 
 def run_cli(task: EvalTask, workspace: Path, timeout: int) -> CliRun:
-    """Run the agent once against *workspace* and capture the outcome."""
+    """Run the agent once against *workspace* and capture the outcome.
+
+    The child leads its own process group, and a timeout kills that whole group:
+    killing only the `zrb` process would leave a shell command it started running,
+    free to keep writing into a workspace the harness is already scoring.
+    """
     started = time.time()
+    process = subprocess.Popen(
+        agent_command(task.prompt),
+        cwd=str(workspace),
+        env=child_env(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        start_new_session=(os.name != "nt"),
+    )
     try:
-        completed = subprocess.run(
-            agent_command(task.prompt),
-            cwd=str(workspace),
-            env=child_env(),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=timeout,
-        )
-    except subprocess.TimeoutExpired as expired:
+        stdout, stderr = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        kill_process_tree(process)
+        try:
+            stdout, stderr = process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:
+            stdout, stderr = "", ""
         return CliRun(
             exit_code=-1,
             timed_out=True,
-            stdout=_as_text(expired.stdout),
-            stderr=_as_text(expired.stderr),
+            stdout=stdout or "",
+            stderr=stderr or "",
             duration_seconds=time.time() - started,
         )
     return CliRun(
-        exit_code=completed.returncode,
+        exit_code=process.returncode,
         timed_out=False,
-        stdout=completed.stdout or "",
-        stderr=completed.stderr or "",
+        stdout=stdout or "",
+        stderr=stderr or "",
         duration_seconds=time.time() - started,
     )
 
 
-def _as_text(value: object) -> str:
-    if value is None:
-        return ""
-    if isinstance(value, bytes):
-        return value.decode("utf-8", "replace")
-    return str(value)
+def kill_process_tree(process: subprocess.Popen) -> None:
+    """Kill *process* and anything it spawned. Never raises.
+
+    POSIX: the child is its own group leader, so one `killpg` reaches every
+    descendant. Windows has no group signal we can send, so `taskkill /T` walks
+    the tree, with `Popen.kill` as the last resort.
+    """
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(process.pid)],
+                capture_output=True,
+                check=False,
+            )
+            return
+        except OSError:
+            pass
+    else:
+        try:
+            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+            return
+        except OSError:
+            pass
+    try:
+        process.kill()
+    except OSError:
+        pass
 
 
 def parse_usage(text: str) -> tuple[int | None, int | None]:
@@ -250,6 +286,27 @@ def run_python(
     """Run a snippet with the workspace as cwd, so imports resolve like a user's."""
     completed = subprocess.run(
         [sys.executable, "-c", code],
+        cwd=str(workspace),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+    )
+    return completed.returncode, completed.stdout, completed.stderr
+
+
+def run_script(
+    workspace: Path, relative_path: str, timeout: int = 60
+) -> tuple[int, str, str]:
+    """Run a workspace script the way its user would: `python <path>`.
+
+    Prefer this over importing when the request names a script and its output:
+    an import skips the `if __name__ == "__main__"` block, so a check built on
+    one can pass on code that never produces the output that was asked for.
+    """
+    completed = subprocess.run(
+        [sys.executable, str(workspace / relative_path)],
         cwd=str(workspace),
         capture_output=True,
         text=True,

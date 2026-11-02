@@ -141,7 +141,7 @@ And the honest answer many teams land on: **they coexist.** Keep Claude Code or 
 
 ### Measuring Instead of Arguing
 
-The table above compares architecture, not results, and "which agent is better at the work" is decided by results. `./zrb-test.sh eval` runs 15 fixture repositories through the real `zrb llm chat` entry point and scores behavior — does the module import, does the suite pass, did an out-of-scope file change — with token counts per task. Run it before and after a prompt, tool, or loop change; running the same tasks against another harness is how a head-to-head claim gets evidence. See [`test/eval/README.md`](../../test/eval/README.md).
+The table above compares architecture, not results, and "which agent is better at the work" is decided by results. `./zrb-test.sh eval` runs 16 fixture repositories through the real `zrb llm chat` entry point and scores behavior — does the module import, does the suite pass, did an out-of-scope file change — with token counts per task. One of them hides its answer deep inside a 76,000-character build log, the largest tool result the suite produces, so finding it takes a search or a careful read rather than a glance at the top — and once per-result pruning lands, that same task is what shows pruning has not put the answer out of reach. Run it before and after a prompt, tool, or loop change; running the same tasks against another harness is how a head-to-head claim gets evidence. See [`test/eval/README.md`](../../test/eval/README.md).
 
 ---
 

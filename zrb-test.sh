@@ -5,7 +5,7 @@ if [ "$#" -eq 0 ] && [ -n "$TEST" ]; then
     set -- "$TEST"
 fi
 
-# `./zrb-test.sh eval` runs the paid agent evaluation: 15 fixture repositories,
+# `./zrb-test.sh eval` runs the paid agent evaluation: 16 fixture repositories,
 # each one a real `zrb llm chat` turn scored by behavior (does the module import,
 # does the suite pass) rather than by prose. It is opt-in because it spends
 # money and time, so it is its own mode instead of part of the default run:

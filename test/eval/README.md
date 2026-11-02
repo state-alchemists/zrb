@@ -1,6 +1,6 @@
 # Agent evaluation
 
-Fifteen fixture repositories, each with one request a user might make and a set
+Sixteen fixture repositories, each with one request a user might make and a set
 of checks that read the finished workspace. A task passes only when the run
 exits cleanly **and** every check agrees.
 
@@ -23,7 +23,7 @@ full set.
 
 | Variable | Meaning |
 | --- | --- |
-| `LLM_EVAL_RUN` | Set by the script. Without it, the 15 tests skip. |
+| `LLM_EVAL_RUN` | Set by the script. Without it, the 16 tests skip. |
 | `LLM_EVAL_MODEL` | Model for the child runs, e.g. `deepseek:deepseek-chat`. Passed through as `ZRB_LLM_MODEL`. |
 
 `LLM_EVAL_MODEL` has a non-`ZRB_` name on purpose: `test/conftest.py` scrubs the
@@ -54,12 +54,20 @@ and fails if the agent "fixed" it by editing the assertion.
 1. Add an `EvalTask` to `tasks.py`: a `name`, a `prompt`, the `files` it starts
    from, and one or more `checks`.
 2. A check takes the workspace `Path` and returns a failure reason, or `None`.
-   Prefer `run_python` / `run_pytest` from `harness.py` over reading text: the
-   point is whether the result works.
-3. Keep it small and unambiguous — a task that needs a judgement call measures
+   Prefer `run_python` / `run_pytest` / `run_script` from `harness.py` over
+   reading text: the point is whether the result works. Use `run_script` when
+   the request names a script and its output — an import skips the
+   `if __name__ == "__main__"` block, so the code path the task is about may
+   never run.
+3. **A check must reject a plausible wrong answer**, not just accept the right
+   one. For a task whose answer could be faked (`print(42)`), assert the
+   behaviour that proves the work was done, and add the wrong answer as an
+   offline case in `test_harness.py`: `missing_offset = 0` runs cleanly and
+   prints `6`, so a check that only looks for "no exception" passes on it.
+4. Keep it small and unambiguous — a task that needs a judgement call measures
    the judge.
-4. `test_harness.py` runs offline and keeps the harness honest; extend it when
-   you add harness behavior, not for each task.
+5. `test_harness.py` runs offline and keeps the harness honest; extend it when
+   you add harness behavior or a check that could go vacuous.
 
 ## Known limitations
 
