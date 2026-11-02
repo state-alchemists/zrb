@@ -21,7 +21,18 @@ Zrb is designed to be highly compatible with **Claude Code** configurations. Thi
 
 ## 1. Project Instructions (CLAUDE.md)
 
-Zrb automatically detects `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `README.md` files in `~/.claude/` and in every directory from the filesystem root down to your current working directory. The system prompt lists the paths it found, not their contents, and tells the model to read the project ones that bear on the work before editing. Files in your home directory or `~/.claude/` are listed separately as user-level guidance, to read only when relevant.
+Zrb automatically detects `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and `README.md` in `~/.claude/` and in every directory from the filesystem root down to your current working directory.
+
+Project instruction files are inlined into the system prompt by default, so the model starts with the rules instead of being told to go read them:
+
+- `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` are inlined nearest file first, within `ZRB_LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` (24,000 by default). The first file that does not fit stops the walk; files broader than it stay listed by path.
+- A file that only points at another one — `CLAUDE.md` holding `@AGENTS.md` — is skipped and listed as a pointer to what the prompt already carries.
+- An `@path` inside an inlined file is shown as a path, never fetched, so nothing outside the budget reaches the prompt.
+- A symlinked instruction file is listed but never inlined: the link can name any readable file on the machine.
+- `README.md` is never inlined. It is documentation to search, not rules to obey.
+- Files in your home directory or `~/.claude/` are listed separately as user-level guidance, to read only when relevant.
+
+Set `ZRB_LLM_INJECT_PROJECT_INSTRUCTIONS=off` to keep the list-only behavior.
 
 > 💡 **Tip:** Use `AGENTS.md` for technical project documentation and `CLAUDE.md` for Claude-specific instructions.
 
@@ -208,7 +219,7 @@ Hooks are the exception: they are read from `hooks.json` and `hooks/` directly u
 
 | Feature | File Pattern | Discovery Path |
 |---------|--------------|----------------|
-| Project Instructions | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `README.md` | `~/.claude/`, then root → current dir (listed, not loaded) |
+| Project Instructions | `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `README.md` | `~/.claude/`, then root → current dir (instruction files inlined within a byte budget; `README.md` listed only) |
 | Skills | `SKILL.md`, `*.skill.md`, `SKILL.py`, `*.skill.py` | `skills/` directories |
 | Agents | `AGENT.md`, `*.agent.md`, `*.md` in `agents/`, `AGENT.py`, `*.agent.py` | `agents/` directories (plus zrb's built-in `core_agents/`) |
 | Hooks | `hooks.json`, `*.json`/`*.yaml`/`*.hook.py`, `settings.json` `hooks` block | `.claude/`, `.zrb/`, `hooks/` directories |

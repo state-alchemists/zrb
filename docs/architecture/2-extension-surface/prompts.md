@@ -74,7 +74,7 @@ flowchart TD
 | Section files | `src/zrb/llm/prompt/markdown/` | The wording of the five file sections. Other files here serve summarizers, extractors and speech, not the main prompt |
 | `active_profile` | `src/zrb/llm/prompt/profile.py` | Turns `LLM_PROFILE` (and the model, for `auto`) into a profile name |
 | `system_context` | `src/zrb/llm/prompt/system_context.py` | Session-stable facts: OS, working directory, tools, model notes, sandbox |
-| `create_project_context_prompt` | `src/zrb/llm/prompt/claude.py` | Lists project docs such as `AGENTS.md` found near the working directory |
+| `create_project_context_prompt` | `src/zrb/llm/prompt/claude.py` | Lists project docs and inlines `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` nearest first within `LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` |
 | `build_skill_replacements` | `src/zrb/llm/prompt/claude.py` | Fills the skill catalogue placeholders inside `workflow` |
 | `PromptRegistry`, `prompt_registry` | `src/zrb/llm/prompt/registry.py` | The shared default list of extra prompts, read from `CFG.LLM_PROMPT` lazily |
 | `render_live_context` | `src/zrb/llm/prompt/live_context.py` | The per-turn lines (time, git, todos, mode) and the journal index |
