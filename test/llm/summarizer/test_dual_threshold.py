@@ -13,7 +13,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.summarizer.message_processor import process_tool_return_part
-from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX, effective_prune_budget
+from zrb.llm.summarizer.tool_result_pruner import (
+    PRUNED_PREFIX,
+    effective_prune_budget,
+    spill_tool_result,
+)
 
 
 @dataclass
@@ -395,3 +399,35 @@ async def test_renaming_a_conversation_does_not_re_prune_its_blocks(tmp_path):
     assert second.content == first.content
     with open(spill_path, encoding="utf-8") as stream:
         assert stream.read() == "R" * 5000
+
+
+@pytest.mark.asyncio
+async def test_a_block_copied_from_another_call_is_pruned(tmp_path):
+    """The filename digest binds a block to its call. A tool that echoes a
+    genuine block (or a made-up one) under a different call id does not get a
+    pass, and the original file is not touched."""
+    limiter = MockLimiter()
+    original = "O" * 100
+    original_path = spill_tool_result(
+        original, call_id="original", session_name="s", history_dir=str(tmp_path)
+    )
+    assert original_path is not None
+    content = (
+        f"{PRUNED_PREFIX} 1 of 2 tokens kept (1 pruned). "
+        f"Full output: `{original_path}`\n" + "G" * 5000
+    )
+
+    result, modified = await process_tool_return_part(
+        ToolReturnPart(content=content, tool_call_id="other"),
+        MagicMock(),
+        limiter,
+        message_threshold=200,
+        insanity_threshold=400,
+        session_name="s",
+        history_dir=str(tmp_path),
+    )
+
+    assert modified
+    assert limiter.count_tokens(result.content) <= 400
+    with open(original_path, encoding="utf-8") as stream:
+        assert stream.read() == original

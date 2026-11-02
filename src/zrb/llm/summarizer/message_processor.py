@@ -10,6 +10,7 @@ from zrb.llm.summarizer.tool_result_pruner import (
     is_pruned_tool_result,
     prune_tool_result_content,
     spilled_path_of,
+    spill_filename,
     spill_tool_result,
     tool_result_spill_dir,
 )
@@ -120,7 +121,12 @@ async def process_tool_return_part(
     # a tool can echo a valid header before a large payload — so the file has
     # to be there.
     if is_pruned_tool_result(content):
-        if _is_expected_spill(spilled_path_of(content), session_name, history_dir):
+        if _is_own_spill(
+            spilled_path_of(content),
+            str(getattr(part, "tool_call_id", "") or ""),
+            session_name,
+            history_dir,
+        ):
             return part, False
     elif content.startswith(SUMMARY_PREFIX) or content.startswith(TRUNCATED_PREFIX):
         # Written by an older zrb; its text is already condensed, and pruning
@@ -151,15 +157,22 @@ async def process_tool_return_part(
     return replace(part, content=pruned), True
 
 
-def _is_expected_spill(
-    path: str | None, session_name: str | None, history_dir: str | None
+def _is_own_spill(
+    path: str | None,
+    call_id: str,
+    session_name: str | None,
+    history_dir: str | None,
 ) -> bool:
-    """Whether *path* is a live file in this conversation's tool-result dir.
+    """Whether *path* is this call's own verbatim file.
 
+    A block is trusted only when the file it names is the exact name this call
+    would have written — the digest in the filename binds it to the call id —
+    and it sits under the history root's tool-result directories. A block copied
+    from another result, or a header a tool made up, fails here and is pruned.
     `realpath` on both sides so a platform's symlinked temp root does not make
     a real file look foreign.
     """
-    if not path:
+    if not path or not call_id:
         return False
     try:
         root = os.path.realpath(
@@ -169,12 +182,11 @@ def _is_expected_spill(
     except OSError:
         return False
     directory = os.path.dirname(actual)
-    # Any conversation's directory under this history root counts, not only
-    # the current name: renaming a conversation moves the directory a new
-    # block would go to, while the block already in the history still points
-    # at the old one.
+    # Any conversation's directory under this root counts, not only the current
+    # name: renaming a conversation leaves the block pointing at the old one.
     return (
         os.path.isfile(actual)
+        and os.path.basename(actual) == spill_filename(call_id)
         and directory.startswith(root + os.sep)
         and os.path.basename(directory).endswith(SPILL_DIR_SUFFIX)
     )

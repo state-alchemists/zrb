@@ -97,6 +97,17 @@ def tool_result_spill_dir(
     return tool_results_dir(verbatim_archive_path(key, history_dir=base))
 
 
+def spill_filename(call_id: str) -> str:
+    """The file one tool call's verbatim output is saved under.
+
+    The readable part is only for a human listing it; the digest is what keeps
+    two distinct ids that sanitize to the same segment apart, and what lets a
+    replay prove the file belongs to the call it is named in.
+    """
+    digest = hashlib.sha1(call_id.encode("utf-8")).hexdigest()[:8]
+    return f"{safe_segment(call_id)}-{digest}.txt"
+
+
 def spill_tool_result(
     content: str,
     *,
@@ -112,12 +123,9 @@ def spill_tool_result(
     """
     if not call_id:
         return None
-    # The readable part is only for a human listing it; the digest is what
-    # keeps two distinct call ids that sanitize to the same segment apart.
-    digest = hashlib.sha1(call_id.encode("utf-8")).hexdigest()[:8]
     path = os.path.join(
         tool_result_spill_dir(session_name, history_dir),
-        f"{safe_segment(call_id)}-{digest}.txt",
+        spill_filename(call_id),
     )
     try:
         write_text_owner_only(path, content)
