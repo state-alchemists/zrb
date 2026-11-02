@@ -193,21 +193,20 @@ def _instruction_sources(search_dirs: list[Path]) -> list[Path]:
     return sources
 
 
-def _read_instruction_text(path: Path, max_bytes: int) -> str:
-    """At most *max_bytes* bytes of the file, or ``""`` when it cannot be read.
+def _read_instruction_bytes(path: Path, max_bytes: int) -> bytes:
+    """At most *max_bytes* + 1 bytes of the file, or ``b""`` when it cannot be read.
 
     The read is bounded, not the whole file: the budget is the most any one file
     may contribute, so bytes past it can never reach the prompt and reading them
     first would let a large or hostile instruction file exhaust memory before
-    the budget was ever consulted. One byte over the budget is enough to tell
-    "fits" from "is longer" — which is all the walk needs to know.
+    the budget was ever consulted. One byte over is enough to tell "fits" from
+    "is longer" — which is all the walk needs to know.
     """
     try:
         with path.open("rb") as handle:
-            raw = handle.read(max(max_bytes, 0) + 1)
+            return handle.read(max(max_bytes, 0) + 1)
     except OSError:
-        return ""
-    return raw.decode("utf-8", "replace").strip()
+        return b""
 
 
 def _redundant_include_targets(
@@ -215,22 +214,17 @@ def _redundant_include_targets(
 ) -> list[Path]:
     """The files *text* only points at, when every one is already in the prompt.
 
-    A file whose whole content is `@AGENTS.md` is a pointer, not rules. Inlining
-    it buys nothing — the target is already inlined under its own name — and
-    costs the target a second time: `expand_prompt` reads `@path` over the
-    composed prompt, so eleven bytes at budget time become the whole file at
-    build time, outside the byte budget.
+    A file whose whole content is `@AGENTS.md` is a pointer, not rules. Inlined,
+    it would add a section header and a de-referenced path beside the target's
+    own block, teaching the model nothing the listing does not already say, so
+    the walk skips it and the listing names what it points at instead.
 
-    Only *inlined* counts, not every instruction source: a pointer whose target
-    the byte budget dropped must keep pointing, or the rules it was the last
-    route to would vanish from the prompt entirely.
+    Only *planned* files count, not every instruction source: a pointer whose
+    target the byte budget drops is still the one place the path appears, so it
+    is kept — de-referenced like every other rule, but present.
 
-    A file with prose of its own still inlines its include, so its target is
-    still paid for twice; this covers the pure pointer, which is what a
-    tool-generated `CLAUDE.md` is.
-
-    Returns the targets when the file is a pure pointer at text already in the
-    prompt, and `[]` when it is neither a pointer nor redundant.
+    Returns the targets when the file is a pure pointer at text the walk will
+    inline, and `[]` when it is neither a pointer nor redundant.
     """
     body = text.strip()
     if not body:
@@ -308,11 +302,13 @@ def _inline_instructions(
     Returns the rendered blocks, the paths they cover, and the pointer files
     mapped to the file the prompt actually carries, not to the next hop.
     """
-    texts = {path: _read_instruction_text(path, max_bytes) for path in sources}
+    texts = {path: _read_instruction_bytes(path, max_bytes) for path in sources}
     _, planned = _walk_instructions(sources, texts, max_bytes, skip=frozenset())
     skipped: dict[Path, Path] = {}
     for path in sources:
-        targets = _redundant_include_targets(texts[path], path, planned)
+        targets = _redundant_include_targets(
+            texts[path].decode("utf-8", "replace"), path, planned
+        )
         if targets:
             skipped[path] = targets[0]
     blocks, inlined = _walk_instructions(
@@ -352,22 +348,27 @@ def _resolve_pointer_targets(pointers: dict[Path, Path]) -> dict[Path, Path]:
 
 def _walk_instructions(
     sources: list[Path],
-    texts: dict[Path, str],
+    texts: dict[Path, bytes],
     max_bytes: int,
     skip: frozenset[Path],
 ) -> tuple[list[str], set[Path]]:
-    """Render the instruction blocks the byte budget admits, ignoring *skip*."""
+    """Render the instruction blocks the byte budget admits, ignoring *skip*.
+
+    Accounting is on the bytes read rather than on the decoded string: decoding
+    and re-encoding can change the count — a replacement character costs three
+    bytes where the cut multibyte tail cost one — and the budget is a promise
+    about bytes.
+    """
     blocks: list[str] = []
     inlined: set[Path] = set()
     remaining = max(max_bytes, 0)
     for path in sources:
-        text = texts.get(path, "")
-        if not text or path in skip:
+        raw = texts.get(path, b"")
+        if not raw.strip() or path in skip:
             continue
-        raw = text.encode("utf-8")
         note = ""
         if len(raw) <= remaining:
-            body = text
+            body = raw.decode("utf-8", "replace")
             remaining -= len(raw)
         elif not inlined and remaining >= _MIN_INLINE_BYTES:
             # The most specific file is truncated rather than dropped: its rules
@@ -377,9 +378,37 @@ def _walk_instructions(
             remaining = 0
         else:
             break
-        blocks.append(f"#### Instructions from: `{path}`\n\n{body}{note}")
+        blocks.append(
+            f"#### Instructions from: `{path}`\n\n"
+            f"{_neutralize_references(body)}{note}"
+        )
         inlined.add(path)
     return blocks, inlined
+
+
+def _neutralize_references(text: str) -> str:
+    """*text* with every `@path` de-referenced, so prompt expansion cannot fetch it.
+
+    Instruction content is rules to be read, not prompt syntax. `expand_prompt`
+    runs over the composed prompt when the agent is built and resolves every
+    `@path` it finds — with no byte budget and no project boundary. A rule file
+    that mentions `@/home/user/.aws/credentials` would have that file read and
+    appended to the prompt, and the user would never see it happen.
+
+    The path itself is left in the text, so the model can still read it
+    deliberately with `Read` when the rule actually applies.
+    """
+    matches = get_path_references(text)
+    if not matches:
+        return text
+    parts: list[str] = []
+    cursor = 0
+    for match in matches:
+        parts.append(text[cursor : match.start()])
+        parts.append(f"`{match.group('path')}`")
+        cursor = match.end()
+    parts.append(text[cursor:])
+    return "".join(parts)
 
 
 def _listing_note(

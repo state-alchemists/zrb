@@ -8,7 +8,8 @@ the prompt already has.
 
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.prompt.claude import _read_instruction_text, create_project_context_prompt
+from zrb.llm.prompt.claude import _read_instruction_bytes, create_project_context_prompt
+from zrb.llm.util.prompt import expand_prompt
 
 
 def _make_ctx():
@@ -256,7 +257,8 @@ def test_a_pointer_whose_target_was_dropped_is_still_inlined(tmp_path):
             result = handler(ctx, "base prompt", _identity_next)
 
     assert "CHILD RULES" in result
-    assert "@../AGENTS.md" in result
+    assert "../AGENTS.md" in result
+    assert "@../AGENTS.md" not in result
     assert "PARENT RULES" not in result
 
 
@@ -275,7 +277,7 @@ def test_include_carrying_prose_of_its_own_is_still_inlined(tmp_path):
 
 
 def test_include_of_a_file_outside_the_instruction_set_is_kept(tmp_path):
-    "An include nothing else would load must not be dropped with it."
+    "An include nothing else would load is kept as a path the model can open."
     docs = tmp_path / "docs"
     docs.mkdir()
     (docs / "rules.md").write_text("HOUSE RULES")
@@ -287,7 +289,32 @@ def test_include_of_a_file_outside_the_instruction_set_is_kept(tmp_path):
     with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
-    assert "@docs/rules.md" in result
+    assert "docs/rules.md" in result
+    assert "@docs/rules.md" not in result
+
+
+def test_a_reference_inside_inlined_rules_is_never_expanded(tmp_path):
+    """`@path` in a rule file must not fetch that file into the prompt.
+
+    `expand_prompt` runs over the composed system prompt when the agent is
+    built, resolving every `@path` it finds — no byte budget, no project
+    boundary. A rule file naming an absolute path would have that file read and
+    sent to the provider with nothing in the user's view to show it happened.
+    """
+    secret = tmp_path / "credentials"
+    secret.write_text("AWS_SECRET_ACCESS_KEY=leaked", encoding="utf-8")
+    (tmp_path / "AGENTS.md").write_text(f"Deploy details: @{secret}", encoding="utf-8")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    expanded = expand_prompt(result)
+    assert "leaked" not in expanded
+    # The path survives as text, so a deliberate Read still finds it.
+    assert str(secret.resolve()) in expanded
 
 
 def test_a_chain_of_pointers_names_the_file_the_prompt_holds(tmp_path):
@@ -355,13 +382,14 @@ def test_reading_an_instruction_file_stops_at_the_budget(tmp_path):
 
     A file bigger than the budget can contribute nothing past it, so loading the
     whole thing first would let a huge (or hostile) instruction file exhaust
-    memory before the budget was ever consulted.
+    memory before the budget was ever consulted. The extra byte is all the walk
+    needs to tell "fits" from "is longer".
     """
     huge = tmp_path / "AGENTS.md"
     huge.write_text("x" * 2_000_000, encoding="utf-8")
 
-    assert len(_read_instruction_text(huge, 1_000)) == 1_001
+    assert len(_read_instruction_bytes(huge, 1_000)) == 1_001
 
     small = tmp_path / "CLAUDE.md"
     small.write_text("RULES\n", encoding="utf-8")
-    assert _read_instruction_text(small, 1_000) == "RULES"
+    assert _read_instruction_bytes(small, 1_000) == b"RULES\n"
