@@ -6,10 +6,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.config.config import CFG
 from zrb.config.helper import get_max_token_threshold
 from zrb.context.any_context import zrb_print
-from zrb.llm.agent.summarizer import (
-    create_conversational_summarizer_agent,
-    create_message_summarizer_agent,
-)
+from zrb.llm.agent.summarizer import create_conversational_summarizer_agent
 from zrb.llm.agent_state import get_current_model
 from zrb.llm.config.limiter import LLMLimiter, is_pinned
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
@@ -98,22 +95,22 @@ def create_summarizer_history_processor(
     async def process_history(
         messages: "list[ModelMessage]", system_prompt_overhead: int = 0
     ) -> "list[ModelMessage]":
-        # Fresh agents per call so `/model small` takes effect immediately.
-        # Construction failure (e.g. a provider with no credentials) leaves the
-        # history unsummarized instead of killing the turn.
-        try:
-            active_message_agent = message_agent or create_message_summarizer_agent()
-            active_conversational_agent = (
-                conversational_agent or create_conversational_summarizer_agent()
-            )
-        except Exception as e:
-            zrb_print(
-                stylize_error(
-                    f"  Summarizer unavailable, history left unsummarized: {e}"
-                ),
-                plain=True,
-            )
-            return messages
+        # Pruning is deterministic and needs no agent; only compaction does.
+        # A fresh conversational agent per call lets `/model small` take effect
+        # immediately, and a construction failure (e.g. a provider with no
+        # credentials) now costs the summary, not the pruning.
+        active_conversational_agent = conversational_agent
+        if active_conversational_agent is None:
+            try:
+                active_conversational_agent = create_conversational_summarizer_agent()
+            except Exception as e:
+                zrb_print(
+                    stylize_error(
+                        "  Conversation summarizer unavailable; tool results are "
+                        f"still pruned and the history is not compacted: {e}"
+                    ),
+                    plain=True,
+                )
 
         active_conversational_threshold = conversational_token_threshold
         if auto_conversational_threshold:
@@ -131,7 +128,7 @@ def create_summarizer_history_processor(
         verbatim_source: "list[ModelMessage]" = list(messages)
         messages = await summarize_messages(
             messages,
-            agent=active_message_agent,
+            agent=message_agent,
             limiter=llm_limiter,
             message_token_threshold=message_token_threshold,
             conversational_token_threshold=active_conversational_threshold,
@@ -139,6 +136,8 @@ def create_summarizer_history_processor(
             history_dir=history_dir,
         )
 
+        if active_conversational_agent is None:
+            return messages
         return await _maybe_compress_history(
             messages,
             agent=active_conversational_agent,
@@ -266,7 +265,9 @@ async def summarize_messages(
                 CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
             )
 
-        summarizer_agent = agent or create_message_summarizer_agent()
+        # `agent` is kept for callers written against the old summarizer; the
+        # pruning path no longer asks a model anything, so it may be `None`.
+        summarizer_agent = agent
         new_messages = []
         for msg in messages:
             new_msg = await process_message_for_summarization(

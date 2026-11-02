@@ -117,7 +117,6 @@ async def test_processor_survives_unbuildable_summarizer(monkeypatch):
     def explode():
         raise Exception("Set the `OPENAI_API_KEY` environment variable")
 
-    monkeypatch.setattr(hs, "create_message_summarizer_agent", explode)
     monkeypatch.setattr(hs, "create_conversational_summarizer_agent", explode)
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
@@ -338,3 +337,30 @@ async def test_auto_message_threshold_follows_a_pinned_conversational_threshold(
     await processor(_ten_user_messages())
 
     assert captured_thresholds == [CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD]
+
+
+@pytest.mark.asyncio
+async def test_tool_results_are_pruned_even_when_the_summarizer_cannot_be_built(
+    monkeypatch,
+):
+    """Pruning is deterministic; only compaction needs a model. A missing
+    provider must not leave an oversized tool result in the history."""
+    import zrb.llm.summarizer.history_summarizer as hs
+    from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX
+
+    def explode():
+        raise Exception("Set the `OPENAI_API_KEY` environment variable")
+
+    monkeypatch.setattr(hs, "create_conversational_summarizer_agent", explode)
+    messages: list[ModelMessage] = [
+        ModelRequest(
+            parts=[ToolReturnPart(content="T" * 5_000, tool_name="t", tool_call_id="1")]
+        )
+    ]
+
+    processor = create_summarizer_history_processor(
+        limiter=MockLimiter(), message_token_threshold=5
+    )
+    result = await processor(messages)
+
+    assert result[0].parts[0].content.startswith(PRUNED_PREFIX)
