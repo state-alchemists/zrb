@@ -1,3 +1,5 @@
+import os
+import re
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
@@ -5,6 +7,7 @@ from pathlib import Path
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import Skill, SkillManager
+from zrb.llm.util.prompt import get_path_references
 from zrb.llm.util.roster import cap_items
 from zrb.util.markdown import make_markdown_section
 
@@ -94,8 +97,9 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
 
         instruction_blocks: list[str] = []
         inlined: set[Path] = set()
+        pointers: dict[Path, Path] = {}
         if CFG.LLM_INJECT_PROJECT_INSTRUCTIONS:
-            instruction_blocks, inlined = _inline_instructions(
+            instruction_blocks, inlined, pointers = _inline_instructions(
                 _instruction_sources(search_dirs),
                 CFG.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES,
             )
@@ -111,8 +115,7 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
                     if _is_user_level_dir(file_path.parent)
                     else listed_files
                 )
-                inlined_note = " — inlined above" if file_path in inlined else ""
-                bucket.append(f"- `{file_path}`{inlined_note}")
+                bucket.append(f"- `{file_path}`{_listing_note(file_path, inlined, pointers)}")
 
         if not listed_files and not user_level_files:
             return next_handler(ctx, current_prompt)
@@ -190,9 +193,80 @@ def _read_instruction_text(path: Path) -> str:
         return ""
 
 
+def _redundant_include_targets(
+    text: str, path: Path, inlined: set[Path]
+) -> list[Path]:
+    """The files *text* only points at, when every one is already in the prompt.
+
+    A file whose whole content is `@AGENTS.md` is a pointer, not rules. Inlining
+    it buys nothing — the target is already inlined under its own name — and
+    costs the target a second time: `expand_prompt` reads `@path` over the
+    composed prompt, so eleven bytes at budget time become the whole file at
+    build time, outside the byte budget.
+
+    Only *inlined* counts, not every instruction source: a pointer whose target
+    the byte budget dropped must keep pointing, or the rules it was the last
+    route to would vanish from the prompt entirely.
+
+    A file with prose of its own still inlines its include, so its target is
+    still paid for twice; this covers the pure pointer, which is what a
+    tool-generated `CLAUDE.md` is.
+
+    Returns the targets when the file is a pure pointer at text already in the
+    prompt, and `[]` when it is neither a pointer nor redundant.
+    """
+    body = text.strip()
+    if not body:
+        return []
+    matches = get_path_references(body)
+    if not matches:
+        return []
+    if _without_references(body, matches).strip():
+        return []
+    already = {source.resolve() for source in inlined}
+    targets: list[Path] = []
+    for match in matches:
+        target = _covered_reference_target(match.group("path"), path.parent, already)
+        if target is None:
+            return []
+        targets.append(target)
+    return targets
+
+
+def _without_references(body: str, matches: list[re.Match]) -> str:
+    """*body* with every reference cut out, so the prose around them can be judged."""
+    kept: list[str] = []
+    cursor = 0
+    for match in matches:
+        kept.append(body[cursor : match.start()])
+        cursor = match.end()
+    kept.append(body[cursor:])
+    return "".join(kept)
+
+
+def _covered_reference_target(
+    reference: str, directory: Path, covered: set[Path]
+) -> Path | None:
+    """The covered file *reference* names, read from *directory* or from the cwd.
+
+    Both bases are tried: a sibling `@AGENTS.md` is what the file means, while
+    `expand_prompt` resolves against the cwd. Either one landing on a file that
+    is already inlined makes the include redundant.
+    """
+    expanded = Path(os.path.expanduser(reference))
+    for base in (directory, Path.cwd()):
+        try:
+            resolved = (base / expanded).resolve()
+        except OSError:
+            continue
+        if resolved in covered:
+            return resolved
+    return None
+
+
 def _inline_instructions(
     sources: list[Path], max_bytes: int
-) -> tuple[list[str], set[Path]]:
+) -> tuple[list[str], set[Path], dict[Path, Path]]:
     """Inline instruction files until *max_bytes* is spent.
 
     Walks *sources* most specific first and stops at the first file that does not
@@ -201,15 +275,77 @@ def _inline_instructions(
     for the directory it is editing. A budget too small to inline the nearest
     file therefore inlines nothing and lists everything.
 
-    Returns the rendered blocks and the paths they cover, so the caller can say
-    which listed files are already in the prompt.
+    A file that is only a pointer (`CLAUDE.md` holding `@AGENTS.md`) is skipped
+    when the walk would have inlined its target, and *pointers* records those so
+    the listing can say what the file is instead of inviting a read.
+
+    It takes two walks. Which files fit has to be known before a pointer can be
+    judged, and a pointer in a *sub*directory names a target further up that has
+    not been reached yet — judging against the running total would miss exactly
+    the layout where the agent runs from a subdirectory. So the first walk plans
+    the budget, the pointer set is decided against that plan, and the second
+    walk spends the bytes. Skipping can only free budget, so every planned file
+    is still inlined afterwards: the file a pointer is reported as pointing at is
+    always in the prompt.
+
+    Returns the rendered blocks, the paths they cover, and the pointer files
+    mapped to the file the prompt actually carries, not to the next hop.
     """
+    texts = {path: _read_instruction_text(path) for path in sources}
+    _, planned = _walk_instructions(sources, texts, max_bytes, skip=frozenset())
+    skipped: dict[Path, Path] = {}
+    for path in sources:
+        targets = _redundant_include_targets(texts[path], path, planned)
+        if targets:
+            skipped[path] = targets[0]
+    blocks, inlined = _walk_instructions(
+        sources, texts, max_bytes, skip=frozenset(skipped)
+    )
+    return blocks, inlined, _resolve_pointer_targets(skipped)
+
+
+def _resolve_pointer_targets(pointers: dict[Path, Path]) -> dict[Path, Path]:
+    """Each pointer mapped to the file the prompt carries, following the chain.
+
+    `CLAUDE.md -> @GEMINI.md -> @AGENTS.md` is two hops, and a listing that named
+    the middle file would claim something is inlined when it is not. A chain
+    that circles back has no terminal file, so the pointer keeps its skip — its
+    content is a reference either way — but loses its note rather than naming a
+    file the prompt does not hold.
+    """
+    next_hop = {path.resolve(): target for path, target in pointers.items()}
+    terminal: dict[Path, Path] = {}
+    for start, first in pointers.items():
+        seen = {start.resolve()}
+        target: Path | None = first
+        while target is not None:
+            here = target.resolve()
+            if here in seen:
+                target = None
+                break
+            seen.add(here)
+            hop = next_hop.get(here)
+            if hop is None:
+                break
+            target = hop
+        if target is not None:
+            terminal[start] = target
+    return terminal
+
+
+def _walk_instructions(
+    sources: list[Path],
+    texts: dict[Path, str],
+    max_bytes: int,
+    skip: frozenset[Path],
+) -> tuple[list[str], set[Path]]:
+    """Render the instruction blocks the byte budget admits, ignoring *skip*."""
     blocks: list[str] = []
     inlined: set[Path] = set()
     remaining = max(max_bytes, 0)
     for path in sources:
-        text = _read_instruction_text(path)
-        if not text:
+        text = texts.get(path, "")
+        if not text or path in skip:
             continue
         raw = text.encode("utf-8")
         note = ""
@@ -227,6 +363,22 @@ def _inline_instructions(
         blocks.append(f"#### Instructions from: `{path}`\n\n{body}{note}")
         inlined.add(path)
     return blocks, inlined
+
+
+def _listing_note(
+    path: Path, inlined: set[Path], pointers: dict[Path, Path]
+) -> str:
+    """How the file listing marks a doc whose content is already in the prompt.
+
+    A pointer file is called what it is: its eleven bytes are `@AGENTS.md`, and
+    a listing that just says "read this" invites a wasted read.
+    """
+    if path in inlined:
+        return " — inlined above"
+    target = pointers.get(path)
+    if target is not None:
+        return f" — a pointer to `{target}`, inlined above"
+    return ""
 
 
 def _is_user_level_dir(directory: Path) -> bool:
