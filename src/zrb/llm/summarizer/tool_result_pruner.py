@@ -117,12 +117,11 @@ def spill_tool_result(
 
 
 MIN_PRUNE_TOKENS = 64
-"""Smallest budget a prune honours.
+"""Smallest budget a prune honours, before the pointer's own size is counted.
 
-Below this the replacement cannot carry its marker, its pointer and any text
-worth keeping, so a configured threshold under it is raised to it. The
-alternative — emitting a "pruned" block that says nothing — hides the output
-without telling the reader where it went.
+A configured threshold under this is raised to it. The effective budget can be
+higher still: the marker and the path are measured, and the block is never
+truncated below their size, because a path cut in half cannot be opened.
 """
 
 
@@ -140,12 +139,14 @@ def prune_tool_result_content(
     that can drift from what the tool actually printed.
 
     The budget is spent in this order: the marker and its pointer first, then
-    the head and the tail from what is left. A threshold smaller than
-    `MIN_PRUNE_TOKENS` is raised to it, and the result never exceeds the
-    (raised) budget — the framing is measured, not assumed.
+    the head and the tail from what is left. The effective budget is the
+    larger of the configured threshold, `MIN_PRUNE_TOKENS`, and the measured
+    size of the marker plus two tokens — the pointer is never truncated,
+    because the file it names cannot be found from a path that was cut in
+    half. The result never exceeds that effective budget.
     """
-    budget = max(threshold_tokens, MIN_PRUNE_TOKENS)
     total_tokens = limiter.count_tokens(content)
+    budget = effective_prune_budget(limiter, total_tokens, threshold_tokens, spill_path)
     body_budget = budget - _framing_tokens(limiter, total_tokens, spill_path)
     for _ in range(4):
         if body_budget < 2:
@@ -162,9 +163,27 @@ def prune_tool_result_content(
         # the tail tokenizes, so each retry starts from what the block still
         # overflows by.
         body_budget -= max(1, overflow)
-    return limiter.truncate_text(
-        _render_header(total_tokens, 0, total_tokens, spill_path), budget
-    )
+    # Unreachable through the loop above, but the pointer must survive even
+    # here: emit the header whole rather than cut the path out of it.
+    return _render_header(total_tokens, 0, total_tokens, spill_path)
+
+
+def effective_prune_budget(
+    limiter: "LLMLimiter",
+    total_tokens: int,
+    threshold_tokens: int,
+    spill_path: str | None,
+) -> int:
+    """The budget a prune is actually held to, never below its own pointer.
+
+    The configured threshold can be smaller than the marker plus a path — a
+    long history directory is enough. Cutting the path to fit would leave the
+    saved file unopenable, so the effective budget grows to fit it. This is the
+    only place the floor is computed, so a caller (and a test) can ask what a
+    block will be held to before it is built.
+    """
+    framing = _framing_tokens(limiter, total_tokens, spill_path)
+    return max(threshold_tokens, MIN_PRUNE_TOKENS, framing + 2)
 
 
 def _framing_tokens(

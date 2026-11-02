@@ -611,8 +611,9 @@ class LLMContentMixin:
         ),
         doc=(
             "Token budget for one tool result before it is pruned to a head, a "
-            "tail and a pointer to the verbatim file. Values below 64 are "
-            "raised to 64: a smaller block cannot carry the marker and pointer."
+            "tail and a pointer to the verbatim file. The effective budget is "
+            "at least 64 tokens, and at least the measured size of the marker "
+            "and the pointer: a path is never truncated to fit."
         ),
     )
 

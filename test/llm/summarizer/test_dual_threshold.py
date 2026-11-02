@@ -5,6 +5,7 @@ a head, a tail, a marker, and a path to the verbatim text. Nothing here may
 call a model.
 """
 
+import os
 from dataclasses import dataclass
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -12,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.summarizer.message_processor import process_tool_return_part
-from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX
+from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX, effective_prune_budget
 
 
 @dataclass
@@ -179,16 +180,16 @@ async def test_the_replacement_never_exceeds_the_budget():
     )
 
     assert modified
-    assert len(result.content) <= 200
     assert result.content.startswith(PRUNED_PREFIX)
+    spill_path = result.content.split("`")[1]
+    budget = effective_prune_budget(limiter, 5000, 200, spill_path)
+    assert limiter.count_tokens(result.content) <= budget
 
 
 @pytest.mark.asyncio
-async def test_a_threshold_too_small_for_the_marker_is_raised_to_the_minimum():
-    """A one-token budget cannot carry "pruned" and a path; the documented
-    minimum is what the block is held to instead."""
-    from zrb.llm.summarizer.tool_result_pruner import MIN_PRUNE_TOKENS
-
+async def test_a_tiny_threshold_never_cuts_the_pointer():
+    """A one-token budget still has to name the file it saved: the pointer
+    sets the floor, not the other way round."""
     limiter = MockLimiter()
     part = ToolReturnPart(content="C" * 5000)
 
@@ -197,8 +198,35 @@ async def test_a_threshold_too_small_for_the_marker_is_raised_to_the_minimum():
     )
 
     assert modified
-    assert len(result.content) <= MIN_PRUNE_TOKENS
     assert result.content.startswith(PRUNED_PREFIX)
+    assert "Full output: `" in result.content
+    spill_path = result.content.split("`")[1]
+    assert os.path.exists(spill_path)
+
+
+@pytest.mark.asyncio
+async def test_a_long_spill_path_raises_the_budget_instead_of_being_cut(tmp_path):
+    """A deep history directory makes the marker long; the whole path is kept,
+    even under a threshold far smaller than it."""
+    limiter = MockLimiter()
+    deep = tmp_path / ("deep-" + "x" * 120)
+    deep.mkdir()
+    part = ToolReturnPart(content="D" * 5000)
+
+    result, modified = await process_tool_return_part(
+        part,
+        MagicMock(),
+        limiter,
+        message_threshold=64,
+        insanity_threshold=128,
+        session_name="session",
+        history_dir=str(deep),
+    )
+
+    assert modified
+    spill_path = result.content.split("`")[1]
+    assert spill_path in result.content
+    assert os.path.exists(spill_path)
 
 
 @pytest.mark.asyncio
@@ -214,7 +242,9 @@ async def test_an_output_that_merely_starts_like_the_marker_is_still_pruned():
     )
 
     assert modified
-    assert len(result.content) <= 200
+    spill_path = result.content.split("`")[1]
+    budget = effective_prune_budget(limiter, len(content), 200, spill_path)
+    assert limiter.count_tokens(result.content) <= budget
 
 
 @pytest.mark.asyncio
@@ -231,4 +261,6 @@ async def test_a_marker_shaped_prefix_does_not_protect_a_large_payload():
     )
 
     assert modified
-    assert len(result.content) <= 200
+    spill_path = result.content.split("`")[1]
+    budget = effective_prune_budget(limiter, len(content), 200, spill_path)
+    assert limiter.count_tokens(result.content) <= budget
