@@ -88,10 +88,14 @@ async def test_probe_without_mktemp_degrades_to_fail_and_writes_nothing(
     script = "mktemp() { return 1; }\n" + create_probe_script(
         [Target("closed", host="127.0.0.1", port=1)]
     )
+    # A guessable name in the shared temp dir is the thing under test, so
+    # compare against what was already there: other programs on the machine may
+    # own `probe.*` too, and asserting the directory is empty reports them.
+    before = set(Path("/tmp").glob("probe.*"))
     (result,) = await run_on_hosts([Host("l")], script)
     assert parse_probe_output(result.output, 1) == ["fail"]
     assert list(tmp_path.iterdir()) == []
-    assert not list(Path("/tmp").glob("probe.*"))
+    assert set(Path("/tmp").glob("probe.*")) == before
 
 
 def test_parse_probe_output_marks_missing_targets_as_error():
