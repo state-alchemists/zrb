@@ -8,6 +8,8 @@ the prompt already has.
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from zrb.llm.prompt.claude import _read_instruction_bytes, create_project_context_prompt
 from zrb.llm.util.prompt import expand_prompt
 
@@ -364,7 +366,10 @@ def test_a_symlinked_instruction_file_is_listed_but_never_inlined(tmp_path):
     project.mkdir()
     secret = tmp_path / "id_rsa"
     secret.write_text("PRIVATE KEY MATERIAL")
-    (project / "AGENTS.md").symlink_to(secret)
+    try:
+        (project / "AGENTS.md").symlink_to(secret)
+    except (OSError, NotImplementedError):
+        pytest.skip("this platform does not let an unprivileged test create a symlink")
 
     handler = create_project_context_prompt()
     ctx = _make_ctx()
@@ -390,6 +395,7 @@ def test_reading_an_instruction_file_stops_at_the_budget(tmp_path):
 
     assert len(_read_instruction_bytes(huge, 1_000)) == 1_001
 
+    # Bytes, not text: text mode turns "\n" into "\r\n" on Windows.
     small = tmp_path / "CLAUDE.md"
-    small.write_text("RULES\n", encoding="utf-8")
+    small.write_bytes(b"RULES\n")
     assert _read_instruction_bytes(small, 1_000) == b"RULES\n"
