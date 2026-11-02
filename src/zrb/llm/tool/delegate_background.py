@@ -1,8 +1,8 @@
 """Background (fire-and-forget) subagent delegation.
 
-``DelegateToAgentBackground`` starts a subagent and returns a handle
-immediately; ``GetDelegationResult`` polls that handle. The synchronous
-``DelegateToAgent`` path lives in ``delegate.py``.
+``DelegateToAgent(background=True)`` starts a subagent and returns a handle
+immediately; ``GetDelegationResult`` polls that handle. One tool, two entry
+points — the same shape as ``Shell`` and ``MonitorProcess``.
 
 ``asyncio.ensure_future`` copies the parent's ``contextvars``, so the
 background agent inherits its UI, yolo, permission policy and approval channel.
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
-import inspect
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Annotated
 
 from pydantic import Field
@@ -27,18 +27,9 @@ from zrb.llm.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
-from zrb.llm.delegation_api import (
-    SubAgentManagerAPI,
-    default_sub_agent_manager,
-)
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
-from zrb.llm.tool.delegate import (
-    BufferedUI,
-    agent_not_found_message,
-    agent_roster_doc,
-    run_agent_task,
-)
+from zrb.llm.tool.delegate import BufferedUI
 from zrb.llm.ui_fallback.resolution import resolve_ui
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.string.name import get_random_name
@@ -153,7 +144,7 @@ class _BackgroundRegistry:
             return (
                 f"Unknown handle '{handle}'. [SYSTEM SUGGESTION]: it may have "
                 "already been collected, or never existed. Handles are returned "
-                "by DelegateToAgentBackground."
+                "by DelegateToAgent called with background=true."
             )
         if not task.done():
             return (
@@ -241,108 +232,32 @@ def background_delegation_live_context(ctx: "AnyContext") -> str | None:
     )
 
 
-def create_background_delegate_tool(
-    sub_agent_manager: SubAgentManagerAPI | None = None,
-):
-    if sub_agent_manager is None:
-        sub_agent_manager = default_sub_agent_manager()
+def start_background_run(
+    label: str,
+    build_coro: Callable[[BufferedUI], Awaitable[object]],
+) -> str:
+    """Start a delegation in the background under a fresh handle and return it.
 
-    async def delegate_to_agent_background(
-        agent_name: Annotated[
-            str,
-            Field(
-                description=(
-                    "Name of the sub-agent to delegate to (see AVAILABLE AGENTS "
-                    "in this tool's description)."
-                )
-            ),
-        ],
-        deliverable: Annotated[
-            str,
-            Field(
-                description=(
-                    "Concrete artifact that must exist on return — name the "
-                    "file, function, or decision."
-                )
-            ),
-        ],
-        task: Annotated[
-            str,
-            Field(
-                description=(
-                    "How to produce the deliverable — reference exact files, "
-                    "line numbers, or commands when known."
-                )
-            ),
-        ],
-        non_goals: Annotated[
-            list[str],
-            Field(
-                description=(
-                    "Things the sub-agent must NOT do (scope clamp). Pass [] "
-                    "only when certain there is no scope-expansion risk."
-                )
-            ),
-        ],
-        additional_context: Annotated[
-            str,
-            Field(
-                description=(
-                    "Extra background the sub-agent needs that doesn't belong "
-                    "in deliverable/task/non_goals."
-                )
-            ),
-        ] = "",
-    ) -> str:
-        """Start a subagent in the BACKGROUND and return a handle immediately.
-
-        Poll with GetDelegationResult(handle) to collect the result later.
-
-        The background agent inherits the main agent's permissions and yolo
-        setting. If one of its tool calls needs approval, the request interrupts
-        and prompts the user through the same UI (queued behind any current
-        prompt), just like a synchronous delegate.
-        """
-        # Validate before detaching, else an unknown agent surfaces only when polled.
-        if not sub_agent_manager.get_agent_definition(agent_name):
-            return agent_not_found_message(agent_name, sub_agent_manager)
-        parent_ui = resolve_ui(get_current_ui())
-        handle = get_random_name(separator="-", add_random_digit=True)
-        prefix = f"[{agent_name}:{handle}] "
-        buffered_ui = BufferedUI(
-            parent_ui,
-            prefix=prefix,
-            session_id=get_session_ownership_key(get_current_tool_session()),
-        )
-
-        coro = run_agent_task(
-            agent_name=agent_name,
-            deliverable=deliverable,
-            non_goals=non_goals,
-            task=task,
-            additional_context=additional_context,
-            sub_agent_manager=sub_agent_manager,
-            ui=buffered_ui,
-            yolo=None,
-        )
-
-        # The buffer's own session is the owner: teardown cancels only its own.
-        _registry.start(handle, agent_name, coro, buffered_ui, buffered_ui.session_id)
-        register_background_handle(handle)
-        return (
-            f"Started background agent '{agent_name}'. Handle: {handle}. "
-            "Call GetDelegationResult with this handle to collect the result."
-        )
-
-    setattr(delegate_to_agent_background, "zrb_is_delegate_tool", True)
-    delegate_to_agent_background.__name__ = "DelegateToAgentBackground"
-    # cleandoc first, or the unindented roster would pin the docstring's indent.
-    delegate_to_agent_background.__doc__ = (
-        f"{inspect.cleandoc(delegate_to_agent_background.__doc__ or '')}\n\n"
-        f"AVAILABLE AGENTS:\n{agent_roster_doc(sub_agent_manager)}\n"
+    *build_coro* receives the run's buffered UI because the UI has to carry the
+    handle in its prefix, and the handle does not exist until here. *label* names
+    the run in that prefix, in the completion notice, and in the start message.
+    """
+    handle = get_random_name(separator="-", add_random_digit=True)
+    buffered_ui = BufferedUI(
+        resolve_ui(get_current_ui()),
+        prefix=f"[{label}:{handle}] ",
+        session_id=get_session_ownership_key(get_current_tool_session()),
     )
-    tag(delegate_to_agent_background, Capability.DELEGATE)
-    return delegate_to_agent_background
+
+    # The buffer's own session is the owner: teardown cancels only its own.
+    _registry.start(
+        handle, label, build_coro(buffered_ui), buffered_ui, buffered_ui.session_id
+    )
+    register_background_handle(handle)
+    return (
+        f"Started background agent '{label}'. Handle: {handle}. "
+        "Call GetDelegationResult with this handle to collect the result."
+    )
 
 
 def create_get_delegation_result_tool():
@@ -351,8 +266,8 @@ def create_get_delegation_result_tool():
             str,
             Field(
                 description=(
-                    "The handle returned by DelegateToAgentBackground for the "
-                    "background run to check."
+                    "The handle returned by DelegateToAgent(background=true) "
+                    "for the background run to check."
                 )
             ),
         ],

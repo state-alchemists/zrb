@@ -117,6 +117,33 @@ def test_auto_writable_roots_follow_the_process_cwd(tmp_path, monkeypatch):
     assert os.path.realpath(str(tmp_path)) in roots
 
 
+def test_auto_writable_roots_include_the_configured_worktree_dir(
+    monkeypatch, outside_root
+):
+    """A worktree lives outside the checkout, so the automatic set adds it.
+
+    Without it, sandboxing on with the default settings refused
+    `EnterWorktree`'s own destination before `git worktree add` ran.
+    """
+    worktree_dir = str(outside_root / "wt")
+    monkeypatch.setenv("ZRB_LLM_WORKTREE_DIR", worktree_dir)
+    roots = resolved_writable_roots(SandboxPolicy(enabled=True))
+    assert os.path.realpath(worktree_dir) in roots
+
+
+def test_an_explicit_writable_list_does_not_add_the_worktree_dir(
+    monkeypatch, tmp_path, outside_root
+):
+    """An explicit list is the user's boundary, so it stays exact."""
+    project = str(tmp_path / "project")
+    worktree_dir = str(outside_root / "wt")
+    monkeypatch.setenv("ZRB_LLM_WORKTREE_DIR", worktree_dir)
+    roots = resolved_writable_roots(
+        SandboxPolicy(enabled=True, writable_paths=(project,))
+    )
+    assert os.path.realpath(worktree_dir) not in roots
+
+
 def test_darwin_auto_roots_include_private_tmp():
     if platform.system() != "Darwin":
         return

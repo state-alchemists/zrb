@@ -73,7 +73,6 @@ MATCHER_OPERATORS: dict[MatcherOperator, Callable[[Any, Any], bool]] = {
 CLAUDE_TOOL_ALIASES: dict[str, list[str]] = {
     "Shell": ["Bash"],
     "DelegateToAgent": ["Task"],
-    "DelegateToAgentBackground": ["Task"],
 }
 
 

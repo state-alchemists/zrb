@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -8,6 +9,31 @@ import pytest
 from zrb.llm.ambient_state import get_active_worktree
 from zrb.llm.prompt.live_context import render_live_context
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
+
+
+def _expected_worktree_path(repo: str, branch: str) -> str:
+    """The documented layout — ``<worktree dir>/<repo>-<digest>/<branch>``."""
+    real_repo = os.path.realpath(repo)
+    digest = hashlib.sha256(real_repo.encode("utf-8")).hexdigest()[:8]
+    return os.path.join(
+        os.path.realpath(os.path.expanduser("~")),
+        ".zrb",
+        "wt",
+        f"{os.path.basename(real_repo)}-{digest}",
+        branch,
+    )
+
+
+@pytest.fixture(autouse=True)
+def isolated_home(monkeypatch):
+    """Worktrees land under ~/.zrb/wt: never write into the developer's home.
+
+    Deliberately not `tmp_path`: the home has to sit outside the directory a test
+    uses as its repository, or "created outside the checkout" cannot be asserted.
+    """
+    with tempfile.TemporaryDirectory() as home:
+        monkeypatch.setenv("HOME", home)
+        yield home
 
 
 @pytest.fixture
@@ -26,7 +52,7 @@ def create_mock_process(returncode=0, stdout=b"", stderr=b""):
 @pytest.mark.asyncio
 async def test_enter_worktree_success(mock_subprocess, tmp_path):
     mock_subprocess.side_effect = [
-        create_mock_process(  # the repo root; the tool creates .zrb/worktree in it
+        create_mock_process(  # the repo root
             returncode=0, stdout=str(tmp_path).encode()
         ),
         create_mock_process(
@@ -37,6 +63,107 @@ async def test_enter_worktree_success(mock_subprocess, tmp_path):
     res = await enter_worktree(branch_name="test-branch")
     assert "Worktree created:" in res
     assert "Branch: test-branch" in res
+    # Outside the checkout, under the user's zrb directory: a worktree nested in
+    # the repo is a second copy of the repo that every search then has to skip.
+    expected = _expected_worktree_path(str(tmp_path), "test-branch")
+    assert expected in res
+    assert not expected.startswith(str(tmp_path) + os.sep)
+
+
+@pytest.mark.asyncio
+async def test_worktree_root_follows_the_setting(
+    mock_subprocess, tmp_path, monkeypatch
+):
+    """The root is `LLM_WORKTREE_DIR`, not a path baked into the tool."""
+    custom_root = tmp_path / "worktrees"
+    monkeypatch.setenv("ZRB_LLM_WORKTREE_DIR", str(custom_root))
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=str(repo).encode()),
+        create_mock_process(returncode=0),
+    ]
+
+    res = await enter_worktree(branch_name="test-branch", cwd=str(repo))
+
+    assert str(custom_root) in res
+
+
+@pytest.mark.asyncio
+async def test_a_relative_worktree_root_is_absolute_when_git_sees_it(
+    mock_subprocess, tmp_path, monkeypatch
+):
+    """git resolves a relative destination against its own cwd, not the process one.
+
+    The sandbox check and `os.makedirs` use the process directory, so a
+    relative `LLM_WORKTREE_DIR` has to be made absolute first; otherwise the
+    repository can receive a worktree at a path nothing judged.
+    """
+    process_dir = tmp_path / "process"
+    process_dir.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.chdir(process_dir)
+    monkeypatch.setenv("ZRB_LLM_WORKTREE_DIR", "worktrees")
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=str(repo).encode()),
+        create_mock_process(returncode=0),
+    ]
+
+    with patch(
+        "zrb.llm.tool.worktree.build_sandboxed_argv",
+        side_effect=lambda argv, policy, skip=False: (argv, None),
+    ) as mock_build:
+        res = await enter_worktree(branch_name="test-branch", cwd=str(repo))
+
+    target = mock_build.call_args_list[1].args[0][-1]
+    assert os.path.isabs(target)
+    assert os.path.realpath(target).startswith(
+        os.path.realpath(str(process_dir / "worktrees"))
+    )
+    assert not os.path.exists(os.path.join(repo, "worktrees"))
+    assert "Worktree created:" in res
+
+
+@pytest.mark.asyncio
+async def test_two_repositories_sharing_a_name_get_their_own_dir(tmp_path):
+    """`api` in two different places is two repositories, not one shared path."""
+    parents = [tmp_path / "client-a", tmp_path / "client-b"]
+    repos = [parent / "api" for parent in parents]
+    for repo in repos:
+        repo.mkdir(parents=True)
+    created: list[str] = []
+    with patch("asyncio.create_subprocess_exec") as mock_subprocess:
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=str(repos[0]).encode()),
+            create_mock_process(returncode=0),
+            create_mock_process(returncode=0, stdout=str(repos[1]).encode()),
+            create_mock_process(returncode=0),
+        ]
+        for repo in repos:
+            res = await enter_worktree(branch_name="same-branch", cwd=str(repo))
+            created.append(res.split("Worktree created: ")[1].splitlines()[0])
+
+    assert created[0] != created[1]
+    assert os.path.dirname(created[0]) != os.path.dirname(created[1])
+
+
+@pytest.mark.asyncio
+async def test_enter_worktree_does_not_touch_the_repository(mock_subprocess, tmp_path):
+    """Nothing is written into the checkout — not even a .gitignore entry.
+
+    The old layout needed one because the worktree lived inside the repo; the
+    new one lives outside it, so the repository stays exactly as it was.
+    """
+    before = sorted(os.listdir(tmp_path))
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=str(tmp_path).encode()),
+        create_mock_process(returncode=0),
+    ]
+    await enter_worktree(branch_name="clean-branch", cwd=str(tmp_path))
+
+    assert sorted(os.listdir(tmp_path)) == before
+    assert not os.path.exists(os.path.join(tmp_path, ".gitignore"))
 
 
 @pytest.mark.asyncio
@@ -302,64 +429,10 @@ def _capture_live_context(ctx=None) -> str:
 
 
 @pytest.mark.asyncio
-async def test_enter_worktree_adds_gitignore_entry(mock_subprocess):
-    """EnterWorktree should add the worktree pattern to .gitignore if absent."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        mock_subprocess.side_effect = [
-            create_mock_process(returncode=0, stdout=tmpdir.encode()),
-            create_mock_process(returncode=0),
-        ]
-        await enter_worktree(branch_name="gi-branch", cwd=tmpdir)
-
-        gitignore = os.path.join(tmpdir, ".gitignore")
-        assert os.path.exists(gitignore)
-        content = open(gitignore).read()
-        assert ".zrb/worktree/" in content
-
-
-@pytest.mark.asyncio
-async def test_enter_worktree_does_not_duplicate_gitignore_entry(mock_subprocess):
-    """EnterWorktree should not add a duplicate line if the pattern is already present."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        gitignore = os.path.join(tmpdir, ".gitignore")
-        with open(gitignore, "w") as f:
-            f.write(".zrb/worktree/\n")
-
-        mock_subprocess.side_effect = [
-            create_mock_process(returncode=0, stdout=tmpdir.encode()),
-            create_mock_process(returncode=0),
-        ]
-        await enter_worktree(branch_name="nodup-branch", cwd=tmpdir)
-
-        content = open(gitignore).read()
-        assert content.count(".zrb/worktree/") == 1
-
-
-@pytest.mark.asyncio
-async def test_enter_worktree_appends_to_existing_gitignore(mock_subprocess):
-    """EnterWorktree should append to an existing .gitignore without clobbering it."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        gitignore = os.path.join(tmpdir, ".gitignore")
-        with open(gitignore, "w") as f:
-            f.write("*.pyc\n__pycache__\n")
-
-        mock_subprocess.side_effect = [
-            create_mock_process(returncode=0, stdout=tmpdir.encode()),
-            create_mock_process(returncode=0),
-        ]
-        await enter_worktree(branch_name="append-branch", cwd=tmpdir)
-
-        content = open(gitignore).read()
-        assert "*.pyc" in content
-        assert "__pycache__" in content
-        assert ".zrb/worktree/" in content
-
-
-@pytest.mark.asyncio
 async def test_enter_and_exit_worktree_reflected_in_live_context(mock_subprocess):
     """EnterWorktree shows active worktree in the live context; ExitWorktree clears it."""
     with tempfile.TemporaryDirectory() as tmpdir:
-        worktree_path = os.path.join(tmpdir, ".zrb", "worktree", "sc-branch")
+        worktree_path = _expected_worktree_path(tmpdir, "sc-branch")
 
         # Enter
         mock_subprocess.side_effect = [

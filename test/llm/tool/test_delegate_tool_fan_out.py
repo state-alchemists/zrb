@@ -5,6 +5,21 @@ import pytest
 
 from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
+from zrb.llm.tool.delegate_background import (
+    create_get_delegation_result_tool,
+    get_background_registry,
+)
+
+_TASKS = [
+    {"agent_name": "a", "deliverable": "d", "task": "t", "non_goals": []},
+    {"agent_name": "b", "deliverable": "d", "task": "t", "non_goals": []},
+]
+
+
+@pytest.fixture(autouse=True)
+def clean_registry():
+    yield
+    get_background_registry().cancel_all()
 
 
 @pytest.fixture
@@ -58,6 +73,53 @@ async def test_delegate_fan_out_cap_disabled_by_zero(
 
     assert get_max_in_flight() == 5
     assert result.count("completed:") == 5
+
+
+@pytest.mark.asyncio
+async def test_background_fan_out_is_collected_as_completed(
+    mock_sub_agent_manager,
+):
+    """A detached batch answers through the handle registry, which reads
+    `.success`/`.result` off what the task returned.
+
+    A bare string made every finished batch report `failed`, even though the
+    sub-agents had run: `'str' object has no attribute 'result'`.
+    """
+    mock_sub_agent_manager.create_agent.return_value = MagicMock()
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+    get_result = create_get_delegation_result_tool()
+
+    with (
+        patch(
+            "zrb.llm.tool.delegate.run_agent",
+            new_callable=AsyncMock,
+            return_value=("ok", []),
+        ),
+        patch("zrb.llm.tool.delegate.get_current_ui", return_value=MagicMock()),
+    ):
+        msg = await tool(tasks=_TASKS, background=True)
+        handle = msg.split("Handle:")[1].split(".")[0].strip()
+        for _ in range(5):
+            await asyncio.sleep(0)
+        collected = await get_result(handle, wait=5)
+
+    assert f"[{handle}] completed:" in collected
+    assert "failed" not in collected
+    # One `completed:` per sub-agent, plus the registry's own header line.
+    assert collected.count("completed:") == len(_TASKS) + 1
+
+
+@pytest.mark.asyncio
+async def test_background_fan_out_with_a_bad_spec_does_not_detach(
+    mock_sub_agent_manager,
+):
+    """A missing key is answerable at the call, so it never becomes a handle."""
+    tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
+
+    msg = await tool(tasks=[{"agent_name": "a"}], background=True)
+
+    assert "missing required keys" in msg
+    assert "Handle:" not in msg
 
 
 @pytest.mark.asyncio

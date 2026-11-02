@@ -31,7 +31,6 @@ from zrb.llm.tool.delegate import (
 )
 from zrb.llm.tool.delegate_background import (
     background_delegation_live_context,
-    create_background_delegate_tool,
     create_get_delegation_result_tool,
 )
 from zrb.llm.tool.delegate_message import create_send_message_to_subagent_tool
@@ -127,7 +126,6 @@ def _delegate_tool_factory(ctx):
     return [
         _tool_factory(create_delegate_to_agent_tool(), defer_loading=False),
         _tool_factory(create_search_agent_tool(), defer_loading=False),
-        _tool_factory(create_background_delegate_tool()),
         _tool_factory(create_get_delegation_result_tool()),
         _tool_factory(create_send_message_to_subagent_tool()),
     ]
@@ -182,7 +180,6 @@ llm_chat.prepend_tool_policy(
     auto_approve("DelegateToAgent"),
     # Sub-agents' own tool calls still route their approvals to the user.
     auto_approve("SearchAgent"),
-    auto_approve("DelegateToAgentBackground"),
     auto_approve("GetDelegationResult"),
     auto_approve("EnterPlanMode"),
     # ExitPlanMode is absent: PLAN_MODE_POLICY asks, so the user approves the

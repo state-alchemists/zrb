@@ -126,6 +126,10 @@ def _seed_default_tools() -> tuple[list, list, list]:
     worktree_tools = (
         [enter_worktree, exit_worktree, list_worktrees] if is_inside_git_dir() else []
     )
+    # Visible, not deferred: a deferred tool is invisible until the model thinks
+    # to search for it, and the set of tools nobody thought of is the set nobody
+    # used (EnterWorktree: 1 call in a week, ExitWorktree and ListWorktrees: 0).
+    # All three sit inside the git gate, so a non-repo session still pays nothing.
     plan_tools = [write_todos, get_todos]
 
     # Untagged tools resolve to UNKNOWN (denied in plan mode).
@@ -166,7 +170,7 @@ def _seed_default_tools() -> tuple[list, list, list]:
         # Rarely needed: the schema loads only through native tool search.
         Tool(analyze_code, defer_loading=True),
         Tool(analyze_file, defer_loading=True),
-        *(Tool(_fn, defer_loading=True) for _fn in worktree_tools),
+        *worktree_tools,
         *(Tool(_fn, defer_loading=True) for _fn in lsp_tools),
         *plan_tools,
     ]

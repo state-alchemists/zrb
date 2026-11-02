@@ -291,6 +291,66 @@ async def test_a_cut_moves_every_in_flight_sibling_aside(manager):
 
 
 @pytest.mark.asyncio
+async def test_a_cut_does_not_split_a_background_fan_out_into_sibling_handles(
+    manager,
+):
+    """A detached batch is not holding the turn, so a send-now has nothing to move.
+
+    The one handle it advertised stays pending until every child settles; the
+    cut must not adopt the unfinished children under sibling handles, and each
+    child's transcript still reaches that handle's buffer.
+    """
+    labels = ("alpha", "beta")
+    started, release = asyncio.Event(), asyncio.Event()
+    in_flight: set[str] = set()
+
+    async def tracking_run_agent(**kwargs) -> tuple[str, list]:
+        label = kwargs["message"].split("DELIVERABLE: ")[1].split("\n")[0]
+        kwargs["ui"].append_to_output(f"working on {label}")
+        in_flight.add(label)
+        if in_flight == set(labels):
+            started.set()
+        await release.wait()
+        return f"answer for {label}", []
+
+    tool = create_delegate_to_agent_tool(manager)
+    signal = ShellCutSignal()
+    token = current_shell_cut_signal.set(signal)
+    try:
+        with patch(RUN_AGENT, side_effect=tracking_run_agent):
+            message = await tool(
+                tasks=[_fan_out_spec(label) for label in labels], background=True
+            )
+            handle = message.split("Handle:")[1].split(".")[0].strip()
+            await asyncio.wait_for(started.wait(), 20)
+            signal.cut()
+            # Yield so the detached batch processes the cut while the children
+            # are still running: that is the moment a synchronous fan-out would
+            # adopt them under sibling handles.
+            for _ in range(10):
+                await asyncio.sleep(0)
+            # Nothing moved: the batch is not a turn that needed handing back.
+            # `is still running` is the pending-handle status; the adoption
+            # note only says the children `were still running`.
+            still_running = await create_get_delegation_result_tool()(handle)
+            assert "is still running" in still_running.lower(), still_running
+
+            release.set()
+            collected = await asyncio.wait_for(
+                create_get_delegation_result_tool()(handle, wait=5), 20
+            )
+    finally:
+        current_shell_cut_signal.reset(token)
+
+    assert f"[{handle}] completed:" in collected
+    assert "Handles:" not in collected, "the cut split the batch"
+    for label in labels:
+        assert f"answer for {label}" in collected, (label, collected)
+        # The child's tool transcript reached the one handle's buffer.
+        assert f"working on {label}" in collected, (label, collected)
+
+
+@pytest.mark.asyncio
 async def test_a_fan_out_without_a_cut_reports_every_result_as_before(manager):
     """Nothing moved, so the combined report is the one the turn always gave."""
     tool = create_delegate_to_agent_tool(manager)

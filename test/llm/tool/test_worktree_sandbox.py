@@ -1,6 +1,7 @@
 """The worktree tools under a sandbox policy: every git call is wrapped, and
 the model cannot steer what the tools write."""
 
+import hashlib
 import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -9,7 +10,29 @@ import pytest
 
 from zrb.llm.sandbox import SandboxPolicy
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
+from zrb.llm.tool import worktree
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
+
+
+def _expected_worktree_path(repo: str, branch: str) -> str:
+    """The documented layout — ``<worktree dir>/<repo>-<digest>/<branch>``."""
+    real_repo = os.path.realpath(repo)
+    digest = hashlib.sha256(real_repo.encode("utf-8")).hexdigest()[:8]
+    return os.path.join(
+        os.path.realpath(os.path.expanduser("~")),
+        ".zrb",
+        "wt",
+        f"{os.path.basename(real_repo)}-{digest}",
+        branch,
+    )
+
+
+@pytest.fixture(autouse=True)
+def isolated_home(monkeypatch):
+    """Worktrees land under ~/.zrb/wt: never write into the developer's home."""
+    with tempfile.TemporaryDirectory() as home:
+        monkeypatch.setenv("HOME", home)
+        yield home
 
 
 @pytest.fixture
@@ -48,9 +71,42 @@ async def test_enter_worktree_routes_git_calls_through_sandbox(mock_subprocess):
                 "add",
                 "-b",
                 "test-branch",
-                os.path.join(tmpdir, ".zrb", "worktree", "test-branch"),
+                _expected_worktree_path(tmpdir, "test-branch"),
             ],
         ]
+
+
+@pytest.mark.asyncio
+async def test_a_read_only_repository_names_both_writable_paths(
+    mock_subprocess, monkeypatch, outside_root
+):
+    """git records the branch inside the repository, so the worktree root alone is not enough.
+
+    A sandbox list that names the worktree root *instead of* the project fails
+    here with git's own "Operation not permitted" on a `.git` lock; the message
+    has to say that the repository stays writable too.
+    """
+    repo = str(outside_root / "repo")  # a path to judge, never created
+    monkeypatch.setattr(
+        "zrb.llm.tool.worktree.get_effective_sandbox_policy",
+        lambda: SandboxPolicy(enabled=True, writable_paths=(str(outside_root / "wt"),)),
+    )
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=repo.encode()),
+        create_mock_process(
+            returncode=255,
+            stderr=(
+                b"fatal: cannot lock ref 'refs/heads/b': Unable to create "
+                b"'/repo/.git/refs/heads/b.lock': Operation not permitted"
+            ),
+        ),
+    ]
+
+    res = await enter_worktree(branch_name="b", cwd=repo)
+
+    assert "Failed to create worktree" in res
+    assert "LLM_SANDBOX_WRITABLE_PATHS" in res
+    assert repo in res
 
 
 @pytest.mark.asyncio
@@ -74,23 +130,32 @@ async def test_exit_worktree_routes_git_calls_through_sandbox(mock_subprocess):
 
 
 @pytest.mark.asyncio
-async def test_enter_worktree_refuses_a_repo_outside_the_sandbox(
+async def test_enter_worktree_refuses_a_destination_outside_the_sandbox(
     mock_subprocess, monkeypatch, outside_root
 ):
-    """`cwd` is the model's choice; naming another repo must not let it write there."""
+    """The worktree home is the write target now, so it is what the sandbox judges.
+
+    `cwd` is the model's choice; naming another repo's worktree home must not let
+    it write there. The repository itself is never written to, so nothing appears
+    in it either.
+    """
     other_repo = str(outside_root / "other-repo")  # a path to judge, never created
-    with tempfile.TemporaryDirectory() as project:
+    project = str(outside_root / "project")
+    with tempfile.TemporaryDirectory() as repo:
         monkeypatch.setattr(
             "zrb.llm.tool.worktree.get_effective_sandbox_policy",
             lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
         )
+        monkeypatch.setattr(
+            worktree, "_worktree_parent", lambda _root: str(outside_root / "wt")
+        )
         mock_subprocess.side_effect = [
-            create_mock_process(returncode=0, stdout=other_repo.encode()),
+            create_mock_process(returncode=0, stdout=repo.encode()),
         ]
-        res = await enter_worktree(branch_name="escape", cwd=other_repo)
+        res = await enter_worktree(branch_name="escape", cwd=repo)
 
         assert "Blocked by sandbox policy" in res
-        assert not os.path.exists(os.path.join(other_repo, ".zrb"))
+        assert not os.path.exists(os.path.join(repo, ".zrb"))
         assert mock_subprocess.call_count == 1  # no `git worktree add`
 
 
@@ -104,6 +169,7 @@ async def test_enter_worktree_refuses_a_branch_name_that_leaves_the_sandbox(
         "zrb.llm.tool.worktree.get_effective_sandbox_policy",
         lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
     )
+    monkeypatch.setattr(worktree, "_worktree_parent", lambda _root: project)
     mock_subprocess.side_effect = [
         create_mock_process(returncode=0, stdout=project.encode()),
     ]

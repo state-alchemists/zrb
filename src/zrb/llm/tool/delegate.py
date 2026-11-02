@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -521,8 +522,8 @@ def _adopt_delegation(
     to `GetDelegationResult`. Its buffered transcript goes with it, so what the
     sub-agent has already printed stays readable there.
     """
-    # lazy: circular — delegate_background imports this module's BufferedUI and
-    # run_agent_task, so this direction has to stay deferred.
+    # lazy: circular — delegate_background imports this module's BufferedUI, so
+    # this direction has to stay deferred.
     from zrb.llm.tool.delegate_background import (
         get_background_registry,
         register_background_handle,
@@ -617,15 +618,11 @@ async def _run_delegation(
     return f"{label} completed:\n\n{task_result.result}"
 
 
-async def _run_parallel(
-    tasks: list[dict[str, Any]],
-    sub_agent_manager: SubAgentManagerAPI,
-) -> str:
-    """Run several sub-agent tasks concurrently and return combined results.
+def _batch_spec_error(tasks: Sequence[Mapping[str, object]]) -> str | None:
+    """Reject a fan-out whose task dicts are missing their required keys.
 
-    A shared lock serializes approval prompts. ``isolate_worktree: true`` gives
-    a task its own git worktree; each `Task` copies `contextvars`, so
-    `active_worktree` stays isolated per task.
+    Checked before the batch is started so a detached batch fails at the call,
+    where the model can still fix it, rather than through its handle later.
     """
     required = ("agent_name", "deliverable", "task", "non_goals")
     for idx, spec in enumerate(tasks):
@@ -636,8 +633,33 @@ async def _run_parallel(
                 "[SYSTEM SUGGESTION]: every task needs agent_name, "
                 "deliverable, task, and non_goals (list; [] allowed)."
             )
+    return None
 
-    parent_ui = resolve_ui(get_current_ui())
+
+async def _run_parallel(
+    tasks: list[dict[str, Any]],
+    sub_agent_manager: SubAgentManagerAPI,
+    *,
+    parent_ui: "AnyUI | None" = None,
+    detached: bool = False,
+) -> str:
+    """Run several sub-agent tasks concurrently and return combined results.
+
+    A shared lock serializes approval prompts. ``isolate_worktree: true`` gives
+    a task its own git worktree; each `Task` copies `contextvars`, so
+    `active_worktree` stays isolated per task.
+
+    ``detached`` is the background batch: nobody is holding a turn there, so
+    there is nothing for a send-now to move aside. It waits for every child
+    instead of adopting the unfinished ones under sibling handles, and its
+    child transcripts go into ``parent_ui`` (the handle's buffer) so
+    `GetDelegationResult` can show them.
+    """
+    error = _batch_spec_error(tasks)
+    if error is not None:
+        return error
+
+    parent_ui = parent_ui or resolve_ui(get_current_ui())
     ui_lock = asyncio.Lock()
     # Caps concurrent runs; 0/negative disables the cap.
     _max_parallel = CFG.LLM_MAX_PARALLEL_DELEGATIONS
@@ -726,7 +748,8 @@ async def _run_parallel(
         asyncio.ensure_future(run_single_agent(spec, buffered_ui))
         for spec, buffered_ui in zip(tasks, buffered_uis)
     ]
-    cut_wait = _cut_waiter()
+    # A detached batch has no turn to hand back, so it never listens for a cut.
+    cut_wait = None if detached else _cut_waiter()
     try:
         await _wait_for_runs(runs, cut_wait)
     except asyncio.CancelledError:
@@ -735,8 +758,36 @@ async def _run_parallel(
     finally:
         await _stop_waiter(cut_wait)
 
+    if detached:
+        _flush_fan_out_buffers(buffered_uis)
     agent_names = [spec.get("agent_name", "") for spec in tasks]
     return "\n\n".join(_fan_out_reports(agent_names, buffered_uis, runs))
+
+
+def _flush_fan_out_buffers(buffered_uis: list[BufferedUI]) -> None:
+    """Move a detached batch's child transcripts into the handle's buffer.
+
+    A synchronous fan-out keeps them private: they are part of the turn, and
+    the combined report is what the model reads. A detached batch is collected
+    through `GetDelegationResult`, whose transcript prefix comes from the
+    handle's buffer, so the children's tool-call output has to reach it.
+    """
+    for buffered_ui in buffered_uis:
+        buffered_ui.flush_to_parent()
+
+
+async def _run_parallel_outcome(
+    run_batch: Callable[[], Awaitable[str]],
+) -> AgentTaskResult:
+    """A fanned-out batch as the result type the handle registry collects.
+
+    `GetDelegationResult` reads `.success` and `.result` off whatever the
+    background task returned; a bare string made a completed batch report
+    `failed: 'str' object has no attribute 'result'`. The batch is validated by
+    `_batch_spec_error` before it is detached, so its text here is always the
+    combined reports, never a dispatch error.
+    """
+    return AgentTaskResult(_FAN_OUT_LABEL, await run_batch(), None)
 
 
 def _fan_out_buffer(parent_ui: "AnyUI", ui_lock: asyncio.Lock) -> BufferedUI:
@@ -795,6 +846,10 @@ def _fan_out_report(agent_name: str, run: asyncio.Task) -> str:
     return f"{result.agent_name} completed:\n{indented_result}"
 
 
+# The label a fanned-out batch runs under when it is backgrounded as one handle.
+_FAN_OUT_LABEL = "fan-out"
+
+
 def create_delegate_to_agent_tool(
     sub_agent_manager: SubAgentManagerAPI | None = None,
 ):
@@ -850,6 +905,18 @@ def create_delegate_to_agent_tool(
                 )
             ),
         ] = "",
+        background: Annotated[
+            bool,
+            Field(
+                description=(
+                    "True starts the work and returns a handle immediately "
+                    "instead of waiting; collect it later with "
+                    "GetDelegationResult(handle). Use it for work long enough "
+                    "that you would otherwise sit idle. A fan-out passed with "
+                    "background=True returns one handle for the whole batch."
+                )
+            ),
+        ] = False,
         tasks: Annotated[
             list[dict[str, Any]],
             Field(
@@ -861,7 +928,43 @@ def create_delegate_to_agent_tool(
             ),
         ] = [],  # noqa: B006
     ) -> str:
+        def _launch_background() -> str:
+            """Hand this call to the background registry and return its handle."""
+            # lazy: circular — delegate_background imports this module's BufferedUI
+            from zrb.llm.tool.delegate_background import start_background_run
+
+            if tasks:
+                error = _batch_spec_error(tasks)
+                if error is not None:
+                    return error
+                return start_background_run(
+                    _FAN_OUT_LABEL,
+                    lambda ui: _run_parallel_outcome(
+                        lambda: _run_parallel(
+                            tasks,
+                            sub_agent_manager,
+                            parent_ui=ui,
+                            detached=True,
+                        )
+                    ),
+                )
+            return start_background_run(
+                agent_name,
+                lambda ui: run_agent_task(
+                    agent_name=agent_name,
+                    deliverable=deliverable,
+                    non_goals=non_goals,
+                    task=task,
+                    additional_context=additional_context,
+                    sub_agent_manager=sub_agent_manager,
+                    ui=ui,
+                    yolo=None,
+                ),
+            )
+
         if tasks:
+            if background:
+                return _launch_background()
             return await _run_parallel(tasks, sub_agent_manager)
         missing = [
             name
@@ -878,6 +981,12 @@ def create_delegate_to_agent_tool(
                 "[SYSTEM SUGGESTION]: provide agent_name, deliverable, and task "
                 "(non_goals defaults to []), or pass tasks=[...] to fan out."
             )
+        # A detached run can only be diagnosed through its handle, so an unknown
+        # agent has to fail here rather than at GetDelegationResult time.
+        if background and not sub_agent_manager.get_agent_definition(agent_name):
+            return agent_not_found_message(agent_name, sub_agent_manager)
+        if background:
+            return _launch_background()
         parent_ui = resolve_ui(get_current_ui())
         # run_agent_task assigns the [agent_name #ordinal] label. Built here so a
         # cut can adopt the transcript along with the run.
@@ -907,6 +1016,12 @@ def create_delegate_to_agent_tool(
         "reconciled.\n\n"
         "FAN OUT: pass tasks=[{agent_name, deliverable, task, non_goals, ...}, ...] to run multiple "
         "sub-agents concurrently in one call. Flat args are ignored when tasks is non-empty.\n\n"
+        "BACKGROUND: pass background=true to start the work and return at once instead of "
+        "waiting for it. The reply carries a handle; collect the result with "
+        "GetDelegationResult(handle), which reports 'still running' until the run settles. "
+        "A detached run inherits your permissions and yolo setting, and its tool calls that "
+        "need approval queue behind the current prompt. Prefer it when the work is long "
+        "enough that waiting would leave the turn idle.\n\n"
         "ISOLATE_WORKTREE: add isolate_worktree: true to a task in the fan-out list to give "
         "that task its own git worktree instead of the shared working tree. Use it when two or "
         "more fanned-out tasks will WRITE to overlapping files — concurrent writes on one tree "
