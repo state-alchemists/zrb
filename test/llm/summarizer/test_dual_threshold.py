@@ -264,3 +264,27 @@ async def test_a_marker_shaped_prefix_does_not_protect_a_large_payload():
     spill_path = result.content.split("`")[1]
     budget = effective_prune_budget(limiter, len(content), 200, spill_path)
     assert limiter.count_tokens(result.content) <= budget
+
+
+@pytest.mark.asyncio
+async def test_a_genuine_block_over_the_threshold_is_not_repruned():
+    """A long pointer can make a real block bigger than the configured
+    threshold; measuring its own budget again must leave it alone."""
+    limiter = MockLimiter()
+    part = ToolReturnPart(content="E" * 5000)
+
+    first, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=1, insanity_threshold=1
+    )
+    assert modified
+
+    second, modified_again = await process_tool_return_part(
+        ToolReturnPart(content=first.content),
+        MagicMock(),
+        limiter,
+        message_threshold=1,
+        insanity_threshold=1,
+    )
+
+    assert not modified_again
+    assert second.content == first.content

@@ -6,8 +6,10 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.agent.common import safe_copy_result
 from zrb.llm.summarizer.tool_result_pruner import (
     MIN_PRUNE_TOKENS,
+    effective_prune_budget,
     is_pruned_tool_result,
     prune_tool_result_content,
+    spilled_path_of,
     spill_tool_result,
 )
 from zrb.util.cli.ansi import strip_ansi
@@ -110,15 +112,19 @@ async def process_tool_return_part(
     content_tokens = limiter.count_tokens(content)
 
     # Content that looks already processed is left alone only while it fits the
-    # budget. Text is not authoritative: a tool can echo a valid marker before
-    # a large payload, and that payload must still be pruned.
-    is_within_effective_budget = content_tokens <= max(
-        message_threshold, MIN_PRUNE_TOKENS
-    )
-    if is_within_effective_budget and (
-        is_pruned_tool_result(content)
-        or content.startswith(SUMMARY_PREFIX)
-        or content.startswith(TRUNCATED_PREFIX)
+    # budget it was built under. Text is not authoritative: a tool can echo a
+    # valid marker before a large payload, and that payload must still be
+    # pruned. A genuine block can be over the configured threshold when a long
+    # pointer raised the floor, so its own path is used to measure that floor
+    # again rather than reprocessing it every pass.
+    if is_pruned_tool_result(content):
+        block_budget = effective_prune_budget(
+            limiter, content_tokens, message_threshold, spilled_path_of(content)
+        )
+        if content_tokens <= block_budget:
+            return part, False
+    elif content_tokens <= max(message_threshold, MIN_PRUNE_TOKENS) and (
+        content.startswith(SUMMARY_PREFIX) or content.startswith(TRUNCATED_PREFIX)
     ):
         return part, False
     if content_tokens <= message_threshold:

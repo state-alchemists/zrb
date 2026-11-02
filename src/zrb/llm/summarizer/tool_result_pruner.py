@@ -57,6 +57,20 @@ summary count, a final error — not to re-quote the body.
 """
 
 
+_SPILLED_PATH = re.compile(r"Full output: `([^`]+)`")
+
+
+def spilled_path_of(content: str) -> str | None:
+    """The verbatim path a pruned block names, or `None`.
+
+    Used to measure the same budget the block was built under: a genuine block
+    can be larger than the configured threshold when a long path raised the
+    floor, and reprocessing it would rewrite it on every pass.
+    """
+    match = _SPILLED_PATH.search(content)
+    return match.group(1) if match is not None else None
+
+
 def is_pruned_tool_result(content: str) -> bool:
     """Whether *content* looks like a block this module wrote.
 
