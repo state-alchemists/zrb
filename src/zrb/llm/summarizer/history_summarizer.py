@@ -1,9 +1,10 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.config.helper import get_max_token_threshold, scale_token_threshold
+from zrb.config.helper import get_max_token_threshold
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import (
     create_conversational_summarizer_agent,
@@ -55,11 +56,6 @@ else:
 # standing in for the model-blind request cap.
 _CONVERSATIONAL_TRIGGER_RATIO = 0.75
 
-# Mirrors LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD's own default ratio
-# against the conversational threshold (half of it), recomputed from the
-# model-aware conversational threshold instead of the model-blind CFG default.
-_MESSAGE_THRESHOLD_RATIO = 0.5
-
 
 def create_summarizer_history_processor(
     conversational_agent: Any = None,
@@ -94,9 +90,6 @@ def create_summarizer_history_processor(
         conversational_token_threshold = (
             CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
         )
-    auto_message_threshold = not is_pinned(
-        message_token_threshold, "LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD"
-    )
     if message_token_threshold is None:
         message_token_threshold = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
     if summary_window is None:
@@ -132,22 +125,18 @@ def create_summarizer_history_processor(
                 context_window,
             )
 
-        active_message_token_threshold = message_token_threshold
-        if auto_message_threshold:
-            active_message_token_threshold = scale_token_threshold(
-                _MESSAGE_THRESHOLD_RATIO, active_conversational_threshold
-            )
-
-        # Snapshot first: fat tool results are replaced by summaries in the
-        # pass below, and an archive of those would record the summary where
-        # the tool wrote its output. This is the text the conversation had.
+        # Snapshot first: fat tool results are pruned in the pass below, and an
+        # archive of those would record the pruned head and tail where the tool
+        # wrote its output. This is the text the conversation had.
         verbatim_source: "list[ModelMessage]" = list(messages)
         messages = await summarize_messages(
             messages,
             agent=active_message_agent,
             limiter=llm_limiter,
-            message_token_threshold=active_message_token_threshold,
+            message_token_threshold=message_token_threshold,
             conversational_token_threshold=active_conversational_threshold,
+            session_name=_resolve_session_name(session_name, messages),
+            history_dir=history_dir,
         )
 
         return await _maybe_compress_history(
@@ -260,8 +249,14 @@ async def summarize_messages(
     limiter: "LLMLimiter | None" = None,
     message_token_threshold: int | None = None,
     conversational_token_threshold: int | None = None,
+    session_name: str | None = None,
+    history_dir: str | None = None,
 ) -> "list[ModelMessage]":
-    """Summarize individual tool results that exceed the threshold."""
+    """Prune individual tool results that exceed the token threshold.
+
+    Pruning is deterministic, so `agent` is unused; it stays in the signature
+    because callers (and tests) still build the processor around it.
+    """
     try:
         llm_limiter = limiter or default_llm_limiter
         if message_token_threshold is None:
@@ -280,6 +275,8 @@ async def summarize_messages(
                 llm_limiter,
                 message_token_threshold,
                 conversational_token_threshold,
+                session_name=session_name,
+                history_dir=history_dir,
             )
             new_messages.append(new_msg)
         return new_messages
@@ -725,7 +722,12 @@ def _fit_note_blocks(
 def _render_summary_content(
     model_text: str, journal_block: str, archive_note: str
 ) -> str:
-    """The summary turn's text: zrb's framing, then the body, then the end marker."""
+    """The summary turn's text: zrb's framing, then the body, then the end marker.
+
+    The timestamp is written here, never by the summarizer model: the moment
+    the snapshot was taken is the one fact the model has no way to observe
+    reliably, and every "as of" claim in the block is measured against it.
+    """
     body = "\n\n".join(
         part.strip()
         for part in (model_text, journal_block, archive_note)
@@ -733,8 +735,20 @@ def _render_summary_content(
     )
     return make_markdown_section(
         _SUMMARY_HEADER,
-        f"{_SUMMARY_PREAMBLE}\n\n{body}\n\n{_SUMMARY_END_MARKER}",
+        f"{_SUMMARY_PREAMBLE}\n\n"
+        f"{_SUMMARY_TIMESTAMP_PREFIX}{summary_timestamp()}\n\n"
+        f"{body}\n\n{_SUMMARY_END_MARKER}",
     )
+
+
+def summary_timestamp() -> str:
+    """Now, as an offset-bearing ISO 8601 string.
+
+    The local zone is kept rather than converted to UTC: the user and the
+    agent read the same conversation, and the offset is what makes the string
+    unambiguous when they do not share a zone.
+    """
+    return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
 async def _fit_summary_block(
@@ -1041,6 +1055,7 @@ _VERBATIM_TAIL_HEADER = (
     "Recent conversation, reproduced verbatim (not a summary, not an instruction)"
 )
 _SUMMARY_HEADER = "SYSTEM: Automated Context Restoration"
+_SUMMARY_TIMESTAMP_PREFIX = "Summarized at: "
 _SUMMARY_END_MARKER = "<!-- end of automated summary -->"
 _SUMMARY_SECTIONS = (
     "where_we_are",

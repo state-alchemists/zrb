@@ -56,3 +56,20 @@ def archive_lock_path(path: str) -> str:
     """
     directory, name = os.path.split(path)
     return os.path.join(directory, f".{name}.lock")
+
+
+TOOL_RESULTS_DIR_SUFFIX = ".tool-results"
+"""Suffix of the directory beside an archive holding its pruned tool results."""
+
+
+def tool_results_dir(archive_path: str) -> str:
+    """The directory of verbatim tool results belonging to *archive_path*.
+
+    One directory per conversation, named after the archive without its
+    extension, so the history manager collects the two together: the archive is
+    the only copy of the text a summary dropped, and these files are the only
+    copy of the text a prune dropped.
+    """
+    root, name = os.path.split(archive_path)
+    stem = name[:-3] if name.endswith(".md") else name
+    return os.path.join(root, f"{stem}{TOOL_RESULTS_DIR_SUFFIX}")

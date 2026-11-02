@@ -64,3 +64,13 @@ def test_a_snapshot_missing_a_section_is_reported():
     assert (
         _is_state_snapshot_well_formed(complete.replace("<next>x</next>", "")) is False
     )
+
+
+def test_the_prompt_says_an_earlier_snapshot_is_merged_not_rewritten():
+    """Compaction re-reads the previous summary on every round. The prompt has
+    to say that it is a merge source: one copy of each section, newest wins."""
+    text = PROMPT.read_text(encoding="utf-8")
+
+    assert "merge source" in text
+    assert "exactly one copy of each section" in text
+    assert "newer" in text or "newest" in text

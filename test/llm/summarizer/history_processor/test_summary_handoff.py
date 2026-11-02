@@ -257,11 +257,15 @@ def test_the_cut_is_measured_on_the_block_after_every_cut(monkeypatch):
     monkeypatch.setattr(CFG, "ENABLE_TIKTOKEN", True, raising=False)
     limiter = LLMLimiter()
     note = _render_archive_note("/tmp/session.md")
-    cap = 150
     text = "hello world " * 10
 
     def size(candidate: str) -> int:
         return limiter.count_tokens(_render_summary_content(candidate, "", note))
+
+    # The framing grows with the fields zrb writes into the block (the
+    # timestamp is one), so the cap is measured from it instead of hard-coded:
+    # this test is about where the cut lands, not about the framing's size.
+    cap = size("") + 40
 
     truncated = _truncate_snapshot(text, limiter, cap, size)
 
@@ -384,3 +388,37 @@ def test_thesummary_cap_is_a_share_of_the_threshold(monkeypatch):
 
     monkeypatch.setattr(CFG, "LLM_SUMMARY_MAX_TOKEN_RATIO", 0.0, raising=False)
     assert summary_cap(400_000) == 0
+
+
+@pytest.mark.asyncio
+async def test_the_block_records_when_the_summary_was_taken():
+    """The snapshot's one unobservable fact, written by zrb, not the model.
+
+    Every "as of" claim inside the block is read against this line, and a
+    summary that does not say when it was taken cannot be judged stale.
+    """
+    from datetime import datetime
+
+    history = await _compress(_agent(_snapshot("it")), _history())
+
+    block = _block(history)
+    assert block.count("Summarized at: ") == 1
+    stamp = block.split("Summarized at: ", 1)[1].split("\n", 1)[0].strip()
+    parsed = datetime.fromisoformat(stamp)
+    assert parsed.tzinfo is not None
+
+
+@pytest.mark.asyncio
+async def test_a_later_compaction_records_its_own_time(monkeypatch):
+    """A carried-forward fact keeps its observation time; the block's own line
+    is always the new compaction's, never the previous summary's."""
+    import zrb.llm.summarizer.history_summarizer as hs
+
+    monkeypatch.setattr(hs, "summary_timestamp", lambda: "2026-11-02T21:00:00+07:00")
+    first = await _compress(_agent(_snapshot("one")), _history())
+    assert "2026-11-02T21:00:00+07:00" in _block(first)
+
+    monkeypatch.setattr(hs, "summary_timestamp", lambda: "2026-11-02T22:30:00+07:00")
+    second = await _compress(_agent(_snapshot("two")), first, force=True)
+    assert "2026-11-02T22:30:00+07:00" in _block(second)
+    assert _block(second).count("Summarized at: ") == 1

@@ -111,3 +111,25 @@ async def test_chunk_uses_the_budget_when_the_model_window_is_unknown(monkeypatc
 
     assert len(sent) == 1
     assert _Limiter().count_tokens(sent[0]) == 800
+
+
+@pytest.mark.asyncio
+async def test_consolidation_asks_for_a_merge_not_a_second_snapshot():
+    """Two chunk summaries must become one snapshot, not two stacked ones."""
+    from zrb.llm.summarizer.chunk_processor import consolidate_summaries
+
+    agent = MagicMock()
+    agent.run = AsyncMock(return_value=MagicMock(output="merged"))
+    await consolidate_summaries(
+        "<state_snapshot>a</state_snapshot>\n<state_snapshot>b</state_snapshot>",
+        agent,
+        1000,
+        True,
+        limiter=_Limiter(),
+    )
+
+    prompt = agent.run.call_args.args[0]
+    assert "Merge, do not append" in prompt
+    assert "every section appears once" in prompt
+    assert "newer observation wins" in prompt
+    assert "keeps the observation time it was first recorded with" in prompt

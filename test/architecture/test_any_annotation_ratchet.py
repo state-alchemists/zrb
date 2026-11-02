@@ -43,7 +43,7 @@ SRC = REPO_ROOT / "src" / "zrb"
 # -3 (1041->1038): `submit_user_message_via_queue` and `_collect_attachments`
 # take `Sequence[AnyUI]` sources now that `take_pending_attachments` is declared
 # on `AnyUI`, and `_collect_attachments` no longer types a probed callable.
-ANY_ANNOTATIONS = 1038
+ANY_ANNOTATIONS = 1036
 
 
 def _count_any(annotation: ast.expr | None) -> int:

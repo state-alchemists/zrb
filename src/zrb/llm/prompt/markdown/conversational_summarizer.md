@@ -14,6 +14,7 @@ Density over completeness. The snapshot is re-read on every later turn, so keep 
 
 ## Rules
 
+- **An earlier snapshot in the history is a merge source, not a draft to rewrite.** When the history already holds a `<state_snapshot>`, carry every still-true fact forward into exactly one copy of each section: one line per fact, no repeated bullet, and never a second snapshot. The newest messages decide what is still true; a fact they do not touch keeps the observation time it was first recorded with.
 - **`<where_we_are>`** — the world as a `git status` would show it, one verified fact per line: branch, HEAD and its message, the PR number and its state, the files left uncommitted, the process still running. A fact carried over from an earlier summary is not verified: check it against the newest messages and, when they disagree, the conversation wins.
 - **`<now>`** — the last one or two turns in order: what was being done, the command or tool that was run, what came back. This is the anchor the next agent resumes from, so name the concrete thing in flight rather than the phase it belongs to.
 - **`<next>`** — numbered, most immediate first. Tag each item `[READY]`, `[BLOCKED: what]` or `[WAITING: on whom]`. An item whose precondition is already satisfied is `[READY]`, never `[TODO]`, and its line says which precondition that is.

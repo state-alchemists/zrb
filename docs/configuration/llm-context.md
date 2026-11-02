@@ -24,7 +24,7 @@ How long conversations are summarized, what the journal keeps across sessions, a
 
 Zrb summarizes in the background when history or a single message grows too large, so a long conversation keeps going instead of failing against the model's context window. Three things happen, in this order:
 
-1. **A message too big is shrunk on its own.** An oversized tool result is summarized in place before anything else is considered, so one large output never costs the whole conversation.
+1. **A message too big is pruned on its own.** An oversized tool result keeps a token-budgeted head and tail; the middle is replaced by a marker and the path to a file holding the output verbatim. No model rewrites it, so the evidence cannot drift into a paraphrase before the compaction step sees it.
 2. **A conversation over the threshold is compacted.** The older part is replaced by a briefing — where the work stands, what was in flight, what comes next, the decisions and the landmines — and whatever a resumed agent needs beyond prose is carried over beside it.
 3. **What was replaced is archived.** Every replaced message is written word for word to a file, append-only, and the summary names that file, so detail dropped from context is still readable later.
 
@@ -51,11 +51,13 @@ Two details of that picture are easy to miss. The recent tail is rendered back i
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering full history summarization. Left unset, it is recomputed on every request from the run's actual model (`/model` included): 75% of the model's known context window, or of `MAX_TOKEN_PER_REQUEST` for a model zrb doesn't recognize. Set explicitly, it is a fixed value instead | 75% of the effective context window |
-| `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering individual message summarization | 50% of conversational threshold |
+| `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` | Token budget for one tool result before it is pruned to a head, a tail and a pointer to the verbatim file | `8000` |
 | `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` | Most messages kept verbatim after summarization | `300` |
 | `ZRB_LLM_HISTORY_TAIL_BUDGET_RATIO` | Share of the summarization threshold the verbatim tail may fill. The newest messages that fit it are kept word for word instead of summarized. It is a budget, not a target: the splitter usually keeps less. Values outside `0.05`–`0.8` are clamped | `0.4` |
 | `ZRB_LLM_HISTORY_TAIL_MAX_TOKENS` | Absolute ceiling on the verbatim tail, in tokens, applied on top of the ratio: whichever is smaller wins, including on the retry that fires when the newest message alone overflows. `0` leaves the ratio in charge | `24000` |
 | `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO` | Share of the summarization threshold one summary may fill; a summary over it is shortened before it replaces the history. `0` disables the cap | `0.05` |
+
+A tool result over `ZRB_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD` keeps the first 75% and the last 12.5% of that budget, with `[... N tokens pruned ...]` where the middle was. The replacement's first line names the output's size and the absolute path of its verbatim copy, under `<LLM_HISTORY_DIR>/verbatim/<conversation>.tool-results/`. That directory is collected together with the conversation's verbatim archive, so nothing pruned outlives the history that pointed at it, and a result that could not be saved says so instead of naming a path that does not exist. The budget is its own knob: it does not scale with the compaction trigger, so a result is pruned long before the conversation reaches the point of being summarized.
 
 Compaction has two halves, and each is bounded differently. The summary is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`; the kept tail by `ZRB_LLM_HISTORY_TAIL_BUDGET_RATIO`, held under `ZRB_LLM_HISTORY_TAIL_MAX_TOKENS`, whichever of the two is smaller. The ratio on its own would allow 150,000 tokens of tail on a 500,000-token window — nearly a third of it, re-read on every later turn — which is what the ceiling is there to prevent. The summary's share on the same window is 18,750.
 

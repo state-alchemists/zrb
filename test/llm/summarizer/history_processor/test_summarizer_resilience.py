@@ -8,6 +8,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
+from zrb.config.config import CFG
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
@@ -96,7 +97,6 @@ def test_split_history_resilience():
     messages: list[ModelMessage] = [ModelRequest(parts=[UserPromptPart(content="hi")])]
 
     try:
-
         to_summarize, to_keep = split_history(
             messages,
             summary_window=0,
@@ -218,10 +218,12 @@ async def test_an_explicit_conversational_threshold_ignores_the_model(monkeypatc
 
 @pytest.mark.asyncio
 async def test_auto_message_threshold_follows_the_runs_actual_model(monkeypatch):
-    """`message_token_threshold` (fat individual tool-result summarization)
-    must scale with the model-aware conversational threshold too, not stay
-    pinned at half of the generic CFG default -- otherwise a tool result that
-    fits a large-context model's real budget is still lossily summarized.
+    """The tool-result budget is its own knob, not a share of the trigger.
+
+    The old default derived it from the conversational threshold (half of it),
+    so a result was only pruned when it approached the whole context window --
+    which almost never happened. Pruning is deterministic and cheap, so its
+    budget stays small and does not follow the model.
     """
     import zrb.llm.summarizer.history_summarizer as hs
 
@@ -234,6 +236,7 @@ async def test_auto_message_threshold_follows_the_runs_actual_model(monkeypatch)
         limiter,
         message_token_threshold,
         conversational_token_threshold,
+        **kwargs,
     ):
         captured_thresholds.append(message_token_threshold)
         return messages
@@ -255,9 +258,11 @@ async def test_auto_message_threshold_follows_the_runs_actual_model(monkeypatch)
     monkeypatch.setattr(hs, "get_current_model", lambda: "deepseek:deepseek-flash")
     await processor(_ten_user_messages())
 
-    # Half of each model's own 75%-of-window conversational trigger:
-    # gpt-4o's 128,000 window vs. deepseek-flash's 1,000,000.
-    assert captured_thresholds == [48_000, 375_000]
+    # Both models prune at the same small budget: the number is the knob, not
+    # a share of the model's window.
+    expected = CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
+    assert captured_thresholds == [expected, expected]
+    assert expected < 20_000
 
 
 @pytest.mark.asyncio
@@ -274,6 +279,7 @@ async def test_an_explicit_message_threshold_ignores_the_model(monkeypatch):
         limiter,
         message_token_threshold,
         conversational_token_threshold,
+        **kwargs,
     ):
         captured_thresholds.append(message_token_threshold)
         return messages
@@ -297,10 +303,11 @@ async def test_an_explicit_message_threshold_ignores_the_model(monkeypatch):
 async def test_auto_message_threshold_follows_a_pinned_conversational_threshold(
     monkeypatch,
 ):
-    """The message threshold must derive from whichever conversational value is
-    active, pinned or not -- not independently recompute itself from the live
-    model window. This is the one pin combination the other model-aware tests
-    above don't exercise: conversational pinned, message auto.
+    """Pinning the compaction trigger does not move the tool-result budget.
+
+    The two numbers answer different questions: the trigger decides when older
+    history is summarized, the budget decides when one result is pruned. They
+    were coupled; a pinned trigger used to drag the budget with it.
     """
     import zrb.llm.summarizer.history_summarizer as hs
 
@@ -313,6 +320,7 @@ async def test_auto_message_threshold_follows_a_pinned_conversational_threshold(
         limiter,
         message_token_threshold,
         conversational_token_threshold,
+        **kwargs,
     ):
         captured_thresholds.append(message_token_threshold)
         return messages
@@ -326,10 +334,7 @@ async def test_auto_message_threshold_follows_a_pinned_conversational_threshold(
         conversational_token_threshold=750_000,
     )
 
-    # gpt-4o's own auto conversational trigger would be nowhere near 750,000,
-    # so a wrong recompute-from-the-live-model-window would show up here.
     monkeypatch.setattr(hs, "get_current_model", lambda: "openai-chat:gpt-4o")
     await processor(_ten_user_messages())
 
-    # Half of the *pinned* 750,000, not half of gpt-4o's own auto trigger.
-    assert captured_thresholds == [375_000]
+    assert captured_thresholds == [CFG.LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD]

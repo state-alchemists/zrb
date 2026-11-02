@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import shutil
 import time
 import warnings
 from collections import OrderedDict
@@ -16,6 +17,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.archive_layout import (
     ARCHIVE_DIR_NAME,
     archive_lock_path,
+    tool_results_dir,
 )
 from zrb.llm.util.subagent_session_naming import (
     SUBAGENT_HISTORY_SUBDIR,
@@ -694,6 +696,10 @@ class FileHistoryManager(AnyHistoryManager):
                 os.remove(archive_lock_path(path))
             except OSError:
                 pass
+            # The verbatim tool results belong to the archive that pointed at
+            # them: once nothing references that archive, they are unreachable
+            # too, and nothing else will ever collect them.
+            shutil.rmtree(tool_results_dir(path), ignore_errors=True)
 
     def _referenced_archives(self) -> "set[str]":
         """Archive filenames named by any transcript this manager can write.

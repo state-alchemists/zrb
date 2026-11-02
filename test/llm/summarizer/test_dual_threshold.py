@@ -1,10 +1,18 @@
+"""One tool result, one budget: prune deterministically, point at the rest.
+
+These tests pin the replacement for the old model-written tool-result summary:
+a head, a tail, a marker, and a path to the verbatim text. Nothing here may
+call a model.
+"""
+
 from dataclasses import dataclass
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from zrb.llm.summarizer.message_processor import process_tool_return_part
+from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX
 
 
 @dataclass
@@ -25,110 +33,134 @@ class MockLimiter:
 
 
 @pytest.mark.asyncio
-async def test_process_tool_return_part_dual_thresholds():
+async def test_a_result_within_budget_is_untouched():
     limiter = MockLimiter()
-    agent = MagicMock()
 
     part = ToolReturnPart(content="12345")
-    res, modified = await process_tool_return_part(
-        part, agent, limiter, message_threshold=10, insanity_threshold=20
+    result, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=10, insanity_threshold=20
     )
+
     assert not modified
-    assert res.content == "12345"
-
-    msg_threshold = 50
-    insanity_threshold = 100
-    fat_content = "A" * 75
-    part = ToolReturnPart(content=fat_content)
-
-    with patch(
-        "zrb.llm.summarizer.message_processor.summarize_text_plain",
-        new_callable=AsyncMock,
-    ) as mock_sum:
-        mock_sum.return_value = "Short Summary"
-        res, modified = await process_tool_return_part(
-            part,
-            agent,
-            limiter,
-            message_threshold=msg_threshold,
-            insanity_threshold=insanity_threshold,
-        )
-        assert modified
-        assert res.content == "SUMMARY OF TOOL RESULT:\nShort Summary"
-
-        called_content = mock_sum.call_args[0][0]
-        assert len(called_content) == 75
-        assert called_content == fat_content
-
-    insane_content = "B" * 150
-    part = ToolReturnPart(content=insane_content)
-
-    with patch(
-        "zrb.llm.summarizer.message_processor.summarize_text_plain",
-        new_callable=AsyncMock,
-    ) as mock_sum:
-        mock_sum.return_value = "Short Summary"
-        res, modified = await process_tool_return_part(
-            part,
-            agent,
-            limiter,
-            message_threshold=msg_threshold,
-            insanity_threshold=insanity_threshold,
-        )
-        assert modified
-
-        called_content = mock_sum.call_args[0][0]
-        assert len(called_content) == 100
-        assert called_content == "B" * 100
+    assert result.content == "12345"
 
 
 @pytest.mark.asyncio
-async def test_process_tool_return_part_strips_ansi_before_summarize():
-    "ANSI escapes are removed from the text the summarizer receives."
+async def test_an_over_budget_result_keeps_its_head_and_its_tail():
     limiter = MockLimiter()
-    agent = MagicMock()
+    content = "H" * 75 + "M" * 300 + "T" * 25
 
-    styled = "\x1b[31mred\x1b[0m " + "A" * 75
+    part = ToolReturnPart(content=content)
+    result, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=100, insanity_threshold=200
+    )
+
+    assert modified
+    assert result.content.startswith(PRUNED_PREFIX)
+    assert "H" * 75 in result.content
+    assert "T" * 12 in result.content
+    # The middle is gone, and the marker says how much of it.
+    assert "tokens pruned" in result.content
+    assert "M" * 300 not in result.content
+    # No model was asked to write any of this.
+    assert "SUMMARY OF TOOL RESULT" not in result.content
+
+
+@pytest.mark.asyncio
+async def test_the_pruned_result_points_at_the_verbatim_file(tmp_path):
+    limiter = MockLimiter()
+    content = "H" * 75 + "M" * 300 + "T" * 25
+    part = ToolReturnPart(content=content)
+
+    result, modified = await process_tool_return_part(
+        part,
+        MagicMock(),
+        limiter,
+        message_threshold=100,
+        insanity_threshold=200,
+        session_name="session",
+        history_dir=str(tmp_path),
+    )
+
+    assert modified
+    spill_path = result.content.split("`")[1]
+    with open(spill_path, encoding="utf-8") as spill_file:
+        assert spill_file.read() == content
+    assert spill_path.startswith(str(tmp_path))
+
+
+@pytest.mark.asyncio
+async def test_ansi_escapes_are_stripped_before_measuring_and_saving(tmp_path):
+    """Color codes inflate the token count and pollute the file a reader opens."""
+    limiter = MockLimiter()
+    styled = "\x1b[31mred\x1b[0m " + "A" * 200
+
     part = ToolReturnPart(content=styled)
+    result, modified = await process_tool_return_part(
+        part,
+        MagicMock(),
+        limiter,
+        message_threshold=50,
+        insanity_threshold=100,
+        session_name="session",
+        history_dir=str(tmp_path),
+    )
 
-    with patch(
-        "zrb.llm.summarizer.message_processor.summarize_text_plain",
-        new_callable=AsyncMock,
-    ) as mock_sum:
-        mock_sum.return_value = "Short Summary"
-        res, modified = await process_tool_return_part(
-            part,
-            agent,
-            limiter,
-            message_threshold=50,
-            insanity_threshold=100,
-        )
-        assert modified
-        called_content = mock_sum.call_args[0][0]
-        assert "\x1b" not in called_content
-        assert called_content == "red " + "A" * 75
+    assert modified
+    assert "\x1b" not in result.content
+    assert "red " in result.content
+    spill_path = result.content.split("`")[1]
+    with open(spill_path, encoding="utf-8") as spill_file:
+        assert "\x1b" not in spill_file.read()
 
 
 @pytest.mark.asyncio
-async def test_process_tool_return_part_ansi_does_not_inflate_measurement():
-    "Measurement runs on stripped text: ANSI padding does not force a summary."
+async def test_ansi_padding_does_not_force_a_prune():
     limiter = MockLimiter()
-    agent = MagicMock()
-
     styled = "\x1b[1;32m" + "hello" + "\x1b[0m"
+
     part = ToolReturnPart(content=styled)
+    _, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=10, insanity_threshold=20
+    )
+
+    assert not modified
+
+
+@pytest.mark.asyncio
+async def test_an_already_pruned_result_is_left_alone():
+    limiter = MockLimiter()
+    already = f"{PRUNED_PREFIX} 10 of 100 tokens kept (90 pruned). Full output: `x`"
+
+    part = ToolReturnPart(content=already)
+    result, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=5, insanity_threshold=10
+    )
+
+    assert not modified
+    assert result.content == already
+
+
+@pytest.mark.asyncio
+async def test_a_failed_spill_still_prunes_and_says_so(tmp_path):
+    limiter = MockLimiter()
+    content = "H" * 75 + "M" * 300 + "T" * 25
+    part = ToolReturnPart(content=content)
 
     with patch(
-        "zrb.llm.summarizer.message_processor.summarize_text_plain",
-        new_callable=AsyncMock,
-    ) as mock_sum:
-        res, modified = await process_tool_return_part(
+        "zrb.llm.summarizer.tool_result_pruner.write_text_owner_only",
+        side_effect=OSError("disk full"),
+    ):
+        result, modified = await process_tool_return_part(
             part,
-            agent,
+            MagicMock(),
             limiter,
-            message_threshold=10,
-            insanity_threshold=20,
+            message_threshold=100,
+            insanity_threshold=200,
+            session_name="session",
+            history_dir=str(tmp_path),
         )
-        assert not modified
-        assert res.content == styled
-        mock_sum.assert_not_awaited()
+
+    assert modified
+    assert result.content.startswith(PRUNED_PREFIX)
+    assert "could not be saved" in result.content
