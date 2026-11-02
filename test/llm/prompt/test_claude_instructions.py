@@ -8,7 +8,7 @@ the prompt already has.
 
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.prompt.claude import create_project_context_prompt
+from zrb.llm.prompt.claude import _read_instruction_text, create_project_context_prompt
 
 
 def _make_ctx():
@@ -324,3 +324,44 @@ def test_pointers_that_circle_each_other_name_no_file(tmp_path):
 
     assert "— a pointer to" not in result
     assert "Workspace Instructions" not in result
+
+
+def test_a_symlinked_instruction_file_is_listed_but_never_inlined(tmp_path):
+    """`AGENTS.md -> ~/.ssh/id_rsa` must not put the target into the prompt.
+
+    The link can name any readable file on the machine, and inlined content is
+    sent to the model provider before the user has read it. The file is still
+    listed, so opening it stays possible as a deliberate act.
+    """
+    project = tmp_path / "project"
+    project.mkdir()
+    secret = tmp_path / "id_rsa"
+    secret.write_text("PRIVATE KEY MATERIAL")
+    (project / "AGENTS.md").symlink_to(secret)
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[project]):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "PRIVATE KEY MATERIAL" not in result
+    assert "### Workspace Instructions" not in result
+    assert f"- `{project / 'AGENTS.md'}`" in result
+
+
+def test_reading_an_instruction_file_stops_at_the_budget(tmp_path):
+    """The read is bounded by the budget, not the file: one byte over, never more.
+
+    A file bigger than the budget can contribute nothing past it, so loading the
+    whole thing first would let a huge (or hostile) instruction file exhaust
+    memory before the budget was ever consulted.
+    """
+    huge = tmp_path / "AGENTS.md"
+    huge.write_text("x" * 2_000_000, encoding="utf-8")
+
+    assert len(_read_instruction_text(huge, 1_000)) == 1_001
+
+    small = tmp_path / "CLAUDE.md"
+    small.write_text("RULES\n", encoding="utf-8")
+    assert _read_instruction_text(small, 1_000) == "RULES"

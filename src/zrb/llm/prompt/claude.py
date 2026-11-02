@@ -173,6 +173,12 @@ def _instruction_sources(search_dirs: list[Path]) -> list[Path]:
     work, and a broader file is dropped before a narrower one is truncated.
     User-level directories are excluded: that guidance is cross-project, and the
     listing says to read it only when the turn depends on it.
+
+    A symlink is never a source. The link can name any readable file on the
+    machine — `AGENTS.md -> ~/.ssh/id_rsa` is the shape of it — and whatever it
+    names would be inlined into the system prompt and sent to the model provider
+    before the user has seen it. It stays in the listing, so opening it is still
+    a deliberate act, but nothing reads it on the user's behalf.
     """
     sources: list[Path] = []
     for directory in reversed(search_dirs):
@@ -180,17 +186,28 @@ def _instruction_sources(search_dirs: list[Path]) -> list[Path]:
             continue
         for filename in INSTRUCTION_FILENAMES:
             file_path = directory / filename
+            if file_path.is_symlink():
+                continue
             if file_path.is_file():
                 sources.append(file_path)
     return sources
 
 
-def _read_instruction_text(path: Path) -> str:
-    """The file's text, or ``""`` when it cannot be read as UTF-8 text."""
+def _read_instruction_text(path: Path, max_bytes: int) -> str:
+    """At most *max_bytes* bytes of the file, or ``""`` when it cannot be read.
+
+    The read is bounded, not the whole file: the budget is the most any one file
+    may contribute, so bytes past it can never reach the prompt and reading them
+    first would let a large or hostile instruction file exhaust memory before
+    the budget was ever consulted. One byte over the budget is enough to tell
+    "fits" from "is longer" — which is all the walk needs to know.
+    """
     try:
-        return path.read_text(encoding="utf-8", errors="replace").strip()
+        with path.open("rb") as handle:
+            raw = handle.read(max(max_bytes, 0) + 1)
     except OSError:
         return ""
+    return raw.decode("utf-8", "replace").strip()
 
 
 def _redundant_include_targets(
@@ -291,7 +308,7 @@ def _inline_instructions(
     Returns the rendered blocks, the paths they cover, and the pointer files
     mapped to the file the prompt actually carries, not to the next hop.
     """
-    texts = {path: _read_instruction_text(path) for path in sources}
+    texts = {path: _read_instruction_text(path, max_bytes) for path in sources}
     _, planned = _walk_instructions(sources, texts, max_bytes, skip=frozenset())
     skipped: dict[Path, Path] = {}
     for path in sources:
