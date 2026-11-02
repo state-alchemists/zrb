@@ -58,18 +58,23 @@ def has_turn_logged_activity(
 ) -> bool:
     """Whether *turn_messages* carries a *completed* journal write.
 
-    A call is not a write. The writer refuses bad input by raising, which the
-    framework hands back as a retry prompt, and a blocked call never runs at all;
-    both leave the call in the transcript and nothing in the day file. Counting
-    calls would then silence the judge for the one turn that recorded nothing —
-    the turn the judge exists for."""
+    A call is not a write, and a return is not always one either: `ToolReturnPart`
+    carries an `outcome` — `success`, `failed`, `denied`, `interrupted`,
+    `retried` — so a refused or blocked write comes back as a return with
+    anything but `success`. Both shapes leave the call in the transcript and
+    nothing in the day file, and the turn the judge exists for is exactly the turn
+    that recorded nothing."""
     from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ToolReturnPart,
     )
 
     for msg in turn_messages:
         for part in getattr(msg, "parts", []):
-            if isinstance(part, ToolReturnPart) and part.tool_name in tool_names:
+            if not isinstance(part, ToolReturnPart):
+                continue
+            if part.tool_name not in tool_names:
+                continue
+            if getattr(part, "outcome", "success") == "success":
                 return True
     return False
 

@@ -154,6 +154,31 @@ class TestTurnLoggedActivity:
         ]
         assert has_turn_logged_activity(turn) is False
 
+    def test_false_for_a_return_that_did_not_succeed(self):
+        "pydantic-ai records a failed, denied, interrupted or retried call as a"
+        " `ToolReturnPart` too; only `outcome == 'success'` means a line landed."
+        for outcome in ("failed", "denied", "interrupted", "retried"):
+            turn = [
+                ModelResponse(
+                    parts=[
+                        ToolCallPart(
+                            tool_name="LogActivity", args={}, tool_call_id="1"
+                        )
+                    ]
+                ),
+                ModelRequest(
+                    parts=[
+                        ToolReturnPart(
+                            tool_name="LogActivity",
+                            content="permission denied",
+                            tool_call_id="1",
+                            outcome=outcome,
+                        )
+                    ]
+                ),
+            ]
+            assert has_turn_logged_activity(turn) is False, outcome
+
     def test_false_when_the_call_never_returned(self):
         turn = [
             ModelResponse(
