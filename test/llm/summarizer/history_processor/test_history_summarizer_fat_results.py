@@ -18,6 +18,7 @@ from pydantic_ai.messages import (
     VideoUrl,
 )
 
+from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
     message_to_text,
@@ -72,7 +73,7 @@ async def test_summarize_fat_tool_results():
     summarized = new_messages[0].parts[0]
     assert isinstance(summarized, ToolReturnPart)
     assert isinstance(summarized.content, str)
-    assert summarized.content.startswith("PRUNED TOOL RESULT:")
+    assert summarized.content.startswith(PRUNED_PREFIX)
     assert "Full output: `" in summarized.content
     # No model call: the output is replaced by a head, a tail, and a pointer.
     agent.run.assert_not_called()

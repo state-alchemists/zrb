@@ -17,6 +17,7 @@ and the middle of a long tool result is the least useful part of it.
 from __future__ import annotations
 
 import os
+import re
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
@@ -31,8 +32,16 @@ from zrb.util.string.name import safe_segment
 if TYPE_CHECKING:
     from zrb.llm.config.limiter import LLMLimiter
 
-PRUNED_PREFIX = "PRUNED TOOL RESULT:"
-"""First line of every pruned result; also how a replay recognises one."""
+PRUNED_PREFIX = "PRUNED TOOL RESULT (zrb):"
+"""First line of every pruned result, tagged so a tool's own output cannot
+impersonate one by starting with the same words."""
+
+# The whole generated header, not just its opening words: a tool result that
+# happens to begin with the marker text is still a tool result, and must be
+# pruned like any other. Only the exact shape this module writes counts.
+_PRUNED_HEADER = re.compile(
+    r"^PRUNED TOOL RESULT \(zrb\): [\d,]+ of [\d,]+ tokens kept " r"\([\d,]+ pruned\)\."
+)
 
 SPILL_DIR_SUFFIX = TOOL_RESULTS_DIR_SUFFIX
 """Suffix of the directory holding one conversation's pruned tool results."""
@@ -48,8 +57,13 @@ summary count, a final error — not to re-quote the body.
 
 
 def is_pruned_tool_result(content: str) -> bool:
-    """Whether *content* was already pruned, so a second pass must not redo it."""
-    return content.startswith(PRUNED_PREFIX)
+    """Whether *content* is a block this module wrote, so a second pass skips it.
+
+    Matched on the full header — sizes included — rather than its opening
+    words, so a tool that prints something starting with the marker is still
+    pruned instead of being trusted as already handled.
+    """
+    return _PRUNED_HEADER.match(content) is not None
 
 
 def tool_result_spill_dir(

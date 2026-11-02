@@ -161,7 +161,7 @@ async def test_process_tool_return_part_edge_cases():
     part = ToolReturnPart(content="Very long content...", tool_name="t")
     res, mod = await process_tool_return_part(part, None, limiter, 5, 20)
     assert mod is True
-    assert res.content.startswith("PRUNED TOOL RESULT:")
+    assert res.content.startswith("PRUNED TOOL RESULT (zrb):")
 
 
 @pytest.mark.asyncio

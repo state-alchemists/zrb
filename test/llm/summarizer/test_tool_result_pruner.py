@@ -103,9 +103,11 @@ def test_a_write_failure_returns_no_pointer(tmp_path, monkeypatch):
 @pytest.mark.parametrize(
     "content, expected",
     [
-        (f"{PRUNED_PREFIX} 1 of 2 tokens kept", True),
+        (f"{PRUNED_PREFIX} 1 of 2 tokens kept (1 pruned). Full output: `x`", True),
         ("SUMMARY OF TOOL RESULT: old", False),
         ("ordinary output", False),
+        # A tool can print this text; only the exact generated header counts.
+        (f"{PRUNED_PREFIX} command output ...", False),
     ],
 )
 def test_a_replayed_result_is_recognised_by_its_marker(content, expected):

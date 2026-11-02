@@ -376,7 +376,7 @@ async def test_the_archive_keeps_the_tool_output_not_its_summary(tmp_path, monke
         call.args[0] for call in conversational_agent.run.await_args_list
     ]
     assert summarized_prompts
-    assert any("PRUNED TOOL RESULT:" in prompt for prompt in summarized_prompts)
+    assert any("PRUNED TOOL RESULT (zrb):" in prompt for prompt in summarized_prompts)
     # The path is written as an absolute one; `tmp_path` and the abspath can
     # disagree on macOS (``/private/var`` vs ``/var``), so compare the name.
     assert any(

@@ -199,3 +199,19 @@ async def test_a_threshold_too_small_for_the_marker_is_raised_to_the_minimum():
     assert modified
     assert len(result.content) <= MIN_PRUNE_TOKENS
     assert result.content.startswith(PRUNED_PREFIX)
+
+
+@pytest.mark.asyncio
+async def test_an_output_that_merely_starts_like_the_marker_is_still_pruned():
+    """A tool is free to print "PRUNED TOOL RESULT"; that must not make its
+    oversized output pass through untouched."""
+    limiter = MockLimiter()
+    content = f"{PRUNED_PREFIX} command output " + "Z" * 5000
+    part = ToolReturnPart(content=content)
+
+    result, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=200, insanity_threshold=400
+    )
+
+    assert modified
+    assert len(result.content) <= 200
