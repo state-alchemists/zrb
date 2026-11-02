@@ -57,6 +57,24 @@ flowchart LR
 
 `WriteJournalNote` writes `<category>/<slug>.md`, with `slug`, `applies_when` (required) and `status` (`active`, or `superseded` once retired) in its frontmatter; a slug that is not kebab-case is refused. `applies_when` is the condition under which the note still holds, in a form a later session can check — a version, a file, a setting, a stated preference — and a write without one is refused with a `[SYSTEM SUGGESTION]`, as is the `not stated` placeholder an earlier version stored (old notes carrying it still load). `hud_line` is required: it is the one line the injected index shows, so the caller writes the claim rather than the code deriving it from the Finding, and a write with an empty one is refused (the refusal quotes the line the note already carries when there is one). A line over 160 characters is cut at a word boundary and ends in an ellipsis rather than being refused — the line is what a later session reads the note by, so refusing used to trade the whole note for a handful of characters, and the mark is what keeps a cut from reading as a claim that simply stopped. `keywords` is an optional comma-separated, lower-case list, derived from the slug and title when a write names none. A write also answers with the notes it **sits beside** — the three nearest by shared title, keyword and name words, scored with the same word extraction the claims block ranks by, a retired note excluded — because the note a finding contradicts is usually one the writer never opened; naming them is what lets a contradiction be revised in the same turn instead of waiting for someone to notice that two notes disagree. `SupersedeJournalNote` retires a note whose `applies_when` no longer holds: the file stays, its `status` becomes `superseded`, `superseded_by: <category>/<slug>` records the note that replaced it when one did (refused if that note is not on disk), and its line leaves the root index. `DeleteJournalNote` removes a note, every link to it, and any other note's `superseded_by` naming it. `LogActivity` appends to the day file under `activity-log/`, with an optional `· imp N` ranking key and an optional `· project:<tag>` grouping key. `WriteDayHandover` writes that same day file's `## Handover` section — the one the first turn of a session reads first — replacing any handover already there rather than adding a second, and placing it under the day's lines and above its `## Open` list. With `ZRB_LLM_JOURNAL_GIT_ENABLED` on (the default) and `git` installed, the journal root is also a git repository and each write, supersede or delete is a commit; `journal_transaction` batches many changes from Python under one lock and one commit.
 
+### Note Scope
+
+A note may carry `repo: <tag>` in its frontmatter, saying which repository it is about. The injected index, the per-turn claims and the first-message auto-search keep a note when its tag is empty, `global`, or the repository in hand; `SearchJournal` is never filtered, because the point of scoping is what arrives unasked rather than what can be found.
+
+`WriteJournalNote` takes `repo` and defaults it by category: a `projects` or `technical` note takes the repository it was written in, while `user`, `preferences` and `agent` stay untagged and travel with the person. `repo: global` is how a work-scoped note opts out. A note with no tag at all is shown everywhere — the field is new, and a default that guessed would hide the whole journal at once.
+
+The tag is the repository's directory name, read with `git rev-parse --git-common-dir` so that every worktree of one repository answers the same name instead of a branch name. Outside any checkout nothing is filtered, because there is nothing to compare a tag against.
+
+The filter is a view, not a rewrite: the file's `index.md` keeps every line it had, so a note hidden here is still in the index a `SearchJournal` reads and in the category index. Measured on the real journal (317 notes, every work-scoped note stamped `zrb`), the same index renders:
+
+| view | index lines | notes shown | work-scoped notes |
+|---|---|---|---|
+| no scoping (as before) | 118 | 67 | 29 |
+| working in `zrb` | 118 | 67 | 29 |
+| working in another repository | 61 | 38 | 0 |
+
+The injected cap is unchanged at `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS`; what changes is what fills it.
+
 ### Index File Structure
 
 The root index is created with this skeleton, and every note's one-line summary is rendered under the HUD section its category and pin decide: `User` (`user` and `preferences`), `Constraints` (a pinned `projects` or `technical` note), `Agent` (`agent`), or `Recent` (an unpinned `projects` or `technical` note). `agent` holds what is true of the assistant itself — standing choices, working style, how it wants to be treated — and `preferences` holds what the user stated about how *they* want to be worked with, so a fact about the agent never lands in the user's section by default:
