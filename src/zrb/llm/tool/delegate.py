@@ -639,18 +639,27 @@ def _batch_spec_error(tasks: Sequence[Mapping[str, object]]) -> str | None:
 async def _run_parallel(
     tasks: list[dict[str, Any]],
     sub_agent_manager: SubAgentManagerAPI,
+    *,
+    parent_ui: "AnyUI | None" = None,
+    detached: bool = False,
 ) -> str:
     """Run several sub-agent tasks concurrently and return combined results.
 
     A shared lock serializes approval prompts. ``isolate_worktree: true`` gives
     a task its own git worktree; each `Task` copies `contextvars`, so
     `active_worktree` stays isolated per task.
+
+    ``detached`` is the background batch: nobody is holding a turn there, so
+    there is nothing for a send-now to move aside. It waits for every child
+    instead of adopting the unfinished ones under sibling handles, and its
+    child transcripts go into ``parent_ui`` (the handle's buffer) so
+    `GetDelegationResult` can show them.
     """
     error = _batch_spec_error(tasks)
     if error is not None:
         return error
 
-    parent_ui = resolve_ui(get_current_ui())
+    parent_ui = parent_ui or resolve_ui(get_current_ui())
     ui_lock = asyncio.Lock()
     # Caps concurrent runs; 0/negative disables the cap.
     _max_parallel = CFG.LLM_MAX_PARALLEL_DELEGATIONS
@@ -739,7 +748,8 @@ async def _run_parallel(
         asyncio.ensure_future(run_single_agent(spec, buffered_ui))
         for spec, buffered_ui in zip(tasks, buffered_uis)
     ]
-    cut_wait = _cut_waiter()
+    # A detached batch has no turn to hand back, so it never listens for a cut.
+    cut_wait = None if detached else _cut_waiter()
     try:
         await _wait_for_runs(runs, cut_wait)
     except asyncio.CancelledError:
@@ -748,8 +758,22 @@ async def _run_parallel(
     finally:
         await _stop_waiter(cut_wait)
 
+    if detached:
+        _flush_fan_out_buffers(buffered_uis)
     agent_names = [spec.get("agent_name", "") for spec in tasks]
     return "\n\n".join(_fan_out_reports(agent_names, buffered_uis, runs))
+
+
+def _flush_fan_out_buffers(buffered_uis: list[BufferedUI]) -> None:
+    """Move a detached batch's child transcripts into the handle's buffer.
+
+    A synchronous fan-out keeps them private: they are part of the turn, and
+    the combined report is what the model reads. A detached batch is collected
+    through `GetDelegationResult`, whose transcript prefix comes from the
+    handle's buffer, so the children's tool-call output has to reach it.
+    """
+    for buffered_ui in buffered_uis:
+        buffered_ui.flush_to_parent()
 
 
 async def _run_parallel_outcome(
@@ -915,8 +939,13 @@ def create_delegate_to_agent_tool(
                     return error
                 return start_background_run(
                     _FAN_OUT_LABEL,
-                    lambda _ui: _run_parallel_outcome(
-                        lambda: _run_parallel(tasks, sub_agent_manager)
+                    lambda ui: _run_parallel_outcome(
+                        lambda: _run_parallel(
+                            tasks,
+                            sub_agent_manager,
+                            parent_ui=ui,
+                            detached=True,
+                        )
                     ),
                 )
             return start_background_run(
