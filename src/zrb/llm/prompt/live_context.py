@@ -691,11 +691,23 @@ def _render_possibly_related(first_message: str) -> str:
 DAY_LINE_COUNT = 5
 """Most lines today contributes to the injected day block."""
 
-YESTERDAY_LINE_COUNT = 2
-"""Most lines yesterday contributes: enough to recognise the seam, not a summary."""
+WEEK_LOOKBACK_DAYS = 6
+"""Days before today the week section covers.
 
-DAY_BLOCK_MAX_CHARS = 1500
-"""Cap on the whole day block, in characters."""
+Today has its own section, so the week starts at yesterday and runs back six: the
+shape of a week is what a person remembers, and six lines say it without
+spending the cap the handover needs."""
+
+WEEK_LINE_MAX_CHARS = 72
+"""Longest week line: a day is recognised from its subject, not its detail."""
+
+DAY_BLOCK_MAX_CHARS = 1900
+"""Cap on the whole day block, in characters.
+
+The block is rendered on a session's first turn only, so the 400 characters the
+week section added are paid once per session rather than per turn — and a day
+block that cannot show the week is a day block that cannot say what the week
+was about."""
 
 HANDOVER_LOOKBACK_DAYS = 7
 """How far back the newest handover is looked for, in days.
@@ -708,11 +720,25 @@ Monday session needs most — is invisible until someone writes a new one."""
 _HANDOVER_HEADING = "## handover"
 _IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
 _RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
+_PROJECT = re.compile(r"·\s*project:([^\s·]+)", re.IGNORECASE)
+_PROJECT_KEY = re.compile(r"\s*·\s*project:[^\s·]+(\s*\.)?", re.IGNORECASE)
+_STAMP = re.compile(r"^\d{1,2}:\d{2}\s*(?:—|·)\s*")
 
 
 def _without_importance(entry: str) -> str:
     """*entry* without its `· imp N` key, which orders lines rather than saying anything."""
     return _RANKING.sub("", entry).strip()
+
+
+def _project(entry: str) -> str:
+    """The `· project:x` a day line carries, lower-cased, or ``""``."""
+    found = _PROJECT.search(entry)
+    return found.group(1).lower() if found else ""
+
+
+def _without_keys(entry: str) -> str:
+    """*entry* without what ranks or groups it: `· imp N` and `· project:x`."""
+    return _without_importance(_PROJECT_KEY.sub("", entry)).strip(" ·")
 
 
 def _day_file(day: date) -> str:
@@ -804,9 +830,76 @@ def _top_entries(entries: list[str], count: int) -> list[str]:
     return [entries[index] for index in sorted(pair[0] for pair in ranked[:count])]
 
 
+def _best_rank(entries: list[str], project: str) -> int:
+    """The highest `· imp N` among *entries* that name *project*, or 0."""
+    return max(
+        (_importance(entry) for entry in entries if _project(entry) == project),
+        default=0,
+    )
+
+
+def _dominant_project(entries: list[str]) -> str:
+    """The project most of *entries* name, or ``""`` when none does.
+
+    A day is named by where most of it went, not by its most important line: the
+    highest-ranked line of a day spent on one repository is often an evening's
+    work on another. A tie goes to the project whose own lines rank highest."""
+    counts: dict[str, int] = {}
+    for entry in entries:
+        project = _project(entry)
+        if project:
+            counts[project] = counts.get(project, 0) + 1
+    if not counts:
+        return ""
+    most = max(counts.values())
+    tied = [project for project, count in counts.items() if count == most]
+    return max(tied, key=lambda project: _best_rank(entries, project))
+
+
+def _shorten(text: str, limit: int) -> str:
+    """*text* cut to *limit* at a word boundary, marked with an ellipsis.
+
+    The same rule `check_hud_line` applies to a note's line: a cut is marked
+    rather than silent, so a line that stops is not read as a line that ended."""
+    if len(text) <= limit:
+        return text
+    head = text[: limit - 1]
+    boundary = head.rfind(" ")
+    if boundary > 0:
+        head = head[:boundary]
+    return head.rstrip(" ,;:—-") + _CUT_MARKER
+
+
+def _week_text(entry: str) -> str:
+    """*entry* at week distance: no clock, no ranking keys, no list of paths."""
+    text = _without_keys(_STAMP.sub("", entry))
+    return _shorten(text.split(" Files: ")[0].strip(" .—"), WEEK_LINE_MAX_CHARS)
+
+
+def _week_line(day: date, entries: list[str]) -> str:
+    """One line for *day*: its dominant project and that project's best line."""
+    project = _dominant_project(entries)
+    if project:
+        same = [entry for entry in entries if _project(entry) == project]
+        best = _top_entries(same, 1)[0]
+        return f"- {day.isoformat()} — {project}: {_week_text(best)}"
+    return f"- {day.isoformat()} — {_week_text(_top_entries(entries, 1)[0])}"
+
+
+def _week_lines(current: date) -> list[str]:
+    """One line per day of the week before *current*, newest first."""
+    lines: list[str] = []
+    for days_back in range(1, WEEK_LOOKBACK_DAYS + 1):
+        day = current - timedelta(days=days_back)
+        entries = _day_entries(_read_day(_day_file(day)))
+        if entries:
+            lines.append(_week_line(day, entries))
+    return lines
+
+
 _DAY_BLOCK_OPEN = (
     "<day>\n"
-    "Your memory of the last day or two, not a briefing: use a detail from it "
+    "Your memory of the week you are in, not a briefing: use a detail from it "
     "where it fits, and never announce or recite this block.\n\n"
     "When a session ends with threads still open, leave the next one a handover "
     "with WriteDayHandover: where the work stopped, what is still in flight, and "
@@ -890,13 +983,15 @@ def _fit_sections(sections: list[str]) -> str:
 
 
 def render_day_block(today: date | None = None) -> str | None:
-    """The seam block: the newest handover, today's most important lines, and
-    yesterday's two.
+    """The seam block: the newest handover, today's most important lines, and the
+    week that led here, one line per day.
 
     The handover goes first because no later reader can reconstruct it, and it is
     read from up to ``HANDOVER_LOOKBACK_DAYS`` back so a weekend cannot outlive
-    it. ``None`` when there is nothing to read — no handover in that window and
-    no day file for today or yesterday — or when journaling is off.
+    it. The week follows today because a day is recognised by what it was mostly
+    about rather than by its last few events. ``None`` when there is nothing to
+    read — no handover in that window, no week, and no day file for today or
+    yesterday — or when journaling is off.
     """
     if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_DIR:
         return None
@@ -905,24 +1000,19 @@ def render_day_block(today: date | None = None) -> str | None:
     today_text = _read_day(_day_file(current))
     yesterday_text = _read_day(_day_file(yesterday))
     handover = _newest_handover(current)
-    if not handover and not today_text and not yesterday_text:
+    week_lines = _week_lines(current)
+    if not handover and not today_text and not yesterday_text and not week_lines:
         return None
     sections: list[str] = []
     if handover:
         sections.append("## From the last me, to the next me\n\n" + handover)
+    if week_lines:
+        sections.append("## This week\n\n" + "\n".join(week_lines))
     today_entries = _top_entries(_day_entries(today_text), DAY_LINE_COUNT)
     if today_entries:
         sections.append(
             f"## Today ({current.isoformat()})\n\n"
-            + "\n".join(f"- {_without_importance(entry)}" for entry in today_entries)
-        )
-    yesterday_entries = _top_entries(_day_entries(yesterday_text), YESTERDAY_LINE_COUNT)
-    if yesterday_entries:
-        sections.append(
-            f"## Yesterday ({yesterday.isoformat()})\n\n"
-            + "\n".join(
-                f"- {_without_importance(entry)}" for entry in yesterday_entries
-            )
+            + "\n".join(f"- {_without_keys(entry)}" for entry in today_entries)
         )
     if not sections:
         return None

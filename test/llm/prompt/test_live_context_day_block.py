@@ -1,9 +1,10 @@
 """Tests for the day block injected into ``<live-context>``.
 
 The block is what makes a fresh session resume: the departing agent's handover,
-today's most important lines, and yesterday's two. These tests pin the three
-things that could silently break it — the handover being dropped, importance
-being ignored, and the cap being blown.
+today's most important lines, and the week that led here, one line per day. These
+tests pin the four things that could silently break it — the handover being
+dropped, importance being ignored, the week losing its theme, and the cap being
+blown.
 """
 
 from datetime import date, timedelta
@@ -12,7 +13,6 @@ from unittest.mock import patch
 from zrb.llm.prompt.live_context import (
     DAY_BLOCK_MAX_CHARS,
     DAY_LINE_COUNT,
-    YESTERDAY_LINE_COUNT,
     render_day_block,
 )
 
@@ -108,25 +108,64 @@ def test_handover_leads_and_today_keeps_the_important_lines(tmp_path):
     assert "## Open" not in result, "an `##` section ends the entry list"
 
 
-def test_yesterday_contributes_two_lines(tmp_path):
+def test_the_week_names_each_day_by_what_it_was_mostly_about(tmp_path):
+    """Yesterday's theme, not its most important line.
+
+    Measured on 2026-11-02: the day was SODA from seven in the morning until
+    noon, and its highest-ranked line was a 22:45 fix in another repository. A
+    person remembers the day as "soda all morning", so the week line follows the
+    count, not the rank."""
     _write_day(tmp_path, TODAY, "# today\n\n- 09:00 · home · today · imp 5\n")
     _write_day(
         tmp_path,
         YESTERDAY,
         "# yesterday\n\n"
-        "- 09:00 · home · least important · imp 2\n"
-        "- 10:00 · home · the one that matters · imp 8\n"
-        "- 11:00 · home · middle · imp 5\n",
+        "- 09:00 · home · brought the stack up · project:soda · imp 4\n"
+        "- 10:00 · home · registered the runner · project:soda · imp 5\n"
+        "- 11:00 · home · accepted the EULA · project:soda · imp 4\n"
+        "- 22:45 · home · fixed the inlining · project:zrb · imp 8\n",
     )
 
     result = _render(tmp_path)
 
     assert result is not None
-    assert f"## Yesterday ({YESTERDAY.isoformat()})" in result
-    assert "the one that matters" in result
-    assert "least important" not in result
-    yesterday_rows = result.split("## Yesterday", 1)[1].count("\n- ")
-    assert yesterday_rows == YESTERDAY_LINE_COUNT
+    week = result.split("## This week", 1)[1]
+    assert f"- {YESTERDAY.isoformat()} — soda: " in week
+    assert "zrb:" not in week
+
+
+def test_a_day_with_no_project_still_gets_a_week_line(tmp_path):
+    "A journal written before the project tag existed still has a week."
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n- 09:00 · home · an unlabelled day · imp 3\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert f"- {YESTERDAY.isoformat()} — " in result
+    assert "an unlabelled day" in result
+
+
+def test_a_week_line_drops_the_clock_the_paths_and_the_keys(tmp_path):
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 09:00 — brought the stack up. Files: bankai_init.py, README.md"
+        " · project:soda · imp 4\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert "soda: brought the stack up" in week
+    assert "09:00" not in week
+    assert "bankai_init.py" not in week
+    assert "imp 4" not in week
 
 
 def test_yesterday_handover_is_used_when_today_has_none(tmp_path):

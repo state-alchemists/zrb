@@ -108,6 +108,17 @@ def log_activity(
             )
         ),
     ] = None,
+    project: Annotated[
+        str | None,
+        Field(
+            description=(
+                "What the line is about, as one short name — `soda`, `zrb`, "
+                "`avatar`. The week in a later session's first turn names each "
+                "day by its dominant project, so a line that leaves this empty "
+                "cannot give its day a theme."
+            )
+        ),
+    ] = None,
 ) -> str:
     """Records one line of the day in the journal's activity log.
 
@@ -127,7 +138,7 @@ def log_activity(
     WriteJournalNote when the finding must be findable by topic.
     """
     with _open_journal() as root:
-        result = _log_activity_locked(root, summary, files, importance)
+        result = _log_activity_locked(root, summary, files, importance, project)
         # The entry carries its own timestamp from inside the helper; this
         # label is the same minute except across a minute rollover.
         _commit_or_defer(root, f"activity: {datetime.now():%Y-%m-%d %H:%M}")
@@ -209,11 +220,21 @@ def _append_day_line(text: str, entry: str) -> str:
     return f"{body}\n\n{tail}\n" if tail else f"{body}\n"
 
 
+def _clean_project(project: str) -> str:
+    """*project* as one tag: lower case, no spaces, no separator characters.
+
+    The tag is read back out of a line and used as a group key, so a value
+    carrying a space or a middle dot would split the line's own fields."""
+    tag = re.sub(r"[^a-z0-9._-]+", "-", one_line(project).lower()).strip("-")
+    return tag
+
+
 def _log_activity_locked(
     root: str,
     summary: str,
     files: list[str] | None,
     importance: int | None = None,
+    project: str | None = None,
 ) -> str:
     """Record the activity line under *root*, returning the tool's result.
 
@@ -222,6 +243,8 @@ def _log_activity_locked(
     now = datetime.now()
     day_file = _ensure_activity_path(root, now)
     file_note = ", ".join(files) if files else "—"
+    tag = _clean_project(project or "")
+    about = f" · project:{tag}" if tag else ""
     ranked = (
         f" · imp {max(IMPORTANCE_MIN, min(IMPORTANCE_MAX, importance))}"
         if importance is not None
@@ -229,7 +252,7 @@ def _log_activity_locked(
     )
     entry = (
         f"- {now.strftime('%H:%M')} — {_clean_summary(summary)}. "
-        f"Files: {file_note}{ranked}."
+        f"Files: {file_note}{about}{ranked}."
     )
     _write_if_changed(day_file, _append_day_line(read_text(day_file), entry))
     return f"Logged to {relative(day_file, root)}"
@@ -940,10 +963,11 @@ class JournalTransaction:
         summary: str,
         files: list[str] | None = None,
         importance: int | None = None,
+        project: str | None = None,
     ) -> str:
         """Record one activity line; the whole batch commits at exit."""
         return self._record(
-            _log_activity_locked(self._root, summary, files, importance)
+            _log_activity_locked(self._root, summary, files, importance, project)
         )
 
     def write_note(

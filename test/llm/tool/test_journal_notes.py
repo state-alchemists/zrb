@@ -55,6 +55,29 @@ def test_log_activity_builds_the_whole_tree_on_a_cold_journal(writable_journal):
     assert "## Backlinks" in day
 
 
+def test_log_activity_records_what_the_line_was_about(writable_journal):
+    """The project tag is what lets the week name a day by its theme.
+
+    It is normalized to one token because it is read back out of the line and
+    used as a group key: a value carrying a space or a middle dot would split the
+    line's own fields."""
+    from zrb.llm.tool.journal_write import log_activity
+
+    result = log_activity("brought the stack up", project="Soda Local")
+
+    day = _read(writable_journal, result.split("Logged to ")[1])
+    assert "· project:soda-local" in day
+
+
+def test_a_line_without_a_project_carries_no_tag(writable_journal):
+    from zrb.llm.tool.journal_write import log_activity
+
+    result = log_activity("answered a question")
+
+    day = _read(writable_journal, result.split("Logged to ")[1])
+    assert "project:" not in day
+
+
 def test_log_activity_appends_rather_than_rewrites(writable_journal):
     from zrb.llm.tool.journal_write import log_activity
 
