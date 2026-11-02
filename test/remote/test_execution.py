@@ -91,6 +91,9 @@ async def test_probe_without_mktemp_degrades_to_fail_and_writes_nothing(
     # A guessable name in the shared temp dir is the thing under test, so
     # compare against what was already there: other programs on the machine may
     # own `probe.*` too, and asserting the directory is empty reports them.
+    # What this sees is what was left behind. A fallback file the script created
+    # and its own EXIT trap removed is invisible here; the status assertion above
+    # is what catches that, because real stderr turns `fail` into `refused`.
     before = set(Path("/tmp").glob("probe.*"))
     (result,) = await run_on_hosts([Host("l")], script)
     assert parse_probe_output(result.output, 1) == ["fail"]

@@ -194,9 +194,11 @@ def kill_process_tree(process: subprocess.Popen) -> None:
     else:
         try:
             child_group = os.getpgid(process.pid)
+            own_group = os.getpgid(0)
         except OSError:
             child_group = None
-        if child_group is not None and child_group != os.getpgid(0):
+            own_group = None
+        if child_group is not None and child_group != own_group:
             try:
                 os.killpg(child_group, signal.SIGKILL)
                 return

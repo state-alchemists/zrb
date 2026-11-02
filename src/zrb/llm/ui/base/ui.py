@@ -1022,8 +1022,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         (`DELIVERED_MARKER`), the only record of what the model actually read.
         """
         for entry in entries:
-            # Each entry is bound to its own call: a bare `entry` would be
-            # looked up late, and every UI would redraw the loop's last one.
+            # Each entry is bound to its own call, so a deferred redraw — this
+            # one queued, or a task — cannot reach the loop's last entry.
             _broadcast_echo(self, lambda ui, entry=entry: ui.redraw_echo(entry))
 
     def edit_queued_message(self, entry: QueuedMessage, new_text: str) -> bool:
