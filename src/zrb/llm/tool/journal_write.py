@@ -1022,8 +1022,16 @@ class JournalTransaction:
         pinned: bool | None = None,
         applies_when: str | None = None,
         keywords: list[str] | None = None,
+        repo: str | None = None,
     ) -> str:
-        """Write one note; the whole batch commits at exit."""
+        """Write one note; the whole batch commits at exit.
+
+        `repo` means what it means on the tool: an explicit tag, `global` to
+        opt out, and nothing to take the category default — or, for a note that
+        already exists, to keep the tag it carries. The batch reaches the same
+        writer the tool does, so a caller importing many notes can scope them
+        instead of having every one land in the checkout that ran the import.
+        """
         result = self._record(
             _write_note_locked(
                 self._root,
@@ -1038,6 +1046,7 @@ class JournalTransaction:
                 pinned,
                 applies_when,
                 keywords,
+                repo=repo,
             )
         )
         _record_or_queue(WRITTEN, category, slug)

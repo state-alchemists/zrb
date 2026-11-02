@@ -283,3 +283,37 @@ def test_global_is_how_a_technical_note_opts_out(writable_journal):
     _write("technical", "retries", repo="global")
     body = _write_note(writable_journal, "technical", "retries")
     assert "repo:" not in body
+
+
+def test_a_batch_can_scope_the_notes_it_imports(writable_journal):
+    """The batch seam reaches the same writer, so it has to reach the same tag.
+
+    Otherwise an importer cannot say where the notes came from and every one of
+    them lands in whichever checkout happened to run the import."""
+    from zrb.llm.tool.journal_write import journal_transaction
+
+    with journal_transaction() as transaction:
+        transaction.write_note(
+            "technical",
+            "cache",
+            "Cache",
+            "ctx",
+            "found",
+            "s:1",
+            applies_when="while the file exists",
+            hud_line="the claim itself",
+            repo="soda",
+        )
+        transaction.write_note(
+            "technical",
+            "queue",
+            "Queue",
+            "ctx",
+            "found",
+            "s:2",
+            applies_when="while the file exists",
+            hud_line="the claim itself",
+        )
+
+    assert "repo: soda" in _write_note(writable_journal, "technical", "cache")
+    assert "repo: zrb" in _write_note(writable_journal, "technical", "queue")
