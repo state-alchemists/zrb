@@ -18,7 +18,6 @@ from zrb.llm.history_manager.archive_layout import (
     ARCHIVE_DIR_NAME,
     TOOL_RESULTS_DIR_SUFFIX,
     archive_lock_path,
-    tool_results_dir,
 )
 from zrb.llm.util.subagent_session_naming import (
     SUBAGENT_HISTORY_SUBDIR,
@@ -767,10 +766,11 @@ class FileHistoryManager(AnyHistoryManager):
                 os.remove(archive_lock_path(path))
             except OSError:
                 pass
-            # The verbatim tool results belong to the archive that pointed at
-            # them: once nothing references that archive, they are unreachable
-            # too, and nothing else will ever collect them.
-            shutil.rmtree(tool_results_dir(path), ignore_errors=True)
+            # The directory beside the archive is not removed here. It has its
+            # own pass because it can outlive the archive: a transcript may
+            # still carry a PRUNED TOOL RESULT pointer to it after the summary
+            # stopped naming the archive. That pass decides by reference and
+            # age; deleting in both places would bypass the reference check.
 
     def _remove_unreferenced_tool_results(
         self,

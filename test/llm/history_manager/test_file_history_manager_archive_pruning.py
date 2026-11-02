@@ -297,3 +297,20 @@ def test_a_new_file_inside_an_old_directory_keeps_it(history_dir, retention):
 
     assert os.path.isdir(directory)
     assert os.path.exists(recent)
+
+
+def test_an_archive_goes_but_a_referenced_tool_result_directory_stays(
+    history_dir, retention
+):
+    """The directory can outlive the summary that named the archive: a pruned
+    result in the kept tail still points at it after the summary stops naming
+    `session.md`. Removing the archive must not take that pointer's target."""
+    archive = _archive(history_dir, "outlived")
+    directory = _tool_results(history_dir, "outlived")
+    _history(history_dir, "mine", _pointer_to_tool_results(history_dir, "outlived"))
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert not os.path.exists(archive)
+    assert os.path.isdir(directory)
+    assert os.path.exists(os.path.join(directory, "call-1.txt"))
