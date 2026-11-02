@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.common import safe_copy_result
 from zrb.llm.summarizer.tool_result_pruner import (
+    SPILL_DIR_SUFFIX,
     is_pruned_tool_result,
     prune_tool_result_content,
     spilled_path_of,
@@ -161,11 +162,22 @@ def _is_expected_spill(
     if not path:
         return False
     try:
-        expected = os.path.realpath(tool_result_spill_dir(session_name, history_dir))
+        root = os.path.realpath(
+            os.path.dirname(tool_result_spill_dir(session_name, history_dir))
+        )
         actual = os.path.realpath(path)
     except OSError:
         return False
-    return os.path.dirname(actual) == expected and os.path.isfile(actual)
+    directory = os.path.dirname(actual)
+    # Any conversation's directory under this history root counts, not only
+    # the current name: renaming a conversation moves the directory a new
+    # block would go to, while the block already in the history still points
+    # at the old one.
+    return (
+        os.path.isfile(actual)
+        and directory.startswith(root + os.sep)
+        and os.path.basename(directory).endswith(SPILL_DIR_SUFFIX)
+    )
 
 
 def _content_as_text(content: Any) -> str:

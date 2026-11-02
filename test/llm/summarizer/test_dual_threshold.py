@@ -359,3 +359,39 @@ async def test_a_legacy_summary_is_left_alone_whatever_its_size():
 
     assert not modified
     assert result.content == content
+
+
+@pytest.mark.asyncio
+async def test_renaming_a_conversation_does_not_re_prune_its_blocks(tmp_path):
+    """The block names a file in the old conversation's directory; a rename
+    must not make the replay check reject it and overwrite that file."""
+    limiter = MockLimiter()
+    part = ToolReturnPart(content="R" * 5000)
+
+    first, modified = await process_tool_return_part(
+        part,
+        MagicMock(),
+        limiter,
+        message_threshold=1,
+        insanity_threshold=1,
+        session_name="before-rename",
+        history_dir=str(tmp_path),
+    )
+    assert modified
+    spill_path = first.content.split("`")[1]
+    assert os.path.exists(spill_path)
+
+    second, modified_again = await process_tool_return_part(
+        ToolReturnPart(content=first.content),
+        MagicMock(),
+        limiter,
+        message_threshold=1,
+        insanity_threshold=1,
+        session_name="after-rename",
+        history_dir=str(tmp_path),
+    )
+
+    assert not modified_again
+    assert second.content == first.content
+    with open(spill_path, encoding="utf-8") as stream:
+        assert stream.read() == "R" * 5000
