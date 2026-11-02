@@ -37,9 +37,23 @@ _SCOPE_RE = re.compile(r"[^a-z0-9._-]+")
 def normalize_scope(repo: str) -> str:
     """*repo* as one tag: lower case, letters, digits, `.`, `-`, `_`.
 
-    The tag is compared against a directory name and stored inside one
-    frontmatter line, so it may contain neither whitespace nor a newline."""
-    tag = _SCOPE_RE.sub("-", repo.strip().lower()).strip("-")
+    The tag is compared against a repository's directory name and stored inside
+    one frontmatter line, so it may contain neither whitespace nor a newline.
+
+    Nothing is reserved here: a repository that is really called `global` is a
+    tag like any other, and an unscoped note is one with no tag at all. The word
+    only means "no repository" where a caller types it as an argument — see
+    `scope_argument`."""
+    return _SCOPE_RE.sub("-", repo.strip().lower()).strip("-")
+
+
+def scope_argument(repo: str) -> str:
+    """What a caller's `repo` argument stores: `global` asks for no tag.
+
+    The reserved word lives in the argument, never in the file. Storing it would
+    make a repository named `global` indistinguishable from an unscoped note,
+    and one of the two would then be silently wrong."""
+    tag = normalize_scope(repo)
     return "" if tag == GLOBAL_SCOPE else tag
 
 

@@ -488,8 +488,6 @@ def scope_index(text: str, notes: list[Note], current: str) -> str:
     A section left with no lines goes with them. An empty `## Constraints`
     heading is a heading that says a constraint exists and then does not say
     what it is, which is worse than not mentioning it."""
-    from zrb.llm.tool.journal_scope import is_in_scope
-
     scopes = {note.rel: note.repo for note in notes}
     kept = [line for line in text.splitlines() if _is_line_shown(line, scopes, current)]
     return _without_empty_sections(kept)

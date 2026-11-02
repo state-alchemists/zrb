@@ -61,7 +61,7 @@ flowchart LR
 
 A note may carry `repo: <tag>` in its frontmatter, saying which repository it is about. The injected index, the per-turn claims and the first-message auto-search keep a note when its tag is empty, `global`, or the repository in hand; `SearchJournal` is never filtered, because the point of scoping is what arrives unasked rather than what can be found.
 
-`WriteJournalNote` takes `repo` and defaults it by category: a `projects` or `technical` note takes the repository it was written in, while `user`, `preferences` and `agent` stay untagged and travel with the person. `repo: global` is how a work-scoped note opts out. A note with no tag at all is shown everywhere — the field is new, and a default that guessed would hide the whole journal at once.
+`WriteJournalNote` takes `repo` and defaults it by category: a `projects` or `technical` note takes the repository it was written in, while `user`, `preferences` and `agent` stay untagged and travel with the person. Passing `global` as the argument is how a work-scoped note opts out, and the file then carries no `repo:` line at all — the reserved word lives in the argument, never in the frontmatter, so a repository that is really called `global` is a tag like any other. A note with no tag at all is shown everywhere — the field is new, and a default that guessed would hide the whole journal at once.
 
 The tag is the repository's directory name, read with `git rev-parse --git-common-dir` so that every worktree of one repository answers the same name instead of a branch name. Outside any checkout nothing is filtered, because there is nothing to compare a tag against.
 

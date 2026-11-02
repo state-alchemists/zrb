@@ -42,6 +42,11 @@ def repository_root(cwd: str) -> str:
     ``--git-common-dir`` rather than ``--show-toplevel``: a worktree's own
     top-level is the worktree directory, whose name is a branch, and every
     worktree of one repository has to answer with the same name.
+
+    A common directory whose name is not `.git` is the repository itself, not a
+    container of it: a submodule's lives at `<super>/.git/modules/<name>`, and
+    its parent's basename is `modules` — the name of a directory that says
+    nothing about which repository is in hand.
     """
     try:
         res = subprocess.run(
@@ -57,10 +62,20 @@ def repository_root(cwd: str) -> str:
         return ""
     if res.returncode != 0:
         return ""
-    common_dir = res.stdout.strip()
+    return repository_root_from_common_dir(res.stdout.strip())
+
+
+def repository_root_from_common_dir(common_dir: str) -> str:
+    """The repository's top-level for one `--git-common-dir` answer.
+
+    Split out because the shape of that answer is the whole rule: a directory
+    named `.git` is the repository's container, and anything else *is* the
+    repository — a submodule's lives at `<super>/.git/modules/<name>`."""
     if not common_dir:
         return ""
-    return os.path.dirname(common_dir)
+    if os.path.basename(common_dir) == ".git":
+        return os.path.dirname(common_dir)
+    return common_dir
 
 
 def repository_name(cwd: str) -> str:

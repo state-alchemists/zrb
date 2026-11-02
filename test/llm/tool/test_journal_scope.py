@@ -20,7 +20,9 @@ from zrb.llm.tool.journal_scope import (
     is_in_scope,
     normalize_scope,
     repo_of,
+    scope_argument,
 )
+from zrb.llm.util.git import repository_root_from_common_dir
 
 INDEX = """# Journal
 
@@ -105,13 +107,37 @@ def test_outside_a_repository_everything_is_shown():
         ("ZRB", "zrb"),
         (" Soda Local ", "soda-local"),
         ("soda.local", "soda.local"),
-        ("global", ""),
+        # Not reserved: a repository really called `global` is a tag like any
+        # other. Only the *argument* `global` means "no repository at all".
+        ("global", "global"),
         ("", ""),
         ("  ", ""),
     ],
 )
 def test_a_tag_is_one_token(given, expected):
     assert normalize_scope(given) == expected
+
+
+@pytest.mark.parametrize(
+    "given, expected",
+    [("global", ""), ("GLOBAL", ""), ("soda", "soda"), ("", "")],
+)
+def test_the_argument_global_means_no_tag(given, expected):
+    assert scope_argument(given) == expected
+
+
+@pytest.mark.parametrize(
+    "common_dir, expected",
+    [
+        ("/work/zrb/.git", "/work/zrb"),
+        ("/work/parent/.git/modules/service", "/work/parent/.git/modules/service"),
+        ("", ""),
+    ],
+)
+def test_a_repository_is_named_by_its_own_directory(common_dir, expected):
+    """A worktree answers with the repository it belongs to; a submodule answers
+    with itself, not with the `modules` directory the superproject keeps it in."""
+    assert repository_root_from_common_dir(common_dir) == expected
 
 
 @pytest.mark.parametrize(

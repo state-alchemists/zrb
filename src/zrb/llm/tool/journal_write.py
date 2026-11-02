@@ -48,7 +48,11 @@ from zrb.llm.tool.journal_index import (
     with_link,
 )
 from zrb.llm.tool.journal_index_migration import absorb_renamed_sections, plan_adoptions
-from zrb.llm.tool.journal_scope import default_scope, normalize_scope, repo_of
+from zrb.llm.tool.journal_scope import (
+    default_scope,
+    repo_of,
+    scope_argument,
+)
 from zrb.llm.tool.journal_note import (
     HISTORY_HEADING,
     NOTE_CATEGORIES,
@@ -505,9 +509,10 @@ def write_journal_note(
                 "The repository this note is about, if it is about one. Omit it "
                 "and a `projects` or `technical` note takes the repository you "
                 "are working in, while `user`, `preferences` and `agent` notes "
-                "stay unscoped. An unscoped note is injected everywhere; a "
-                "scoped one is injected only while working in that repository, "
-                "and is still found by SearchJournal everywhere."
+                "stay unscoped. Pass `global` to leave a work-scoped note "
+                "unscoped. An unscoped note is injected everywhere; a scoped "
+                "one is injected only while working in that repository, and is "
+                "still found by SearchJournal everywhere."
             )
         ),
     ] = None,
@@ -654,10 +659,14 @@ def _write_note_locked(
     check_slug(slug)
     condition = check_applies_when(applies_when)
     check_finding(finding)
-    # An explicit tag wins; `global` is how a caller opts out. Otherwise a note
-    # about a place takes the place it was written in, and one about a person
-    # stays unscoped and travels with them.
-    scope = normalize_scope(repo) if repo else default_scope(category, repo_of(os.getcwd()))
+    # An explicit tag wins; `global` as an argument is how a caller opts out.
+    # Otherwise a note about a place takes the place it was written in, and one
+    # about a person stays unscoped and travels with them.
+    scope = (
+        scope_argument(repo)
+        if repo
+        else default_scope(category, repo_of(os.getcwd()))
+    )
     notes = _load_notes(root)
     note_path = os.path.join(root, category, f"{slug}.md")
     note_rel = relative(note_path, root)
