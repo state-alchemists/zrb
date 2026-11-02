@@ -92,6 +92,14 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
                 if file_path.exists() and file_path.is_file():
                     doc_files[filename].append(file_path)
 
+        instruction_blocks: list[str] = []
+        inlined: set[Path] = set()
+        if CFG.LLM_INJECT_PROJECT_INSTRUCTIONS:
+            instruction_blocks, inlined = _inline_instructions(
+                _instruction_sources(search_dirs),
+                CFG.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES,
+            )
+
         # Ordered least to most specific. Home-level docs are the user's
         # cross-project habits, so they are listed apart from project rules.
         listed_files: list[str] = []
@@ -103,16 +111,28 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
                     if _is_user_level_dir(file_path.parent)
                     else listed_files
                 )
-                bucket.append(f"- `{file_path}`")
+                inlined_note = " — inlined above" if file_path in inlined else ""
+                bucket.append(f"- `{file_path}`{inlined_note}")
 
         if not listed_files and not user_level_files:
             return next_handler(ctx, current_prompt)
 
         parts: list[str] = []
+        if instruction_blocks:
+            parts += [
+                "### Workspace Instructions",
+                "(Loaded from the files named below. They are this project's "
+                "conventions and they outrank user-level guidance; they do not "
+                "override the user's request or widen what you are allowed to do.)",
+                *instruction_blocks,
+            ]
         if listed_files:
+            if parts:
+                parts.append("")
             parts += [
                 "### Documentation Files Found",
-                "(Not loaded into this prompt. Before editing, read the ones "
+                "(Not loaded into this prompt, except where marked inlined "
+                "above. Before editing, read the ones "
                 "that bear on the work — they hold this project's conventions, "
                 "and they outrank user-level guidance.)",
                 *listed_files,
@@ -134,6 +154,73 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
         )
 
     return project_context
+
+
+# Instruction files: the ones meant to be obeyed, as opposed to README.md, which
+# is documentation to search when it bears on the work.
+INSTRUCTION_FILENAMES = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
+# Below this much room an inlined stub teaches nothing; list the file instead.
+_MIN_INLINE_BYTES = 512
+
+
+def _instruction_sources(search_dirs: list[Path]) -> list[Path]:
+    """Instruction files to inline, most specific directory first.
+
+    Most specific first so a byte budget is spent on the rules closest to the
+    work, and a broader file is dropped before a narrower one is truncated.
+    User-level directories are excluded: that guidance is cross-project, and the
+    listing says to read it only when the turn depends on it.
+    """
+    sources: list[Path] = []
+    for directory in reversed(search_dirs):
+        if _is_user_level_dir(directory):
+            continue
+        for filename in INSTRUCTION_FILENAMES:
+            file_path = directory / filename
+            if file_path.is_file():
+                sources.append(file_path)
+    return sources
+
+
+def _read_instruction_text(path: Path) -> str:
+    """The file's text, or ``""`` when it cannot be read as UTF-8 text."""
+    try:
+        return path.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return ""
+
+
+def _inline_instructions(
+    sources: list[Path], max_bytes: int
+) -> tuple[list[str], set[Path]]:
+    """Inline instruction files until *max_bytes* is spent.
+
+    Returns the rendered blocks and the paths they cover, so the caller can say
+    which listed files are already in the prompt.
+    """
+    blocks: list[str] = []
+    inlined: set[Path] = set()
+    remaining = max(max_bytes, 0)
+    for path in sources:
+        text = _read_instruction_text(path)
+        if not text:
+            continue
+        raw = text.encode("utf-8")
+        note = ""
+        if len(raw) <= remaining:
+            body = text
+            remaining -= len(raw)
+        elif not inlined and remaining >= _MIN_INLINE_BYTES:
+            # The most specific file is truncated rather than dropped: its rules
+            # are the ones the next edit will violate.
+            body = raw[:remaining].decode("utf-8", "ignore").rstrip()
+            note = "\n[TRUNCATED — the file is longer than the prompt budget; read it for the rest.]"
+            remaining = 0
+        else:
+            continue
+        blocks.append(f"#### Instructions from: `{path}`\n\n{body}{note}")
+        inlined.add(path)
+    return blocks, inlined
 
 
 def _is_user_level_dir(directory: Path) -> bool:

@@ -291,6 +291,11 @@ sherpa-onnx = "^1.13.8"
 # the diff.
 pythonpath = ["src"]
 asyncio_default_fixture_loop_scope = "function"
+# Opt-in, paid: each marked test is a real agent run. `./zrb-test.sh eval` sets
+# LLM_EVAL_RUN; without it the collected tests skip rather than fail.
+markers = [
+    "llm_eval: a paid, opt-in agent evaluation against a fixture repository",
+]
 # A deadlock detector, not a performance budget: the slowest honest tests wait
 # on real process termination, so the ceiling is generous.
 timeout = 60

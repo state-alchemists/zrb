@@ -60,16 +60,34 @@ class _HistoryTokenCosts:
 
 
 class LLMLimiter:
-    """Manage context-window and rate limits for LLM requests."""
+    """Manage context-window and rate limits for LLM requests.
+
+    Pacing (`acquire`) is opt-in through `CFG.LLM_ENABLE_RATE_LIMIT`; context
+    trimming (`fit_context_window`) always applies, because exceeding the
+    provider's window is an error rather than a delay.
+    """
 
     def __init__(self):
         self.request_log: deque[float] = deque()
         self.token_log: deque[tuple[float, int]] = deque()
 
+        self._enabled: bool | None = None
         self._max_request_per_minute: int | None = None
         self._max_token_per_minute: int | None = None
         self._max_token_per_request: int | None = None
         self._throttle_check_interval: float | None = None
+
+    @property
+    def pacing_enabled(self) -> bool:
+        """Whether `acquire` paces requests (`CFG.LLM_ENABLE_RATE_LIMIT` unless overridden)."""
+        if self._enabled is not None:
+            return self._enabled
+        return bool(getattr(CFG, "LLM_ENABLE_RATE_LIMIT", False))
+
+    @pacing_enabled.setter
+    def pacing_enabled(self, value: bool):
+        """Override pacing for this limiter, mostly so tests can drive `acquire`."""
+        self._enabled = value
 
     @property
     def max_request_per_minute(self) -> int:
@@ -255,7 +273,14 @@ class LLMLimiter:
         return start
 
     async def acquire(self, content: Any, notifier: Callable[[str], Any] | None = None):
-        """Wait until *content* fits the current rate limits, then record it."""
+        """Wait until *content* fits the current rate limits, then record it.
+
+        Returns immediately when pacing is off (`CFG.LLM_ENABLE_RATE_LIMIT`), and
+        records nothing: a later enable must not inherit a window nobody was
+        pacing against.
+        """
+        if not self.pacing_enabled:
+            return
         estimated_tokens = self._count_tokens(content)
         # A request over the whole per-minute budget can never fit: waiting
         # for an empty window is all that helps, so it goes then, never hangs.

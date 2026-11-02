@@ -242,8 +242,8 @@ def test_create_project_context_prompt_base_prompt_preserved(tmp_path):
     assert "base prompt" in result
 
 
-def test_create_project_context_prompt_all_files_listed_without_read(tmp_path):
-    "All found files are listed; content is not loaded."
+def test_create_project_context_prompt_inlines_instructions_by_default(tmp_path):
+    "The default inlines instruction content instead of only listing the path."
     for name in ("AGENTS.md", "CLAUDE.md"):
         (tmp_path / name).write_text("Some content here")
 
@@ -253,10 +253,88 @@ def test_create_project_context_prompt_all_files_listed_without_read(tmp_path):
     with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         result = handler(ctx, "base prompt", _identity_next)
 
-    assert "Some content here" not in result
-
+    assert "### Workspace Instructions" in result
+    assert result.count("Some content here") == 2
+    assert "— inlined above" in result
     assert "AGENTS.md" in result
     assert "CLAUDE.md" in result
+
+
+def test_create_project_context_prompt_injection_can_be_turned_off(tmp_path):
+    "With injection off, content stays out and the files are listed by path."
+    (tmp_path / "AGENTS.md").write_text("Some content here")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
+        with patch("zrb.llm.prompt.claude.CFG") as cfg:
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = False
+            cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 24000
+            result = handler(ctx, "base prompt", _identity_next)
+
+    assert "Some content here" not in result
+    assert "AGENTS.md" in result
+
+
+def test_create_project_context_prompt_readme_is_never_inlined(tmp_path):
+    "README.md is documentation to search, not rules to obey."
+    (tmp_path / "AGENTS.md").write_text("Agent content")
+    (tmp_path / "README.md").write_text("Readme content")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "Agent content" in result
+    assert "Readme content" not in result
+
+
+def test_instructions_inline_the_most_specific_file_first(tmp_path):
+    "A parent-directory AGENTS.md does not preempt the one nearest the work."
+    parent = tmp_path / "project"
+    child = parent / "service"
+    child.mkdir(parents=True)
+    (parent / "AGENTS.md").write_text("PARENT RULES")
+    (child / "AGENTS.md").write_text("CHILD RULES")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude.get_search_directories",
+        return_value=[parent, child],
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert result.index("CHILD RULES") < result.index("PARENT RULES")
+
+
+def test_instructions_budget_truncates_the_nearest_file(tmp_path):
+    "An over-budget nearest file is truncated; a broader one stays listed."
+    parent = tmp_path / "project"
+    child = parent / "service"
+    child.mkdir(parents=True)
+    (child / "AGENTS.md").write_text("X" * 2000)
+    (parent / "AGENTS.md").write_text("PARENT RULES")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude.get_search_directories",
+        return_value=[parent, child],
+    ):
+        with patch("zrb.llm.prompt.claude.CFG") as cfg:
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 700
+            result = handler(ctx, "base prompt", _identity_next)
+
+    assert "TRUNCATED" in result
+    assert "PARENT RULES" not in result
+    assert str(parent / "AGENTS.md") in result
 
 
 def test_get_search_directories_includes_cwd(tmp_path):
