@@ -720,8 +720,8 @@ Monday session needs most — is invisible until someone writes a new one."""
 _HANDOVER_HEADING = "## handover"
 _IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
 _RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
-_PROJECT = re.compile(r"·\s*project:([^\s·]+)", re.IGNORECASE)
-_PROJECT_KEY = re.compile(r"\s*·\s*project:[^\s·]+(\s*\.)?", re.IGNORECASE)
+_PROJECT = re.compile(r"·\s*project:([\w-]+)", re.IGNORECASE)
+_PROJECT_KEY = re.compile(r"\s*·\s*project:[\w-]+(\s*\.)?", re.IGNORECASE)
 _STAMP = re.compile(r"^\d{1,2}:\d{2}\s*(?:—|·)\s*")
 
 

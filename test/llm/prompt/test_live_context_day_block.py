@@ -108,6 +108,26 @@ def test_handover_leads_and_today_keeps_the_important_lines(tmp_path):
     assert "## Open" not in result, "an `##` section ends the entry list"
 
 
+def test_a_project_tag_without_importance_keeps_the_period_out_of_the_tag(tmp_path):
+    """The line ends with a period whether or not it carries an `imp` key.
+
+    The tag's character set therefore has to stop short of it: a capture that took
+    any non-space character read `zrb.` and the week rendered `zrb.: …`."""
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 09:00 — updated the docs. Files: — · project:zrb.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert f"- {YESTERDAY.isoformat()} — zrb: updated the docs" in week
+    assert "zrb.:" not in week
+
+
 def test_the_week_names_each_day_by_what_it_was_mostly_about(tmp_path):
     """Yesterday's theme, not its most important line.
 

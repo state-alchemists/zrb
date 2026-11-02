@@ -221,12 +221,13 @@ def _append_day_line(text: str, entry: str) -> str:
 
 
 def _clean_project(project: str) -> str:
-    """*project* as one tag: lower case, no spaces, no separator characters.
+    """*project* as one tag: lower case, letters, digits, `-` and `_`.
 
-    The tag is read back out of a line and used as a group key, so a value
-    carrying a space or a middle dot would split the line's own fields."""
-    tag = re.sub(r"[^a-z0-9._-]+", "-", one_line(project).lower()).strip("-")
-    return tag
+    The tag is read back out of a line and used as a group key, so its character
+    set must not overlap the line's own punctuation: a tag ending in a period is
+    indistinguishable from the sentence period a line without an `imp` key ends
+    with, and the week would render `zrb.: …`."""
+    return re.sub(r"[^\w-]+", "-", one_line(project).lower()).strip("-")
 
 
 def _log_activity_locked(
