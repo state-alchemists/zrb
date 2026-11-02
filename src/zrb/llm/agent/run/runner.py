@@ -868,6 +868,22 @@ async def _take_turn_snapshot(snapshot: TurnSnapshot | None) -> None:
     await run_in_worker(snapshot.take, workdir)
 
 
+def journal_due_for_turn(
+    turn: list[Any], wrote_files: bool, periodic_check: bool
+) -> bool:
+    """Whether the compliance judge runs at the end of this turn.
+
+    A file change or a stated preference always asks for it: the answer may be a
+    durable note, and an activity line does not stand in for one. The periodic
+    check is the one trigger the transcript can answer for itself — and only a
+    *completed* `LogActivity` answers it, since a refused or blocked call wrote
+    nothing.
+    """
+    if wrote_files or turn_states_preference(turn):
+        return True
+    return periodic_check and not has_turn_logged_activity(turn)
+
+
 async def _finish_turn(
     cursor: TurnCursor,
     extension_state: ExtensionState,
@@ -904,16 +920,9 @@ async def _finish_turn(
             "turn_id": cursor.turn_id,
             "nested_run": nested_run,
             # wrote_files OR a stated preference OR a periodic check, precomputed
-            # because MatcherConfig has no OR primitive (journal_compliance.py) —
-            # and cleared when the turn already journaled, which the transcript
-            # answers better than a judge can.
-            "journal_due": (
-                (
-                    wrote_files
-                    or turn_states_preference(cursor.accumulated)
-                    or periodic_check
-                )
-                and not has_turn_logged_activity(cursor.accumulated)
+            # because MatcherConfig has no OR primitive (journal_compliance.py).
+            "journal_due": journal_due_for_turn(
+                cursor.accumulated, wrote_files, periodic_check
             ),
         },
         stop_hook_active=extension_state.block_count > 0,

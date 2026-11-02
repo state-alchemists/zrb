@@ -419,9 +419,10 @@ def write_journal_note(
                 "Required. The one line a later session reads this note by: the "
                 "claim itself — `retries happen once per prompt`, `a bank job "
                 "red at prepare_script is the runner failing to pull its "
-                "helper` — not the note's title, and 160 characters or fewer. "
-                "The always-injected index shows this line and links the note, "
-                "so a write with no line, or with one too long, is refused. On "
+                "helper` — not the note's title, and 160 characters or fewer. A "
+                "write with no line is refused; a longer one is cut at a word "
+                "boundary and ends in an ellipsis. The always-injected index "
+                "shows this line and links the note. On "
                 "revision, restate it: the current line is in the note's "
                 "frontmatter and in SearchJournal results."
             )
