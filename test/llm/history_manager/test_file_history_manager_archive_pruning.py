@@ -145,7 +145,7 @@ def test_retention_off_keeps_every_archive(history_dir, retention):
 def test_an_archive_named_only_by_a_retained_backup_is_kept(history_dir, retention):
     """The live history for a conversation can be gone — renamed, or itself
     already pruned — while a retained backup beside it still names the
-    archive. `_archives_named_in` reads every `.json` file in the directory,
+    archive. `_references_named_in` reads every `.json` file in the directory,
     not just ones matching the live-file naming shape, so this already works;
     pinned here since a backup file ends in plain `.json` in this codebase,
     not the `.json.N` shape a reviewer once assumed it would."""
@@ -205,3 +205,79 @@ def test_an_archive_for_a_session_name_with_spaces_is_kept(history_dir, retentio
     _save(FileHistoryManager(str(history_dir)), "fresh-session")
 
     assert os.path.exists(path)
+
+
+def _tool_results(history_dir, name: str, age_seconds: float = OLD) -> str:
+    """A conversation's verbatim tool-result directory, written *age_seconds* ago."""
+    directory = os.path.join(str(history_dir), "verbatim", f"{name}.tool-results")
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, "call-1.txt")
+    with open(path, "w", encoding="utf-8") as stream:
+        stream.write("the full tool output")
+    stamp = time.time() - age_seconds
+    os.utime(path, (stamp, stamp))
+    os.utime(directory, (stamp, stamp))
+    return directory
+
+
+def _pointer_to_tool_results(history_dir, name: str) -> str:
+    """The path a pruned result carries, as a transcript stores it."""
+    directory = os.path.join(str(history_dir), "verbatim", f"{name}.tool-results")
+    return f'["PRUNED TOOL RESULT: full output: `{directory}/call-1.txt`"]'
+
+
+def test_an_orphan_tool_result_directory_is_pruned(history_dir, retention):
+    """A result can be pruned long before its conversation compacts, so no
+    archive is ever written for it. Retention must still reach the directory."""
+    directory = _tool_results(history_dir, "never-compacted")
+    _history(history_dir, "mine")
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert not os.path.exists(directory)
+
+
+def test_a_tool_result_directory_a_transcript_points_at_is_kept(history_dir, retention):
+    """The pointer is the only way back to the full output; it cannot outlive
+    the file it names."""
+    directory = _tool_results(history_dir, "still-pointed-at")
+    _history(
+        history_dir, "mine", _pointer_to_tool_results(history_dir, "still-pointed-at")
+    )
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert os.path.exists(directory)
+    assert os.path.exists(os.path.join(directory, "call-1.txt"))
+
+
+def test_a_recent_tool_result_directory_is_kept(history_dir, retention):
+    """Between the prune and the save that first names it, nothing points at it
+    yet; age is what keeps that window safe."""
+    directory = _tool_results(history_dir, "just-pruned", age_seconds=0)
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert os.path.exists(directory)
+
+
+def test_the_session_being_saved_keeps_its_tool_results(history_dir, retention):
+    """The save that triggers the prune may land before the file it saves
+    mentions the pointer."""
+    directory = _tool_results(history_dir, "in-flight")
+
+    _save(FileHistoryManager(str(history_dir)), "in-flight")
+
+    assert os.path.exists(directory)
+
+
+def test_a_tool_result_directory_goes_with_its_archive(history_dir, retention):
+    """The existing path still holds: once the archive is collected, the tool
+    results it pointed at go with it."""
+    archive = _archive(history_dir, "gone")
+    directory = _tool_results(history_dir, "gone")
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert not os.path.exists(archive)
+    assert not os.path.exists(directory)

@@ -16,6 +16,7 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.archive_layout import (
     ARCHIVE_DIR_NAME,
+    TOOL_RESULTS_DIR_SUFFIX,
     archive_lock_path,
     tool_results_dir,
 )
@@ -60,6 +61,14 @@ _EMPTY_HISTORY_MAX_BYTES = 2
 # wrapped in are excluded, not whitespace in general.
 _ARCHIVE_REFERENCE_PATTERN = re.compile(r"verbatim[/\\]([^`)'\"\n]+\.md)")
 
+# The directory a pruned tool result points at: `verbatim/<name>.tool-results/`
+# followed by the call id. The capture stops at the path separator, unlike the
+# archive pattern above, because this name is a directory and the file inside it
+# is not part of the reference.
+_TOOL_RESULTS_REFERENCE_PATTERN = re.compile(
+    r"verbatim[/\\]([^/\\`)'\"\n]+\.tool-results)"
+)
+
 
 def default_history_manager() -> "FileHistoryManager":
     """The file-backed history manager used wherever no explicit one is
@@ -67,19 +76,21 @@ def default_history_manager() -> "FileHistoryManager":
     return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
 
 
-def _archives_named_in(directory: str) -> "set[str]":
-    """Archive filenames the `.json` files directly in *directory* mention.
+def _references_named_in(directory: str) -> "tuple[set[str], set[str]]":
+    """What the `.json` files directly in *directory* point at.
 
-    Read as text with `errors="ignore"` and searched, rather than parsed: the
-    pointer is a sentence in a summary, and a file that is not valid JSON any
-    more still names the archive it was written against. Skipping it would turn
-    a corrupt transcript into a deleted archive.
+    Returns the archive filenames and the tool-result directory names they
+    mention. Read as text with `errors="ignore"` and searched, rather than
+    parsed: the pointer is a sentence in a summary, and a file that is not
+    valid JSON any more still names the archive it was written against.
+    Skipping it would turn a corrupt transcript into a deleted archive.
     """
-    names: set[str] = set()
+    archives: set[str] = set()
+    tool_results: set[str] = set()
     try:
         entries = list(os.scandir(directory))
     except OSError:
-        return names
+        return archives, tool_results
     for entry in entries:
         if not entry.name.endswith(".json"):
             continue
@@ -87,10 +98,12 @@ def _archives_named_in(directory: str) -> "set[str]":
             if not entry.is_file():
                 continue
             with open(entry.path, encoding="utf-8", errors="ignore") as stream:
-                names.update(_ARCHIVE_REFERENCE_PATTERN.findall(stream.read()))
+                content = stream.read()
+                archives.update(_ARCHIVE_REFERENCE_PATTERN.findall(content))
+                tool_results.update(_TOOL_RESULTS_REFERENCE_PATTERN.findall(content))
         except OSError:
             continue
-    return names
+    return archives, tool_results
 
 
 def _is_zrb_owned_history_entry(name: str) -> bool:
@@ -669,6 +682,11 @@ class FileHistoryManager(AnyHistoryManager):
         even though an in-memory summary still points to it. Every dirty
         conversation is kept for exactly the same reason `current` already is,
         not only the one triggering this save.
+
+        Tool-result directories are collected on the same rule, but they do not
+        depend on an archive existing: a conversation can prune a result long
+        before it ever compacts, and retention would otherwise never see the
+        directory at all.
         """
         archives_dir = os.path.join(self._history_dir, ARCHIVE_DIR_NAME)
         try:
@@ -676,14 +694,20 @@ class FileHistoryManager(AnyHistoryManager):
         except OSError:
             return
         archives = [n for n in names if n.endswith(".md") and not n.startswith(".")]
-        if not archives:
+        tool_result_dirs = [
+            n
+            for n in names
+            if n.endswith(TOOL_RESULTS_DIR_SUFFIX) and not n.startswith(".")
+        ]
+        if not archives and not tool_result_dirs:
             return
-        referenced = self._referenced_archives()
+        referenced_archives, referenced_tool_results = self._referenced_artifacts()
         # Live even before its history file lands: the session being saved,
         # and any other conversation whose own save is still pending.
-        keep = {f"{safe_segment(name)}.md" for name in (current, *self._dirty)}
+        live_keys = {safe_segment(name) for name in (current, *self._dirty)}
+        keep_archives = {f"{key}.md" for key in live_keys}
         for name in archives:
-            if name in referenced or name in keep:
+            if name in referenced_archives or name in keep_archives:
                 continue
             path = os.path.join(archives_dir, name)
             try:
@@ -700,20 +724,36 @@ class FileHistoryManager(AnyHistoryManager):
             # them: once nothing references that archive, they are unreachable
             # too, and nothing else will ever collect them.
             shutil.rmtree(tool_results_dir(path), ignore_errors=True)
+        for name in tool_result_dirs:
+            key = name[: -len(TOOL_RESULTS_DIR_SUFFIX)]
+            if name in referenced_tool_results or key in live_keys:
+                continue
+            path = os.path.join(archives_dir, name)
+            try:
+                if os.stat(path).st_mtime >= cutoff:
+                    continue
+            except OSError:
+                continue
+            shutil.rmtree(path, ignore_errors=True)
 
-    def _referenced_archives(self) -> "set[str]":
-        """Archive filenames named by any transcript this manager can write.
+    def _referenced_artifacts(self) -> "tuple[set[str], set[str]]":
+        """What any transcript this manager can write points at.
 
-        Every directory a transcript can live in, not just the root: a
-        sub-agent's summary points at the same shared `verbatim/` directory as
-        its parent's, so a pointer inside `subagent/<agent-type>/` is just as
-        load-bearing. Backups sit beside their main file and are read here too,
-        because a backup still names the archive it was written against.
+        Returns the archive filenames and the tool-result directory names, so
+        one read of every transcript answers both questions. Every directory a
+        transcript can live in, not just the root: a sub-agent's summary points
+        at the same shared `verbatim/` directory as its parent's, so a pointer
+        inside `subagent/<agent-type>/` is just as load-bearing. Backups sit
+        beside their main file and are read here too, because a backup still
+        names the archive it was written against.
         """
-        referenced: set[str] = set()
+        archives: set[str] = set()
+        tool_results: set[str] = set()
         for directory in subagent_history_directories(self._history_dir):
-            referenced.update(_archives_named_in(directory))
-        return referenced
+            found_archives, found_tool_results = _references_named_in(directory)
+            archives.update(found_archives)
+            tool_results.update(found_tool_results)
+        return archives, tool_results
 
     def _rotate_backups(
         self, base_name: str, keep: int, main_file_name: str | None = None
