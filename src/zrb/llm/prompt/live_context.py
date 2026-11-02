@@ -720,8 +720,8 @@ Monday session needs most — is invisible until someone writes a new one."""
 _HANDOVER_HEADING = "## handover"
 _IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
 _RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
-_PROJECT = re.compile(r"·\s*project:([\w-]+)", re.IGNORECASE)
-_PROJECT_KEY = re.compile(r"\s*·\s*project:[\w-]+(\s*\.)?", re.IGNORECASE)
+_PROJECT = re.compile(r"·\s*project:([\w.-]+)", re.IGNORECASE)
+_PROJECT_KEY = re.compile(r"\s*·\s*project:[\w.-]+(\s*\.)?", re.IGNORECASE)
 _STAMP = re.compile(r"^\d{1,2}:\d{2}\s*(?:—|·)\s*")
 
 
@@ -731,9 +731,14 @@ def _without_importance(entry: str) -> str:
 
 
 def _project(entry: str) -> str:
-    """The `· project:x` a day line carries, lower-cased, or ``""``."""
+    """The `· project:x` a day line carries, lower-cased, or ``""``.
+
+    A tag is read with dots allowed, because a line written before the writer
+    normalized them may carry one (`project:soda.local`), and the tag's own final
+    period is the sentence's, not the name's: the greedy capture takes it and
+    `rstrip` gives it back."""
     found = _PROJECT.search(entry)
-    return found.group(1).lower() if found else ""
+    return found.group(1).rstrip(".").lower() if found else ""
 
 
 def _without_keys(entry: str) -> str:

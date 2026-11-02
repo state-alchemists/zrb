@@ -108,6 +108,25 @@ def test_handover_leads_and_today_keeps_the_important_lines(tmp_path):
     assert "## Open" not in result, "an `##` section ends the entry list"
 
 
+def test_a_dotted_tag_written_before_the_normalization_still_reads(tmp_path):
+    """A tag written before the writer normalized dots is parsed whole, and the
+    whole tag leaves the text: `project:soda.local.` must not render `soda` with
+    `local.` stranded in the line."""
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 09:00 — updated the docs. Files: — · project:soda.local.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert f"- {YESTERDAY.isoformat()} — soda.local: updated the docs" in week
+    assert "local." not in week.replace("soda.local", "")
+
+
 def test_a_project_tag_without_importance_keeps_the_period_out_of_the_tag(tmp_path):
     """The line ends with a period whether or not it carries an `imp` key.
 
