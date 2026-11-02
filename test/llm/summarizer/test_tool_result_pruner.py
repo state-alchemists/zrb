@@ -112,3 +112,21 @@ def test_a_write_failure_returns_no_pointer(tmp_path, monkeypatch):
 )
 def test_a_replayed_result_is_recognised_by_its_marker(content, expected):
     assert is_pruned_tool_result(content) is expected
+
+
+def test_two_call_ids_that_sanitize_alike_do_not_collide(tmp_path):
+    """`safe_segment` strips the same characters from both ids; the digest of
+    the original id is what keeps the two spilled outputs apart."""
+    first = spill_tool_result(
+        "first output", call_id="call/a", session_name="s", history_dir=str(tmp_path)
+    )
+    second = spill_tool_result(
+        "second output", call_id="calla", session_name="s", history_dir=str(tmp_path)
+    )
+
+    assert first is not None and second is not None
+    assert first != second
+    with open(first, encoding="utf-8") as stream:
+        assert stream.read() == "first output"
+    with open(second, encoding="utf-8") as stream:
+        assert stream.read() == "second output"

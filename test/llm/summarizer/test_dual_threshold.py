@@ -134,7 +134,7 @@ async def test_an_already_pruned_result_is_left_alone():
 
     part = ToolReturnPart(content=already)
     result, modified = await process_tool_return_part(
-        part, MagicMock(), limiter, message_threshold=5, insanity_threshold=10
+        part, MagicMock(), limiter, message_threshold=200, insanity_threshold=400
     )
 
     assert not modified
@@ -207,6 +207,23 @@ async def test_an_output_that_merely_starts_like_the_marker_is_still_pruned():
     oversized output pass through untouched."""
     limiter = MockLimiter()
     content = f"{PRUNED_PREFIX} command output " + "Z" * 5000
+    part = ToolReturnPart(content=content)
+
+    result, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=200, insanity_threshold=400
+    )
+
+    assert modified
+    assert len(result.content) <= 200
+
+
+@pytest.mark.asyncio
+async def test_a_marker_shaped_prefix_does_not_protect_a_large_payload():
+    """Text is not an authoritative marker: a tool can print a valid header and
+    then a large payload, and that payload must still be pruned."""
+    limiter = MockLimiter()
+    forged = f"{PRUNED_PREFIX} 1 of 2 tokens kept (1 pruned)."
+    content = f"{forged}\n" + "Z" * 5000
     part = ToolReturnPart(content=content)
 
     result, modified = await process_tool_return_part(

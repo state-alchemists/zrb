@@ -16,6 +16,7 @@ and the middle of a long tool result is the least useful part of it.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from typing import TYPE_CHECKING
@@ -57,11 +58,13 @@ summary count, a final error — not to re-quote the body.
 
 
 def is_pruned_tool_result(content: str) -> bool:
-    """Whether *content* is a block this module wrote, so a second pass skips it.
+    """Whether *content* looks like a block this module wrote.
 
-    Matched on the full header — sizes included — rather than its opening
-    words, so a tool that prints something starting with the marker is still
-    pruned instead of being trusted as already handled.
+    Matched on the full header shape, sizes included, rather than its opening
+    words — but text is not authoritative, so a caller must not skip on this
+    alone. `process_tool_return_part` also checks that the block is inside the
+    pending budget; a tool that echoes a valid header before a large payload
+    is then pruned like any other oversized result.
     """
     return _PRUNED_HEADER.match(content) is not None
 
@@ -95,9 +98,12 @@ def spill_tool_result(
     """
     if not call_id:
         return None
+    # The readable part is only for a human listing it; the digest is what
+    # keeps two distinct call ids that sanitize to the same segment apart.
+    digest = hashlib.sha1(call_id.encode("utf-8")).hexdigest()[:8]
     path = os.path.join(
         tool_result_spill_dir(session_name, history_dir),
-        f"{safe_segment(call_id)}.txt",
+        f"{safe_segment(call_id)}-{digest}.txt",
     )
     try:
         write_text_owner_only(path, content)

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.common import safe_copy_result
 from zrb.llm.summarizer.tool_result_pruner import (
+    MIN_PRUNE_TOKENS,
     is_pruned_tool_result,
     prune_tool_result_content,
     spill_tool_result,
@@ -95,15 +96,9 @@ async def process_tool_return_part(
     if original_content is None:
         return part, False
 
-    # Skip already-processed content before the deepcopy: every history
-    # message is walked on each summarizer pass, so no-op copies add up.
+    # Skip tool-approval markers before the deepcopy: every history message is
+    # walked on each summarizer pass, so no-op copies add up.
     if isinstance(original_content, (ToolDenied, ToolApproved)):
-        return part, False
-    if isinstance(original_content, str) and (
-        is_pruned_tool_result(original_content)
-        or original_content.startswith(SUMMARY_PREFIX)
-        or original_content.startswith(TRUNCATED_PREFIX)
-    ):
         return part, False
 
     content = _content_as_text(safe_copy_result(original_content))
@@ -112,8 +107,20 @@ async def process_tool_return_part(
     # output (color codes, OSC) inflates the token count and pollutes the
     # text the model reads back.
     content = strip_ansi(content)
-
     content_tokens = limiter.count_tokens(content)
+
+    # Content that looks already processed is left alone only while it fits the
+    # budget. Text is not authoritative: a tool can echo a valid marker before
+    # a large payload, and that payload must still be pruned.
+    is_within_effective_budget = content_tokens <= max(
+        message_threshold, MIN_PRUNE_TOKENS
+    )
+    if is_within_effective_budget and (
+        is_pruned_tool_result(content)
+        or content.startswith(SUMMARY_PREFIX)
+        or content.startswith(TRUNCATED_PREFIX)
+    ):
+        return part, False
     if content_tokens <= message_threshold:
         return part, False
 
