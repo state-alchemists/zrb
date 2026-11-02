@@ -59,21 +59,24 @@ flowchart LR
 
 ### Note Scope
 
-A note may carry `repo: <tag>` in its frontmatter, saying which repository it is about. The injected index, the per-turn claims and the first-message auto-search keep a note when its tag is empty, `global`, or the repository in hand; `SearchJournal` is never filtered, because the point of scoping is what arrives unasked rather than what can be found.
+A note may carry `repo: <tag>` in its frontmatter, saying which repository it is about. The injected index shows a note in full when its tag is empty or matches the repository in hand; the notes of the other repositories are compressed to one line each, under `## Other projects`, naming how many there are and quoting the newest claim. `SearchJournal` is never filtered.
+
+Compressing rather than hiding is the point. Working in one repository must not mean forgetting the others — a session that cannot see the bank pipeline any more will re-plan work that already exists. One line per repository is enough to know the work is there and what it is about, and the detail stays one search away.
 
 `WriteJournalNote` takes `repo` and defaults it by category: a `projects` or `technical` note takes the repository it was written in, while `user`, `preferences` and `agent` stay untagged and travel with the person. Passing `global` as the argument is how a work-scoped note opts out, and the file then carries no `repo:` line at all — the reserved word lives in the argument, never in the frontmatter, so a repository that is really called `global` is a tag like any other. A note with no tag at all is shown everywhere — the field is new, and a default that guessed would hide the whole journal at once.
 
-The tag is the repository's directory name, read with `git rev-parse --git-common-dir` so that every worktree of one repository answers the same name instead of a branch name. Outside any checkout nothing is filtered, because there is nothing to compare a tag against.
+The tag is the repository's directory name, read with `git rev-parse --git-common-dir`, so every worktree of one repository answers with the repository rather than a branch name. A submodule's common directory is `<super>/.git/modules/<name>`, which *is* the repository: only a directory literally named `.git` is a container, and only its parent names the repository. Outside any checkout nothing is filtered, because there is nothing to compare a tag against.
 
-The filter is a view, not a rewrite: the file's `index.md` keeps every line it had, so a note hidden here is still in the index a `SearchJournal` reads and in the category index. Measured on the real journal (317 notes, every work-scoped note stamped `zrb`), the same index renders:
+The digest sits outside the index cap, beside the wrapper rather than inside the index: the cap ranks lines it recognises and would drop an unknown section first — exactly the amnesia the section exists to prevent.
 
-| view | index lines | notes shown | work-scoped notes |
+Measured on the real journal (317 notes, every work-scoped note stamped `zrb`, `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` at 3,600):
+
+| view | injected block | note lines | work-scoped lines |
 |---|---|---|---|
-| no scoping (as before) | 118 | 67 | 29 |
-| working in `zrb` | 118 | 67 | 29 |
-| working in another repository | 61 | 38 | 0 |
+| working in `zrb` | 4,139 chars | 17 | 9 |
+| working in another repository | 4,352 chars | 18 | 2 |
 
-The injected cap is unchanged at `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS`; what changes is what fills it.
+The 213 characters the second view pays are the `## Other projects` heading and one line: `- zrb — 167 notes, newest (2026-11-03): …`. What changed is what fills the index — nine lines of another repository's detail became one line saying the work exists.
 
 ### Index File Structure
 

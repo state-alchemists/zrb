@@ -476,6 +476,19 @@ def _is_echo(text: str, notes: list[Note]) -> bool:
     )
 
 
+ELSEWHERE_HEADING = "## Other projects"
+"""What this view left out, named rather than dropped.
+
+Working in one repository must not mean forgetting the others: a session that
+cannot see the bank pipeline any more will re-plan work that already exists. So
+the notes of the other repositories are compressed to one line each — how many,
+and the newest claim — and the detail stays one `SearchJournal` away."""
+
+ELSEWHERE_CLAIM_MAX_CHARS = 100
+"""Longest claim quoted in that line: enough to recognise the work, not to
+replace it. The line is a reminder, and the note is where the detail is."""
+
+
 def scope_index(text: str, notes: list[Note], current: str) -> str:
     """*text* without the lines that link a note this repository does not show.
 
@@ -485,12 +498,48 @@ def scope_index(text: str, notes: list[Note], current: str) -> str:
     and a link to a file that is not a note at all all stay, which is the same
     rule the renderer already follows for foreign lines.
 
-    A section left with no lines goes with them. An empty `## Constraints`
-    heading is a heading that says a constraint exists and then does not say
-    what it is, which is worse than not mentioning it."""
+    What the dropped lines said is not thrown away — `elsewhere_lines` condenses
+    it, and the caller injects that beside the index rather than inside it, where
+    the cap would rank an unknown section away."""
     scopes = {note.rel: note.repo for note in notes}
     kept = [line for line in text.splitlines() if _is_line_shown(line, scopes, current)]
     return _without_empty_sections(kept)
+
+
+def elsewhere_lines(notes: list[Note], current: str) -> list[str]:
+    """One line per repository this view left out, most recently touched first.
+
+    Working in one repository must not mean forgetting the others: a session that
+    cannot see the bank pipeline any more will re-plan work that already exists.
+    So the other repositories keep one line each — how many notes, and the newest
+    claim — and the detail stays one `SearchJournal` away."""
+    from zrb.llm.tool.journal_scope import is_in_scope
+
+    groups: dict[str, list[Note]] = {}
+    for note in notes:
+        if note.is_active and note.repo and not is_in_scope(note.repo, current):
+            groups.setdefault(note.repo, []).append(note)
+    ordered = sorted(
+        groups.items(), key=lambda pair: max(note.updated for note in pair[1]), reverse=True
+    )
+    lines: list[str] = []
+    for repo, group in ordered:
+        newest = max(group, key=lambda note: note.updated)
+        claim = newest.hud_line or newest.title
+        day = newest.updated.date().isoformat()
+        lines.append(f"- {repo} — {len(group)} notes, newest ({day}): {_shorten(claim)}")
+    return lines
+
+
+def _shorten(claim: str) -> str:
+    """*claim* cut to the length a reminder is worth, marked when it is cut."""
+    if len(claim) <= ELSEWHERE_CLAIM_MAX_CHARS:
+        return claim
+    head = claim[: ELSEWHERE_CLAIM_MAX_CHARS - 1]
+    boundary = head.rfind(" ")
+    if boundary > 0:
+        head = head[:boundary]
+    return head.rstrip(" ,;:—") + "…"
 
 
 def _is_line_shown(line: str, scopes: dict[str, str], current: str) -> bool:

@@ -9,11 +9,12 @@ links is not a note at all.
 
 import os
 import subprocess
+from datetime import datetime
 from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.tool.journal_index import scope_index
+from zrb.llm.tool.journal_index import elsewhere_lines, scope_index
 from zrb.llm.tool.journal_note import Note
 from zrb.llm.tool.journal_scope import (
     default_scope,
@@ -42,7 +43,7 @@ INDEX = """# Journal
 """
 
 
-def _note(rel: str, repo: str) -> Note:
+def _note(rel: str, repo: str, day: int = 1) -> Note:
     return Note(
         category=rel.split("/")[0],
         slug=rel.split("/")[-1].removesuffix(".md"),
@@ -50,8 +51,8 @@ def _note(rel: str, repo: str) -> Note:
         status="active",
         hud_line="a line",
         pinned=False,
-        updated=None,
-        has_stamp=False,
+        updated=datetime(2026, 10, day),
+        has_stamp=True,
         repo=repo,
     )
 
@@ -62,11 +63,32 @@ def test_an_untagged_note_is_shown_wherever_you_are():
     assert is_in_scope("", "lcicd") is True
 
 
-def test_a_note_about_another_repository_is_not_injected():
+def test_a_note_about_another_repository_is_compressed_not_deleted():
+    """Working in one repository must not mean forgetting the others.
+
+    Its lines leave the sections, and the work they represent is still named —
+    how much of it there is, and its newest claim — so a session never re-plans
+    work that already exists."""
     notes = [_note("technical/retries.md", "soda"), _note("technical/bank-job.md", "zrb")]
     rendered = scope_index(INDEX, notes, "zrb")
-    assert "retries happen once" not in rendered
+    assert "retries happen once ([note](technical/retries.md))" not in rendered
     assert "a bank job red at prepare is infra" in rendered
+    assert elsewhere_lines(notes, "zrb") == [
+        "- soda — 1 notes, newest (2026-10-01): a line"
+    ]
+
+
+def test_the_digest_names_one_line_per_other_repository_newest_first():
+    notes = [
+        _note("technical/a.md", "soda", day=2),
+        _note("technical/b.md", "soda", day=9),
+        _note("projects/c.md", "bank", day=5),
+        _note("technical/d.md", "lcicd", day=1),
+    ]
+    assert elsewhere_lines(notes, "lcicd") == [
+        "- soda — 2 notes, newest (2026-10-09): a line",
+        "- bank — 1 notes, newest (2026-10-05): a line",
+    ]
 
 
 def test_a_section_whose_lines_all_left_leaves_with_them():
