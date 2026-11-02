@@ -1,4 +1,5 @@
 import json
+import os
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
@@ -118,8 +119,14 @@ async def process_tool_return_part(
     # pointer raised the floor, so its own path is used to measure that floor
     # again rather than reprocessing it every pass.
     if is_pruned_tool_result(content):
+        # Only a pointer to a file that exists may raise the floor. A tool can
+        # write any path into its own output; letting that text grow the budget
+        # would let it buy itself a pass.
+        block_path = spilled_path_of(content)
+        if block_path is not None and not os.path.isfile(block_path):
+            block_path = None
         block_budget = effective_prune_budget(
-            limiter, content_tokens, message_threshold, spilled_path_of(content)
+            limiter, content_tokens, message_threshold, block_path
         )
         if content_tokens <= block_budget:
             return part, False
