@@ -1,9 +1,10 @@
 """Tests for the day block injected into ``<live-context>``.
 
 The block is what makes a fresh session resume: the departing agent's handover,
-today's most important lines, and yesterday's two. These tests pin the three
-things that could silently break it — the handover being dropped, importance
-being ignored, and the cap being blown.
+today's most important lines, and the week that led here, one line per day. These
+tests pin the four things that could silently break it — the handover being
+dropped, importance being ignored, the week losing its theme, and the cap being
+blown.
 """
 
 from datetime import date, timedelta
@@ -12,7 +13,6 @@ from unittest.mock import patch
 from zrb.llm.prompt.live_context import (
     DAY_BLOCK_MAX_CHARS,
     DAY_LINE_COUNT,
-    YESTERDAY_LINE_COUNT,
     render_day_block,
 )
 
@@ -108,25 +108,164 @@ def test_handover_leads_and_today_keeps_the_important_lines(tmp_path):
     assert "## Open" not in result, "an `##` section ends the entry list"
 
 
-def test_yesterday_contributes_two_lines(tmp_path):
-    _write_day(tmp_path, TODAY, "# today\n\n- 09:00 · home · today · imp 5\n")
+def test_a_dotted_tag_written_before_the_normalization_still_reads(tmp_path):
+    """A tag written before the writer normalized dots is parsed whole, and the
+    whole tag leaves the text: `project:soda.local.` must not render `soda` with
+    `local.` stranded in the line."""
     _write_day(
         tmp_path,
         YESTERDAY,
         "# yesterday\n\n"
-        "- 09:00 · home · least important · imp 2\n"
-        "- 10:00 · home · the one that matters · imp 8\n"
-        "- 11:00 · home · middle · imp 5\n",
+        "- 09:00 — updated the docs. Files: — · project:soda.local.\n",
     )
 
     result = _render(tmp_path)
 
     assert result is not None
-    assert f"## Yesterday ({YESTERDAY.isoformat()})" in result
-    assert "the one that matters" in result
-    assert "least important" not in result
-    yesterday_rows = result.split("## Yesterday", 1)[1].count("\n- ")
-    assert yesterday_rows == YESTERDAY_LINE_COUNT
+    week = result.split("## This week", 1)[1]
+    assert f"- {YESTERDAY.isoformat()} — soda.local: updated the docs" in week
+    assert "local." not in week.replace("soda.local", "")
+
+
+def test_a_project_tag_without_importance_keeps_the_period_out_of_the_tag(tmp_path):
+    """The line ends with a period whether or not it carries an `imp` key.
+
+    The tag's character set therefore has to stop short of it: a capture that took
+    any non-space character read `zrb.` and the week rendered `zrb.: …`."""
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 09:00 — updated the docs. Files: — · project:zrb.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert f"- {YESTERDAY.isoformat()} — zrb: updated the docs" in week
+    assert "zrb.:" not in week
+
+
+def test_a_summary_that_mentions_the_format_is_not_read_as_metadata(tmp_path):
+    """A summary is free text, so it can spell the fields the writer appends.
+
+    Split at the first ` Files: ` and the day read `explained`; search the whole
+    line for a project and the summary's own words named the day. Only the
+    writer's suffix is metadata, and the writer's is always last."""
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 08:00 — explained Files: syntax · project:other to him. "
+        "Files: — · project:zrb · imp 6.\n"
+        "- 09:00 — a quieter line. Files: — · project:zrb · imp 2.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert "— zrb: explained Files: syntax · project:other to him" in week
+    assert "— other:" not in week, "the summary does not name the day's project"
+
+
+def test_today_keeps_one_period_before_the_files_it_reports(tmp_path):
+    """The suffix owns the period that ends the summary, so joining adds none.
+
+    `_without_keys` rebuilds a line from its two halves; a version that added the
+    period itself rendered every today line as `fixed the retry bug. . Files: —.`.
+    """
+    _write_day(
+        tmp_path,
+        TODAY,
+        "# today\n\n- 09:00 — fixed the retry bug. Files: src/a.py.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert "fixed the retry bug. Files: src/a.py." in result
+    assert ". . Files:" not in result
+
+
+def test_a_line_written_before_the_suffix_names_no_project(tmp_path):
+    """A line with no `. Files: …` suffix predates the project field too.
+
+    Its own words can mention one — `discussed the project:zrb migration` — and
+    reading that as a tag would label the day after a subject it never had."""
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n- 09:00 — discussed the project:zrb migration. Nothing else.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert "— discussed the project:zrb migration" in week
+    assert "— zrb:" not in week
+
+
+def test_the_week_names_each_day_by_what_it_was_mostly_about(tmp_path):
+    """Yesterday's theme, not its most important line.
+
+    Measured on 2026-11-02: the day was SODA from seven in the morning until
+    noon, and its highest-ranked line was a 22:45 fix in another repository. A
+    person remembers the day as "soda all morning", so the week line follows the
+    count, not the rank."""
+    _write_day(tmp_path, TODAY, "# today\n\n- 09:00 · home · today · imp 5\n")
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 09:00 — brought the stack up. Files: infra/. · project:soda · imp 4\n"
+        "- 10:00 — registered the runner. Files: runner.toml · project:soda · imp 5\n"
+        "- 11:00 — accepted the EULA. Files: — · project:soda · imp 4\n"
+        "- 22:45 — fixed the inlining. Files: src/a.py · project:zrb · imp 8\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert f"- {YESTERDAY.isoformat()} — soda: " in week
+    assert "zrb:" not in week
+
+
+def test_a_day_with_no_project_still_gets_a_week_line(tmp_path):
+    "A journal written before the project tag existed still has a week."
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n- 09:00 · home · an unlabelled day · imp 3\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert f"- {YESTERDAY.isoformat()} — " in result
+    assert "an unlabelled day" in result
+
+
+def test_a_week_line_drops_the_clock_the_paths_and_the_keys(tmp_path):
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 09:00 — brought the stack up. Files: bankai_init.py, README.md"
+        " · project:soda · imp 4\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert "soda: brought the stack up" in week
+    assert "09:00" not in week
+    assert "bankai_init.py" not in week
+    assert "imp 4" not in week
 
 
 def test_yesterday_handover_is_used_when_today_has_none(tmp_path):
