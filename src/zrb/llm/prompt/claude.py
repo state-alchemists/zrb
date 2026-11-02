@@ -195,6 +195,12 @@ def _inline_instructions(
 ) -> tuple[list[str], set[Path]]:
     """Inline instruction files until *max_bytes* is spent.
 
+    Walks *sources* most specific first and stops at the first file that does not
+    fit: a broader file is never inlined past a dropped narrower one, because
+    that would hand the model parent-directory rules while withholding the rules
+    for the directory it is editing. A budget too small to inline the nearest
+    file therefore inlines nothing and lists everything.
+
     Returns the rendered blocks and the paths they cover, so the caller can say
     which listed files are already in the prompt.
     """
@@ -217,7 +223,7 @@ def _inline_instructions(
             note = "\n[TRUNCATED — the file is longer than the prompt budget; read it for the rest.]"
             remaining = 0
         else:
-            continue
+            break
         blocks.append(f"#### Instructions from: `{path}`\n\n{body}{note}")
         inlined.add(path)
     return blocks, inlined

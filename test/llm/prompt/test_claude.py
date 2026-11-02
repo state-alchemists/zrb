@@ -337,6 +337,64 @@ def test_instructions_budget_truncates_the_nearest_file(tmp_path):
     assert str(parent / "AGENTS.md") in result
 
 
+def test_no_instructions_are_inlined_when_the_budget_cannot_fit_the_nearest(tmp_path):
+    """A budget too small for the nearest file must not admit a broader one.
+
+    Regression: the loop used to `continue` past an over-budget nearest file, so
+    a small parent AGENTS.md could still be inlined — handing the model broader
+    rules while withholding the rules for the directory being edited.
+    """
+    parent = tmp_path / "project"
+    child = parent / "service"
+    child.mkdir(parents=True)
+    (child / "AGENTS.md").write_text("X" * 2000)
+    (parent / "AGENTS.md").write_text("PARENT RULES")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude.get_search_directories",
+        return_value=[parent, child],
+    ):
+        with patch("zrb.llm.prompt.claude.CFG") as cfg:
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 400
+            result = handler(ctx, "base prompt", _identity_next)
+
+    assert "Workspace Instructions" not in result
+    assert "PARENT RULES" not in result
+    assert str(child / "AGENTS.md") in result
+    assert str(parent / "AGENTS.md") in result
+
+
+def test_inlining_stops_at_the_first_file_that_does_not_fit(tmp_path):
+    "A grandparent file is not inlined past a parent that was dropped."
+    grandparent = tmp_path / "org"
+    parent = grandparent / "project"
+    child = parent / "service"
+    child.mkdir(parents=True)
+    (child / "AGENTS.md").write_text("CHILD RULES")
+    (parent / "AGENTS.md").write_text("P" * 2000)
+    (grandparent / "AGENTS.md").write_text("GRANDPARENT RULES")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude.get_search_directories",
+        return_value=[grandparent, parent, child],
+    ):
+        with patch("zrb.llm.prompt.claude.CFG") as cfg:
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 1000
+            result = handler(ctx, "base prompt", _identity_next)
+
+    assert "CHILD RULES" in result
+    assert "GRANDPARENT RULES" not in result
+    assert str(grandparent / "AGENTS.md") in result
+
+
 def test_get_search_directories_includes_cwd(tmp_path):
     "get_search_directories is exercised indirectly: with a real AGENTS.md in"
     handler = create_project_context_prompt()

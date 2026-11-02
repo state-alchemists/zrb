@@ -94,8 +94,9 @@ class LLMPromptMixin:
         doc=(
             "Byte budget for inlined project instructions (see "
             "LLM_INJECT_PROJECT_INSTRUCTIONS). The most specific file is "
-            "truncated to fit rather than dropped; broader files that do not fit "
-            "stay listed by path only."
+            "truncated to fit rather than dropped; inlining stops at the first "
+            "file that does not fit, so broader files stay listed by path only — "
+            "including when the budget is too small for the nearest file."
         ),
     )
 
