@@ -121,7 +121,9 @@ FACADE_BUDGETS = {
     # a sender whose queued message became moot (a background command's wake-up,
     # after the model fetched the result) takes it back; new surface.
     # +1 (1319->1320): a background notice is not recorded for input recall.
-    "llm/ui/base/ui.py": 1320,
+    # +2 (1319->1321): a deferred redraw binds its own entry, so it cannot reach
+    # the loop's last one -- no new surface.
+    "llm/ui/base/ui.py": 1321,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

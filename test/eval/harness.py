@@ -173,8 +173,11 @@ def kill_process_tree(process: subprocess.Popen) -> None:
     """Kill *process* and anything it spawned. Never raises.
 
     POSIX: the child is its own group leader, so one `killpg` reaches every
-    descendant. Windows has no group signal we can send, so `taskkill /T` walks
-    the tree, with `Popen.kill` as the last resort.
+    descendant. The group signalled is the one the OS reports for the child, and
+    never this process's own: `run_cli` spawns with `start_new_session`, so a
+    match would mean that flag was dropped — and signalling our group would kill
+    the test run instead of the agent. Windows has no group signal we can send,
+    so `taskkill /T` walks the tree, with `Popen.kill` as the last resort.
     """
     if process.poll() is not None:
         return
@@ -190,10 +193,17 @@ def kill_process_tree(process: subprocess.Popen) -> None:
             pass
     else:
         try:
-            os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            return
+            child_group = os.getpgid(process.pid)
+            own_group = os.getpgid(0)
         except OSError:
-            pass
+            child_group = None
+            own_group = None
+        if child_group is not None and child_group != own_group:
+            try:
+                os.killpg(child_group, signal.SIGKILL)
+                return
+            except OSError:
+                pass
     try:
         process.kill()
     except OSError:

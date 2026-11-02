@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.ui.base.commands import BaseUICommands
 
 
 def test_handle_exit_command(ui):
@@ -469,3 +468,28 @@ def test_handle_exec_command_queues_on_the_multi_ui_shared_queue(ui):
 def test_handle_exec_command_ignored_while_thinking(ui):
     ui.is_thinking = True
     assert ui.handle_exec_command("/exec echo hello") is False
+
+
+@pytest.mark.asyncio
+async def test_a_queued_exec_job_runs_the_text_it_holds_when_it_runs(ui, monkeypatch):
+    """An edit made while the job waits still applies: `text` is read late.
+
+    `QueuedMessage` documents that its runner must read `text` at execution
+    time, and the exec job's closure is the only place that honours it.
+    """
+    from zrb.llm.ui.base.exec_commands import BaseUIExecCommands
+
+    seen: list[str] = []
+
+    async def record(_self, cmd: str) -> None:
+        seen.append(cmd)
+
+    monkeypatch.setattr(BaseUIExecCommands, "run_shell_command", record)
+
+    assert ui.handle_exec_command("/exec echo before") is True
+    entry = ui.message_queue.get_nowait()
+    entry.text = "echo after"
+
+    await entry.run()
+
+    assert seen == ["echo after"]
