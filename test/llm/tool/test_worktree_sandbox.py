@@ -77,6 +77,39 @@ async def test_enter_worktree_routes_git_calls_through_sandbox(mock_subprocess):
 
 
 @pytest.mark.asyncio
+async def test_a_read_only_repository_names_both_writable_paths(
+    mock_subprocess, monkeypatch, outside_root
+):
+    """git records the branch inside the repository, so the worktree root alone is not enough.
+
+    A sandbox list that names the worktree root *instead of* the project fails
+    here with git's own "Operation not permitted" on a `.git` lock; the message
+    has to say that the repository stays writable too.
+    """
+    repo = str(outside_root / "repo")  # a path to judge, never created
+    monkeypatch.setattr(
+        "zrb.llm.tool.worktree.get_effective_sandbox_policy",
+        lambda: SandboxPolicy(enabled=True, writable_paths=(str(outside_root / "wt"),)),
+    )
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=repo.encode()),
+        create_mock_process(
+            returncode=255,
+            stderr=(
+                b"fatal: cannot lock ref 'refs/heads/b': Unable to create "
+                b"'/repo/.git/refs/heads/b.lock': Operation not permitted"
+            ),
+        ),
+    ]
+
+    res = await enter_worktree(branch_name="b", cwd=repo)
+
+    assert "Failed to create worktree" in res
+    assert "LLM_SANDBOX_WRITABLE_PATHS" in res
+    assert repo in res
+
+
+@pytest.mark.asyncio
 async def test_exit_worktree_routes_git_calls_through_sandbox(mock_subprocess):
     with tempfile.TemporaryDirectory() as tmpdir:
         mock_subprocess.side_effect = [

@@ -154,7 +154,15 @@ from zrb import CFG
 CFG.LLM_WORKTREE_DIR = "/Volumes/fast/worktrees"
 ```
 
-A worktree under `LLM_WORKTREE_DIR` is outside the checkout on purpose: one nested in the repository is a second copy of it that every `Grep`, `Glob` and `git status` would have to skip. In a sandboxed session, add this directory to `ZRB_LLM_SANDBOX_WRITABLE_PATHS` (the sandbox judges the destination, not the repository) or creation is refused with that path named.
+A worktree under `LLM_WORKTREE_DIR` is outside the checkout on purpose: one nested in the repository is a second copy of it that every `Grep`, `Glob` and `git status` would have to skip.
+
+In a sandboxed session the sandbox judges the destination, so `LLM_WORKTREE_DIR` has to be writable — **and the repository has to stay writable with it**. `git worktree add` records the new branch and the worktree's own files inside the repository (`.git/refs/heads/<branch>`, `.git/worktrees/<name>`), so a writable list that names the worktree root *instead of* the project stops here with git's own "Operation not permitted" on a `.git` lock, and stops every edit in the project too. Add it alongside the project:
+
+```bash
+export ZRB_LLM_SANDBOX_WRITABLE_PATHS="$PWD:$HOME/.zrb/wt"
+```
+
+Leaving `LLM_SANDBOX_WRITABLE_PATHS` empty already makes the current directory writable, which covers both.
 
 ## Sandbox Configuration
 

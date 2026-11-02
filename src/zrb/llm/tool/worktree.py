@@ -99,16 +99,38 @@ async def enter_worktree(
                 "[SYSTEM SUGGESTION]: Use a different branch_name or list existing "
                 "worktrees with ListWorktrees.",
             )
-        return _prepend_notes(
-            notes,
-            f"Error: Failed to create worktree: {err_msg}\n"
-            "[SYSTEM SUGGESTION]: Check if the branch name is valid and if you "
-            "have permissions.",
-        )
+        return _prepend_notes(notes, _create_failed_message(err_msg, git_root))
 
     active_worktree.set(worktree_path)
     result = f"Worktree created: {worktree_path}\nBranch: {branch_name}"
     return _prepend_notes(notes, result)
+
+
+def _create_failed_message(err_msg: str, git_root: str) -> str:
+    """Explain a failed `git worktree add`, including the sandbox's second write.
+
+    A worktree is not written only where it lands. git records the new branch and
+    the worktree's own administrative files inside the repository, so a sandbox
+    session that lists the worktree root alone is stopped here by git rather than
+    by our own check — and git's message names a `.git` lock, not a policy.
+    """
+    suggestion = "Check if the branch name is valid and if you have permissions."
+    policy = get_effective_sandbox_policy()
+    if (
+        policy.enabled
+        and check_write(os.path.join(git_root, ".git"), policy) is not None
+    ):
+        suggestion = (
+            f"git writes the new branch and the worktree's records into the "
+            f"repository, so the sandbox has to allow that too: add {git_root} to "
+            f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS alongside "
+            f"{_worktree_root()}, or leave that setting empty to make the current "
+            "directory writable automatically."
+        )
+    return (
+        f"Error: Failed to create worktree: {err_msg}\n"
+        f"[SYSTEM SUGGESTION]: {suggestion}"
+    )
 
 
 def _repo_slug(git_root: str) -> str:
@@ -161,8 +183,9 @@ def _prepare_worktree_dir(git_root: str, branch_name: str) -> tuple[str, str | N
             return worktree_path, (
                 f"Blocked by sandbox policy: {error}. "
                 f"[SYSTEM SUGGESTION]: ask the user to add {root} to "
-                f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS, which covers "
-                "every repository's worktrees at once."
+                f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS — and keep {git_root} "
+                "writable too, since git records the branch and the worktree "
+                "inside the repository."
             )
     try:
         os.makedirs(worktree_dir, exist_ok=True)
