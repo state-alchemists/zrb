@@ -697,6 +697,14 @@ YESTERDAY_LINE_COUNT = 2
 DAY_BLOCK_MAX_CHARS = 1500
 """Cap on the whole day block, in characters."""
 
+HANDOVER_LOOKBACK_DAYS = 7
+"""How far back the newest handover is looked for, in days.
+
+Day lines stay today's and yesterday's; the handover is the one part of the day
+file no later reader can reconstruct, so it is looked for on a longer schedule.
+A weekend is two day files: read only those, and Friday's handover — the thing a
+Monday session needs most — is invisible until someone writes a new one."""
+
 _HANDOVER_HEADING = "## handover"
 _IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
 _RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
@@ -770,6 +778,20 @@ def _handover(text: str) -> str:
             break
         body.append(line)
     return "\n".join(body).strip()
+
+
+def _newest_handover(current: date) -> str:
+    """The most recent handover within ``HANDOVER_LOOKBACK_DAYS``, or ``""``.
+
+    Newest first, and it stops at the first one it finds: a handover is what the
+    agent that left said, so an older one is always the less current answer.
+    """
+    for days_back in range(HANDOVER_LOOKBACK_DAYS):
+        day = current - timedelta(days=days_back)
+        handover = _handover(_read_day(_day_file(day)))
+        if handover:
+            return handover
+    return ""
 
 
 def _top_entries(entries: list[str], count: int) -> list[str]:
@@ -871,8 +893,10 @@ def render_day_block(today: date | None = None) -> str | None:
     """The seam block: the newest handover, today's most important lines, and
     yesterday's two.
 
-    The handover goes first because no later reader can reconstruct it. ``None``
-    when there is no day file to read, or when journaling is off.
+    The handover goes first because no later reader can reconstruct it, and it is
+    read from up to ``HANDOVER_LOOKBACK_DAYS`` back so a weekend cannot outlive
+    it. ``None`` when there is nothing to read — no handover in that window and
+    no day file for today or yesterday — or when journaling is off.
     """
     if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_DIR:
         return None
@@ -880,10 +904,10 @@ def render_day_block(today: date | None = None) -> str | None:
     yesterday = current - timedelta(days=1)
     today_text = _read_day(_day_file(current))
     yesterday_text = _read_day(_day_file(yesterday))
-    if not today_text and not yesterday_text:
+    handover = _newest_handover(current)
+    if not handover and not today_text and not yesterday_text:
         return None
     sections: list[str] = []
-    handover = _handover(today_text) or _handover(yesterday_text)
     if handover:
         sections.append("## From the last me, to the next me\n\n" + handover)
     today_entries = _top_entries(_day_entries(today_text), DAY_LINE_COUNT)

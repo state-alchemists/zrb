@@ -12,6 +12,7 @@ from zrb.llm.hook.turn_evidence import (
     MAX_TRACKED_RUNS,
     count_user_turn,
     turn_changed_paths,
+    has_turn_logged_activity,
     turn_states_preference,
     turn_wrote_files,
 )
@@ -107,6 +108,45 @@ class TestTurnWroteFiles:
         ]
         assert turn_wrote_files(turn) is False
         assert turn_wrote_files(turn, tool_names=frozenset({"Custom"})) is True
+
+
+class TestTurnLoggedActivity:
+    def test_true_when_the_turn_called_log_activity(self):
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="LogActivity", args={}, tool_call_id="1"
+                    )
+                ]
+            )
+        ]
+        assert has_turn_logged_activity(turn) is True
+
+    def test_false_for_a_note_only_turn(self):
+        "A note and an empty day tier still leaves the day owing a line, which"
+        " is the judge's job."
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="WriteJournalNote", args={}, tool_call_id="1"
+                    )
+                ]
+            )
+        ]
+        assert has_turn_logged_activity(turn) is False
+
+    def test_false_for_an_ordinary_turn(self):
+        turn = [
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="Read", args={}, tool_call_id="1")]
+            )
+        ]
+        assert has_turn_logged_activity(turn) is False
+
+    def test_false_for_empty_turn(self):
+        assert has_turn_logged_activity([]) is False
 
 
 class TestTurnStatesPreference:

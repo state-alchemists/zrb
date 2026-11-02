@@ -164,6 +164,19 @@ def check_finding(finding: str | None) -> str:
     return text
 
 
+def _cut_line(text: str, limit: int) -> str:
+    """*text* cut to *limit* characters at a word boundary, marked as cut.
+
+    The mark is what makes the cut honest: a line ending in an ellipsis cannot be
+    read as a finished claim that happens to stop mid-thought, which is what a
+    silent cut would produce."""
+    head = text[: limit - 1]
+    boundary = head.rfind(" ")
+    if boundary > 0:
+        head = head[:boundary]
+    return head.rstrip(" ,;:—-") + "…"
+
+
 def check_hud_line(hud_line: str | None, prior_line: str = "") -> str:
     """The one line a note is read by, or a refusal the model can act on.
 
@@ -172,10 +185,11 @@ def check_hud_line(hud_line: str | None, prior_line: str = "") -> str:
     decides with: `retries happen once per prompt` says something, a first
     sentence of a Finding only sometimes does.
 
-    A write without one is refused, and so is one longer than a headline. The
-    over-long case is a refusal rather than a cut because a trimmed claim is a
-    claim nobody wrote, and the index would then show a sentence that stops
-    mid-thought while reading as finished.
+    A write without one is refused. One longer than a headline is cut at a word
+    boundary and marked with an ellipsis rather than refused: the line is what a
+    later session reads the note by, so refusing it threw the whole note away —
+    and the mark is what keeps the cut from reading as a finished claim that
+    happens to stop mid-thought.
 
     *prior_line* is the line the note already carries, when it has one: a
     rewrite that forgets to restate it is told which line it was about to lose,
@@ -197,11 +211,7 @@ def check_hud_line(hud_line: str | None, prior_line: str = "") -> str:
             "the injected index shows that line and links the note."
         )
     if len(text) > HUD_LINE_MAX_CHARS:
-        raise ValueError(
-            f"[SYSTEM SUGGESTION]: hud_line is {len(text)} characters, over the "
-            f"{HUD_LINE_MAX_CHARS} a headline is allowed, so nothing was "
-            "written. Shorten it to the claim itself and write the note again."
-        )
+        return _cut_line(text, HUD_LINE_MAX_CHARS)
     return text
 
 

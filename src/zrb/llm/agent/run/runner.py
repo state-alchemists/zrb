@@ -72,6 +72,7 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.turn_evidence import (
     count_user_turn,
     turn_changed_paths,
+    has_turn_logged_activity,
     turn_states_preference,
     turn_wrote_files,
 )
@@ -903,11 +904,16 @@ async def _finish_turn(
             "turn_id": cursor.turn_id,
             "nested_run": nested_run,
             # wrote_files OR a stated preference OR a periodic check, precomputed
-            # because MatcherConfig has no OR primitive (journal_compliance.py).
+            # because MatcherConfig has no OR primitive (journal_compliance.py) —
+            # and cleared when the turn already journaled, which the transcript
+            # answers better than a judge can.
             "journal_due": (
-                wrote_files
-                or turn_states_preference(cursor.accumulated)
-                or periodic_check
+                (
+                    wrote_files
+                    or turn_states_preference(cursor.accumulated)
+                    or periodic_check
+                )
+                and not has_turn_logged_activity(cursor.accumulated)
             ),
         },
         stop_hook_active=extension_state.block_count > 0,
