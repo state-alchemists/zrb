@@ -48,11 +48,11 @@ async def test_a_result_within_budget_is_untouched():
 @pytest.mark.asyncio
 async def test_an_over_budget_result_keeps_its_head_and_its_tail():
     limiter = MockLimiter()
-    content = "H" * 75 + "M" * 300 + "T" * 25
+    content = "H" * 75 + "M" * 600 + "T" * 25
 
     part = ToolReturnPart(content=content)
     result, modified = await process_tool_return_part(
-        part, MagicMock(), limiter, message_threshold=100, insanity_threshold=200
+        part, MagicMock(), limiter, message_threshold=400, insanity_threshold=800
     )
 
     assert modified
@@ -69,15 +69,15 @@ async def test_an_over_budget_result_keeps_its_head_and_its_tail():
 @pytest.mark.asyncio
 async def test_the_pruned_result_points_at_the_verbatim_file(tmp_path):
     limiter = MockLimiter()
-    content = "H" * 75 + "M" * 300 + "T" * 25
+    content = "H" * 300 + "M" * 600 + "T" * 100
     part = ToolReturnPart(content=content)
 
     result, modified = await process_tool_return_part(
         part,
         MagicMock(),
         limiter,
-        message_threshold=100,
-        insanity_threshold=200,
+        message_threshold=900,
+        insanity_threshold=1800,
         session_name="session",
         history_dir=str(tmp_path),
     )
@@ -93,15 +93,15 @@ async def test_the_pruned_result_points_at_the_verbatim_file(tmp_path):
 async def test_ansi_escapes_are_stripped_before_measuring_and_saving(tmp_path):
     """Color codes inflate the token count and pollute the file a reader opens."""
     limiter = MockLimiter()
-    styled = "\x1b[31mred\x1b[0m " + "A" * 200
+    styled = "\x1b[31mred\x1b[0m " + "A" * 400
 
     part = ToolReturnPart(content=styled)
     result, modified = await process_tool_return_part(
         part,
         MagicMock(),
         limiter,
-        message_threshold=50,
-        insanity_threshold=100,
+        message_threshold=300,
+        insanity_threshold=600,
         session_name="session",
         history_dir=str(tmp_path),
     )
@@ -144,7 +144,7 @@ async def test_an_already_pruned_result_is_left_alone():
 @pytest.mark.asyncio
 async def test_a_failed_spill_still_prunes_and_says_so(tmp_path):
     limiter = MockLimiter()
-    content = "H" * 75 + "M" * 300 + "T" * 25
+    content = "H" * 300 + "M" * 600 + "T" * 100
     part = ToolReturnPart(content=content)
 
     with patch(
@@ -155,8 +155,8 @@ async def test_a_failed_spill_still_prunes_and_says_so(tmp_path):
             part,
             MagicMock(),
             limiter,
-            message_threshold=100,
-            insanity_threshold=200,
+            message_threshold=900,
+            insanity_threshold=1800,
             session_name="session",
             history_dir=str(tmp_path),
         )
@@ -164,3 +164,38 @@ async def test_a_failed_spill_still_prunes_and_says_so(tmp_path):
     assert modified
     assert result.content.startswith(PRUNED_PREFIX)
     assert "could not be saved" in result.content
+
+
+@pytest.mark.asyncio
+async def test_the_replacement_never_exceeds_the_budget():
+    """The marker and its pointer are paid for out of the threshold, not on
+    top of it: the whole point is that one result cannot outgrow its budget."""
+    limiter = MockLimiter()
+    content = "B" * 5000
+    part = ToolReturnPart(content=content)
+
+    result, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=200, insanity_threshold=400
+    )
+
+    assert modified
+    assert len(result.content) <= 200
+    assert result.content.startswith(PRUNED_PREFIX)
+
+
+@pytest.mark.asyncio
+async def test_a_threshold_too_small_for_the_marker_is_raised_to_the_minimum():
+    """A one-token budget cannot carry "pruned" and a path; the documented
+    minimum is what the block is held to instead."""
+    from zrb.llm.summarizer.tool_result_pruner import MIN_PRUNE_TOKENS
+
+    limiter = MockLimiter()
+    part = ToolReturnPart(content="C" * 5000)
+
+    result, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=1, insanity_threshold=1
+    )
+
+    assert modified
+    assert len(result.content) <= MIN_PRUNE_TOKENS
+    assert result.content.startswith(PRUNED_PREFIX)

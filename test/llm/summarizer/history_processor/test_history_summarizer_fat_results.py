@@ -56,7 +56,7 @@ async def test_summarize_fat_tool_results():
     mock_result.output = "Short summary"
     agent.run = AsyncMock(return_value=mock_result)
 
-    fat_content = "A" * 100
+    fat_content = "A" * 1000
     msg = ModelRequest(
         parts=[ToolReturnPart(content=fat_content, tool_name="test", tool_call_id="1")]
     )
@@ -65,7 +65,7 @@ async def test_summarize_fat_tool_results():
         [msg],
         agent=agent,
         limiter=limiter,
-        message_token_threshold=50,
+        message_token_threshold=400,
     )
 
     assert len(new_messages) == 1

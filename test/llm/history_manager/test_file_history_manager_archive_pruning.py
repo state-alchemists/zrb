@@ -281,3 +281,19 @@ def test_a_tool_result_directory_goes_with_its_archive(history_dir, retention):
 
     assert not os.path.exists(archive)
     assert not os.path.exists(directory)
+
+
+def test_a_new_file_inside_an_old_directory_keeps_it(history_dir, retention):
+    """A reused directory can keep an old mtime while a newly spilled result
+    sits inside it; the newest child, not the directory, decides."""
+    directory = _tool_results(history_dir, "reused")
+    recent = os.path.join(directory, "call-2.txt")
+    with open(recent, "w", encoding="utf-8") as stream:
+        stream.write("a freshly spilled output")
+    stamp = time.time() - OLD
+    os.utime(directory, (stamp, stamp))
+
+    _save(FileHistoryManager(str(history_dir)), "fresh-session")
+
+    assert os.path.isdir(directory)
+    assert os.path.exists(recent)

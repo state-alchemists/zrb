@@ -87,9 +87,23 @@ def spill_tool_result(
     )
     try:
         write_text_owner_only(path, content)
+        # Overwriting an existing call id rewrites the file without moving the
+        # directory's timestamp; retention reads both, but a fresh directory
+        # mtime keeps the intent explicit on filesystems that lag.
+        os.utime(os.path.dirname(path), None)
     except OSError:
         return None
     return path
+
+
+MIN_PRUNE_TOKENS = 64
+"""Smallest budget a prune honours.
+
+Below this the replacement cannot carry its marker, its pointer and any text
+worth keeping, so a configured threshold under it is raised to it. The
+alternative — emitting a "pruned" block that says nothing — hides the output
+without telling the reader where it went.
+"""
 
 
 def prune_tool_result_content(
@@ -99,17 +113,60 @@ def prune_tool_result_content(
     *,
     spill_path: str | None = None,
 ) -> str:
-    """Head-and-tail *content* under *threshold_tokens*, with a pointer.
+    """Head-and-tail *content* under the budget, with a pointer.
 
     The model is handed three things it can act on: the start of the output,
     the end of it, and the path to the rest. It is never handed a paraphrase
     that can drift from what the tool actually printed.
+
+    The budget is spent in this order: the marker and its pointer first, then
+    the head and the tail from what is left. A threshold smaller than
+    `MIN_PRUNE_TOKENS` is raised to it, and the result never exceeds the
+    (raised) budget — the framing is measured, not assumed.
     """
+    budget = max(threshold_tokens, MIN_PRUNE_TOKENS)
     total_tokens = limiter.count_tokens(content)
-    head_budget = max(1, int(threshold_tokens * HEAD_SHARE))
-    tail_budget = max(0, int(threshold_tokens * TAIL_SHARE))
-    head, head_tokens = _keep_head(content, limiter, head_budget)
-    tail, tail_tokens = _keep_tail(content[len(head) :], limiter, tail_budget)
+    body_budget = budget - _framing_tokens(limiter, total_tokens, spill_path)
+    for _ in range(4):
+        if body_budget < 2:
+            break
+        head_budget = max(1, int(body_budget * HEAD_SHARE))
+        tail_budget = max(0, int(body_budget * TAIL_SHARE))
+        head, head_tokens = _keep_head(content, limiter, head_budget)
+        tail, tail_tokens = _keep_tail(content[len(head) :], limiter, tail_budget)
+        text = _compose(total_tokens, head_tokens, tail_tokens, head, tail, spill_path)
+        overflow = limiter.count_tokens(text) - budget
+        if overflow <= 0:
+            return text
+        # Re-measure rather than trust the estimate: a smaller head changes how
+        # the tail tokenizes, so each retry starts from what the block still
+        # overflows by.
+        body_budget -= max(1, overflow)
+    return limiter.truncate_text(
+        _render_header(total_tokens, 0, total_tokens, spill_path), budget
+    )
+
+
+def _framing_tokens(
+    limiter: "LLMLimiter", total_tokens: int, spill_path: str | None
+) -> int:
+    """What the marker, separators and pointer cost before any body is kept.
+
+    Measured with a placeholder head and tail so the middle marker is counted
+    too, and with the largest numbers the header can print, so the reserve
+    cannot come up short.
+    """
+    return limiter.count_tokens(_compose(total_tokens, 0, 0, "x", "x", spill_path))
+
+
+def _compose(
+    total_tokens: int,
+    head_tokens: int,
+    tail_tokens: int,
+    head: str,
+    tail: str,
+    spill_path: str | None,
+) -> str:
     kept_tokens = head_tokens + tail_tokens
     removed_tokens = max(0, total_tokens - kept_tokens)
     header = _render_header(total_tokens, kept_tokens, removed_tokens, spill_path)

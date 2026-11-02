@@ -76,6 +76,37 @@ def default_history_manager() -> "FileHistoryManager":
     return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
 
 
+def _is_older_than(path: str, cutoff: float) -> bool:
+    """Whether *path* exists and its mtime is before *cutoff*."""
+    try:
+        return os.stat(path).st_mtime < cutoff
+    except OSError:
+        return False
+
+
+def _newest_mtime(path: str) -> float:
+    """The newest mtime of *path* or a regular file directly inside it.
+
+    A missing path reports ``inf`` so a caller deciding whether to delete it
+    treats "unknown" as "keep", never as "old enough".
+    """
+    try:
+        newest = os.stat(path).st_mtime
+    except OSError:
+        return float("inf")
+    try:
+        with os.scandir(path) as entries:
+            for entry in entries:
+                try:
+                    if entry.is_file(follow_symlinks=False):
+                        newest = max(newest, entry.stat(follow_symlinks=False).st_mtime)
+                except OSError:
+                    continue
+    except OSError:
+        return newest
+    return newest
+
+
 def _references_named_in(directory: str) -> "tuple[set[str], set[str]]":
     """What the `.json` files directly in *directory* point at.
 
@@ -664,7 +695,7 @@ class FileHistoryManager(AnyHistoryManager):
         self._prune_unreferenced_archives(cutoff, current)
 
     def _prune_unreferenced_archives(self, cutoff: float, current: str) -> None:
-        """Delete archives no history refers to any more, and their lock files.
+        """Delete archives and tool-result directories nothing points at.
 
         An archive is the only copy of the text a summary dropped, so it goes
         only when nothing points at it: no history file in this directory — the
@@ -705,14 +736,30 @@ class FileHistoryManager(AnyHistoryManager):
         # Live even before its history file lands: the session being saved,
         # and any other conversation whose own save is still pending.
         live_keys = {safe_segment(name) for name in (current, *self._dirty)}
-        keep_archives = {f"{key}.md" for key in live_keys}
+        self._remove_unreferenced_archives(
+            archives_dir, archives, referenced_archives, live_keys, cutoff
+        )
+        self._remove_unreferenced_tool_results(
+            archives_dir, tool_result_dirs, referenced_tool_results, live_keys, cutoff
+        )
+
+    def _remove_unreferenced_archives(
+        self,
+        archives_dir: str,
+        archives: "list[str]",
+        referenced: "set[str]",
+        live_keys: "set[str]",
+        cutoff: float,
+    ) -> None:
+        """Unlink each archive (and its tool results) nothing references."""
+        keep = {f"{key}.md" for key in live_keys}
         for name in archives:
-            if name in referenced_archives or name in keep_archives:
+            if name in referenced or name in keep:
                 continue
             path = os.path.join(archives_dir, name)
+            if not _is_older_than(path, cutoff):
+                continue
             try:
-                if os.stat(path).st_mtime >= cutoff:
-                    continue
                 os.remove(path)
             except OSError:
                 continue
@@ -724,15 +771,29 @@ class FileHistoryManager(AnyHistoryManager):
             # them: once nothing references that archive, they are unreachable
             # too, and nothing else will ever collect them.
             shutil.rmtree(tool_results_dir(path), ignore_errors=True)
-        for name in tool_result_dirs:
+
+    def _remove_unreferenced_tool_results(
+        self,
+        archives_dir: str,
+        names: "list[str]",
+        referenced: "set[str]",
+        live_keys: "set[str]",
+        cutoff: float,
+    ) -> None:
+        """Remove each tool-result directory nothing references, when old.
+
+        The directory's own mtime is not enough to call it old: a conversation
+        reusing its directory writes a new result into it, and that does not
+        always move the directory's timestamp. The newest file inside decides,
+        so a freshly spilled result is never collected before the transcript
+        that will name it is saved.
+        """
+        for name in names:
             key = name[: -len(TOOL_RESULTS_DIR_SUFFIX)]
-            if name in referenced_tool_results or key in live_keys:
+            if name in referenced or key in live_keys:
                 continue
             path = os.path.join(archives_dir, name)
-            try:
-                if os.stat(path).st_mtime >= cutoff:
-                    continue
-            except OSError:
+            if _newest_mtime(path) >= cutoff:
                 continue
             shutil.rmtree(path, ignore_errors=True)
 
