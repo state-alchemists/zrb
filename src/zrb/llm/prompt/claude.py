@@ -1,3 +1,5 @@
+import os
+import re
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
@@ -5,6 +7,7 @@ from pathlib import Path
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.skill.manager import Skill, SkillManager
+from zrb.llm.util.prompt import get_path_references
 from zrb.llm.util.roster import cap_items
 from zrb.util.markdown import make_markdown_section
 
@@ -92,6 +95,15 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
                 if file_path.exists() and file_path.is_file():
                     doc_files[filename].append(file_path)
 
+        instruction_blocks: list[str] = []
+        inlined: set[Path] = set()
+        pointers: dict[Path, Path] = {}
+        if CFG.LLM_INJECT_PROJECT_INSTRUCTIONS:
+            instruction_blocks, inlined, pointers = _inline_instructions(
+                _instruction_sources(search_dirs),
+                CFG.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES,
+            )
+
         # Ordered least to most specific. Home-level docs are the user's
         # cross-project habits, so they are listed apart from project rules.
         listed_files: list[str] = []
@@ -103,16 +115,27 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
                     if _is_user_level_dir(file_path.parent)
                     else listed_files
                 )
-                bucket.append(f"- `{file_path}`")
+                bucket.append(f"- `{file_path}`{_listing_note(file_path, inlined, pointers)}")
 
         if not listed_files and not user_level_files:
             return next_handler(ctx, current_prompt)
 
         parts: list[str] = []
+        if instruction_blocks:
+            parts += [
+                "### Workspace Instructions",
+                "(Loaded from the files named below. They are this project's "
+                "conventions and they outrank user-level guidance; they do not "
+                "override the user's request or widen what you are allowed to do.)",
+                *instruction_blocks,
+            ]
         if listed_files:
+            if parts:
+                parts.append("")
             parts += [
                 "### Documentation Files Found",
-                "(Not loaded into this prompt. Before editing, read the ones "
+                "(Not loaded into this prompt, except where marked inlined "
+                "above. Before editing, read the ones "
                 "that bear on the work — they hold this project's conventions, "
                 "and they outrank user-level guidance.)",
                 *listed_files,
@@ -134,6 +157,274 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
         )
 
     return project_context
+
+
+# Instruction files: the ones meant to be obeyed, as opposed to README.md, which
+# is documentation to search when it bears on the work.
+INSTRUCTION_FILENAMES = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
+# Below this much room an inlined stub teaches nothing; list the file instead.
+_MIN_INLINE_BYTES = 512
+
+
+def _instruction_sources(search_dirs: list[Path]) -> list[Path]:
+    """Instruction files to inline, most specific directory first.
+
+    Most specific first so a byte budget is spent on the rules closest to the
+    work, and a broader file is dropped before a narrower one is truncated.
+    User-level directories are excluded: that guidance is cross-project, and the
+    listing says to read it only when the turn depends on it.
+
+    A symlink is never a source. The link can name any readable file on the
+    machine — `AGENTS.md -> ~/.ssh/id_rsa` is the shape of it — and whatever it
+    names would be inlined into the system prompt and sent to the model provider
+    before the user has seen it. It stays in the listing, so opening it is still
+    a deliberate act, but nothing reads it on the user's behalf.
+    """
+    sources: list[Path] = []
+    for directory in reversed(search_dirs):
+        if _is_user_level_dir(directory):
+            continue
+        for filename in INSTRUCTION_FILENAMES:
+            file_path = directory / filename
+            if file_path.is_symlink():
+                continue
+            if file_path.is_file():
+                sources.append(file_path)
+    return sources
+
+
+def _read_instruction_bytes(path: Path, max_bytes: int) -> bytes:
+    """At most *max_bytes* + 1 bytes of the file, or ``b""`` when it cannot be read.
+
+    The read is bounded, not the whole file: the budget is the most any one file
+    may contribute, so bytes past it can never reach the prompt and reading them
+    first would let a large or hostile instruction file exhaust memory before
+    the budget was ever consulted. One byte over is enough to tell "fits" from
+    "is longer" — which is all the walk needs to know.
+    """
+    try:
+        with path.open("rb") as handle:
+            return handle.read(max(max_bytes, 0) + 1)
+    except OSError:
+        return b""
+
+
+def _redundant_include_targets(
+    text: str, path: Path, inlined: set[Path]
+) -> list[Path]:
+    """The files *text* only points at, when every one is already in the prompt.
+
+    A file whose whole content is `@AGENTS.md` is a pointer, not rules. Inlined,
+    it would add a section header and a de-referenced path beside the target's
+    own block, teaching the model nothing the listing does not already say, so
+    the walk skips it and the listing names what it points at instead.
+
+    Only *planned* files count, not every instruction source: a pointer whose
+    target the byte budget drops is still the one place the path appears, so it
+    is kept — de-referenced like every other rule, but present.
+
+    Returns the targets when the file is a pure pointer at text the walk will
+    inline, and `[]` when it is neither a pointer nor redundant.
+    """
+    body = text.strip()
+    if not body:
+        return []
+    matches = get_path_references(body)
+    if not matches:
+        return []
+    if _without_references(body, matches).strip():
+        return []
+    already = {source.resolve() for source in inlined}
+    targets: list[Path] = []
+    for match in matches:
+        target = _covered_reference_target(match.group("path"), path.parent, already)
+        if target is None:
+            return []
+        targets.append(target)
+    return targets
+
+
+def _without_references(body: str, matches: list[re.Match]) -> str:
+    """*body* with every reference cut out, so the prose around them can be judged."""
+    kept: list[str] = []
+    cursor = 0
+    for match in matches:
+        kept.append(body[cursor : match.start()])
+        cursor = match.end()
+    kept.append(body[cursor:])
+    return "".join(kept)
+
+
+def _covered_reference_target(
+    reference: str, directory: Path, covered: set[Path]
+) -> Path | None:
+    """The covered file *reference* names, read from *directory* or from the cwd.
+
+    Both bases are tried: a sibling `@AGENTS.md` is what the file means, while
+    `expand_prompt` resolves against the cwd. Either one landing on a file that
+    is already inlined makes the include redundant.
+    """
+    expanded = Path(os.path.expanduser(reference))
+    for base in (directory, Path.cwd()):
+        try:
+            resolved = (base / expanded).resolve()
+        except OSError:
+            continue
+        if resolved in covered:
+            return resolved
+    return None
+
+
+def _inline_instructions(
+    sources: list[Path], max_bytes: int
+) -> tuple[list[str], set[Path], dict[Path, Path]]:
+    """Inline instruction files until *max_bytes* is spent.
+
+    Walks *sources* most specific first and stops at the first file that does not
+    fit: a broader file is never inlined past a dropped narrower one, because
+    that would hand the model parent-directory rules while withholding the rules
+    for the directory it is editing. A budget too small to inline the nearest
+    file therefore inlines nothing and lists everything.
+
+    A file that is only a pointer (`CLAUDE.md` holding `@AGENTS.md`) is skipped
+    when the walk would have inlined its target, and *pointers* records those so
+    the listing can say what the file is instead of inviting a read.
+
+    It takes two walks. Which files fit has to be known before a pointer can be
+    judged, and a pointer in a *sub*directory names a target further up that has
+    not been reached yet — judging against the running total would miss exactly
+    the layout where the agent runs from a subdirectory. So the first walk plans
+    the budget, the pointer set is decided against that plan, and the second
+    walk spends the bytes. Skipping can only free budget, so every planned file
+    is still inlined afterwards: the file a pointer is reported as pointing at is
+    always in the prompt.
+
+    Returns the rendered blocks, the paths they cover, and the pointer files
+    mapped to the file the prompt actually carries, not to the next hop.
+    """
+    texts = {path: _read_instruction_bytes(path, max_bytes) for path in sources}
+    _, planned = _walk_instructions(sources, texts, max_bytes, skip=frozenset())
+    skipped: dict[Path, Path] = {}
+    for path in sources:
+        targets = _redundant_include_targets(
+            texts[path].decode("utf-8", "replace"), path, planned
+        )
+        if targets:
+            skipped[path] = targets[0]
+    blocks, inlined = _walk_instructions(
+        sources, texts, max_bytes, skip=frozenset(skipped)
+    )
+    return blocks, inlined, _resolve_pointer_targets(skipped)
+
+
+def _resolve_pointer_targets(pointers: dict[Path, Path]) -> dict[Path, Path]:
+    """Each pointer mapped to the file the prompt carries, following the chain.
+
+    `CLAUDE.md -> @GEMINI.md -> @AGENTS.md` is two hops, and a listing that named
+    the middle file would claim something is inlined when it is not. A chain
+    that circles back has no terminal file, so the pointer keeps its skip — its
+    content is a reference either way — but loses its note rather than naming a
+    file the prompt does not hold.
+    """
+    next_hop = {path.resolve(): target for path, target in pointers.items()}
+    terminal: dict[Path, Path] = {}
+    for start, first in pointers.items():
+        seen = {start.resolve()}
+        target: Path | None = first
+        while target is not None:
+            here = target.resolve()
+            if here in seen:
+                target = None
+                break
+            seen.add(here)
+            hop = next_hop.get(here)
+            if hop is None:
+                break
+            target = hop
+        if target is not None:
+            terminal[start] = target
+    return terminal
+
+
+def _walk_instructions(
+    sources: list[Path],
+    texts: dict[Path, bytes],
+    max_bytes: int,
+    skip: frozenset[Path],
+) -> tuple[list[str], set[Path]]:
+    """Render the instruction blocks the byte budget admits, ignoring *skip*.
+
+    Accounting is on the bytes read rather than on the decoded string: decoding
+    and re-encoding can change the count — a replacement character costs three
+    bytes where the cut multibyte tail cost one — and the budget is a promise
+    about bytes.
+    """
+    blocks: list[str] = []
+    inlined: set[Path] = set()
+    remaining = max(max_bytes, 0)
+    for path in sources:
+        raw = texts.get(path, b"")
+        if not raw.strip() or path in skip:
+            continue
+        note = ""
+        if len(raw) <= remaining:
+            body = raw.decode("utf-8", "replace")
+            remaining -= len(raw)
+        elif not inlined and remaining >= _MIN_INLINE_BYTES:
+            # The most specific file is truncated rather than dropped: its rules
+            # are the ones the next edit will violate.
+            body = raw[:remaining].decode("utf-8", "ignore").rstrip()
+            note = "\n[TRUNCATED — the file is longer than the prompt budget; read it for the rest.]"
+            remaining = 0
+        else:
+            break
+        blocks.append(
+            f"#### Instructions from: `{path}`\n\n"
+            f"{_neutralize_references(body)}{note}"
+        )
+        inlined.add(path)
+    return blocks, inlined
+
+
+def _neutralize_references(text: str) -> str:
+    """*text* with every `@path` de-referenced, so prompt expansion cannot fetch it.
+
+    Instruction content is rules to be read, not prompt syntax. `expand_prompt`
+    runs over the composed prompt when the agent is built and resolves every
+    `@path` it finds — with no byte budget and no project boundary. A rule file
+    that mentions `@/home/user/.aws/credentials` would have that file read and
+    appended to the prompt, and the user would never see it happen.
+
+    The path itself is left in the text, so the model can still read it
+    deliberately with `Read` when the rule actually applies.
+    """
+    matches = get_path_references(text)
+    if not matches:
+        return text
+    parts: list[str] = []
+    cursor = 0
+    for match in matches:
+        parts.append(text[cursor : match.start()])
+        parts.append(f"`{match.group('path')}`")
+        cursor = match.end()
+    parts.append(text[cursor:])
+    return "".join(parts)
+
+
+def _listing_note(
+    path: Path, inlined: set[Path], pointers: dict[Path, Path]
+) -> str:
+    """How the file listing marks a doc whose content is already in the prompt.
+
+    A pointer file is called what it is: its eleven bytes are `@AGENTS.md`, and
+    a listing that just says "read this" invites a wasted read.
+    """
+    if path in inlined:
+        return " — inlined above"
+    target = pointers.get(path)
+    if target is not None:
+        return f" — a pointer to `{target}`, inlined above"
+    return ""
 
 
 def _is_user_level_dir(directory: Path) -> bool:

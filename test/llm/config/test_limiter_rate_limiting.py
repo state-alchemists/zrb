@@ -5,6 +5,7 @@ from unittest.mock import patch
 import pytest
 from pydantic_ai.messages import ModelRequest, UserPromptPart
 
+from zrb.config.config import CFG
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
 
 
@@ -333,6 +334,7 @@ class TestLLMLimiterTokenCounting:
 def test_acquire_admits_a_request_over_the_whole_minute_budget():
     # It can never fit; it waits for an empty window, then goes.
     limiter = LLMLimiter()
+    limiter.pacing_enabled = True
     limiter.max_token_per_minute = 100
     limiter.throttle_check_interval = 0.01
 
@@ -343,6 +345,7 @@ def test_acquire_admits_a_request_over_the_whole_minute_budget():
 
 def test_acquire_waits_out_the_window_before_an_oversized_request():
     limiter = LLMLimiter()
+    limiter.pacing_enabled = True
     limiter.max_token_per_minute = 100
     limiter.throttle_check_interval = 0.01
     limiter.token_log.append((time.time(), 10))
@@ -353,3 +356,25 @@ def test_acquire_waits_out_the_window_before_an_oversized_request():
     with pytest.raises(TimeoutError):
         asyncio.run(run())
     assert len(limiter.request_log) == 0
+
+
+def test_acquire_is_a_no_op_when_pacing_is_off():
+    "Pacing off: an otherwise-blocking budget neither waits nor records."
+    limiter = LLMLimiter()
+    limiter.pacing_enabled = False
+    limiter.max_request_per_minute = 0
+    limiter.max_token_per_minute = 0
+
+    asyncio.run(asyncio.wait_for(limiter.acquire("hello"), timeout=1))
+
+    assert len(limiter.request_log) == 0
+    assert len(limiter.token_log) == 0
+
+
+def test_pacing_defaults_to_off(monkeypatch):
+    "A fresh limiter paces nothing unless the deployment asks it to."
+    monkeypatch.setattr(CFG, "LLM_ENABLE_RATE_LIMIT", False, raising=False)
+    assert LLMLimiter().pacing_enabled is False
+
+    monkeypatch.setattr(CFG, "LLM_ENABLE_RATE_LIMIT", True, raising=False)
+    assert LLMLimiter().pacing_enabled is True

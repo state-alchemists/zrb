@@ -137,6 +137,7 @@ async def test_llm_limiter_fit_context_window():
 async def test_llm_limiter_acquire():
     "Test acquire proceeds immediately when under limits."
     limiter = LLMLimiter()
+    limiter.pacing_enabled = True
     limiter.max_request_per_minute = 100
     limiter.max_token_per_minute = 1000
 
@@ -149,6 +150,7 @@ async def test_llm_limiter_acquire():
 async def test_llm_limiter_zero_request_limit_blocks_first_request():
     "A zero request budget blocks the first request."
     limiter = LLMLimiter()
+    limiter.pacing_enabled = True
     limiter.max_request_per_minute = 0
     limiter.max_token_per_minute = 1000
     limiter.throttle_check_interval = 0.01
@@ -161,6 +163,7 @@ async def test_llm_limiter_zero_request_limit_blocks_first_request():
 async def test_llm_limiter_zero_token_limit_blocks_positive_tokens():
     "B10: a token budget of 0 must reject any request that needs tokens."
     limiter = LLMLimiter()
+    limiter.pacing_enabled = True
     limiter.max_request_per_minute = 100
     limiter.max_token_per_minute = 0
     limiter.throttle_check_interval = 0.01
@@ -394,6 +397,7 @@ async def test_llm_limiter_acquire_behavior():
     import time
 
     limiter = LLMLimiter()
+    limiter.pacing_enabled = True
     limiter.max_request_per_minute = 100
     limiter.max_token_per_minute = 10000
 

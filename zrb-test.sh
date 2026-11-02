@@ -5,6 +5,23 @@ if [ "$#" -eq 0 ] && [ -n "$TEST" ]; then
     set -- "$TEST"
 fi
 
+# `./zrb-test.sh eval` runs the paid agent evaluation: 16 fixture repositories,
+# each one a real `zrb llm chat` turn scored by behavior (does the module import,
+# does the suite pass) rather than by prose. It is opt-in because it spends
+# money and time, so it is its own mode instead of part of the default run:
+# no coverage, no pyright, one worker (the model API is the bottleneck).
+# Model selection: `LLM_EVAL_MODEL=deepseek:deepseek-chat ./zrb-test.sh eval`.
+# Extra args reach pytest, e.g. `./zrb-test.sh eval -k rename`.
+if [ "$#" -gt 0 ] && [ "$1" = "eval" ]; then
+    shift
+    LLM_EVAL_RUN=1 PYTEST_XDIST_AUTO_NUM_WORKERS=1 exec pytest \
+        -n 0 \
+        -q \
+        -p no:cacheprovider \
+        test/eval \
+        "$@"
+fi
+
 # `./zrb-test.sh ratchet` is the quick loop to use while changing code: the
 # architecture ratchets are ordinary pytest tests under test/architecture/, so
 # this is a name for a path, not a second mode. A scoped run already skips

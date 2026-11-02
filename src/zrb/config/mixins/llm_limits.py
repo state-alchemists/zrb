@@ -10,6 +10,12 @@ class LLMLimitsMixin:
     ENV_PREFIX: str
 
     def __init__(self):
+        # Off by default: the governor charges the whole history to a per-minute
+        # budget, so a 100k-token context is most of a 128k window and a long
+        # session degrades to about one step per minute. Providers already
+        # back-pressure with 429s, and the client retries handle that. Turn it on
+        # for a free tier that needs the client to pace itself.
+        self.DEFAULT_LLM_ENABLE_RATE_LIMIT: str = "off"
         self.DEFAULT_LLM_MAX_REQUEST_PER_MINUTE: str = "60"
         self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE: str = "128000"
         self.DEFAULT_LLM_MAX_TOKEN_PER_REQUEST: str = "128000"
@@ -64,11 +70,27 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_ENABLE_READ_IMAGE: str = "on"
         super().__init__()
 
+    LLM_ENABLE_RATE_LIMIT = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "When on, the agent paces itself against LLM_MAX_REQUEST_PER_MINUTE "
+            "and LLM_MAX_TOKEN_PER_MINUTE before every model request.\n\n"
+            "Off by default. Each request is charged the whole context it sends, "
+            "so a long session against a 128k-token budget waits most of a minute "
+            "between steps while providers already return 429s that the retry "
+            "path handles. Turn it on for a free tier that needs client-side "
+            "pacing. The per-request cap (LLM_MAX_TOKEN_PER_REQUEST) still trims "
+            "the context to fit the window either way."
+        ),
+    )
+
     LLM_MAX_REQUEST_PER_MINUTE = EnvField(
         int,
         aliases=["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"],
         doc=(
-            "Maximum number of LLM requests allowed per minute.\n\n"
+            "Maximum number of LLM requests allowed per minute when "
+            "LLM_ENABLE_RATE_LIMIT is on.\n\n"
             "Default is conservative to accommodate free-tier LLM providers."
         ),
     )
@@ -79,7 +101,9 @@ class LLMLimitsMixin:
         aliases=["LLM_MAX_TOKEN_PER_MINUTE", "LLM_MAX_TOKENS_PER_MINUTE"],
         write_key="LLM_MAX_TOKENS_PER_MINUTE",
         doc=(
-            "Maximum number of LLM tokens allowed per minute.\n\n"
+            "Maximum number of LLM tokens allowed per minute when "
+            "LLM_ENABLE_RATE_LIMIT is on. The whole context a request sends "
+            "counts against it.\n\n"
             "Default is conservative to accommodate free-tier LLM providers."
         ),
     )

@@ -132,6 +132,7 @@ class TestLLMLimiterAcquireWithNotifier:
     async def test_acquire_with_notifier_when_rate_limited(self):
         "Test acquire calls notifier when rate limited."
         limiter = LLMLimiter()
+        limiter.pacing_enabled = True
         limiter.max_request_per_minute = 1
         limiter.max_token_per_minute = 10
         limiter.throttle_check_interval = 0.01
@@ -155,6 +156,7 @@ class TestLLMLimiterAcquireWithNotifier:
     async def test_acquire_notifier_clear_after_limit_lifts(self):
         'Once the rate limit lifts, the notifier receives a final clear ("\\n").'
         limiter = LLMLimiter()
+        limiter.pacing_enabled = True
         limiter.max_request_per_minute = 1
         limiter.max_token_per_minute = 10000
         limiter.throttle_check_interval = 0.01
@@ -182,6 +184,7 @@ class TestLLMLimiterAcquireWithNotifier:
     async def test_acquire_notifier_called_once_with_clear(self):
         "Test notifier receives clear message after rate limit clears."
         limiter = LLMLimiter()
+        limiter.pacing_enabled = True
         limiter.max_request_per_minute = 1
         limiter.max_token_per_minute = 10000
         limiter.throttle_check_interval = 0.01

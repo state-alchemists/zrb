@@ -56,6 +56,8 @@ Pass nothing for the full suite, or a file / directory / `file::test_function` p
 
 The loop to use while changing code is `./zrb-test.sh ratchet`: a name for `test/architecture`, about ninety seconds, running every fitness test without pyright or the coverage floor. A convention you are about to break is reported there long before the full suite finishes.
 
+`./zrb-test.sh eval` is the other side of that coin: 16 fixture repositories, each one a real `zrb llm chat` turn judged by behavior — does the module import, does the suite pass, did an out-of-scope file change. It is opt-in (it spends money and minutes) and it is the only suite here that measures the agent's *results* rather than its components. Use it before and after a prompt, tool, or loop change; `LLM_EVAL_MODEL=deepseek:deepseek-chat` picks the model it runs. Details: [`test/eval/README.md`](../../test/eval/README.md).
+
 `zrb-test.sh` runs three steps, in this order:
 
 | Step | What it checks | If it fails |

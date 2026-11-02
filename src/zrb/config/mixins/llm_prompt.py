@@ -35,6 +35,13 @@ class LLMPromptMixin:
         # on demand via SearchSkill / SearchAgent.
         self.DEFAULT_LLM_MAX_SKILLS_IN_CATALOG: str = "10"
         self.DEFAULT_LLM_MAX_AGENTS_IN_ROSTER: str = "10"
+        # On: a project's rules are worth the tokens. A listed path is only a
+        # promise the model will read it, and a missed convention costs a
+        # correction later. Bounded by the byte budget below.
+        self.DEFAULT_LLM_INJECT_PROJECT_INSTRUCTIONS: str = "on"
+        # 24KB: room for a substantial AGENTS.md, small enough that a runaway
+        # one cannot crowd out the conversation.
+        self.DEFAULT_LLM_PROJECT_INSTRUCTIONS_MAX_BYTES: str = "24000"
         super().__init__()
 
     LLM_PROMPT_DIR = EnvField(
@@ -65,6 +72,32 @@ class LLMPromptMixin:
         comma_list,
         serialize=_include_sections_serialize,
         doc="Order-sensitive list of prompt sections to include (comma-separated).",
+    )
+
+    LLM_INJECT_PROJECT_INSTRUCTIONS = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "When on, the project's AGENTS.md / CLAUDE.md / GEMINI.md content is "
+            "inlined into the system prompt instead of only being listed for the "
+            "model to read.\n\n"
+            "The nearest file to the working directory is inlined first and the "
+            "byte budget is spent on it before broader ones. On by default: a "
+            "listed path is a promise the model may not keep, and a convention "
+            "missed on the first edit costs a correction later. Turn it off when "
+            "the files are large enough that the prompt should only point at them."
+        ),
+    )
+
+    LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = EnvField(
+        int,
+        doc=(
+            "Byte budget for inlined project instructions (see "
+            "LLM_INJECT_PROJECT_INSTRUCTIONS). The most specific file is "
+            "truncated to fit rather than dropped; inlining stops at the first "
+            "file that does not fit, so broader files stay listed by path only — "
+            "including when the budget is too small for the nearest file."
+        ),
     )
 
     LLM_PROMPT = EnvField(

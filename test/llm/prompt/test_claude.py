@@ -242,23 +242,6 @@ def test_create_project_context_prompt_base_prompt_preserved(tmp_path):
     assert "base prompt" in result
 
 
-def test_create_project_context_prompt_all_files_listed_without_read(tmp_path):
-    "All found files are listed; content is not loaded."
-    for name in ("AGENTS.md", "CLAUDE.md"):
-        (tmp_path / name).write_text("Some content here")
-
-    handler = create_project_context_prompt()
-    ctx = _make_ctx()
-
-    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
-        result = handler(ctx, "base prompt", _identity_next)
-
-    assert "Some content here" not in result
-
-    assert "AGENTS.md" in result
-    assert "CLAUDE.md" in result
-
-
 def test_get_search_directories_includes_cwd(tmp_path):
     "get_search_directories is exercised indirectly: with a real AGENTS.md in"
     handler = create_project_context_prompt()
