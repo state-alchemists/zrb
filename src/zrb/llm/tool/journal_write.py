@@ -633,6 +633,21 @@ def supersede_journal_note(
 supersede_journal_note.__name__ = "SupersedeJournalNote"
 
 
+def _scope_for(category: str, repo: str | None, previous: Note | None) -> str:
+    """The `repo:` tag the note will store.
+
+    An explicit argument wins, and `global` there is how a caller opts out. A
+    revision that names none keeps the tag the note already has: a note is
+    revised from wherever the reader happens to be, and re-deriving the scope
+    from that would move a note about one repository into another for having been
+    corrected there. Only a new note takes the repository in hand."""
+    if repo:
+        return scope_argument(repo)
+    if previous is not None:
+        return previous.repo
+    return default_scope(category, repo_of(os.getcwd()))
+
+
 def _write_note_locked(
     root: str,
     category: str,
@@ -659,18 +674,11 @@ def _write_note_locked(
     check_slug(slug)
     condition = check_applies_when(applies_when)
     check_finding(finding)
-    # An explicit tag wins; `global` as an argument is how a caller opts out.
-    # Otherwise a note about a place takes the place it was written in, and one
-    # about a person stays unscoped and travels with them.
-    scope = (
-        scope_argument(repo)
-        if repo
-        else default_scope(category, repo_of(os.getcwd()))
-    )
     notes = _load_notes(root)
     note_path = os.path.join(root, category, f"{slug}.md")
     note_rel = relative(note_path, root)
     previous = next((note for note in notes if note.rel == note_rel), None)
+    scope = _scope_for(category, repo, previous)
     line, is_pinned = _hud_state(hud_line, pinned, previous, notes, note_rel)
     targets = _resolve_links(root, links or [])
     # The keywords the note will *store*, not the ones the caller passed: a

@@ -67,6 +67,8 @@ Compressing rather than hiding is the point. Working in one repository must not 
 
 The tag is the repository's directory name, read with `git rev-parse --git-common-dir`, so every worktree of one repository answers with the repository rather than a branch name. A submodule's common directory is `<super>/.git/modules/<name>`, which *is* the repository: only a directory literally named `.git` is a container, and only its parent names the repository. Outside any checkout nothing is filtered, because there is nothing to compare a tag against.
 
+A revision without a `repo` argument keeps the tag the note already has. A note is corrected from wherever the reader happens to be, and re-deriving the scope from that would move a note about one repository into another for having been fixed there; only a new note takes the repository in hand, and an explicit argument still moves it.
+
 The digest sits outside the index cap, beside the wrapper rather than inside the index: the cap ranks lines it recognises and would drop an unknown section first — exactly the amnesia the section exists to prevent.
 
 Measured on the real journal (317 notes, every work-scoped note stamped `zrb`, `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` at 3,600):

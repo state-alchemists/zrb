@@ -240,6 +240,39 @@ def test_a_note_about_the_user_carries_no_tag(writable_journal):
     assert "repo:" not in body
 
 
+def test_a_revision_keeps_the_repository_the_note_was_written_in(writable_journal):
+    """A note is corrected from wherever the reader is, and that is not a move.
+
+    Re-deriving the scope on a revision would drop a note about zrb out of every
+    zrb session because it happened to be corrected from another checkout."""
+    _write("technical", "build-cache")
+
+    with patch("zrb.llm.tool.journal_write.repo_of", return_value="soda"):
+        _write("technical", "build-cache")
+
+    body = _write_note(writable_journal, "technical", "build-cache")
+    assert "repo: zrb" in body
+
+
+def test_a_new_note_from_another_repository_takes_that_repository(writable_journal):
+    """The rule the revision case must not swallow: a brand-new note from soda is
+    about soda."""
+    with patch("zrb.llm.tool.journal_write.repo_of", return_value="soda"):
+        _write("technical", "new-topic")
+
+    body = _write_note(writable_journal, "technical", "new-topic")
+    assert "repo: soda" in body
+
+
+def test_an_explicit_repository_moves_a_note(writable_journal):
+    """Saying so is allowed: an argument beats both the old tag and the default."""
+    _write("technical", "build-cache")
+    _write("technical", "build-cache", repo="soda")
+
+    body = _write_note(writable_journal, "technical", "build-cache")
+    assert "repo: soda" in body
+
+
 def test_an_explicit_repository_wins(writable_journal):
     _write("technical", "retries", repo="Soda Local")
     body = _write_note(writable_journal, "technical", "retries")
