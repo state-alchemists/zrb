@@ -718,8 +718,8 @@ A weekend is two day files: read only those, and Friday's handover — the thing
 Monday session needs most — is invisible until someone writes a new one."""
 
 _HANDOVER_HEADING = "## handover"
-_IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
-_RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
+_IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)\s*\.?\s*$", re.IGNORECASE)
+_RANKING = re.compile(r"\s*·\s*imp\s*\d+\s*\.?\s*$", re.IGNORECASE)
 _PROJECT = re.compile(r"·\s*project:([\w.-]+)", re.IGNORECASE)
 _PROJECT_KEY = re.compile(r"\s*·\s*project:[\w.-]+(\s*\.)?", re.IGNORECASE)
 _FILES_MARKER = re.compile(r"\.\s+Files:", re.IGNORECASE)
@@ -750,13 +750,16 @@ def _project(entry: str) -> str:
     """The `· project:x` a day line carries, lower-cased, or ``""``.
 
     Read from the line's metadata suffix, never from the summary: a summary that
-    writes `· project:zrb` is talking about the format, not naming its own
-    project. A tag is read with dots allowed, because a line written before the
-    writer normalized them may carry one (`project:soda.local`), and the tag's own
-    final period is the sentence's, not the name's: the greedy capture takes it
-    and `rstrip` gives it back."""
+    writes `project:zrb` is talking about the format, not naming its own project.
+    A line with no suffix — one written before the writer appended one — names no
+    project at all, because the field did not exist then either.
+
+    A tag is read with dots allowed, because a line written before the writer
+    normalized them may carry one (`project:soda.local`), and the tag's own final
+    period is the sentence's, not the name's: the greedy capture takes it and
+    `rstrip` gives it back."""
     _, suffix = _split_suffix(entry)
-    found = _PROJECT.search(suffix or entry)
+    found = _PROJECT.search(suffix)
     return found.group(1).rstrip(".").lower() if found else ""
 
 
@@ -764,12 +767,12 @@ def _without_keys(entry: str) -> str:
     """*entry* without what ranks or groups it: `· imp N` and `· project:x`.
 
     Only the metadata suffix is read, for the same reason: words that look like a
-    key inside the summary are the summary's own text and stay."""
+    key inside the summary are the summary's own text and stay. The suffix keeps
+    its own leading period, so the two halves join without adding one."""
     summary, suffix = _split_suffix(entry)
     if not suffix:
         return _without_importance(_PROJECT_KEY.sub("", summary)).strip(" ·")
-    cleaned = _without_importance(_PROJECT_KEY.sub("", suffix)).strip(" ·")
-    return f"{summary}. {cleaned}".strip()
+    return f"{summary}{_without_importance(_PROJECT_KEY.sub('', suffix))}".strip()
 
 
 def _day_file(day: date) -> str:
@@ -816,10 +819,11 @@ def _day_entries(text: str) -> list[str]:
 def _importance(entry: str) -> int:
     """The `· imp N` a day line carries, or 0 when it carries none.
 
-    Read from the metadata suffix, so a summary that mentions a rank cannot lift
-    its own line: the week's best line is chosen by what the writer recorded."""
-    _, suffix = _split_suffix(entry)
-    found = _IMPORTANCE.search(suffix or entry)
+    Anchored to the end, where the writer puts it: a summary that mentions a rank
+    in passing cannot lift its own line to the week's first place, and a line
+    written before the `Files:` suffix existed — `09:00 · home · … · imp 5` — still
+    reads, because its rank ends the line too."""
+    found = _IMPORTANCE.search(entry)
     return int(found.group(1)) if found else 0
 
 

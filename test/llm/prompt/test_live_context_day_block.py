@@ -170,6 +170,44 @@ def test_a_summary_that_mentions_the_format_is_not_read_as_metadata(tmp_path):
     assert "— other:" not in week, "the summary does not name the day's project"
 
 
+def test_today_keeps_one_period_before_the_files_it_reports(tmp_path):
+    """The suffix owns the period that ends the summary, so joining adds none.
+
+    `_without_keys` rebuilds a line from its two halves; a version that added the
+    period itself rendered every today line as `fixed the retry bug. . Files: —.`.
+    """
+    _write_day(
+        tmp_path,
+        TODAY,
+        "# today\n\n- 09:00 — fixed the retry bug. Files: src/a.py.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert "fixed the retry bug. Files: src/a.py." in result
+    assert ". . Files:" not in result
+
+
+def test_a_line_written_before_the_suffix_names_no_project(tmp_path):
+    """A line with no `. Files: …` suffix predates the project field too.
+
+    Its own words can mention one — `discussed the project:zrb migration` — and
+    reading that as a tag would label the day after a subject it never had."""
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n- 09:00 — discussed the project:zrb migration. Nothing else.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert "— discussed the project:zrb migration" in week
+    assert "— zrb:" not in week
+
+
 def test_the_week_names_each_day_by_what_it_was_mostly_about(tmp_path):
     """Yesterday's theme, not its most important line.
 
@@ -182,10 +220,10 @@ def test_the_week_names_each_day_by_what_it_was_mostly_about(tmp_path):
         tmp_path,
         YESTERDAY,
         "# yesterday\n\n"
-        "- 09:00 · home · brought the stack up · project:soda · imp 4\n"
-        "- 10:00 · home · registered the runner · project:soda · imp 5\n"
-        "- 11:00 · home · accepted the EULA · project:soda · imp 4\n"
-        "- 22:45 · home · fixed the inlining · project:zrb · imp 8\n",
+        "- 09:00 — brought the stack up. Files: infra/. · project:soda · imp 4\n"
+        "- 10:00 — registered the runner. Files: runner.toml · project:soda · imp 5\n"
+        "- 11:00 — accepted the EULA. Files: — · project:soda · imp 4\n"
+        "- 22:45 — fixed the inlining. Files: src/a.py · project:zrb · imp 8\n",
     )
 
     result = _render(tmp_path)
