@@ -522,8 +522,8 @@ def _adopt_delegation(
     to `GetDelegationResult`. Its buffered transcript goes with it, so what the
     sub-agent has already printed stays readable there.
     """
-    # lazy: circular — delegate_background imports this module's BufferedUI and
-    # run_agent_task, so this direction has to stay deferred.
+    # lazy: circular — delegate_background imports this module's BufferedUI, so
+    # this direction has to stay deferred.
     from zrb.llm.tool.delegate_background import (
         get_background_registry,
         register_background_handle,

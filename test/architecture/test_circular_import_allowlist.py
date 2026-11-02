@@ -27,9 +27,11 @@ CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
     # zrb.llm.agent is a lazy facade; its registration adapter resolves
     # engine pieces on first call to avoid pulling pydantic_ai at import time.
     "llm/agent/__init__.py": 2,
-    # The background registry imports `delegate`'s `BufferedUI`; `delegate` defers
-    # the calls back into it — one where a send-now cut hands a running delegation
-    # over, one where `background=True` starts a run detached.
+    # The background registry borrows `delegate`'s `BufferedUI`, which the tool
+    # layer may only reach through that re-export (the upward edge the layering
+    # ratchet tracks), so `delegate` defers the calls back into it: one where a
+    # send-now cut hands a running delegation over, one where `background=True`
+    # starts a run detached.
     "llm/tool/delegate.py": 2,
 }
 
