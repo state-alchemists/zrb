@@ -20,7 +20,7 @@ from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 from html import escape
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -845,18 +845,27 @@ def _handover(text: str) -> str:
     return "\n".join(body).strip()
 
 
-def _newest_handover(current: date) -> str:
-    """The most recent handover within ``HANDOVER_LOOKBACK_DAYS``, or ``""``.
+class Handover(NamedTuple):
+    """What the session that left said, and the day it said it."""
+
+    day: date
+    text: str
+
+
+def _newest_handover(current: date) -> Handover | None:
+    """The most recent handover within ``HANDOVER_LOOKBACK_DAYS``, or ``None``.
 
     Newest first, and it stops at the first one it finds: a handover is what the
     agent that left said, so an older one is always the less current answer.
-    """
+
+    The day travels with the text because the lookback is a week long, and a
+    handover from six days ago shown without its date reads as tonight's."""
     for days_back in range(HANDOVER_LOOKBACK_DAYS):
         day = current - timedelta(days=days_back)
         handover = _handover(_read_day(_day_file(day)))
         if handover:
-            return handover
-    return ""
+            return Handover(day, handover)
+    return None
 
 
 def _top_entries(entries: list[str], count: int) -> list[str]:
@@ -1047,7 +1056,18 @@ def render_day_block(today: date | None = None) -> str | None:
         return None
     sections: list[str] = []
     if handover:
-        sections.append("## From the last me, to the next me\n\n" + handover)
+        sections.append(
+            f"## From the last me, to the next me ({handover.day.isoformat()})\n\n"
+            + handover.text
+        )
+    else:
+        # A session that ended without one leaves no trace of what it was doing.
+        # Saying so is what turns a silent hole into a fact the next reader can
+        # act on: ask, rather than assume the thread carried on.
+        sections.append(
+            "## From the last me, to the next me\n\n"
+            "_None was left. The rest of this block is all there is._"
+        )
     if week_lines:
         sections.append("## This week\n\n" + "\n".join(week_lines))
     today_entries = _top_entries(_day_entries(today_text), DAY_LINE_COUNT)
