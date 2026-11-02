@@ -6,12 +6,11 @@ from typing import TYPE_CHECKING, Any
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.common import safe_copy_result
 from zrb.llm.summarizer.tool_result_pruner import (
-    MIN_PRUNE_TOKENS,
-    effective_prune_budget,
     is_pruned_tool_result,
     prune_tool_result_content,
     spilled_path_of,
     spill_tool_result,
+    tool_result_spill_dir,
 )
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.cli.style import stylize_warning
@@ -112,27 +111,19 @@ async def process_tool_return_part(
     content = strip_ansi(content)
     content_tokens = limiter.count_tokens(content)
 
-    # Content that looks already processed is left alone only while it fits the
-    # budget it was built under. Text is not authoritative: a tool can echo a
-    # valid marker before a large payload, and that payload must still be
-    # pruned. A genuine block can be over the configured threshold when a long
-    # pointer raised the floor, so its own path is used to measure that floor
-    # again rather than reprocessing it every pass.
+    # A block this module wrote is recognised by its marker *and* by the
+    # spilled file it names, in this conversation's directory. That check does
+    # not depend on the threshold: a long pointer can make a genuine block
+    # larger than the configured budget, and reprocessing it would overwrite
+    # the verbatim file with the pruned retelling. Text alone is not enough —
+    # a tool can echo a valid header before a large payload — so the file has
+    # to be there.
     if is_pruned_tool_result(content):
-        # Only a pointer to a file that exists may raise the floor. A tool can
-        # write any path into its own output; letting that text grow the budget
-        # would let it buy itself a pass.
-        block_path = spilled_path_of(content)
-        if block_path is not None and not os.path.isfile(block_path):
-            block_path = None
-        block_budget = effective_prune_budget(
-            limiter, content_tokens, message_threshold, block_path
-        )
-        if content_tokens <= block_budget:
+        if _is_expected_spill(spilled_path_of(content), session_name, history_dir):
             return part, False
-    elif content_tokens <= max(message_threshold, MIN_PRUNE_TOKENS) and (
-        content.startswith(SUMMARY_PREFIX) or content.startswith(TRUNCATED_PREFIX)
-    ):
+    elif content.startswith(SUMMARY_PREFIX) or content.startswith(TRUNCATED_PREFIX):
+        # Written by an older zrb; its text is already condensed, and pruning
+        # it again would replace a summary with a summary of a summary.
         return part, False
     if content_tokens <= message_threshold:
         return part, False
@@ -157,6 +148,24 @@ async def process_tool_return_part(
         spill_path=spill_path,
     )
     return replace(part, content=pruned), True
+
+
+def _is_expected_spill(
+    path: str | None, session_name: str | None, history_dir: str | None
+) -> bool:
+    """Whether *path* is a live file in this conversation's tool-result dir.
+
+    `realpath` on both sides so a platform's symlinked temp root does not make
+    a real file look foreign.
+    """
+    if not path:
+        return False
+    try:
+        expected = os.path.realpath(tool_result_spill_dir(session_name, history_dir))
+        actual = os.path.realpath(path)
+    except OSError:
+        return False
+    return os.path.dirname(actual) == expected and os.path.isfile(actual)
 
 
 def _content_as_text(content: Any) -> str:

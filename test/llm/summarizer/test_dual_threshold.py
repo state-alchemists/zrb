@@ -308,3 +308,54 @@ async def test_a_forged_pointer_cannot_buy_a_skip(tmp_path):
 
     assert modified
     assert fake_path not in result.content
+
+
+@pytest.mark.asyncio
+async def test_a_long_pointer_block_is_not_repruned_nor_re_spilled(tmp_path):
+    """The replay check does not depend on the threshold, so a block larger
+    than a small configured budget is still recognised — and the verbatim file
+    keeps the original output, not a retelling of the block."""
+    limiter = MockLimiter()
+    deep = tmp_path / ("deep-" + "y" * 120)
+    deep.mkdir()
+    original = "E" * 5000
+    part = ToolReturnPart(content=original)
+    kwargs = dict(
+        message_threshold=1,
+        insanity_threshold=1,
+        session_name="session",
+        history_dir=str(deep),
+    )
+
+    first, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, **kwargs
+    )
+    assert modified
+    spill_path = first.content.split("`")[1]
+    assert os.path.exists(spill_path)
+    assert limiter.count_tokens(first.content) > 1
+
+    second, modified_again = await process_tool_return_part(
+        ToolReturnPart(content=first.content), MagicMock(), limiter, **kwargs
+    )
+
+    assert not modified_again
+    assert second.content == first.content
+    with open(spill_path, encoding="utf-8") as stream:
+        assert stream.read() == original
+
+
+@pytest.mark.asyncio
+async def test_a_legacy_summary_is_left_alone_whatever_its_size():
+    """Older zrb wrote `SUMMARY OF TOOL RESULT:` blocks; they are already
+    condensed, and re-pruning one would summarize a summary."""
+    limiter = MockLimiter()
+    content = "SUMMARY OF TOOL RESULT:\n" + "S" * 5000
+    part = ToolReturnPart(content=content)
+
+    result, modified = await process_tool_return_part(
+        part, MagicMock(), limiter, message_threshold=32, insanity_threshold=64
+    )
+
+    assert not modified
+    assert result.content == content
