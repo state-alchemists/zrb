@@ -147,6 +147,29 @@ def test_a_project_tag_without_importance_keeps_the_period_out_of_the_tag(tmp_pa
     assert "zrb.:" not in week
 
 
+def test_a_summary_that_mentions_the_format_is_not_read_as_metadata(tmp_path):
+    """A summary is free text, so it can spell the fields the writer appends.
+
+    Split at the first ` Files: ` and the day read `explained`; search the whole
+    line for a project and the summary's own words named the day. Only the
+    writer's suffix is metadata, and the writer's is always last."""
+    _write_day(
+        tmp_path,
+        YESTERDAY,
+        "# yesterday\n\n"
+        "- 08:00 — explained Files: syntax · project:other to him. "
+        "Files: — · project:zrb · imp 6.\n"
+        "- 09:00 — a quieter line. Files: — · project:zrb · imp 2.\n",
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    week = result.split("## This week", 1)[1]
+    assert "— zrb: explained Files: syntax · project:other to him" in week
+    assert "— other:" not in week, "the summary does not name the day's project"
+
+
 def test_the_week_names_each_day_by_what_it_was_mostly_about(tmp_path):
     """Yesterday's theme, not its most important line.
 

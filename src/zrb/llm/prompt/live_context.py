@@ -722,7 +722,23 @@ _IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)", re.IGNORECASE)
 _RANKING = re.compile(r"\s*·\s*imp\s*\d+(\s*\.)?", re.IGNORECASE)
 _PROJECT = re.compile(r"·\s*project:([\w.-]+)", re.IGNORECASE)
 _PROJECT_KEY = re.compile(r"\s*·\s*project:[\w.-]+(\s*\.)?", re.IGNORECASE)
+_FILES_MARKER = re.compile(r"\.\s+Files:", re.IGNORECASE)
 _STAMP = re.compile(r"^\d{1,2}:\d{2}\s*(?:—|·)\s*")
+
+
+def _split_suffix(entry: str) -> tuple[str, str]:
+    """*entry* split into what it says and the `. Files: …` suffix behind it.
+
+    Split at the last marker, because the writer appends exactly one: an earlier
+    one is the summary talking about the format (`explained Files: syntax`), and
+    treating it as metadata would cut the line where the sentence is. A line with
+    no suffix at all is all summary — nothing older than the suffix is lost."""
+    start = max(
+        (found.start() for found in _FILES_MARKER.finditer(entry)), default=-1
+    )
+    if start < 0:
+        return entry, ""
+    return entry[:start], entry[start:]
 
 
 def _without_importance(entry: str) -> str:
@@ -733,17 +749,27 @@ def _without_importance(entry: str) -> str:
 def _project(entry: str) -> str:
     """The `· project:x` a day line carries, lower-cased, or ``""``.
 
-    A tag is read with dots allowed, because a line written before the writer
-    normalized them may carry one (`project:soda.local`), and the tag's own final
-    period is the sentence's, not the name's: the greedy capture takes it and
-    `rstrip` gives it back."""
-    found = _PROJECT.search(entry)
+    Read from the line's metadata suffix, never from the summary: a summary that
+    writes `· project:zrb` is talking about the format, not naming its own
+    project. A tag is read with dots allowed, because a line written before the
+    writer normalized them may carry one (`project:soda.local`), and the tag's own
+    final period is the sentence's, not the name's: the greedy capture takes it
+    and `rstrip` gives it back."""
+    _, suffix = _split_suffix(entry)
+    found = _PROJECT.search(suffix or entry)
     return found.group(1).rstrip(".").lower() if found else ""
 
 
 def _without_keys(entry: str) -> str:
-    """*entry* without what ranks or groups it: `· imp N` and `· project:x`."""
-    return _without_importance(_PROJECT_KEY.sub("", entry)).strip(" ·")
+    """*entry* without what ranks or groups it: `· imp N` and `· project:x`.
+
+    Only the metadata suffix is read, for the same reason: words that look like a
+    key inside the summary are the summary's own text and stay."""
+    summary, suffix = _split_suffix(entry)
+    if not suffix:
+        return _without_importance(_PROJECT_KEY.sub("", summary)).strip(" ·")
+    cleaned = _without_importance(_PROJECT_KEY.sub("", suffix)).strip(" ·")
+    return f"{summary}. {cleaned}".strip()
 
 
 def _day_file(day: date) -> str:
@@ -788,8 +814,12 @@ def _day_entries(text: str) -> list[str]:
 
 
 def _importance(entry: str) -> int:
-    """The `· imp N` a day line carries, or 0 when it carries none."""
-    found = _IMPORTANCE.search(entry)
+    """The `· imp N` a day line carries, or 0 when it carries none.
+
+    Read from the metadata suffix, so a summary that mentions a rank cannot lift
+    its own line: the week's best line is chosen by what the writer recorded."""
+    _, suffix = _split_suffix(entry)
+    found = _IMPORTANCE.search(suffix or entry)
     return int(found.group(1)) if found else 0
 
 
@@ -877,8 +907,11 @@ def _shorten(text: str, limit: int) -> str:
 
 def _week_text(entry: str) -> str:
     """*entry* at week distance: no clock, no ranking keys, no list of paths."""
-    text = _without_keys(_STAMP.sub("", entry))
-    return _shorten(text.split(" Files: ")[0].strip(" .—"), WEEK_LINE_MAX_CHARS)
+    text = _STAMP.sub("", entry)
+    summary, suffix = _split_suffix(text)
+    if suffix:
+        return _shorten(summary.strip(" .—"), WEEK_LINE_MAX_CHARS)
+    return _shorten(_without_keys(summary).strip(" .—"), WEEK_LINE_MAX_CHARS)
 
 
 def _week_line(day: date, entries: list[str]) -> str:
