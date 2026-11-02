@@ -24,7 +24,8 @@ _PREFERENCE_SIGNAL_RE = re.compile(
 # `LogActivity` is what the judge would otherwise write a second time: the day
 # tier already has this turn, and the judge is a model call spent deciding what
 # the transcript answered. A note alone does not clear it — a turn that wrote a
-# note and left the day tier empty still owes the day a line.
+# note and left the day tier empty still owes the day a line. A *call* does not
+# clear it either: see `has_turn_logged_activity`.
 JOURNAL_TOOL_NAMES = frozenset({"LogActivity"})
 
 
@@ -55,8 +56,22 @@ def has_turn_logged_activity(
     turn_messages: Sequence[object],
     tool_names: frozenset[str] = JOURNAL_TOOL_NAMES,
 ) -> bool:
-    """Whether *turn_messages* already put this turn in the day tier."""
-    return _has_call_to(turn_messages, tool_names)
+    """Whether *turn_messages* carries a *completed* journal write.
+
+    A call is not a write. The writer refuses bad input by raising, which the
+    framework hands back as a retry prompt, and a blocked call never runs at all;
+    both leave the call in the transcript and nothing in the day file. Counting
+    calls would then silence the judge for the one turn that recorded nothing —
+    the turn the judge exists for."""
+    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
+        ToolReturnPart,
+    )
+
+    for msg in turn_messages:
+        for part in getattr(msg, "parts", []):
+            if isinstance(part, ToolReturnPart) and part.tool_name in tool_names:
+                return True
+    return False
 
 
 # Argument names carrying a filesystem path on the mutating tools: `path` for

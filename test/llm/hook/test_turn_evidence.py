@@ -3,8 +3,10 @@ import uuid
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
+    RetryPromptPart,
     TextPart,
     ToolCallPart,
+    ToolReturnPart,
     UserPromptPart,
 )
 
@@ -111,17 +113,56 @@ class TestTurnWroteFiles:
 
 
 class TestTurnLoggedActivity:
-    def test_true_when_the_turn_called_log_activity(self):
+    def test_true_when_the_write_completed(self):
         turn = [
             ModelResponse(
                 parts=[
-                    ToolCallPart(
-                        tool_name="LogActivity", args={}, tool_call_id="1"
+                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="LogActivity",
+                        content="Logged to activity-log/2026/2026-11/2026-11-03.md",
+                        tool_call_id="1",
                     )
+                ]
+            ),
+        ]
+        assert has_turn_logged_activity(turn) is True
+
+    def test_false_when_the_call_was_refused(self):
+        "The writer raises; the framework hands the refusal back as a retry"
+        " prompt and nothing reaches the day file — leaving the call in the"
+        " transcript is not a line."
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    RetryPromptPart(
+                        content="[SYSTEM SUGGESTION]: summary was empty",
+                        tool_name="LogActivity",
+                        tool_call_id="1",
+                    )
+                ]
+            ),
+        ]
+        assert has_turn_logged_activity(turn) is False
+
+    def test_false_when_the_call_never_returned(self):
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
                 ]
             )
         ]
-        assert has_turn_logged_activity(turn) is True
+        assert has_turn_logged_activity(turn) is False
 
     def test_false_for_a_note_only_turn(self):
         "A note and an empty day tier still leaves the day owing a line, which"
