@@ -161,7 +161,7 @@ async def test_process_tool_return_part_edge_cases():
     part = ToolReturnPart(content="Very long content...", tool_name="t")
     res, mod = await process_tool_return_part(part, None, limiter, 5, 20)
     assert mod is True
-    assert "TRUNCATED" in res.content
+    assert res.content.startswith("PRUNED TOOL RESULT (zrb):")
 
 
 @pytest.mark.asyncio
@@ -178,7 +178,6 @@ async def test_summarize_text_plain_edge_cases():
 
 @pytest.mark.asyncio
 async def test_summarize_heavy_recent_history():
-
     limiter = MockLimiter()
     agent = MagicMock()
 

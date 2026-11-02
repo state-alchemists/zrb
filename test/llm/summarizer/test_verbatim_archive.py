@@ -361,14 +361,28 @@ async def test_the_archive_keeps_the_tool_output_not_its_summary(tmp_path, monke
         verbatim_archive_path("fat-tool-result", str(tmp_path)), encoding="utf-8"
     ).read()
     assert "line 39 of the log" in archived
-    assert "condensed output" not in archived
     assert "SUMMARY OF TOOL RESULT" not in archived
-    # The summarizer really did see the summary, not the tool's output: this
+    assert "PRUNED TOOL RESULT" not in archived
+    # The pruned copy points at the verbatim text, and that file is the whole
+    # output, not the head-and-tail the model sees.
+    spilled = list(
+        (tmp_path / "verbatim" / "fat-tool-result.tool-results").glob("*.txt")
+    )
+    assert len(spilled) == 1
+    assert spilled[0].read_text(encoding="utf-8") == tool_output
+    # The summarizer really did see the pruned result, not the raw output: this
     # test would pass trivially if the fat pass had left the message alone.
     summarized_prompts = [
         call.args[0] for call in conversational_agent.run.await_args_list
     ]
-    assert any("condensed output" in prompt for prompt in summarized_prompts)
+    assert summarized_prompts
+    assert any("PRUNED TOOL RESULT (zrb):" in prompt for prompt in summarized_prompts)
+    # The path is written as an absolute one; `tmp_path` and the abspath can
+    # disagree on macOS (``/private/var`` vs ``/var``), so compare the name.
+    assert any(
+        os.path.basename(str(spilled[0])) in prompt for prompt in summarized_prompts
+    )
+    message_agent.run.assert_not_called()
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import shutil
 import time
 import warnings
 from collections import OrderedDict
@@ -15,6 +16,7 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.history_manager.archive_layout import (
     ARCHIVE_DIR_NAME,
+    TOOL_RESULTS_DIR_SUFFIX,
     archive_lock_path,
 )
 from zrb.llm.util.subagent_session_naming import (
@@ -58,6 +60,14 @@ _EMPTY_HISTORY_MAX_BYTES = 2
 # wrapped in are excluded, not whitespace in general.
 _ARCHIVE_REFERENCE_PATTERN = re.compile(r"verbatim[/\\]([^`)'\"\n]+\.md)")
 
+# The directory a pruned tool result points at: `verbatim/<name>.tool-results/`
+# followed by the call id. The capture stops at the path separator, unlike the
+# archive pattern above, because this name is a directory and the file inside it
+# is not part of the reference.
+_TOOL_RESULTS_REFERENCE_PATTERN = re.compile(
+    r"verbatim[/\\]([^/\\`)'\"\n]+\.tool-results)"
+)
+
 
 def default_history_manager() -> "FileHistoryManager":
     """The file-backed history manager used wherever no explicit one is
@@ -65,19 +75,52 @@ def default_history_manager() -> "FileHistoryManager":
     return FileHistoryManager(history_dir=CFG.LLM_HISTORY_DIR)
 
 
-def _archives_named_in(directory: str) -> "set[str]":
-    """Archive filenames the `.json` files directly in *directory* mention.
+def _is_older_than(path: str, cutoff: float) -> bool:
+    """Whether *path* exists and its mtime is before *cutoff*."""
+    try:
+        return os.stat(path).st_mtime < cutoff
+    except OSError:
+        return False
 
-    Read as text with `errors="ignore"` and searched, rather than parsed: the
-    pointer is a sentence in a summary, and a file that is not valid JSON any
-    more still names the archive it was written against. Skipping it would turn
-    a corrupt transcript into a deleted archive.
+
+def _newest_mtime(path: str) -> float:
+    """The newest mtime of *path* or a regular file directly inside it.
+
+    A missing path reports ``inf`` so a caller deciding whether to delete it
+    treats "unknown" as "keep", never as "old enough".
     """
-    names: set[str] = set()
+    try:
+        newest = os.stat(path).st_mtime
+    except OSError:
+        return float("inf")
+    try:
+        with os.scandir(path) as entries:
+            for entry in entries:
+                try:
+                    if entry.is_file(follow_symlinks=False):
+                        newest = max(newest, entry.stat(follow_symlinks=False).st_mtime)
+                except OSError:
+                    continue
+    except OSError:
+        return newest
+    return newest
+
+
+def _references_named_in(directory: str) -> "tuple[set[str], set[str]]":
+    """What the `.json` files directly in *directory* point at.
+
+    Returns the archive filenames and the tool-result directory names they
+    mention. Read as text with `errors="ignore"` and searched, rather than
+    parsed: the pointer is a sentence in a summary, and a file that is not
+    valid JSON any more still names the archive it was written against.
+    Skipping it would turn a corrupt transcript into a deleted archive.
+    """
+    archives: set[str] = set()
+    tool_results: set[str] = set()
     try:
         entries = list(os.scandir(directory))
     except OSError:
-        return names
+        return archives, tool_results
     for entry in entries:
         if not entry.name.endswith(".json"):
             continue
@@ -85,10 +128,12 @@ def _archives_named_in(directory: str) -> "set[str]":
             if not entry.is_file():
                 continue
             with open(entry.path, encoding="utf-8", errors="ignore") as stream:
-                names.update(_ARCHIVE_REFERENCE_PATTERN.findall(stream.read()))
+                content = stream.read()
+                archives.update(_ARCHIVE_REFERENCE_PATTERN.findall(content))
+                tool_results.update(_TOOL_RESULTS_REFERENCE_PATTERN.findall(content))
         except OSError:
             continue
-    return names
+    return archives, tool_results
 
 
 def _is_zrb_owned_history_entry(name: str) -> bool:
@@ -649,7 +694,7 @@ class FileHistoryManager(AnyHistoryManager):
         self._prune_unreferenced_archives(cutoff, current)
 
     def _prune_unreferenced_archives(self, cutoff: float, current: str) -> None:
-        """Delete archives no history refers to any more, and their lock files.
+        """Delete archives and tool-result directories nothing points at.
 
         An archive is the only copy of the text a summary dropped, so it goes
         only when nothing points at it: no history file in this directory — the
@@ -667,6 +712,11 @@ class FileHistoryManager(AnyHistoryManager):
         even though an in-memory summary still points to it. Every dirty
         conversation is kept for exactly the same reason `current` already is,
         not only the one triggering this save.
+
+        Tool-result directories are collected on the same rule, but they do not
+        depend on an archive existing: a conversation can prune a result long
+        before it ever compacts, and retention would otherwise never see the
+        directory at all.
         """
         archives_dir = os.path.join(self._history_dir, ARCHIVE_DIR_NAME)
         try:
@@ -674,19 +724,41 @@ class FileHistoryManager(AnyHistoryManager):
         except OSError:
             return
         archives = [n for n in names if n.endswith(".md") and not n.startswith(".")]
-        if not archives:
+        tool_result_dirs = [
+            n
+            for n in names
+            if n.endswith(TOOL_RESULTS_DIR_SUFFIX) and not n.startswith(".")
+        ]
+        if not archives and not tool_result_dirs:
             return
-        referenced = self._referenced_archives()
+        referenced_archives, referenced_tool_results = self._referenced_artifacts()
         # Live even before its history file lands: the session being saved,
         # and any other conversation whose own save is still pending.
-        keep = {f"{safe_segment(name)}.md" for name in (current, *self._dirty)}
+        live_keys = {safe_segment(name) for name in (current, *self._dirty)}
+        self._remove_unreferenced_archives(
+            archives_dir, archives, referenced_archives, live_keys, cutoff
+        )
+        self._remove_unreferenced_tool_results(
+            archives_dir, tool_result_dirs, referenced_tool_results, live_keys, cutoff
+        )
+
+    def _remove_unreferenced_archives(
+        self,
+        archives_dir: str,
+        archives: "list[str]",
+        referenced: "set[str]",
+        live_keys: "set[str]",
+        cutoff: float,
+    ) -> None:
+        """Unlink each archive (and its tool results) nothing references."""
+        keep = {f"{key}.md" for key in live_keys}
         for name in archives:
             if name in referenced or name in keep:
                 continue
             path = os.path.join(archives_dir, name)
+            if not _is_older_than(path, cutoff):
+                continue
             try:
-                if os.stat(path).st_mtime >= cutoff:
-                    continue
                 os.remove(path)
             except OSError:
                 continue
@@ -694,20 +766,55 @@ class FileHistoryManager(AnyHistoryManager):
                 os.remove(archive_lock_path(path))
             except OSError:
                 pass
+            # The directory beside the archive is not removed here. It has its
+            # own pass because it can outlive the archive: a transcript may
+            # still carry a PRUNED TOOL RESULT pointer to it after the summary
+            # stopped naming the archive. That pass decides by reference and
+            # age; deleting in both places would bypass the reference check.
 
-    def _referenced_archives(self) -> "set[str]":
-        """Archive filenames named by any transcript this manager can write.
+    def _remove_unreferenced_tool_results(
+        self,
+        archives_dir: str,
+        names: "list[str]",
+        referenced: "set[str]",
+        live_keys: "set[str]",
+        cutoff: float,
+    ) -> None:
+        """Remove each tool-result directory nothing references, when old.
 
-        Every directory a transcript can live in, not just the root: a
-        sub-agent's summary points at the same shared `verbatim/` directory as
-        its parent's, so a pointer inside `subagent/<agent-type>/` is just as
-        load-bearing. Backups sit beside their main file and are read here too,
-        because a backup still names the archive it was written against.
+        The directory's own mtime is not enough to call it old: a conversation
+        reusing its directory writes a new result into it, and that does not
+        always move the directory's timestamp. The newest file inside decides,
+        so a freshly spilled result is never collected before the transcript
+        that will name it is saved.
         """
-        referenced: set[str] = set()
+        for name in names:
+            key = name[: -len(TOOL_RESULTS_DIR_SUFFIX)]
+            if name in referenced or key in live_keys:
+                continue
+            path = os.path.join(archives_dir, name)
+            if _newest_mtime(path) >= cutoff:
+                continue
+            shutil.rmtree(path, ignore_errors=True)
+
+    def _referenced_artifacts(self) -> "tuple[set[str], set[str]]":
+        """What any transcript this manager can write points at.
+
+        Returns the archive filenames and the tool-result directory names, so
+        one read of every transcript answers both questions. Every directory a
+        transcript can live in, not just the root: a sub-agent's summary points
+        at the same shared `verbatim/` directory as its parent's, so a pointer
+        inside `subagent/<agent-type>/` is just as load-bearing. Backups sit
+        beside their main file and are read here too, because a backup still
+        names the archive it was written against.
+        """
+        archives: set[str] = set()
+        tool_results: set[str] = set()
         for directory in subagent_history_directories(self._history_dir):
-            referenced.update(_archives_named_in(directory))
-        return referenced
+            found_archives, found_tool_results = _references_named_in(directory)
+            archives.update(found_archives)
+            tool_results.update(found_tool_results)
+        return archives, tool_results
 
     def _rotate_backups(
         self, base_name: str, keep: int, main_file_name: str | None = None

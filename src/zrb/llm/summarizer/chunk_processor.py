@@ -111,8 +111,12 @@ async def consolidate_summaries(
 
     llm_limiter = limiter or default_llm_limiter
     prompt = (
-        "Consolidate the following conversation state snapshots into a single, cohesive "
+        "Merge the following conversation state snapshots into exactly one "
         "<state_snapshot>.\n"
+        "Merge, do not append: every section appears once, no fact is repeated, and "
+        "when two snapshots disagree the newer observation wins. A fact neither "
+        "contradicts keeps the observation time it was first recorded with, and a "
+        "line the newest snapshot supersedes is dropped rather than both being kept.\n"
         "IMPORTANT: Be extremely concise and dense. Your goal is to fit all critical "
         f"knowledge into less than {conversational_token_threshold // 2} tokens.\n"
         f"{summary_text}"

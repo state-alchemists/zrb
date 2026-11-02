@@ -601,11 +601,20 @@ class LLMContentMixin:
         transform=lambda v, cfg: limit_token_threshold(
             v, 0.6, cfg.LLM_MAX_TOKEN_PER_MINUTE, cfg.LLM_MAX_TOKEN_PER_REQUEST
         ),
+        # A tool result keeps a token-budgeted head and tail and is replaced by
+        # a pointer to its verbatim text, so this is a *pruning* budget, not a
+        # point at which a model rewrites the output. The old default (half the
+        # conversational trigger) only fired for results near the whole context
+        # window, which meant a tool result was almost never pruned at all.
         default_factory=lambda cfg: (
-            cfg.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD
-            or str(cfg.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD // 2)
+            cfg.DEFAULT_LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD or "8000"
         ),
-        doc="Token threshold for message summarization.",
+        doc=(
+            "Token budget for one tool result before it is pruned to a head, a "
+            "tail and a pointer to the verbatim file. The effective budget is "
+            "at least 64 tokens, and at least the measured size of the marker "
+            "and the pointer: a path is never truncated to fit."
+        ),
     )
 
     LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD = EnvField(

@@ -18,6 +18,7 @@ from pydantic_ai.messages import (
     VideoUrl,
 )
 
+from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
     message_to_text,
@@ -56,7 +57,7 @@ async def test_summarize_fat_tool_results():
     mock_result.output = "Short summary"
     agent.run = AsyncMock(return_value=mock_result)
 
-    fat_content = "A" * 100
+    fat_content = "A" * 1000
     msg = ModelRequest(
         parts=[ToolReturnPart(content=fat_content, tool_name="test", tool_call_id="1")]
     )
@@ -65,15 +66,20 @@ async def test_summarize_fat_tool_results():
         [msg],
         agent=agent,
         limiter=limiter,
-        message_token_threshold=50,
+        message_token_threshold=400,
     )
 
     assert len(new_messages) == 1
     summarized = new_messages[0].parts[0]
     assert isinstance(summarized, ToolReturnPart)
     assert isinstance(summarized.content, str)
-    assert "SUMMARY OF TOOL RESULT:" in summarized.content
-    assert "Short summary" in summarized.content
+    assert summarized.content.startswith(PRUNED_PREFIX)
+    assert "Full output: `" in summarized.content
+    # No model call: the output is replaced by a head, a tail, and a pointer.
+    agent.run.assert_not_called()
+    spill_path = summarized.content.split("`")[1]
+    with open(spill_path, encoding="utf-8") as spill_file:
+        assert spill_file.read() == fat_content
 
 
 def test_message_to_text():
@@ -147,7 +153,6 @@ async def test_summarizer_early_exit():
 
 @pytest.mark.asyncio
 async def test_summarizer_does_not_skip_when_to_summarize_tokens_exceed_threshold():
-
     limiter = MockLimiter()
     content = "x" * 8
     messages: list[ModelMessage] = [
@@ -222,7 +227,9 @@ async def test_create_summarizer_history_processor_flow():
     assert "Automated Context Restoration" in message_to_text(new_history[0])
 
     assert "conv summa" in message_to_text(new_history[0])
-    assert msg_agent.run.called
+    # The tool result is pruned deterministically; only the conversation summary
+    # still calls a model.
+    assert not msg_agent.run.called
     assert conv_agent.run.called
 
 
