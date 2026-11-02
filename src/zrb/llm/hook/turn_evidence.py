@@ -7,6 +7,7 @@ for the `STOP` hook payload.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from typing import Any
 
 # Not imported from `llm.tool`, which transitively loads `pydantic_ai`.
@@ -20,10 +21,16 @@ _PREFERENCE_SIGNAL_RE = re.compile(
 )
 
 
-def turn_wrote_files(
-    turn_messages: list[Any], tool_names: frozenset[str] = FILE_MUTATING_TOOL_NAMES
-) -> bool:
-    """Whether *turn_messages* contains a call to a file-mutating tool."""
+# `LogActivity` is what the judge would otherwise write a second time: the day
+# tier already has this turn, and the judge is a model call spent deciding what
+# the transcript answered. A note alone does not clear it — a turn that wrote a
+# note and left the day tier empty still owes the day a line. A *call* does not
+# clear it either: see `has_turn_logged_activity`.
+JOURNAL_TOOL_NAMES = frozenset({"LogActivity"})
+
+
+def _has_call_to(turn_messages: Sequence[object], tool_names: frozenset[str]) -> bool:
+    """Whether *turn_messages* contains a call to any of *tool_names*."""
     from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ModelResponse,
         ToolCallPart,
@@ -34,6 +41,40 @@ def turn_wrote_files(
             continue
         for part in getattr(msg, "parts", []):
             if isinstance(part, ToolCallPart) and part.tool_name in tool_names:
+                return True
+    return False
+
+
+def turn_wrote_files(
+    turn_messages: list[Any], tool_names: frozenset[str] = FILE_MUTATING_TOOL_NAMES
+) -> bool:
+    """Whether *turn_messages* contains a call to a file-mutating tool."""
+    return _has_call_to(turn_messages, tool_names)
+
+
+def has_turn_logged_activity(
+    turn_messages: Sequence[object],
+    tool_names: frozenset[str] = JOURNAL_TOOL_NAMES,
+) -> bool:
+    """Whether *turn_messages* carries a *completed* journal write.
+
+    A call is not a write, and a return is not always one either: `ToolReturnPart`
+    carries an `outcome` — `success`, `failed`, `denied`, `interrupted`,
+    `retried` — so a refused or blocked write comes back as a return with
+    anything but `success`. Both shapes leave the call in the transcript and
+    nothing in the day file, and the turn the judge exists for is exactly the turn
+    that recorded nothing."""
+    from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
+        ToolReturnPart,
+    )
+
+    for msg in turn_messages:
+        for part in getattr(msg, "parts", []):
+            if not isinstance(part, ToolReturnPart):
+                continue
+            if part.tool_name not in tool_names:
+                continue
+            if getattr(part, "outcome", "success") == "success":
                 return True
     return False
 
@@ -93,7 +134,7 @@ def count_user_turn(run_scope: str) -> int:
     return count
 
 
-def turn_states_preference(turn_messages: list[Any]) -> bool:
+def turn_states_preference(turn_messages: Sequence[object]) -> bool:
     """Whether a user prompt in *turn_messages* reads like a standing preference."""
     from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ModelRequest,

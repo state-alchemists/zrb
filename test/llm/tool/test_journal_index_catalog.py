@@ -12,6 +12,7 @@ import pytest
 
 from zrb.llm.prompt.live_context import render_journal_index
 from zrb.llm.tool import journal_write
+from zrb.llm.tool.journal_note import HUD_LINE_MAX_CHARS, parse_frontmatter
 from zrb.llm.tool.journal_write import (
     log_activity,
     supersede_journal_note,
@@ -194,16 +195,23 @@ def test_a_catalog_hand_line_stays_beside_the_count_line(writable_journal):
     assert catalog.count("- _2 older notes: see each category's index_") == 1
 
 
-def test_a_line_over_the_headline_limit_is_refused(writable_journal):
-    """A cut line would be a claim nobody wrote, so the write is refused with the
-    number rather than storing a sentence that stops mid-thought."""
-    with pytest.raises(ValueError) as excinfo:
-        _note("long", "x" * 161)
+def test_a_line_over_the_headline_limit_is_cut_at_a_word_and_marked(
+    writable_journal,
+):
+    """A cut line is marked with an ellipsis instead of refusing the write.
 
-    message = str(excinfo.value)
-    assert "[SYSTEM SUGGESTION]" in message
-    assert "161 characters" in message
-    assert not os.path.isfile(os.path.join(writable_journal, "technical/long.md"))
+    Refusing threw the whole note away for a handful of characters — a memory
+    lost to a formatting rule. The mark is what keeps the cut from reading as a
+    claim that happens to stop mid-thought, which was the reason for refusing."""
+    line = "the lock is released before the write lands " * 6
+
+    result = _note("long", line, applies_when="while tests run")
+
+    assert result.startswith("Wrote technical/long.md")
+    head = parse_frontmatter(_read(writable_journal, "technical/long.md"))
+    assert len(head["hud_line"]) <= HUD_LINE_MAX_CHARS
+    assert head["hud_line"].endswith("…")
+    assert line.startswith(head["hud_line"].rstrip("…")), "a cut, not a rewrite"
 
 
 def test_a_line_at_the_limit_draws_no_warning(writable_journal):

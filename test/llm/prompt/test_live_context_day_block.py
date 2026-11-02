@@ -146,6 +146,56 @@ def test_yesterday_handover_is_used_when_today_has_none(tmp_path):
     assert "Read the open items note first." in result
 
 
+def test_a_handover_survives_a_weekend(tmp_path):
+    """Friday's handover is still the newest one on Monday.
+
+    Day lines read today and yesterday, but a weekend is two day files wide, so
+    looking that far for the handover dropped exactly the note a Monday session
+    needs most — and it is the one part no later reader can reconstruct."""
+    friday = TODAY - timedelta(days=3)
+    _write_day(
+        tmp_path, friday, "# friday\n\n## Handover\n\nFinish the retry fix first.\n"
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert "Finish the retry fix first." in result
+
+
+def test_the_newest_handover_wins(tmp_path):
+    "An older handover is the less current answer, wherever it sits in the window."
+    _write_day(
+        tmp_path, TODAY - timedelta(days=4), "# old\n\n## Handover\n\nOlder plan.\n"
+    )
+    _write_day(
+        tmp_path, TODAY - timedelta(days=2), "# recent\n\n## Handover\n\nNewer plan.\n"
+    )
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert "Newer plan." in result
+    assert "Older plan." not in result
+
+
+def test_a_handover_older_than_the_window_is_not_used(tmp_path):
+    """Eight days back is a different week: what it said has been overtaken, and
+    the block would be inventing a seam rather than reporting one."""
+    _write_day(
+        tmp_path,
+        TODAY - timedelta(days=8),
+        "# stale\n\n## Handover\n\nStale plan.\n",
+    )
+    _write_day(tmp_path, TODAY, "# today\n\n- 09:00 · home · today happened · imp 5\n")
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert "Stale plan." not in result
+    assert "today happened" in result
+
+
 def test_the_whole_block_respects_the_cap(tmp_path):
     long_line = "x" * 400
     _write_day(

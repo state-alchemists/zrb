@@ -3,8 +3,10 @@ import uuid
 from pydantic_ai.messages import (
     ModelRequest,
     ModelResponse,
+    RetryPromptPart,
     TextPart,
     ToolCallPart,
+    ToolReturnPart,
     UserPromptPart,
 )
 
@@ -12,6 +14,7 @@ from zrb.llm.hook.turn_evidence import (
     MAX_TRACKED_RUNS,
     count_user_turn,
     turn_changed_paths,
+    has_turn_logged_activity,
     turn_states_preference,
     turn_wrote_files,
 )
@@ -107,6 +110,109 @@ class TestTurnWroteFiles:
         ]
         assert turn_wrote_files(turn) is False
         assert turn_wrote_files(turn, tool_names=frozenset({"Custom"})) is True
+
+
+class TestTurnLoggedActivity:
+    def test_true_when_the_write_completed(self):
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="LogActivity",
+                        content="Logged to activity-log/2026/2026-11/2026-11-03.md",
+                        tool_call_id="1",
+                    )
+                ]
+            ),
+        ]
+        assert has_turn_logged_activity(turn) is True
+
+    def test_false_when_the_call_was_refused(self):
+        "The writer raises; the framework hands the refusal back as a retry"
+        " prompt and nothing reaches the day file — leaving the call in the"
+        " transcript is not a line."
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    RetryPromptPart(
+                        content="[SYSTEM SUGGESTION]: summary was empty",
+                        tool_name="LogActivity",
+                        tool_call_id="1",
+                    )
+                ]
+            ),
+        ]
+        assert has_turn_logged_activity(turn) is False
+
+    def test_false_for_a_return_that_did_not_succeed(self):
+        "pydantic-ai records a failed, denied, interrupted or retried call as a"
+        " `ToolReturnPart` too; only `outcome == 'success'` means a line landed."
+        for outcome in ("failed", "denied", "interrupted", "retried"):
+            turn = [
+                ModelResponse(
+                    parts=[
+                        ToolCallPart(
+                            tool_name="LogActivity", args={}, tool_call_id="1"
+                        )
+                    ]
+                ),
+                ModelRequest(
+                    parts=[
+                        ToolReturnPart(
+                            tool_name="LogActivity",
+                            content="permission denied",
+                            tool_call_id="1",
+                            outcome=outcome,
+                        )
+                    ]
+                ),
+            ]
+            assert has_turn_logged_activity(turn) is False, outcome
+
+    def test_false_when_the_call_never_returned(self):
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
+                ]
+            )
+        ]
+        assert has_turn_logged_activity(turn) is False
+
+    def test_false_for_a_note_only_turn(self):
+        "A note and an empty day tier still leaves the day owing a line, which"
+        " is the judge's job."
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(
+                        tool_name="WriteJournalNote", args={}, tool_call_id="1"
+                    )
+                ]
+            )
+        ]
+        assert has_turn_logged_activity(turn) is False
+
+    def test_false_for_an_ordinary_turn(self):
+        turn = [
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="Read", args={}, tool_call_id="1")]
+            )
+        ]
+        assert has_turn_logged_activity(turn) is False
+
+    def test_false_for_empty_turn(self):
+        assert has_turn_logged_activity([]) is False
 
 
 class TestTurnStatesPreference:

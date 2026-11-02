@@ -5,6 +5,7 @@ import os
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.tool.journal_note import HUD_LINE_MAX_CHARS, parse_frontmatter
 from zrb.llm.tool.journal_write import supersede_journal_note, write_journal_note
 
 
@@ -61,6 +62,39 @@ def test_a_new_note_with_no_line_is_refused_with_a_suggestion(journal_dir):
     assert "[SYSTEM SUGGESTION]" in message
     assert "hud_line was empty" in message
     assert not os.path.exists(journal_dir / "technical" / "no-line.md")
+
+
+def test_an_over_long_line_is_cut_and_marked_rather_than_losing_the_note(
+    journal_dir,
+):
+    """The line is cut at a word boundary and ends in an ellipsis.
+
+    Refusing threw the whole note away for the sake of a handful of characters —
+    a memory lost to a formatting rule. The mark is what keeps the cut from
+    reading as a finished claim that happens to stop mid-thought."""
+    line = (
+        "Retries happen once per prompt because the lock is released before the "
+        "write lands, so the next turn reads the value the previous one wrote "
+        "and the two turns disagree about what happened"
+    )
+    assert len(line) > HUD_LINE_MAX_CHARS, "the fixture has to be over the cap"
+
+    write_journal_note(
+        category="technical",
+        slug="long-line",
+        title="Note long-line",
+        context="Why it came up.",
+        finding="A finding worth keeping.",
+        hud_line=line,
+        source="a test",
+        applies_when="while this test suite exists",
+    )
+
+    text = (journal_dir / "technical" / "long-line.md").read_text(encoding="utf-8")
+    stored = parse_frontmatter(text)["hud_line"]
+    assert len(stored) <= HUD_LINE_MAX_CHARS
+    assert stored.endswith("…")
+    assert line.startswith(stored.rstrip("…")), "a cut, not a rewrite"
 
 
 def test_a_supersede_cannot_point_at_a_page_that_is_not_a_note(journal_dir):
