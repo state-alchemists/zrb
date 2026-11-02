@@ -1,4 +1,8 @@
-"""Tests for background subagent delegation."""
+"""Tests for background subagent delegation.
+
+The background half of `DelegateToAgent`: one tool, `background=True`, and
+`GetDelegationResult` to collect what it started.
+"""
 
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -7,12 +11,22 @@ import pytest
 
 from zrb.llm.permission import Capability, tool_capability
 from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
-from zrb.llm.tool.delegate import AgentTaskResult
+from zrb.llm.tool.delegate import AgentTaskResult, create_delegate_to_agent_tool
 from zrb.llm.tool.delegate_background import (
-    create_background_delegate_tool,
     create_get_delegation_result_tool,
     get_background_registry,
 )
+
+
+def _background(delegate):
+    """Call `DelegateToAgent` the way this file exercises the detached path."""
+
+    async def call(agent_name, deliverable, task, non_goals, **kwargs):
+        return await delegate(
+            agent_name, deliverable, task, non_goals, background=True, **kwargs
+        )
+
+    return call
 
 
 @pytest.fixture
@@ -38,14 +52,14 @@ def _missing_param_descriptions(fn) -> list[str]:
 
 
 def test_capabilities():
-    assert tool_capability(create_background_delegate_tool(MagicMock())) == (
+    assert tool_capability(create_delegate_to_agent_tool(MagicMock())) == (
         Capability.DELEGATE
     )
     assert tool_capability(create_get_delegation_result_tool()) == Capability.META
 
 
 def test_background_tool_is_delegate_tool(manager):
-    tool = create_background_delegate_tool(manager)
+    tool = create_delegate_to_agent_tool(manager)
     assert getattr(tool, "zrb_is_delegate_tool", False) is True
 
 
@@ -53,11 +67,9 @@ def test_background_delegate_params_carry_descriptions(manager):
     """Not registered via common_tools.py (main-agent-only, added directly by
     LLMChatTask), so `test_every_registered_tool_parameter_carries_a_description`
     in test/llm/test_common_tools.py never sees this one — pinned here instead."""
-    tool = create_background_delegate_tool(manager)
+    tool = create_delegate_to_agent_tool(manager)
     missing = _missing_param_descriptions(tool)
-    assert (
-        not missing
-    ), f"DelegateToAgentBackground params with no description: {missing}"
+    assert not missing, f"DelegateToAgent params with no description: {missing}"
 
 
 def test_get_delegation_result_params_carry_descriptions():
@@ -77,7 +89,7 @@ def test_background_docstring_carries_the_agent_roster(manager):
         )
     ]
 
-    tool = create_background_delegate_tool(manager)
+    tool = create_delegate_to_agent_tool(manager)
 
     assert "AVAILABLE AGENTS" in tool.__doc__
     assert "test-agent" in tool.__doc__
@@ -95,7 +107,7 @@ async def test_unknown_agent_is_rejected_before_detaching(manager):
             system_prompt="prompt",
         )
     ]
-    delegate = create_background_delegate_tool(manager)
+    delegate = _background(create_delegate_to_agent_tool(manager))
 
     result = await delegate(
         agent_name="test-agnt",
@@ -112,10 +124,10 @@ async def test_unknown_agent_is_rejected_before_detaching(manager):
 @pytest.mark.asyncio
 async def test_name_check_does_not_build_the_agent(manager):
     """Validation uses the definition lookup, not a full agent build on the caller's turn."""
-    delegate = create_background_delegate_tool(manager)
+    delegate = _background(create_delegate_to_agent_tool(manager))
 
     with patch(
-        "zrb.llm.tool.delegate_background.run_agent_task",
+        "zrb.llm.tool.delegate.run_agent_task",
         side_effect=AsyncMock(return_value=AgentTaskResult("a", "done", None)),
     ):
         result = await delegate(
@@ -141,9 +153,9 @@ async def test_returns_handle_immediately_without_blocking(manager):
         await release.wait()
         return AgentTaskResult("agent", "done work", None)
 
-    delegate = create_background_delegate_tool(manager)
+    delegate = _background(create_delegate_to_agent_tool(manager))
     with (
-        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=slow_task),
+        patch("zrb.llm.tool.delegate.run_agent_task", side_effect=slow_task),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -180,9 +192,9 @@ async def test_failed_subagent_surfaces_error(manager):
     async def boom(*args, **kwargs):
         raise RuntimeError("kaboom")
 
-    delegate = create_background_delegate_tool(manager)
+    delegate = _background(create_delegate_to_agent_tool(manager))
     with (
-        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=boom),
+        patch("zrb.llm.tool.delegate.run_agent_task", side_effect=boom),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -216,10 +228,10 @@ async def test_background_inherits_parent_permission_context(manager):
     tok = current_approval_channel.set(sentinel_channel)
     set_interactive_mode(True)
     try:
-        delegate = create_background_delegate_tool(manager)
+        delegate = _background(create_delegate_to_agent_tool(manager))
         with (
             patch(
-                "zrb.llm.tool.delegate_background.run_agent_task",
+                "zrb.llm.tool.delegate.run_agent_task",
                 side_effect=capture_env,
             ),
             patch(
@@ -246,9 +258,9 @@ async def test_cancel_all_clears_running_tasks(manager):
         await release.wait()
         return AgentTaskResult("agent", "x", None)
 
-    delegate = create_background_delegate_tool(manager)
+    delegate = _background(create_delegate_to_agent_tool(manager))
     with (
-        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=slow),
+        patch("zrb.llm.tool.delegate.run_agent_task", side_effect=slow),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -272,10 +284,10 @@ async def test_get_result_wait_returns_on_completion(manager):
         await release.wait()
         return AgentTaskResult("agent", "finished payload", None)
 
-    delegate = create_background_delegate_tool(manager)
+    delegate = _background(create_delegate_to_agent_tool(manager))
     get_result = create_get_delegation_result_tool()
     with (
-        patch("zrb.llm.tool.delegate_background.run_agent_task", side_effect=gated),
+        patch("zrb.llm.tool.delegate.run_agent_task", side_effect=gated),
         patch(
             "zrb.llm.tool.delegate_background.get_current_ui", return_value=MagicMock()
         ),
@@ -302,11 +314,11 @@ async def test_get_result_strips_ansi_from_buffered_transcript(manager):
         kwargs["ui"].append_to_output("🧰 call_1 | SomeTool", kind="tool_call")
         return AgentTaskResult("agent", "done", None)
 
-    delegate = create_background_delegate_tool(manager)
+    delegate = _background(create_delegate_to_agent_tool(manager))
     get_result = create_get_delegation_result_tool()
     with (
         patch(
-            "zrb.llm.tool.delegate_background.run_agent_task",
+            "zrb.llm.tool.delegate.run_agent_task",
             side_effect=with_styled_output,
         ),
         patch(

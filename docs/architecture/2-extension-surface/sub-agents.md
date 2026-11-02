@@ -74,8 +74,8 @@ flowchart TD
 | `SubAgentDefinition` | `src/zrb/llm/subagent/definition.py` | One agent's data: prompt, model, `tools`, `disallowed_tools`, `inherit_sections` |
 | `SubAgentBuilding` | `src/zrb/llm/subagent/building.py` | Turns a definition into an agent: model, named tools, toolsets, inherited prompt sections, yolo |
 | `resolve_tools_by_name` | `src/zrb/llm/subagent/tool_resolver.py` | Looks tool names up (`Bash` maps to `Shell`), drops unknown names, never returns a delegate tool |
-| `DelegateToAgent` | `src/zrb/llm/tool/delegate.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree |
-| `DelegateToAgentBackground` | `src/zrb/llm/tool/delegate_background.py` | Starts a child detached and returns a handle; `GetDelegationResult` collects it |
+| `DelegateToAgent` | `src/zrb/llm/tool/delegate.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree; `background=true` starts it detached instead of waiting |
+| `start_background_run` | `src/zrb/llm/tool/delegate_background.py` | Starts a child detached under a fresh handle; `GetDelegationResult` collects it |
 | `run_agent_task` | `src/zrb/llm/tool/delegate.py` | The shared child run: build, envelope, hooks, `run_agent`, transcript, result |
 | `SendMessageToSubagent` | `src/zrb/llm/tool/delegate_message.py` | The parent's tool to message a live child; the message names the main agent as sender |
 | `SendMessageToParent` | `src/zrb/llm/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
@@ -137,7 +137,7 @@ sequenceDiagram
 | --- | --- | --- |
 | Fan-out (`tasks` list) | `DelegateToAgent` | All tasks run concurrently, at most `LLM_MAX_PARALLEL_DELEGATIONS` at once, and the results are combined into one reply |
 | `isolate_worktree: true` | `DelegateToAgent` fan-out | The task runs in its own git worktree; a clean one is removed, one with changes is left and its path reported |
-| Background delegation | `DelegateToAgentBackground` | Returns a handle at once; `GetDelegationResult` waits up to `LLM_BACKGROUND_WAIT_MAX` seconds; handles live only in this process |
+| Background delegation | `DelegateToAgent(background=true)` | Returns a handle at once — one handle for a single task, or one for the whole fan-out; `GetDelegationResult` waits up to `LLM_BACKGROUND_WAIT_MAX` seconds; handles live only in this process |
 | Plan mode | `PLAN_MODE_POLICY` in `src/zrb/llm/permission/policy.py` | The `DELEGATE` capability is denied, so no delegation runs at all |
 | A policy denies one agent | `DelegateToAgent`'s roster | That agent is left out of the roster in the tool description |
 | A human cancels a running child | `LiveSubAgentSessionRegistry.cancel` | The child returns "Cancelled by user"; if the human then continues it, its last reply is sent to the main agent when it ends |

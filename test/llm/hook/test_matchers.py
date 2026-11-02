@@ -220,12 +220,6 @@ async def test_tool_name_alias_claude_name_matches_zrb_tool(tmp_path):
         await check_match(tmp_path, task_matcher, {"tool_name": "DelegateToAgent"})
         is True
     )
-    assert (
-        await check_match(
-            tmp_path, task_matcher, {"tool_name": "DelegateToAgentBackground"}
-        )
-        is True
-    )
 
 
 @pytest.mark.asyncio

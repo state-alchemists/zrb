@@ -13,11 +13,8 @@ import pytest
 from zrb.builtin.llm.chat import llm_chat
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.tool.delegate import AgentTaskResult
-from zrb.llm.tool.delegate_background import (
-    create_background_delegate_tool,
-    get_background_registry,
-)
+from zrb.llm.tool.delegate import AgentTaskResult, create_delegate_to_agent_tool
+from zrb.llm.tool.delegate_background import get_background_registry
 from zrb.llm.tool_registry import tool_name
 
 
@@ -27,7 +24,6 @@ def _names(profile: str, model: str | None = None) -> list[str]:
         delegate_names = {
             "DelegateToAgent",
             "SearchAgent",
-            "DelegateToAgentBackground",
             "GetDelegationResult",
         }
         return [
@@ -41,7 +37,6 @@ def test_standard_profile_registers_the_delegate_tools():
     assert set(_names("standard")) == {
         "DelegateToAgent",
         "SearchAgent",
-        "DelegateToAgentBackground",
         "GetDelegationResult",
     }
 
@@ -50,7 +45,6 @@ def test_capable_profile_registers_the_delegate_tools():
     assert set(_names("capable")) == {
         "DelegateToAgent",
         "SearchAgent",
-        "DelegateToAgentBackground",
         "GetDelegationResult",
     }
 
@@ -73,11 +67,11 @@ async def test_background_delegation_notice_reaches_the_chat_live_context():
     async def quick_task(*args, **kwargs):
         return AgentTaskResult("agent", "ok", None)
 
-    delegate = create_background_delegate_tool(MagicMock())
+    delegate = create_delegate_to_agent_tool(MagicMock())
     try:
         with (
             patch(
-                "zrb.llm.tool.delegate_background.run_agent_task",
+                "zrb.llm.tool.delegate.run_agent_task",
                 side_effect=quick_task,
             ),
             patch(
@@ -85,7 +79,7 @@ async def test_background_delegation_notice_reaches_the_chat_live_context():
                 return_value=MagicMock(),
             ),
         ):
-            msg = await delegate("agent", "deliver", "do it", [])
+            msg = await delegate("agent", "deliver", "do it", [], background=True)
             for _ in range(5):
                 await asyncio.sleep(0)
 

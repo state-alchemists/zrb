@@ -37,7 +37,13 @@ async def enter_worktree(
     """
     Creates a new isolated git worktree, or resumes an existing linked worktree.
 
-    Pass ``worktree_path`` from ``ListWorktrees`` to continue work in place.
+    New worktrees live under ``~/.zrb/wt/<repo>/``, outside the checkout: a
+    worktree nested inside the repository is a second copy of the repo inside
+    the repo, which every ``Grep``, ``Glob`` and ``git status`` then has to
+    learn to ignore.
+
+    Pass ``worktree_path`` from ``ListWorktrees`` to continue work in place;
+    ``ExitWorktree`` removes one.
     """
 
     if branch_name and worktree_path:
@@ -72,24 +78,9 @@ async def enter_worktree(
     if not branch_name:
         branch_name = f"worktree-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
-    worktree_dir = os.path.join(git_root, f".{CFG.ROOT_GROUP_NAME}", "worktree")
-    worktree_path = os.path.join(worktree_dir, branch_name)
-    # `cwd` and `branch_name` are the model's choice, so everything this tool
-    # writes must be inside the sandbox before anything is created.
-    policy = get_effective_sandbox_policy()
-    if policy.enabled:
-        error = check_write(
-            os.path.join(git_root, ".gitignore"), policy
-        ) or check_write(worktree_path, policy)
-        if error is not None:
-            return _prepend_notes(
-                notes,
-                f"Blocked by sandbox policy: {error}. "
-                "[SYSTEM SUGGESTION]: create the worktree in the current project, "
-                "or ask the user to add this repository to "
-                f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS.",
-            )
-    os.makedirs(worktree_dir, exist_ok=True)
+    worktree_path, error = _prepare_worktree_dir(git_root, branch_name)
+    if error is not None:
+        return _prepend_notes(notes, error)
 
     try:
         add_rc, _, add_err, note = await _run_git(
@@ -115,9 +106,47 @@ async def enter_worktree(
         )
 
     active_worktree.set(worktree_path)
-    _ensure_gitignore(git_root, f".{CFG.ROOT_GROUP_NAME}/worktree/")
     result = f"Worktree created: {worktree_path}\nBranch: {branch_name}"
     return _prepend_notes(notes, result)
+
+
+def _worktree_parent(git_root: str) -> str:
+    """``~/.zrb/wt/<repo>`` — where linked worktrees live, outside the checkout.
+
+    Namespaced by repository: an auto-named branch is a timestamp, so one flat
+    directory would let two projects collide on the same name.
+    """
+    repo_name = os.path.basename(os.path.realpath(git_root)) or "repo"
+    return os.path.expanduser(
+        os.path.join("~", f".{CFG.ROOT_GROUP_NAME}", "wt", repo_name)
+    )
+
+
+def _prepare_worktree_dir(git_root: str, branch_name: str) -> tuple[str, str | None]:
+    """Resolve, judge and create the destination; return (path, error).
+
+    ``branch_name`` is the model's choice, so the resulting path is judged
+    against the sandbox *before* anything is created on disk.
+    """
+    worktree_dir = _worktree_parent(git_root)
+    worktree_path = os.path.join(worktree_dir, branch_name)
+    policy = get_effective_sandbox_policy()
+    if policy.enabled:
+        error = check_write(worktree_path, policy)
+        if error is not None:
+            return worktree_path, (
+                f"Blocked by sandbox policy: {error}. "
+                f"[SYSTEM SUGGESTION]: ask the user to add {worktree_dir} to "
+                f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS."
+            )
+    try:
+        os.makedirs(worktree_dir, exist_ok=True)
+    except OSError as e:
+        return worktree_path, (
+            f"Error: Cannot create worktree directory {worktree_dir}: {e}\n"
+            "[SYSTEM SUGGESTION]: check that the home directory is writable."
+        )
+    return worktree_path, None
 
 
 async def _resume_worktree(
@@ -338,26 +367,6 @@ def _prepend_notes(notes: list[str | None], result: str) -> str:
     """Prepend every collected sandbox note, in call order."""
     text = "\n".join(n for n in notes if n)
     return f"{text}\n{result}" if text else result
-
-
-def _ensure_gitignore(git_root: str, pattern: str) -> None:
-    """Add pattern to {git_root}/.gitignore if not already present."""
-    gitignore_path = os.path.join(git_root, ".gitignore")
-    try:
-        if os.path.exists(gitignore_path):
-            with open(gitignore_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            lines = content.splitlines()
-            if any(line.strip() == pattern for line in lines):
-                return
-            with open(gitignore_path, "a", encoding="utf-8") as f:
-                prefix = "\n" if content and not content.endswith("\n") else ""
-                f.write(f"{prefix}{pattern}\n")
-        else:
-            with open(gitignore_path, "w", encoding="utf-8") as f:
-                f.write(f"{pattern}\n")
-    except OSError:
-        pass
 
 
 enter_worktree.__name__ = "EnterWorktree"

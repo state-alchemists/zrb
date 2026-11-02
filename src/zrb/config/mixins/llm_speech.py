@@ -89,11 +89,11 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_PLAYER_PREBUFFER_SECONDS: str = "0.5"
         self.DEFAULT_LLM_SPEECH_PLAYER_READ_AHEAD: str = "64"
         self.DEFAULT_LLM_SPEECH_PROGRESS_PHRASES: str = (
-            '{"Read": "Reading a file.", "AnalyzeFile": "Reading a file.", "LS": "Looking through the files.", "Glob": "Looking through the files.", "Grep": "Searching the code.", "AnalyzeCode": "Reading the code.", "Write": "Writing a file.", "Edit": "Editing a file.", "MV": "Moving a file.", "RM": "Removing a file.", "Shell": "Running a command.", "Bash": "Running a command.", "WebSearch": "Searching the web.", "WebFetch": "Reading a web page.", "DelegateToAgent": "Handing this to a sub-agent.", "DelegateToAgentBackground": "Handing this to a sub-agent.", "Lsp*": "Checking the code.", "": "Working on it.", "*": "Using the {tool} tool."}'
+            '{"Read": "Reading a file.", "AnalyzeFile": "Reading a file.", "LS": "Looking through the files.", "Glob": "Looking through the files.", "Grep": "Searching the code.", "AnalyzeCode": "Reading the code.", "Write": "Writing a file.", "Edit": "Editing a file.", "MV": "Moving a file.", "RM": "Removing a file.", "Shell": "Running a command.", "Bash": "Running a command.", "WebSearch": "Searching the web.", "WebFetch": "Reading a web page.", "DelegateToAgent": "Handing this to a sub-agent.", "Lsp*": "Checking the code.", "": "Working on it.", "*": "Using the {tool} tool."}'
         )
         self.DEFAULT_LLM_SPEECH_EMOTION_VOICES: str = "{}"
         self.DEFAULT_LLM_SPEECH_APPROVAL_ACTIONS: str = (
-            '{"Write": "write a file", "Edit": "edit a file", "NotebookEdit": "edit a notebook", "Shell": "run a shell command", "Bash": "run a shell command", "DelegateToAgent": "delegate work to a sub-agent", "DelegateToAgentBackground": "delegate background work to a sub-agent", "": "run a tool", "*": "use the {tool} tool"}'
+            '{"Write": "write a file", "Edit": "edit a file", "NotebookEdit": "edit a notebook", "Shell": "run a shell command", "Bash": "run a shell command", "DelegateToAgent": "delegate work to a sub-agent", "": "run a tool", "*": "use the {tool} tool"}'
         )
         super().__init__()
 

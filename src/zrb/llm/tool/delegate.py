@@ -795,6 +795,10 @@ def _fan_out_report(agent_name: str, run: asyncio.Task) -> str:
     return f"{result.agent_name} completed:\n{indented_result}"
 
 
+# The label a fanned-out batch runs under when it is backgrounded as one handle.
+_FAN_OUT_LABEL = "fan-out"
+
+
 def create_delegate_to_agent_tool(
     sub_agent_manager: SubAgentManagerAPI | None = None,
 ):
@@ -850,6 +854,18 @@ def create_delegate_to_agent_tool(
                 )
             ),
         ] = "",
+        background: Annotated[
+            bool,
+            Field(
+                description=(
+                    "True starts the work and returns a handle immediately "
+                    "instead of waiting; collect it later with "
+                    "GetDelegationResult(handle). Use it for work long enough "
+                    "that you would otherwise sit idle. A fan-out passed with "
+                    "background=True returns one handle for the whole batch."
+                )
+            ),
+        ] = False,
         tasks: Annotated[
             list[dict[str, Any]],
             Field(
@@ -861,7 +877,33 @@ def create_delegate_to_agent_tool(
             ),
         ] = [],  # noqa: B006
     ) -> str:
+        def _launch_background() -> str:
+            """Hand this call to the background registry and return its handle."""
+            # lazy: circular — delegate_background imports this module's BufferedUI
+            from zrb.llm.tool.delegate_background import start_background_run
+
+            if tasks:
+                return start_background_run(
+                    _FAN_OUT_LABEL,
+                    lambda _ui: _run_parallel(tasks, sub_agent_manager),
+                )
+            return start_background_run(
+                agent_name,
+                lambda ui: run_agent_task(
+                    agent_name=agent_name,
+                    deliverable=deliverable,
+                    non_goals=non_goals,
+                    task=task,
+                    additional_context=additional_context,
+                    sub_agent_manager=sub_agent_manager,
+                    ui=ui,
+                    yolo=None,
+                ),
+            )
+
         if tasks:
+            if background:
+                return _launch_background()
             return await _run_parallel(tasks, sub_agent_manager)
         missing = [
             name
@@ -878,6 +920,12 @@ def create_delegate_to_agent_tool(
                 "[SYSTEM SUGGESTION]: provide agent_name, deliverable, and task "
                 "(non_goals defaults to []), or pass tasks=[...] to fan out."
             )
+        # A detached run can only be diagnosed through its handle, so an unknown
+        # agent has to fail here rather than at GetDelegationResult time.
+        if background and not sub_agent_manager.get_agent_definition(agent_name):
+            return agent_not_found_message(agent_name, sub_agent_manager)
+        if background:
+            return _launch_background()
         parent_ui = resolve_ui(get_current_ui())
         # run_agent_task assigns the [agent_name #ordinal] label. Built here so a
         # cut can adopt the transcript along with the run.
@@ -907,6 +955,12 @@ def create_delegate_to_agent_tool(
         "reconciled.\n\n"
         "FAN OUT: pass tasks=[{agent_name, deliverable, task, non_goals, ...}, ...] to run multiple "
         "sub-agents concurrently in one call. Flat args are ignored when tasks is non-empty.\n\n"
+        "BACKGROUND: pass background=true to start the work and return at once instead of "
+        "waiting for it. The reply carries a handle; collect the result with "
+        "GetDelegationResult(handle), which reports 'still running' until the run settles. "
+        "A detached run inherits your permissions and yolo setting, and its tool calls that "
+        "need approval queue behind the current prompt. Prefer it when the work is long "
+        "enough that waiting would leave the turn idle.\n\n"
         "ISOLATE_WORKTREE: add isolate_worktree: true to a task in the fan-out list to give "
         "that task its own git worktree instead of the shared working tree. Use it when two or "
         "more fanned-out tasks will WRITE to overlapping files — concurrent writes on one tree "
