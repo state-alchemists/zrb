@@ -139,6 +139,18 @@ class TestLLMConfigSetters:
         config.LLM_PLUGIN_DIRS = ["p1", "p2"]
         assert os.environ["ZRB_LLM_PLUGIN_DIRS"] == os.pathsep.join(["p1", "p2"])
 
+    def test_llm_worktree_dir_setter(self, monkeypatch):
+        config = Config()
+        config.LLM_WORKTREE_DIR = "/tmp/worktrees"
+        assert os.environ["ZRB_LLM_WORKTREE_DIR"] == "/tmp/worktrees"
+
+    def test_llm_worktree_dir_defaults_under_the_zrb_home(self, monkeypatch):
+        monkeypatch.delenv("ZRB_LLM_WORKTREE_DIR", raising=False)
+        config = Config()
+        assert config.LLM_WORKTREE_DIR == os.path.expanduser(
+            os.path.join("~", f".{config.ROOT_GROUP_NAME}", "wt")
+        )
+
     def test_llm_show_tool_call_detail_setter_true(self, monkeypatch):
         config = Config()
         config.LLM_SHOW_TOOL_CALL_DETAIL = True

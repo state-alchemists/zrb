@@ -141,6 +141,21 @@ CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "gopls"]
 
 Empty (default) uses installation/registry order. See [LSP Support](../llm/lsp-support.md) for the full rules and a per-call override.
 
+## Git Worktrees
+
+`EnterWorktree` creates a linked git worktree so a delegated or exploratory change can be made without touching the checkout you are working in. The tools are registered only when zrb starts inside a git repository.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZRB_LLM_WORKTREE_DIR` | Where linked worktrees are created. Each repository gets its own `<repo>-<digest>` subdirectory inside it, so two checkouts that share a name never share a path. | `~/.zrb/wt` |
+
+```python
+from zrb import CFG
+CFG.LLM_WORKTREE_DIR = "/Volumes/fast/worktrees"
+```
+
+A worktree under `LLM_WORKTREE_DIR` is outside the checkout on purpose: one nested in the repository is a second copy of it that every `Grep`, `Glob` and `git status` would have to skip. In a sandboxed session, add this directory to `ZRB_LLM_SANDBOX_WRITABLE_PATHS` (the sandbox judges the destination, not the repository) or creation is refused with that path named.
+
 ## Sandbox Configuration
 
 Opt-in filesystem containment for LLM tool calls, off by default. Its six knobs — `ZRB_LLM_SANDBOX_ENABLED`, `ZRB_LLM_SANDBOX_OS_SHELL`, `ZRB_LLM_SANDBOX_WRITABLE_PATHS`, `ZRB_LLM_SANDBOX_DENY_READ_PATHS`, `ZRB_LLM_SANDBOX_FALLBACK`, `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` — are documented with the model they configure in [Sandbox](../llm/sandbox.md#configuration).

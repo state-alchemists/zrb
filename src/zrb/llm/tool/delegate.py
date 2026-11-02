@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import uuid
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -617,15 +618,11 @@ async def _run_delegation(
     return f"{label} completed:\n\n{task_result.result}"
 
 
-async def _run_parallel(
-    tasks: list[dict[str, Any]],
-    sub_agent_manager: SubAgentManagerAPI,
-) -> str:
-    """Run several sub-agent tasks concurrently and return combined results.
+def _batch_spec_error(tasks: Sequence[Mapping[str, object]]) -> str | None:
+    """Reject a fan-out whose task dicts are missing their required keys.
 
-    A shared lock serializes approval prompts. ``isolate_worktree: true`` gives
-    a task its own git worktree; each `Task` copies `contextvars`, so
-    `active_worktree` stays isolated per task.
+    Checked before the batch is started so a detached batch fails at the call,
+    where the model can still fix it, rather than through its handle later.
     """
     required = ("agent_name", "deliverable", "task", "non_goals")
     for idx, spec in enumerate(tasks):
@@ -636,6 +633,22 @@ async def _run_parallel(
                 "[SYSTEM SUGGESTION]: every task needs agent_name, "
                 "deliverable, task, and non_goals (list; [] allowed)."
             )
+    return None
+
+
+async def _run_parallel(
+    tasks: list[dict[str, Any]],
+    sub_agent_manager: SubAgentManagerAPI,
+) -> str:
+    """Run several sub-agent tasks concurrently and return combined results.
+
+    A shared lock serializes approval prompts. ``isolate_worktree: true`` gives
+    a task its own git worktree; each `Task` copies `contextvars`, so
+    `active_worktree` stays isolated per task.
+    """
+    error = _batch_spec_error(tasks)
+    if error is not None:
+        return error
 
     parent_ui = resolve_ui(get_current_ui())
     ui_lock = asyncio.Lock()
@@ -737,6 +750,20 @@ async def _run_parallel(
 
     agent_names = [spec.get("agent_name", "") for spec in tasks]
     return "\n\n".join(_fan_out_reports(agent_names, buffered_uis, runs))
+
+
+async def _run_parallel_outcome(
+    run_batch: Callable[[], Awaitable[str]],
+) -> AgentTaskResult:
+    """A fanned-out batch as the result type the handle registry collects.
+
+    `GetDelegationResult` reads `.success` and `.result` off whatever the
+    background task returned; a bare string made a completed batch report
+    `failed: 'str' object has no attribute 'result'`. The batch is validated by
+    `_batch_spec_error` before it is detached, so its text here is always the
+    combined reports, never a dispatch error.
+    """
+    return AgentTaskResult(_FAN_OUT_LABEL, await run_batch(), None)
 
 
 def _fan_out_buffer(parent_ui: "AnyUI", ui_lock: asyncio.Lock) -> BufferedUI:
@@ -883,9 +910,14 @@ def create_delegate_to_agent_tool(
             from zrb.llm.tool.delegate_background import start_background_run
 
             if tasks:
+                error = _batch_spec_error(tasks)
+                if error is not None:
+                    return error
                 return start_background_run(
                     _FAN_OUT_LABEL,
-                    lambda _ui: _run_parallel(tasks, sub_agent_manager),
+                    lambda _ui: _run_parallel_outcome(
+                        lambda: _run_parallel(tasks, sub_agent_manager)
+                    ),
                 )
             return start_background_run(
                 agent_name,

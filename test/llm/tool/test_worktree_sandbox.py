@@ -1,6 +1,7 @@
 """The worktree tools under a sandbox policy: every git call is wrapped, and
 the model cannot steer what the tools write."""
 
+import hashlib
 import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,12 +15,14 @@ from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 
 
 def _expected_worktree_path(repo: str, branch: str) -> str:
-    """The documented layout — ``~/.zrb/wt/<repo>/<branch>``, outside the checkout."""
+    """The documented layout — ``<worktree dir>/<repo>-<digest>/<branch>``."""
+    real_repo = os.path.realpath(repo)
+    digest = hashlib.sha256(real_repo.encode("utf-8")).hexdigest()[:8]
     return os.path.join(
         os.path.expanduser("~"),
         ".zrb",
         "wt",
-        os.path.basename(os.path.realpath(repo)),
+        f"{os.path.basename(real_repo)}-{digest}",
         branch,
     )
 

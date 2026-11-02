@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,12 +12,14 @@ from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
 
 
 def _expected_worktree_path(repo: str, branch: str) -> str:
-    """The documented layout — ``~/.zrb/wt/<repo>/<branch>``, outside the checkout."""
+    """The documented layout — ``<worktree dir>/<repo>-<digest>/<branch>``."""
+    real_repo = os.path.realpath(repo)
+    digest = hashlib.sha256(real_repo.encode("utf-8")).hexdigest()[:8]
     return os.path.join(
         os.path.expanduser("~"),
         ".zrb",
         "wt",
-        os.path.basename(os.path.realpath(repo)),
+        f"{os.path.basename(real_repo)}-{digest}",
         branch,
     )
 
@@ -65,6 +68,48 @@ async def test_enter_worktree_success(mock_subprocess, tmp_path):
     expected = _expected_worktree_path(str(tmp_path), "test-branch")
     assert expected in res
     assert not expected.startswith(str(tmp_path) + os.sep)
+
+
+@pytest.mark.asyncio
+async def test_worktree_root_follows_the_setting(
+    mock_subprocess, tmp_path, monkeypatch
+):
+    """The root is `LLM_WORKTREE_DIR`, not a path baked into the tool."""
+    custom_root = tmp_path / "worktrees"
+    monkeypatch.setenv("ZRB_LLM_WORKTREE_DIR", str(custom_root))
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=str(repo).encode()),
+        create_mock_process(returncode=0),
+    ]
+
+    res = await enter_worktree(branch_name="test-branch", cwd=str(repo))
+
+    assert str(custom_root) in res
+
+
+@pytest.mark.asyncio
+async def test_two_repositories_sharing_a_name_get_their_own_dir(tmp_path):
+    """`api` in two different places is two repositories, not one shared path."""
+    parents = [tmp_path / "client-a", tmp_path / "client-b"]
+    repos = [parent / "api" for parent in parents]
+    for repo in repos:
+        repo.mkdir(parents=True)
+    created: list[str] = []
+    with patch("asyncio.create_subprocess_exec") as mock_subprocess:
+        mock_subprocess.side_effect = [
+            create_mock_process(returncode=0, stdout=str(repos[0]).encode()),
+            create_mock_process(returncode=0),
+            create_mock_process(returncode=0, stdout=str(repos[1]).encode()),
+            create_mock_process(returncode=0),
+        ]
+        for repo in repos:
+            res = await enter_worktree(branch_name="same-branch", cwd=str(repo))
+            created.append(res.split("Worktree created: ")[1].splitlines()[0])
+
+    assert created[0] != created[1]
+    assert os.path.dirname(created[0]) != os.path.dirname(created[1])
 
 
 @pytest.mark.asyncio

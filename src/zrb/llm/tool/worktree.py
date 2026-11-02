@@ -1,3 +1,4 @@
+import hashlib
 import os
 from datetime import datetime
 from typing import Annotated
@@ -110,16 +111,36 @@ async def enter_worktree(
     return _prepend_notes(notes, result)
 
 
-def _worktree_parent(git_root: str) -> str:
-    """``~/.zrb/wt/<repo>`` — where linked worktrees live, outside the checkout.
+def _repo_slug(git_root: str) -> str:
+    """``<repo>-<digest>`` — the repository's own directory under the worktree root.
 
-    Namespaced by repository: an auto-named branch is a timestamp, so one flat
-    directory would let two projects collide on the same name.
+    The basename alone is not unique: two checkouts named `api` would share one
+    directory and the second `git worktree add` would fail on a path it does not
+    own. The digest comes from the canonical path, so it survives a rename of the
+    directory the repository sits in only if the path really is the same repo.
     """
-    repo_name = os.path.basename(os.path.realpath(git_root)) or "repo"
+    real_root = os.path.realpath(git_root)
+    name = os.path.basename(real_root) or "repo"
+    digest = hashlib.sha256(real_root.encode("utf-8")).hexdigest()[:8]
+    return f"{name}-{digest}"
+
+
+def _worktree_root() -> str:
+    """The configured root for linked worktrees, ``~`` expanded (``LLM_WORKTREE_DIR``)."""
     return os.path.expanduser(
-        os.path.join("~", f".{CFG.ROOT_GROUP_NAME}", "wt", repo_name)
+        CFG.LLM_WORKTREE_DIR or os.path.join("~", f".{CFG.ROOT_GROUP_NAME}", "wt")
     )
+
+
+def _worktree_parent(git_root: str) -> str:
+    """``<LLM_WORKTREE_DIR>/<repo>-<digest>`` — where linked worktrees live.
+
+    Outside the checkout by default: a worktree nested in the repository is a
+    second copy of it that every search has to skip. Namespaced by repository:
+    an auto-named branch is a timestamp, so one flat directory would let two
+    projects collide on the same branch name.
+    """
+    return os.path.join(_worktree_root(), _repo_slug(git_root))
 
 
 def _prepare_worktree_dir(git_root: str, branch_name: str) -> tuple[str, str | None]:
@@ -130,14 +151,18 @@ def _prepare_worktree_dir(git_root: str, branch_name: str) -> tuple[str, str | N
     """
     worktree_dir = _worktree_parent(git_root)
     worktree_path = os.path.join(worktree_dir, branch_name)
+    # One level up is the worktree root; suggesting that covers every repository
+    # at once, where suggesting this repository's own directory would not.
+    root = os.path.dirname(worktree_dir)
     policy = get_effective_sandbox_policy()
     if policy.enabled:
         error = check_write(worktree_path, policy)
         if error is not None:
             return worktree_path, (
                 f"Blocked by sandbox policy: {error}. "
-                f"[SYSTEM SUGGESTION]: ask the user to add {worktree_dir} to "
-                f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS."
+                f"[SYSTEM SUGGESTION]: ask the user to add {root} to "
+                f"{CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS, which covers "
+                "every repository's worktrees at once."
             )
     try:
         os.makedirs(worktree_dir, exist_ok=True)
