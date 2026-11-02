@@ -1130,6 +1130,7 @@
         "max_request_per_minute",
         "max_token_per_minute",
         "max_token_per_request",
+        "pacing_enabled",
         "prune_logs",
         "throttle_check_interval",
         "tiktoken_encoding",
