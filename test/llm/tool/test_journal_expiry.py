@@ -153,6 +153,27 @@ def test_an_unstamped_at_sign_name_is_uncheckable_rather_than_false(tmp_path):
     assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
 
 
+def test_a_file_whose_name_ends_in_a_digest_is_stamped_as_the_path_it_is(tmp_path):
+    """`config@deadbeefcafe` looks exactly like a stamp, and it is a path.
+
+    The writer has to see that, or the reader hashes `config`, compares it with
+    `deadbeefcafe`, and hides a note about a file nobody touched."""
+    target = tmp_path / "config@deadbeefcafe"
+    target.write_text("mode = prod\n", encoding="utf-8")
+
+    stamped = stamp("file:config@deadbeefcafe", str(tmp_path))
+
+    assert stamped == f"file:config@deadbeefcafe@{file_sha(str(target))}"
+    assert is_condition_met(parse_condition(stamped), str(tmp_path), "3.29", "zrb")
+
+
+def test_an_unstamped_digest_shaped_name_is_uncheckable_rather_than_false(tmp_path):
+    (tmp_path / "config@deadbeefcafe").write_text("x\n", encoding="utf-8")
+    condition = Condition("file", "config@deadbeefcafe")
+
+    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
+
+
 @pytest.mark.parametrize(
     "condition, version, expected",
     [

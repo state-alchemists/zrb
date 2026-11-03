@@ -50,9 +50,10 @@ _FALSE_TOKENS = frozenset({"off", "false", "no", "0", "disabled"})
 _VERSION_RE = re.compile(r"^(<=|>=|==|=|<|>)?\s*(\S.*)$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _SHA_RE = re.compile(rf"^[0-9a-f]{{{SHA_LENGTH}}}$")
-"""What a recorded digest looks like. Only a suffix of this shape is read as a
-stamp: a file named `config@prod.yml` is a path, not a condition somebody already
-stamped, and mistaking one for the other hides the note the moment it is written."""
+"""What a recorded digest looks like. A suffix of this shape is *read* as a stamp
+only when the value as a whole does not name a file: `config@prod.yml` is a path,
+and so is `config@deadbeefcafe` when that file exists. Mistaking a path for a
+stamp hides the note the moment it is written."""
 
 
 @dataclass(frozen=True)
@@ -98,17 +99,19 @@ def stamp(text: str, root: str) -> str:
     note. A condition already stamped, or a file that cannot be read, comes back
     unchanged: a note is never refused for naming a path that does not exist yet.
 
-    "Already stamped" means the last `@`-segment is a digest (`_SHA_RE`), not that
-    the value contains an `@` at all: `config@prod.yml` is a file name, and reading
-    it as `config` stamped with `prod.yml` would hide the note immediately.
+    "Already stamped" means the last `@`-segment is a digest (`_SHA_RE`) **and** the
+    whole value does not name a file. `config@prod.yml` is a file name, and so is
+    `config@deadbeefcafe` when that file exists: reading either as `path@digest`
+    would compare the hash of one file with the other's name and hide the note
+    immediately. A path that exists as a whole is stamped as the path it is.
     """
     condition = parse_condition(text)
     if condition is None or condition.kind != "file" or not root:
         return text
-    path, _, recorded = condition.value.rpartition("@")
-    if path and _SHA_RE.match(recorded):
-        return text
     target = os.path.join(root, condition.value)
+    path, _, recorded = condition.value.rpartition("@")
+    if path and _SHA_RE.match(recorded) and not os.path.exists(target):
+        return text
     digest = file_sha(target)
     if not digest:
         return text
@@ -147,6 +150,11 @@ def _is_file_unchanged(value: str, root: str) -> bool | None:
         # the value as `path@digest` anyway would report a live note as false.
         return None
     target = os.path.join(root, path) if root else path
+    if root and os.path.exists(os.path.join(root, value)):
+        # The value as a whole names a file, so it is a path whose last segment
+        # happens to look like a digest — not a stamped condition. There is no
+        # digest of `path` to compare, and "cannot tell" keeps the note.
+        return None
     digest = file_sha(target)
     if not digest:
         # The file is gone, which is a change, not an inability to check.
