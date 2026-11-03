@@ -390,6 +390,42 @@ def test_a_pointer_chain_deeper_than_the_limit_is_not_followed(tmp_path):
     assert f"- `{deepest / 'CLAUDE.md'}` — a pointer to" not in result
 
 
+def test_a_pointer_with_a_deep_branch_is_not_skipped_for_its_shallow_one(tmp_path):
+    """One covered branch does not vouch for a branch the walk did not follow.
+
+    `CLAUDE.md` naming `@AGENTS.md` and a chain too deep to follow was skipped for
+    the branch that resolved, and the pointer was then the only prompt-visible
+    route to the rules at the end of the other one. An unresolved branch keeps
+    the whole pointer inlined.
+    """
+    root = tmp_path / "project"
+    root.mkdir()
+    (root / "AGENTS.md").write_text("ROOT RULES", encoding="utf-8")
+    deep = root / "deep"
+    deep.mkdir()
+    dirs = [root, deep]
+    for index in range(18):
+        step = deep / f"d{index}"
+        step.mkdir()
+        target = f"@../d{index + 1}/CLAUDE.md" if index < 17 else "@../AGENTS.md"
+        (step / "CLAUDE.md").write_text(target, encoding="utf-8")
+        dirs.append(step)
+    (root / "CLAUDE.md").write_text("@AGENTS.md @deep/d0/CLAUDE.md", encoding="utf-8")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=dirs):
+        with patch("zrb.llm.prompt.claude.CFG") as cfg:
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 24000
+            result = handler(ctx, "base prompt", _identity_next)
+
+    assert "ROOT RULES" in result
+    assert f"#### Instructions from: `{root / 'CLAUDE.md'}`" in result
+    assert f"- `{root / 'CLAUDE.md'}` — a pointer to" not in result
+
+
 def test_a_pointer_does_not_starve_the_rules_it_points_at(tmp_path):
     """Thirteen bytes of pointer must not cost the 1,490-byte file behind it.
 

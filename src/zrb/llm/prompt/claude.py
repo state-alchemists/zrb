@@ -287,34 +287,39 @@ def _leaf_targets(
     next_hop: dict[Path, list[Path | None]],
     seen: frozenset[Path],
     depth: int = 0,
-) -> tuple[set[Path], bool]:
-    """Every file *target* reaches, and whether the chain circles back.
+) -> tuple[set[Path], bool, bool]:
+    """Every file *target* reaches, whether the chain circles back, and whether it was cut short.
 
     A pointer to a pointer has no content of its own, so what it finally names is
     what the prompt would have to carry. A cycle reaches nothing: it names no
     file and can never be a route to rules. A chain deeper than
-    `MAX_POINTER_DEPTH` reaches nothing either — reported as unresolved, so the
-    caller keeps the pointer and its recursion stays far below the interpreter's
-    limit.
+    `MAX_POINTER_DEPTH` is *unresolved* rather than empty — the difference
+    matters, because a pointer naming two files, one of them in the prompt and
+    one at the end of a chain this walk did not follow, may not be skipped: the
+    branch that was not followed is still a route to rules.
     """
     hops = next_hop.get(target)
     if hops is None:
-        return {target}, False
+        return {target}, False, False
     if target in seen:
-        return set(), True
+        return set(), True, False
     if depth >= MAX_POINTER_DEPTH:
-        return set(), False
+        return set(), False, True
     leaves: set[Path] = set()
     cyclic = False
     for hop in hops:
         if hop is None:
             # A reference that resolves nowhere: this pointer is the only route
             # to whatever it names, so it has to stay inlined.
-            return {target}, False
-        deeper, loop = _leaf_targets(hop, next_hop, seen | {target}, depth + 1)
+            return {target}, False, False
+        deeper, loop, unresolved = _leaf_targets(
+            hop, next_hop, seen | {target}, depth + 1
+        )
+        if unresolved:
+            return set(), cyclic, True
         leaves |= deeper
         cyclic = cyclic or loop
-    return leaves, cyclic
+    return leaves, cyclic, False
 
 
 def _inline_instructions(
@@ -361,13 +366,18 @@ def _inline_instructions(
     skipped: dict[Path, Path] = {}
     for path in pointers:
         hops = next_hop[path.resolve()]
-        leaves, cyclic = _leaf_targets(path.resolve(), next_hop, frozenset())
-        if cyclic:
-            if hops and hops[0] is not None:
-                skipped[path] = hops[0]
+        leaves, cyclic, unresolved = _leaf_targets(
+            path.resolve(), next_hop, frozenset()
+        )
+        if unresolved:
+            # A branch this walk did not follow is still a route to rules: the
+            # pointer stays inlined rather than being skipped for the branches
+            # that did resolve.
             continue
         if leaves and leaves <= covered:
             skipped[path] = sorted(leaves)[0]
+        elif cyclic and hops and hops[0] is not None:
+            skipped[path] = hops[0]
     blocks, inlined = _walk_instructions(
         sources, texts, max_bytes, skip=frozenset(skipped)
     )
