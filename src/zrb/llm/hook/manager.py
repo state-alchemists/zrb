@@ -20,6 +20,7 @@ from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.journal_compliance import register_journal_compliance_hook
 from zrb.llm.hook.manager_loading import HookManagerLoading
 from zrb.llm.hook.matcher import evaluate_matchers
+from zrb.llm.hook.memory_reviewer import register_memory_reviewer_hook
 from zrb.llm.hook.registry import HookRegistry, hook_registry
 from zrb.llm.hook.schema import (
     AgentHookConfig,
@@ -77,6 +78,7 @@ class HookManager(HookManagerLoading):
         # every manager re-scans the filesystem.
         self._hook_factories: list[Callable[[HookManager], None]] = [
             register_journal_compliance_hook,
+            register_memory_reviewer_hook,
             register_self_review_hook,
             register_skill_frontmatter_hooks,
         ]

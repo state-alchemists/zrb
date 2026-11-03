@@ -1,0 +1,102 @@
+"""The memory reviewer: its config, its log line, and its gate."""
+
+from unittest.mock import MagicMock
+
+import pytest
+
+from zrb.config.config import CFG
+from zrb.llm.hook.interface import HookContext
+from zrb.llm.hook.memory_reviewer import (
+    _append_event_line,
+    _first_sentence,
+    build_memory_reviewer_hook_config,
+    register_memory_reviewer_hook,
+)
+from zrb.llm.hook.types import HookEvent, HookType
+from zrb.llm.memory import paths, store
+
+
+@pytest.fixture
+def store_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(tmp_path / "memory"), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", False, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_LOCK_TIMEOUT", 5.0, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_LOG_RETENTION_DAYS", 90, raising=False)
+    paths.ensure_store()
+    return tmp_path / "memory"
+
+
+def test_the_reviewer_runs_on_a_completed_turn_with_the_three_tools():
+    config = build_memory_reviewer_hook_config()
+    assert config.name == "memory-reviewer"
+    assert config.events == [HookEvent.STOP]
+    assert config.type == HookType.AGENT
+    assert config.config.tools == ["SearchMemory", "Remember", "Forget"]
+    assert config.is_async is True
+    assert len(config.matchers) == 1
+    assert config.matchers[0].field == "event_data.memory_due"
+    assert config.matchers[0].value is True
+
+
+def test_a_heading_or_a_code_fence_is_not_the_first_sentence():
+    message = "# Outcome\n\n```python\nprint('x')\n```\n\nFixed the parser. All tests pass."
+    assert _first_sentence(message) == "Fixed the parser"
+
+
+def test_a_list_marker_is_stripped():
+    assert _first_sentence("- Fixed the parser. Then ran the suite.") == (
+        "Fixed the parser"
+    )
+
+
+def test_a_long_first_sentence_is_bounded():
+    sentence = "word " * 60
+    assert len(_first_sentence(sentence)) <= 140
+
+
+def test_an_empty_reply_writes_no_log_line(store_dir):
+    context = HookContext(event=HookEvent.STOP, event_data={})
+    _append_event_line(context)
+    assert store.log_lines(store.today()) == []
+
+
+def test_the_turn_becomes_a_log_line_with_its_project(store_dir):
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={},
+        last_assistant_message="Replaced the journal with a memory store. Details below.",
+        cwd="/home/gofrendi/zrb",
+    )
+    _append_event_line(context)
+    lines = store.log_lines(store.today())
+    assert len(lines) == 1
+    assert "Replaced the journal with a memory store" in lines[0]
+    assert lines[0].endswith("(zrb)")
+    assert "Details below" not in lines[0]
+
+
+def test_the_reviewer_registers_while_memory_and_the_reviewer_are_on(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
+    manager = MagicMock()
+    manager.register_hook_config.return_value = MagicMock()
+    register_memory_reviewer_hook(manager)
+    manager.register_hook_config.assert_called_once()
+
+
+def test_the_reviewer_stays_out_when_memory_is_off(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", False, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
+    manager = MagicMock()
+    register_memory_reviewer_hook(manager)
+    manager.register_hook_config.assert_not_called()
+
+
+def test_the_reviewer_stays_out_when_it_is_switched_off(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
+    manager = MagicMock()
+    register_memory_reviewer_hook(manager)
+    manager.register_hook_config.assert_not_called()

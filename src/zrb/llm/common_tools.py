@@ -187,6 +187,7 @@ def _seed_tool_factories() -> tuple[list, list]:
     # lazy: zrb.llm.tool.* transitively load pydantic_ai
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.journal import search_journal
+    from zrb.llm.tool.memory import forget, remember, search_memory
     from zrb.llm.tool.journal_write import (
         delete_journal_note,
         log_activity,
@@ -205,6 +206,10 @@ def _seed_tool_factories() -> tuple[list, list]:
 
     tag(ask_user_question, Capability.META)
     tag(read_tool_result, Capability.META)
+    # Memory: reading is one call; the two verbs change the store.
+    tag(search_memory, Capability.READ)
+    tag(remember, Capability.EDIT)
+    tag(forget, Capability.EDIT)
     tag(search_journal, Capability.READ)
     # Journal writers touch only CFG.LLM_JOURNAL_DIR, but plan mode still blocks them.
     for _fn in (
@@ -240,6 +245,13 @@ def _seed_tool_factories() -> tuple[list, list]:
         # write path. `WriteDayHandover` stays deferred too, but the judge is not
         # its safety net — that hook fires per turn, not per session end — so the
         # day block names it to the agent that is actually leaving.
+        # Memory: three tools, none deferred. A schema behind `search_tools` asks
+        # the model to think of a search before it can search — measured on the
+        # journal as the step that gets skipped — and a write verb nobody can see
+        # is a memory nobody records.
+        lambda ctx: (
+            [search_memory, remember, forget] if CFG.LLM_MEMORY_ENABLED else []
+        ),
         lambda ctx: (
             [
                 Tool(search_journal, defer_loading=False),
@@ -249,7 +261,10 @@ def _seed_tool_factories() -> tuple[list, list]:
                 Tool(supersede_journal_note, defer_loading=True),
                 Tool(delete_journal_note, defer_loading=True),
             ]
-            if CFG.LLM_JOURNAL_ENABLED
+            # Memory replaces the journal: while it is on, the journal's tools
+            # stay out even if LLM_JOURNAL_ENABLED is on. Two memories in one
+            # prompt are two answers to the same question.
+            if CFG.LLM_JOURNAL_ENABLED and not CFG.LLM_MEMORY_ENABLED
             else []
         ),
         lambda ctx: Tool(
