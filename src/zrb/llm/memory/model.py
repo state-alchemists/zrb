@@ -60,15 +60,17 @@ _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # world: prompt syntax, an override of earlier instructions, and the assignment of
 # a role. The rest of the defence is structural — the injected block says its
 # lines are data, and `render` drops any line that trips this check.
+# Containers the prompt uses. Both an opening and a closing tag are refused: a
+# closing one is the dangerous half, because it terminates the block and leaves
+# whatever follows reading as ordinary text rather than as data.
+_CONTAINER_TAGS = ("memory", "journal-index", "journal-claims", "live-context")
+
 _INSTRUCTION_MARKERS = (
     "<|",
     "<system",
     "</system",
     "[system",
     "[system suggestion]",
-    "</live-context",
-    "<live-context",
-    "<memory",
     "ignore previous instructions",
     "ignore all previous instructions",
     "ignore the previous instructions",
@@ -78,6 +80,10 @@ _INSTRUCTION_MARKERS = (
     "your new instructions",
     "new system prompt",
     "from now on you",
+) + tuple(
+    tag_form
+    for tag in _CONTAINER_TAGS
+    for tag_form in (f"<{tag}", f"</{tag}")
 )
 
 # Field order in the file is fixed: a diff stays readable when a claim is revised.
