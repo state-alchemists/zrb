@@ -10,6 +10,9 @@ from datetime import date, timedelta
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.hook.interface import HookContext
+from zrb.llm.hook.memory_reviewer import _append_event_line
+from zrb.llm.hook.types import HookEvent
 from zrb.llm.memory import paths, render, search, store
 from zrb.llm.memory.model import Fact
 from zrb.llm.tool.memory import forget, remember
@@ -69,6 +72,16 @@ def test_yesterday_reaches_the_recent_lines_with_its_date(store_dir):
     assert len(lines) == 1
     assert lines[0].startswith("- ")
     assert "From yesterday" in lines[0]
+
+
+def test_pruning_is_off_by_default(store_dir, monkeypatch):
+    """The log is history; deleting it is an opt-in, not a default."""
+    assert CFG.DEFAULT_LLM_MEMORY_LOG_RETENTION_DAYS == "0"
+    monkeypatch.setattr(CFG, "LLM_MEMORY_LOG_RETENTION_DAYS", 0, raising=False)
+    old = (date.today() - timedelta(days=400)).isoformat()
+    store.append_log("Ancient", day=old)
+    assert store.prune_logs() == []
+    assert store.log_lines(old)
 
 
 def test_pruning_drops_a_log_day_past_the_retention(store_dir, monkeypatch):
@@ -222,6 +235,23 @@ def test_a_path_shaped_name_is_refused_by_the_path_builder(store_dir):
 
 
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git")
+
+
+@needs_git
+def test_the_reviewers_log_line_is_committed(store_dir, monkeypatch):
+    """A log entry retention could prune must exist in the audit history first."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", True, raising=False)
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={},
+        last_assistant_message="Did a thing worth logging.",
+        cwd="/home/gofrendi/zrb",
+    )
+    _append_event_line(context)
+    log = subprocess.run(
+        ["git", "log", "--oneline"], cwd=str(store_dir), capture_output=True, text=True
+    ).stdout
+    assert "log:" in log
 
 
 @needs_git

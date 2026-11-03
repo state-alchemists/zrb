@@ -58,7 +58,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_MEMORY_RECENT_MAX_CHARS: str = "1600"
         self.DEFAULT_LLM_MEMORY_REVIEWER_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_GIT_ENABLED: str = "on"
-        self.DEFAULT_LLM_MEMORY_LOG_RETENTION_DAYS: str = "90"
+        self.DEFAULT_LLM_MEMORY_LOG_RETENTION_DAYS: str = "0"
         self.DEFAULT_LLM_MEMORY_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SELF_REVIEW_ENABLED: str = "off"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_ROUNDS: str = "2"
@@ -423,8 +423,10 @@ class LLMContentMixin:
     LLM_MEMORY_LOG_RETENTION_DAYS = EnvField(
         int,
         doc=(
-            "Days of `log/` kept. The diary is never pruned: the log is what the "
-            "day was for, and the diary is what it was. 0 keeps every log day."
+            "Days of `log/` kept. 0 — the default — keeps every log day: the "
+            "diary is never pruned, and neither is the log unless someone asks. "
+            "A positive value deletes a day's log once it is older than that, "
+            "which is the one destructive operation the memory has."
         ),
     )
 

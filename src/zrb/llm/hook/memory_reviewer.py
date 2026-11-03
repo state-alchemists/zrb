@@ -118,6 +118,10 @@ def _append_event_line(context: "HookContext") -> None:
         # The reply is already delivered; a log that could not be written is a
         # missing line, not a failed turn.
         return
+    # The log is part of the audit trail, and a log day is the one thing the
+    # store may prune: an entry that never reached git is an entry retention can
+    # take with nothing left behind.
+    store.git_commit(f"log: {store.today()}")
 
 
 def _first_sentence(message: str) -> str:

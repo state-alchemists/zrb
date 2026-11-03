@@ -208,7 +208,7 @@ The date is the filename, not a field: a day file cannot hold a line from anothe
 
 The log is *events only*. There is no `## Handover` section and no `[handover]` marker: state of play lives in the diary's `handover` field, where it can be rewritten without touching an append-only file.
 
-**Ephemeral detail, permanent narrative.** A log day may be pruned (`LLM_MEMORY_LOG_RETENTION_DAYS`); that day's diary entry may not. The asymmetry is the reason for the split — the diary is what the log was for, so a store that kept only the diary would still be a store with a past. Facts and diaries are never deleted; only logs are.
+**Ephemeral detail, permanent narrative.** A log day may be pruned (`LLM_MEMORY_LOG_RETENTION_DAYS`); that day's diary entry may not. The asymmetry is the reason for the split — the diary is what the log was for, so a store that kept only the diary would still be a store with a past. Retention is **off by default**: deleting a log day is the one destructive operation the store has, so it is opted into rather than inherited. Facts and diaries are never deleted; only logs are.
 
 ### 3.6 Git
 
