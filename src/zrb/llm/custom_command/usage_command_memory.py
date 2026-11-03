@@ -73,9 +73,15 @@ def render_memory_section(
 ) -> list[str]:
     """The lines of the Memory section; empty when there is nothing to report.
 
-    A section with no line is no section, so a session that never touched memory
-    and has no store behind it keeps `/usage` as it was.
+    *snapshot* is read from the store when left out, and injected by a caller
+    that already holds one.
+
+    Memory off means no section, not an empty one: `LLM_MEMORY_ENABLED` is the
+    privacy switch, and a session that reads no memory must not report what the
+    store on disk holds. `/usage` is a reader like any other.
     """
+    if not CFG.LLM_MEMORY_ENABLED:
+        return []
     state = read_snapshot() if snapshot is None else snapshot
     lines = _state_lines(state) + _window_lines(records)
     if not lines:

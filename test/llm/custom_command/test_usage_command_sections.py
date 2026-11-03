@@ -162,3 +162,25 @@ def test_the_command_prints_the_memory_section_after_the_tools_section(
 
     assert out is not None
     assert out.index("  Tools") < out.index("  Memory")
+
+
+def test_the_memory_section_is_absent_when_memory_is_off(
+    usage_dir, memory_dir, monkeypatch
+):
+    _write_fact(memory_dir, "alpha", "Alpha is true.")
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", False, raising=False)
+
+    out = render_usage([_record()], "label", registered_tools=[])
+
+    assert "Memory" not in out
+
+
+def test_a_window_with_no_runs_still_reports_the_store(memory_dir):
+    _write_fact(memory_dir, "alpha", "Alpha is true.")
+
+    out = render_usage([], "today")
+
+    assert "No usage recorded for today." in out
+    assert "  Memory" in out
+    assert "1 fact(s)" in out
+    assert "writes" not in out

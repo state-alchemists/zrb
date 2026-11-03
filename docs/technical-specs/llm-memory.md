@@ -550,6 +550,8 @@ The store writes no event log, so `/usage` reads two sources and keeps them labe
 
 `core` and `store` are **now**; `writes` and `recall` belong to the window that was asked for, and a window with no memory calls prints no `writes` line rather than a zero. Reading the section creates nothing: an absent store reads as empty.
 
+Two conditions bound what the section may say. `LLM_MEMORY_ENABLED=off` removes it whole — the switch promises a session that reads no memory, and `/usage` is a reader like any other, so it reports neither the core nor the store. A window with **no recorded runs** still reports the store, because the table describes runs and a store needs none to exist; `writes` and `recall` stay absent there, since they count the window.
+
 Two lines the Journal section had are absent rather than zeroed. A search's **outcome** is recorded nowhere — the log keeps tool *names*, never results — so "found nothing" cannot be counted. The reviewer's own run never reaches the usage log either, because `_record_run_usage` is called from the runner and a hook agent calls `agent.run()` directly, so there is no reviewer line to draw.
 
 ---
