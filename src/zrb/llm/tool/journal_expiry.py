@@ -34,6 +34,8 @@ import re
 from dataclasses import dataclass
 from datetime import date
 
+from packaging.version import InvalidVersion, Version
+
 FILE_PREFIX = "file:"
 VERSION_PREFIX = "version:"
 SETTING_PREFIX = "setting:"
@@ -45,8 +47,12 @@ short enough that a hand-written condition stays readable."""
 
 _TRUE_TOKENS = frozenset({"on", "true", "yes", "1", "enabled"})
 _FALSE_TOKENS = frozenset({"off", "false", "no", "0", "disabled"})
-_VERSION_RE = re.compile(r"^(<=|>=|==|=|<|>)?\s*(\d+(?:\.\d+)*)$")
+_VERSION_RE = re.compile(r"^(<=|>=|==|=|<|>)?\s*(\S.*)$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_SHA_RE = re.compile(rf"^[0-9a-f]{{{SHA_LENGTH}}}$")
+"""What a recorded digest looks like. Only a suffix of this shape is read as a
+stamp: a file named `config@prod.yml` is a path, not a condition somebody already
+stamped, and mistaking one for the other hides the note the moment it is written."""
 
 
 @dataclass(frozen=True)
@@ -91,12 +97,16 @@ def stamp(text: str, root: str) -> str:
     the condition is left unstamped, which reads as uncheckable and keeps the
     note. A condition already stamped, or a file that cannot be read, comes back
     unchanged: a note is never refused for naming a path that does not exist yet.
+
+    "Already stamped" means the last `@`-segment is a digest (`_SHA_RE`), not that
+    the value contains an `@` at all: `config@prod.yml` is a file name, and reading
+    it as `config` stamped with `prod.yml` would hide the note immediately.
     """
     condition = parse_condition(text)
     if condition is None or condition.kind != "file" or not root:
         return text
     path, _, recorded = condition.value.rpartition("@")
-    if recorded and path:
+    if path and _SHA_RE.match(recorded):
         return text
     target = os.path.join(root, condition.value)
     digest = file_sha(target)
@@ -132,7 +142,9 @@ def is_condition_met(
 
 def _is_file_unchanged(value: str, root: str) -> bool | None:
     path, separator, recorded = value.rpartition("@")
-    if not separator or not path:
+    if not separator or not path or not _SHA_RE.match(recorded):
+        # Nothing was stamped, so there is no digest to compare against. Reading
+        # the value as `path@digest` anyway would report a live note as false.
         return None
     target = os.path.join(root, path) if root else path
     digest = file_sha(target)
@@ -146,9 +158,9 @@ def _is_version_matching(value: str, version: str) -> bool | None:
     found = _VERSION_RE.match(value.strip())
     if not found:
         return None
-    operator, wanted = found.group(1) or "=", found.group(2)
-    current = _version_tuple(version)
-    target = _version_tuple(wanted)
+    operator = found.group(1) or "="
+    current = _version(version)
+    target = _version(found.group(2))
     if current is None or target is None:
         return None
     if operator in ("=", "=="):
@@ -162,15 +174,17 @@ def _is_version_matching(value: str, version: str) -> bool | None:
     return current >= target
 
 
-def _version_tuple(text: str) -> tuple[int, ...] | None:
-    """The numeric parts of *text*, or ``None`` when it is not a version."""
-    found = _VERSION_RE.match(text.strip().lstrip("v"))
-    if not found:
+def _version(text: str) -> Version | None:
+    """*text* as a comparable version, or ``None`` when it is not one.
+
+    PEP 440 ordering, so a development build of 3.29 answers `version:<3.29` with
+    a real false rather than "cannot tell", and a postrelease answers `>3.29`
+    with a real true. A version this build cannot parse is still uncheckable — the
+    answer being "cannot tell" must never be reached by guessing."""
+    try:
+        return Version(text.strip())
+    except InvalidVersion:
         return None
-    parts = tuple(int(part) for part in found.group(2).split("."))
-    while len(parts) > 1 and parts[-1] == 0:
-        parts = parts[:-1]
-    return parts
 
 
 def _is_setting_matching(value: str) -> bool | None:

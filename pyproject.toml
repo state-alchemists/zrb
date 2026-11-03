@@ -123,6 +123,11 @@ dependencies = [
     # pydantic-ai-slim's HTTP layer moved to httpx2 (was httpx) as of 2.36.0.
     # >=2.7 matches pydantic-ai's own floor for it.
     "httpx2>=2.7.0",
+    # PEP 440 ordering for journal expiry conditions (`journal_expiry.py`): a
+    # development or postrelease build of zrb must compare against its release
+    # the way the packaging ecosystem reads it. Only pytest and the optional
+    # extras were pulling it in, so a bare install would not have it.
+    "packaging>=24.0,<26.0",
 ]
 
 [project.urls]

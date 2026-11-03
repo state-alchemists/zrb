@@ -95,6 +95,8 @@ The 213 characters the second view pays are the `## Other projects` heading and 
 
 A `file:` path is relative to the repository root and the digest is stamped **at write time** (`_write_note_locked`), because a condition nobody stamped is a condition nobody can evaluate. It is answered only in the repository it was stamped in and only when the note carries that repository's tag: the same relative path in another checkout is another file, and a mismatch there would report a live note as false.
 
+Only a suffix of exactly `SHA_LENGTH` lowercase hex digits is read as a recorded digest, so a file named `config@prod.yml` is a path to stamp rather than a condition that already carries one. A `version:` value compares under PEP 440 (`packaging.version.Version`), so a development build of 3.29 answers `version:<3.29` with a real false and a postrelease answers `version:>=3.29` with a real true, rather than either of them being unreadable.
+
 Everything else is prose, and prose never expires — guessing that a sentence is false would retire a note its author still believes. The same rule covers a condition this machine cannot read: a missing file is a change, an unreadable one (`""` from `file_sha`) is not, and a version this build cannot parse or a setting it does not carry answer "cannot tell".
 
 Expiry **hides, it does not retire**. A note known to be disproved stops being injected — the index lines the writer owns for it, its per-turn claims, and its place as the newest claim in `## Other projects` — while the file, its `status`, `SearchJournal` and the category indexes are untouched. Superseding stays the act that retires a note by hand, and `DeleteJournalNote` the act that removes it.

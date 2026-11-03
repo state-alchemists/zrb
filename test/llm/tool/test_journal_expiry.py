@@ -117,7 +117,7 @@ def test_a_file_with_no_stamp_is_uncheckable(tmp_path):
 
 
 def test_a_missing_file_is_a_change_not_an_inability(tmp_path):
-    condition = Condition("file", "gone.py@abc123")
+    condition = Condition("file", "gone.py@deadbeefcafe")
 
     assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is False
 
@@ -125,9 +125,32 @@ def test_a_missing_file_is_a_change_not_an_inability(tmp_path):
 def test_a_file_condition_is_not_checked_from_another_repository(tmp_path):
     """The same relative path in another checkout is another file, so the answer
     there would be about the wrong file — and a false answer retires the note."""
-    condition = Condition("file", "settings.py@abc123")
+    condition = Condition("file", "settings.py@deadbeefcafe")
 
     assert is_condition_met(condition, str(tmp_path), "3.29", "") is None
+
+
+def test_a_file_name_may_contain_an_at_sign(tmp_path):
+    """`config@prod.yml` is a path. Reading its last segment as a stamp would
+    compare the hash of `config` with the text `prod.yml` and hide the note at
+    once, on a file nobody touched."""
+    target = tmp_path / "config@prod.yml"
+    target.write_text("mode = prod\n", encoding="utf-8")
+
+    stamped = stamp("file:config@prod.yml", str(tmp_path))
+
+    assert stamped == f"file:config@prod.yml@{file_sha(str(target))}"
+    assert is_condition_met(parse_condition(stamped), str(tmp_path), "3.29", "zrb")
+    assert stamp(stamped, str(tmp_path)) == stamped
+
+
+def test_an_unstamped_at_sign_name_is_uncheckable_rather_than_false(tmp_path):
+    """No digest was recorded, so there is nothing to compare the hash with —
+    and "cannot tell" keeps the note, where a mismatch would hide it."""
+    (tmp_path / "config@prod.yml").write_text("x\n", encoding="utf-8")
+    condition = Condition("file", "config@prod.yml")
+
+    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
 
 
 @pytest.mark.parametrize(
@@ -140,6 +163,14 @@ def test_a_file_condition_is_not_checked_from_another_repository(tmp_path):
         ("version:3.29", "3.29.0", True),
         ("version:>3.29", "3.29.0", False),
         ("version:>=3.29", "", None),
+        # PEP 440 segments: a development build is older than the release it is
+        # building, a postrelease is newer, and a local build sorts after its base.
+        ("version:<3.29", "3.29.0.dev1", True),
+        ("version:<3.29", "3.29.0rc1", True),
+        ("version:>=3.29", "3.29.0.post1", True),
+        ("version:>=3.29", "3.29.0+local.1", True),
+        ("version:>=3.29.0rc1", "3.29.0rc2", True),
+        ("version:<3.29.0rc1", "3.29.0b1", True),
     ],
 )
 def test_a_version_condition_compares_the_numbers_it_names(condition, version, expected):
