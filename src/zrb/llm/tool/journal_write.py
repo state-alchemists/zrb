@@ -704,7 +704,7 @@ def _write_note_locked(
     # A `file:` condition gets the hash it was written against, here, while the
     # tree it names is in hand; a later reader has no way to recover it. The tree
     # is the note's own repository, not the one the caller happens to stand in.
-    condition = stamp(condition, _stamp_root(scope))
+    condition = stamp(condition, _stamp_root(scope), revise=previous is not None)
     line, is_pinned = _hud_state(hud_line, pinned, previous, notes, note_rel)
     targets = _resolve_links(root, links or [])
     # The keywords the note will *store*, not the ones the caller passed: a

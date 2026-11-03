@@ -89,6 +89,13 @@ def parse_condition(text: str) -> Condition | None:
     return None
 
 
+_NOFOLLOW = getattr(os, "O_NOFOLLOW", 0)
+_DIRECTORY = getattr(os, "O_DIRECTORY", 0)
+_CAN_OPEN_RELATIVE = os.open in os.supports_dir_fd
+"""Whether this platform can open a name relative to another directory's
+descriptor. Windows cannot, and there the resolved-path check is the only guard."""
+
+
 def file_sha(path: str) -> str:
     """The digest a `file:` condition records for *path*, or ``""`` when it cannot
     be read.
@@ -96,24 +103,19 @@ def file_sha(path: str) -> str:
     Bounded on purpose (`MAX_HASH_BYTES`) and limited to regular files: a condition
     names a source file, so a device, a directory and a multi-gigabyte artefact are
     all "cannot tell" rather than something to read into memory."""
-    return _file_digest(path) or ""
-
-
-def _file_digest(path: str) -> str | None:
-    """*path*'s digest — ``None`` when it is not there, ``""`` when it cannot be read.
-
-    The file is opened by name **once** and everything after that is settled from
-    the descriptor: `O_NOFOLLOW` refuses a symlink swapped in after `condition_path`
-    validated the path, `fstat` refuses anything that is not a regular file, and the
-    size it reports bounds the read. Reopening the path by name would hand the race
-    back to whoever can write to the tree."""
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
-        descriptor = os.open(path, flags)
-    except FileNotFoundError:
-        return None
+        descriptor = os.open(path, os.O_RDONLY | _NOFOLLOW)
     except OSError:
         return ""
+    return _digest_of(descriptor)
+
+
+def _digest_of(descriptor: int) -> str:
+    """The digest behind *descriptor*, which is closed — ``""`` when it cannot be read.
+
+    Everything is settled from the descriptor: `fstat` refuses anything that is not
+    a regular file and gives the size the read is bounded by. A name is never
+    resolved a second time, so what is hashed is what was checked."""
     try:
         info = os.fstat(descriptor)
         if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_HASH_BYTES:
@@ -152,7 +154,64 @@ def condition_path(value: str, root: str) -> str:
     return target
 
 
-def stamp(text: str, root: str) -> str:
+def _open_below(directory: str, relative: str) -> int:
+    """*relative* opened for reading from *directory*, following no symlink on the way.
+
+    `O_NOFOLLOW` guards the last component only, so a directory swapped for a
+    symlink after the path was validated would still be followed — and the read
+    would leave the repository without ever breaking the earlier check. Each
+    component is opened relative to the descriptor of the one before it, so there is
+    no name left to re-resolve once the parent has been handed over.
+
+    On a platform without `dir_fd` this degrades to one `O_NOFOLLOW` open, which is
+    the guarantee `file_sha` has: the final name cannot be a link, an intermediate
+    one is only as good as the validation."""
+    parts = [part for part in re.split(r"[\\/]", relative) if part not in ("", ".")]
+    if not parts or any(part == ".." for part in parts):
+        raise PermissionError(f"{relative!r} is not a path below {directory!r}")
+    if not _CAN_OPEN_RELATIVE:
+        return os.open(os.path.join(directory, *parts), os.O_RDONLY | _NOFOLLOW)
+    descriptor = os.open(directory, os.O_RDONLY | _DIRECTORY)
+    try:
+        for part in parts[:-1]:
+            following = os.open(
+                part, os.O_RDONLY | _DIRECTORY | _NOFOLLOW, dir_fd=descriptor
+            )
+            os.close(descriptor)
+            descriptor = following
+        return os.open(parts[-1], os.O_RDONLY | _NOFOLLOW, dir_fd=descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _condition_digest(root: str, value: str) -> str | None:
+    """The digest of the file *value* names in *root* — ``None`` gone, ``""`` unreadable.
+
+    *value* is validated first and read second, and the two steps are about the same
+    object: the validation resolves the name, the walk opens the resolved components
+    without following a link. Nothing is reopened by a name that was checked
+    earlier, so a rename or a symlink between the two cannot move the read."""
+    target = condition_path(value, root)
+    if not target:
+        return ""
+    inside = os.path.realpath(root)
+    try:
+        descriptor = _open_below(inside, os.path.relpath(target, inside))
+    except FileNotFoundError:
+        return None
+    except OSError:
+        return ""
+    return _digest_of(descriptor) or ""
+
+
+def _is_name_taken(root: str, value: str) -> bool:
+    """Whether *value* names something under *root* — links included, not followed."""
+    if not root or not value:
+        return False
+    return os.path.lexists(os.path.join(os.path.realpath(root), value))
+
+
+def stamp(text: str, root: str, revise: bool = False) -> str:
     """*text* with the file condition's hash filled in, recorded now.
 
     A `file:` condition that names no hash is stamped here, so the note says what
@@ -163,11 +222,15 @@ def stamp(text: str, root: str) -> str:
     note. A condition already stamped, or a file that cannot be read, comes back
     unchanged: a note is never refused for naming a path that does not exist yet.
 
-    "Already stamped" means the last `@`-segment is a digest (`_SHA_RE`) **and** the
-    whole value does not name a file. `config@prod.yml` is a file name, and so is
-    `config@deadbeefcafe` when that file exists: reading either as `path@digest`
-    would compare the hash of one file with the other's name and hide the note
-    immediately. A path that exists as a whole is stamped as the path it is.
+    *revise* says a note already exists, and an existing stamp is then evidence:
+    `config@deadbeefcafe` is preserved whatever the tree now contains. Without
+    that, a file created later at exactly that name would make a revision hash the
+    file and append a second digest, quietly moving the note's evidence.
+
+    On a first write, "already stamped" means the last `@`-segment is a digest
+    (`_SHA_RE`) and the whole value does not name a file: `config@prod.yml` is a
+    file name, and so is `config@deadbeefcafe` when that file exists. A path that
+    exists as a whole is stamped as the path it is.
 
     A path that leaves the tree is left unstamped rather than refused (see
     `condition_path`): the note is still worth keeping, it just cannot be checked.
@@ -180,17 +243,17 @@ def stamp(text: str, root: str) -> str:
     condition = parse_condition(text)
     if condition is None or condition.kind != "file" or not root:
         return text
-    target = condition_path(condition.value, root)
-    if not target:
+    if not condition_path(condition.value, root):
         return text
     path, _, recorded = condition.value.rpartition("@")
-    if path and _SHA_RE.match(recorded) and not os.path.exists(target):
-        return text
-    digest = file_sha(target)
+    if path and _SHA_RE.match(recorded):
+        if revise or not _is_name_taken(root, condition.value):
+            return text
+    digest = _condition_digest(root, condition.value)
     if not digest:
         return text
     stamped = f"{condition.value}@{digest}"
-    if os.path.lexists(os.path.join(root, stamped)):
+    if _is_name_taken(root, stamped):
         # The reader answers `None` for a value that names a file, so this stamp
         # would be born unreadable. Unstamped is the honest form of the same news.
         return text
@@ -228,17 +291,15 @@ def _is_file_unchanged(value: str, root: str) -> bool | None:
         # Nothing was stamped, so there is no digest to compare against. Reading
         # the value as `path@digest` anyway would report a live note as false.
         return None
-    target = condition_path(path, root)
-    if not target:
+    if not condition_path(path, root):
         # The path leaves the tree, so it is not one this condition may read.
         return None
-    whole = condition_path(value, root)
-    if whole and os.path.exists(whole):
+    if _is_name_taken(root, value):
         # The value as a whole names a file, so it is a path whose last segment
-        # happens to look like a digest — not a stamped condition. There is no
-        # digest of `path` to compare, and "cannot tell" keeps the note.
+        # happens to look like a digest — not a stamped condition. The writer never
+        # emits one (see `stamp`), so "cannot tell" keeps the note.
         return None
-    digest = _file_digest(target)
+    digest = _condition_digest(root, path)
     if digest is None:
         # The file is gone, which is a change, not an inability to check.
         return False

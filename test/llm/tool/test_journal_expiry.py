@@ -276,6 +276,44 @@ def test_a_stamp_is_not_written_when_its_own_name_is_a_file(tmp_path):
     assert is_condition_met(Condition("file", "foo"), str(tmp_path), "3.29", "zrb") is None
 
 
+def test_a_revision_preserves_a_stamp_whose_name_is_now_a_file(tmp_path):
+    """A stamp is evidence. A file created later at exactly `config@<digest>` must
+    not turn a revision into a second hash of the wrong file."""
+    target = tmp_path / "config"
+    target.write_text("mode = prod\n", encoding="utf-8")
+    stamped = stamp("file:config", str(tmp_path))
+    (tmp_path / stamped.removeprefix("file:")).write_text("collision\n", encoding="utf-8")
+
+    assert stamp(stamped, str(tmp_path), revise=True) == stamped
+
+
+def test_the_read_walks_the_tree_it_validated(tmp_path, monkeypatch):
+    """`O_NOFOLLOW` guards the last component only, so a directory swapped for a
+    link after validation would still be followed. The walk opens each component
+    from its parent's descriptor, so the swap has nothing left to redirect."""
+    from zrb.llm.tool import journal_expiry
+
+    root = tmp_path / "repo"
+    (root / "sub").mkdir(parents=True)
+    (root / "sub" / "config.py").write_text("x\n", encoding="utf-8")
+    outside = tmp_path / "sensitive"
+    outside.mkdir()
+    (outside / "config.py").write_text("secret\n", encoding="utf-8")
+    (root / "sub").rename(root / "moved")
+    try:
+        (root / "sub").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("this platform does not allow symlinks without elevation")
+    # Stand in for the validation that ran before the swap: it still answers the
+    # path it checked, so only the walk stands between the read and the link.
+    inside = lambda value, tree: str(root / value.rpartition("@")[0])  # noqa: E731
+    monkeypatch.setattr(journal_expiry, "condition_path", inside)
+
+    condition = Condition("file", "sub/config.py@deadbeefcafe")
+
+    assert journal_expiry.is_condition_met(condition, str(root), "3.29", "zrb") is None
+
+
 @pytest.mark.parametrize(
     "condition, version, expected",
     [
