@@ -49,12 +49,13 @@ def get_path_references(prompt: str) -> list[re.Match]:
     if not prompt:
         return []
     # Optional single-letter drive prefix for Windows paths (`@C:\notes.md`);
-    # `@word:something` still captures only "word". An `@` that follows a path
-    # separator or a word character is part of a path, not a reference marker:
-    # `/work/@scope/AGENTS.md` is one path, and expanding it fetched a different
-    # file than the prompt named.
+    # `@word:something` still captures only "word". An `@` that follows anything
+    # a path may hold — a word character, a separator, a dot or a dash — is part
+    # of a path, not a reference marker: `/work/@scope/AGENTS.md` and
+    # `/work/pkg.@beta/AGENTS.md` are each one path, and expanding them fetched a
+    # different file than the prompt named.
     pattern = re.compile(
-        r"(?<![\w/\\])@(?P<path>(?:[A-Za-z]:)?[\w~\-\./\\]+)"
+        r"(?<![\w/\\.\-])@(?P<path>(?:[A-Za-z]:)?[\w~\-\./\\]+)"
     )
     return list(pattern.finditer(prompt))
 

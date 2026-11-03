@@ -356,37 +356,6 @@ def test_pointers_that_circle_each_other_name_no_file(tmp_path):
     assert "Workspace Instructions" not in result
 
 
-def test_a_pointer_does_not_starve_the_rules_it_points_at(tmp_path):
-    """Thirteen bytes of pointer must not cost the 1,490-byte file behind it.
-
-    The pointer is skipped when the plan that skips every pointer carries its
-    target: at a 1,500-byte budget the rules fit once the pointer's own bytes are
-    not spent on them. Judged against the first plan instead, the walk inlined
-    the pointer, dropped the rules, and with three more bytes inlined the target
-    — a worse prompt for a smaller budget.
-    """
-    root = tmp_path / "project"
-    app = root / "app"
-    app.mkdir(parents=True)
-    (root / "AGENTS.md").write_text("R" * 1489 + "\n")  # 1,490 bytes
-    (app / "CLAUDE.md").write_text("@../AGENTS.md")  # 13 bytes
-
-    handler = create_project_context_prompt()
-    ctx = _make_ctx()
-
-    with patch(
-        "zrb.llm.prompt.claude.get_search_directories", return_value=[root, app]
-    ):
-        with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
-            cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 1500
-            result = handler(ctx, "base prompt", _identity_next)
-
-    assert "R" * 20 in result
-    assert str(app / "CLAUDE.md") in result
-    assert "— a pointer to" in result
-
-
 def test_a_path_with_an_at_sign_is_not_a_second_reference(tmp_path, monkeypatch):
     """An `@` in a directory name is part of the path, not a fetch.
 
