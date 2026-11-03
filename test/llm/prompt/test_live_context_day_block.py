@@ -457,3 +457,37 @@ def test_a_long_handover_of_short_lines_is_cut_on_a_line_break(tmp_path):
     assert len(result) <= DAY_BLOCK_MAX_CHARS
     assert "…" not in result, "there was a line break to cut on"
     assert result.splitlines()[-2] in lines, "the last line kept is a whole line"
+
+
+def test_a_handover_carries_the_day_it_was_written(tmp_path):
+    """The window is a week long, so an undated handover reads as tonight's.
+
+    A Friday handover shown on Wednesday without its date is not stale memory;
+    it is a misdated one, which is worse."""
+    _write_day(
+        tmp_path,
+        TODAY - timedelta(days=3),
+        "# three days ago\n\n## Handover\n\nFinish the sweep first.\n",
+    )
+    _write_day(tmp_path, TODAY, "# today\n\n- 09:00 · home · a line · imp 5\n")
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert f"to the next me ({(TODAY - timedelta(days=3)).isoformat()})" in result
+    assert "Finish the sweep first." in result
+
+
+def test_a_missing_handover_says_so_instead_of_leaving_a_hole(tmp_path):
+    """A session that left none leaves no trace of what it was doing.
+
+    Saying so is the difference between a quiet block and a block that reads as
+    complete: the next session can ask instead of assuming the thread carried on.
+    """
+    _write_day(tmp_path, TODAY, "# today\n\n- 09:00 · home · a line · imp 5\n")
+
+    result = _render(tmp_path)
+
+    assert result is not None
+    assert "From the last me" in result
+    assert "None was left" in result
