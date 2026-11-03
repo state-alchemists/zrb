@@ -87,17 +87,16 @@ The assistant can connect to external MCP servers defined in `mcp-config.json`. 
 
 | Tool | Description |
 |------|-------------|
-| `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `core_agents/` and `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call — concurrency is capped at `LLM_MAX_PARALLEL_DELEGATIONS` (default 10; `0` disables), pacing rather than rejecting large batches, and each task may set `isolate_worktree: true` to run in its own git worktree. See sub-agents section below. |
+| `DelegateToAgent` | Delegate a sub-task to a named sub-agent (discovered from `core_agents/` and `agents/` directories). Pass `tasks=[{...}, ...]` to fan out several concurrently in one call — concurrency is capped at `LLM_MAX_PARALLEL_DELEGATIONS` (default 10; `0` disables), pacing rather than rejecting large batches, and each task may set `isolate_worktree: true` to run in its own git worktree. Pass `background=true` to return a handle immediately instead of holding the turn; `GetDelegationResult` collects it. See sub-agents section below. |
 | `SearchAgent` | Find sub-agents by name or description keywords. The `DelegateToAgent` roster only lists the first `LLM_MAX_AGENTS_IN_ROSTER` agents, so use this when the agent you need is not on it. |
 | `ActivateSkill` | Load a named skill (a set of prompts and tools) into the current session. |
 | `SearchSkill` | Find skills by name or description keywords. The skill catalogue in the `workflow` prompt section only lists the first `LLM_MAX_SKILLS_IN_CATALOG` skills, so use this when the skill you need is not listed. |
-| `DelegateToAgentBackground` | Start a delegation in the background and return a handle immediately. |
 | `GetDelegationResult` | Poll a background delegation's handle for its result. |
 | `SendMessageToSubagent` | Message a delegated sub-agent that is running or idle; the sub-agent sees who sent it. Bounded by `LLM_AGENT_MESSAGE_LIMIT`. |
 
 A delegated sub-agent built from a prompt-based definition also gets `SendMessageToParent`, which messages the main agent without ending its run. A definition supplied as a ready `agent_instance` or `agent_factory` is used as is and does not get it.
 
-The four delegation tools belong to the built-in `zrb llm chat` task only — sub-agents never get them, the `minimal` prompt profile drops them, and `apply_common_tools` does not add them. `ActivateSkill` and `SearchSkill` are part of the common set.
+The three delegation tools (`DelegateToAgent`, `GetDelegationResult`, `SendMessageToSubagent`) belong to the built-in `zrb llm chat` task only — sub-agents never get them, the `minimal` prompt profile drops them, and `apply_common_tools` does not add them. `ActivateSkill` and `SearchSkill` are part of the common set.
 
 ### Git Worktrees
 
