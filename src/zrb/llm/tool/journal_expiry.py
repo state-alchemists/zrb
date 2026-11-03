@@ -85,31 +85,42 @@ def stamp(text: str, root: str) -> str:
     """*text* with the file condition's hash filled in, recorded now.
 
     A `file:` condition that names no hash is stamped here, so the note says what
-    it was written against rather than asking a later reader to guess. A file
-    that cannot be read, or a condition that is already stamped, is returned
+    it was written against rather than asking a later reader to guess. No root
+    means no repository was in hand, and a hash taken from the process's own
+    directory would point at whatever happens to sit beside a later reader — so
+    the condition is left unstamped, which reads as uncheckable and keeps the
+    note. A condition already stamped, or a file that cannot be read, comes back
     unchanged: a note is never refused for naming a path that does not exist yet.
     """
     condition = parse_condition(text)
-    if condition is None or condition.kind != "file":
+    if condition is None or condition.kind != "file" or not root:
         return text
     path, _, recorded = condition.value.rpartition("@")
     if recorded and path:
         return text
-    target = os.path.join(root, condition.value) if root else condition.value
+    target = os.path.join(root, condition.value)
     digest = file_sha(target)
     if not digest:
         return text
     return f"{FILE_PREFIX}{condition.value}@{digest}"
 
 
-def is_condition_met(condition: Condition, root: str, version: str) -> bool | None:
+def is_condition_met(
+    condition: Condition, root: str, version: str, repo: str = ""
+) -> bool | None:
     """Whether *condition* still holds — ``None`` when this machine cannot tell.
 
     ``None`` is not "false": a condition this module cannot evaluate keeps its
     note alive, because retiring a note on a failure to look would delete memory
-    the first time a path moved."""
+    the first time a path moved.
+
+    *repo* is the repository whose tree *root* names, empty when the note belongs
+    to no repository or to one other than the checkout in hand. A `file:`
+    condition is answered only when it is not empty: the same relative path in
+    another checkout is another file, and a hash mismatch there would retire a
+    note that is still true."""
     if condition.kind == "file":
-        return _is_file_unchanged(condition.value, root)
+        return _is_file_unchanged(condition.value, root) if repo else None
     if condition.kind == "version":
         return _is_version_matching(condition.value, version)
     if condition.kind == "setting":
@@ -120,8 +131,8 @@ def is_condition_met(condition: Condition, root: str, version: str) -> bool | No
 
 
 def _is_file_unchanged(value: str, root: str) -> bool | None:
-    path, _, recorded = value.rpartition("@")
-    if not recorded:
+    path, separator, recorded = value.rpartition("@")
+    if not separator or not path:
         return None
     target = os.path.join(root, path) if root else path
     digest = file_sha(target)
@@ -204,18 +215,25 @@ def current_version() -> str:
         return ""
 
 
-def expired_note_rels(notes, root: str, version: str | None = None) -> set[str]:
+def expired_note_rels(
+    notes, root: str, current: str, version: str | None = None
+) -> set[str]:
     """The notes whose condition is *known to be* false, by journal-relative path.
 
     A note with no condition, a prose condition, or one this machine cannot
     evaluate is not here: expiry removes what is disproved, never what is merely
-    unchecked."""
+    unchecked.
+
+    *current* is the repository in hand. A note about another one is passed an
+    empty repository, which makes its `file:` condition uncheckable rather than
+    wrong — `root` names this checkout's tree, not that note's."""
     resolved = current_version() if version is None else version
     expired: set[str] = set()
     for note in notes:
         condition = parse_condition(note.applies_when)
         if condition is None:
             continue
-        if is_condition_met(condition, root, resolved) is False:
+        repo = note.repo if note.repo and note.repo == current else ""
+        if is_condition_met(condition, root, resolved, repo) is False:
             expired.add(note.rel)
     return expired
