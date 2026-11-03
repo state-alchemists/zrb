@@ -174,6 +174,59 @@ def test_an_unstamped_digest_shaped_name_is_uncheckable_rather_than_false(tmp_pa
     assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
 
 
+def test_an_absolute_path_is_never_read(tmp_path):
+    """A condition is text a model wrote, so `file:` must not be a way to read the
+    machine: `/dev/zero` blocks the turn, and nothing outside the tree is what the
+    note is about."""
+    assert stamp("file:/dev/zero", str(tmp_path)) == "file:/dev/zero"
+    condition = Condition("file", "/dev/zero@deadbeefcafe")
+
+    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
+
+
+def test_a_path_cannot_climb_out_of_the_repository(tmp_path):
+    outside = tmp_path / "outside.txt"
+    outside.write_text("secret\n", encoding="utf-8")
+    root = tmp_path / "repo"
+    root.mkdir()
+
+    assert stamp("file:../outside.txt", str(root)) == "file:../outside.txt"
+    condition = Condition("file", f"../outside.txt@{file_sha(str(outside))}")
+
+    assert is_condition_met(condition, str(root), "3.29", "zrb") is None
+
+
+def test_a_symlink_out_of_the_repository_is_not_followed(tmp_path):
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("secret\n", encoding="utf-8")
+    try:
+        (root / "link.txt").symlink_to(outside)
+    except OSError:
+        pytest.skip("this platform does not allow symlinks without elevation")
+
+    assert stamp("file:link.txt", str(root)) == "file:link.txt"
+    condition = Condition("file", f"link.txt@{file_sha(str(outside))}")
+
+    assert is_condition_met(condition, str(root), "3.29", "zrb") is None
+
+
+def test_a_directory_and_an_oversized_file_are_uncheckable(tmp_path, monkeypatch):
+    """Neither is what a condition names, and neither is worth reading whole."""
+    from zrb.llm.tool import journal_expiry
+
+    (tmp_path / "src").mkdir()
+    (tmp_path / "big.py").write_text("x" * 17, encoding="utf-8")
+    monkeypatch.setattr(journal_expiry, "MAX_HASH_BYTES", 16)
+
+    assert stamp("file:src", str(tmp_path)) == "file:src"
+    assert stamp("file:big.py", str(tmp_path)) == "file:big.py"
+    for value in ("src@deadbeefcafe", "big.py@deadbeefcafe"):
+        condition = Condition("file", value)
+        assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
+
+
 @pytest.mark.parametrize(
     "condition, version, expected",
     [

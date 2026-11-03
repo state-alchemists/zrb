@@ -11,7 +11,9 @@ This module reads the narrow subset that can be checked without asking anyone:
 ``file:<path>@<sha>``
     holds while the file's content still hashes to *sha*. The writer stamps the
     hash at write time (`stamp`), because a condition nobody stamped is a
-    condition nobody can evaluate.
+    condition nobody can evaluate. The path is untrusted input: it must stay
+    inside the repository once symlinks are resolved and be a regular file, and
+    at most `MAX_HASH_BYTES` of it is read.
 
 ``version:<3.29`` / ``version:=3.29.1`` / ``version:>=3.29``
     holds while zrb's own version satisfies the comparison.
@@ -44,6 +46,13 @@ DATE_PREFIX = "date:"
 SHA_LENGTH = 12
 """How much of the digest a condition records: enough to tell a file changed,
 short enough that a hand-written condition stays readable."""
+
+MAX_HASH_BYTES = 8 * 1024 * 1024
+"""How much of a file a condition will read: a source file, not an artefact.
+
+A `file:` path is written by a model, so it is untrusted input. Reading it whole
+would let `/dev/zero` hang the turn and a multi-gigabyte file exhaust memory, so
+the read is bounded and anything larger answers "cannot tell"."""
 
 _TRUE_TOKENS = frozenset({"on", "true", "yes", "1", "enabled"})
 _FALSE_TOKENS = frozenset({"off", "false", "no", "0", "disabled"})
@@ -80,12 +89,45 @@ def parse_condition(text: str) -> Condition | None:
 
 
 def file_sha(path: str) -> str:
-    """The digest a `file:` condition records for *path*, or ``""`` if unreadable."""
+    """The digest a `file:` condition records for *path*, or ``""`` when it cannot
+    be read.
+
+    Bounded on purpose (`MAX_HASH_BYTES`) and limited to regular files: a condition
+    names a source file, so a device, a directory and a multi-gigabyte artefact are
+    all "cannot tell" rather than something to read into memory."""
     try:
+        if not os.path.isfile(path):
+            return ""
         with open(path, "rb") as f:
-            return hashlib.sha256(f.read()).hexdigest()[:SHA_LENGTH]
+            content = f.read(MAX_HASH_BYTES + 1)
     except OSError:
         return ""
+    if len(content) > MAX_HASH_BYTES:
+        return ""
+    return hashlib.sha256(content).hexdigest()[:SHA_LENGTH]
+
+
+def condition_path(value: str, root: str) -> str:
+    """The file *value* names inside *root*, or ``""`` when it names none we may read.
+
+    A condition is text a model wrote, so its path is untrusted input: it must be
+    relative, stay inside the tree once symlinks are resolved, and — checked when
+    it is read — be a regular file. Without that, `file:` is a way to read anything
+    the process can reach under a name that looks like a test fixture: `/dev/zero`
+    blocks the turn, `/etc/passwd` leaves the repository entirely, and a symlink
+    does the same without spelling `..`."""
+    if not root or not value or os.path.isabs(value):
+        return ""
+    if any(part == ".." for part in re.split(r"[\\/]", value)):
+        return ""
+    inside = os.path.realpath(root)
+    target = os.path.realpath(os.path.join(inside, value))
+    try:
+        if os.path.commonpath([inside, target]) != inside:
+            return ""
+    except ValueError:
+        return ""
+    return target
 
 
 def stamp(text: str, root: str) -> str:
@@ -104,11 +146,16 @@ def stamp(text: str, root: str) -> str:
     `config@deadbeefcafe` when that file exists: reading either as `path@digest`
     would compare the hash of one file with the other's name and hide the note
     immediately. A path that exists as a whole is stamped as the path it is.
+
+    A path that leaves the tree is left unstamped rather than refused (see
+    `condition_path`): the note is still worth keeping, it just cannot be checked.
     """
     condition = parse_condition(text)
     if condition is None or condition.kind != "file" or not root:
         return text
-    target = os.path.join(root, condition.value)
+    target = condition_path(condition.value, root)
+    if not target:
+        return text
     path, _, recorded = condition.value.rpartition("@")
     if path and _SHA_RE.match(recorded) and not os.path.exists(target):
         return text
@@ -149,16 +196,24 @@ def _is_file_unchanged(value: str, root: str) -> bool | None:
         # Nothing was stamped, so there is no digest to compare against. Reading
         # the value as `path@digest` anyway would report a live note as false.
         return None
-    target = os.path.join(root, path) if root else path
-    if root and os.path.exists(os.path.join(root, value)):
+    target = condition_path(path, root)
+    if not target:
+        # The path leaves the tree, so it is not one this condition may read.
+        return None
+    whole = condition_path(value, root)
+    if whole and os.path.exists(whole):
         # The value as a whole names a file, so it is a path whose last segment
         # happens to look like a digest — not a stamped condition. There is no
         # digest of `path` to compare, and "cannot tell" keeps the note.
         return None
-    digest = file_sha(target)
-    if not digest:
+    if not os.path.exists(target):
         # The file is gone, which is a change, not an inability to check.
         return False
+    digest = file_sha(target)
+    if not digest:
+        # Present but unreadable, not a regular file, or past `MAX_HASH_BYTES`:
+        # we cannot tell, and a note is never hidden on a failure to look.
+        return None
     return digest == recorded
 
 
