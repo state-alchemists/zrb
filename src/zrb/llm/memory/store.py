@@ -64,12 +64,16 @@ def now() -> str:
 
 
 def read_document(path: str) -> str:
+    """The file's text, or ``""`` when it cannot be read.
+
+    Invalid UTF-8 counts as unreadable: a store is browsable and syncable, so a
+    corrupted or wrongly-encoded file must degrade to "absent" rather than take a
+    turn down through `render_memory_block` or a search.
+    """
     try:
         with open(path, encoding="utf-8") as f:
             return f.read()
-    except FileNotFoundError:
-        return ""
-    except OSError:
+    except (OSError, UnicodeError):
         return ""
 
 
@@ -111,6 +115,10 @@ def load_fact(fact_id: str, include_retired: bool = True) -> Fact | None:
         return None
     if fact is None:
         return None
+    # The file name is the id. A document whose frontmatter disagrees is not the
+    # fact that was asked for, and retiring it would write a different subject.
+    if fact.id != fact_id:
+        return None
     if not include_retired and not fact.is_active:
         return None
     return fact
@@ -149,9 +157,12 @@ def load_facts(include_retired: bool = False) -> list[Fact]:
 
 def load_diary(day: str) -> Diary | None:
     try:
-        return Diary.from_markdown(read_document(paths.diary_path(day)))
+        entry = Diary.from_markdown(read_document(paths.diary_path(day)))
     except ValueError:
         return None
+    if entry is None or entry.id != day:
+        return None
+    return entry
 
 
 def save_diary(entry: Diary) -> None:

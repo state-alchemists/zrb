@@ -10,9 +10,9 @@ from datetime import date, timedelta
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.memory import paths, render, store
+from zrb.llm.memory import paths, render, search, store
 from zrb.llm.memory.model import Fact
-from zrb.llm.tool.memory import remember
+from zrb.llm.tool.memory import forget, remember
 from zrb.util.file_lock import FileLockTimeout
 
 
@@ -178,6 +178,31 @@ def test_ensure_store_does_not_duplicate_its_gitignore_entries(store_dir):
     content = store.read_document(os.path.join(str(store_dir), ".gitignore"))
     assert content.count(".lock") == 1
     assert content.count(".state/") == 1
+
+
+def test_a_file_whose_frontmatter_disagrees_with_its_name_is_not_the_fact(
+    store_dir, monkeypatch
+):
+    """`forget('x')` must never retire a document that says it is `y`."""
+    store_dir.mkdir(parents=True, exist_ok=True)
+    store.write_document(
+        os.path.join(str(store_dir), "facts", "x.md"),
+        "---\nid: y\nclaim: A different subject.\n---\n",
+    )
+    assert store.load_fact("x") is None
+    message = forget("x", "stale")
+    assert "Nothing is remembered" in message
+    assert store.load_fact("y") is None
+
+
+def test_an_invalid_utf8_file_degrades_to_absent(store_dir):
+    """A corrupted or synced file must not take a turn down."""
+    facts = os.path.join(str(store_dir), "facts")
+    os.makedirs(facts, exist_ok=True)
+    with open(os.path.join(facts, "broken.md"), "wb") as f:
+        f.write(b"---\nid: broken\nclaim: caf\xe9\n---\n")
+    assert store.load_facts() == []
+    assert search.search("cafe") == []
 
 
 def test_a_path_shaped_name_is_refused_by_the_path_builder(store_dir):
