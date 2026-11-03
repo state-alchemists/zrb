@@ -68,6 +68,9 @@ class Note:
     # Read from frontmatter; the index filter compares it with the checkout in
     # hand (`journal_scope`).
     repo: str = ""
+    # The condition the note holds under, as the frontmatter states it. Prose is
+    # kept as prose — `journal_expiry` checks the subset that can be checked.
+    applies_when: str = ""
 
     @property
     def rel(self) -> str:
@@ -357,6 +360,7 @@ def read_note(root: str, category: str, filename: str) -> Note | None:
         has_stamp=stamp is not None,
         keywords=front.get("keywords", ""),
         repo=normalize_scope(front.get("repo", "")),
+        applies_when=front.get("applies_when", ""),
     )
 
 

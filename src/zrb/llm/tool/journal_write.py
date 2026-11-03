@@ -48,9 +48,11 @@ from zrb.llm.tool.journal_index import (
     with_link,
 )
 from zrb.llm.tool.journal_index_migration import absorb_renamed_sections, plan_adoptions
+from zrb.llm.tool.journal_expiry import stamp
 from zrb.llm.tool.journal_scope import (
     default_scope,
     repo_of,
+    repo_root,
     scope_argument,
 )
 from zrb.llm.tool.journal_note import (
@@ -673,6 +675,9 @@ def _write_note_locked(
     check_category(category)
     check_slug(slug)
     condition = check_applies_when(applies_when)
+    # A `file:` condition gets the hash it was written against, here, while the
+    # checkout is in hand; a later reader has no way to recover it.
+    condition = stamp(condition, repo_root(os.getcwd()))
     check_finding(finding)
     notes = _load_notes(root)
     note_path = os.path.join(root, category, f"{slug}.md")
