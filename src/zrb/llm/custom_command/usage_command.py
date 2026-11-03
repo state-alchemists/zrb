@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.custom_command.usage_command_memory import render_memory_section
 from zrb.llm.custom_command.usage_command_tools import (
     get_registered_tool_names,
     render_tools_section,
@@ -73,7 +74,7 @@ def render_usage(
     registered_tools: list[str] | None = None,
 ) -> str:
     """The body for one window: its label, the table, the footer, then the Tools
-    section when the window has data for it.
+    and Memory sections when each has data for it.
 
     The panel draws the title, so the body opens with the window it covers
     rather than repeating the word "Usage".
@@ -87,16 +88,19 @@ def render_usage(
         "",
         *_footer(records),
     ]
-    extra = render_tools_section(
-        records,
-        (
-            get_registered_tool_names()
-            if registered_tools is None
-            else registered_tools
+    for extra in (
+        render_tools_section(
+            records,
+            (
+                get_registered_tool_names()
+                if registered_tools is None
+                else registered_tools
+            ),
         ),
-    )
-    if extra:
-        sections.extend(["", *extra])
+        render_memory_section(records),
+    ):
+        if extra:
+            sections.extend(["", *extra])
     return "\n".join(sections)
 
 
