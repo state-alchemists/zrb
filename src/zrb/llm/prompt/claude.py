@@ -342,9 +342,10 @@ def _inline_instructions(
     not starve the 1,490-byte file it points at. A cycle names no file and can
     never be a route, so it is skipped too.
 
-    Skipping can only free budget, so one plan is enough: every file that plan
-    inlines is still inlined after the pointers are dropped, and the file a
-    pointer is reported as pointing at is always in the prompt.
+    The plan is the roomiest walk there is, so a pointer the plan kept can still
+    cost its target when it comes back: every claim is checked against the final
+    walk, and a pointer whose target fell out is inlined instead of described
+    (`_walk_with_skips`).
 
     Returns the rendered blocks, the paths they cover, and the pointer files
     mapped to the file the prompt actually carries, not to the next hop.
@@ -364,9 +365,7 @@ def _inline_instructions(
     )
     covered = {path.resolve() for path in without_pointers}
     skipped = _skip_pointers(pointers, next_hop, covered)
-    blocks, inlined = _walk_instructions(
-        sources, texts, max_bytes, skip=frozenset(skipped)
-    )
+    blocks, inlined, skipped = _walk_with_skips(sources, texts, max_bytes, skipped)
     return blocks, inlined, _resolve_pointer_targets(skipped)
 
 
@@ -398,6 +397,40 @@ def _skip_pointers(
     return skipped
 
 
+def _walk_with_skips(
+    sources: list[Path],
+    texts: dict[Path, bytes],
+    max_bytes: int,
+    skipped: dict[Path, Path],
+) -> tuple[list[str], set[Path], dict[Path, Path]]:
+    """Render the blocks, dropping a skip the final budget did not honour.
+
+    The skip set is decided against the roomiest walk there is — the one that
+    drops *every* pointer. A pointer the plan kept can still cost its target
+    once it comes back: a more specific pointer whose reference resolves nowhere
+    spends the bytes the plan had counted on the target, and the target falls
+    out. A pointer left under a "points at" note would then name rules the prompt
+    does not carry, so the claim goes, the pointer's own line comes back, and the
+    walk runs again. Each pass removes at least one claim, so it ends.
+
+    A claim naming another skipped pointer is a cycle: it never reaches a file the
+    prompt could hold, and the listing already drops its note
+    (`_resolve_pointer_targets`).
+    """
+    while True:
+        blocks, inlined = _walk_instructions(
+            sources, texts, max_bytes, skip=frozenset(skipped)
+        )
+        honoured = {
+            pointer: target
+            for pointer, target in skipped.items()
+            if target in skipped or target in inlined
+        }
+        if len(honoured) == len(skipped):
+            return blocks, inlined, honoured
+        skipped = honoured
+
+
 def _resolve_pointer_targets(pointers: dict[Path, Path]) -> dict[Path, Path]:
     """Each pointer mapped to the file the prompt carries, following the chain.
 
@@ -405,14 +438,18 @@ def _resolve_pointer_targets(pointers: dict[Path, Path]) -> dict[Path, Path]:
     the middle file would claim something is inlined when it is not. A chain
     that circles back has no terminal file, so the pointer keeps its skip — its
     content is a reference either way — but loses its note rather than naming a
-    file the prompt does not hold.
+    file the prompt does not hold. A chain longer than `MAX_POINTER_DEPTH` is not
+    followed either: the walk that decided the skip already treats that length as
+    broken, and this walk must not be the one place that trusts it.
     """
     next_hop = {path.resolve(): target for path, target in pointers.items()}
     terminal: dict[Path, Path] = {}
     for start, first in pointers.items():
         seen = {start.resolve()}
         target: Path | None = first
-        while target is not None:
+        for _ in range(MAX_POINTER_DEPTH):
+            if target is None:
+                break
             here = target.resolve()
             if here in seen:
                 target = None
@@ -422,6 +459,8 @@ def _resolve_pointer_targets(pointers: dict[Path, Path]) -> dict[Path, Path]:
             if hop is None:
                 break
             target = hop
+        else:
+            target = None
         if target is not None:
             terminal[start] = target
     return terminal

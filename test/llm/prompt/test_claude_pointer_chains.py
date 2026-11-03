@@ -91,6 +91,39 @@ def test_a_pointer_with_a_deep_branch_is_not_skipped_for_its_shallow_one(tmp_pat
     assert f"- `{root / 'CLAUDE.md'}` — a pointer to" not in result
 
 
+def test_a_pointer_does_not_promise_a_target_the_walk_dropped(tmp_path):
+    """A restored pointer can spend the bytes its target was budgeted.
+
+    The plan drops every pointer, so a pointer the plan kept looks free — it is
+    not. The more specific file here is a pointer whose reference resolves
+    nowhere, and it spends thirteen bytes the plan had counted on the 1,490-byte
+    target, which then falls out of the final walk. The listing must not go on
+    saying the pointer names a file the prompt does not carry.
+    """
+    root = tmp_path / "project"
+    app = root / "app"
+    sub = app / "sub"
+    sub.mkdir(parents=True)
+    (root / "AGENTS.md").write_text("R" * 1489 + "\n")  # 1,490 bytes
+    (sub / "CLAUDE.md").write_text("@../../AGENTS.md")  # 18 bytes
+    (app / "CLAUDE.md").write_text("@missing.md")  # 13 bytes, resolves nowhere
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude.get_search_directories", return_value=[root, app, sub]
+    ):
+        with patch("zrb.llm.prompt.claude.CFG") as cfg:
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 1500
+            result = handler(ctx, "base prompt", _identity_next)
+
+    assert f"#### Instructions from: `{root / 'AGENTS.md'}`" not in result
+    assert f"— a pointer to `{root / 'AGENTS.md'}`" not in result
+    assert f"#### Instructions from: `{sub / 'CLAUDE.md'}`" in result
+
+
 def test_a_pointer_does_not_starve_the_rules_it_points_at(tmp_path):
     """Thirteen bytes of pointer must not cost the 1,490-byte file behind it.
 
