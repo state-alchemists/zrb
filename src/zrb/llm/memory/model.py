@@ -53,9 +53,14 @@ _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 # Markers that only make sense as instructions to a model. A memory is read back
 # inside a later prompt, so a line holding one is a poisoned fact, not a claim.
-# The list is deliberately short: a scan that refuses ordinary prose (a note
-# about prompt injection, say) teaches the writer to stop recording.
-_INJECTION_MARKERS = (
+#
+# This is a tripwire, not a proof. A blocklist of phrasings cannot be complete,
+# and a claim may legitimately quote an imperative ("Go said: retry, don't read
+# the code"), so the list holds only text that cannot appear in a claim about the
+# world: prompt syntax, an override of earlier instructions, and the assignment of
+# a role. The rest of the defence is structural — the injected block says its
+# lines are data, and `render` drops any line that trips this check.
+_INSTRUCTION_MARKERS = (
     "<|",
     "<system",
     "</system",
@@ -66,6 +71,13 @@ _INJECTION_MARKERS = (
     "<memory",
     "ignore previous instructions",
     "ignore all previous instructions",
+    "ignore the previous instructions",
+    "you are now",
+    "you are no longer",
+    "your new role",
+    "your new instructions",
+    "new system prompt",
+    "from now on you",
 )
 
 # Field order in the file is fixed: a diff stays readable when a claim is revised.
@@ -233,8 +245,10 @@ def claim_error(claim: str) -> str | None:
     reason = injection_reason(text)
     if reason:
         return (
-            f"A claim cannot carry {reason}: every pinned claim is read back "
-            "inside a future prompt."
+            f"A claim cannot carry {reason}: it assigns a role or overrides "
+            "instructions, and a claim states what is true. Every pinned claim is "
+            "read back inside a future prompt. Put the wording in `body`, which "
+            "is evidence and is never injected."
         )
     return None
 
@@ -307,13 +321,13 @@ def handover_error(handover: str | None) -> str | None:
 
 
 def injection_reason(text: str) -> str | None:
-    """The marker *text* carries, or ``None``.
+    """The instruction marker *text* carries, or ``None``.
 
     Case-insensitive on the whole text: a marker that only works at the start of
     a line still does its damage inside a block the model reads top to bottom.
     """
     folded = text.lower()
-    for marker in _INJECTION_MARKERS:
+    for marker in _INSTRUCTION_MARKERS:
         if marker in folded:
             return f"the marker {marker!r}"
     return None

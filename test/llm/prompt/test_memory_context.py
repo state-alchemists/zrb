@@ -84,6 +84,25 @@ def test_a_fact_recorded_after_an_empty_first_turn_is_shown(store_dir):
     assert "Learned on the first turn of an empty store." in delta
 
 
+def test_a_fact_left_out_by_the_cap_is_shown_next_turn(store_dir):
+    """The emitter is capped at three lines; the baseline must not outrun it.
+
+    Advancing the baseline to everything active would mark the fourth fact as
+    already shown, and it would never be injected at all.
+    """
+    remember("anchor", "An anchor claim.", pin=True)
+    assert render_memory_block() is not None
+    for index in range(4):
+        remember(f"fact-{index}", f"Claim number {index}.")
+    first = render_memory_delta()
+    assert first is not None
+    assert len([line for line in first.splitlines() if line.startswith("- ")]) == 3
+    second = render_memory_delta()
+    assert second is not None
+    assert len([line for line in second.splitlines() if line.startswith("- ")]) == 1
+    assert render_memory_delta() is None
+
+
 def test_a_forgotten_fact_is_tombstoned_once(store_dir):
     """The model must stop relying on a claim the block showed and Forget retired.
 

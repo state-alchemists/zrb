@@ -27,7 +27,9 @@ from zrb.llm.memory.model import (
     STATUS_RETIRED,
     Diary,
     Fact,
+    date_error,
     format_stamp,
+    id_error,
     split_document,
 )
 from zrb.llm.memory.render import render_core
@@ -123,7 +125,12 @@ def load_facts(include_retired: bool = False) -> list[Fact]:
         if not name.endswith(".md") or name.startswith("."):
             continue
         fact = Fact.from_markdown(read_document(os.path.join(directory, name)))
-        if fact is None or (not include_retired and not fact.is_active):
+        # A file whose id is not a subject id was not written by this store: a
+        # hand-edited or synced page is skipped rather than allowed to reach a
+        # path builder with `..` in it.
+        if fact is None or id_error(fact.id) is not None:
+            continue
+        if not include_retired and not fact.is_active:
             continue
         facts.append(fact)
     facts.sort(key=lambda item: item.id)
@@ -153,7 +160,9 @@ def load_diaries(include_retired: bool = False) -> dict[str, Diary]:
         if not name.endswith(".md") or name.startswith("."):
             continue
         entry = Diary.from_markdown(read_document(os.path.join(directory, name)))
-        if entry is None or (not include_retired and not entry.is_active):
+        if entry is None or date_error(entry.id) is not None:
+            continue
+        if not include_retired and not entry.is_active:
             continue
         entries[entry.id] = entry
     return entries

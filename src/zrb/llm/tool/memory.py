@@ -179,6 +179,10 @@ def remember(
     rather than shortening the claim to fit.
     """
     wanted_kind = kind.strip().lower() if kind is not None else None
+    if wanted_kind is None and date_error(id) is None:
+        # A date names a diary entry and nothing else, so a revision that omits
+        # `kind` lands on the day rather than being refused as a fact id.
+        wanted_kind = KIND_DIARY
     if wanted_kind is not None and wanted_kind not in KINDS:
         return f"{_NOT_A_KIND} [SYSTEM SUGGESTION]: retry with one of them."
     if wanted_kind == KIND_DIARY:

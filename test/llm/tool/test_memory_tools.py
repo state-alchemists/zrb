@@ -58,11 +58,12 @@ def test_revising_a_loop_without_repeating_kind_keeps_it_a_loop(store_dir):
     assert "[deploy-cert]" in store.read_document(paths.core_path())
 
 
-def test_a_date_shaped_id_is_a_diary_not_a_fact(store_dir):
-    """A date would otherwise pass the id check and shadow the day's entry."""
+def test_a_date_shaped_id_routes_to_the_diary_not_a_fact(store_dir):
+    """A date names a diary entry, so an omitted `kind` cannot mean "fact"."""
     message = remember("2026-11-03", "A day.")
-    assert "kind='diary'" in message
+    assert "needs a `body`" in message
     assert store.load_fact("2026-11-03") is None
+    assert store.load_diary("2026-11-03") is None
 
 
 def test_pin_false_unpins_and_leaves_the_core(store_dir):
@@ -150,6 +151,18 @@ def test_a_diary_entry_is_forgotten_only_as_wrong(store_dir):
     remember("2026-11-03", "A day.", kind="diary", body="something")
     assert "only as `wrong`" in forget("2026-11-03", "stale")
     assert "Forgot diary 2026-11-03" in forget("2026-11-03", "wrong")
+
+
+def test_a_diary_can_be_revised_without_repeating_kind(store_dir):
+    """A date names a diary entry and nothing else, so the kind is inferable."""
+    remember("2026-11-03", "A day.", kind="diary", body="first telling")
+    message = remember("2026-11-03", "A day, told again.", body="second telling")
+    assert "Remembered the day" in message
+    entry = store.load_diary("2026-11-03")
+    assert entry is not None
+    assert entry.claim == "A day, told again."
+    assert entry.body == "second telling"
+    assert store.load_fact("2026-11-03") is None
 
 
 def test_a_diary_pin_is_refused_rather_than_ignored(store_dir):

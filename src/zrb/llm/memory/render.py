@@ -15,6 +15,7 @@ The ordering rules exist so two renders of the same store are the same bytes:
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date, timedelta
 
 from zrb.llm.memory.model import (
@@ -22,6 +23,7 @@ from zrb.llm.memory.model import (
     KIND_LOOP,
     Diary,
     Fact,
+    injection_reason,
 )
 
 ALWAYS_HEADING = "## Always"
@@ -86,11 +88,19 @@ def render_recent(
     oldest line of a capped block loses a memory nobody would have read.
     """
     lines: list[str] = []
-    if handover is not None and handover.handover.strip():
+    if (
+        handover is not None
+        and handover.handover.strip()
+        and _is_injectable(handover.handover)
+    ):
         lines.append(f"- Handover ({handover.id}): {_one_line(handover.handover)}")
-    if today_entry is not None:
+    if today_entry is not None and _is_injectable(today_entry.claim):
         lines.append(f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}")
-    lines.extend(line for line in reversed(list(log_tail)) if line.strip())
+    lines.extend(
+        line
+        for line in reversed(list(log_tail))
+        if line.strip() and _is_injectable(line)
+    )
     if not lines:
         return ""
     return _section(RECENT_HEADING, lines)
@@ -136,6 +146,79 @@ def claim_key(fact: Fact) -> str:
     return f"{fact.id}@{fact.updated}"
 
 
+@dataclass(frozen=True)
+class DeltaPlan:
+    """What a delta says, and the versions it spoke for.
+
+    ``emitted`` and ``forgotten`` exist because the emitter is capped: a turn
+    that learns four things says three, and advancing the baseline to everything
+    active would make the fourth invisible for the rest of the conversation. Only
+    a version this delta actually emitted may be marked seen.
+    """
+
+    text: str
+    emitted: tuple[str, ...] = ()
+    forgotten: tuple[str, ...] = ()
+
+
+def plan_delta(facts: Sequence[Fact], known: Sequence[str] | None) -> DeltaPlan:
+    """The delta for this turn, and the versions it spoke for."""
+    if known is None:
+        return DeltaPlan("")
+    shown_versions = set(known)
+    tombstones = _tombstones(facts, shown_versions)
+    lines = [_tombstone(fact_id, facts) for fact_id in tombstones]
+    entries = _delta_entries(facts, shown_versions)
+    lines.extend(line for _fact, line in entries)
+    return _fit_delta(lines, entries, tombstones)
+
+
+def _tombstones(facts: Sequence[Fact], shown_versions: set[str]) -> list[str]:
+    """Ids the block showed that no longer name an active fact."""
+    shown_ids = {id_of(key) for key in shown_versions}
+    active_ids = {fact.id for fact in facts if fact.is_active}
+    return sorted(shown_ids - active_ids)
+
+
+def _delta_entries(
+    facts: Sequence[Fact], shown_versions: set[str]
+) -> list[tuple[Fact, str]]:
+    """Facts the block has not shown, newest first, as `(fact, line)`."""
+    changed = [
+        fact
+        for fact in facts
+        if fact.is_active
+        and claim_key(fact) not in shown_versions
+        and _is_injectable(fact.claim)
+    ]
+    changed.sort(key=lambda fact: fact.updated, reverse=True)
+    return [(fact, f"- {_one_line(fact.claim)} [{fact.id}]") for fact in changed]
+
+
+def _fit_delta(
+    lines: list[str],
+    entries: list[tuple[Fact, str]],
+    tombstones: list[str],
+) -> DeltaPlan:
+    """The lines that fit, and the versions they actually spoke for.
+
+    A version counts as shown only when its line survives both caps: marking a
+    line emitted and then cutting it is how a fact goes missing for the rest of
+    a conversation.
+    """
+    kept = lines[:_DELTA_MAX_LINES]
+    if not kept:
+        return DeltaPlan("")
+    body = "\n".join(kept)
+    if len(body) > _DELTA_MAX_CHARS:
+        body = cut_lines(body, _DELTA_MAX_CHARS)
+    survived = set(body.splitlines())
+    emitted = tuple(claim_key(fact) for fact, line in entries if line in survived)
+    return DeltaPlan(
+        f"{DELTA_OPEN}\n{body}\n{DELTA_CLOSE}", emitted, tuple(tombstones)
+    )
+
+
 def compose_delta(facts: Sequence[Fact], known: Sequence[str] | None) -> str:
     """What the injected block has not said yet — changes *and* removals.
 
@@ -147,26 +230,7 @@ def compose_delta(facts: Sequence[Fact], known: Sequence[str] | None) -> str:
     tombstone. Empty when *known* is unknown: without a first turn there is no
     diff, and showing everything would make the first turn pay twice.
     """
-    if known is None:
-        return ""
-    shown_versions = set(known)
-    shown_ids = {_id_of(key) for key in shown_versions}
-    active = [fact for fact in facts if fact.is_active]
-    active_ids = {fact.id for fact in active}
-    lines = [
-        _tombstone(fact_id, facts)
-        for fact_id in sorted(shown_ids - active_ids)
-    ]
-    changed = [fact for fact in active if claim_key(fact) not in shown_versions]
-    changed.sort(key=lambda fact: fact.updated, reverse=True)
-    for fact in changed:
-        lines.append(f"- {_one_line(fact.claim)} [{fact.id}]")
-    if not lines:
-        return ""
-    body = "\n".join(lines[:_DELTA_MAX_LINES])
-    if len(body) > _DELTA_MAX_CHARS:
-        body = cut_lines(body, _DELTA_MAX_CHARS)
-    return f"{DELTA_OPEN}\n{body}\n{DELTA_CLOSE}"
+    return plan_delta(facts, known).text
 
 
 def _tombstone(fact_id: str, facts: Sequence[Fact]) -> str:
@@ -174,19 +238,34 @@ def _tombstone(fact_id: str, facts: Sequence[Fact]) -> str:
 
     The claim is quoted when the file is still there — a retired fact keeps its
     text — so the model knows *which* belief to drop rather than only that an id
-    went away.
+    went away. A quoted claim that trips the instruction check is not quoted:
+    the tombstone must not become the injection channel it exists to correct.
     """
     for fact in facts:
-        if fact.id == fact_id:
-            reason = f" ({fact.reason})" if fact.reason else ""
-            return f"- Forget this claim: {_one_line(fact.claim)} [{fact.id}]{reason}"
+        if fact.id != fact_id:
+            continue
+        if not _is_injectable(fact.claim):
+            return f"- Forget {fact.id}: it is no longer remembered."
+        reason = f" ({fact.reason})" if fact.reason else ""
+        return f"- Forget this claim: {_one_line(fact.claim)} [{fact.id}]{reason}"
     return f"- Forget {fact_id}: it is no longer remembered."
 
 
-def _id_of(key: str) -> str:
+def id_of(key: str) -> str:
     """The id inside a `claim_key`. A kebab id never holds `@`, so the last one
     is the separator."""
     return key.rsplit("@", 1)[0]
+
+
+def _is_injectable(text: str) -> bool:
+    """Whether *text* may be emitted into an injected block.
+
+    The tools refuse an instruction marker at write time; this is the read-side
+    half, so a hand-edited or migrated file cannot bypass that refusal. A line
+    that trips it is dropped rather than rewritten: the file keeps the evidence,
+    the prompt does not carry it.
+    """
+    return injection_reason(text) is None
 
 
 def cut_lines(text: str, budget: int) -> str:
@@ -210,11 +289,20 @@ def cut_lines(text: str, budget: int) -> str:
 
 
 def _is_pinned_fact(fact: Fact) -> bool:
-    return fact.is_active and fact.kind == KIND_FACT and fact.pin
+    return (
+        fact.is_active
+        and fact.kind == KIND_FACT
+        and fact.pin
+        and _is_injectable(fact.claim)
+    )
 
 
 def _is_open_loop(fact: Fact) -> bool:
-    return fact.is_active and fact.kind == KIND_LOOP
+    return (
+        fact.is_active
+        and fact.kind == KIND_LOOP
+        and _is_injectable(fact.claim)
+    )
 
 
 def _entry(fact: Fact) -> str:

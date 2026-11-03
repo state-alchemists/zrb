@@ -84,15 +84,15 @@ def render_memory_delta() -> str | None:
         facts = store.load_facts(include_retired=True)
     except OSError:
         return None
-    block = render.compose_delta(facts, known)
-    if not block:
+    plan = render.plan_delta(facts, known)
+    if not plan.text:
         return None
-    # Advance the baseline only when something was said: the set is the facts
-    # this render considered, so a claim written after this read stays unseen and
-    # appears on the next turn, while what was just shown — tombstone included —
-    # is not repeated.
-    _write_shown([fact for fact in facts if fact.is_active])
-    return block
+    # Advance the baseline only by what this delta actually said: a fact left out
+    # by the three-line cap stays unseen and appears on the next turn.
+    dropped = set(plan.forgotten) | {render.id_of(key) for key in plan.emitted}
+    kept = [key for key in known if render.id_of(key) not in dropped]
+    _write_shown_keys(kept + list(plan.emitted))
+    return plan.text
 
 
 def _session_key() -> str:
@@ -111,12 +111,15 @@ def _write_shown(facts) -> None:
     again. This is the journal's own hard-won rule — deduplicating by slug alone
     froze out every correction.
     """
+    _write_shown_keys([render.claim_key(fact) for fact in facts])
+
+
+def _write_shown_keys(keys) -> None:
     path = paths.state_path(_session_key())
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        payload = {"known": [render.claim_key(fact) for fact in facts]}
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(payload, f)
+            json.dump({"known": list(keys)}, f)
     except OSError:
         # Without a record there is no delta, which costs a repeated claim in a
         # later turn. Failing the turn over it would cost the turn.

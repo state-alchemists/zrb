@@ -1,5 +1,7 @@
 """Search ranks by where a word was found, and returns pointers."""
 
+import os
+
 import pytest
 
 from zrb.config.config import CFG
@@ -92,6 +94,16 @@ def test_a_zero_hit_search_says_it_is_not_proof(store_dir):
     text = search.format_hits("unknown-subject", search.search("unknown-subject"))
     assert "No claim matches" in text
     assert "not proof" in text
+
+
+def test_a_malformed_file_is_skipped_rather_than_crashing_a_search(store_dir):
+    """A hand-edited frontmatter id must not reach a path builder."""
+    bad = os.path.join(str(store_dir), "facts", "bad.md")
+    store.write_document(
+        bad,
+        "---\nid: ../outside\nclaim: A deploy note that would match.\n---\n",
+    )
+    assert search.search("deploy") == []
 
 
 def test_a_result_is_a_pointer_not_a_body(store_dir):
