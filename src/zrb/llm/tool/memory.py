@@ -14,6 +14,7 @@ wipe the handover left by the session before it.
 
 from __future__ import annotations
 
+import os
 from typing import Annotated
 
 from pydantic import Field
@@ -245,8 +246,16 @@ def _forget_locked(fact_id: str, reason: str) -> str:
         problem = reason_error(reason, fact.kind)
         if problem:
             return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
+        path = paths.fact_path(fact.id)
+        previous = store.read_document(path)
         _retire(fact, reason)
-        store.write_core()
+        try:
+            store.write_core()
+        except OSError:
+            # A retirement the core cannot reflect is not a retirement: the claim
+            # would stay in every future block while the file said otherwise.
+            _restore_document(path, previous)
+            raise
         store.git_commit(f"forget: {fact.id} ({reason})")
         return f"Forgot {fact.id} ({reason}). The file stays; `scope='retired'` finds it."
     entry = store.load_diary(fact_id)
@@ -329,10 +338,33 @@ def _remember_fact_locked(
     core = render.render_core(active)
     if occupied and len(core) > CFG.LLM_MEMORY_CORE_MAX_CHARS:
         return _over_core(fact, core)
+    path = paths.fact_path(fact.id)
+    previous = store.read_document(path)
     store.save_fact(fact)
-    store.write_core(active)
+    try:
+        store.write_core(active)
+    except OSError:
+        # The fact and the core are one answer; if the core cannot be written the
+        # fact must not survive a reply that says nothing was written.
+        _restore_document(path, previous)
+        raise
     store.git_commit(f"remember: {fact.id}")
     return _remembered(fact, len(core))
+
+
+def _restore_document(path: str, previous: str) -> None:
+    """Put *path* back as it was, or remove it when it did not exist.
+
+    Best effort: the write that failed is already being reported, and a restore
+    that also fails must not replace the reason with a second one.
+    """
+    try:
+        if previous:
+            store.write_document(path, previous)
+        elif os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        pass
 
 
 def _merged_fact(

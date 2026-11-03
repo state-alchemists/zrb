@@ -228,6 +228,43 @@ def test_a_diary_write_on_an_unwritable_store_answers(store_dir, monkeypatch):
     assert "could not be written" in message
 
 
+def test_a_core_write_failure_rolls_the_fact_back(store_dir, monkeypatch):
+    """The reply says nothing was written, so nothing may have been."""
+
+    def explode(_facts=None):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(store, "write_core", explode)
+    message = remember("x", "X is true.", pin=True)
+    assert "could not be written" in message
+    assert store.load_fact("x") is None
+
+
+def test_a_core_write_failure_keeps_the_previous_claim(store_dir, monkeypatch):
+    remember("x", "X is true.")
+    before = store.read_document(paths.fact_path("x"))
+
+    def explode(_facts=None):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(store, "write_core", explode)
+    remember("x", "X is true, revised.")
+    assert store.read_document(paths.fact_path("x")) == before
+    assert store.load_fact("x").claim == "X is true."
+
+
+def test_a_core_write_failure_rolls_a_forget_back(store_dir, monkeypatch):
+    remember("x", "X is true.", pin=True)
+
+    def explode(_facts=None):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(store, "write_core", explode)
+    assert "could not be written" in forget("x", "stale")
+    fact = store.load_fact("x")
+    assert fact is not None and fact.is_active
+
+
 def test_a_diary_pin_is_refused_rather_than_ignored(store_dir):
     """The tool says a diary never enters the core; a silent pin would lie."""
     message = remember("2026-11-03", "A day.", kind="diary", pin=True, body="x")
