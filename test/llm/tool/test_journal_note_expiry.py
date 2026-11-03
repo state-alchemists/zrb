@@ -211,6 +211,29 @@ def test_a_note_written_here_records_the_digest_of_its_file(writable_journal, tm
     assert f"applies_when_checkout: {checkout_id(str(tree))}" in body
 
 
+def test_a_note_from_another_checkout_is_not_re_stamped_here(tmp_path):
+    """The tag is a directory name, so two checkouts can share it.
+
+    A revision that changes the condition records the tree it is written in —
+    unless the note already names a checkout and this is not it. A digest taken
+    here would be compared there, and a mismatch reads as a disproved condition
+    about somebody else's file.
+    """
+    from types import SimpleNamespace
+
+    from zrb.llm.tool import journal_write
+
+    tree = tmp_path / "zrb"
+    tree.mkdir()
+    elsewhere = SimpleNamespace(applies_when_checkout="not-this-checkout")
+
+    with patch.object(journal_write, "repo_of", return_value="zrb"), patch.object(
+        journal_write, "repo_root", return_value=str(tree)
+    ):
+        assert journal_write._stamp_root("zrb", elsewhere) == ""
+        assert journal_write._stamp_root("zrb", None) == str(tree)
+
+
 def test_a_path_with_repeated_spaces_is_stored_and_stamped_as_written(
     writable_journal, tmp_path
 ):

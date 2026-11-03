@@ -179,6 +179,48 @@ class TestTurnLoggedActivity:
             ]
             assert has_turn_logged_activity(turn) is False, outcome
 
+    def test_false_when_the_gate_blocked_the_call(self):
+        """A gate blocks with an ordinary return: outcome says success anyway."""
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="LogActivity",
+                        content="Blocked: not permitted under the current policy",
+                        tool_call_id="1",
+                        metadata={"blocked": True},
+                    )
+                ]
+            ),
+        ]
+        assert has_turn_logged_activity(turn) is False
+
+    def test_false_when_the_tool_raised(self):
+        """The wrapper answers an exception with `error=True`, not with a retry."""
+        turn = [
+            ModelResponse(
+                parts=[
+                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
+                ]
+            ),
+            ModelRequest(
+                parts=[
+                    ToolReturnPart(
+                        tool_name="LogActivity",
+                        content="Error executing tool LogActivity: disk full",
+                        tool_call_id="1",
+                        metadata={"error": True},
+                    )
+                ]
+            ),
+        ]
+        assert has_turn_logged_activity(turn) is False
+
     def test_false_when_the_call_never_returned(self):
         turn = [
             ModelResponse(

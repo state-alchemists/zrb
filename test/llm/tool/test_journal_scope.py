@@ -213,6 +213,56 @@ def test_a_repository_answers_with_its_own_name(tmp_path):
     assert repo_of(str(root)) == "soda"
 
 
+def test_a_linked_worktree_stamps_its_own_file(tmp_path):
+    """Every worktree answers with one repository name, and reads its own tree.
+
+    Naming and reading want different answers from git: `repository_root`
+    resolves the common directory, so a linked worktree names the repository it
+    belongs to; the tree a `file:` condition is relative to is the worktree
+    itself. Using the name's answer as the read's base stamped the main
+    checkout's file from inside the worktree, and a note then expired on a
+    change it had never seen.
+    """
+    from zrb.llm.tool.journal_expiry import condition_digest
+    from zrb.llm.tool.journal_scope import repo_root
+    from zrb.llm.util.git import checkout_root, repository_root
+
+    main = tmp_path / "main"
+    main.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=main, check=True)
+    (main / "a.txt").write_text("MAIN\n")
+    subprocess.run(["git", "add", "."], cwd=main, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.email=a@b.c",
+            "-c",
+            "user.name=a",
+            "commit",
+            "-qm",
+            "init",
+        ],
+        cwd=main,
+        check=True,
+    )
+    linked = tmp_path / "linked"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "feat", str(linked)],
+        cwd=main,
+        check=True,
+    )
+    (linked / "a.txt").write_text("WORKTREE\n")
+
+    assert repository_root(str(linked)) == os.path.realpath(str(main))
+    assert checkout_root(str(linked)) == os.path.realpath(str(linked))
+    assert repo_root(str(linked)) == os.path.realpath(str(linked))
+    assert repo_of(str(linked)) == repo_of(str(main))
+    assert condition_digest("file:a.txt", repo_root(str(linked))) != condition_digest(
+        "file:a.txt", repo_root(str(main))
+    )
+
+
 def test_no_repository_answers_with_nothing(tmp_path):
     assert repo_of(str(tmp_path)) == ""
 

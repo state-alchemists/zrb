@@ -11,7 +11,7 @@ The rule is one field and one filter:
   when it is about no place in particular — who the user is, how they want to be
   spoken to, what the agent itself prefers;
 - the injected index, the per-turn claims and the auto-search show a note when
-  its tag is empty, ``global``, or the repository in hand;
+  its tag is empty or the repository in hand;
 - ``SearchJournal`` is never filtered. Scoping is about what arrives unasked,
   not about what can be found.
 
@@ -83,10 +83,16 @@ def repo_of(path: str) -> str:
 
 
 def repo_root(path: str) -> str:
-    """The top-level directory of the repository at *path*, or ``""``."""
-    from zrb.llm.util.git import repository_root
+    """The top-level directory of the work tree at *path*, or ``""``.
 
-    return repository_root(path)
+    The tree a note's relative path lives in — not the repository's common
+    directory, which answers with the main checkout from inside a linked
+    worktree and with `<super>/.git/modules/<name>` from inside a submodule.
+    Naming and reading want different answers; `repository_name` takes the
+    first, a `file:` condition needs the second."""
+    from zrb.llm.util.git import checkout_root
+
+    return checkout_root(path)
 
 
 def scope_for_source(source: str, root: str) -> str:

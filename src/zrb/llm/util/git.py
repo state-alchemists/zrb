@@ -79,6 +79,40 @@ def repository_root(cwd: str) -> str:
     return repository_root_from_common_dir(_absolute(common.strip(), cwd))
 
 
+@lru_cache(maxsize=8)
+def checkout_root(cwd: str) -> str:
+    """The top-level directory of the work tree containing *cwd*, or ``""``.
+
+    This is the tree a path is relative to, which is a different question from
+    the one `repository_root` answers: that one resolves the common directory,
+    so every worktree of one repository gets one name — and a linked worktree
+    then points at the main checkout. Reading a file relative to that answer
+    reads the wrong tree, and a submodule, whose common directory is
+    `<super>/.git/modules/<name>`, has no work tree there at all.
+
+    `--show-toplevel` names the tree the caller stands in, worktree or
+    submodule. It answers nothing in a bare repository, which has none.
+    """
+    try:
+        res = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=CFG.LLM_GIT_CMD_TIMEOUT / 1000,
+        )
+    except subprocess.TimeoutExpired:
+        return ""
+    except OSError:
+        return ""
+    if res.returncode != 0:
+        return ""
+    root = res.stdout.strip()
+    # Realpath, so a symlinked way of naming the same checkout is one tree: the
+    # checkout id recorded beside a digest is taken from this answer.
+    return os.path.realpath(root) if root else ""
+
+
 def _absolute(path: str, cwd: str) -> str:
     """*path* as git printed it, resolved against the directory git ran in.
 
