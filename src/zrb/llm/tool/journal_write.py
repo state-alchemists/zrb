@@ -48,7 +48,7 @@ from zrb.llm.tool.journal_index import (
     with_link,
 )
 from zrb.llm.tool.journal_index_migration import absorb_renamed_sections, plan_adoptions
-from zrb.llm.tool.journal_expiry import condition_digest
+from zrb.llm.tool.journal_expiry import checkout_id, condition_digest
 from zrb.llm.tool.journal_scope import (
     default_scope,
     repo_of,
@@ -670,25 +670,33 @@ def _stamp_root(scope: str) -> str:
     return repo_root(os.getcwd())
 
 
-def _recorded_digest(condition: str, previous: Note | None, scope: str) -> str:
-    """The digest this write records beside *condition*, or ``""`` for none.
+def _recorded_stamp(
+    condition: str, previous: Note | None, scope: str
+) -> tuple[str, str]:
+    """The digest this write records beside *condition* and the tree it came from.
 
-    A revision that restates the same condition keeps the digest the note was
-    written with: that hash is evidence of what the note was written against, and
-    deriving it again would quietly renew a condition that had stopped holding.
-    A note with no digest has nothing to preserve — it was written while the file
-    was missing, or before the note had a repository to be relative to — so the
-    revision records one if it can, rather than leaving the note uncheckable for
-    good. A new note, or one whose condition changed, records the tree as it is
-    now: the tree of the note's own repository, not the checkout the caller
-    happens to stand in (`_stamp_root`)."""
+    ``("", "")`` when nothing is recorded. A revision that restates the same
+    condition keeps the digest the note was written with: that hash is evidence of
+    what the note was written against, and deriving it again would quietly renew a
+    condition that had stopped holding. A note with no digest has nothing to
+    preserve — it was written while the file was missing, or before the note had a
+    repository to be relative to — so the revision records one if it can, rather
+    than leaving the note uncheckable for good. A new note, or one whose condition
+    changed, records the tree as it is now: the tree of the note's own repository,
+    not the checkout the caller happens to stand in (`_stamp_root`).
+
+    The tree is recorded with the digest because a `repo:` tag is only a directory
+    name: two checkouts can share one, and a digest compared in the wrong checkout
+    is a false expiry about somebody else's file."""
     if (
         previous is not None
         and previous.applies_when == condition
         and previous.applies_when_digest
     ):
-        return previous.applies_when_digest
-    return condition_digest(condition, _stamp_root(scope))
+        return previous.applies_when_digest, previous.applies_when_checkout
+    root = _stamp_root(scope)
+    digest = condition_digest(condition, root)
+    return (digest, checkout_id(root)) if digest else ("", "")
 
 
 def _write_note_locked(
@@ -724,7 +732,8 @@ def _write_note_locked(
     scope = _scope_for(category, repo, previous)
     # The digest a `file:` condition will be checked against is recorded here,
     # while the tree it names is in hand; a later reader has no way to recover it.
-    digest = _recorded_digest(condition, previous, scope)
+    # The tree is recorded with it, because a repo tag is only a directory name.
+    digest, checkout = _recorded_stamp(condition, previous, scope)
     line, is_pinned = _hud_state(hud_line, pinned, previous, notes, note_rel)
     targets = _resolve_links(root, links or [])
     # The keywords the note will *store*, not the ones the caller passed: a
@@ -744,6 +753,7 @@ def _write_note_locked(
         "source": source,
         "applies_when": condition,
         "applies_when_digest": digest,
+        "applies_when_checkout": checkout,
         "status": STATUS_ACTIVE,
         "hud_line": line,
         "keywords": words,

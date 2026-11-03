@@ -75,6 +75,10 @@ class Note:
     # A key of its own, not a suffix on the path: a filename may end in twelve hex
     # digits, so a digest written there could not be told apart from one.
     applies_when_digest: str = ""
+    # The tree that digest was taken in, as a short opaque id. Two checkouts can
+    # share a directory name (`/work/a/zrb`, `/work/b/zrb`) and therefore a `repo:`
+    # tag, so the tree has to be named before a hash comparison means anything.
+    applies_when_checkout: str = ""
 
     @property
     def rel(self) -> str:
@@ -154,6 +158,15 @@ def check_applies_when(applies_when: str | None) -> str:
             "what a later session can check: a version, a file, a setting, or a "
             "preference the user stated. A note that cannot say when it stops "
             "applying can only be re-read, never retired."
+        )
+    if any(ord(character) < 32 for character in text):
+        # A control character is not part of any path a filesystem accepts, and a
+        # NUL makes the path APIs raise instead of answering — a condition that
+        # carries one is a corrupted one, not a note worth keeping unread.
+        raise ValueError(
+            "[SYSTEM SUGGESTION]: applies_when contains a control character, so "
+            "nothing was written. A condition is one line of plain text: name a "
+            "file path, a version, a setting or a date without control characters."
         )
     return text
 
@@ -366,6 +379,7 @@ def read_note(root: str, category: str, filename: str) -> Note | None:
         repo=normalize_scope(front.get("repo", "")),
         applies_when=front.get("applies_when", ""),
         applies_when_digest=front.get("applies_when_digest", ""),
+        applies_when_checkout=front.get("applies_when_checkout", ""),
     )
 
 
@@ -481,6 +495,10 @@ def claim_frontmatter(fields: "dict[str, str]", existing: str) -> list[str]:
         # Beside the condition, never inside it: a path may end in twelve hex
         # digits, and a digest appended to it could not be told apart from one.
         lines.append(f"applies_when_digest: {fields['applies_when_digest']}")
+        if fields.get("applies_when_checkout"):
+            # Which tree that digest came from. Two checkouts can share a
+            # directory name, so the tag alone does not say whose file this is.
+            lines.append(f"applies_when_checkout: {fields['applies_when_checkout']}")
     if fields["pinned"] == "true":
         lines.append("pinned: true")
     if keywords:

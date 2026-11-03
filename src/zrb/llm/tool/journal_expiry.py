@@ -75,6 +75,25 @@ class Condition:
     value: str
 
 
+@dataclass(frozen=True)
+class Origin:
+    """Where a `file:` condition was stamped, as far as the check cares.
+
+    A digest means nothing on its own. The same relative path in another
+    repository is another file, and so is the same path in another checkout of a
+    repository with the same directory name — `/work/a/zrb` and `/work/b/zrb` both
+    tag as `zrb`, because a tag is the name a person would say. All three have to
+    agree with this machine before a hash is compared: the note's tag with the
+    checkout in hand, the tree the digest was taken in with the one now open, and
+    the digest with the file. Any of them disagreeing answers "cannot tell", which
+    keeps the note.
+    """
+
+    repo: str = ""
+    checkout: str = ""
+    digest: str = ""
+
+
 def parse_condition(text: str) -> Condition | None:
     """The checkable condition in *text*, or ``None`` when it is prose."""
     prose = " ".join((text or "").split())
@@ -106,7 +125,8 @@ def file_sha(path: str) -> str:
     all "cannot tell" rather than something to read into memory."""
     try:
         descriptor = os.open(path, os.O_RDONLY | _NOFOLLOW)
-    except OSError:
+    except (OSError, ValueError):
+        # `ValueError` is an embedded NUL: `os.open` refuses the name outright.
         return ""
     return _digest_of(descriptor)
 
@@ -147,6 +167,11 @@ def condition_path(value: str, root: str) -> str:
     blocks the turn, `/etc/passwd` leaves the repository entirely, and a symlink
     does the same without spelling `..`."""
     if not root or not value or os.path.isabs(value):
+        return ""
+    if any(ord(character) < 32 for character in value):
+        # A NUL can never be in a name, and `realpath` raises on one rather than
+        # answering; the rest of the C0 range is no more a path a note can name.
+        # A condition is text a model wrote, so it is refused here, not trusted.
         return ""
     if any(part == ".." for part in re.split(r"[\\/]", value)):
         return ""
@@ -210,6 +235,23 @@ def _condition_digest(root: str, value: str) -> str | None:
     return _digest_of(descriptor) or ""
 
 
+def checkout_id(root: str) -> str:
+    """The tree a digest is taken in, as a short opaque digest; ``""`` for none.
+
+    The repository tag is a directory name, which two checkouts can share. A
+    digest compared in the wrong one is a mismatch about somebody else's file, and
+    a mismatch retires the note — so the tree itself is recorded beside the digest
+    and has to match before a hash means anything. A checkout that moved answers
+    "cannot tell" (a different id), which keeps the note.
+
+    The id is a digest rather than the path so a note never spells out somebody's
+    home directory, and so it survives being read on another machine without
+    pretending to know that machine's layout."""
+    if not root:
+        return ""
+    return hashlib.sha256(os.path.realpath(root).encode()).hexdigest()[:SHA_LENGTH]
+
+
 def condition_digest(text: str, root: str) -> str:
     """The digest *text* records for its file, or ``""`` when it records none.
 
@@ -235,7 +277,7 @@ def condition_digest(text: str, root: str) -> str:
 
 
 def is_condition_met(
-    condition: Condition, root: str, version: str, repo: str = "", digest: str = ""
+    condition: Condition, root: str, version: str, origin: Origin = Origin()
 ) -> bool | None:
     """Whether *condition* still holds — ``None`` when this machine cannot tell.
 
@@ -243,17 +285,12 @@ def is_condition_met(
     note alive, because retiring a note on a failure to look would delete memory
     the first time a path moved.
 
-    *repo* is the repository whose tree *root* names, empty when the note belongs
-    to no repository or to one other than the checkout in hand. A `file:`
-    condition is answered only when it is not empty: the same relative path in
-    another checkout is another file, and a hash mismatch there would retire a
-    note that is still true.
-
-    *digest* is what the note recorded beside the condition (`applies_when_digest`).
-    Without one a `file:` condition is uncheckable, not false: the note may still
-    be right, and nothing here read the file it names."""
+    *origin* is what the note recorded about the file it names, and every part of
+    it has to agree with this machine before a digest is compared (`Origin`):
+    without that, the same relative path in another checkout answers about another
+    file, and a mismatch there retires a note that is still true."""
     if condition.kind == "file":
-        return _is_file_unchanged(condition.value, root, digest) if repo else None
+        return _is_file_unchanged(condition.value, root, origin)
     if condition.kind == "version":
         return _is_version_matching(condition.value, version)
     if condition.kind == "setting":
@@ -263,10 +300,18 @@ def is_condition_met(
     return None
 
 
-def _is_file_unchanged(value: str, root: str, recorded: str) -> bool | None:
-    if not _SHA_RE.match(recorded or ""):
+def _is_file_unchanged(value: str, root: str, origin: Origin) -> bool | None:
+    if not origin.repo:
+        # The note belongs to another repository, or to no place at all. Its
+        # relative path here is not the file it was written about.
+        return None
+    if not _SHA_RE.match(origin.digest or "") or not origin.checkout:
         # Nothing was recorded, so there is no digest to compare against. Reading
         # the value as if one were there would report a live note as false.
+        return None
+    if origin.checkout != checkout_id(root):
+        # Same directory name, different tree: a mismatch here would be about
+        # somebody else's file, which is the most expensive way to be wrong.
         return None
     digest = _condition_digest(root, value)
     if digest is None:
@@ -277,7 +322,7 @@ def _is_file_unchanged(value: str, root: str, recorded: str) -> bool | None:
         # `MAX_HASH_BYTES`: we cannot tell, and a note is never hidden on a
         # failure to look.
         return None
-    return digest == recorded
+    return digest == origin.digest
 
 
 def _is_version_matching(value: str, version: str) -> bool | None:
@@ -366,16 +411,21 @@ def expired_note_rels(
 
     *current* is the repository in hand. A note about another one is passed an
     empty repository, which makes its `file:` condition uncheckable rather than
-    wrong — `root` names this checkout's tree, not that note's."""
+    wrong — `root` names this checkout's tree, not that note's. The digest is
+    still checked against the tree it was taken in (`Origin.checkout`): two
+    checkouts can share a directory name, and a file condition answered in the
+    wrong one is a false expiry about somebody else's file."""
     resolved = current_version() if version is None else version
     expired: set[str] = set()
     for note in notes:
         condition = parse_condition(note.applies_when)
         if condition is None:
             continue
-        repo = note.repo if note.repo and note.repo == current else ""
-        if is_condition_met(
-            condition, root, resolved, repo, note.applies_when_digest
-        ) is False:
+        origin = Origin(
+            repo=note.repo if note.repo and note.repo == current else "",
+            checkout=note.applies_when_checkout,
+            digest=note.applies_when_digest,
+        )
+        if is_condition_met(condition, root, resolved, origin) is False:
             expired.add(note.rel)
     return expired

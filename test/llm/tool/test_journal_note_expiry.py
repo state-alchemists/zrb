@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.tool.journal_expiry import file_sha
+from zrb.llm.tool.journal_expiry import checkout_id, file_sha
 
 
 @pytest.fixture
@@ -207,6 +207,31 @@ def test_a_note_written_here_records_the_digest_of_its_file(writable_journal, tm
     body = _read(writable_journal, "technical/build-cache.md")
     assert "applies_when: file:config.yml" in body.splitlines()
     assert f"applies_when_digest: {file_sha(str(tree / 'config.yml'))}" in body
+    # The tag is only a directory name; the tree is what the digest is about.
+    assert f"applies_when_checkout: {checkout_id(str(tree))}" in body
+
+
+def test_a_condition_with_a_control_character_is_refused(writable_journal):
+    """A NUL makes the path APIs raise rather than answering, so a condition that
+    carries one would take the whole write down with it. It is refused, and the
+    note is left unwritten — a control character is a corrupted condition, not an
+    uncheckable one."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    with pytest.raises(ValueError) as excinfo:
+        write_journal_note(
+            category="technical",
+            slug="config-x",
+            title="T",
+            context="c",
+            finding="f",
+            hud_line="f",
+            source="s",
+            applies_when="file:src/config.py\x00x",
+        )
+
+    assert "control character" in str(excinfo.value)
+    assert not os.path.isfile(os.path.join(writable_journal, "technical/config-x.md"))
 
 
 def test_a_revision_keeps_the_digest_the_note_was_written_with(

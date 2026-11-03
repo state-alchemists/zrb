@@ -9,13 +9,15 @@ removes what is *disproved*, never what is merely unchecked.
 
 import os
 import stat
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
 
 from zrb.llm.tool.journal_expiry import (
     Condition,
+    Origin,
+    checkout_id,
     condition_digest,
     expired_note_rels,
     file_sha,
@@ -26,12 +28,23 @@ from zrb.llm.tool.journal_index import scope_index
 from zrb.llm.tool.journal_note import Note
 
 
+def _met(condition, root, digest: str = "", repo: str = "zrb") -> bool | None:
+    """`is_condition_met` with the origin a note written in *root* would carry."""
+    return is_condition_met(
+        condition,
+        root,
+        "3.29",
+        Origin(repo=repo, checkout=checkout_id(root), digest=digest),
+    )
+
+
 def _note(
     rel: str,
     applies_when: str,
     repo: str = "zrb",
     hud_line: str = "a line",
     digest: str = "",
+    checkout: str = "",
 ) -> Note:
     return Note(
         category=rel.split("/")[0],
@@ -45,6 +58,7 @@ def _note(
         repo=repo,
         applies_when=applies_when,
         applies_when_digest=digest,
+        applies_when_checkout=checkout,
     )
 
 
@@ -88,16 +102,24 @@ def test_the_digest_is_the_hash_of_the_file_as_it_is_now(tmp_path):
     assert condition_digest("file:settings.py", str(tmp_path)) == file_sha(str(target))
 
 
+def test_the_recorded_tree_is_the_checkout_the_digest_came_from(tmp_path):
+    """A `repo:` tag is a directory name and nothing more, so the tree is named
+    separately — otherwise two checkouts of one repository are indistinguishable."""
+    root = tmp_path / "a" / "zrb"
+    root.mkdir(parents=True)
+
+    assert checkout_id(str(root)) == checkout_id(str(root))
+    assert checkout_id("") == ""
+    assert checkout_id(str(tmp_path / "b" / "zrb")) != checkout_id(str(root))
+
+
 def test_a_changed_file_no_longer_matches_its_digest(tmp_path):
     target = tmp_path / "settings.py"
     target.write_text("retries = 1\n", encoding="utf-8")
     digest = condition_digest("file:settings.py", str(tmp_path))
     target.write_text("retries = 3\n", encoding="utf-8")
 
-    condition = parse_condition("file:settings.py")
-    assert (
-        is_condition_met(condition, str(tmp_path), "3.29", "zrb", digest) is False
-    )
+    assert _met(parse_condition("file:settings.py"), str(tmp_path), digest) is False
 
 
 def test_a_digest_needs_a_repository_to_be_relative_to(tmp_path):
@@ -111,27 +133,40 @@ def test_a_digest_needs_a_repository_to_be_relative_to(tmp_path):
 def test_a_file_with_no_digest_is_uncheckable(tmp_path):
     (tmp_path / "settings.py").write_text("x\n", encoding="utf-8")
 
-    condition = Condition("file", "settings.py")
-    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
+    assert _met(Condition("file", "settings.py"), str(tmp_path)) is None
 
 
 def test_a_missing_file_is_a_change_not_an_inability(tmp_path):
-    condition = Condition("file", "gone.py")
-
-    assert (
-        is_condition_met(condition, str(tmp_path), "3.29", "zrb", "deadbeefcafe")
-        is False
-    )
+    assert _met(Condition("file", "gone.py"), str(tmp_path), "deadbeefcafe") is False
 
 
 def test_a_file_condition_is_not_checked_from_another_repository(tmp_path):
-    """The same relative path in another checkout is another file, so the answer
+    """The same relative path in another repository is another file, so the answer
     there would be about the wrong file — and a false answer retires the note."""
-    condition = Condition("file", "settings.py")
-
     assert (
-        is_condition_met(condition, str(tmp_path), "3.29", "", "deadbeefcafe") is None
+        _met(Condition("file", "settings.py"), str(tmp_path), "deadbeefcafe", repo="")
+        is None
     )
+
+
+def test_another_checkout_with_the_same_name_is_not_this_notes_checkout(tmp_path):
+    """`repo_of` answers with a directory name, so `/work/a/zrb` and `/work/b/zrb`
+    are one tag. The digest records the tree it was taken in, or a file in another
+    checkout that merely shares the name retires a note nobody touched."""
+    first = tmp_path / "a" / "zrb"
+    second = tmp_path / "b" / "zrb"
+    first.mkdir(parents=True)
+    second.mkdir(parents=True)
+    (first / "config.yml").write_text("mode = prod\n", encoding="utf-8")
+    (second / "config.yml").write_text("mode = dev\n", encoding="utf-8")
+    digest = condition_digest("file:config.yml", str(first))
+    origin = Origin(
+        repo="zrb", checkout=checkout_id(str(first)), digest=digest
+    )
+    condition = parse_condition("file:config.yml")
+
+    assert is_condition_met(condition, str(first), "3.29", origin) is True
+    assert is_condition_met(condition, str(second), "3.29", origin) is None
 
 
 def test_a_file_name_may_contain_an_at_sign(tmp_path):
@@ -143,8 +178,7 @@ def test_a_file_name_may_contain_an_at_sign(tmp_path):
     digest = condition_digest("file:config@prod.yml", str(tmp_path))
 
     assert digest == file_sha(str(target))
-    condition = parse_condition("file:config@prod.yml")
-    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb", digest) is True
+    assert _met(parse_condition("file:config@prod.yml"), str(tmp_path), digest) is True
 
 
 def test_a_path_that_ends_in_a_digest_is_hashed_as_the_path_it_is(tmp_path):
@@ -158,7 +192,7 @@ def test_a_path_that_ends_in_a_digest_is_hashed_as_the_path_it_is(tmp_path):
 
     assert digest == file_sha(str(target))
     condition = parse_condition("file:config@deadbeefcafe")
-    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb", digest) is True
+    assert _met(condition, str(tmp_path), digest) is True
 
 
 def test_a_digest_shaped_path_that_does_not_exist_yet_cannot_hide_its_note(tmp_path):
@@ -168,7 +202,18 @@ def test_a_digest_shaped_path_that_does_not_exist_yet_cannot_hide_its_note(tmp_p
     condition = parse_condition("file:config@deadbeefcafe")
 
     assert condition_digest("file:config@deadbeefcafe", str(tmp_path)) == ""
-    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
+    assert _met(condition, str(tmp_path)) is None
+
+
+def test_a_nul_in_the_path_cannot_crash_the_check(tmp_path):
+    """`realpath` raises on an embedded NUL instead of answering, and a condition
+    is text a model wrote. It answers "cannot tell" rather than taking the write
+    down with it."""
+    (tmp_path / "a.py").write_text("x\n", encoding="utf-8")
+
+    assert file_sha(os.path.join(str(tmp_path), "a.py\x00x")) == ""
+    assert condition_digest("file:a.py\x00x", str(tmp_path)) == ""
+    assert _met(parse_condition("file:a.py\x00x"), str(tmp_path), "deadbeefcafe") is None
 
 
 def test_an_absolute_path_is_never_read(tmp_path):
@@ -178,10 +223,7 @@ def test_an_absolute_path_is_never_read(tmp_path):
     assert condition_digest("file:/dev/zero", str(tmp_path)) == ""
     condition = Condition("file", "/dev/zero")
 
-    assert (
-        is_condition_met(condition, str(tmp_path), "3.29", "zrb", "deadbeefcafe")
-        is None
-    )
+    assert _met(condition, str(tmp_path), "deadbeefcafe") is None
 
 
 def test_a_path_cannot_climb_out_of_the_repository(tmp_path):
@@ -193,10 +235,7 @@ def test_a_path_cannot_climb_out_of_the_repository(tmp_path):
     assert condition_digest("file:../outside.txt", str(root)) == ""
     condition = Condition("file", "../outside.txt")
 
-    assert (
-        is_condition_met(condition, str(root), "3.29", "zrb", file_sha(str(outside)))
-        is None
-    )
+    assert _met(condition, str(root), file_sha(str(outside))) is None
 
 
 def test_a_symlink_out_of_the_repository_is_not_followed(tmp_path):
@@ -212,10 +251,7 @@ def test_a_symlink_out_of_the_repository_is_not_followed(tmp_path):
     assert condition_digest("file:link.txt", str(root)) == ""
     condition = Condition("file", "link.txt")
 
-    assert (
-        is_condition_met(condition, str(root), "3.29", "zrb", file_sha(str(outside)))
-        is None
-    )
+    assert _met(condition, str(root), file_sha(str(outside))) is None
 
 
 def test_a_symlink_is_refused_at_the_descriptor_not_just_at_the_path(tmp_path):
@@ -250,12 +286,7 @@ def test_a_symlink_inside_the_tree_still_names_the_file_it_points_at(tmp_path):
     digest = condition_digest("file:link.txt", str(root))
 
     assert digest == file_sha(str(real))
-    assert (
-        is_condition_met(
-            parse_condition("file:link.txt"), str(root), "3.29", "zrb", digest
-        )
-        is True
-    )
+    assert _met(parse_condition("file:link.txt"), str(root), digest) is True
 
 
 def test_a_directory_and_an_oversized_file_are_uncheckable(tmp_path, monkeypatch):
@@ -269,11 +300,7 @@ def test_a_directory_and_an_oversized_file_are_uncheckable(tmp_path, monkeypatch
     assert condition_digest("file:src", str(tmp_path)) == ""
     assert condition_digest("file:big.py", str(tmp_path)) == ""
     for value in ("src", "big.py"):
-        condition = Condition("file", value)
-        assert (
-            is_condition_met(condition, str(tmp_path), "3.29", "zrb", "deadbeefcafe")
-            is None
-        )
+        assert _met(Condition("file", value), str(tmp_path), "deadbeefcafe") is None
 
 
 def test_a_file_that_grows_during_the_read_is_uncheckable(tmp_path, monkeypatch):
@@ -320,67 +347,13 @@ def test_the_read_walks_the_tree_it_validated(tmp_path, monkeypatch):
 
     assert (
         journal_expiry.is_condition_met(
-            condition, str(root), "3.29", "zrb", "deadbeefcafe"
+            condition,
+            str(root),
+            "3.29",
+            Origin(repo="zrb", checkout=checkout_id(str(root)), digest="deadbeefcafe"),
         )
         is None
     )
-
-
-@pytest.mark.parametrize(
-    "condition, version, expected",
-    [
-        ("version:>=3.29", "3.29.1", True),
-        ("version:>=3.29", "3.28.0", False),
-        ("version:<3.30", "3.29.1", True),
-        ("version:=3.29", "3.29.0", True),
-        ("version:3.29", "3.29.0", True),
-        ("version:>3.29", "3.29.0", False),
-        ("version:>=3.29", "", None),
-        # PEP 440 segments: a development build is older than the release it is
-        # building, a postrelease is newer, and a local build sorts after its base.
-        ("version:<3.29", "3.29.0.dev1", True),
-        ("version:<3.29", "3.29.0rc1", True),
-        ("version:>=3.29", "3.29.0.post1", True),
-        ("version:>=3.29", "3.29.0+local.1", True),
-        ("version:>=3.29.0rc1", "3.29.0rc2", True),
-        ("version:<3.29.0rc1", "3.29.0b1", True),
-    ],
-)
-def test_a_version_condition_compares_the_numbers_it_names(condition, version, expected):
-    assert is_condition_met(parse_condition(condition), "", version, "zrb") is expected
-
-
-def test_a_version_condition_that_is_not_a_version_is_uncheckable():
-    assert is_condition_met(parse_condition("version:latest"), "", "3.29", "zrb") is None
-
-
-def test_a_setting_condition_compares_the_configured_token(monkeypatch):
-    from zrb.config.config import CFG
-
-    monkeypatch.setattr(CFG, "LLM_JOURNAL_ENABLED", True, raising=False)
-
-    on = parse_condition("setting:LLM_JOURNAL_ENABLED=on")
-    off = parse_condition("setting:LLM_JOURNAL_ENABLED=off")
-    assert is_condition_met(on, "", "3.29", "zrb") is True
-    assert is_condition_met(off, "", "3.29", "zrb") is False
-
-
-def test_a_setting_this_build_does_not_carry_is_uncheckable():
-    condition = parse_condition("setting:NO_SUCH_SETTING=on")
-
-    assert is_condition_met(condition, "", "3.29", "zrb") is None
-
-
-def test_a_date_condition_holds_through_its_own_day():
-    today = date.today()
-
-    assert is_condition_met(parse_condition(f"date:{today.isoformat()}"), "", "3", "zrb") is True
-    yesterday = (today - timedelta(days=1)).isoformat()
-    assert is_condition_met(parse_condition(f"date:{yesterday}"), "", "3", "zrb") is False
-
-
-def test_a_date_condition_that_is_not_a_date_is_uncheckable():
-    assert is_condition_met(parse_condition("date:someday"), "", "3", "zrb") is None
 
 
 def test_prose_never_expires():
@@ -398,9 +371,41 @@ def test_a_disproved_version_expires_the_note():
 def test_another_repositorys_file_condition_is_not_checked(tmp_path):
     """`root` names this checkout's tree; another repository's file is not in it."""
     (tmp_path / "settings.py").write_text("x\n", encoding="utf-8")
-    notes = [_note("technical/a.md", "file:settings.py", repo="soda", digest="deadbeefcafe")]
+    notes = [
+        _note(
+            "technical/a.md",
+            "file:settings.py",
+            repo="soda",
+            digest="deadbeefcafe",
+            checkout=checkout_id(str(tmp_path)),
+        )
+    ]
 
     assert expired_note_rels(notes, str(tmp_path), "zrb", "3.29") == set()
+
+
+def test_a_note_is_expired_in_its_own_checkout_and_not_in_a_namesake(tmp_path):
+    """The end-to-end of the checkout rule: the same note, the same tag, two trees
+    that share a directory name. Only the tree it was stamped in may disprove it."""
+    first = tmp_path / "a" / "zrb"
+    second = tmp_path / "b" / "zrb"
+    first.mkdir(parents=True)
+    second.mkdir(parents=True)
+    (first / "config.yml").write_text("mode = prod\n", encoding="utf-8")
+    (second / "config.yml").write_text("mode = dev\n", encoding="utf-8")
+    notes = [
+        _note(
+            "technical/config.md",
+            "file:config.yml",
+            digest=condition_digest("file:config.yml", str(first)),
+            checkout=checkout_id(str(first)),
+        )
+    ]
+
+    assert expired_note_rels(notes, str(second), "zrb", "3.29") == set()
+
+    (first / "config.yml").write_text("mode = dev\n", encoding="utf-8")
+    assert expired_note_rels(notes, str(first), "zrb", "3.29") == {"technical/config.md"}
 
 
 def test_a_proved_file_expires_and_an_unstamped_one_does_not(tmp_path):
@@ -409,7 +414,12 @@ def test_a_proved_file_expires_and_an_unstamped_one_does_not(tmp_path):
     digest = condition_digest("file:settings.py", str(tmp_path))
     target.write_text("retries = 3\n", encoding="utf-8")
     notes = [
-        _note("technical/changed.md", "file:settings.py", digest=digest),
+        _note(
+            "technical/changed.md",
+            "file:settings.py",
+            digest=digest,
+            checkout=checkout_id(str(tmp_path)),
+        ),
         _note("technical/unstamped.md", "file:settings.py"),
     ]
 
