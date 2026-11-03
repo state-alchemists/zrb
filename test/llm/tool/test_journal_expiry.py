@@ -216,6 +216,21 @@ def test_a_nul_in_the_path_cannot_crash_the_check(tmp_path):
     assert _met(parse_condition("file:a.py\x00x"), str(tmp_path), "deadbeefcafe") is None
 
 
+def test_a_path_keeps_the_spaces_it_was_written_with(tmp_path):
+    """Two spaces inside a filename are two characters of that name. Folding them
+    names a different file, so the digest is of nothing while the file the note is
+    about sits there untouched — and the note is never retired."""
+    name = "config  prod.yml"
+    (tmp_path / name).write_text("mode = prod\n", encoding="utf-8")
+
+    condition = parse_condition(f"file:{name}")
+    digest = condition_digest(f"file:{name}", str(tmp_path))
+
+    assert condition is not None and condition.value == name
+    assert digest == file_sha(str(tmp_path / name))
+    assert _met(condition, str(tmp_path), digest) is True
+
+
 def test_a_backslash_is_a_file_name_only_where_the_platform_says_so(tmp_path):
     """POSIX allows a backslash in a name and Windows reads it as a separator, so
     validation and the walk have to ask the platform. Splitting on both everywhere
@@ -344,6 +359,9 @@ def test_the_read_walks_the_tree_it_validated(tmp_path, monkeypatch):
     link after validation would still be followed. The walk opens each component
     from its parent's descriptor, so the swap has nothing left to redirect."""
     from zrb.llm.tool import journal_expiry
+
+    if os.open not in os.supports_dir_fd:
+        pytest.skip("this platform cannot open a name relative to a directory")
 
     root = tmp_path / "repo"
     (root / "sub").mkdir(parents=True)

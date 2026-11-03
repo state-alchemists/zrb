@@ -211,6 +211,25 @@ def test_a_note_written_here_records_the_digest_of_its_file(writable_journal, tm
     assert f"applies_when_checkout: {checkout_id(str(tree))}" in body
 
 
+def test_a_path_with_repeated_spaces_is_stored_and_stamped_as_written(
+    writable_journal, tmp_path
+):
+    """`check_applies_when` folds a sentence onto one line; a path is not a
+    sentence. Two spaces in a filename are part of the name the digest is of, and
+    folding them would store a condition about a file that does not exist."""
+    tree = tmp_path / "zrb"
+    tree.mkdir()
+    name = "config  prod.yml"
+    (tree / name).write_text("mode = prod\n", encoding="utf-8")
+
+    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
+        _write("build-cache", f"file:{name}")
+
+    body = _read(writable_journal, "technical/build-cache.md")
+    assert f"applies_when: file:{name}" in body
+    assert f"applies_when_digest: {file_sha(str(tree / name))}" in body
+
+
 def test_a_condition_with_a_control_character_is_refused(writable_journal):
     """A NUL makes the path APIs raise rather than answering, so a condition that
     carries one would take the whole write down with it. It is refused, and the

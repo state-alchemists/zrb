@@ -134,6 +134,18 @@ def one_line(text: str) -> str:
     return " ".join(text.split())
 
 
+def _condition_line(text: str | None) -> str:
+    """The condition as it will be stored: a `file:` path exactly, a sentence folded.
+
+    The rule belongs to `journal_expiry`, which is what parses a condition back,
+    and it is imported there lazily: that module carries `packaging`, and this one
+    is read on every prompt. A write is the only thing that pays for it.
+    """
+    from zrb.llm.tool.journal_expiry import condition_line  # lazy: hot-path internal
+
+    return condition_line(text)
+
+
 def check_applies_when(applies_when: str | None) -> str:
     """The condition a note holds under, or a refusal the model can act on.
 
@@ -141,7 +153,7 @@ def check_applies_when(applies_when: str | None) -> str:
     being true, so nothing retires it. `not stated` is a placeholder, not a
     condition either.
     """
-    text = one_line(applies_when or "")
+    text = _condition_line(applies_when)
     if not text:
         raise ValueError(
             "[SYSTEM SUGGESTION]: applies_when was empty, so nothing was written. "
@@ -487,7 +499,7 @@ def claim_frontmatter(fields: "dict[str, str]", existing: str) -> list[str]:
     )
     lines = [
         f"slug: {fields['slug']}",
-        f"applies_when: {one_line(fields['applies_when'])}",
+        f"applies_when: {_condition_line(fields['applies_when'])}",
         f"status: {fields['status']}",
         f"hud_line: {one_line(fields['hud_line'])}",
     ]

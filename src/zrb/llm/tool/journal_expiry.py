@@ -94,9 +94,28 @@ class Origin:
     digest: str = ""
 
 
+def condition_line(text: str | None) -> str:
+    """*text* as the frontmatter will hold it: ends trimmed, a path untouched.
+
+    A `file:` payload is a path, and two spaces inside a filename are two
+    characters of that name. Folding them, the way a sentence is folded, names a
+    different file: `config  prod.yml` would be looked up as `config prod.yml` and
+    the note would never be checkable again. Prose is still folded onto one line,
+    because a condition spanning two lines would open a second frontmatter key.
+    """
+    raw = (text or "").strip()
+    if raw.lower().startswith(FILE_PREFIX):
+        return raw
+    return " ".join(raw.split())
+
+
 def parse_condition(text: str) -> Condition | None:
-    """The checkable condition in *text*, or ``None`` when it is prose."""
-    prose = " ".join((text or "").split())
+    """The checkable condition in *text*, or ``None`` when it is prose.
+
+    The payload is kept exactly as written, ends trimmed. A `file:` value is a
+    path, so anything that folds its whitespace is hashing a file the note does
+    not name."""
+    prose = condition_line(text)
     for prefix, kind in (
         (FILE_PREFIX, "file"),
         (VERSION_PREFIX, "version"),
@@ -203,9 +222,10 @@ def _open_below(directory: str, relative: str) -> int:
     component is opened relative to the descriptor of the one before it, so there is
     no name left to re-resolve once the parent has been handed over.
 
-    On a platform without `dir_fd` this degrades to one `O_NOFOLLOW` open, which is
-    the guarantee `file_sha` has: the final name cannot be a link, an intermediate
-    one is only as good as the validation."""
+    On a platform without `dir_fd` this degrades to one open of the joined name.
+    Where `O_NOFOLLOW` exists that still refuses a symlinked final component; where
+    it does not (Windows), the resolved-path check is the only guard, and an
+    intermediate component is trusted exactly as it was validated."""
     parts = [part for part in _SEPARATOR.split(relative) if part not in ("", ".")]
     if not parts or any(part == ".." for part in parts):
         raise PermissionError(f"{relative!r} is not a path below {directory!r}")
