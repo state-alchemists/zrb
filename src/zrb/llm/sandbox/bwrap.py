@@ -34,6 +34,14 @@ def build_bwrap_argv(bwrap_path: str, policy: SandboxPolicy) -> list[str]:
         "/proc",
     ]
     for root in resolved_writable_roots(policy):
+        # `--bind` refuses a source that is not there (`--bind-try` is the
+        # tolerant form), and the automatic set names LLM_WORKTREE_DIR, which
+        # the first worktree creates during a tool call — long after the first
+        # sandboxed command. Skipping it here costs nothing: a path that does
+        # not exist has nothing inside it to write, and the bind is there for
+        # every call made after the parent process creates it.
+        if not os.path.exists(root):
+            continue
         argv += ["--bind", root, root]
     for path in resolved_deny_read_roots(policy):
         if os.path.isdir(path):

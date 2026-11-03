@@ -227,6 +227,26 @@ async def test_gate_checks_exit_worktree_path(tmp_path, outside_root):
 
 
 @pytest.mark.asyncio
+async def test_gate_checks_enter_worktree_cwd(tmp_path, outside_root):
+    """`cwd` names the repository git writes into; it is a write, not a hint."""
+    from zrb.llm.agent.common import create_safe_wrapper
+
+    def enter_worktree(cwd: str = "", branch_name: str = ""):
+        return "created"
+
+    tag(enter_worktree, Capability.EDIT)
+    wrapped = create_safe_wrapper(enter_worktree)
+
+    token = current_sandbox_policy.set(_enabled_policy(tmp_path))
+    try:
+        result = await wrapped(cwd=str(outside_root / "projectB"), branch_name="x")
+    finally:
+        current_sandbox_policy.reset(token)
+
+    assert result.metadata.get("blocked") is True
+
+
+@pytest.mark.asyncio
 async def test_gate_checks_enter_worktree_path(tmp_path, outside_root):
     """EnterWorktree's resume path is write-checked like ExitWorktree's path."""
     from zrb.llm.agent.common import create_safe_wrapper

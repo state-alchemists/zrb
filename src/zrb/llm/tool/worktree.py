@@ -77,6 +77,10 @@ async def enter_worktree(
     if worktree_path:
         return await _resume_worktree(worktree_path, git_root, cwd, notes)
 
+    error = _repo_write_error(git_root)
+    if error is not None:
+        return _prepend_notes(notes, error)
+
     if not branch_name:
         branch_name = f"worktree-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
 
@@ -168,6 +172,31 @@ def _worktree_parent(git_root: str) -> str:
     projects collide on the same branch name.
     """
     return os.path.join(_worktree_root(), _repo_slug(git_root))
+
+
+def _repo_write_error(git_root: str) -> str | None:
+    """Refuse before git writes a branch into a repository the sandbox forbids.
+
+    A worktree is not written only where it lands: `git worktree add` records
+    the new branch and the worktree's administrative files inside the
+    repository. The gate judges the model's `cwd`, which names a directory and
+    can be a subdirectory whose repository root is outside the writable roots,
+    so the root git itself revealed is judged here — before anything is created.
+    """
+    policy = get_effective_sandbox_policy()
+    if not policy.enabled:
+        return None
+    error = check_write(git_root, policy)
+    if error is None:
+        return None
+    return (
+        f"Blocked by sandbox policy: {error}. "
+        "[SYSTEM SUGGESTION]: a worktree is not written only where it lands — "
+        "git records the new branch and the worktree inside the repository, so "
+        f"add {git_root} to {CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS alongside "
+        f"{_worktree_root()}, or leave that setting empty: the automatic roots "
+        "include both."
+    )
 
 
 def _prepare_worktree_dir(git_root: str, branch_name: str) -> tuple[str, str | None]:

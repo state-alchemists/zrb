@@ -45,6 +45,9 @@ from zrb.llm.sandbox.policy import SandboxPolicy
 # because move_file deletes it; "dst" because it gets overwritten).
 # EnterWorktree may receive an existing worktree path to resume; both
 # EnterWorktree and ExitWorktree must stay inside the writable boundary.
+# `cwd` is write-checked because EnterWorktree runs `git worktree add` inside
+# the repository it names — git records the branch and the worktree there, so
+# the repository, not just the destination, is a write.
 _SANDBOX_READ_KEYS = (
     "path",
     "file_path",
@@ -61,6 +64,7 @@ _SANDBOX_WRITE_KEYS = (
     "src",
     "dst",
     "worktree_path",
+    "cwd",
 )
 
 
