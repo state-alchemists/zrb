@@ -79,7 +79,6 @@ def repository_root(cwd: str) -> str:
     return repository_root_from_common_dir(_absolute(common.strip(), cwd))
 
 
-@lru_cache(maxsize=8)
 def checkout_root(cwd: str) -> str:
     """The top-level directory of the work tree containing *cwd*, or ``""``.
 
@@ -92,6 +91,12 @@ def checkout_root(cwd: str) -> str:
 
     `--show-toplevel` names the tree the caller stands in, worktree or
     submodule. It answers nothing in a bare repository, which has none.
+
+    Deliberately not cached, unlike `repository_root`: a checkout can be
+    removed and re-cloned at the same path while a session is open, and a name
+    that stayed the same would be a cached *tree* that is now somebody else's —
+    the one case where reading a digest there means a note expires on evidence
+    it never had. One probe per compose is the price.
     """
     try:
         res = subprocess.run(
