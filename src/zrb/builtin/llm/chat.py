@@ -3,10 +3,11 @@ import sys
 from zrb.attr.tpl import Tpl
 from zrb.builtin.group import llm_group
 from zrb.builtin.llm.chat_tool_policy import (
-    approve_if_mv_inside_journal_dir,
+    approve_if_mv_inside_notes_dir,
     approve_if_path_inside_cwd,
-    approve_if_path_inside_journal_dir,
+    approve_if_path_inside_notes_dir,
     approve_if_path_inside_skill_or_plugin_dir,
+    is_path_inside_notes_outside_memory,
 )
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -149,29 +150,23 @@ llm_chat.prepend_tool_policy(
     replace_in_file_validation_policy,
     read_file_validation_policy,
     auto_approve("Read", approve_if_path_inside_cwd),
-    auto_approve("Read", approve_if_path_inside_journal_dir),
+    auto_approve("Read", approve_if_path_inside_notes_dir),
     auto_approve("Read", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("LS", approve_if_path_inside_cwd),
-    auto_approve("LS", approve_if_path_inside_journal_dir),
+    auto_approve("LS", approve_if_path_inside_notes_dir),
     auto_approve("LS", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("Glob", approve_if_path_inside_cwd),
-    auto_approve("Glob", approve_if_path_inside_journal_dir),
+    auto_approve("Glob", approve_if_path_inside_notes_dir),
     auto_approve("Glob", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("Grep", approve_if_path_inside_cwd),
-    auto_approve("Grep", approve_if_path_inside_journal_dir),
+    auto_approve("Grep", approve_if_path_inside_notes_dir),
     auto_approve("Grep", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("AnalyzeFile", approve_if_path_inside_cwd),
-    auto_approve("AnalyzeFile", approve_if_path_inside_journal_dir),
-    auto_approve("Write", approve_if_path_inside_journal_dir),
-    auto_approve("Edit", approve_if_path_inside_journal_dir),
-    auto_approve("RM", approve_if_path_inside_journal_dir),
-    auto_approve("MV", approve_if_mv_inside_journal_dir),
-    auto_approve("SearchJournal"),
-    # Journal writers derive every path inside CFG.LLM_JOURNAL_DIR, so there
-    # is nothing to adjudicate, and prompting would discourage recording.
-    auto_approve("LogActivity"),
-    auto_approve("WriteJournalNote"),
-    auto_approve("SupersedeJournalNote"),
+    auto_approve("AnalyzeFile", approve_if_path_inside_notes_dir),
+    auto_approve("Write", is_path_inside_notes_outside_memory),
+    auto_approve("Edit", is_path_inside_notes_outside_memory),
+    auto_approve("RM", is_path_inside_notes_outside_memory),
+    auto_approve("MV", approve_if_mv_inside_notes_dir),
     auto_approve("WebSearch"),
     auto_approve("WebFetch"),
     auto_approve("ActivateSkill"),

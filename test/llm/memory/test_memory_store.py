@@ -269,6 +269,18 @@ def test_a_path_shaped_name_is_refused_by_the_path_builder(store_dir):
 needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git")
 
 
+def _run_git(cwd, *args):
+    return subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True)
+
+
+def _prepare_default_layout(monkeypatch, notes):
+    """The store inside the notes directory, audit trail on, first use run."""
+    monkeypatch.setattr(CFG, "LLM_NOTES_DIR", str(notes), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(notes / "memory-v1"), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", True, raising=False)
+    paths.prepare()
+
+
 @needs_git
 def test_the_reviewers_log_line_is_committed(store_dir, monkeypatch):
     """A log entry retention could prune must exist in the audit history first."""
@@ -314,6 +326,109 @@ def test_a_repository_the_store_did_not_create_is_left_alone(store_dir, monkeypa
         ["git", "log", "--oneline"], cwd=str(store_dir), capture_output=True, text=True
     )
     assert log.returncode != 0
+
+
+@needs_git
+def test_a_store_inside_the_notes_directory_uses_the_notes_repository(
+    tmp_path, monkeypatch
+):
+    """One history, not two: `memory-v1` belongs to the repository above it.
+
+    A `.git` of its own there would be a repository nested in another, which the
+    outer one then treats as something between a file and a directory.
+    """
+    notes = tmp_path / "llm-notes"
+    notes.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=str(notes), check=True)
+    monkeypatch.setattr(CFG, "LLM_NOTES_DIR", str(notes), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(notes / "memory-v1"), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", True, raising=False)
+    paths.ensure_store()
+    store.save_fact(Fact(id="x", claim="X is true.", updated=store.now()))
+    store.git_commit("remember: x")
+    assert not os.path.isdir(str(notes / "memory-v1" / ".git"))
+    log = subprocess.run(
+        ["git", "log", "--oneline"], cwd=str(notes), capture_output=True, text=True
+    ).stdout
+    assert "remember: x" in log
+
+
+@needs_git
+def test_a_neighbour_file_already_staged_is_not_swept_into_the_commit(
+    tmp_path, monkeypatch
+):
+    """The index is shared, so a commit has to name its paths.
+
+    Reproduced before the fix: `git add -A -- memory-v1/...` put the store's files
+    into the same index that already held the user's staged work, and the bare
+    `git commit` committed both under zrb's message — the notes history then said
+    `zrb-memory` wrote a file it never opened.
+    """
+    notes = tmp_path / "llm-notes"
+    notes.mkdir()
+    _run_git(notes, "init", "-q")
+    (notes / "unrelated.txt").write_text("the user's work\n", encoding="utf-8")
+    _run_git(notes, "add", "unrelated.txt")
+
+    _prepare_default_layout(monkeypatch, notes)
+    store.save_fact(Fact(id="x", claim="X is true.", updated=store.now()))
+    store.git_commit("remember: x")
+
+    history = _run_git(notes, "log", "--name-only", "--format=").stdout
+    assert "unrelated.txt" not in history
+    assert "memory-v1/facts/x.md" in history
+    assert "A  unrelated.txt" in _run_git(notes, "status", "--short").stdout
+
+
+@needs_git
+def test_a_notes_directory_inside_another_repository_is_left_alone(
+    tmp_path, monkeypatch
+):
+    """A repository that merely contains the notes is not the notes' repository.
+
+    Reproduced before the fix: notes under a project checkout made the store
+    answer with the project's repository, and the conversion commit landed in the
+    project's history carrying whatever the user had staged — a `.env` in the
+    reproduction. The write still happens; only the commit is skipped, which is
+    what `git_commit`'s best-effort contract already allows.
+    """
+    project = tmp_path / "project"
+    notes = project / "notes"
+    notes.mkdir(parents=True)
+    _run_git(project, "init", "-q")
+    (project / ".env").write_text("a secret\n", encoding="utf-8")
+    _run_git(project, "add", ".env")
+
+    _prepare_default_layout(monkeypatch, notes)
+    store.save_fact(Fact(id="x", claim="X is true.", updated=store.now()))
+    store.git_commit("remember: x")
+
+    assert store.load_fact("x") is not None
+    assert _run_git(project, "log", "--oneline").returncode != 0
+    assert "A  .env" in _run_git(project, "status", "--short").stdout
+    assert not os.path.isdir(str(notes / "memory-v1" / ".git"))
+
+
+@needs_git
+def test_a_notes_repository_nested_in_another_repository_keeps_its_history(
+    tmp_path, monkeypatch
+):
+    """The nearest repository is the one that counts.
+
+    A notes directory with a `.git` of its own is the notes' repository even when
+    a checkout above it also is — the guard asks which repository, not whether
+    there is one.
+    """
+    project = tmp_path / "project"
+    notes = project / "notes"
+    notes.mkdir(parents=True)
+    _run_git(project, "init", "-q")
+    _run_git(notes, "init", "-q")
+
+    _prepare_default_layout(monkeypatch, notes)
+
+    assert "memory:" in _run_git(notes, "log", "--oneline").stdout
+    assert _run_git(project, "log", "--oneline").returncode != 0
 
 
 def test_git_is_not_used_when_it_is_switched_off(store_dir):

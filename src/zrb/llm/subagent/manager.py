@@ -265,7 +265,7 @@ class SubAgentManager:
     def get_tool_factories(
         self,
     ) -> "list[Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]]":
-        """Config-gated tool factories (journal, plan-mode, skill, ...).
+        """Config-gated tool factories (memory, plan-mode, skill, ...).
 
         See `SubAgentBuilding.get_tool_factories`.
         """

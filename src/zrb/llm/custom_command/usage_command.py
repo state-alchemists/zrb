@@ -19,12 +19,10 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-from zrb.llm.custom_command.usage_command_journal import render_journal_section
 from zrb.llm.custom_command.usage_command_tools import (
     get_registered_tool_names,
     render_tools_section,
 )
-from zrb.llm.journal_usage_log import JournalEvent, read_events
 from zrb.llm.usage_log import UsageRecord, read_records
 from zrb.util.string.name import get_conversation_key
 
@@ -72,11 +70,10 @@ def create_usage_commands() -> list[AnyCustomCommand]:
 def render_usage(
     records: list[UsageRecord],
     label: str,
-    events: list[JournalEvent] | None = None,
     registered_tools: list[str] | None = None,
 ) -> str:
-    """The body for one window: its label, the table, the footer, then the
-    Tools and Journal sections when the window has data for them.
+    """The body for one window: its label, the table, the footer, then the Tools
+    section when the window has data for it.
 
     The panel draws the title, so the body opens with the window it covers
     rather than repeating the word "Usage".
@@ -90,19 +87,16 @@ def render_usage(
         "",
         *_footer(records),
     ]
-    for extra in (
-        render_tools_section(
-            records,
-            (
-                get_registered_tool_names()
-                if registered_tools is None
-                else registered_tools
-            ),
+    extra = render_tools_section(
+        records,
+        (
+            get_registered_tool_names()
+            if registered_tools is None
+            else registered_tools
         ),
-        render_journal_section(events or []),
-    ):
-        if extra:
-            sections.extend(["", *extra])
+    )
+    if extra:
+        sections.extend(["", *extra])
     return "\n".join(sections)
 
 
@@ -110,27 +104,20 @@ def _handle_usage(kwargs: dict[str, str], ui: "AnyUI | None") -> str:
     period = (kwargs.get("period") or "").strip().lower() or _DEFAULT_PERIOD
     if period not in PERIODS:
         return f"  /usage takes one of: {', '.join(PERIODS)}"
-    records, label, window = _select(period, ui)
-    return render_usage(
-        records,
-        label,
-        read_events(since=window.since, session_key=window.session_key),
-    )
+    records, label = _select(period, ui)
+    return render_usage(records, label)
 
 
 @dataclass(frozen=True)
 class _Window:
-    """The bounds both logs are read with."""
+    """The bounds the usage log is read with."""
 
     since: datetime | None = None
     session_key: str | None = None
 
 
-def _select(period: str, ui: "AnyUI | None") -> tuple[list[UsageRecord], str, _Window]:
-    """The records for *period*, the label that names it, and the window.
-
-    The window is what both logs are read with, so the journal events cover
-    exactly the runs in the table."""
+def _select(period: str, ui: "AnyUI | None") -> tuple[list[UsageRecord], str]:
+    """The records for *period* and the label that names it."""
     now = datetime.now(timezone.utc)
     if period == "today":
         window, label = _Window(since=_midnight(now)), "today"
@@ -142,7 +129,7 @@ def _select(period: str, ui: "AnyUI | None") -> tuple[list[UsageRecord], str, _W
     else:
         window, label = _session_window(ui, now)
     records = read_records(since=window.since, session_key=window.session_key)
-    return records, label, window
+    return records, label
 
 
 def _session_window(ui: "AnyUI | None", now: datetime) -> tuple[_Window, str]:

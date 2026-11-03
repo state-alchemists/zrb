@@ -262,8 +262,8 @@ def test_config_properties_access():
     _ = CFG.LLM_PLUGIN_DIRS
     _ = CFG.LLM_SMALL_MODEL
     _ = CFG.LLM_HISTORY_DIR
-    _ = CFG.LLM_JOURNAL_DIR
-    _ = CFG.LLM_JOURNAL_INDEX_FILE
+    _ = CFG.LLM_NOTES_DIR
+    _ = CFG.LLM_MEMORY_DIR
 
     # Web properties
     _ = CFG.WEB_CSS_PATH

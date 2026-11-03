@@ -62,7 +62,10 @@ _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # lines are data, and `render` drops any line that trips this check.
 # Containers the prompt uses. Both an opening and a closing tag are refused: a
 # closing one is the dangerous half, because it terminates the block and leaves
-# whatever follows reading as ordinary text rather than as data.
+# whatever follows reading as ordinary text rather than as data. The two journal
+# tags stay listed after the journal itself is gone: an older conversation still
+# in a history carries blocks wearing them, and a claim quoting one of those is
+# the same escape as a claim quoting `<memory>`.
 _CONTAINER_TAGS = ("memory", "journal-index", "journal-claims", "live-context")
 
 _INSTRUCTION_MARKERS = (

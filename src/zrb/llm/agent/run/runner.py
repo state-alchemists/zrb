@@ -70,14 +70,10 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.turn_evidence import (
-    count_user_turn,
-    has_turn_logged_activity,
     turn_changed_paths,
-    turn_states_preference,
     turn_wrote_files,
 )
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.journal_usage_log import record_prompted
 from zrb.llm.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
     current_permission_policy,
@@ -130,10 +126,6 @@ async def run_agent(
     checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
     run_scope: str = "",
     nested: bool | None = None,
-    # Opt-in: this run is a user's prompt, so it counts in lookups-per-prompt.
-    # Most callers of this function are internal helpers (dictation, web and
-    # code extraction, media description, file analysis) and must leave it off.
-    counts_as_user_prompt: bool = False,
     stream_observers: "Sequence[StreamObserver] | None" = None,
 ) -> tuple[Any, list[Any]]:
     """Run the agent with rate limiting, history management and confirmations.
@@ -183,11 +175,6 @@ async def run_agent(
 
     # Read before this run binds its own scope below.
     nested_run = bool(get_current_agent_run_scope()) if nested is None else nested
-    # Opt-in rather than inferred from `nested_run`: most callers are internal
-    # helpers, and counting a dictation transcription as a prompt would make
-    # lookups per prompt read better than it is — the flattering direction.
-    if counts_as_user_prompt:
-        record_prompted()
 
     # ExitStack keeps set/reset symmetric: if a later bind raises, the vars
     # already bound are still reset, and no unset token is ever reset.
@@ -201,7 +188,7 @@ async def run_agent(
         # fall back to CFG on None.
         bind_contextvar(stack, current_small_model, effective_ui.small_model)
         bind_contextvar(stack, current_multimodal_model, effective_ui.multimodal_model)
-        # Helpers (summarizer, journal judge) fall back to this rather than
+        # Helpers (summarizer, memory reviewer) fall back to this rather than
         # `CFG.LLM_MODEL`, which after a `/model` switch may lack credentials.
         bind_contextvar(stack, current_model, getattr(agent, "model", None))
         bind_contextvar(stack, current_llm_limiter, limiter)
@@ -264,7 +251,7 @@ async def run_agent(
             effective_hook_manager,
             # The typed message, not `prompt_content`: a fallback model may have
             # replaced an attachment with its own description of the image, and a
-            # journal quote must not present that as the user's words.
+            # stored record must not present that as the user's words.
             typed_prompt=message or "",
         )
 
@@ -545,9 +532,6 @@ async def _execution_loop(
         run_history=current_history,
     )
     cursor.snapshot = _create_turn_snapshot(nested_run)
-    # Once per turn, so every STOP this turn fires — a hook may ask for another
-    # round — reads the same number.
-    cursor.user_turn_number = count_user_turn(get_current_agent_run_scope())
     retry_state = RetryState()
     extension_state = ExtensionState()
     partial_run = PartialRunAccumulator()
@@ -868,20 +852,15 @@ async def _take_turn_snapshot(snapshot: TurnSnapshot | None) -> None:
     await run_in_worker(snapshot.take, workdir)
 
 
-def is_journal_due_for_turn(
-    turn: Sequence[object], wrote_files: bool, periodic_check: bool
-) -> bool:
-    """Whether the compliance judge runs at the end of this turn.
+def is_memory_due_for_turn() -> bool:
+    """Whether the memory reviewer runs at the end of a turn.
 
-    A file change or a stated preference always asks for it: the answer may be a
-    durable note, and an activity line does not stand in for one. The periodic
-    check is the one trigger the transcript can answer for itself — and only a
-    *completed* `LogActivity` answers it, since a refused or blocked call wrote
-    nothing.
+    It runs on every completed turn while both switches are on: it is the writer,
+    and a turn that changed no file and stated no preference is exactly where an
+    observation or a preference goes missing. Its own default answer is
+    "nothing", so the cost is a small-model call.
     """
-    if wrote_files or turn_states_preference(turn):
-        return True
-    return periodic_check and not has_turn_logged_activity(turn)
+    return bool(CFG.LLM_MEMORY_ENABLED and CFG.LLM_MEMORY_REVIEWER_ENABLED)
 
 
 async def _finish_turn(
@@ -898,13 +877,6 @@ async def _finish_turn(
     its own Stop). Returns `(output, history)`, or `None` for another round.
     """
     wrote_files = turn_wrote_files(cursor.accumulated)
-    # A conversation that touches no file and states no preference is never due on those
-    # two counts, however long it runs, so it is checked every so many user turns.
-    compliance_turns = CFG.LLM_JOURNAL_COMPLIANCE_TURNS
-    user_turns = cursor.user_turn_number
-    periodic_check = (
-        compliance_turns > 0 and user_turns > 0 and user_turns % compliance_turns == 0
-    )
     stop_results = await effective_hook_manager.execute_hooks(
         HookEvent.STOP,
         {
@@ -919,16 +891,7 @@ async def _finish_turn(
             "run_scope": get_current_agent_run_scope(),
             "turn_id": cursor.turn_id,
             "nested_run": nested_run,
-            # wrote_files OR a stated preference OR a periodic check, precomputed
-            # because MatcherConfig has no OR primitive (journal_compliance.py).
-            "journal_due": is_journal_due_for_turn(
-                cursor.accumulated, wrote_files, periodic_check
-            ),
-            # The memory reviewer runs on every completed turn: it is the writer,
-            # and a turn that changed no file and stated no preference is exactly
-            # where an observation or a preference goes missing. Its own default
-            # answer is "nothing", so the cost is a small-model call.
-            "memory_due": bool(CFG.LLM_MEMORY_ENABLED and CFG.LLM_MEMORY_REVIEWER_ENABLED),
+            "memory_due": is_memory_due_for_turn(),
         },
         stop_hook_active=extension_state.block_count > 0,
         last_assistant_message=(

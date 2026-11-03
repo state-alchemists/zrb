@@ -219,32 +219,28 @@ class LLMTaskBuilding:
     def get_live_context(
         self,
         ctx: AnyContext,
-        inject_journal_index: bool = False,
-        first_message: str | None = None,
+        inject_memory: bool = False,
         previous_live_context: str | None = None,
     ) -> str:
         """Render the per-turn ``<live-context>`` block, or "" without a prompt manager.
 
-        ``inject_journal_index`` appends the journal index snapshot; callers set
-        it only when the index is absent from history. ``first_message`` feeds
-        the journal's first-turn auto-search. ``previous_live_context`` is the
-        block from the run's current history, which the git section diffs
-        against; ``None`` renders the full state.
+        ``inject_memory`` appends the memory block; callers set it only when the
+        block is absent from history. ``previous_live_context`` is the block from
+        the run's current history, which the git section diffs against; ``None``
+        renders the full state.
         """
         if self._llm_task.prompt_manager_attr is None:
             return ""
         return self._llm_task.prompt_manager_attr.create_live_context(
             ctx,
-            inject_journal_index=inject_journal_index,
-            first_message=first_message,
+            inject_memory=inject_memory,
             previous_live_context=previous_live_context,
         )
 
     async def get_live_context_async(
         self,
         ctx: AnyContext,
-        inject_journal_index: bool = False,
-        first_message: str | None = None,
+        inject_memory: bool = False,
         previous_live_context: str | None = None,
     ) -> str:
         """``get_live_context`` with git collection off-loop, for async callers."""
@@ -252,8 +248,7 @@ class LLMTaskBuilding:
             return ""
         return await self._llm_task.prompt_manager_attr.create_live_context_async(
             ctx,
-            inject_journal_index=inject_journal_index,
-            first_message=first_message,
+            inject_memory=inject_memory,
             previous_live_context=previous_live_context,
         )
 

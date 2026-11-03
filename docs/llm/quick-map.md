@@ -11,7 +11,7 @@ Use this page as the short orientation to the LLM subsystem. For deep details, f
 
 Key units (one-liners)
 
-- L0: any_ui, ui_fallback, agent_runner (facade), delegation_api (registry), agent_state (ContextVars), tool_registry, util, message, usage/journal logs.
+- L0: any_ui, ui_fallback, agent_runner (facade), delegation_api (registry), agent_state (ContextVars), tool_registry, util, message, usage logs.
 - L1: tool (callable functions), tool_call (rendering, untrusted data), prompt (compose), hook (lifecycle), permission/approval/sandbox, history_manager.
 - L2: agent (engine), summarizer.
 - L3: task (LLMChatTask), subagent (personas/live sessions), common_tools (seed registry), custom_command.

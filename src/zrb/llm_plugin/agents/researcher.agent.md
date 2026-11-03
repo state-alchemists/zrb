@@ -5,7 +5,7 @@ tools: [
   Read,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
-  SearchJournal, WebSearch, WebFetch,
+  SearchMemory, WebSearch, WebFetch,
   LspFindDefinition, LspFindReferences, LspGetDiagnostics,
   LspGetDocumentSymbols, LspGetWorkspaceSymbols, LspGetHoverInfo,
   LspListServers,

@@ -38,7 +38,7 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 
 4. **Repair at the provider boundary, in a fixed order.** Right before each model call, and again on each result, the list passes one repair pipeline: fill empty content, drop orphaned tool calls, merge same-role neighbours. The order is data, not a sequence of statements, so reordering it is a visible edit. → [ADR-0040](../../adr/adr-0040.md)
 
-5. **Re-seed what compaction would lose.** The journal index is injected on a session's first turn and baked into every summary, so it survives compaction without any per-turn detection. → [ADR-0042](../../adr/adr-0042.md)
+5. **Re-seed what compaction would lose.** The memory block is injected on a session's first turn, and every summary carries it again, so it survives compaction without any per-turn detection. → [ADR-0042](../../adr/adr-0042.md)
 
 ### Invariants
 
@@ -106,7 +106,7 @@ sequenceDiagram
 
 1. splits the list with `split_history` into an old part and a kept tail;
 2. summarizes the old part in chunks, consolidating the snapshots if there are many;
-3. adds the journal index and a pointer to the verbatim archive to the summary text, all held under the summary cap (`LLM_SUMMARY_MAX_TOKEN_RATIO`);
+3. adds the memory block and a pointer to the verbatim archive to the summary text, all held under the summary cap (`LLM_SUMMARY_MAX_TOKEN_RATIO`) — the memory yields first when both cannot fit;
 4. returns the restoration message, then the first real user message, then the kept tail rendered as text, then any still-unresolved tool call kept in native message form (orphaned tool results dropped from that native tail, same-role neighbours merged);
 5. appends the replaced messages, word for word, to the verbatim archive, one markdown file per conversation under `<LLM_HISTORY_DIR>/verbatim/`. If that write fails, the summary is rebuilt without the pointer.
 
@@ -149,7 +149,8 @@ The cut in step 1 is chosen by budget, not by count ([ADR-0130](../../adr/adr-01
 
 - [The LLM Turn](../1-spine/llm-turn.md) — the loop this history feeds
 - [LLM History Sanitization](../../technical-specs/llm-history-sanitization.md) — the provider quirks the repair pipeline handles
-- [LLM Context](../../technical-specs/llm-context.md) — how the context window is budgeted
+- [LLM Memory](../../technical-specs/llm-memory.md) — what a first turn carries, and what a summary re-emits
+- [LLM Notes Directory](../../technical-specs/llm-context.md) — the notes layout an older zrb left behind
 - [Sub-agents](../2-extension-surface/sub-agents.md) — where delegated transcripts go
 
 🔖 [Documentation Home](../../README.md) > [Architecture](../README.md) > History & Compaction

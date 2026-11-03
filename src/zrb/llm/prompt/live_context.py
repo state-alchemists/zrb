@@ -6,52 +6,30 @@ the todo tools and ``ask_user_question`` read, and clears a stale active
 worktree.
 """
 
-# `Note` is imported only for the type checker, so the annotation that names it
-# has to stay unevaluated: 3.13 and older evaluate it when the function is
-# defined, and would raise `NameError` on import. 3.14 postpones annotations by
-# default (PEP 649), which is why a suite run on 3.14 cannot see this break.
 from __future__ import annotations
 
 import asyncio
 import os
-import re
 import subprocess
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime
 from html import escape
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.llm.ambient_state import (
     get_active_worktree,
     get_current_chat_session_id,
-    get_current_context_session,
     get_input_provenance,
     set_active_worktree,
     set_current_tool_session,
     set_interactive_mode,
 )
-from zrb.llm.journal_index_name import resolve_journal_index_name
-from zrb.llm.journal_usage_log import (
-    INJECTED,
-    note_hash,
-    read_events,
-    record_auto_searched,
-    record_injected,
-)
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
-from zrb.llm.prompt.journal_core import join_overflow, plan_index_core
 from zrb.llm.prompt.memory_context import render_memory_block, render_memory_delta
 from zrb.llm.util.live_context_block import split_live_context
-from zrb.util.string.name import get_conversation_key
-
-if TYPE_CHECKING:
-    # A runtime import of `zrb.llm.tool` here would close a package cycle: two
-    # tool modules read `zrb.llm.prompt.prompt`. Only the annotation needs the
-    # type; the functions import what they call where they call it.
-    from zrb.llm.tool.journal_note import Note
 
 # Stable text for the cached system prompt explaining the <live-context> contract.
 LIVE_CONTEXT_ANCHOR = (
@@ -60,13 +38,6 @@ LIVE_CONTEXT_ANCHOR = (
     "most recent <live-context> as authoritative; earlier ones are stale "
     "snapshots from when that turn was sent."
 )
-
-# The trailing link of a HUD line: `- text ([note](category/slug.md))`.
-_HUD_NOTE_LINK = re.compile(r"\(\[note\]\(([^)]*)\)\)[ \t]*$", re.MULTILINE)
-
-# What this process has shown, by conversation and by note version. A backstop
-# for a usage directory that cannot be written; see `_shown_in_process`.
-_PROCESS_SHOWN: dict[str, set[str]] = {}
 
 
 def previous_git_baseline(message_history: "Sequence[object]") -> str | None:
@@ -449,736 +420,17 @@ def _format_mode_line() -> str | None:
     )
 
 
-def render_journal_index(first_message: str | None = None) -> str | None:
-    """Read and format the journal index snapshot for context injection.
-
-    The index is ``LLM_JOURNAL_INDEX_FILE`` under ``LLM_JOURNAL_DIR`` — the same
-    knob the writers name the root and category indexes with. Injected on the
-    first turn and at each summarization, never into the cached system prompt
-    (journaling would invalidate it). *first_message* adds an auto-search
-    ``## Possibly Related`` section. Returns ``None`` when the journal is
-    disabled, the index is missing or empty, ``LLM_JOURNAL_INDEX_MAX_CHARS`` is
-    0 (or too small to hold one line of it), or ``LLM_JOURNAL_INDEX_FILE`` is
-    not a bare filename — the same check the writers apply, so this can never be
-    pointed outside the journal.
-    """
-    if not CFG.LLM_JOURNAL_ENABLED:
-        return None
-    journal_dir = os.path.expanduser(CFG.LLM_JOURNAL_DIR)
-    try:
-        index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
-    except ValueError:
-        return None
-    index_file = os.path.abspath(
-        os.path.expanduser(os.path.join(journal_dir, index_name))
-    )
-    if not os.path.isfile(index_file):
-        return None
-    try:
-        with open(index_file, encoding="utf-8") as f:
-            content = f.read()
-    except OSError:
-        return None
-    if not content.strip():
-        return None
-    # A negative cap keeps the index whole; 0 injects nothing, since EnvField
-    # parses a typo to 0 and that must not uncap.
-    limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
-    if limit == 0:
-        return None
-    content, elsewhere = _scoped_index(content, journal_dir, index_name)
-    content, overflow = plan_index_core(content, limit)
-    if not content:
-        # No line of the index fitted the cap. The wrapper is instruction, not
-        # journal: injecting it alone costs prompt to say nothing, and under a
-        # cap too small even for the marker there is nothing to say. The usage
-        # log records nothing either, because nothing was injected.
-        return None
-    hint = "Truncated at `(...more)`. " if overflow else ""
-    content = join_overflow(content, overflow)
-    possibly_related = ""
-    if first_message and CFG.LLM_JOURNAL_AUTO_SEARCH_ENABLED:
-        possibly_related = _render_possibly_related(first_message)
-    block = (
-        f"<journal-index>\n"
-        f"Your persistent memory (index file: {index_file}). "
-        f"{hint}"
-        f"Use SearchJournal for full entries; a category's {index_name} (e.g. "
-        f"technical/{index_name}) lists every note ever written in it, uncapped. "
-        f"Change the journal only through LogActivity, WriteJournalNote, or "
-        f"DeleteJournalNote — and retire a note that stopped applying with "
-        f"SupersedeJournalNote rather than deleting its evidence — a direct "
-        f"file edit breaks the indexes, "
-        f"backlinks, and git history they maintain. Search for these tools "
-        f"if they are not visible.\n"
-        f"{elsewhere}"
-        f"{content}\n"
-        f"{possibly_related}"
-        f"</journal-index>"
-    )
-    record_injected(len(block.encode("utf-8")), _hud_note_paths(content), bool(hint))
-    return block
-
-
-def _hud_note_paths(content: str) -> list[str]:
-    """The note path each injected HUD line links to (`([note](path))`)."""
-    return [m.group(1) for m in _HUD_NOTE_LINK.finditer(content)]
-
-
-def _scoped_index(content: str, journal_dir: str, index_name: str) -> tuple[str, str]:
-    """The index this checkout is shown, and one line per repository it is not.
-
-    Scoping is a property of the injected view, not of the file: `index.md` stays
-    whole, and `SearchJournal` reads it whole. A chat opened outside any checkout
-    has nothing to compare a tag against, so nothing is filtered by repository —
-    but a date, a version or a setting is no less checkable there, and a note one
-    of them has disproved still leaves.
-
-    The second half is what keeps the first from becoming amnesia: the detail of
-    another repository's notes leaves the index, but that repository is still
-    named, with how much is there and its newest claim. It is injected beside the
-    index rather than inside it, because the cap ranks an unknown section away."""
-    # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
-    from zrb.llm.tool.journal_index import (
-        ELSEWHERE_HEADING,
-        elsewhere_lines,
-        scope_index,
-    )
-    from zrb.llm.tool.journal_note import list_notes
-    from zrb.llm.tool.journal_scope import repo_of
-
-    current = repo_of(os.getcwd())
-    notes = list_notes(journal_dir, (index_name, "index.md"))
-    expired = _expired(notes)
-    if not current:
-        return scope_index(content, notes, current, expired), ""
-    # The digest names each other repository by its newest *live* note: a line
-    # that quotes a note whose condition is disproved would carry stale work into
-    # the one place a session looks to find out what else is going on.
-    live = [note for note in notes if note.rel not in expired]
-    lines = elsewhere_lines(live, current)
-    digest = (
-        f"{ELSEWHERE_HEADING} (not shown here; SearchJournal finds them)\n"
-        + "\n".join(lines)
-        + "\n\n"
-        if lines
-        else ""
-    )
-    return scope_index(content, notes, current, expired), digest
-
-
-def _expired(notes: list[Note]) -> frozenset[str]:
-    """The notes this machine has disproved, by journal-relative path.
-
-    A note's `applies_when` can name a file, a version, a setting or a date;
-    `journal_expiry` answers only when one of those is *known* to be false, so a
-    prose condition — and one this machine cannot read — keeps its note. Nothing
-    is deleted or retired: expiry hides what is disproved from the injected view,
-    and `SearchJournal` still finds it.
-
-    Only a `file:` condition needs a checkout, because its hash is relative to the
-    note's own repository. A version, a setting or a date is answered anywhere —
-    a session opened outside a repository is not a session where nothing expired."""
-    # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
-    from zrb.llm.tool.journal_expiry import expired_note_rels
-    from zrb.llm.tool.journal_scope import repo_of, repo_root
-
-    current = repo_of(os.getcwd())
-    root = repo_root(os.getcwd()) if current else ""
-    return frozenset(expired_note_rels(notes, root, current))
-
-
-def _scoped_notes(notes: list[Note]) -> list[Note]:
-    """*notes*, minus the ones about another repository and the disproved ones.
-
-    The per-turn claims get the same rule as the injected index: a note about
-    another repository is not this session's memory of the work in front of it,
-    and it already has a line under `## Other projects`; a note whose condition no
-    longer holds is memory that has stopped being true. A chat opened outside any
-    checkout keeps every note, because there is nothing to compare a tag against —
-    but a disproved condition is not a tag, and it still leaves."""
-    # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
-    from zrb.llm.tool.journal_scope import is_in_scope, repo_of
-
-    current = repo_of(os.getcwd())
-    expired = _expired(notes)
-    return [
-        note
-        for note in notes
-        if is_in_scope(note.repo, current) and note.rel not in expired
-    ]
-
-
-def render_journal_claims(first_message: str | None = None) -> str | None:
-    """The journal claims a turn after the first has not been shown yet.
-
-    The index is injected once, so a note written during a session stays
-    invisible until the conversation is compacted — the session records a fact
-    and then answers as though it had never recorded it. Each later turn shows a
-    few claims instead: the ones freshness and *first_message* favour, written or
-    revised since the index went in, and never one this session already carries.
-
-    What a session already carries is read back from the `injected` events in the
-    usage log rather than held in memory. The log is the thing that survives a
-    fresh process, and the web runner builds every message in one; a set that
-    reset would re-inject the same claims for the life of the conversation. An
-    in-process record backs it up when there is no log to write (see
-    `_shown_in_process`).
-    """
-    if not CFG.LLM_JOURNAL_ENABLED:
-        return None
-    per_turn = CFG.LLM_JOURNAL_CLAIMS_PER_TURN
-    max_chars = CFG.LLM_JOURNAL_CLAIMS_MAX_CHARS
-    if per_turn <= 0 or max_chars <= 0:
-        return None
-    try:
-        index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
-    except ValueError:
-        return None
-    # Deferred: `zrb.llm.tool` reads `zrb.llm.prompt.prompt`, so importing it at
-    # module level here would make the two packages import each other.
-    from zrb.llm.prompt.journal_claims import select_claims, terms
-    from zrb.llm.tool.journal_index import hud_line_of
-    from zrb.llm.tool.journal_note import list_notes
-
-    journal_dir = os.path.expanduser(CFG.LLM_JOURNAL_DIR)
-    notes = list_notes(journal_dir, (index_name, "index.md"))
-    if not notes:
-        return None
-    notes = _scoped_notes(notes)
-    session = get_conversation_key(get_current_context_session())
-    events = _session_events(session)
-    chosen = select_claims(
-        notes,
-        now=datetime.now(),
-        query=terms(first_message),
-        already=_already_shown(events, notes) | _shown_in_process(session, notes),
-        since=_session_start(events),
-        per_turn=per_turn,
-        max_chars=max_chars,
-    )
-    if not chosen:
-        return None
-    lines = "\n".join(hud_line_of(note) for note in chosen)
-    block = (
-        "<journal-claims>\n"
-        "Journal claims from notes written or revised during this session. Each "
-        "is what its note says in one line; read the note before relying on the "
-        f"detail.\n{lines}\n"
-        "</journal-claims>"
-    )
-    _remember_shown(session, chosen)
-    record_injected(len(block.encode("utf-8")), [note.rel for note in chosen], False)
-    return block
-
-
-def _session_events(session: str) -> "list[Any]":
-    """This session's journal events, oldest first; an unreadable log reads as none.
-
-    Failing open is deliberate: with no record, a claim may be repeated after a
-    fresh process, which costs a few tokens, where failing closed would drop
-    memory the log exists to carry.
-    """
-    try:
-        return read_events(session_key=session)
-    except (OSError, ValueError):
-        CFG.LOGGER.debug("Journal claims: usage log unreadable", exc_info=True)
-        return []
-
-
-def _session_start(events: "list[Any]") -> datetime | None:
-    """When this session's first event happened, or `None` if it has none yet.
-
-    A note written before that is older than the conversation: it is what
-    `SearchJournal` and the category indexes are for, not a claim this turn has
-    just learned. `None` means the log holds nothing for this session — either it
-    cannot be written, or nothing has happened yet — so nothing is stale by
-    comparison with anything."""
-    stamps = [event.timestamp for event in events]
-    return min(stamps) if stamps else None
-
-
-def _already_shown(events: "list[Any]", notes: list[Note]) -> set[str]:
-    """The `category/slug` of every note this session was shown *as it then was*.
-
-    A note counts as shown when an `injected` event carried it at or after the
-    moment it was last written: a revision replaces the claim, so a session that
-    was shown the old line has not seen the one the note now carries. Comparing
-    names alone hid every correction made mid-session — the most valuable claim
-    there is — because the slug had been injected once, on the first turn.
-    """
-    sent_at: dict[str, datetime] = {}
-    for event in events:
-        if event.event != INJECTED:
-            continue
-        for hashed in event.hud:
-            if hashed not in sent_at or event.timestamp > sent_at[hashed]:
-                sent_at[hashed] = event.timestamp
-    shown: set[str] = set()
-    for note in notes:
-        note_id = f"{note.category}/{note.slug}"
-        injected = sent_at.get(note_hash(note_id))
-        # A stamp is written from `datetime.now()`, so it is local where an event
-        # is UTC-aware; `astimezone` reads a naive one as local, which is right.
-        if injected is not None and injected >= note.updated.astimezone(timezone.utc):
-            shown.add(note_id)
-    return shown
-
-
-def _shown_in_process(session: str, notes: list[Note]) -> set[str]:
-    """The notes this process has already shown this session, at this version.
-
-    A backstop for a usage directory that cannot be created or written — a read
-    only home, a full disk, a container without one. The log is still the record
-    that survives a fresh process; this is what keeps an interactive session from
-    repeating the same three claims every turn when there is no log to read."""
-    shown = _PROCESS_SHOWN.get(session, set())
-    return {
-        f"{note.category}/{note.slug}" for note in notes if _version_of(note) in shown
-    }
-
-
-def _remember_shown(session: str, notes: list[Note]) -> None:
-    _PROCESS_SHOWN.setdefault(session, set()).update(
-        _version_of(note) for note in notes
-    )
-
-
-def _version_of(note: Note) -> str:
-    """A note's identity at one revision: the key the shown-records compare on."""
-    return f"{note.category}/{note.slug}@{note.updated.isoformat()}"
-
-
-def _render_possibly_related(first_message: str) -> str:
-    """Auto-search the opening message into a section marked unverified; ``""`` on no hits."""
-    # lazy: zrb internal (heavy via transitive — zrb.llm.tool's __init__
-    # imports pydantic_ai-dependent modules)
-    from zrb.llm.tool.journal import find_in_journal
-
-    result = find_in_journal(first_message)
-    found = result.get("results")
-    hits = found if isinstance(found, list) else []
-    files = [
-        str(hit["file"]) for hit in hits if isinstance(hit, dict) and "file" in hit
-    ]
-    # Not scoped: the search is driven by the user's own words, so a message that
-    # names another project must reach that project's notes.
-    record_auto_searched(first_message, files, len(hits))
-    if not hits:
-        return ""
-    max_hits = max(CFG.LLM_JOURNAL_AUTO_SEARCH_MAX_HITS, 0)
-    lines = [
-        "\n## Possibly Related (auto-matched from your message, unverified — "
-        "read the full note before relying on it)\n"
-    ]
-    for hit in hits[:max_hits]:
-        lines.append(f"- {hit['file']}:{hit['line']}: {hit['content']}")
-    return "\n".join(lines) + "\n"
-
-
-DAY_LINE_COUNT = 5
-"""Most lines today contributes to the injected day block."""
-
-WEEK_LOOKBACK_DAYS = 6
-"""Days before today the week section covers.
-
-Today has its own section, so the week starts at yesterday and runs back six: the
-shape of a week is what a person remembers, and six lines say it without
-spending the cap the handover needs."""
-
-WEEK_LINE_MAX_CHARS = 72
-"""Longest week line: a day is recognised from its subject, not its detail."""
-
-DAY_BLOCK_MAX_CHARS = 1900
-"""Cap on the whole day block, in characters.
-
-The block is rendered on a session's first turn only, so the 400 characters the
-week section added are paid once per session rather than per turn — and a day
-block that cannot show the week is a day block that cannot say what the week
-was about."""
-
-HANDOVER_LOOKBACK_DAYS = 7
-"""How far back the newest handover is looked for, in days.
-
-Day lines stay today's and yesterday's; the handover is the one part of the day
-file no later reader can reconstruct, so it is looked for on a longer schedule.
-A weekend is two day files: read only those, and Friday's handover — the thing a
-Monday session needs most — is invisible until someone writes a new one."""
-
-_HANDOVER_HEADING = "## handover"
-_IMPORTANCE = re.compile(r"·\s*imp\s*(\d+)\s*\.?\s*$", re.IGNORECASE)
-_RANKING = re.compile(r"\s*·\s*imp\s*\d+\s*\.?\s*$", re.IGNORECASE)
-_PROJECT = re.compile(r"·\s*project:([\w.-]+)", re.IGNORECASE)
-_PROJECT_KEY = re.compile(r"\s*·\s*project:[\w.-]+(\s*\.)?", re.IGNORECASE)
-_FILES_MARKER = re.compile(r"\.\s+Files:", re.IGNORECASE)
-_STAMP = re.compile(r"^\d{1,2}:\d{2}\s*(?:—|·)\s*")
-
-
-def _split_suffix(entry: str) -> tuple[str, str]:
-    """*entry* split into what it says and the `. Files: …` suffix behind it.
-
-    Split at the last marker, because the writer appends exactly one: an earlier
-    one is the summary talking about the format (`explained Files: syntax`), and
-    treating it as metadata would cut the line where the sentence is. A line with
-    no suffix at all is all summary — nothing older than the suffix is lost."""
-    start = max((found.start() for found in _FILES_MARKER.finditer(entry)), default=-1)
-    if start < 0:
-        return entry, ""
-    return entry[:start], entry[start:]
-
-
-def _without_importance(entry: str) -> str:
-    """*entry* without its `· imp N` key, which orders lines rather than saying anything."""
-    return _RANKING.sub("", entry).strip()
-
-
-def _project(entry: str) -> str:
-    """The `· project:x` a day line carries, lower-cased, or ``""``.
-
-    Read from the line's metadata suffix, never from the summary: a summary that
-    writes `project:zrb` is talking about the format, not naming its own project.
-    A line with no suffix — one written before the writer appended one — names no
-    project at all, because the field did not exist then either.
-
-    A tag is read with dots allowed, because a line written before the writer
-    normalized them may carry one (`project:soda.local`), and the tag's own final
-    period is the sentence's, not the name's: the greedy capture takes it and
-    `rstrip` gives it back."""
-    _, suffix = _split_suffix(entry)
-    found = _PROJECT.search(suffix)
-    return found.group(1).rstrip(".").lower() if found else ""
-
-
-def _without_keys(entry: str) -> str:
-    """*entry* without what ranks or groups it: `· imp N` and `· project:x`.
-
-    Only the metadata suffix is read, for the same reason: words that look like a
-    key inside the summary are the summary's own text and stay. The suffix keeps
-    its own leading period, so the two halves join without adding one."""
-    summary, suffix = _split_suffix(entry)
-    if not suffix:
-        return _without_importance(_PROJECT_KEY.sub("", summary)).strip(" ·")
-    return f"{summary}{_without_importance(_PROJECT_KEY.sub('', suffix))}".strip()
-
-
-def _day_file(day: date) -> str:
-    """The activity log's file for *day*, which is the day tier."""
-    # lazy: `zrb.llm.tool`'s package __init__ loads pydantic_ai-dependent modules
-    from zrb.llm.tool.journal_index import ACTIVITY_DIR
-
-    root = os.path.abspath(os.path.expanduser(CFG.LLM_JOURNAL_DIR))
-    return os.path.join(
-        root,
-        ACTIVITY_DIR,
-        day.strftime("%Y"),
-        day.strftime("%Y-%m"),
-        f"{day.isoformat()}.md",
-    )
-
-
-def _read_day(path: str) -> str:
-    """The day file's text, or ``""`` when it does not exist yet."""
-    try:
-        with open(path, encoding="utf-8") as f:
-            return f.read()
-    except OSError:
-        return ""
-
-
-def _day_entries(text: str) -> list[str]:
-    """The bullet entries above the first `## ` heading, one string each.
-
-    A plain continuation line belongs to the entry above it, which is how a wrapped
-    event reads back as one line.
-    """
-    entries: list[str] = []
-    for line in text.splitlines():
-        if line.startswith("## "):
-            break
-        if line.startswith("- "):
-            entries.append(line[2:].strip())
-        elif line.strip() and entries:
-            entries[-1] = f"{entries[-1]} {line.strip()}"
-    return entries
-
-
-def _importance(entry: str) -> int:
-    """The `· imp N` a day line carries, or 0 when it carries none.
-
-    Anchored to the end, where the writer puts it: a summary that mentions a rank
-    in passing cannot lift its own line to the week's first place, and a line
-    written before the `Files:` suffix existed — `09:00 · home · … · imp 5` — still
-    reads, because its rank ends the line too."""
-    found = _IMPORTANCE.search(entry)
-    return int(found.group(1)) if found else 0
-
-
-def _handover(text: str) -> str:
-    """The `## Handover` section without its heading, or ``""`` when absent."""
-    lines = text.splitlines()
-    start = None
-    for index, line in enumerate(lines):
-        if line.strip().lower().startswith(_HANDOVER_HEADING):
-            start = index + 1
-            break
-    if start is None:
-        return ""
-    body: list[str] = []
-    for line in lines[start:]:
-        if line.startswith("## "):
-            break
-        body.append(line)
-    return "\n".join(body).strip()
-
-
-class Handover(NamedTuple):
-    """What the session that left said, and the day it said it."""
-
-    day: date
-    text: str
-
-
-def _newest_handover(current: date) -> Handover | None:
-    """The most recent handover within ``HANDOVER_LOOKBACK_DAYS``, or ``None``.
-
-    Newest first, and it stops at the first one it finds: a handover is what the
-    agent that left said, so an older one is always the less current answer.
-
-    The day travels with the text because the lookback is a week long, and a
-    handover from six days ago shown without its date reads as tonight's."""
-    for days_back in range(HANDOVER_LOOKBACK_DAYS):
-        day = current - timedelta(days=days_back)
-        handover = _handover(_read_day(_day_file(day)))
-        if handover:
-            return Handover(day, handover)
-    return None
-
-
-def _top_entries(entries: list[str], count: int) -> list[str]:
-    """The *count* entries that matter most, returned in the order they were written."""
-    ranked = sorted(
-        enumerate(entries),
-        key=lambda pair: (_importance(pair[1]), pair[0]),
-        reverse=True,
-    )
-    return [entries[index] for index in sorted(pair[0] for pair in ranked[:count])]
-
-
-def _best_rank(entries: list[str], project: str) -> int:
-    """The highest `· imp N` among *entries* that name *project*, or 0."""
-    return max(
-        (_importance(entry) for entry in entries if _project(entry) == project),
-        default=0,
-    )
-
-
-def _dominant_project(entries: list[str]) -> str:
-    """The project most of *entries* name, or ``""`` when none does.
-
-    A day is named by where most of it went, not by its most important line: the
-    highest-ranked line of a day spent on one repository is often an evening's
-    work on another. A tie goes to the project whose own lines rank highest."""
-    counts: dict[str, int] = {}
-    for entry in entries:
-        project = _project(entry)
-        if project:
-            counts[project] = counts.get(project, 0) + 1
-    if not counts:
-        return ""
-    most = max(counts.values())
-    tied = [project for project, count in counts.items() if count == most]
-    return max(tied, key=lambda project: _best_rank(entries, project))
-
-
-def _shorten(text: str, limit: int) -> str:
-    """*text* cut to *limit* at a word boundary, marked with an ellipsis.
-
-    The same rule `check_hud_line` applies to a note's line: a cut is marked
-    rather than silent, so a line that stops is not read as a line that ended."""
-    if len(text) <= limit:
-        return text
-    head = text[: limit - 1]
-    boundary = head.rfind(" ")
-    if boundary > 0:
-        head = head[:boundary]
-    return head.rstrip(" ,;:—-") + _CUT_MARKER
-
-
-def _week_text(entry: str) -> str:
-    """*entry* at week distance: no clock, no ranking keys, no list of paths."""
-    text = _STAMP.sub("", entry)
-    summary, suffix = _split_suffix(text)
-    if suffix:
-        return _shorten(summary.strip(" .—"), WEEK_LINE_MAX_CHARS)
-    return _shorten(_without_keys(summary).strip(" .—"), WEEK_LINE_MAX_CHARS)
-
-
-def _week_line(day: date, entries: list[str]) -> str:
-    """One line for *day*: its dominant project and that project's best line."""
-    project = _dominant_project(entries)
-    if project:
-        same = [entry for entry in entries if _project(entry) == project]
-        best = _top_entries(same, 1)[0]
-        return f"- {day.isoformat()} — {project}: {_week_text(best)}"
-    return f"- {day.isoformat()} — {_week_text(_top_entries(entries, 1)[0])}"
-
-
-def _week_lines(current: date) -> list[str]:
-    """One line per day of the week before *current*, newest first."""
-    lines: list[str] = []
-    for days_back in range(1, WEEK_LOOKBACK_DAYS + 1):
-        day = current - timedelta(days=days_back)
-        entries = _day_entries(_read_day(_day_file(day)))
-        if entries:
-            lines.append(_week_line(day, entries))
-    return lines
-
-
-_DAY_BLOCK_OPEN = (
-    "<day>\n"
-    "Your memory of the week you are in, not a briefing: use a detail from it "
-    "where it fits, and never announce or recite this block.\n\n"
-    "When a session ends with threads still open, leave the next one a handover "
-    "with WriteDayHandover: where the work stopped, what is still in flight, and "
-    "what to settle first.\n\n"
-)
-"""The wrapper the block is sent in, with the line that says how to read it.
-
-`render_day_block` always returns one thing. The instruction lives in the wrapper
-rather than the prompt so it is paid for only when there is a block to read, and
-so it travels with the text it describes."""
-
-_DAY_BLOCK_CLOSE = "\n</day>"
-_SECTION_SEPARATOR = "\n\n"
-_CUT_MARKER = "…"
-
-
-def _wrap_sections(sections: list[str]) -> str:
-    """The `<day>` block around *sections*, each separated by a blank line."""
-    return _DAY_BLOCK_OPEN + _SECTION_SEPARATOR.join(sections) + _DAY_BLOCK_CLOSE
-
-
-def _room_for_next(kept: list[str]) -> int:
-    """How many characters one more section may take, wrapper and separator included."""
-    used = len(_wrap_sections(kept)) + (len(_SECTION_SEPARATOR) if kept else 0)
-    return DAY_BLOCK_MAX_CHARS - used
-
-
-def _cut_section(section: str, room: int) -> str:
-    """*section* cut to at most *room* characters, on a line break when one keeps most of it."""
-    if len(section) <= room:
-        return section
-    head = section[:room]
-    line_end = head.rfind("\n")
-    if line_end >= room // 2:
-        return head[:line_end]
-    return head[: max(0, room - len(_CUT_MARKER))].rstrip() + _CUT_MARKER
-
-
-def _room_for_first_line(section: str) -> int:
-    """Characters *section* needs to show its heading and one line of content."""
-    heading, _, body = section.partition(_SECTION_SEPARATOR)
-    first_line = body.split("\n", 1)[0]
-    return len(heading) + len(_SECTION_SEPARATOR) + len(first_line)
-
-
-def _reserve_for_later(sections: list[str]) -> int:
-    """Room every section after the current one must keep, heading and separators included.
-
-    Without this the first section — the handover, which nothing can reconstruct
-    later — fills the cap on its own and the day lines it exists to sit beside
-    never arrive: a 2,300-character handover once rendered a 1,484-character
-    block with no today and no yesterday in it.
-    """
-    return sum(
-        _room_for_first_line(section) + len(_SECTION_SEPARATOR) for section in sections
-    )
-
-
-def _fit_sections(sections: list[str]) -> str:
-    """Wrap the sections that fit the cap, cutting one short so the rest still show.
-
-    A section over its room is cut, and the sections after it are still rendered in
-    what the cut left. The lines beyond a cut are not lost: they are in the day file,
-    and the day lines a cut drops are one `SearchJournal` away, while the handover is
-    the one part no later reader can reconstruct.
-    """
-    kept: list[str] = []
-    for index, section in enumerate(sections):
-        available = _room_for_next(kept)
-        room = available - _reserve_for_later(sections[index + 1 :])
-        if room < _room_for_first_line(section):
-            # The reserves are unaffordable, so this section takes its whole turn
-            # rather than being cut to less than a line.
-            room = available
-        if len(section) <= room:
-            kept.append(section)
-            continue
-        if room > 0:
-            kept.append(_cut_section(section, room))
-    return _wrap_sections(kept)
-
-
-def render_day_block(today: date | None = None) -> str | None:
-    """The seam block: the newest handover, today's most important lines, and the
-    week that led here, one line per day.
-
-    The handover goes first because no later reader can reconstruct it, and it is
-    read from up to ``HANDOVER_LOOKBACK_DAYS`` back so a weekend cannot outlive
-    it. The week follows today because a day is recognised by what it was mostly
-    about rather than by its last few events. ``None`` when there is nothing to
-    read — no handover in that window, no week, and no day file for today or
-    yesterday — or when journaling is off.
-    """
-    if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_DIR:
-        return None
-    current = today or datetime.now().date()
-    yesterday = current - timedelta(days=1)
-    today_text = _read_day(_day_file(current))
-    yesterday_text = _read_day(_day_file(yesterday))
-    handover = _newest_handover(current)
-    week_lines = _week_lines(current)
-    if not handover and not today_text and not yesterday_text and not week_lines:
-        return None
-    sections: list[str] = []
-    if handover:
-        sections.append(
-            f"## From the last me, to the next me ({handover.day.isoformat()})\n\n"
-            + handover.text
-        )
-    else:
-        # A session that ended without one leaves no trace of what it was doing.
-        # Saying so is what turns a silent hole into a fact the next reader can
-        # act on: ask, rather than assume the thread carried on.
-        sections.append(
-            "## From the last me, to the next me\n\n"
-            "_None was left. The rest of this block is all there is._"
-        )
-    if week_lines:
-        sections.append("## This week\n\n" + "\n".join(week_lines))
-    today_entries = _top_entries(_day_entries(today_text), DAY_LINE_COUNT)
-    if today_entries:
-        sections.append(
-            f"## Today ({current.isoformat()})\n\n"
-            + "\n".join(f"- {_without_keys(entry)}" for entry in today_entries)
-        )
-    if not sections:
-        return None
-    return _fit_sections(sections)
-
-
 def render_live_context(
     ctx: AnyContext,
     model: "Any" = None,
-    inject_journal_index: bool = False,
-    first_message: str | None = None,
+    inject_memory: bool = False,
     previous_live_context: str | None = None,
 ) -> str:
     """Render the per-turn runtime state for ``<live-context>``, wiring ambient state.
 
-    *inject_journal_index* (first turn only) appends the journal index;
-    *first_message* feeds its auto-search. *model* is accepted but unused.
-    Async callers should use ``render_live_context_async``.
+    *inject_memory* (first turn only) appends the memory block; every later turn
+    carries only what changed since. *model* is accepted but unused. Async callers
+    should use ``render_live_context_async``.
     """
     session_name, interactive_bool = _wire_ambient_state(ctx)
     git_lines, todos_data = _collect_git_info(_todo_manager(), session_name)
@@ -1186,8 +438,7 @@ def render_live_context(
         git_lines,
         todos_data,
         interactive_bool,
-        inject_journal_index,
-        first_message,
+        inject_memory,
         previous_live_context,
     )
 
@@ -1195,8 +446,7 @@ def render_live_context(
 async def render_live_context_async(
     ctx: AnyContext,
     model: "Any" = None,
-    inject_journal_index: bool = False,
-    first_message: str | None = None,
+    inject_memory: bool = False,
     previous_live_context: str | None = None,
 ) -> str:
     """``render_live_context`` with git and todo fetch offloaded to a thread.
@@ -1212,8 +462,7 @@ async def render_live_context_async(
         git_lines,
         todos_data,
         interactive_bool,
-        inject_journal_index,
-        first_message,
+        inject_memory,
         previous_live_context,
     )
 
@@ -1239,8 +488,7 @@ def _render_parts(
     git_lines: list[str],
     todos_data: "dict[str, Any] | None",
     interactive_bool: bool,
-    inject_journal_index: bool,
-    first_message: str | None = None,
+    inject_memory: bool,
     previous_live_context: str | None = None,
 ) -> str:
     """Assemble the live-context lines (ContextVar reads stay on the caller)."""
@@ -1286,28 +534,31 @@ def _render_parts(
             CFG.LOGGER.debug(f"Failed to format todo lines for live context: {e}")
 
     parts.extend(_background_process_lines())
-    parts.extend(_memory_parts(inject_journal_index, first_message))
+    parts.extend(_memory_parts(inject_memory))
 
     return "\n".join(parts)
 
 
-def _memory_parts(inject_journal_index: bool, first_message: str | None) -> list[str]:
-    """This turn's memory block — or the journal's, while memory is switched off.
+def render_carried_context() -> str:
+    """The block that rides along with a compacted or inherited context.
 
-    Memory replaces the journal: one store, one block. The journal's index, day
-    tier and per-turn claims stay out of the prompt even when
-    LLM_JOURNAL_ENABLED is on, because two memories in one prompt are two
-    answers to the same question. The first turn of a conversation carries the
-    block; a later turn carries only what changed since it went in, so a fact
-    recorded mid-session reaches the next turn instead of waiting for compaction.
+    A compaction replaces the messages that carried the block, and a sub-agent
+    inherits the conversation without the turn it arrived in, so both have to be
+    given it again. The memory is the only store now, so there is one answer.
     """
-    if CFG.LLM_MEMORY_ENABLED:
-        block = (
-            render_memory_block() if inject_journal_index else render_memory_delta()
-        )
-        return [block] if block else []
-    if inject_journal_index:
-        journal = [render_journal_index(first_message), render_day_block()]
-        return [block for block in journal if block]
-    claims = render_journal_claims(first_message)
-    return [claims] if claims else []
+    return render_memory_block() or ""
+
+
+def _memory_parts(inject_memory: bool) -> list[str]:
+    """This turn's memory block: the whole thing on a first turn, the delta after.
+
+    The first turn of a conversation carries the block; a later turn carries only
+    what changed since it went in, so a fact recorded mid-session reaches the
+    next turn instead of waiting for compaction. Off only while
+    ``LLM_MEMORY_ENABLED`` is off, and then nothing is injected: there is no
+    second store to fall back to.
+    """
+    if not CFG.LLM_MEMORY_ENABLED:
+        return []
+    block = render_memory_block() if inject_memory else render_memory_delta()
+    return [block] if block else []

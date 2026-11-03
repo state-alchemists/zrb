@@ -44,7 +44,7 @@ def render_memory_block() -> str | None:
     if not is_memory_on():
         return None
     try:
-        paths.ensure_store()
+        paths.prepare()
         facts = store.load_facts()
     except OSError:
         # An unwritable store is reported by the tools that write to it; a first
@@ -94,7 +94,11 @@ def render_memory_delta() -> str | None:
         return None
     state = _read_state()
     if state is None:
-        return None
+        # No baseline: this turn is a first turn too — a conversation resumed after
+        # a restart, or one whose state was never written. It gets the block, which
+        # is also what reads an unconverted notes directory on the first turn after
+        # an upgrade; answering with nothing is what an upgrade used to look like.
+        return render_memory_block()
     known, shown, diary = state
     today_entry = store.load_diary(store.today())
     try:

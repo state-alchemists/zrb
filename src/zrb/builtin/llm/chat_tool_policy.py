@@ -9,19 +9,35 @@ def approve_if_path_inside_cwd(args: dict[str, Any]) -> bool:
     return approve_if_path_inside_parent(args, cwd)
 
 
-def approve_if_path_inside_journal_dir(args: dict[str, Any]) -> bool:
-    return approve_if_path_inside_parent(args, CFG.LLM_JOURNAL_DIR)
+def approve_if_path_inside_notes_dir(args: dict[str, Any]) -> bool:
+    return approve_if_path_inside_parent(args, CFG.LLM_NOTES_DIR)
 
 
-def approve_if_mv_inside_journal_dir(args: dict[str, Any]) -> bool:
-    journal_dir = CFG.LLM_JOURNAL_DIR
+def is_path_inside_notes_outside_memory(args: dict[str, object]) -> bool:
+    """The notes directory, minus the memory store that now lives inside it.
+
+    Memory has its own tools, and they enforce what a raw file write does not: a
+    kebab-case id, a bounded claim, no prompt-injection marker, and the core's
+    cap. `Write` on `core.md` or a fact file is the same act with none of those
+    checks, and `RM` deletes a claim `Forget` would have retired — so mutating
+    the store asks. Reading it stays approved: the store is still notes.
+    """
+    if not approve_if_path_inside_notes_dir(args):
+        return False
+    path = args.get("path")
+    return path is None or not path_inside_parent(str(path), CFG.LLM_MEMORY_DIR)
+
+
+def approve_if_mv_inside_notes_dir(args: dict[str, Any]) -> bool:
+    """Both ends inside the notes directory, neither of them in the store."""
     src = args.get("src")
     dst = args.get("dst")
     if src is None or dst is None:
         return False
-    return path_inside_parent(str(src), journal_dir) and path_inside_parent(
-        str(dst), journal_dir
-    )
+    ends = (str(src), str(dst))
+    if not all(path_inside_parent(end, CFG.LLM_NOTES_DIR) for end in ends):
+        return False
+    return not any(path_inside_parent(end, CFG.LLM_MEMORY_DIR) for end in ends)
 
 
 def approve_if_path_inside_parent(args: dict[str, Any], parent_path: str) -> bool:
@@ -32,14 +48,26 @@ def approve_if_path_inside_parent(args: dict[str, Any], parent_path: str) -> boo
 
 
 def path_inside_parent(path: str, parent_path: str) -> bool:
+    """Whether *path* is *parent_path* or sits below it, symlinks resolved.
+
+    Resolved, because otherwise the answer is about the string: a symlink in the
+    notes directory called `memory-link` would read as an ordinary note while the
+    write lands in the store, and one in the working directory would read as a
+    project file while the read lands outside it. Approval is about the file that
+    is actually touched.
+    """
     try:
-        abs_path = os.path.abspath(os.path.expanduser(path))
-        abs_parent_path = os.path.abspath(os.path.expanduser(parent_path))
+        abs_path = _resolved(path)
+        abs_parent_path = _resolved(parent_path)
         return abs_path == abs_parent_path or abs_path.startswith(
             f"{abs_parent_path}{os.sep}"
         )
     except Exception:
         return False
+
+
+def _resolved(path: str) -> str:
+    return os.path.realpath(os.path.abspath(os.path.expanduser(path)))
 
 
 def path_inside_any_parent(path: str, parent_paths: list[str]) -> bool:

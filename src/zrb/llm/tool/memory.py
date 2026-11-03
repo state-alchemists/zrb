@@ -232,7 +232,7 @@ def forget(
             "the id it reports; nothing was written."
         )
     try:
-        paths.ensure_store()
+        paths.prepare()
         with store.locked():
             return _forget_locked(id, wanted_reason)
     except FileLockTimeout:
@@ -308,7 +308,7 @@ def _remember_fact(
         if problem:
             return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
     try:
-        paths.ensure_store()
+        paths.prepare()
         with store.locked():
             return _remember_fact_locked(
                 fact_id, claim, kind, pin, tags, applies_when, source, body
@@ -453,7 +453,7 @@ def _remember_diary(
         if problem:
             return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
     try:
-        paths.ensure_store()
+        paths.prepare()
         with store.locked():
             return _remember_diary_locked(day, claim, handover, source, body)
     except FileLockTimeout:

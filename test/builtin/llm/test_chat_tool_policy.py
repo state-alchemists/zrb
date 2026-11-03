@@ -1,11 +1,15 @@
 """Tests for builtin/llm/chat_tool_policy.py."""
 
+import os
 from unittest.mock import patch
 
+import pytest
+
 from zrb.builtin.llm.chat_tool_policy import (
-    approve_if_mv_inside_journal_dir,
+    approve_if_mv_inside_notes_dir,
     approve_if_path_inside_cwd,
-    approve_if_path_inside_journal_dir,
+    approve_if_path_inside_notes_dir,
+    is_path_inside_notes_outside_memory,
     approve_if_path_inside_parent,
     approve_if_path_inside_skill_or_plugin_dir,
     path_inside_any_parent,
@@ -74,56 +78,121 @@ class TestApproveIfPathInsideCwd:
         assert result is False
 
 
-class TestApproveIfPathInsideJournalDir:
+class TestApproveIfPathInsideNotesDir:
 
-    def test_path_inside_journal_dir(self, tmp_path, monkeypatch):
-        """Approves when path is inside journal dir."""
+    def test_path_inside_notes_dir(self, tmp_path, monkeypatch):
+        """Approves when path is inside the notes dir."""
         monkeypatch.setattr(
             "zrb.builtin.llm.chat_tool_policy.CFG",
-            type("CFG", (), {"LLM_JOURNAL_DIR": str(tmp_path)})(),
+            type("CFG", (), {"LLM_NOTES_DIR": str(tmp_path)})(),
         )
         child = str(tmp_path / "entry.md")
-        result = approve_if_path_inside_journal_dir({"path": child})
+        result = approve_if_path_inside_notes_dir({"path": child})
         assert result is True
 
 
-class TestApproveIfMvInsideJournalDir:
+class TestApproveIfPathInsideNotesOutsideMemory:
+    """The store lives inside the notes directory, and mutating it asks.
 
-    def _patch_cfg(self, monkeypatch, journal_dir):
+    Memory changes go through `Remember` and `Forget`, which enforce the id, the
+    claim's length, the injection markers and the core's cap. A raw write to a
+    fact or a delete of one is that same act with none of them.
+    """
+
+    def _patch_cfg(self, monkeypatch, notes_dir):
         monkeypatch.setattr(
             "zrb.builtin.llm.chat_tool_policy.CFG",
-            type("CFG", (), {"LLM_JOURNAL_DIR": str(journal_dir)})(),
+            type(
+                "CFG",
+                (),
+                {
+                    "LLM_NOTES_DIR": str(notes_dir),
+                    "LLM_MEMORY_DIR": str(notes_dir / "memory-v1"),
+                },
+            )(),
         )
 
-    def test_both_paths_inside_journal_dir(self, tmp_path, monkeypatch):
+    def test_a_note_is_approved(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir(
+        result = is_path_inside_notes_outside_memory(
+            {"path": str(tmp_path / "user" / "identity.md")}
+        )
+        assert result is True
+
+    def test_a_fact_file_is_not_approved(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = is_path_inside_notes_outside_memory(
+            {"path": str(tmp_path / "memory-v1" / "facts" / "x.md")}
+        )
+        assert result is False
+
+    def test_the_generated_core_is_not_approved(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = is_path_inside_notes_outside_memory(
+            {"path": str(tmp_path / "memory-v1" / "core.md")}
+        )
+        assert result is False
+
+    def test_a_path_outside_the_notes_dir_is_not_approved(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = is_path_inside_notes_outside_memory({"path": "/etc/passwd"})
+        assert result is False
+
+    def test_a_sibling_named_like_the_store_is_still_approved(
+        self, tmp_path, monkeypatch
+    ):
+        """`memory-v1-old` is a notes path, not the store — a prefix test would lie."""
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = is_path_inside_notes_outside_memory(
+            {"path": str(tmp_path / "memory-v1-old" / "note.md")}
+        )
+        assert result is True
+
+
+class TestApproveIfMvInsideNotesDir:
+
+    def _patch_cfg(self, monkeypatch, notes_dir):
+        monkeypatch.setattr(
+            "zrb.builtin.llm.chat_tool_policy.CFG",
+            type(
+                "CFG",
+                (),
+                {
+                    "LLM_NOTES_DIR": str(notes_dir),
+                    "LLM_MEMORY_DIR": str(notes_dir / "memory-v1"),
+                },
+            )(),
+        )
+
+    def test_both_paths_inside_notes_dir(self, tmp_path, monkeypatch):
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = approve_if_mv_inside_notes_dir(
             {"src": str(tmp_path / "a.md"), "dst": str(tmp_path / "b.md")}
         )
         assert result is True
 
     def test_src_outside_returns_false(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir(
+        result = approve_if_mv_inside_notes_dir(
             {"src": "/etc/passwd", "dst": str(tmp_path / "b.md")}
         )
         assert result is False
 
     def test_dst_outside_returns_false(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir(
+        result = approve_if_mv_inside_notes_dir(
             {"src": str(tmp_path / "a.md"), "dst": "/etc/passwd"}
         )
         assert result is False
 
     def test_missing_src_returns_false(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir({"dst": str(tmp_path / "b.md")})
+        result = approve_if_mv_inside_notes_dir({"dst": str(tmp_path / "b.md")})
         assert result is False
 
     def test_missing_dst_returns_false(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir({"src": str(tmp_path / "a.md")})
+        result = approve_if_mv_inside_notes_dir({"src": str(tmp_path / "a.md")})
         assert result is False
 
 
@@ -199,3 +268,124 @@ class TestApproveIfPathInsideSkillOrPluginDir:
             mock_cfg.LLM_PLUGIN_DIRS = []
             result = approve_if_path_inside_skill_or_plugin_dir({"path": child})
         assert result is False
+
+
+needs_symlinks = pytest.mark.skipif(
+    os.name != "posix", reason="creating a symlink needs POSIX or a privilege"
+)
+
+
+@needs_symlinks
+class TestASymlinkIsNotAPathAlias:
+    """The answer is about the file touched, not the string that names it."""
+
+    def _patch_cfg(self, monkeypatch, notes_dir):
+        monkeypatch.setattr(
+            "zrb.builtin.llm.chat_tool_policy.CFG",
+            type(
+                "CFG",
+                (),
+                {
+                    "LLM_NOTES_DIR": str(notes_dir),
+                    "LLM_MEMORY_DIR": str(notes_dir / "memory-v1"),
+                },
+            )(),
+        )
+
+    def test_a_symlinked_route_into_the_store_is_not_approved(
+        self, tmp_path, monkeypatch
+    ):
+        """`memory-link` reads as a note and writes a fact; the lexical check missed it."""
+        (tmp_path / "memory-v1").mkdir()
+        (tmp_path / "memory-link").symlink_to(tmp_path / "memory-v1")
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = is_path_inside_notes_outside_memory(
+            {"path": str(tmp_path / "memory-link" / "facts" / "x.md")}
+        )
+        assert result is False
+
+    def test_a_symlink_out_of_cwd_is_not_approved(self, tmp_path, monkeypatch):
+        (tmp_path / "outside").mkdir()
+        work = tmp_path / "work"
+        work.mkdir()
+        (work / "leak").symlink_to(tmp_path / "outside")
+        monkeypatch.chdir(work)
+        result = approve_if_path_inside_cwd(
+            {"path": str(work / "leak" / "secret.txt")}
+        )
+        assert result is False
+
+    def test_a_symlink_that_stays_inside_is_still_approved(
+        self, tmp_path, monkeypatch
+    ):
+        (tmp_path / "real").mkdir()
+        (tmp_path / "alias").symlink_to(tmp_path / "real")
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = is_path_inside_notes_outside_memory(
+            {"path": str(tmp_path / "alias" / "note.md")}
+        )
+        assert result is True
+
+
+def _chain(policy, next_handler):
+    async def chained(ui, call):
+        return await policy(ui, call, next_handler)
+
+    return chained
+
+
+class TestRegisteredChatPolicies:
+    """What `zrb llm chat` approves, composed in the order it registered them.
+
+    No test read this composition, which is how `Write`, `Edit` and `RM` came to
+    be auto-approved for the memory store on the day the store moved inside the
+    notes directory. These assert the outcome, not which policy produced it.
+    """
+
+    def _ask(self, verb, args, tmp_path, monkeypatch):
+        """The composed policy chain for one call, and the human it may reach."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from zrb.builtin.llm.chat import llm_chat
+        from zrb.config.config import CFG
+
+        monkeypatch.setattr(CFG, "LLM_NOTES_DIR", str(tmp_path), raising=False)
+        monkeypatch.setattr(
+            CFG, "LLM_MEMORY_DIR", str(tmp_path / "memory-v1"), raising=False
+        )
+        call = MagicMock()
+        call.tool_name = verb
+        call.args = args
+        asked = AsyncMock(return_value="asked")
+        handler = asked
+        # The task's own order: the first policy to decide wins.
+        for policy in reversed(llm_chat.tool_policies):
+            handler = _chain(policy, handler)
+        return call, handler, asked
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("verb", ["Write", "Edit", "RM"])
+    async def test_mutating_the_memory_store_reaches_the_human(
+        self, verb, tmp_path, monkeypatch
+    ):
+        call, handler, asked = self._ask(
+            verb,
+            {"path": str(tmp_path / "memory-v1" / "core.md")},
+            tmp_path,
+            monkeypatch,
+        )
+        assert await handler(object(), call) == "asked"
+        asked.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_a_write_to_a_note_is_still_approved(self, tmp_path, monkeypatch):
+        from pydantic_ai import ToolApproved
+
+        call, handler, asked = self._ask(
+            "Write",
+            {"path": str(tmp_path / "user" / "identity.md")},
+            tmp_path,
+            monkeypatch,
+        )
+        assert isinstance(await handler(object(), call), ToolApproved)
+        asked.assert_not_called()

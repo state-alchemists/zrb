@@ -107,7 +107,7 @@ def apply_turn_end_extension(
             blocked=True,
         )
 
-    # 2. systemMessage extension (journaling, summarization, ...).
+    # 2. systemMessage extension (memory review, summarization, ...).
     message = extract_system_message(stop_results)
     if not message:
         return ExtensionOutcome(should_continue=False)

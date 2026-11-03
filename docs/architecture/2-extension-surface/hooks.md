@@ -98,7 +98,7 @@ sequenceDiagram
     X-->>W: deny, ask, allow or new input
 ```
 
-1. **Load.** If `HOOKS_ENABLED` is off, `execute_hooks` returns an empty list and never scans. Otherwise the first call runs the built-in factories (journal compliance, self review, skill frontmatter) and loads every search directory.
+1. **Load.** If `HOOKS_ENABLED` is off, `execute_hooks` returns an empty list and never scans. Otherwise the first call runs the built-in factories (memory reviewer, self review, skill frontmatter) and loads every search directory.
 2. **Select.** The manager builds a `HookContext`, takes global hooks plus this event's hooks, and sorts them by `priority`, highest first. A hook with no config counts as 0.
 3. **Run.** Each hook first checks its matchers. A command hook gets the event as JSON on stdin and as size-capped `CLAUDE_*` variables; exit 0 is success, exit 2 is a block, anything else is a failure. A timeout kills the whole process tree.
 4. **Stop or continue.** A block stops the chain only for events in `BLOCKING_EVENTS`; `continue: false` stops it for any event.

@@ -64,7 +64,7 @@ async def test_summarize_history_preserves_first_user_message():
             return_value="old conversation summary",
         ),
         patch(
-            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            "zrb.llm.summarizer.history_summarizer.render_carried_context",
             return_value=None,
         ),
     ):
@@ -100,7 +100,7 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
             return_value="round 1 summary",
         ),
         patch(
-            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            "zrb.llm.summarizer.history_summarizer.render_carried_context",
             return_value=None,
         ),
     ):
@@ -122,7 +122,7 @@ async def test_summarize_history_second_round_preserves_the_true_first_user_mess
             return_value="round 2 summary",
         ),
         patch(
-            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            "zrb.llm.summarizer.history_summarizer.render_carried_context",
             return_value=None,
         ),
     ):

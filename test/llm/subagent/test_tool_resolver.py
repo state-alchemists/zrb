@@ -59,15 +59,15 @@ class TestResolveToolsByName:
         assert resolve_tools_by_name(["NoSuchTool"], {}) == []
 
     def test_falls_back_to_factory_when_not_in_registry(self):
-        journal_tool = _tool("LogActivity")
+        memory_tool = _tool("Remember")
 
         def factory(ctx):
-            return [journal_tool]
+            return [memory_tool]
 
         result = resolve_tools_by_name(
-            ["LogActivity"], registry={}, factories=[factory], ctx=object()
+            ["Remember"], registry={}, factories=[factory], ctx=object()
         )
-        assert result == [journal_tool]
+        assert result == [memory_tool]
 
     def test_factory_not_consulted_when_name_already_in_registry(self):
         registry_tool = _tool("Read")
@@ -87,7 +87,7 @@ class TestResolveToolsByName:
         assert calls == []
 
     def test_no_factories_means_unresolved_names_are_dropped(self):
-        assert resolve_tools_by_name(["LogActivity"], registry={}) == []
+        assert resolve_tools_by_name(["Remember"], registry={}) == []
 
     def test_factory_delegate_tool_excluded(self):
         delegate = _tool("DelegateToAgent", is_delegate=True)

@@ -68,6 +68,42 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
         "agent/run/runtime_state.py",
         "agent/tool_result.py",
     },
+    "docs/adr/adr-0055.md": {
+        # The journal is this record's subject, and "Where it lives" and its
+        # "Tests" paragraph name the modules that implemented it. All of them
+        # were deleted with the journal in 3.33.0 (ADR-0138), so there is no
+        # surviving module that embodies the same mechanism to point at.
+        "src/zrb/llm/tool/journal.py",
+        "src/zrb/llm/tool/journal_write.py",
+        "src/zrb/llm/hook/journal_compliance.py",
+        "test/llm/tool/test_journal_notes.py",
+        "test/llm/tool/test_journal_backlinks.py",
+        "test/llm/tool/test_journal_git.py",
+        "test/llm/hook/test_journal_compliance.py",
+    },
+    "docs/adr/adr-0127.md": {
+        # The record added the `/usage` Journal section and the event log behind
+        # it; both went with the journal in 3.33.0. The usage half it also
+        # describes is live, and `src/zrb/llm/usage_log.py` is checked normally.
+        "src/zrb/llm/journal_usage_log.py",
+        "src/zrb/llm/tool/journal.py",
+        "test/llm/test_journal_usage_log.py",
+        "test/llm/tool/test_journal_usage_events.py",
+    },
+    "docs/adr/adr-0134.md": {
+        # This record measures journal retrieval — the `prompted` and
+        # `auto_searched` events and the two `/usage` lines they feed — and
+        # every module it names was deleted with the journal in 3.33.0.
+        "src/zrb/llm/journal_usage_log.py",
+        "src/zrb/llm/custom_command/usage_command_journal.py",
+    },
+    "docs/adr/adr-0136.md": {
+        # The ranked cap was extracted into this module, and its adversarial
+        # test walk lived in that test file. Both are gone with the journal in
+        # 3.33.0; the decision has no implementation left to point at.
+        "src/zrb/llm/prompt/journal_core.py",
+        "test/llm/prompt/test_journal_core.py",
+    },
 }
 
 # A markdown inline link's opening, `](`. What follows is scanned rather than

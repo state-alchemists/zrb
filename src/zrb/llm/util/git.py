@@ -51,13 +51,13 @@ def repository_root(cwd: str) -> str:
 
     The flag that would print that path absolute, `--path-format=absolute`, needs
     Git 2.31 and answers nothing on anything older — and an empty answer reads as
-    "outside any checkout", which silently turns the journal's scoping off. The
-    plain command answers the same thing on every version, relative to the
-    directory it ran in, so the resolution happens here instead.
+    "outside any checkout". The plain command answers the same thing on every
+    version, relative to the directory it ran in, so the resolution happens here
+    instead.
 
     `--is-inside-work-tree` is asked in the same call: a bare repository has a
     common directory but no checkout, and a session poking at one is outside any
-    work tree, where the journal is shown whole.
+    work tree.
     """
     try:
         res = subprocess.run(

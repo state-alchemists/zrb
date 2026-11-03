@@ -56,10 +56,10 @@ The `ZRB_LLM_*` twins restrict *which* members are visible/dispatched (or, for p
 
 ```bash
 # Only the named skills/agents/hooks survive. For tools, the list narrows the
-# static set; per-run tools (plan mode, ask, journal, task, MCP, …) keep gates.
+# static set; per-run tools (plan mode, ask, memory, task, MCP, …) keep gates.
 export ZRB_LLM_SKILLS="code-review,commit-helper"
 export ZRB_LLM_AGENTS="debugger,build-dispatcher"
-export ZRB_LLM_HOOKS="journal-compliance-judge"
+export ZRB_LLM_HOOKS="memory-reviewer"
 export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob"
 
 # Prompts are content, so the twin is content too.
@@ -68,7 +68,7 @@ export ZRB_LLM_PROMPT="Always answer in British English.,Prefer git over GUI."
 
 An **empty** twin (the default) means **everything**: all built-in and discovered skills/agents/hooks/tools. Set it to list only what you want. The twin restricts only the *discovered/default* layer: something you `add_*`/`set_*` in `zrb_init.py` is manual content and always visible for skills and agents (env sets the baseline, code builds on it). Hooks form a single-layer registry, so `LLM_HOOKS` governs the whole hook registry.
 
-`LLM_TOOLS` is narrower — it filters the registry's **static** tools only. Per-run tools (`EnterPlanMode` / `AskUserQuestion` on interactive runs, the journal tools, `RunZrbTask`, `ActivateSkill`, `MonitorProcess`, and every MCP toolset) are not statically named and keep their own gates (interactive, journal, spill, MCP config) regardless of the allowlist; they come from per-run factories, which `remove_tool`/`set_tools` (static tools only) don't touch, so restricting *those* needs `tool_registry.set_tool_factories(...)` / `set_toolset_factories(...)` in `zrb_init.py`.
+`LLM_TOOLS` is narrower — it filters the registry's **static** tools only. Per-run tools (`EnterPlanMode` / `AskUserQuestion` on interactive runs, the memory tools, `RunZrbTask`, `ActivateSkill`, `MonitorProcess`, and every MCP toolset) are not statically named and keep their own gates (interactive, memory, spill, MCP config) regardless of the allowlist; they come from per-run factories, which `remove_tool`/`set_tools` (static tools only) don't touch, so restricting *those* needs `tool_registry.set_tool_factories(...)` / `set_toolset_factories(...)` in `zrb_init.py`.
 
 `LLM_TOOLS` and the rosters still honor their independent toggles — `LLM_ENABLE_BUILTIN_AGENTS`, `LLM_ENABLE_BUILTIN_SKILLS`, `HOOKS_ENABLED` — which gate the built-in bulk independently of the allowlist.
 
@@ -191,7 +191,7 @@ Two behaviors keep the registry the source of truth without copying:
 ```bash
 export ZRB_LLM_TOOLS="Shell,Read,Write,Grep,Glob,TodoWrite"
 # The STATIC tools are narrowed to these six. Per-run tools — plan mode, ask,
-# journal, task, skill, monitor, and MCP — are gated by their own switches,
+# memory, task, skill, monitor, and MCP — are gated by their own switches,
 # not this list (see "Three configuration channels" above).
 ```
 
@@ -204,7 +204,7 @@ export ZRB_LLM_SKILLS="code-review,commit-helper,oncall-handbook"
 **Run a nightly hook roster:** hooks are global by default; gate them:
 
 ```bash
-export ZRB_LLM_HOOKS="journal-compliance-judge"
+export ZRB_LLM_HOOKS="memory-reviewer"
 ```
 
 **Append org-wide instructions without touching a task:**

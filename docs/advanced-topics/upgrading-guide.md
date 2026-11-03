@@ -6,6 +6,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.33.0](#upgrading-to-3330)
 - [Upgrading to 3.16.0](#upgrading-to-3160)
 - [Upgrading to 3.15.0](#upgrading-to-3150)
 - [Upgrading to 3.14.0](#upgrading-to-3140)
@@ -45,6 +46,62 @@ Layering refactor for lower-cognitive-load imports. Tools and hooks no longer im
 `zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
 
 `split_live_context` is still importable from `zrb.llm.prompt.live_context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.util.live_context_block` now.
+
+---
+
+## Upgrading to 3.33.0
+
+The journal is gone. The memory store that arrives in this release is the only store, and the journal's modules, tools, settings, hooks and prompt files were deleted alongside it. An existing notes directory is still read: see [Your notes are still read](#your-notes-are-still-read).
+
+If you never touched the journal, nothing here applies beyond the settings table below.
+
+### Settings
+
+Fourteen `ZRB_LLM_JOURNAL_*` settings are retired. A start that still sets one says so and names what to set instead:
+
+| Retired | Set instead |
+|---|---|
+| `ZRB_LLM_JOURNAL_DIR` | `ZRB_LLM_NOTES_DIR` |
+| `ZRB_LLM_JOURNAL_GIT_ENABLED` | `ZRB_LLM_MEMORY_GIT_ENABLED` |
+| `ZRB_LLM_JOURNAL_COMPLIANCE_ENABLED` | `ZRB_LLM_MEMORY_REVIEWER_ENABLED` |
+| `ZRB_LLM_JOURNAL_LOCK_TIMEOUT` | `ZRB_LLM_MEMORY_LOCK_TIMEOUT` |
+| `ZRB_LLM_JOURNAL_ENABLED`, `_INDEX_FILE`, `_INDEX_MAX_CHARS`, `_HUD_MAX_ENTRIES_PER_SECTION`, `_CATALOG_MAX_ENTRIES`, `_CLAIMS_PER_TURN`, `_CLAIMS_MAX_CHARS`, `_AUTO_SEARCH_ENABLED`, `_AUTO_SEARCH_MAX_HITS`, `_COMPLIANCE_TURNS` | Nothing — the system they configured no longer exists |
+
+`ZRB_LLM_MEMORY_ENABLED` is now a privacy switch rather than a choice between two stores: `off` means the session reads and writes no memory at all. The full list lives in `src/zrb/config/retired.py`.
+
+### Tools, hooks and prompts
+
+| Was | Now |
+|---|---|
+| `SearchJournal`, `LogActivity`, `WriteJournalNote`, `SupersedeJournalNote`, `DeleteJournalNote` | `SearchMemory`, `Remember`, `Forget` |
+| The `journal-compliance-judge` Stop hook and the `journal_compliance` prompt | The `memory-reviewer` Stop hook and the `memory_reviewer` prompt |
+| The `/usage` `Journal` section | Gone; `/usage` keeps its `Tools` section |
+| The `<journal-index>`, `<journal-claims>` and day-block injections | The `<memory>` block and its per-turn `<memory-delta>` |
+
+An agent hook, skill or prompt of yours that names a journal tool now resolves nothing — the hook skips its model call rather than failing, but it does nothing useful either. Name a memory tool instead.
+
+### Code
+
+| Before | After |
+|---|---|
+| `render_live_context(..., inject_journal_index=True)` | `render_live_context(..., inject_memory=True)`; the `first_message` argument is gone |
+| `render_journal_index(...)`, `render_journal_claims(...)`, `render_day_block()` | `render_memory_block()` and `render_memory_delta()` in `zrb.llm.prompt.memory_context` |
+| `render_carried_context()` returned whichever store was on | It returns the memory block, always |
+| `zrb memory migrate-journal` | `zrb memory migrate` |
+| A `STOP` payload with `journal_due`, `count_user_turn`, `has_turn_logged_activity` | `memory_due`; `wrote_files`, `changed_paths` and `turn_states_preference` stay |
+
+Auto-approval policies that covered the journal directory now cover `CFG.LLM_NOTES_DIR` — except for the tools that mutate. `Write`, `Edit`, `RM` and `MV` no longer auto-approve anything inside the memory store (`CFG.LLM_MEMORY_DIR`), which now lives under the notes directory: `Remember` and `Forget` are the interface, and they enforce an id, a claim's length, the injection markers and the core's cap that a raw write would skip. Reading the store stays approved.
+
+### Your notes are still read
+
+`~/.zrb/llm-notes` is not deleted and is not dead weight: the store lives inside it as `memory-v1`, and its notes are read into the store once, on first use. An upgrade that silently started an empty memory would look exactly like a memory that was lost. To see the counts first, or to fill a store you pointed somewhere else:
+
+```bash
+zrb memory migrate --dry_run=true   # count, write nothing
+zrb memory migrate                  # write
+```
+
+The notes are never modified. What each note becomes, and the layout the migration reads, are in [LLM Memory](../technical-specs/llm-memory.md#91-from-the-journal-notes) and [the notes directory](../technical-specs/llm-context.md).
 
 ---
 
@@ -456,7 +513,7 @@ A block added with `append_prompt` always renders after all built-in sections �
 |---|---|
 | `mandate` | folded into `workflow` (the Priority Order now opens it) |
 | `git_mandate` | enforced by the shell tool policy; the one prompt-side rule moved to `workflow` |
-| `journal_mandate` | replaced by the `LogActivity` and `WriteJournalNote` tools |
+| `journal_mandate` | replaced by the `LogActivity` and `WriteJournalNote` tools (both removed in 3.33.0, with the journal) |
 | `tool_guidance` | tool docstrings, plus a `Tool usage` block in `workflow` |
 
 A pinned `ZRB_LLM_INCLUDE_SECTIONS` or sub-agent `inherit_sections` naming any of them still parses. The name falls through to the custom-section path, so what happens depends on whether a markdown file resolves for it:
@@ -470,7 +527,7 @@ Either way, update the list to the current defaults:
 export ZRB_LLM_INCLUDE_SECTIONS="persona,principle,workflow,example,profile,system_context,project_context"
 ```
 
-`ZRB_LLM_INCLUDE_JOURNAL_REMINDER` is removed along with its hook; the journal tools make the reminder unnecessary. `ZRB_LLM_JOURNAL_ENABLED` still works and now unregisters the journal tools instead of dropping a prompt section.
+`ZRB_LLM_INCLUDE_JOURNAL_REMINDER` is removed along with its hook; the journal tools made the reminder unnecessary. `ZRB_LLM_JOURNAL_ENABLED` unregistered the journal tools rather than dropping a prompt section — until 3.33.0 removed the journal and that setting together (see [Upgrading to 3.33.0](#upgrading-to-3330)).
 
 **Careful with overrides.** If you overrode a retired prompt file (`mandate.md`, `git_mandate.md`, `journal_mandate.md`) *and* you rely on the default section list, your override silently stops being read — the name is no longer in the defaults, so nothing resolves it. Either keep the name in an explicit `ZRB_LLM_INCLUDE_SECTIONS` (it then works as a custom section, see above) or move the content into a `workflow.md` override.
 

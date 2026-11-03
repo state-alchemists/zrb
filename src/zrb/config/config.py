@@ -15,7 +15,7 @@ To find a setting:
 - Emotion read from prompts and replies      -> mixins/llm_emotion.py
 - Screenshot command and tool                -> mixins/llm_screenshot.py
 - LLM throttle/retry/timeout/size caps       -> mixins/llm_limits.py
-- LLM history/journal/snapshot/summarization -> mixins/llm_content.py
+- LLM history/notes/memory/snapshot/summarization -> mixins/llm_content.py
 - LLM prompt dirs/INCLUDE_* toggles          -> mixins/llm_prompt.py
 - LLM sandbox (FS gate, shell wrapper)       -> mixins/llm_sandbox.py
 - LLM plugin/skill/agent search dirs         -> mixins/llm_search.py

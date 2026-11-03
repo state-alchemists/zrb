@@ -126,15 +126,15 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0099** — [Factual-claim hardening against generative-engine-optimized content](adr-0099.md)
 - **ADR-0122** — [Live context reports the background processes this session owns](adr-0122.md)
 
-### Skills, agents and the journal
+### Skills, agents and memory
 
 - **ADR-0052** — [Skills and agents are discovered from directories](adr-0052.md)
 - **ADR-0053** — [Claude-compatible skills; catalogue from the live scan](adr-0053.md)
 - **ADR-0054** — [Built-in plugin split into core-skills, skills, agents](adr-0054.md)
-- **ADR-0055** — [The journal is a markdown graph that only tools write](adr-0055.md)
+- **ADR-0055** — [The journal is a markdown graph that only tools write](adr-0055.md) (removed in 3.33.0)
 - **ADR-0118** — [A skill declares the skills it preloads, and one activation renders them together](adr-0118.md)
-- **ADR-0134** — [Journal usage is measured per prompt and per automatic search, so a retrieval change can be judged](adr-0134.md)
-- **ADR-0136** — [The injected journal index is ranked, not sliced from the top](adr-0136.md)
+- **ADR-0134** — [Journal usage is measured per prompt and per automatic search, so a retrieval change can be judged](adr-0134.md) (removed in 3.33.0)
+- **ADR-0136** — [The injected journal index is ranked, not sliced from the top](adr-0136.md) (removed in 3.33.0)
 - **ADR-0138** — [Memory is one claim per file, two verbs, and a cap that refuses](adr-0138.md)
 
 ### Tools
