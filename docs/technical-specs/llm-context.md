@@ -93,7 +93,9 @@ The 213 characters the second view pays are the `## Other projects` heading and 
 | `setting:<NAME>=<value>` | `CFG.<NAME>` reads as that token | `getattr(CFG, name)`, `on`/`off` folded to `true`/`false` |
 | `date:<YYYY-MM-DD>` | today is on or before that day | `date.today()` |
 
-A `file:` path is relative to the repository root and the digest is stamped **at write time** (`_write_note_locked`), because a condition nobody stamped is a condition nobody can evaluate. It is answered only in the repository it was stamped in and only when the note carries that repository's tag: the same relative path in another checkout is another file, and a mismatch there would report a live note as false.
+A `file:` path is relative to the repository root and the digest is stamped **at write time** (`_write_note_locked`), because a condition nobody stamped is a condition nobody can evaluate. The stamp comes from the note's *own* repository — a note tagged `repo-a` and corrected from `repo-b` keeps its tag, so hashing `repo-b`'s file would make the note read as disproved back in `repo-a` — and an untagged note, which travels with the person, is never stamped. The condition is answered only in the repository it was stamped in and only when the note carries that repository's tag: the same relative path in another checkout is another file, and a mismatch there would report a live note as false.
+
+Only a `file:` condition needs a checkout. `version:`, `setting:` and `date:` are answered anywhere, including a session opened outside any repository — scoping is switched off there because there is no tag to compare, but a disproved condition still stops the note from arriving.
 
 Only a suffix of exactly `SHA_LENGTH` lowercase hex digits is read as a recorded digest, so a file named `config@prod.yml` is a path to stamp rather than a condition that already carries one. A `version:` value compares under PEP 440 (`packaging.version.Version`), so a development build of 3.29 answers `version:<3.29` with a real false and a postrelease answers `version:>=3.29` with a real true, rather than either of them being unreadable.
 

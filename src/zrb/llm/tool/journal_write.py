@@ -657,6 +657,19 @@ def _scope_for(category: str, repo: str | None, previous: Note | None) -> str:
     return default_scope(category, repo_of(os.getcwd()))
 
 
+def _stamp_root(scope: str) -> str:
+    """The tree a `file:` condition may be stamped against, or ``""``.
+
+    Only the note's own repository anchors a relative path. A note tagged for one
+    repository and revised from another would otherwise record this checkout's
+    file, and its own repository would then read the note as disproved; an
+    untagged note travels with the person and has no tree to be relative to at
+    all. Unstamped reads as uncheckable, which keeps the note."""
+    if not scope or scope != repo_of(os.getcwd()):
+        return ""
+    return repo_root(os.getcwd())
+
+
 def _write_note_locked(
     root: str,
     category: str,
@@ -682,15 +695,16 @@ def _write_note_locked(
     check_category(category)
     check_slug(slug)
     condition = check_applies_when(applies_when)
-    # A `file:` condition gets the hash it was written against, here, while the
-    # checkout is in hand; a later reader has no way to recover it.
-    condition = stamp(condition, repo_root(os.getcwd()))
     check_finding(finding)
     notes = _load_notes(root)
     note_path = os.path.join(root, category, f"{slug}.md")
     note_rel = relative(note_path, root)
     previous = next((note for note in notes if note.rel == note_rel), None)
     scope = _scope_for(category, repo, previous)
+    # A `file:` condition gets the hash it was written against, here, while the
+    # tree it names is in hand; a later reader has no way to recover it. The tree
+    # is the note's own repository, not the one the caller happens to stand in.
+    condition = stamp(condition, _stamp_root(scope))
     line, is_pinned = _hud_state(hud_line, pinned, previous, notes, note_rel)
     targets = _resolve_links(root, links or [])
     # The keywords the note will *store*, not the ones the caller passed: a
