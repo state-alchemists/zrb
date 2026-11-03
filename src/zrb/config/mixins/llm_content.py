@@ -56,6 +56,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_MEMORY_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_CORE_MAX_CHARS: str = "4000"
         self.DEFAULT_LLM_MEMORY_RECENT_MAX_CHARS: str = "1600"
+        self.DEFAULT_LLM_MEMORY_RECENT_LOG_LINES: str = "4"
         self.DEFAULT_LLM_MEMORY_REVIEWER_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_GIT_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_LOG_RETENTION_DAYS: str = "0"
@@ -397,6 +398,15 @@ class LLMContentMixin:
             "Characters of the `## Recent` block injected beside the core: the "
             "newest handover, today's diary claim, and the last few log lines. "
             "Whole lines only — half a fact is worse than none."
+        ),
+    )
+
+    LLM_MEMORY_RECENT_LOG_LINES = EnvField(
+        int,
+        doc=(
+            "Log lines `## Recent` carries beside the handover and today's "
+            "claim, today's first and yesterday's when today is short. 0 drops "
+            "them: the block still carries the handover."
         ),
     )
 

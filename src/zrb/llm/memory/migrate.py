@@ -50,6 +50,7 @@ from zrb.llm.memory.model import (
     STATUS_RETIRED,
     Diary,
     Fact,
+    date_error,
     id_error,
     injection_reason,
     split_document,
@@ -153,7 +154,7 @@ def _fact_from_note(
     if not slug:
         return None
     # The store's own subject wins: its claim is newer than the journal's.
-    if _slugify(slug) in existing:
+    if _base_id(slug) in existing:
         return None
     claim = _claim_of(front, body)
     if not claim:
@@ -200,7 +201,7 @@ def _claim_of(front: dict[str, str], body: str) -> str:
 
 def _unique_id(slug: str, category: str, taken: set[str]) -> str:
     """*slug* as an id, category-prefixed when two categories share one."""
-    base = _slugify(slug)
+    base = _base_id(slug)
     if base not in taken and not id_error(base):
         return base
     prefixed = _slugify(f"{category}-{slug}")
@@ -211,6 +212,18 @@ def _unique_id(slug: str, category: str, taken: set[str]) -> str:
     while f"{root}-{suffix}" in taken:
         suffix += 1
     return f"{root}-{suffix}"
+
+
+def _base_id(slug: str) -> str:
+    """A fact id for *slug* — never date-shaped.
+
+    A date names a diary entry and nothing else; a migrated note whose slug is a
+    date would otherwise create `facts/<date>.md` beside that day's entry, and
+    `Forget(<date>)` would reach the fact while `Remember(<date>)` reaches the
+    diary.
+    """
+    base = _slugify(slug)
+    return _slugify(f"fact-{slug}") if date_error(base) is None else base
 
 
 def _slugify(value: str) -> str:

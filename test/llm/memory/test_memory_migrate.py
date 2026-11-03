@@ -226,6 +226,19 @@ def test_two_notes_with_one_slug_both_arrive(journal):
     assert ids & {"technical-deploy", "projects-deploy"}
 
 
+def test_a_note_slugged_as_a_date_does_not_shadow_the_diary(journal):
+    """A date names a diary entry; a fact under one is unreachable and ambiguous."""
+    (journal / "user" / "2026-11-03.md").write_text(
+        "---\nslug: 2026-11-03\nhud_line: A note filed under a date.\n"
+        "updated: 2026-11-01T10:00:00\n---\n# Dated note\n",
+        encoding="utf-8",
+    )
+    migrate(str(journal))
+    ids = {fact.id for fact in store.load_facts(include_retired=True)}
+    assert not (ids & {"2026-11-03"})
+    assert "fact-2026-11-03" in ids
+
+
 def test_running_it_twice_writes_the_same_store(journal):
     migrate(str(journal))
     before = {

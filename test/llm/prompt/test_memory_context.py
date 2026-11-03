@@ -43,6 +43,17 @@ def test_the_block_carries_todays_claim_and_the_log_tail(store_dir):
     assert "Replaced the journal" in block
 
 
+def test_the_recent_log_line_count_is_configurable(store_dir, monkeypatch):
+    """The documented knob must be the one the block reads."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_RECENT_LOG_LINES", 1, raising=False)
+    for minute in ("09:00", "10:00", "11:00"):
+        store.append_log(f"event at {minute}", day=store.today())
+    block = render_memory_block()
+    assert block is not None
+    assert "event at 11:00" in block
+    assert "event at 09:00" not in block
+
+
 def test_the_recent_block_is_cut_at_a_line_boundary(store_dir, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_RECENT_MAX_CHARS", 60, raising=False)
     remember("2026-11-03", "A day whose claim is too long for this small cap.", kind="diary", body="x")

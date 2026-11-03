@@ -27,10 +27,6 @@ from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.memory import paths, render, store
 
-# How many log lines `## Recent` carries. Four is the journal's number and it has
-# held up: enough to see the shape of the day, few enough to stay cheap.
-_RECENT_LOG_LINES = 4
-
 # The process's own start, so two CLI runs in one directory are two sessions.
 _PROCESS_START = datetime.now().replace(microsecond=0).isoformat()
 
@@ -60,7 +56,7 @@ def render_memory_block() -> str | None:
         render.render_recent(
             store.latest_handover(),
             store.load_diary(store.today()),
-            store.recent_log_lines(_RECENT_LOG_LINES),
+            store.recent_log_lines(CFG.LLM_MEMORY_RECENT_LOG_LINES),
         ),
         CFG.LLM_MEMORY_RECENT_MAX_CHARS,
     )
