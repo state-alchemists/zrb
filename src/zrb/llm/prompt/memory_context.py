@@ -68,18 +68,19 @@ def render_memory_block() -> str | None:
     # store is a first turn too: without the record, a fact remembered during
     # that turn has nothing to be "new" against, and the next turn shows nothing.
     #
-    # A fact whose core line the cap cut is *not* recorded: the model has not
-    # seen it, so it must reach the model later as a delta. That is how a
-    # migrated store larger than the cap stays reachable instead of losing its
-    # overflow on the first turn.
+    # Two facts are kept apart: `known` is the store as of this turn (so a delta
+    # reports changes, not the whole store), and `shown` is what the cap actually
+    # rendered (so "forget this claim" is only said about a claim the model was
+    # given). A migrated store larger than the cap stays reachable because its
+    # overflow is not in `shown`; an ordinary unpinned fact never earns a
+    # tombstone because it was never in the block either.
     rendered = set(core.splitlines())
-    _write_shown(
-        [
-            fact
-            for fact in facts
-            if (line := render.core_line(fact)) is None or line in rendered
-        ]
-    )
+    shown = [
+        fact.id
+        for fact in facts
+        if (line := render.core_line(fact)) is not None and line in rendered
+    ]
+    _write_state([render.claim_key(fact) for fact in facts], shown)
     if not core.strip() and not recent.strip():
         return None
     return render.compose_memory(core, recent)
@@ -89,21 +90,27 @@ def render_memory_delta() -> str | None:
     """Changes and removals since the block went in, or ``None`` when neither."""
     if not is_memory_on():
         return None
-    known = _read_shown()
-    if known is None:
+    state = _read_state()
+    if state is None:
         return None
+    known, shown = state
     try:
         facts = store.load_facts(include_retired=True)
     except OSError:
         return None
-    plan = render.plan_delta(facts, known)
+    plan = render.plan_delta(facts, known, shown)
     if not plan.text:
         return None
     # Advance the baseline only by what this delta actually said: a fact left out
     # by the three-line cap stays unseen and appears on the next turn.
-    dropped = set(plan.forgotten) | {render.id_of(key) for key in plan.emitted}
-    kept = [key for key in known if render.id_of(key) not in dropped]
-    _write_shown_keys(kept + list(plan.emitted))
+    emitted_ids = [render.id_of(key) for key in plan.emitted]
+    replaced = set(plan.forgotten) | set(emitted_ids)
+    kept = [key for key in known if render.id_of(key) not in replaced]
+    still_shown = [fact_id for fact_id in shown if fact_id not in plan.forgotten]
+    _write_state(
+        kept + list(plan.emitted),
+        still_shown + [item for item in emitted_ids if item not in still_shown],
+    )
     return plan.text
 
 
@@ -115,35 +122,42 @@ def _session_key() -> str:
     return key
 
 
-def _write_shown(facts) -> None:
-    """Remember which versions the block injected.
+def _write_state(known, shown) -> None:
+    """Remember which versions the block knew, and which claims it showed.
 
     Versions, not a timestamp: a fact recorded in the same second as the block is
     neither before nor after by a clock, and a revised claim has to be shown
     again. This is the journal's own hard-won rule — deduplicating by slug alone
     froze out every correction.
     """
-    _write_shown_keys([render.claim_key(fact) for fact in facts])
-
-
-def _write_shown_keys(keys) -> None:
     path = paths.state_path(_session_key())
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            json.dump({"known": list(keys)}, f)
+            json.dump({"known": list(known), "shown": list(shown)}, f)
     except OSError:
         # Without a record there is no delta, which costs a repeated claim in a
         # later turn. Failing the turn over it would cost the turn.
         pass
 
 
-def _read_shown() -> list[str] | None:
+def _read_state() -> tuple[list[str], list[str]] | None:
     try:
         with open(paths.state_path(_session_key()), encoding="utf-8") as f:
-            value = json.load(f).get("known")
-    except (OSError, ValueError, AttributeError):
+            payload = json.load(f)
+    except (OSError, ValueError):
         return None
-    if not isinstance(value, list):
+    if not isinstance(payload, dict):
         return None
-    return [item for item in value if isinstance(item, str)]
+    known = payload.get("known")
+    if not isinstance(known, list):
+        return None
+    shown = payload.get("shown")
+    # A state file written before `shown` existed names its known ids, which is
+    # the old behaviour: every fact the store held counted as shown.
+    if not isinstance(shown, list):
+        shown = [render.id_of(item) for item in known if isinstance(item, str)]
+    return (
+        [item for item in known if isinstance(item, str)],
+        [item for item in shown if isinstance(item, str)],
+    )

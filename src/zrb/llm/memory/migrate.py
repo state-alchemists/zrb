@@ -101,12 +101,14 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
 
 def _migrate_all(source: str, dry_run: bool) -> dict[str, int]:
     counts = {"facts": 0, "retired": 0, "diary": 0, "log_lines": 0}
-    # Seeded with what the store already holds: a subject that is already a fact
-    # is the store's to keep. Running the migration after the reviewer has written
-    # would otherwise replace a newer claim with the journal's older one.
-    taken = {fact.id for fact in store.load_facts(include_retired=True)}
+    # Two different sets, for two different reasons. `existing` is what the store
+    # already holds — its claim is newer than the journal's, so the note is
+    # skipped. `taken` is what this run has written, so two journal notes that
+    # slugify alike still both arrive, the second under its category's prefix.
+    existing = {fact.id for fact in store.load_facts(include_retired=True)}
+    taken: set[str] = set()
     for category in NOTE_CATEGORIES:
-        written = _migrate_category(source, category, taken, dry_run)
+        written = _migrate_category(source, category, taken, existing, dry_run)
         counts["facts"] += written["facts"]
         counts["retired"] += written["retired"]
     counts.update(_migrate_log(source, dry_run))
@@ -118,6 +120,7 @@ def _migrate_category(
     source: str,
     category: str,
     taken: set[str],
+    existing: set[str],
     dry_run: bool,
 ) -> dict[str, int]:
     """One category's notes as facts. *taken* spans every category: an id is a
@@ -132,7 +135,7 @@ def _migrate_category(
         if not name.endswith(".md") or name == "index.md":
             continue
         text = store.read_document(os.path.join(directory, name))
-        fact = _fact_from_note(text, category, taken)
+        fact = _fact_from_note(text, category, taken, existing)
         if fact is None:
             continue
         taken.add(fact.id)
@@ -142,14 +145,15 @@ def _migrate_category(
     return written
 
 
-def _fact_from_note(text: str, category: str, taken: set[str]) -> Fact | None:
+def _fact_from_note(
+    text: str, category: str, taken: set[str], existing: set[str]
+) -> Fact | None:
     front, body = split_document(text)
     slug = front.get("slug", "").strip()
     if not slug:
         return None
-    # A subject the store already knows is the store's to keep, and two journal
-    # notes that slugify to one id are one subject.
-    if _slugify(slug) in taken:
+    # The store's own subject wins: its claim is newer than the journal's.
+    if _slugify(slug) in existing:
         return None
     claim = _claim_of(front, body)
     if not claim:

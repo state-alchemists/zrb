@@ -161,41 +161,72 @@ class DeltaPlan:
     forgotten: tuple[str, ...] = ()
 
 
-def plan_delta(facts: Sequence[Fact], known: Sequence[str] | None) -> DeltaPlan:
-    """The delta for this turn, and the versions it spoke for."""
+def plan_delta(
+    facts: Sequence[Fact],
+    known: Sequence[str] | None,
+    shown_ids: Sequence[str] | None = None,
+) -> DeltaPlan:
+    """The delta for this turn, and the versions it spoke for.
+
+    *shown_ids* are the claims the model has actually been shown. A tombstone is
+    only for one of those: "forget this claim" means nothing about a fact that was
+    never in the block, and a store full of ordinary unpinned facts would
+    otherwise answer every `Forget` with a correction nobody needed.
+    """
     if known is None:
         return DeltaPlan("")
     shown_versions = set(known)
-    tombstones = _tombstones(facts, shown_versions)
+    pool = (
+        set(shown_ids)
+        if shown_ids is not None
+        else {id_of(key) for key in shown_versions}
+    )
+    tombstones = _tombstones(facts, pool)
     tombstone_lines = {
         fact_id: _tombstone(fact_id, facts) for fact_id in tombstones
     }
     lines = list(tombstone_lines.values())
-    entries = _delta_entries(facts, shown_versions)
+    entries = _delta_entries(facts, shown_versions, shown_ids)
     lines.extend(line for _fact, line in entries)
     return _fit_delta(lines, entries, tombstone_lines)
 
 
-def _tombstones(facts: Sequence[Fact], shown_versions: set[str]) -> list[str]:
+def _tombstones(facts: Sequence[Fact], shown_ids: set[str]) -> list[str]:
     """Ids the block showed that no longer name an active fact."""
-    shown_ids = {id_of(key) for key in shown_versions}
     active_ids = {fact.id for fact in facts if fact.is_active}
     return sorted(shown_ids - active_ids)
 
 
 def _delta_entries(
-    facts: Sequence[Fact], shown_versions: set[str]
+    facts: Sequence[Fact],
+    known_versions: set[str],
+    shown_ids: Sequence[str] | None,
 ) -> list[tuple[Fact, str]]:
-    """Facts the block has not shown, newest first, as `(fact, line)`."""
-    changed = [
+    """Facts worth a line this turn, newest first, as `(fact, line)`.
+
+    A fact is pending when the block has not seen this version of it, or when it
+    belongs in the core and the cap cut it — the second case is how a migrated
+    store larger than the core stays reachable. An ordinary unpinned fact is not
+    pending: it was never in the block, so re-stating it would turn every turn's
+    delta into a dump of the store.
+    """
+    delivered_ids = set(shown_ids) if shown_ids is not None else None
+    pending = [
         fact
         for fact in facts
         if fact.is_active
-        and claim_key(fact) not in shown_versions
         and _is_injectable(fact.claim)
+        and (
+            claim_key(fact) not in known_versions
+            or (
+                delivered_ids is not None
+                and core_line(fact) is not None
+                and fact.id not in delivered_ids
+            )
+        )
     ]
-    changed.sort(key=lambda fact: fact.updated, reverse=True)
-    return [(fact, f"- {_one_line(fact.claim)} [{fact.id}]") for fact in changed]
+    pending.sort(key=lambda fact: fact.updated, reverse=True)
+    return [(fact, f"- {_one_line(fact.claim)} [{fact.id}]") for fact in pending]
 
 
 def _fit_delta(

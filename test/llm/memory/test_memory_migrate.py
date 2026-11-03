@@ -207,6 +207,25 @@ def test_an_existing_diary_entry_is_kept(journal):
     assert entry.handover == "Ask about the DNS access before anything else."
 
 
+def test_two_notes_with_one_slug_both_arrive(journal):
+    """A slug collision inside the journal is not the store's business."""
+    (journal / "technical" / "deploy.md").write_text(
+        "---\nslug: deploy\nhud_line: Technical deploy notes.\n"
+        "updated: 2026-11-01T10:00:00\n---\n# Deploy\n",
+        encoding="utf-8",
+    )
+    (journal / "projects").mkdir(exist_ok=True)
+    (journal / "projects" / "deploy.md").write_text(
+        "---\nslug: deploy\nhud_line: The deploy project.\n"
+        "updated: 2026-11-01T10:00:00\n---\n# Deploy\n",
+        encoding="utf-8",
+    )
+    migrate(str(journal))
+    ids = {fact.id for fact in store.load_facts(include_retired=True)}
+    assert "deploy" in ids
+    assert ids & {"technical-deploy", "projects-deploy"}
+
+
 def test_running_it_twice_writes_the_same_store(journal):
     migrate(str(journal))
     before = {

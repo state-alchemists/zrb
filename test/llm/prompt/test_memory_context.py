@@ -134,6 +134,15 @@ def test_a_fact_left_out_by_the_cap_is_shown_next_turn(store_dir):
     assert render_memory_delta() is None
 
 
+def test_a_forgotten_fact_that_was_never_shown_is_not_tombstoned(store_dir):
+    """An unpinned fact is not in the block, so there is nothing to correct."""
+    remember("unpinned", "A claim the block never carried.")
+    # The block itself is empty, but the first turn still records its baseline.
+    assert render_memory_block() is None
+    forget("unpinned", "stale")
+    assert render_memory_delta() is None
+
+
 def test_a_forgotten_fact_is_tombstoned_once(store_dir):
     """The model must stop relying on a claim the block showed and Forget retired.
 
