@@ -206,18 +206,35 @@ def plan_delta(
         fact_id: _tombstone(fact_id, facts) for fact_id in tombstones
     }
     lines: list[str] = []
-    today_key = ""
-    if today_entry is not None and today_entry.is_active:
-        today_key = diary_key(today_entry)
-        if today_key != (known_diary or "") and _is_injectable(today_entry.claim):
-            lines.append(f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}")
-        else:
-            today_key = known_diary or today_key
+    today_line, next_diary_key = _diary_delta(today_entry, known_diary)
+    if today_line:
+        lines.append(today_line)
     lines.extend(tombstone_lines.values())
     entries = _delta_entries(facts, shown_versions, shown_ids)
     lines.extend(line for _fact, line in entries)
     plan = _fit_delta(lines, entries, tombstone_lines)
-    return DeltaPlan(plan.text, plan.emitted, plan.forgotten, today_key)
+    if today_line and today_line not in plan.text:
+        # It did not fit; leave the baseline alone so the next turn says it.
+        next_diary_key = known_diary or ""
+    return DeltaPlan(plan.text, plan.emitted, plan.forgotten, next_diary_key)
+
+
+def _diary_delta(today_entry: Diary | None, known_diary: str | None) -> tuple[str, str]:
+    """The day's line for this delta, and the version to record afterwards.
+
+    A day the block showed and the store has since retired needs its own
+    tombstone: the model would otherwise keep relying on a page the user took
+    back. A day written or revised mid-session is a new version to announce.
+    """
+    if today_entry is not None and today_entry.is_active:
+        key = diary_key(today_entry)
+        if key != (known_diary or "") and _is_injectable(today_entry.claim):
+            return f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}", key
+        return "", key
+    if known_diary:
+        day = known_diary.rsplit("@", 1)[0]
+        return f"- Forget the day {day}: it is no longer remembered.", ""
+    return "", known_diary or ""
 
 
 def _tombstones(facts: Sequence[Fact], shown_ids: set[str]) -> list[str]:
