@@ -288,6 +288,16 @@ def date_error(day: str) -> str | None:
     return None
 
 
+def is_date_shaped(value: str) -> bool:
+    """Whether *value* has a date's shape, valid or not.
+
+    A malformed date (`2024-02-30`) must not fall through to the fact path just
+    because it is not a real one: a date names a diary entry, and one that is not
+    a date names nothing.
+    """
+    return bool(_DATE.match(value.strip()))
+
+
 def reason_error(reason: str, kind: str) -> str | None:
     if reason not in REASONS:
         return f"`reason` is one of {', '.join(REASONS)}; {reason!r} is not."

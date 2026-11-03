@@ -51,9 +51,9 @@ from zrb.llm.memory.model import (
     STATUS_RETIRED,
     Diary,
     Fact,
-    date_error,
     id_error,
     injection_reason,
+    is_date_shaped,
     split_document,
 )
 
@@ -261,10 +261,11 @@ def _base_id(slug: str) -> str:
     A date names a diary entry and nothing else; a migrated note whose slug is a
     date would otherwise create `facts/<date>.md` beside that day's entry, and
     `Forget(<date>)` would reach the fact while `Remember(<date>)` reaches the
-    diary.
+    diary. A malformed date (`2024-02-30`) has the same shape and the same
+    problem, so the test is the shape rather than a real calendar day.
     """
     base = _slugify(slug)
-    return _slugify(f"fact-{slug}") if date_error(base) is None else base
+    return _slugify(f"fact-{slug}") if is_date_shaped(base) else base
 
 
 def _slugify(value: str) -> str:

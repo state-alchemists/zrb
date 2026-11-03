@@ -35,6 +35,7 @@ from zrb.llm.memory.model import (
     date_error,
     handover_error,
     id_error,
+    is_date_shaped,
     reason_error,
 )
 from zrb.util.file_lock import FileLockTimeout
@@ -293,10 +294,10 @@ def _remember_fact(
     source: str | None,
     body: str | None,
 ) -> str:
-    if date_error(fact_id) is None:
+    if is_date_shaped(fact_id):
         return (
-            f"`{fact_id}` is a date, and a date names a diary entry. "
-            "[SYSTEM SUGGESTION]: pass kind='diary' for a day, or choose the "
+            f"`{fact_id}` is written as a date, and a date names a diary entry. "
+            "[SYSTEM SUGGESTION]: pass kind='diary' for a real day, or choose the "
             "subject an id would name for a fact. Nothing was written."
         )
     for problem in (

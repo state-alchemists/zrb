@@ -153,6 +153,13 @@ def test_a_diary_entry_is_forgotten_only_as_wrong(store_dir):
     assert "Forgot diary 2026-11-03" in forget("2026-11-03", "wrong")
 
 
+def test_a_malformed_date_is_not_a_fact_id(store_dir):
+    """`2024-02-30` has a date's shape and is not a day; it names nothing."""
+    message = remember("2024-02-30", "The staging database is shared.")
+    assert "written as a date" in message
+    assert store.load_fact("2024-02-30") is None
+
+
 def test_a_diary_can_be_revised_without_repeating_kind(store_dir):
     """A date names a diary entry and nothing else, so the kind is inferable."""
     remember("2026-11-03", "A day.", kind="diary", body="first telling")
