@@ -166,6 +166,13 @@ INSTRUCTION_FILENAMES = ("AGENTS.md", "CLAUDE.md", "GEMINI.md")
 # Below this much room an inlined stub teaches nothing; list the file instead.
 _MIN_INLINE_BYTES = 512
 
+# How many pointer files a chain may cross before it counts as unresolved.
+# A chain that long is a broken layout, not a route to rules — and following it
+# recursively once took prompt composition down with a `RecursionError` on a
+# tree of a thousand nested `CLAUDE.md` files. Treating it as unresolved keeps
+# the pointer inlined, which costs a line and never loses the only route.
+MAX_POINTER_DEPTH = 16
+
 
 def _instruction_sources(search_dirs: list[Path]) -> list[Path]:
     """Instruction files to inline, most specific directory first.
@@ -276,19 +283,27 @@ def _reference_target(reference: str, directory: Path) -> Path | None:
 
 
 def _leaf_targets(
-    target: Path, next_hop: dict[Path, list[Path | None]], seen: frozenset[Path]
+    target: Path,
+    next_hop: dict[Path, list[Path | None]],
+    seen: frozenset[Path],
+    depth: int = 0,
 ) -> tuple[set[Path], bool]:
     """Every file *target* reaches, and whether the chain circles back.
 
     A pointer to a pointer has no content of its own, so what it finally names is
     what the prompt would have to carry. A cycle reaches nothing: it names no
-    file and can never be a route to rules.
+    file and can never be a route to rules. A chain deeper than
+    `MAX_POINTER_DEPTH` reaches nothing either — reported as unresolved, so the
+    caller keeps the pointer and its recursion stays far below the interpreter's
+    limit.
     """
     hops = next_hop.get(target)
     if hops is None:
         return {target}, False
     if target in seen:
         return set(), True
+    if depth >= MAX_POINTER_DEPTH:
+        return set(), False
     leaves: set[Path] = set()
     cyclic = False
     for hop in hops:
@@ -296,7 +311,7 @@ def _leaf_targets(
             # A reference that resolves nowhere: this pointer is the only route
             # to whatever it names, so it has to stay inlined.
             return {target}, False
-        deeper, loop = _leaf_targets(hop, next_hop, seen | {target})
+        deeper, loop = _leaf_targets(hop, next_hop, seen | {target}, depth + 1)
         leaves |= deeper
         cyclic = cyclic or loop
     return leaves, cyclic
