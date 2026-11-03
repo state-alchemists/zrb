@@ -227,23 +227,38 @@ async def test_gate_checks_exit_worktree_path(tmp_path, outside_root):
 
 
 @pytest.mark.asyncio
-async def test_gate_checks_enter_worktree_cwd(tmp_path, outside_root):
-    """`cwd` names the repository git writes into; it is a write, not a hint."""
+async def test_gate_allows_a_resume_whose_repository_is_read_only(
+    tmp_path, outside_root
+):
+    """A resume lists worktrees and selects one; `cwd` is not a write there.
+
+    Regression: `cwd` was write-checked on every EnterWorktree call, so a resume
+    with an explicit writable list — the worktree allowed, the repository not —
+    was refused although nothing was going to be written. Creating a worktree is
+    judged by the tool itself, on the repository root git resolves from `cwd`.
+    """
     from zrb.llm.agent.common import create_safe_wrapper
 
-    def enter_worktree(cwd: str = "", branch_name: str = ""):
-        return "created"
+    def enter_worktree(cwd: str = "", worktree_path: str = "", branch_name: str = ""):
+        return "resumed"
 
     tag(enter_worktree, Capability.EDIT)
     wrapped = create_safe_wrapper(enter_worktree)
+    project = tmp_path / "proj"
+    project.mkdir()
+    allowed = project / "worktree"
+    allowed.mkdir()
 
     token = current_sandbox_policy.set(_enabled_policy(tmp_path))
     try:
-        result = await wrapped(cwd=str(outside_root / "projectB"), branch_name="x")
+        result = await wrapped(
+            cwd=str(outside_root / "project"), worktree_path=str(allowed)
+        )
     finally:
         current_sandbox_policy.reset(token)
 
-    assert result.metadata.get("blocked") is True
+    assert result.return_value == "resumed"
+    assert "blocked" not in result.metadata
 
 
 @pytest.mark.asyncio
