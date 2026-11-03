@@ -263,6 +263,19 @@ def test_a_directory_and_an_oversized_file_are_uncheckable(tmp_path, monkeypatch
         assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
 
 
+def test_a_stamp_is_not_written_when_its_own_name_is_a_file(tmp_path):
+    """`foo@<digest>` can be a file in the tree, and the reader has to read a value
+    that names a file as a path. Writing the stamp anyway would create a condition
+    nobody ever evaluates; unstamped says the same thing and is still honest."""
+    target = tmp_path / "foo"
+    target.write_text("x\n", encoding="utf-8")
+    digest = file_sha(str(target))
+    (tmp_path / f"foo@{digest}").write_text("collision\n", encoding="utf-8")
+
+    assert stamp("file:foo", str(tmp_path)) == "file:foo"
+    assert is_condition_met(Condition("file", "foo"), str(tmp_path), "3.29", "zrb") is None
+
+
 @pytest.mark.parametrize(
     "condition, version, expected",
     [

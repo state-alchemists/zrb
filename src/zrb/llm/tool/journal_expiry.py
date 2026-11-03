@@ -171,6 +171,11 @@ def stamp(text: str, root: str) -> str:
 
     A path that leaves the tree is left unstamped rather than refused (see
     `condition_path`): the note is still worth keeping, it just cannot be checked.
+
+    And so is a path whose stamp would itself name a file. `foo@<digest>` can be a
+    path in the tree, and the reader has to read a value that names a file as a
+    path — so writing that stamp would create a condition nobody will ever
+    evaluate. The condition stays unstamped, which says so.
     """
     condition = parse_condition(text)
     if condition is None or condition.kind != "file" or not root:
@@ -184,7 +189,12 @@ def stamp(text: str, root: str) -> str:
     digest = file_sha(target)
     if not digest:
         return text
-    return f"{FILE_PREFIX}{condition.value}@{digest}"
+    stamped = f"{condition.value}@{digest}"
+    if os.path.lexists(os.path.join(root, stamped)):
+        # The reader answers `None` for a value that names a file, so this stamp
+        # would be born unreadable. Unstamped is the honest form of the same news.
+        return text
+    return f"{FILE_PREFIX}{stamped}"
 
 
 def is_condition_met(
