@@ -90,11 +90,16 @@ def load_fact(fact_id: str, include_retired: bool = True) -> Fact | None:
     """The fact under *fact_id*, or ``None``.
 
     A retired fact is returned by default: `forget` keeps the file, and a caller
-    that must not revive or re-render it filters on `active` itself.
+    that must not revive or re-render it filters on `active` itself. A name the
+    store could not have written reads as an empty read rather than an error: a
+    reader is never the place a bad name should surface.
     """
     if not fact_id:
         return None
-    fact = Fact.from_markdown(read_document(paths.fact_path(fact_id)))
+    try:
+        fact = Fact.from_markdown(read_document(paths.fact_path(fact_id)))
+    except ValueError:
+        return None
     if fact is None:
         return None
     if not include_retired and not fact.is_active:
@@ -126,7 +131,10 @@ def load_facts(include_retired: bool = False) -> list[Fact]:
 
 
 def load_diary(day: str) -> Diary | None:
-    return Diary.from_markdown(read_document(paths.diary_path(day)))
+    try:
+        return Diary.from_markdown(read_document(paths.diary_path(day)))
+    except ValueError:
+        return None
 
 
 def save_diary(entry: Diary) -> None:

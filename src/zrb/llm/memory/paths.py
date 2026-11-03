@@ -57,16 +57,40 @@ def log_dir() -> str:
 
 
 def fact_path(fact_id: str) -> str:
-    """``facts/<id>.md`` — *fact_id* is already validated, so it holds no path."""
-    return os.path.join(facts_dir(), f"{fact_id}.md")
+    """``facts/<id>.md``.
+
+    *fact_id* is checked, not trusted: the tools validate it, and this refuses
+    anything a filesystem would read as a path even when a caller skipped that
+    check. `Fact` ids never hold a separator, so a value that does is a bug or an
+    attack, and a join is the wrong place to discover it.
+    """
+    return os.path.join(facts_dir(), f"{_checked_name(fact_id)}.md")
 
 
 def diary_path(day: str) -> str:
-    return os.path.join(diary_dir(), f"{day}.md")
+    return os.path.join(diary_dir(), f"{_checked_name(day)}.md")
 
 
 def log_path(day: str) -> str:
-    return os.path.join(log_dir(), f"{day}.md")
+    return os.path.join(log_dir(), f"{_checked_name(day)}.md")
+
+
+def _checked_name(name: str) -> str:
+    """*name* if the store can hold it, else `ValueError`.
+
+    A name is one path component: no separator of either platform's flavour, no
+    `.`/`..`, no NUL. Checking both separators on every platform is deliberate —
+    a store written on Windows and read on Linux must refuse the same names.
+    """
+    if (
+        not name
+        or name in (".", "..")
+        or "\x00" in name
+        or "/" in name
+        or "\\" in name
+    ):
+        raise ValueError(f"{name!r} is not a name the memory store can hold")
+    return name
 
 
 def relative(path: str) -> str:

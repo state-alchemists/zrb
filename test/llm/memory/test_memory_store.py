@@ -178,6 +178,22 @@ def test_ensure_store_does_not_duplicate_its_gitignore_entries(store_dir):
     assert content.count(".state/") == 1
 
 
+def test_a_path_shaped_name_is_refused_by_the_path_builder(store_dir):
+    """The boundary checks the id; the path builder checks it again.
+
+    A caller that skipped the tools' validation must not be able to name a file
+    outside the store, and a read of such a name is an empty read, not a crash.
+    """
+    with pytest.raises(ValueError):
+        paths.fact_path("../victim")
+    with pytest.raises(ValueError):
+        paths.diary_path("../../etc/passwd")
+    with pytest.raises(ValueError):
+        paths.log_path("a/b")
+    assert store.load_fact("../victim") is None
+    assert store.load_diary("../../etc/passwd") is None
+
+
 def test_git_is_not_used_when_it_is_switched_off(store_dir):
     store.git_commit("remember: x")
     assert not os.path.isdir(os.path.join(str(store_dir), ".git"))

@@ -23,6 +23,12 @@ Four rules:
   guess wearing a date.
 * **Run it twice, get the same store.** Ids are derived from slugs, dates from
   filenames, and a second run revises rather than appends.
+* **What gets injected is sanitized; evidence is not.** A claim and a handover are
+  read back inside a future prompt, so a journal note whose headline or handover
+  carries a prompt-injection marker gets a neutral line instead of that text: the
+  entry survives, the words do not. A body is never injected, so it is bounded and
+  kept as it was — the alternative was discarding three hundred notes because one
+  of them quoted an injection.
 """
 
 from __future__ import annotations
@@ -38,12 +44,14 @@ from zrb.llm.memory.model import (
     KIND_FACT,
     MAX_CLAIM_CHARS,
     MAX_FACT_BODY_CHARS,
+    MAX_HANDOVER_CHARS,
     MAX_ID_CHARS,
     STATUS_ACTIVE,
     STATUS_RETIRED,
     Diary,
     Fact,
     id_error,
+    injection_reason,
     split_document,
 )
 
@@ -61,6 +69,14 @@ _FILES_METADATA = re.compile(r"\s+(?:·\s*)?Files:\s*.*?(?=·|$)")
 _IMPORTANCE = re.compile(r"·\s*imp\s*\d+\.?\s*$")
 _SUPERSEDED = "superseded"
 _NOT_STATED = "not stated"
+
+# Stand-ins for injected text that could not be carried over verbatim. The entry
+# keeps its id and its body, so a human can still read what the journal said.
+_WITHHELD_CLAIM = (
+    "A migrated headline was withheld: its text reads as an instruction. "
+    "Read the body."
+)
+_WITHHELD_HANDOVER = "A migrated handover was withheld: its text reads as an instruction."
 
 
 def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, int]:
@@ -140,17 +156,27 @@ def _fact_from_note(text: str, category: str, taken: set[str]) -> Fact | None:
 
 
 def _claim_of(front: dict[str, str], body: str) -> str:
-    """The note's headline, in the order the journal itself ranked them."""
+    """The note's headline, in the order the journal itself ranked them.
+
+    A candidate whose text reads as an instruction is skipped, so a tainted
+    hud_line falls through to the Finding and then to the title. When all three
+    are tainted the entry keeps a stand-in rather than being dropped.
+    """
+    candidates: list[str] = []
     hud_line = front.get("hud_line", "").strip()
     if hud_line:
-        return _cut(hud_line, MAX_CLAIM_CHARS)
+        candidates.append(hud_line)
     finding = _FINDING.search(body)
     if finding:
-        return _cut(_first_sentence(finding.group(1)), MAX_CLAIM_CHARS)
+        candidates.append(_first_sentence(finding.group(1)))
     title = _TITLE.search(body)
     if title:
-        return _cut(title.group(1).strip(), MAX_CLAIM_CHARS)
-    return ""
+        candidates.append(title.group(1).strip())
+    for candidate in candidates:
+        text = _cut(candidate, MAX_CLAIM_CHARS)
+        if text and injection_reason(text) is None:
+            return text
+    return _WITHHELD_CLAIM if candidates else ""
 
 
 def _unique_id(slug: str, category: str, taken: set[str]) -> str:
@@ -257,7 +283,12 @@ def _migrate_handovers(source: str, dry_run: bool) -> dict[str, int]:
             handover = _handover_of(text)
             if not handover:
                 continue
-            claim = _cut(_first_sentence(handover), MAX_CLAIM_CHARS)
+            handover = _cut(handover, MAX_HANDOVER_CHARS)
+            if injection_reason(handover):
+                handover = _WITHHELD_HANDOVER
+                claim = _WITHHELD_CLAIM
+            else:
+                claim = _cut(_first_sentence(handover), MAX_CLAIM_CHARS)
             if not claim:
                 continue
             if not dry_run:

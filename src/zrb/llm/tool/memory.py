@@ -217,6 +217,12 @@ def forget(
     `done` closes an open loop, so use it when the thing you owed is finished.
     """
     wanted_reason = reason.strip().lower()
+    if id_error(id) is not None and date_error(id) is not None:
+        return (
+            f"{id!r} is neither a subject id nor a diary date, and an id becomes "
+            "a file name. [SYSTEM SUGGESTION]: search for the subject and pass "
+            "the id it reports; nothing was written."
+        )
     paths.ensure_store()
     try:
         with store.locked():
