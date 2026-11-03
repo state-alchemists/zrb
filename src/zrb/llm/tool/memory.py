@@ -104,14 +104,16 @@ def remember(
         ),
     ],
     kind: Annotated[
-        str,
+        str | None,
         Field(
             description=(
                 "fact (default) for a belief; loop for a fact you owe and have "
-                "not closed; diary for a day. A diary entry's id is its date."
+                "not closed; diary for a day. A diary entry's id is its date. "
+                "Omit it when revising: the existing kind is kept, so revising a "
+                "loop with the normal form does not turn it into a fact."
             )
         ),
-    ] = KIND_FACT,
+    ] = None,
     pin: Annotated[
         bool | None,
         Field(
@@ -176,8 +178,8 @@ def remember(
     nothing is written and the refusal names the deficit. Forget something first
     rather than shortening the claim to fit.
     """
-    wanted_kind = kind.strip().lower()
-    if wanted_kind not in KINDS:
+    wanted_kind = kind.strip().lower() if kind is not None else None
+    if wanted_kind is not None and wanted_kind not in KINDS:
         return f"{_NOT_A_KIND} [SYSTEM SUGGESTION]: retry with one of them."
     if wanted_kind == KIND_DIARY:
         return _remember_diary(id, claim, handover, source, body)
@@ -255,14 +257,24 @@ def _retire(entry: Fact | Diary, reason: str) -> None:
 def _remember_fact(
     fact_id: str,
     claim: str,
-    kind: str,
+    kind: str | None,
     pin: bool | None,
     tags: list[str] | None,
     applies_when: str | None,
     source: str | None,
     body: str | None,
 ) -> str:
-    for problem in (id_error(fact_id), claim_error(claim), body_error(body, kind)):
+    if date_error(fact_id) is None:
+        return (
+            f"`{fact_id}` is a date, and a date names a diary entry. "
+            "[SYSTEM SUGGESTION]: pass kind='diary' for a day, or choose the "
+            "subject an id would name for a fact. Nothing was written."
+        )
+    for problem in (
+        id_error(fact_id),
+        claim_error(claim),
+        body_error(body, kind or KIND_FACT),
+    ):
         if problem:
             return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
     paths.ensure_store()
@@ -278,7 +290,7 @@ def _remember_fact(
 def _remember_fact_locked(
     fact_id: str,
     claim: str,
-    kind: str,
+    kind: str | None,
     pin: bool | None,
     tags: list[str] | None,
     applies_when: str | None,
@@ -305,7 +317,7 @@ def _merged_fact(
     old: Fact | None,
     fact_id: str,
     claim: str,
-    kind: str,
+    kind: str | None,
     pin: bool | None,
     tags: list[str] | None,
     applies_when: str | None,
@@ -314,6 +326,9 @@ def _merged_fact(
 ) -> Fact:
     """*old* with this call's fields applied; an omitted argument keeps its value.
 
+    `kind` is one of them: a revision that does not repeat `kind="loop"` leaves a
+    loop a loop. Only a new subject takes the default.
+
     Re-remembering a retired fact revives it: the subject is true again, and the
     reason it was retired survives in git rather than blocking the new claim.
     """
@@ -321,7 +336,7 @@ def _merged_fact(
     return Fact(
         id=fact_id,
         claim=claim,
-        kind=kind,
+        kind=kind or base.kind,
         status=STATUS_ACTIVE,
         pin=base.pin if pin is None else pin,
         tags=base.tags if tags is None else tuple(tag.strip() for tag in tags if tag),

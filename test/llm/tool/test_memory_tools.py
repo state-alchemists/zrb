@@ -43,6 +43,28 @@ def test_a_second_remember_revises_rather_than_appends(store_dir):
     assert len(os.listdir(os.path.join(str(store_dir), "facts"))) == 1
 
 
+def test_revising_a_loop_without_repeating_kind_keeps_it_a_loop(store_dir):
+    """`kind` omitted on a revision means "keep it", not "make it a fact".
+
+    A loop is the one kind whose cost is automatic — every open loop is in the
+    core — so demoting one silently both frees room it should be spending and
+    hides an owed thread from the next session.
+    """
+    remember("deploy-cert", "I owe a staging cert rotation.", kind="loop")
+    remember("deploy-cert", "The staging cert expires next month.")
+    fact = store.load_fact("deploy-cert")
+    assert fact is not None
+    assert fact.kind == "loop"
+    assert "[deploy-cert]" in store.read_document(paths.core_path())
+
+
+def test_a_date_shaped_id_is_a_diary_not_a_fact(store_dir):
+    """A date would otherwise pass the id check and shadow the day's entry."""
+    message = remember("2026-11-03", "A day.")
+    assert "kind='diary'" in message
+    assert store.load_fact("2026-11-03") is None
+
+
 def test_pin_false_unpins_and_leaves_the_core(store_dir):
     remember("x", "X is true.", pin=True)
     assert "X is true." in store.read_document(paths.core_path())

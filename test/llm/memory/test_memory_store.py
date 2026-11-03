@@ -155,6 +155,29 @@ def test_two_writers_on_one_id_keep_both_their_fields(store_dir, monkeypatch):
     assert fact.tags == ("second",)
 
 
+def test_a_custom_gitignore_is_extended_not_replaced(store_dir):
+    """A user's own ignore rules survive, and stay in force.
+
+    Rewriting `.gitignore` would un-ignore whatever the user excluded, and the
+    next `git_commit`'s `git add -A` would then commit it into the audit repo.
+    """
+    path = os.path.join(str(store_dir), ".gitignore")
+    store.write_document(path, "secrets.md\n")
+    paths.ensure_store()
+    content = store.read_document(path)
+    assert content.startswith("secrets.md\n")
+    assert ".lock" in content
+    assert ".state/" in content
+
+
+def test_ensure_store_does_not_duplicate_its_gitignore_entries(store_dir):
+    paths.ensure_store()
+    paths.ensure_store()
+    content = store.read_document(os.path.join(str(store_dir), ".gitignore"))
+    assert content.count(".lock") == 1
+    assert content.count(".state/") == 1
+
+
 def test_git_is_not_used_when_it_is_switched_off(store_dir):
     store.git_commit("remember: x")
     assert not os.path.isdir(os.path.join(str(store_dir), ".git"))

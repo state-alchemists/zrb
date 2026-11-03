@@ -64,9 +64,12 @@ def render_memory_block() -> str | None:
         ),
         CFG.LLM_MEMORY_RECENT_MAX_CHARS,
     )
+    # The baseline is recorded whether or not the block has content. An empty
+    # store is a first turn too: without the record, a fact remembered during
+    # that turn has nothing to be "new" against, and the next turn shows nothing.
+    _write_shown(facts)
     if not core.strip() and not recent.strip():
         return None
-    _write_shown(facts)
     return render.compose_memory(core, recent)
 
 

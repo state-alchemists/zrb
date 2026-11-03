@@ -70,6 +70,20 @@ def test_the_delta_shows_a_claim_recorded_this_session(store_dir):
     assert "Known before the session." not in delta
 
 
+def test_a_fact_recorded_after_an_empty_first_turn_is_shown(store_dir):
+    """An empty store is still a first turn: it must leave a baseline.
+
+    Without one, a fact remembered during the first turn of a new conversation
+    had nothing to be "new" against, and the next turn showed nothing — the
+    session recorded a fact and then answered as though it had not.
+    """
+    assert render_memory_block() is None
+    remember("first-fact", "Learned on the first turn of an empty store.", pin=True)
+    delta = render_memory_delta()
+    assert delta is not None
+    assert "Learned on the first turn of an empty store." in delta
+
+
 def test_the_delta_is_empty_when_nothing_was_recorded(store_dir):
     remember("x", "X is true.", pin=True)
     assert render_memory_block() is not None
