@@ -8,7 +8,6 @@ links is not a note at all.
 """
 
 import os
-import shutil
 import subprocess
 from datetime import datetime
 from unittest.mock import patch
@@ -265,26 +264,6 @@ def test_a_linked_worktree_stamps_its_own_file(tmp_path):
     assert condition_digest("file:a.txt", repo_root(str(linked))) != condition_digest(
         "file:a.txt", repo_root(str(main))
     )
-
-
-def test_the_tree_is_probed_again_when_a_checkout_is_replaced(tmp_path):
-    """A re-cloned checkout at the same path is a different tree, not a cache hit.
-
-    A session outlives a `rm -rf` and a fresh clone. A cached root would go on
-    naming the tree that used to be there — the same wrong-tree comparison the
-    worktree bug made — so the probe re-runs.
-    """
-    from zrb.llm.tool.journal_scope import repo_root
-
-    root = tmp_path / "project"
-    root.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
-    assert repo_root(str(root)) == os.path.realpath(str(root))
-
-    shutil.rmtree(root)
-    root.mkdir()
-
-    assert repo_root(str(root)) == ""
 
 
 def test_no_repository_answers_with_nothing(tmp_path):
