@@ -4,6 +4,7 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.memory import paths, store
+from zrb.llm.memory.model import Fact
 from zrb.llm.prompt.memory_context import render_memory_block, render_memory_delta
 from zrb.llm.tool.memory import forget, remember
 
@@ -68,6 +69,36 @@ def test_the_delta_shows_a_claim_recorded_this_session(store_dir):
     assert delta is not None
     assert "Learned during the session." in delta
     assert "Known before the session." not in delta
+
+
+def test_a_fact_cut_from_the_core_reaches_the_next_turn_as_a_delta(
+    store_dir, monkeypatch
+):
+    """A migrated store larger than the cap must not lose its overflow.
+
+    The block records only what the cap actually rendered as seen; the rest
+    arrives as a delta rather than never arriving at all.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 70, raising=False)
+    # Written directly: `remember` would refuse the third, which is the very
+    # behaviour this test needs to look past — a migrated store arrives already
+    # larger than the cap.
+    for index in range(3):
+        store.save_fact(
+            Fact(
+                id=f"fact-{index}",
+                claim=f"Claim number {index}.",
+                pin=True,
+                updated=store.now(),
+            )
+        )
+    store.write_core()
+    block = render_memory_block()
+    assert block is not None
+    assert "fact-2" not in block
+    delta = render_memory_delta()
+    assert delta is not None
+    assert "fact-2" in delta
 
 
 def test_a_fact_recorded_after_an_empty_first_turn_is_shown(store_dir):

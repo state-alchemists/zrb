@@ -276,6 +276,18 @@ def _is_injectable(text: str) -> bool:
     return injection_reason(text) is None
 
 
+def core_line(fact: Fact) -> str | None:
+    """The line *fact* contributes to the core, or ``None`` when it contributes none.
+
+    The caller uses this to tell "shown" from "rendered but cut": a pinned fact
+    the cap dropped has not reached the model, so it must not be recorded as
+    seen.
+    """
+    if _is_pinned_fact(fact) or _is_open_loop(fact):
+        return _entry(fact)
+    return None
+
+
 def cut_lines(text: str, budget: int) -> str:
     """*text* cut to whole lines that fit *budget*.
 

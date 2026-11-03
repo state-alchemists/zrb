@@ -67,7 +67,19 @@ def render_memory_block() -> str | None:
     # The baseline is recorded whether or not the block has content. An empty
     # store is a first turn too: without the record, a fact remembered during
     # that turn has nothing to be "new" against, and the next turn shows nothing.
-    _write_shown(facts)
+    #
+    # A fact whose core line the cap cut is *not* recorded: the model has not
+    # seen it, so it must reach the model later as a delta. That is how a
+    # migrated store larger than the cap stays reachable instead of losing its
+    # overflow on the first turn.
+    rendered = set(core.splitlines())
+    _write_shown(
+        [
+            fact
+            for fact in facts
+            if (line := render.core_line(fact)) is None or line in rendered
+        ]
+    )
     if not core.strip() and not recent.strip():
         return None
     return render.compose_memory(core, recent)
