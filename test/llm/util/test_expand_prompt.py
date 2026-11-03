@@ -75,6 +75,29 @@ class TestExpandPrompt:
             os.unlink(temp_path)
 
 
+    def test_a_path_with_an_at_sign_is_not_expanded(self):
+        "The @ in a directory name is part of the path, not a reference marker."
+        with tempfile.TemporaryDirectory() as tmpdir:
+            at_dir = os.path.join(tmpdir, "@scope")
+            os.makedirs(at_dir)
+            with open(os.path.join(at_dir, "AGENTS.md"), "w") as f:
+                f.write("RULES THAT WERE NAMED")
+            os.makedirs(os.path.join(tmpdir, "scope"))
+            with open(os.path.join(tmpdir, "scope", "AGENTS.md"), "w") as f:
+                f.write("A FILE NOBODY NAMED")
+
+            prompt = f"#### Instructions from: `{os.path.join(at_dir, 'AGENTS.md')}`"
+            previous = os.getcwd()
+            os.chdir(tmpdir)
+            try:
+                result = expand_prompt(prompt)
+            finally:
+                os.chdir(previous)
+
+            assert "A FILE NOBODY NAMED" not in result
+            assert result == prompt
+
+
 class TestGetPathReferences:
     def test_get_path_references_no_references(self):
         "Test prompt without @ references returns empty list."
@@ -110,6 +133,15 @@ class TestGetPathReferences:
         matches = get_path_references("Check @~/file.txt")
         assert len(matches) == 1
         assert matches[0].group("path") == "~/file.txt"
+
+    def test_an_at_inside_a_path_is_not_a_reference(self):
+        "`/work/@scope/AGENTS.md` is one path; its @ is not a marker."
+        assert get_path_references("/work/@scope/AGENTS.md") == []
+        assert get_path_references("`C:\\work\\@scope\\AGENTS.md`") == []
+
+    def test_an_at_inside_a_word_is_not_a_reference(self):
+        "An address is not a prompt reference either."
+        assert get_path_references("mail go@example.com") == []
 
 
 class TestProcessPathReference:
