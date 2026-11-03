@@ -33,6 +33,7 @@ staying.
 import hashlib
 import os
 import re
+import stat
 from dataclasses import dataclass
 from datetime import date
 
@@ -95,15 +96,36 @@ def file_sha(path: str) -> str:
     Bounded on purpose (`MAX_HASH_BYTES`) and limited to regular files: a condition
     names a source file, so a device, a directory and a multi-gigabyte artefact are
     all "cannot tell" rather than something to read into memory."""
+    return _file_digest(path) or ""
+
+
+def _file_digest(path: str) -> str | None:
+    """*path*'s digest — ``None`` when it is not there, ``""`` when it cannot be read.
+
+    The file is opened by name **once** and everything after that is settled from
+    the descriptor: `O_NOFOLLOW` refuses a symlink swapped in after `condition_path`
+    validated the path, `fstat` refuses anything that is not a regular file, and the
+    size it reports bounds the read. Reopening the path by name would hand the race
+    back to whoever can write to the tree."""
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
-        if not os.path.isfile(path):
+        descriptor = os.open(path, flags)
+    except FileNotFoundError:
+        return None
+    except OSError:
+        return ""
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_HASH_BYTES:
             return ""
-        with open(path, "rb") as f:
+        with os.fdopen(descriptor, "rb") as f:
+            descriptor = -1
             content = f.read(MAX_HASH_BYTES + 1)
     except OSError:
         return ""
-    if len(content) > MAX_HASH_BYTES:
-        return ""
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
     return hashlib.sha256(content).hexdigest()[:SHA_LENGTH]
 
 
@@ -206,10 +228,10 @@ def _is_file_unchanged(value: str, root: str) -> bool | None:
         # happens to look like a digest — not a stamped condition. There is no
         # digest of `path` to compare, and "cannot tell" keeps the note.
         return None
-    if not os.path.exists(target):
+    digest = _file_digest(target)
+    if digest is None:
         # The file is gone, which is a change, not an inability to check.
         return False
-    digest = file_sha(target)
     if not digest:
         # Present but unreadable, not a regular file, or past `MAX_HASH_BYTES`:
         # we cannot tell, and a note is never hidden on a failure to look.

@@ -7,6 +7,7 @@ everything else: a condition this machine cannot evaluate keeps its note. Expiry
 removes what is *disproved*, never what is merely unchecked.
 """
 
+import os
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -210,6 +211,41 @@ def test_a_symlink_out_of_the_repository_is_not_followed(tmp_path):
     condition = Condition("file", f"link.txt@{file_sha(str(outside))}")
 
     assert is_condition_met(condition, str(root), "3.29", "zrb") is None
+
+
+def test_a_symlink_is_refused_at_the_descriptor_not_just_at_the_path(tmp_path):
+    """`condition_path` resolves the path, but the file is opened by name after
+    that — so a symlink swapped in between must fail the open itself. `O_NOFOLLOW`
+    is what makes the guarantee hold rather than being checked and then undone."""
+    if not hasattr(os, "O_NOFOLLOW"):
+        pytest.skip("this platform has no O_NOFOLLOW; the resolved-path check is the only guard")
+    outside = tmp_path / "outside.txt"
+    outside.write_text("secret\n", encoding="utf-8")
+    link = tmp_path / "link.txt"
+    try:
+        link.symlink_to(outside)
+    except OSError:
+        pytest.skip("this platform does not allow symlinks without elevation")
+
+    assert file_sha(str(link)) == ""
+
+
+def test_a_symlink_inside_the_tree_still_names_the_file_it_points_at(tmp_path):
+    """The rule is about where the file ends up, not about refusing links: one that
+    stays inside the repository is the note's own file."""
+    root = tmp_path / "repo"
+    root.mkdir()
+    real = root / "real.txt"
+    real.write_text("mode = prod\n", encoding="utf-8")
+    try:
+        (root / "link.txt").symlink_to(real)
+    except OSError:
+        pytest.skip("this platform does not allow symlinks without elevation")
+
+    stamped = stamp("file:link.txt", str(root))
+
+    assert stamped == f"file:link.txt@{file_sha(str(real))}"
+    assert is_condition_met(parse_condition(stamped), str(root), "3.29", "zrb")
 
 
 def test_a_directory_and_an_oversized_file_are_uncheckable(tmp_path, monkeypatch):
