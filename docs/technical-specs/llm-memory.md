@@ -2,7 +2,7 @@
 
 # LLM Memory (Technical Specification)
 
-**Status: accepted and implemented.** The code lives in `src/zrb/llm/memory/` with its tools in `src/zrb/llm/tool/memory.py`; §11 records the six places where building it changed this document. It replaces the journal system described in [LLM Journal System](./llm-context.md), which stays in the tree, switched off, while memory is exercised.
+**Status: accepted and implemented.** The code lives in `src/zrb/llm/memory/` with its tools in `src/zrb/llm/tool/memory.py`; §11 records the six places where building it changed this document. It replaced the journal system, whose code was deleted in 3.33.0. What outlives it is the notes directory: an existing `~/.zrb/llm-notes` is read into the store once, and [the notes layout](./llm-context.md) is documented for that reason.
 
 A persistent memory for the agent: what it knows about the user, about the work, and about itself, carried from one session to the next. The design is built on one rule:
 
@@ -42,7 +42,7 @@ Everything lives inside those six slots — including the diary, which is a `rem
 ## 2. Folder Structure
 
 ```
-${LLM_MEMORY_DIR}                 default: ~/.zrb/memory/
+${LLM_MEMORY_DIR}                 default: ${LLM_NOTES_DIR}/memory-v1 — ~/.zrb/llm-notes/memory-v1/
 ├── core.md                       GENERATED. Injected. Never hand-edited.
 ├── facts/
 │   ├── staging-ssh-port.md       one claim per file
@@ -79,7 +79,7 @@ Events → days → beliefs → essentials: minutes, hours, indefinite, always.
 
 The persona is not in the memory directory on purpose: it is a prompt section, it survives a profile switch, and nothing in this system can reach it. Identity proposals arrive as facts tagged `identity-proposal` and a human merges them.
 
-**Why the diary is not a section of the log.** An append-only stream and a rewritten section in one file collide. The journal system documents the result in its own code: a handover owns everything from its heading to the next one, so a day line placed past it is deleted by the next handover rewrite — which is why `_append_day_line`, `_without_handover`, `_insert_after_entries`, and a "recovered from a handover" marker all exist. Splitting the two files deletes that entire class of bug: `log/` is only appended, `diary/` is only rewritten, and neither can consume the other's content.
+**Why the diary is not a section of the log.** An append-only stream and a rewritten section in one file collide. The journal's day file documented the result: a handover owned everything from its heading to the next one, so a day line placed past it was deleted by the next handover rewrite, and four pieces of code — an append helper, a handover stripper, an insert-after-entries step and a "recovered from a handover" marker — existed only to stop one shape from eating the other. Splitting the two files deletes that entire class of bug: `log/` is only appended, `diary/` is only rewritten, and neither can consume the other's content.
 
 ---
 
@@ -163,7 +163,7 @@ turn only.
 |---|---|---|
 | `id` | yes | An ISO date, `YYYY-MM-DD`. The date *is* the identity: one entry per day, deduplicated by construction. |
 | `claim` | yes | The day in one line, ≤ 160 chars. This is what the week view shows, so the week stops being inferred. |
-| `handover` | no | The note to the next session, ≤ 700 chars. It replaces the journal's `## Handover` section, the `[handover]` log marker, and `WriteDayHandover` as a tool. |
+| `handover` | no | The note to the next session, ≤ 700 chars. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. |
 | `body` | no | First person, past tense, ≤ 2,000 chars, refused above it. A diary is a page, not a transcript — the log holds the detail. |
 | `pin` | — | Refused for `kind: diary`. A diary entry never enters the core. |
 | `status` | yes | Always `active`; only `forget(reason="wrong")` can retire it. `stale` and `done` are refused, because a day does not stop being true. |
@@ -273,14 +273,13 @@ render_recent(diary, log):
 ```
 
 ```
-render_week(diary, log):
-    for day in previous 6 days, newest first:
-        if diary[day]: line = f"- {day} — {diary[day].claim}"
-        else:          line = f"- {day} — {dominant_project(log[day])}: {top_line(log[day])}"
+render_week(entries, today_day, days=7):
+    for day in the last 7 days, newest first:
+        if entries[day] is active: line = f"- {day} — {entries[day].claim}"
     return lines
 ```
 
-The diary branch is the normal one. The log branch is the fallback for a day that has no entry, and it keeps the journal's heuristic — the project most of the day's lines carry, then that project's highest-ranked line, shortened to 72 chars. Those two functions survive **only** as the fallback; an authored `claim` beats a derived theme, which is why the diary exists.
+The authored claim is the only line: a day with no entry renders nothing, because a day cannot be inferred from its log lines. An authored `claim` beats a derived theme, which is why the diary exists.
 
 All three are pure functions of files on disk. Rendering twice yields identical bytes, so the renderer writes only when the output changed.
 
@@ -542,8 +541,9 @@ Memory is a **persistent prompt-injection vector**: a poisoned fact is inside th
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `LLM_MEMORY_ENABLED` | `on` | Drops the three tools and both injections when off |
-| `LLM_MEMORY_DIR` | `~/.zrb/memory/` | Point this at an Obsidian vault subfolder to browse memory as a graph |
+| `LLM_MEMORY_ENABLED` | `on` | The privacy switch, not a choice between stores. Off means the session reads and writes no memory: the three tools, the `<memory>` block, the delta and the reviewer all go, and nothing else takes their place |
+| `LLM_NOTES_DIR` | `~/.zrb/llm-notes/` | The directory the store lives inside and the one `zrb memory migrate` reads. One directory to back up, and the notes it was converted from stay beside the store |
+| `LLM_MEMORY_DIR` | `${LLM_NOTES_DIR}/memory-v1` | Point this at an Obsidian vault subfolder to browse memory as a graph. The version segment keeps an older install from reading a newer format as its own |
 | `LLM_MEMORY_CORE_MAX_CHARS` | `4000` | The core cap; the number in every overflow refusal |
 | `LLM_MEMORY_RECENT_LOG_LINES` | `4` | Log lines in the recent block |
 | `LLM_MEMORY_RECENT_MAX_CHARS` | `1600` | The recent block cap |
@@ -556,33 +556,39 @@ Memory is a **persistent prompt-injection vector**: a poisoned fact is inside th
 | `LLM_MEMORY_SEARCH_LIMIT` | `10` | Default `limit` for `search` |
 | `LLM_MEMORY_CLAIM_MAX_CHARS` | `160` | The one-sentence rule |
 | `LLM_MEMORY_GIT_ENABLED` | `on` | Commit per write |
-| `LLM_MEMORY_REVIEW_ENABLED` | `on` | The post-turn reviewer |
+| `LLM_MEMORY_REVIEWER_ENABLED` | `on` | The post-turn reviewer |
 | `LLM_MEMORY_LOCK_TIMEOUT` | `30` | Seconds a write waits for the lock |
 
 ---
 
 ## 9. Migration and Non-Goals
 
-### 9.1 From the journal
+### 9.1 From the journal notes
 
-A one-shot script over `${LLM_JOURNAL_DIR}`:
+An existing `~/.zrb/llm-notes` — `LLM_NOTES_DIR` — is read into the store once: on first use when the store lives inside it, or on demand with `zrb memory migrate` (`--dry_run=true` counts first). Both run the same pass over the notes, and neither edits or deletes one. The notes layout itself is [the notes directory](./llm-context.md).
 
-| Journal | Memory |
+| Journal note | Memory |
 |---|---|
-| `hud_line` | `claim` |
-| category (`user`, `agent`, `preferences`, `projects`, `technical`) | a tag; `projects`/`technical` also keep `repo:` as a tag |
+| `hud_line` | `claim`. Absent, the first sentence of `**Finding:**`, then the title |
+| `slug` | `id`, category-prefixed when two categories share one |
+| category (`user`, `agent`, `preferences`, `projects`, `technical`) | the first tag |
+| `keywords` | the remaining tags, at most six, each longer than two characters |
 | `pinned` | `pin` |
-| `status: superseded` + `superseded_by` | `status: retired`, `reason: stale`, link in body |
-| `applies_when` | kept verbatim as prose |
-| `## Context` / `## Finding` / `## Source` | body |
-| `## Handover` section | the `handover` field of that day's diary entry |
-| `activity-log/YYYY/MM/DD.md` day lines | `log/YYYY-MM-DD.md` lines, date dropped from each |
-| the day file's own prose, if any | the diary body |
+| `status: superseded` | `status: retired`, `reason: stale`, retired on the day it was read |
+| `applies_when` | kept verbatim as prose; the `not stated` placeholder dropped |
+| `## Context` / `## Finding` / `## Source` | body, above the first `## ` heading |
+| `updated` | `updated` |
+| `## Handover` of a day file | that day's diary entry: the text as `handover`, its first sentence as `claim` |
+| `activity-log/YYYY/YYYY-MM/YYYY-MM-DD.md` lines | `log/YYYY-MM-DD.md` lines, `· project:x` becoming `(x)`, the `Files:` list and `· imp N` rank dropped |
 | slug `category/slug` | `id: slug` (collision ⇒ prefix with category) |
 
-A day has no authored summary today, so the migration derives each diary `claim` from that day's top-ranked line and stamps `source: migrated`, so a later reviewer can replace it with a written one.
+A day file with no handover gets no diary entry: deriving a claim from the day's lines would be a guess wearing a date. A day the store already has an entry for keeps it — that entry's claim and body are newer than the journal's handover.
 
-Category indexes, backlinks, HUD rendering, and the expiry evaluator are not migrated; they have no counterpart.
+A migrated store may not fit the core, and a migration cannot refuse a write the way `Remember` does — dropping the note would lose the knowledge it exists to carry. So the core is shrunk instead: a pinned fact is unpinned, highest id first, and if only loops are left the highest-id loop becomes a fact. Both stay searchable and out of the first turn.
+
+Text that reads as an instruction is withheld rather than dropped: the claim or the handover becomes a neutral line naming what happened, and the body keeps the original words. Every entry is stamped `source: migrated`.
+
+Category indexes, backlinks, HUD rendering, the `repo:` scope, `superseded_by` and the expiry digests are not migrated; they have no counterpart.
 
 ### 9.2 Non-goals
 
@@ -598,7 +604,7 @@ Category indexes, backlinks, HUD rendering, and the expiry evaluator are not mig
 
 ## 10. What Was Deliberately Cut
 
-Each of these exists in the journal system, in Hermes Agent, or in an earlier revision of this document, and each was cut for a stated reason.
+Each of these existed in the journal system (whose code was removed in 3.33.0), in Hermes Agent, or in an earlier revision of this document, and each was cut for a stated reason.
 
 | Cut | Why |
 |---|---|

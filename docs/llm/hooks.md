@@ -177,7 +177,7 @@ Hooks are defined in JSON or YAML:
 | `matchers` | array | No | Conditions to filter when hook runs |
 | `async` | boolean | No | Fire-and-forget in the background without blocking the event (default: false). `command` and `agent` hooks honor it — a background hook cannot block or return modifications; `prompt` hooks always run synchronously |
 | `enabled` | boolean | No | Hook is active (default: true) |
-| `timeout` | number | No | Seconds; a synchronous hook past it is cancelled (a `command` hook's process killed) and waited for up to 5 seconds. A hook still running when the chat TUI exits gets up to `ZRB_HOOKS_EXIT_TIMEOUT` (2000 ms) before it is cancelled: once for a Stop fired by Ctrl+C, then once shared by SessionEnd and the detached (`async`) hooks still running, so a slow SessionEnd hook leaves the detached ones none. An agent hook (the journal-compliance judge) still gets its own `timeout`, so a journal note is never cut off mid-write. Default: `command` 600s, `prompt` 30s, `agent` 60s in zrb's own hook files; a hook loaded from a Claude-format `settings.json` without a `timeout` gets `ZRB_HOOKS_TIMEOUT` (30000 ms) instead |
+| `timeout` | number | No | Seconds; a synchronous hook past it is cancelled (a `command` hook's process killed) and waited for up to 5 seconds. A hook still running when the chat TUI exits gets up to `ZRB_HOOKS_EXIT_TIMEOUT` (2000 ms) before it is cancelled: once for a Stop fired by Ctrl+C, then once shared by SessionEnd and the detached (`async`) hooks still running, so a slow SessionEnd hook leaves the detached ones none. An agent hook (the memory reviewer) still gets its own `timeout`, so a write is never cut off mid-turn. Default: `command` 600s, `prompt` 30s, `agent` 60s in zrb's own hook files; a hook loaded from a Claude-format `settings.json` without a `timeout` gets `ZRB_HOOKS_TIMEOUT` (30000 ms) instead |
 | `env` | object | No | Environment variables to inject |
 | `priority` | number | No | Execution priority (higher = earlier; default 0) — see [Priority System](#priority-system) |
 
@@ -294,12 +294,12 @@ Run a tool-using agent for complex analysis.
 | Field | Type | Description |
 |-------|------|-------------|
 | `system_prompt` | string | System prompt for the agent |
-| `tools` | array | Tool names, Claude-compatible aliases honored (`"Bash"` → `Shell`), resolved against zrb's own tool set — including config-gated tools such as the journal ones (`LogActivity`, `WriteJournalNote`, `SearchJournal`) that exist only while their feature is enabled. A tool's `[SYSTEM SUGGESTION]` error comes back as a tool result the hook's model can react to, as for the main agent, rather than aborting the hook run |
+| `tools` | array | Tool names, Claude-compatible aliases honored (`"Bash"` → `Shell`), resolved against zrb's own tool set — including config-gated tools such as the memory ones (`SearchMemory`, `Remember`, `Forget`) that exist only while their feature is enabled. A tool's `[SYSTEM SUGGESTION]` error comes back as a tool result the hook's model can react to, as for the main agent, rather than aborting the hook run |
 | `model` | string | Model to use (e.g., `openai:gpt-4o`); omit to use the current run's model, else `ZRB_LLM_MODEL` |
 
 The agent's user turn is the event payload: for `Stop`, the turn's transcript; otherwise the event data as text. Its reply is read like a prompt hook's — a JSON object is the hook's decision, anything else has no effect.
 
-If every name in `tools` fails to resolve — usually because their feature is off (e.g. journal tools while `LLM_JOURNAL_ENABLED` is `false`) — the hook skips its LLM call. A hook that wants no tools leaves `tools` empty and is unaffected.
+If every name in `tools` fails to resolve — usually because their feature is off (e.g. the memory tools while `LLM_MEMORY_ENABLED` is `false`) — the hook skips its LLM call. A hook that wants no tools leaves `tools` empty and is unaffected.
 
 A runnable version of this snippet is `security-review-agent-example` in `examples/llm-hooks/.zrb/hooks.json`, shipped `enabled: false` because an agent hook on `PreToolUse` adds a model round-trip to every matching tool call.
 
@@ -307,17 +307,18 @@ A runnable version of this snippet is `security-review-agent-example` in `exampl
 
 ## Built-in Hooks
 
-Two hooks ship with zrb. Both are registered in Python on every chat session, so they appear in no `hooks.json`. Their prompts are ordinary prompt files (`journal_compliance`, `self_review`), overridable like any other — a file under `ZRB_LLM_PROMPT_DIR`, or a variable such as `ZRB_LLM_PROMPT_JOURNAL_COMPLIANCE`.
+Two hooks ship with zrb. Both are registered in Python on every chat session, so they appear in no `hooks.json`. Their prompts are ordinary prompt files (`memory_reviewer`, `self_review`), overridable like any other — a file under `ZRB_LLM_PROMPT_DIR`, or a variable such as `ZRB_LLM_PROMPT_MEMORY_REVIEWER`.
 
-### The journal-compliance judge
+### The memory reviewer
 
-After a turn that changed a file or seemed to state a preference, a small sub-agent decides whether the turn deserves a journal entry and writes one if so. It runs asynchronously, so it never delays the response.
+After every completed turn, a small sub-agent reads that turn and writes what is durable: a log line, a fact, a correction, or today's diary entry. It runs asynchronously, so it never delays the response, and its normal answer is "nothing" — most turns teach nothing that outlives them.
 
-- **On** whenever the journal is on (`ZRB_LLM_JOURNAL_ENABLED`, default on); it has no switch of its own (its hook name is `journal-compliance-judge`).
-- **Model:** the small model (`ZRB_LLM_SMALL_MODEL`, or a `/model small …` override). Set one — an unset small model falls back to your main model, which defeats the point of a cheap judge.
-- **Tools:** `LogActivity`, `WriteJournalNote`, `SearchJournal`; timeout 60 seconds.
+- **On** while memory is on (`ZRB_LLM_MEMORY_ENABLED`, default on) and the reviewer is (`ZRB_LLM_MEMORY_REVIEWER_ENABLED`, default on); its hook name is `memory-reviewer`.
+- **Model:** the small model (`ZRB_LLM_SMALL_MODEL`, or a `/model small …` override). Set one — an unset small model falls back to your main model, which defeats the point of a cheap reviewer.
+- **Tools:** `SearchMemory`, `Remember`, `Forget` (it searches before adding, so it revises a subject rather than inventing a second one); timeout 90 seconds.
+- **The log line is written by the hook, not by the model.** One line from the reply's own first sentence, because a hook on a conversation event can describe the conversation and a *day* is not something it can infer. The diary stays the reviewer's to author.
 
-How an agent-type hook like this one is wired internally is traced in [LLM Chat Request Lifecycle](./llm-chat-lifecycle.md#tracing-an-agent-type-hook-journal-compliance) (a contributor page).
+How an agent-type hook like this one is wired internally is traced in [LLM Chat Request Lifecycle](./llm-chat-lifecycle.md#tracing-an-agent-type-hook-the-memory-reviewer) (a contributor page).
 
 ### The self-review gate
 
@@ -493,7 +494,7 @@ This hook triggers before every tool call, forcing user approval.
 
 ## Extending a Turn with System Messages (Stop)
 
-A `Stop` hook can return a `systemMessage` to trigger more LLM work when a turn finishes (e.g. journaling).
+A `Stop` hook can return a `systemMessage` to trigger more LLM work when a turn finishes (e.g. noting a decision down).
 
 > **Key it on `Stop`, not `SessionEnd`.** `SessionEnd` fires once, when the chat session ends, so a per-turn hook keyed on it runs exactly once instead of every turn.
 
@@ -515,8 +516,8 @@ from zrb.llm.hook.types import HookEvent
 _extended_turns: set[str] = set()
 
 
-async def journal_hook(context: HookContext) -> HookResult:
-    """Remind LLM to journal - user sees original response."""
+async def decision_hook(context: HookContext) -> HookResult:
+    """Ask for the turn's decision to be recorded - user sees the original response."""
     if context.event != HookEvent.STOP:
         return HookResult()
     # Stop fires again when the extended turn ends; extend only once per turn.
@@ -524,11 +525,11 @@ async def journal_hook(context: HookContext) -> HookResult:
     if turn_id in _extended_turns:
         return HookResult()
     _extended_turns.add(turn_id)
-    # User receives the ORIGINAL response, not the journal acknowledgment
+    # User receives the ORIGINAL response, not the record acknowledgment
     return HookResult(
         success=True,
         modifications={
-            "systemMessage": "Review the turn for learnings worth documenting.",
+            "systemMessage": "Record this turn's decision and its reason in docs/decisions.md, or say there was none.",
             # "replaceResponse": False is the default
         },
     )
@@ -536,7 +537,7 @@ async def journal_hook(context: HookContext) -> HookResult:
 
 `Stop` fires again when the extended turn finishes, so a hook that returns a `systemMessage` every time re-extends the turn until the cap of 8 consecutive extensions. `event_data["turn_id"]` stays the same across one turn's extensions, which makes it the guard.
 
-**Use cases:** Logging, journaling, notifications, background tasks
+**Use cases:** Logging, notifications, background tasks
 
 ### Transform Mode
 

@@ -1,4 +1,4 @@
-"""LLM content: history, snapshot, journal dirs, self-review, summarization thresholds, file read limits."""
+"""LLM content: history, snapshot, notes and memory dirs, self-review, summarization thresholds, file read limits."""
 
 from __future__ import annotations
 
@@ -54,20 +54,6 @@ class LLMContentMixin:
         self.DEFAULT_LLM_AGENT_MESSAGE_LIMIT: str = "20"
         self.DEFAULT_LLM_SUBAGENT_HISTORY_RETAIN: str = "50"
         self.DEFAULT_LLM_AUTO_NAME_ENABLED: str = "on"
-        self.DEFAULT_LLM_JOURNAL_ENABLED: str = "on"
-        self.DEFAULT_LLM_JOURNAL_DIR: str = ""
-        self.DEFAULT_LLM_JOURNAL_INDEX_FILE: str = "index.md"
-        self.DEFAULT_LLM_JOURNAL_INDEX_MAX_CHARS: str = "3600"
-        self.DEFAULT_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION: str = "20"
-        self.DEFAULT_LLM_JOURNAL_CATALOG_MAX_ENTRIES: str = "25"
-        self.DEFAULT_LLM_JOURNAL_CLAIMS_PER_TURN: str = "3"
-        self.DEFAULT_LLM_JOURNAL_CLAIMS_MAX_CHARS: str = "1000"
-        self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_ENABLED: str = "on"
-        self.DEFAULT_LLM_JOURNAL_AUTO_SEARCH_MAX_HITS: str = "3"
-        self.DEFAULT_LLM_JOURNAL_GIT_ENABLED: str = "on"
-        self.DEFAULT_LLM_JOURNAL_COMPLIANCE_ENABLED: str = "on"
-        self.DEFAULT_LLM_JOURNAL_COMPLIANCE_TURNS: str = "12"
-        self.DEFAULT_LLM_JOURNAL_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_NOTES_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_DIR: str = ""
@@ -121,12 +107,9 @@ class LLMContentMixin:
             "Directory for the local LLM usage logs: `usage-YYYY-MM.jsonl` holds "
             "one JSON line per completed run (token counts, request and "
             "tool-call counts, per-tool call and error counts by tool name, the "
-            "run's duration and its cost when the model is priced), and "
-            "`journal-YYYY-MM.jsonl` holds one line per journal event (index "
-            "injected, searched, read, written, superseded, deleted) with note "
-            "ids stored as short hashes. Numbers, tool names and hashed ids only "
-            "— no prompt text, tool arguments, note titles or file content — "
-            "which is what lets `/usage` work without an opt-in."
+            "run's duration and its cost when the model is priced). Numbers and "
+            "tool names only — no prompt text, tool arguments, file paths or file "
+            "content — which is what lets `/usage` work without an opt-in."
         ),
     )
 
@@ -197,187 +180,16 @@ class LLMContentMixin:
         ),
     )
 
-    LLM_JOURNAL_ENABLED = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "Master switch for the cross-session journal. Off unregisters the "
-            "five journal tools (SearchJournal, LogActivity, "
-            "WriteJournalNote, SupersedeJournalNote, DeleteJournalNote) and "
-            "suppresses the "
-            "<journal-index> injection. Those tools are the whole interface — "
-            "there is no prompt section describing a journal protocol — so off "
-            "means the model is never told a journal exists, and neither reads "
-            "nor writes one. LLM_JOURNAL_DIR has no 'unset' value that achieves "
-            "this (it falls back to ~/<root>/llm-notes), which is why this knob "
-            "exists."
-        ),
-    )
-
-    LLM_JOURNAL_DIR = EnvField(
-        str,
-        default_factory=lambda cfg: (
-            cfg.DEFAULT_LLM_JOURNAL_DIR
-            if cfg.DEFAULT_LLM_JOURNAL_DIR
-            else os.path.expanduser(
-                os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-notes")
-            )
-        ),
-        doc="Directory for LLM journal/notes.",
-    )
-
-    LLM_JOURNAL_INDEX_FILE = EnvField(
-        str,
-        doc=(
-            "Filename of every journal index: the one at the journal root — "
-            "the index injected into context — and one in each category and "
-            "activity-log directory. The reader and every writer resolve it "
-            "from here. Set it before the first write: an existing journal "
-            "keeps the indexes it already has under their old name, so a "
-            "changed value starts fresh indexes rather than renaming the old "
-            "ones."
-        ),
-    )
-
-    LLM_JOURNAL_INDEX_MAX_CHARS = EnvField(
-        int,
-        fallback=0,
-        doc=(
-            "Maximum characters of the journal index injected into context, "
-            "overflow note included. The index is the HUD — it carries the "
-            "user's identity and standing preferences — so what survives the cap "
-            "is ranked, not taken from the top: pinned lines first, then claims, "
-            "then the pointer to the category indexes. Sections take turns, so a "
-            "long one cannot spend the whole cap while a short one loses "
-            "everything. 0 suppresses the injection entirely; a negative value "
-            "injects the whole index uncapped."
-        ),
-    )
-
-    LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = EnvField(
-        int,
-        fallback=20,
-        doc=(
-            "Maximum hud_line entries kept per root-index HUD section (User, "
-            "Constraints, Agent, Recent). Oldest unpinned entries are evicted "
-            "first so a stale headline does not sit in the always-injected "
-            "index forever; a pinned entry goes only when the whole section is "
-            "pinned. `<= 0` disables the cap (uncapped)."
-        ),
-    )
-
-    LLM_JOURNAL_CATALOG_MAX_ENTRIES = EnvField(
-        int,
-        fallback=25,
-        doc=(
-            "Maximum notes the root index's `## Recent Insights` catalog lists "
-            "(a count, not a duration). The newest active notes by `updated` "
-            "are shown, newest first, followed by one line counting the older "
-            "ones; the category indexes always list every note. `<= 0` lists "
-            "every active note (uncapped)."
-        ),
-    )
-
-    LLM_JOURNAL_CLAIMS_PER_TURN = EnvField(
-        int,
-        fallback=3,
-        doc=(
-            "Maximum journal claims injected into a turn after the first one "
-            "(a count). The index goes in once, at the start of a session, so a "
-            "note written later is invisible until the conversation is "
-            "compacted; each turn then shows the highest-scoring claims the "
-            "session has not been shown yet — pinned ones first, then the "
-            "freshest, then those sharing a word with the message. `<= 0` "
-            "suppresses the mid-session claims entirely."
-        ),
-    )
-
-    LLM_JOURNAL_CLAIMS_MAX_CHARS = EnvField(
-        int,
-        fallback=1000,
-        doc=(
-            "Maximum characters of those claims in one turn — a second budget "
-            "beside LLM_JOURNAL_CLAIMS_PER_TURN, so one long claim cannot spend "
-            "the whole allowance. A claim whose line does not fit is skipped. "
-            "`<= 0` suppresses the mid-session claims entirely."
-        ),
-    )
-
-    LLM_JOURNAL_AUTO_SEARCH_ENABLED = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "Run one SearchJournal against the opening message on a session's "
-            "first turn, folding any hits into the injected <journal-index> "
-            "block under a clearly separate, unverified 'Possibly Related' "
-            "section. Costs one extra search subprocess, once per session."
-        ),
-    )
-
-    LLM_JOURNAL_AUTO_SEARCH_MAX_HITS = EnvField(
-        int,
-        fallback=3,
-        doc="Maximum SearchJournal hits folded into the first-turn auto-search.",
-    )
-
-    LLM_JOURNAL_GIT_ENABLED = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "Git-back the journal directory: `git init` it on first use, and "
-            "commit after every LogActivity/WriteJournalNote/"
-            "SupersedeJournalNote/DeleteJournalNote "
-            "call. Gives the journal unbounded, diffable history and makes a "
-            "delete or a bad overwrite recoverable by a human outside the "
-            "tools (the in-file History block only keeps the last 3 "
-            "revisions). Best-effort: a missing `git` binary or a failed "
-            "commit never breaks journaling, it just forgoes the commit."
-        ),
-    )
-
-    LLM_JOURNAL_COMPLIANCE_TURNS = EnvField(
-        int,
-        fallback=12,
-        doc=(
-            "User turns between journal-compliance checks on a conversation that "
-            "wrote no files and stated no preference. The judge otherwise runs only "
-            "on a turn that did one of those, which a long conversation touching no "
-            "file never does; every this many turns it reads the transcript and "
-            "decides for itself. `<= 0` turns the periodic check off."
-        ),
-    )
-
-    LLM_JOURNAL_COMPLIANCE_ENABLED = EnvField(
-        to_boolean,
-        serialize=on_off,
-        doc=(
-            "Register the built-in `journal-compliance-judge` Stop hook, which "
-            "asks a small model whether a turn that wrote files or stated a "
-            "preference left the journal recording it. On by default; "
-            "`LLM_JOURNAL_ENABLED=off` still takes it out with the rest of "
-            "journaling."
-        ),
-    )
-
-    LLM_JOURNAL_LOCK_TIMEOUT = EnvField(
-        float,
-        doc=(
-            "Seconds a journal write waits for another writer's root lock before "
-            "failing with a busy-journal error. Zero or negative fails immediately."
-        ),
-    )
-
     LLM_MEMORY_ENABLED = EnvField(
         to_boolean,
         serialize=on_off,
         doc=(
-            "Master switch for the memory system that replaces the journal. Off "
-            "unregisters SearchMemory, Remember and Forget and suppresses the "
-            "<memory> injection. While it is on, the journal's tools, injection "
-            "and compliance judge stay out of the way even if "
-            "LLM_JOURNAL_ENABLED is on: two memories in one prompt are two "
-            "answers to the same question, and the model cannot tell which one "
-            "is current."
+            "Master switch for the memory system. Off unregisters SearchMemory, "
+            "Remember and Forget, suppresses the <memory> injection and the "
+            "background reviewer, and leaves the store untouched on disk: a "
+            "session with it off neither reads nor writes a memory. It is the "
+            "privacy switch, not a choice between stores — the journal it "
+            "replaced is gone."
         ),
     )
 

@@ -303,7 +303,7 @@ async def summarize_history(
     The tail is the newest turns that fit the summarizer's token budget — the
     share `LLM_HISTORY_TAIL_BUDGET_RATIO` sets, overridable per call through
     `tail_budget_ratio` — capped by `summary_window` messages. `force=True`
-    compresses even within limits (``/compress``). The journal index is
+    compresses even within limits (``/compress``). The memory block is
     re-seeded into the summary.
 
     The tail is kept verbatim but not hidden from the summarizer: the snapshot
@@ -534,7 +534,7 @@ def _without_archive_pointer(
     Dropping the pointer can only make the block smaller than the cap measured.
     """
     summary_message = _create_summary_model_request(
-        _render_summary_content(fitted.model_text, fitted.journal_block, "")
+        _render_summary_content(fitted.model_text, fitted.carried_block, "")
     )
     return _assemble_summarized_history(
         summary_message,
@@ -559,13 +559,13 @@ class _FittedSummary:
     """
 
     model_text: str
-    journal_block: str
+    carried_block: str
     archive_note: str
 
     def render(self) -> str:
         """The summary turn's text, as the cap approved it."""
         return _render_summary_content(
-            self.model_text, self.journal_block, self.archive_note
+            self.model_text, self.carried_block, self.archive_note
         )
 
 
@@ -577,7 +577,7 @@ async def _build_summary_parts(
     conversational_token_threshold: int,
     archive_path: str | None = None,
 ) -> "_FittedSummary | None":
-    """Summarize the whole conversation, capping it and re-seeding the journal.
+    """Summarize the whole conversation, capping it and re-seeding the memory.
 
     *to_summarize* is what gets replaced and *to_keep* is what stays verbatim,
     but the model reads both: a snapshot written only from the replaced part
@@ -608,7 +608,7 @@ async def _build_summary_parts(
             limiter=llm_limiter,
         )
     if not summary_text.strip():
-        return _FittedSummary(model_text="", journal_block="", archive_note="")
+        return _FittedSummary(model_text="", carried_block="", archive_note="")
     if not _is_state_snapshot_well_formed(summary_text):
         # A summary that lost its schema still beats no summary: a history left
         # over the budget fails the next request outright. It is still capped
@@ -623,16 +623,16 @@ async def _build_summary_parts(
             plain=True,
         )
     # The block is measured and capped as it will be inserted: the framing zrb
-    # writes, the journal index and the archive pointer all count against the
-    # same cap, or the turn it lands in can run past it. The notes yield first,
+    # writes, the memory block and the archive pointer all count against the
+    # same cap, or the turn it lands in can run past it. The memory yields first,
     # so the snapshot is not shrunk to make room for text zrb can leave out. The
     # pointer's room is reserved here because the write that decides it happens
     # only after the cap has approved the block.
     cap = summary_cap(conversational_token_threshold)
-    journal_block = render_carried_context() or ""
+    carried_block = render_carried_context() or ""
     archive_note = _render_archive_note(archive_path) if archive_path else ""
-    journal_block, archive_note = _fit_note_blocks(
-        llm_limiter, cap, journal_block, archive_note
+    carried_block, archive_note = _fit_note_blocks(
+        llm_limiter, cap, carried_block, archive_note
     )
     summary_text = await _fit_summary_block(
         summary_text,
@@ -640,10 +640,10 @@ async def _build_summary_parts(
         llm_limiter,
         conversational_token_threshold,
         cap,
-        journal_block,
+        carried_block,
         archive_note,
     )
-    block = _render_summary_content(summary_text, journal_block, archive_note)
+    block = _render_summary_content(summary_text, carried_block, archive_note)
     if cap > 0 and llm_limiter.count_tokens(block) > cap:
         # Nothing optional is left to drop, so the framing alone is over the cap.
         # Replacing the history with a turn that breaks the cap would be the
@@ -658,7 +658,7 @@ async def _build_summary_parts(
         )
         return None
     return _FittedSummary(
-        model_text=summary_text, journal_block=journal_block, archive_note=archive_note
+        model_text=summary_text, carried_block=carried_block, archive_note=archive_note
     )
 
 
@@ -678,31 +678,31 @@ def summary_cap(conversational_token_threshold: int) -> int:
 
 
 def _fit_note_blocks(
-    limiter: "LLMLimiter", cap: int, journal_block: str, archive_note: str
+    limiter: "LLMLimiter", cap: int, carried_block: str, archive_note: str
 ) -> "tuple[str, str]":
     """The notes that fit beside the framing, dropping the least useful first.
 
     The snapshot is what compaction is for, so the notes yield to it. The
-    journal index goes first: the notes it lists are still on disk and the agent
+    memory block goes first: the claims it lists are still on disk and the agent
     can read them, while the snapshot is the only thing left of the messages
     being replaced. The archive pointer goes next, and last of all the notes go
     together. A cap the framing alone cannot fit is left to the caller, which
     keeps the history instead of inserting an over-cap turn.
     """
     if cap <= 0:
-        return journal_block, archive_note
+        return carried_block, archive_note
 
-    def is_within_cap(journal: str, archive: str) -> bool:
+    def is_within_cap(carried: str, archive: str) -> bool:
         return (
-            limiter.count_tokens(_render_summary_content("", journal, archive)) <= cap
+            limiter.count_tokens(_render_summary_content("", carried, archive)) <= cap
         )
 
-    if is_within_cap(journal_block, archive_note):
-        return journal_block, archive_note
-    if journal_block:
+    if is_within_cap(carried_block, archive_note):
+        return carried_block, archive_note
+    if carried_block:
         zrb_print(
             stylize_warning(
-                f"  Warning: the journal index does not fit beside the summary in "
+                f"  Warning: the memory block does not fit beside the summary in "
                 f"a {cap}-token cap; leaving it out."
             ),
             plain=True,
@@ -721,7 +721,7 @@ def _fit_note_blocks(
 
 
 def _render_summary_content(
-    model_text: str, journal_block: str, archive_note: str
+    model_text: str, carried_block: str, archive_note: str
 ) -> str:
     """The summary turn's text: zrb's framing, then the body, then the end marker.
 
@@ -731,7 +731,7 @@ def _render_summary_content(
     """
     body = "\n\n".join(
         part.strip()
-        for part in (model_text, journal_block, archive_note)
+        for part in (model_text, carried_block, archive_note)
         if part.strip()
     )
     return make_markdown_section(
@@ -758,7 +758,7 @@ async def _fit_summary_block(
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
     cap: int,
-    journal_block: str,
+    carried_block: str,
     archive_note: str,
 ) -> str:
     """The model's part of the block, shrunk until the whole block fits the cap.
@@ -774,7 +774,7 @@ async def _fit_summary_block(
 
     def size(text: str) -> int:
         return limiter.count_tokens(
-            _render_summary_content(text, journal_block, archive_note)
+            _render_summary_content(text, carried_block, archive_note)
         )
 
     overhead = size("")

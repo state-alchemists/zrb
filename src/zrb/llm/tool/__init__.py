@@ -24,14 +24,6 @@ if TYPE_CHECKING:
         search_files,
         write_file,
     )
-    from zrb.llm.tool.journal import search_journal
-    from zrb.llm.tool.journal_write import (
-        delete_journal_note,
-        log_activity,
-        supersede_journal_note,
-        write_day_handover,
-        write_journal_note,
-    )
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan import create_plan_tools, get_todos, write_todos
     from zrb.llm.tool.shell import run_shell_command
@@ -58,12 +50,6 @@ __all__ = [
     "analyze_file",
     "remove_file",
     "move_file",
-    "search_journal",
-    "log_activity",
-    "write_day_handover",
-    "write_journal_note",
-    "supersede_journal_note",
-    "delete_journal_note",
     "load_mcp_config",
     "create_activate_skill_tool",
     "create_search_skill_tool",
@@ -90,7 +76,6 @@ _SOURCES = {
     "glob_files": "zrb.llm.tool.file",
     "list_files": "zrb.llm.tool.file",
     "load_mcp_config": "zrb.llm.tool.mcp",
-    "log_activity": "zrb.llm.tool.journal_write",
     "move_file": "zrb.llm.tool.file",
     "open_web_page": "zrb.llm.tool.web",
     "read_file": "zrb.llm.tool.file",
@@ -99,14 +84,9 @@ _SOURCES = {
     "run_shell_command": "zrb.llm.tool.shell",
     "search_files": "zrb.llm.tool.file",
     "search_internet": "zrb.llm.tool.web",
-    "search_journal": "zrb.llm.tool.journal",
     "tool_name": "zrb.llm.tool_registry",
     "tool_registry": "zrb.llm.tool_registry",
     "write_file": "zrb.llm.tool.file",
-    "write_day_handover": "zrb.llm.tool.journal_write",
-    "write_journal_note": "zrb.llm.tool.journal_write",
-    "supersede_journal_note": "zrb.llm.tool.journal_write",
-    "delete_journal_note": "zrb.llm.tool.journal_write",
     "write_todos": "zrb.llm.tool.plan",
 }
 

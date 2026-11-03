@@ -5,6 +5,23 @@ replacement settings omit the environment prefix.
 """
 
 RETIRED_SETTINGS: dict[str, str] = {
+    # 3.33.0: the journal was removed once the memory store replaced it
+    # (ADR-0138). Every knob below only controlled its tools, its injection,
+    # its judge or its writes.
+    "LLM_JOURNAL_INDEX_FILE": "nothing: the journal was removed",
+    "LLM_JOURNAL_INDEX_MAX_CHARS": "nothing: the journal was removed",
+    "LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION": "nothing: the journal was removed",
+    "LLM_JOURNAL_CATALOG_MAX_ENTRIES": "nothing: the journal was removed",
+    "LLM_JOURNAL_CLAIMS_PER_TURN": "nothing: the journal was removed",
+    "LLM_JOURNAL_CLAIMS_MAX_CHARS": "nothing: the journal was removed",
+    "LLM_JOURNAL_AUTO_SEARCH_ENABLED": "nothing: the journal was removed",
+    "LLM_JOURNAL_AUTO_SEARCH_MAX_HITS": "nothing: the journal was removed",
+    "LLM_JOURNAL_GIT_ENABLED": "LLM_MEMORY_GIT_ENABLED",
+    "LLM_JOURNAL_COMPLIANCE_ENABLED": "LLM_MEMORY_REVIEWER_ENABLED",
+    "LLM_JOURNAL_COMPLIANCE_TURNS": "nothing: the memory reviewer runs every turn",
+    "LLM_JOURNAL_LOCK_TIMEOUT": "LLM_MEMORY_LOCK_TIMEOUT",
+    "LLM_JOURNAL_ENABLED": "nothing: the journal was removed",
+    "LLM_JOURNAL_DIR": "LLM_NOTES_DIR",
     # 3.26.0: the RAG tool, its extra and the mixin that configured it were removed.
     "RAG_EMBEDDING_API_KEY": "nothing: the RAG tool was removed",
     "RAG_EMBEDDING_BASE_URL": "nothing: the RAG tool was removed",

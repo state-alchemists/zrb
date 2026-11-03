@@ -22,26 +22,23 @@ def store_dir(tmp_path, monkeypatch):
     return tmp_path / "memory"
 
 
-def test_a_compacted_context_carries_the_memory_not_the_journal(store_dir, monkeypatch):
+def test_a_compacted_context_carries_the_memory(store_dir, monkeypatch):
     """A compaction replaces the messages that carried the block, so it must carry it.
 
-    The journal index was injected here unconditionally, which is how a compacted
-    chat with memory on ended up holding two memories — and the stale one.
+    Memory is the only store now, so the carried block is the memory and
+    nothing else — there is no second index that could be the stale one.
     """
-    monkeypatch.setattr(CFG, "LLM_JOURNAL_DIR", str(store_dir / "notes"), raising=False)
     remember("staging-ssh-port", "Staging SSH is port 2222.", pin=True)
     carried = live_context.render_carried_context()
     assert "Staging SSH is port 2222." in carried
     assert "<journal-index>" not in carried
 
 
-def test_with_memory_off_the_carried_context_is_the_journals(store_dir, monkeypatch):
+def test_with_memory_off_the_carried_context_is_empty(store_dir, monkeypatch):
+    """Off is the privacy switch: nothing is injected, and nothing stands in."""
     remember("staging-ssh-port", "Staging SSH is port 2222.", pin=True)
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", False, raising=False)
-    monkeypatch.setattr(
-        CFG, "LLM_JOURNAL_DIR", str(store_dir / "no-notes-here"), raising=False
-    )
-    assert "Staging SSH is port 2222." not in live_context.render_carried_context()
+    assert live_context.render_carried_context() == ""
 
 
 def test_an_empty_store_injects_nothing(store_dir):

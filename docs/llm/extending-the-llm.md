@@ -202,7 +202,7 @@ from pydantic_ai import Tool
 my_chat_task.append_tool(Tool(get_weather, defer_loading=True))
 ```
 
-The trade-off is discovery: a deferred tool is invisible until searched for, so give it a name the model would think to search. This is how zrb ships its own rarely-used tools (`analyze_code`, worktree/LSP tools, `MonitorProcess`, MCP toolsets, …). Tools that are useless in a given environment are better *unregistered* than deferred — zrb skips the LSP tools when no language server is installed, the worktree tools outside a git repo, and the journal tools when `ZRB_LLM_JOURNAL_ENABLED` is off.
+The trade-off is discovery: a deferred tool is invisible until searched for, so give it a name the model would think to search. This is how zrb ships its own rarely-used tools (`analyze_code`, worktree/LSP tools, `MonitorProcess`, MCP toolsets, …). Tools that are useless in a given environment are better *unregistered* than deferred — zrb skips the LSP tools when no language server is installed, the worktree tools outside a git repo, and the memory tools when `ZRB_LLM_MEMORY_ENABLED` is off.
 
 Note that `defer_loading` (a per-turn *token*-cost lever) is unrelated to import cost: `from pydantic_ai import Tool` at module scope eagerly imports `pydantic_ai` (~1.7s). To keep that off the `zrb` startup path, do the import and the `Tool(...)` wrap inside a factory, which runs only when the task first executes:
 
@@ -354,9 +354,9 @@ The building blocks are in `zrb.llm.summarizer`, all `async` except `split_histo
 | `split_history(messages, summary_window, limiter, conversational_token_threshold)` | Return `(to_summarize, to_keep)` without cutting a tool call from its return |
 | `summarize_text_plain(text, agent, limiter, threshold)` / `summarize_long_text(...)` | Summarize any text; long text is summarized in chunks, then consolidated |
 
-### Journal System
+### Memory
 
-Long-term memory is a directory of Markdown notes (default `~/.zrb/llm-notes/`) that the agent writes through `LogActivity`/`WriteDayHandover`/`WriteJournalNote`/`SupersedeJournalNote`/`DeleteJournalNote` and reads through `SearchJournal`. How it is stored and when its index reaches the model: [LLM Journal System](../technical-specs/llm-context.md). Knobs: [LLM Configuration → Journal & Context Storage](../configuration/llm-context.md#journal--context-storage).
+Long-term memory is a store of four file kinds — `facts/<id>.md`, `diary/<YYYY-MM-DD>.md`, `log/<YYYY-MM-DD>.md` and a generated `core.md` — that the agent writes through `Remember` and `Forget` and reads through `SearchMemory`. A reviewer Stop hook writes most of it from the turn's transcript. How it is stored and when it reaches the model: [LLM Memory](../technical-specs/llm-memory.md). Knobs: [LLM Configuration → Memory & Notes Storage](../configuration/llm-context.md#memory--notes-storage).
 
 ---
 

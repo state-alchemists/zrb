@@ -9,18 +9,18 @@ def approve_if_path_inside_cwd(args: dict[str, Any]) -> bool:
     return approve_if_path_inside_parent(args, cwd)
 
 
-def approve_if_path_inside_journal_dir(args: dict[str, Any]) -> bool:
-    return approve_if_path_inside_parent(args, CFG.LLM_JOURNAL_DIR)
+def approve_if_path_inside_notes_dir(args: dict[str, Any]) -> bool:
+    return approve_if_path_inside_parent(args, CFG.LLM_NOTES_DIR)
 
 
-def approve_if_mv_inside_journal_dir(args: dict[str, Any]) -> bool:
-    journal_dir = CFG.LLM_JOURNAL_DIR
+def approve_if_mv_inside_notes_dir(args: dict[str, Any]) -> bool:
+    notes_dir = CFG.LLM_NOTES_DIR
     src = args.get("src")
     dst = args.get("dst")
     if src is None or dst is None:
         return False
-    return path_inside_parent(str(src), journal_dir) and path_inside_parent(
-        str(dst), journal_dir
+    return path_inside_parent(str(src), notes_dir) and path_inside_parent(
+        str(dst), notes_dir
     )
 
 

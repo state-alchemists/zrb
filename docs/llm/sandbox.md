@@ -65,6 +65,6 @@ The sandbox contains LLM-initiated filesystem damage: prompt injection, model mi
 - **Python-layer TOCTOU** — the FS gate realpaths at check time; a race between check and `open()` is theoretically possible for in-process tools. The OS shell layer has no such race (kernel-enforced per syscall).
 - **Windows shell gap** — no OS-level shell isolation exists; see the platform matrix.
 - **Setuid binaries on macOS** — a Seatbelt-sandboxed process cannot exec set[ug]id binaries regardless of profile. Notably `/bin/ps` (setuid root) and `sudo` fail with `Operation not permitted`; `pgrep`/`pkill` keep working.
-- **zrb-internal writes** (session logs, journal, snapshots) bypass the gate — only LLM-initiated tool calls are constrained.
+- **zrb-internal writes** (session logs, memory, snapshots) bypass the gate — only LLM-initiated tool calls are constrained.
 
 🔖 [Documentation Home](../README.md) > [LLM](./) > Sandbox

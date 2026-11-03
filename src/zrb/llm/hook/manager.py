@@ -17,7 +17,6 @@ from zrb.llm.hook.executor import (
 )
 from zrb.llm.hook.hook_loader import get_search_directories as _get_search_directories
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
-from zrb.llm.hook.journal_compliance import register_journal_compliance_hook
 from zrb.llm.hook.manager_loading import HookManagerLoading
 from zrb.llm.hook.matcher import evaluate_matchers
 from zrb.llm.hook.memory_reviewer import register_memory_reviewer_hook
@@ -77,7 +76,6 @@ class HookManager(HookManagerLoading):
         # singleton's registrations. File-backed hooks need no seeding because
         # every manager re-scans the filesystem.
         self._hook_factories: list[Callable[[HookManager], None]] = [
-            register_journal_compliance_hook,
             register_memory_reviewer_hook,
             register_self_review_hook,
             register_skill_frontmatter_hooks,
@@ -376,8 +374,8 @@ class HookManager(HookManagerLoading):
         if not tasks:
             return
         # INFO, not debug: this wait can run up to an agent hook's own timeout
-        # (60s for the built-in journal-compliance judge) at the exit of a
-        # one-shot `zrb llm chat` — without this line that looks like a hang.
+        # (60s for a background reviewer) at the exit of a one-shot
+        # `zrb llm chat` — without this line that looks like a hang.
         logger.info(
             "Waiting up to %ss for %d background hook(s) to finish...",
             timeout,

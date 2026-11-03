@@ -15,15 +15,15 @@ class TestLLMConfigSetters:
         config.LLM_HISTORY_DIR = "/tmp/history"
         assert os.environ["ZRB_LLM_HISTORY_DIR"] == "/tmp/history"
 
-    def test_llm_journal_dir_setter(self, monkeypatch):
+    def test_llm_notes_dir_setter(self, monkeypatch):
         config = Config()
-        config.LLM_JOURNAL_DIR = "/tmp/journal"
-        assert os.environ["ZRB_LLM_JOURNAL_DIR"] == "/tmp/journal"
+        config.LLM_NOTES_DIR = "/tmp/notes"
+        assert os.environ["ZRB_LLM_NOTES_DIR"] == "/tmp/notes"
 
-    def test_llm_journal_index_file_setter(self, monkeypatch):
+    def test_llm_memory_dir_setter(self, monkeypatch):
         config = Config()
-        config.LLM_JOURNAL_INDEX_FILE = "journal.md"
-        assert os.environ["ZRB_LLM_JOURNAL_INDEX_FILE"] == "journal.md"
+        config.LLM_MEMORY_DIR = "/tmp/memory"
+        assert os.environ["ZRB_LLM_MEMORY_DIR"] == "/tmp/memory"
 
     def test_llm_model_setter_with_value(self, monkeypatch):
         config = Config()

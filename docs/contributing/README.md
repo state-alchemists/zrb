@@ -13,7 +13,7 @@ Where to look, in the order you will need it.
 | Understand the philosophy behind the codebase | [Architecture, Philosophy, & Conventions](architecture.md) |
 | Understand how a subsystem is designed, part by part | [Architecture: The Design of Zrb](../architecture/README.md) |
 | Find out why something was decided, or record a new decision | [Architecture Decision Records](../adr/README.md) |
-| Go deep on context propagation or history sanitization | [Context Propagation](../technical-specs/context-propagation.md), [LLM Context](../technical-specs/llm-context.md), [LLM History Sanitization](../technical-specs/llm-history-sanitization.md) |
+| Go deep on context propagation, memory or history sanitization | [Context Propagation](../technical-specs/context-propagation.md), [LLM Memory](../technical-specs/llm-memory.md), [LLM History Sanitization](../technical-specs/llm-history-sanitization.md) |
 | Write a changelog entry, or publish a release | [Maintainer Guide → Changelog](maintainer-guide.md#changelog), [Publishing Zrb](maintainer-guide.md#publishing-zrb) |
 
 Before you open a PR: run `./zrb-test.sh`, add a changelog entry, and write or rewrite an ADR if you made a design decision. See [Maintainer Guide → Submitting a Change](maintainer-guide.md#submitting-a-change).

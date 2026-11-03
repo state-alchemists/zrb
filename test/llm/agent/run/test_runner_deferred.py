@@ -176,7 +176,7 @@ async def test_stop_event_wrote_files_true_after_deferred_tool_approval():
     `run_history[turn_baseline_len:]` slice would treat as pre-existing
     history — silently excluding it from `wrote_files`/`turn` once Stop
     finally fires. Caught via a live interactive session where a human
-    approved a Write and the journal-compliance hook never fired: registered,
+    approved a Write and the evidence-gated hook never fired: registered,
     no exception, but the gate was never satisfied because this slice came up
     empty. `turn_messages_acc` (accumulated per iteration, not sliced once at
     the end) is the fix under test here.

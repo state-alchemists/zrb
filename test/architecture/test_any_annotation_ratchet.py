@@ -46,7 +46,7 @@ SRC = REPO_ROOT / "src" / "zrb"
 # -1 (1036->1035): `turn_states_preference` and `is_journal_due_for_turn` read a
 # message list only by asking each message what it is, so both take
 # `Sequence[object]` rather than `list[Any]`.
-ANY_ANNOTATIONS = 1035
+ANY_ANNOTATIONS = 1031
 
 
 def _count_any(annotation: ast.expr | None) -> int:

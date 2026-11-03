@@ -1,10 +1,12 @@
-"""`zrb memory migrate`: the upgrade path from the journal.
+"""`zrb memory migrate`: read a notes directory into the memory store.
 
-Memory is on by default and suppresses the journal, so an existing
-`~/.zrb/llm-notes` would otherwise be unreachable after an upgrade: present on
-disk, invisible to every session. This is the command the changelog names, and it
-is read-only with respect to the journal — the old store stays where it is, so a
-migration that surprises someone is one they can walk away from.
+An existing `~/.zrb/llm-notes` is already read once, on first use, when the
+store lives inside it (``paths.should_convert``). This command is the explicit
+way to do that — a dry run that counts first, or a store pointed somewhere else
+that should still be filled from the notes.
+
+It is read-only with respect to the notes: the old files stay where they are, so
+a migration that surprises someone is one they can walk away from.
 """
 
 from zrb.builtin.group import memory_group
@@ -16,9 +18,10 @@ from zrb.util.string.conversion import to_boolean
 
 
 @make_task(
-    name="migrate-journal",
+    name="migrate",
     description=(
-        "🧠 Copy the journal into the memory store, leaving the journal untouched"
+        "🧠 Read the notes directory into the memory store, leaving the notes "
+        "untouched"
     ),
     input=BoolInput(
         name="dry_run",
@@ -27,16 +30,15 @@ from zrb.util.string.conversion import to_boolean
         default=False,
     ),
     group=memory_group,
-    alias="migrate",
 )
-def migrate_journal(ctx: AnyContext) -> str:
+def migrate_notes(ctx: AnyContext) -> str:
     # lazy: the memory package loads pydantic_ai-dependent modules in the tools,
     # and this command must stay cheap to register.
     from zrb.llm.memory import paths
     from zrb.llm.memory.migrate import migrate
 
     dry_run = to_boolean(str(ctx.input.dry_run))
-    counts = migrate(CFG.LLM_JOURNAL_DIR, dry_run)
+    counts = migrate(CFG.LLM_NOTES_DIR, dry_run)
     verb = "would write" if dry_run else "wrote"
     unpinned = counts.get("unpinned", 0)
     converted = counts.get("converted", 0)
@@ -55,7 +57,7 @@ def migrate_journal(ctx: AnyContext) -> str:
         f"Memory store: {paths.memory_dir()}\n"
         f"{verb} {counts['facts']} facts, {counts['retired']} retired, "
         f"{counts['diary']} diary entries and {counts['log_lines']} log lines "
-        f"from {CFG.LLM_JOURNAL_DIR}{notes}\n"
-        "The journal was not modified; `ZRB_LLM_MEMORY_ENABLED=off` still "
-        "selects it."
+        f"from {CFG.LLM_NOTES_DIR}{notes}\n"
+        "The notes were not modified: they stay beside the store as the record "
+        "it was read from."
     )

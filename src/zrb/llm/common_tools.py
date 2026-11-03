@@ -8,7 +8,7 @@ toolset factories and shell-safety policy, so ``LLMChatTask``, ``LLMTask`` and
 
 Application only appends per-run providers; nothing resolves until the host's
 first agent build, which keeps ``pydantic_ai`` off ``import zrb``. LSP,
-worktree, plan-mode and journal tools register conditionally, rare ones use
+worktree, plan-mode and memory tools register conditionally, rare ones use
 ``defer_loading``.
 
 Not registered here: delegate tools (main-agent-only; sub-agents filter them
@@ -186,15 +186,7 @@ def _seed_tool_factories() -> tuple[list, list]:
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai
     from zrb.llm.tool.ask import ask_user_question
-    from zrb.llm.tool.journal import search_journal
     from zrb.llm.tool.memory import forget, remember, search_memory
-    from zrb.llm.tool.journal_write import (
-        delete_journal_note,
-        log_activity,
-        supersede_journal_note,
-        write_day_handover,
-        write_journal_note,
-    )
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.tool.shell_background import create_monitor_process_tool
@@ -210,16 +202,6 @@ def _seed_tool_factories() -> tuple[list, list]:
     tag(search_memory, Capability.READ)
     tag(remember, Capability.EDIT)
     tag(forget, Capability.EDIT)
-    tag(search_journal, Capability.READ)
-    # Journal writers touch only CFG.LLM_JOURNAL_DIR, but plan mode still blocks them.
-    for _fn in (
-        log_activity,
-        write_day_handover,
-        write_journal_note,
-        supersede_journal_note,
-        delete_journal_note,
-    ):
-        tag(_fn, Capability.EDIT)
 
     factories: list["Callable[[AnyContext], Any]"] = [
         # Plan-mode and AskUserQuestion need a human: interactive sessions only.
@@ -234,38 +216,13 @@ def _seed_tool_factories() -> tuple[list, list]:
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
         # A factory so toggling LLM_ENABLE_TOOL_SPILL via /config applies next run.
         lambda ctx: [read_tool_result] if CFG.LLM_ENABLE_TOOL_SPILL else [],
-        # LLM_JOURNAL_ENABLED=false is enforced by these tools' absence. The
-        # journal-compliance hook names them, so `resolve_agent_hook_tools`
-        # strips defer_loading there.
-        #
-        # SearchJournal alone is not deferred: remembering happens mid-
-        # conversation, and a schema behind `search_tools` asks the model to
-        # think of a search before it can search — the step that gets skipped.
-        # The note writers stay deferred, and the compliance judge covers their
-        # write path. `WriteDayHandover` stays deferred too, but the judge is not
-        # its safety net — that hook fires per turn, not per session end — so the
-        # day block names it to the agent that is actually leaving.
         # Memory: three tools, none deferred. A schema behind `search_tools` asks
-        # the model to think of a search before it can search — measured on the
-        # journal as the step that gets skipped — and a write verb nobody can see
-        # is a memory nobody records.
+        # the model to think of a search before it can search — the step that
+        # gets skipped — and a write verb nobody can see is a memory nobody
+        # records. `LLM_MEMORY_ENABLED=false` is enforced by these tools'
+        # absence: no other store stands behind them now.
         lambda ctx: (
             [search_memory, remember, forget] if CFG.LLM_MEMORY_ENABLED else []
-        ),
-        lambda ctx: (
-            [
-                Tool(search_journal, defer_loading=False),
-                Tool(log_activity, defer_loading=True),
-                Tool(write_day_handover, defer_loading=True),
-                Tool(write_journal_note, defer_loading=True),
-                Tool(supersede_journal_note, defer_loading=True),
-                Tool(delete_journal_note, defer_loading=True),
-            ]
-            # Memory replaces the journal: while it is on, the journal's tools
-            # stay out even if LLM_JOURNAL_ENABLED is on. Two memories in one
-            # prompt are two answers to the same question.
-            if CFG.LLM_JOURNAL_ENABLED and not CFG.LLM_MEMORY_ENABLED
-            else []
         ),
         lambda ctx: Tool(
             tag(create_list_zrb_task_tool(), Capability.READ),

@@ -49,10 +49,7 @@ def test_a_value_the_cast_rejects_when_empty_is_none_or_has_a_declared_default(
     [
         ("LLM_AGENT_MESSAGE_LIMIT", "20"),
         ("LLM_DICTATION_INTERRUPT_JUDGE_TIMEOUT", "2.0"),
-        ("LLM_JOURNAL_AUTO_SEARCH_MAX_HITS", "3"),
-        ("LLM_JOURNAL_CATALOG_MAX_ENTRIES", "25"),
-        ("LLM_JOURNAL_COMPLIANCE_TURNS", "12"),
-        ("LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION", "20"),
+        ("LLM_MEMORY_RECENT_LOG_LINES", "4"),
         ("LLM_SUBAGENT_HISTORY_RETAIN", "50"),
         ("LOGGING_FILE_BACKUP_COUNT", "3"),
         ("LOGGING_FILE_MAX_BYTES", "10485760"),

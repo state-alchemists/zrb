@@ -34,7 +34,7 @@ The prompt is read by the model on every request, so small mistakes here cost on
 
 1. **Seven fixed sections: rules in files, facts in code.** `persona`, `principle`, `workflow`, `example` and `profile` are markdown files. `system_context` and `project_context` are built in Python from the real environment. There is no registry of arbitrary sections, so the whole prompt can be read from five files and two functions. → [ADR-0044](../../adr/adr-0044.md)
 
-2. **The cached prefix stays byte-stable.** The system prompt carries only facts that hold for the whole session. Time, git state, todos, mode and the journal index go into a `<live-context>` block appended to the user's turn, so the system prompt and all earlier turns stay cacheable. → [ADR-0042](../../adr/adr-0042.md)
+2. **The cached prefix stays byte-stable.** The system prompt carries only facts that hold for the whole session. Time, git state, todos, mode and the memory block go into a `<live-context>` block appended to the user's turn, so the system prompt and all earlier turns stay cacheable. → [ADR-0042](../../adr/adr-0042.md)
 
 3. **Only the profile section varies by model.** `LLM_PROFILE` picks one of three files, `profile.minimal.md`, `profile.standard.md` or `profile.capable.md`. The other sections are shared plain markdown with no conditional markers, so every model gets the same safety baseline. → [ADR-0049](../../adr/adr-0049.md), [ADR-0046](../../adr/adr-0046.md)
 
@@ -77,7 +77,8 @@ flowchart TD
 | `create_project_context_prompt` | `src/zrb/llm/prompt/claude.py` | Lists project docs and inlines `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` nearest first within `LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` |
 | `build_skill_replacements` | `src/zrb/llm/prompt/claude.py` | Fills the skill catalogue placeholders inside `workflow` |
 | `PromptRegistry`, `prompt_registry` | `src/zrb/llm/prompt/registry.py` | The shared default list of extra prompts, read from `CFG.LLM_PROMPT` lazily |
-| `render_live_context` | `src/zrb/llm/prompt/live_context.py` | The per-turn lines (time, git, todos, mode) and the journal index |
+| `render_live_context` | `src/zrb/llm/prompt/live_context.py` | The per-turn lines (time, git, todos, mode) and the memory block |
+| `render_memory_block`, `render_memory_delta` | `src/zrb/llm/prompt/memory_context.py` | The `<memory>` block and the per-turn `<memory-delta>` |
 | `resolve_system_prompt` | `src/zrb/llm/task/shared_getters.py` | Composes the prompt for one run |
 | `create_agent` | `src/zrb/llm/agent/common.py` | Passes the finished string to `pydantic_ai.Agent` as `instructions` |
 
@@ -116,10 +117,10 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | A deployment pins its own section list | `PromptManager(include_sections=...)` or `ZRB_LLM_INCLUDE_SECTIONS` | That list and order replace the default; omissions are the deployment's choice |
 | `LLM_PROFILE=auto` | `resolve_profile` in `src/zrb/llm/prompt/profile.py` | The model id picks the profile by declared size; an id that declares nothing gets `standard` |
 | The `minimal` profile | `active_profile`, read again at tool registration | Also drops the delegate tools — see [Tools](tools.md) |
-| First turn, or after compaction | `LLMTask` and `summarize_history` | The journal index is added to live context, or baked into the summary |
-| A sub-agent with `inherit_sections` | `src/zrb/llm/subagent/building.py` | A temporary `PromptManager` composes only those sections, then the agent's own body is appended. Being single-turn, it folds live context (or, without `system_context`, just the journal index) into its system prompt |
+| First turn, or after compaction | `LLMTask` and `summarize_history` | The memory block is added to live context, or re-emitted so the summary carries it |
+| A sub-agent with `inherit_sections` | `src/zrb/llm/subagent/building.py` | A temporary `PromptManager` composes only those sections, then the agent's own body is appended. Being single-turn, it folds live context (or, without `system_context`, just the memory block) into its system prompt |
 | A custom per-turn fact | `PromptManager.add_live_context` | Rendered inside `<live-context>`, never in the system prompt |
-| Plan mode or journal on/off | `src/zrb/llm/common_tools.py` | Changes which tools are registered; no prompt section switches on or off |
+| Plan mode, or memory on/off | `src/zrb/llm/common_tools.py` | Changes which tools are registered; no prompt section switches on or off |
 
 ### Change it here
 
@@ -131,14 +132,14 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | Change the default section order | `src/zrb/config/mixins/llm_prompt.py` | `test/llm/prompt/test_config_defaults.py` |
 | Change override lookup | `src/zrb/llm/prompt/prompt.py` | `test/llm/prompt/test_default_prompt.py` |
 | Change session facts | `src/zrb/llm/prompt/system_context.py` | `test/llm/prompt/test_system_context.py` |
-| Change per-turn live context | `src/zrb/llm/prompt/live_context.py` | `test/llm/prompt/test_live_context.py` |
+| Change per-turn live context | `src/zrb/llm/prompt/live_context.py` | `test/llm/prompt/test_live_context_delta.py` |
 | Change extra-prompt layering | `src/zrb/llm/prompt/registry.py` | `test/llm/prompt/test_registry.py` |
 | Change sub-agent inheritance | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/test_manager_building.py` |
 
 ## See Also
 
 - [The LLM Turn](../1-spine/llm-turn.md) — where the composed prompt enters the run
-- [History & Compaction](../3-peripheral-flow/history-and-compaction.md) — how the journal index survives summarization
+- [History & Compaction](../3-peripheral-flow/history-and-compaction.md) — how the memory block survives summarization
 - [Sub-agents](sub-agents.md) — inherited sections and a child's own prompt
 - [Programming the Prompt](../../llm/programming-the-prompt.md) — the user-facing guide to overriding and extending
 - [LLM Configuration](../../configuration/llm-config.md) — section, directory and profile settings

@@ -5,7 +5,7 @@ tools: [
   Shell, Read, Write, Edit, RM, MV,
   LS, Glob, Grep,
   AnalyzeFile, AnalyzeCode,
-  SearchJournal, WebSearch, WebFetch,
+  SearchMemory, WebSearch, WebFetch,
   EnterWorktree, ExitWorktree, ListWorktrees,
   LspFindDefinition, LspFindReferences, LspGetDiagnostics,
   LspGetDocumentSymbols, LspGetWorkspaceSymbols, LspGetHoverInfo,

@@ -19,7 +19,7 @@ When research informs an answer, cite the source close to the claim.
 Deferred tools show only their names until you search for them. Search when:
 
 - A skill, agent file, instruction, or context block names a tool outside your visible set (e.g. LSP tools referenced by `core-coding`).
-- The task touches a capability with dedicated tools — semantic analysis, LSP navigation, worktree management, journaling. A generic tool that could approximate the job (editing files by hand, a shell command) does not cover it: dedicated tools keep their own state consistent, and working around them breaks it.
+- The task touches a capability with dedicated tools — semantic analysis, LSP navigation, worktree management, memory. A generic tool that could approximate the job (editing files by hand, a shell command) does not cover it: dedicated tools keep their own state consistent, and working around them breaks it.
 - You are about to say something cannot be done.
 
 Search with several specific queries at once, in words a tool name or description would contain; results are unioned. A found tool is real — call it through its normal contract. If nothing is found, do not retry: proceed with the visible tools or state the gap. Skip the search only when a visible tool is plainly the right one for the job, such as reading a source file.

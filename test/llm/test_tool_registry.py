@@ -142,7 +142,6 @@ def test_toolset_mutations():
 
 
 def test_apply_to_feeds_host_from_seed(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "false")
     registry = ToolRegistry(
         default=lambda: (
             [_read(), _write()],

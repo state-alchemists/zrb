@@ -259,18 +259,18 @@ class SubAgentBuilding:
             composed = pm.compose_prompt()(ctx).strip()
             # Sub-agents are single-turn, so prompt caching gives no reason to
             # keep volatile state out of the system prompt: fold <live-context>
-            # and the journal index in here (the main chat puts them in the
-            # user turn).
+            # and the memory block in here (the main chat puts them in the user
+            # turn).
             if "system_context" in sections:
-                live = pm.create_live_context(ctx, inject_journal_index=True)
+                live = pm.create_live_context(ctx, inject_memory=True)
                 if live:
                     composed = f"{composed}\n\n{live}".strip()
             else:
-                # No system_context to carry it: inject the index alone, not the
-                # per-turn state that system_context owns.
-                journal_block = render_carried_context()
-                if journal_block:
-                    composed = f"{composed}\n\n{journal_block}".strip()
+                # No system_context to carry it: inject the memory block alone,
+                # not the per-turn state that system_context owns.
+                memory_block = render_carried_context()
+                if memory_block:
+                    composed = f"{composed}\n\n{memory_block}".strip()
             return composed
         except Exception:
             # Don't fail agent creation on inheritance issues — surface as no
@@ -294,7 +294,7 @@ class SubAgentBuilding:
     def get_tool_factories(
         self,
     ) -> "list[Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]]":
-        """Config-gated tool factories (journal, plan-mode, skill, ...). Public
+        """Config-gated tool factories (memory, plan-mode, skill, ...). Public
         for the same reason as `get_tool_registry`."""
         return self._owner.tool_factory_overrides
 

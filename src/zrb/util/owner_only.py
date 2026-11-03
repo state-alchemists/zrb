@@ -1,8 +1,8 @@
 """Owner-only (`0700`/`0600`) directories and files for private data.
 
-The archive and the journal are created owner-only. `tighten_once` narrows an
-existing directory whose mode is wider, once per directory, leaving a marker
-beside it so it is never walked twice.
+The memory store and the verbatim archive are created owner-only.
+`tighten_once` narrows an existing directory whose mode is wider, once per
+directory, leaving a marker beside it so it is never walked twice.
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ FILE_MODE = 0o600
 # `O_BINARY` exists only there.
 _OPEN_FLAGS = getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
 
-# Written beside the directory, not inside it: a marker inside the journal would
-# show up in the journal's own git history, and one inside the archive directory
-# would sit among the archives it is not.
+# Written beside the directory, not inside it: a marker inside the memory store
+# would show up in the store's own git history, and one inside the archive
+# directory would sit among the archives it is not.
 MARKER_SUFFIX = ".owner-only"
 
 
@@ -41,19 +41,19 @@ def tighten_once(
 
     Only for a directory zrb owns. A symlink is skipped rather than followed, so
     narrowing cannot be redirected onto someone else's file, and an entry that
-    refuses the change is left as it is: the prune and the journal write that
+    refuses the change is left as it is: the prune and the memory write that
     call this must not fail over permissions. Does nothing on Windows, which has
     no mode bits to narrow.
 
     *owned_entries* narrows only the direct children of *directory* it accepts
     (each one's own mode and everything beneath it), leaving *directory* itself
     and everything it rejects untouched. Give a collection for a fixed set of
-    names (the journal's categories), or a predicate over a name for an
+    names (the store's own directories), or a predicate over a name for an
     open-ended one (every `.json` history file). Without it the whole tree,
     *directory* included, is narrowed: only safe for a leaf zrb created
     exclusively (the archive's `verbatim` directory), since a directory the user
-    configures (the journal or history root) may hold content that other
-    readers still need.
+    configures (the notes or history root) may hold content that other readers
+    still need.
 
     A marker file beside *directory* records that the work is done. It is read
     with `lstat` and created with `O_EXCL`, and counts only when it is a regular
@@ -63,7 +63,7 @@ def tighten_once(
     finishes.
 
     *directory* itself is checked first: `os.walk(followlinks=False)` still
-    visits a symlinked top directory, so a symlink planted at the journal or
+    visits a symlinked top directory, so a symlink planted at the memory or
     archive path would otherwise have its target's tree narrowed instead.
     """
     if os.name != "posix":
@@ -107,7 +107,7 @@ def reject_symlinked_ancestors(path: str) -> None:
     """Raise `PermissionError` if *path*, or its nearest *existing* ancestor,
     is a symlink or not a directory.
 
-    The journal and the archive create a leaf beneath a configured root that
+    The memory store and the archive create a leaf beneath a configured root that
     usually exists already, and the OS follows a symlink silently: a link
     planted at the configured path (or at an intermediate directory) would send
     everything written beneath the leaf wherever it points.
@@ -198,7 +198,7 @@ def makedirs_owner_only(path: str) -> None:
     there".
 
     Shared by every subsystem that creates a directory beneath a root the user
-    configures (the journal, the conversation history manager). Raises
+    configures (the memory store, the conversation history manager). Raises
     `PermissionError` (an `OSError`) when an existing level is a symlink or not
     a directory; a caller wanting another exception type catches and re-raises
     it.

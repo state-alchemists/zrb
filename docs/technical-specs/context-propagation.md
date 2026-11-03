@@ -42,9 +42,9 @@ The active `Context` for the executing task. Set at the start of `execute_task_a
 | `current_hook_manager` | `HookManager \| None` | Hook manager for the run; nested tools (e.g. delegate) fire SubagentStart/Stop on it |
 | `current_llm_limiter` | `LLMLimiter \| None` | Rate/token limiter for the run; tools that call a model themselves (delegate, web/file/code analysis) reach it through `get_run_llm_limiter()` |
 | `current_agent_run_scope` | `str` | Identifies this agent run to nested tools needing per-conversation state (e.g. `file_observation.py`'s read-before-overwrite tracking) — the session name for a top-level run, a fresh per-delegation id for a sub-agent, so a sub-agent never inherits what its parent or siblings observed |
-| `current_small_model` | `str \| Model \| None` | The UI's own `small_model` (set by `/model small ...`), so `journal_compliance.py`'s judge model and other small-tier consumers resolve per-session instead of leaking one process-wide value across concurrent chat sessions |
+| `current_small_model` | `str \| Model \| None` | The UI's own `small_model` (set by `/model small ...`), so the memory reviewer's model and other small-tier consumers resolve per-session instead of leaking one process-wide value across concurrent chat sessions |
 | `current_multimodal_model` | `str \| Model \| None` | The UI's own `multimodal_model` (set by `/model multimodal ...`), read by the attachment-description pipeline and the multimodal dictation backend, per-session for the same reason |
-| `current_model` | `str \| Model \| None` | The run's main model, so a helper needing its own model (the summarizer, the journal judge) falls back to it rather than to `CFG.LLM_MODEL` |
+| `current_model` | `str \| Model \| None` | The run's main model, so a helper needing its own model (the summarizer, the memory reviewer) falls back to it rather than to `CFG.LLM_MODEL` |
 
 **Layer 3 — Permission state** (`src/zrb/llm/permission/state.py`):
 

@@ -46,7 +46,8 @@ Everything about zrb's coding agent: using it, configuring it, and programming i
 | Page | Read it to… |
 |---|---|
 | [LLM Chat Request Lifecycle](llm-chat-lifecycle.md) | Follow one `zrb llm chat` request through the source code |
-| [LLM Journal System](../technical-specs/llm-context.md) | See how the journal is stored and injected |
+| [LLM Memory](../technical-specs/llm-memory.md) | See what the memory store keeps, and when it reaches the prompt |
+| [LLM Notes Directory](../technical-specs/llm-context.md) | Read the notes layout an older zrb left in `~/.zrb/llm-notes` |
 | [Architecture](../architecture/README.md) | Understand the design of each LLM subsystem |
 
 ---

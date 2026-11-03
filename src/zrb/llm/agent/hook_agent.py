@@ -55,7 +55,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
 def resolve_agent_hook_tools(names: list[str]) -> list:
     """Resolve `AgentHookConfig.tools` (names, Claude-compatible aliases
     honored) into real tool callables — including config-gated tools like the
-    journal ones, which live behind factories rather than the static
+    memory ones, which live behind factories rather than the static
     registry."""
     if not names:
         return []
@@ -84,8 +84,8 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
 
 def _undeferred(tool: Any) -> Any:
     """Strip `defer_loading` from *tool* if the shared registry/factories set
-    it (e.g. the journal tools, deferred for the main agent's rare use —
-    see `common_tools.py::_seed_tool_factories`).
+    it (e.g. a tool deferred for the main agent's rare use — see
+    `common_tools.py::_seed_tool_factories`).
 
     A hook names its tools explicitly in its own config; there is no big
     catalogue for `defer_loading` to hide a rare tool inside, so all it would

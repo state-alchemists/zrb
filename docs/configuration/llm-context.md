@@ -2,7 +2,7 @@
 
 # LLM Conversation Context
 
-How long conversations are summarized, what the journal keeps across sessions, and how `/rewind` snapshots your files.
+How long conversations are summarized, what the memory store keeps across sessions, and how `/rewind` snapshots your files.
 
 ## Table of Contents
 
@@ -13,7 +13,7 @@ How long conversations are summarized, what the journal keeps across sessions, a
   - [The archive](#the-archive)
   - [The summary itself](#the-summary-itself)
   - [Other oversized content](#other-oversized-content)
-- [Journal & Context Storage](#journal--context-storage)
+- [Memory & Notes Storage](#memory--notes-storage)
 - [Rewind & Snapshots](#rewind--snapshots)
   - [Python API](#python-api)
   - [`/rewind` commands](#rewind-commands)
@@ -77,11 +77,11 @@ What a summary replaces is also written word for word, append-only, to `<history
 
 An archive is pruned, with its lock sidecar, only once **no history refers to it**: no transcript anywhere in the history tree — the conversation's own file, a backup of it, or a delegated sub-agent's transcript under `subagent/<agent-type>/` — carries its pointer, and it is older than `ZRB_LLM_HISTORY_RETENTION` (so an archive written just before its history is saved is never mistaken for an orphan, and `0` keeps every archive). Sub-agent transcripts are searched because they point at the same shared `verbatim/` directory. That keeps the directory bounded without leaving a summary pointing at text that is gone. Archives may still contain sensitive text: protect access to the history directory and back it up as needed.
 
-A directory written before these permissions existed is narrowed **once**, on first use, with a marker (`<dir>.owner-only`) beside it so later runs leave it alone — a mode you change back after that stays as you set it. This applies to both the history and the journal directory.
+A directory written before these permissions existed is narrowed **once**, on first use, with a marker (`<dir>.owner-only`) beside it so later runs leave it alone — a mode you change back after that stays as you set it. This applies to both the history directory and the memory store.
 
 ### The summary itself
 
-The summary reaches the next model as a fenced block that names itself: it opens with `# SYSTEM: Automated Context Restoration`, says in as many words that it is derived data rather than the user speaking, and closes with an explicit end marker. Both are load bearing, because role alternation merges the summary into the same user turn as the real user messages that follow it, and without them the reader cannot tell the automation from the user. Its size is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`, a share of the trigger threshold rather than a fixed count, so the bound follows the model's window: 0.05 is 18,750 tokens on a 500,000-token window, with a 1,000-token floor below that. The bound is measured on the block as it will be inserted — zrb's own framing, the snapshot, the journal index and the archive pointer. A block over it is shortened at most twice and then cut, losing whole sections from the least durable end first and keeping the closing tag; a summary that arrived without the schema is bounded on the same rule rather than dropped, since an over-budget history fails the request where a bulky summary only costs tokens. If the framing and notes fill the cap on their own, the snapshot is dropped and the warning names the setting to raise. A summary that comes back empty leaves the history untouched instead.
+The summary reaches the next model as a fenced block that names itself: it opens with `# SYSTEM: Automated Context Restoration`, says in as many words that it is derived data rather than the user speaking, and closes with an explicit end marker. Both are load bearing, because role alternation merges the summary into the same user turn as the real user messages that follow it, and without them the reader cannot tell the automation from the user. Its size is bounded by `ZRB_LLM_SUMMARY_MAX_TOKEN_RATIO`, a share of the trigger threshold rather than a fixed count, so the bound follows the model's window: 0.05 is 18,750 tokens on a 500,000-token window, with a 1,000-token floor below that. The bound is measured on the block as it will be inserted — zrb's own framing, the snapshot, the memory block and the archive pointer. A block over it is shortened at most twice and then cut, losing whole sections from the least durable end first and keeping the closing tag; a summary that arrived without the schema is bounded on the same rule rather than dropped, since an over-budget history fails the request where a bulky summary only costs tokens. If the framing and notes fill the cap on their own, the snapshot is dropped and the warning names the setting to raise. A summary that comes back empty leaves the history untouched instead.
 
 ### Other oversized content
 
@@ -93,26 +93,26 @@ The same mechanism keeps one large repo or file read from blowing the context wi
 | `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering summarization of repo-analysis results | 40% of `MAX_TOKEN_PER_REQUEST` |
 | `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD` | Token count above which a single file's analysis is summarized | 40% of `MAX_TOKEN_PER_REQUEST` |
 
-## Journal & Context Storage
+## Memory & Notes Storage
 
-How the journal works (storage layout, when the index is injected, how truncation behaves) is explained once, in [LLM Journal System](../technical-specs/llm-context.md). This section lists the knobs.
+How the store works — the four file kinds, what reaches the model and when — is explained once, in [LLM Memory](../technical-specs/llm-memory.md). This section lists the knobs.
 
-> **Note on White-labeling:** the `ZRB_` prefix and the `~/.zrb/` paths below are the stock build's. A white-labeled build reads its own `<PREFIX>_LLM_…` variables and derives the journal directory from its root group name (`~/.<ROOT_GROUP_NAME>/llm-notes/`, e.g. `~/.acme/llm-notes/`). See [White-labeling](../advanced-topics/white-labeling.md).
+The journal's fourteen `ZRB_LLM_JOURNAL_*` settings are retired. A start that still sets one names it and what to set instead, from the list in `src/zrb/config/retired.py`: the directory became `ZRB_LLM_NOTES_DIR`, the git backing and the judge became `ZRB_LLM_MEMORY_GIT_ENABLED` and `ZRB_LLM_MEMORY_REVIEWER_ENABLED`, the lock timeout became `ZRB_LLM_MEMORY_LOCK_TIMEOUT`, and the rest controlled a system that no longer exists.
+
+> **Note on White-labeling:** the `ZRB_` prefix and the `~/.zrb/` paths below are the stock build's. A white-labeled build reads its own `<PREFIX>_LLM_…` variables and puts the notes directory under its root group name (`~/.<ROOT_GROUP_NAME>/llm-notes/`, e.g. `~/.acme/llm-notes/`). See [White-labeling](../advanced-topics/white-labeling.md).
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_JOURNAL_ENABLED` | Master switch. `false` unregisters the journal tools (`SearchJournal`, `LogActivity`, `WriteDayHandover`, `WriteJournalNote`, `SupersedeJournalNote`, `DeleteJournalNote`) and the `<journal-index>` injection. Clearing `ZRB_LLM_JOURNAL_DIR` does not disable it — that falls back to the default path | `on` |
-| `ZRB_LLM_JOURNAL_DIR` | Long-term notes directory | `~/.zrb/llm-notes/` |
-| `ZRB_LLM_JOURNAL_INDEX_FILE` | Filename of every journal index: the root one — the index injected into context — and one in each category and `activity-log` directory. The writers and `render_journal_index` both resolve it here, so the injected index and the catalogs behind it always agree. Set it before the first write: an existing journal keeps the indexes it already has under their old name, so a changed value starts fresh ones instead of renaming the old | `index.md` |
-| `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` | Max characters of the index injected into context, the overflow note included. What survives is **ranked**, not sliced from the top: pinned lines first (a pin says the note holds every turn), then claims, then the `## Directories` pointer, then catalog titles; the sections take turns so a long one cannot empty a short one, and a catalog title is dropped only once the claim for the same note is in the block. The content stops a quarter of the cap short so the overflow note — which names the sections that lost lines — has room, and the note takes whatever the content could not use. A cap that keeps no line of the index, or cannot hold the `(...more)` marker, injects no block at all. `0` suppresses the injection; a negative value injects it uncapped | `3600` |
-| `ZRB_LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION` | Max `hud_line` entries per root-index HUD section (User, Constraints, Agent, Recent); oldest `updated` unpinned evicted first; a pinned line only when every line in the section is pinned, and then the oldest pinned go until the cap holds (a section of more pinned lines than the cap, with some unpinned, loses its unpinned lines and stays above the cap). Foreign (hand-written) lines are not counted. Each section lists its lines newest `updated` first, so the capped injection drops the oldest. `<= 0` disables the cap | `20` |
-| `ZRB_LLM_JOURNAL_CATALOG_MAX_ENTRIES` | Max notes the root index's `## Recent Insights` catalog lists (a count, not a duration): the newest active notes by `updated`, newest first, then one line counting the older ones. The category indexes always list every note. `<= 0` lists every active note | `25` |
-| `ZRB_LLM_JOURNAL_AUTO_SEARCH_ENABLED` | On a session's first turn, run one `SearchJournal` against the opening message and fold hits into `<journal-index>` under an unverified "Possibly Related" section. Costs one search subprocess per session | `on` |
-| `ZRB_LLM_JOURNAL_AUTO_SEARCH_MAX_HITS` | Max `SearchJournal` hits folded into the first-turn auto-search | `3` |
-| `ZRB_LLM_JOURNAL_GIT_ENABLED` | Git-back the journal directory: `git init` on first use, commit after every `LogActivity`/`WriteDayHandover`/`WriteJournalNote`/`SupersedeJournalNote`/`DeleteJournalNote`. Gives unbounded, diffable history, so a human can recover a delete or bad overwrite (the in-file History block keeps only 3 revisions). Best-effort: a missing `git` or failed commit only skips the commit | `on` |
-| `ZRB_LLM_JOURNAL_LOCK_TIMEOUT` | Seconds to wait for another journal writer's lock before returning a busy-journal error; `<= 0` fails immediately. Does not limit git work *after* acquiring the lock | `30` |
-| `ZRB_LLM_JOURNAL_COMPLIANCE_ENABLED` | Register the built-in `journal-compliance-judge` Stop hook, which asks a small model whether a turn that wrote files or stated a preference left the journal recording it. `ZRB_LLM_JOURNAL_ENABLED=off` still takes it out with the rest of journaling | `on` |
-| `ZRB_LLM_JOURNAL_COMPLIANCE_TURNS` | User turns between journal-compliance checks on a conversation that wrote no files and stated no preference; the judge otherwise runs only on a turn that did one of those. `<= 0` turns the periodic check off | `12` |
+| `ZRB_LLM_MEMORY_ENABLED` | The privacy switch, not a choice between stores. `off` unregisters `SearchMemory`, `Remember` and `Forget`, suppresses the `<memory>` block and the reviewer, and leaves the store untouched on disk — the session neither reads nor writes a memory, and nothing takes its place | `on` |
+| `ZRB_LLM_NOTES_DIR` | The notes directory: the store lives inside it as `memory-v1`, and it is what `zrb memory migrate` reads. One directory to back up, and the notes an older zrb wrote stay beside the store. `.version` at its root records that they were read | `~/.zrb/llm-notes/` |
+| `ZRB_LLM_MEMORY_DIR` | The store itself: `core.md`, `facts/`, `diary/`, `log/` and a git repository. Point it at an Obsidian vault subfolder to browse memory as a graph. The version segment keeps an older install from reading a newer format as its own | `<ZRB_LLM_NOTES_DIR>/memory-v1` |
+| `ZRB_LLM_MEMORY_CORE_MAX_CHARS` | Characters of `core.md` — the pinned claims and open loops injected on a conversation's first turn. The cap is enforced by refusal, not truncation: a pin that does not fit fails and names the deficit. `0` means no pins fit and the core is never written | `4000` |
+| `ZRB_LLM_MEMORY_RECENT_MAX_CHARS` | Characters of the `## Recent` block injected beside the core: the newest handover, today's diary claim and the last few log lines. Whole lines only | `1600` |
+| `ZRB_LLM_MEMORY_RECENT_LOG_LINES` | Log lines `## Recent` carries, today's first and yesterday's when today is short. `0` drops them and keeps the handover | `4` |
+| `ZRB_LLM_MEMORY_REVIEWER_ENABLED` | The background reviewer that reads each completed turn and writes what is durable. Its normal answer is "nothing", so it costs one small-model call on a turn that recorded nothing. `off` leaves writing to the agent's own `Remember` calls | `on` |
+| `ZRB_LLM_MEMORY_GIT_ENABLED` | Commit every memory write, so git is the audit log and the undo button. A commit that fails never fails the write | `on` |
+| `ZRB_LLM_MEMORY_LOG_RETENTION_DAYS` | Days of `log/` kept. `0` keeps every log day; a positive value deletes a day's log once it is older than that, which is the one destructive operation memory has. Facts and diary entries are never pruned | `0` |
+| `ZRB_LLM_MEMORY_LOCK_TIMEOUT` | Seconds a memory write waits for another writer before failing. The lock is taken before the file is read, so two writers on one subject cannot drop each other's revision | `30` |
 | `ZRB_LLM_SELF_REVIEW_ENABLED` | Built-in self-review Stop hook. On a turn that changed files, a fresh-context reviewer reads the working directory's diff since the turn started (every repository under it, nested ones and worktrees included; shell edits and mid-turn commits included; earlier uncommitted work excluded) plus read-only surrounding code. A `Request changes` verdict extends the turn so the agent fixes the findings. Snapshots go to a private temporary git store, never your `.git/objects`. Costs two snapshots per turn (start and Stop) and one reviewer run per turn that changed files | `off` |
 | `ZRB_LLM_SELF_REVIEW_MAX_ROUNDS` | Consecutive blocking reviews in one turn before it ends anyway; a non-blocking review resets the count | `2` |
 | `ZRB_LLM_SELF_REVIEW_MODEL` | Reviewer model. Empty uses the run's model; a different model shares fewer blind spots | (empty) |
@@ -126,7 +126,7 @@ How the journal works (storage layout, when the index is injected, how truncatio
 | `ZRB_LLM_ARCHIVE_LOCK_TIMEOUT` | Seconds a verbatim archive append waits for another writer, so a rollback truncates only its own bytes. On timeout nothing is written and the summary carries no pointer (`0` = fail at once) | `30` |
 | `ZRB_LLM_AGENT_MESSAGE_LIMIT` | Max messages the main agent and one delegated sub-agent may send each other (both directions together) before `SendMessageToSubagent` / `SendMessageToParent` refuse, so two agents cannot answer each other forever. Human messages do not count | `20` |
 | `ZRB_LLM_SUBAGENT_HISTORY_RETAIN` | Max sub-agent transcripts kept across all agent types (`-1` = keep all); oldest pruned on each new delegation. Transcripts live under `ZRB_LLM_HISTORY_DIR/subagent/<agent-type>/` | `50` |
-| `ZRB_LLM_USAGE_DIR` | Directory of the local usage logs behind `/usage`: `usage-YYYY-MM.jsonl` (one line per completed run: token, request and tool-call counts, duration, and cost where the model is priced) and `journal-YYYY-MM.jsonl` (one line per journal event, note ids hashed). Numbers, tool names and hashed ids only: no prompt text, tool arguments, note titles or file content | `~/.zrb/llm-usage/` |
+| `ZRB_LLM_USAGE_DIR` | Directory of the local usage log behind `/usage`: `usage-YYYY-MM.jsonl`, one line per completed run (token, request and tool-call counts, duration, and cost where the model is priced). Numbers and tool names only: no prompt text, tool arguments, file paths or file content | `~/.zrb/llm-usage/` |
 | `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_DIR` | Directory of the cross-session history of submitted messages that `↑`/`↓` recall in the chat input box | `~/.zrb/llm-previous-message-history/` |
 | `ZRB_LLM_PREVIOUS_MESSAGE_HISTORY_MAX_ENTRIES` | Most messages that history keeps; oldest dropped first (`0` = keep all) | `1000` |
 

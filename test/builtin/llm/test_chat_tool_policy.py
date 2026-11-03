@@ -3,9 +3,9 @@
 from unittest.mock import patch
 
 from zrb.builtin.llm.chat_tool_policy import (
-    approve_if_mv_inside_journal_dir,
+    approve_if_mv_inside_notes_dir,
     approve_if_path_inside_cwd,
-    approve_if_path_inside_journal_dir,
+    approve_if_path_inside_notes_dir,
     approve_if_path_inside_parent,
     approve_if_path_inside_skill_or_plugin_dir,
     path_inside_any_parent,
@@ -74,56 +74,56 @@ class TestApproveIfPathInsideCwd:
         assert result is False
 
 
-class TestApproveIfPathInsideJournalDir:
+class TestApproveIfPathInsideNotesDir:
 
-    def test_path_inside_journal_dir(self, tmp_path, monkeypatch):
-        """Approves when path is inside journal dir."""
+    def test_path_inside_notes_dir(self, tmp_path, monkeypatch):
+        """Approves when path is inside the notes dir."""
         monkeypatch.setattr(
             "zrb.builtin.llm.chat_tool_policy.CFG",
-            type("CFG", (), {"LLM_JOURNAL_DIR": str(tmp_path)})(),
+            type("CFG", (), {"LLM_NOTES_DIR": str(tmp_path)})(),
         )
         child = str(tmp_path / "entry.md")
-        result = approve_if_path_inside_journal_dir({"path": child})
+        result = approve_if_path_inside_notes_dir({"path": child})
         assert result is True
 
 
-class TestApproveIfMvInsideJournalDir:
+class TestApproveIfMvInsideNotesDir:
 
-    def _patch_cfg(self, monkeypatch, journal_dir):
+    def _patch_cfg(self, monkeypatch, notes_dir):
         monkeypatch.setattr(
             "zrb.builtin.llm.chat_tool_policy.CFG",
-            type("CFG", (), {"LLM_JOURNAL_DIR": str(journal_dir)})(),
+            type("CFG", (), {"LLM_NOTES_DIR": str(notes_dir)})(),
         )
 
-    def test_both_paths_inside_journal_dir(self, tmp_path, monkeypatch):
+    def test_both_paths_inside_notes_dir(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir(
+        result = approve_if_mv_inside_notes_dir(
             {"src": str(tmp_path / "a.md"), "dst": str(tmp_path / "b.md")}
         )
         assert result is True
 
     def test_src_outside_returns_false(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir(
+        result = approve_if_mv_inside_notes_dir(
             {"src": "/etc/passwd", "dst": str(tmp_path / "b.md")}
         )
         assert result is False
 
     def test_dst_outside_returns_false(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir(
+        result = approve_if_mv_inside_notes_dir(
             {"src": str(tmp_path / "a.md"), "dst": "/etc/passwd"}
         )
         assert result is False
 
     def test_missing_src_returns_false(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir({"dst": str(tmp_path / "b.md")})
+        result = approve_if_mv_inside_notes_dir({"dst": str(tmp_path / "b.md")})
         assert result is False
 
     def test_missing_dst_returns_false(self, tmp_path, monkeypatch):
         self._patch_cfg(monkeypatch, tmp_path)
-        result = approve_if_mv_inside_journal_dir({"src": str(tmp_path / "a.md")})
+        result = approve_if_mv_inside_notes_dir({"src": str(tmp_path / "a.md")})
         assert result is False
 
 

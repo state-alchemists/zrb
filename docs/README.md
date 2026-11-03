@@ -64,7 +64,7 @@ See the [LLM docs index](llm/README.md) for every page about `zrb llm chat`, `LL
 - [Architecture: The Design of Zrb](architecture/README.md) — each part's problem, principles and invariants
 - [Architecture Decision Records](adr/README.md) — why things are the way they are
 - [LLM Chat Request Lifecycle](llm/llm-chat-lifecycle.md) — one request traced through the source
-- Technical specs: [Context Propagation](technical-specs/context-propagation.md), [LLM Journal System](technical-specs/llm-context.md), [LLM History Sanitization](technical-specs/llm-history-sanitization.md)
+- Technical specs: [Context Propagation](technical-specs/context-propagation.md), [LLM Memory](technical-specs/llm-memory.md), [LLM Notes Directory](technical-specs/llm-context.md), [LLM History Sanitization](technical-specs/llm-history-sanitization.md)
 
 ## VII. Changelog
 

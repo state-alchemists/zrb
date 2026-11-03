@@ -13,7 +13,7 @@ CAPABILITY_ATTR = "zrb_capability"
 
 
 class Capability(str, Enum):
-    READ = "read"  # pure reads: Read, LS, Glob, Grep, Analyze*, SearchJournal
+    READ = "read"  # pure reads: Read, LS, Glob, Grep, Analyze*, SearchMemory
     EDIT = "edit"  # filesystem mutation: Write, Edit, RM, MV, Enter/ExitWorktree
     EXECUTE = "execute"  # arbitrary side effects: Shell, RunZrbTask
     NETWORK = "network"  # outbound network: WebSearch, WebFetch

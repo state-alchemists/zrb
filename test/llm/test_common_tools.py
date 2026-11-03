@@ -21,14 +21,13 @@ from zrb.llm.permission import Capability, tool_capability
 
 
 @pytest.fixture(autouse=True)
-def _journal_on_its_own(monkeypatch):
-    """Memory off unless a test turns it on.
+def _memory_on(monkeypatch):
+    """Memory on unless a test turns it off.
 
-    Memory replaces the journal, so while it is on the journal's tools stay out
-    even with `ZRB_LLM_JOURNAL_ENABLED=true` — which would make every journal
-    assertion below read the wrong switch.
+    It is the only store now, so a test that wants to see the shipped surface
+    has to have it on: with it off the three memory tools are simply absent.
     """
-    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "false")
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "true")
 
 
 class RecordingHost:
@@ -66,22 +65,6 @@ class RecordingHost:
         return {name for name in map(tool_name, self.resolved_tools()) if name}
 
 
-def _names(monkeypatch, journal_enabled: bool) -> set[str]:
-    monkeypatch.setenv(
-        "ZRB_LLM_JOURNAL_ENABLED", "true" if journal_enabled else "false"
-    )
-    host = RecordingHost()
-    apply_common_tools(host)
-    return host.resolved_tool_names()
-
-
-JOURNAL_TOOLS = {
-    "SearchJournal",
-    "LogActivity",
-    "WriteJournalNote",
-    "SupersedeJournalNote",
-}
-
 MEMORY_TOOLS = {"SearchMemory", "Remember", "Forget"}
 
 
@@ -97,24 +80,23 @@ def test_memory_tools_registered_when_memory_enabled(monkeypatch):
 
 
 def test_memory_tools_unregistered_when_memory_disabled(monkeypatch):
+    """Off is the privacy switch: a session that records nothing offers no verb."""
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "false")
     assert not (MEMORY_TOOLS & _resolved_names())
 
 
-def test_the_journal_steps_aside_while_memory_is_on(monkeypatch):
-    """Two memories in one prompt are two answers to the same question."""
-    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "true")
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+def test_the_rest_of_the_surface_survives_memory_being_off(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "false")
     names = _resolved_names()
-    assert MEMORY_TOOLS <= names
-    assert not (JOURNAL_TOOLS & names)
+    assert not (MEMORY_TOOLS & names)
+    assert {"Read", "Write", "Grep"} <= names
 
 
 def test_memory_tools_are_never_deferred(monkeypatch):
     """A write verb nobody can see is a memory nobody records.
 
-    The journal deferred its note writers because the compliance judge carried
-    their write path; memory has no judge behind a deferred schema, and a
-    `search_tools` step before every recall is the step that gets skipped.
+    A `search_tools` step before every recall is the step that gets skipped, so
+    all three ship visible.
     """
     monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "true")
     host = RecordingHost()
@@ -144,7 +126,7 @@ def test_apply_stores_providers_without_resolving_anything(monkeypatch):
     provider appends are exactly the storage an agent build resolves later —
     which is what keeps the (transitively heavy) resolution off `import zrb`.
     """
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
     assert host.tools == []
@@ -152,50 +134,9 @@ def test_apply_stores_providers_without_resolving_anything(monkeypatch):
     assert len(host.toolset_factories) == 1
     assert len(host.policies) == 1
     # Resolution is the host's build step, not apply's — and it materializes
-    # the full shipped set, scoped by config (journal off here is still on).
+    # the full shipped set, scoped by config.
     assert {"Read", "Write", "Grep"} <= host.resolved_tool_names()
-    assert JOURNAL_TOOLS <= host.resolved_tool_names()
-
-
-def test_journal_tools_registered_when_journal_enabled(monkeypatch):
-    assert JOURNAL_TOOLS <= _names(monkeypatch, True)
-
-
-def test_journal_tools_unregistered_when_journal_disabled(monkeypatch):
-    """The tools *are* the journal interface — no prompt section describes it.
-
-    So the switch has to reach them: with it off there is nothing left telling
-    the model a journal exists, which is the surface the toggle exists to remove.
-    """
-    names = _names(monkeypatch, False)
-    assert not (JOURNAL_TOOLS & names)
-    # The switch is scoped to journaling: unrelated tools keep registering.
-    assert {"Read", "Write", "Grep"} <= names
-
-
-def test_journal_writers_are_deferred_for_the_main_agent(monkeypatch):
-    """The writers are rarely touched per turn, so their schemas stay hidden
-    until `search_tools` — the hook path un-defers its own copy separately
-    (`agent/hook_agent.py::_undeferred`)."""
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
-    host = RecordingHost()
-    apply_common_tools(host)
-    by_name = {tool_name(t): t for t in host.resolved_tools()}
-    for name in JOURNAL_TOOLS - {"SearchJournal"} | {"DeleteJournalNote"}:
-        assert by_name[name].defer_loading is True
-
-
-def test_search_journal_is_deferred_never(monkeypatch):
-    """Recall happens mid-conversation, so its schema must already be in hand.
-
-    Behind `search_tools` the model has to think of a search before it can
-    search, which is the step that gets skipped; a reminder in the prompt only
-    exists on a conversation's first turn."""
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
-    host = RecordingHost()
-    apply_common_tools(host)
-    by_name = {tool_name(t): t for t in host.resolved_tools()}
-    assert by_name["SearchJournal"].defer_loading is False
+    assert MEMORY_TOOLS <= host.resolved_tool_names()
 
 
 def test_read_tool_result_reflects_the_live_spill_flag(monkeypatch):
@@ -221,7 +162,6 @@ def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
     Registering the allowlist alongside the tools it guards is what makes the
     deleted `git_mandate` section safe to delete.
     """
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
     assert len(host.policies) == 1
@@ -229,7 +169,6 @@ def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
 
 def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):
     """A host with no add_tool_policy must not blow up registration."""
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
 
     class PolicylessHost(RecordingHost):
         add_tool_policy = None
@@ -255,7 +194,6 @@ def test_every_registered_tool_carries_a_known_capability(monkeypatch):
     `_seed_default_tools`'s docstring. This turns that silence into a test failure
     so a forgotten tag is caught at review time instead of in a user's plan-mode
     session."""
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
 
@@ -273,17 +211,16 @@ def test_every_registered_tool_parameter_carries_a_description(monkeypatch):
     pydantic-ai only binds docstring prose to a parameter's schema when it can
     parse a strict `Args:`-style block, so free-form prose (this codebase's
     norm) silently produces an empty per-parameter description. ADR-0055
-    records this as the mechanism behind a model reusing an existing journal
-    slug with nothing in the schema it was filling in warning that reuse
-    overwrites. This turns a missing description into a review-time failure
-    instead of a silent gap.
+    records this as the mechanism behind a model reusing an existing note slug
+    with nothing in the schema it was filling in warning that reuse overwrites.
+    This turns a missing description into a review-time failure instead of a
+    silent gap.
 
     Scoped to zrb's own tools (`zrb.llm.tool.*`) — third-party MCP toolsets and
     the LSP-server tools (`zrb.llm.lsp.tools`) aren't ours to annotate.
     """
     from pydantic_ai import Tool as PydanticTool
 
-    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
     host = RecordingHost()
     apply_common_tools(host)
 
@@ -304,10 +241,3 @@ def test_every_registered_tool_parameter_carries_a_description(monkeypatch):
             if not spec.get("description")
         )
     assert not gaps, f"Tool parameters with no schema description: {gaps}"
-
-
-def test_the_retirement_tool_is_reachable_by_the_model(monkeypatch):
-    """`SupersedeJournalNote` was documented in the journal prompt and in three
-    tool descriptions but never registered, so the model was told how to retire
-    a stale note and given no way to do it."""
-    assert "SupersedeJournalNote" in _names(monkeypatch, True)

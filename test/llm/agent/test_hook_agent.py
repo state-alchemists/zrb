@@ -139,11 +139,11 @@ async def test_agent_hook_malformed_json_output_stays_plain():
 
 @pytest.mark.asyncio
 async def test_agent_hook_skips_llm_call_when_no_named_tools_resolve():
-    """When every tool the config names fails to resolve (e.g. the journal
-    tools while LLM_JOURNAL_ENABLED is off), the hook must not spend an LLM
+    """When every tool the config names fails to resolve (e.g. the memory
+    tools while LLM_MEMORY_ENABLED is off), the hook must not spend an LLM
     call it cannot do anything useful with."""
     config = AgentHookConfig(
-        system_prompt="sp", model="fake-model", tools=["LogActivity"]
+        system_prompt="sp", model="fake-model", tools=["Remember"]
     )
     hook = create_agent_hook(config)
     context = HookContext(event=HookEvent.STOP, event_data={"wrote_files": True})
@@ -171,8 +171,8 @@ async def test_agent_hook_skips_llm_call_when_no_named_tools_resolve():
 
 @pytest.mark.asyncio
 async def test_resolved_agent_hook_tools_contain_tool_errors():
-    """A resolved tool's `[SYSTEM SUGGESTION]` ValueError (journal_write's link
-    check is one real example) must come back as a tool result the judge
+    """A resolved tool's `[SYSTEM SUGGESTION]` ValueError (a path check is one
+    real example) must come back as a tool result the judge
     model can react to, not an exception that aborts the whole hook run —
     the same containment `create_agent()` gives every other agent's tools."""
     from zrb.llm.agent.hook_agent import resolve_agent_hook_tools
@@ -203,7 +203,7 @@ async def test_resolved_agent_hook_tools_contain_tool_errors():
 @pytest.mark.asyncio
 async def test_resolved_agent_hook_tools_are_undeferred():
     """A tool registered with `defer_loading=True` for the main agent's rare
-    use (the journal tools in `common_tools.py`) must reach the hook agent
+    use must reach the hook agent
     with `defer_loading=False` — the hook names it explicitly, so deferring it
     here would only force a wasted search-then-call round trip on every run."""
     from pydantic_ai import Tool
@@ -235,7 +235,7 @@ async def test_resolved_agent_hook_tools_are_undeferred():
 async def test_agent_hook_runs_when_named_tools_do_resolve():
     """The opposite of the skip case: a resolved tool list reaches the agent."""
     config = AgentHookConfig(
-        system_prompt="sp", model="fake-model", tools=["LogActivity"]
+        system_prompt="sp", model="fake-model", tools=["Remember"]
     )
     hook = create_agent_hook(config)
     context = HookContext(event=HookEvent.STOP, event_data={"wrote_files": True})
@@ -243,7 +243,7 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
     def fake_log_activity(note: str) -> str:
         return f"logged: {note}"
 
-    fake_log_activity.__name__ = "LogActivity"
+    fake_log_activity.__name__ = "Remember"
 
     agent_cls = _agent_returning("logged")
     with (
@@ -254,7 +254,7 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
         patch("pydantic_ai.Agent", agent_cls),
         patch(
             "zrb.llm.subagent.manager.sub_agent_manager.get_tool_registry",
-            return_value={"LogActivity": fake_log_activity},
+            return_value={"Remember": fake_log_activity},
         ),
         patch(
             "zrb.llm.subagent.manager.sub_agent_manager.get_tool_factories",
@@ -273,9 +273,9 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
     function_toolset = toolsets_passed[0].wrapped
     run_ctx = RunContext(deps=None, model=MagicMock(), usage=MagicMock())
     resolved_tools = await function_toolset.get_tools(run_ctx)
-    assert list(resolved_tools) == ["LogActivity"]
+    assert list(resolved_tools) == ["Remember"]
     returned = await function_toolset.call_tool(
-        "LogActivity", {"note": "x"}, run_ctx, resolved_tools["LogActivity"]
+        "Remember", {"note": "x"}, run_ctx, resolved_tools["Remember"]
     )
     assert returned.return_value == "logged: x"
 

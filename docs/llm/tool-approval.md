@@ -170,7 +170,7 @@ All importable from `zrb.llm.tool_call` unless noted.
 | `shell_formatter` | formatter | Shows a `Shell` command fenced for the shell that runs it, plus the non-default arguments | yes |
 | `default_response_handler` | response handler | `y` / `n` / `e` / free-text denial | yes (interactive UI) |
 | `replace_in_file_response_handler` | response handler | On `e`, opens the `Edit` replacement in `ZRB_DIFF_EDIT_COMMAND` | yes |
-| `auto_approve(tool, patterns)` | policy factory | Approves matching calls | yes, for reads inside the project, journal and skill directories |
+| `auto_approve(tool, patterns)` | policy factory | Approves matching calls | yes, for reads inside the project, notes and skill directories |
 | `bash_safe_command_policy()` | policy factory | Approves read-only shell commands | yes |
 | `read_file_validation_policy` | policy | Denies a `Read` of a missing file | yes |
 | `replace_in_file_validation_policy` | policy | Denies an `Edit` whose `old_text` is not in the file. Import from `zrb.llm.tool_call.tool_policy.replace_in_file_validation` | yes |

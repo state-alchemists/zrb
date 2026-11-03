@@ -475,25 +475,23 @@ class LLMTask(BaseTask):
     def get_live_context(
         self,
         ctx: AnyContext,
-        inject_journal_index: bool = False,
-        first_message: str | None = None,
+        inject_memory: bool = False,
         previous_live_context: str | None = None,
     ) -> str:
         """Render the per-turn ``<live-context>`` block injected into the user turn."""
         return self._building.get_live_context(
-            ctx, inject_journal_index, first_message, previous_live_context
+            ctx, inject_memory, previous_live_context
         )
 
     async def get_live_context_async(
         self,
         ctx: AnyContext,
-        inject_journal_index: bool = False,
-        first_message: str | None = None,
+        inject_memory: bool = False,
         previous_live_context: str | None = None,
     ) -> str:
         """``get_live_context`` for async callers."""
         return await self._building.get_live_context_async(
-            ctx, inject_journal_index, first_message, previous_live_context
+            ctx, inject_memory, previous_live_context
         )
 
     def get_model_settings(self, ctx: AnyContext) -> "ModelSettings | None":
@@ -641,12 +639,11 @@ class LLMTask(BaseTask):
         system_prompt = self.get_system_prompt(ctx)
         # Volatile per-turn state goes into the user turn so the cacheable
         # system prefix stays byte-stable. Must run every turn: it also wires
-        # per-turn ambient state. summarize_history re-seeds the journal index
+        # per-turn ambient state. summarize_history re-seeds the memory block
         # after compaction.
         live_context = await self.get_live_context_async(
             ctx,
-            inject_journal_index=not message_history,
-            first_message=user_message,
+            inject_memory=not message_history,
             previous_live_context=previous_git_baseline(message_history),
         )
         agent = self._create_agent(ctx, system_prompt=system_prompt, toolsets=toolsets)
@@ -683,9 +680,6 @@ class LLMTask(BaseTask):
                 message=effective_message,
                 message_history=message_history,
                 limiter=self._llm_limiter,
-                # The user-facing boundary: LLMTask runs what a person asked
-                # for, so this is the run lookups-per-prompt divides by.
-                counts_as_user_prompt=True,
                 attachments=effective_attachments,
                 print_fn=lambda *args, **kwargs: ctx.print(*args, **kwargs, plain=True),
                 event_handler=None,

@@ -26,9 +26,8 @@ from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RunUsage
-    from zrb.llm.journal_usage_log import JournalEvent
 
-_Record = TypeVar("_Record", "UsageRecord", "JournalEvent")
+_Record = TypeVar("_Record")
 _MONTH_FORMAT = "%Y-%m"
 _FILE_PREFIX = "usage-"
 _FILE_SUFFIX = ".jsonl"
@@ -48,7 +47,7 @@ _FAILED_OUTCOMES = ("failed", "retried")
 _USAGE_ATTR = {"reasoning_tokens": "output_reasoning_tokens"}
 
 
-def record_to_dict(record: "UsageRecord | JournalEvent") -> dict[str, object]:
+def record_to_dict(record: "UsageRecord") -> dict[str, object]:
     """Serialize a log record, keeping its timestamp readable."""
     raw = dataclasses.asdict(record)
     raw["timestamp"] = record.timestamp.isoformat()
@@ -136,8 +135,7 @@ def usage_store_path(when: datetime, directory: str | None = None) -> str:
 def store_path(prefix: str, when: datetime, directory: str | None = None) -> str:
     """The month file of the log named by *prefix* that *when* belongs to.
 
-    Shared with the journal event log, which keeps the same one-file-per-month
-    layout beside this one."""
+    One file per month beside the usage log, so a week's question reads one file."""
     base = directory if directory is not None else CFG.LLM_USAGE_DIR
     return os.path.join(base, f"{prefix}{when.strftime(_MONTH_FORMAT)}{_FILE_SUFFIX}")
 
@@ -280,8 +278,8 @@ def read_month_file(
     """The records of one month file that *parse* accepts, that fall inside the
     window and that satisfy *in_session*.
 
-    Shared with the journal event log, so both logs read a damaged file the same
-    way: an unreadable file is empty and an unreadable line is skipped.
+    An unreadable file is empty and an unreadable line is skipped: a damaged log
+    costs the records it cannot parse, never the whole read.
     """
     try:
         with open(path, encoding="utf-8") as handle:

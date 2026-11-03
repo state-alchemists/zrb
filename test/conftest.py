@@ -107,8 +107,6 @@ _TEST_ENV = {
     "ZRB_LLM_SMALL_MODEL": "openai-chat:gpt-4o-mini",
     # Pin the production profile so prompt-composition tests are deterministic.
     "ZRB_LLM_PROFILE": "auto",
-    # Disable the built-in journal judge; its dedicated tests re-enable it.
-    "ZRB_LLM_JOURNAL_ENABLED": "off",
     # Auto-naming runs a background model call that outlives a short test and
     # leaves a never-awaited coroutine; its dedicated tests re-enable it.
     "ZRB_LLM_AUTO_NAME_ENABLED": "off",

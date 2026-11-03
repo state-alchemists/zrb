@@ -137,8 +137,6 @@ def _get_prompt_replacements() -> dict[str, str]:
     """Return replacement dict, re-computed only when an input changes."""
     return dict(
         _get_prompt_replacements_cached(
-            CFG.LLM_JOURNAL_DIR,
-            CFG.LLM_JOURNAL_INDEX_FILE,
             CFG.ROOT_GROUP_NAME,
             CFG.LLM_ASSISTANT_NAME,
             CFG.ENV_PREFIX,
@@ -148,21 +146,18 @@ def _get_prompt_replacements() -> dict[str, str]:
 
 @lru_cache(maxsize=8)
 def _get_prompt_replacements_cached(
-    journal_dir: str,
-    journal_index_name: str,
     root_group_name: str,
     assistant_name: str,
     env_prefix: str,
 ) -> dict[str, str]:
     """Compute config-derived prompt replacements; cached on every input.
 
-    The mutable journal index content is injected via ``<live-context>``
-    instead, so journaling does not invalidate the cacheable prefix.
+    Only values that are stable for the life of a process belong here: a value
+    that changes per turn would invalidate the cacheable prefix, so volatile
+    state (the memory block) is injected via ``<live-context>`` instead.
     """
     replacements: dict[str, str] = {}
     cfg_values = {
-        "LLM_JOURNAL_DIR": journal_dir,
-        "LLM_JOURNAL_INDEX_FILE": journal_index_name,
         "ROOT_GROUP_NAME": root_group_name,
         "LLM_ASSISTANT_NAME": assistant_name,
         "ENV_PREFIX": env_prefix,

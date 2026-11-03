@@ -4,10 +4,11 @@ The journal kept one note per finding under five category directories, one
 activity file per day, and a handover paragraph at the foot of a day. Memory keeps
 one fact per subject, one diary entry per day, and one log line per event.
 
-The migration is *additive*: it reads `~/.zrb/llm-notes`, writes
-`~/.zrb/memory/v1`, and never touches or deletes the journal. That is deliberate —
-the old store is the evidence for the new one, and a migration that destroys its
-input cannot be re-run after a bug.
+The migration is *additive*: it reads the notes directory (`LLM_NOTES_DIR`,
+`~/.zrb/llm-notes` by default), writes the store inside it (`memory-v1`), and
+never touches or deletes the notes. That is deliberate — the old store is the
+evidence for the new one, and a migration that destroys its input cannot be
+re-run after a bug.
 
 Four rules:
 
@@ -100,7 +101,7 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
         counts["unpinned"] = unpinned
         counts["converted"] = converted
         store.write_core()
-        store.git_commit("migrate: journal")
+        store.git_commit("migrate: notes")
     return counts
 
 

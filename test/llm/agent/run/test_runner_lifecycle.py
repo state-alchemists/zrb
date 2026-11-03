@@ -253,8 +253,8 @@ async def test_stop_event_data_carries_turn_slice_and_wrote_files_flag(
     self_review, nested, monkeypatch
 ):
     """The Stop hook's event_data exposes this turn's own messages, plus a
-    free (no-LLM) `wrote_files` gate, so an evidence-gated hook (e.g. a
-    journal-compliance agent hook) can act only on turns that actually
+    free (no-LLM) `wrote_files` gate, so an evidence-gated hook (e.g. the
+    memory reviewer) can act only on turns that actually
     touched a file."""
     from pydantic_ai.messages import (
         ModelRequest,

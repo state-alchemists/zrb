@@ -40,7 +40,7 @@ The tool set has to work for very different readers at the same time:
 
 4. **Fewer tools over longer descriptions.** The cost of the tool list is managed by how many tools are visible, not by trimming prose. Rarely used tools stay discoverable by name, and their schema loads only when asked for. → [ADR-0058](../../adr/adr-0058.md)
 
-5. **Decide late.** Tools are collected when a task is built but resolved when a run starts, so per-run facts are read fresh each time: interactivity, the journal toggle, the `LLM_TOOLS` allowlist, the active permission policy. → [ADR-0064](../../adr/adr-0064.md), [ADR-0033](../../adr/adr-0033.md)
+5. **Decide late.** Tools are collected when a task is built but resolved when a run starts, so per-run facts are read fresh each time: interactivity, the memory switch, the `LLM_TOOLS` allowlist, the active permission policy. → [ADR-0064](../../adr/adr-0064.md), [ADR-0033](../../adr/adr-0033.md)
 
 ### Invariants
 
@@ -67,7 +67,7 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| Tool functions | `src/zrb/llm/tool/` | One module per family: file, shell, web, delegate, plan, journal, skill, worktree, MCP |
+| Tool functions | `src/zrb/llm/tool/` | One module per family: file, shell, web, delegate, plan, memory, skill, worktree, MCP |
 | `common_tools` | `src/zrb/llm/common_tools.py` | The single list of built-in tools, each `tag()`-ed with a capability, plus the per-run factories |
 | `ToolRegistry` | `src/zrb/llm/tool_registry.py` | Ordered static tools, per-run tool factories and toolset factories; the default list is loaded on first use |
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Gives `LLMChatTask`, `LLMTask` and `SubAgentManager` the same tool providers |
