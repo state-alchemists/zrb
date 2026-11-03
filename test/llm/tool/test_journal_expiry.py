@@ -8,23 +8,31 @@ removes what is *disproved*, never what is merely unchecked.
 """
 
 import os
+import stat
 from datetime import date, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 
 from zrb.llm.tool.journal_expiry import (
     Condition,
+    condition_digest,
     expired_note_rels,
     file_sha,
     is_condition_met,
     parse_condition,
-    stamp,
 )
 from zrb.llm.tool.journal_index import scope_index
 from zrb.llm.tool.journal_note import Note
 
 
-def _note(rel: str, applies_when: str, repo: str = "zrb", hud_line: str = "a line") -> Note:
+def _note(
+    rel: str,
+    applies_when: str,
+    repo: str = "zrb",
+    hud_line: str = "a line",
+    digest: str = "",
+) -> Note:
     return Note(
         category=rel.split("/")[0],
         slug=rel.split("/")[-1].removesuffix(".md"),
@@ -36,11 +44,12 @@ def _note(rel: str, applies_when: str, repo: str = "zrb", hud_line: str = "a lin
         has_stamp=True,
         repo=repo,
         applies_when=applies_when,
+        applies_when_digest=digest,
     )
 
 
 def test_each_prefix_is_read_as_its_own_kind():
-    assert parse_condition("file:src/a.py@abc") == Condition("file", "src/a.py@abc")
+    assert parse_condition("file:src/a.py") == Condition("file", "src/a.py")
     assert parse_condition("version:>=3.29") == Condition("version", ">=3.29")
     assert parse_condition("setting:LLM_ENABLED=on") == Condition(
         "setting", "LLM_ENABLED=on"
@@ -49,7 +58,7 @@ def test_each_prefix_is_read_as_its_own_kind():
 
 
 def test_the_prefix_is_read_whatever_its_case():
-    assert parse_condition("FILE:src/a.py@abc") == Condition("file", "src/a.py@abc")
+    assert parse_condition("FILE:src/a.py") == Condition("file", "src/a.py")
 
 
 @pytest.mark.parametrize(
@@ -72,45 +81,34 @@ def test_a_prefix_with_no_payload_is_not_a_condition():
     assert parse_condition("file:") is None
 
 
-def test_stamping_records_the_hash_of_the_file_as_it_is_now(tmp_path):
+def test_the_digest_is_the_hash_of_the_file_as_it_is_now(tmp_path):
     target = tmp_path / "settings.py"
     target.write_text("retries = 1\n", encoding="utf-8")
 
-    assert stamp("file:settings.py", str(tmp_path)) == (
-        f"file:settings.py@{file_sha(str(target))}"
+    assert condition_digest("file:settings.py", str(tmp_path)) == file_sha(str(target))
+
+
+def test_a_changed_file_no_longer_matches_its_digest(tmp_path):
+    target = tmp_path / "settings.py"
+    target.write_text("retries = 1\n", encoding="utf-8")
+    digest = condition_digest("file:settings.py", str(tmp_path))
+    target.write_text("retries = 3\n", encoding="utf-8")
+
+    condition = parse_condition("file:settings.py")
+    assert (
+        is_condition_met(condition, str(tmp_path), "3.29", "zrb", digest) is False
     )
 
 
-def test_a_changed_file_no_longer_matches_its_stamp(tmp_path):
-    target = tmp_path / "settings.py"
-    target.write_text("retries = 1\n", encoding="utf-8")
-    stamped = stamp("file:settings.py", str(tmp_path))
-    target.write_text("retries = 3\n", encoding="utf-8")
-
-    condition = parse_condition(stamped)
-    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is False
-
-
-def test_a_stamp_is_not_replaced_by_a_later_write(tmp_path):
-    """The hash says what the note was written against; re-stamping would make
-    every revision silently renew a condition that had stopped holding."""
-    target = tmp_path / "settings.py"
-    target.write_text("retries = 1\n", encoding="utf-8")
-    first = stamp("file:settings.py", str(tmp_path))
-    target.write_text("retries = 3\n", encoding="utf-8")
-
-    assert stamp(first, str(tmp_path)) == first
-
-
-def test_stamping_needs_a_repository_to_be_relative_to(tmp_path):
+def test_a_digest_needs_a_repository_to_be_relative_to(tmp_path):
     """A hash taken from the process's own directory would point at whatever sits
-    beside a later reader; unstamped reads as uncheckable and keeps the note."""
+    beside a later reader; no digest reads as uncheckable and keeps the note."""
     (tmp_path / "settings.py").write_text("x\n", encoding="utf-8")
 
-    assert stamp("file:settings.py", "") == "file:settings.py"
+    assert condition_digest("file:settings.py", "") == ""
 
 
-def test_a_file_with_no_stamp_is_uncheckable(tmp_path):
+def test_a_file_with_no_digest_is_uncheckable(tmp_path):
     (tmp_path / "settings.py").write_text("x\n", encoding="utf-8")
 
     condition = Condition("file", "settings.py")
@@ -118,60 +116,58 @@ def test_a_file_with_no_stamp_is_uncheckable(tmp_path):
 
 
 def test_a_missing_file_is_a_change_not_an_inability(tmp_path):
-    condition = Condition("file", "gone.py@deadbeefcafe")
+    condition = Condition("file", "gone.py")
 
-    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is False
+    assert (
+        is_condition_met(condition, str(tmp_path), "3.29", "zrb", "deadbeefcafe")
+        is False
+    )
 
 
 def test_a_file_condition_is_not_checked_from_another_repository(tmp_path):
     """The same relative path in another checkout is another file, so the answer
     there would be about the wrong file — and a false answer retires the note."""
-    condition = Condition("file", "settings.py@deadbeefcafe")
+    condition = Condition("file", "settings.py")
 
-    assert is_condition_met(condition, str(tmp_path), "3.29", "") is None
+    assert (
+        is_condition_met(condition, str(tmp_path), "3.29", "", "deadbeefcafe") is None
+    )
 
 
 def test_a_file_name_may_contain_an_at_sign(tmp_path):
-    """`config@prod.yml` is a path. Reading its last segment as a stamp would
-    compare the hash of `config` with the text `prod.yml` and hide the note at
-    once, on a file nobody touched."""
+    """`config@prod.yml` is just a path now: the digest is a field of its own, so
+    there is no segment for a reader to mistake for one."""
     target = tmp_path / "config@prod.yml"
     target.write_text("mode = prod\n", encoding="utf-8")
 
-    stamped = stamp("file:config@prod.yml", str(tmp_path))
+    digest = condition_digest("file:config@prod.yml", str(tmp_path))
 
-    assert stamped == f"file:config@prod.yml@{file_sha(str(target))}"
-    assert is_condition_met(parse_condition(stamped), str(tmp_path), "3.29", "zrb")
-    assert stamp(stamped, str(tmp_path)) == stamped
-
-
-def test_an_unstamped_at_sign_name_is_uncheckable_rather_than_false(tmp_path):
-    """No digest was recorded, so there is nothing to compare the hash with —
-    and "cannot tell" keeps the note, where a mismatch would hide it."""
-    (tmp_path / "config@prod.yml").write_text("x\n", encoding="utf-8")
-    condition = Condition("file", "config@prod.yml")
-
-    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
+    assert digest == file_sha(str(target))
+    condition = parse_condition("file:config@prod.yml")
+    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb", digest) is True
 
 
-def test_a_file_whose_name_ends_in_a_digest_is_stamped_as_the_path_it_is(tmp_path):
-    """`config@deadbeefcafe` looks exactly like a stamp, and it is a path.
-
-    The writer has to see that, or the reader hashes `config`, compares it with
-    `deadbeefcafe`, and hides a note about a file nobody touched."""
+def test_a_path_that_ends_in_a_digest_is_hashed_as_the_path_it_is(tmp_path):
+    """`config@deadbeefcafe` is a legal file name — the reason the digest left the
+    value. This file is hashed, and `config` is never looked at."""
     target = tmp_path / "config@deadbeefcafe"
     target.write_text("mode = prod\n", encoding="utf-8")
+    (tmp_path / "config").write_text("something else\n", encoding="utf-8")
 
-    stamped = stamp("file:config@deadbeefcafe", str(tmp_path))
+    digest = condition_digest("file:config@deadbeefcafe", str(tmp_path))
 
-    assert stamped == f"file:config@deadbeefcafe@{file_sha(str(target))}"
-    assert is_condition_met(parse_condition(stamped), str(tmp_path), "3.29", "zrb")
+    assert digest == file_sha(str(target))
+    condition = parse_condition("file:config@deadbeefcafe")
+    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb", digest) is True
 
 
-def test_an_unstamped_digest_shaped_name_is_uncheckable_rather_than_false(tmp_path):
-    (tmp_path / "config@deadbeefcafe").write_text("x\n", encoding="utf-8")
-    condition = Condition("file", "config@deadbeefcafe")
+def test_a_digest_shaped_path_that_does_not_exist_yet_cannot_hide_its_note(tmp_path):
+    """The path reads as a path, and a path nobody stamped is uncheckable. Reading
+    its last segment as a digest would hash `config` and hide a note about a file
+    that was never touched."""
+    condition = parse_condition("file:config@deadbeefcafe")
 
+    assert condition_digest("file:config@deadbeefcafe", str(tmp_path)) == ""
     assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
 
 
@@ -179,10 +175,13 @@ def test_an_absolute_path_is_never_read(tmp_path):
     """A condition is text a model wrote, so `file:` must not be a way to read the
     machine: `/dev/zero` blocks the turn, and nothing outside the tree is what the
     note is about."""
-    assert stamp("file:/dev/zero", str(tmp_path)) == "file:/dev/zero"
-    condition = Condition("file", "/dev/zero@deadbeefcafe")
+    assert condition_digest("file:/dev/zero", str(tmp_path)) == ""
+    condition = Condition("file", "/dev/zero")
 
-    assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
+    assert (
+        is_condition_met(condition, str(tmp_path), "3.29", "zrb", "deadbeefcafe")
+        is None
+    )
 
 
 def test_a_path_cannot_climb_out_of_the_repository(tmp_path):
@@ -191,10 +190,13 @@ def test_a_path_cannot_climb_out_of_the_repository(tmp_path):
     root = tmp_path / "repo"
     root.mkdir()
 
-    assert stamp("file:../outside.txt", str(root)) == "file:../outside.txt"
-    condition = Condition("file", f"../outside.txt@{file_sha(str(outside))}")
+    assert condition_digest("file:../outside.txt", str(root)) == ""
+    condition = Condition("file", "../outside.txt")
 
-    assert is_condition_met(condition, str(root), "3.29", "zrb") is None
+    assert (
+        is_condition_met(condition, str(root), "3.29", "zrb", file_sha(str(outside)))
+        is None
+    )
 
 
 def test_a_symlink_out_of_the_repository_is_not_followed(tmp_path):
@@ -207,10 +209,13 @@ def test_a_symlink_out_of_the_repository_is_not_followed(tmp_path):
     except OSError:
         pytest.skip("this platform does not allow symlinks without elevation")
 
-    assert stamp("file:link.txt", str(root)) == "file:link.txt"
-    condition = Condition("file", f"link.txt@{file_sha(str(outside))}")
+    assert condition_digest("file:link.txt", str(root)) == ""
+    condition = Condition("file", "link.txt")
 
-    assert is_condition_met(condition, str(root), "3.29", "zrb") is None
+    assert (
+        is_condition_met(condition, str(root), "3.29", "zrb", file_sha(str(outside)))
+        is None
+    )
 
 
 def test_a_symlink_is_refused_at_the_descriptor_not_just_at_the_path(tmp_path):
@@ -242,10 +247,15 @@ def test_a_symlink_inside_the_tree_still_names_the_file_it_points_at(tmp_path):
     except OSError:
         pytest.skip("this platform does not allow symlinks without elevation")
 
-    stamped = stamp("file:link.txt", str(root))
+    digest = condition_digest("file:link.txt", str(root))
 
-    assert stamped == f"file:link.txt@{file_sha(str(real))}"
-    assert is_condition_met(parse_condition(stamped), str(root), "3.29", "zrb")
+    assert digest == file_sha(str(real))
+    assert (
+        is_condition_met(
+            parse_condition("file:link.txt"), str(root), "3.29", "zrb", digest
+        )
+        is True
+    )
 
 
 def test_a_directory_and_an_oversized_file_are_uncheckable(tmp_path, monkeypatch):
@@ -256,35 +266,32 @@ def test_a_directory_and_an_oversized_file_are_uncheckable(tmp_path, monkeypatch
     (tmp_path / "big.py").write_text("x" * 17, encoding="utf-8")
     monkeypatch.setattr(journal_expiry, "MAX_HASH_BYTES", 16)
 
-    assert stamp("file:src", str(tmp_path)) == "file:src"
-    assert stamp("file:big.py", str(tmp_path)) == "file:big.py"
-    for value in ("src@deadbeefcafe", "big.py@deadbeefcafe"):
+    assert condition_digest("file:src", str(tmp_path)) == ""
+    assert condition_digest("file:big.py", str(tmp_path)) == ""
+    for value in ("src", "big.py"):
         condition = Condition("file", value)
-        assert is_condition_met(condition, str(tmp_path), "3.29", "zrb") is None
+        assert (
+            is_condition_met(condition, str(tmp_path), "3.29", "zrb", "deadbeefcafe")
+            is None
+        )
 
 
-def test_a_stamp_is_not_written_when_its_own_name_is_a_file(tmp_path):
-    """`foo@<digest>` can be a file in the tree, and the reader has to read a value
-    that names a file as a path. Writing the stamp anyway would create a condition
-    nobody ever evaluates; unstamped says the same thing and is still honest."""
-    target = tmp_path / "foo"
-    target.write_text("x\n", encoding="utf-8")
-    digest = file_sha(str(target))
-    (tmp_path / f"foo@{digest}").write_text("collision\n", encoding="utf-8")
+def test_a_file_that_grows_during_the_read_is_uncheckable(tmp_path, monkeypatch):
+    """`fstat` bounds the read, but a file can grow between the two. What was read
+    is then part of the file, and a digest of that part is not evidence of
+    anything — least of all that the condition still holds."""
+    from zrb.llm.tool import journal_expiry
 
-    assert stamp("file:foo", str(tmp_path)) == "file:foo"
-    assert is_condition_met(Condition("file", "foo"), str(tmp_path), "3.29", "zrb") is None
+    target = tmp_path / "growing.py"
+    target.write_text("x" * 17, encoding="utf-8")
+    monkeypatch.setattr(journal_expiry, "MAX_HASH_BYTES", 16)
+    monkeypatch.setattr(
+        journal_expiry.os,
+        "fstat",
+        lambda descriptor: SimpleNamespace(st_mode=stat.S_IFREG, st_size=1),
+    )
 
-
-def test_a_revision_preserves_a_stamp_whose_name_is_now_a_file(tmp_path):
-    """A stamp is evidence. A file created later at exactly `config@<digest>` must
-    not turn a revision into a second hash of the wrong file."""
-    target = tmp_path / "config"
-    target.write_text("mode = prod\n", encoding="utf-8")
-    stamped = stamp("file:config", str(tmp_path))
-    (tmp_path / stamped.removeprefix("file:")).write_text("collision\n", encoding="utf-8")
-
-    assert stamp(stamped, str(tmp_path), revise=True) == stamped
+    assert file_sha(str(target)) == ""
 
 
 def test_the_read_walks_the_tree_it_validated(tmp_path, monkeypatch):
@@ -306,12 +313,17 @@ def test_the_read_walks_the_tree_it_validated(tmp_path, monkeypatch):
         pytest.skip("this platform does not allow symlinks without elevation")
     # Stand in for the validation that ran before the swap: it still answers the
     # path it checked, so only the walk stands between the read and the link.
-    inside = lambda value, tree: str(root / value.rpartition("@")[0])  # noqa: E731
+    inside = lambda value, tree: str(root / value)  # noqa: E731
     monkeypatch.setattr(journal_expiry, "condition_path", inside)
 
-    condition = Condition("file", "sub/config.py@deadbeefcafe")
+    condition = Condition("file", "sub/config.py")
 
-    assert journal_expiry.is_condition_met(condition, str(root), "3.29", "zrb") is None
+    assert (
+        journal_expiry.is_condition_met(
+            condition, str(root), "3.29", "zrb", "deadbeefcafe"
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize(
@@ -386,7 +398,7 @@ def test_a_disproved_version_expires_the_note():
 def test_another_repositorys_file_condition_is_not_checked(tmp_path):
     """`root` names this checkout's tree; another repository's file is not in it."""
     (tmp_path / "settings.py").write_text("x\n", encoding="utf-8")
-    notes = [_note("technical/a.md", "file:settings.py@deadbeef", repo="soda")]
+    notes = [_note("technical/a.md", "file:settings.py", repo="soda", digest="deadbeefcafe")]
 
     assert expired_note_rels(notes, str(tmp_path), "zrb", "3.29") == set()
 
@@ -394,10 +406,10 @@ def test_another_repositorys_file_condition_is_not_checked(tmp_path):
 def test_a_proved_file_expires_and_an_unstamped_one_does_not(tmp_path):
     target = tmp_path / "settings.py"
     target.write_text("retries = 1\n", encoding="utf-8")
-    stamped = stamp("file:settings.py", str(tmp_path))
+    digest = condition_digest("file:settings.py", str(tmp_path))
     target.write_text("retries = 3\n", encoding="utf-8")
     notes = [
-        _note("technical/changed.md", stamped),
+        _note("technical/changed.md", "file:settings.py", digest=digest),
         _note("technical/unstamped.md", "file:settings.py"),
     ]
 

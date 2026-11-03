@@ -16,7 +16,6 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.prompt.live_context import render_journal_index
-from zrb.llm.tool.journal_expiry import file_sha
 from zrb.llm.tool.journal_index import elsewhere_lines, scope_index
 from zrb.llm.tool.journal_note import Note
 from zrb.llm.tool.journal_scope import (
@@ -308,39 +307,8 @@ def test_a_revision_from_another_repository_does_not_stamp_its_file(
     body = _write_note(writable_journal, "technical", "build-cache")
     assert "repo: zrb" in body
     assert "applies_when: file:config.yml\n" in body
-
-
-def test_a_note_revised_in_its_own_repository_stamps_the_file(writable_journal, tmp_path):
-    """The rule the exclusion must not swallow: in the note's own tree the hash is
-    exactly what makes the condition checkable later."""
-    tree = tmp_path / "zrb"
-    tree.mkdir()
-    (tree / "config.yml").write_text("mode = prod\n", encoding="utf-8")
-
-    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
-        _write("technical", "build-cache", applies_when="file:config.yml")
-
-    body = _write_note(writable_journal, "technical", "build-cache")
-    assert f"file:config.yml@{file_sha(str(tree / 'config.yml'))}" in body
-
-
-def test_a_revision_keeps_the_stamp_the_note_was_written_with(writable_journal, tmp_path):
-    """A file created later at exactly the stamp's own name must not move the
-    evidence: the writer preserves a value that already carries a digest."""
-    tree = tmp_path / "zrb"
-    tree.mkdir()
-    (tree / "config.yml").write_text("mode = prod\n", encoding="utf-8")
-    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
-        _write("technical", "build-cache", applies_when="file:config.yml")
-    body = _write_note(writable_journal, "technical", "build-cache")
-    line = next(text for text in body.splitlines() if text.startswith("applies_when:"))
-    stamped = line.removeprefix("applies_when: ")
-    (tree / stamped.removeprefix("file:")).write_text("collision\n", encoding="utf-8")
-
-    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
-        _write("technical", "build-cache", applies_when=stamped)
-
-    assert stamped in _write_note(writable_journal, "technical", "build-cache")
+    # Another checkout's file is not this note's file, so nothing is recorded.
+    assert "applies_when_digest:" not in body
 
 
 def test_a_new_note_from_another_repository_takes_that_repository(writable_journal):

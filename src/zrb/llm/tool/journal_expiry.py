@@ -8,12 +8,13 @@ turn until somebody notices.
 
 This module reads the narrow subset that can be checked without asking anyone:
 
-``file:<path>@<sha>``
-    holds while the file's content still hashes to *sha*. The writer stamps the
-    hash at write time (`stamp`), because a condition nobody stamped is a
-    condition nobody can evaluate. The path is untrusted input: it must stay
-    inside the repository once symlinks are resolved and be a regular file, and
-    at most `MAX_HASH_BYTES` of it is read.
+``file:<path>``
+    holds while the file's content still hashes to the digest the note records
+    beside it, in `applies_when_digest`. The writer records that digest at write
+    time (`condition_digest`), because a condition nobody stamped is a condition
+    nobody can evaluate. The path is untrusted input: it must stay inside the
+    repository once symlinks are resolved and be a regular file, and at most
+    `MAX_HASH_BYTES` of it is read.
 
 ``version:<3.29`` / ``version:=3.29.1`` / ``version:>=3.29``
     holds while zrb's own version satisfies the comparison.
@@ -60,10 +61,10 @@ _FALSE_TOKENS = frozenset({"off", "false", "no", "0", "disabled"})
 _VERSION_RE = re.compile(r"^(<=|>=|==|=|<|>)?\s*(\S.*)$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _SHA_RE = re.compile(rf"^[0-9a-f]{{{SHA_LENGTH}}}$")
-"""What a recorded digest looks like. A suffix of this shape is *read* as a stamp
-only when the value as a whole does not name a file: `config@prod.yml` is a path,
-and so is `config@deadbeefcafe` when that file exists. Mistaking a path for a
-stamp hides the note the moment it is written."""
+"""What a recorded digest looks like. It lives in its own frontmatter key rather
+than at the end of the path: `config@deadbeefcafe` is a legal file name, so a
+digest written into the value could not be told apart from one — and a reader
+that guessed wrong would hide a note nobody touched."""
 
 
 @dataclass(frozen=True)
@@ -114,8 +115,9 @@ def _digest_of(descriptor: int) -> str:
     """The digest behind *descriptor*, which is closed — ``""`` when it cannot be read.
 
     Everything is settled from the descriptor: `fstat` refuses anything that is not
-    a regular file and gives the size the read is bounded by. A name is never
-    resolved a second time, so what is hashed is what was checked."""
+    a regular file and bounds the read, and a file that grows past the bound while
+    it is being read is "cannot tell" rather than a digest of the part that fit. A
+    name is never resolved a second time, so what is hashed is what was checked."""
     try:
         info = os.fstat(descriptor)
         if not stat.S_ISREG(info.st_mode) or info.st_size > MAX_HASH_BYTES:
@@ -128,6 +130,10 @@ def _digest_of(descriptor: int) -> str:
     finally:
         if descriptor >= 0:
             os.close(descriptor)
+    if len(content) > MAX_HASH_BYTES:
+        # The file grew between `fstat` and the read, so this is the digest of a
+        # truncated snapshot — not of the file the condition names.
+        return ""
     return hashlib.sha256(content).hexdigest()[:SHA_LENGTH]
 
 
@@ -204,64 +210,32 @@ def _condition_digest(root: str, value: str) -> str | None:
     return _digest_of(descriptor) or ""
 
 
-def _is_name_taken(root: str, value: str) -> bool:
-    """Whether *value* names something under *root* — links included, not followed."""
-    if not root or not value:
-        return False
-    return os.path.lexists(os.path.join(os.path.realpath(root), value))
+def condition_digest(text: str, root: str) -> str:
+    """The digest *text* records for its file, or ``""`` when it records none.
 
+    A `file:` condition names a path. The digest says what that path held when the
+    note was written, and the note stores it beside the condition — in
+    `applies_when_digest`, never appended to the value. Inside the value it cannot
+    be told apart from a path that happens to end in twelve hex digits
+    (`config@deadbeefcafe` is a legal file name), and a reader that guessed wrong
+    would hide a note nobody touched.
 
-def stamp(text: str, root: str, revise: bool = False) -> str:
-    """*text* with the file condition's hash filled in, recorded now.
-
-    A `file:` condition that names no hash is stamped here, so the note says what
-    it was written against rather than asking a later reader to guess. No root
-    means no repository was in hand, and a hash taken from the process's own
-    directory would point at whatever happens to sit beside a later reader — so
-    the condition is left unstamped, which reads as uncheckable and keeps the
-    note. A condition already stamped, or a file that cannot be read, comes back
-    unchanged: a note is never refused for naming a path that does not exist yet.
-
-    *revise* says a note already exists, and an existing stamp is then evidence:
-    `config@deadbeefcafe` is preserved whatever the tree now contains. Without
-    that, a file created later at exactly that name would make a revision hash the
-    file and append a second digest, quietly moving the note's evidence.
-
-    On a first write, "already stamped" means the last `@`-segment is a digest
-    (`_SHA_RE`) and the whole value does not name a file: `config@prod.yml` is a
-    file name, and so is `config@deadbeefcafe` when that file exists. A path that
-    exists as a whole is stamped as the path it is.
-
-    A path that leaves the tree is left unstamped rather than refused (see
-    `condition_path`): the note is still worth keeping, it just cannot be checked.
-
-    And so is a path whose stamp would itself name a file. `foo@<digest>` can be a
-    path in the tree, and the reader has to read a value that names a file as a
-    path — so writing that stamp would create a condition nobody will ever
-    evaluate. The condition stays unstamped, which says so.
+    No root means no repository was in hand, and a digest taken from the process's
+    own directory would point at whatever happens to sit beside a later reader. A
+    path that leaves the tree (`condition_path`) and a file that cannot be read
+    are equally unstampable: the note keeps the condition and carries no digest,
+    which reads as uncheckable and keeps the note.
     """
     condition = parse_condition(text)
     if condition is None or condition.kind != "file" or not root:
-        return text
+        return ""
     if not condition_path(condition.value, root):
-        return text
-    path, _, recorded = condition.value.rpartition("@")
-    if path and _SHA_RE.match(recorded):
-        if revise or not _is_name_taken(root, condition.value):
-            return text
-    digest = _condition_digest(root, condition.value)
-    if not digest:
-        return text
-    stamped = f"{condition.value}@{digest}"
-    if _is_name_taken(root, stamped):
-        # The reader answers `None` for a value that names a file, so this stamp
-        # would be born unreadable. Unstamped is the honest form of the same news.
-        return text
-    return f"{FILE_PREFIX}{stamped}"
+        return ""
+    return _condition_digest(root, condition.value) or ""
 
 
 def is_condition_met(
-    condition: Condition, root: str, version: str, repo: str = ""
+    condition: Condition, root: str, version: str, repo: str = "", digest: str = ""
 ) -> bool | None:
     """Whether *condition* still holds — ``None`` when this machine cannot tell.
 
@@ -273,9 +247,13 @@ def is_condition_met(
     to no repository or to one other than the checkout in hand. A `file:`
     condition is answered only when it is not empty: the same relative path in
     another checkout is another file, and a hash mismatch there would retire a
-    note that is still true."""
+    note that is still true.
+
+    *digest* is what the note recorded beside the condition (`applies_when_digest`).
+    Without one a `file:` condition is uncheckable, not false: the note may still
+    be right, and nothing here read the file it names."""
     if condition.kind == "file":
-        return _is_file_unchanged(condition.value, root) if repo else None
+        return _is_file_unchanged(condition.value, root, digest) if repo else None
     if condition.kind == "version":
         return _is_version_matching(condition.value, version)
     if condition.kind == "setting":
@@ -285,27 +263,19 @@ def is_condition_met(
     return None
 
 
-def _is_file_unchanged(value: str, root: str) -> bool | None:
-    path, separator, recorded = value.rpartition("@")
-    if not separator or not path or not _SHA_RE.match(recorded):
-        # Nothing was stamped, so there is no digest to compare against. Reading
-        # the value as `path@digest` anyway would report a live note as false.
+def _is_file_unchanged(value: str, root: str, recorded: str) -> bool | None:
+    if not _SHA_RE.match(recorded or ""):
+        # Nothing was recorded, so there is no digest to compare against. Reading
+        # the value as if one were there would report a live note as false.
         return None
-    if not condition_path(path, root):
-        # The path leaves the tree, so it is not one this condition may read.
-        return None
-    if _is_name_taken(root, value):
-        # The value as a whole names a file, so it is a path whose last segment
-        # happens to look like a digest — not a stamped condition. The writer never
-        # emits one (see `stamp`), so "cannot tell" keeps the note.
-        return None
-    digest = _condition_digest(root, path)
+    digest = _condition_digest(root, value)
     if digest is None:
         # The file is gone, which is a change, not an inability to check.
         return False
     if not digest:
-        # Present but unreadable, not a regular file, or past `MAX_HASH_BYTES`:
-        # we cannot tell, and a note is never hidden on a failure to look.
+        # Not in the tree, present but unreadable, not a regular file, or past
+        # `MAX_HASH_BYTES`: we cannot tell, and a note is never hidden on a
+        # failure to look.
         return None
     return digest == recorded
 
@@ -404,6 +374,8 @@ def expired_note_rels(
         if condition is None:
             continue
         repo = note.repo if note.repo and note.repo == current else ""
-        if is_condition_met(condition, root, resolved, repo) is False:
+        if is_condition_met(
+            condition, root, resolved, repo, note.applies_when_digest
+        ) is False:
             expired.add(note.rel)
     return expired

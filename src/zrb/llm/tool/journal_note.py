@@ -71,6 +71,10 @@ class Note:
     # The condition the note holds under, as the frontmatter states it. Prose is
     # kept as prose — `journal_expiry` checks the subset that can be checked.
     applies_when: str = ""
+    # What a `file:` condition's path held when the note was written, or `""`.
+    # A key of its own, not a suffix on the path: a filename may end in twelve hex
+    # digits, so a digest written there could not be told apart from one.
+    applies_when_digest: str = ""
 
     @property
     def rel(self) -> str:
@@ -361,6 +365,7 @@ def read_note(root: str, category: str, filename: str) -> Note | None:
         keywords=front.get("keywords", ""),
         repo=normalize_scope(front.get("repo", "")),
         applies_when=front.get("applies_when", ""),
+        applies_when_digest=front.get("applies_when_digest", ""),
     )
 
 
@@ -472,6 +477,10 @@ def claim_frontmatter(fields: "dict[str, str]", existing: str) -> list[str]:
         f"status: {fields['status']}",
         f"hud_line: {one_line(fields['hud_line'])}",
     ]
+    if fields.get("applies_when_digest"):
+        # Beside the condition, never inside it: a path may end in twelve hex
+        # digits, and a digest appended to it could not be told apart from one.
+        lines.append(f"applies_when_digest: {fields['applies_when_digest']}")
     if fields["pinned"] == "true":
         lines.append("pinned: true")
     if keywords:
