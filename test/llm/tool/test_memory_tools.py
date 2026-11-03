@@ -165,6 +165,16 @@ def test_a_diary_can_be_revised_without_repeating_kind(store_dir):
     assert store.load_fact("2026-11-03") is None
 
 
+def test_an_id_with_surrounding_space_is_stored_trimmed(store_dir):
+    """Validation strips, so storage must too, or the entry is unreachable."""
+    remember("  staging-ssh-port  ", "Staging SSH is port 2222.")
+    fact = store.load_fact("staging-ssh-port")
+    assert fact is not None
+    remember("staging-ssh-port", "Staging SSH is port 2222, revised.")
+    assert len(os.listdir(os.path.join(str(store_dir), "facts"))) == 1
+    assert "Forgot staging-ssh-port" in forget(" staging-ssh-port ", "stale")
+
+
 def test_a_diary_pin_is_refused_rather_than_ignored(store_dir):
     """The tool says a diary never enters the core; a silent pin would lie."""
     message = remember("2026-11-03", "A day.", kind="diary", pin=True, body="x")

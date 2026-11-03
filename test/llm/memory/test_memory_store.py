@@ -1,6 +1,8 @@
 """The store: atomic writes, the lock taken before the read, and a log by date."""
 
 import os
+import shutil
+import subprocess
 import threading
 import time
 from datetime import date, timedelta
@@ -192,6 +194,39 @@ def test_a_path_shaped_name_is_refused_by_the_path_builder(store_dir):
         paths.log_path("a/b")
     assert store.load_fact("../victim") is None
     assert store.load_diary("../../etc/passwd") is None
+
+
+needs_git = pytest.mark.skipif(shutil.which("git") is None, reason="git")
+
+
+@needs_git
+def test_an_unrelated_file_in_the_store_directory_is_not_committed(
+    store_dir, monkeypatch
+):
+    """`LLM_MEMORY_DIR` may hold something else; the audit trail owns only its own."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", True, raising=False)
+    (store_dir / "notes.txt").write_text("not the store's", encoding="utf-8")
+    store.save_fact(Fact(id="x", claim="X is true.", updated=store.now()))
+    store.write_core()
+    store.git_commit("remember: x")
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=str(store_dir), capture_output=True, text=True
+    ).stdout
+    assert "notes.txt" not in tracked
+    assert "facts/x.md" in tracked
+
+
+@needs_git
+def test_a_repository_the_store_did_not_create_is_left_alone(store_dir, monkeypatch):
+    """A `.git` without our marker belongs to somebody else; no commits go into it."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", True, raising=False)
+    subprocess.run(["git", "init", "-q"], cwd=str(store_dir), check=True)
+    store.save_fact(Fact(id="x", claim="X is true.", updated=store.now()))
+    store.git_commit("remember: x")
+    log = subprocess.run(
+        ["git", "log", "--oneline"], cwd=str(store_dir), capture_output=True, text=True
+    )
+    assert log.returncode != 0
 
 
 def test_git_is_not_used_when_it_is_switched_off(store_dir):

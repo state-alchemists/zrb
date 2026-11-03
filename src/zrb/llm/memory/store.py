@@ -21,6 +21,13 @@ from datetime import date, datetime, timedelta
 
 from zrb.config.config import CFG
 from zrb.llm.memory import paths
+from zrb.llm.memory.paths import (
+    CORE_FILE,
+    DIARY_DIR,
+    FACTS_DIR,
+    GITIGNORE_FILE,
+    LOG_DIR,
+)
 from zrb.llm.memory.model import (
     KIND_DIARY,
     STATUS_ACTIVE,
@@ -275,15 +282,29 @@ def write_core(facts: list[Fact] | None = None) -> str:
     return content
 
 
+# What the audit trail owns. A commit stages only these, because `LLM_MEMORY_DIR`
+# may point at a directory holding something else — a checkout, a scratch note, a
+# credential — and a store that commits its neighbour's files is a store that
+# leaks them.
+_MANAGED_PATHS = (CORE_FILE, FACTS_DIR, DIARY_DIR, LOG_DIR, GITIGNORE_FILE)
+
+# Written inside `.git` when *this* store created the repository. A `.git` without
+# it belongs to somebody else, and adding our commits to their history is not
+# ours to do.
+_OWNED_MARKER = os.path.join(".git", "zrb-memory")
+
+
 def git_commit(message: str) -> None:
-    """Commit the store. Best effort: a failure never fails the write."""
+    """Commit the store's own files. Best effort: a failure never fails a write."""
     if not CFG.LLM_MEMORY_GIT_ENABLED:
         return
     root = paths.memory_dir()
-    if not os.path.isdir(os.path.join(root, ".git")):
-        if _git(root, "init", "-q") is None:
-            return
-    if _git(root, "add", "-A") is None:
+    if not _is_our_repository(root):
+        return
+    staged = [name for name in _MANAGED_PATHS if os.path.exists(os.path.join(root, name))]
+    if not staged:
+        return
+    if _git(root, "add", "-A", "--", *staged) is None:
         return
     _git(
         root,
@@ -296,6 +317,26 @@ def git_commit(message: str) -> None:
         "-m",
         message,
     )
+
+
+def _is_our_repository(root: str) -> bool:
+    """Whether the git repository at *root* is this store's to commit into.
+
+    A missing repository is created and marked. An existing one we did not create
+    is left alone: `zrb` cannot tell a dedicated memory directory from a project
+    checkout somebody pointed `LLM_MEMORY_DIR` at.
+    """
+    marker = os.path.join(root, _OWNED_MARKER)
+    if not os.path.isdir(os.path.join(root, ".git")):
+        if _git(root, "init", "-q") is None:
+            return False
+        try:
+            with open(marker, "w", encoding="utf-8") as f:
+                f.write("this repository is the memory store's audit trail\n")
+        except OSError:
+            return False
+        return True
+    return os.path.isfile(marker)
 
 
 def _git(root: str, *args: str) -> str | None:

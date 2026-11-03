@@ -179,6 +179,7 @@ def remember(
     rather than shortening the claim to fit.
     """
     wanted_kind = kind.strip().lower() if kind is not None else None
+    id = id.strip()
     if wanted_kind is None and date_error(id) is None:
         # A date names a diary entry and nothing else, so a revision that omits
         # `kind` lands on the day rather than being refused as a fact id.
@@ -221,6 +222,7 @@ def forget(
     `done` closes an open loop, so use it when the thing you owed is finished.
     """
     wanted_reason = reason.strip().lower()
+    id = id.strip()
     if id_error(id) is not None and date_error(id) is not None:
         return (
             f"{id!r} is neither a subject id nor a diary date, and an id becomes "
