@@ -82,31 +82,82 @@ async def test_a_read_only_repository_names_both_writable_paths(
 ):
     """git records the branch inside the repository, so the worktree root alone is not enough.
 
-    A sandbox list that names the worktree root *instead of* the project fails
-    here with git's own "Operation not permitted" on a `.git` lock; the message
-    has to say that the repository stays writable too.
+    A sandbox list that names the worktree root *instead of* the project used to
+    fail later, with git's own "Operation not permitted" on a `.git` lock. The
+    repository is judged before git runs, and the message names both roots.
     """
     repo = str(outside_root / "repo")  # a path to judge, never created
+    worktree_home = str(outside_root / "wt")
     monkeypatch.setattr(
         "zrb.llm.tool.worktree.get_effective_sandbox_policy",
-        lambda: SandboxPolicy(enabled=True, writable_paths=(str(outside_root / "wt"),)),
+        lambda: SandboxPolicy(enabled=True, writable_paths=(worktree_home,)),
     )
+    monkeypatch.setattr(worktree, "_worktree_root", lambda: worktree_home)
     mock_subprocess.side_effect = [
         create_mock_process(returncode=0, stdout=repo.encode()),
-        create_mock_process(
-            returncode=255,
-            stderr=(
-                b"fatal: cannot lock ref 'refs/heads/b': Unable to create "
-                b"'/repo/.git/refs/heads/b.lock': Operation not permitted"
-            ),
-        ),
     ]
 
     res = await enter_worktree(branch_name="b", cwd=repo)
 
-    assert "Failed to create worktree" in res
+    assert "Blocked by sandbox policy" in res
     assert "LLM_SANDBOX_WRITABLE_PATHS" in res
     assert repo in res
+    assert worktree_home in res
+    assert mock_subprocess.call_count == 1  # the probe; nothing was written
+
+
+@pytest.mark.asyncio
+async def test_a_repository_outside_the_writable_roots_is_refused(
+    mock_subprocess, monkeypatch, outside_root
+):
+    """`cwd` names a directory; the repository root git resolves it to is written.
+
+    That root can be an ancestor outside the writable set, so the destination
+    alone being writable must not let `git worktree add` touch another
+    repository's `.git`.
+    """
+    project = str(outside_root / "project")  # a path to judge, never created
+    repo = str(outside_root / "projectB")
+    monkeypatch.setattr(
+        worktree,
+        "get_effective_sandbox_policy",
+        lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
+    )
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=repo.encode()),
+        create_mock_process(returncode=0),  # what an unjudged `add` would run
+    ]
+
+    res = await enter_worktree(branch_name="x", cwd=repo)
+
+    assert "Blocked by sandbox policy" in res
+    assert "git worktree add" not in res
+    assert mock_subprocess.call_count == 1  # no `git worktree add`
+
+
+@pytest.mark.asyncio
+async def test_a_writable_repository_still_creates_a_worktree(
+    mock_subprocess, monkeypatch, tmp_path
+):
+    """The new check is the repository's boundary, not a second destination check."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(
+        worktree,
+        "get_effective_sandbox_policy",
+        lambda: SandboxPolicy(enabled=True, writable_paths=(str(repo),)),
+    )
+    monkeypatch.setattr(
+        worktree, "_worktree_parent", lambda _root: str(repo / "wt")
+    )
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=str(repo).encode()),
+        create_mock_process(returncode=0),
+    ]
+
+    res = await enter_worktree(branch_name="ok", cwd=str(repo))
+
+    assert "Worktree created:" in res
 
 
 @pytest.mark.asyncio

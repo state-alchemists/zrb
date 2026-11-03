@@ -193,7 +193,9 @@ def _repo_write_error(git_root: str) -> str | None:
         f"Blocked by sandbox policy: {error}. "
         "[SYSTEM SUGGESTION]: a worktree is not written only where it lands — "
         "git records the new branch and the worktree inside the repository, so "
-        f"add {git_root} to {CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS."
+        f"add {git_root} to {CFG.ENV_PREFIX}_LLM_SANDBOX_WRITABLE_PATHS alongside "
+        f"{_worktree_root()}, or leave that setting empty: the automatic roots "
+        "include both."
     )
 
 
