@@ -153,7 +153,7 @@ class TestRepositoryRoot:
         repo = tmp_path / "soda"
         deep = repo / "src" / "deep"
         deep.mkdir(parents=True)
-        answer = MagicMock(returncode=0, stdout="../../.git\n")
+        answer = MagicMock(returncode=0, stdout="true\n../../.git\n")
 
         with patch("subprocess.run", return_value=answer) as run:
             assert repository_root(str(deep)) == str(repo)
@@ -165,7 +165,17 @@ class TestRepositoryRoot:
         from zrb.llm.util.git import repository_root
 
         common = tmp_path / "soda" / ".git"
-        answer = MagicMock(returncode=0, stdout=f"{common}\n")
+        answer = MagicMock(returncode=0, stdout=f"true\n{common}\n")
 
         with patch("subprocess.run", return_value=answer):
             assert repository_root(str(tmp_path / "soda-wt")) == str(tmp_path / "soda")
+
+    def test_a_bare_repository_is_not_a_checkout(self, tmp_path):
+        """A bare repository has a common directory and no work tree; a session
+        poking at one is outside any checkout, where the journal is shown whole."""
+        from zrb.llm.util.git import repository_root
+
+        answer = MagicMock(returncode=0, stdout=f"false\n{tmp_path / 'bare.git'}\n")
+
+        with patch("subprocess.run", return_value=answer):
+            assert repository_root(str(tmp_path / "bare.git" / "work")) == ""

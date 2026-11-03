@@ -493,16 +493,28 @@ def scope_index(text: str, notes: list[Note], current: str) -> str:
     """*text* without the lines that link a note this repository does not show.
 
     A note is shown when it is untagged, tagged ``global``, or tagged with
-    *current* — see `journal_scope`. Only a line that links a note *known to be*
-    out of scope is dropped: a heading, a hand-written line, an overflow marker,
-    and a link to a file that is not a note at all all stay, which is the same
-    rule the renderer already follows for foreign lines.
+    *current* — see `journal_scope`. Only a line the index writer *owns* is
+    dropped: a heading, a hand-written line, an overflow marker, and a link to a
+    file that is not a note at all all stay, which is the same rule the renderer
+    already follows for foreign lines.
+
+    Ownership is the writer's own rule (`_is_owned_line`), not "this line links a
+    known note": the HUD sections own a line only for a note that has a
+    `hud_line`, so a line a person wrote under `## Constraints` and linked to a
+    note without one is content that exists nowhere else. Scoping hides what the
+    writer generated; it does not edit somebody's prose.
 
     What the dropped lines said is not thrown away — `elsewhere_lines` condenses
     it, and the caller injects that beside the index rather than inside it, where
     the cap would rank an unknown section away."""
-    scopes = {note.rel: note.repo for note in notes}
-    kept = [line for line in text.splitlines() if _is_line_shown(line, scopes, current)]
+    by_rel = {note.rel: note for note in notes}
+    kept: list[str] = []
+    section = ""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            section = line
+        if _is_line_shown(line, by_rel, current, section):
+            kept.append(line)
     return _without_empty_sections(kept)
 
 
@@ -542,14 +554,33 @@ def _shorten(claim: str) -> str:
     return head.rstrip(" ,;:—") + "…"
 
 
-def _is_line_shown(line: str, scopes: dict[str, str], current: str) -> bool:
-    """Whether *line* links no note, an unknown one, or one this view keeps."""
+def _is_line_shown(
+    line: str, notes: dict[str, Note], current: str, section: str
+) -> bool:
+    """Whether *line* links no note, one this view keeps, or one it does not own.
+
+    A line the writer would not have written is somebody's own text: dropping it
+    because the note it mentions lives elsewhere would delete the only copy of
+    what that line says."""
     from zrb.llm.tool.journal_scope import is_in_scope
 
     linked = _linked_note_rel(line)
-    if linked is None or linked not in scopes:
+    note = notes.get(linked) if linked else None
+    if note is None or not _is_owned_line(note, section):
         return True
-    return is_in_scope(scopes[linked], current)
+    return is_in_scope(note.repo, current)
+
+
+def _is_owned_line(note: Note, section: str) -> bool:
+    """Whether the index writer generates a line for *note* in *section*.
+
+    The writer's own rule: a HUD section generates a line only for a note that
+    carries a `hud_line` (`plan_hud`), and the catalog generates one for every
+    active note (`plan_catalog`). Anything else under a heading was written by a
+    person or by a renderer that no longer exists."""
+    if section == CATALOG_HEADING:
+        return note.is_active
+    return section.removeprefix("## ").strip() in HUD_ORDER and bool(note.hud_line)
 
 
 def _linked_note_rel(line: str) -> str | None:

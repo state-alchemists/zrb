@@ -54,10 +54,14 @@ def repository_root(cwd: str) -> str:
     "outside any checkout", which silently turns the journal's scoping off. The
     plain command answers the same thing on every version, relative to the
     directory it ran in, so the resolution happens here instead.
+
+    `--is-inside-work-tree` is asked in the same call: a bare repository has a
+    common directory but no checkout, and a session poking at one is outside any
+    work tree, where the journal is shown whole.
     """
     try:
         res = subprocess.run(
-            ["git", "rev-parse", "--git-common-dir"],
+            ["git", "rev-parse", "--is-inside-work-tree", "--git-common-dir"],
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -69,7 +73,10 @@ def repository_root(cwd: str) -> str:
         return ""
     if res.returncode != 0:
         return ""
-    return repository_root_from_common_dir(_absolute(res.stdout.strip(), cwd))
+    inside, _, common = res.stdout.partition("\n")
+    if inside.strip() != "true":
+        return ""
+    return repository_root_from_common_dir(_absolute(common.strip(), cwd))
 
 
 def _absolute(path: str, cwd: str) -> str:

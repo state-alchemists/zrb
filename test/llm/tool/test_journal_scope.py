@@ -45,13 +45,13 @@ INDEX = """# Journal
 """
 
 
-def _note(rel: str, repo: str, day: int = 1) -> Note:
+def _note(rel: str, repo: str, day: int = 1, hud_line: str = "a line") -> Note:
     return Note(
         category=rel.split("/")[0],
         slug=rel.split("/")[-1].removesuffix(".md"),
         title=rel,
         status="active",
-        hud_line="a line",
+        hud_line=hud_line,
         pinned=False,
         updated=datetime(2026, 10, day),
         has_stamp=True,
@@ -91,6 +91,32 @@ def test_the_digest_names_one_line_per_other_repository_newest_first():
         "- soda — 2 notes, newest (2026-10-09): a line",
         "- bank — 1 notes, newest (2026-10-05): a line",
     ]
+
+
+def test_a_hand_written_line_about_another_repository_survives():
+    """The writer only generates a HUD line for a note that carries a `hud_line`,
+    so this line is somebody's own text — and scoping hides what the writer
+    generated, it does not edit prose."""
+    text = "## Constraints\n\n- Extra context ([note](technical/old-note.md))\n"
+    notes = [_note("technical/old-note.md", "soda", hud_line="")]
+
+    assert "Extra context" in scope_index(text, notes, "zrb")
+
+
+def test_the_same_line_goes_once_the_note_owns_it():
+    text = "## Constraints\n\n- a claim ([note](technical/old-note.md))\n"
+    notes = [_note("technical/old-note.md", "soda", hud_line="a claim")]
+
+    assert "a claim" not in scope_index(text, notes, "zrb")
+
+
+def test_a_catalog_line_follows_the_scope_because_the_writer_generates_it():
+    """`## Recent Insights` lists every active note, `hud_line` or not — so there
+    the same note does own its line, and it leaves with the section."""
+    text = "## Recent Insights\n\n- [Old note](technical/old-note.md)\n"
+    notes = [_note("technical/old-note.md", "soda", hud_line="")]
+
+    assert "Recent Insights" not in scope_index(text, notes, "zrb")
 
 
 def test_a_section_whose_lines_all_left_leaves_with_them():
