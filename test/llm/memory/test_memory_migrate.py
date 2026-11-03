@@ -238,6 +238,7 @@ def test_running_it_twice_writes_the_same_store(journal):
     assert second["facts"] == 0
     assert second["retired"] == 0
     assert second["diary"] == 0
+    assert second["log_lines"] == 0
     assert before == after
     assert not any(fact_id.endswith("-2") for fact_id in after)
 

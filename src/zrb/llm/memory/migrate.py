@@ -261,30 +261,35 @@ def _migrate_log(source: str, dry_run: bool) -> dict[str, int]:
             ]
             if not lines:
                 continue
-            if not dry_run:
-                _write_log(day, lines)
-            written["log_lines"] += len(lines)
+            added = len(lines) if dry_run else _write_log(day, lines)
+            written["log_lines"] += added
     return written
 
 
-def _write_log(day: str, lines: list[str]) -> None:
-    """Merge the journal's lines into the day's log, never replace what is there.
+def _write_log(day: str, lines: list[str]) -> int:
+    """Merge the journal's lines into the day's log; return how many are new.
 
     The reviewer writes events into the same files. A migration that rewrote a
     day would delete everything the memory system had already logged for it, so
-    the day is read first and only lines it does not already hold are added.
+    the day is read first and only lines it does not already hold are added — and
+    only those are counted, because a second run changes nothing.
     """
     existing = store.log_lines(day)
     merged = list(existing)
     seen = set(existing)
+    added = 0
     for line in lines:
         normalised = _normalise_log_line(line)
-        if normalised not in seen:
-            seen.add(normalised)
-            merged.append(normalised)
-    merged.sort(key=_clock_key)
-    content = "\n".join([f"# {day}", *merged])
-    store.write_document(paths.log_path(day), content + "\n")
+        if normalised in seen:
+            continue
+        seen.add(normalised)
+        merged.append(normalised)
+        added += 1
+    if added:
+        merged.sort(key=_clock_key)
+        content = "\n".join([f"# {day}", *merged])
+        store.write_document(paths.log_path(day), content + "\n")
+    return added
 
 
 def _clock_key(line: str) -> tuple[int, int]:

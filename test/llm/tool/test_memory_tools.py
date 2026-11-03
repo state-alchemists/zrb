@@ -175,6 +175,19 @@ def test_an_id_with_surrounding_space_is_stored_trimmed(store_dir):
     assert "Forgot staging-ssh-port" in forget(" staging-ssh-port ", "stale")
 
 
+def test_a_store_path_that_is_a_file_answers_instead_of_raising(tmp_path, monkeypatch):
+    """The store's directory cannot be created; every tool must say so."""
+    target = tmp_path / "not-a-directory"
+    target.write_text("", encoding="utf-8")
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(target), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", False, raising=False)
+    assert "could not be written" in remember("x", "X is true.")
+    assert "could not be written" in forget("x", "stale")
+    assert "could not be written" in remember(
+        "2026-11-03", "A day.", kind="diary", body="x"
+    )
+
+
 def test_an_unwritable_store_is_reported_not_raised(store_dir, monkeypatch):
     """A tool that raises takes the turn with it; memory being unavailable is not
     a reason to lose an answer that was already composed."""
