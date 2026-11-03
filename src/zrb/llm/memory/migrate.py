@@ -101,7 +101,10 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
 
 def _migrate_all(source: str, dry_run: bool) -> dict[str, int]:
     counts = {"facts": 0, "retired": 0, "diary": 0, "log_lines": 0}
-    taken: set[str] = set()
+    # Seeded with what the store already holds: a subject that is already a fact
+    # is the store's to keep. Running the migration after the reviewer has written
+    # would otherwise replace a newer claim with the journal's older one.
+    taken = {fact.id for fact in store.load_facts(include_retired=True)}
     for category in NOTE_CATEGORIES:
         written = _migrate_category(source, category, taken, dry_run)
         counts["facts"] += written["facts"]
@@ -143,6 +146,10 @@ def _fact_from_note(text: str, category: str, taken: set[str]) -> Fact | None:
     front, body = split_document(text)
     slug = front.get("slug", "").strip()
     if not slug:
+        return None
+    # A subject the store already knows is the store's to keep, and two journal
+    # notes that slugify to one id are one subject.
+    if _slugify(slug) in taken:
         return None
     claim = _claim_of(front, body)
     if not claim:
@@ -318,6 +325,10 @@ def _migrate_handovers(source: str, dry_run: bool) -> dict[str, int]:
             text = store.read_document(os.path.join(directory, name))
             handover = _handover_of(text)
             if not handover:
+                continue
+            # The day may already have an entry, written by a session. Its claim
+            # and body are newer than the journal's handover, so it is kept.
+            if store.load_diary(day) is not None:
                 continue
             handover = _cut(handover, MAX_HANDOVER_CHARS)
             if injection_reason(handover):

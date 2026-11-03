@@ -96,6 +96,16 @@ def test_a_zero_hit_search_says_it_is_not_proof(store_dir):
     assert "not proof" in text
 
 
+def test_a_file_whose_name_is_not_its_id_is_skipped(store_dir):
+    """The file name is the id; a mismatch would make search return a dead path."""
+    store.write_document(
+        os.path.join(str(store_dir), "facts", "note.md"),
+        "---\nid: staging-ssh-port\nclaim: A deploy note.\n---\n",
+    )
+    assert store.load_fact("staging-ssh-port") is None
+    assert search.search("deploy") == []
+
+
 def test_a_malformed_file_is_skipped_rather_than_crashing_a_search(store_dir):
     """A hand-edited frontmatter id must not reach a path builder."""
     bad = os.path.join(str(store_dir), "facts", "bad.md")

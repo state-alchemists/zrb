@@ -5,7 +5,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.memory import paths, store
 from zrb.llm.memory.migrate import migrate
-from zrb.llm.memory.model import injection_reason
+from zrb.llm.memory.model import Diary, Fact, injection_reason
 
 _NOTE = """---
 slug: staging-ssh-port
@@ -171,14 +171,56 @@ def test_an_existing_log_day_is_merged_not_replaced(journal):
     assert any("Replaced the journal" in line for line in lines)
 
 
+def test_a_memory_fact_is_never_replaced_by_a_migration(journal):
+    """The store's claim is newer than the journal's once a session wrote it."""
+    paths.ensure_store()
+    store.save_fact(
+        Fact(
+            id="staging-ssh-port",
+            claim="Staging SSH is port 2222, revised by a later session.",
+            source="session 2026-11-03",
+            updated=store.now(),
+        )
+    )
+    migrate(str(journal))
+    fact = store.load_fact("staging-ssh-port")
+    assert fact is not None
+    assert fact.claim == "Staging SSH is port 2222, revised by a later session."
+    assert fact.source == "session 2026-11-03"
+
+
+def test_an_existing_diary_entry_is_kept(journal):
+    paths.ensure_store()
+    store.save_diary(
+        Diary(
+            id="2026-11-03",
+            claim="The day, as a session told it.",
+            handover="Ask about the DNS access before anything else.",
+            source="session 2026-11-03",
+            updated=store.now(),
+        )
+    )
+    migrate(str(journal))
+    entry = store.load_diary("2026-11-03")
+    assert entry is not None
+    assert entry.claim == "The day, as a session told it."
+    assert entry.handover == "Ask about the DNS access before anything else."
+
+
 def test_running_it_twice_writes_the_same_store(journal):
-    first = migrate(str(journal))
-    facts_first = sorted(fact.id for fact in store.load_facts(include_retired=True))
+    migrate(str(journal))
+    before = {
+        fact.id: fact.claim for fact in store.load_facts(include_retired=True)
+    }
     second = migrate(str(journal))
-    facts_second = sorted(fact.id for fact in store.load_facts(include_retired=True))
-    assert first == second
-    assert facts_first == facts_second
-    assert not any(fact_id.endswith("-2") for fact_id in facts_second)
+    after = {
+        fact.id: fact.claim for fact in store.load_facts(include_retired=True)
+    }
+    assert second["facts"] == 0
+    assert second["retired"] == 0
+    assert second["diary"] == 0
+    assert before == after
+    assert not any(fact_id.endswith("-2") for fact_id in after)
 
 
 def test_a_dry_run_writes_nothing(journal):

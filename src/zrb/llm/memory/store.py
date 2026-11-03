@@ -132,10 +132,13 @@ def load_facts(include_retired: bool = False) -> list[Fact]:
         if not name.endswith(".md") or name.startswith("."):
             continue
         fact = Fact.from_markdown(read_document(os.path.join(directory, name)))
-        # A file whose id is not a subject id was not written by this store: a
-        # hand-edited or synced page is skipped rather than allowed to reach a
-        # path builder with `..` in it.
+        # The file name *is* the id, and an id that is not a subject id was not
+        # written by this store. A mismatch is skipped rather than reported: a
+        # pointer that names a file the store does not hold is worse than no
+        # pointer, because the reader believes it.
         if fact is None or id_error(fact.id) is not None:
+            continue
+        if name.removesuffix(".md") != fact.id:
             continue
         if not include_retired and not fact.is_active:
             continue
@@ -168,6 +171,8 @@ def load_diaries(include_retired: bool = False) -> dict[str, Diary]:
             continue
         entry = Diary.from_markdown(read_document(os.path.join(directory, name)))
         if entry is None or date_error(entry.id) is not None:
+            continue
+        if name.removesuffix(".md") != entry.id:
             continue
         if not include_retired and not entry.is_active:
             continue

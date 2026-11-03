@@ -419,8 +419,8 @@ def _remember_diary(
     ):
         if problem:
             return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
-    paths.ensure_store()
     try:
+        paths.ensure_store()
         with store.locked():
             return _remember_diary_locked(day, claim, handover, source, body)
     except FileLockTimeout:

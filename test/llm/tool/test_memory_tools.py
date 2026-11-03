@@ -204,6 +204,17 @@ def test_search_with_a_zero_limit_returns_nothing(store_dir):
     assert search_memory("deploy", limit=0) .startswith("No claim matches")
 
 
+def test_a_diary_write_on_an_unwritable_store_answers(store_dir, monkeypatch):
+    from zrb.llm.memory import paths as memory_paths
+
+    def explode():
+        raise PermissionError("read-only store")
+
+    monkeypatch.setattr(memory_paths, "ensure_store", explode)
+    message = remember("2026-11-03", "A day.", kind="diary", body="details")
+    assert "could not be written" in message
+
+
 def test_a_diary_pin_is_refused_rather_than_ignored(store_dir):
     """The tool says a diary never enters the core; a silent pin would lie."""
     message = remember("2026-11-03", "A day.", kind="diary", pin=True, body="x")
