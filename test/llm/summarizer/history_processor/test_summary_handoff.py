@@ -35,7 +35,7 @@ from zrb.llm.summarizer.history_summarizer import (
     summary_cap,
 )
 
-JOURNAL_PATCH = "zrb.llm.summarizer.history_summarizer.render_journal_index"
+JOURNAL_PATCH = "zrb.llm.summarizer.history_summarizer.render_carried_context"
 CHARS_PER_TOKEN = 4
 
 

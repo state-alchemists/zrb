@@ -17,7 +17,7 @@ from zrb.llm.agent.common import create_agent
 from zrb.llm.ambient_state import get_current_tool_session
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.factory_resolver import resolve_factory_items
-from zrb.llm.prompt.live_context import render_journal_index
+from zrb.llm.prompt.live_context import render_carried_context
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.parent_message import send_message_to_parent
 from zrb.llm.subagent.tool_resolver import (
@@ -268,7 +268,7 @@ class SubAgentBuilding:
             else:
                 # No system_context to carry it: inject the index alone, not the
                 # per-turn state that system_context owns.
-                journal_block = render_journal_index()
+                journal_block = render_carried_context()
                 if journal_block:
                     composed = f"{composed}\n\n{journal_block}".strip()
             return composed

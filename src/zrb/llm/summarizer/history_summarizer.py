@@ -17,7 +17,7 @@ from zrb.llm.message import (
     validate_tool_pair_integrity,
 )
 from zrb.llm.message_text import render_verbatim_messages
-from zrb.llm.prompt.live_context import render_journal_index
+from zrb.llm.prompt.live_context import render_carried_context
 from zrb.llm.skill.reattach import build_reattach_message
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,
@@ -629,7 +629,7 @@ async def _build_summary_parts(
     # pointer's room is reserved here because the write that decides it happens
     # only after the cap has approved the block.
     cap = summary_cap(conversational_token_threshold)
-    journal_block = render_journal_index() or ""
+    journal_block = render_carried_context() or ""
     archive_note = _render_archive_note(archive_path) if archive_path else ""
     journal_block, archive_note = _fit_note_blocks(
         llm_limiter, cap, journal_block, archive_note

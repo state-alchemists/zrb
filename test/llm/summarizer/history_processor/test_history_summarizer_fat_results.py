@@ -303,7 +303,7 @@ async def test_summarize_history_bakes_journal_index_into_summary():
             return_value="old conversation summary",
         ),
         patch(
-            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            "zrb.llm.summarizer.history_summarizer.render_carried_context",
             return_value=journal_block,
         ),
     ):
@@ -335,7 +335,7 @@ async def test_summarize_history_without_journal_index_is_unaffected():
             return_value="old conversation summary",
         ),
         patch(
-            "zrb.llm.summarizer.history_summarizer.render_journal_index",
+            "zrb.llm.summarizer.history_summarizer.render_carried_context",
             return_value=None,
         ),
     ):

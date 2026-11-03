@@ -97,7 +97,7 @@ def test_sub_agent_manager_inherits_journal_index():
     journal_block = "<journal-index>\nProject Hub\n</journal-index>"
     with (
         patch(
-            "zrb.llm.subagent.building.render_journal_index",
+            "zrb.llm.subagent.building.render_carried_context",
             return_value=journal_block,
         ),
         patch("zrb.llm.subagent.building.create_agent") as mock_create,

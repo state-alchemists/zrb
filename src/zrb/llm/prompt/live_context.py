@@ -1291,6 +1291,19 @@ def _render_parts(
     return "\n".join(parts)
 
 
+def render_carried_context() -> str:
+    """The block that rides along with a compacted or inherited context.
+
+    A compaction replaces the messages that carried the block, and a sub-agent
+    inherits the conversation without the turn it arrived in, so both have to be
+    given it again. Memory answers when it is on: two memories in one prompt are
+    two answers to the same question, and the journal's index is the stale one.
+    """
+    if CFG.LLM_MEMORY_ENABLED:
+        return render_memory_block() or ""
+    return render_journal_index() or ""
+
+
 def _memory_parts(inject_journal_index: bool, first_message: str | None) -> list[str]:
     """This turn's memory block — or the journal's, while memory is switched off.
 

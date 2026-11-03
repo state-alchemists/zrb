@@ -5,6 +5,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.memory import paths, store
 from zrb.llm.memory.model import Fact
+from zrb.llm.prompt import live_context
 from zrb.llm.prompt.memory_context import render_memory_block, render_memory_delta
 from zrb.llm.tool.memory import forget, remember
 
@@ -19,6 +20,28 @@ def store_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_LOCK_TIMEOUT", 5.0, raising=False)
     paths.ensure_store()
     return tmp_path / "memory"
+
+
+def test_a_compacted_context_carries_the_memory_not_the_journal(store_dir, monkeypatch):
+    """A compaction replaces the messages that carried the block, so it must carry it.
+
+    The journal index was injected here unconditionally, which is how a compacted
+    chat with memory on ended up holding two memories — and the stale one.
+    """
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_DIR", str(store_dir / "notes"), raising=False)
+    remember("staging-ssh-port", "Staging SSH is port 2222.", pin=True)
+    carried = live_context.render_carried_context()
+    assert "Staging SSH is port 2222." in carried
+    assert "<journal-index>" not in carried
+
+
+def test_with_memory_off_the_carried_context_is_the_journals(store_dir, monkeypatch):
+    remember("staging-ssh-port", "Staging SSH is port 2222.", pin=True)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", False, raising=False)
+    monkeypatch.setattr(
+        CFG, "LLM_JOURNAL_DIR", str(store_dir / "no-notes-here"), raising=False
+    )
+    assert "Staging SSH is port 2222." not in live_context.render_carried_context()
 
 
 def test_an_empty_store_injects_nothing(store_dir):
