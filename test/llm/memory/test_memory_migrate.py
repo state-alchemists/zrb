@@ -257,6 +257,32 @@ def test_a_core_over_the_cap_is_unpinned_rather_than_dropped(journal, monkeypatc
     assert all(store.load_fact(fact.id) is not None for fact in facts)
 
 
+def test_a_loop_over_the_cap_is_demoted_so_the_core_fits(tmp_path, monkeypatch):
+    """A loop always renders, so fitting the core means giving up the kind."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(tmp_path / "m"), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", False, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 60, raising=False)
+    paths.ensure_store()
+    for index in range(3):
+        store.save_fact(
+            Fact(
+                id=f"owed-{index}",
+                claim=f"I owe task number {index}.",
+                kind="loop",
+                updated=store.now(),
+            )
+        )
+    journal = tmp_path / "empty-journal"
+    journal.mkdir()
+    counts = migrate(str(journal))
+    assert counts["converted"] > 0
+    facts = store.load_facts()
+    assert len(render.render_core(facts)) <= 60
+    # The claim survives whatever the kind became.
+    assert all(fact.claim.startswith("I owe task") for fact in facts)
+    assert len([fact for fact in facts if fact.kind == "loop"]) < 3
+
+
 def test_running_it_twice_writes_the_same_store(journal):
     migrate(str(journal))
     before = {

@@ -39,17 +39,23 @@ def migrate_journal(ctx: AnyContext) -> str:
     counts = migrate(CFG.LLM_JOURNAL_DIR, dry_run)
     verb = "would write" if dry_run else "wrote"
     unpinned = counts.get("unpinned", 0)
-    note = (
-        f"\nUnpinned {unpinned} claim(s) that did not fit the core: they stay "
-        "searchable and out of every first turn."
-        if unpinned
-        else ""
-    )
+    converted = counts.get("converted", 0)
+    notes = ""
+    if unpinned:
+        notes += (
+            f"\nUnpinned {unpinned} claim(s) that did not fit the core: they stay "
+            "searchable and out of every first turn."
+        )
+    if converted:
+        notes += (
+            f"\nTurned {converted} open loop(s) into facts so the core fits: their "
+            "claims are unchanged and still searchable."
+        )
     return (
         f"Memory store: {paths.memory_dir()}\n"
         f"{verb} {counts['facts']} facts, {counts['retired']} retired, "
         f"{counts['diary']} diary entries and {counts['log_lines']} log lines "
-        f"from {CFG.LLM_JOURNAL_DIR}{note}\n"
+        f"from {CFG.LLM_JOURNAL_DIR}{notes}\n"
         "The journal was not modified; `ZRB_LLM_MEMORY_ENABLED=off` still "
         "selects it."
     )

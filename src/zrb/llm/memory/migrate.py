@@ -42,6 +42,7 @@ from zrb.config.config import CFG
 from zrb.llm.memory import paths, render, store
 from zrb.llm.memory.model import (
     KIND_FACT,
+    KIND_LOOP,
     MAX_CLAIM_CHARS,
     MAX_FACT_BODY_CHARS,
     MAX_HANDOVER_CHARS,
@@ -95,33 +96,49 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
     # is about to write.
     with store.locked():
         counts = _migrate_all(source, dry_run=False)
-        counts["unpinned"] = _fit_core()
+        unpinned, converted = _fit_core()
+        counts["unpinned"] = unpinned
+        counts["converted"] = converted
         store.write_core()
         store.git_commit("migrate: journal")
     return counts
 
 
-def _fit_core() -> int:
-    """Unpin facts until the core fits the cap; return how many were unpinned.
+def _fit_core() -> tuple[int, int]:
+    """Make the core fit the cap; return `(unpinned, converted)`.
 
     `remember` refuses an over-cap pin, but a migration cannot refuse: dropping
-    the note would lose the knowledge it exists to carry. An unpinned fact stays
-    searchable and stays out of the block, which is what the cap is asking for.
-    Facts are unpinned from the highest id down, so two runs agree.
+    the note would lose the knowledge it exists to carry. It shrinks the core
+    instead, in two steps, from the highest id down so two runs agree:
+
+    1. a pinned fact is unpinned — it stays searchable and out of the block;
+    2. if only loops are left, the highest-id loop becomes a fact. A loop always
+       renders, so there is no third step, and the claim itself is unchanged: a
+       loop's text already says what is owed.
     """
     cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
     unpinned = 0
+    converted = 0
     while True:
         facts = store.load_facts()
         if len(render.render_core(facts)) <= cap:
-            return unpinned
-        pinned = [fact for fact in facts if fact.pin]
-        if not pinned:
-            return unpinned
-        victim = pinned[-1]
-        victim.pin = False
+            return unpinned, converted
+        pinned = sorted((fact for fact in facts if fact.pin), key=lambda f: f.id)
+        if pinned:
+            victim = pinned[-1]
+            victim.pin = False
+            store.save_fact(victim)
+            unpinned += 1
+            continue
+        loops = sorted(
+            (fact for fact in facts if fact.kind == KIND_LOOP), key=lambda f: f.id
+        )
+        if not loops:
+            return unpinned, converted
+        victim = loops[-1]
+        victim.kind = KIND_FACT
         store.save_fact(victim)
-        unpinned += 1
+        converted += 1
 
 
 def _migrate_all(source: str, dry_run: bool) -> dict[str, int]:
