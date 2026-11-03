@@ -363,6 +363,26 @@ def _inline_instructions(
         sources, texts, max_bytes, skip=frozenset(pointers)
     )
     covered = {path.resolve() for path in without_pointers}
+    skipped = _skip_pointers(pointers, next_hop, covered)
+    blocks, inlined = _walk_instructions(
+        sources, texts, max_bytes, skip=frozenset(skipped)
+    )
+    return blocks, inlined, _resolve_pointer_targets(skipped)
+
+
+def _skip_pointers(
+    pointers: list[Path],
+    next_hop: dict[Path, list[Path | None]],
+    covered: set[Path],
+) -> dict[Path, Path]:
+    """The pointers whose rules the prompt already carries, and the file each names.
+
+    Skipping is only safe when every branch the walk followed ends in a file the
+    prompt holds. A branch cut short by `MAX_POINTER_DEPTH` is still a route to
+    rules, so its pointer is kept whole rather than skipped for the branches that
+    did resolve. A cycle names no file and can never be a route, so it is skipped
+    and reported against its first hop.
+    """
     skipped: dict[Path, Path] = {}
     for path in pointers:
         hops = next_hop[path.resolve()]
@@ -370,18 +390,12 @@ def _inline_instructions(
             path.resolve(), next_hop, frozenset()
         )
         if unresolved:
-            # A branch this walk did not follow is still a route to rules: the
-            # pointer stays inlined rather than being skipped for the branches
-            # that did resolve.
             continue
         if leaves and leaves <= covered:
             skipped[path] = sorted(leaves)[0]
         elif cyclic and hops and hops[0] is not None:
             skipped[path] = hops[0]
-    blocks, inlined = _walk_instructions(
-        sources, texts, max_bytes, skip=frozenset(skipped)
-    )
-    return blocks, inlined, _resolve_pointer_targets(skipped)
+    return skipped
 
 
 def _resolve_pointer_targets(pointers: dict[Path, Path]) -> dict[Path, Path]:

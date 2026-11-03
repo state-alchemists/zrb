@@ -143,6 +143,11 @@ class TestGetPathReferences:
         "An address is not a prompt reference either."
         assert get_path_references("mail go@example.com") == []
 
+    def test_an_at_after_a_dot_or_a_dash_is_not_a_reference(self):
+        "`pkg.@beta` and `pkg-@beta` are directory names, not markers."
+        assert get_path_references("/work/pkg.@beta/AGENTS.md") == []
+        assert get_path_references("/work/pkg-@beta/AGENTS.md") == []
+
 
 class TestProcessPathReference:
     def test_process_path_reference_valid_file(self):
