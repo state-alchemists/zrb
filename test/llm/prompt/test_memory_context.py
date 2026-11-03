@@ -112,6 +112,18 @@ def test_a_fact_cut_from_the_core_reaches_the_next_turn_as_a_delta(
     assert "fact-2" in delta
 
 
+def test_a_diary_written_after_the_block_reaches_the_next_turn(store_dir):
+    """A day is not a fact: the delta must carry it too, or the reviewer's work is
+    invisible until a compaction."""
+    remember("anchor", "An anchor claim.", pin=True)
+    assert render_memory_block() is not None
+    remember("2026-11-03", "Spent the day on memory.", kind="diary", body="x")
+    delta = render_memory_delta()
+    assert delta is not None
+    assert "Spent the day on memory." in delta
+    assert render_memory_delta() is None
+
+
 def test_a_fact_recorded_after_an_empty_first_turn_is_shown(store_dir):
     """An empty store is still a first turn: it must leave a baseline.
 

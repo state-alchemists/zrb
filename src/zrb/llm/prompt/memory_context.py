@@ -77,7 +77,12 @@ def render_memory_block() -> str | None:
         for fact in facts
         if (line := render.core_line(fact)) is not None and line in rendered
     ]
-    _write_state([render.claim_key(fact) for fact in facts], shown)
+    today_entry = store.load_diary(store.today())
+    _write_state(
+        [render.claim_key(fact) for fact in facts],
+        shown,
+        render.diary_key(today_entry) if today_entry is not None else "",
+    )
     if not core.strip() and not recent.strip():
         return None
     return render.compose_memory(core, recent)
@@ -90,13 +95,17 @@ def render_memory_delta() -> str | None:
     state = _read_state()
     if state is None:
         return None
-    known, shown = state
+    known, shown, diary = state
+    today_entry = store.load_diary(store.today())
     try:
         facts = store.load_facts(include_retired=True)
     except OSError:
         return None
-    plan = render.plan_delta(facts, known, shown)
+    plan = render.plan_delta(facts, known, shown, today_entry, diary)
     if not plan.text:
+        # Today's entry may still have advanced; keep the baseline current so it
+        # is not re-emitted on the next turn.
+        _write_state(known, shown, plan.diary_key)
         return None
     # Advance the baseline only by what this delta actually said: a fact left out
     # by the three-line cap stays unseen and appears on the next turn.
@@ -107,6 +116,7 @@ def render_memory_delta() -> str | None:
     _write_state(
         kept + list(plan.emitted),
         still_shown + [item for item in emitted_ids if item not in still_shown],
+        plan.diary_key,
     )
     return plan.text
 
@@ -119,7 +129,7 @@ def _session_key() -> str:
     return key
 
 
-def _write_state(known, shown) -> None:
+def _write_state(known, shown, diary_key: str = "") -> None:
     """Remember which versions the block knew, and which claims it showed.
 
     Versions, not a timestamp: a fact recorded in the same second as the block is
@@ -130,14 +140,19 @@ def _write_state(known, shown) -> None:
     path = paths.state_path(_session_key())
     try:
         makedirs_owner_only(os.path.dirname(path))
-        write_text_owner_only(path, json.dumps({"known": list(known), "shown": list(shown)}))
+        write_text_owner_only(
+            path,
+            json.dumps(
+                {"known": list(known), "shown": list(shown), "diary": diary_key}
+            ),
+        )
     except OSError:
         # Without a record there is no delta, which costs a repeated claim in a
         # later turn. Failing the turn over it would cost the turn.
         pass
 
 
-def _read_state() -> tuple[list[str], list[str]] | None:
+def _read_state() -> tuple[list[str], list[str], str] | None:
     try:
         with open(paths.state_path(_session_key()), encoding="utf-8") as f:
             payload = json.load(f)
@@ -153,7 +168,9 @@ def _read_state() -> tuple[list[str], list[str]] | None:
     # the old behaviour: every fact the store held counted as shown.
     if not isinstance(shown, list):
         shown = [render.id_of(item) for item in known if isinstance(item, str)]
+    diary = payload.get("diary")
     return (
         [item for item in known if isinstance(item, str)],
         [item for item in shown if isinstance(item, str)],
+        diary if isinstance(diary, str) else "",
     )

@@ -154,6 +154,11 @@ def claim_key(fact: Fact) -> str:
     return f"{fact.id}@{fact.updated}"
 
 
+def diary_key(entry: Diary | None) -> str:
+    """The version of a diary entry, in the same shape a claim's key has."""
+    return "" if entry is None else f"{entry.id}@{entry.updated}"
+
+
 @dataclass(frozen=True)
 class DeltaPlan:
     """What a delta says, and the versions it spoke for.
@@ -167,12 +172,15 @@ class DeltaPlan:
     text: str
     emitted: tuple[str, ...] = ()
     forgotten: tuple[str, ...] = ()
+    diary_key: str = ""
 
 
 def plan_delta(
     facts: Sequence[Fact],
     known: Sequence[str] | None,
     shown_ids: Sequence[str] | None = None,
+    today_entry: Diary | None = None,
+    known_diary: str | None = None,
 ) -> DeltaPlan:
     """The delta for this turn, and the versions it spoke for.
 
@@ -180,6 +188,10 @@ def plan_delta(
     only for one of those: "forget this claim" means nothing about a fact that was
     never in the block, and a store full of ordinary unpinned facts would
     otherwise answer every `Forget` with a correction nobody needed.
+
+    *today_entry* is the day the reviewer may have written since the block went
+    in. A diary is not a fact, so it is compared by its own key and emitted as one
+    line — the day the model was told about is not the day it is having.
     """
     if known is None:
         return DeltaPlan("")
@@ -193,10 +205,19 @@ def plan_delta(
     tombstone_lines = {
         fact_id: _tombstone(fact_id, facts) for fact_id in tombstones
     }
-    lines = list(tombstone_lines.values())
+    lines: list[str] = []
+    today_key = ""
+    if today_entry is not None and today_entry.is_active:
+        today_key = diary_key(today_entry)
+        if today_key != (known_diary or "") and _is_injectable(today_entry.claim):
+            lines.append(f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}")
+        else:
+            today_key = known_diary or today_key
+    lines.extend(tombstone_lines.values())
     entries = _delta_entries(facts, shown_versions, shown_ids)
     lines.extend(line for _fact, line in entries)
-    return _fit_delta(lines, entries, tombstone_lines)
+    plan = _fit_delta(lines, entries, tombstone_lines)
+    return DeltaPlan(plan.text, plan.emitted, plan.forgotten, today_key)
 
 
 def _tombstones(facts: Sequence[Fact], shown_ids: set[str]) -> list[str]:
