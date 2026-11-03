@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import stat
 import subprocess
 import threading
 import time
@@ -16,6 +17,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.memory import paths, render, search, store
 from zrb.llm.memory.model import Fact
 from zrb.llm.tool.memory import forget, remember
+from zrb.util.owner_only import DIR_MODE, FILE_MODE
 from zrb.util.file_lock import FileLockTimeout
 
 
@@ -28,6 +30,29 @@ def store_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_LOG_RETENTION_DAYS", 90, raising=False)
     paths.ensure_store()
     return tmp_path / "memory"
+
+
+needs_posix_modes = pytest.mark.skipif(
+    os.name != "posix", reason="POSIX mode bits (the mode under test)"
+)
+
+
+@needs_posix_modes
+def test_the_store_is_created_owner_only(store_dir):
+    """A memory holds what the user said; a 0755 directory lists it to everyone."""
+    old_umask = os.umask(0o022)
+    try:
+        paths.ensure_store()
+        for path in (str(store_dir), paths.facts_dir(), paths.diary_dir()):
+            assert stat.S_IMODE(os.stat(path).st_mode) == DIR_MODE, path
+        with store.locked():
+            pass
+        assert stat.S_IMODE(os.stat(paths.lock_path()).st_mode) == FILE_MODE
+        gitignore = os.path.join(str(store_dir), ".gitignore")
+        if os.path.exists(gitignore):
+            assert stat.S_IMODE(os.stat(gitignore).st_mode) == FILE_MODE
+    finally:
+        os.umask(old_umask)
 
 
 def test_a_write_leaves_no_temporary_file(store_dir):

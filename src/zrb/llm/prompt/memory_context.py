@@ -26,6 +26,7 @@ from datetime import datetime
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_session_ownership_key
 from zrb.llm.memory import paths, render, store
+from zrb.util.owner_only import makedirs_owner_only, write_text_owner_only
 
 # The process's own start, so two CLI runs in one directory are two sessions.
 _PROCESS_START = datetime.now().replace(microsecond=0).isoformat()
@@ -128,9 +129,8 @@ def _write_state(known, shown) -> None:
     """
     path = paths.state_path(_session_key())
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"known": list(known), "shown": list(shown)}, f)
+        makedirs_owner_only(os.path.dirname(path))
+        write_text_owner_only(path, json.dumps({"known": list(known), "shown": list(shown)}))
     except OSError:
         # Without a record there is no delta, which costs a repeated claim in a
         # later turn. Failing the turn over it would cost the turn.

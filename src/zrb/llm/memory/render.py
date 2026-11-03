@@ -88,25 +88,21 @@ def render_recent(
     oldest line of a capped block loses a memory nobody would have read.
     """
     lines: list[str] = []
-    if (
-        handover is not None
-        and handover.handover.strip()
-        and _is_injectable(handover.handover)
-    ):
-        lines.append(f"- Handover ({handover.id}): {_one_line(handover.handover)}")
-    # One day gets one line here. When today's entry carries the handover, its
-    # state of play is already above; repeating the same date as `Today` spends
-    # the cap saying the same day twice, and the claim stays in the entry's file.
     same_day = (
         handover is not None
         and today_entry is not None
         and handover.id == today_entry.id
     )
     if (
-        today_entry is not None
-        and not same_day
-        and _is_injectable(today_entry.claim)
+        handover is not None
+        and handover.handover.strip()
+        and _is_injectable(handover.handover)
     ):
+        # The same day is named once: when the handover is today's, the `Today`
+        # line below already carries the date.
+        label = "- Handover:" if same_day else f"- Handover ({handover.id}):"
+        lines.append(f"{label} {_one_line(handover.handover)}")
+    if today_entry is not None and _is_injectable(today_entry.claim):
         lines.append(f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}")
     lines.extend(
         line

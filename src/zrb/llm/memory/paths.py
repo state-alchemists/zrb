@@ -16,6 +16,7 @@ import hashlib
 import os
 
 from zrb.config.config import CFG
+from zrb.util.owner_only import makedirs_owner_only, tighten_once, write_text_owner_only
 
 CORE_FILE = "core.md"
 FACTS_DIR = "facts"
@@ -107,13 +108,19 @@ def state_path(key: str) -> str:
 def ensure_store() -> str:
     """Create the store's directories (and its git repository) if they are missing.
 
+    Owner-only, like every other place zrb keeps private text: a memory holds
+    what the user told the agent, and a `0755` directory on a shared machine
+    lists it to every local account. `tighten_once` narrows a store created by an
+    earlier build, once, and the marker it leaves records that it did.
+
     Idempotent, and cheap enough to call before every read: an unwritten memory is
     empty, not broken.
     """
     root = memory_dir()
     for path in (root, facts_dir(), diary_dir(), log_dir()):
-        os.makedirs(path, exist_ok=True)
+        makedirs_owner_only(path)
     _write_gitignore(root)
+    tighten_once(root)
     return root
 
 
@@ -141,8 +148,7 @@ def _write_gitignore(root: str) -> None:
         return
     separator = "" if not existing or existing.endswith("\n") else "\n"
     try:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(existing + separator + "\n".join(missing) + "\n")
+        write_text_owner_only(path, existing + separator + "\n".join(missing) + "\n")
     except OSError:
         # A store that cannot be written is reported when the write is attempted,
         # not here: rendering a missing file must stay harmless.

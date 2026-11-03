@@ -3,7 +3,7 @@
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.memory import paths, store
+from zrb.llm.memory import paths, render, store
 from zrb.llm.memory.migrate import migrate
 from zrb.llm.memory.model import Diary, Fact, injection_reason
 
@@ -237,6 +237,24 @@ def test_a_note_slugged_as_a_date_does_not_shadow_the_diary(journal):
     ids = {fact.id for fact in store.load_facts(include_retired=True)}
     assert not (ids & {"2026-11-03"})
     assert "fact-2026-11-03" in ids
+
+
+def test_a_core_over_the_cap_is_unpinned_rather_than_dropped(journal, monkeypatch):
+    """A migration cannot refuse a pin, so it unpins the overflow; nothing is lost."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 60, raising=False)
+    for index in range(3):
+        (journal / "user" / f"pinned-{index}.md").write_text(
+            f"---\nslug: pinned-{index}\npinned: true\n"
+            f"hud_line: Pinned claim number {index}.\n"
+            "updated: 2026-11-01T10:00:00\n---\n# Pinned\n",
+            encoding="utf-8",
+        )
+    counts = migrate(str(journal))
+    assert counts["unpinned"] > 0
+    facts = store.load_facts()
+    assert len([fact for fact in facts if fact.pin]) < 3
+    assert len(render.render_core(facts)) <= 60
+    assert all(store.load_fact(fact.id) is not None for fact in facts)
 
 
 def test_running_it_twice_writes_the_same_store(journal):

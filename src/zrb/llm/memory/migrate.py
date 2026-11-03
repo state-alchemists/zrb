@@ -39,7 +39,7 @@ import re
 from datetime import date
 
 from zrb.config.config import CFG
-from zrb.llm.memory import paths, store
+from zrb.llm.memory import paths, render, store
 from zrb.llm.memory.model import (
     KIND_FACT,
     MAX_CLAIM_CHARS,
@@ -95,9 +95,33 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
     # is about to write.
     with store.locked():
         counts = _migrate_all(source, dry_run=False)
+        counts["unpinned"] = _fit_core()
         store.write_core()
         store.git_commit("migrate: journal")
     return counts
+
+
+def _fit_core() -> int:
+    """Unpin facts until the core fits the cap; return how many were unpinned.
+
+    `remember` refuses an over-cap pin, but a migration cannot refuse: dropping
+    the note would lose the knowledge it exists to carry. An unpinned fact stays
+    searchable and stays out of the block, which is what the cap is asking for.
+    Facts are unpinned from the highest id down, so two runs agree.
+    """
+    cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
+    unpinned = 0
+    while True:
+        facts = store.load_facts()
+        if len(render.render_core(facts)) <= cap:
+            return unpinned
+        pinned = [fact for fact in facts if fact.pin]
+        if not pinned:
+            return unpinned
+        victim = pinned[-1]
+        victim.pin = False
+        store.save_fact(victim)
+        unpinned += 1
 
 
 def _migrate_all(source: str, dry_run: bool) -> dict[str, int]:
