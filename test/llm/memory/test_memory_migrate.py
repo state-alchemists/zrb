@@ -243,6 +243,14 @@ def test_running_it_twice_writes_the_same_store(journal):
     assert not any(fact_id.endswith("-2") for fact_id in after)
 
 
+def test_a_dry_run_counts_only_what_a_real_run_would_add(journal):
+    migrate(str(journal))
+    counts = migrate(str(journal), dry_run=True)
+    assert counts["facts"] == 0
+    assert counts["diary"] == 0
+    assert counts["log_lines"] == 0
+
+
 def test_a_dry_run_writes_nothing(journal):
     counts = migrate(str(journal), dry_run=True)
     assert counts["facts"] == 1

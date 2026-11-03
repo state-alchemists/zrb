@@ -180,6 +180,20 @@ def test_a_tainted_claim_is_not_quoted_in_a_tombstone():
     assert "Forget bad" in delta
 
 
+def test_the_day_is_not_said_twice_when_it_carries_the_handover():
+    """Today's entry holds the handover, so `## Recent` says that day once."""
+    today = Diary(
+        id="2026-11-03",
+        claim="Spent the day on memory.",
+        handover="Ask about the DNS access first.",
+        updated="2026-11-03T09:00:00",
+    )
+    recent = render_recent(today, today, ["- 10:00 — an event"])
+    assert recent.count("2026-11-03") == 1
+    assert "Ask about the DNS access" in recent
+    assert "Spent the day on memory" not in recent
+
+
 def test_the_week_shows_authored_days_only():
     entries = {
         "2026-11-03": Diary(id="2026-11-03", claim="Today was this."),

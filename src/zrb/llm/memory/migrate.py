@@ -261,9 +261,23 @@ def _migrate_log(source: str, dry_run: bool) -> dict[str, int]:
             ]
             if not lines:
                 continue
-            added = len(lines) if dry_run else _write_log(day, lines)
+            added = len(_new_lines(day, lines)) if dry_run else _write_log(day, lines)
             written["log_lines"] += added
     return written
+
+
+def _new_lines(day: str, lines: list[str]) -> list[str]:
+    """The journal lines this day's log does not already hold, normalised."""
+    existing = store.log_lines(day)
+    seen = set(existing)
+    fresh: list[str] = []
+    for line in lines:
+        normalised = _normalise_log_line(line)
+        if normalised in seen:
+            continue
+        seen.add(normalised)
+        fresh.append(normalised)
+    return fresh
 
 
 def _write_log(day: str, lines: list[str]) -> int:
@@ -274,22 +288,13 @@ def _write_log(day: str, lines: list[str]) -> int:
     the day is read first and only lines it does not already hold are added — and
     only those are counted, because a second run changes nothing.
     """
-    existing = store.log_lines(day)
-    merged = list(existing)
-    seen = set(existing)
-    added = 0
-    for line in lines:
-        normalised = _normalise_log_line(line)
-        if normalised in seen:
-            continue
-        seen.add(normalised)
-        merged.append(normalised)
-        added += 1
-    if added:
-        merged.sort(key=_clock_key)
-        content = "\n".join([f"# {day}", *merged])
-        store.write_document(paths.log_path(day), content + "\n")
-    return added
+    fresh = _new_lines(day, lines)
+    if not fresh:
+        return 0
+    merged = sorted(store.log_lines(day) + fresh, key=_clock_key)
+    content = "\n".join([f"# {day}", *merged])
+    store.write_document(paths.log_path(day), content + "\n")
+    return len(fresh)
 
 
 def _clock_key(line: str) -> tuple[int, int]:
