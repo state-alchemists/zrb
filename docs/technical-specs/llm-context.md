@@ -71,6 +71,8 @@ A revision without a `repo` argument keeps the tag the note already has. A note 
 
 The digest sits outside the index cap, beside the wrapper rather than inside the index: the cap ranks lines it recognises and would drop an unknown section first — exactly the amnesia the section exists to prevent.
 
+The per-turn claims take the same rule as the index, because a scope that means one thing in the index and another a turn later is not a scope. The first-message auto-search is the exception: it is driven by the user's own words, and a message that names another project has to reach that project's notes.
+
 Measured on the real journal (317 notes, every work-scoped note stamped `zrb`, `ZRB_LLM_JOURNAL_INDEX_MAX_CHARS` at 3,600):
 
 | view | injected block | note lines | work-scoped lines |
