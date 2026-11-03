@@ -48,14 +48,26 @@ def approve_if_path_inside_parent(args: dict[str, Any], parent_path: str) -> boo
 
 
 def path_inside_parent(path: str, parent_path: str) -> bool:
+    """Whether *path* is *parent_path* or sits below it, symlinks resolved.
+
+    Resolved, because otherwise the answer is about the string: a symlink in the
+    notes directory called `memory-link` would read as an ordinary note while the
+    write lands in the store, and one in the working directory would read as a
+    project file while the read lands outside it. Approval is about the file that
+    is actually touched.
+    """
     try:
-        abs_path = os.path.abspath(os.path.expanduser(path))
-        abs_parent_path = os.path.abspath(os.path.expanduser(parent_path))
+        abs_path = _resolved(path)
+        abs_parent_path = _resolved(parent_path)
         return abs_path == abs_parent_path or abs_path.startswith(
             f"{abs_parent_path}{os.sep}"
         )
     except Exception:
         return False
+
+
+def _resolved(path: str) -> str:
+    return os.path.realpath(os.path.abspath(os.path.expanduser(path)))
 
 
 def path_inside_any_parent(path: str, parent_paths: list[str]) -> bool:

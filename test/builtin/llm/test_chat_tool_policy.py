@@ -1,5 +1,6 @@
 """Tests for builtin/llm/chat_tool_policy.py."""
 
+import os
 from unittest.mock import patch
 
 import pytest
@@ -267,6 +268,63 @@ class TestApproveIfPathInsideSkillOrPluginDir:
             mock_cfg.LLM_PLUGIN_DIRS = []
             result = approve_if_path_inside_skill_or_plugin_dir({"path": child})
         assert result is False
+
+
+needs_symlinks = pytest.mark.skipif(
+    os.name != "posix", reason="creating a symlink needs POSIX or a privilege"
+)
+
+
+@needs_symlinks
+class TestASymlinkIsNotAPathAlias:
+    """The answer is about the file touched, not the string that names it."""
+
+    def _patch_cfg(self, monkeypatch, notes_dir):
+        monkeypatch.setattr(
+            "zrb.builtin.llm.chat_tool_policy.CFG",
+            type(
+                "CFG",
+                (),
+                {
+                    "LLM_NOTES_DIR": str(notes_dir),
+                    "LLM_MEMORY_DIR": str(notes_dir / "memory-v1"),
+                },
+            )(),
+        )
+
+    def test_a_symlinked_route_into_the_store_is_not_approved(
+        self, tmp_path, monkeypatch
+    ):
+        """`memory-link` reads as a note and writes a fact; the lexical check missed it."""
+        (tmp_path / "memory-v1").mkdir()
+        (tmp_path / "memory-link").symlink_to(tmp_path / "memory-v1")
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = is_path_inside_notes_outside_memory(
+            {"path": str(tmp_path / "memory-link" / "facts" / "x.md")}
+        )
+        assert result is False
+
+    def test_a_symlink_out_of_cwd_is_not_approved(self, tmp_path, monkeypatch):
+        (tmp_path / "outside").mkdir()
+        work = tmp_path / "work"
+        work.mkdir()
+        (work / "leak").symlink_to(tmp_path / "outside")
+        monkeypatch.chdir(work)
+        result = approve_if_path_inside_cwd(
+            {"path": str(work / "leak" / "secret.txt")}
+        )
+        assert result is False
+
+    def test_a_symlink_that_stays_inside_is_still_approved(
+        self, tmp_path, monkeypatch
+    ):
+        (tmp_path / "real").mkdir()
+        (tmp_path / "alias").symlink_to(tmp_path / "real")
+        self._patch_cfg(monkeypatch, tmp_path)
+        result = is_path_inside_notes_outside_memory(
+            {"path": str(tmp_path / "alias" / "note.md")}
+        )
+        assert result is True
 
 
 def _chain(policy, next_handler):
