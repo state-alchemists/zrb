@@ -19,16 +19,17 @@ from zrb.llm.tool.journal_expiry import (
     parse_condition,
     stamp,
 )
+from zrb.llm.tool.journal_index import scope_index
 from zrb.llm.tool.journal_note import Note
 
 
-def _note(rel: str, applies_when: str, repo: str = "zrb") -> Note:
+def _note(rel: str, applies_when: str, repo: str = "zrb", hud_line: str = "a line") -> Note:
     return Note(
         category=rel.split("/")[0],
         slug=rel.split("/")[-1].removesuffix(".md"),
         title=rel,
         status="active",
-        hud_line="a line",
+        hud_line=hud_line,
         pinned=False,
         updated=datetime(2026, 11, 1),
         has_stamp=True,
@@ -211,3 +212,23 @@ def test_a_proved_file_expires_and_an_unstamped_one_does_not(tmp_path):
     assert expired_note_rels(notes, str(tmp_path), "zrb", "3.29") == {
         "technical/changed.md"
     }
+
+
+def test_an_expired_notes_line_leaves_the_index_and_a_hand_written_one_stays():
+    """Expiry hides what the writer generated, exactly as scoping does: a line a
+    person wrote is not the writer's to drop."""
+    text = (
+        "## Constraints\n\n"
+        "- a bank job red at prepare is infra ([note](technical/bank-job.md))\n"
+        "- extra context ([note](technical/old-note.md))\n"
+    )
+    notes = [
+        _note("technical/bank-job.md", "version:<3.29"),
+        _note("technical/old-note.md", "version:<3.29", hud_line=""),
+    ]
+    expired = expired_note_rels(notes, "", "zrb", "3.29")
+
+    rendered = scope_index(text, notes, "zrb", expired)
+
+    assert "a bank job red at prepare is infra" not in rendered
+    assert "extra context" in rendered

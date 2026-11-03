@@ -490,7 +490,14 @@ def write_journal_note(
                 "the office laptop`. Name something checkable: a version, "
                 "file, setting or stated preference. A write without one is "
                 "refused, because a note that cannot say when it stops "
-                "applying can never be retired, only re-read."
+                "applying can never be retired, only re-read. Four forms are "
+                "checked without asking anyone, and they cost nothing to write: "
+                "`file:<path relative to the repository root>` (the digest is "
+                "stamped here, so it says what the note was written against), "
+                "`version:>=3.29`, `setting:<NAME>=<value>`, and "
+                "`date:YYYY-MM-DD` (holds through that day). A note whose "
+                "checkable condition is disproved stops being injected; the "
+                "note itself stays, and SearchJournal still finds it."
             )
         ),
     ] = None,

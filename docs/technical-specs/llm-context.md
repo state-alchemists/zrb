@@ -82,6 +82,25 @@ Measured on the real journal (317 notes, every work-scoped note stamped `zrb`, `
 
 The 213 characters the second view pays are the `## Other projects` heading and one line: `- zrb — 167 notes, newest (2026-11-03): …`. What changed is what fills the index — nine lines of another repository's detail became one line saying the work exists.
 
+### Expiry
+
+`applies_when` is required at write, but almost every value is prose, and nothing can check a sentence — so a note that stopped holding arrives every turn until somebody notices. Four forms are checked against this machine, without asking anyone:
+
+| form | holds while | checked by |
+|---|---|---|
+| `file:<path>@<sha>` | the file's content still hashes to `<sha>` | `journal_expiry.file_sha`, `SHA_LENGTH=12` |
+| `version:>=3.29` | zrb's own version satisfies the comparison | `importlib.metadata.version("zrb")` |
+| `setting:<NAME>=<value>` | `CFG.<NAME>` reads as that token | `getattr(CFG, name)`, `on`/`off` folded to `true`/`false` |
+| `date:<YYYY-MM-DD>` | today is on or before that day | `date.today()` |
+
+A `file:` path is relative to the repository root and the digest is stamped **at write time** (`_write_note_locked`), because a condition nobody stamped is a condition nobody can evaluate. It is answered only in the repository it was stamped in and only when the note carries that repository's tag: the same relative path in another checkout is another file, and a mismatch there would report a live note as false.
+
+Everything else is prose, and prose never expires — guessing that a sentence is false would retire a note its author still believes. The same rule covers a condition this machine cannot read: a missing file is a change, an unreadable one (`""` from `file_sha`) is not, and a version this build cannot parse or a setting it does not carry answer "cannot tell".
+
+Expiry **hides, it does not retire**. A note known to be disproved stops being injected — the index lines the writer owns for it, its per-turn claims, and its place as the newest claim in `## Other projects` — while the file, its `status`, `SearchJournal` and the category indexes are untouched. Superseding stays the act that retires a note by hand, and `DeleteJournalNote` the act that removes it.
+
+Measured on the real journal 2026-11-03: **318 notes, 0 with a checkable condition, 0 expired**. The mechanism costs one `list_notes` it already had plus one hash per `file:` note; it starts paying the turn a note names something checkable.
+
 ### Index File Structure
 
 The root index is created with this skeleton, and every note's one-line summary is rendered under the HUD section its category and pin decide: `User` (`user` and `preferences`), `Constraints` (a pinned `projects` or `technical` note), `Agent` (`agent`), or `Recent` (an unpinned `projects` or `technical` note). `agent` holds what is true of the assistant itself — standing choices, working style, how it wants to be treated — and `preferences` holds what the user stated about how *they* want to be worked with, so a fact about the agent never lands in the user's section by default:

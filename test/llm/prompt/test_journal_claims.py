@@ -46,7 +46,11 @@ def journal(tmp_path, monkeypatch):
 
 
 def _write(
-    slug: str, hud_line: str = LINE, pinned: bool = False, repo: str | None = None
+    slug: str,
+    hud_line: str = LINE,
+    pinned: bool = False,
+    repo: str | None = None,
+    applies_when: str = "while the test runs",
 ) -> str:
     return write_journal_note(
         category="technical",
@@ -57,7 +61,7 @@ def _write(
         source="source.py:1",
         hud_line=hud_line,
         pinned=pinned,
-        applies_when="while the test runs",
+        applies_when=applies_when,
         repo=repo,
     )
 
@@ -319,6 +323,22 @@ def test_a_claim_about_this_repository_still_arrives(journal, monkeypatch):
     """The rule the exclusion must not swallow: a note about the repository in
     hand reaches the next turn, which is the whole point of the block."""
     _write("retry-policy", repo="zrb")
+    monkeypatch.setattr("zrb.llm.tool.journal_scope.repo_of", lambda cwd: "zrb")
+
+    assert LINE in (render_journal_claims() or "")
+
+
+def test_a_disproved_note_is_not_a_claim(journal, monkeypatch):
+    """A condition that no longer holds is memory that has stopped being true;
+    handing it back as this turn's fact is the failure expiry exists to fix."""
+    _write("stale", applies_when="date:2020-01-01")
+    monkeypatch.setattr("zrb.llm.tool.journal_scope.repo_of", lambda cwd: "zrb")
+
+    assert render_journal_claims() is None
+
+
+def test_a_note_that_still_holds_is_still_a_claim(journal, monkeypatch):
+    _write("live", applies_when="date:2099-01-01")
     monkeypatch.setattr("zrb.llm.tool.journal_scope.repo_of", lambda cwd: "zrb")
 
     assert LINE in (render_journal_claims() or "")

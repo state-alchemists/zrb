@@ -489,14 +489,20 @@ ELSEWHERE_CLAIM_MAX_CHARS = 100
 replace it. The line is a reminder, and the note is where the detail is."""
 
 
-def scope_index(text: str, notes: list[Note], current: str) -> str:
+def scope_index(
+    text: str,
+    notes: list[Note],
+    current: str,
+    expired: frozenset[str] = frozenset(),
+) -> str:
     """*text* without the lines that link a note this repository does not show.
 
     A note is shown when it is untagged, tagged ``global``, or tagged with
-    *current* — see `journal_scope`. Only a line the index writer *owns* is
-    dropped: a heading, a hand-written line, an overflow marker, and a link to a
-    file that is not a note at all all stay, which is the same rule the renderer
-    already follows for foreign lines.
+    *current* — see `journal_scope` — and when nothing has disproved the
+    condition it holds under (*expired*, from `journal_expiry`). Only a line the
+    index writer *owns* is dropped: a heading, a hand-written line, an overflow
+    marker, and a link to a file that is not a note at all all stay, which is the
+    same rule the renderer already follows for foreign lines.
 
     Ownership is the writer's own rule (`_is_owned_line`), not "this line links a
     known note": the HUD sections own a line only for a note that has a
@@ -513,7 +519,7 @@ def scope_index(text: str, notes: list[Note], current: str) -> str:
     for line in text.splitlines():
         if line.startswith("## "):
             section = line
-        if _is_line_shown(line, by_rel, current, section):
+        if _is_line_shown(line, by_rel, current, section, expired):
             kept.append(line)
     return _without_empty_sections(kept)
 
@@ -555,20 +561,24 @@ def _shorten(claim: str) -> str:
 
 
 def _is_line_shown(
-    line: str, notes: dict[str, Note], current: str, section: str
+    line: str,
+    notes: dict[str, Note],
+    current: str,
+    section: str,
+    expired: frozenset[str],
 ) -> bool:
     """Whether *line* links no note, one this view keeps, or one it does not own.
 
     A line the writer would not have written is somebody's own text: dropping it
-    because the note it mentions lives elsewhere would delete the only copy of
-    what that line says."""
+    because the note it mentions lives elsewhere — or has been disproved —
+    would delete the only copy of what that line says."""
     from zrb.llm.tool.journal_scope import is_in_scope
 
     linked = _linked_note_rel(line)
     note = notes.get(linked) if linked else None
     if note is None or not _is_owned_line(note, section):
         return True
-    return is_in_scope(note.repo, current)
+    return note.rel not in expired and is_in_scope(note.repo, current)
 
 
 def _is_owned_line(note: Note, section: str) -> bool:
