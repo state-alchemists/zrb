@@ -35,11 +35,12 @@ def test_the_block_carries_the_core_and_the_contract(store_dir):
 
 
 def test_the_block_carries_todays_claim_and_the_log_tail(store_dir):
-    remember("2026-11-03", "Spent the day on memory.", kind="diary", body="Long day.")
+    day = store.today()
+    remember(day, "Spent the day on memory.", kind="diary", body="Long day.")
     store.append_log("Replaced the journal with a memory store")
     block = render_memory_block()
     assert block is not None
-    assert "Today (2026-11-03): Spent the day on memory." in block
+    assert f"Today ({day}): Spent the day on memory." in block
     assert "Replaced the journal" in block
 
 
@@ -56,7 +57,12 @@ def test_the_recent_log_line_count_is_configurable(store_dir, monkeypatch):
 
 def test_the_recent_block_is_cut_at_a_line_boundary(store_dir, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_RECENT_MAX_CHARS", 60, raising=False)
-    remember("2026-11-03", "A day whose claim is too long for this small cap.", kind="diary", body="x")
+    remember(
+        store.today(),
+        "A day whose claim is too long for this small cap.",
+        kind="diary",
+        body="x",
+    )
     store.append_log("An event line that will not fit either")
     block = render_memory_block()
     assert block is not None
@@ -114,12 +120,13 @@ def test_a_fact_cut_from_the_core_reaches_the_next_turn_as_a_delta(
 
 def test_a_retired_day_is_tombstoned_once(store_dir):
     """The block showed the day; `Forget` must take it out of the model's hands."""
-    remember("2026-11-03", "Spent the day on memory.", kind="diary", body="x")
+    day = store.today()
+    remember(day, "Spent the day on memory.", kind="diary", body="x")
     assert render_memory_block() is not None
-    forget("2026-11-03", "wrong")
+    forget(day, "wrong")
     delta = render_memory_delta()
     assert delta is not None
-    assert "Forget the day 2026-11-03" in delta
+    assert f"Forget the day {day}" in delta
     assert render_memory_delta() is None
 
 
@@ -128,7 +135,7 @@ def test_a_diary_written_after_the_block_reaches_the_next_turn(store_dir):
     invisible until a compaction."""
     remember("anchor", "An anchor claim.", pin=True)
     assert render_memory_block() is not None
-    remember("2026-11-03", "Spent the day on memory.", kind="diary", body="x")
+    remember(store.today(), "Spent the day on memory.", kind="diary", body="x")
     delta = render_memory_delta()
     assert delta is not None
     assert "Spent the day on memory." in delta

@@ -316,6 +316,31 @@ def test_a_repository_the_store_did_not_create_is_left_alone(store_dir, monkeypa
     assert log.returncode != 0
 
 
+@needs_git
+def test_a_store_inside_the_notes_directory_uses_the_notes_repository(
+    tmp_path, monkeypatch
+):
+    """One history, not two: `memory-v1` belongs to the repository above it.
+
+    A `.git` of its own there would be a repository nested in another, which the
+    outer one then treats as something between a file and a directory.
+    """
+    notes = tmp_path / "llm-notes"
+    notes.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=str(notes), check=True)
+    monkeypatch.setattr(CFG, "LLM_NOTES_DIR", str(notes), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(notes / "memory-v1"), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", True, raising=False)
+    paths.ensure_store()
+    store.save_fact(Fact(id="x", claim="X is true.", updated=store.now()))
+    store.git_commit("remember: x")
+    assert not os.path.isdir(str(notes / "memory-v1" / ".git"))
+    log = subprocess.run(
+        ["git", "log", "--oneline"], cwd=str(notes), capture_output=True, text=True
+    ).stdout
+    assert "remember: x" in log
+
+
 def test_git_is_not_used_when_it_is_switched_off(store_dir):
     store.git_commit("remember: x")
     assert not os.path.isdir(os.path.join(str(store_dir), ".git"))

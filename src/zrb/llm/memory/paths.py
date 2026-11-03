@@ -4,10 +4,17 @@ One directory holds four kinds of file and a lock. This module is the only place
 that knows their names, so the tools, the renderer and the migration cannot drift
 apart: a path is derived from an id or a date, never supplied by a model.
 
-The default directory carries a version segment (``memory/v1``). Two zrb installs
-share this machine — pipx and a development checkout — and a versioned default is
-what keeps an older install from reading a newer format as its own. The journal's
-single flat directory had the same exposure and no answer for it.
+The store sits *inside* the notes directory, under a version segment:
+``~/.zrb/llm-notes/memory-v1``. Two zrb installs share this machine — pipx and a
+development checkout — and a versioned directory is what keeps an older install
+from reading a newer format as its own: it looks for the version it understands
+and leaves the rest alone. Keeping it inside the notes directory means one
+directory to back up, and the notes it was converted from stay beside it.
+
+``.version`` at the root of the notes directory records that the conversion ran,
+which is a different question from which schema the store speaks — that one the
+directory name already answers. Neither has to agree with the other, which is the
+point of keeping them apart.
 """
 
 from __future__ import annotations
@@ -25,6 +32,12 @@ LOG_DIR = "log"
 LOCK_FILE = ".lock"
 GITIGNORE_FILE = ".gitignore"
 STATE_DIR = ".state"
+NOTES_VERSION_FILE = ".version"
+
+# What a converted notes directory says. A marker is evidence that somebody has
+# already read these notes, so it is written only after a conversion finished; a
+# value this build does not know is left alone rather than converted again.
+NOTES_VERSION = "1"
 
 # What git must never track: the lock is a descriptor, and the state directory is
 # this machine's bookkeeping rather than a claim about the world. Entries are
@@ -35,6 +48,68 @@ _GITIGNORE_ENTRIES = (LOCK_FILE, f"{STATE_DIR}/")
 def memory_dir() -> str:
     """The store's root, absolute, with `~` expanded."""
     return os.path.abspath(os.path.expanduser(CFG.LLM_MEMORY_DIR))
+
+
+def notes_dir() -> str:
+    """The directory the store was converted from, and lives inside."""
+    return os.path.abspath(os.path.expanduser(CFG.LLM_NOTES_DIR))
+
+
+def notes_version_path() -> str:
+    return os.path.join(notes_dir(), NOTES_VERSION_FILE)
+
+
+def is_converted() -> bool:
+    """Whether the notes directory has already been read into a store.
+
+    Any marker counts. A value this build does not recognise belongs to a newer
+    zrb, and reading those notes again with an older idea of them is the one
+    mistake here that loses data.
+    """
+    try:
+        with open(notes_version_path(), encoding="utf-8") as f:
+            return bool(f.read().strip())
+    except OSError:
+        return False
+
+
+def should_convert() -> bool:
+    """Whether first use should convert: unconverted notes, and a store inside them.
+
+    The second half keeps the trigger where it belongs. A user who pointed
+    `LLM_MEMORY_DIR` somewhere else — a checkout, a temporary store, a test —
+    gets no surprise conversion of their notes into it, and `zrb memory migrate`
+    remains the explicit way to do that.
+    """
+    return not is_converted() and is_store_within_notes()
+
+
+def is_store_within_notes() -> bool:
+    """Whether the store sits inside the notes directory — the default layout.
+
+    The audit trail asks the same question: in this layout the store belongs in
+    the notes repository above it, and anywhere else it keeps one of its own.
+    """
+    return _is_within(memory_dir(), notes_dir())
+
+
+def mark_converted() -> None:
+    """Record that the notes have been read. Written after the pass, never before."""
+    try:
+        makedirs_owner_only(notes_dir())
+        write_text_owner_only(notes_version_path(), NOTES_VERSION + "\n")
+    except OSError:
+        # Without the marker the next start converts again; every id it would
+        # write already exists, so that costs a walk, not a duplicate.
+        pass
+
+
+def _is_within(path: str, parent: str) -> bool:
+    """Whether *path* is *parent* or sits below it. Different drives are not."""
+    try:
+        return os.path.commonpath([path, parent]) == parent
+    except ValueError:
+        return False
 
 
 def core_path() -> str:
@@ -122,6 +197,33 @@ def ensure_store() -> str:
     _write_gitignore(root)
     tighten_once(root)
     return root
+
+
+def prepare() -> str:
+    """The store, ready to use: directories created, unconverted notes read once.
+
+    Every entry point that reads or writes the memory calls this instead of
+    `ensure_store`, and the lock's own path deliberately does not: converting
+    takes the lock, so a trigger inside `ensure_store` would re-enter it.
+    """
+    root = ensure_store()
+    _convert_once()
+    return root
+
+
+def _convert_once() -> None:
+    """Bring an unconverted notes directory across, at most once."""
+    if not should_convert():
+        return
+    # Deferred: the migration reads the store, and the store reads this module.
+    from zrb.llm.memory import migrate
+
+    try:
+        migrate.convert_if_needed()
+    except OSError:
+        # A store that cannot be written is reported by the write that fails; a
+        # first turn should not die because the conversion could not run.
+        pass
 
 
 def _write_gitignore(root: str) -> None:

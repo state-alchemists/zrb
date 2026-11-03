@@ -317,7 +317,7 @@ def git_commit(message: str) -> None:
     if not CFG.LLM_MEMORY_GIT_ENABLED:
         return
     root = paths.memory_dir()
-    if not _is_our_repository(root):
+    if _repository_for(root) is None:
         return
     staged = [name for name in _MANAGED_PATHS if os.path.exists(os.path.join(root, name))]
     if not staged:
@@ -337,24 +337,46 @@ def git_commit(message: str) -> None:
     )
 
 
-def _is_our_repository(root: str) -> bool:
-    """Whether the git repository at *root* is this store's to commit into.
+def _repository_for(root: str) -> str | None:
+    """The repository this store commits into, or ``None`` if it has none to use.
 
-    A missing repository is created and marked. An existing one we did not create
-    is left alone: `zrb` cannot tell a dedicated memory directory from a project
-    checkout somebody pointed `LLM_MEMORY_DIR` at.
+    The store lives inside the notes directory, which has a history of its own, so
+    the answer is usually the repository *above* it: nesting a second `.git` there
+    would leave the outer one treating the store as a submodule-shaped oddity.
+    A store whose directory is its own — `LLM_MEMORY_DIR` pointing somewhere else
+    — keeps the repository it created, marked so a later run knows it is ours.
+
+    A repository we did not create is still left alone: `zrb` cannot tell a
+    dedicated directory from a project checkout somebody chose.
     """
-    marker = os.path.join(root, _OWNED_MARKER)
-    if not os.path.isdir(os.path.join(root, ".git")):
-        if _git(root, "init", "-q") is None:
-            return False
-        try:
-            with open(marker, "w", encoding="utf-8") as f:
-                f.write("this repository is the memory store's audit trail\n")
-        except OSError:
-            return False
-        return True
-    return os.path.isfile(marker)
+    if os.path.isdir(os.path.join(root, ".git")):
+        marker = os.path.join(root, _OWNED_MARKER)
+        return root if os.path.isfile(marker) else None
+    if paths.is_store_within_notes():
+        enclosing = _enclosing_repository(root)
+        if enclosing is not None:
+            return enclosing
+    return _init_owned_repository(root)
+
+
+def _enclosing_repository(root: str) -> str | None:
+    """The working tree *root* sits inside, if there is one."""
+    top = _git(root, "rev-parse", "--show-toplevel")
+    if top is None:
+        return None
+    return top.strip() or None
+
+
+def _init_owned_repository(root: str) -> str | None:
+    """Create this store's own repository and mark it as ours: the root, or None."""
+    if _git(root, "init", "-q") is None:
+        return None
+    try:
+        with open(os.path.join(root, _OWNED_MARKER), "w", encoding="utf-8") as f:
+            f.write("this repository is the memory store's audit trail\n")
+    except OSError:
+        return None
+    return root
 
 
 def _git(root: str, *args: str) -> str | None:

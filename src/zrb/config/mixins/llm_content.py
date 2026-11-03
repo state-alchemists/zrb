@@ -10,6 +10,22 @@ from zrb.config.helper import get_max_token_threshold, limit_token_threshold
 from zrb.util.string.conversion import to_boolean
 
 
+def _notes_dir_default(cfg) -> str:
+    """`LLM_NOTES_DIR`: the configured value, else `~/.<root>/llm-notes`."""
+    if cfg.DEFAULT_LLM_NOTES_DIR:
+        return cfg.DEFAULT_LLM_NOTES_DIR
+    return os.path.expanduser(
+        os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-notes")
+    )
+
+
+def _memory_dir_default(cfg) -> str:
+    """`LLM_MEMORY_DIR`: the configured value, else the versioned store in the notes."""
+    if cfg.DEFAULT_LLM_MEMORY_DIR:
+        return cfg.DEFAULT_LLM_MEMORY_DIR
+    return os.path.join(cfg.LLM_NOTES_DIR, "memory-v1")
+
+
 class LLMContentMixin:
     if TYPE_CHECKING:
         # Attributes supplied by sibling mixins on the composed Config class.
@@ -52,6 +68,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_JOURNAL_COMPLIANCE_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_COMPLIANCE_TURNS: str = "12"
         self.DEFAULT_LLM_JOURNAL_LOCK_TIMEOUT: str = "30"
+        self.DEFAULT_LLM_NOTES_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_CORE_MAX_CHARS: str = "4000"
@@ -364,20 +381,27 @@ class LLMContentMixin:
         ),
     )
 
+    LLM_NOTES_DIR = EnvField(
+        str,
+        default_factory=_notes_dir_default,
+        doc=(
+            "The notes directory: the memory store lives inside it as "
+            "`memory-v1`, and it is what `zrb memory migrate` reads. One "
+            "directory to back up, and the notes the store was converted from "
+            "stay beside it. `.version` at its root records that the conversion "
+            "ran."
+        ),
+    )
+
     LLM_MEMORY_DIR = EnvField(
         str,
-        default_factory=lambda cfg: (
-            cfg.DEFAULT_LLM_MEMORY_DIR
-            if cfg.DEFAULT_LLM_MEMORY_DIR
-            else os.path.expanduser(
-                os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "memory", "v1")
-            )
-        ),
+        default_factory=_memory_dir_default,
         doc=(
             "The memory store: core.md, facts/, diary/, log/ and a git "
-            "repository. The default carries a version segment because two zrb "
-            "installs share this machine, and an older install must not read a "
-            "newer format as its own."
+            "repository. It sits inside `LLM_NOTES_DIR` under a version segment "
+            "because two zrb installs share this machine, and an older install "
+            "must not read a newer format as its own. Unconverted notes in the "
+            "notes directory are read into the store on first use, once."
         ),
     )
 

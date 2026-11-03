@@ -84,7 +84,7 @@ _WITHHELD_HANDOVER = "A migrated handover was withheld: its text reads as an ins
 def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, int]:
     """Copy *journal_dir* into the memory store. Returns what it wrote."""
     source = os.path.abspath(
-        os.path.expanduser(journal_dir or CFG.LLM_JOURNAL_DIR or "")
+        os.path.expanduser(journal_dir or paths.notes_dir())
     )
     if not os.path.isdir(source):
         return {"facts": 0, "retired": 0, "diary": 0, "log_lines": 0}
@@ -102,6 +102,33 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
         store.write_core()
         store.git_commit("migrate: journal")
     return counts
+
+
+def convert_if_needed() -> None:
+    """Read unconverted notes into the store, once.
+
+    Called on first use rather than by a command the user has to know about: an
+    upgrade that silently starts an empty memory looks exactly like a memory that
+    was lost.
+
+    The pass is additive — it never edits or deletes a note — and it skips an id
+    the store already holds, so a run interrupted by a crash continues on the
+    next start rather than duplicating. The marker is written inside the same
+    critical section and only after the pass, so a half-converted directory never
+    claims to be converted.
+    """
+    if not paths.should_convert():
+        return
+    with store.locked():
+        if paths.is_converted():
+            return
+        counts = _migrate_all(paths.notes_dir(), dry_run=False)
+        unpinned, converted = _fit_core()
+        counts["unpinned"] = unpinned
+        counts["converted"] = converted
+        store.write_core()
+        paths.mark_converted()
+        store.git_commit("memory: convert the notes on first use")
 
 
 def _fit_core() -> tuple[int, int]:

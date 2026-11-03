@@ -44,7 +44,7 @@ def render_memory_block() -> str | None:
     if not is_memory_on():
         return None
     try:
-        paths.ensure_store()
+        paths.prepare()
         facts = store.load_facts()
     except OSError:
         # An unwritable store is reported by the tools that write to it; a first
