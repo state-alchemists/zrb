@@ -28,7 +28,7 @@ Project instruction files are inlined into the system prompt by default, so the 
 - `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` are inlined nearest file first, within `ZRB_LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` (24,000 by default). The nearest file is truncated to fit rather than dropped; after it, the walk stops at the first file that does not fit, and everything broader stays listed by path.
 - A file that only points at another one — `CLAUDE.md` holding `@AGENTS.md` — is skipped and listed as a pointer to what the prompt already carries. When the budget dropped the file it points at, the pointer is inlined instead: it is then the only route to those rules.
 - An `@path` inside an inlined file is shown as a path, never fetched, so nothing outside the budget reaches the prompt.
-- A symlinked instruction file is listed but never inlined: the link can name any readable file on the machine.
+- A symlinked or hardlinked instruction file is listed but never inlined: the link can name any readable file on the machine, and a hardlink is that file's own bytes under another name.
 - `README.md` is never inlined. It is documentation to search, not rules to obey.
 - Files in your home directory or `~/.claude/` are listed separately as user-level guidance, to read only when relevant.
 

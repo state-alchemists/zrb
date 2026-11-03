@@ -1,5 +1,6 @@
 import os
 import re
+import stat
 from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
@@ -201,47 +202,45 @@ def _read_instruction_bytes(path: Path, max_bytes: int) -> bytes:
     first would let a large or hostile instruction file exhaust memory before
     the budget was ever consulted. One byte over is enough to tell "fits" from
     "is longer" — which is all the walk needs to know.
+
+    The descriptor is opened with ``O_NOFOLLOW`` and judged by ``fstat``, so the
+    file that was checked is the file that is read: a path swapped for a symlink
+    between the listing and the read opens nothing. A hardlink is not a symlink
+    and cannot be refused from the path alone, so a file with more than one link
+    is declined instead — ``AGENTS.md`` hardlinked to a key is that key's bytes.
     """
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
     try:
-        with path.open("rb") as handle:
-            return handle.read(max(max_bytes, 0) + 1)
+        descriptor = os.open(path, flags)
     except OSError:
         return b""
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode) or info.st_nlink > 1:
+            return b""
+        return os.read(descriptor, max(max_bytes, 0) + 1)
+    except OSError:
+        return b""
+    finally:
+        os.close(descriptor)
 
 
-def _redundant_include_targets(
-    text: str, path: Path, inlined: set[Path]
-) -> list[Path]:
-    """The files *text* only points at, when every one is already in the prompt.
+def _is_pure_pointer(text: str) -> bool:
+    """Whether *text* is nothing but `@path` references.
 
     A file whose whole content is `@AGENTS.md` is a pointer, not rules. Inlined,
     it would add a section header and a de-referenced path beside the target's
-    own block, teaching the model nothing the listing does not already say, so
-    the walk skips it and the listing names what it points at instead.
-
-    Only *planned* files count, not every instruction source: a pointer whose
-    target the byte budget drops is still the one place the path appears, so it
-    is kept — de-referenced like every other rule, but present.
-
-    Returns the targets when the file is a pure pointer at text the walk will
-    inline, and `[]` when it is neither a pointer nor redundant.
+    own block, teaching the model nothing the listing does not already say — so
+    the walk skips it, as long as skipping it costs no rules. See
+    `_inline_instructions`.
     """
     body = text.strip()
     if not body:
-        return []
+        return False
     matches = get_path_references(body)
     if not matches:
-        return []
-    if _without_references(body, matches).strip():
-        return []
-    already = {source.resolve() for source in inlined}
-    targets: list[Path] = []
-    for match in matches:
-        target = _covered_reference_target(match.group("path"), path.parent, already)
-        if target is None:
-            return []
-        targets.append(target)
-    return targets
+        return False
+    return not _without_references(body, matches).strip()
 
 
 def _without_references(body: str, matches: list[re.Match]) -> str:
@@ -255,24 +254,52 @@ def _without_references(body: str, matches: list[re.Match]) -> str:
     return "".join(kept)
 
 
-def _covered_reference_target(
-    reference: str, directory: Path, covered: set[Path]
-) -> Path | None:
-    """The covered file *reference* names, read from *directory* or from the cwd.
+def _reference_target(reference: str, directory: Path) -> Path | None:
+    """The file *reference* names, read from *directory* or from the cwd.
 
     Both bases are tried: a sibling `@AGENTS.md` is what the file means, while
-    `expand_prompt` resolves against the cwd. Either one landing on a file that
-    is already inlined makes the include redundant.
+    `expand_prompt` resolves against the cwd. The first base that lands on an
+    existing file wins; a reference that lands nowhere keeps the directory's
+    answer, which no plan's inlined set can contain.
     """
     expanded = Path(os.path.expanduser(reference))
+    candidates: list[Path] = []
     for base in (directory, Path.cwd()):
         try:
-            resolved = (base / expanded).resolve()
+            candidates.append((base / expanded).resolve())
         except OSError:
             continue
-        if resolved in covered:
-            return resolved
-    return None
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0] if candidates else None
+
+
+def _leaf_targets(
+    target: Path, next_hop: dict[Path, list[Path | None]], seen: frozenset[Path]
+) -> tuple[set[Path], bool]:
+    """Every file *target* reaches, and whether the chain circles back.
+
+    A pointer to a pointer has no content of its own, so what it finally names is
+    what the prompt would have to carry. A cycle reaches nothing: it names no
+    file and can never be a route to rules.
+    """
+    hops = next_hop.get(target)
+    if hops is None:
+        return {target}, False
+    if target in seen:
+        return set(), True
+    leaves: set[Path] = set()
+    cyclic = False
+    for hop in hops:
+        if hop is None:
+            # A reference that resolves nowhere: this pointer is the only route
+            # to whatever it names, so it has to stay inlined.
+            return {target}, False
+        deeper, loop = _leaf_targets(hop, next_hop, seen | {target})
+        leaves |= deeper
+        cyclic = cyclic or loop
+    return leaves, cyclic
 
 
 def _inline_instructions(
@@ -287,30 +314,45 @@ def _inline_instructions(
     file therefore inlines nothing and lists everything.
 
     A file that is only a pointer (`CLAUDE.md` holding `@AGENTS.md`) is skipped
-    when the walk would have inlined its target, and *pointers* records those so
-    the listing can say what the file is instead of inviting a read.
+    when its target is in the prompt — what it names arrives in the target's own
+    block, and its own bytes are all it contributes. A pointer whose target the
+    budget drops is kept: it is then the only route to those rules. Unless
+    skipping the pointer is what lets the target fit, which is why the plan is
+    taken with *every* pointer skipped: thirteen bytes of `@../AGENTS.md` must
+    not starve the 1,490-byte file it points at. A cycle names no file and can
+    never be a route, so it is skipped too.
 
-    It takes two walks. Which files fit has to be known before a pointer can be
-    judged, and a pointer in a *sub*directory names a target further up that has
-    not been reached yet — judging against the running total would miss exactly
-    the layout where the agent runs from a subdirectory. So the first walk plans
-    the budget, the pointer set is decided against that plan, and the second
-    walk spends the bytes. Skipping can only free budget, so every planned file
-    is still inlined afterwards: the file a pointer is reported as pointing at is
-    always in the prompt.
+    Skipping can only free budget, so one plan is enough: every file that plan
+    inlines is still inlined after the pointers are dropped, and the file a
+    pointer is reported as pointing at is always in the prompt.
 
     Returns the rendered blocks, the paths they cover, and the pointer files
     mapped to the file the prompt actually carries, not to the next hop.
     """
     texts = {path: _read_instruction_bytes(path, max_bytes) for path in sources}
-    _, planned = _walk_instructions(sources, texts, max_bytes, skip=frozenset())
+    decoded = {path: text.decode("utf-8", "replace") for path, text in texts.items()}
+    pointers = [path for path in sources if _is_pure_pointer(decoded[path])]
+    next_hop = {
+        path.resolve(): [
+            _reference_target(match.group("path"), path.parent)
+            for match in get_path_references(decoded[path])
+        ]
+        for path in pointers
+    }
+    _, without_pointers = _walk_instructions(
+        sources, texts, max_bytes, skip=frozenset(pointers)
+    )
+    covered = {path.resolve() for path in without_pointers}
     skipped: dict[Path, Path] = {}
-    for path in sources:
-        targets = _redundant_include_targets(
-            texts[path].decode("utf-8", "replace"), path, planned
-        )
-        if targets:
-            skipped[path] = targets[0]
+    for path in pointers:
+        hops = next_hop[path.resolve()]
+        leaves, cyclic = _leaf_targets(path.resolve(), next_hop, frozenset())
+        if cyclic:
+            if hops and hops[0] is not None:
+                skipped[path] = hops[0]
+            continue
+        if leaves and leaves <= covered:
+            skipped[path] = sorted(leaves)[0]
     blocks, inlined = _walk_instructions(
         sources, texts, max_bytes, skip=frozenset(skipped)
     )

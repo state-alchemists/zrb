@@ -6,6 +6,7 @@ truncated, what a pure `@AGENTS.md` pointer costs, and when a pointer is what
 the prompt already has.
 """
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -353,6 +354,94 @@ def test_pointers_that_circle_each_other_name_no_file(tmp_path):
 
     assert "— a pointer to" not in result
     assert "Workspace Instructions" not in result
+
+
+def test_a_pointer_does_not_starve_the_rules_it_points_at(tmp_path):
+    """Thirteen bytes of pointer must not cost the 1,490-byte file behind it.
+
+    The pointer is skipped when the plan that skips every pointer carries its
+    target: at a 1,500-byte budget the rules fit once the pointer's own bytes are
+    not spent on them. Judged against the first plan instead, the walk inlined
+    the pointer, dropped the rules, and with three more bytes inlined the target
+    — a worse prompt for a smaller budget.
+    """
+    root = tmp_path / "project"
+    app = root / "app"
+    app.mkdir(parents=True)
+    (root / "AGENTS.md").write_text("R" * 1489 + "\n")  # 1,490 bytes
+    (app / "CLAUDE.md").write_text("@../AGENTS.md")  # 13 bytes
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude.get_search_directories", return_value=[root, app]
+    ):
+        with patch("zrb.llm.prompt.claude.CFG") as cfg:
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 1500
+            result = handler(ctx, "base prompt", _identity_next)
+
+    assert "R" * 20 in result
+    assert str(app / "CLAUDE.md") in result
+    assert "— a pointer to" in result
+
+
+def test_a_path_with_an_at_sign_is_not_a_second_reference(tmp_path, monkeypatch):
+    """An `@` in a directory name is part of the path, not a fetch.
+
+    `expand_prompt` runs over the composed system prompt and resolves every
+    `@path` it finds with no budget and no project boundary. A project under
+    `@scope` used to have its own listing re-read as a reference to `<cwd>/scope`
+    — a different file, appended to the prompt with nothing in the user's view
+    to show it happened.
+    """
+    project = tmp_path / "@scope"
+    project.mkdir()
+    (project / "AGENTS.md").write_text("REAL RULES", encoding="utf-8")
+    (project / "scope").mkdir()
+    (project / "scope" / "AGENTS.md").write_text("A FILE NOBODY NAMED", encoding="utf-8")
+    monkeypatch.chdir(project)
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch(
+        "zrb.llm.prompt.claude.get_search_directories", return_value=[project]
+    ):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    expanded = expand_prompt(result)
+    assert "REAL RULES" in expanded
+    assert "A FILE NOBODY NAMED" not in expanded
+    assert expanded.count("REAL RULES") == 1
+
+
+def test_a_hardlinked_instruction_file_is_listed_but_never_inlined(tmp_path):
+    """A hardlink is not a symlink, and reading it leaks the file it shares.
+
+    `AGENTS.md` hardlinked to a key has that key's bytes, and the path itself
+    says nothing about where they came from. The file is still listed, so
+    opening it stays a deliberate act.
+    """
+    project = tmp_path / "project"
+    project.mkdir()
+    secret = tmp_path / "id_rsa"
+    secret.write_text("PRIVATE KEY MATERIAL", encoding="utf-8")
+    try:
+        os.link(secret, project / "AGENTS.md")
+    except (OSError, NotImplementedError):
+        pytest.skip("this platform does not let an unprivileged test hardlink")
+
+    handler = create_project_context_prompt()
+    ctx = _make_ctx()
+
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[project]):
+        result = handler(ctx, "base prompt", _identity_next)
+
+    assert "PRIVATE KEY MATERIAL" not in result
+    assert "### Workspace Instructions" not in result
+    assert f"- `{project / 'AGENTS.md'}`" in result
 
 
 def test_a_symlinked_instruction_file_is_listed_but_never_inlined(tmp_path):
