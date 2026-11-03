@@ -48,6 +48,11 @@ from zrb.llm.tool.journal_index import (
     with_link,
 )
 from zrb.llm.tool.journal_index_migration import absorb_renamed_sections, plan_adoptions
+from zrb.llm.tool.journal_scope import (
+    default_scope,
+    repo_of,
+    scope_argument,
+)
 from zrb.llm.tool.journal_note import (
     HISTORY_HEADING,
     NOTE_CATEGORIES,
@@ -497,6 +502,20 @@ def write_journal_note(
             )
         ),
     ] = None,
+    repo: Annotated[
+        str | None,
+        Field(
+            description=(
+                "The repository this note is about, if it is about one. Omit it "
+                "and a `projects` or `technical` note takes the repository you "
+                "are working in, while `user`, `preferences` and `agent` notes "
+                "stay unscoped. Pass `global` to leave a work-scoped note "
+                "unscoped. An unscoped note is injected everywhere; a scoped "
+                "one is injected only while working in that repository, and is "
+                "still found by SearchJournal everywhere."
+            )
+        ),
+    ] = None,
 ) -> str:
     """Records a durable finding as a topic note, findable by search later.
 
@@ -543,6 +562,7 @@ def write_journal_note(
             pinned,
             applies_when,
             keywords,
+            repo,
         )
         _commit_or_defer(root, f"write: {category}/{slug}")
         _record_or_queue(WRITTEN, category, slug)
@@ -613,6 +633,21 @@ def supersede_journal_note(
 supersede_journal_note.__name__ = "SupersedeJournalNote"
 
 
+def _scope_for(category: str, repo: str | None, previous: Note | None) -> str:
+    """The `repo:` tag the note will store.
+
+    An explicit argument wins, and `global` there is how a caller opts out. A
+    revision that names none keeps the tag the note already has: a note is
+    revised from wherever the reader happens to be, and re-deriving the scope
+    from that would move a note about one repository into another for having been
+    corrected there. Only a new note takes the repository in hand."""
+    if repo:
+        return scope_argument(repo)
+    if previous is not None:
+        return previous.repo
+    return default_scope(category, repo_of(os.getcwd()))
+
+
 def _write_note_locked(
     root: str,
     category: str,
@@ -626,6 +661,7 @@ def _write_note_locked(
     pinned: bool | None,
     applies_when: str | None = None,
     keywords: list[str] | None = None,
+    repo: str | None = None,
 ) -> str:
     """Write the note under *root* and render the indexes from the notes.
 
@@ -642,6 +678,7 @@ def _write_note_locked(
     note_path = os.path.join(root, category, f"{slug}.md")
     note_rel = relative(note_path, root)
     previous = next((note for note in notes if note.rel == note_rel), None)
+    scope = _scope_for(category, repo, previous)
     line, is_pinned = _hud_state(hud_line, pinned, previous, notes, note_rel)
     targets = _resolve_links(root, links or [])
     # The keywords the note will *store*, not the ones the caller passed: a
@@ -663,6 +700,7 @@ def _write_note_locked(
         "status": STATUS_ACTIVE,
         "hud_line": line,
         "keywords": words,
+        "repo": scope,
         "pinned": "true" if is_pinned else "",
         "updated": format_stamp(next_stamp(notes, datetime.now())),
     }
@@ -984,8 +1022,16 @@ class JournalTransaction:
         pinned: bool | None = None,
         applies_when: str | None = None,
         keywords: list[str] | None = None,
+        repo: str | None = None,
     ) -> str:
-        """Write one note; the whole batch commits at exit."""
+        """Write one note; the whole batch commits at exit.
+
+        `repo` means what it means on the tool: an explicit tag, `global` to
+        opt out, and nothing to take the category default — or, for a note that
+        already exists, to keep the tag it carries. The batch reaches the same
+        writer the tool does, so a caller importing many notes can scope them
+        instead of having every one land in the checkout that ran the import.
+        """
         result = self._record(
             _write_note_locked(
                 self._root,
@@ -1000,6 +1046,7 @@ class JournalTransaction:
                 pinned,
                 applies_when,
                 keywords,
+                repo=repo,
             )
         )
         _record_or_queue(WRITTEN, category, slug)

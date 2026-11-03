@@ -463,7 +463,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     """
     if not CFG.LLM_JOURNAL_ENABLED:
         return None
-    journal_dir = CFG.LLM_JOURNAL_DIR
+    journal_dir = os.path.expanduser(CFG.LLM_JOURNAL_DIR)
     try:
         index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
     except ValueError:
@@ -485,6 +485,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     limit = CFG.LLM_JOURNAL_INDEX_MAX_CHARS
     if limit == 0:
         return None
+    content, elsewhere = _scoped_index(content, journal_dir, index_name)
     content, overflow = plan_index_core(content, limit)
     if not content:
         # No line of the index fitted the cap. The wrapper is instruction, not
@@ -509,6 +510,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
         f"file edit breaks the indexes, "
         f"backlinks, and git history they maintain. Search for these tools "
         f"if they are not visible.\n"
+        f"{elsewhere}"
         f"{content}\n"
         f"{possibly_related}"
         f"</journal-index>"
@@ -520,6 +522,50 @@ def render_journal_index(first_message: str | None = None) -> str | None:
 def _hud_note_paths(content: str) -> list[str]:
     """The note path each injected HUD line links to (`([note](path))`)."""
     return [m.group(1) for m in _HUD_NOTE_LINK.finditer(content)]
+
+
+def _scoped_index(content: str, journal_dir: str, index_name: str) -> tuple[str, str]:
+    """The index this checkout is shown, and one line per repository it is not.
+
+    Scoping is a property of the injected view, not of the file: `index.md` stays
+    whole, and `SearchJournal` reads it whole. A chat opened outside any checkout
+    has nothing to compare against and is shown everything.
+
+    The second half is what keeps the first from becoming amnesia: the detail of
+    another repository's notes leaves the index, but that repository is still
+    named, with how much is there and its newest claim. It is injected beside the
+    index rather than inside it, because the cap ranks an unknown section away."""
+    # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
+    from zrb.llm.tool.journal_index import ELSEWHERE_HEADING, elsewhere_lines, scope_index
+    from zrb.llm.tool.journal_note import list_notes
+    from zrb.llm.tool.journal_scope import repo_of
+
+    current = repo_of(os.getcwd())
+    if not current:
+        return content, ""
+    notes = list_notes(journal_dir, (index_name, "index.md"))
+    lines = elsewhere_lines(notes, current)
+    digest = f"{ELSEWHERE_HEADING} (not shown here; SearchJournal finds them)\n" + "\n".join(
+        lines
+    ) + "\n\n" if lines else ""
+    return scope_index(content, notes, current), digest
+
+
+def _scoped_notes(notes: list[Note]) -> list[Note]:
+    """*notes*, minus the ones about another repository.
+
+    The per-turn claims get the same rule as the injected index: a note about
+    another repository is not this session's memory of the work in front of it,
+    and it already has a line under `## Other projects`. A chat opened outside
+    any checkout is shown everything, because there is nothing to compare a tag
+    against."""
+    # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
+    from zrb.llm.tool.journal_scope import is_in_scope, repo_of
+
+    current = repo_of(os.getcwd())
+    if not current:
+        return notes
+    return [note for note in notes if is_in_scope(note.repo, current)]
 
 
 def render_journal_claims(first_message: str | None = None) -> str | None:
@@ -558,6 +604,7 @@ def render_journal_claims(first_message: str | None = None) -> str | None:
     notes = list_notes(journal_dir, (index_name, "index.md"))
     if not notes:
         return None
+    notes = _scoped_notes(notes)
     session = get_conversation_key(get_current_context_session())
     events = _session_events(session)
     chosen = select_claims(
@@ -673,8 +720,8 @@ def _render_possibly_related(first_message: str) -> str:
     files = [
         str(hit["file"]) for hit in hits if isinstance(hit, dict) and "file" in hit
     ]
-    # Recorded even with no hits: an auto-search that found nothing is the
-    # measurement of the automatic retrieval, not a turn that never happened.
+    # Not scoped: the search is driven by the user's own words, so a message that
+    # names another project must reach that project's notes.
     record_auto_searched(first_message, files, len(hits))
     if not hits:
         return ""

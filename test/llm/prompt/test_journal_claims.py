@@ -45,7 +45,9 @@ def journal(tmp_path, monkeypatch):
     return root
 
 
-def _write(slug: str, hud_line: str = LINE, pinned: bool = False) -> str:
+def _write(
+    slug: str, hud_line: str = LINE, pinned: bool = False, repo: str | None = None
+) -> str:
     return write_journal_note(
         category="technical",
         slug=slug,
@@ -56,6 +58,7 @@ def _write(slug: str, hud_line: str = LINE, pinned: bool = False) -> str:
         hud_line=hud_line,
         pinned=pinned,
         applies_when="while the test runs",
+        repo=repo,
     )
 
 
@@ -295,3 +298,27 @@ def test_the_first_turn_carries_the_index_and_later_turns_the_claims(journal):
     assert "<journal-claims>" in later
     assert "A fact recorded after the index went in." in later
     assert "<journal-index>" not in later
+
+
+def test_a_claim_about_another_repository_is_not_this_sessions_memory(
+    journal, monkeypatch
+):
+    """A note written with `repo="soda"` from a zrb session is not a zrb fact.
+
+    Showing it back would make the scope mean two different things in one
+    feature: the index would hide the note and the very next turn would hand it
+    over anyway. The repository is still named under `## Other projects`, and
+    `SearchJournal` still finds the note everywhere."""
+    _write("bank-job", hud_line="a bank job red at prepare is infra", repo="soda")
+    monkeypatch.setattr("zrb.llm.tool.journal_scope.repo_of", lambda cwd: "zrb")
+
+    assert render_journal_claims() is None
+
+
+def test_a_claim_about_this_repository_still_arrives(journal, monkeypatch):
+    """The rule the exclusion must not swallow: a note about the repository in
+    hand reaches the next turn, which is the whole point of the block."""
+    _write("retry-policy", repo="zrb")
+    monkeypatch.setattr("zrb.llm.tool.journal_scope.repo_of", lambda cwd: "zrb")
+
+    assert LINE in (render_journal_claims() or "")

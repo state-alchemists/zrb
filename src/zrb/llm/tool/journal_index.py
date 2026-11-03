@@ -474,3 +474,144 @@ def _is_echo(text: str, notes: list[Note]) -> bool:
         note.rel == match.group(1) and strip_note_links(note.hud_line) == prose
         for note in notes
     )
+
+
+ELSEWHERE_HEADING = "## Other projects"
+"""What this view left out, named rather than dropped.
+
+Working in one repository must not mean forgetting the others: a session that
+cannot see the bank pipeline any more will re-plan work that already exists. So
+the notes of the other repositories are compressed to one line each — how many,
+and the newest claim — and the detail stays one `SearchJournal` away."""
+
+ELSEWHERE_CLAIM_MAX_CHARS = 100
+"""Longest claim quoted in that line: enough to recognise the work, not to
+replace it. The line is a reminder, and the note is where the detail is."""
+
+
+def scope_index(text: str, notes: list[Note], current: str) -> str:
+    """*text* without the lines that link a note this repository does not show.
+
+    A note is shown when it is untagged, tagged ``global``, or tagged with
+    *current* — see `journal_scope`. Only a line the index writer *owns* is
+    dropped: a heading, a hand-written line, an overflow marker, and a link to a
+    file that is not a note at all all stay, which is the same rule the renderer
+    already follows for foreign lines.
+
+    Ownership is the writer's own rule (`_is_owned_line`), not "this line links a
+    known note": the HUD sections own a line only for a note that has a
+    `hud_line`, so a line a person wrote under `## Constraints` and linked to a
+    note without one is content that exists nowhere else. Scoping hides what the
+    writer generated; it does not edit somebody's prose.
+
+    What the dropped lines said is not thrown away — `elsewhere_lines` condenses
+    it, and the caller injects that beside the index rather than inside it, where
+    the cap would rank an unknown section away."""
+    by_rel = {note.rel: note for note in notes}
+    kept: list[str] = []
+    section = ""
+    for line in text.splitlines():
+        if line.startswith("## "):
+            section = line
+        if _is_line_shown(line, by_rel, current, section):
+            kept.append(line)
+    return _without_empty_sections(kept)
+
+
+def elsewhere_lines(notes: list[Note], current: str) -> list[str]:
+    """One line per repository this view left out, most recently touched first.
+
+    Working in one repository must not mean forgetting the others: a session that
+    cannot see the bank pipeline any more will re-plan work that already exists.
+    So the other repositories keep one line each — how many notes, and the newest
+    claim — and the detail stays one `SearchJournal` away."""
+    from zrb.llm.tool.journal_scope import is_in_scope
+
+    groups: dict[str, list[Note]] = {}
+    for note in notes:
+        if note.is_active and note.repo and not is_in_scope(note.repo, current):
+            groups.setdefault(note.repo, []).append(note)
+    ordered = sorted(
+        groups.items(), key=lambda pair: max(note.updated for note in pair[1]), reverse=True
+    )
+    lines: list[str] = []
+    for repo, group in ordered:
+        newest = max(group, key=lambda note: note.updated)
+        claim = newest.hud_line or newest.title
+        day = newest.updated.date().isoformat()
+        lines.append(f"- {repo} — {len(group)} notes, newest ({day}): {_shorten(claim)}")
+    return lines
+
+
+def _shorten(claim: str) -> str:
+    """*claim* cut to the length a reminder is worth, marked when it is cut."""
+    if len(claim) <= ELSEWHERE_CLAIM_MAX_CHARS:
+        return claim
+    head = claim[: ELSEWHERE_CLAIM_MAX_CHARS - 1]
+    boundary = head.rfind(" ")
+    if boundary > 0:
+        head = head[:boundary]
+    return head.rstrip(" ,;:—") + "…"
+
+
+def _is_line_shown(
+    line: str, notes: dict[str, Note], current: str, section: str
+) -> bool:
+    """Whether *line* links no note, one this view keeps, or one it does not own.
+
+    A line the writer would not have written is somebody's own text: dropping it
+    because the note it mentions lives elsewhere would delete the only copy of
+    what that line says."""
+    from zrb.llm.tool.journal_scope import is_in_scope
+
+    linked = _linked_note_rel(line)
+    note = notes.get(linked) if linked else None
+    if note is None or not _is_owned_line(note, section):
+        return True
+    return is_in_scope(note.repo, current)
+
+
+def _is_owned_line(note: Note, section: str) -> bool:
+    """Whether the index writer generates a line for *note* in *section*.
+
+    The writer's own rule: a HUD section generates a line only for a note that
+    carries a `hud_line` (`plan_hud`), and the catalog generates one for every
+    active note (`plan_catalog`). Anything else under a heading was written by a
+    person or by a renderer that no longer exists."""
+    if section == CATALOG_HEADING:
+        return note.is_active
+    return section.removeprefix("## ").strip() in HUD_ORDER and bool(note.hud_line)
+
+
+def _linked_note_rel(line: str) -> str | None:
+    """The journal-relative note a line links, or ``None`` when it links none."""
+    hud = _NOTE_LINK_RE.search(line)
+    if hud:
+        return hud.group(1)
+    catalog = _BARE_LINK_RE.match(line)
+    if catalog:
+        target = catalog.group(1)
+        if not target.startswith(("http://", "https://", "#")):
+            return target
+    return None
+
+
+def _without_empty_sections(lines: list[str]) -> str:
+    """*lines* without a `## ` heading whose section holds no line at all."""
+    kept: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        index += 1
+        if not line.startswith("## "):
+            kept.append(line)
+            continue
+        body: list[str] = []
+        while index < len(lines) and not lines[index].startswith("## "):
+            body.append(lines[index])
+            index += 1
+        if any(item.strip() for item in body):
+            kept.append(line)
+            kept.extend(body)
+    return "\n".join(kept)
+
