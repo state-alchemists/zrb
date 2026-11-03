@@ -84,11 +84,23 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
     source = os.path.abspath(
         os.path.expanduser(journal_dir or CFG.LLM_JOURNAL_DIR or "")
     )
-    counts = {"facts": 0, "retired": 0, "diary": 0, "log_lines": 0}
     if not os.path.isdir(source):
-        return counts
-    if not dry_run:
-        paths.ensure_store()
+        return {"facts": 0, "retired": 0, "diary": 0, "log_lines": 0}
+    if dry_run:
+        return _migrate_all(source, dry_run=True)
+    paths.ensure_store()
+    # One critical section for the whole copy: a reviewer running in another
+    # session must not interleave with it, and the log merge below reads what it
+    # is about to write.
+    with store.locked():
+        counts = _migrate_all(source, dry_run=False)
+        store.write_core()
+        store.git_commit("migrate: journal")
+    return counts
+
+
+def _migrate_all(source: str, dry_run: bool) -> dict[str, int]:
+    counts = {"facts": 0, "retired": 0, "diary": 0, "log_lines": 0}
     taken: set[str] = set()
     for category in NOTE_CATEGORIES:
         written = _migrate_category(source, category, taken, dry_run)
@@ -96,10 +108,6 @@ def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, 
         counts["retired"] += written["retired"]
     counts.update(_migrate_log(source, dry_run))
     counts.update(_migrate_handovers(source, dry_run))
-    if not dry_run:
-        with store.locked():
-            store.write_core()
-            store.git_commit("migrate: journal")
     return counts
 
 
@@ -249,8 +257,36 @@ def _migrate_log(source: str, dry_run: bool) -> dict[str, int]:
 
 
 def _write_log(day: str, lines: list[str]) -> None:
-    content = "\n".join([f"# {day}", *(_normalise_log_line(line) for line in lines)])
+    """Merge the journal's lines into the day's log, never replace what is there.
+
+    The reviewer writes events into the same files. A migration that rewrote a
+    day would delete everything the memory system had already logged for it, so
+    the day is read first and only lines it does not already hold are added.
+    """
+    existing = store.log_lines(day)
+    merged = list(existing)
+    seen = set(existing)
+    for line in lines:
+        normalised = _normalise_log_line(line)
+        if normalised not in seen:
+            seen.add(normalised)
+            merged.append(normalised)
+    merged.sort(key=_clock_key)
+    content = "\n".join([f"# {day}", *merged])
     store.write_document(paths.log_path(day), content + "\n")
+
+
+def _clock_key(line: str) -> tuple[int, int]:
+    """Sort a log line by its clock time; an unstamped line goes last.
+
+    A stable sort keeps the file's own order within one minute, so a re-run does
+    not reshuffle what an earlier run wrote.
+    """
+    match = _LOG_LINE.match(line)
+    if match is None:
+        return (99, 99)
+    hours, minutes = match.group(1).split(":")
+    return (int(hours), int(minutes))
 
 
 def _normalise_log_line(line: str) -> str:

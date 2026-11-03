@@ -167,10 +167,13 @@ def plan_delta(facts: Sequence[Fact], known: Sequence[str] | None) -> DeltaPlan:
         return DeltaPlan("")
     shown_versions = set(known)
     tombstones = _tombstones(facts, shown_versions)
-    lines = [_tombstone(fact_id, facts) for fact_id in tombstones]
+    tombstone_lines = {
+        fact_id: _tombstone(fact_id, facts) for fact_id in tombstones
+    }
+    lines = list(tombstone_lines.values())
     entries = _delta_entries(facts, shown_versions)
     lines.extend(line for _fact, line in entries)
-    return _fit_delta(lines, entries, tombstones)
+    return _fit_delta(lines, entries, tombstone_lines)
 
 
 def _tombstones(facts: Sequence[Fact], shown_versions: set[str]) -> list[str]:
@@ -198,13 +201,15 @@ def _delta_entries(
 def _fit_delta(
     lines: list[str],
     entries: list[tuple[Fact, str]],
-    tombstones: list[str],
+    tombstone_lines: dict[str, str],
 ) -> DeltaPlan:
     """The lines that fit, and the versions they actually spoke for.
 
     A version counts as shown only when its line survives both caps: marking a
     line emitted and then cutting it is how a fact goes missing for the rest of
-    a conversation.
+    a conversation. A tombstone is held to the same rule — the fourth `Forget` of
+    a turn waits for the next one rather than being dropped from the baseline
+    without ever being said.
     """
     kept = lines[:_DELTA_MAX_LINES]
     if not kept:
@@ -214,8 +219,11 @@ def _fit_delta(
         body = cut_lines(body, _DELTA_MAX_CHARS)
     survived = set(body.splitlines())
     emitted = tuple(claim_key(fact) for fact, line in entries if line in survived)
+    forgotten = tuple(
+        fact_id for fact_id, line in tombstone_lines.items() if line in survived
+    )
     return DeltaPlan(
-        f"{DELTA_OPEN}\n{body}\n{DELTA_CLOSE}", emitted, tuple(tombstones)
+        f"{DELTA_OPEN}\n{body}\n{DELTA_CLOSE}", emitted, forgotten
     )
 
 

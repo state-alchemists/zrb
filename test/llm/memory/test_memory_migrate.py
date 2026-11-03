@@ -158,6 +158,19 @@ def test_a_tainted_handover_is_withheld(journal):
     assert injection_reason(entry.claim) is None
 
 
+def test_an_existing_log_day_is_merged_not_replaced(journal):
+    """The reviewer logs into the same day; a migration must not delete it."""
+    paths.ensure_store()
+    store.write_document(
+        paths.log_path("2026-11-03"),
+        "# 2026-11-03\n- 19:30 — a memory event (zrb)\n",
+    )
+    migrate(str(journal))
+    lines = store.log_lines("2026-11-03")
+    assert any("a memory event" in line for line in lines)
+    assert any("Replaced the journal" in line for line in lines)
+
+
 def test_running_it_twice_writes_the_same_store(journal):
     first = migrate(str(journal))
     facts_first = sorted(fact.id for fact in store.load_facts(include_retired=True))

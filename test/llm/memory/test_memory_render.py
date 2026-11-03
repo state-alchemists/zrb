@@ -9,6 +9,7 @@ from zrb.llm.memory.render import (
     compose_delta,
     compose_memory,
     cut_lines,
+    plan_delta,
     render_core,
     render_recent,
     render_week,
@@ -18,6 +19,23 @@ from zrb.llm.memory.render import (
 def _fact(fact_id, claim, **fields):
     fields.setdefault("updated", "2026-11-03T10:00:00")
     return Fact(id=fact_id, claim=claim, **fields)
+
+
+def test_a_tombstone_cut_by_the_cap_is_not_marked_seen():
+    """Four retirements, three lines: the fourth must wait, not vanish.
+
+    It is the same rule as an emitted claim — the baseline may only advance past
+    what the model was actually told.
+    """
+    shown = [_fact(f"f{index}", f"Claim {index}.") for index in range(4)]
+    retired = [
+        _fact(f"f{index}", f"Claim {index}.", status="retired", reason="stale")
+        for index in range(4)
+    ]
+    plan = plan_delta(retired, [claim_key(fact) for fact in shown])
+    assert len(plan.forgotten) == 3
+    assert "f3" not in plan.forgotten
+    assert "Forget this claim: Claim 0." in plan.text
 
 
 def test_the_core_orders_pinned_facts_by_id():
