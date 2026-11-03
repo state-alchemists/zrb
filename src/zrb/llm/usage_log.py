@@ -27,7 +27,7 @@ from zrb.util.string.name import get_conversation_key
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RunUsage
 
-_Record = TypeVar("_Record")
+_Record = TypeVar("_Record", bound="UsageRecord")
 _MONTH_FORMAT = "%Y-%m"
 _FILE_PREFIX = "usage-"
 _FILE_SUFFIX = ".jsonl"
