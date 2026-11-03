@@ -331,7 +331,10 @@ def test_a_tilde_journal_directory_is_filtered_like_any_other(
     repository's lines stay in the index — the feature silently doing nothing for
     every journal configured the way this one is."""
     _write("technical", "bank-job", repo="soda")
+    # `expanduser` reads HOME on POSIX and USERPROFILE here; both point the same
+    # place so the test asserts the same thing on every runner.
     monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
     monkeypatch.setattr(CFG, "LLM_JOURNAL_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_DIR", "~/notes", raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_INDEX_FILE", "index.md", raising=False)
