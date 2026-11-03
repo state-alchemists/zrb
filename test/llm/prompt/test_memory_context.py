@@ -226,7 +226,43 @@ def test_the_delta_is_empty_when_nothing_was_recorded(store_dir):
     assert render_memory_delta() is None
 
 
-def test_the_delta_is_empty_without_a_first_turn(store_dir):
+def test_a_turn_without_a_baseline_gets_the_block(store_dir):
+    """No block was ever rendered, so there is no session start to diff against —
+    and a turn that has no baseline is a first turn, not an empty delta.
+
+    Answering with nothing is what an upgrade looked like: a conversation resumed
+    after the restart carried no memory, and the notes were not even read.
+    """
     remember("x", "X is true.", pin=True)
-    # No block was ever rendered, so there is no session start to diff against.
-    assert render_memory_delta() is None
+    delta = render_memory_delta()
+    assert delta is not None
+    assert "<memory>" in delta
+    assert "X is true." in delta
+
+
+def test_a_resumed_conversation_reads_the_notes_on_first_use(tmp_path, monkeypatch):
+    """The delta path converts too, because a resumed conversation is a first use.
+
+    Conversion used to be reached only from the block, and a resumed conversation
+    takes the delta path — so an upgrade could leave the notes unread for as long
+    as that conversation kept being resumed.
+    """
+    notes = tmp_path / "llm-notes"
+    category = notes / "user"
+    category.mkdir(parents=True)
+    (category / "identity.md").write_text(
+        "---\nslug: identity\nupdated: 2026-10-28T12:00:36\npinned: true\n---\n\n"
+        "# Identity\n\n**Finding:** Go is the user.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(CFG, "LLM_NOTES_DIR", str(notes), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(notes / "memory-v1"), raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_GIT_ENABLED", False, raising=False)
+    assert not paths.is_converted()
+
+    delta = render_memory_delta()
+
+    assert paths.is_converted()
+    assert delta is not None
+    assert store.load_facts(include_retired=True)
