@@ -234,6 +234,8 @@ def append_log(text: str, tags: str = "", day: str | None = None) -> str:
 
 def recent_log_lines(limit: int = 4, day: str | None = None) -> list[str]:
     """The last *limit* lines, today's first and yesterday's when today is short."""
+    if limit <= 0:
+        return []
     current = _as_date(day) or date.today()
     lines: list[str] = []
     for offset in (0, 1):

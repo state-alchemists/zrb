@@ -74,6 +74,13 @@ def test_yesterday_reaches_the_recent_lines_with_its_date(store_dir):
     assert "From yesterday" in lines[0]
 
 
+def test_a_zero_limit_asks_for_no_log_lines(store_dir):
+    """`0` means none; `lines[-0:]` is the whole list, not an empty one."""
+    store.append_log("An event")
+    assert store.recent_log_lines(0) == []
+    assert store.recent_log_lines(-1) == []
+
+
 def test_pruning_is_off_by_default(store_dir, monkeypatch):
     """The log is history; deleting it is an opt-in, not a default."""
     assert CFG.DEFAULT_LLM_MEMORY_LOG_RETENTION_DAYS == "0"

@@ -17,6 +17,17 @@ from zrb.llm.journal_usage_log import JUDGED, JUDGING, read_events
 
 
 @pytest.fixture(autouse=True)
+def _journal_on_its_own(monkeypatch):
+    """Memory replaces the journal: these tests pin the judge, so memory is off.
+
+    The judge registers only while memory is off, and a mocked CFG would answer
+    `LLM_MEMORY_ENABLED` with a truthy Mock — the tests that patch it set the flag
+    themselves.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", False, raising=False)
+
+
+@pytest.fixture(autouse=True)
 def _usage_dir(tmp_path, monkeypatch):
     """The judge records its runs; keep them out of the real usage directory."""
     monkeypatch.setattr(CFG, "LLM_USAGE_DIR", str(tmp_path), raising=False)
@@ -50,6 +61,16 @@ def test_hook_config_shape():
     assert matcher.value is True
 
 
+def test_the_judge_stays_out_when_memory_is_enabled(monkeypatch):
+    """Memory replaces the journal, so the judge's tools are gone and it must be."""
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_COMPLIANCE_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    manager = MagicMock()
+    register_journal_compliance_hook(manager)
+    manager.register_hook_config.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_registers_when_journal_enabled():
     "A registered hook actually fires (as a backgrounded task, since it's"
@@ -61,6 +82,7 @@ async def test_registers_when_journal_enabled():
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
         mock_cfg.LLM_JOURNAL_ENABLED = True
+        mock_cfg.LLM_MEMORY_ENABLED = False
         mock_resolve_model.return_value = "resolved"
         results = await manager.execute_hooks(
             HookEvent.STOP, {"wrote_files": True, "journal_due": True}
@@ -82,6 +104,7 @@ async def test_fires_on_a_stated_preference_with_no_file_write():
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
         mock_cfg.LLM_JOURNAL_ENABLED = True
+        mock_cfg.LLM_MEMORY_ENABLED = False
         mock_resolve_model.return_value = "resolved"
         results = await manager.execute_hooks(
             HookEvent.STOP, {"wrote_files": False, "journal_due": True}
@@ -97,6 +120,7 @@ async def test_does_not_register_when_journal_disabled():
     manager = HookManager(search_dirs=[])
     with patch("zrb.llm.hook.journal_compliance.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_ENABLED = False
+        mock_cfg.LLM_MEMORY_ENABLED = False
         results = await manager.execute_hooks(
             HookEvent.STOP, {"wrote_files": True, "journal_due": True}
         )
@@ -111,6 +135,7 @@ async def test_factory_fires_via_the_normal_lazy_load_path():
     manager = HookManager(search_dirs=[])
     with patch("zrb.llm.hook.journal_compliance.CFG") as mock_cfg:
         mock_cfg.LLM_JOURNAL_ENABLED = True
+        mock_cfg.LLM_MEMORY_ENABLED = False
         manager.add_hook_factory(register_journal_compliance_hook)
 
         await manager.execute_hooks(HookEvent.NOTIFICATION, {})
@@ -155,6 +180,7 @@ def _register(journal_on: bool, hook_on: bool) -> "_FakeManager":
     with patch("zrb.llm.hook.journal_compliance.CFG") as cfg:
         cfg.LLM_JOURNAL_ENABLED = journal_on
         cfg.LLM_JOURNAL_COMPLIANCE_ENABLED = hook_on
+        cfg.LLM_MEMORY_ENABLED = False
         register_journal_compliance_hook(cast("HookManager", manager))
     return manager
 
@@ -199,6 +225,7 @@ def _watched(result: HookResult) -> "_WrappingManager":
     with patch("zrb.llm.hook.journal_compliance.CFG") as cfg:
         cfg.LLM_JOURNAL_ENABLED = True
         cfg.LLM_JOURNAL_COMPLIANCE_ENABLED = True
+        cfg.LLM_MEMORY_ENABLED = False
         register_journal_compliance_hook(cast("HookManager", manager))
     return manager
 
