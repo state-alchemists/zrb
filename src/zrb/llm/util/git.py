@@ -48,10 +48,16 @@ def repository_root(cwd: str) -> str:
     container of it: a submodule's lives at `<super>/.git/modules/<name>`, and
     its parent's basename is `modules` — the name of a directory that says
     nothing about which repository is in hand.
+
+    The flag that would print that path absolute, `--path-format=absolute`, needs
+    Git 2.31 and answers nothing on anything older — and an empty answer reads as
+    "outside any checkout", which silently turns the journal's scoping off. The
+    plain command answers the same thing on every version, relative to the
+    directory it ran in, so the resolution happens here instead.
     """
     try:
         res = subprocess.run(
-            ["git", "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            ["git", "rev-parse", "--git-common-dir"],
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -63,7 +69,18 @@ def repository_root(cwd: str) -> str:
         return ""
     if res.returncode != 0:
         return ""
-    return repository_root_from_common_dir(res.stdout.strip())
+    return repository_root_from_common_dir(_absolute(res.stdout.strip(), cwd))
+
+
+def _absolute(path: str, cwd: str) -> str:
+    """*path* as git printed it, resolved against the directory git ran in.
+
+    `rev-parse --git-common-dir` answers `.git` at a repository's top,
+    `../../.git` from a subdirectory, and an absolute path for a linked
+    worktree; `os.path.join` keeps an absolute path as it is."""
+    if not path:
+        return ""
+    return os.path.abspath(os.path.join(cwd, path))
 
 
 def repository_root_from_common_dir(common_dir: str) -> str:

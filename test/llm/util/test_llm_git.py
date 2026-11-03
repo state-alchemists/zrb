@@ -135,3 +135,37 @@ class TestIsInsideGitDir:
         with patch("subprocess.run") as mock_run:
             assert is_inside_git_dir() is False
             mock_run.assert_not_called()
+
+
+class TestRepositoryRoot:
+    "Test repository_root, which names the repository a checkout belongs to."
+
+    def test_a_relative_common_dir_is_resolved_where_git_ran(self, tmp_path):
+        """Git answers `.git` at a repository's top and `../../.git` from a
+        subdirectory.
+
+        `--path-format=absolute` would do that resolving, but it needs Git 2.31,
+        and an empty answer reads as "outside any checkout" — which turns the
+        journal's scoping off silently. The plain command answers the same thing
+        on every version, so the resolution happens here instead."""
+        from zrb.llm.util.git import repository_root
+
+        repo = tmp_path / "soda"
+        deep = repo / "src" / "deep"
+        deep.mkdir(parents=True)
+        answer = MagicMock(returncode=0, stdout="../../.git\n")
+
+        with patch("subprocess.run", return_value=answer) as run:
+            assert repository_root(str(deep)) == str(repo)
+
+        assert "--path-format=absolute" not in run.call_args.args[0]
+
+    def test_an_absolute_common_dir_is_kept(self, tmp_path):
+        "A linked worktree already answers absolutely; resolving must not move it."
+        from zrb.llm.util.git import repository_root
+
+        common = tmp_path / "soda" / ".git"
+        answer = MagicMock(returncode=0, stdout=f"{common}\n")
+
+        with patch("subprocess.run", return_value=answer):
+            assert repository_root(str(tmp_path / "soda-wt")) == str(tmp_path / "soda")
