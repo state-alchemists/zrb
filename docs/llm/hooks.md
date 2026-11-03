@@ -372,9 +372,11 @@ Built-in tools use Claude-compatible names (`Read`, `Write`, `Edit`, `Grep`, `Gl
 | zrb tool | also matches |
 |----------|--------------|
 | `Shell` (the default shell tool) | `Bash` |
-| `DelegateToAgent`, `DelegateToAgentBackground` | `Task` |
+| `DelegateToAgent` | `Task` |
 
 Aliases apply to positive operators (`equals`, `regex`, `contains`, …); a `not_equals` matcher compares against the literal name only, so an exclusion is never silently widened.
+
+`DelegateToAgentBackground` was a separate tool until 3.32.0 and is now `DelegateToAgent(background=true)`. A hook config keyed on the old name matches nothing: use `DelegateToAgent`, or the `Task` alias that covers both this harness and Claude Code.
 
 ### Case Sensitivity
 
