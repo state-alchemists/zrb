@@ -240,7 +240,13 @@ def writable_journal(tmp_path):
             yield str(root)
 
 
-def _write(category: str, slug: str, repo: str | None = None) -> str:
+def _write(
+    category: str,
+    slug: str,
+    repo: str | None = None,
+    *,
+    applies_when: str = "while the file exists",
+) -> str:
     from zrb.llm.tool.journal_write import write_journal_note
 
     return write_journal_note(
@@ -251,7 +257,7 @@ def _write(category: str, slug: str, repo: str | None = None) -> str:
         finding="The finding.",
         source="src/zrb/llm/tool/journal_note.py:52",
         hud_line="the claim itself",
-        applies_when="while the file exists",
+        applies_when=applies_when,
         repo=repo,
     )
 
@@ -280,6 +286,29 @@ def test_a_revision_keeps_the_repository_the_note_was_written_in(writable_journa
 
     body = _write_note(writable_journal, "technical", "build-cache")
     assert "repo: zrb" in body
+
+
+def test_a_revision_from_another_repository_does_not_stamp_its_file(
+    writable_journal, tmp_path
+):
+    """The tag stays `zrb`; the file hash must not come from the checkout the
+    correction happened in. A hash of soda's file would make the note read as
+    disproved the moment zrb opened it — hiding a note nobody changed."""
+    _write("technical", "build-cache")
+    elsewhere = tmp_path / "soda"
+    elsewhere.mkdir()
+    (elsewhere / "config.yml").write_text("mode = dev\n", encoding="utf-8")
+
+    with patch("zrb.llm.tool.journal_write.repo_of", return_value="soda"), patch(
+        "zrb.llm.tool.journal_write.repo_root", return_value=str(elsewhere)
+    ):
+        _write("technical", "build-cache", applies_when="file:config.yml")
+
+    body = _write_note(writable_journal, "technical", "build-cache")
+    assert "repo: zrb" in body
+    assert "applies_when: file:config.yml\n" in body
+    # Another checkout's file is not this note's file, so nothing is recorded.
+    assert "applies_when_digest:" not in body
 
 
 def test_a_new_note_from_another_repository_takes_that_repository(writable_journal):
@@ -374,3 +403,27 @@ def test_a_tilde_journal_directory_is_filtered_like_any_other(
     # The line itself is gone from the sections; the tag is still named in the
     # digest, which is the whole point: compressed, not hidden.
     assert "([note](technical/bank-job.md))" not in block
+
+
+def test_outside_a_checkout_a_disproved_condition_still_expires(
+    writable_journal, monkeypatch
+):
+    """No checkout means no repository filter — not that nothing can be checked.
+
+    A date is answered anywhere, so a note past its day still stops arriving; a
+    note whose day has not come still arrives. Gating expiry on a repository
+    would switch the whole mechanism off in exactly the sessions that have no
+    index to correct it by hand."""
+    _write("technical", "stale", applies_when="date:2020-01-01")
+    _write("technical", "live", applies_when="date:2099-01-01")
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_DIR", writable_journal, raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_INDEX_FILE", "index.md", raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_INDEX_MAX_CHARS", 3600, raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_AUTO_SEARCH_ENABLED", False, raising=False)
+
+    with patch("zrb.llm.tool.journal_scope.repo_of", return_value=""):
+        block = render_journal_index() or ""
+
+    assert "([note](technical/stale.md))" not in block
+    assert "([note](technical/live.md))" in block

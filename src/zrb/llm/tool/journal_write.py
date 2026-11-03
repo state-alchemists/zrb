@@ -48,9 +48,11 @@ from zrb.llm.tool.journal_index import (
     with_link,
 )
 from zrb.llm.tool.journal_index_migration import absorb_renamed_sections, plan_adoptions
+from zrb.llm.tool.journal_expiry import checkout_id, condition_digest
 from zrb.llm.tool.journal_scope import (
     default_scope,
     repo_of,
+    repo_root,
     scope_argument,
 )
 from zrb.llm.tool.journal_note import (
@@ -488,7 +490,14 @@ def write_journal_note(
                 "the office laptop`. Name something checkable: a version, "
                 "file, setting or stated preference. A write without one is "
                 "refused, because a note that cannot say when it stops "
-                "applying can never be retired, only re-read."
+                "applying can never be retired, only re-read. Four forms are "
+                "checked without asking anyone, and they cost nothing to write: "
+                "`file:<path relative to the repository root>` (the digest is "
+                "stamped here, so it says what the note was written against), "
+                "`version:>=3.29`, `setting:<NAME>=<value>`, and "
+                "`date:YYYY-MM-DD` (holds through that day). A note whose "
+                "checkable condition is disproved stops being injected; the "
+                "note itself stays, and SearchJournal still finds it."
             )
         ),
     ] = None,
@@ -648,6 +657,48 @@ def _scope_for(category: str, repo: str | None, previous: Note | None) -> str:
     return default_scope(category, repo_of(os.getcwd()))
 
 
+def _stamp_root(scope: str) -> str:
+    """The tree a `file:` condition may be stamped against, or ``""``.
+
+    Only the note's own repository anchors a relative path. A note tagged for one
+    repository and revised from another would otherwise record this checkout's
+    file, and its own repository would then read the note as disproved; an
+    untagged note travels with the person and has no tree to be relative to at
+    all. Unstamped reads as uncheckable, which keeps the note."""
+    if not scope or scope != repo_of(os.getcwd()):
+        return ""
+    return repo_root(os.getcwd())
+
+
+def _recorded_stamp(
+    condition: str, previous: Note | None, scope: str
+) -> tuple[str, str]:
+    """The digest this write records beside *condition* and the tree it came from.
+
+    ``("", "")`` when nothing is recorded. A revision that restates the same
+    condition keeps the digest the note was written with: that hash is evidence of
+    what the note was written against, and deriving it again would quietly renew a
+    condition that had stopped holding. A note with no digest has nothing to
+    preserve — it was written while the file was missing, or before the note had a
+    repository to be relative to — so the revision records one if it can, rather
+    than leaving the note uncheckable for good. A new note, or one whose condition
+    changed, records the tree as it is now: the tree of the note's own repository,
+    not the checkout the caller happens to stand in (`_stamp_root`).
+
+    The tree is recorded with the digest because a `repo:` tag is only a directory
+    name: two checkouts can share one, and a digest compared in the wrong checkout
+    is a false expiry about somebody else's file."""
+    if (
+        previous is not None
+        and previous.applies_when == condition
+        and previous.applies_when_digest
+    ):
+        return previous.applies_when_digest, previous.applies_when_checkout
+    root = _stamp_root(scope)
+    digest = condition_digest(condition, root)
+    return (digest, checkout_id(root)) if digest else ("", "")
+
+
 def _write_note_locked(
     root: str,
     category: str,
@@ -679,6 +730,10 @@ def _write_note_locked(
     note_rel = relative(note_path, root)
     previous = next((note for note in notes if note.rel == note_rel), None)
     scope = _scope_for(category, repo, previous)
+    # The digest a `file:` condition will be checked against is recorded here,
+    # while the tree it names is in hand; a later reader has no way to recover it.
+    # The tree is recorded with it, because a repo tag is only a directory name.
+    digest, checkout = _recorded_stamp(condition, previous, scope)
     line, is_pinned = _hud_state(hud_line, pinned, previous, notes, note_rel)
     targets = _resolve_links(root, links or [])
     # The keywords the note will *store*, not the ones the caller passed: a
@@ -697,6 +752,8 @@ def _write_note_locked(
         "finding": finding,
         "source": source,
         "applies_when": condition,
+        "applies_when_digest": digest,
+        "applies_when_checkout": checkout,
         "status": STATUS_ACTIVE,
         "hud_line": line,
         "keywords": words,

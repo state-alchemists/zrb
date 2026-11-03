@@ -11,12 +11,16 @@ from unittest.mock import patch
 
 import pytest
 
+from zrb.llm.tool.journal_expiry import checkout_id, file_sha
+
 
 @pytest.fixture
 def writable_journal(tmp_path):
     """Patch CFG for the writer module and return the journal root."""
     root = tmp_path / "notes"
-    with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg:
+    with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg, patch(
+        "zrb.llm.tool.journal_write.repo_of", return_value="zrb"
+    ):
         mock_cfg.LLM_JOURNAL_DIR = str(root)
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
         mock_cfg.LLM_JOURNAL_LOCK_TIMEOUT = 0.1
@@ -26,6 +30,21 @@ def writable_journal(tmp_path):
         # test_journal_git.py exercises git-backing.
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
         yield str(root)
+
+
+def _write(slug: str, applies_when: str) -> str:
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    return write_journal_note(
+        category="technical",
+        slug=slug,
+        title="A title",
+        context="When it applies.",
+        finding="The finding.",
+        source="src/zrb/llm/tool/journal_note.py:52",
+        hud_line="the claim itself",
+        applies_when=applies_when,
+    )
 
 
 def _read(*parts) -> str:
@@ -173,3 +192,124 @@ def test_the_journal_tools_are_reachable_from_the_package(writable_journal):
 
     assert callable(supersede_journal_note)
     assert callable(delete_journal_note)
+
+
+def test_a_note_written_here_records_the_digest_of_its_file(writable_journal, tmp_path):
+    """In the note's own tree the digest is exactly what makes the condition
+    checkable later, and it is stored beside the condition, never inside it."""
+    tree = tmp_path / "zrb"
+    tree.mkdir()
+    (tree / "config.yml").write_text("mode = prod\n", encoding="utf-8")
+
+    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
+        _write("build-cache", "file:config.yml")
+
+    body = _read(writable_journal, "technical/build-cache.md")
+    assert "applies_when: file:config.yml" in body.splitlines()
+    assert f"applies_when_digest: {file_sha(str(tree / 'config.yml'))}" in body
+    # The tag is only a directory name; the tree is what the digest is about.
+    assert f"applies_when_checkout: {checkout_id(str(tree))}" in body
+
+
+def test_a_path_with_repeated_spaces_is_stored_and_stamped_as_written(
+    writable_journal, tmp_path
+):
+    """`check_applies_when` folds a sentence onto one line; a path is not a
+    sentence. Two spaces in a filename are part of the name the digest is of, and
+    folding them would store a condition about a file that does not exist."""
+    tree = tmp_path / "zrb"
+    tree.mkdir()
+    name = "config  prod.yml"
+    (tree / name).write_text("mode = prod\n", encoding="utf-8")
+
+    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
+        _write("build-cache", f"file:{name}")
+
+    body = _read(writable_journal, "technical/build-cache.md")
+    assert f"applies_when: file:{name}" in body
+    assert f"applies_when_digest: {file_sha(str(tree / name))}" in body
+
+
+def test_a_condition_with_a_control_character_is_refused(writable_journal):
+    """A NUL makes the path APIs raise rather than answering, so a condition that
+    carries one would take the whole write down with it. It is refused, and the
+    note is left unwritten — a control character is a corrupted condition, not an
+    uncheckable one."""
+    from zrb.llm.tool.journal_write import write_journal_note
+
+    with pytest.raises(ValueError) as excinfo:
+        write_journal_note(
+            category="technical",
+            slug="config-x",
+            title="T",
+            context="c",
+            finding="f",
+            hud_line="f",
+            source="s",
+            applies_when="file:src/config.py\x00x",
+        )
+
+    assert "control character" in str(excinfo.value)
+    assert not os.path.isfile(os.path.join(writable_journal, "technical/config-x.md"))
+
+
+def test_a_revision_keeps_the_digest_the_note_was_written_with(
+    writable_journal, tmp_path
+):
+    """A digest is evidence. The file changing after the note was written must not
+    turn a revision into a fresh hash of the new content — that would renew a
+    condition which had stopped holding."""
+    tree = tmp_path / "zrb"
+    tree.mkdir()
+    config = tree / "config.yml"
+    config.write_text("mode = prod\n", encoding="utf-8")
+    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
+        _write("build-cache", "file:config.yml")
+    written = file_sha(str(config))
+    config.write_text("mode = dev\n", encoding="utf-8")
+
+    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
+        _write("build-cache", "file:config.yml")
+
+    assert f"applies_when_digest: {written}" in _read(
+        writable_journal, "technical/build-cache.md"
+    )
+
+
+def test_a_revision_records_a_digest_the_note_never_had(writable_journal, tmp_path):
+    """Nothing to preserve is not evidence to preserve. A note written while the
+    file was missing must become checkable when a revision restates it with the
+    file in hand, or it stays uncheckable for good."""
+    tree = tmp_path / "zrb"
+    tree.mkdir()
+    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
+        _write("build-cache", "file:config.yml")
+    assert "applies_when_digest:" not in _read(
+        writable_journal, "technical/build-cache.md"
+    )
+    (tree / "config.yml").write_text("mode = prod\n", encoding="utf-8")
+
+    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
+        _write("build-cache", "file:config.yml")
+
+    assert f"applies_when_digest: {file_sha(str(tree / 'config.yml'))}" in _read(
+        writable_journal, "technical/build-cache.md"
+    )
+
+
+def test_a_revision_that_names_another_file_records_that_file(
+    writable_journal, tmp_path
+):
+    """Preserving the old digest is about the *same* condition. A note that now
+    points at another file is a different claim, and the digest has to follow it."""
+    tree = tmp_path / "zrb"
+    tree.mkdir()
+    (tree / "config.yml").write_text("mode = prod\n", encoding="utf-8")
+    (tree / "other.yml").write_text("mode = test\n", encoding="utf-8")
+    with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(tree)):
+        _write("build-cache", "file:config.yml")
+        _write("build-cache", "file:other.yml")
+
+    assert f"applies_when_digest: {file_sha(str(tree / 'other.yml'))}" in _read(
+        writable_journal, "technical/build-cache.md"
+    )

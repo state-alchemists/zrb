@@ -529,7 +529,9 @@ def _scoped_index(content: str, journal_dir: str, index_name: str) -> tuple[str,
 
     Scoping is a property of the injected view, not of the file: `index.md` stays
     whole, and `SearchJournal` reads it whole. A chat opened outside any checkout
-    has nothing to compare against and is shown everything.
+    has nothing to compare a tag against, so nothing is filtered by repository —
+    but a date, a version or a setting is no less checkable there, and a note one
+    of them has disproved still leaves.
 
     The second half is what keeps the first from becoming amnesia: the detail of
     another repository's notes leaves the index, but that repository is still
@@ -541,31 +543,61 @@ def _scoped_index(content: str, journal_dir: str, index_name: str) -> tuple[str,
     from zrb.llm.tool.journal_scope import repo_of
 
     current = repo_of(os.getcwd())
-    if not current:
-        return content, ""
     notes = list_notes(journal_dir, (index_name, "index.md"))
-    lines = elsewhere_lines(notes, current)
+    expired = _expired(notes)
+    if not current:
+        return scope_index(content, notes, current, expired), ""
+    # The digest names each other repository by its newest *live* note: a line
+    # that quotes a note whose condition is disproved would carry stale work into
+    # the one place a session looks to find out what else is going on.
+    live = [note for note in notes if note.rel not in expired]
+    lines = elsewhere_lines(live, current)
     digest = f"{ELSEWHERE_HEADING} (not shown here; SearchJournal finds them)\n" + "\n".join(
         lines
     ) + "\n\n" if lines else ""
-    return scope_index(content, notes, current), digest
+    return scope_index(content, notes, current, expired), digest
+
+
+def _expired(notes: list[Note]) -> frozenset[str]:
+    """The notes this machine has disproved, by journal-relative path.
+
+    A note's `applies_when` can name a file, a version, a setting or a date;
+    `journal_expiry` answers only when one of those is *known* to be false, so a
+    prose condition — and one this machine cannot read — keeps its note. Nothing
+    is deleted or retired: expiry hides what is disproved from the injected view,
+    and `SearchJournal` still finds it.
+
+    Only a `file:` condition needs a checkout, because its hash is relative to the
+    note's own repository. A version, a setting or a date is answered anywhere —
+    a session opened outside a repository is not a session where nothing expired."""
+    # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
+    from zrb.llm.tool.journal_expiry import expired_note_rels
+    from zrb.llm.tool.journal_scope import repo_of, repo_root
+
+    current = repo_of(os.getcwd())
+    root = repo_root(os.getcwd()) if current else ""
+    return frozenset(expired_note_rels(notes, root, current))
 
 
 def _scoped_notes(notes: list[Note]) -> list[Note]:
-    """*notes*, minus the ones about another repository.
+    """*notes*, minus the ones about another repository and the disproved ones.
 
     The per-turn claims get the same rule as the injected index: a note about
     another repository is not this session's memory of the work in front of it,
-    and it already has a line under `## Other projects`. A chat opened outside
-    any checkout is shown everything, because there is nothing to compare a tag
-    against."""
+    and it already has a line under `## Other projects`; a note whose condition no
+    longer holds is memory that has stopped being true. A chat opened outside any
+    checkout keeps every note, because there is nothing to compare a tag against —
+    but a disproved condition is not a tag, and it still leaves."""
     # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
     from zrb.llm.tool.journal_scope import is_in_scope, repo_of
 
     current = repo_of(os.getcwd())
-    if not current:
-        return notes
-    return [note for note in notes if is_in_scope(note.repo, current)]
+    expired = _expired(notes)
+    return [
+        note
+        for note in notes
+        if is_in_scope(note.repo, current) and note.rel not in expired
+    ]
 
 
 def render_journal_claims(first_message: str | None = None) -> str | None:

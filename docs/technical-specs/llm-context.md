@@ -82,6 +82,33 @@ Measured on the real journal (317 notes, every work-scoped note stamped `zrb`, `
 
 The 213 characters the second view pays are the `## Other projects` heading and one line: `- zrb — 167 notes, newest (2026-11-03): …`. What changed is what fills the index — nine lines of another repository's detail became one line saying the work exists.
 
+### Expiry
+
+`applies_when` is required at write, but almost every value is prose, and nothing can check a sentence — so a note that stopped holding arrives every turn until somebody notices. Four forms are checked against this machine, without asking anyone:
+
+| form | holds while | checked by |
+|---|---|---|
+| `file:<path>` + `applies_when_digest` + `applies_when_checkout` | the file's content, in that tree, still hashes to that digest | `condition_digest` / `checkout_id`, `SHA_LENGTH=12` |
+| `version:>=3.29` | zrb's own version satisfies the comparison | `importlib.metadata.version("zrb")` |
+| `setting:<NAME>=<value>` | `CFG.<NAME>` reads as that token | `getattr(CFG, name)`, `on`/`off` folded to `true`/`false` |
+| `date:<YYYY-MM-DD>` | today is on or before that day | `date.today()` |
+
+A `file:` path is relative to the repository root and its digest is recorded **at write time** (`_write_note_locked` → `condition_digest`), in the note's own `applies_when_digest` key, because a condition nobody stamped is a condition nobody can evaluate. The digest comes from the note's *own* repository — a note tagged `repo-a` and corrected from `repo-b` keeps its tag, so hashing `repo-b`'s file would make the note read as disproved back in `repo-a` — and an untagged note, which travels with the person, is never stamped.
+
+A `repo:` tag is a directory name, and two checkouts can share one: `/work/a/zrb` and `/work/b/zrb` are both `zrb`. So the digest is recorded with the tree it came from (`applies_when_checkout`, a short digest of the resolved root — opaque on purpose, so a note never spells out somebody's home directory). All three have to agree before a hash is compared: the note's tag with the repository in hand, the recorded tree with this one, and the digest with the file. A namesake checkout, or a checkout that moved, answers "cannot tell" and the note stays — the alternative is a false expiry about a file in somebody else's tree.
+
+Only a `file:` condition needs a checkout. `version:`, `setting:` and `date:` are answered anywhere, including a session opened outside any repository — scoping is switched off there because there is no tag to compare, but a disproved condition still stops the note from arriving.
+
+The digest is a key of its own, never a suffix on the path. `config@deadbeefcafe` is a legal file name, so a digest written into the value cannot be told apart from one — and every reading of that ambiguity hid a note nobody touched: `config@prod.yml` compared against the hash of `config`, a stamp mistaken for a path, a path mistaken for a stamp. A `file:` condition with no `applies_when_digest` is simply uncheckable, and the note stays. On a **revision** the digest is kept as long as the condition text is unchanged: that hash is evidence of what the note was written against, and deriving it again would renew a condition that had stopped holding. A note with no digest has nothing to preserve, so a revision records one if it can; a revision that names another file records that file. A `version:` value compares under PEP 440 (`packaging.version.Version`), so a development build of 3.29 answers `version:<3.29` with a real false and a postrelease answers `version:>=3.29` with a real true, rather than either of them being unreadable.
+
+The path is untrusted input — a model writes the condition — so it is bounded on both ends. `condition_path` refuses a control character (a NUL cannot be in a name, and `realpath` raises on one rather than answering), an absolute path, a `..` component, and anything that resolves outside the tree through a symlink; `check_applies_when` refuses a condition that carries a control character before the write reaches the filesystem. The read then walks the resolved components with `_open_below`, opening each from the descriptor of the one before it (`O_NOFOLLOW` at every step, `fstat` for regular-and-sized, at most `MAX_HASH_BYTES` read from that descriptor, and a file that grows past the bound mid-read is "cannot tell" rather than a digest of the part that fit). A single `O_NOFOLLOW` guards only the last component, so a directory swapped for a link after validation would still be followed; a walk has no name left to re-resolve. Without the guard, `file:/dev/zero` blocks the turn and `file:/etc/passwd` hashes a file outside the repository. Every refusal answers "cannot tell", which keeps the note.
+
+Everything else is prose, and prose never expires — guessing that a sentence is false would retire a note its author still believes. The same rule covers a condition this machine cannot read: a missing file is a change, an unreadable or oversized one is not, and a version this build cannot parse or a setting it does not carry answer "cannot tell".
+
+Expiry **hides, it does not retire**. A note known to be disproved stops being injected — the index lines the writer owns for it, its per-turn claims, and its place as the newest claim in `## Other projects` — while the file, its `status`, `SearchJournal` and the category indexes are untouched. Superseding stays the act that retires a note by hand, and `DeleteJournalNote` the act that removes it.
+
+Measured on the real journal 2026-11-03: **318 notes, 0 with a checkable condition, 0 expired**. The mechanism costs one `list_notes` it already had plus one hash per `file:` note; it starts paying the turn a note names something checkable.
+
 ### Index File Structure
 
 The root index is created with this skeleton, and every note's one-line summary is rendered under the HUD section its category and pin decide: `User` (`user` and `preferences`), `Constraints` (a pinned `projects` or `technical` note), `Agent` (`agent`), or `Recent` (an unpinned `projects` or `technical` note). `agent` holds what is true of the assistant itself — standing choices, working style, how it wants to be treated — and `preferences` holds what the user stated about how *they* want to be worked with, so a fact about the agent never lands in the user's section by default:
