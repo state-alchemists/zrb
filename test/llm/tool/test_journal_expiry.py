@@ -216,6 +216,24 @@ def test_a_nul_in_the_path_cannot_crash_the_check(tmp_path):
     assert _met(parse_condition("file:a.py\x00x"), str(tmp_path), "deadbeefcafe") is None
 
 
+def test_a_backslash_is_a_file_name_only_where_the_platform_says_so(tmp_path):
+    """POSIX allows a backslash in a name and Windows reads it as a separator, so
+    validation and the walk have to ask the platform. Splitting on both everywhere
+    made `foo\\bar` validate as one file and read as two — a digest for a file the
+    note never named."""
+    if os.altsep is not None:
+        pytest.skip("this platform reads a backslash as a separator")
+    name = r"foo\bar"
+    (tmp_path / "foo").mkdir()
+    (tmp_path / "foo" / "bar").write_text("nested\n", encoding="utf-8")
+    (tmp_path / name).write_text("flat\n", encoding="utf-8")
+
+    digest = condition_digest(f"file:{name}", str(tmp_path))
+
+    assert digest == file_sha(str(tmp_path / name))
+    assert _met(parse_condition(f"file:{name}"), str(tmp_path), digest) is True
+
+
 def test_an_absolute_path_is_never_read(tmp_path):
     """A condition is text a model wrote, so `file:` must not be a way to read the
     machine: `/dev/zero` blocks the turn, and nothing outside the tree is what the

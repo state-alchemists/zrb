@@ -115,6 +115,15 @@ _CAN_OPEN_RELATIVE = os.open in os.supports_dir_fd
 """Whether this platform can open a name relative to another directory's
 descriptor. Windows cannot, and there the resolved-path check is the only guard."""
 
+_SEPARATOR = re.compile(r"[\\/]" if os.altsep else re.escape(os.sep))
+"""What separates path components *here*.
+
+POSIX allows a backslash inside a file name and Windows reads it as a separator,
+so a rule that accepts both everywhere makes one platform read a name as two
+components: `foo\\bar` is one file on POSIX and a directory plus a file on
+Windows. The containment check, the `..` refusal and the descriptor walk all use
+this one pattern, so the path that is validated is the path that is read."""
+
 
 def file_sha(path: str) -> str:
     """The digest a `file:` condition records for *path*, or ``""`` when it cannot
@@ -173,7 +182,7 @@ def condition_path(value: str, root: str) -> str:
         # answering; the rest of the C0 range is no more a path a note can name.
         # A condition is text a model wrote, so it is refused here, not trusted.
         return ""
-    if any(part == ".." for part in re.split(r"[\\/]", value)):
+    if any(part == ".." for part in _SEPARATOR.split(value)):
         return ""
     inside = os.path.realpath(root)
     target = os.path.realpath(os.path.join(inside, value))
@@ -197,7 +206,7 @@ def _open_below(directory: str, relative: str) -> int:
     On a platform without `dir_fd` this degrades to one `O_NOFOLLOW` open, which is
     the guarantee `file_sha` has: the final name cannot be a link, an intermediate
     one is only as good as the validation."""
-    parts = [part for part in re.split(r"[\\/]", relative) if part not in ("", ".")]
+    parts = [part for part in _SEPARATOR.split(relative) if part not in ("", ".")]
     if not parts or any(part == ".." for part in parts):
         raise PermissionError(f"{relative!r} is not a path below {directory!r}")
     if not _CAN_OPEN_RELATIVE:
