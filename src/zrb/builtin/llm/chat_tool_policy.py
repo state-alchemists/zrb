@@ -13,15 +13,31 @@ def approve_if_path_inside_notes_dir(args: dict[str, Any]) -> bool:
     return approve_if_path_inside_parent(args, CFG.LLM_NOTES_DIR)
 
 
+def is_path_inside_notes_outside_memory(args: dict[str, object]) -> bool:
+    """The notes directory, minus the memory store that now lives inside it.
+
+    Memory has its own tools, and they enforce what a raw file write does not: a
+    kebab-case id, a bounded claim, no prompt-injection marker, and the core's
+    cap. `Write` on `core.md` or a fact file is the same act with none of those
+    checks, and `RM` deletes a claim `Forget` would have retired — so mutating
+    the store asks. Reading it stays approved: the store is still notes.
+    """
+    if not approve_if_path_inside_notes_dir(args):
+        return False
+    path = args.get("path")
+    return path is None or not path_inside_parent(str(path), CFG.LLM_MEMORY_DIR)
+
+
 def approve_if_mv_inside_notes_dir(args: dict[str, Any]) -> bool:
-    notes_dir = CFG.LLM_NOTES_DIR
+    """Both ends inside the notes directory, neither of them in the store."""
     src = args.get("src")
     dst = args.get("dst")
     if src is None or dst is None:
         return False
-    return path_inside_parent(str(src), notes_dir) and path_inside_parent(
-        str(dst), notes_dir
-    )
+    ends = (str(src), str(dst))
+    if not all(path_inside_parent(end, CFG.LLM_NOTES_DIR) for end in ends):
+        return False
+    return not any(path_inside_parent(end, CFG.LLM_MEMORY_DIR) for end in ends)
 
 
 def approve_if_path_inside_parent(args: dict[str, Any], parent_path: str) -> bool:

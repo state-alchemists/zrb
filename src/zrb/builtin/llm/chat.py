@@ -7,6 +7,7 @@ from zrb.builtin.llm.chat_tool_policy import (
     approve_if_path_inside_cwd,
     approve_if_path_inside_notes_dir,
     approve_if_path_inside_skill_or_plugin_dir,
+    is_path_inside_notes_outside_memory,
 )
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
@@ -162,9 +163,9 @@ llm_chat.prepend_tool_policy(
     auto_approve("Grep", approve_if_path_inside_skill_or_plugin_dir),
     auto_approve("AnalyzeFile", approve_if_path_inside_cwd),
     auto_approve("AnalyzeFile", approve_if_path_inside_notes_dir),
-    auto_approve("Write", approve_if_path_inside_notes_dir),
-    auto_approve("Edit", approve_if_path_inside_notes_dir),
-    auto_approve("RM", approve_if_path_inside_notes_dir),
+    auto_approve("Write", is_path_inside_notes_outside_memory),
+    auto_approve("Edit", is_path_inside_notes_outside_memory),
+    auto_approve("RM", is_path_inside_notes_outside_memory),
     auto_approve("MV", approve_if_mv_inside_notes_dir),
     auto_approve("WebSearch"),
     auto_approve("WebFetch"),

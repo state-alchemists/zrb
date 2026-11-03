@@ -90,7 +90,7 @@ An agent hook, skill or prompt of yours that names a journal tool now resolves n
 | `zrb memory migrate-journal` | `zrb memory migrate` |
 | A `STOP` payload with `journal_due`, `count_user_turn`, `has_turn_logged_activity` | `memory_due`; `wrote_files`, `changed_paths` and `turn_states_preference` stay |
 
-Auto-approval policies that covered the journal directory now cover `CFG.LLM_NOTES_DIR`.
+Auto-approval policies that covered the journal directory now cover `CFG.LLM_NOTES_DIR` — except for the tools that mutate. `Write`, `Edit`, `RM` and `MV` no longer auto-approve anything inside the memory store (`CFG.LLM_MEMORY_DIR`), which now lives under the notes directory: `Remember` and `Forget` are the interface, and they enforce an id, a claim's length, the injection markers and the core's cap that a raw write would skip. Reading the store stays approved.
 
 ### Your notes are still read
 
