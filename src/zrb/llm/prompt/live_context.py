@@ -43,6 +43,7 @@ from zrb.llm.journal_usage_log import (
 )
 from zrb.llm.permission.state import AgentMode, get_current_agent_mode
 from zrb.llm.prompt.journal_core import join_overflow, plan_index_core
+from zrb.llm.prompt.memory_context import render_memory_block, render_memory_delta
 from zrb.llm.util.live_context_block import split_live_context
 from zrb.util.string.name import get_conversation_key
 
@@ -1285,20 +1286,28 @@ def _render_parts(
             CFG.LOGGER.debug(f"Failed to format todo lines for live context: {e}")
 
     parts.extend(_background_process_lines())
-
-    if inject_journal_index:
-        journal_block = render_journal_index(first_message)
-        if journal_block:
-            parts.append(journal_block)
-        day_block = render_day_block()
-        if day_block:
-            parts.append(day_block)
-    else:
-        # The index went in on the first turn; this turn shows only the claims
-        # written since, so a fact recorded mid-session reaches the next turn
-        # instead of waiting for compaction.
-        claims_block = render_journal_claims(first_message)
-        if claims_block:
-            parts.append(claims_block)
+    parts.extend(_memory_parts(inject_journal_index, first_message))
 
     return "\n".join(parts)
+
+
+def _memory_parts(inject_journal_index: bool, first_message: str | None) -> list[str]:
+    """This turn's memory block — or the journal's, while memory is switched off.
+
+    Memory replaces the journal: one store, one block. The journal's index, day
+    tier and per-turn claims stay out of the prompt even when
+    LLM_JOURNAL_ENABLED is on, because two memories in one prompt are two
+    answers to the same question. The first turn of a conversation carries the
+    block; a later turn carries only what changed since it went in, so a fact
+    recorded mid-session reaches the next turn instead of waiting for compaction.
+    """
+    if CFG.LLM_MEMORY_ENABLED:
+        block = (
+            render_memory_block() if inject_journal_index else render_memory_delta()
+        )
+        return [block] if block else []
+    if inject_journal_index:
+        journal = [render_journal_index(first_message), render_day_block()]
+        return [block for block in journal if block]
+    claims = render_journal_claims(first_message)
+    return [claims] if claims else []

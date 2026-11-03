@@ -52,6 +52,15 @@ class LLMContentMixin:
         self.DEFAULT_LLM_JOURNAL_COMPLIANCE_ENABLED: str = "on"
         self.DEFAULT_LLM_JOURNAL_COMPLIANCE_TURNS: str = "12"
         self.DEFAULT_LLM_JOURNAL_LOCK_TIMEOUT: str = "30"
+        self.DEFAULT_LLM_MEMORY_ENABLED: str = "on"
+        self.DEFAULT_LLM_MEMORY_DIR: str = ""
+        self.DEFAULT_LLM_MEMORY_CORE_MAX_CHARS: str = "4000"
+        self.DEFAULT_LLM_MEMORY_RECENT_MAX_CHARS: str = "1600"
+        self.DEFAULT_LLM_MEMORY_RECENT_LOG_LINES: str = "4"
+        self.DEFAULT_LLM_MEMORY_REVIEWER_ENABLED: str = "on"
+        self.DEFAULT_LLM_MEMORY_GIT_ENABLED: str = "on"
+        self.DEFAULT_LLM_MEMORY_LOG_RETENTION_DAYS: str = "0"
+        self.DEFAULT_LLM_MEMORY_LOCK_TIMEOUT: str = "30"
         self.DEFAULT_LLM_SELF_REVIEW_ENABLED: str = "off"
         self.DEFAULT_LLM_SELF_REVIEW_MAX_ROUNDS: str = "2"
         self.DEFAULT_LLM_SELF_REVIEW_MODEL: str = ""
@@ -338,6 +347,106 @@ class LLMContentMixin:
         doc=(
             "Seconds a journal write waits for another writer's root lock before "
             "failing with a busy-journal error. Zero or negative fails immediately."
+        ),
+    )
+
+    LLM_MEMORY_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Master switch for the memory system that replaces the journal. Off "
+            "unregisters SearchMemory, Remember and Forget and suppresses the "
+            "<memory> injection. While it is on, the journal's tools, injection "
+            "and compliance judge stay out of the way even if "
+            "LLM_JOURNAL_ENABLED is on: two memories in one prompt are two "
+            "answers to the same question, and the model cannot tell which one "
+            "is current."
+        ),
+    )
+
+    LLM_MEMORY_DIR = EnvField(
+        str,
+        default_factory=lambda cfg: (
+            cfg.DEFAULT_LLM_MEMORY_DIR
+            if cfg.DEFAULT_LLM_MEMORY_DIR
+            else os.path.expanduser(
+                os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "memory", "v1")
+            )
+        ),
+        doc=(
+            "The memory store: core.md, facts/, diary/, log/ and a git "
+            "repository. The default carries a version segment because two zrb "
+            "installs share this machine, and an older install must not read a "
+            "newer format as its own."
+        ),
+    )
+
+    LLM_MEMORY_CORE_MAX_CHARS = EnvField(
+        int,
+        doc=(
+            "Characters of `core.md` — the pinned claims and open loops injected "
+            "on a conversation's first turn. The cap is enforced by refusal, not "
+            "by truncation: a pin that does not fit fails and names the deficit, "
+            "so the decision to forget happens in that turn. 0 means no pins fit "
+            "and the core is never written."
+        ),
+    )
+
+    LLM_MEMORY_RECENT_MAX_CHARS = EnvField(
+        int,
+        doc=(
+            "Characters of the `## Recent` block injected beside the core: the "
+            "newest handover, today's diary claim, and the last few log lines. "
+            "Whole lines only — half a fact is worse than none."
+        ),
+    )
+
+    LLM_MEMORY_RECENT_LOG_LINES = EnvField(
+        int,
+        doc=(
+            "Log lines `## Recent` carries beside the handover and today's "
+            "claim, today's first and yesterday's when today is short. 0 drops "
+            "them: the block still carries the handover."
+        ),
+    )
+
+    LLM_MEMORY_REVIEWER_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "The background reviewer that reads each completed turn and writes "
+            "what is durable. Its normal answer is 'nothing', so it costs one "
+            "small-model call on a turn that recorded nothing. Off leaves "
+            "writing entirely to the agent's own Remember calls."
+        ),
+    )
+
+    LLM_MEMORY_GIT_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Commit every memory write, so git is the audit log and the undo "
+            "button. A commit failing never fails the write."
+        ),
+    )
+
+    LLM_MEMORY_LOG_RETENTION_DAYS = EnvField(
+        int,
+        doc=(
+            "Days of `log/` kept. 0 — the default — keeps every log day: the "
+            "diary is never pruned, and neither is the log unless someone asks. "
+            "A positive value deletes a day's log once it is older than that, "
+            "which is the one destructive operation the memory has."
+        ),
+    )
+
+    LLM_MEMORY_LOCK_TIMEOUT = EnvField(
+        float,
+        doc=(
+            "Seconds a memory write waits for another writer before failing. "
+            "The lock is taken before the file is read, so two writers on one "
+            "subject cannot each read the old claim and drop each other's "
+            "revision."
         ),
     )
 

@@ -31,6 +31,9 @@ def journal(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_USAGE_DIR", str(tmp_path / "usage"), raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_DIR", str(root), raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_ENABLED", True, raising=False)
+    # These tests pin the journal's path; memory replaces it, and with memory on
+    # the journal's claims block is deliberately not rendered.
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", False, raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_GIT_ENABLED", False, raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_INDEX_FILE", "index.md", raising=False)
     monkeypatch.setattr(CFG, "LLM_JOURNAL_CLAIMS_PER_TURN", 3, raising=False)

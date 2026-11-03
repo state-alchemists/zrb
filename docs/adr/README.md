@@ -135,6 +135,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0118** — [A skill declares the skills it preloads, and one activation renders them together](adr-0118.md)
 - **ADR-0134** — [Journal usage is measured per prompt and per automatic search, so a retrieval change can be judged](adr-0134.md)
 - **ADR-0136** — [The injected journal index is ranked, not sliced from the top](adr-0136.md)
+- **ADR-0138** — [Memory is one claim per file, two verbs, and a cap that refuses](adr-0138.md)
 
 ### Tools
 

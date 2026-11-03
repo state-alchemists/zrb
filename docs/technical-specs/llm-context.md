@@ -2,6 +2,8 @@
 
 # LLM Journal System (Technical Specification)
 
+> **Superseded by [LLM Memory](./llm-memory.md) (ADR-0138, 2026-11-03).** The journal's code is still in the tree, and `ZRB_LLM_JOURNAL_ENABLED=on` with `ZRB_LLM_MEMORY_ENABLED=off` still selects it, but the default configuration now uses the memory store. This page is kept because it describes what an existing `~/.zrb/llm-notes` directory contains and how the migration reads it.
+
 Zrb provides a directory-based journal system for maintaining persistent context across LLM sessions. This allows the assistant to remember project-specific details, user preferences, and local environment information through a hierarchical file system structure.
 
 ---

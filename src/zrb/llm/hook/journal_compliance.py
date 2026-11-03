@@ -67,8 +67,14 @@ def register_journal_compliance_hook(manager: "HookManager") -> None:
     """Hook factory: register the judge on *manager* unless journaling is off, or
     `LLM_JOURNAL_COMPLIANCE_ENABLED` says no. Its own switch exists so the judge can
     be left out while the rest of journaling carries on — the same shape
-    `LLM_SELF_REVIEW_ENABLED` gives the self-review gate."""
+    `LLM_SELF_REVIEW_ENABLED` gives the self-review gate.
+
+    Memory replaces the journal, and while it is on the journal's tools are not
+    registered at all. A judge that ran then would have nothing to record with, so
+    it stays out with the tools."""
     if not CFG.LLM_JOURNAL_ENABLED or not CFG.LLM_JOURNAL_COMPLIANCE_ENABLED:
+        return
+    if CFG.LLM_MEMORY_ENABLED:
         return
     config = build_journal_compliance_hook_config()
     hook = manager.register_hook_config(config, source="builtin")

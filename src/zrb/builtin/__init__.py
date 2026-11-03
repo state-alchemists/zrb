@@ -41,6 +41,7 @@ from zrb.builtin.json import (
 from zrb.builtin.jwt import decode_jwt, encode_jwt, validate_jwt
 from zrb.builtin.llm.please import please
 from zrb.builtin.md5 import hash_md5, sum_md5, validate_md5
+from zrb.builtin.memory import migrate_journal
 from zrb.builtin.number import convert_base
 from zrb.builtin.python import format_python_code
 from zrb.builtin.random import (
@@ -121,6 +122,7 @@ __all__ = [
     "get_json",
     "json_to_yaml",
     "minify_json",
+    "migrate_journal",
     "validate_json",
     "yaml_to_json",
     "decode_jwt",

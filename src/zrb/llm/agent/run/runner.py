@@ -924,6 +924,11 @@ async def _finish_turn(
             "journal_due": is_journal_due_for_turn(
                 cursor.accumulated, wrote_files, periodic_check
             ),
+            # The memory reviewer runs on every completed turn: it is the writer,
+            # and a turn that changed no file and stated no preference is exactly
+            # where an observation or a preference goes missing. Its own default
+            # answer is "nothing", so the cost is a small-model call.
+            "memory_due": bool(CFG.LLM_MEMORY_ENABLED and CFG.LLM_MEMORY_REVIEWER_ENABLED),
         },
         stop_hook_active=extension_state.block_count > 0,
         last_assistant_message=(

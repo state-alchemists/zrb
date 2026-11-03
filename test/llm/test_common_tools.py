@@ -12,10 +12,23 @@ the way the ``llm_chat`` / ``sub_agent_manager`` singletons' hosts (and any
 custom host) resolve at agent build time.
 """
 
+import pytest
+
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.common_tools import apply_common_tools, tool_name
 from zrb.llm.permission import Capability, tool_capability
+
+
+@pytest.fixture(autouse=True)
+def _journal_on_its_own(monkeypatch):
+    """Memory off unless a test turns it on.
+
+    Memory replaces the journal, so while it is on the journal's tools stay out
+    even with `ZRB_LLM_JOURNAL_ENABLED=true` — which would make every journal
+    assertion below read the wrong switch.
+    """
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "false")
 
 
 class RecordingHost:
@@ -68,6 +81,59 @@ JOURNAL_TOOLS = {
     "WriteJournalNote",
     "SupersedeJournalNote",
 }
+
+MEMORY_TOOLS = {"SearchMemory", "Remember", "Forget"}
+
+
+def _resolved_names() -> set[str]:
+    host = RecordingHost()
+    apply_common_tools(host)
+    return host.resolved_tool_names()
+
+
+def test_memory_tools_registered_when_memory_enabled(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "true")
+    assert MEMORY_TOOLS <= _resolved_names()
+
+
+def test_memory_tools_unregistered_when_memory_disabled(monkeypatch):
+    assert not (MEMORY_TOOLS & _resolved_names())
+
+
+def test_the_journal_steps_aside_while_memory_is_on(monkeypatch):
+    """Two memories in one prompt are two answers to the same question."""
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "true")
+    monkeypatch.setenv("ZRB_LLM_JOURNAL_ENABLED", "true")
+    names = _resolved_names()
+    assert MEMORY_TOOLS <= names
+    assert not (JOURNAL_TOOLS & names)
+
+
+def test_memory_tools_are_never_deferred(monkeypatch):
+    """A write verb nobody can see is a memory nobody records.
+
+    The journal deferred its note writers because the compliance judge carried
+    their write path; memory has no judge behind a deferred schema, and a
+    `search_tools` step before every recall is the step that gets skipped.
+    """
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "true")
+    host = RecordingHost()
+    apply_common_tools(host)
+    by_name = {tool_name(t): t for t in host.resolved_tools()}
+    for name in MEMORY_TOOLS:
+        # A bare callable is never deferred; a wrapped one says so itself.
+        assert getattr(by_name[name], "defer_loading", False) is False
+
+
+def test_memory_tools_carry_capabilities(monkeypatch):
+    """Untagged tools resolve to UNKNOWN, which plan mode denies."""
+    monkeypatch.setenv("ZRB_LLM_MEMORY_ENABLED", "true")
+    host = RecordingHost()
+    apply_common_tools(host)
+    by_name = {tool_name(t): t for t in host.resolved_tools()}
+    assert tool_capability(by_name["SearchMemory"]) is Capability.READ
+    assert tool_capability(by_name["Remember"]) is Capability.EDIT
+    assert tool_capability(by_name["Forget"]) is Capability.EDIT
 
 
 def test_apply_stores_providers_without_resolving_anything(monkeypatch):
