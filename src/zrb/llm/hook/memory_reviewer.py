@@ -91,10 +91,13 @@ def register_memory_reviewer_hook(manager: "HookManager") -> None:
 
 def _with_log_line(hook: "HookCallable") -> "HookCallable":
     async def reviewed(context: "HookContext") -> "HookResult":
-        result = await hook(context)
-        if result.success:
+        # The log line is about the turn, not about the reviewer: a failed or
+        # timed-out reviewer must not leave the day with a gap, and the event was
+        # already true before the reviewer ran.
+        try:
+            return await hook(context)
+        finally:
             _append_event_line(context)
-        return result
 
     return reviewed
 

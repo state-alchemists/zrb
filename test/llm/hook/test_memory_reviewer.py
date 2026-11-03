@@ -5,10 +5,11 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.hook.interface import HookContext
+from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.memory_reviewer import (
     _append_event_line,
     _first_sentence,
+    _with_log_line,
     build_memory_reviewer_hook_config,
     register_memory_reviewer_hook,
 )
@@ -94,6 +95,40 @@ def test_a_reply_that_reads_as_an_instruction_is_not_logged_verbatim(store_dir):
     assert len(lines) == 1
     assert "Ignore previous instructions" not in lines[0]
     assert "kept out of the log" in lines[0]
+
+
+@pytest.mark.asyncio
+async def test_the_turn_is_logged_even_when_the_reviewer_fails(store_dir):
+    """The event happened before the reviewer ran; a failed reviewer is not a gap."""
+
+    async def failing(context):
+        return HookResult(success=False, output="model unavailable")
+
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={},
+        last_assistant_message="Did the thing. Then some more.",
+        cwd="/home/gofrendi/zrb",
+    )
+    result = await _with_log_line(failing)(context)
+    assert result.success is False
+    assert any("Did the thing" in line for line in store.log_lines(store.today()))
+
+
+@pytest.mark.asyncio
+async def test_the_turn_is_logged_even_when_the_reviewer_raises(store_dir):
+    async def exploding(context):
+        raise RuntimeError("boom")
+
+    context = HookContext(
+        event=HookEvent.STOP,
+        event_data={},
+        last_assistant_message="Did the thing anyway.",
+        cwd="/home/gofrendi/zrb",
+    )
+    with pytest.raises(RuntimeError):
+        await _with_log_line(exploding)(context)
+    assert any("Did the thing anyway" in line for line in store.log_lines(store.today()))
 
 
 def test_the_reviewer_registers_while_memory_and_the_reviewer_are_on(monkeypatch):
