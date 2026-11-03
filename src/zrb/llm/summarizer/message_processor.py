@@ -9,9 +9,9 @@ from zrb.llm.summarizer.tool_result_pruner import (
     SPILL_DIR_SUFFIX,
     is_pruned_tool_result,
     prune_tool_result_content,
-    spilled_path_of,
     spill_filename,
     spill_tool_result,
+    spilled_path_of,
     tool_result_spill_dir,
 )
 from zrb.util.cli.ansi import strip_ansi

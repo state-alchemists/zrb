@@ -18,8 +18,9 @@ from zrb.llm.tool.journal_expiry import checkout_id, file_sha
 def writable_journal(tmp_path):
     """Patch CFG for the writer module and return the journal root."""
     root = tmp_path / "notes"
-    with patch("zrb.llm.tool.journal_write.CFG") as mock_cfg, patch(
-        "zrb.llm.tool.journal_write.repo_of", return_value="zrb"
+    with (
+        patch("zrb.llm.tool.journal_write.CFG") as mock_cfg,
+        patch("zrb.llm.tool.journal_write.repo_of", return_value="zrb"),
     ):
         mock_cfg.LLM_JOURNAL_DIR = str(root)
         mock_cfg.LLM_JOURNAL_INDEX_FILE = "index.md"
@@ -211,7 +212,9 @@ def test_a_note_written_here_records_the_digest_of_its_file(writable_journal, tm
     assert f"applies_when_checkout: {checkout_id(str(tree))}" in body
 
 
-def test_a_note_from_another_checkout_is_not_re_stamped_here(writable_journal, tmp_path):
+def test_a_note_from_another_checkout_is_not_re_stamped_here(
+    writable_journal, tmp_path
+):
     """The tag is a directory name, so two checkouts can share it.
 
     A revision that changes the condition records the tree it is written in —
@@ -228,9 +231,7 @@ def test_a_note_from_another_checkout_is_not_re_stamped_here(writable_journal, t
 
     with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(first)):
         _write("build-cache", "file:a.txt")
-    assert "applies_when_digest:" in _read(
-        writable_journal, "technical/build-cache.md"
-    )
+    assert "applies_when_digest:" in _read(writable_journal, "technical/build-cache.md")
 
     with patch("zrb.llm.tool.journal_write.repo_root", return_value=str(second)):
         _write("build-cache", "file:b.txt")

@@ -18,7 +18,6 @@ from pydantic_ai.messages import (
     VideoUrl,
 )
 
-from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX
 from zrb.llm.summarizer import (
     create_summarizer_history_processor,
     message_to_text,
@@ -28,6 +27,7 @@ from zrb.llm.summarizer import (
     summarize_long_text,
     summarize_messages,
 )
+from zrb.llm.summarizer.tool_result_pruner import PRUNED_PREFIX
 
 
 class MockLimiter:

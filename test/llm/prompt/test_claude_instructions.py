@@ -369,15 +369,15 @@ def test_a_path_with_an_at_sign_is_not_a_second_reference(tmp_path, monkeypatch)
     project.mkdir()
     (project / "AGENTS.md").write_text("REAL RULES", encoding="utf-8")
     (project / "scope").mkdir()
-    (project / "scope" / "AGENTS.md").write_text("A FILE NOBODY NAMED", encoding="utf-8")
+    (project / "scope" / "AGENTS.md").write_text(
+        "A FILE NOBODY NAMED", encoding="utf-8"
+    )
     monkeypatch.chdir(project)
 
     handler = create_project_context_prompt()
     ctx = _make_ctx()
 
-    with patch(
-        "zrb.llm.prompt.claude.get_search_directories", return_value=[project]
-    ):
+    with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[project]):
         result = handler(ctx, "base prompt", _identity_next)
 
     expanded = expand_prompt(result)

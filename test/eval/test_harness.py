@@ -203,7 +203,9 @@ def test_run_cli_returns_a_timeout_instead_of_hanging(tmp_path, monkeypatch):
     import harness
 
     monkeypatch.setattr(
-        harness, "agent_command", lambda prompt: [sys.executable, "-c", "import time; time.sleep(30)"]
+        harness,
+        "agent_command",
+        lambda prompt: [sys.executable, "-c", "import time; time.sleep(30)"],
     )
     run = harness.run_cli(_task(), tmp_path, timeout=1)
 

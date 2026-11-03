@@ -74,7 +74,6 @@ class TestExpandPrompt:
         finally:
             os.unlink(temp_path)
 
-
     def test_a_path_with_an_at_sign_is_not_expanded(self):
         "The @ in a directory name is part of the path, not a reference marker."
         with tempfile.TemporaryDirectory() as tmpdir:

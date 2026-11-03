@@ -135,8 +135,7 @@ def test_a_project_tag_without_importance_keeps_the_period_out_of_the_tag(tmp_pa
     _write_day(
         tmp_path,
         YESTERDAY,
-        "# yesterday\n\n"
-        "- 09:00 — updated the docs. Files: — · project:zrb.\n",
+        "# yesterday\n\n" "- 09:00 — updated the docs. Files: — · project:zrb.\n",
     )
 
     result = _render(tmp_path)

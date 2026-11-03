@@ -152,7 +152,9 @@ def _check_remove_dead_code(workspace):
     source = read_text(workspace, "helpers.py")
     if "unused_helper" in source:
         return "unused_helper is still in helpers.py"
-    code, out, _ = run_python(workspace, "import helpers; print(helpers.used_helper(3))")
+    code, out, _ = run_python(
+        workspace, "import helpers; print(helpers.used_helper(3))"
+    )
     if code != 0 or out.strip() != "6":
         return f"used_helper no longer works: {out.strip()!r}"
     return None
@@ -380,8 +382,7 @@ TASKS: tuple[EvalTask, ...] = (
         ),
         files={
             "slugify.py": (
-                "def slugify(text):\n"
-                '    return "-".join(text.lower().split())\n'
+                "def slugify(text):\n" '    return "-".join(text.lower().split())\n'
             )
         },
         checks=(_check_add_test_for_function,),
@@ -389,7 +390,9 @@ TASKS: tuple[EvalTask, ...] = (
     EvalTask(
         name="fix_off_by_one",
         prompt="count_to(3) returns [1, 2] but it should return [1, 2, 3]. Fix it.",
-        files={"counter.py": "def count_to(limit):\n    return list(range(1, limit))\n"},
+        files={
+            "counter.py": "def count_to(limit):\n    return list(range(1, limit))\n"
+        },
         checks=(_check_fix_off_by_one,),
     ),
     EvalTask(

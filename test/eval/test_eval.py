@@ -5,7 +5,6 @@ Skipped unless `LLM_EVAL_RUN` is set, because each test spends money and minutes
 """
 
 import pytest
-
 from harness import eval_enabled, format_report, run_task
 from tasks import TASKS
 
@@ -26,4 +25,6 @@ def test_task(task, tmp_path):
     print("\n" + format_report([result]))
     if not result.passed:
         detail = "\n".join(result.failures) or f"the CLI exited {result.exit_code}"
-        pytest.fail(f"{task.name}: {detail}\n\nagent output tail:\n{result.output_tail}")
+        pytest.fail(
+            f"{task.name}: {detail}\n\nagent output tail:\n{result.output_tail}"
+        )

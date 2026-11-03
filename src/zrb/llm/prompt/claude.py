@@ -116,7 +116,9 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
                     if _is_user_level_dir(file_path.parent)
                     else listed_files
                 )
-                bucket.append(f"- `{file_path}`{_listing_note(file_path, inlined, pointers)}")
+                bucket.append(
+                    f"- `{file_path}`{_listing_note(file_path, inlined, pointers)}"
+                )
 
         if not listed_files and not user_level_files:
             return next_handler(ctx, current_prompt)
@@ -531,9 +533,7 @@ def _neutralize_references(text: str) -> str:
     return "".join(parts)
 
 
-def _listing_note(
-    path: Path, inlined: set[Path], pointers: dict[Path, Path]
-) -> str:
+def _listing_note(path: Path, inlined: set[Path], pointers: dict[Path, Path]) -> str:
     """How the file listing marks a doc whose content is already in the prompt.
 
     A pointer file is called what it is: its eleven bytes are `@AGENTS.md`, and

@@ -72,7 +72,10 @@ def test_a_note_about_another_repository_is_compressed_not_deleted():
     Its lines leave the sections, and the work they represent is still named —
     how much of it there is, and its newest claim — so a session never re-plans
     work that already exists."""
-    notes = [_note("technical/retries.md", "soda"), _note("technical/bank-job.md", "zrb")]
+    notes = [
+        _note("technical/retries.md", "soda"),
+        _note("technical/bank-job.md", "zrb"),
+    ]
     rendered = scope_index(INDEX, notes, "zrb")
     assert "retries happen once ([note](technical/retries.md))" not in rendered
     assert "a bank job red at prepare is infra" in rendered
@@ -305,9 +308,7 @@ def writable_journal(tmp_path):
         mock_cfg.LLM_JOURNAL_HUD_MAX_ENTRIES_PER_SECTION = 20
         mock_cfg.LLM_JOURNAL_CATALOG_MAX_ENTRIES = 25
         mock_cfg.LLM_JOURNAL_GIT_ENABLED = False
-        with patch(
-            "zrb.llm.tool.journal_write.repo_of", return_value="zrb"
-        ):
+        with patch("zrb.llm.tool.journal_write.repo_of", return_value="zrb"):
             yield str(root)
 
 
@@ -370,8 +371,9 @@ def test_a_revision_from_another_repository_does_not_stamp_its_file(
     elsewhere.mkdir()
     (elsewhere / "config.yml").write_text("mode = dev\n", encoding="utf-8")
 
-    with patch("zrb.llm.tool.journal_write.repo_of", return_value="soda"), patch(
-        "zrb.llm.tool.journal_write.repo_root", return_value=str(elsewhere)
+    with (
+        patch("zrb.llm.tool.journal_write.repo_of", return_value="soda"),
+        patch("zrb.llm.tool.journal_write.repo_root", return_value=str(elsewhere)),
     ):
         _write("technical", "build-cache", applies_when="file:config.yml")
 

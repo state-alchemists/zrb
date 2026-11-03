@@ -37,7 +37,9 @@ from zrb.llm.tool.journal_expiry import is_condition_met, parse_condition
         ("version:<3.29.0rc1", "3.29.0b1", True),
     ],
 )
-def test_a_version_condition_compares_the_numbers_it_names(condition, version, expected):
+def test_a_version_condition_compares_the_numbers_it_names(
+    condition, version, expected
+):
     assert is_condition_met(parse_condition(condition), "", version) is expected
 
 

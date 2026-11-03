@@ -46,7 +46,9 @@ def test_a_file_changing_turn_asks_the_judge_even_when_it_logged_a_line():
 
 def test_a_periodic_check_is_answered_by_a_completed_line():
     turn = _logged_turn(completed=True)
-    assert is_journal_due_for_turn(turn, wrote_files=False, periodic_check=True) is False
+    assert (
+        is_journal_due_for_turn(turn, wrote_files=False, periodic_check=True) is False
+    )
 
 
 def test_a_refused_line_leaves_the_periodic_check_due():
@@ -56,11 +58,15 @@ def test_a_refused_line_leaves_the_periodic_check_due():
 
 def test_a_quiet_turn_is_not_due():
     turn = [ModelResponse(parts=[TextPart(content="done")])]
-    assert is_journal_due_for_turn(turn, wrote_files=False, periodic_check=False) is False
+    assert (
+        is_journal_due_for_turn(turn, wrote_files=False, periodic_check=False) is False
+    )
 
 
 def test_a_stated_preference_is_due_whatever_else_happened():
     turn = _logged_turn(completed=True) + [
         ModelRequest(parts=[UserPromptPart(content="from now on use tabs")])
     ]
-    assert is_journal_due_for_turn(turn, wrote_files=False, periodic_check=False) is True
+    assert (
+        is_journal_due_for_turn(turn, wrote_files=False, periodic_check=False) is True
+    )

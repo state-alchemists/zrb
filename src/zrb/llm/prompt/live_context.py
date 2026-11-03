@@ -538,7 +538,11 @@ def _scoped_index(content: str, journal_dir: str, index_name: str) -> tuple[str,
     named, with how much is there and its newest claim. It is injected beside the
     index rather than inside it, because the cap ranks an unknown section away."""
     # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
-    from zrb.llm.tool.journal_index import ELSEWHERE_HEADING, elsewhere_lines, scope_index
+    from zrb.llm.tool.journal_index import (
+        ELSEWHERE_HEADING,
+        elsewhere_lines,
+        scope_index,
+    )
     from zrb.llm.tool.journal_note import list_notes
     from zrb.llm.tool.journal_scope import repo_of
 
@@ -552,9 +556,13 @@ def _scoped_index(content: str, journal_dir: str, index_name: str) -> tuple[str,
     # the one place a session looks to find out what else is going on.
     live = [note for note in notes if note.rel not in expired]
     lines = elsewhere_lines(live, current)
-    digest = f"{ELSEWHERE_HEADING} (not shown here; SearchJournal finds them)\n" + "\n".join(
-        lines
-    ) + "\n\n" if lines else ""
+    digest = (
+        f"{ELSEWHERE_HEADING} (not shown here; SearchJournal finds them)\n"
+        + "\n".join(lines)
+        + "\n\n"
+        if lines
+        else ""
+    )
     return scope_index(content, notes, current, expired), digest
 
 
@@ -812,9 +820,7 @@ def _split_suffix(entry: str) -> tuple[str, str]:
     one is the summary talking about the format (`explained Files: syntax`), and
     treating it as metadata would cut the line where the sentence is. A line with
     no suffix at all is all summary — nothing older than the suffix is lost."""
-    start = max(
-        (found.start() for found in _FILES_MARKER.finditer(entry)), default=-1
-    )
+    start = max((found.start() for found in _FILES_MARKER.finditer(entry)), default=-1)
     if start < 0:
         return entry, ""
     return entry[:start], entry[start:]

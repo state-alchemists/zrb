@@ -160,9 +160,7 @@ def test_another_checkout_with_the_same_name_is_not_this_notes_checkout(tmp_path
     (first / "config.yml").write_text("mode = prod\n", encoding="utf-8")
     (second / "config.yml").write_text("mode = dev\n", encoding="utf-8")
     digest = condition_digest("file:config.yml", str(first))
-    origin = Origin(
-        repo="zrb", checkout=checkout_id(str(first)), digest=digest
-    )
+    origin = Origin(repo="zrb", checkout=checkout_id(str(first)), digest=digest)
     condition = parse_condition("file:config.yml")
 
     assert is_condition_met(condition, str(first), "3.29", origin) is True
@@ -213,7 +211,9 @@ def test_a_nul_in_the_path_cannot_crash_the_check(tmp_path):
 
     assert file_sha(os.path.join(str(tmp_path), "a.py\x00x")) == ""
     assert condition_digest("file:a.py\x00x", str(tmp_path)) == ""
-    assert _met(parse_condition("file:a.py\x00x"), str(tmp_path), "deadbeefcafe") is None
+    assert (
+        _met(parse_condition("file:a.py\x00x"), str(tmp_path), "deadbeefcafe") is None
+    )
 
 
 def test_a_path_keeps_the_spaces_it_was_written_with(tmp_path):
@@ -292,7 +292,9 @@ def test_a_symlink_is_refused_at_the_descriptor_not_just_at_the_path(tmp_path):
     that — so a symlink swapped in between must fail the open itself. `O_NOFOLLOW`
     is what makes the guarantee hold rather than being checked and then undone."""
     if not hasattr(os, "O_NOFOLLOW"):
-        pytest.skip("this platform has no O_NOFOLLOW; the resolved-path check is the only guard")
+        pytest.skip(
+            "this platform has no O_NOFOLLOW; the resolved-path check is the only guard"
+        )
     outside = tmp_path / "outside.txt"
     outside.write_text("secret\n", encoding="utf-8")
     link = tmp_path / "link.txt"
@@ -441,7 +443,9 @@ def test_a_note_is_expired_in_its_own_checkout_and_not_in_a_namesake(tmp_path):
     assert expired_note_rels(notes, str(second), "zrb", "3.29") == set()
 
     (first / "config.yml").write_text("mode = dev\n", encoding="utf-8")
-    assert expired_note_rels(notes, str(first), "zrb", "3.29") == {"technical/config.md"}
+    assert expired_note_rels(notes, str(first), "zrb", "3.29") == {
+        "technical/config.md"
+    }
 
 
 def test_a_proved_file_expires_and_an_unstamped_one_does_not(tmp_path):

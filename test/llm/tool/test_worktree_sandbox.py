@@ -147,9 +147,7 @@ async def test_a_writable_repository_still_creates_a_worktree(
         "get_effective_sandbox_policy",
         lambda: SandboxPolicy(enabled=True, writable_paths=(str(repo),)),
     )
-    monkeypatch.setattr(
-        worktree, "_worktree_parent", lambda _root: str(repo / "wt")
-    )
+    monkeypatch.setattr(worktree, "_worktree_parent", lambda _root: str(repo / "wt"))
     mock_subprocess.side_effect = [
         create_mock_process(returncode=0, stdout=str(repo).encode()),
         create_mock_process(returncode=0),

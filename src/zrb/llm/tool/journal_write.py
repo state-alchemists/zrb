@@ -36,6 +36,7 @@ from zrb.llm.journal_usage_log import (
     record_note_event,
 )
 from zrb.llm.prompt.journal_nearby import Written, nearby_notes
+from zrb.llm.tool.journal_expiry import checkout_id, condition_digest
 from zrb.llm.tool.journal_index import (
     ACTIVITY_DIR,
     hud_lines_of,
@@ -48,13 +49,6 @@ from zrb.llm.tool.journal_index import (
     with_link,
 )
 from zrb.llm.tool.journal_index_migration import absorb_renamed_sections, plan_adoptions
-from zrb.llm.tool.journal_expiry import checkout_id, condition_digest
-from zrb.llm.tool.journal_scope import (
-    default_scope,
-    repo_of,
-    repo_root,
-    scope_argument,
-)
 from zrb.llm.tool.journal_note import (
     HISTORY_HEADING,
     NOTE_CATEGORIES,
@@ -79,6 +73,12 @@ from zrb.llm.tool.journal_note import (
     scrub_links_to,
     set_frontmatter,
     with_backlink,
+)
+from zrb.llm.tool.journal_scope import (
+    default_scope,
+    repo_of,
+    repo_root,
+    scope_argument,
 )
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 from zrb.util.owner_only import makedirs_owner_only, tighten_once, write_text_owner_only

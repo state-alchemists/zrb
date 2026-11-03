@@ -13,8 +13,8 @@ from pydantic_ai.messages import (
 from zrb.llm.hook.turn_evidence import (
     MAX_TRACKED_RUNS,
     count_user_turn,
-    turn_changed_paths,
     has_turn_logged_activity,
+    turn_changed_paths,
     turn_states_preference,
     turn_wrote_files,
 )
@@ -116,9 +116,7 @@ class TestTurnLoggedActivity:
     def test_true_when_the_write_completed(self):
         turn = [
             ModelResponse(
-                parts=[
-                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
-                ]
+                parts=[ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")]
             ),
             ModelRequest(
                 parts=[
@@ -138,9 +136,7 @@ class TestTurnLoggedActivity:
         " transcript is not a line."
         turn = [
             ModelResponse(
-                parts=[
-                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
-                ]
+                parts=[ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")]
             ),
             ModelRequest(
                 parts=[
@@ -161,9 +157,7 @@ class TestTurnLoggedActivity:
             turn = [
                 ModelResponse(
                     parts=[
-                        ToolCallPart(
-                            tool_name="LogActivity", args={}, tool_call_id="1"
-                        )
+                        ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
                     ]
                 ),
                 ModelRequest(
@@ -183,9 +177,7 @@ class TestTurnLoggedActivity:
         """A gate blocks with an ordinary return: outcome says success anyway."""
         turn = [
             ModelResponse(
-                parts=[
-                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
-                ]
+                parts=[ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")]
             ),
             ModelRequest(
                 parts=[
@@ -204,9 +196,7 @@ class TestTurnLoggedActivity:
         """The wrapper answers an exception with `error=True`, not with a retry."""
         turn = [
             ModelResponse(
-                parts=[
-                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
-                ]
+                parts=[ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")]
             ),
             ModelRequest(
                 parts=[
@@ -224,9 +214,7 @@ class TestTurnLoggedActivity:
     def test_false_when_the_call_never_returned(self):
         turn = [
             ModelResponse(
-                parts=[
-                    ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")
-                ]
+                parts=[ToolCallPart(tool_name="LogActivity", args={}, tool_call_id="1")]
             )
         ]
         assert has_turn_logged_activity(turn) is False

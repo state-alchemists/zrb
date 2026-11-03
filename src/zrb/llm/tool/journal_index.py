@@ -538,14 +538,18 @@ def elsewhere_lines(notes: list[Note], current: str) -> list[str]:
         if note.is_active and note.repo and not is_in_scope(note.repo, current):
             groups.setdefault(note.repo, []).append(note)
     ordered = sorted(
-        groups.items(), key=lambda pair: max(note.updated for note in pair[1]), reverse=True
+        groups.items(),
+        key=lambda pair: max(note.updated for note in pair[1]),
+        reverse=True,
     )
     lines: list[str] = []
     for repo, group in ordered:
         newest = max(group, key=lambda note: note.updated)
         claim = newest.hud_line or newest.title
         day = newest.updated.date().isoformat()
-        lines.append(f"- {repo} — {len(group)} notes, newest ({day}): {_shorten(claim)}")
+        lines.append(
+            f"- {repo} — {len(group)} notes, newest ({day}): {_shorten(claim)}"
+        )
     return lines
 
 
@@ -624,4 +628,3 @@ def _without_empty_sections(lines: list[str]) -> str:
             kept.append(line)
             kept.extend(body)
     return "\n".join(kept)
-

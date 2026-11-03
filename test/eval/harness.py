@@ -290,9 +290,7 @@ def sha256_text(workspace: Path, relative_path: str) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def run_python(
-    workspace: Path, code: str, timeout: int = 60
-) -> tuple[int, str, str]:
+def run_python(workspace: Path, code: str, timeout: int = 60) -> tuple[int, str, str]:
     """Run a snippet with the workspace as cwd, so imports resolve like a user's."""
     completed = subprocess.run(
         [sys.executable, "-c", code],

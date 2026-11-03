@@ -51,9 +51,7 @@ def test_a_writable_root_that_does_not_exist_is_not_bound(tmp_path):
     simply not a place anything can be written yet.
     """
     missing = tmp_path / "not-yet"
-    policy = SandboxPolicy(
-        enabled=True, writable_paths=(str(tmp_path), str(missing))
-    )
+    policy = SandboxPolicy(enabled=True, writable_paths=(str(tmp_path), str(missing)))
 
     argv = build_bwrap_argv("bwrap", policy)
 

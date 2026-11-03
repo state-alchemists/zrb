@@ -54,9 +54,7 @@ def get_path_references(prompt: str) -> list[re.Match]:
     # of a path, not a reference marker: `/work/@scope/AGENTS.md` and
     # `/work/pkg.@beta/AGENTS.md` are each one path, and expanding them fetched a
     # different file than the prompt named.
-    pattern = re.compile(
-        r"(?<![\w/\\.\-])@(?P<path>(?:[A-Za-z]:)?[\w~\-\./\\]+)"
-    )
+    pattern = re.compile(r"(?<![\w/\\.\-])@(?P<path>(?:[A-Za-z]:)?[\w~\-\./\\]+)")
     return list(pattern.finditer(prompt))
 
 
