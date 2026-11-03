@@ -14,6 +14,8 @@ from unittest.mock import patch
 
 import pytest
 
+from zrb.config.config import CFG
+from zrb.llm.prompt.live_context import render_journal_index
 from zrb.llm.tool.journal_index import elsewhere_lines, scope_index
 from zrb.llm.tool.journal_note import Note
 from zrb.llm.tool.journal_scope import (
@@ -317,3 +319,29 @@ def test_a_batch_can_scope_the_notes_it_imports(writable_journal):
 
     assert "repo: soda" in _write_note(writable_journal, "technical", "cache")
     assert "repo: zrb" in _write_note(writable_journal, "technical", "queue")
+
+
+def test_a_tilde_journal_directory_is_filtered_like_any_other(
+    writable_journal, tmp_path, monkeypatch
+):
+    """The index file is read through `expanduser`, so the notes have to be listed
+    through it too.
+
+    A literal `~` finds no note, so nothing looks foreign and the other
+    repository's lines stay in the index — the feature silently doing nothing for
+    every journal configured the way this one is."""
+    _write("technical", "bank-job", repo="soda")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_DIR", "~/notes", raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_INDEX_FILE", "index.md", raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_INDEX_MAX_CHARS", 3600, raising=False)
+    monkeypatch.setattr(CFG, "LLM_JOURNAL_AUTO_SEARCH_ENABLED", False, raising=False)
+
+    with patch("zrb.llm.tool.journal_scope.repo_of", return_value="zrb"):
+        block = render_journal_index() or ""
+
+    assert "## Other projects" in block
+    # The line itself is gone from the sections; the tag is still named in the
+    # digest, which is the whole point: compressed, not hidden.
+    assert "([note](technical/bank-job.md))" not in block

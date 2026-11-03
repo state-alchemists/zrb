@@ -463,7 +463,7 @@ def render_journal_index(first_message: str | None = None) -> str | None:
     """
     if not CFG.LLM_JOURNAL_ENABLED:
         return None
-    journal_dir = CFG.LLM_JOURNAL_DIR
+    journal_dir = os.path.expanduser(CFG.LLM_JOURNAL_DIR)
     try:
         index_name = resolve_journal_index_name(CFG.LLM_JOURNAL_INDEX_FILE)
     except ValueError:
@@ -551,6 +551,23 @@ def _scoped_index(content: str, journal_dir: str, index_name: str) -> tuple[str,
     return scope_index(content, notes, current), digest
 
 
+def _scoped_notes(notes: list[Note]) -> list[Note]:
+    """*notes*, minus the ones about another repository.
+
+    The per-turn claims get the same rule as the injected index: a note about
+    another repository is not this session's memory of the work in front of it,
+    and it already has a line under `## Other projects`. A chat opened outside
+    any checkout is shown everything, because there is nothing to compare a tag
+    against."""
+    # Deferred: `zrb.llm.tool` loads pydantic_ai-dependent modules.
+    from zrb.llm.tool.journal_scope import is_in_scope, repo_of
+
+    current = repo_of(os.getcwd())
+    if not current:
+        return notes
+    return [note for note in notes if is_in_scope(note.repo, current)]
+
+
 def render_journal_claims(first_message: str | None = None) -> str | None:
     """The journal claims a turn after the first has not been shown yet.
 
@@ -587,6 +604,7 @@ def render_journal_claims(first_message: str | None = None) -> str | None:
     notes = list_notes(journal_dir, (index_name, "index.md"))
     if not notes:
         return None
+    notes = _scoped_notes(notes)
     session = get_conversation_key(get_current_context_session())
     events = _session_events(session)
     chosen = select_claims(

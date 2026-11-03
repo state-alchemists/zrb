@@ -15,6 +15,7 @@ def check_git_dir(cwd: str) -> bool:
     try:
         res = subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=cwd,
             capture_output=True,
             text=True,
             # A blocked git (credential prompt, index.lock) would stall every

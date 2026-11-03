@@ -1,5 +1,6 @@
 "Tests for llm/util/git.py - Git utility functions."
 
+import os
 import subprocess
 from unittest.mock import MagicMock, patch
 
@@ -60,6 +61,7 @@ class TestIsInsideGitDir:
             is_inside_git_dir()
             mock_run.assert_called_once_with(
                 ["git", "rev-parse", "--is-inside-work-tree"],
+                cwd=os.getcwd(),
                 capture_output=True,
                 text=True,
                 timeout=5.0,
