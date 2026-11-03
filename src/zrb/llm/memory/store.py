@@ -300,10 +300,12 @@ def write_core(facts: list[Fact] | None = None) -> str:
     return content
 
 
-# What the audit trail owns. A commit stages only these, because `LLM_MEMORY_DIR`
-# may point at a directory holding something else — a checkout, a scratch note, a
-# credential — and a store that commits its neighbour's files is a store that
-# leaks them.
+# What the audit trail owns. A commit stages *and names* only these, because
+# `LLM_MEMORY_DIR` may point at a directory holding something else — a checkout, a
+# scratch note, a credential — and a store that commits its neighbour's files is a
+# store that leaks them. Naming them at the commit matters as much as staging them:
+# the index is shared with whoever else works in the repository, and a bare commit
+# takes along everything they had staged.
 _MANAGED_PATHS = (CORE_FILE, FACTS_DIR, DIARY_DIR, LOG_DIR, GITIGNORE_FILE)
 
 # Written inside `.git` when *this* store created the repository. A `.git` without
@@ -313,16 +315,20 @@ _OWNED_MARKER = os.path.join(".git", "zrb-memory")
 
 
 def git_commit(message: str) -> None:
-    """Commit the store's own files. Best effort: a failure never fails a write."""
+    """Commit the store's own files, and only those. Best effort: a failure never
+    fails a write."""
     if not CFG.LLM_MEMORY_GIT_ENABLED:
         return
     root = paths.memory_dir()
     if _repository_for(root) is None:
         return
-    staged = [name for name in _MANAGED_PATHS if os.path.exists(os.path.join(root, name))]
-    if not staged:
+    managed = [name for name in _MANAGED_PATHS if os.path.exists(os.path.join(root, name))]
+    if not managed:
         return
-    if _git(root, "add", "-A", "--", *staged) is None:
+    if _git(root, "add", "-A", "--", *managed) is None:
+        return
+    staged = _staged_paths(root, managed)
+    if not staged:
         return
     _git(
         root,
@@ -334,20 +340,37 @@ def git_commit(message: str) -> None:
         "-q",
         "-m",
         message,
+        "--",
+        *staged,
     )
+
+
+def _staged_paths(root: str, managed: list[str]) -> list[str]:
+    """The files this store staged, as names the commit accepts.
+
+    Directories are not paths to git: a `diary` with no entry in it yet matches
+    nothing, and one unmatched name makes git refuse the whole commit — so the
+    list comes from the index instead. `--relative` keeps each name resolvable
+    from the store's directory, which is where the commit runs.
+    """
+    changed = _git(root, "diff", "--cached", "--name-only", "--relative", "--", *managed)
+    if changed is None:
+        return []
+    return [line for line in changed.splitlines() if line]
 
 
 def _repository_for(root: str) -> str | None:
     """The repository this store commits into, or ``None`` if it has none to use.
 
-    The store lives inside the notes directory, which has a history of its own, so
-    the answer is usually the repository *above* it: nesting a second `.git` there
-    would leave the outer one treating the store as a submodule-shaped oddity.
-    A store whose directory is its own — `LLM_MEMORY_DIR` pointing somewhere else
-    — keeps the repository it created, marked so a later run knows it is ours.
+    Two of them are ours. The store's own: a directory zrb created and marked,
+    which is what `LLM_MEMORY_DIR` pointing somewhere else leaves behind. And the
+    notes directory, when the store sits inside it and that directory *is* the
+    repository — the default layout, where notes and memory share one history.
 
-    A repository we did not create is still left alone: `zrb` cannot tell a
-    dedicated directory from a project checkout somebody chose.
+    A repository that merely contains the notes directory is not ours. A project
+    checkout with the notes under it, or a dotfiles repository holding `$HOME`,
+    would get memory commits in its history, and its staged work inside them: the
+    notes are a guest there, and a guest does not commit.
     """
     if os.path.isdir(os.path.join(root, ".git")):
         marker = os.path.join(root, _OWNED_MARKER)
@@ -355,8 +378,13 @@ def _repository_for(root: str) -> str | None:
     if paths.is_store_within_notes():
         enclosing = _enclosing_repository(root)
         if enclosing is not None:
-            return enclosing
+            return enclosing if _is_notes_root(enclosing) else None
     return _init_owned_repository(root)
+
+
+def _is_notes_root(toplevel: str) -> bool:
+    """Whether *toplevel* is the notes directory itself, not a directory above it."""
+    return os.path.realpath(toplevel) == os.path.realpath(paths.notes_dir())
 
 
 def _enclosing_repository(root: str) -> str | None:

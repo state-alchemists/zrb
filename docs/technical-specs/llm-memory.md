@@ -35,7 +35,7 @@ Everything lives inside those six slots — including the diary, which is a `rem
 4. **The cap is enforced by refusal, not by summarization.** A write that cannot fit fails with the exact deficit and the current core, so consolidation happens in that turn.
 5. **Retire, never delete.** A wrong belief keeps its file with a reason. "What did I believe, and why did I stop" stays answerable.
 6. **The day is written, not inferred.** A diary entry states what the day was; the week view reads those statements instead of deriving themes from tag counts.
-7. **Git is the audit log and the undo button.** Every write commits. Reviewing memory means reading a diff.
+7. **Git is the audit log and the undo button.** Every write commits, naming its own files so work the human had staged stays staged. The repository is the store's own or the notes directory itself; a checkout that merely contains the notes gets no memory commits.
 
 ---
 
