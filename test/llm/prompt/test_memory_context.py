@@ -5,7 +5,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.memory import paths, store
 from zrb.llm.prompt.memory_context import render_memory_block, render_memory_delta
-from zrb.llm.tool.memory import remember
+from zrb.llm.tool.memory import forget, remember
 
 
 @pytest.fixture
@@ -82,6 +82,22 @@ def test_a_fact_recorded_after_an_empty_first_turn_is_shown(store_dir):
     delta = render_memory_delta()
     assert delta is not None
     assert "Learned on the first turn of an empty store." in delta
+
+
+def test_a_forgotten_fact_is_tombstoned_once(store_dir):
+    """The model must stop relying on a claim the block showed and Forget retired.
+
+    A delta that lists only additions leaves the old claim in the transcript with
+    nothing correcting it, so the session answers from a belief it just dropped.
+    """
+    remember("x", "X is true.", pin=True)
+    assert render_memory_block() is not None
+    forget("x", "stale")
+    delta = render_memory_delta()
+    assert delta is not None
+    assert "Forget this claim: X is true. [x]" in delta
+    # The tombstone is said once; after that the baseline no longer holds the id.
+    assert render_memory_delta() is None
 
 
 def test_the_delta_is_empty_when_nothing_was_recorded(store_dir):

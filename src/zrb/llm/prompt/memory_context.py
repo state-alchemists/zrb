@@ -74,18 +74,25 @@ def render_memory_block() -> str | None:
 
 
 def render_memory_delta() -> str | None:
-    """Facts not in the block — recorded or revised since it went in."""
+    """Changes and removals since the block went in, or ``None`` when neither."""
     if not is_memory_on():
         return None
     known = _read_shown()
     if known is None:
         return None
     try:
-        facts = store.load_facts()
+        facts = store.load_facts(include_retired=True)
     except OSError:
         return None
     block = render.compose_delta(facts, known)
-    return block or None
+    if not block:
+        return None
+    # Advance the baseline only when something was said: the set is the facts
+    # this render considered, so a claim written after this read stays unseen and
+    # appears on the next turn, while what was just shown — tombstone included —
+    # is not repeated.
+    _write_shown([fact for fact in facts if fact.is_active])
+    return block
 
 
 def _session_key() -> str:

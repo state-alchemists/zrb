@@ -113,6 +113,26 @@ def test_the_delta_is_empty_without_a_first_turn():
     assert compose_delta([_fact("x", "X.", updated="2026-11-03T19:10:00")], None) == ""
 
 
+def test_a_removed_claim_becomes_a_tombstone():
+    """A retired claim the block showed must be corrected, not silently dropped."""
+    shown = _fact("gone", "Staging was port 22.", updated="2026-11-03T10:00:00")
+    retired = _fact(
+        "gone",
+        "Staging was port 22.",
+        status="retired",
+        reason="stale",
+        updated="2026-11-03T10:00:00",
+    )
+    delta = compose_delta([retired], [claim_key(shown)])
+    assert "- Forget this claim: Staging was port 22. [gone] (stale)" in delta
+
+
+def test_a_removal_never_shown_is_not_a_tombstone():
+    """Nothing is retired to a model that was never told it."""
+    retired = _fact("gone", "Never shown.", status="retired", reason="stale")
+    assert compose_delta([retired], []) == ""
+
+
 def test_the_delta_stops_at_three_lines():
     facts = [
         _fact(f"f{index}", f"Claim {index}.", updated=f"2026-11-03T19:1{index}:00")

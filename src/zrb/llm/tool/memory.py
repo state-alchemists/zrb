@@ -182,6 +182,12 @@ def remember(
     if wanted_kind is not None and wanted_kind not in KINDS:
         return f"{_NOT_A_KIND} [SYSTEM SUGGESTION]: retry with one of them."
     if wanted_kind == KIND_DIARY:
+        if pin is not None:
+            return (
+                "A diary entry never enters the core, so `pin` does not apply to "
+                "one. [SYSTEM SUGGESTION]: re-send without it; nothing was "
+                "written."
+            )
         return _remember_diary(id, claim, handover, source, body)
     return _remember_fact(id, claim, wanted_kind, pin, tags, applies_when, source, body)
 

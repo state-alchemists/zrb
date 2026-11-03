@@ -24,6 +24,7 @@ from zrb.llm.config.model_resolver import resolve_configured_small_model
 from zrb.llm.hook.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.memory import store
+from zrb.llm.memory.model import injection_reason
 from zrb.llm.prompt.prompt import get_prompt
 
 if TYPE_CHECKING:
@@ -39,6 +40,12 @@ _TIMEOUT_SECONDS = 90
 # The log line's text, taken from the reply's first sentence. Long enough to
 # recognise the turn, short enough that twenty of them fit one day file.
 _LOG_LINE_MAX_CHARS = 140
+
+# What the log holds instead of a reply whose text reads as an instruction. That
+# text would be quoted back inside a later `<memory>` block, so the log is the one
+# place where the assistant's own output can become a persistent payload; the
+# event stays, the words do not.
+WITHHELD_LOG_TEXT = "a reply was kept out of the log: its text reads as an instruction"
 
 
 def build_memory_reviewer_hook_config() -> HookConfig:
@@ -97,15 +104,17 @@ def _append_event_line(context: "HookContext") -> None:
     text = _first_sentence(context.last_assistant_message or "")
     if not text:
         return
+    reason = injection_reason(text)
+    if reason:
+        text = WITHHELD_LOG_TEXT
     try:
         with store.locked():
-            line = store.append_log(text, tags=_tags(context))
+            store.append_log(text, tags=_tags(context))
             store.prune_logs()
     except OSError:
         # The reply is already delivered; a log that could not be written is a
         # missing line, not a failed turn.
         return
-    del line
 
 
 def _first_sentence(message: str) -> str:
