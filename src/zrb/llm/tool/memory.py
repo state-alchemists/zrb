@@ -229,12 +229,14 @@ def forget(
             "a file name. [SYSTEM SUGGESTION]: search for the subject and pass "
             "the id it reports; nothing was written."
         )
-    paths.ensure_store()
     try:
+        paths.ensure_store()
         with store.locked():
             return _forget_locked(id, wanted_reason)
     except FileLockTimeout:
         return _busy()
+    except OSError as e:
+        return _unwritable(e)
 
 
 def _forget_locked(fact_id: str, reason: str) -> str:
@@ -295,14 +297,16 @@ def _remember_fact(
     ):
         if problem:
             return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
-    paths.ensure_store()
     try:
+        paths.ensure_store()
         with store.locked():
             return _remember_fact_locked(
                 fact_id, claim, kind, pin, tags, applies_when, source, body
             )
     except FileLockTimeout:
         return _busy()
+    except OSError as e:
+        return _unwritable(e)
 
 
 def _remember_fact_locked(
@@ -421,6 +425,8 @@ def _remember_diary(
             return _remember_diary_locked(day, claim, handover, source, body)
     except FileLockTimeout:
         return _busy()
+    except OSError as e:
+        return _unwritable(e)
 
 
 def _remember_diary_locked(
@@ -456,6 +462,19 @@ def _busy() -> str:
         "[SYSTEM SUGGESTION]: another session is writing to memory right now and "
         f"the lock was not free within {CFG.LLM_MEMORY_LOCK_TIMEOUT}s. Nothing "
         "was written; retry once, and do not retry a third time."
+    )
+
+
+def _unwritable(error: OSError) -> str:
+    """The store could not be read or written: say so, and carry on without it.
+
+    A tool that raises takes the turn with it, and a memory that is unavailable is
+    not a reason to lose an answer that was already composed.
+    """
+    return (
+        f"[SYSTEM SUGGESTION]: the memory store could not be written ({error}). "
+        "Nothing was written. Do not retry: report it to the user and carry on "
+        "without recording this."
     )
 
 

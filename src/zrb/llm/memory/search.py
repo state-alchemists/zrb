@@ -101,7 +101,7 @@ def search(
         hits.extend(_fact_hits(wanted, active_only=False, retired_only=True))
         hits.extend(_diary_hits(wanted, active_only=False, retired_only=True))
     hits.sort(key=_best_first)
-    return hits[: max(1, limit)]
+    return hits[:limit] if limit > 0 else []
 
 
 def format_hits(query: str, hits: list[Hit]) -> str:
