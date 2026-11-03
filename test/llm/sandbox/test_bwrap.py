@@ -42,6 +42,26 @@ def test_argv_structure(tmp_path):
     assert argv[-1] == "--"
 
 
+def test_a_writable_root_that_does_not_exist_is_not_bound(tmp_path):
+    """A missing root is skipped: `--bind` refuses a source that is not there.
+
+    The automatic set names `LLM_WORKTREE_DIR`, which nothing creates until the
+    first worktree does — from inside a tool call, after many sandboxed
+    commands. Binding it before that fails every command, so an absent root is
+    simply not a place anything can be written yet.
+    """
+    missing = tmp_path / "not-yet"
+    policy = SandboxPolicy(
+        enabled=True, writable_paths=(str(tmp_path), str(missing))
+    )
+
+    argv = build_bwrap_argv("bwrap", policy)
+
+    binds = [argv[index + 1] for index, arg in enumerate(argv) if arg == "--bind"]
+    assert os.path.realpath(str(tmp_path)) in binds
+    assert os.path.realpath(str(missing)) not in binds
+
+
 def test_no_network_or_pid_unsharing(tmp_path):
     policy = SandboxPolicy(enabled=True, writable_paths=(str(tmp_path),))
     argv = build_bwrap_argv("bwrap", policy)

@@ -167,6 +167,60 @@ async def test_enter_worktree_does_not_touch_the_repository(mock_subprocess, tmp
 
 
 @pytest.mark.asyncio
+async def test_a_repository_outside_the_writable_roots_is_refused(
+    mock_subprocess, tmp_path, outside_root
+):
+    """git records the branch inside the repository, so the root must be writable.
+
+    `cwd` names a directory; the repository root git resolves it to is what
+    `git worktree add` writes into, and that can be an ancestor outside the
+    writable roots. Nothing may be created before that is judged.
+    """
+    from zrb.llm.sandbox import SandboxPolicy
+    from zrb.llm.sandbox.state import sandbox_policy
+
+    repo = outside_root / "projectB"
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=str(repo).encode()),
+        create_mock_process(returncode=0),  # what an unjudged `add` would run
+    ]
+    policy = SandboxPolicy(
+        enabled=True, writable_paths=(str(tmp_path),), deny_read_paths=()
+    )
+
+    with sandbox_policy(policy):
+        res = await enter_worktree(branch_name="x", cwd=str(repo))
+
+    assert "Blocked by sandbox policy" in res
+    assert "git worktree add" not in res
+    assert mock_subprocess.call_count == 1  # the probe; nothing was created
+
+
+@pytest.mark.asyncio
+async def test_a_writable_repository_still_creates_a_worktree(
+    mock_subprocess, tmp_path
+):
+    """The new check is the repository's boundary, not a second destination check."""
+    from zrb.llm.sandbox import SandboxPolicy
+    from zrb.llm.sandbox.state import sandbox_policy
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    mock_subprocess.side_effect = [
+        create_mock_process(returncode=0, stdout=str(repo).encode()),
+        create_mock_process(returncode=0),
+    ]
+    policy = SandboxPolicy(
+        enabled=True, writable_paths=(str(repo),), deny_read_paths=()
+    )
+
+    with sandbox_policy(policy):
+        res = await enter_worktree(branch_name="ok", cwd=str(repo))
+
+    assert "Worktree created:" in res
+
+
+@pytest.mark.asyncio
 async def test_enter_worktree_no_branch_name(mock_subprocess, tmp_path):
     mock_subprocess.side_effect = [
         create_mock_process(  # the repo root; the tool creates .zrb/worktree in it
