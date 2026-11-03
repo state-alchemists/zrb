@@ -331,11 +331,47 @@ def injection_reason(text: str) -> str | None:
 
     Case-insensitive on the whole text: a marker that only works at the start of
     a line still does its damage inside a block the model reads top to bottom.
+    An invisible or reordering character is refused first: it can hide a marker
+    from this scan, or reverse what the reader sees.
     """
+    hidden = _invisible_char(text)
+    if hidden is not None:
+        return f"an invisible or reordering character ({hidden})"
     folded = text.lower()
     for marker in _INSTRUCTION_MARKERS:
         if marker in folded:
             return f"the marker {marker!r}"
+    return None
+
+
+# Character classes that have no place in a claim: they do not print, they
+# reorder what does. A bidi override can make "ignore previous instructions" run
+# right-to-left, and a zero-width space splits a marker so the substring scan
+# misses it. Checked by code point, so no lookalike alphabet is needed.
+_INVISIBLE_RANGES = (
+    (0x0000, 0x0008),  # C0 controls; tab and newline are excluded below
+    (0x000B, 0x000C),
+    (0x000E, 0x001F),
+    (0x007F, 0x007F),  # DEL
+    (0x200B, 0x200F),  # zero-width space/joiners, bidi marks
+    (0x202A, 0x202E),  # bidi embedding and override
+    (0x2060, 0x2064),  # word joiner and invisible operators
+    (0x2066, 0x2069),  # bidi isolates
+    (0xFEFF, 0xFEFF),  # byte-order mark
+)
+
+# Whitespace a multi-line body may hold.
+_ALLOWED_CONTROLS = frozenset("\n\r\t")
+
+
+def _invisible_char(text: str) -> str | None:
+    """The first invisible or reordering character in *text*, or ``None``."""
+    for char in text:
+        if char in _ALLOWED_CONTROLS:
+            continue
+        point = ord(char)
+        if any(low <= point <= high for low, high in _INVISIBLE_RANGES):
+            return f"U+{point:04X}"
     return None
 
 
