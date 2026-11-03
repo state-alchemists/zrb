@@ -8,6 +8,7 @@ links is not a note at all.
 """
 
 import os
+import shutil
 import subprocess
 from datetime import datetime
 from unittest.mock import patch
@@ -211,6 +212,76 @@ def test_a_repository_answers_with_its_own_name(tmp_path):
     root.mkdir()
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)
     assert repo_of(str(root)) == "soda"
+
+
+def test_a_linked_worktree_stamps_its_own_file(tmp_path):
+    """Every worktree answers with one repository name, and reads its own tree.
+
+    Naming and reading want different answers from git: `repository_root`
+    resolves the common directory, so a linked worktree names the repository it
+    belongs to; the tree a `file:` condition is relative to is the worktree
+    itself. Using the name's answer as the read's base stamped the main
+    checkout's file from inside the worktree, and a note then expired on a
+    change it had never seen.
+    """
+    from zrb.llm.tool.journal_expiry import condition_digest
+    from zrb.llm.tool.journal_scope import repo_root
+    from zrb.llm.util.git import checkout_root, repository_root
+
+    main = tmp_path / "main"
+    main.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=main, check=True)
+    (main / "a.txt").write_text("MAIN\n")
+    subprocess.run(["git", "add", "."], cwd=main, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.email=a@b.c",
+            "-c",
+            "user.name=a",
+            "commit",
+            "-qm",
+            "init",
+        ],
+        cwd=main,
+        check=True,
+    )
+    linked = tmp_path / "linked"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "feat", str(linked)],
+        cwd=main,
+        check=True,
+    )
+    (linked / "a.txt").write_text("WORKTREE\n")
+
+    assert repository_root(str(linked)) == os.path.realpath(str(main))
+    assert checkout_root(str(linked)) == os.path.realpath(str(linked))
+    assert repo_root(str(linked)) == os.path.realpath(str(linked))
+    assert repo_of(str(linked)) == repo_of(str(main))
+    assert condition_digest("file:a.txt", repo_root(str(linked))) != condition_digest(
+        "file:a.txt", repo_root(str(main))
+    )
+
+
+def test_the_tree_is_probed_again_when_a_checkout_is_replaced(tmp_path):
+    """A re-cloned checkout at the same path is a different tree, not a cache hit.
+
+    A session outlives a `rm -rf` and a fresh clone. A cached root would go on
+    naming the tree that used to be there — the same wrong-tree comparison the
+    worktree bug made — so the probe re-runs.
+    """
+    from zrb.llm.tool.journal_scope import repo_root
+
+    root = tmp_path / "project"
+    root.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    assert repo_root(str(root)) == os.path.realpath(str(root))
+
+    shutil.rmtree(root)
+    root.mkdir()
+
+    assert repo_root(str(root)) == ""
 
 
 def test_no_repository_answers_with_nothing(tmp_path):

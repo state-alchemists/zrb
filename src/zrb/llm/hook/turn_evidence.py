@@ -60,10 +60,13 @@ def has_turn_logged_activity(
 
     A call is not a write, and a return is not always one either: `ToolReturnPart`
     carries an `outcome` — `success`, `failed`, `denied`, `interrupted`,
-    `retried` — so a refused or blocked write comes back as a return with
-    anything but `success`. Both shapes leave the call in the transcript and
-    nothing in the day file, and the turn the judge exists for is exactly the turn
-    that recorded nothing."""
+    `retried`. `outcome` alone is still not enough. zrb's permission and sandbox
+    gates answer a refused call with an ordinary `ToolReturn` carrying
+    `metadata={"blocked": True}`, and a tool that raised is answered with
+    `error=True`; the framework records both as `success`, because nothing was
+    raised across it. So a blocked or failed call is a return that wrote nothing,
+    and the turn the judge exists for is exactly the turn that recorded
+    nothing."""
     from zrb.llm.agent.types import (  # lazy: zrb internal (heavy via transitive)
         ToolReturnPart,
     )
@@ -74,8 +77,14 @@ def has_turn_logged_activity(
                 continue
             if part.tool_name not in tool_names:
                 continue
-            if getattr(part, "outcome", "success") == "success":
-                return True
+            if getattr(part, "outcome", "success") != "success":
+                continue
+            metadata = getattr(part, "metadata", None)
+            if isinstance(metadata, dict) and (
+                metadata.get("blocked") or metadata.get("error")
+            ):
+                continue
+            return True
     return False
 
 

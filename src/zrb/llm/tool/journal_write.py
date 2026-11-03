@@ -657,17 +657,26 @@ def _scope_for(category: str, repo: str | None, previous: Note | None) -> str:
     return default_scope(category, repo_of(os.getcwd()))
 
 
-def _stamp_root(scope: str) -> str:
+def _stamp_root(scope: str, previous: Note | None = None) -> str:
     """The tree a `file:` condition may be stamped against, or ``""``.
 
     Only the note's own repository anchors a relative path. A note tagged for one
     repository and revised from another would otherwise record this checkout's
     file, and its own repository would then read the note as disproved; an
     untagged note travels with the person and has no tree to be relative to at
-    all. Unstamped reads as uncheckable, which keeps the note."""
+    all.
+
+    A note that already names a checkout is stamped in that checkout or not at
+    all: two checkouts can share a directory name, and a digest taken in the
+    wrong one is a mismatch about somebody else's file. Unstamped reads as
+    uncheckable, which keeps the note."""
     if not scope or scope != repo_of(os.getcwd()):
         return ""
-    return repo_root(os.getcwd())
+    root = repo_root(os.getcwd())
+    recorded = previous.applies_when_checkout if previous is not None else ""
+    if recorded and root and checkout_id(root) != recorded:
+        return ""
+    return root
 
 
 def _recorded_stamp(
@@ -694,7 +703,7 @@ def _recorded_stamp(
         and previous.applies_when_digest
     ):
         return previous.applies_when_digest, previous.applies_when_checkout
-    root = _stamp_root(scope)
+    root = _stamp_root(scope, previous)
     digest = condition_digest(condition, root)
     return (digest, checkout_id(root)) if digest else ("", "")
 
