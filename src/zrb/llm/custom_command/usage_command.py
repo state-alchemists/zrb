@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
+from zrb.llm.custom_command.usage_command_memory import render_memory_section
 from zrb.llm.custom_command.usage_command_tools import (
     get_registered_tool_names,
     render_tools_section,
@@ -73,13 +74,15 @@ def render_usage(
     registered_tools: list[str] | None = None,
 ) -> str:
     """The body for one window: its label, the table, the footer, then the Tools
-    section when the window has data for it.
+    and Memory sections when each has data for it.
 
     The panel draws the title, so the body opens with the window it covers
-    rather than repeating the word "Usage".
+    rather than repeating the word "Usage". A window with no runs still reports
+    the store: the table describes runs, and the store needs none to exist.
     """
+    memory = render_memory_section(records)
     if not records:
-        return f"  No usage recorded for {label}."
+        return _no_usage(label, memory)
     sections = [
         f"  {label}",
         "",
@@ -87,17 +90,32 @@ def render_usage(
         "",
         *_footer(records),
     ]
-    extra = render_tools_section(
-        records,
-        (
-            get_registered_tool_names()
-            if registered_tools is None
-            else registered_tools
+    for extra in (
+        render_tools_section(
+            records,
+            (
+                get_registered_tool_names()
+                if registered_tools is None
+                else registered_tools
+            ),
         ),
-    )
-    if extra:
-        sections.extend(["", *extra])
+        memory,
+    ):
+        if extra:
+            sections.extend(["", *extra])
     return "\n".join(sections)
+
+
+def _no_usage(label: str, memory: list[str]) -> str:
+    """The window said nothing about runs; the store may still have something.
+
+    `writes` and `recall` are window numbers and are already absent from an
+    empty record list, so what can appear here is the store as it is now.
+    """
+    lines = [f"  No usage recorded for {label}."]
+    if memory:
+        lines.extend(["", *memory])
+    return "\n".join(lines)
 
 
 def _handle_usage(kwargs: dict[str, str], ui: "AnyUI | None") -> str:

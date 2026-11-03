@@ -537,6 +537,25 @@ Memory is a **persistent prompt-injection vector**: a poisoned fact is inside th
 
 ---
 
+### 7.5 Observability — what `/usage` reports
+
+The store writes no event log, so `/usage` reads two sources and keeps them labelled apart:
+
+| Line | Source | Answers |
+|---|---|---|
+| `core` | `core.md`, rendered now | How much of `LLM_MEMORY_CORE_MAX_CHARS` is spent, and how many pins and open loops fill it |
+| `store` | `facts/` and `diary/` on disk | What is held: active facts, retired ones, diary days |
+| `writes` | the usage log's `tool_counts` for the window | What the window did: `Remember`, `Forget`, `SearchMemory` |
+| `recall` | the same counts over that window's runs | How much searching one run costs |
+
+`core` and `store` are **now**; `writes` and `recall` belong to the window that was asked for, and a window with no memory calls prints no `writes` line rather than a zero. Reading the section creates nothing: an absent store reads as empty.
+
+Two conditions bound what the section may say. `LLM_MEMORY_ENABLED=off` removes it whole — the switch promises a session that reads no memory, and `/usage` is a reader like any other, so it reports neither the core nor the store. A window with **no recorded runs** still reports the store, because the table describes runs and a store needs none to exist; `writes` and `recall` stay absent there, since they count the window.
+
+Two lines the Journal section had are absent rather than zeroed. A search's **outcome** is recorded nowhere — the log keeps tool *names*, never results — so "found nothing" cannot be counted. The reviewer's own run never reaches the usage log either, because `_record_run_usage` is called from the runner and a hook agent calls `agent.run()` directly, so there is no reviewer line to draw.
+
+---
+
 ## 8. Configuration
 
 | Variable | Default | Purpose |

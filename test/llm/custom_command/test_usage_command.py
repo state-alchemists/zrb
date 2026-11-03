@@ -21,6 +21,11 @@ NOW = datetime.now(timezone.utc)
 @pytest.fixture
 def usage_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_USAGE_DIR", str(tmp_path), raising=False)
+    # Point the store at a path that does not exist, so no test in this file can
+    # read the developer's own memory through the Memory section.
+    monkeypatch.setattr(
+        CFG, "LLM_MEMORY_DIR", str(tmp_path / "no-memory"), raising=False
+    )
     return tmp_path
 
 
@@ -247,5 +252,5 @@ def test_durations_read_as_durations(milliseconds, expected):
     assert _duration(milliseconds) == expected
 
 
-def test_render_is_quiet_about_a_window_with_no_records():
+def test_render_is_quiet_about_a_window_with_no_records(usage_dir):
     assert render_usage([], "nowhere") == "  No usage recorded for nowhere."
