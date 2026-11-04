@@ -107,10 +107,10 @@ class _FakeEchoCancelledMicrophone(FakeStream):
 async def _wait_for_the_plain_microphone(captured) -> None:
     """Wait until the fallback has opened the plain microphone.
 
-    `listen._open_microphone` opens it on a daemon thread, so the loop turns
-    while that thread is still starting: a single `sleep(0)` is a race, and a
-    loaded runner loses it. Waiting here reports the real failure instead of
-    letting the test die on a missing key.
+    The open runs on a daemon thread, so the loop turns while that thread is
+    still starting: a single `sleep(0)` is a race, and a loaded runner loses it.
+    Waiting here reports the real failure instead of letting the test die on a
+    missing key.
     """
     for _ in range(200):
         if "callback" in captured:
