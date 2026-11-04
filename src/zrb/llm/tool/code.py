@@ -11,6 +11,7 @@ from zrb.llm.agent_runner import create_agent, run_agent
 from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.permission import Capability, tag
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.code_constants import DEFAULT_EXTENSIONS, LSP_SUPPORTED_EXTENSIONS
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
@@ -416,3 +417,4 @@ async def run_repo_agent(agent, query, content, content_key, output_list):
 
 
 analyze_code.__name__ = "AnalyzeCode"
+tag(analyze_code, Capability.READ)

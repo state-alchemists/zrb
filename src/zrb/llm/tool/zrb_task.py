@@ -4,6 +4,7 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.shell import run_shell_command
 from zrb.runner.cli import cli
 
@@ -47,7 +48,7 @@ def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccab
     zrb_cmd = CFG.ROOT_GROUP_NAME
     list_zrb_tasks_impl.__name__ = f"List{zrb_cmd.capitalize()}Tasks"
     list_zrb_tasks_impl.__doc__ = f"Lists available {zrb_cmd} groups and tasks. Use to discover automation capabilities before running them."
-    return list_zrb_tasks_impl
+    return tag(list_zrb_tasks_impl, Capability.READ)
 
 
 def create_run_zrb_task_tool():
@@ -91,4 +92,4 @@ def create_run_zrb_task_tool():
     run_zrb_task.__doc__ = (
         f"Executes a {zrb_cmd} automation task by name. Provide all required args."
     )
-    return run_zrb_task
+    return tag(run_zrb_task, Capability.EXECUTE)

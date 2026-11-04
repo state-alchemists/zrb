@@ -4,6 +4,7 @@ from typing import Annotated
 
 from pydantic import Field
 
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file_observation import check_listed, record_seen
 
 
@@ -38,3 +39,6 @@ def move_file(
             "[SYSTEM SUGGESTION]: Verify the destination parent is writable and the "
             "source is not in use, then retry."
         )
+
+
+tag(move_file, Capability.EDIT)

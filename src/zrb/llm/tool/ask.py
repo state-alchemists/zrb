@@ -16,6 +16,7 @@ from zrb.llm.agent_state import get_current_ui
 from zrb.llm.ambient_state import get_interactive_mode
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.util.choice_spec_format import get_option_label
@@ -183,6 +184,7 @@ def _resolve_answer(q: dict[str, Any], raw: str) -> str:
 
 
 ask_user_question.__name__ = "AskUserQuestion"
+tag(ask_user_question, Capability.META)
 
 # The question itself is the user interaction; an approval prompt would be redundant.
 register_always_auto_approve("AskUserQuestion")

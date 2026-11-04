@@ -13,6 +13,7 @@ from zrb.llm.agent_runner import create_agent, run_agent
 from zrb.llm.agent_state import get_current_ui
 from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
+from zrb.llm.permission import Capability, tag
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.search.http_errors import BROWSER_USER_AGENT
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
@@ -416,5 +417,7 @@ async def _summarize_web_content(markdown_content: str, url: str) -> str:
 
 
 search_internet.__name__ = "WebSearch"
+tag(search_internet, Capability.NETWORK)
 
 open_web_page.__name__ = "WebFetch"
+tag(open_web_page, Capability.NETWORK)

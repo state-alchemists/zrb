@@ -18,6 +18,7 @@ from zrb.cmd.command import (
 )
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_ui
+from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import get_effective_sandbox_policy
 from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
@@ -909,3 +910,4 @@ def _dump_full_output(
 
 
 run_shell_command.__name__ = "Shell"
+tag(run_shell_command, Capability.EXECUTE)

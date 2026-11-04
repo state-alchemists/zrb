@@ -5,6 +5,7 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file_observation import record_listed
 from zrb.llm.tool.git_visible import without_gitignored
 from zrb.util.file import matches_any_pattern, walk_files
@@ -189,3 +190,7 @@ def glob_files(
         sorted_files = without_gitignored(abs_path, sorted_files)
 
     return _listing_result(abs_path, sorted_files)
+
+
+tag(list_files, Capability.READ)
+tag(glob_files, Capability.READ)

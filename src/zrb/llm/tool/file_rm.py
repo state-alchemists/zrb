@@ -5,6 +5,7 @@ from typing import Annotated
 
 from pydantic import Field
 
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file_observation import check_listed
 
 
@@ -70,3 +71,6 @@ def remove_file(
             "[SYSTEM SUGGESTION]: Verify your permissions and that the file is not "
             "in use, then retry."
         )
+
+
+tag(remove_file, Capability.EDIT)

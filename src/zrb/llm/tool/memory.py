@@ -38,6 +38,7 @@ from zrb.llm.memory.model import (
     is_date_shaped,
     reason_error,
 )
+from zrb.llm.permission import Capability, tag
 from zrb.util.file_lock import FileLockTimeout
 
 _NOT_A_KIND = (
@@ -520,3 +521,7 @@ def _unwritable(error: OSError) -> str:
 search_memory.__name__ = "SearchMemory"
 remember.__name__ = "Remember"
 forget.__name__ = "Forget"
+# Reading is one call; the two verbs change the store.
+tag(search_memory, Capability.READ)
+tag(remember, Capability.EDIT)
+tag(forget, Capability.EDIT)

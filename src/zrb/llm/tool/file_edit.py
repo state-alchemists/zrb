@@ -5,6 +5,7 @@ from typing import Annotated
 
 from pydantic import Field
 
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file_observation import path_write_lock, record_observed
 from zrb.llm.tool.post_write_check import (
     compose_write_result,
@@ -321,3 +322,6 @@ def _strip_prefix_per_line(text: str) -> str:
         _READ_LINE_NUMBER.sub("", line, count=1)
         for line in text.splitlines(keepends=True)
     )
+
+
+tag(replace_in_file, Capability.EDIT)

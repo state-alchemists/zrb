@@ -9,6 +9,7 @@ from typing import Annotated, Any
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file_list import DEFAULT_EXCLUDED_PATTERNS
 from zrb.util.file import matches_any_pattern
 from zrb.util.truncate import truncate_items, truncate_text
@@ -347,3 +348,6 @@ def get_file_matches(
         return kept
 
     return matches
+
+
+tag(search_files, Capability.READ)

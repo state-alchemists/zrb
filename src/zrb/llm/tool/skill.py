@@ -3,6 +3,7 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.permission import Capability, tag
 from zrb.llm.skill.activation import build_activation_block
 from zrb.llm.skill.manager import SkillManager
 from zrb.llm.skill.manager import skill_manager as default_skill_manager
@@ -68,7 +69,7 @@ def create_activate_skill_tool(skill_manager: SkillManager | None = None):
         "companion files (scripts, docs, data). Use Read/Glob on the directory to\n"
         "access companion files referenced in the skill content."
     )
-    return activate_skill_impl
+    return tag(activate_skill_impl, Capability.META)
 
 
 def create_search_skill_tool(skill_manager: SkillManager | None = None):
@@ -98,7 +99,7 @@ def create_search_skill_tool(skill_manager: SkillManager | None = None):
         "Use it when the prompt's skill list is truncated, or a skill you need "
         "is not listed."
     )
-    return search_skill
+    return tag(search_skill, Capability.META)
 
 
 def _no_skill_match_message(query: str) -> str:
