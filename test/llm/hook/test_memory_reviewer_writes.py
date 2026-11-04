@@ -7,7 +7,6 @@ regression it prevents — with the flag off the memory is never written.
 """
 
 import pytest
-
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 
@@ -40,9 +39,7 @@ def _reviewer_model():
         if asked:
             return ModelResponse(parts=[TextPart("done")])
         return ModelResponse(
-            parts=[
-                ToolCallPart("Remember", {"id": "probe-claim", "claim": "A probe."})
-            ]
+            parts=[ToolCallPart("Remember", {"id": "probe-claim", "claim": "A probe."})]
         )
 
     return FunctionModel(respond)
