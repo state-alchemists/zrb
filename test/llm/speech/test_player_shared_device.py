@@ -13,7 +13,7 @@ import time
 import pytest
 
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
-from zrb.llm.speech.player import is_speaking
+from zrb.llm.speech.player import is_speaking, play
 from zrb.util.file_lock import FileLockTimeout, hold_file_lock
 
 
@@ -141,6 +141,34 @@ def test_a_sentence_interrupted_while_waiting_is_dropped(lock_file):
     speaker.drain()
 
     assert backend.played == []
+
+
+def test_play_without_a_predicate_keeps_its_timeout(lock_file):
+    """A synchronous caller asked for an answer, not a wait: it still gets
+    `FileLockTimeout` when another session holds the device."""
+    backend = FakeBackend()
+    utterance = backend.create_utterance("dropped")
+    holder = _hold_the_device(lock_file, 0.5)
+
+    with pytest.raises(FileLockTimeout):
+        play(utterance, _config(backend, lock_file))
+
+    assert backend.played == []
+    holder.join(5)
+
+
+def test_play_with_a_predicate_waits_for_the_whole_turn(lock_file):
+    """The same hold, and the sentence is heard: with a predicate the wait and
+    the taking of the lock are one act, so a session that reaches the device
+    between a look and a grab cannot cost the sentence its turn."""
+    backend = FakeBackend()
+    utterance = backend.create_utterance("eventually")
+    holder = _hold_the_device(lock_file, 0.5)
+
+    play(utterance, _config(backend, lock_file), lambda: True)
+
+    assert backend.played == ["eventually"]
+    holder.join(5)
 
 
 def test_drain_plays_a_sentence_queued_behind_another_session(lock_file):
