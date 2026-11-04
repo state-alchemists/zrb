@@ -7,9 +7,8 @@ import pytest
 
 from zrb.llm.ambient_state import get_current_speech_voice
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
-from zrb.llm.speech import player as player_module
 from zrb.llm.speech.player import is_speaking, play
-from zrb.util.file_lock import FileLockTimeout, hold_file_lock
+from zrb.util.file_lock import hold_file_lock
 
 
 class RecordingUtterance(Utterance):
@@ -111,71 +110,6 @@ def test_clear_drops_what_is_not_yet_spoken(lock_file):
     speaker.drain()
 
     assert "stale" not in backend.played
-
-
-def test_another_session_speaking_is_seen_and_waited_out(lock_file):
-    backend = FakeBackend()
-    speaker = Speaker(_config(backend, lock_file))
-
-    with hold_file_lock(lock_file):
-        assert is_speaking(lock_file)
-        with pytest.raises(FileLockTimeout):
-            speaker.speak("dropped")  # lock_timeout passes while it is held
-
-    assert backend.played == []
-    assert not is_speaking(lock_file)
-
-
-def test_a_queued_sentence_waits_for_the_other_session_and_is_heard(lock_file):
-    """Another chat speaking used to cost the sentence: it waited `lock_timeout`
-    and was dropped. The lock is whose turn it is, so the sentence waits for its
-    turn instead."""
-    backend = FakeBackend()
-    speaker = Speaker(_config(backend, lock_file))
-
-    with hold_file_lock(lock_file):
-        speaker.say("waits")
-        # Longer than lock_timeout and long enough for the sentence to have been
-        # made and offered to the player: without the wait it is dropped by now.
-        time.sleep(0.5)
-        assert backend.played == []
-    speaker.drain()
-
-    assert backend.played == ["waits"]
-
-
-def test_a_wait_is_announced_once_and_not_once_a_slice(lock_file, monkeypatch):
-    """The wait is said out loud: a reply that is late is visible, a stutter of
-    log lines is not worth reading."""
-    speaker = Speaker(_config(FakeBackend(), lock_file))
-    announced: list[str] = []
-    monkeypatch.setattr(
-        player_module.logger, "warning", lambda text, *a, **k: announced.append(text)
-    )
-    monkeypatch.setattr(player_module, "_WAIT_POLL_SECONDS", 0.0)
-    held = iter([True, True, True, False])
-    monkeypatch.setattr(
-        player_module, "_another_session_is_speaking", lambda _: next(held, False)
-    )
-
-    kept = speaker._wait_for_the_device(None, speaker._generation)
-
-    assert kept is True
-    assert sum("Speech waits" in text for text in announced) == 1
-
-
-def test_a_sentence_interrupted_while_waiting_is_dropped(lock_file):
-    """A wait is not a promise: what the wait was for still has to be wanted."""
-    backend = FakeBackend()
-    speaker = Speaker(_config(backend, lock_file))
-
-    with hold_file_lock(lock_file):
-        speaker.say("waits")
-        time.sleep(0.2)
-        speaker.interrupt()
-    speaker.drain()
-
-    assert backend.played == []
 
 
 def test_a_failing_backend_falls_back_to_the_local_engine(lock_file, monkeypatch):

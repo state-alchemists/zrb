@@ -98,7 +98,7 @@ def _is_locked(lock_file: str) -> bool:
         return False
 
 
-def _another_session_is_speaking(lock_file: str) -> bool:
+def _is_another_session_speaking(lock_file: str) -> bool:
     """Whether a session other than this one holds the audio device.
 
     This process playing its own sentence holds the same lock, and that is not
@@ -756,9 +756,12 @@ class Speaker:
         try:
             while (entry := self._ready.get()) is not None:
                 utterance, is_stale, generation, cut_when_stale = entry
-                if not self._wait_for_the_device(is_stale, generation):
+                self._wait_for_my_turn(is_stale, generation)
+                # Asked again after the wait, not only inside it: the last look
+                # at the device was up to a poll ago.
+                if not self._is_still_wanted(is_stale, generation):
                     # What it was made for is gone: a newer turn, an interrupt,
-                    # a closed speaker. Its audio is nobody's.
+                    # a cut-off speaker. Its audio is nobody's.
                     utterance.cleanup()
                     continue
                 try:
@@ -775,9 +778,8 @@ class Speaker:
             # The worker may close backends after this signal.
             self._player_finished.set()
 
-    def _wait_for_the_device(self, is_stale: "IsStale", generation: int) -> bool:
-        """Wait while another session speaks; False once this sentence stops
-        mattering.
+    def _wait_for_my_turn(self, is_stale: "IsStale", generation: int) -> None:
+        """Wait while another session speaks, until it is this sentence's turn.
 
         Sessions of one user take turns by the lock file, so a session that could
         not have it within ``lock_timeout`` used to *lose* the sentence — a reply
@@ -786,12 +788,15 @@ class Speaker:
         session takes: the lock is whose turn it is, not a deadline. The wait is
         looked at in slices so an interrupt, a cleared queue or a newer turn
         drops it at once, and it is announced once rather than once a slice.
+
+        It gives up when the sentence stops mattering, and reports nothing when
+        it does: the caller asks `_is_still_wanted` before playing.
         """
         lock_file = self._lock_file or CFG.LLM_SPEECH_LOCK_FILE
         announced = False
-        while _another_session_is_speaking(lock_file):
+        while _is_another_session_speaking(lock_file):
             if not self._is_still_wanted(is_stale, generation):
-                return False
+                return
             if not announced:
                 logger.warning(
                     "Speech waits: another session is speaking, so this sentence "
@@ -799,12 +804,18 @@ class Speaker:
                 )
                 announced = True
             time.sleep(_WAIT_POLL_SECONDS)
-        return True
 
     def _is_still_wanted(self, is_stale: "IsStale", generation: int) -> bool:
-        """Whether this sentence is still the one this speaker would say."""
+        """Whether this sentence is still the one this speaker would say.
+
+        Being closed is not the question: `drain()` closes the speaker — no new
+        sentence is taken — while letting what is already queued finish, and
+        that can include one waiting for another session. Being cut off is the
+        question. `close()` cuts off before it stops, and `drain()` cuts off
+        when its own timeout runs out.
+        """
         with self._lock:
-            if self._is_closed or self._is_cut_off or not self.is_enabled:
+            if self._is_cut_off or not self.is_enabled:
                 return False
             if generation != self._generation:
                 return False
