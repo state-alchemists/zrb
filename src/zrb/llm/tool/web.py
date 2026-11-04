@@ -384,10 +384,11 @@ def convert_html_to_markdown(html_text: str) -> str:
     from markdownify import markdownify as md
 
     soup = BeautifulSoup(html_text, "html.parser")
-    for tag in soup(
+    # `element`, not `tag`: the name is taken by the capability tag helper.
+    for element in soup(
         ["script", "link", "meta", "style", "header", "footer", "nav", "aside"]
     ):
-        tag.decompose()
+        element.decompose()
     return md(str(soup))
 
 
