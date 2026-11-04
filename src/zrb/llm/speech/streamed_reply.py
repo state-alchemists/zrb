@@ -73,12 +73,22 @@ class StreamedReply:
                 # A new response is a new message: a block the last one left
                 # open ran to its end, not into this one.
                 self._reset_spoken()
+                # And nobody has talked over it: a hush that arrived before it
+                # started — a new message submitted between turns, which is what
+                # `interrupt_speech` does — muted a response that was already
+                # over, and must not go on claiming this one. `_was_muted` is
+                # for the response the user actually talked over, and that one
+                # has already started (its `part_start` came before the hush).
+                self._was_muted = False
             self._speak(self._read(event))
 
     def mute_response(self) -> None:
         """Say nothing more of the response being written, for a user who
         talked over it; the model's next response is spoken again. What the
-        user said reaches the run as a steer, so the run keeps going."""
+        user said reaches the run as a steer, so the run keeps going.
+
+        The claim this makes is on the response being written: one that starts
+        after it is spoken as usual (`handle_event`)."""
         with self._lock:
             self._chunker.reset()
             self._reset_spoken()
