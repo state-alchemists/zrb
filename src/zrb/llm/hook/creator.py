@@ -340,11 +340,15 @@ async def run_llm_hook(
     system_prompt: str,
     user_prompt: str,
     tools: list | None = None,
+    auto_approve: bool = False,
 ) -> HookResult:
     """Shared body of the prompt and agent hooks.
 
     They differ only in where their two prompts (and, for agent hooks, tools)
     come from; *kind* names the one in play for log messages.
+
+    *auto_approve* runs the agent with yolo. A hook has no approval channel, so
+    without it a tool call comes back as a deferred request and never executes.
     """
     try:
         # lazy: heavy third-party — pydantic_ai's message types.
@@ -363,6 +367,7 @@ async def run_llm_hook(
             system_prompt=system_prompt,
             tools=tools or [],
             resolve_model=False,  # already resolved above
+            yolo=auto_approve,
         )
         result = await agent.run(user_prompt)
 

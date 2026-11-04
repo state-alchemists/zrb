@@ -60,6 +60,11 @@ def build_memory_reviewer_hook_config() -> HookConfig:
             # The small model: reviewing is distillation, and a model that did not
             # write the turn reads it with fewer of its blind spots.
             model=resolve_configured_small_model(),
+            # A reviewer nobody answers must not defer its own write: this hook
+            # runs off the critical path with no UI, so a `Remember` that asks is
+            # a fact that is never recorded. Its tool list is the three memory
+            # verbs above, so approving every call it makes approves nothing else.
+            auto_approve=True,
         ),
         matchers=[
             MatcherConfig(

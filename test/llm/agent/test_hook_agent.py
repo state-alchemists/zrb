@@ -7,6 +7,7 @@ that shared body's own tests, which is why some patches below still target
 `zrb.llm.hook.creator` (where `run_llm_hook`, `CFG`, and `resolve_configured_model` live).
 """
 
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -274,6 +275,38 @@ async def test_agent_hook_runs_when_named_tools_do_resolve():
         "Remember", {"note": "x"}, run_ctx, resolved_tools["Remember"]
     )
     assert returned.return_value == "logged: x"
+
+
+@pytest.mark.asyncio
+async def test_an_auto_approving_config_reaches_the_agent():
+    """A hook has no UI to answer a deferred call, so the flag must reach the agent."""
+    config = AgentHookConfig(
+        system_prompt="sp", model="fake-model", tools=["Remember"], auto_approve=True
+    )
+    hook = create_agent_hook(config)
+    context = HookContext(event=HookEvent.STOP, event_data={"wrote_files": True})
+    agent = MagicMock()
+    agent.run = AsyncMock(
+        return_value=SimpleNamespace(output="ok", new_messages=lambda: [])
+    )
+
+    def fake_remember(note: str) -> str:
+        return note
+
+    fake_remember.__name__ = "Remember"
+
+    with (
+        patch("zrb.llm.hook.creator.resolve_configured_model", return_value="resolved"),
+        patch("zrb.llm.hook.creator.create_agent", return_value=agent) as create,
+        patch(
+            "zrb.llm.agent.hook_agent.resolve_agent_hook_tools",
+            return_value=[fake_remember],
+        ),
+    ):
+        result = await hook(context)
+
+    assert result.success is True
+    assert create.call_args.kwargs["yolo"] is True
 
 
 @pytest.mark.asyncio
