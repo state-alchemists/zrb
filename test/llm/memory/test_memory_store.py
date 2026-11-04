@@ -95,9 +95,7 @@ def test_a_second_log_line_sits_directly_under_the_first(store_dir):
     day = store.today()
     first = store.append_log("First event")
     second = store.append_log("Second event")
-    assert store.read_document(paths.log_path(day)) == (
-        f"# {day}\n{first}\n{second}\n"
-    )
+    assert store.read_document(paths.log_path(day)) == (f"# {day}\n{first}\n{second}\n")
 
 
 def test_a_day_file_written_with_gaps_is_healed_by_the_next_append(store_dir):
