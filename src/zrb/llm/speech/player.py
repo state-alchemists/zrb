@@ -9,6 +9,7 @@ import queue
 import threading
 import time
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -881,7 +882,9 @@ def play(
     moment *is_still_wanted* turns false. Looking at the lock and taking it are
     then one act. A look that says "free" is not a promise — a third session can
     take the device before the lock is reached — and waiting on the look alone
-    is how a queued sentence used to be lost.
+    is how a queued sentence used to be lost. Only the taking is caught: a
+    `FileLockTimeout` out of the sentence's own player is the player's failure,
+    not another session, and is raised as it is.
     """
     lock_file = config.lock_file or CFG.LLM_SPEECH_LOCK_FILE
     lock_dir = os.path.dirname(lock_file)
@@ -897,12 +900,15 @@ def play(
             # An interrupt, a newer turn, a narration line whose call has ended:
             # this sentence belongs to a moment that has passed.
             return
-        try:
-            with hold_file_lock(lock_file, timeout=0):
+        with ExitStack() as device:
+            try:
+                device.enter_context(hold_file_lock(lock_file, timeout=0))
+            except FileLockTimeout:
+                # Another session has the device: wait for the next turn.
+                pass
+            else:
                 _speak_under_the_lock(utterance, config)
                 return
-        except FileLockTimeout:
-            pass
         if not announced:
             logger.warning(
                 "Speech waits: another session is speaking, so this sentence "
