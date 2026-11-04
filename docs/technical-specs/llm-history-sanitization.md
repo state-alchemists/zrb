@@ -161,7 +161,7 @@ On a hit, `_retry_empty_completion` regenerates the turn: `history_without_trail
 
 Each layer works around a *provider* bug, not a pydantic-ai one, so upgrades rarely retire any. Re-audit on a minor bump anyway: a dead layer keeps rewriting history for no reason.
 
-Audited against **2.61.0** (the version `pyproject.toml` pins); every layer is still load-bearing:
+Audited against **2.61.0**, and re-checked against **2.65.0** (the version `pyproject.toml` pins); every layer is still load-bearing:
 
 | Layer | Verdict |
 |---|---|

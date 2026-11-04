@@ -32,7 +32,7 @@ dependencies = [
     # Security fix: GHSA-4xgf-cpjx-pc3j - NestedSecretsSettingsSource follows symlinks outside secrets_dir.
     # pydantic-settings is transitive via pydantic-ai-slim → fastmcp-slim → mcp. Pin >=2.14.2.
     "pydantic-settings>=2.14.2",
-    "pydantic-ai-slim[mcp]>=2.61.0,<2.62.0",
+    "pydantic-ai-slim[mcp]>=2.65.0,<2.66.0",
     # Security fix: GHSA-7xgj-8392-5q4r - a post-transform component authorization
     # check is skipped on direct calls. Patched in 3.4.10. Held to 3.x on purpose:
     # the fix is a patch release, while pydantic-ai-slim's `[mcp]` extra allows
@@ -55,14 +55,15 @@ dependencies = [
     # `openai` is a core dependency (not an extra) because every OpenAI-compatible
     # provider routes through it — OpenAI, Ollama, DeepSeek, OpenRouter, Z.ai,
     # Cerebras, Together, and the rest.
-    # >=3.26.0 is a hard floor, not a preference: it's pydantic-ai-slim's own
-    # `openai` extra floor as of 2.61.0 (3.19.0 as of 2.54.0, 3.8.0 as of 2.41.0).
+    # >=3.31.0 is a hard floor, not a preference: it's pydantic-ai-slim's own
+    # `openai` extra floor as of 2.65.0 (3.26.0 as of 2.61.0, 3.19.0 as of 2.54.0,
+    # 3.8.0 as of 2.41.0).
     # We take `pydantic-ai-slim[mcp]`, not its `openai` extra, so the resolver
     # never enforces that floor for us — it stayed at 3.19.0 while pydantic-ai
     # moved from 2.54.0 to 2.61.0. An older SDK is untested against this
     # pydantic-ai version and may miss parameters `OpenAIChatModel` sends
     # unconditionally (e.g. `prompt_cache_options=`).
-    "openai>=3.26.0",
+    "openai>=3.31.0",
     "prompt-toolkit>=3",
     "rich>=13",
     # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin
@@ -159,20 +160,26 @@ vertexai = [
     # Security fix: CVE-2026-59886 - resource exhaustion via large exponents in univ.Real decoding. We pin >=0.6.4.
     "pyasn1>=0.6.4",
 ]
-# >=2.30.0 matches pydantic-ai-slim's own `google` extra floor as of 2.61.0 (was 2.25.0
-# as of 2.54.0). The floor is load-bearing, not cosmetic: pydantic-ai's Google model
-# reads `usage_metadata.initial_prompt_token_count`, which google-genai only exposes
-# from 2.30.0, so a legal resolution below it answers every Gemini response carrying
-# usage metadata with AttributeError.
+# >=2.30.0 matches pydantic-ai-slim's own `google` extra floor as of 2.65.0 (was 2.25.0
+# as of 2.54.0; unchanged since 2.61.0). The floor is load-bearing, not cosmetic:
+# pydantic-ai's Google model reads `usage_metadata.initial_prompt_token_count`, which
+# google-genai only exposes from 2.30.0, so a legal resolution below it answers every
+# Gemini response carrying usage metadata with AttributeError.
 google = ["google-genai>=2.30.0"]
-# >=1.12.1 matches pydantic-ai-slim's own `anthropic` extra floor as of 2.61.0 (was
-# 1.9.0 as of 2.54.0).
-anthropic = ["anthropic>=1.12.1"]
+# >=1.15.0 matches pydantic-ai-slim's own `anthropic` extra floor as of 2.65.0 (was
+# 1.12.1 as of 2.61.0, 1.9.0 as of 2.54.0). The 1.x line is the one pydantic-ai's
+# `AnthropicModel` is written against: it is built on httpx2 rather than httpx and
+# carries `temperature`/`top_p`/`top_k` in the request's `extra_body` instead of
+# `messages.create()`'s own arguments.
+anthropic = ["anthropic>=1.15.0"]
 groq = ["groq>=0.25.0"]
-# >=2.9.2 is pydantic-ai-slim's own mistral extra floor as of 2.54.0. This also
-# clears the mistralai==2.4.6 PyPI quarantine (GHSA, see pydantic-ai #5382) that
-# an explicit `!=2.4.6` exclusion used to be needed for.
-mistral = ["mistralai>=2.9.2"]
+# >=3.1.0 is pydantic-ai-slim's own mistral extra floor as of 2.65.0 (was 2.9.2 as of
+# 2.54.0) — a major SDK bump, and load-bearing: pydantic-ai's `_map_content` imports
+# the `ResourceChunk`/`ResourceLinkChunk` content types that 3.1.0 introduced, and
+# mistralai 3.x is built on httpx2 only, which is what pydantic-ai itself runs on.
+# This also clears the mistralai==2.4.6 PyPI quarantine (GHSA, see pydantic-ai #5382)
+# that an explicit `!=2.4.6` exclusion used to be needed for.
+mistral = ["mistralai>=3.1.0"]
 xai = [
     # >=1.16.0 matches pydantic-ai's floor for the xAI SDK.
     "xai-sdk>=1.16.0",
