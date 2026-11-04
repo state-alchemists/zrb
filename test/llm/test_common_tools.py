@@ -303,4 +303,3 @@ def test_the_rename_dry_run_reaches_a_host_with_no_policy_list(monkeypatch):
     assert callable(rename_predicate)
     assert rename_predicate({"dry_run": True}) is True
     assert rename_predicate({"new_name": "renamed"}) is False
-
