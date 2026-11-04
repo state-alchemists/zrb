@@ -60,6 +60,12 @@ current_hook_manager: ContextVar["HookManager | None"] = ContextVar(
 current_agent_run_scope: ContextVar[str] = ContextVar(
     "current_agent_run_scope", default=""
 )
+# Whether this run was started from inside another one: a hook that runs an
+# agent of its own (the memory reviewer), a sub-agent, a skill. Its hooks see
+# the turn's events too, and nothing in a prompt or a tool-call payload says
+# which run it belongs to, so a listener that paints a state from those events
+# cannot tell a background run from the user's own turn without this.
+current_nested_run: ContextVar[bool] = ContextVar("current_nested_run", default=False)
 # The session's `/model small ...` / `/model multimodal ...` override, or None;
 # helpers fall back to `resolve_configured_small_model()`/`..._multimodal_model()`.
 current_small_model: ContextVar["str | Model | None"] = ContextVar(
@@ -115,6 +121,11 @@ def get_current_agent_run_scope() -> str:
     return current_agent_run_scope.get()
 
 
+def is_current_run_nested() -> bool:
+    """Whether the current agent run was started from inside another one."""
+    return current_nested_run.get()
+
+
 def get_current_small_model() -> "str | Model | None":
     """Return the current run's small-model override, or None if unset."""
     return current_small_model.get()
@@ -138,6 +149,8 @@ __all__ = [
     "current_hook_manager",
     "current_llm_limiter",
     "current_agent_run_scope",
+    "current_nested_run",
+    "is_current_run_nested",
     "current_small_model",
     "current_multimodal_model",
     "current_model",

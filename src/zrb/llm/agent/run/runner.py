@@ -58,6 +58,7 @@ from zrb.llm.agent_state import (
     current_llm_limiter,
     current_model,
     current_multimodal_model,
+    current_nested_run,
     current_small_model,
     current_tool_confirmation,
     current_ui,
@@ -198,6 +199,10 @@ async def run_agent(
         # the same key.
         bind_contextvar(stack, current_shell_cut_signal, signal_for_run())
         bind_contextvar(stack, current_agent_run_scope, run_scope or uuid.uuid4().hex)
+        # Read by every hook payload (see HookManager.execute_hooks), so a
+        # listener can tell this run's events from the turn's: a nested run has
+        # no user behind it.
+        bind_contextvar(stack, current_nested_run, nested_run)
         bind_contextvar(stack, current_approval_channel, effective_approval_channel)
         bind_contextvar(stack, current_permission_policy, effective_policy)
         bind_contextvar(stack, current_sandbox_policy, effective_sandbox)

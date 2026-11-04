@@ -26,6 +26,7 @@ from zrb.llm.agent_state import (
     current_llm_limiter,
     current_model,
     current_multimodal_model,
+    current_nested_run,
     current_small_model,
     current_tool_confirmation,
     current_ui,
@@ -40,6 +41,7 @@ from zrb.llm.agent_state import (
     get_current_tool_confirmation,
     get_current_ui,
     get_current_yolo,
+    is_current_run_nested,
 )
 
 # --- Tool ambient state ---
@@ -96,6 +98,8 @@ __all__ = [
     "current_hook_manager",
     "current_llm_limiter",
     "current_agent_run_scope",
+    "current_nested_run",
+    "is_current_run_nested",
     "current_small_model",
     "current_model",
     "current_multimodal_model",
