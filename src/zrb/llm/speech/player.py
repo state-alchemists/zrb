@@ -42,6 +42,10 @@ _playing_count = 0
 # Lock file reference counts for live speakers.
 _lock_files: dict[str, int] = {}
 _STALE_POLL_SECONDS = 0.1
+# How often a sentence waiting for another session to finish speaking looks at
+# whether it still matters: short enough that an interrupt is obeyed at once,
+# long enough to cost nothing while the wait lasts minutes.
+_WAIT_POLL_SECONDS = 0.25
 _PLAYERS = ("auto", "command")
 # How long an output device that failed to open is left alone before a sentence
 # tries it again: changing the output device fails the open while the system
@@ -92,6 +96,18 @@ def _is_locked(lock_file: str) -> bool:
         return True
     except OSError:
         return False
+
+
+def _another_session_is_speaking(lock_file: str) -> bool:
+    """Whether a session other than this one holds the audio device.
+
+    This process playing its own sentence holds the same lock, and that is not
+    somebody else's turn to finish: a sentence of ours never waits for us.
+    """
+    with _state_lock:
+        if _playing_count:
+            return False
+    return _is_locked(lock_file)
 
 
 # Pipecat gives up on a service after this many silent sentences in a row.
@@ -739,9 +755,17 @@ class Speaker:
     def _play_ready(self) -> None:
         try:
             while (entry := self._ready.get()) is not None:
+                utterance, is_stale, generation, cut_when_stale = entry
+                if not self._wait_for_the_device(is_stale, generation):
+                    # What it was made for is gone: a newer turn, an interrupt,
+                    # a closed speaker. Its audio is nobody's.
+                    utterance.cleanup()
+                    continue
                 try:
                     self._play_prepared(*entry)
                 except FileLockTimeout:
+                    # The wait below saw the device free and another session took
+                    # it in the moment between: lost, and said so.
                     logger.warning(
                         "Speech dropped: another session held the audio device"
                     )
@@ -750,6 +774,41 @@ class Speaker:
         finally:
             # The worker may close backends after this signal.
             self._player_finished.set()
+
+    def _wait_for_the_device(self, is_stale: "IsStale", generation: int) -> bool:
+        """Wait while another session speaks; False once this sentence stops
+        mattering.
+
+        Sessions of one user take turns by the lock file, so a session that could
+        not have it within ``lock_timeout`` used to *lose* the sentence — a reply
+        that went unread because another chat was talking at the same time. A
+        sentence that is still wanted waits instead, for as long as the other
+        session takes: the lock is whose turn it is, not a deadline. The wait is
+        looked at in slices so an interrupt, a cleared queue or a newer turn
+        drops it at once, and it is announced once rather than once a slice.
+        """
+        lock_file = self._lock_file or CFG.LLM_SPEECH_LOCK_FILE
+        announced = False
+        while _another_session_is_speaking(lock_file):
+            if not self._is_still_wanted(is_stale, generation):
+                return False
+            if not announced:
+                logger.warning(
+                    "Speech waits: another session is speaking, so this sentence "
+                    "is read when that one finishes"
+                )
+                announced = True
+            time.sleep(_WAIT_POLL_SECONDS)
+        return True
+
+    def _is_still_wanted(self, is_stale: "IsStale", generation: int) -> bool:
+        """Whether this sentence is still the one this speaker would say."""
+        with self._lock:
+            if self._is_closed or self._is_cut_off or not self.is_enabled:
+                return False
+            if generation != self._generation:
+                return False
+        return is_stale is None or not is_stale()
 
     def close(self) -> None:
         """Stop playback and release the lock file."""

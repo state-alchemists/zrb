@@ -519,8 +519,11 @@ class LLMSpeechMixin:
         float,
         fallback=30.0,
         doc=(
-            "Seconds to wait for another session to finish speaking before "
-            "dropping an utterance. Default: 30."
+            "Seconds a sentence being spoken right now (Speaker.speak) waits for "
+            "another session to finish before giving up on it. A queued sentence "
+            "— what a reply and a narration line are — waits its turn instead, "
+            "however long that takes, and says so once in the log; a new message "
+            "or an interrupt drops it at once. Default: 30."
         ),
     )
 
