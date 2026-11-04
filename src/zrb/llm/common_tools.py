@@ -162,16 +162,19 @@ def _seed_default_tools() -> tuple[list, list, list]:
     # Only when a language server is on $PATH (no server is started).
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # Only inside a git repo (judged from the startup cwd).
-    worktree_tools = (
+    worktree_tools: list[Callable] = (
         [enter_worktree, exit_worktree, list_worktrees] if is_inside_git_dir() else []
     )
     # Visible, not deferred: a deferred tool is invisible until the model thinks
     # to search for it, and the set of tools nobody thought of is the set nobody
     # used (EnterWorktree: 1 call in a week, ExitWorktree and ListWorktrees: 0).
     # All three sit inside the git gate, so a non-repo session still pays nothing.
-    plan_tools = [write_todos, get_todos]
+    plan_tools: list[Callable] = [write_todos, get_todos]
 
-    # Untagged tools resolve to UNKNOWN (denied in plan mode).
+    # Untagged tools resolve to UNKNOWN (denied in plan mode). One loop variable
+    # for every loop below: they hold tools of differing signatures, and
+    # `Callable` is the only type all of them share.
+    _fn: Callable
     for _fn in (
         list_files,
         glob_files,
