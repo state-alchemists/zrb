@@ -92,6 +92,20 @@ def test_a_muted_response_is_silent_until_the_next_response_starts():
     assert said == ["New"]
 
 
+def test_a_hush_before_the_response_starts_claims_nothing():
+    """The user submitting a message hushes speech (`interrupt_speech`), which
+    lands between turns: there is no response being written to talk over, so the
+    reply that comes next is not streaming's to drop — the Stop hook reads it."""
+    reply, said = _reply()
+    reply.mute_response()
+    reply.handle_event(
+        _event("part_start", index=0, part=_part("text", "prose only. "))
+    )
+    reply.flush()
+    assert said == []
+    assert not reply.has_claimed_turn
+
+
 def test_a_new_response_starts_blocks_only_again():
     """`SpokenSplitter.reset` puts `_speaks_outside` back on; a second response
     in one turn must not inherit that and start saying prose."""
