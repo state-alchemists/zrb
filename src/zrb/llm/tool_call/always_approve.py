@@ -19,8 +19,12 @@ import cycles.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 _ALWAYS_AUTO_APPROVE: set[str] = set()
-_DEFAULT_AUTO_APPROVE: set[str] = set()
+
+# Tool name -> a predicate over the call's arguments, or None for "any call".
+_DEFAULT_AUTO_APPROVE: dict[str, Callable[[dict[str, object]], bool] | None] = {}
 
 
 def register_always_auto_approve(*tool_names: str) -> None:
@@ -35,9 +39,30 @@ def is_always_auto_approve(tool_name: str) -> bool:
 
 def register_default_auto_approve(*tool_names: str) -> None:
     """Mark tool(s) the harness approves unless a permission rule says otherwise."""
-    _DEFAULT_AUTO_APPROVE.update(tool_names)
+    for tool_name in tool_names:
+        _DEFAULT_AUTO_APPROVE.setdefault(tool_name, None)
 
 
-def is_default_auto_approve(tool_name: str) -> bool:
-    """Whether ``tool_name`` is approved by default (a rule may still ask or deny)."""
-    return tool_name in _DEFAULT_AUTO_APPROVE
+def register_default_auto_approve_if(
+    tool_name: str, predicate: Callable[[dict[str, object]], bool]
+) -> None:
+    """Approve *tool_name* only for the calls *predicate* accepts.
+
+    For a tool whose boundedness is an argument rather than the whole tool: an
+    `LspRenameSymbol` dry run reports what it would do, and the same call
+    without `dry_run` writes. A call whose arguments do not parse is not
+    approved — the predicate never sees a dict it can trust, so the prompt stays.
+    """
+    _DEFAULT_AUTO_APPROVE[tool_name] = predicate
+
+
+def is_default_auto_approve(
+    tool_name: str, args: dict[str, object] | None = None
+) -> bool:
+    """Whether the harness approves this call by default (a rule may still ask)."""
+    if tool_name not in _DEFAULT_AUTO_APPROVE:
+        return False
+    predicate = _DEFAULT_AUTO_APPROVE[tool_name]
+    if predicate is None:
+        return True
+    return isinstance(args, dict) and predicate(args)

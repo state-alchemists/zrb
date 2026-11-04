@@ -337,9 +337,11 @@ def _approve_by_default(call, policy_decision, force_ask):
     """
     if force_ask or policy_decision == ASK:
         return None
-    if not is_default_auto_approve(call.tool_name):
-        return None
     args = parse_tool_args(call)
+    if not is_default_auto_approve(
+        call.tool_name, args if isinstance(args, dict) else None
+    ):
+        return None
     # The same invariant the tool policies keep: a request to leave the sandbox
     # is a request for a human, however ordinary the tool is.
     if isinstance(args, dict) and args.get("dangerously_skip_sandbox"):

@@ -25,8 +25,10 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_interactive_mode
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool_call.always_approve import register_default_auto_approve
-from zrb.llm.tool_call.tool_policy.auto_approve import auto_approve
+from zrb.llm.tool_call.always_approve import (
+    register_default_auto_approve,
+    register_default_auto_approve_if,
+)
 from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 from zrb.llm.tool_registry import tool_name, tool_registry
 from zrb.llm.util.git import is_inside_git_dir
@@ -76,25 +78,27 @@ def _is_rename_dry_run(args: dict[str, object]) -> bool:
 
 
 def apply_common_tools(host: CommonToolHost) -> None:
-    """Give *host* the zrb-shipped tools, factories, and shell-safety policy.
+    """Give *host* the zrb-shipped tools, factories, and approval policies.
 
     Storage only (safe at construction, no heavy import); call once per host.
     ``SubAgentManager`` filters the result by each sub-agent's ``tools:`` list.
 
-    The approval defaults registered here live in a process-wide set the cascade
-    reads, so they hold for every runner — including the ones (``LLMTask``,
-    ``SubAgentManager``) whose host has no policy list to append to.
+    The approval defaults registered here live in a process-wide registry the
+    cascade reads, so they hold for every runner — including the ones
+    (``LLMTask``, ``SubAgentManager``) whose host has no policy list to append
+    to. That is why the argument-gated one is registered here too and not as a
+    tool policy, which only those hosts would miss.
     """
     host.append_tool_factory(_common_tools_provider)
     host.append_toolset_factory(_common_toolsets_provider)
     register_default_auto_approve(*DEFAULT_AUTO_APPROVED_TOOLS)
+    # A rename dry run only reports; the same call without `dry_run` writes.
+    register_default_auto_approve_if("LspRenameSymbol", _is_rename_dry_run)
     # Read-only git subcommands auto-approve. Hosts without an approval channel
     # (LLMTask, SubAgentManager) have no prepend_tool_policy.
     add_policy = getattr(host, "prepend_tool_policy", None)
     if callable(add_policy):
         add_policy(bash_safe_command_policy())
-        # A rename dry run only reports; the real rename still asks.
-        add_policy(auto_approve("LspRenameSymbol", _is_rename_dry_run))
 
 
 def _common_tools_provider(

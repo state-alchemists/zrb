@@ -177,7 +177,7 @@ All importable from `zrb.llm.tool_call` unless noted.
 
 A tool that *is* the user interaction (like `AskUserQuestion`) can skip approval everywhere with `register_always_auto_approve("ToolName")`, exported from `zrb`. That sits above the permission rules, so no rule of yours can stop it — which is why only the user interaction belongs there.
 
-A tool whose blast radius is already bounded — it writes only inside a directory zrb owns, or reads something you just approved producing — belongs one level lower: `register_default_auto_approve("ToolName")`, also exported from `zrb`. That sits *below* the rules, so your `ask` or `deny` still wins and a `PreToolUse` hook's `ask` still forces the prompt, and it holds with YOLO off, which is where a prompt nobody wants costs the most. `zrb`'s own list lives in `DEFAULT_AUTO_APPROVED_TOOLS` (`src/zrb/llm/common_tools.py`); [ADR-0139](../adr/adr-0139.md) records why each entry is there.
+A tool whose blast radius is already bounded — it writes only inside a directory zrb owns, or reads something you just approved producing — belongs one level lower: `register_default_auto_approve("ToolName")`, also exported from `zrb`. That sits *below* the rules, so your `ask` or `deny` still wins and a `PreToolUse` hook's `ask` still forces the prompt, and it holds with YOLO off, which is where a prompt nobody wants costs the most. When the bound is an argument rather than the whole tool, use `register_default_auto_approve_if("ToolName", predicate)` — `LspRenameSymbol` is approved only for `dry_run=true` that way. `zrb`'s own list lives in `DEFAULT_AUTO_APPROVED_TOOLS` (`src/zrb/llm/common_tools.py`); [ADR-0139](../adr/adr-0139.md) records why each entry is there.
 
 ## Display settings without code
 

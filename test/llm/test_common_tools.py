@@ -136,8 +136,7 @@ def test_apply_stores_providers_without_resolving_anything(monkeypatch):
     assert host.tools == []
     assert len(host.tool_factories) == 1
     assert len(host.toolset_factories) == 1
-    # The shell-safety policy, and the dry-run half of `LspRenameSymbol`.
-    assert len(host.policies) == 2
+    assert len(host.policies) == 1
     # Resolution is the host's build step, not apply's — and it materializes
     # the full shipped set, scoped by config.
     assert {"Read", "Write", "Grep"} <= host.resolved_tool_names()
@@ -169,8 +168,7 @@ def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
     """
     host = RecordingHost()
     apply_common_tools(host)
-    # The shell-safety policy, and the dry-run half of `LspRenameSymbol`.
-    assert len(host.policies) == 2
+    assert len(host.policies) == 1
 
 
 def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):
@@ -267,24 +265,42 @@ def test_the_approval_defaults_travel_with_the_tool_surface(monkeypatch):
     assert MEMORY_TOOLS <= set(registered)
 
 
-@pytest.mark.asyncio
-async def test_a_rename_dry_run_is_approved_and_a_real_rename_is_not():
-    from unittest.mock import AsyncMock, MagicMock
+def test_the_rename_dry_run_reaches_a_host_with_no_policy_list(monkeypatch):
+    """`LspRenameSymbol(dry_run=True)` is bounded by an argument, not by a name.
 
-    host = RecordingHost()
-    apply_common_tools(host)
-    call = MagicMock()
-    call.tool_name = "LspRenameSymbol"
-    next_handler = AsyncMock(return_value="asked")
+    A tool policy would have covered it only on hosts with `prepend_tool_policy`
+    — `LLMTask` and `SubAgentManager` have none — so the condition is registered
+    as a predicate in the same shared registry the other defaults use, and this
+    host never implements a policy list at all.
+    """
 
-    call.args = {"dry_run": True, "new_name": "renamed"}
-    dry_run_verdicts = [
-        await policy(MagicMock(), call, next_handler) for policy in host.policies
-    ]
-    assert any(verdict != "asked" for verdict in dry_run_verdicts)
+    class PolicylessHost:
+        tools: list = []
+        tool_factories: list = []
+        toolset_factories: list = []
 
-    call.args = {"new_name": "renamed"}
-    rename_verdicts = [
-        await policy(MagicMock(), call, next_handler) for policy in host.policies
-    ]
-    assert all(verdict == "asked" for verdict in rename_verdicts)
+        def append_tool(self, *tool):
+            self.tools.extend(tool)
+
+        def append_tool_factory(self, *factory):
+            self.tool_factories.extend(factory)
+
+        def append_toolset_factory(self, *factory):
+            self.toolset_factories.extend(factory)
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        "zrb.llm.common_tools.register_default_auto_approve",
+        lambda *names: captured.update({name: None for name in names}),
+    )
+    monkeypatch.setattr(
+        "zrb.llm.common_tools.register_default_auto_approve_if",
+        lambda name, predicate: captured.update({name: predicate}),
+    )
+    apply_common_tools(PolicylessHost())
+
+    rename_predicate = captured["LspRenameSymbol"]
+    assert callable(rename_predicate)
+    assert rename_predicate({"dry_run": True}) is True
+    assert rename_predicate({"new_name": "renamed"}) is False
+

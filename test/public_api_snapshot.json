@@ -97,6 +97,7 @@
     "prompt_registry",
     "register_always_auto_approve",
     "register_default_auto_approve",
+    "register_default_auto_approve_if",
     "register_theme",
     "skill_manager",
     "skill_registry",
@@ -2062,6 +2063,10 @@
     ],
     "register_default_auto_approve": [
       "tool_names:VAR_POSITIONAL:0"
+    ],
+    "register_default_auto_approve_if": [
+      "tool_name:POSITIONAL_OR_KEYWORD:0",
+      "predicate:POSITIONAL_OR_KEYWORD:0"
     ],
     "register_theme": [
       "name:POSITIONAL_OR_KEYWORD:0",
