@@ -345,3 +345,24 @@ def test_buffered_ui_defaults_to_empty_session_id():
         ui.append_to_output("line")
 
     assert reg.update.call_args.kwargs["session_id"] == ""
+
+
+def test_a_buffer_reports_the_conversation_of_the_ui_it_wraps():
+    """A delegated run's tokens are spend on the chat that asked for it, and
+    `/usage session` files a run by the name the UI reports."""
+    parent = MagicMock()
+    parent.conversation_session_name = "calm-gate"
+
+    assert BufferedUI(parent).conversation_session_name == "calm-gate"
+
+
+def test_a_name_set_on_the_buffer_wins_and_never_renames_the_parent():
+    parent = MagicMock()
+    parent.conversation_session_name = "calm-gate"
+    ui = BufferedUI(parent)
+
+    ui.conversation_session_name = "the-sub-agent"
+
+    assert ui.conversation_session_name == "the-sub-agent"
+    assert parent.conversation_session_name == "calm-gate"
+

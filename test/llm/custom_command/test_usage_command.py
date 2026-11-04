@@ -12,7 +12,7 @@ from zrb.llm.custom_command.usage_command import (
     render_usage,
 )
 from zrb.llm.history_manager.conversation_naming import with_slug
-from zrb.llm.usage_log import record_usage
+from zrb.llm.usage_log import KIND_SUMMARIZATION, KIND_TURN, record_usage
 from zrb.util.string.name import get_random_name
 
 NOW = datetime.now(timezone.utc)
@@ -62,6 +62,7 @@ def _record(
     session: str = "",
     when: datetime | None = None,
     duration_ms: int = 0,
+    kind: str = KIND_TURN,
     **counts,
 ):
     usage = RunUsage(**{"input_tokens": 1000, **counts})
@@ -69,6 +70,7 @@ def _record(
         usage,
         model=model,
         session=session,
+        kind=kind,
         # Read at call time, not at import: a run that reaches this test after
         # midnight would otherwise stamp yesterday's record and then ask for
         # today's window, which finds nothing.
@@ -254,3 +256,55 @@ def test_durations_read_as_durations(milliseconds, expected):
 
 def test_render_is_quiet_about_a_window_with_no_records(usage_dir):
     assert render_usage([], "nowhere") == "  No usage recorded for nowhere."
+
+
+def test_a_compaction_is_reported_beside_the_turns_not_inside_them(usage_dir, command):
+    """A compaction is a separate charge, often on the small model, and it reads a
+    cold prompt cache: counted in the turn rows it would change what the cache
+    share and the run count mean."""
+    _record(model="turn-model")
+    _record(
+        model="small-model",
+        input_tokens=50_000,
+        kind=KIND_SUMMARIZATION,
+        duration_ms=42_000,
+    )
+
+    output = command.handle({}, None)
+
+    turns, compaction = output.split("  Compaction")
+    assert "small-model" not in turns
+    assert "small-model" in compaction
+    # The table above describes turns only.
+    assert "1 run(s)" in turns
+    assert "1 compaction(s) · 42s of wall time" in compaction
+
+
+def test_a_window_that_only_compacted_still_reports_the_compaction(usage_dir, command):
+    _record(kind=KIND_SUMMARIZATION, input_tokens=7_000)
+
+    output = command.handle({}, None)
+
+    assert "No turn recorded for this window." in output
+    assert "  Compaction" in output
+
+
+def test_a_record_of_an_unknown_kind_stays_in_the_turn_totals(usage_dir, command):
+    """A kind this version does not know still counts: tokens the user paid for
+    are worse lost than filed one section too wide."""
+    _record(model="future-model", kind="subagent")
+
+    output = command.handle({}, None)
+
+    assert "future-model" in output
+    assert "Compaction" not in output
+
+
+def test_the_period_completes(command):
+    """`/usage <tab>` has to offer the four windows: they exist only in the
+    description otherwise, and a parameter nobody can discover reads as broken."""
+    assert command.get_arg_completions("") == ["session", "today", "week", "all"]
+    assert command.get_arg_completions("s") == ["session"]
+    assert command.get_arg_completions("W") == ["week"]
+    assert command.get_arg_completions("zz") == []
+
