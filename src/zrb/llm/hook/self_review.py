@@ -250,6 +250,10 @@ async def _run_reviewer(context: HookContext, scope: _Scope) -> str | None:
             system_prompt=get_prompt("self_review"),
             tools=_REVIEWER_TOOLS,
             model=CFG.LLM_SELF_REVIEW_MODEL or None,
+            # The reviewer exists to read the turn's changes, and a hook has no
+            # approval channel: a deferred `Read` is a review of nothing. Its
+            # tool list is fixed to three read-only tools above.
+            auto_approve=True,
         )
     )
     result = await reviewer(

@@ -225,6 +225,10 @@ class HookManagerLoading:
                 system_prompt=raw_config["system_prompt"],
                 tools=raw_config.get("tools"),
                 model=raw_config.get("model"),
+                # A hook has no approval channel to answer a deferred tool call,
+                # so a user-configured agent hook that needs its tools to run has
+                # to be able to say so here.
+                auto_approve=bool(raw_config.get("auto_approve", False)),
             )
             default_timeout = 60
         else:
