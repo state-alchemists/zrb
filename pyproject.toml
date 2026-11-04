@@ -69,6 +69,31 @@ dependencies = [
     # Security fix: GHSA/CVE-2026-59950 - Cross-Site WebSocket Hijacking via unvalidated Host/Origin
     # headers in the deprecated WebSocket server transport. We pin >=1.28.1.
     "mcp>=1.28.1,<2.0",
+    # Security fix: GHSA-6v38-4h7w-rj9h (critical) - JWS JSON deserialization accepts an empty
+    # signature; GHSA-7vr2-2fgp-9w7p - the incomplete algorithm-confusion fix still permits HMAC
+    # forgery with prefixed public keys; GHSA-c5mf-xmp2-59rc, GHSA-fch4-3c6x-j4gc, GHSA-q686-2qmg-hqc7
+    # and GHSA-x4rv-c3wx-4cr8 (medium: nonce opt-out via nonce_supported, wrong-audience JWT bearer
+    # grant, implicit-grant scope check, request_uri SSRF), all six patched in 1.9.0; and
+    # GHSA-8m4g-j4wp-wgcg (an empty HMAC key forges HS256/384/512) with GHSA-c73q-w75p-j82v, in 1.9.1.
+    # authlib arrives via pydantic-ai-slim's `mcp` extra -> fastmcp-slim[client], and mistralai's
+    # `agents` extra caps it below 2.0.
+    "authlib>=1.9.1",
+    # Security fix: GHSA-9pg5-8c7x-5hfx - the compact JWS size guard allocates attacker-controlled
+    # segments before rejecting them. Patched in 1.7.6. joserfc is authlib's JOSE backend (authlib
+    # asks >=1.6.1), and fastmcp-slim's `server` extra asks for it directly.
+    "joserfc>=1.7.6",
+    # Security fix: GHSA-45c3-73f7-pv4m - `dns.name.from_wire_parser()` burns CPU on crafted input.
+    # Patched in 2.9.0. dnspython arrives via email-validator, which fastapi's `standard` extra pulls.
+    "dnspython>=2.9.0",
+    # Security fixes: GHSA-2qm8-x737-gmw5, GHSA-9m75-vc3g-4x39, GHSA-fm9c-5rcf-2q5p and
+    # GHSA-mm57-4v3p-rchx (high) - quadratic-time CPU use in constructed BIT STRING, constructed
+    # string and indefinite-length ANY, schemaless container, and binary REAL decoding, all patched
+    # in 0.6.5; CVE-2026-23491 and CVE-2026-59886 before them, patched in 0.6.4.
+    # pyasn1 arrives through `pyasn1-modules`, which google-auth requires, and google-auth reaches
+    # us from two extras: ours (`vertexai`) and `google` (google-genai -> google-auth). A floor
+    # written inside either extra leaves the other installation free to resolve 0.6.4, so it sits
+    # here, as `multidict` and `certifi` do for the same reason.
+    "pyasn1>=0.6.5",
     "requests>=2.33.0,<3.0.0",
     "tiktoken>=0.12.0,<0.13.0",
     "markdownify>=1.2.2,<2.0.0",
@@ -154,12 +179,9 @@ python = [
 # pins on transitive packages are annotated inline on the dependency that carries them.
 playwright = ["playwright>=1.56.0,<2.0.0"]
 cohere = ["cohere>=5.20.6"]
-vertexai = [
-    "google-auth>=2.36.0",
-    # Security fix: CVE-2026-23491 - DoS via uncontrolled recursion in ASN.1 decoding (via google-auth).
-    # Security fix: CVE-2026-59886 - resource exhaustion via large exponents in univ.Real decoding. We pin >=0.6.4.
-    "pyasn1>=0.6.4",
-]
+# `pyasn1` is pinned in the base dependencies: google-auth brings it here and into the
+# `google` extra alike, so a floor inside either extra would cover only that one.
+vertexai = ["google-auth>=2.36.0"]
 # >=2.30.0 matches pydantic-ai-slim's own `google` extra floor as of 2.65.0 (was 2.25.0
 # as of 2.54.0; unchanged since 2.61.0). The floor is load-bearing, not cosmetic:
 # pydantic-ai's Google model reads `usage_metadata.initial_prompt_token_count`, which
