@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_hook_manager
+from zrb.llm.agent_state import get_current_hook_manager, is_current_run_nested
 from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
 from zrb.llm.hook.executor import (
     HookExecutionResult,
@@ -189,6 +189,14 @@ class HookManager(HookManagerLoading):
 
         if metadata is None:
             metadata = {}
+
+        if isinstance(event_data, dict):
+            # Every payload says which run it belongs to, so a listener can tell
+            # a hook's own run (the memory reviewer, a sub-agent) from the user's
+            # turn without each call site remembering to say so. A caller that
+            # states it explicitly wins: `Stop` payloads carry their own, and a
+            # test can hand one in.
+            event_data = {"nested_run": is_current_run_nested(), **event_data}
 
         context = HookContext(
             event=event,

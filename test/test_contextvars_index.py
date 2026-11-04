@@ -37,6 +37,8 @@ def test_index_exports_all_wrappers():
         "get_current_llm_limiter",
         "current_agent_run_scope",
         "get_current_agent_run_scope",
+        "current_nested_run",
+        "is_current_run_nested",
         "current_small_model",
         "get_current_small_model",
         "current_model",

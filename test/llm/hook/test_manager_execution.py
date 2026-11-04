@@ -26,7 +26,7 @@ async def test_python_hook_execution():
 
     assert len(executed) == 1
     assert executed[0].event == HookEvent.SESSION_START
-    assert executed[0].event_data == {"test": "data"}
+    assert executed[0].event_data == {"test": "data", "nested_run": False}
 
 
 @pytest.mark.asyncio
