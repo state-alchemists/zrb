@@ -4,8 +4,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from zrb.llm.agent_state import is_current_run_nested
 from zrb.llm.hook.creator import create_prompt_hook
-from zrb.llm.hook.interface import HookContext
+from zrb.llm.hook.interface import HookContext, HookResult
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.schema import PromptHookConfig
 from zrb.llm.hook.types import HookEvent
 
@@ -114,3 +116,63 @@ async def test_prompt_hook_exception_returns_failure():
 
     assert result.success is False
     assert "nope" in (result.output or "")
+
+
+@pytest.mark.asyncio
+async def test_a_hooks_run_is_marked_nested_while_it_runs():
+    "A hook's agent runs with no user waiting on it, so the events it fires are not"
+    "the turn's. The mark says so for as long as it runs — that is what a listener"
+    "reading the payload, or the ambient value, decides whether to paint from."
+    config = PromptHookConfig(user_prompt_template="x", model="fake-model")
+    hook = create_prompt_hook(config)
+    context = HookContext(event=HookEvent.USER_PROMPT_SUBMIT, event_data={})
+
+    manager = HookManager(search_dirs=[])
+    payloads = []
+
+    async def capture(hook_context):
+        payloads.append(dict(hook_context.event_data))
+        return HookResult()
+
+    manager.add_hook(capture, events=[HookEvent.PRE_TOOL_USE])
+    ambient = []
+
+    async def run(prompt):
+        ambient.append(is_current_run_nested())
+        await manager.execute_hooks(HookEvent.PRE_TOOL_USE, {"tool": "Remember"})
+        return MagicMock(output="ok")
+
+    agent = MagicMock()
+    agent.run = run
+    with (
+        patch("zrb.llm.hook.creator.create_agent", return_value=agent),
+        patch("zrb.llm.hook.creator.resolve_configured_model", return_value="resolved"),
+    ):
+        result = await hook(context)
+
+    assert result.success is True
+    assert ambient == [True]
+    assert payloads == [{"tool": "Remember", "nested_run": True}]
+    assert is_current_run_nested() is False  # the mark ends with the run
+
+
+@pytest.mark.asyncio
+async def test_a_failed_hook_run_does_not_leave_the_mark_behind():
+    "A mark that outlived its run would mute the face for the rest of the session."
+    config = PromptHookConfig(user_prompt_template="x", model="fake-model")
+    hook = create_prompt_hook(config)
+    context = HookContext(event=HookEvent.USER_PROMPT_SUBMIT, event_data={})
+
+    async def run(prompt):
+        raise RuntimeError("boom")
+
+    agent = MagicMock()
+    agent.run = run
+    with (
+        patch("zrb.llm.hook.creator.create_agent", return_value=agent),
+        patch("zrb.llm.hook.creator.resolve_configured_model", return_value="resolved"),
+    ):
+        result = await hook(context)
+
+    assert result.success is False
+    assert is_current_run_nested() is False

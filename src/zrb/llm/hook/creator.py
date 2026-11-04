@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.agent_runner import create_agent
-from zrb.llm.agent_state import get_current_model
+from zrb.llm.agent_state import current_nested_run, get_current_model
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.process_io import read_hook_output, run_detached
@@ -369,7 +369,18 @@ async def run_llm_hook(
             resolve_model=False,  # already resolved above
             yolo=auto_approve,
         )
-        result = await agent.run(user_prompt)
+        # A hook's agent is a nested run by definition: no user is waiting on it, and
+        # the events it fires — its own prompt, its tool calls — are not the turn's.
+        # Something has to say so, or a listener that paints the user's state from
+        # those events (the avatar says "thinking") keeps painting it after the turn
+        # ended, because nothing sends that run's own idle. The runner binds this
+        # ContextVar for a sub-agent's run; a hook does not go through the runner, so
+        # it binds the same one here.
+        token = current_nested_run.set(True)
+        try:
+            result = await agent.run(user_prompt)
+        finally:
+            current_nested_run.reset(token)
 
         output_text = str(result.output)
         return HookResult(
