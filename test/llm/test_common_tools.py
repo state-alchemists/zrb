@@ -16,7 +16,11 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.common_tools import apply_common_tools, tool_name
+from zrb.llm.common_tools import (
+    DEFAULT_AUTO_APPROVED_TOOLS,
+    apply_common_tools,
+    tool_name,
+)
 from zrb.llm.permission import Capability, tool_capability
 
 
@@ -120,7 +124,7 @@ def test_memory_tools_carry_capabilities(monkeypatch):
 
 def test_apply_stores_providers_without_resolving_anything(monkeypatch):
     """`apply_common_tools` is storage-only: it appends per-run providers and
-    the shell-safety policy, but resolves none of the shipped tools.
+    the approval policies, but resolves none of the shipped tools.
 
     Nothing is handed to the host as a concrete tool at apply time — the
     provider appends are exactly the storage an agent build resolves later —
@@ -132,7 +136,8 @@ def test_apply_stores_providers_without_resolving_anything(monkeypatch):
     assert host.tools == []
     assert len(host.tool_factories) == 1
     assert len(host.toolset_factories) == 1
-    assert len(host.policies) == 1
+    # The shell-safety policy, and the dry-run half of `LspRenameSymbol`.
+    assert len(host.policies) == 2
     # Resolution is the host's build step, not apply's — and it materializes
     # the full shipped set, scoped by config.
     assert {"Read", "Write", "Grep"} <= host.resolved_tool_names()
@@ -164,7 +169,8 @@ def test_shell_safety_policy_ships_with_the_shell_tools(monkeypatch):
     """
     host = RecordingHost()
     apply_common_tools(host)
-    assert len(host.policies) == 1
+    # The shell-safety policy, and the dry-run half of `LspRenameSymbol`.
+    assert len(host.policies) == 2
 
 
 def test_hosts_without_an_approval_channel_are_skipped(monkeypatch):
@@ -241,3 +247,44 @@ def test_every_registered_tool_parameter_carries_a_description(monkeypatch):
             if not spec.get("description")
         )
     assert not gaps, f"Tool parameters with no schema description: {gaps}"
+
+
+def test_the_approval_defaults_travel_with_the_tool_surface(monkeypatch):
+    """A host with no policy list of its own still gets the approval defaults.
+
+    `LLMTask` and `SubAgentManager` have no `prepend_tool_policy`, so a default
+    that lived only in a runner's policy list would leave them — and the memory
+    reviewer's own agent — asking a question nobody is there to answer. The
+    registry is process-wide and the cascade reads it in every runner.
+    """
+    registered: list[str] = []
+    monkeypatch.setattr(
+        "zrb.llm.common_tools.register_default_auto_approve",
+        lambda *names: registered.extend(names),
+    )
+    apply_common_tools(RecordingHost())
+    assert set(registered) == set(DEFAULT_AUTO_APPROVED_TOOLS)
+    assert MEMORY_TOOLS <= set(registered)
+
+
+@pytest.mark.asyncio
+async def test_a_rename_dry_run_is_approved_and_a_real_rename_is_not():
+    from unittest.mock import AsyncMock, MagicMock
+
+    host = RecordingHost()
+    apply_common_tools(host)
+    call = MagicMock()
+    call.tool_name = "LspRenameSymbol"
+    next_handler = AsyncMock(return_value="asked")
+
+    call.args = {"dry_run": True, "new_name": "renamed"}
+    dry_run_verdicts = [
+        await policy(MagicMock(), call, next_handler) for policy in host.policies
+    ]
+    assert any(verdict != "asked" for verdict in dry_run_verdicts)
+
+    call.args = {"new_name": "renamed"}
+    rename_verdicts = [
+        await policy(MagicMock(), call, next_handler) for policy in host.policies
+    ]
+    assert all(verdict == "asked" for verdict in rename_verdicts)

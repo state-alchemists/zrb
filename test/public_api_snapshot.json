@@ -96,6 +96,7 @@
     "model_resolver",
     "prompt_registry",
     "register_always_auto_approve",
+    "register_default_auto_approve",
     "register_theme",
     "skill_manager",
     "skill_registry",
@@ -2057,6 +2058,9 @@
       "alias:KEYWORD_ONLY:1"
     ],
     "register_always_auto_approve": [
+      "tool_names:VAR_POSITIONAL:0"
+    ],
+    "register_default_auto_approve": [
       "tool_names:VAR_POSITIONAL:0"
     ],
     "register_theme": [

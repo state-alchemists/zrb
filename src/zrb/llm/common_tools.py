@@ -25,6 +25,8 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_interactive_mode
 from zrb.llm.permission import Capability, tag
+from zrb.llm.tool_call.always_approve import register_default_auto_approve
+from zrb.llm.tool_call.tool_policy.auto_approve import auto_approve
 from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 from zrb.llm.tool_registry import tool_name, tool_registry
 from zrb.llm.util.git import is_inside_git_dir
@@ -47,19 +49,52 @@ class CommonToolHost(Protocol):
     ) -> None: ...
 
 
+# Tools the harness approves without asking, unless a permission rule says
+# otherwise (`register_default_auto_approve`: a user's `ask` or `deny` still
+# wins). Each one's blast radius is already bounded, so its prompt was friction
+# rather than a decision:
+#   - the memory verbs write inside `LLM_MEMORY_DIR` only, through validation a
+#     raw `Write` would skip, and commit to that store's own git;
+#   - `ReadToolResult` re-reads output the user already approved producing;
+#   - `SendMessageTo*` speaks into a sub-agent conversation already opened;
+#   - `EnterWorktree` creates an isolated tree; `ExitWorktree`, which deletes
+#     one and can drop its branch, is the destructive half and still asks.
+DEFAULT_AUTO_APPROVED_TOOLS = (
+    "SearchMemory",
+    "Remember",
+    "Forget",
+    "ReadToolResult",
+    "SendMessageToSubagent",
+    "SendMessageToParent",
+    "EnterWorktree",
+)
+
+
+def _is_rename_dry_run(args: dict[str, object]) -> bool:
+    """Whether an `LspRenameSymbol` call only reports what it would change."""
+    return args.get("dry_run") is True
+
+
 def apply_common_tools(host: CommonToolHost) -> None:
     """Give *host* the zrb-shipped tools, factories, and shell-safety policy.
 
     Storage only (safe at construction, no heavy import); call once per host.
     ``SubAgentManager`` filters the result by each sub-agent's ``tools:`` list.
+
+    The approval defaults registered here live in a process-wide set the cascade
+    reads, so they hold for every runner — including the ones (``LLMTask``,
+    ``SubAgentManager``) whose host has no policy list to append to.
     """
     host.append_tool_factory(_common_tools_provider)
     host.append_toolset_factory(_common_toolsets_provider)
+    register_default_auto_approve(*DEFAULT_AUTO_APPROVED_TOOLS)
     # Read-only git subcommands auto-approve. Hosts without an approval channel
     # (LLMTask, SubAgentManager) have no prepend_tool_policy.
     add_policy = getattr(host, "prepend_tool_policy", None)
     if callable(add_policy):
         add_policy(bash_safe_command_policy())
+        # A rename dry run only reports; the real rename still asks.
+        add_policy(auto_approve("LspRenameSymbol", _is_rename_dry_run))
 
 
 def _common_tools_provider(
