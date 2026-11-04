@@ -1,3 +1,4 @@
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import datetime
@@ -7,7 +8,7 @@ from zrb.config.config import CFG
 from zrb.config.helper import get_max_token_threshold
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import create_conversational_summarizer_agent
-from zrb.llm.agent_state import get_current_model
+from zrb.llm.agent_state import get_current_model, get_current_ui
 from zrb.llm.config.limiter import LLMLimiter, is_pinned
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.message import (
@@ -36,6 +37,7 @@ from zrb.llm.summarizer.verbatim_archive import (
     conversation_key,
     verbatim_archive_path,
 )
+from zrb.llm.usage_log import KIND_SUMMARIZATION, UsageTotals, record_totals
 from zrb.util.cli.style import stylize_error, stylize_warning
 from zrb.util.markdown import make_markdown_section
 
@@ -317,6 +319,10 @@ async def summarize_history(
     output rather than the summary of it; it is used only when it lines up with
     `messages`.
     """
+    # The compaction's own charge, written once it is over: the calls happen at
+    # the leaves of this call tree and nothing else in a run ever sees them.
+    spent = UsageTotals()
+    started_at = time.monotonic()
     try:
         llm_limiter = limiter or default_llm_limiter
         if conversational_token_threshold is None:
@@ -360,6 +366,7 @@ async def summarize_history(
             llm_limiter,
             conversational_token_threshold,
             archive_path=archive_path,
+            spent=spent,
         )
         if fitted is None:
             # Nothing fits the cap; _build_summary_parts said so.
@@ -425,6 +432,57 @@ async def summarize_history(
     except Exception as e:
         zrb_print(stylize_error(f"  Error in summarize_history: {e}"), plain=True)
         return messages
+    finally:
+        # Whatever the outcome, the calls were paid for: the summarizer reads the
+        # whole conversation before the cap can reject the result.
+        _record_compaction(spent, session_name, messages, started_at)
+
+
+def _record_compaction(
+    spent: UsageTotals,
+    session_name: "str | Callable[[], str | None] | None",
+    messages: "list[ModelMessage]",
+    started_at: float,
+) -> None:
+    """Write what this compaction cost, when it called the model at all.
+
+    One line per compaction rather than one per call: the per-chunk calls are
+    zrb's own way of fitting a history into a budget, and the question the line
+    answers is what replacing that history cost. `record_totals` writes nothing
+    for a compaction that never reached the model, which is the case for a
+    history under the threshold and for one whose split left nothing to replace.
+    """
+    record_totals(
+        spent,
+        session=_usage_session(session_name, messages),
+        kind=KIND_SUMMARIZATION,
+        duration_ms=int((time.monotonic() - started_at) * 1000),
+    )
+
+
+def _usage_session(
+    session_name: "str | Callable[[], str | None] | None",
+    messages: "list[ModelMessage] | None",
+) -> str:
+    """The conversation a compaction's spend belongs to.
+
+    Normally the run's own UI answers, which is what makes a delegated
+    sub-agent's compaction land on the conversation that paid for it: its
+    `BufferedUI` reports its parent's name. `/compress` runs before any run binds
+    a UI and falls back to the name the caller passed.
+
+    *session_name* cannot answer on its own, because it doubles as the verbatim
+    archive's key: a delegation keys its archive per sub-agent on purpose, and
+    the spend is still the parent conversation's.
+    """
+    ui = get_current_ui()
+    name = getattr(ui, "conversation_session_name", "") if ui is not None else ""
+    if name:
+        return name
+    # A caller can hand this function nothing to name the conversation by, and
+    # accounting must not be the thing that raises into a turn.
+    usable = messages if isinstance(messages, list) else []
+    return _resolve_session_name(session_name, usable)
 
 
 def _print_split(
@@ -576,6 +634,7 @@ async def _build_summary_parts(
     llm_limiter: "LLMLimiter",
     conversational_token_threshold: int,
     archive_path: str | None = None,
+    spent: "UsageTotals | None" = None,
 ) -> "_FittedSummary | None":
     """Summarize the whole conversation, capping it and re-seeding the memory.
 
@@ -594,6 +653,7 @@ async def _build_summary_parts(
         llm_limiter,
         conversational_token_threshold,
         include_last_user_intent_instruction=True,
+        spent=spent,
     )
     has_multiple_snapshots = summary_text.count("<state_snapshot>") > 1
     is_near_threshold = llm_limiter.count_tokens(summary_text) > (
@@ -606,6 +666,7 @@ async def _build_summary_parts(
             conversational_token_threshold,
             has_multiple_snapshots,
             limiter=llm_limiter,
+            spent=spent,
         )
     if not summary_text.strip():
         return _FittedSummary(model_text="", carried_block="", archive_note="")
@@ -642,6 +703,7 @@ async def _build_summary_parts(
         cap,
         carried_block,
         archive_note,
+        spent=spent,
     )
     block = _render_summary_content(summary_text, carried_block, archive_note)
     if cap > 0 and llm_limiter.count_tokens(block) > cap:
@@ -760,6 +822,7 @@ async def _fit_summary_block(
     cap: int,
     carried_block: str,
     archive_note: str,
+    spent: "UsageTotals | None" = None,
 ) -> str:
     """The model's part of the block, shrunk until the whole block fits the cap.
 
@@ -791,7 +854,12 @@ async def _fit_summary_block(
             plain=True,
         )
         model_text = await _shorten_summary(
-            model_text, agent, limiter, conversational_token_threshold, cap - overhead
+            model_text,
+            agent,
+            limiter,
+            conversational_token_threshold,
+            cap - overhead,
+            spent,
         )
     if size(model_text) > cap:
         zrb_print(
@@ -857,6 +925,7 @@ async def _shorten_summary(
     limiter: "LLMLimiter",
     conversational_token_threshold: int,
     cap: int,
+    spent: "UsageTotals | None" = None,
 ) -> str:
     """Ask the summarizer for the same snapshot in fewer than *cap* tokens."""
     prompt = (
@@ -868,7 +937,7 @@ async def _shorten_summary(
         f"{summary_text}"
     )
     shortened = await summarize_text_plain(
-        prompt, agent, limiter, conversational_token_threshold
+        prompt, agent, limiter, conversational_token_threshold, spent
     )
     return shortened.strip() or summary_text
 

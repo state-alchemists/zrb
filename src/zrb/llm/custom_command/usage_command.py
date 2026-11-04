@@ -3,7 +3,9 @@
 Reads the local usage log (`zrb.llm.usage_log`) rather than asking a provider,
 the way Claude Code's own `/usage` is computed from local session history. The
 numbers are pydantic-ai's, recorded at the end of each run: tokens, prompt-cache
-reads, request and tool-call counts, and a cost when the model is priced.
+reads, request and tool-call counts, and a cost when the model is priced. A
+compaction writes a line of its own (`summarization`), so the summarizer's spend
+is reported beside the turns instead of disappearing into them.
 
 No argument means every recorded run, not just this conversation — "what have I
 spent" is asked far more often than "what did this conversation spend", and
@@ -24,7 +26,7 @@ from zrb.llm.custom_command.usage_command_tools import (
     get_registered_tool_names,
     render_tools_section,
 )
-from zrb.llm.usage_log import UsageRecord, read_records
+from zrb.llm.usage_log import KIND_SUMMARIZATION, UsageRecord, read_records
 from zrb.util.string.name import get_conversation_key
 
 if TYPE_CHECKING:
@@ -62,10 +64,18 @@ def create_usage_commands() -> list[AnyCustomCommand]:
                 "(default: every recorded run)"
             ),
             can_run_while_thinking=True,
+            complete_arg=_complete_period,
             panel_title="Usage",
         )
         for alias in aliases
     ]
+
+
+def _complete_period(arg_prefix: str) -> list[str]:
+    """The periods that start with what has been typed, so `/usage <tab>` lists
+    them instead of silently offering nothing."""
+    prefix = arg_prefix.strip().lower()
+    return [period for period in PERIODS if period.startswith(prefix)]
 
 
 def render_usage(
@@ -73,26 +83,34 @@ def render_usage(
     label: str,
     registered_tools: list[str] | None = None,
 ) -> str:
-    """The body for one window: its label, the table, the footer, then the Tools
-    and Memory sections when each has data for it.
+    """The body for one window: its label, the table, the footer, then the
+    Compaction, Tools and Memory sections when each has data for it.
 
     The panel draws the title, so the body opens with the window it covers
     rather than repeating the word "Usage". A window with no runs still reports
     the store: the table describes runs, and the store needs none to exist.
+
+    Compaction lines stay out of the table and the footer. A compaction is not a
+    turn: it is a separate charge, it is often carried by the small model
+    `/model small` set, and it reads a prompt cache the turns had already left
+    cold — counted in the per-model rows it would change what the cache share and
+    the run count mean. It gets its own section, with the table's own columns.
+    A record whose kind this version does not know stays in the turn totals:
+    tokens the user paid for are worse lost than filed one section too wide.
     """
-    memory = render_memory_section(records)
+    turns = [record for record in records if record.kind != KIND_SUMMARIZATION]
+    memory = render_memory_section(turns)
     if not records:
         return _no_usage(label, memory)
-    sections = [
-        f"  {label}",
-        "",
-        _table(records),
-        "",
-        *_footer(records),
-    ]
+    sections = [f"  {label}", ""]
+    if turns:
+        sections.extend([_table(turns), "", *_footer(turns)])
+    else:
+        sections.append("  No turn recorded for this window.")
     for extra in (
+        _compaction_section(records),
         render_tools_section(
-            records,
+            turns,
             (
                 get_registered_tool_names()
                 if registered_tools is None
@@ -104,6 +122,29 @@ def render_usage(
         if extra:
             sections.extend(["", *extra])
     return "\n".join(sections)
+
+
+def _compaction_section(records: list[UsageRecord]) -> list[str]:
+    """The Compaction section: the table's columns, over the compacting runs only.
+
+    Its own total, not a share of the table's: what the summarizer read is what
+    the conversation cost to keep, and a user asking whether compaction is
+    expensive wants that number beside the turn total, not buried in it. No
+    header row — the table above already named these columns, and a second one
+    under the heading only repeats it.
+    """
+    compactions = [record for record in records if record.kind == KIND_SUMMARIZATION]
+    if not compactions:
+        return []
+    grouped = _group_by_model(compactions)
+    ordered = sorted(grouped.items(), key=lambda item: -_total(item[1], _INPUT))
+    wall_time = sum(record.duration_ms for record in compactions)
+    return [
+        "  Compaction",
+        *(f"    {_row(model, runs)}" for model, runs in ordered),
+        f"    {len(compactions)} compaction(s) · {_duration(wall_time)} of wall "
+        "time · not counted in the table above",
+    ]
 
 
 def _no_usage(label: str, memory: list[str]) -> str:
@@ -180,13 +221,14 @@ def _table(records: list[UsageRecord]) -> str:
         f"  {'model':<{_MODEL_WIDTH}}{'runs':>6}{'input':>10}"
         f"{'output':>10}{'cache read':>12}{'cost':>10}"
     ]
-    rows.extend(_row(model, runs) for model, runs in ordered)
+    rows.extend(f"  {_row(model, runs)}" for model, runs in ordered)
     return "\n".join(rows)
 
 
 def _row(model: str, runs: list[UsageRecord]) -> str:
+    """One table row, without its indent: the table owns two spaces, a section four."""
     return (
-        f"  {_ellipsize(model):<{_MODEL_WIDTH}}"
+        f"{_ellipsize(model):<{_MODEL_WIDTH}}"
         f"{len(runs):>6}"
         f"{_tokens(_total(runs, _INPUT)):>10}"
         f"{_tokens(_total(runs, _OUTPUT)):>10}"

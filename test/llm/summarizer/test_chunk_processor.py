@@ -64,7 +64,7 @@ def _recording_summarizer(monkeypatch) -> list[str]:
     "Patch the summarizer seam and collect the text of every chunk it saw."
     sent: list[str] = []
 
-    async def fake_summarize(text, agent, limiter, threshold):
+    async def fake_summarize(text, agent, limiter, threshold, spent=None):
         sent.append(text)
         return "summary"
 

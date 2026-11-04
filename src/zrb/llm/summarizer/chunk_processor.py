@@ -6,6 +6,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
+from zrb.llm.usage_log import UsageTotals
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_error, stylize_warning
 
@@ -16,6 +17,7 @@ async def chunk_and_summarize(
     limiter: "LLMLimiter",
     token_threshold: int,
     include_last_user_intent_instruction: bool = False,
+    spent: "UsageTotals | None" = None,
 ) -> str:
     """Break history into chunks and summarize them in parallel."""
     history_texts = []
@@ -72,7 +74,7 @@ async def chunk_and_summarize(
                 "so the next agent knows exactly what to do."
             )
         return await summarize_text_plain(
-            chunk_content, agent, limiter, token_threshold
+            chunk_content, agent, limiter, token_threshold, spent
         )
 
     # Run all chunks concurrently; preserve order via index
@@ -100,6 +102,7 @@ async def consolidate_summaries(
     conversational_token_threshold: int,
     has_multiple_snapshots: bool,
     limiter: "LLMLimiter | None" = None,
+    spent: "UsageTotals | None" = None,
 ) -> str:
     if has_multiple_snapshots:
         zrb_print(stylize_warning("  Consolidating multiple snapshots..."), plain=True)
@@ -122,5 +125,5 @@ async def consolidate_summaries(
         f"{summary_text}"
     )
     return await summarize_text_plain(
-        prompt, agent, llm_limiter, conversational_token_threshold
+        prompt, agent, llm_limiter, conversational_token_threshold, spent
     )

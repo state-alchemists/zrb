@@ -8,17 +8,25 @@ from zrb.llm.agent.run.error_classifier import (
     is_retryable_error,
 )
 from zrb.llm.config.limiter import LLMLimiter
+from zrb.llm.usage_log import UsageTotals
 from zrb.util.cli.style import stylize_error
 
 
-async def _run_agent_with_retry(agent: Any, text: str) -> Any:
-    """Run ``agent.run(text)`` with retry for transient API errors (5xx, 429)."""
+async def _run_agent_with_retry(
+    agent: Any, text: str, spent: "UsageTotals | None" = None
+) -> Any:
+    """Run ``agent.run(text)`` with retry for transient API errors (5xx, 429).
+
+    *spent* is the compaction's running total, folded into whenever a call
+    comes back: a summarizer call is not a turn, so nothing in the run loop
+    ever sees it, and the numbers would otherwise be spent and forgotten.
+    """
     max_retries = CFG.LLM_API_MAX_RETRIES
     max_wait = CFG.LLM_API_MAX_WAIT
     last_error = None
     for attempt in range(max_retries + 1):
         try:
-            return await agent.run(text)
+            result = await agent.run(text)
         except Exception as e:
             last_error = e
             if attempt < max_retries and is_retryable_error(e):
@@ -31,14 +39,31 @@ async def _run_agent_with_retry(agent: Any, text: str) -> Any:
                     plain=True,
                 )
                 await asyncio.sleep(wait)
-            else:
-                raise
+                continue
+            raise
+        _add_spend(spent, result)
+        return result
     # Reached only when max_retries < 0, so last_error is None.
     raise last_error or RuntimeError("Summarization failed without an error")
 
 
+def _add_spend(spent: "UsageTotals | None", result: object) -> None:
+    """Fold one call's numbers into the compaction's total, when one is kept."""
+    if spent is None:
+        return
+    usage = getattr(result, "usage", None)
+    if usage is None:
+        return
+    model_name = getattr(getattr(result, "response", None), "model_name", "")
+    spent.add(usage, model=model_name if isinstance(model_name, str) else "")
+
+
 async def summarize_text_plain(
-    text: str, agent: Any, limiter: "LLMLimiter", threshold: int
+    text: str,
+    agent: Any,
+    limiter: "LLMLimiter",
+    threshold: int,
+    spent: "UsageTotals | None" = None,
 ) -> str:
     """Summarizes a long text into a plain summary, handling chunks if necessary."""
     if not isinstance(text, str):
@@ -50,15 +75,19 @@ async def summarize_text_plain(
         return "[Threshold too low for summarization]"
     text_tokens = limiter.count_tokens(text)
     if text_tokens <= threshold:
-        return await summarize_short_text(text, agent, limiter, threshold)
-    return await summarize_long_text(text, agent, limiter, threshold)
+        return await summarize_short_text(text, agent, limiter, threshold, spent)
+    return await summarize_long_text(text, agent, limiter, threshold, spent=spent)
 
 
 async def summarize_short_text(
-    text: str, agent: Any, limiter: LLMLimiter, threshold: int
+    text: str,
+    agent: Any,
+    limiter: LLMLimiter,
+    threshold: int,
+    spent: "UsageTotals | None" = None,
 ) -> str:
     try:
-        result = await _run_agent_with_retry(agent, text)
+        result = await _run_agent_with_retry(agent, text, spent)
         summary = _as_text(getattr(result, "output", ""))
         if limiter.count_tokens(summary) > threshold:
             summary = limiter.truncate_text(summary, threshold)
@@ -69,20 +98,25 @@ async def summarize_short_text(
 
 
 async def summarize_long_text(
-    text: str, agent: Any, limiter: LLMLimiter, threshold: int, depth: int = 0
+    text: str,
+    agent: Any,
+    limiter: LLMLimiter,
+    threshold: int,
+    depth: int = 0,
+    spent: "UsageTotals | None" = None,
 ) -> str:
     if depth > 5:
         return limiter.truncate_text(text, threshold)
     # Use 70% of threshold for chunks to leave room for consolidation
     chunk_limit = max(1, int(threshold * 0.7))
-    summaries = await _summarize_chunks(text, agent, limiter, chunk_limit)
+    summaries = await _summarize_chunks(text, agent, limiter, chunk_limit, spent)
     if not summaries:
         return "[No summary generated]"
     if len(summaries) == 1:
         final_summary = summaries[0]
     else:
         final_summary = await _consolidate(
-            summaries, text, agent, limiter, threshold, depth
+            summaries, text, agent, limiter, threshold, depth, spent
         )
     if limiter.count_tokens(final_summary) > threshold:
         return limiter.truncate_text(final_summary, threshold)
@@ -90,7 +124,11 @@ async def summarize_long_text(
 
 
 async def _summarize_chunks(
-    text: str, agent: Any, limiter: LLMLimiter, chunk_limit: int
+    text: str,
+    agent: Any,
+    limiter: LLMLimiter,
+    chunk_limit: int,
+    spent: "UsageTotals | None" = None,
 ) -> list[str]:
     """Summarize `text` one `chunk_limit`-sized piece at a time."""
     remaining_text = text
@@ -99,7 +137,7 @@ async def _summarize_chunks(
         chunk = limiter.truncate_text(remaining_text, chunk_limit)
         try:
             result = await _run_agent_with_retry(
-                agent, f"Summarize this part of a document:\n\n{chunk}"
+                agent, f"Summarize this part of a document:\n\n{chunk}", spent
             )
         except Exception as e:
             zrb_print(
@@ -122,6 +160,7 @@ async def _consolidate(
     limiter: LLMLimiter,
     threshold: int,
     depth: int,
+    spent: "UsageTotals | None" = None,
 ) -> str:
     """Fold the per-chunk summaries into one.
 
@@ -134,13 +173,14 @@ async def _consolidate(
         text
     ):
         return await summarize_long_text(
-            summaries_text, agent, limiter, threshold, depth + 1
+            summaries_text, agent, limiter, threshold, depth + 1, spent
         )
     try:
         consolidated = await _run_agent_with_retry(
             agent,
             "Consolidate these partial summaries into a single, cohesive "
             f"summary:\n\n{summaries_text}",
+            spent,
         )
     except Exception as e:
         zrb_print(stylize_error(f"  Error during consolidation: {e}"), plain=True)

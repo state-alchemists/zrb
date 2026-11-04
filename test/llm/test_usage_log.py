@@ -14,7 +14,15 @@ from zrb.config.config import CFG
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.history_manager.conversation_naming import with_slug
-from zrb.llm.usage_log import read_records, record_usage, usage_store_path
+from zrb.llm.ui.buffered_ui import BufferedUI
+from zrb.llm.usage_log import (
+    KIND_SUMMARIZATION,
+    UsageTotals,
+    read_records,
+    record_totals,
+    record_usage,
+    usage_store_path,
+)
 from zrb.util.string.name import get_conversation_key, get_random_name
 
 JANUARY = datetime(2026, 1, 15, 9, 30, tzinfo=timezone.utc)
@@ -334,3 +342,67 @@ async def test_the_session_name_comes_from_the_ui(usage_dir):
 
     (record,) = read_records()
     assert record.session == "calm-gate"
+
+
+@pytest.mark.asyncio
+async def test_a_delegated_run_is_filed_under_the_conversation(usage_dir):
+    """A sub-agent runs behind a buffer, and the buffer reports the conversation
+    that delegated to it — otherwise a fan-out's tokens belong to no session at
+    all and `/usage session` under-reports the chat that paid for them."""
+    result = MagicMock()
+    result.output = "done"
+    result.all_messages.return_value = []
+    result.usage = RunUsage(input_tokens=40, requests=1)
+    result.response.model_name = "test-model"
+    agent = MagicMock()
+    agent.run = _fake_run_from(result)
+    parent = MagicMock()
+    parent.conversation_session_name = "calm-gate"
+
+    await run_agent(
+        agent=agent,
+        message="Hi",
+        message_history=[],
+        limiter=LLMLimiter(),
+        ui=BufferedUI(parent),
+    )
+
+    (record,) = read_records()
+    assert record.session == "calm-gate"
+
+
+def test_totals_add_up_what_one_event_spent(usage_dir):
+    """A compaction is one event made of several calls, reported as one number."""
+    totals = UsageTotals()
+    totals.add(RunUsage(input_tokens=600, output_tokens=10, requests=1), model="a")
+    totals.add(RunUsage(input_tokens=400, output_tokens=5, requests=1), model="a")
+
+    record = record_totals(totals, kind=KIND_SUMMARIZATION, when=JANUARY)
+
+    assert record is not None
+    assert (record.input_tokens, record.output_tokens, record.requests) == (
+        1000,
+        15,
+        2,
+    )
+    assert record.model == "a"
+    assert record.kind == KIND_SUMMARIZATION
+
+
+def test_a_cost_no_call_reported_is_unknown_not_zero(usage_dir):
+    """One priced call leaves the total known; a priced and an unpriced one leave
+    it the priced part, which is what the record can honestly claim."""
+    totals = UsageTotals()
+    totals.add(RunUsage(input_tokens=10, requests=1, cost=0.30), model="a")
+    totals.add(RunUsage(input_tokens=10, requests=1), model="a")
+
+    record = record_totals(totals, when=JANUARY)
+
+    assert record is not None
+    assert record.cost == pytest.approx(0.30)
+
+
+def test_a_total_that_reached_no_model_is_not_recorded(usage_dir):
+    assert record_totals(UsageTotals(), when=JANUARY) is None
+    assert read_records() == []
+

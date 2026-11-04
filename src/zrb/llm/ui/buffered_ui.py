@@ -49,6 +49,8 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         self._agent_id: str | None = None
         # Scopes activity-panel updates so sessions don't bleed into each other.
         self._session_id = session_id
+        # Empty means "the conversation my parent belongs to" (see the property).
+        self._own_session_name: str = ""
         self._lock = shared_lock if shared_lock is not None else asyncio.Lock()
 
     def set_activity_id(self, agent_id: str) -> None:
@@ -83,6 +85,26 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
     def is_local(self) -> bool:
         """Whether the wrapped UI's user sits at this machine."""
         return self._wrapped.is_local
+
+    @property
+    def conversation_session_name(self) -> str:
+        """The conversation this sub-agent belongs to: its parent's, not its own.
+
+        A delegated run is spend on the conversation that asked for it, and
+        `/usage session` files a run by this name; the sub-agent's transcript
+        name identifies a transcript, and a buffer of its own has none. Reading
+        it through is what keeps a fan-out's tokens in the total of the chat that
+        paid for them.
+
+        A name set on the buffer itself wins, so a caller that wants one can have
+        it, and setting it never reaches the parent: this is a buffer, and a
+        write here must not rename the conversation behind it.
+        """
+        return self._own_session_name or self._wrapped.conversation_session_name
+
+    @conversation_session_name.setter
+    def conversation_session_name(self, value: str) -> None:
+        self._own_session_name = value
 
     async def ask_user(
         self,

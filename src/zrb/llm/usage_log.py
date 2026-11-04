@@ -45,6 +45,13 @@ _INT_FIELDS = (
 _FAILED_OUTCOMES = ("failed", "retried")
 # Record field -> `RunUsage` attribute, where the two names differ.
 _USAGE_ATTR = {"reasoning_tokens": "output_reasoning_tokens"}
+# What kind of work a line accounts for. A record of an unknown kind still counts
+# as a turn: a reader that drops what it does not recognise would lose tokens the
+# user paid for, which is worse than filing them one section too wide.
+KIND_TURN = "turn"
+"""One agent round: what a conversation's turn consumed."""
+KIND_SUMMARIZATION = "summarization"
+"""One compaction: what replacing a history with a summary consumed."""
 
 
 def record_to_dict(record: "UsageRecord") -> dict[str, object]:
@@ -140,12 +147,52 @@ def store_path(prefix: str, when: datetime, directory: str | None = None) -> str
     return os.path.join(base, f"{prefix}{when.strftime(_MONTH_FORMAT)}{_FILE_SUFFIX}")
 
 
+class UsageTotals:
+    """Counts added up over several model calls, and the cost that came with them.
+
+    A compaction is one charge made of a handful of calls — one per chunk, the
+    consolidation when there are several, a shortening attempt when the snapshot
+    runs long — and `/usage` reports the event, so the calls are added here
+    before a line is written. `cost` stays ``None`` until a call reports one: an
+    unpriced total is unknown, never free.
+
+    Mutable on purpose. The calls happen at the leaves of the summarizer's call
+    tree, and handing a return value back up through every level would change
+    six signatures to carry one number.
+    """
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cache_read_tokens: int = 0
+    cache_write_tokens: int = 0
+    reasoning_tokens: int = 0
+    requests: int = 0
+    tool_calls: int = 0
+    unmeasured_requests: int = 0
+    cost: float | None = None
+    model: str = ""
+
+    def add(self, usage: RunUsage, model: str = "") -> None:
+        """Fold one call's numbers in."""
+        for name in _INT_FIELDS:
+            setattr(
+                self,
+                name,
+                getattr(self, name) + _count_of(usage, _USAGE_ATTR.get(name, name)),
+            )
+        cost = _cost_of(usage)
+        if cost is not None:
+            self.cost = cost if self.cost is None else self.cost + cost
+        if model:
+            self.model = model
+
+
 def record_usage(
     usage: RunUsage,
     *,
     model: str,
     session: str = "",
-    kind: str = "turn",
+    kind: str = KIND_TURN,
     duration_ms: int = 0,
     when: datetime | None = None,
     tool_counts: dict[str, int] | None = None,
@@ -157,21 +204,49 @@ def record_usage(
     written — a full disk or a read-only home must not fail the turn that
     produced the numbers.
     """
-    timestamp = when if when is not None else datetime.now(timezone.utc)
-    if _is_empty(usage):
-        return None
-    record = UsageRecord(
-        timestamp=timestamp,
-        model=model,
+    totals = UsageTotals()
+    totals.add(usage, model=model)
+    return record_totals(
+        totals,
         session=session,
         kind=kind,
         duration_ms=duration_ms,
-        cost=_cost_of(usage),
+        when=when,
+        tool_counts=tool_counts,
+        tool_errors=tool_errors,
+    )
+
+
+def record_totals(
+    totals: UsageTotals,
+    *,
+    session: str = "",
+    kind: str = KIND_TURN,
+    duration_ms: int = 0,
+    when: datetime | None = None,
+    tool_counts: dict[str, int] | None = None,
+    tool_errors: dict[str, int] | None = None,
+) -> UsageRecord | None:
+    """Append one line for *totals*, under the same contract as `record_usage`."""
+    if _is_empty(totals):
+        return None
+    record = UsageRecord(
+        timestamp=when if when is not None else datetime.now(timezone.utc),
+        model=totals.model,
+        session=session,
+        kind=kind,
+        duration_ms=duration_ms,
+        cost=totals.cost,
         tool_counts=dict(tool_counts or {}),
         tool_errors=dict(tool_errors or {}),
-        **{name: _count_of(usage, _USAGE_ATTR.get(name, name)) for name in _INT_FIELDS},
+        **{name: getattr(totals, name) for name in _INT_FIELDS},
     )
-    path = usage_store_path(timestamp)
+    return _write_record(record)
+
+
+def _write_record(record: UsageRecord) -> UsageRecord | None:
+    """Append *record* to its month file, or ``None`` when the file system refused it."""
+    path = usage_store_path(record.timestamp)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "a", encoding="utf-8") as handle:
@@ -351,7 +426,7 @@ def count_tool_calls(
     return calls, errors
 
 
-def _is_empty(usage: RunUsage) -> bool:
+def _is_empty(usage: "RunUsage | UsageTotals") -> bool:
     """True when the run reported nothing at all — no request, no tokens.
 
     A provider that answers without usage data still reports the request; a
@@ -366,7 +441,7 @@ def _is_empty(usage: RunUsage) -> bool:
     )
 
 
-def _count_of(usage: RunUsage, name: str) -> int:
+def _count_of(usage: "RunUsage | UsageTotals", name: str) -> int:
     """One integer field of *usage*, or 0 where the provider reported none."""
     value = getattr(usage, name, 0)
     return int(value) if isinstance(value, (int, float)) else 0

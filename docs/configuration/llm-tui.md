@@ -46,7 +46,7 @@ Customize the tokens that trigger built-in UI commands. Each value is a **comma-
 | `ZRB_LLM_UI_COMMAND_SET` | `<cmd> <name> <value>` — set a config value for the rest of the process (`/set LLM_SHOW_TOOL_CALL_RESULT on`), or switch a model slot live (`/set model`, `/set small_model`, `/set multimodal_model`) | `/set` |
 | `ZRB_LLM_UI_COMMAND_SET_MODEL` | Switch the model mid-session | `/model` |
 | `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
-| `ZRB_LLM_UI_COMMAND_USAGE` | `<cmd> [session\|today\|week\|all]` — show what the session, the day or the week consumed: tokens, prompt-cache hits and cost where the model is priced, then a Tools section and a Memory section (the store's core occupancy, facts and diary days, and this window's memory reads and writes) | `/usage` |
+| `ZRB_LLM_UI_COMMAND_USAGE` | `<cmd> [session\|today\|week\|all]` — show what the session, the day or the week consumed: tokens, prompt-cache hits and cost where the model is priced, then a Compaction section (what replacing the history with a summary cost, kept out of the turn rows) and a Tools section and a Memory section (the store's core occupancy, facts and diary days, and this window's memory reads and writes) | `/usage` |
 | `ZRB_LLM_UI_COMMAND_VOLUME` | `<cmd> +++` raises the speech volume three steps, `<cmd> --` lowers it two; bare `<cmd>` reports the level | `/volume` |
 | `ZRB_LLM_UI_COMMAND_YOLO_TOGGLE` | Toggle auto-approval of tool calls | `/yolo` |
 
