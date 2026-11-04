@@ -9,6 +9,7 @@ import queue
 import threading
 import time
 from collections.abc import Callable
+from contextlib import ExitStack
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
@@ -42,6 +43,10 @@ _playing_count = 0
 # Lock file reference counts for live speakers.
 _lock_files: dict[str, int] = {}
 _STALE_POLL_SECONDS = 0.1
+# How often a sentence waiting for another session to finish speaking looks at
+# whether it still matters: short enough that an interrupt is obeyed at once,
+# long enough to cost nothing while the wait lasts minutes.
+_WAIT_POLL_SECONDS = 0.25
 _PLAYERS = ("auto", "command")
 # How long an output device that failed to open is left alone before a sentence
 # tries it again: changing the output device fails the open while the system
@@ -330,7 +335,7 @@ class Speaker:
         generation = self._generation
         utterance = self._prepare(text, is_stale)
         if utterance is not None:
-            self._play_prepared(utterance, is_stale, generation)
+            self._play_prepared((utterance, is_stale, generation, True))
 
     def _prepare(self, text: str, is_stale: "IsStale") -> Utterance | None:
         if not text.strip() or (is_stale is not None and is_stale()):
@@ -338,12 +343,15 @@ class Speaker:
         return self._create_with_fallback(text)
 
     def _play_prepared(
-        self,
-        utterance: Utterance,
-        is_stale: "IsStale",
-        generation: int,
-        cut_when_stale: bool = True,
+        self, entry: "_ReadySpeech", waits: "Callable[[], bool] | None" = None
     ) -> None:
+        """Play a made sentence, holding the device while it plays.
+
+        *waits* is what the queued path hands to `play()`: the lock waits for
+        this sentence's turn and is given up the moment it stops mattering. The
+        synchronous caller passes none and keeps `lock_timeout`.
+        """
+        utterance, is_stale, generation, cut_when_stale = entry
         with self._lock:
             # Wait while paused unless this utterance was invalidated.
             while (
@@ -370,7 +378,7 @@ class Speaker:
                 daemon=True,
             ).start()
         try:
-            play(utterance, self._config)
+            play(utterance, self._config, waits)
         finally:
             played.set()
             with self._lock:
@@ -739,17 +747,36 @@ class Speaker:
     def _play_ready(self) -> None:
         try:
             while (entry := self._ready.get()) is not None:
+                _utterance, is_stale, generation, _cut_when_stale = entry
                 try:
-                    self._play_prepared(*entry)
-                except FileLockTimeout:
-                    logger.warning(
-                        "Speech dropped: another session held the audio device"
+                    # The lock is waited for inside `play`, by the same act that
+                    # takes it: a look that says "free" can be undone by a third
+                    # session before the lock is reached, and that is how a
+                    # queued sentence used to be lost.
+                    self._play_prepared(
+                        entry, lambda: self._is_still_wanted(is_stale, generation)
                     )
                 except Exception as exc:
                     logger.warning(f"Speech failed: {exc}")
         finally:
             # The worker may close backends after this signal.
             self._player_finished.set()
+
+    def _is_still_wanted(self, is_stale: "IsStale", generation: int) -> bool:
+        """Whether this sentence is still the one this speaker would say.
+
+        Being closed is not the question: `drain()` closes the speaker — no new
+        sentence is taken — while letting what is already queued finish, and
+        that can include one waiting for another session. Being cut off is the
+        question. `close()` cuts off before it stops, and `drain()` cuts off
+        when its own timeout runs out.
+        """
+        with self._lock:
+            if self._is_cut_off or not self.is_enabled:
+                return False
+            if generation != self._generation:
+                return False
+        return is_stale is None or not is_stale()
 
     def close(self) -> None:
         """Stop playback and release the lock file."""
@@ -840,22 +867,63 @@ def _resolve_player(player: str | None) -> str:
     return "auto"
 
 
-def play(utterance: Utterance, config: SpeechConfig) -> None:
+def play(
+    utterance: Utterance,
+    config: SpeechConfig,
+    is_still_wanted: "Callable[[], bool] | None" = None,
+) -> None:
     """Play *utterance* while holding the resolved audio lock.
 
     Raises `FileLockTimeout` when another session holds the lock past
     *config.lock_timeout*, and whatever the utterance's player raises.
+
+    With *is_still_wanted*, the wait is a turn rather than a deadline: the lock
+    is tried in slices, for as long as another session takes, and given up the
+    moment *is_still_wanted* turns false. Looking at the lock and taking it are
+    then one act. A look that says "free" is not a promise — a third session can
+    take the device before the lock is reached — and waiting on the look alone
+    is how a queued sentence used to be lost. Only the taking is caught: a
+    `FileLockTimeout` out of the sentence's own player is the player's failure,
+    not another session, and is raised as it is.
     """
     lock_file = config.lock_file or CFG.LLM_SPEECH_LOCK_FILE
     lock_dir = os.path.dirname(lock_file)
     if lock_dir and not os.path.isdir(lock_dir):
         makedirs_owner_only(lock_dir)
-    with hold_file_lock(lock_file, timeout=config.lock_timeout):
-        _set_playing(+1)
-        try:
-            utterance.play(config.player_timeout or None)
-        finally:
-            _set_playing(-1)
+    if is_still_wanted is None:
+        with hold_file_lock(lock_file, timeout=config.lock_timeout):
+            _speak_under_the_lock(utterance, config)
+        return
+    announced = False
+    while True:
+        if not is_still_wanted():
+            # An interrupt, a newer turn, a narration line whose call has ended:
+            # this sentence belongs to a moment that has passed.
+            return
+        with ExitStack() as device:
+            try:
+                device.enter_context(hold_file_lock(lock_file, timeout=0))
+            except FileLockTimeout:
+                # Another session has the device: wait for the next turn.
+                pass
+            else:
+                _speak_under_the_lock(utterance, config)
+                return
+        if not announced:
+            logger.warning(
+                "Speech waits: another session is speaking, so this sentence "
+                "is read when that one finishes"
+            )
+            announced = True
+        time.sleep(_WAIT_POLL_SECONDS)
+
+
+def _speak_under_the_lock(utterance: Utterance, config: SpeechConfig) -> None:
+    _set_playing(+1)
+    try:
+        utterance.play(config.player_timeout or None)
+    finally:
+        _set_playing(-1)
 
 
 def _stop_when_stale(

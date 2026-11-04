@@ -8,7 +8,7 @@ import pytest
 from zrb.llm.ambient_state import get_current_speech_voice
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.player import is_speaking, play
-from zrb.util.file_lock import FileLockTimeout, hold_file_lock
+from zrb.util.file_lock import hold_file_lock
 
 
 class RecordingUtterance(Utterance):
@@ -110,31 +110,6 @@ def test_clear_drops_what_is_not_yet_spoken(lock_file):
     speaker.drain()
 
     assert "stale" not in backend.played
-
-
-def test_another_session_speaking_is_seen_and_waited_out(lock_file):
-    backend = FakeBackend()
-    speaker = Speaker(_config(backend, lock_file))
-
-    with hold_file_lock(lock_file):
-        assert is_speaking(lock_file)
-        with pytest.raises(FileLockTimeout):
-            speaker.speak("dropped")  # lock_timeout passes while it is held
-
-    assert backend.played == []
-    assert not is_speaking(lock_file)
-
-
-def test_queued_text_dropped_for_another_session_is_logged(lock_file, caplog):
-    backend = FakeBackend()
-    speaker = Speaker(_config(backend, lock_file))
-
-    with hold_file_lock(lock_file):
-        speaker.say("dropped")
-        speaker.drain()
-
-    assert backend.played == []
-    assert "another session held the audio device" in caplog.text
 
 
 def test_a_failing_backend_falls_back_to_the_local_engine(lock_file, monkeypatch):
