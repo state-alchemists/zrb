@@ -42,7 +42,9 @@ def test_the_reviewer_runs_on_a_completed_turn_with_the_three_tools():
 
 
 def test_a_heading_or_a_code_fence_is_not_the_first_sentence():
-    message = "# Outcome\n\n```python\nprint('x')\n```\n\nFixed the parser. All tests pass."
+    message = (
+        "# Outcome\n\n```python\nprint('x')\n```\n\nFixed the parser. All tests pass."
+    )
     assert _first_sentence(message) == "Fixed the parser"
 
 
@@ -128,7 +130,9 @@ async def test_the_turn_is_logged_even_when_the_reviewer_raises(store_dir):
     )
     with pytest.raises(RuntimeError):
         await _with_log_line(exploding)(context)
-    assert any("Did the thing anyway" in line for line in store.log_lines(store.today()))
+    assert any(
+        "Did the thing anyway" in line for line in store.log_lines(store.today())
+    )
 
 
 def test_the_reviewer_registers_while_memory_and_the_reviewer_are_on(monkeypatch):

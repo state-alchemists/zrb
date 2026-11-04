@@ -14,9 +14,7 @@ def _notes_dir_default(cfg) -> str:
     """`LLM_NOTES_DIR`: the configured value, else `~/.<root>/llm-notes`."""
     if cfg.DEFAULT_LLM_NOTES_DIR:
         return cfg.DEFAULT_LLM_NOTES_DIR
-    return os.path.expanduser(
-        os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-notes")
-    )
+    return os.path.expanduser(os.path.join("~", f".{cfg.ROOT_GROUP_NAME}", "llm-notes"))
 
 
 def _memory_dir_default(cfg) -> str:

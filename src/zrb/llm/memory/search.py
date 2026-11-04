@@ -20,7 +20,13 @@ from dataclasses import dataclass
 from datetime import date, datetime
 
 from zrb.llm.memory import paths, store
-from zrb.llm.memory.model import STATUS_RETIRED, Diary, Fact, injection_reason, parse_stamp
+from zrb.llm.memory.model import (
+    STATUS_RETIRED,
+    Diary,
+    Fact,
+    injection_reason,
+    parse_stamp,
+)
 
 ID_MATCH = 100
 CLAIM_TERM = 10
@@ -40,14 +46,12 @@ SCOPES = (SCOPE_FACTS, SCOPE_DIARY, SCOPE_LOG, SCOPE_ALL, SCOPE_RETIRED)
 
 # Words that say nothing about a subject. Dropped before matching, so "how do I
 # deploy" searches for `deploy` rather than for `how`.
-_STOP_WORDS = frozenset(
-    """
+_STOP_WORDS = frozenset("""
     a an and are as at be been but by can did do does for from had has have how
     i if in into is it its just me my not of on or our so than that the their
     them then there these they this to too was we were what when where which
     who why will with would you your
-    """.split()
-)
+    """.split())
 
 # A term shorter than this is a letter or a preposition fragment.
 _MIN_TERM_CHARS = 2
@@ -280,6 +284,8 @@ def _moment(value: str) -> float:
     if moment is not None:
         return moment.timestamp()
     try:
-        return datetime.combine(date.fromisoformat(value), datetime.min.time()).timestamp()
+        return datetime.combine(
+            date.fromisoformat(value), datetime.min.time()
+        ).timestamp()
     except ValueError:
         return 0.0

@@ -61,9 +61,7 @@ async def read_file(
         return await _read_image(path, abs_path, media_type)
 
     # Off the event loop, as the wrapper runs a sync tool.
-    return await asyncio.to_thread(
-        _read_text, path, abs_path, start_line, end_line
-    )
+    return await asyncio.to_thread(_read_text, path, abs_path, start_line, end_line)
 
 
 def _read_text(path: str, abs_path: str, start_line: int, end_line: int) -> str:

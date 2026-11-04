@@ -307,4 +307,3 @@ def test_the_period_completes(command):
     assert command.get_arg_completions("s") == ["session"]
     assert command.get_arg_completions("W") == ["week"]
     assert command.get_arg_completions("zz") == []
-

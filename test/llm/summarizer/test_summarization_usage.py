@@ -18,7 +18,9 @@ from zrb.llm.summarizer.history_summarizer import summarize_history
 from zrb.llm.ui.buffered_ui import BufferedUI
 from zrb.llm.usage_log import KIND_SUMMARIZATION, read_records
 
-_TWO_SNAPSHOTS = "<state_snapshot>first</state_snapshot>\n<state_snapshot>second</state_snapshot>"
+_TWO_SNAPSHOTS = (
+    "<state_snapshot>first</state_snapshot>\n<state_snapshot>second</state_snapshot>"
+)
 _MERGED = "<state_snapshot>merged</state_snapshot>"
 _PER_CALL = RunUsage(input_tokens=1000, output_tokens=20, requests=1)
 
@@ -85,7 +87,9 @@ def usage_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(CFG, "LLM_USAGE_DIR", str(tmp_path / "usage"), raising=False)
     # A store that is not there: the memory block a summary carries must not
     # come from the developer's own machine.
-    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(tmp_path / "no-memory"), raising=False)
+    monkeypatch.setattr(
+        CFG, "LLM_MEMORY_DIR", str(tmp_path / "no-memory"), raising=False
+    )
     return tmp_path
 
 
@@ -160,7 +164,9 @@ async def test_a_history_that_needed_no_compaction_writes_nothing(usage_dir):
 
 
 @pytest.mark.asyncio
-async def test_a_compaction_that_produced_nothing_still_paid_for_what_it_read(usage_dir):
+async def test_a_compaction_that_produced_nothing_still_paid_for_what_it_read(
+    usage_dir,
+):
     """The summarizer reads the conversation before the answer can be rejected."""
     agent = _FakeAgent([""])
 

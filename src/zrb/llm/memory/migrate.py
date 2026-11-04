@@ -79,14 +79,14 @@ _WITHHELD_CLAIM = (
     "A migrated headline was withheld: its text reads as an instruction. "
     "Read the body."
 )
-_WITHHELD_HANDOVER = "A migrated handover was withheld: its text reads as an instruction."
+_WITHHELD_HANDOVER = (
+    "A migrated handover was withheld: its text reads as an instruction."
+)
 
 
 def migrate(journal_dir: str | None = None, dry_run: bool = False) -> dict[str, int]:
     """Copy *journal_dir* into the memory store. Returns what it wrote."""
-    source = os.path.abspath(
-        os.path.expanduser(journal_dir or paths.notes_dir())
-    )
+    source = os.path.abspath(os.path.expanduser(journal_dir or paths.notes_dir()))
     if not os.path.isdir(source):
         return {"facts": 0, "retired": 0, "diary": 0, "log_lines": 0}
     if dry_run:
@@ -339,7 +339,9 @@ def _migrate_log(source: str, dry_run: bool) -> dict[str, int]:
                 continue
             lines = [
                 line
-                for line in store.read_document(os.path.join(directory, name)).splitlines()
+                for line in store.read_document(
+                    os.path.join(directory, name)
+                ).splitlines()
                 if _LOG_LINE.match(line)
             ]
             if not lines:
@@ -507,7 +509,9 @@ def _is_date(value: str) -> bool:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Move a journal into the memory store.")
+    parser = argparse.ArgumentParser(
+        description="Move a journal into the memory store."
+    )
     parser.add_argument("--from", dest="source", default=None, help="journal directory")
     parser.add_argument("--dry-run", action="store_true", help="count, write nothing")
     arguments = parser.parse_args()

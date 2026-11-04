@@ -285,13 +285,9 @@ def test_a_loop_over_the_cap_is_demoted_so_the_core_fits(tmp_path, monkeypatch):
 
 def test_running_it_twice_writes_the_same_store(journal):
     migrate(str(journal))
-    before = {
-        fact.id: fact.claim for fact in store.load_facts(include_retired=True)
-    }
+    before = {fact.id: fact.claim for fact in store.load_facts(include_retired=True)}
     second = migrate(str(journal))
-    after = {
-        fact.id: fact.claim for fact in store.load_facts(include_retired=True)
-    }
+    after = {fact.id: fact.claim for fact in store.load_facts(include_retired=True)}
     assert second["facts"] == 0
     assert second["retired"] == 0
     assert second["diary"] == 0

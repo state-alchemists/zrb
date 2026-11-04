@@ -258,7 +258,9 @@ def _forget_locked(fact_id: str, reason: str) -> str:
             _restore_document(path, previous)
             raise
         store.git_commit(f"forget: {fact.id} ({reason})")
-        return f"Forgot {fact.id} ({reason}). The file stays; `scope='retired'` finds it."
+        return (
+            f"Forgot {fact.id} ({reason}). The file stays; `scope='retired'` finds it."
+        )
     entry = store.load_diary(fact_id)
     if entry is not None:
         problem = reason_error(reason, KIND_DIARY)
@@ -332,7 +334,9 @@ def _remember_fact_locked(
     # The read is inside the lock: two sessions revising one subject must not
     # each read the old claim.
     old = store.load_fact(fact_id, include_retired=True)
-    fact = _merged_fact(old, fact_id, claim, kind, pin, tags, applies_when, source, body)
+    fact = _merged_fact(
+        old, fact_id, claim, kind, pin, tags, applies_when, source, body
+    )
     fact.updated = store.now()
     active = _with_fact(fact)
     occupied = fact.pin or fact.kind == KIND_LOOP
@@ -430,7 +434,9 @@ def _over_core(fact: Fact, core: str) -> str:
 
 
 def _remembered(fact: Fact, core_chars: int) -> str:
-    where = "in the core" if fact.pin or fact.kind == KIND_LOOP else "reachable by search"
+    where = (
+        "in the core" if fact.pin or fact.kind == KIND_LOOP else "reachable by search"
+    )
     return (
         f"Remembered {fact.id} ({where}; core {core_chars}/"
         f"{CFG.LLM_MEMORY_CORE_MAX_CHARS} characters)."

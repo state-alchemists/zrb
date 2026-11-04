@@ -405,4 +405,3 @@ def test_a_cost_no_call_reported_is_unknown_not_zero(usage_dir):
 def test_a_total_that_reached_no_model_is_not_recorded(usage_dir):
     assert record_totals(UsageTotals(), when=JANUARY) is None
     assert read_records() == []
-

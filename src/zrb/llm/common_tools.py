@@ -186,8 +186,8 @@ def _seed_tool_factories() -> tuple[list, list]:
 
     # lazy: zrb.llm.tool.* transitively load pydantic_ai
     from zrb.llm.tool.ask import ask_user_question
-    from zrb.llm.tool.memory import forget, remember, search_memory
     from zrb.llm.tool.mcp import load_mcp_config
+    from zrb.llm.tool.memory import forget, remember, search_memory
     from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
     from zrb.llm.tool.shell_background import create_monitor_process_tool
     from zrb.llm.tool.skill import create_activate_skill_tool, create_search_skill_tool

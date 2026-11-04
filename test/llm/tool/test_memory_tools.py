@@ -221,7 +221,7 @@ def test_a_failed_write_is_reported_not_raised(store_dir, monkeypatch):
 
 def test_search_with_a_zero_limit_returns_nothing(store_dir):
     remember("x", "A deploy note.")
-    assert search_memory("deploy", limit=0) .startswith("No claim matches")
+    assert search_memory("deploy", limit=0).startswith("No claim matches")
 
 
 def test_a_diary_write_on_an_unwritable_store_answers(store_dir, monkeypatch):

@@ -158,13 +158,7 @@ def _checked_name(name: str) -> str:
     `.`/`..`, no NUL. Checking both separators on every platform is deliberate —
     a store written on Windows and read on Linux must refuse the same names.
     """
-    if (
-        not name
-        or name in (".", "..")
-        or "\x00" in name
-        or "/" in name
-        or "\\" in name
-    ):
+    if not name or name in (".", "..") or "\x00" in name or "/" in name or "\\" in name:
         raise ValueError(f"{name!r} is not a name the memory store can hold")
     return name
 

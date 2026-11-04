@@ -21,13 +21,6 @@ from datetime import date, datetime, timedelta
 
 from zrb.config.config import CFG
 from zrb.llm.memory import paths
-from zrb.llm.memory.paths import (
-    CORE_FILE,
-    DIARY_DIR,
-    FACTS_DIR,
-    GITIGNORE_FILE,
-    LOG_DIR,
-)
 from zrb.llm.memory.model import (
     KIND_DIARY,
     STATUS_ACTIVE,
@@ -38,6 +31,13 @@ from zrb.llm.memory.model import (
     format_stamp,
     id_error,
     split_document,
+)
+from zrb.llm.memory.paths import (
+    CORE_FILE,
+    DIARY_DIR,
+    FACTS_DIR,
+    GITIGNORE_FILE,
+    LOG_DIR,
 )
 from zrb.llm.memory.render import render_core
 from zrb.util.file_lock import hold_file_lock
@@ -244,9 +244,7 @@ def recent_log_lines(limit: int = 4, day: str | None = None) -> list[str]:
         # A line lifted from another day carries the date it came from; a line
         # from today does not, because "today" is already the block's heading.
         prefix = (
-            ""
-            if offset == 0
-            else f"- {wanted_day.month:02d}-{wanted_day.day:02d} "
+            "" if offset == 0 else f"- {wanted_day.month:02d}-{wanted_day.day:02d} "
         )
         day_lines = log_lines(wanted)
         if offset:
@@ -322,7 +320,9 @@ def git_commit(message: str) -> None:
     root = paths.memory_dir()
     if _repository_for(root) is None:
         return
-    managed = [name for name in _MANAGED_PATHS if os.path.exists(os.path.join(root, name))]
+    managed = [
+        name for name in _MANAGED_PATHS if os.path.exists(os.path.join(root, name))
+    ]
     if not managed:
         return
     if _git(root, "add", "-A", "--", *managed) is None:
@@ -353,7 +353,9 @@ def _staged_paths(root: str, managed: list[str]) -> list[str]:
     list comes from the index instead. `--relative` keeps each name resolvable
     from the store's directory, which is where the commit runs.
     """
-    changed = _git(root, "diff", "--cached", "--name-only", "--relative", "--", *managed)
+    changed = _git(
+        root, "diff", "--cached", "--name-only", "--relative", "--", *managed
+    )
     if changed is None:
         return []
     return [line for line in changed.splitlines() if line]

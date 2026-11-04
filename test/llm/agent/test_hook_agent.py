@@ -142,9 +142,7 @@ async def test_agent_hook_skips_llm_call_when_no_named_tools_resolve():
     """When every tool the config names fails to resolve (e.g. the memory
     tools while LLM_MEMORY_ENABLED is off), the hook must not spend an LLM
     call it cannot do anything useful with."""
-    config = AgentHookConfig(
-        system_prompt="sp", model="fake-model", tools=["Remember"]
-    )
+    config = AgentHookConfig(system_prompt="sp", model="fake-model", tools=["Remember"])
     hook = create_agent_hook(config)
     context = HookContext(event=HookEvent.STOP, event_data={"wrote_files": True})
 
@@ -234,9 +232,7 @@ async def test_resolved_agent_hook_tools_are_undeferred():
 @pytest.mark.asyncio
 async def test_agent_hook_runs_when_named_tools_do_resolve():
     """The opposite of the skip case: a resolved tool list reaches the agent."""
-    config = AgentHookConfig(
-        system_prompt="sp", model="fake-model", tools=["Remember"]
-    )
+    config = AgentHookConfig(system_prompt="sp", model="fake-model", tools=["Remember"])
     hook = create_agent_hook(config)
     context = HookContext(event=HookEvent.STOP, event_data={"wrote_files": True})
 

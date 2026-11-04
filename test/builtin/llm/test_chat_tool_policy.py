@@ -9,9 +9,9 @@ from zrb.builtin.llm.chat_tool_policy import (
     approve_if_mv_inside_notes_dir,
     approve_if_path_inside_cwd,
     approve_if_path_inside_notes_dir,
-    is_path_inside_notes_outside_memory,
     approve_if_path_inside_parent,
     approve_if_path_inside_skill_or_plugin_dir,
+    is_path_inside_notes_outside_memory,
     path_inside_any_parent,
     path_inside_parent,
 )
@@ -310,14 +310,10 @@ class TestASymlinkIsNotAPathAlias:
         work.mkdir()
         (work / "leak").symlink_to(tmp_path / "outside")
         monkeypatch.chdir(work)
-        result = approve_if_path_inside_cwd(
-            {"path": str(work / "leak" / "secret.txt")}
-        )
+        result = approve_if_path_inside_cwd({"path": str(work / "leak" / "secret.txt")})
         assert result is False
 
-    def test_a_symlink_that_stays_inside_is_still_approved(
-        self, tmp_path, monkeypatch
-    ):
+    def test_a_symlink_that_stays_inside_is_still_approved(self, tmp_path, monkeypatch):
         (tmp_path / "real").mkdir()
         (tmp_path / "alias").symlink_to(tmp_path / "real")
         self._patch_cfg(monkeypatch, tmp_path)

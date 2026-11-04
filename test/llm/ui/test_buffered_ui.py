@@ -365,4 +365,3 @@ def test_a_name_set_on_the_buffer_wins_and_never_renames_the_parent():
 
     assert ui.conversation_session_name == "the-sub-agent"
     assert parent.conversation_session_name == "calm-gate"
-

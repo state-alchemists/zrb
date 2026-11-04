@@ -38,7 +38,6 @@ def _write_entry(directory, entry) -> None:
     (directory / f"{entry.id}.md").write_text(entry.to_markdown())
 
 
-
 def _record(**kwargs) -> UsageRecord:
     # Stamped at call time, not at import: a run that reaches this test after
     # midnight would otherwise write yesterday's record and then read today's.

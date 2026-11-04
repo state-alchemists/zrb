@@ -72,7 +72,9 @@ def test_a_store_outside_the_notes_directory_does_not_convert(
     notes_tree, tmp_path, monkeypatch
 ):
     """Someone pointed the store elsewhere; converting their notes into it is a surprise."""
-    monkeypatch.setattr(CFG, "LLM_MEMORY_DIR", str(tmp_path / "elsewhere"), raising=False)
+    monkeypatch.setattr(
+        CFG, "LLM_MEMORY_DIR", str(tmp_path / "elsewhere"), raising=False
+    )
     paths.prepare()
     assert store.load_facts() == []
     assert not os.path.exists(str(notes_tree / ".version"))

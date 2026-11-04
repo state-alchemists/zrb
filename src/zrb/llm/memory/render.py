@@ -202,9 +202,7 @@ def plan_delta(
         else {id_of(key) for key in shown_versions}
     )
     tombstones = _tombstones(facts, pool)
-    tombstone_lines = {
-        fact_id: _tombstone(fact_id, facts) for fact_id in tombstones
-    }
+    tombstone_lines = {fact_id: _tombstone(fact_id, facts) for fact_id in tombstones}
     lines: list[str] = []
     today_line, next_diary_key = _diary_delta(today_entry, known_diary)
     if today_line:
@@ -299,9 +297,7 @@ def _fit_delta(
     forgotten = tuple(
         fact_id for fact_id, line in tombstone_lines.items() if line in survived
     )
-    return DeltaPlan(
-        f"{DELTA_OPEN}\n{body}\n{DELTA_CLOSE}", emitted, forgotten
-    )
+    return DeltaPlan(f"{DELTA_OPEN}\n{body}\n{DELTA_CLOSE}", emitted, forgotten)
 
 
 def compose_delta(facts: Sequence[Fact], known: Sequence[str] | None) -> str:
@@ -395,11 +391,7 @@ def _is_pinned_fact(fact: Fact) -> bool:
 
 
 def _is_open_loop(fact: Fact) -> bool:
-    return (
-        fact.is_active
-        and fact.kind == KIND_LOOP
-        and _is_injectable(fact.claim)
-    )
+    return fact.is_active and fact.kind == KIND_LOOP and _is_injectable(fact.claim)
 
 
 def _entry(fact: Fact) -> str:

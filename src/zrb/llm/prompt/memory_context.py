@@ -50,9 +50,7 @@ def render_memory_block() -> str | None:
         # An unwritable store is reported by the tools that write to it; a first
         # turn must not fail because a directory could not be created.
         return None
-    core = render.cut_lines(
-        render.render_core(facts), CFG.LLM_MEMORY_CORE_MAX_CHARS
-    )
+    core = render.cut_lines(render.render_core(facts), CFG.LLM_MEMORY_CORE_MAX_CHARS)
     recent = render.cut_lines(
         render.render_recent(
             store.latest_handover(),

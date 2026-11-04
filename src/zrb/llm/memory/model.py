@@ -83,11 +83,7 @@ _INSTRUCTION_MARKERS = (
     "your new instructions",
     "new system prompt",
     "from now on you",
-) + tuple(
-    tag_form
-    for tag in _CONTAINER_TAGS
-    for tag_form in (f"<{tag}", f"</{tag}")
-)
+) + tuple(tag_form for tag in _CONTAINER_TAGS for tag_form in (f"<{tag}", f"</{tag}"))
 
 # Field order in the file is fixed: a diff stays readable when a claim is revised.
 _FACT_FIELDS = (
