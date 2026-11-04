@@ -129,6 +129,7 @@ flowchart LR
 Tool approval flow (the cascade in `agent/run/deferred_calls.py::_resolve_approval`; the first stage with a verdict wins):
 - If the tool is intrinsically interactive (e.g. `AskUserQuestion`, registered via `register_always_auto_approve`), it is auto-approved first — a separate prompt would render before the question itself.
 - Tool policies (e.g. `auto_approve(...)`, the shell-safety policy) and then the permission policy may approve or deny.
+- If the permission policy had no rule for the call, a tool the harness approves by default (the memory verbs, `ReadToolResult`, the sub-agent messages, `EnterWorktree` — `register_default_auto_approve`, populated by `apply_common_tools`) runs here. A rule that says `ask` or `deny` was already final above, so this only removes prompts nobody asked for.
 - If neither decided and `current_yolo` is `True` (or the tool is in the selective YOLO set), the tool runs.
 - A `PermissionRequest` hook may decide next.
 - When the approval channel or the terminal prompt produces an answer, the observe-only `PermissionResolved` hook fires.

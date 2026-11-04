@@ -175,7 +175,9 @@ All importable from `zrb.llm.tool_call` unless noted.
 | `read_file_validation_policy` | policy | Denies a `Read` of a missing file | yes |
 | `replace_in_file_validation_policy` | policy | Denies an `Edit` whose `old_text` is not in the file. Import from `zrb.llm.tool_call.tool_policy.replace_in_file_validation` | yes |
 
-A tool that *is* the user interaction (like `AskUserQuestion`) can skip approval everywhere with `register_always_auto_approve("ToolName")`, exported from `zrb`.
+A tool that *is* the user interaction (like `AskUserQuestion`) can skip approval everywhere with `register_always_auto_approve("ToolName")`, exported from `zrb`. That sits above the permission rules, so no rule of yours can stop it — which is why only the user interaction belongs there.
+
+A tool whose blast radius is already bounded — it writes only inside a directory zrb owns, or reads something you just approved producing — belongs one level lower: `register_default_auto_approve("ToolName")`, also exported from `zrb`. That sits *below* the rules, so your `ask` or `deny` still wins and a `PreToolUse` hook's `ask` still forces the prompt, and it holds with YOLO off, which is where a prompt nobody wants costs the most. `zrb`'s own list lives in `DEFAULT_AUTO_APPROVED_TOOLS` (`src/zrb/llm/common_tools.py`); [ADR-0139](../adr/adr-0139.md) records why each entry is there.
 
 ## Display settings without code
 

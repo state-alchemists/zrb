@@ -36,6 +36,7 @@ Before the model's tool call runs, zrb decides whether it may run: allow it quie
 3. **A rule that says `ask` is a hard ask.** Yolo, which sits below the ruleset, may not approve it on the user's behalf; only the levels above it — always-auto-approve tools, a tool policy, a PreToolUse hook — decide before the rule is reached. If no one can answer, the call is refused rather than left waiting or quietly run (`ExitPlanMode` alone is approved, since its gate exists only to show a human the plan). → [ADR-0062](../../adr/adr-0062.md)
 4. **A deny never prompts, and it is enforced again at the tool.** A call the rules deny skips the approval step entirely and is blocked at the execution checkpoint. So a deny holds whatever an earlier level decided. → [ADR-0061](../../adr/adr-0061.md)
 5. **An edited call tells the model what ran.** When a person changes the arguments before approving, the result the model gets back carries a note listing the changed keys. Otherwise the model would read its own request next to a result made from different arguments. → [ADR-0085](../../adr/adr-0085.md)
+6. **A shipped default approval sits below the rules, never above them.** Tools whose blast radius is already bounded — the memory verbs, `ReadToolResult`, the sub-agent messages, `EnterWorktree` — are approved by a level *under* the ruleset, so a user's `ask` or `deny` still wins and a `PreToolUse` `ask` still forces the prompt. Only a tool that *is* the user interaction is approved above the rules. → [ADR-0139](../../adr/adr-0139.md)
 
 ### Invariants
 
@@ -43,6 +44,7 @@ Before the model's tool call runs, zrb decides whether it may run: allow it quie
 | --- | --- | --- |
 | Rules are checked in order; the first match decides | Reordering rules changes decisions with no error | `test/llm/permission/test_policy.py::test_first_match_wins` |
 | A denied call never runs, even if an earlier level approved it | A tool runs against the user's policy | `test/llm/permission/test_state_and_gate.py::test_gate_blocks_denied_tool` |
+| A shipped default approval never overrides a rule's `ask` | A user's rule is bypassed by a default zrb ships | `test/llm/agent/run/test_deferred_calls_default_approve.py::test_a_permission_rule_that_asks_still_wins` |
 | A call denied during approval reaches history as a denial, and does not run | The model believes a refused call happened, or it runs anyway | `test/llm/agent/run/test_runner_deferred_approval.py::test_run_agent_denied_tool_call_reaches_history_without_running` |
 | An `ask` rule with an argument pattern still forces approval under yolo | Yolo runs the exact call the rule was written to stop | `test/llm/task/test_shared_getters.py::test_arg_pattern_ask_is_a_hard_ask_not_a_silent_fallthrough` |
 | With no human, a hard ask is refused instead of waiting | Unattended runs hang on stdin until timeout | `test/llm/agent/run/test_deferred_calls_denials.py::test_noninteractive_other_ask_tool_is_denied` |
