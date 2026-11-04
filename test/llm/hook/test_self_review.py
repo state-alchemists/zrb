@@ -1,10 +1,59 @@
 "The built-in self-review gate: registered only while switched on, blocks the"
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
+from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.hook.self_review import register_self_review_hook
+from zrb.llm.hook.types import HookEvent
 
 _FINDINGS = "## Finding\n\n**Problem:** off by one.\n\nRequest changes"
+
+
+@pytest.mark.asyncio
+async def test_the_reviewer_approves_its_own_reads():
+    """It exists to read the turn, and a hook has no approval channel.
+
+    A deferred `Read` is a review of nothing, which is what the gate did before
+    the reviewer was built with `auto_approve`.
+    """
+    manager = HookManager(search_dirs=[])
+    configs: list = []
+
+    def build(config):
+        configs.append(config)
+
+        async def reviewer(context):
+            return HookResult(success=True, output="LGTM")
+
+        return reviewer
+
+    with (
+        patch("zrb.llm.hook.self_review.CFG") as cfg,
+        patch("zrb.llm.hook.self_review.get_agent_hook_builder", return_value=build),
+    ):
+        cfg.LLM_SELF_REVIEW_ENABLED = True
+        cfg.LLM_SELF_REVIEW_MAX_ROUNDS = 2
+        cfg.LLM_SELF_REVIEW_MODEL = ""
+        cfg.LLM_SELF_REVIEW_TIMEOUT = 30
+        cfg.LLM_SELF_REVIEW_MAX_TRACKED_TURNS = 64
+        cfg.LLM_MAX_OUTPUT_CHARS = 100_000
+        cfg.LOGGER = MagicMock()
+        register_self_review_hook(manager)
+        await manager.execute_hooks(
+            HookEvent.STOP,
+            {
+                "changed_paths": ["a.py"],
+                "wrote_files": True,
+                "run_scope": "run-1",
+                "turn_id": "turn-1",
+            },
+        )
+
+    assert configs, "the reviewer was never built"
+    assert configs[0].auto_approve is True
 
 
 @pytest.mark.asyncio

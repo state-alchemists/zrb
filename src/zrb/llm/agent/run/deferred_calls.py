@@ -22,7 +22,10 @@ from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import ASK
-from zrb.llm.tool_call.always_approve import is_always_auto_approve
+from zrb.llm.tool_call.always_approve import (
+    is_always_auto_approve,
+    is_default_auto_approve,
+)
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.tool_call.override_registry import discard_override, record_override
 from zrb.llm.util.tool_args import parse_tool_args
@@ -177,6 +180,8 @@ async def _resolve_approval(
       0. Always-approve (intrinsically interactive tools, e.g. AskUserQuestion)
       1. Tool policy
       2. Permission policy (ALLOW→approve, DENY→deny, ASK→force ask)
+      2b. A hard ASK settled when non-interactive
+      2c. Default-approve (the harness's bounded tools; a rule still wins)
       3. YOLO (only with no policy ASK)
       4. Approval channel
       5. CLI prompt
@@ -200,6 +205,10 @@ async def _resolve_approval(
         return verdict
 
     verdict = _resolve_non_interactive_ask(call, policy_decision, force_ask)
+    if verdict is not None:
+        return verdict
+
+    verdict = _approve_by_default(call, policy_decision, force_ask)
     if verdict is not None:
         return verdict
 
@@ -315,6 +324,32 @@ def _resolve_non_interactive_ask(call, policy_decision, force_ask):
         "Non-interactive mode: approval-gated tool blocked (no user to "
         "confirm). Re-run with --interactive true to approve interactively."
     )
+
+
+def _approve_by_default(call, policy_decision, force_ask):
+    """Priority 2c: the harness's bounded tools, approved unless a rule says otherwise.
+
+    Below the permission policy on purpose: a user's `ask` is still a hard ask
+    and a PreToolUse `ask` still forces the prompt, so this removes a prompt
+    nobody wanted rather than a decision somebody made. Above YOLO because the
+    prompt it removes is the one a careful user answers by hand every turn, and
+    YOLO is the mode where nobody is watching anyway.
+    """
+    if force_ask or policy_decision == ASK:
+        return None
+    args = parse_tool_args(call)
+    if not is_default_auto_approve(
+        call.tool_name, args if isinstance(args, dict) else None
+    ):
+        return None
+    # The same invariant the tool policies keep: a request to leave the sandbox
+    # is a request for a human, however ordinary the tool is.
+    if isinstance(args, dict) and args.get("dangerously_skip_sandbox"):
+        return None
+    # lazy: heavy third-party
+    from pydantic_ai import ToolApproved
+
+    return ToolApproved()
 
 
 def _approve_via_yolo(policy_decision, force_ask):

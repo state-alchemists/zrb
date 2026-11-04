@@ -47,6 +47,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
             system_prompt=config.system_prompt,
             user_prompt=_agent_hook_input(context),
             tools=resolved_tools,
+            auto_approve=config.auto_approve,
         )
 
     return agent_hook

@@ -41,6 +41,12 @@ def test_the_reviewer_runs_on_a_completed_turn_with_the_three_tools():
     assert config.matchers[0].value is True
 
 
+def test_the_reviewer_approves_its_own_writes():
+    """A hook has no approval channel: a write that asks is a write that never lands."""
+    config = build_memory_reviewer_hook_config()
+    assert config.config.auto_approve is True
+
+
 def test_a_heading_or_a_code_fence_is_not_the_first_sentence():
     message = (
         "# Outcome\n\n```python\nprint('x')\n```\n\nFixed the parser. All tests pass."

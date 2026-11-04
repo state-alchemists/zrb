@@ -16,7 +16,11 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.common_tools import apply_common_tools, tool_name
+from zrb.llm.common_tools import (
+    DEFAULT_AUTO_APPROVED_TOOLS,
+    apply_common_tools,
+    tool_name,
+)
 from zrb.llm.permission import Capability, tool_capability
 
 
@@ -120,7 +124,7 @@ def test_memory_tools_carry_capabilities(monkeypatch):
 
 def test_apply_stores_providers_without_resolving_anything(monkeypatch):
     """`apply_common_tools` is storage-only: it appends per-run providers and
-    the shell-safety policy, but resolves none of the shipped tools.
+    the approval policies, but resolves none of the shipped tools.
 
     Nothing is handed to the host as a concrete tool at apply time — the
     provider appends are exactly the storage an agent build resolves later —
@@ -241,3 +245,62 @@ def test_every_registered_tool_parameter_carries_a_description(monkeypatch):
             if not spec.get("description")
         )
     assert not gaps, f"Tool parameters with no schema description: {gaps}"
+
+
+def test_the_approval_defaults_travel_with_the_tool_surface(monkeypatch):
+    """A host with no policy list of its own still gets the approval defaults.
+
+    `LLMTask` and `SubAgentManager` have no `prepend_tool_policy`, so a default
+    that lived only in a runner's policy list would leave them — and the memory
+    reviewer's own agent — asking a question nobody is there to answer. The
+    registry is process-wide and the cascade reads it in every runner.
+    """
+    registered: list[str] = []
+    monkeypatch.setattr(
+        "zrb.llm.common_tools.register_default_auto_approve",
+        lambda *names: registered.extend(names),
+    )
+    apply_common_tools(RecordingHost())
+    assert set(registered) == set(DEFAULT_AUTO_APPROVED_TOOLS)
+    assert MEMORY_TOOLS <= set(registered)
+
+
+def test_the_rename_dry_run_reaches_a_host_with_no_policy_list(monkeypatch):
+    """`LspRenameSymbol(dry_run=True)` is bounded by an argument, not by a name.
+
+    A tool policy would have covered it only on hosts with `prepend_tool_policy`
+    — `LLMTask` and `SubAgentManager` have none — so the condition is registered
+    as a predicate in the same shared registry the other defaults use, and this
+    host never implements a policy list at all.
+    """
+
+    class PolicylessHost:
+        tools: list = []
+        tool_factories: list = []
+        toolset_factories: list = []
+
+        def append_tool(self, *tool):
+            self.tools.extend(tool)
+
+        def append_tool_factory(self, *factory):
+            self.tool_factories.extend(factory)
+
+        def append_toolset_factory(self, *factory):
+            self.toolset_factories.extend(factory)
+
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        "zrb.llm.common_tools.register_default_auto_approve",
+        lambda *names: captured.update({name: None for name in names}),
+    )
+    monkeypatch.setattr(
+        "zrb.llm.common_tools.register_default_auto_approve_if",
+        lambda name, predicate: captured.update({name: predicate}),
+    )
+    apply_common_tools(PolicylessHost())
+
+    rename_predicate = captured["LspRenameSymbol"]
+    assert callable(rename_predicate)
+    assert rename_predicate({"dry_run": True}) is True
+    assert rename_predicate({"new_name": "renamed"}) is False
+

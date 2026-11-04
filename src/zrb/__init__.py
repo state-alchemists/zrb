@@ -75,7 +75,11 @@ if TYPE_CHECKING:
     from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.task.llm_task import LLMTask
-    from zrb.llm.tool_call.always_approve import register_always_auto_approve
+    from zrb.llm.tool_call.always_approve import (
+        register_always_auto_approve,
+        register_default_auto_approve,
+        register_default_auto_approve_if,
+    )
     from zrb.llm.tool_registry import ToolRegistry, tool_registry
     from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
     from zrb.llm.util.capabilities import model_capabilities
@@ -216,6 +220,8 @@ __all__ = [
     "model_capabilities",
     "register_theme",
     "register_always_auto_approve",
+    "register_default_auto_approve",
+    "register_default_auto_approve_if",
     "PermissionPolicy",
     "Rule",
     "ALLOW",
@@ -329,6 +335,8 @@ _LAZY_EXPORTS = {
     "model_capabilities": "zrb.llm.util.capabilities",
     "register_theme": "zrb.config.theme",
     "register_always_auto_approve": "zrb.llm.tool_call.always_approve",
+    "register_default_auto_approve": "zrb.llm.tool_call.always_approve",
+    "register_default_auto_approve_if": "zrb.llm.tool_call.always_approve",
     "PermissionPolicy": "zrb.llm.permission",
     "Rule": "zrb.llm.permission",
     "ALLOW": "zrb.llm.permission",

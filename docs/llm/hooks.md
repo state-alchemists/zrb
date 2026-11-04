@@ -296,6 +296,7 @@ Run a tool-using agent for complex analysis.
 | `system_prompt` | string | System prompt for the agent |
 | `tools` | array | Tool names, Claude-compatible aliases honored (`"Bash"` → `Shell`), resolved against zrb's own tool set — including config-gated tools such as the memory ones (`SearchMemory`, `Remember`, `Forget`) that exist only while their feature is enabled. A tool's `[SYSTEM SUGGESTION]` error comes back as a tool result the hook's model can react to, as for the main agent, rather than aborting the hook run |
 | `model` | string | Model to use (e.g., `openai:gpt-4o`); omit to use the current run's model, else `ZRB_LLM_MODEL` |
+| `auto_approve` | boolean | Run the agent with YOLO, so its tool calls execute instead of waiting for an approval. A hook has no approval channel: without this, a tool call comes back as a deferred request and never runs. Only safe because `tools` above is the whole surface it can reach (default: `false`) |
 
 The agent's user turn is the event payload: for `Stop`, the turn's transcript; otherwise the event data as text. Its reply is read like a prompt hook's — a JSON object is the hook's decision, anything else has no effect.
 

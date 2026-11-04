@@ -56,10 +56,16 @@ class AgentHookConfig:
         system_prompt: str,
         tools: list[str] | None = None,
         model: "str | Model | None" = None,
+        auto_approve: bool = False,
     ):
         self.system_prompt = system_prompt
         self.tools = tools if tools is not None else []
         self.model = model
+        # A hook runs without a UI and outside the approval cascade, so a tool
+        # call it makes is returned as a deferred request nobody answers and the
+        # tool never runs. `auto_approve` runs the hook's agent with yolo, which
+        # is only safe because `tools` above is the whole surface it can reach.
+        self.auto_approve = auto_approve
 
 
 class HookConfig:

@@ -161,6 +161,7 @@ Delete a record when its decision no longer applies anywhere — do not leave a 
 - **ADR-0065** — [Opt-in two-layer filesystem sandbox](adr-0065.md)
 - **ADR-0085** — [An edited tool call tells the model what actually ran](adr-0085.md)
 - **ADR-0135** — [An approval's answer is its own hook event, `PermissionResolved`](adr-0135.md)
+- **ADR-0139** — [A shipped tool may be approved by default, but only below the rules](adr-0139.md)
 
 ### Delegation and concurrency
 

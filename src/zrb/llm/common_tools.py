@@ -25,6 +25,10 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_interactive_mode
 from zrb.llm.permission import Capability, tag
+from zrb.llm.tool_call.always_approve import (
+    register_default_auto_approve,
+    register_default_auto_approve_if,
+)
 from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
 from zrb.llm.tool_registry import tool_name, tool_registry
 from zrb.llm.util.git import is_inside_git_dir
@@ -47,14 +51,49 @@ class CommonToolHost(Protocol):
     ) -> None: ...
 
 
+# Tools the harness approves without asking, unless a permission rule says
+# otherwise (`register_default_auto_approve`: a user's `ask` or `deny` still
+# wins). Each one's blast radius is already bounded, so its prompt was friction
+# rather than a decision:
+#   - the memory verbs write inside `LLM_MEMORY_DIR` only, through validation a
+#     raw `Write` would skip, and commit to that store's own git;
+#   - `ReadToolResult` re-reads output the user already approved producing;
+#   - `SendMessageTo*` speaks into a sub-agent conversation already opened;
+#   - `EnterWorktree` creates an isolated tree; `ExitWorktree`, which deletes
+#     one and can drop its branch, is the destructive half and still asks.
+DEFAULT_AUTO_APPROVED_TOOLS = (
+    "SearchMemory",
+    "Remember",
+    "Forget",
+    "ReadToolResult",
+    "SendMessageToSubagent",
+    "SendMessageToParent",
+    "EnterWorktree",
+)
+
+
+def _is_rename_dry_run(args: dict[str, object]) -> bool:
+    """Whether an `LspRenameSymbol` call only reports what it would change."""
+    return args.get("dry_run") is True
+
+
 def apply_common_tools(host: CommonToolHost) -> None:
-    """Give *host* the zrb-shipped tools, factories, and shell-safety policy.
+    """Give *host* the zrb-shipped tools, factories, and approval policies.
 
     Storage only (safe at construction, no heavy import); call once per host.
     ``SubAgentManager`` filters the result by each sub-agent's ``tools:`` list.
+
+    The approval defaults registered here live in a process-wide registry the
+    cascade reads, so they hold for every runner — including the ones
+    (``LLMTask``, ``SubAgentManager``) whose host has no policy list to append
+    to. That is why the argument-gated one is registered here too and not as a
+    tool policy, which only those hosts would miss.
     """
     host.append_tool_factory(_common_tools_provider)
     host.append_toolset_factory(_common_toolsets_provider)
+    register_default_auto_approve(*DEFAULT_AUTO_APPROVED_TOOLS)
+    # A rename dry run only reports; the same call without `dry_run` writes.
+    register_default_auto_approve_if("LspRenameSymbol", _is_rename_dry_run)
     # Read-only git subcommands auto-approve. Hosts without an approval channel
     # (LLMTask, SubAgentManager) have no prepend_tool_policy.
     add_policy = getattr(host, "prepend_tool_policy", None)
@@ -123,16 +162,19 @@ def _seed_default_tools() -> tuple[list, list, list]:
     # Only when a language server is on $PATH (no server is started).
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
     # Only inside a git repo (judged from the startup cwd).
-    worktree_tools = (
+    worktree_tools: list[Callable] = (
         [enter_worktree, exit_worktree, list_worktrees] if is_inside_git_dir() else []
     )
     # Visible, not deferred: a deferred tool is invisible until the model thinks
     # to search for it, and the set of tools nobody thought of is the set nobody
     # used (EnterWorktree: 1 call in a week, ExitWorktree and ListWorktrees: 0).
     # All three sit inside the git gate, so a non-repo session still pays nothing.
-    plan_tools = [write_todos, get_todos]
+    plan_tools: list[Callable] = [write_todos, get_todos]
 
-    # Untagged tools resolve to UNKNOWN (denied in plan mode).
+    # Untagged tools resolve to UNKNOWN (denied in plan mode). One loop variable
+    # for every loop below: they hold tools of differing signatures, and
+    # `Callable` is the only type all of them share.
+    _fn: Callable
     for _fn in (
         list_files,
         glob_files,

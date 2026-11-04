@@ -215,6 +215,33 @@ class TestHookManagerHookTypes:
             results = await manager.execute_hooks(HookEvent.SESSION_START, "some input")
             assert results[0].message == "agent output"
 
+    @pytest.mark.asyncio
+    async def test_agent_hook_can_auto_approve_its_tools(self, manager, tmp_path):
+        """A JSON agent hook has to be able to say so.
+
+        A hook has no approval channel, so a tool call that asks comes back as a
+        deferred request and never runs. `auto_approve` is what makes a
+        user-configured agent hook's tools execute at all.
+        """
+        f = tmp_path / "h.json"
+        f.write_text(
+            json.dumps(
+                [
+                    {
+                        "name": "h",
+                        "events": ["SessionStart"],
+                        "type": "agent",
+                        "config": {"system_prompt": "s", "auto_approve": True},
+                    }
+                ]
+            )
+        )
+
+        with patch("zrb.llm.hook.manager_loading.AgentHookConfig") as agent_config:
+            manager.scan(search_dirs=[str(tmp_path)])
+
+        assert agent_config.call_args.kwargs["auto_approve"] is True
+
 
 class TestHookManagerMatchers:
     "Test matcher evaluation via Public API."
