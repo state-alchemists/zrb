@@ -12,6 +12,12 @@ the way the ``llm_chat`` / ``sub_agent_manager`` singletons' hosts (and any
 custom host) resolve at agent build time.
 """
 
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from zrb.context.context import Context
@@ -207,6 +213,56 @@ def test_every_registered_tool_carries_a_known_capability(monkeypatch):
         if tool_capability(t) is Capability.UNKNOWN
     }
     assert not untagged, f"Tools registered without a capability tag: {untagged}"
+
+
+_SRC = Path(__file__).resolve().parents[2] / "src"
+
+# Imports the tool modules only: never `zrb.llm.common_tools`, so nothing here
+# materializes the registry that `apply_common_tools` reads.
+_BY_REFERENCE_PROBE = """
+import json
+from zrb.llm.permission import tool_capability
+from zrb.llm.tool.file import read_file, write_file
+from zrb.llm.tool.shell import run_shell_command
+from zrb.llm.tool.skill import create_activate_skill_tool
+from zrb.llm.tool.zrb_task import create_list_zrb_task_tool
+
+print(json.dumps({
+    "read": tool_capability(read_file).value,
+    "write": tool_capability(write_file).value,
+    "shell": tool_capability(run_shell_command).value,
+    "skill": tool_capability(create_activate_skill_tool()).value,
+    "list_tasks": tool_capability(create_list_zrb_task_tool()).value,
+}))
+"""
+
+
+def test_a_tool_handed_on_by_reference_carries_its_own_capability():
+    """A tool reaches an agent by reference too: ``LLMTask(tools=[read_file])``.
+
+    That path never resolves this registry, so a tag applied here is invisible
+    to it — the tool arrives with whatever tag its own definition carries. When
+    the tags lived in the seed instead, every tool on that path resolved to
+    `UNKNOWN`, and the sandbox checks an unknown tool's paths as writes: a read
+    of anything outside the writable roots was refused. A fresh interpreter
+    importing only the tool modules is exactly that path.
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", _BY_REFERENCE_PROBE],
+        capture_output=True,
+        text=True,
+        cwd=_SRC.parent,
+        env={**os.environ, "PYTHONPATH": str(_SRC)},
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout) == {
+        "read": Capability.READ.value,
+        "write": Capability.EDIT.value,
+        "shell": Capability.EXECUTE.value,
+        "skill": Capability.META.value,
+        "list_tasks": Capability.READ.value,
+    }
 
 
 def test_every_registered_tool_parameter_carries_a_description(monkeypatch):

@@ -4,6 +4,7 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file_observation import (
     check_observed,
     check_writable_text,
@@ -98,3 +99,6 @@ async def _write_file_locked(path: str, abs_path: str, content: str, mode: str) 
         f"Successfully wrote to {path}{dir_note}",
         await format_post_write_diagnostics(abs_path),
     )
+
+
+tag(write_file, Capability.EDIT)

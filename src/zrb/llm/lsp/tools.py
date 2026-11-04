@@ -4,6 +4,7 @@ from typing import Literal
 
 from zrb.llm.lsp.configs import lsp_server_configs
 from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.permission import Capability, tag
 
 
 async def find_definition(
@@ -132,8 +133,11 @@ list_available_servers.__name__ = "LspListServers"
 
 
 def create_lsp_tools() -> list:
-    """Create LSP tool functions for registration with LLMChatTask."""
-    return [
+    """Create LSP tool functions for registration with LLMChatTask.
+
+    Rename rewrites the workspace; everything else only reads it.
+    """
+    tools = [
         find_definition,
         find_references,
         get_diagnostics,
@@ -142,4 +146,8 @@ def create_lsp_tools() -> list:
         get_hover_info,
         rename_symbol,
         list_available_servers,
+    ]
+    return [
+        tag(tool, Capability.EDIT if tool is rename_symbol else Capability.READ)
+        for tool in tools
     ]

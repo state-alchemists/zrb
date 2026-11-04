@@ -24,13 +24,12 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import get_interactive_mode
-from zrb.llm.permission import Capability, tag
 from zrb.llm.tool_call.always_approve import (
     register_default_auto_approve,
     register_default_auto_approve_if,
 )
 from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
-from zrb.llm.tool_registry import tool_name, tool_registry
+from zrb.llm.tool_registry import tool_name, tool_registry  # noqa: F401 -- re-exported
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 
@@ -129,8 +128,11 @@ def _seed_default_tool_registry() -> None:
 def _seed_default_tools() -> tuple[list, list, list]:
     """The built-in tool content: (tools, tool_factories, toolset_factories).
 
-    A new tool under `llm/tool/` must be imported, `tag()`-ed with a
-    `Capability`, and appended here, or it resolves to `Capability.UNKNOWN`.
+    A new tool under `llm/tool/` tags itself where it is defined — `tag(...)`
+    with its `Capability` — and is exported and appended here. A tool also
+    reaches an agent by reference (`LLMTask(tools=[read_file])`), and that path
+    never resolves this registry: only the tag on the tool itself says what it
+    may touch. Without one the sandbox write-checks every path it names.
     """
     # Imported from source modules, not the ``zrb.llm.tool`` re-export: that
     # loads ``delegate.py`` -> ``SubAgentManager``, which re-enters this function.
@@ -170,32 +172,6 @@ def _seed_default_tools() -> tuple[list, list, list]:
     # used (EnterWorktree: 1 call in a week, ExitWorktree and ListWorktrees: 0).
     # All three sit inside the git gate, so a non-repo session still pays nothing.
     plan_tools: list[Callable] = [write_todos, get_todos]
-
-    # Untagged tools resolve to UNKNOWN (denied in plan mode). One loop variable
-    # for every loop below: they hold tools of differing signatures, and
-    # `Callable` is the only type all of them share.
-    _fn: Callable
-    for _fn in (
-        list_files,
-        glob_files,
-        read_file,
-        search_files,
-        analyze_file,
-        analyze_code,
-    ):
-        tag(_fn, Capability.READ)
-    for _fn in (write_file, replace_in_file, remove_file, move_file):
-        tag(_fn, Capability.EDIT)
-    # list is read-only; enter/exit mutate the tree.
-    for _fn in worktree_tools:
-        tag(_fn, Capability.READ if _fn is list_worktrees else Capability.EDIT)
-    tag(run_shell_command, Capability.EXECUTE)
-    for _fn in (search_internet, open_web_page):
-        tag(_fn, Capability.NETWORK)
-    for _fn in plan_tools:
-        tag(_fn, Capability.META)
-    for _tool in lsp_tools:
-        tag(_tool, Capability.EDIT if "Rename" in tool_name(_tool) else Capability.READ)
 
     tools: list["Callable | Tool"] = [
         run_shell_command,
@@ -238,13 +214,6 @@ def _seed_tool_factories() -> tuple[list, list]:
         create_run_zrb_task_tool,
     )
 
-    tag(ask_user_question, Capability.META)
-    tag(read_tool_result, Capability.META)
-    # Memory: reading is one call; the two verbs change the store.
-    tag(search_memory, Capability.READ)
-    tag(remember, Capability.EDIT)
-    tag(forget, Capability.EDIT)
-
     factories: list["Callable[[AnyContext], Any]"] = [
         # Plan-mode and AskUserQuestion need a human: interactive sessions only.
         lambda ctx: (
@@ -266,21 +235,12 @@ def _seed_tool_factories() -> tuple[list, list]:
         lambda ctx: (
             [search_memory, remember, forget] if CFG.LLM_MEMORY_ENABLED else []
         ),
-        lambda ctx: Tool(
-            tag(create_list_zrb_task_tool(), Capability.READ),
-            defer_loading=True,
-        ),
-        lambda ctx: Tool(
-            tag(create_run_zrb_task_tool(), Capability.EXECUTE),
-            defer_loading=True,
-        ),
-        lambda ctx: tag(create_activate_skill_tool(), Capability.META),
+        lambda ctx: Tool(create_list_zrb_task_tool(), defer_loading=True),
+        lambda ctx: Tool(create_run_zrb_task_tool(), defer_loading=True),
+        lambda ctx: create_activate_skill_tool(),
         # SearchSkill reaches the part of the catalogue the prompt truncates.
-        lambda ctx: tag(create_search_skill_tool(), Capability.META),
-        lambda ctx: Tool(
-            tag(create_monitor_process_tool(), Capability.EXECUTE),
-            defer_loading=True,
-        ),
+        lambda ctx: create_search_skill_tool(),
+        lambda ctx: Tool(create_monitor_process_tool(), defer_loading=True),
     ]
     toolset_factories: list["Callable[[AnyContext], Any]"] = [
         lambda ctx: [toolset.defer_loading() for toolset in load_mcp_config()]

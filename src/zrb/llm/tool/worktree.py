@@ -7,6 +7,7 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.ambient_state import active_worktree
+from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import (
     build_sandboxed_argv,
     check_write,
@@ -455,3 +456,6 @@ def _prepend_notes(notes: list[str | None], result: str) -> str:
 enter_worktree.__name__ = "EnterWorktree"
 exit_worktree.__name__ = "ExitWorktree"
 list_worktrees.__name__ = "ListWorktrees"
+tag(enter_worktree, Capability.EDIT)
+tag(exit_worktree, Capability.EDIT)
+tag(list_worktrees, Capability.READ)

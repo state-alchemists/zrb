@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from zrb.llm.agent_tool_result import has_multimodal
+from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
 from zrb.util.string.conversion import to_safe_filename
 
@@ -283,3 +284,4 @@ def read_tool_result(
 
 
 read_tool_result.__name__ = "ReadToolResult"
+tag(read_tool_result, Capability.META)
