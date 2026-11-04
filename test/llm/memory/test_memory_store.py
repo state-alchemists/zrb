@@ -90,6 +90,26 @@ def test_the_log_line_carries_a_clock_time_and_the_day_is_the_filename(store_dir
     )
 
 
+def test_a_second_log_line_sits_directly_under_the_first(store_dir):
+    """A day file is one line per event: an append leaves no gap behind it."""
+    day = store.today()
+    first = store.append_log("First event")
+    second = store.append_log("Second event")
+    assert store.read_document(paths.log_path(day)) == (
+        f"# {day}\n{first}\n{second}\n"
+    )
+
+
+def test_a_day_file_written_with_gaps_is_healed_by_the_next_append(store_dir):
+    """The guarantee covers what an older writer left, not only new lines."""
+    day = store.today()
+    store.write_document(paths.log_path(day), f"# {day}\n\n- 09:00 — Old event\n")
+    line = store.append_log("New event")
+    assert store.read_document(paths.log_path(day)) == (
+        f"# {day}\n- 09:00 — Old event\n{line}\n"
+    )
+
+
 def test_yesterday_reaches_the_recent_lines_with_its_date(store_dir):
     yesterday = (date.today() - timedelta(days=1)).isoformat()
     store.append_log("From yesterday", day=yesterday)

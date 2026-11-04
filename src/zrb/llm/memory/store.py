@@ -218,6 +218,12 @@ def append_log(text: str, tags: str = "", day: str | None = None) -> str:
 
     The date is the filename and the clock time is derived, so a day file cannot
     hold a line from another day and the writer never supplies either.
+
+    A day file is one line per event, with the day's header on the first line and
+    no blank line between any two. Joining whole lines is what keeps that true:
+    the file already ends with a newline, so pasting another one in front of the
+    event left a gap under every appended line. A blank line an older writer or a
+    hand edit left is dropped on the way out, so an old day heals as it grows.
     """
     entry_day = day or today()
     body = " ".join(text.split())
@@ -225,10 +231,10 @@ def append_log(text: str, tags: str = "", day: str | None = None) -> str:
     suffix = f" ({tags})" if tags.strip() else ""
     line = f"- {stamp} — {body}{suffix}"
     path = paths.log_path(entry_day)
-    existing = read_document(path)
-    header = f"# {entry_day}\n"
-    content = f"{existing or header}\n{line}\n"
-    write_document(path, content)
+    kept = [old for old in read_document(path).splitlines() if old.strip()]
+    if not kept:
+        kept = [f"# {entry_day}"]
+    write_document(path, "\n".join([*kept, line]) + "\n")
     return line
 
 
