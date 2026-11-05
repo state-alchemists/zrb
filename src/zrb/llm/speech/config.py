@@ -3,16 +3,21 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from zrb.llm.util.feature_config import resolve_from_cfg
+from zrb.llm.util.feature_config import accepts_renamed_fields, resolve_from_cfg
 
 if TYPE_CHECKING:
     from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 
 
+@accepts_renamed_fields(missing_block_notice_enabled="block_notice_enabled")
 @dataclass
 class SpeechConfig:
     """Settings for `enable_speech`. Each field mirrors `CFG.LLM_SPEECH_<FIELD>`;
     one left ``None`` is read from there when a session starts.
+
+    *block_notice_enabled* tells the model, on the turn after one, that its last
+    reply opened no spoken block; ``missing_block_notice_enabled``, its name
+    before the suffix was shortened, still works and warns.
 
     *backend* names a built-in backend (``auto``, ``termux``, ``say``,
     ``espeak-ng``, ``openai``, ``gemini``), built from the fields here, or is

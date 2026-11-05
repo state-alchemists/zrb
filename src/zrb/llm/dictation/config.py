@@ -3,17 +3,27 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from zrb.llm.util.feature_config import resolve_from_cfg
+from zrb.llm.util.feature_config import accepts_renamed_fields, resolve_from_cfg
 
 if TYPE_CHECKING:
     from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 
 
+@accepts_renamed_fields(
+    enable_echo_cancel="echo_cancel_enabled",
+    detect_emotion="detect_emotion_enabled",
+    emotion_out_of_process="emotion_out_of_process_enabled",
+)
 @dataclass
 class DictationConfig:
     """Settings for `enable_dictation`. Each field mirrors
     `CFG.LLM_DICTATION_<FIELD>`; one left ``None`` is read from there when a
     session starts.
+
+    Three of them were renamed when the switches took the `_ENABLED` suffix —
+    ``enable_echo_cancel``, ``detect_emotion`` and ``emotion_out_of_process`` —
+    and the old names still work as constructor arguments and attributes,
+    warning once.
 
     *backend* names a built-in backend (``vosk``, ``openai``, ``google``,
     ``multimodal``, ``sensevoice``), a speech service registered with ``stt_manager``

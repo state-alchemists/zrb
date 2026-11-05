@@ -144,5 +144,11 @@ _MODEL_VISIBILITY_FIELDS = {
 
 
 def model_visibility_field(env_name: str) -> str | None:
-    """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None."""
-    return _MODEL_VISIBILITY_FIELDS.get(env_name)
+    """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None.
+
+    A name the setting used to have is resolved to the one that replaced it, so
+    `/set LLM_SHOW_OLLAMA_MODELS=off` refreshes the running session exactly as
+    the current name does.
+    """
+    current = CFG.get_field_renamed_from(env_name) or env_name
+    return _MODEL_VISIBILITY_FIELDS.get(current)

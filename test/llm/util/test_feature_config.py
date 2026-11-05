@@ -1,9 +1,18 @@
+import logging
 from dataclasses import dataclass
+
+import pytest
 
 from zrb.config.config import CFG
 from zrb.contextvars import current_chat_session_id
+from zrb.llm.camera.config import CameraConfig
+from zrb.llm.dictation.config import DictationConfig
+from zrb.llm.screenshot.config import ScreenshotConfig
+from zrb.llm.speech.config import SpeechConfig
+from zrb.llm.util import feature_config
 from zrb.llm.util.feature_config import (
     FeatureSessions,
+    accepts_renamed_fields,
     close_feature_sessions,
     current_session_key,
     get_session_ui,
@@ -147,3 +156,100 @@ def test_one_feature_failing_to_close_does_not_keep_the_others_open(caplog):
         assert "set_status_badge" in caplog.text
     finally:
         current_chat_session_id.reset(token)
+
+
+@accepts_renamed_fields(enable_tool="tool_enabled")
+@dataclass
+class _Renamed:
+    tool_enabled: bool | None = None
+
+
+@pytest.fixture(autouse=True)
+def fresh_rename_warnings(monkeypatch):
+    """Each test starts with no warning spent, so "warns once" is measurable."""
+    monkeypatch.setattr(feature_config, "_renamed_field_warnings", set())
+
+
+def test_an_old_keyword_sets_the_field_that_replaced_it(caplog):
+    caplog.set_level(logging.WARNING)
+
+    config = _Renamed(enable_tool=True)
+
+    assert config.tool_enabled is True
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if "enable_tool" in record.getMessage()
+    ] == ["_Renamed(enable_tool=...) is deprecated; use tool_enabled instead."]
+
+
+def test_the_current_keyword_wins_when_both_are_given():
+    config = _Renamed(enable_tool=False, tool_enabled=True)
+
+    assert config.tool_enabled is True
+
+
+def test_the_old_attribute_reads_and_writes_the_new_field(caplog):
+    caplog.set_level(logging.WARNING)
+    config = _Renamed(tool_enabled=True)
+
+    assert config.enable_tool is True
+    config.enable_tool = False
+
+    assert config.tool_enabled is False
+
+
+def test_the_warning_is_said_once(caplog):
+    caplog.set_level(logging.WARNING)
+
+    for _ in range(3):
+        _Renamed(enable_tool=True)
+        _Renamed().enable_tool
+
+    assert len([r for r in caplog.records if "enable_tool" in r.getMessage()]) == 1
+
+
+def test_a_new_keyword_says_nothing(caplog):
+    caplog.set_level(logging.WARNING)
+
+    _Renamed(tool_enabled=True)
+
+    assert [r for r in caplog.records if r.levelno == logging.WARNING] == []
+
+
+@pytest.mark.parametrize(
+    "build, field_name, expected",
+    [
+        (lambda: CameraConfig(enable_tool=True), "tool_enabled", True),
+        (lambda: ScreenshotConfig(enable_tool=True), "tool_enabled", True),
+        (
+            lambda: DictationConfig(enable_echo_cancel=True),
+            "echo_cancel_enabled",
+            True,
+        ),
+        (lambda: DictationConfig(detect_emotion=True), "detect_emotion_enabled", True),
+        (
+            lambda: DictationConfig(emotion_out_of_process=True),
+            "emotion_out_of_process_enabled",
+            True,
+        ),
+        (
+            lambda: SpeechConfig(missing_block_notice_enabled=False),
+            "block_notice_enabled",
+            False,
+        ),
+    ],
+    ids=[
+        "camera",
+        "screenshot",
+        "dictation-echo",
+        "dictation-emotion",
+        "dictation-subprocess",
+        "speech",
+    ],
+)
+def test_a_feature_config_still_takes_the_field_names_it_had(
+    build, field_name, expected
+):
+    """Renaming a public constructor argument would crash a plugin at import."""
+    assert getattr(build(), field_name) is expected
