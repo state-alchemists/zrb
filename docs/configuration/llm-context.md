@@ -102,6 +102,8 @@ The prompt asks the model to batch; when that is ignored, zrb injects one remind
 
 `/usage` reports the shape beside the totals: **tool calls per round**. A window of several rounds averaging one call per round was issuing lookups serially; the same calls issued two or three to a response would have cost a fraction of the input tokens.
 
+The reminder is `ZRB_LLM_BATCH_NUDGE_ENABLED` (`on` by default) and `off` leaves the conversation untouched. It is also withheld for a model on zrb's parallel-call deny-list (`supports_parallel_tool_calls` is `False`): the System Context already tells such a model to issue exactly one call per response, and a reminder arguing the other way would cost it both calls in the round. An unrecognised model is treated as able, since the list names only models known to malform.
+
 ## Memory & Notes Storage
 
 How the store works — the four file kinds, what reaches the model and when — is explained once, in [LLM Memory](../technical-specs/llm-memory.md). This section lists the knobs.

@@ -17,6 +17,10 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
+from zrb.config.config import CFG
+from zrb.llm.agent_state import get_current_model
+from zrb.llm.util.capabilities import model_capabilities
+
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
 
@@ -45,12 +49,26 @@ def create_batch_nudge_processor() -> (
     async def process_history(
         messages: "list[ModelMessage]", system_prompt_overhead: int = 0
     ) -> "list[ModelMessage]":
+        if not CFG.LLM_BATCH_NUDGE_ENABLED or _is_parallel_calls_unsupported():
+            return messages
         tool_name = _single_call_streak_tool(messages)
         if tool_name is None:
             return messages
         return [*messages, _create_nudge(tool_name)]
 
     return process_history
+
+
+def _is_parallel_calls_unsupported() -> bool:
+    """Whether the run's model is known to malform parallel tool calls.
+
+    `supports_parallel_tool_calls` is a deny-list, so only `False` is acted on:
+    `None` means unknown, and an unknown model keeps the reminder. For a model
+    on the list the System Context has already withdrawn the batch rule, and a
+    reminder pushing the other way would cost it both calls in the round.
+    """
+    model = get_current_model() or CFG.LLM_MODEL
+    return model_capabilities.get(model).supports_parallel_tool_calls is False
 
 
 def _single_call_streak_tool(messages: "list[ModelMessage]") -> str | None:

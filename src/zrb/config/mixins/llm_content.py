@@ -52,6 +52,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_AGENT_MESSAGE_LIMIT: str = "20"
         self.DEFAULT_LLM_SUBAGENT_HISTORY_RETAIN: str = "50"
         self.DEFAULT_LLM_AUTO_NAME_ENABLED: str = "on"
+        self.DEFAULT_LLM_BATCH_NUDGE_ENABLED: str = "on"
         self.DEFAULT_LLM_NOTES_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_DIR: str = ""
@@ -451,6 +452,21 @@ class LLMContentMixin:
         doc=(
             "Number of timestamped history backups to keep per conversation. "
             "0 disables backup writes entirely. -1 keeps every backup."
+        ),
+    )
+
+    LLM_BATCH_NUDGE_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Remind the model, once, when three consecutive rounds each carried "
+            "a single Read, Grep, Glob or LS call on different arguments. Every "
+            "round re-sends the whole conversation, so a lookup issued alone "
+            "pays for the context again; the reminder names the pattern and "
+            "nothing else, and is not repeated while one is still in the "
+            "history. Never counted for Shell, Write or Edit, whose next call "
+            "usually needs the previous output, and never sent to a model known "
+            "to malform parallel calls. Default: on."
         ),
     )
 

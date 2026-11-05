@@ -10,6 +10,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
+from zrb.llm.tool_call import batch_nudge
 from zrb.llm.tool_call.batch_nudge import (
     NUDGE_MARKER,
     STREAK_LENGTH,
@@ -126,3 +127,33 @@ def test_lookups_of_different_tools_are_not_one_streak():
         messages.extend([_call(tool, **{arg: "x"}), _prompt()])
 
     assert _process(messages) == messages
+
+
+def test_the_reminder_is_off_when_its_knob_is_off(monkeypatch):
+    monkeypatch.setenv("ZRB_LLM_BATCH_NUDGE_ENABLED", "off")
+    messages = _read_streak(["a.py", "b.py", "c.py"])
+
+    assert _process(messages) == messages
+
+
+def test_a_model_known_to_malform_parallel_calls_is_not_reminded(monkeypatch):
+    """The System Context already withdrew the batch rule for this model; a
+    reminder pushing the other way would cost it both calls in the round.
+
+    `minimax-m2.7` is on `_NO_PARALLEL_TOOL_CALLS`; a model merely absent from
+    that list is unknown, not able, and keeps the reminder (next test).
+    """
+    monkeypatch.setattr(batch_nudge, "get_current_model", lambda: "minimax-m2.7")
+    messages = _read_streak(["a.py", "b.py", "c.py"])
+
+    assert _process(messages) == messages
+
+
+def test_an_unknown_model_keeps_the_reminder(monkeypatch):
+    """`None` is unknown, not a `False`: an unlisted model is assumed able."""
+    monkeypatch.setattr(
+        batch_nudge, "get_current_model", lambda: "ollama:some-local-model"
+    )
+    messages = _read_streak(["a.py", "b.py", "c.py"])
+
+    assert len(_process(messages)) == len(messages) + 1
