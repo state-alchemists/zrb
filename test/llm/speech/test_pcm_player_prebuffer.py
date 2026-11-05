@@ -208,7 +208,9 @@ def test_a_zero_cushion_still_waits_for_the_first_audio(sd):
 def test_the_newest_speech_setting_is_the_last_field():
     """A dataclass is positional too: a field added in the middle rebinds every
     field after it for a caller that passes them that way."""
-    assert [field.name for field in fields(SpeechConfig)][-1] == "missing_block_notice"
+    assert [field.name for field in fields(SpeechConfig)][
+        -1
+    ] == "missing_block_notice_enabled"
 
 
 def test_the_cushion_is_added_last_so_a_positional_caller_still_fits(sd):

@@ -52,7 +52,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_AGENT_MESSAGE_LIMIT: str = "20"
         self.DEFAULT_LLM_SUBAGENT_HISTORY_RETAIN: str = "50"
         self.DEFAULT_LLM_AUTO_NAME_ENABLED: str = "on"
-        self.DEFAULT_LLM_BATCH_TOOL_CALL_NUDGE: str = "on"
+        self.DEFAULT_LLM_BATCH_TOOL_CALL_NUDGE_ENABLED: str = "on"
         self.DEFAULT_LLM_NOTES_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_DIR: str = ""
@@ -455,7 +455,7 @@ class LLMContentMixin:
         ),
     )
 
-    LLM_BATCH_TOOL_CALL_NUDGE = EnvField(
+    LLM_BATCH_TOOL_CALL_NUDGE_ENABLED = EnvField(
         to_boolean,
         serialize=on_off,
         doc=(

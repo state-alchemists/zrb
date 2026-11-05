@@ -104,7 +104,7 @@ The prompt asks the model to batch; when that is ignored, zrb injects one remind
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_BATCH_TOOL_CALL_NUDGE` | Remind the model, once, that three consecutive rounds each carried a single lookup call — `Read`, `Grep`, `Glob` or `LS` — on different arguments. `off` leaves the conversation untouched: the reminder is never injected. It is withheld too for a model whose `supports_parallel_tool_calls` is `False` | `on` |
+| `ZRB_LLM_BATCH_TOOL_CALL_NUDGE_ENABLED` | Remind the model, once, that three consecutive rounds each carried a single lookup call — `Read`, `Grep`, `Glob` or `LS` — on different arguments. `off` leaves the conversation untouched: the reminder is never injected. It is withheld too for a model whose `supports_parallel_tool_calls` is `False` | `on` |
 
 The reminder is withheld for a model on zrb's parallel-call deny-list (`supports_parallel_tool_calls` is `False`): the System Context already tells such a model to issue exactly one call per response, and a reminder arguing the other way would cost it both calls in the round. An unrecognised model is treated as able, since the list names only models known to malform.
 
