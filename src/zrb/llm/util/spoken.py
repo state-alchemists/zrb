@@ -30,6 +30,10 @@ A marker is always taken out of the screen copy — a stray `</spoken>` included
 which opens nothing and leaves the whole reply spoken. A tag written inside an
 inline code span or a fenced block is the tag being quoted, not used: it opens
 nothing, and both copies leave it where the reply put it.
+
+A reply with no block is read whole, which is right for a short answer and
+wrong for a reply that says too much to listen to; `has_spoken_block` is
+what a caller asks before deciding which of the two it has.
 """
 
 from __future__ import annotations
@@ -86,6 +90,13 @@ def split_spoken(text: str) -> tuple[str | None, str]:
     if not is_spoken:
         return None, shown
     return spoken, shown
+
+
+def has_spoken_block(text: str) -> bool:
+    """Whether *text* opens a `<spoken>` block, as opposed to naming the tag in
+    code. A reply that opens none is read whole, so a caller weighing that whole
+    asks this first."""
+    return _is_spoken_reply(text)
 
 
 class SpokenSplitter:

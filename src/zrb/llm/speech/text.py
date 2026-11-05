@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from fnmatch import fnmatchcase
 
+from zrb.llm.util.spoken import has_spoken_block
+
 _FENCE_RE = re.compile(r"(```|~~~).*?\1", re.DOTALL)
 # A fence opening a line with no close runs to the end: a reply cut mid-code.
 _UNCLOSED_FENCE_RE = re.compile(r"^[ \t]*(```|~~~).*\Z", re.DOTALL | re.MULTILINE)
@@ -37,6 +39,11 @@ _EMPHASIS_RES = (
 _NON_SPEECH_RE = re.compile(
     "[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f1e6-\U0001f1ff]"
 )
+
+
+# How long a reply may say and still be heard whole: roughly three sentences at
+# a speaking pace, or twenty seconds of listening.
+WHOLE_READ_OK_CHARS = 400
 
 
 def clean_for_speech(text: str) -> str:
@@ -100,6 +107,37 @@ def without_blockquotes(text: str) -> str:
         is_quoted = False
         kept.append(line)
     return "\n".join(kept)
+
+
+def needs_spoken_block(text: str) -> bool:
+    """Whether *text* should have marked a `<spoken>` block and did not.
+
+    A reply that opens one needs nothing more, even an empty one: it has said
+    what the ear gets. One that opens none is read whole — the *cleaned* text
+    below is what the voice receives — so it costs something when that text runs
+    past `WHOLE_READ_OK_CHARS`, or when the reply leans on what the cleaning
+    throws away: a table's numbers, a fenced block's command. The listener is
+    left with a sentence pointing at nothing.
+
+    Both measures come from the text minus what the reply quoted: a quoted log
+    is shown and never said, and counting it would report a reply too long to
+    listen to when the listener hears one line.
+    """
+    if has_spoken_block(text):
+        return False
+    unquoted = without_blockquotes(text)
+    return _has_eye_only_structure(unquoted) or (
+        len(clean_for_speech(unquoted)) > WHOLE_READ_OK_CHARS
+    )
+
+
+def _has_eye_only_structure(text: str) -> bool:
+    """Whether *text* holds a table or a fence, which `clean_for_speech` removes:
+    the ear hears what surrounds it and nothing of it."""
+    lines = text.split("\n")
+    if any(is_table_line(line) for line in lines):
+        return True
+    return any(line.lstrip(" \t").startswith(("```", "~~~")) for line in lines)
 
 
 def _is_quote_continuation(line: str) -> bool:
