@@ -529,8 +529,12 @@ class SpeechSession:
         """Record whether *reply* wanted a block and opened none, and log it.
 
         The caller checks that speech is on first: a reply nobody hears has no
-        ear to write for.
+        ear to write for. A notice switched off also clears one already
+        standing, so turning it off is not a promise about the next turn.
         """
+        if not self._config.missing_block_notice_enabled:
+            self._missed_block = False
+            return
         missed = needs_spoken_block(reply)
         self._missed_block = missed
         if missed:

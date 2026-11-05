@@ -75,6 +75,7 @@ class SpeechConfig:
     emotion_voices: dict[str, str] | None = None
     player_prebuffer_seconds: float | None = None
     chunk_max_chars: int | None = None
+    missing_block_notice_enabled: bool | None = None
 
     def resolve(self) -> "SpeechConfig":
         """A copy with every ``None`` field read from `CFG`."""

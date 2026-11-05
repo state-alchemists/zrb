@@ -175,6 +175,30 @@ async def test_a_turn_that_says_nothing_replaces_the_note():
 
 
 @pytest.mark.asyncio
+async def test_the_notice_can_be_switched_off():
+    """The notice costs the next request a line, so a session that does not
+    want it must not carry it — and must not log a miss either."""
+    session = _session(missing_block_notice_enabled=False)
+
+    await session.handle_stop(_stop("A long enough answer. " * 20))
+
+    assert "no `<spoken>` block" not in session.create_live_context()
+
+
+@pytest.mark.asyncio
+async def test_the_notice_is_on_by_default_and_the_knob_reads_cfg(monkeypatch, caplog):
+    monkeypatch.setenv("ZRB_LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED", "false")
+    session = _session()
+
+    await session.handle_stop(_stop("A long enough answer. " * 20))
+
+    assert "no `<spoken>` block" not in session.create_live_context()
+    assert not any(
+        "opened no `<spoken>` block" in r.getMessage() for r in caplog.records
+    )
+
+
+@pytest.mark.asyncio
 async def test_a_cancelled_turn_replaces_the_note():
     """Esc ends the turn without a finished reply — the same case as the empty
     turn, reached through the hook's `reason`."""

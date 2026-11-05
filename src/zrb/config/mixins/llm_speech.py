@@ -45,6 +45,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
         self.DEFAULT_LLM_SPEECH_VOLUME: str = "100"
         self.DEFAULT_LLM_SPEECH_STREAM: str = "true"
+        self.DEFAULT_LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED: str = "true"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS: str = "0"
         self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
         self.DEFAULT_LLM_SPEECH_SUMMARY_TIMEOUT: str = "15"
@@ -185,6 +186,19 @@ class LLMSpeechMixin:
             "reply once the turn ends. Either way the whole reply is read, "
             "unless {ENV_PREFIX}_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS is set, "
             "which turns streaming of the reply off. Default: true."
+        ),
+    )
+
+    LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED = EnvField(
+        to_boolean,
+        serialize=on_off,
+        doc=(
+            "Tell the model, on the turn after one, that its last reply opened "
+            "no `<spoken>` block. The notice costs the next request a line and "
+            "nothing else, and it is the only place a writer learns the reply "
+            "went out whole — speech already said it, so no tool result carries "
+            "the news. It never fires for a short answer, for a reply while "
+            "speech is off, or for a sub-agent's words. Default: true."
         ),
     )
 
