@@ -14,13 +14,13 @@ def skill_manager(tmp_path):
 def _builtin_mock_cfg(mock_cfg, *, enable_builtin_skills, extra_skill_dirs=None):
     "Configure a mocked CFG that disables home/project search so only the"
     mock_cfg.ROOT_GROUP_NAME = "zrb"
-    mock_cfg.LLM_SEARCH_HOME = False
-    mock_cfg.LLM_SEARCH_PROJECT = False
+    mock_cfg.LLM_SEARCH_HOME_ENABLED = False
+    mock_cfg.LLM_SEARCH_PROJECT_ENABLED = False
     mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
     mock_cfg.LLM_PLUGIN_DIRS = []
     mock_cfg.LLM_BASE_SEARCH_DIRS = []
     mock_cfg.LLM_EXTRA_SKILL_DIRS = extra_skill_dirs or []
-    mock_cfg.LLM_ENABLE_BUILTIN_SKILLS = enable_builtin_skills
+    mock_cfg.LLM_BUILTIN_SKILLS_ENABLED = enable_builtin_skills
 
 
 @pytest.fixture
@@ -30,13 +30,13 @@ def manager(tmp_path):
 
 def _mock_cfg(mock_cfg, **overrides):
     mock_cfg.ROOT_GROUP_NAME = "zrb"
-    mock_cfg.LLM_SEARCH_HOME = False
-    mock_cfg.LLM_SEARCH_PROJECT = False
+    mock_cfg.LLM_SEARCH_HOME_ENABLED = False
+    mock_cfg.LLM_SEARCH_PROJECT_ENABLED = False
     mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
     mock_cfg.LLM_PLUGIN_DIRS = []
     mock_cfg.LLM_BASE_SEARCH_DIRS = []
     mock_cfg.LLM_EXTRA_SKILL_DIRS = []
-    mock_cfg.LLM_ENABLE_BUILTIN_SKILLS = False
+    mock_cfg.LLM_BUILTIN_SKILLS_ENABLED = False
     for key, value in overrides.items():
         setattr(mock_cfg, key, value)
 
@@ -49,7 +49,7 @@ def test_get_search_directories_home_plugins(tmp_path):
     (plugin / "skills").mkdir(parents=True)
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
-        _mock_cfg(mock_cfg, LLM_SEARCH_HOME=True)
+        _mock_cfg(mock_cfg, LLM_SEARCH_HOME_ENABLED=True)
         with patch("zrb.llm.skill.manager.Path.home", return_value=home):
             dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("hp/skills") for d in dirs)
@@ -66,7 +66,7 @@ def test_get_search_directories_includes_root(tmp_path):
 def test_builtin_core_skills_always_searched(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
-        _mock_cfg(mock_cfg, LLM_ENABLE_BUILTIN_SKILLS=False)
+        _mock_cfg(mock_cfg, LLM_BUILTIN_SKILLS_ENABLED=False)
         dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
     assert not any(d.endswith("llm_plugin/skills") for d in dirs)
@@ -104,7 +104,7 @@ def test_a_user_journaling_skill_still_loads(tmp_path):
 def test_builtin_utility_skills_searched_when_enabled(tmp_path):
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
-        _mock_cfg(mock_cfg, LLM_ENABLE_BUILTIN_SKILLS=True)
+        _mock_cfg(mock_cfg, LLM_BUILTIN_SKILLS_ENABLED=True)
         dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("llm_plugin/core_skills") for d in dirs)
     assert any(d.endswith("llm_plugin/skills") for d in dirs)

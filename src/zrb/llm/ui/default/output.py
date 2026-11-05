@@ -830,7 +830,7 @@ class UIOutput:
 
     def _get_working_duration(self) -> str:
         """Current working-period duration, or empty when unavailable."""
-        if not CFG.LLM_UI_SHOW_RUNTIME_TIMERS:
+        if not CFG.LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED:
             return ""
         started_at = getattr(self._ui, "working_started_at", None)
         if started_at is None:
@@ -839,7 +839,7 @@ class UIOutput:
 
     def _get_tool_duration_fragment(self) -> list:
         """Running-tool elapsed fragment; empty when no tool runs or off."""
-        if not CFG.LLM_UI_SHOW_RUNTIME_TIMERS:
+        if not CFG.LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED:
             return []
         running = getattr(self._ui, "running_tool", None)
         if running is None:

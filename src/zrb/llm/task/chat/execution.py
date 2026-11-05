@@ -132,7 +132,7 @@ class ChatExecution:
         )
 
         effective_enable_rewind = (
-            CFG.LLM_ENABLE_REWIND
+            CFG.LLM_REWIND_ENABLED
             if self._llm_chat_task.enable_rewind is None
             else self._llm_chat_task.enable_rewind
         )

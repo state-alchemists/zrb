@@ -47,7 +47,7 @@ def test_default_policy_is_disabled():
 def test_env_enables_sandbox(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_SANDBOX_ENABLED", "true")
     monkeypatch.setenv("ZRB_LLM_SANDBOX_FALLBACK", "deny")
-    monkeypatch.setenv("ZRB_LLM_SANDBOX_ALLOW_ESCAPE", "false")
+    monkeypatch.setenv("ZRB_LLM_SANDBOX_ALLOW_ESCAPE_ENABLED", "false")
     policy = resolve_sandbox_policy_from_config()
     assert policy.enabled is True
     assert policy.fallback == "deny"

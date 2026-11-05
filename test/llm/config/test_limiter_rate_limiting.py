@@ -373,8 +373,8 @@ def test_acquire_is_a_no_op_when_pacing_is_off():
 
 def test_pacing_defaults_to_off(monkeypatch):
     "A fresh limiter paces nothing unless the deployment asks it to."
-    monkeypatch.setattr(CFG, "LLM_ENABLE_RATE_LIMIT", False, raising=False)
+    monkeypatch.setattr(CFG, "LLM_RATE_LIMIT_ENABLED", False, raising=False)
     assert LLMLimiter().pacing_enabled is False
 
-    monkeypatch.setattr(CFG, "LLM_ENABLE_RATE_LIMIT", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_RATE_LIMIT_ENABLED", True, raising=False)
     assert LLMLimiter().pacing_enabled is True

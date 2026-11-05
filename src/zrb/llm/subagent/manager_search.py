@@ -16,7 +16,7 @@ class SubAgentManagerSearch:
         later directory overrides an earlier one on a name collision.
 
         1. Core builtin agents (always included, lowest priority)
-        2. Optional builtin agents (gated by ``LLM_ENABLE_BUILTIN_AGENTS``)
+        2. Optional builtin agents (gated by ``LLM_BUILTIN_AGENTS_ENABLED``)
         3. User home (``~/.claude/``, ``~/.zrb/``, …)
         4. Project traversal (filesystem root → cwd)
         5. Plugins from ``LLM_PLUGIN_DIRS``
@@ -29,14 +29,14 @@ class SubAgentManagerSearch:
 
         _append_if_dir(BUILTIN_PLUGIN_DIR / "core_agents", search_dirs)
 
-        if CFG.LLM_ENABLE_BUILTIN_AGENTS:
+        if CFG.LLM_BUILTIN_AGENTS_ENABLED:
             _append_if_dir(BUILTIN_PLUGIN_DIR / "agents", search_dirs)
 
-        if CFG.LLM_SEARCH_HOME:
+        if CFG.LLM_SEARCH_HOME_ENABLED:
             for pattern in CFG.LLM_CONFIG_DIR_NAMES:
                 self._add_agents_from_root(home / pattern, search_dirs)
 
-        if CFG.LLM_SEARCH_PROJECT:
+        if CFG.LLM_SEARCH_PROJECT_ENABLED:
             for project_dir in get_upward_dirs(root_dir):
                 for pattern in CFG.LLM_CONFIG_DIR_NAMES:
                     self._add_agents_from_root(project_dir / pattern, search_dirs)

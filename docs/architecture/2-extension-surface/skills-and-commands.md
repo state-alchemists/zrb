@@ -78,7 +78,7 @@ flowchart TD
 
 ### How it runs
 
-**Discovery.** The first lookup scans. `SkillManager` builds its search directories — home and project config directories (`CFG.LLM_CONFIG_DIR_NAMES`), plugin directories, any extra skill directories, and the built-in `core_skills/` plus, when `CFG.LLM_ENABLE_BUILTIN_SKILLS` is on, `skills/` — and replaces the discovered layer with what it finds. A `SKILL.md` or `SKILL.py` in its own directory brings its companion files along.
+**Discovery.** The first lookup scans. `SkillManager` builds its search directories — home and project config directories (`CFG.LLM_CONFIG_DIR_NAMES`), plugin directories, any extra skill directories, and the built-in `core_skills/` plus, when `CFG.LLM_BUILTIN_SKILLS_ENABLED` is on, `skills/` — and replaces the discovered layer with what it finds. A `SKILL.md` or `SKILL.py` in its own directory brings its companion files along.
 
 **The model's side.** `build_skill_replacements` fills the catalogue placeholder in the prompt with the model-invocable skills, capped by `CFG.LLM_MAX_SKILLS_IN_CATALOG`. When the model calls `ActivateSkill`, the tool returns the skill's body wrapped with its directory and companion files, so relative paths in the skill resolve.
 

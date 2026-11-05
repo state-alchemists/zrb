@@ -52,8 +52,8 @@ Fallback content
         patch("zrb.llm.skill.manager.CFG") as mock_cfg,
     ):
         mock_cfg.ROOT_GROUP_NAME = "zrb"
-        mock_cfg.LLM_SEARCH_HOME = True
-        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_SEARCH_HOME_ENABLED = True
+        mock_cfg.LLM_SEARCH_PROJECT_ENABLED = True
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         mock_cfg.LLM_PLUGIN_DIRS = []
         mock_cfg.LLM_BASE_SEARCH_DIRS = []
@@ -70,13 +70,13 @@ def skill_manager(tmp_path):
 def _builtin_mock_cfg(mock_cfg, *, enable_builtin_skills, extra_skill_dirs=None):
     "Configure a mocked CFG that disables home/project search so only the"
     mock_cfg.ROOT_GROUP_NAME = "zrb"
-    mock_cfg.LLM_SEARCH_HOME = False
-    mock_cfg.LLM_SEARCH_PROJECT = False
+    mock_cfg.LLM_SEARCH_HOME_ENABLED = False
+    mock_cfg.LLM_SEARCH_PROJECT_ENABLED = False
     mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
     mock_cfg.LLM_PLUGIN_DIRS = []
     mock_cfg.LLM_BASE_SEARCH_DIRS = []
     mock_cfg.LLM_EXTRA_SKILL_DIRS = extra_skill_dirs or []
-    mock_cfg.LLM_ENABLE_BUILTIN_SKILLS = enable_builtin_skills
+    mock_cfg.LLM_BUILTIN_SKILLS_ENABLED = enable_builtin_skills
 
 
 @pytest.fixture
@@ -326,8 +326,8 @@ def test_skill_manager_get_search_directories_project_hierarchy(tmp_path):
     manager = SkillManager(root_dir=str(leaf))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
-        mock_cfg.LLM_SEARCH_HOME = True
-        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_SEARCH_HOME_ENABLED = True
+        mock_cfg.LLM_SEARCH_PROJECT_ENABLED = True
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         dirs = [str(d) for d in manager.search_dirs]
         assert any(os.path.join("root", ".zrb", "skills") in d for d in dirs)
@@ -343,8 +343,8 @@ def test_skill_manager_get_search_directories_plugins(skill_manager, tmp_path):
 
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
-        mock_cfg.LLM_SEARCH_HOME = True
-        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_SEARCH_HOME_ENABLED = True
+        mock_cfg.LLM_SEARCH_PROJECT_ENABLED = True
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         mock_cfg.LLM_EXTRA_SKILL_DIRS = [str(skill_dir)]
         dirs = skill_manager.search_dirs
@@ -362,8 +362,8 @@ def test_skill_manager_get_search_directories_with_plugins(skill_manager, tmp_pa
 
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
         mock_cfg.ROOT_GROUP_NAME = "zrb"
-        mock_cfg.LLM_SEARCH_HOME = True
-        mock_cfg.LLM_SEARCH_PROJECT = True
+        mock_cfg.LLM_SEARCH_HOME_ENABLED = True
+        mock_cfg.LLM_SEARCH_PROJECT_ENABLED = True
         mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
         mock_cfg.LLM_PLUGIN_DIRS = [str(plugin_root)]
         dirs = skill_manager.search_dirs

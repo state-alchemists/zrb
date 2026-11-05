@@ -153,23 +153,23 @@ class TestLLMConfigSetters:
 
     def test_llm_show_tool_call_detail_setter_true(self, monkeypatch):
         config = Config()
-        config.LLM_SHOW_TOOL_CALL_DETAIL = True
-        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_DETAIL"] == "on"
+        config.LLM_SHOW_TOOL_CALL_DETAIL_ENABLED = True
+        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_DETAIL_ENABLED"] == "on"
 
     def test_llm_show_tool_call_detail_setter_false(self, monkeypatch):
         config = Config()
-        config.LLM_SHOW_TOOL_CALL_DETAIL = False
-        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_DETAIL"] == "off"
+        config.LLM_SHOW_TOOL_CALL_DETAIL_ENABLED = False
+        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_DETAIL_ENABLED"] == "off"
 
     def test_llm_show_tool_call_result_setter_true(self, monkeypatch):
         config = Config()
-        config.LLM_SHOW_TOOL_CALL_RESULT = True
-        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] == "on"
+        config.LLM_SHOW_TOOL_CALL_RESULT_ENABLED = True
+        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT_ENABLED"] == "on"
 
     def test_llm_show_tool_call_result_setter_false(self, monkeypatch):
         config = Config()
-        config.LLM_SHOW_TOOL_CALL_RESULT = False
-        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT"] == "off"
+        config.LLM_SHOW_TOOL_CALL_RESULT_ENABLED = False
+        assert os.environ["ZRB_LLM_SHOW_TOOL_CALL_RESULT_ENABLED"] == "off"
 
     def test_llm_include_sections_setter_list(self, monkeypatch):
         config = Config()
@@ -183,23 +183,23 @@ class TestLLMConfigSetters:
 
     def test_llm_search_project_setter_true(self, monkeypatch):
         config = Config()
-        config.LLM_SEARCH_PROJECT = True
-        assert os.environ["ZRB_LLM_SEARCH_PROJECT"] == "on"
+        config.LLM_SEARCH_PROJECT_ENABLED = True
+        assert os.environ["ZRB_LLM_SEARCH_PROJECT_ENABLED"] == "on"
 
     def test_llm_search_project_setter_false(self, monkeypatch):
         config = Config()
-        config.LLM_SEARCH_PROJECT = False
-        assert os.environ["ZRB_LLM_SEARCH_PROJECT"] == "off"
+        config.LLM_SEARCH_PROJECT_ENABLED = False
+        assert os.environ["ZRB_LLM_SEARCH_PROJECT_ENABLED"] == "off"
 
     def test_llm_search_home_setter_true(self, monkeypatch):
         config = Config()
-        config.LLM_SEARCH_HOME = True
-        assert os.environ["ZRB_LLM_SEARCH_HOME"] == "on"
+        config.LLM_SEARCH_HOME_ENABLED = True
+        assert os.environ["ZRB_LLM_SEARCH_HOME_ENABLED"] == "on"
 
     def test_llm_search_home_setter_false(self, monkeypatch):
         config = Config()
-        config.LLM_SEARCH_HOME = False
-        assert os.environ["ZRB_LLM_SEARCH_HOME"] == "off"
+        config.LLM_SEARCH_HOME_ENABLED = False
+        assert os.environ["ZRB_LLM_SEARCH_HOME_ENABLED"] == "off"
 
     def test_llm_config_dir_names_setter(self, monkeypatch):
         config = Config()
@@ -232,8 +232,8 @@ class TestLLMConfigSetters:
     def test_enable_tiktoken_setter(self, monkeypatch):
         # Renamed from USE_TIKTOKEN (ADR-0026).
         config = Config()
-        config.ENABLE_TIKTOKEN = True
-        assert os.environ["ZRB_ENABLE_TIKTOKEN"] == "on"
+        config.TIKTOKEN_ENABLED = True
+        assert os.environ["ZRB_TIKTOKEN_ENABLED"] == "on"
 
     def test_tiktoken_encoding_name_setter(self, monkeypatch):
         config = Config()

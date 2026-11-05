@@ -423,10 +423,10 @@ class BaseUIConversationCommands:
         one that names the session requirement.
         """
         prefix = CFG.ENV_PREFIX
-        if not CFG.LLM_ENABLE_REWIND:
+        if not CFG.LLM_REWIND_ENABLED:
             return (
                 "\n  ⏳ Rewind is not enabled.\n"
-                f"     Set {prefix}_LLM_ENABLE_REWIND=on and restart.\n"
+                f"     Set {prefix}_LLM_REWIND_ENABLED=on and restart.\n"
             )
         return (
             "\n  ⏳ Rewind is unavailable in this session — it needs a named "

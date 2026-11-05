@@ -307,7 +307,10 @@ def test_set_command_value_completion_offers_boolean(
         history_manager=mock_history_manager,
         ui_config=_config(set_commands=["/set"]),
     )
-    doc = Document(text="/set LLM_SHOW_OLLAMA_MODELS ", cursor_position=28)
+    doc = Document(
+        text="/set LLM_SHOW_OLLAMA_MODELS_ENABLED ", cursor_position=36
+    )
+
     completions = list(completer.get_completions(doc, complete_event))
     texts = [c.text for c in completions]
     assert "on" in texts

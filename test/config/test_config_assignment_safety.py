@@ -44,23 +44,23 @@ def test_get_settable_field_names_lists_known_knobs_only():
 def test_convert_setting_value_casts_strings_to_field_types():
     cfg = Config()
     assert cfg.convert_setting_value("LLM_MAX_REQUEST_PER_MINUTE", "12") == 12
-    assert cfg.convert_setting_value("LLM_SHOW_OLLAMA_MODELS", "on") is True
+    assert cfg.convert_setting_value("LLM_SHOW_OLLAMA_MODELS_ENABLED", "on") is True
     assert cfg.convert_setting_value("LLM_MODEL", "my-model") == "my-model"
 
 
 def test_voice_moves_shell_is_off_by_default_and_settable_with_set(monkeypatch):
-    """`/set LLM_VOICE_MOVES_SHELL 1` is how a voice-first session turns it on,
+    """`/set LLM_VOICE_MOVES_SHELL_ENABLED 1` is how a voice-first session turns it on,
     so the name has to be one `/set` can cast and assign."""
-    monkeypatch.delenv("ZRB_LLM_VOICE_MOVES_SHELL", raising=False)
+    monkeypatch.delenv("ZRB_LLM_VOICE_MOVES_SHELL_ENABLED", raising=False)
     cfg = Config()
-    assert cfg.LLM_VOICE_MOVES_SHELL is False
+    assert cfg.LLM_VOICE_MOVES_SHELL_ENABLED is False
     for raw, expected in (("1", True), ("0", False)):
         setattr(
             cfg,
-            "LLM_VOICE_MOVES_SHELL",
-            cfg.convert_setting_value("LLM_VOICE_MOVES_SHELL", raw),
+            "LLM_VOICE_MOVES_SHELL_ENABLED",
+            cfg.convert_setting_value("LLM_VOICE_MOVES_SHELL_ENABLED", raw),
         )
-        assert cfg.LLM_VOICE_MOVES_SHELL is expected
+        assert cfg.LLM_VOICE_MOVES_SHELL_ENABLED is expected
 
 
 def test_convert_setting_value_unknown_name_raises_with_suggestion():

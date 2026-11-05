@@ -85,10 +85,10 @@ def test_llm_max_token_per_request(monkeypatch):
 
 
 def test_llm_enable_tool_spill_reads_the_legacy_key(monkeypatch):
-    monkeypatch.delenv("ZRB_LLM_ENABLE_TOOL_SPILL", raising=False)
+    monkeypatch.delenv("ZRB_LLM_TOOL_SPILL_ENABLED", raising=False)
     monkeypatch.setenv("ZRB_LLM_TOOL_SPILL_ENABLED", "on")
 
-    assert Config().LLM_ENABLE_TOOL_SPILL is True
+    assert Config().LLM_TOOL_SPILL_ENABLED is True
 
 
 def test_llm_throttle_sleep(monkeypatch):
@@ -152,7 +152,7 @@ def test_llm_configs_types():
     assert isinstance(config.SEARXNG_LANG, str)
 
     assert isinstance(config.BANNER, str)
-    assert isinstance(config.ENABLE_TIKTOKEN, bool)
+    assert isinstance(config.TIKTOKEN_ENABLED, bool)
     assert isinstance(config.TIKTOKEN_ENCODING_NAME, str)
 
 
@@ -205,8 +205,8 @@ def test_llm_max_agents_in_roster_override(monkeypatch):
 
 
 def test_llm_rewind_is_on_and_self_review_off_by_default(monkeypatch):
-    monkeypatch.delenv("ZRB_LLM_ENABLE_REWIND", raising=False)
+    monkeypatch.delenv("ZRB_LLM_REWIND_ENABLED", raising=False)
     monkeypatch.delenv("ZRB_LLM_SELF_REVIEW_ENABLED", raising=False)
     config = Config()
-    assert config.LLM_ENABLE_REWIND is True
+    assert config.LLM_REWIND_ENABLED is True
     assert config.LLM_SELF_REVIEW_ENABLED is False

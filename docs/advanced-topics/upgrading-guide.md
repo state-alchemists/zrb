@@ -26,7 +26,56 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Upgrading to NEXT (unreleased)
 
-Layering refactor for lower-cognitive-load imports. Tools and hooks no longer import the engine or subagent orchestration directly.
+Two things change in the unreleased line: a layering refactor for lower-cognitive-load imports, and one naming rule for every on/off setting.
+
+### Settings: every switch ends in `_ENABLED`
+
+A boolean setting could be spelled `LLM_ENABLE_REWIND`, `LLM_REWIND` or `LLM_REWIND_ENABLED` with no rule saying which. It is now the last of those: an on/off setting is named for what it switches and ends in `_ENABLED`. R13 in [Framework Conventions](../contributing/framework-conventions.md) records the rule, and a test fails on a new boolean that ignores it.
+
+**Nothing you have set stops working.** Every old spelling is kept as a deprecated alias: still read from the environment, still assignable on `CFG`, still accepted by `/set`, and the new name wins when both are set. Startup names each old variable once, beside the retired-setting report:
+
+```
+ZRB_LLM_ENABLE_REWIND is deprecated and still read. Set ZRB_LLM_REWIND_ENABLED instead.
+```
+
+Move them when convenient; no removal is planned. The tables name the knobs without the `ZRB_` prefix — the environment variable adds it.
+
+| Before | After |
+|---|---|
+| `ENABLE_BUILTIN_TASKS` | `BUILTIN_TASKS_ENABLED` |
+| `ENABLE_TIKTOKEN` | `TIKTOKEN_ENABLED` |
+| `LLM_ENABLE_BUILTIN_AGENTS` | `LLM_BUILTIN_AGENTS_ENABLED` |
+| `LLM_ENABLE_BUILTIN_SKILLS` | `LLM_BUILTIN_SKILLS_ENABLED` |
+| `LLM_ENABLE_REWIND` | `LLM_REWIND_ENABLED` |
+| `LLM_ENABLE_TOOL_SPILL` | `LLM_TOOL_SPILL_ENABLED` |
+| `LLM_ENABLE_READ_IMAGE` | `LLM_READ_IMAGE_ENABLED` |
+| `LLM_ENABLE_RATE_LIMIT` | `LLM_RATE_LIMIT_ENABLED` |
+| `LLM_CAMERA_ENABLE_TOOL` | `LLM_CAMERA_TOOL_ENABLED` |
+| `LLM_SCREENSHOT_ENABLE_TOOL` | `LLM_SCREENSHOT_TOOL_ENABLED` |
+| `LLM_DICTATION_ENABLE_ECHO_CANCEL` | `LLM_DICTATION_ECHO_CANCEL_ENABLED` |
+| `LLM_UI_ENABLE_MARKDOWN_MATH` | `LLM_UI_MARKDOWN_MATH_ENABLED` |
+| `LLM_UI_ENABLE_MARKDOWN_MERMAID` | `LLM_UI_MARKDOWN_MERMAID_ENABLED` |
+| `LLM_SEARCH_HOME` | `LLM_SEARCH_HOME_ENABLED` |
+| `LLM_SEARCH_PROJECT` | `LLM_SEARCH_PROJECT_ENABLED` |
+| `LLM_SHOW_OLLAMA_MODELS` | `LLM_SHOW_OLLAMA_MODELS_ENABLED` |
+| `LLM_SHOW_PYDANTIC_AI_MODELS` | `LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED` |
+| `LLM_SHOW_TOOL_CALL_DETAIL` | `LLM_SHOW_TOOL_CALL_DETAIL_ENABLED` |
+| `LLM_SHOW_TOOL_CALL_RESULT` | `LLM_SHOW_TOOL_CALL_RESULT_ENABLED` |
+| `SHOW_UNRECOMMENDED_COMMAND_WARNING` | `SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED` |
+| `LLM_SANDBOX_ALLOW_ESCAPE` | `LLM_SANDBOX_ALLOW_ESCAPE_ENABLED` |
+| `WEB_AUTH_SECURE_COOKIES` | `WEB_AUTH_SECURE_COOKIES_ENABLED` |
+| `WEB_ENABLE_SECURE_COOKIES` | `WEB_AUTH_SECURE_COOKIES_ENABLED` |
+| `LLM_UI_SHOW_RUNTIME_TIMERS` | `LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED` |
+| `LLM_DICTATION_DETECT_EMOTION` | `LLM_DICTATION_DETECT_EMOTION_ENABLED` |
+| `LLM_DICTATION_EMOTION_OUT_OF_PROCESS` | `LLM_DICTATION_EMOTION_OUT_OF_PROCESS_ENABLED` |
+| `LLM_VOICE_MOVES_SHELL` | `LLM_VOICE_MOVES_SHELL_ENABLED` |
+| `LLM_BACKGROUND_WAKE` | `LLM_BACKGROUND_WAKE_ENABLED` |
+| `LLM_INJECT_PROJECT_INSTRUCTIONS` | `LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED` |
+| `LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED` | `LLM_SPEECH_BLOCK_NOTICE_ENABLED` |
+
+The last row is a name from this unreleased line rather than a release — it was shortened before it ever shipped, and the longer spelling still reads.
+
+Three booleans keep their name because they are not switches: `IS_TERMUX` (a predicate) and `LLM_SPEECH_STREAM` / `LLM_DICTATION_BARGE_IN_HOLD` (modes, where the name is the choice itself).
 
 ### Moved modules
 

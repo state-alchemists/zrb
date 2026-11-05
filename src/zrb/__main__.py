@@ -217,6 +217,11 @@ def _warn_mistyped_env_keys() -> None:
 
     Runs after the init sources, which may set `ENV_PREFIX` or the variables.
     """
+    for key, now in CFG.get_deprecated_env_keys().items():
+        print(
+            stylize_warning(f"{key} is deprecated and still read. Set {now} instead."),
+            file=sys.stderr,
+        )
     for key, instead in CFG.get_retired_env_keys().items():
         if instead.startswith(f"{CFG.ENV_PREFIX}_"):
             message = f"{key} is no longer read and is ignored. Set {instead} instead."

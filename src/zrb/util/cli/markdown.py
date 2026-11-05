@@ -24,9 +24,9 @@ def render_markdown(
         CFG,  # lazy: zrb internal (heavy via transitive — CFG composes 15 mixins)
     )
 
-    if CFG.LLM_UI_ENABLE_MARKDOWN_MATH:
+    if CFG.LLM_UI_MARKDOWN_MATH_ENABLED:
         markdown_text = convert_math_to_unicode(markdown_text)
-    if CFG.LLM_UI_ENABLE_MARKDOWN_MERMAID:
+    if CFG.LLM_UI_MARKDOWN_MERMAID_ENABLED:
         markdown_text = convert_mermaid_to_art(markdown_text, width=width)
 
     if theme is None:

@@ -61,7 +61,7 @@ The system prompt is an **ordered list of sections**; what each section holds, w
 |----------|-------------|---------|
 | `ZRB_LLM_INCLUDE_SECTIONS` | Comma-separated, order-sensitive list of sections to include. Remove a name to drop a section; rewrite the list to reorder. The set is fixed: an unknown (e.g. misspelled) name logs a warning at compose time and is skipped. Programmatic twin: `CFG.LLM_INCLUDE_SECTIONS` (a `list[str]`) | `persona,principle,workflow,example,profile,system_context,project_context` |
 | `ZRB_LLM_PROMPT` | Comma-separated extra prompts appended after every built-in section — the env twin of `prompt_registry`. Empty means none. Content that won't fit a comma value (callables, structured middleware) belongs in `zrb_init.py` via `prompt_registry`. See [LLM Component Collections](./llm-collections.md). | (empty) |
-| `ZRB_LLM_INJECT_PROJECT_INSTRUCTIONS` | When `on`, the `project_context` section carries the *content* of the project's `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`, not just a list of paths. The file nearest the working directory is inlined first and gets the byte budget first. A file that only points at another one (`CLAUDE.md` holding `@AGENTS.md`) is listed as a pointer rather than inlined when the prompt carries what it names; a pointer is never allowed to spend the budget its target needs, and is inlined only when the target still does not fit. A symlinked or hardlinked instruction file is never inlined. `README.md` is never inlined: it is documentation to search, not rules to obey. Off restores the list-only behavior. | `on` |
+| `ZRB_LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED` | When `on`, the `project_context` section carries the *content* of the project's `AGENTS.md` / `CLAUDE.md` / `GEMINI.md`, not just a list of paths. The file nearest the working directory is inlined first and gets the byte budget first. A file that only points at another one (`CLAUDE.md` holding `@AGENTS.md`) is listed as a pointer rather than inlined when the prompt carries what it names; a pointer is never allowed to spend the budget its target needs, and is inlined only when the target still does not fit. A symlinked or hardlinked instruction file is never inlined. `README.md` is never inlined: it is documentation to search, not rules to obey. Off restores the list-only behavior. | `on` |
 | `ZRB_LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` | Byte budget for the inlined instructions. At least 512 bytes: below that nothing is inlined, so a budget too small for the nearest file inlines nothing instead of injecting broader rules without it. At 512 and above the nearest file is truncated to fit rather than dropped, and inlining stops at the first file that does not fit, so broader files stay listed by path only. The read is bounded by the budget, and an `@path` inside an inlined file — or inside a path the block prints — is shown as a path rather than expanded. | `24000` |
 
 ```bash
@@ -72,7 +72,7 @@ export ZRB_LLM_INCLUDE_SECTIONS="persona,workflow,system_context"
 export ZRB_LLM_INCLUDE_SECTIONS="persona"
 
 # Keep project rules in the prompt, but only point at large ones.
-export ZRB_LLM_INJECT_PROJECT_INSTRUCTIONS=on
+export ZRB_LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED=on
 export ZRB_LLM_PROJECT_INSTRUCTIONS_MAX_BYTES=8000
 ```
 

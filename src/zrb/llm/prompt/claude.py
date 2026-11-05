@@ -99,7 +99,7 @@ def create_project_context_prompt():  # noqa: C901 -- registration/factory fn; m
         instruction_blocks: list[str] = []
         inlined: set[Path] = set()
         pointers: dict[Path, Path] = {}
-        if CFG.LLM_INJECT_PROJECT_INSTRUCTIONS:
+        if CFG.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED:
             instruction_blocks, inlined, pointers = _inline_instructions(
                 _instruction_sources(search_dirs),
                 CFG.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES,

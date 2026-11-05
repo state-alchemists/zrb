@@ -23,6 +23,8 @@ A variable of your own can be a near miss of a setting without being a typo — 
 
 A *retired* setting still in your environment is named at startup too, with what replaces it: `ZRB_LLM_VOICE_MODE is no longer read and is ignored. Set ZRB_LLM_DICTATION_BACKEND instead.` The full list is in `src/zrb/config/retired.py`; the [Upgrading Guide](../advanced-topics/upgrading-guide.md) explains each change.
 
+A *deprecated* setting is different: it is still read, so nothing you set stops working, and the line names the spelling to use instead. Every on/off knob ends in `_ENABLED`, so the older `ZRB_LLM_ENABLE_*` and bare spellings are deprecated aliases — `ZRB_LLM_ENABLE_REWIND` still sets `LLM_REWIND_ENABLED`, and `CFG.LLM_ENABLE_REWIND = ...` still assigns it, each with one warning. When both spellings are set, the new one wins.
+
 ---
 
 ## Table of Contents
@@ -69,8 +71,8 @@ A *retired* setting still in your environment is named at startup too, with what
 | `ZRB_INIT_SCRIPTS` | Colon-separated (semicolon on Windows) Python script paths zrb runs on startup (in addition to the discovered `ZRB_INIT_FILE_NAME` files) to register task definitions | — |
 | `ZRB_INIT_MODULES` | Comma-separated importable module names zrb imports on startup so their task definitions register (colon-separated still accepted) | — |
 | `ZRB_INIT_STRICT` | Exit non-zero when any init module or script fails to load, instead of reporting it and starting anyway. `auto` resolves to off at a terminal and on everywhere else | `auto` |
-| `ZRB_ENABLE_BUILTIN_TASKS` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
-| `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Have `CmdTask` warn about non-portable or unsafe shell constructs in a `bash`/`zsh` script (`which`, `source`, `eval`, `echo -e`, …) | `on` (true) |
+| `ZRB_BUILTIN_TASKS_ENABLED` | Whether to load pre-packaged tasks (Git, UUID, base64, etc.) | `on` |
+| `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED` | Have `CmdTask` warn about non-portable or unsafe shell constructs in a `bash`/`zsh` script (`which`, `source`, `eval`, `echo -e`, …) | `on` (true) |
 | `ZRB_SECRET_ENV_PATTERNS` | Comma-separated name fragments marking an env var as secret. Matched case-insensitively as a substring, so `KEY` covers `OPENAI_API_KEY`. Matching values are shown as `***` in `CmdTask`'s DEBUG environment dump. Empty string redacts nothing | `KEY,SECRET,TOKEN,PASSWORD,PASSWD,CREDENTIAL,AUTH,PRIVATE,SIGNATURE,SALT` |
 | `ZRB_MCP_CONFIG_FILE` | Path to the MCP server config file | `mcp-config.json` |
 
@@ -165,7 +167,7 @@ Zrb's experimental Web UI has dedicated configuration options.
 | `ZRB_WEB_HTTP_PORT` | Port for Web UI server | `21213` |
 | `ZRB_WEB_AUTH_ENABLED` | Enable username/password authentication | `off` |
 | `ZRB_WEB_SECRET_KEY` | Secret key for authentication tokens ⚠️ **Change for production!** | `zrb` |
-| `ZRB_WEB_AUTH_SECURE_COOKIES` | Set the `Secure` flag on auth cookies (HTTPS-only). Turn `off` for plain-HTTP non-localhost deployments where browsers would otherwise drop the cookies | `on` |
+| `ZRB_WEB_AUTH_SECURE_COOKIES_ENABLED` | Set the `Secure` flag on auth cookies (HTTPS-only). Turn `off` for plain-HTTP non-localhost deployments where browsers would otherwise drop the cookies | `on` |
 
 ### Authentication Tokens
 
@@ -239,7 +241,7 @@ export ZRB_WEB_SECRET_KEY="your-secure-secret-key"
 export ZRB_WEB_SUPER_ADMIN_PASSWORD="secure-password"
 
 # Disable builtin tasks for cleaner environment
-export ZRB_ENABLE_BUILTIN_TASKS=0
+export ZRB_BUILTIN_TASKS_ENABLED=0
 ```
 
 ---

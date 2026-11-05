@@ -27,6 +27,6 @@ class LLMEmotionMixin:
             "feels, which the assistant takes out before the user sees it, and fires the "
             "Emotion hook with the emotion of each reply and with the tone "
             "dictation heard each prompt in "
-            "({ENV_PREFIX}_LLM_DICTATION_DETECT_EMOTION). Default: off."
+            "({ENV_PREFIX}_LLM_DICTATION_DETECT_EMOTION_ENABLED). Default: off."
         ),
     )

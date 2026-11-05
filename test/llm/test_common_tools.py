@@ -151,18 +151,18 @@ def test_apply_stores_providers_without_resolving_anything(monkeypatch):
 
 def test_read_tool_result_reflects_the_live_spill_flag(monkeypatch):
     """ReadToolResult must not be baked in at registration time: toggling
-    LLM_ENABLE_TOOL_SPILL after `apply_common_tools` already ran (e.g. a
+    LLM_TOOL_SPILL_ENABLED after `apply_common_tools` already ran (e.g. a
     long-lived session whose config changes mid-session) must still be
     reflected the next time tools are resolved for a run."""
     from zrb.config.config import CFG
 
-    monkeypatch.setattr(CFG, "LLM_ENABLE_TOOL_SPILL", False)
+    monkeypatch.setattr(CFG, "LLM_TOOL_SPILL_ENABLED", False)
     host = RecordingHost()
     apply_common_tools(host)
 
     assert "ReadToolResult" not in host.resolved_tool_names()
 
-    monkeypatch.setattr(CFG, "LLM_ENABLE_TOOL_SPILL", True)
+    monkeypatch.setattr(CFG, "LLM_TOOL_SPILL_ENABLED", True)
     assert "ReadToolResult" in host.resolved_tool_names()
 
 

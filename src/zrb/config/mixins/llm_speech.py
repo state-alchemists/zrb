@@ -45,7 +45,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_RATE: str = "165"
         self.DEFAULT_LLM_SPEECH_VOLUME: str = "100"
         self.DEFAULT_LLM_SPEECH_STREAM: str = "true"
-        self.DEFAULT_LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED: str = "true"
+        self.DEFAULT_LLM_SPEECH_BLOCK_NOTICE_ENABLED: str = "true"
         self.DEFAULT_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS: str = "0"
         self.DEFAULT_LLM_SPEECH_SUMMARY_MODEL: str = ""
         self.DEFAULT_LLM_SPEECH_SUMMARY_TIMEOUT: str = "15"
@@ -189,8 +189,9 @@ class LLMSpeechMixin:
         ),
     )
 
-    LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED = EnvField(
+    LLM_SPEECH_BLOCK_NOTICE_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED"],
         serialize=on_off,
         doc=(
             "Tell the model, on the turn after one, that its last reply opened "

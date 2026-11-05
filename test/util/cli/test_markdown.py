@@ -29,11 +29,11 @@ class TestRenderMarkdown:
         assert explicit != cfg_driven
 
     def test_math_conversion_toggle(self, monkeypatch):
-        monkeypatch.setenv("ZRB_LLM_UI_ENABLE_MARKDOWN_MATH", "off")
+        monkeypatch.setenv("ZRB_LLM_UI_MARKDOWN_MATH_ENABLED", "off")
         off = render_markdown(r"$\alpha$")
         assert r"$\alpha$" in off
 
-        monkeypatch.setenv("ZRB_LLM_UI_ENABLE_MARKDOWN_MATH", "on")
+        monkeypatch.setenv("ZRB_LLM_UI_MARKDOWN_MATH_ENABLED", "on")
         on = render_markdown(r"$\alpha$")
         assert "α" in on
 
@@ -46,11 +46,11 @@ class TestRenderMarkdown:
     def test_mermaid_conversion_toggle(self, monkeypatch):
         md = "```mermaid\ngraph TD\n    A --> B\n```"
 
-        monkeypatch.setenv("ZRB_LLM_UI_ENABLE_MARKDOWN_MERMAID", "off")
+        monkeypatch.setenv("ZRB_LLM_UI_MARKDOWN_MERMAID_ENABLED", "off")
         off = render_markdown(md)
         assert "graph TD" in off
 
-        monkeypatch.setenv("ZRB_LLM_UI_ENABLE_MARKDOWN_MERMAID", "on")
+        monkeypatch.setenv("ZRB_LLM_UI_MARKDOWN_MERMAID_ENABLED", "on")
         on = render_markdown(md)
         assert "graph TD" not in on
         assert "A" in on and "B" in on

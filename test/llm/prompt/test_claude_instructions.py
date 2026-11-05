@@ -52,7 +52,7 @@ def test_create_project_context_prompt_injection_can_be_turned_off(tmp_path):
 
     with patch("zrb.llm.prompt.claude.get_search_directories", return_value=[tmp_path]):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = False
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = False
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 24000
             result = handler(ctx, "base prompt", _identity_next)
 
@@ -111,7 +111,7 @@ def test_instructions_budget_truncates_the_nearest_file(tmp_path):
         return_value=[parent, child],
     ):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 700
             result = handler(ctx, "base prompt", _identity_next)
 
@@ -141,7 +141,7 @@ def test_no_instructions_are_inlined_when_the_budget_cannot_fit_the_nearest(tmp_
         return_value=[parent, child],
     ):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 400
             result = handler(ctx, "base prompt", _identity_next)
 
@@ -169,7 +169,7 @@ def test_inlining_stops_at_the_first_file_that_does_not_fit(tmp_path):
         return_value=[grandparent, parent, child],
     ):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 1000
             result = handler(ctx, "base prompt", _identity_next)
 
@@ -255,7 +255,7 @@ def test_a_pointer_whose_target_was_dropped_is_still_inlined(tmp_path):
         return_value=[parent, child],
     ):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 200
             result = handler(ctx, "base prompt", _identity_next)
 

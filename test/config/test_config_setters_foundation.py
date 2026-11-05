@@ -82,19 +82,19 @@ class TestConfigSetters:
     def test_enable_builtin_tasks_setter_true(self, monkeypatch):
         # Only the verb-first env key is supported (ADR-0026).
         config = Config()
-        config.ENABLE_BUILTIN_TASKS = True
-        assert os.environ["ZRB_ENABLE_BUILTIN_TASKS"] == "on"
+        config.BUILTIN_TASKS_ENABLED = True
+        assert os.environ["ZRB_BUILTIN_TASKS_ENABLED"] == "on"
 
     def test_enable_builtin_tasks_setter_false(self, monkeypatch):
         config = Config()
-        config.ENABLE_BUILTIN_TASKS = False
-        assert os.environ["ZRB_ENABLE_BUILTIN_TASKS"] == "off"
+        config.BUILTIN_TASKS_ENABLED = False
+        assert os.environ["ZRB_BUILTIN_TASKS_ENABLED"] == "off"
 
     def test_show_unrecommended_command_warning_setter(self, monkeypatch):
         # Renamed from WARN_UNRECOMMENDED_COMMAND (ADR-0026).
         config = Config()
-        config.SHOW_UNRECOMMENDED_COMMAND_WARNING = True
-        assert os.environ["ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING"] == "on"
+        config.SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED = True
+        assert os.environ["ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED"] == "on"
 
     def test_session_log_dir_setter(self, monkeypatch):
         config = Config()

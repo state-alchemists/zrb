@@ -121,7 +121,7 @@ def test_emotion(tmp_path):
         from zrb.llm.speech.config import SpeechConfig
         dictation, speech = DictationConfig().resolve(), SpeechConfig().resolve()
         assert CFG.LLM_EMOTION_ENABLED
-        assert dictation.detect_emotion and dictation.mode == "hands_free"
+        assert dictation.detect_emotion_enabled and dictation.mode == "hands_free"
         assert dictation.backend == "sensevoice"
         assert speech.enabled and speech.backend == "pocket"
         assert speech.emotion_voices["sad"].endswith("sad.wav")

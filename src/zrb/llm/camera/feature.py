@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 def enable_camera(chat: "LLMChatTask", config: CameraConfig | None = None) -> None:
     """Add the camera command to *chat*'s sessions; an empty ``commands``
-    list leaves it out. With ``enable_tool`` on, also give the agent the
+    list leaves it out. With ``tool_enabled`` on, also give the agent the
     `TakePhoto` tool. Calling it again replaces the earlier call."""
 
     def create_commands() -> "list[AnyCustomCommand]":
@@ -97,8 +97,8 @@ async def attach_photo(
 
 def create_camera_tools(config: CameraConfig) -> "list[ToolFuncEither]":
     """The `TakePhoto` tool for the resolved *config*, or none when
-    ``enable_tool`` is off."""
-    if not config.enable_tool:
+    ``tool_enabled`` is off."""
+    if not config.tool_enabled:
         return []
     backend = get_camera_backend(config.backend or "auto", config)
 

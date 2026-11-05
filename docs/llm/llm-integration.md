@@ -43,7 +43,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `/info`, `/help` | Show all available commands |
 | `/compress`, `/compact` | Summarize conversation to free context |
 | `/model <name>` | Switch LLM model (e.g., `/model openai:gpt-4o`) |
-| `/set <name> <value>` | Change a setting for the rest of the process, e.g. `/set LLM_SHOW_TOOL_CALL_RESULT on`. Any `CFG` field settable from Python is accepted (name without the `ZRB_` prefix, case-insensitive); Tab completes names, and values with model names, `on`/`off`, or the current value. `/set model`, `/set small_model` and `/set multimodal_model` switch that model live, like `/model`. Nothing is written to disk |
+| `/set <name> <value>` | Change a setting for the rest of the process, e.g. `/set LLM_SHOW_TOOL_CALL_RESULT_ENABLED on`. Any `CFG` field settable from Python is accepted (name without the `ZRB_` prefix, case-insensitive); Tab completes names, and values with model names, `on`/`off`, or the current value. `/set model`, `/set small_model` and `/set multimodal_model` switch that model live, like `/model`. Nothing is written to disk |
 | `/yolo` or `/yolo <tools>` | Toggle auto-execute mode. With tool names (e.g., `/yolo Write,Edit`), selectively auto-approve only those tools |
 | `/load <name>`, `/resume <name>` | Load a named session, and re-register its saved sub-agent transcripts as idle sessions you can message |
 | `/save <name>` | Save current session |
@@ -57,7 +57,7 @@ This launches a full-screen chat application where you can have a conversation w
 | `!` or `/exec <shell_cmd>` | Execute shell command |
 | `/btw <question>` | Ask a side question answered by a separate agent that sees the conversation but has **no tools** — it cannot read a file or run a command, so it answers from what is already in context. The exchange is not saved to history, and it is shown in a panel above the input (`Enter` closes it without submitting the draft; `Esc` also closes it) rather than scrolled into the transcript. Works while the assistant is thinking |
 | `/plan` | Toggle [Plan Mode](./plan-mode.md) (read-only discovery) |
-| `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-context.md#rewind--snapshots) (on by default; `ZRB_LLM_ENABLE_REWIND`) |
+| `/rewind [n\|sha]` | List or restore filesystem + history [snapshots](../configuration/llm-context.md#rewind--snapshots) (on by default; `ZRB_LLM_REWIND_ENABLED`) |
 | `/voice`, `/v` | Record speech: a pause or `/voice` again stops, and the transcript is submitted like typed text — it queues for the next turn (or answers a prompt already on screen). Needs `zrb[voice]` |
 | `/handsfree` | Switch hands-free voice input on or off: every utterance becomes a turn, or answers the pending approval |
 | `/speech` | Switch reading replies aloud on or off |
@@ -124,7 +124,7 @@ The counters reset whenever you switch conversations via `/load`, since past ses
 
 There are no configuration knobs for this feature; it always appears (non-zero after the first request) and uses the theme's `FAINT` style.
 
-While the assistant is working, the status bar also shows how long it has been working (`⏳ zrb is working (1m 12s)`) and, while a tool call runs, that tool and its elapsed time (`🧰 Shell 8s`). `ZRB_LLM_UI_SHOW_RUNTIME_TIMERS=off` hides both.
+While the assistant is working, the status bar also shows how long it has been working (`⏳ zrb is working (1m 12s)`) and, while a tool call runs, that tool and its elapsed time (`🧰 Shell 8s`). `ZRB_LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED=off` hides both.
 
 ### Approval Policies
 

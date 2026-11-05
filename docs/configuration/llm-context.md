@@ -13,7 +13,7 @@ How long conversations are summarized, what the memory store keeps across sessio
   - [The archive](#the-archive)
   - [The summary itself](#the-summary-itself)
   - [Other oversized content](#other-oversized-content)
-  - [Round cost, and the batching reminder](#round-cost-and-the-batching-reminder)
+  - [Round cost, and the batch tool call nudge](#round-cost-and-the-batch-tool-call-nudge)
 - [Memory & Notes Storage](#memory--notes-storage)
 - [Rewind & Snapshots](#rewind--snapshots)
   - [Python API](#python-api)
@@ -70,7 +70,7 @@ The ratio is a budget, not a target, and the tail usually comes in under it, for
 - **The message window caps the count.** `ZRB_LLM_HISTORY_SUMMARIZATION_WINDOW` stops the tail at 300 messages regardless of tokens, which is what bounds a long session of small messages.
 - **If nothing fits, the retry follows the ratio.** When even the newest message alone is bigger than the budget — one huge tool result, say — the splitter retries at twice the ratio, capped at 0.8. That retry is the only case where the tail can exceed your setting, and never by more than that factor. Only when neither budget fits is nothing kept.
 
-Lowering the ratio makes compaction more lossy by design: the tail exists to carry recency, so a smaller tail means more of the recent conversation reaches the next request only as summary. Counting follows `ZRB_ENABLE_TIKTOKEN`; the default `char/4` estimate runs about a tenth low against a real tokenizer on code- and path-heavy text, so treat these numbers as a budget rather than a bill. The count the banner reports for the kept tail is the size of the text that tail is sent as — each tool result inside it already clipped to 2,000 characters — not the size of the unclipped messages and not the size of the history it was cut from, so a tail the banner calls 24,000 tokens weighs 24,000 in the next request, to within the few tokens of the turn that carries it.
+Lowering the ratio makes compaction more lossy by design: the tail exists to carry recency, so a smaller tail means more of the recent conversation reaches the next request only as summary. Counting follows `ZRB_TIKTOKEN_ENABLED`; the default `char/4` estimate runs about a tenth low against a real tokenizer on code- and path-heavy text, so treat these numbers as a budget rather than a bill. The count the banner reports for the kept tail is the size of the text that tail is sent as — each tool result inside it already clipped to 2,000 characters — not the size of the unclipped messages and not the size of the history it was cut from, so a tail the banner calls 24,000 tokens weighs 24,000 in the next request, to within the few tokens of the turn that carries it.
 
 ### The archive
 
@@ -94,11 +94,17 @@ The same mechanism keeps one large repo or file read from blowing the context wi
 | `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering summarization of repo-analysis results | 40% of `MAX_TOKEN_PER_REQUEST` |
 | `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD` | Token count above which a single file's analysis is summarized | 40% of `MAX_TOKEN_PER_REQUEST` |
 
-### Round cost, and the batching reminder
+### Round cost, and the batch tool call nudge
 
 Every round re-sends the whole conversation, so a turn that issues sixty tool calls one at a time pays for its context sixty times: an agentic turn's input grows with rounds × history size, not with the output it produces. A response may carry several calls at once, and independent ones are cheaper together — that is the one lever that needs no threshold change.
 
-The prompt asks the model to batch; when that is ignored, zrb injects one reminder. Three consecutive rounds that each carried a single `Read`, `Grep`, `Glob` or `LS` call on *different* arguments is what it counts, and the reminder says why in one line. `Shell`, `Write` and `Edit` are never counted — there the next call usually depends on what the previous one printed, so batching them would be wrong — and the reminder is not repeated while one is already in the history. It reaches sub-agents too, since a delegated run pays the same price.
+The prompt asks the model to batch; when that is ignored, zrb injects one reminder, controlled by `ZRB_LLM_BATCH_TOOL_CALL_NUDGE_ENABLED` (on by default). Three consecutive rounds that each carried a single `Read`, `Grep`, `Glob` or `LS` call on *different* arguments is what it counts, and the reminder says why in one line — this is the whole text, so a transcript carrying it can be recognised:
+
+```text
+[SYSTEM SUGGESTION]: batching — the last 3 rounds each carried one `Read` call on different arguments. If those calls did not depend on each other's results, put them in one response: each extra round re-sends the whole conversation.
+```
+
+`Shell`, `Write` and `Edit` are never counted — there the next call usually depends on what the previous one printed, so batching them would be wrong — and the reminder is not repeated for a streak already mentioned: the scan stops at a marker already in the conversation, so a streak that keeps going after the reminder stays silent. It reaches sub-agents too, since a delegated run pays the same price.
 
 `/usage` reports the shape beside the totals: **tool calls per round**. A window of several rounds averaging one call per round was issuing lookups serially; the same calls issued two or three to a response would have cost a fraction of the input tokens.
 
@@ -164,7 +170,7 @@ Before each AI turn, Zrb snapshots your working directory so `/rewind` can resto
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_ENABLE_REWIND` | Enable filesystem snapshots and `/rewind` command | `on` |
+| `ZRB_LLM_REWIND_ENABLED` | Enable filesystem snapshots and `/rewind` command | `on` |
 | `ZRB_LLM_SNAPSHOT_DIR` | Directory holding one snapshot git repository per working directory. Must not be the working directory itself | `~/.zrb/llm-snapshots/` |
 | `ZRB_LLM_SNAPSHOT_FILE_MAX_MB` | A file larger than this is left out of every snapshot (rewind's and self-review's), as if ignored | `50` |
 | `ZRB_LLM_SNAPSHOT_LOOSE_MAX_FILES` | Most files taken from outside every git repository; past it, rewind is off for the session | `5000` |
@@ -181,7 +187,7 @@ from zrb import LLMChatTask
 
 task = LLMChatTask(
     name="chat",
-    enable_rewind=True,           # None → falls back to ZRB_LLM_ENABLE_REWIND
+    enable_rewind=True,           # None → falls back to ZRB_LLM_REWIND_ENABLED
     snapshot_dir="/tmp/my-snaps", # None → falls back to ZRB_LLM_SNAPSHOT_DIR
 )
 ```

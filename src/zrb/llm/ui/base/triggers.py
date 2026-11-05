@@ -119,7 +119,7 @@ class BaseUITriggers:
             # `move_shell` is passed only when the setting asks for it, so a UI
             # that overrides `submit_message_now` with the older signature keeps
             # receiving spoken messages; only the opt-in needs the new keyword.
-            if CFG.LLM_VOICE_MOVES_SHELL:
+            if CFG.LLM_VOICE_MOVES_SHELL_ENABLED:
                 owner.submit_message_now(
                     reply.text,
                     reply.source or KEYBOARD_INPUT,

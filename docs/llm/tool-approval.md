@@ -183,8 +183,8 @@ A tool whose blast radius is already bounded — it writes only inside a directo
 
 | Variable | Effect |
 |---|---|
-| `ZRB_LLM_SHOW_TOOL_CALL_DETAIL` | Print tool arguments as calls stream in, not only at the approval prompt |
-| `ZRB_LLM_SHOW_TOOL_CALL_RESULT` | Print each tool's raw result |
+| `ZRB_LLM_SHOW_TOOL_CALL_DETAIL_ENABLED` | Print tool arguments as calls stream in, not only at the approval prompt |
+| `ZRB_LLM_SHOW_TOOL_CALL_RESULT_ENABLED` | Print each tool's raw result |
 | `ZRB_EDITOR` | Editor `e` opens on the arguments |
 | `ZRB_DIFF_EDIT_COMMAND` | Diff tool `e` opens on an `Edit` replacement |
 | `ZRB_LLM_SPEECH_APPROVAL_*` | What is read aloud for an approval when [speech](voice-camera.md) is on |

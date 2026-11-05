@@ -175,7 +175,7 @@ class CmdTask(BaseTask):
 
     def _get_should_warn_unrecommended_commands(self):
         if self._should_warn_unrecommended_command is None:
-            return CFG.SHOW_UNRECOMMENDED_COMMAND_WARNING
+            return CFG.SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED
         return self._should_warn_unrecommended_command
 
     def _check_unrecommended_commands(

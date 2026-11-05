@@ -51,13 +51,13 @@ def test_rewind_without_snapshots_warns_instead_of_reaching_the_model(ui, monkey
     `dispatch_command` forwards anything no handler claimed, so returning
     False here would send the literal text "/rewind" to the model.
     """
-    monkeypatch.setenv("ZRB_LLM_ENABLE_REWIND", "off")
+    monkeypatch.setenv("ZRB_LLM_REWIND_ENABLED", "off")
     ui.snapshot_manager = None
 
     assert ui.handle_rewind_command("/rewind") is True
     output = "".join(ui.outputs)
     assert "Rewind is not enabled" in output
-    assert "ZRB_LLM_ENABLE_REWIND=on" in output
+    assert "ZRB_LLM_REWIND_ENABLED=on" in output
     assert not ui.background_tasks
 
 
@@ -74,18 +74,18 @@ def test_rewind_names_the_session_requirement_when_the_knob_is_already_on(
 ):
     """`snapshot_manager` is also None when rewind is enabled but the session
     has no name or snapshot dir, where naming the knob would be a dead end."""
-    monkeypatch.setenv("ZRB_LLM_ENABLE_REWIND", "on")
+    monkeypatch.setenv("ZRB_LLM_REWIND_ENABLED", "on")
     ui.snapshot_manager = None
 
     assert ui.handle_rewind_command("/rewind") is True
     output = "".join(ui.outputs)
     assert "unavailable in this session" in output
-    assert "ZRB_LLM_ENABLE_REWIND=on" not in output
+    assert "ZRB_LLM_REWIND_ENABLED=on" not in output
 
 
 def test_rewind_is_listed_in_help_even_without_snapshots(ui):
     """Help lists every command with a resolved alias (ADR-0093), so rewind
-    is discoverable even where `LLM_ENABLE_REWIND` is off."""
+    is discoverable even where `LLM_REWIND_ENABLED` is off."""
     ui.snapshot_manager = None
     assert any("/rewind" in row for row in ui.get_help_text(80).splitlines())
 

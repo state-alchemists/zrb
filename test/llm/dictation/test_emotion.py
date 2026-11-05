@@ -139,11 +139,11 @@ async def test_a_model_that_cannot_load_ends_its_loading_line_with_a_failure(
 ):
     monkeypatch.setitem(sys.modules, "funasr", None)
     # Fakes the microphone; the real detector then replaces the fake one.
-    _session_hearing(monkeypatch, "hello", detect_emotion=True)
+    _session_hearing(monkeypatch, "hello", detect_emotion_enabled=True)
     monkeypatch.setattr("zrb.llm.dictation.feature.EmotionDetector", EmotionDetector)
     session = DictationSession(
         DictationConfig(
-            backend=WordsBackend(), mode="hands_free", detect_emotion=True
+            backend=WordsBackend(), mode="hands_free", detect_emotion_enabled=True
         ).resolve()
     )
 
@@ -176,7 +176,7 @@ class FakeDetector:
         pass
 
 
-def _session_hearing(monkeypatch, *said: str, detect_emotion: bool):
+def _session_hearing(monkeypatch, *said: str, detect_emotion_enabled: bool):
     async def listen(config, should_listen, **kwargs):
         for i, text in enumerate(said):
             yield Utterance(text.encode(), i, i + 1)
@@ -185,7 +185,9 @@ def _session_hearing(monkeypatch, *said: str, detect_emotion: bool):
     monkeypatch.setattr("zrb.llm.dictation.feature.import_audio", lambda: (None, None))
     monkeypatch.setattr("zrb.llm.dictation.feature.EmotionDetector", FakeDetector)
     config = DictationConfig(
-        backend=WordsBackend(), mode="hands_free", detect_emotion=detect_emotion
+        backend=WordsBackend(),
+        mode="hands_free",
+        detect_emotion_enabled=detect_emotion_enabled,
     )
     return DictationSession(config.resolve())
 
@@ -212,7 +214,7 @@ def _heard(*, tone: str = "", tone_score: float = 0.0) -> InputProvenance:
 @pytest.mark.asyncio
 async def test_the_tone_rides_on_the_turn_and_the_words_stay_clean(monkeypatch):
     session = _session_hearing(
-        monkeypatch, "I am so sorry", "open the file", detect_emotion=True
+        monkeypatch, "I am so sorry", "open the file", detect_emotion_enabled=True
     )
 
     sad, plain = await _sources(session, 2)
@@ -227,7 +229,9 @@ async def test_the_tone_rides_on_the_turn_and_the_words_stay_clean(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_no_tone_is_heard_unless_detection_is_on(monkeypatch):
-    session = _session_hearing(monkeypatch, "I am so sorry", detect_emotion=False)
+    session = _session_hearing(
+        monkeypatch, "I am so sorry", detect_emotion_enabled=False
+    )
 
     assert await _sources(session, 1) == [("I am so sorry", _heard())]
 
@@ -244,11 +248,11 @@ async def test_the_microphone_listens_before_the_emotion_model_loads(monkeypatch
             started.set()
             await finish.wait()
 
-    _session_hearing(monkeypatch, "hello", detect_emotion=True)
+    _session_hearing(monkeypatch, "hello", detect_emotion_enabled=True)
     monkeypatch.setattr("zrb.llm.dictation.feature.EmotionDetector", SlowDetector)
     session = DictationSession(
         DictationConfig(
-            backend=WordsBackend(), mode="hands_free", detect_emotion=True
+            backend=WordsBackend(), mode="hands_free", detect_emotion_enabled=True
         ).resolve()
     )
 
@@ -292,11 +296,11 @@ async def test_the_load_is_marked_before_the_first_utterance_is_heard(monkeypatc
             events.append("heard")
             return None
 
-    _session_hearing(monkeypatch, "hello", detect_emotion=True)
+    _session_hearing(monkeypatch, "hello", detect_emotion_enabled=True)
     monkeypatch.setattr("zrb.llm.dictation.feature.EmotionDetector", MarkingDetector)
     session = DictationSession(
         DictationConfig(
-            backend=WordsBackend(), mode="hands_free", detect_emotion=True
+            backend=WordsBackend(), mode="hands_free", detect_emotion_enabled=True
         ).resolve()
     )
 
@@ -314,7 +318,7 @@ async def test_the_transcriber_is_still_loaded_before_listening(monkeypatch):
         async def prepare(self, report):
             prepared.append("transcriber")
 
-    _session_hearing(monkeypatch, "hello", detect_emotion=False)
+    _session_hearing(monkeypatch, "hello", detect_emotion_enabled=False)
     session = DictationSession(
         DictationConfig(backend=SlowBackend(), mode="hands_free").resolve()
     )

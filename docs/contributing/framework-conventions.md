@@ -1,6 +1,6 @@
 🔖 [Documentation Home](../README.md) > [Contributing](./) > Framework Conventions
 
-# Framework Conventions (R1–R12)
+# Framework Conventions (R1–R13)
 
 These are the rules a zrb component must follow to be predictable. Each is enforced by a test (most in `test/architecture/`); the table names which. Cite the rule number in review.
 
@@ -18,6 +18,7 @@ These are the rules a zrb component must follow to be predictable. Each is enfor
 | **R10** | An error the *LLM* must recover from carries `[SYSTEM SUGGESTION]` (ADR-0057). An error the *user* must fix names the setting, the bad value and the accepted values. Never bare `Exception`. *Test scope:* no bare `Exception` is raised, and no constant-string error message is under 40 characters; f-string and variable messages are left to review. | `architecture/test_boundaries.py::test_no_bare_exception_is_raised`, `::test_no_error_message_is_shorter_than_forty_characters` |
 | **R11** | Sibling classes in one package use one naming convention. Two conventions for the same role is a bug. *Test scope:* `config/mixins/` only (every class ends in `Mixin`); other packages are left to review. | `architecture/test_boundaries.py::test_config_mixins_share_one_naming_convention` |
 | **R12** | Every registry has exactly one canonical instance, module-level, exported from `zrb/__init__.py`. No private second registry for the same family. `CFG` is the only exported `*_config` object, except `web_auth_config`. | `architecture/test_mutation_surface.py::test_there_is_exactly_one_configuration_object`, `::test_managers_expose_the_same_roster_api` |
+| **R13** | An on/off setting is named for what it switches and ends in `_ENABLED` (`LLM_REWIND_ENABLED`, not `LLM_ENABLE_REWIND` or `LLM_REWIND`). A predicate (`IS_TERMUX`) and a mode whose name is the choice itself (`LLM_SPEECH_STREAM`) are not switches and keep their name. Renaming a knob keeps the old name as a deprecated alias: still read, still settable, warned about once — never a silent break. | `architecture/test_switch_knobs_are_named_enabled.py`, `config/test_deprecated_settings.py` |
 
 See also: [Which pattern do I reach for?](which-pattern.md) — a lookup table for picking the right rule/pattern when adding new code.
 

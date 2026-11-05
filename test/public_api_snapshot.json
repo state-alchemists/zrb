@@ -591,6 +591,8 @@
       "members": [
         "LOGGER",
         "convert_setting_value",
+        "get_deprecated_env_keys",
+        "get_field_renamed_from",
         "get_mistyped_env_keys",
         "get_retired_env_keys",
         "get_settable_field",

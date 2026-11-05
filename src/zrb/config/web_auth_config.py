@@ -108,7 +108,9 @@ class WebAuthConfig:
 
     @property
     def secure_cookies(self) -> bool:
-        return self._override_or(self._secure_cookies, CFG.WEB_AUTH_SECURE_COOKIES)
+        return self._override_or(
+            self._secure_cookies, CFG.WEB_AUTH_SECURE_COOKIES_ENABLED
+        )
 
     @secure_cookies.setter
     def secure_cookies(self, secure: bool):

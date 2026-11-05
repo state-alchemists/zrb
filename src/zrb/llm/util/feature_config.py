@@ -14,9 +14,11 @@ import logging
 import weakref
 from collections.abc import Callable
 from dataclasses import fields, replace
+from functools import wraps
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from zrb.config.config import CFG
+from zrb.config.env_field import warn_deprecated
 from zrb.llm.ambient_state import get_session_ownership_key
 
 if TYPE_CHECKING:
@@ -43,6 +45,72 @@ def current_session_key() -> str:
     """The chat session a feature registration belongs to (the ambient chat
     session id; empty in the single-session CLI)."""
     return get_session_ownership_key()
+
+
+#: ``(class name, old field name)`` pairs already warned about, so a plugin
+#: building a config per session warns once rather than every time.
+_renamed_field_warnings: "set[tuple[str, str]]" = set()
+
+
+def _warn_renamed_field(owner: str, old: str, new: str) -> None:
+    """Say once that ``<owner>(<old>=...)`` belongs to *new* now."""
+    if (owner, old) in _renamed_field_warnings:
+        return
+    _renamed_field_warnings.add((owner, old))
+    warn_deprecated(f"{owner}({old}=...)", new)
+
+
+def _renamed_field_property(owner: str, old: str, new: str) -> property:
+    """A property that reads and writes *new* under the name *old*."""
+
+    def read(config: object) -> object:
+        _warn_renamed_field(owner, old, new)
+        return getattr(config, new)
+
+    def write(config: object, value: object) -> None:
+        _warn_renamed_field(owner, old, new)
+        setattr(config, new, value)
+
+    return property(read, write)
+
+
+def accepts_renamed_fields(**renamed: str) -> Callable[[type[T]], type[T]]:
+    """Let a config dataclass answer to the field names it used to have.
+
+    Written under ``@dataclass``, one keyword per old name::
+
+        @accepts_renamed_fields(enable_tool="tool_enabled")
+        @dataclass
+        class CameraConfig: ...
+
+    An old name stays a working constructor argument — mapped onto the field
+    that replaced it — and reads or writes that field as an attribute, so an
+    extension built against the previous name keeps configuring the feature and
+    learns the new name from one warning, instead of failing with a
+    ``TypeError`` the moment it is imported. A rename in a public constructor is
+    still a rename: the warning is the migration notice a knob's deprecation
+    line is for an environment file.
+    """
+
+    def decorate(cls: type[T]) -> type[T]:
+        build = cls.__init__
+
+        @wraps(build)
+        def __init__(self: T, *args: object, **kwargs: object) -> None:
+            for old, new in renamed.items():
+                if old in kwargs:
+                    _warn_renamed_field(cls.__name__, old, new)
+                    kwargs.setdefault(new, kwargs.pop(old))
+            build(self, *args, **kwargs)
+
+        # `wraps` leaves `__wrapped__` behind, so `inspect.signature` still
+        # reports the dataclass's real parameters rather than `*args, **kwargs`.
+        setattr(cls, "__init__", __init__)
+        for old, new in renamed.items():
+            setattr(cls, old, _renamed_field_property(cls.__name__, old, new))
+        return cls
+
+    return decorate
 
 
 class FeatureSessions(Generic[T]):

@@ -2,7 +2,7 @@
 
 # Built-in Helper Tasks
 
-Zrb comes with a suite of pre-packaged, ready-to-use tasks for common developer operations. You don't need to write these from scratch — by default (`CFG.ENABLE_BUILTIN_TASKS`, env var `ZRB_ENABLE_BUILTIN_TASKS`, is `on`), simply `import zrb` and every built-in group is auto-registered and ready to run with zero extra code. You can still import individual tasks and bind them to your own `cli` group if you want custom grouping.
+Zrb comes with a suite of pre-packaged, ready-to-use tasks for common developer operations. You don't need to write these from scratch — by default (`CFG.BUILTIN_TASKS_ENABLED`, env var `ZRB_BUILTIN_TASKS_ENABLED`, is `on`), simply `import zrb` and every built-in group is auto-registered and ready to run with zero extra code. You can still import individual tasks and bind them to your own `cli` group if you want custom grouping.
 
 These are organized into conceptual modules within `zrb.builtin`.
 
@@ -317,7 +317,7 @@ Universally Unique Lexicographically Sortable Identifier generation and validati
 
 To use a built-in task, import it from `zrb.builtin` and add it to your CLI or a specific group.
 
-> **Note:** since these tasks are already auto-registered by default (see the [Available Modules](#available-modules) commands above), you'd normally only do this to set `ZRB_ENABLE_BUILTIN_TASKS=off` (which drops every built-in group; the root-level `chat` and `please` stay) and cherry-pick specific tasks, or to re-group them under your own custom group/alias. Adding a task directly with `add_task(task)` and no explicit `alias=` uses the task's internal name (e.g. `git-commit`), which is a different, additional command path from the one it already has in its default group (e.g. `zrb git commit`) — both work simultaneously once you've added it this way.
+> **Note:** since these tasks are already auto-registered by default (see the [Available Modules](#available-modules) commands above), you'd normally only do this to set `ZRB_BUILTIN_TASKS_ENABLED=off` (which drops every built-in group; the root-level `chat` and `please` stay) and cherry-pick specific tasks, or to re-group them under your own custom group/alias. Adding a task directly with `add_task(task)` and no explicit `alias=` uses the task's internal name (e.g. `git-commit`), which is a different, additional command path from the one it already has in its default group (e.g. `zrb git commit`) — both work simultaneously once you've added it this way.
 
 ```python
 from zrb import cli, Group

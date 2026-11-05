@@ -203,7 +203,7 @@ A password is passed to `sshpass -e` through the `SSHPASS` variable, which only 
 | `cwd` | Where `zrb` was started | Working directory. Accepts a `Tpl` or callable as well as a string |
 | `shell` / `shell_flag` | `ZRB_SHELL` / inferred (`-c`) | Shell binary and the flag that makes it read the script |
 | `plain_print` | `False` | Stream output verbatim, without the task-name prefix on each line |
-| `warn_unrecommended_command` | `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING` | Warn about constructs that are fragile in a non-interactive `bash`/`zsh` script |
+| `warn_unrecommended_command` | `ZRB_SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED` | Warn about constructs that are fragile in a non-interactive `bash`/`zsh` script |
 | `max_output_line` / `max_error_line` | `1000` | Trailing stdout / stderr lines kept in the `CmdResult`; `0` or less keeps all |
 | `execution_timeout` | `3600` | Seconds before the command is killed; `0` disables the limit |
 | `is_interactive` | `False` | Attach the command to the terminal so it can prompt. Needs a TTY |

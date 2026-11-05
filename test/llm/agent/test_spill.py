@@ -114,7 +114,7 @@ def spill_store(tmp_path, monkeypatch):
 def _enable_spill(monkeypatch, on=True):
     from zrb.config.config import CFG
 
-    monkeypatch.setattr(CFG, "LLM_ENABLE_TOOL_SPILL", on)
+    monkeypatch.setattr(CFG, "LLM_TOOL_SPILL_ENABLED", on)
 
 
 def test_maybe_spill_disabled_returns_unchanged(monkeypatch, spill_store):

@@ -401,8 +401,8 @@ def test_handle_set_command_refreshes_model_visibility(ui):
     refresh the command reports success while `/model` keeps completing a source
     the user just disabled (round-4 review).
     """
-    assert ui.handle_set_command("/set LLM_SHOW_OLLAMA_MODELS off") is True
-    assert CFG.LLM_SHOW_OLLAMA_MODELS is False
+    assert ui.handle_set_command("/set LLM_SHOW_OLLAMA_MODELS_ENABLED off") is True
+    assert CFG.LLM_SHOW_OLLAMA_MODELS_ENABLED is False
     assert ui.ui_config.show_ollama_models is False
 
 

@@ -136,7 +136,7 @@ This runs your custom task directly. Your custom "Acme" banner is displayed when
 | `<PREFIX>_ROOT_GROUP_NAME` | CLI command name |
 | `<PREFIX>_ROOT_GROUP_DESCRIPTION` | CLI description |
 | `<PREFIX>_BANNER` | ASCII art banner |
-| `<PREFIX>_ENABLE_BUILTIN_TASKS` | `on` by default, so the branded CLI still lists every zrb builtin group (`llm`, `git`, `util`, …). Set it to `off` to show only your own tasks |
+| `<PREFIX>_BUILTIN_TASKS_ENABLED` | `on` by default, so the branded CLI still lists every zrb builtin group (`llm`, `git`, `util`, …). Set it to `off` to show only your own tasks |
 | `<PREFIX>_PROJECT_ENV_KEYS` | Your own variables that sit close to a real setting's name, so the startup mistyped-variable warning leaves them alone. Comma-separated, without the prefix: exact (`LLM_PLUGIN_DIR`) or a `*` glob (`LLM_PROXY_*`). Silence only — a name listed here never becomes a suggestion for another variable |
 
 ---

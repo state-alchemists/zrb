@@ -4,6 +4,7 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.ui import UIConfig
+from zrb.llm.ui.ui_config import model_visibility_field
 
 
 class TestUIConfig:
@@ -108,3 +109,23 @@ class TestUIConfig:
         assert config.info_commands == []
         assert config.save_commands == []
         assert config.load_commands == []
+
+
+class TestModelVisibilityNames:
+    """`/set` re-points the session's copy of these two flags; it passes the name
+    the user typed, which may be the one the setting used to have."""
+
+    def test_the_current_name_names_its_ui_field(self):
+        assert model_visibility_field("LLM_SHOW_OLLAMA_MODELS_ENABLED") == (
+            "show_ollama_models"
+        )
+
+    def test_the_name_before_the_rename_names_the_same_field(self):
+        assert model_visibility_field("LLM_SHOW_OLLAMA_MODELS") == "show_ollama_models"
+        assert model_visibility_field("LLM_SHOW_PYDANTIC_AI_MODELS") == (
+            "show_pydantic_ai_models"
+        )
+
+    def test_an_unrelated_name_names_no_field(self):
+        assert model_visibility_field("LLM_MODEL") is None
+        assert model_visibility_field("LLM_NOT_A_SETTING") is None

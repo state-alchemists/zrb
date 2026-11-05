@@ -152,13 +152,13 @@ async def test_save_command_carries_the_rewind_history_to_the_new_name(rewind_ui
 
 
 def test_rewind_unavailable_when_disabled(conv_ui, monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_ENABLE_REWIND", False)
+    monkeypatch.setattr(CFG, "LLM_REWIND_ENABLED", False)
     assert conv_ui.handle_rewind_command("rewind") is True
     assert any("not enabled" in line for line in conv_ui.outputs)
 
 
 def test_rewind_unavailable_after_enabling_without_snapshot_scope(conv_ui, monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_ENABLE_REWIND", True)
+    monkeypatch.setattr(CFG, "LLM_REWIND_ENABLED", True)
     assert conv_ui.handle_rewind_command("rewind") is True
     assert any("unavailable in this session" in line for line in conv_ui.outputs)
 

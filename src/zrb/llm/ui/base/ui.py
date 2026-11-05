@@ -1183,7 +1183,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """Send this message promptly without flushing other queued drafts.
 
         *move_shell* says whether a running command may step aside for it; a
-        spoken message passes the run's `LLM_VOICE_MOVES_SHELL` setting here
+        spoken message passes the run's `LLM_VOICE_MOVES_SHELL_ENABLED` setting here
         rather than asking for the interrupt it deliberately does not do.
         """
         self.submit_message(user_message, source)

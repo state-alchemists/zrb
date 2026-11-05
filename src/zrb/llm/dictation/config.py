@@ -3,17 +3,27 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from zrb.llm.util.feature_config import resolve_from_cfg
+from zrb.llm.util.feature_config import accepts_renamed_fields, resolve_from_cfg
 
 if TYPE_CHECKING:
     from zrb.llm.dictation.backend.any_dictation_backend import AnyDictationBackend
 
 
+@accepts_renamed_fields(
+    enable_echo_cancel="echo_cancel_enabled",
+    detect_emotion="detect_emotion_enabled",
+    emotion_out_of_process="emotion_out_of_process_enabled",
+)
 @dataclass
 class DictationConfig:
     """Settings for `enable_dictation`. Each field mirrors
     `CFG.LLM_DICTATION_<FIELD>`; one left ``None`` is read from there when a
     session starts.
+
+    Three of them were renamed when the switches took the `_ENABLED` suffix —
+    ``enable_echo_cancel``, ``detect_emotion`` and ``emotion_out_of_process`` —
+    and the old names still work as constructor arguments and attributes,
+    warning once.
 
     *backend* names a built-in backend (``vosk``, ``openai``, ``google``,
     ``multimodal``, ``sensevoice``), a speech service registered with ``stt_manager``
@@ -69,13 +79,13 @@ class DictationConfig:
     interrupt_judge_timeout: float | None = None
     interrupt_judge_max_words: int | None = None
     hush_words: list[str] | None = None
-    enable_echo_cancel: bool | None = None
-    detect_emotion: bool | None = None
+    echo_cancel_enabled: bool | None = None
+    detect_emotion_enabled: bool | None = None
     sensevoice_model: str | None = None
     sensevoice_threads: int | None = None
     emotion_model: str | None = None
     emotion_min_score: float | None = None
-    emotion_out_of_process: bool | None = None
+    emotion_out_of_process_enabled: bool | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:
@@ -94,9 +104,9 @@ class DictationConfig:
 
     @property
     def is_echo_cancel_enabled(self) -> bool:
-        """Whether *enable_echo_cancel* is set: on macOS, the microphone opens
+        """Whether *echo_cancel_enabled* is set: on macOS, the microphone opens
         through voice processing, which takes zrb's own voice out of it."""
-        return bool(self.enable_echo_cancel)
+        return bool(self.echo_cancel_enabled)
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""

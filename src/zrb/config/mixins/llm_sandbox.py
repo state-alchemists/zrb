@@ -38,7 +38,7 @@ class LLMSandboxMixin:
             DEFAULT_LLM_SANDBOX_DENY_READ_PATHS
         )
         self.DEFAULT_LLM_SANDBOX_FALLBACK: str = "warn"
-        self.DEFAULT_LLM_SANDBOX_ALLOW_ESCAPE: str = "true"
+        self.DEFAULT_LLM_SANDBOX_ALLOW_ESCAPE_ENABLED: str = "true"
         super().__init__()
 
     LLM_SANDBOX_ENABLED = EnvField(
@@ -91,8 +91,9 @@ class LLMSandboxMixin:
         ),
     )
 
-    LLM_SANDBOX_ALLOW_ESCAPE = EnvField(
+    LLM_SANDBOX_ALLOW_ESCAPE_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_SANDBOX_ALLOW_ESCAPE"],
         serialize=on_off,
         doc=(
             "Whether the dangerously_skip_sandbox tool argument is honored. "

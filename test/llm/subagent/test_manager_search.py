@@ -42,8 +42,8 @@ def test_get_search_directories_includes_extra_agent_dirs(manager, tmp_path):
     extra = tmp_path / "extras"
     extra.mkdir()
     with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
-        cfg.LLM_SEARCH_HOME = False
-        cfg.LLM_SEARCH_PROJECT = False
+        cfg.LLM_SEARCH_HOME_ENABLED = False
+        cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
@@ -54,8 +54,8 @@ def test_get_search_directories_includes_extra_agent_dirs(manager, tmp_path):
 
 def test_get_search_directories_skips_missing_extra_dir(manager, tmp_path):
     with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
-        cfg.LLM_SEARCH_HOME = False
-        cfg.LLM_SEARCH_PROJECT = False
+        cfg.LLM_SEARCH_HOME_ENABLED = False
+        cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
@@ -72,8 +72,8 @@ def test_get_search_directories_includes_plugin_agents(manager, tmp_path):
     _make_plugin(plugins_root, "without-agents", with_agents_dir=False)
 
     with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
-        cfg.LLM_SEARCH_HOME = False
-        cfg.LLM_SEARCH_PROJECT = False
+        cfg.LLM_SEARCH_HOME_ENABLED = False
+        cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
         cfg.LLM_PLUGIN_DIRS = [str(plugins_root)]
         cfg.LLM_BASE_SEARCH_DIRS = []
@@ -92,8 +92,8 @@ def test_get_search_directories_walks_project_hierarchy(manager, tmp_path):
     manager.scan_root = str(nested)
 
     with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
-        cfg.LLM_SEARCH_HOME = False
-        cfg.LLM_SEARCH_PROJECT = True
+        cfg.LLM_SEARCH_HOME_ENABLED = False
+        cfg.LLM_SEARCH_PROJECT_ENABLED = True
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
@@ -108,26 +108,26 @@ def test_get_search_directories_walks_project_hierarchy(manager, tmp_path):
 
 def test_get_search_directories_includes_builtin_agents_when_enabled(manager):
     with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
-        cfg.LLM_SEARCH_HOME = False
-        cfg.LLM_SEARCH_PROJECT = False
+        cfg.LLM_SEARCH_HOME_ENABLED = False
+        cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = []
-        cfg.LLM_ENABLE_BUILTIN_AGENTS = True
+        cfg.LLM_BUILTIN_AGENTS_ENABLED = True
         dirs = _posix(manager.search_dirs)
     assert any(d.endswith("llm_plugin/agents") for d in dirs)
 
 
 def test_get_search_directories_excludes_builtin_agents_when_disabled(manager):
     with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
-        cfg.LLM_SEARCH_HOME = False
-        cfg.LLM_SEARCH_PROJECT = False
+        cfg.LLM_SEARCH_HOME_ENABLED = False
+        cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = []
-        cfg.LLM_ENABLE_BUILTIN_AGENTS = False
+        cfg.LLM_BUILTIN_AGENTS_ENABLED = False
         dirs = _posix(manager.search_dirs)
     assert any(d.endswith("llm_plugin/core_agents") for d in dirs)
     assert not any(d.endswith("llm_plugin/agents") for d in dirs)
@@ -142,13 +142,13 @@ def test_project_agent_overrides_builtin_agent_of_same_name(tmp_path):
         encoding="utf-8",
     )
     with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
-        cfg.LLM_SEARCH_HOME = False
-        cfg.LLM_SEARCH_PROJECT = True
+        cfg.LLM_SEARCH_HOME_ENABLED = False
+        cfg.LLM_SEARCH_PROJECT_ENABLED = True
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
         cfg.LLM_PLUGIN_DIRS = []
         cfg.LLM_BASE_SEARCH_DIRS = []
         cfg.LLM_EXTRA_AGENT_DIRS = []
-        cfg.LLM_ENABLE_BUILTIN_AGENTS = True
+        cfg.LLM_BUILTIN_AGENTS_ENABLED = True
         manager = SubAgentManager(scan_root=str(project))
         manager.scan()
         definition = manager.get_agent_definition("generalist")

@@ -45,7 +45,7 @@ def resolve_sandbox_policy_from_config() -> SandboxPolicy:
         deny_read_paths=tuple(CFG.LLM_SANDBOX_DENY_READ_PATHS),
         os_shell=CFG.LLM_SANDBOX_OS_SHELL,
         fallback=CFG.LLM_SANDBOX_FALLBACK,
-        allow_escape=CFG.LLM_SANDBOX_ALLOW_ESCAPE,
+        allow_escape=CFG.LLM_SANDBOX_ALLOW_ESCAPE_ENABLED,
     )
 
 

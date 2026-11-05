@@ -80,13 +80,13 @@ class LLMDictationMixin:
         self.DEFAULT_LLM_DICTATION_POLITE_WORDS: str = "please, thanks, thank, you"
         self.DEFAULT_LLM_DICTATION_BLOCK_DURATION: str = "0.1"
         self.DEFAULT_LLM_DICTATION_DEVICE: str = ""
-        self.DEFAULT_LLM_DICTATION_ENABLE_ECHO_CANCEL: str = "off"
+        self.DEFAULT_LLM_DICTATION_ECHO_CANCEL_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_TRANSCRIBE_PROMPT: str = (
             "Transcribe exactly what is spoken. Do not translate or paraphrase. "
             "Return only the transcription."
         )
         self.DEFAULT_LLM_DICTATION_LANGUAGE: str = ""
-        self.DEFAULT_LLM_DICTATION_DETECT_EMOTION: str = "off"
+        self.DEFAULT_LLM_DICTATION_DETECT_EMOTION_ENABLED: str = "off"
         self.DEFAULT_LLM_DICTATION_SENSEVOICE_MODEL: str = (
             "csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
         )
@@ -95,7 +95,7 @@ class LLMDictationMixin:
             "emotion2vec/emotion2vec_plus_base"
         )
         self.DEFAULT_LLM_DICTATION_EMOTION_MIN_SCORE: str = "0.5"
-        self.DEFAULT_LLM_DICTATION_EMOTION_OUT_OF_PROCESS: str = "off"
+        self.DEFAULT_LLM_DICTATION_EMOTION_OUT_OF_PROCESS_ENABLED: str = "off"
         super().__init__()
 
     LLM_DICTATION_MODE = EnvField(
@@ -477,11 +477,12 @@ class LLMDictationMixin:
         ),
     )
 
-    LLM_DICTATION_ENABLE_ECHO_CANCEL = EnvField(
+    LLM_DICTATION_ECHO_CANCEL_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_DICTATION_ENABLE_ECHO_CANCEL"],
         serialize=on_off,
         default_factory=lambda c: get_voice_default(
-            c, "LLM_DICTATION_ENABLE_ECHO_CANCEL"
+            c, "LLM_DICTATION_ECHO_CANCEL_ENABLED"
         ),
         doc=(
             "'on' asks macOS to take the assistant's own voice out of the microphone "
@@ -496,8 +497,9 @@ class LLMDictationMixin:
         ),
     )
 
-    LLM_DICTATION_DETECT_EMOTION = EnvField(
+    LLM_DICTATION_DETECT_EMOTION_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_DICTATION_DETECT_EMOTION"],
         serialize=on_off,
         doc=(
             "'on' has emotion2vec+ ({ENV_PREFIX}_LLM_DICTATION_EMOTION_MODEL) "
@@ -512,7 +514,7 @@ class LLMDictationMixin:
         str,
         doc=(
             "Hugging Face repo of the emotion2vec+ model that hears the tone "
-            "while {ENV_PREFIX}_LLM_DICTATION_DETECT_EMOTION is on. Default: "
+            "while {ENV_PREFIX}_LLM_DICTATION_DETECT_EMOTION_ENABLED is on. Default: "
             "emotion2vec/emotion2vec_plus_base."
         ),
     )
@@ -525,8 +527,9 @@ class LLMDictationMixin:
         ),
     )
 
-    LLM_DICTATION_EMOTION_OUT_OF_PROCESS = EnvField(
+    LLM_DICTATION_EMOTION_OUT_OF_PROCESS_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_DICTATION_EMOTION_OUT_OF_PROCESS"],
         serialize=on_off,
         doc=(
             "'on' loads the emotion2vec+ model in a child process instead of "

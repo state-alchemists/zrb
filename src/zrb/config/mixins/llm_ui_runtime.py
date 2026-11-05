@@ -16,7 +16,7 @@ class LLMUIRuntimeMixin:
         self.DEFAULT_LLM_UI_FLUSH_INTERVAL: str = "500"
         self.DEFAULT_LLM_UI_MAX_BUFFER_SIZE: str = "2000"
         self.DEFAULT_LLM_UI_PASTE_MERGE_WINDOW: str = "100"
-        self.DEFAULT_LLM_UI_SHOW_RUNTIME_TIMERS: str = "on"
+        self.DEFAULT_LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED: str = "on"
         super().__init__()
 
     LLM_UI_STATUS_INTERVAL = EnvField(
@@ -45,8 +45,9 @@ class LLMUIRuntimeMixin:
         "Set to 0 to disable.",
     )
 
-    LLM_UI_SHOW_RUNTIME_TIMERS = EnvField(
+    LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_UI_SHOW_RUNTIME_TIMERS"],
         serialize=on_off,
         doc="Show how long zrb has been working on the current turn, and how "
         "long the running tool call has taken, in the status bar.",

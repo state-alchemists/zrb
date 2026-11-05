@@ -254,7 +254,7 @@ class _ShellBackgroundRegistry:
         the exit code and never the output, which can hold a token and is the
         model's to read with `MonitorProcess`.
         """
-        if not CFG.LLM_BACKGROUND_WAKE or bp.ui is None:
+        if not CFG.LLM_BACKGROUND_WAKE_ENABLED or bp.ui is None:
             return
         if bp.stop_requested or bp.waiters > 0 or self._procs.get(handle) is not bp:
             return

@@ -32,7 +32,7 @@ Project instruction files are inlined into the system prompt by default, so the 
 - `README.md` is never inlined. It is documentation to search, not rules to obey.
 - Files in your home directory or `~/.claude/` are listed separately as user-level guidance, to read only when relevant.
 
-Set `ZRB_LLM_INJECT_PROJECT_INSTRUCTIONS=off` to keep the list-only behavior.
+Set `ZRB_LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED=off` to keep the list-only behavior.
 
 > 💡 **Tip:** Use `AGENTS.md` for technical project documentation and `CLAUDE.md` for Claude-specific instructions.
 
@@ -102,7 +102,7 @@ The `ActivateSkill` tool also returns the skill directory path and companion fil
 
 ## 3. Agents and Subagents (AGENT.md)
 
-Zrb can spawn subagents defined in Claude-style `AGENT.md` (or `*.agent.md`) files — or, as in Claude Code, any plain `*.md` file inside an `agents/` directory. Python agents (`AGENT.py` / `*.agent.py`) are accepted too. Zrb's built-in agents are split into two groups: `core_agents/` is always available, while the optional `agents/` directory is controlled by `ZRB_LLM_ENABLE_BUILTIN_AGENTS`. Core agents are listed before optional agents when Zrb advertises available delegates.
+Zrb can spawn subagents defined in Claude-style `AGENT.md` (or `*.agent.md`) files — or, as in Claude Code, any plain `*.md` file inside an `agents/` directory. Python agents (`AGENT.py` / `*.agent.py`) are accepted too. Zrb's built-in agents are split into two groups: `core_agents/` is always available, while the optional `agents/` directory is controlled by `ZRB_LLM_BUILTIN_AGENTS_ENABLED`. Core agents are listed before optional agents when Zrb advertises available delegates.
 
 ### Discovery Paths
 

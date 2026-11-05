@@ -41,7 +41,7 @@ When no OS mechanism is available (Windows, or Linux without `bwrap`), the polic
 | `ZRB_LLM_SANDBOX_WRITABLE_PATHS` | (empty) | Colon-separated (semicolon on Windows) writable roots. Empty = automatic: the directory zrb was started in, the system temp dir, and `LLM_WORKTREE_DIR`. An explicit list is exact — add the worktree root to use worktrees. A tool's `cwd` argument never adds a root. The worktree tools' git calls write under the repository's `.git`, so start zrb at the repository root or list the root here. |
 | `ZRB_LLM_SANDBOX_DENY_READ_PATHS` | built-in list | Colon-separated (semicolon on Windows) never-read paths; setting it replaces the default credential-store list. |
 | `ZRB_LLM_SANDBOX_FALLBACK` | `warn` | `warn` / `deny` when no OS mechanism exists. Any value other than `deny` behaves as `warn`, so check the spelling. |
-| `ZRB_LLM_SANDBOX_ALLOW_ESCAPE` | `true` | Whether `dangerously_skip_sandbox` is honored at all. Set `false` for non-interactive (CI) deployments. |
+| `ZRB_LLM_SANDBOX_ALLOW_ESCAPE_ENABLED` | `true` | Whether `dangerously_skip_sandbox` is honored at all. Set `false` for non-interactive (CI) deployments. |
 
 The default deny-read list covers `~/.ssh`, `~/.aws`, `~/.azure`, `~/.config/gcloud`, `~/.kube`, `~/.gnupg`, `~/.netrc`, `~/.npmrc`, `~/.pypirc`, `~/.git-credentials`, `~/.docker/config.json`, `~/.config/gh`, `~/Library/Keychains`, and `~/AppData/Roaming/gcloud`. Entries absent on a machine are skipped at resolve time, so the list is cross-platform-safe.
 
@@ -54,7 +54,7 @@ Python API: both `LLMTask(..., sandbox=...)` and `LLMChatTask(..., sandbox=...)`
 `Shell` (foreground or `background=True`) accepts `dangerously_skip_sandbox: bool = False`. A truthy value:
 
 - is **never auto-approved** — `bash_safe_command_policy` and `auto_approve` always route it to the human prompt, no matter how read-only the command looks;
-- is blocked outright when `ZRB_LLM_SANDBOX_ALLOW_ESCAPE=false`;
+- is blocked outright when `ZRB_LLM_SANDBOX_ALLOW_ESCAPE_ENABLED=false`;
 - prepends `[NOTE] executed outside the sandbox` to the tool output.
 
 ## Threat Model and Non-Goals

@@ -71,9 +71,11 @@ class UIConfig:
     )
     # Stable so the task's xcom write and the UI agree on the key.
     yolo_xcom_key: str = "yolo"
-    show_ollama_models: bool = field(default_factory=lambda: CFG.LLM_SHOW_OLLAMA_MODELS)
+    show_ollama_models: bool = field(
+        default_factory=lambda: CFG.LLM_SHOW_OLLAMA_MODELS_ENABLED
+    )
     show_pydantic_ai_models: bool = field(
-        default_factory=lambda: CFG.LLM_SHOW_PYDANTIC_AI_MODELS
+        default_factory=lambda: CFG.LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED
     )
 
     # Session
@@ -136,11 +138,17 @@ def command_alias_field(env_name: str) -> str | None:
 
 # `UIConfig` fields that mirror a plain `CFG` boolean.
 _MODEL_VISIBILITY_FIELDS = {
-    "LLM_SHOW_OLLAMA_MODELS": "show_ollama_models",
-    "LLM_SHOW_PYDANTIC_AI_MODELS": "show_pydantic_ai_models",
+    "LLM_SHOW_OLLAMA_MODELS_ENABLED": "show_ollama_models",
+    "LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED": "show_pydantic_ai_models",
 }
 
 
 def model_visibility_field(env_name: str) -> str | None:
-    """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None."""
-    return _MODEL_VISIBILITY_FIELDS.get(env_name)
+    """The `UIConfig` field mirroring the `CFG.<env_name>` boolean, or None.
+
+    A name the setting used to have is resolved to the one that replaced it, so
+    `/set LLM_SHOW_OLLAMA_MODELS=off` refreshes the running session exactly as
+    the current name does.
+    """
+    current = CFG.get_field_renamed_from(env_name) or env_name
+    return _MODEL_VISIBILITY_FIELDS.get(current)

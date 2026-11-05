@@ -21,8 +21,8 @@ class LLMUIStylesMixin:
         self.DEFAULT_LLM_ASSISTANT_NAME: str = "Zrb"
         self.DEFAULT_LLM_ASSISTANT_ASCII_ART: str = "default"
         self.DEFAULT_LLM_ASSISTANT_JARGON: str = ""
-        self.DEFAULT_LLM_UI_ENABLE_MARKDOWN_MATH: str = "on"
-        self.DEFAULT_LLM_UI_ENABLE_MARKDOWN_MERMAID: str = "on"
+        self.DEFAULT_LLM_UI_MARKDOWN_MATH_ENABLED: str = "on"
+        self.DEFAULT_LLM_UI_MARKDOWN_MERMAID_ENABLED: str = "on"
         super().__init__()
 
     # Falls back to ROOT_GROUP_NAME, then capitalizes the first letter while
@@ -230,8 +230,9 @@ class LLMUIStylesMixin:
         doc="Rich style for inline markdown code spans.",
     )
 
-    LLM_UI_ENABLE_MARKDOWN_MATH = EnvField(
+    LLM_UI_MARKDOWN_MATH_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_UI_ENABLE_MARKDOWN_MATH"],
         serialize=on_off,
         doc=(
             "Convert LaTeX math ($...$ / $$...$$) to Unicode when rendering "
@@ -240,8 +241,9 @@ class LLMUIStylesMixin:
         ),
     )
 
-    LLM_UI_ENABLE_MARKDOWN_MERMAID = EnvField(
+    LLM_UI_MARKDOWN_MERMAID_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_UI_ENABLE_MARKDOWN_MERMAID"],
         serialize=on_off,
         doc=(
             "Render ```mermaid fenced blocks as Unicode diagram art when "

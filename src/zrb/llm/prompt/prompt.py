@@ -103,7 +103,7 @@ def _read_prompt_file(path: str) -> str | None:
 
 def _get_default_prompt_search_path(cwd: str) -> tuple[str, ...]:
     return _get_default_prompt_search_path_cached(
-        cwd, CFG.LLM_SEARCH_PROJECT, CFG.LLM_SEARCH_HOME
+        cwd, CFG.LLM_SEARCH_PROJECT_ENABLED, CFG.LLM_SEARCH_HOME_ENABLED
     )
 
 
@@ -113,8 +113,8 @@ def _get_default_prompt_search_path_cached(
 ) -> tuple[str, ...]:
     """Directories to check for a ``{prompt_dir}/{name}.md`` override, in order.
 
-    Honors ``LLM_SEARCH_PROJECT`` (cwd ancestors up to home) and
-    ``LLM_SEARCH_HOME``, as skill and agent discovery do.
+    Honors ``LLM_SEARCH_PROJECT_ENABLED`` (cwd ancestors up to home) and
+    ``LLM_SEARCH_HOME_ENABLED``, as skill and agent discovery do.
     """
     home_path = os.path.abspath(os.path.expanduser("~"))
     search_paths = get_dirs_up_to_home(cwd, home_path) if search_project else []

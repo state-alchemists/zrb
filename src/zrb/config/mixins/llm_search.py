@@ -23,16 +23,16 @@ class LLMSearchMixin:
         ROOT_GROUP_NAME: str  # FoundationMixin
 
     def __init__(self):
-        self.DEFAULT_LLM_SEARCH_PROJECT: str = "on"
-        self.DEFAULT_LLM_SEARCH_HOME: str = "on"
+        self.DEFAULT_LLM_SEARCH_PROJECT_ENABLED: str = "on"
+        self.DEFAULT_LLM_SEARCH_HOME_ENABLED: str = "on"
         self.DEFAULT_LLM_CONFIG_DIR_NAMES: str = ""  # Computed dynamically
         self.DEFAULT_LLM_BASE_SEARCH_DIRS: str = ""
         self.DEFAULT_LLM_EXTRA_SKILL_DIRS: str = ""
         self.DEFAULT_LLM_EXTRA_AGENT_DIRS: str = ""
         self.DEFAULT_LLM_PLUGIN_DIRS: str = ""
         self.DEFAULT_LLM_LSP_PREFERRED_SERVERS: str = ""
-        self.DEFAULT_LLM_ENABLE_BUILTIN_SKILLS: str = "on"
-        self.DEFAULT_LLM_ENABLE_BUILTIN_AGENTS: str = "on"
+        self.DEFAULT_LLM_BUILTIN_SKILLS_ENABLED: str = "on"
+        self.DEFAULT_LLM_BUILTIN_AGENTS_ENABLED: str = "on"
         self.DEFAULT_LLM_SKILLS: str = ""
         self.DEFAULT_LLM_AGENTS: str = ""
         super().__init__()
@@ -57,8 +57,9 @@ class LLMSearchMixin:
         ),
     )
 
-    LLM_SEARCH_PROJECT = EnvField(
+    LLM_SEARCH_PROJECT_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_SEARCH_PROJECT"],
         serialize=on_off,
         doc=(
             "Enable/disable project directory search (traversal from filesystem "
@@ -66,8 +67,9 @@ class LLMSearchMixin:
         ),
     )
 
-    LLM_SEARCH_HOME = EnvField(
+    LLM_SEARCH_HOME_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_SEARCH_HOME"],
         serialize=on_off,
         doc="Enable/disable home directory search (~/.claude/, ~/.zrb/).",
     )
@@ -107,8 +109,9 @@ class LLMSearchMixin:
         doc="Additional direct agent directories (colon-separated; semicolon on Windows).",
     )
 
-    LLM_ENABLE_BUILTIN_SKILLS = EnvField(
+    LLM_BUILTIN_SKILLS_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_ENABLE_BUILTIN_SKILLS"],
         serialize=on_off,
         doc=(
             "Enable/disable the builtin utility skills (src/zrb/llm_plugin/skills). "
@@ -117,8 +120,9 @@ class LLMSearchMixin:
         ),
     )
 
-    LLM_ENABLE_BUILTIN_AGENTS = EnvField(
+    LLM_BUILTIN_AGENTS_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_ENABLE_BUILTIN_AGENTS"],
         serialize=on_off,
         doc=(
             "Enable/disable the builtin sub-agents (src/zrb/llm_plugin/agents). "
@@ -132,7 +136,7 @@ class LLMSearchMixin:
         doc=(
             "Name allowlist for visible skills, the env twin of `skill_registry`. "
             "Empty means all discovered + built-in skills. Non-empty "
-            "restricts the catalogue to the named skills; `LLM_ENABLE_BUILTIN_SKILLS` "
+            "restricts the catalogue to the named skills; `LLM_BUILTIN_SKILLS_ENABLED` "
             "still gates built-ins independently."
         ),
     )
@@ -144,6 +148,6 @@ class LLMSearchMixin:
             "Name allowlist for the sub-agent roster, the env twin of "
             "`sub_agent_registry`. Empty means all discovered + built-in "
             "agents. Non-empty restricts the roster to the named agents; "
-            "`LLM_ENABLE_BUILTIN_AGENTS` still gates built-ins independently."
+            "`LLM_BUILTIN_AGENTS_ENABLED` still gates built-ins independently."
         ),
     )
