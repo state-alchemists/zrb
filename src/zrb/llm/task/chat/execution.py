@@ -30,7 +30,6 @@ from zrb.llm.permission import tool_capability
 from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.llm_task import LLMTask
-from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.task.shared_getters import (
     get_policy_skip_decision,
     resolve_all_tools,
@@ -39,6 +38,7 @@ from zrb.llm.task.shared_getters import (
     resolve_model,
     resolve_system_prompt,
 )
+from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.ui_fallback.resolution import resolve_ui
 from zrb.llm.util.attachment import get_attachments
