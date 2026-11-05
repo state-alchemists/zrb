@@ -13,6 +13,7 @@ How long conversations are summarized, what the memory store keeps across sessio
   - [The archive](#the-archive)
   - [The summary itself](#the-summary-itself)
   - [Other oversized content](#other-oversized-content)
+  - [Round cost, and the batching reminder](#round-cost-and-the-batching-reminder)
 - [Memory & Notes Storage](#memory--notes-storage)
 - [Rewind & Snapshots](#rewind--snapshots)
   - [Python API](#python-api)
@@ -92,6 +93,14 @@ The same mechanism keeps one large repo or file read from blowing the context wi
 | `ZRB_LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD` | Token count above which repo-analysis content is extracted in chunks | 40% of `MAX_TOKEN_PER_REQUEST` |
 | `ZRB_LLM_REPO_ANALYSIS_SUMMARIZATION_TOKEN_THRESHOLD` | Token count triggering summarization of repo-analysis results | 40% of `MAX_TOKEN_PER_REQUEST` |
 | `ZRB_LLM_FILE_ANALYSIS_TOKEN_THRESHOLD` | Token count above which a single file's analysis is summarized | 40% of `MAX_TOKEN_PER_REQUEST` |
+
+### Round cost, and the batching reminder
+
+Every round re-sends the whole conversation, so a turn that issues sixty tool calls one at a time pays for its context sixty times: an agentic turn's input grows with rounds × history size, not with the output it produces. A response may carry several calls at once, and independent ones are cheaper together — that is the one lever that needs no threshold change.
+
+The prompt asks the model to batch; when that is ignored, zrb injects one reminder. Three consecutive rounds that each carried a single `Read`, `Grep`, `Glob` or `LS` call on *different* arguments is what it counts, and the reminder says why in one line. `Shell`, `Write` and `Edit` are never counted — there the next call usually depends on what the previous one printed, so batching them would be wrong — and the reminder is not repeated while one is already in the history. It reaches sub-agents too, since a delegated run pays the same price.
+
+`/usage` reports the shape beside the totals: **tool calls per round**. A window of several rounds averaging one call per round was issuing lookups serially; the same calls issued two or three to a response would have cost a fraction of the input tokens.
 
 ## Memory & Notes Storage
 

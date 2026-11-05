@@ -30,6 +30,7 @@ from zrb.llm.permission import tool_capability
 from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.llm_task import LLMTask
+from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.task.shared_getters import (
     get_policy_skip_decision,
     resolve_all_tools,
@@ -421,6 +422,9 @@ class ChatExecution:
                 ),
             )
         )
+        # After the summarizer: a compaction in the same pass cannot trim the
+        # nudge away, and the nudge is never counted as history worth compacting.
+        llm_task.append_history_processor(create_batch_nudge_processor())
         return llm_task
 
     def _resolve_inner_task_config(

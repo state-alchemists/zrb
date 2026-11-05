@@ -7,6 +7,7 @@ from zrb.llm.tool_call.argument_formatter.shell_formatter import (
 from zrb.llm.tool_call.argument_formatter.write_file_formatter import (
     write_file_formatter,
 )
+from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.tool_call.handler import ToolCallHandler, check_tool_policies
 from zrb.llm.tool_call.middleware import (
     ArgumentFormatter,
@@ -29,6 +30,7 @@ from zrb.llm.tool_call.tool_policy.read_file_validation import (
 
 __all__ = [
     "check_tool_policies",
+    "create_batch_nudge_processor",
     "auto_approve",
     "bash_safe_command_policy",
     "read_file_validation_policy",

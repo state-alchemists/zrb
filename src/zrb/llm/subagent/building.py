@@ -27,6 +27,7 @@ from zrb.llm.subagent.tool_resolver import (
 )
 from zrb.llm.subagent.yolo import make_yolo_inheritance_checker
 from zrb.llm.summarizer import create_summarizer_history_processor
+from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.tool_registry import tool_registry
 
 if TYPE_CHECKING:
@@ -121,7 +122,10 @@ class SubAgentBuilding:
                     # all, so the archive is keyed by the opening message
                     # instead of every run sharing one.
                     session_name=_subagent_archive_name(name)
-                )
+                ),
+                # A delegated run spends the same tokens on a serial streak as
+                # the parent does, so it gets the same reminder.
+                create_batch_nudge_processor(),
             ],
             yolo=resolved.yolo,
             resolve_model=False,
