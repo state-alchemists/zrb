@@ -49,10 +49,7 @@ def create_batch_nudge_processor() -> (
     async def process_history(
         messages: "list[ModelMessage]", system_prompt_overhead: int = 0
     ) -> "list[ModelMessage]":
-        if (
-            not CFG.LLM_BATCH_TOOL_CALL_NUDGE_ENABLED
-            or _is_parallel_calls_unsupported()
-        ):
+        if not CFG.LLM_BATCH_TOOL_CALL_NUDGE or _is_parallel_calls_unsupported():
             return messages
         tool_name = _single_call_streak_tool(messages)
         if tool_name is None:

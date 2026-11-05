@@ -130,7 +130,7 @@ def test_lookups_of_different_tools_are_not_one_streak():
 
 
 def test_the_reminder_is_off_when_its_knob_is_off(monkeypatch):
-    monkeypatch.setenv("ZRB_LLM_BATCH_TOOL_CALL_NUDGE_ENABLED", "off")
+    monkeypatch.setenv("ZRB_LLM_BATCH_TOOL_CALL_NUDGE", "off")
     messages = _read_streak(["a.py", "b.py", "c.py"])
 
     assert _process(messages) == messages
