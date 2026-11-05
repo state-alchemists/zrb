@@ -47,7 +47,7 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_BACKGROUND_WAKE_ENABLED: str = "1"
         # Five unattended turns in a row is enough to act on a result and see
         # what it started; more is a loop, not a conversation.
-        self.DEFAULT_LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE: str = "5"
+        self.DEFAULT_LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE: str = "5"
         self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
@@ -230,7 +230,7 @@ class LLMLimitsMixin:
         ),
     )
 
-    LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE = EnvField(
+    LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE = EnvField(
         int,
         doc=(
             "How many background-command wake-ups may reach a session in a row "

@@ -68,7 +68,7 @@ def test_a_wake_up_does_not_cut_the_voice(hushed):
 
 
 def test_wake_ups_stop_at_the_limit_until_the_user_writes(monkeypatch, hushed):
-    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE", 2)
+    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE", 2)
     queue = MessageQueue()
     notices: list[str] = []
 
@@ -86,7 +86,7 @@ def test_wake_ups_stop_at_the_limit_until_the_user_writes(monkeypatch, hushed):
 
 
 def test_a_limit_of_zero_removes_the_limit(monkeypatch, hushed):
-    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE", 0)
+    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE", 0)
     queue = MessageQueue()
 
     for number in range(20):
@@ -97,7 +97,7 @@ def test_a_limit_of_zero_removes_the_limit(monkeypatch, hushed):
 
 def test_words_that_are_not_the_users_do_not_refill_the_allowance(monkeypatch, hushed):
     """A sub-agent's message (source None) is not the user writing."""
-    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE", 1)
+    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE", 1)
     queue = MessageQueue()
     _submit(queue, "wake 0", BACKGROUND_INPUT)
 

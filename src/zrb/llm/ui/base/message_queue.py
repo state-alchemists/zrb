@@ -304,7 +304,7 @@ def submit_user_message_via_queue(
         # Not the user moving on: nothing here cuts the voice, and a wake-up
         # that would be one too many is left to the next turn's live context,
         # which still lists the command as exited.
-        limit = CFG.LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE
+        limit = CFG.LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE
         if 0 < limit <= queue.unattended_wakes:
             append_to_output(
                 f"\n[{limit} background wake-ups in a row with no message from "

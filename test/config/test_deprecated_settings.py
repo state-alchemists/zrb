@@ -98,3 +98,92 @@ def test_a_renamed_setting_is_not_a_typo_but_an_unknown_one_still_is(clean_env):
     assert "ZRB_LLM_ENABLE_REWIND" not in CFG.get_mistyped_env_keys()
     with pytest.raises(AttributeError):
         _ = CFG.LLM_NOT_A_SETTING
+
+
+# Every knob this pass renamed, mapped to the names it used to answer to. This
+# table is the contract: `main` accepted every value here before the rename, so
+# a row that goes missing drops a user's setting silently — the symptom is a
+# knob that keeps its default while the environment file says otherwise.
+RENAMED = {
+    "BUILTIN_TASKS_ENABLED": ["ENABLE_BUILTIN_TASKS"],
+    "TIKTOKEN_ENABLED": ["ENABLE_TIKTOKEN"],
+    "LLM_BUILTIN_AGENTS_ENABLED": ["LLM_ENABLE_BUILTIN_AGENTS"],
+    "LLM_BUILTIN_SKILLS_ENABLED": ["LLM_ENABLE_BUILTIN_SKILLS"],
+    "LLM_REWIND_ENABLED": ["LLM_ENABLE_REWIND"],
+    "LLM_TOOL_SPILL_ENABLED": ["LLM_ENABLE_TOOL_SPILL"],
+    "LLM_READ_IMAGE_ENABLED": ["LLM_ENABLE_READ_IMAGE"],
+    "LLM_RATE_LIMIT_ENABLED": ["LLM_ENABLE_RATE_LIMIT"],
+    "LLM_CAMERA_TOOL_ENABLED": ["LLM_CAMERA_ENABLE_TOOL"],
+    "LLM_SCREENSHOT_TOOL_ENABLED": ["LLM_SCREENSHOT_ENABLE_TOOL"],
+    "LLM_DICTATION_ECHO_CANCEL_ENABLED": ["LLM_DICTATION_ENABLE_ECHO_CANCEL"],
+    "LLM_UI_MARKDOWN_MATH_ENABLED": ["LLM_UI_ENABLE_MARKDOWN_MATH"],
+    "LLM_UI_MARKDOWN_MERMAID_ENABLED": ["LLM_UI_ENABLE_MARKDOWN_MERMAID"],
+    "LLM_SEARCH_HOME_ENABLED": ["LLM_SEARCH_HOME"],
+    "LLM_SEARCH_PROJECT_ENABLED": ["LLM_SEARCH_PROJECT"],
+    "LLM_SHOW_OLLAMA_MODELS_ENABLED": ["LLM_SHOW_OLLAMA_MODELS"],
+    "LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED": ["LLM_SHOW_PYDANTIC_AI_MODELS"],
+    "LLM_SHOW_TOOL_CALL_DETAIL_ENABLED": ["LLM_SHOW_TOOL_CALL_DETAIL"],
+    "LLM_SHOW_TOOL_CALL_RESULT_ENABLED": ["LLM_SHOW_TOOL_CALL_RESULT"],
+    "SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED": [
+        "SHOW_UNRECOMMENDED_COMMAND_WARNING"
+    ],
+    "LLM_SANDBOX_ALLOW_ESCAPE_ENABLED": ["LLM_SANDBOX_ALLOW_ESCAPE"],
+    "WEB_AUTH_SECURE_COOKIES_ENABLED": [
+        "WEB_AUTH_SECURE_COOKIES",
+        "WEB_ENABLE_SECURE_COOKIES",
+    ],
+    "LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED": ["LLM_UI_SHOW_RUNTIME_TIMERS"],
+    "LLM_DICTATION_DETECT_EMOTION_ENABLED": ["LLM_DICTATION_DETECT_EMOTION"],
+    "LLM_DICTATION_EMOTION_OUT_OF_PROCESS_ENABLED": [
+        "LLM_DICTATION_EMOTION_OUT_OF_PROCESS"
+    ],
+    "LLM_VOICE_MOVES_SHELL_ENABLED": ["LLM_VOICE_MOVES_SHELL"],
+    "LLM_BACKGROUND_WAKE_ENABLED": ["LLM_BACKGROUND_WAKE"],
+    "LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED": ["LLM_INJECT_PROJECT_INSTRUCTIONS"],
+    "LLM_SPEECH_BLOCK_NOTICE_ENABLED": ["LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED"],
+}
+
+
+@pytest.mark.parametrize("new_name", sorted(RENAMED))
+def test_a_renamed_knob_still_answers_to_every_name_it_had(new_name):
+    """A rename that forgets an old name is a user's setting dropped in silence."""
+    field = CFG.get_settable_field(new_name)
+    assert field is not None, f"{new_name} is in RENAMED but is not a settable knob"
+    for old_name in RENAMED[new_name]:
+        assert (
+            old_name in field.deprecated_aliases
+        ), f"{old_name} is read no more: set it and {new_name} keeps its default"
+        assert CFG.get_field_renamed_from(old_name) == new_name
+
+
+def _drop_env(monkeypatch, *keys):
+    for key in keys:
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_the_secure_cookie_alias_from_before_the_rename_still_works(monkeypatch):
+    """`WEB_ENABLE_SECURE_COOKIES` predates the rename, so it is not optional."""
+    _drop_env(
+        monkeypatch,
+        "ZRB_WEB_AUTH_SECURE_COOKIES_ENABLED",
+        "ZRB_WEB_ENABLE_SECURE_COOKIES",
+    )
+    monkeypatch.setenv("ZRB_WEB_ENABLE_SECURE_COOKIES", "off")
+
+    assert CFG.WEB_AUTH_SECURE_COOKIES_ENABLED is False
+    assert (
+        CFG.get_deprecated_env_keys()["ZRB_WEB_ENABLE_SECURE_COOKIES"]
+        == "ZRB_WEB_AUTH_SECURE_COOKIES_ENABLED"
+    )
+
+
+def test_the_old_tool_result_name_still_turns_the_result_on(monkeypatch):
+    """This knob sat on a single line, which a sweep for the block shape missed."""
+    _drop_env(
+        monkeypatch,
+        "ZRB_LLM_SHOW_TOOL_CALL_RESULT_ENABLED",
+        "ZRB_LLM_SHOW_TOOL_CALL_RESULT",
+    )
+    monkeypatch.setenv("ZRB_LLM_SHOW_TOOL_CALL_RESULT", "on")
+
+    assert CFG.LLM_SHOW_TOOL_CALL_RESULT_ENABLED is True

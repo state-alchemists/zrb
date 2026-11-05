@@ -105,7 +105,7 @@ class WebMixin:
 
     WEB_AUTH_SECURE_COOKIES_ENABLED = EnvField(
         to_boolean,
-        deprecated_aliases=["WEB_AUTH_SECURE_COOKIES"],
+        deprecated_aliases=["WEB_AUTH_SECURE_COOKIES", "WEB_ENABLE_SECURE_COOKIES"],
         serialize=on_off,
         doc=(
             "Set the Secure flag on auth cookies (sent over HTTPS only). "

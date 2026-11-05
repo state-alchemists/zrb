@@ -31,6 +31,15 @@ def _boolean_fields() -> list[str]:
     )
 
 
+def _fields() -> list[tuple[str, EnvField]]:
+    return sorted(
+        (name, value)
+        for klass in type(Config).__mro__
+        for name, value in vars(klass).items()
+        if isinstance(value, EnvField)
+    )
+
+
 def test_every_boolean_setting_is_named_a_switch():
     offenders = [name for name in _boolean_fields() if not name.endswith("_ENABLED")]
     assert offenders == [], (
@@ -53,3 +62,19 @@ def test_every_old_shape_is_still_an_alias_of_its_new_name():
                 continue
             for old in value.deprecated_aliases:
                 assert old != name, f"{name} lists itself as deprecated"
+
+
+def test_only_a_switch_carries_enabled_in_its_name():
+    """`_ENABLED` is the suffix on a switch, never a word inside one.
+
+    A rename can land on a setting it had no business touching:
+    `LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE` (a count) became
+    `LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE` when the switch beside it
+    took the suffix, and the number knob read as "enabled max consecutive".
+    """
+    offenders = [
+        name
+        for name, field in _fields()
+        if "_ENABLED" in name and not (field.is_boolean and name.endswith("_ENABLED"))
+    ]
+    assert offenders == []

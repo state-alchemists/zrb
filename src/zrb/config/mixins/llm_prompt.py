@@ -66,7 +66,10 @@ class LLMPromptMixin:
     )
 
     LLM_SHOW_TOOL_CALL_RESULT_ENABLED = EnvField(
-        to_boolean, serialize=on_off, doc="Show the full tool call result in the UI."
+        to_boolean,
+        deprecated_aliases=["LLM_SHOW_TOOL_CALL_RESULT"],
+        serialize=on_off,
+        doc="Show the full tool call result in the UI.",
     )
 
     LLM_INCLUDE_SECTIONS = EnvField(
