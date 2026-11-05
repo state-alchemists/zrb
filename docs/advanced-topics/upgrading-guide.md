@@ -141,7 +141,7 @@ The notes are never modified. What each note becomes, and the layout the migrati
 
 The LLM layering refactor moved where a few names live. Behaviour is unchanged; an import path is the only thing to change.
 
-### Moved modules
+### Moved modules (3.30.0)
 
 | Old | New |
 |---|---|
@@ -164,7 +164,7 @@ The LLM layering refactor moved where a few names live. Behaviour is unchanged; 
 
 ## Upgrading to 3.16.0
 
-3.16.0 brings an opt-in spoken summary back and moves some modules to the package that owns them ([Moved modules](#moved-modules)). Speech changes only if you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.
+3.16.0 brings an opt-in spoken summary back and moves some modules to the package that owns them ([Moved modules](#moved-modules-3160)). Speech changes only if you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.
 
 | Setting | What it does |
 |---|---|
@@ -174,7 +174,7 @@ The LLM layering refactor moved where a few names live. Behaviour is unchanged; 
 
 A leftover `ZRB_LLM_SPEECH_SUMMARIZE` is still reported at startup and now names `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`. `ZRB_LLM_SPEECH_MAX_CHARS` and `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` stay retired: a reply is never cut at a fixed length.
 
-### Moved modules
+### Moved modules (3.16.0)
 
 Top-level `zrb` exports are unchanged. A deep import of a module that moved to the package owning it needs the new path:
 
