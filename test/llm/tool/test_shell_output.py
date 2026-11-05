@@ -1,6 +1,4 @@
 import asyncio
-import gc
-import warnings
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -214,14 +212,35 @@ def test_docstring_routes_file_work_to_the_file_tools():
 
 
 @pytest.mark.asyncio
-async def test_a_timed_out_command_leaves_no_unclosed_transport():
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        await run_shell_command("sleep 5", timeout=1)
-        gc.collect()
+async def test_a_timed_out_command_leaves_its_pipes_closed(monkeypatch):
+    """The timeout cancels the drain before it closes the pipes, so the tool does.
 
-    leaked = [str(w.message) for w in caught if "unclosed transport" in str(w.message)]
-    assert leaked == []
+    This test used to `gc.collect()` and assert the process had warned nothing
+    about an unclosed transport. `gc.collect()` breaks every unreachable cycle
+    in the process, so that assertion was never about Shell: anything opened and
+    dropped elsewhere in the session lands in it. The failure that opened this
+    issue named a `<..._SelectorSocketTransport ...>`, and nothing in the Shell
+    path opens a socket — it opens pipes. So the test asserts the only thing it
+    owns: its own transport, closed by the time the call returns.
+    """
+    transports = []
+    close = shell_mod.close_transport
+
+    def recording_close(process):
+        close(process)
+        transports.append(getattr(process, "_transport", None))
+
+    monkeypatch.setattr(shell_mod, "close_transport", recording_close)
+
+    await run_shell_command("sleep 5", timeout=1)
+
+    assert len(transports) == 1, "the timed-out command left its pipes to the GC"
+    transport = transports[0]
+    assert transport is not None and transport.is_closing()
+    await asyncio.sleep(0)
+    assert getattr(
+        transport, "_closed", False
+    ), "closed, but the loop never ran connection_lost"
 
 
 def _noisy_lines(first: str, last: str, filler: int = 60) -> list[str]:
