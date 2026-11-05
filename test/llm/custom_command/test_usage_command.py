@@ -105,6 +105,20 @@ def test_the_cache_line_reports_the_share_served_from_cache(usage_dir, command):
     assert "94% of input tokens came from the prompt cache" in output
 
 
+def test_the_batch_line_reports_tool_calls_per_round(usage_dir, command):
+    _record(requests=2, tool_calls=5)
+
+    output = command.handle({}, None)
+
+    assert "2.5 tool call(s) per round" in output
+
+
+def test_a_window_with_no_tool_calls_has_no_batch_line(usage_dir, command):
+    _record(requests=1, tool_calls=0)
+
+    assert "per round" not in command.handle({}, None)
+
+
 def test_an_unpriced_run_is_shown_as_unknown_rather_than_free(usage_dir, command):
     _record(model="ollama:local", cost=None)
 

@@ -248,6 +248,13 @@ def _footer(records: list[UsageRecord]) -> list[str]:
         f"  runs    {len(records)} run(s) · {tool_calls} tool call(s) · "
         f"{_duration(run_ms)} of wall time",
     ]
+    # Only a window that called tools has a batching shape to report; a plain
+    # conversation would otherwise be told it batches nothing, which is true and
+    # useless.
+    if tool_calls:
+        lines.append(
+            f"  batch   {_calls_per_round(records):.1f} tool call(s) per round"
+        )
     unpriced = [record for record in records if record.cost is None]
     if unpriced:
         lines.append(
@@ -281,6 +288,20 @@ def _cache_ratio(records: list[UsageRecord]) -> float:
     if not input_tokens:
         return 0.0
     return _total(records, _CACHE_READ) / input_tokens
+
+
+def _calls_per_round(records: list[UsageRecord]) -> float:
+    """Tool calls per model request across the window.
+
+    `requests` is the round count, so this is a measure of batching rather than
+    of activity: every round re-sends the whole conversation, and calls issued
+    one per round pay that body once each. Zero when nothing was measured, which
+    is not the same as a perfectly unbatched window.
+    """
+    requests = sum(record.requests for record in records)
+    if not requests:
+        return 0.0
+    return sum(record.tool_calls for record in records) / requests
 
 
 def _cost(runs: list[UsageRecord]) -> str:
