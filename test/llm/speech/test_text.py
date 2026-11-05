@@ -1,6 +1,12 @@
 import pytest
 
-from zrb.llm.speech.text import clean_for_speech, fill_template, without_blockquotes
+from zrb.llm.speech.text import (
+    WHOLE_READ_OK_CHARS,
+    clean_for_speech,
+    fill_template,
+    needs_spoken_block,
+    without_blockquotes,
+)
 
 
 def test_clean_drops_code_tables_urls_and_markup():
@@ -112,3 +118,49 @@ def test_fill_template_fills_each_name_once():
     filled = fill_template("{style}: {text}", style="say {text} warmly", text="hi")
 
     assert filled == "say {text} warmly: hi"
+
+
+def test_a_short_reply_needs_no_block():
+    """The rule already says a short answer needs none, so the check must not
+    quarrel with the rule it exists to enforce."""
+    assert not needs_spoken_block("Fixed the parser. The tests pass.")
+
+
+def test_a_reply_that_opens_a_block_asks_for_nothing_more():
+    """Even an empty one, and even when the reply around it is long: the model
+    has said what the ear gets."""
+    assert not needs_spoken_block("<spoken></spoken>\n" + "Shown only. " * 60)
+    assert not needs_spoken_block("<spoken>Done.</spoken>\n" + "Shown only. " * 60)
+
+
+def test_a_reply_full_of_quoted_text_is_measured_by_what_is_said():
+    """A quote is shown and never said, so a long one must not make the reply
+    look too long to listen to when the listener hears one line."""
+    reply = "> " + "a quoted log line, shown and never read out " * 20 + "\n\nDone."
+
+    assert len(reply) > WHOLE_READ_OK_CHARS + 400
+    assert not needs_spoken_block(reply)
+
+
+def test_a_reply_holding_a_table_needs_a_block():
+    """The cleaning drops the table, so the ear hears the sentence pointing at
+    it and none of its numbers."""
+    reply = (
+        "Where things stand:\n\n"
+        "| item | cost |\n"
+        "| --- | ---: |\n"
+        "| warning | an hour |"
+    )
+
+    assert needs_spoken_block(reply)
+
+
+def test_a_reply_holding_a_fenced_block_needs_a_block():
+    assert needs_spoken_block("Run this:\n\n```bash\nmake test\n```")
+
+
+def test_a_reply_long_enough_to_be_a_lecture_needs_a_block():
+    sentence = "A sentence of no consequence. "
+
+    assert not needs_spoken_block(sentence * 5)
+    assert needs_spoken_block(sentence * 20)

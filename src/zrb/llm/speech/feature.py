@@ -34,6 +34,7 @@ from zrb.llm.speech.text import (
     clean_for_speech,
     fill_template,
     match_tool_phrase,
+    needs_spoken_block,
     without_blockquotes,
 )
 from zrb.llm.util.feature_config import (
@@ -59,6 +60,14 @@ _QUESTION_NOTIFICATIONS = ("elicitation_dialog",)
 _HOOK_NAMES = ("handle_stop", "handle_permission_request", "handle_notification")
 # What one `+` or `-` moves the speech volume by, in percentage points.
 _VOLUME_STEP_PERCENT = 10
+# What the model is told the turn after it left the block out. It states the
+# omission and the rule, and nothing about what was heard: a reply can be
+# summarized, cut by a barge-in or muted between being written and being
+# listened to, and a notice that names a delivery would be wrong in some of those.
+_MISSED_BLOCK_NOTICE = (
+    "Your last reply opened no `<spoken>` block. Anything more than a short "
+    "answer needs one."
+)
 
 
 def _volume_delta(argument: str) -> int | None:
@@ -198,6 +207,8 @@ class SpeechSession:
         # Bumped whenever what is pending stops mattering: an interrupt, or a
         # newer reply than a summary still being made.
         self._generation = 0
+        # Whether the last reply wanted a block and opened none.
+        self._missed_block = False
         self._summarizer = SpeechSummarizer()
         self.streamed_reply = StreamedReply(
             self._say_reply_part, max_chars=config.chunk_max_chars
@@ -320,15 +331,24 @@ class SpeechSession:
             self._generation += 1
             self.speaker.clear()
             self.streamed_reply.reset()
+            # Nothing more is heard until speech comes back, so a reply that
+            # already missed its block is not the next turn's business.
+            self._missed_block = False
         else:
             self.speaker.restart_backends()
         return f"🔊 Speech {'on' if self.speaker.is_enabled else 'off'}"
 
     def create_live_context(self) -> str:
         """Tell the model its reply is heard, while it is: a reply written to
-        be read aloud opens with the answer instead of a table."""
+        be read aloud opens with the answer instead of a table.
+
+        When the last reply dropped the block, one line says so — the reply is
+        already spoken, so this is the only place the model learns of it."""
         if self.speaker.is_enabled and "reply" in self._events:
-            return get_prompt("speech_live")
+            context = get_prompt("speech_live")
+            if self._missed_block:
+                return context + "\n\n" + _MISSED_BLOCK_NOTICE
+            return context
         return ""
 
     def handle_stream_event(self, event: Any) -> None:
@@ -393,6 +413,10 @@ class SpeechSession:
         if not self._is_own_session() or event_data.get("nested_run"):
             return HookResult(success=True)
         self.progress.reset()
+        # This turn's reply replaces the last one, whether or not it has
+        # anything to say: a note left over from an older turn would be about a
+        # reply that is no longer the last one.
+        self._missed_block = False
         # A summary still being made belongs to an earlier turn, whatever this
         # one goes on to say; one `say_reply` starts is for the new generation.
         self._generation += 1
@@ -407,6 +431,8 @@ class SpeechSession:
         if "reply" not in self._events:
             # Nothing to say here: a queued progress line is already stale.
             return HookResult(success=True)
+        if context.last_assistant_message and self.speaker.is_enabled:
+            self._note_reply(context.last_assistant_message)
         if self.is_streaming_reply:
             self.streamed_reply.flush()
             has_claimed_turn = self.streamed_reply.has_claimed_turn
@@ -498,6 +524,19 @@ class SpeechSession:
             self._config.summary_timeout or 0,
             speak,
         )
+
+    def _note_reply(self, reply: str) -> None:
+        """Record whether *reply* wanted a block and opened none, and log it.
+
+        The caller checks that speech is on first: a reply nobody hears has no
+        ear to write for.
+        """
+        missed = needs_spoken_block(reply)
+        self._missed_block = missed
+        if missed:
+            logger.warning(
+                f"The reply opened no `<spoken>` block ({len(reply)} characters)."
+            )
 
 
 def is_answered_since(ui: "AnyUI | None", asked_at: float) -> Callable[[], bool]:

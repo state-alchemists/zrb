@@ -4,9 +4,19 @@ from zrb.llm.util.spoken import (
     CLOSE_TAG,
     OPEN_TAG,
     SpokenSplitter,
+    has_spoken_block,
     shown_text,
     split_spoken,
 )
+
+
+def test_a_block_is_recognized_even_where_a_stream_cannot_yet_see_it():
+    """The whole reply is in hand, so a caller weighing whether its whole is
+    worth saying asks this rather than a stream's half-guess."""
+    assert has_spoken_block("<spoken>Done.</spoken>")
+    assert not has_spoken_block("Done.")
+    # The tag being written about, not used.
+    assert not has_spoken_block("Write it as `<spoken>text</spoken>`.")
 
 
 def test_a_reply_that_opens_no_block_is_spoken_whole():
