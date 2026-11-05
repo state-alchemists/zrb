@@ -32,7 +32,7 @@ To talk with zrb, `export ZRB_LLM_VOICE=conversation` (or `turns` to take turns 
 
 **Installing ffmpeg.** On a desktop, the photo is taken by `ffmpeg`, which zrb does not install: `brew install ffmpeg` on macOS, `sudo apt install ffmpeg` (or your distribution's package) on Linux, `winget install Gyan.FFmpeg` on Windows. On WSL, install it **on Windows** with `winget`, then run `wsl --shutdown` and check `which ffmpeg.exe`: zrb runs `ffmpeg.exe` to take the photo on the Windows side, which holds the camera only for the photo, so Windows apps keep using it. If that check is still empty, [Voice & Photo Troubleshooting](voice-photo-troubleshooting.md#wsl-camera) covers that, and how to tell a camera Windows cannot see from one zrb cannot open. A Linux `ffmpeg` with usbipd-win is the fallback; see [the usbipd-win build](voice-photo-troubleshooting.md#fallback-usbipd-win-passthrough-with-a-custom-kernel).
 
-**Letting the agent look.** With `ZRB_LLM_CAMERA_ENABLE_TOOL=on`, the agent also gets a `TakePhoto` tool: when you say "what do you think of this?" with something held up, it can take the photo itself. Every call asks for approval like `Shell` does, and plan mode denies it. To skip the prompt, add `auto_approve("TakePhoto")` to your tool policies (see [Customizing Tool Approval](tool-approval.md)).
+**Letting the agent look.** With `ZRB_LLM_CAMERA_TOOL_ENABLED=on`, the agent also gets a `TakePhoto` tool: when you say "what do you think of this?" with something held up, it can take the photo itself. Every call asks for approval like `Shell` does, and plan mode denies it. To skip the prompt, add `auto_approve("TakePhoto")` to your tool policies (see [Customizing Tool Approval](tool-approval.md)).
 
 **On a text-only model.** A photo from `/photo` and one from `TakePhoto` reach the model by the same rule:
 
@@ -64,7 +64,7 @@ A Wayland session never falls back to the X11 programs: through XWayland they wo
 
 **On macOS** the first capture makes the system ask whether your terminal app may record the screen. Allow it in System Settings > Privacy & Security > Screen & System Audio Recording, then restart the terminal. Until then a capture fails, or shows only the wallpaper.
 
-**Letting the agent look.** With `ZRB_LLM_SCREENSHOT_ENABLE_TOOL=on`, the agent also gets a `TakeScreenshot` tool: when you say "look at this error", it can capture the screen itself. The tool is off by default and every call asks for approval, because a screen can show anything — a password manager, a private chat, a bank tab — and plan mode denies it. `auto_approve("TakeScreenshot")` skips the prompt; think twice before adding it. The tool and the command are separate switches: `ScreenshotConfig(commands=[], enable_tool=True)` gives the agent the tool without the command, and `ScreenshotConfig(commands=[])` with the tool off leaves screenshots out entirely.
+**Letting the agent look.** With `ZRB_LLM_SCREENSHOT_TOOL_ENABLED=on`, the agent also gets a `TakeScreenshot` tool: when you say "look at this error", it can capture the screen itself. The tool is off by default and every call asks for approval, because a screen can show anything — a password manager, a private chat, a bank tab — and plan mode denies it. `auto_approve("TakeScreenshot")` skips the prompt; think twice before adding it. The tool and the command are separate switches: `ScreenshotConfig(commands=[], tool_enabled=True)` gives the agent the tool without the command, and `ScreenshotConfig(commands=[])` with the tool off leaves screenshots out entirely.
 
 A screenshot reaches a text-only model by the same rule as a photo, in the table under [Camera](#camera).
 
@@ -125,7 +125,7 @@ The checks above decide whether what was heard reaches zrb; they cannot clean it
 
 | Platform | Echo cancellation | What to do |
 |---|---|---|
-| macOS | The system's voice processing (what calls use), which an app has to ask for | `ZRB_LLM_DICTATION_ENABLE_ECHO_CANCEL=on`, already on under `ZRB_LLM_VOICE=conversation` |
+| macOS | The system's voice processing (what calls use), which an app has to ask for | `ZRB_LLM_DICTATION_ECHO_CANCEL_ENABLED=on`, already on under `ZRB_LLM_VOICE=conversation` |
 | Linux | PulseAudio's or PipeWire's echo-cancel module, the WebRTC canceller browsers use. Off on most distributions | Load it, below. Nothing in zrb changes |
 | Windows | Many laptops' audio drivers cancel echo for every recording | Usually nothing; if zrb's words show up in yours, use headphones |
 
@@ -231,10 +231,10 @@ For the quickest replies, use vosk for dictation (it transcribes while you speak
 With emotion on, zrb's replies carry how it feels, which picks the voice they are read in, and it hears the tone of a dictated message:
 
 ```bash
-ZRB_LLM_EMOTION_ENABLED=on ZRB_LLM_DICTATION_DETECT_EMOTION=on ZRB_LLM_DICTATION_BACKEND=sensevoice zrb llm chat
+ZRB_LLM_EMOTION_ENABLED=on ZRB_LLM_DICTATION_DETECT_EMOTION_ENABLED=on ZRB_LLM_DICTATION_BACKEND=sensevoice zrb llm chat
 ```
 
-`ZRB_LLM_DICTATION_DETECT_EMOTION` has emotion2vec+ hear your tone in each hands-free utterance while it is transcribed, locally and with any backend (`pip install funasr torch`). Your words stay as you said them: the tone rides on the turn, and the model reads it in its live context as how you sounded and how sure the detector is. Zaruba's own emotion is the emoji it opens its reply with. Each, yours and its, fires the `Emotion` hook, which an avatar such as zrb-face listens to ([Hooks → Emotion](hooks.md#emotion)). Recognition is reliable for happy, angry and sad, and rough beyond that. The model downloads from Hugging Face on first use and is read from the local cache afterwards, with no network needed.
+`ZRB_LLM_DICTATION_DETECT_EMOTION_ENABLED` has emotion2vec+ hear your tone in each hands-free utterance while it is transcribed, locally and with any backend (`pip install funasr torch`). Your words stay as you said them: the tone rides on the turn, and the model reads it in its live context as how you sounded and how sure the detector is. Zaruba's own emotion is the emoji it opens its reply with. Each, yours and its, fires the `Emotion` hook, which an avatar such as zrb-face listens to ([Hooks → Emotion](hooks.md#emotion)). Recognition is reliable for happy, angry and sad, and rough beyond that. The model downloads from Hugging Face on first use and is read from the local cache afterwards, with no network needed.
 
 ## Configuring in code
 
@@ -340,7 +340,7 @@ from zrb.llm.speech import enable_speech
 
 chat = LLMChatTask(name="assistant")
 enable_camera(chat)
-enable_screenshot(chat, ScreenshotConfig(enable_tool=True))
+enable_screenshot(chat, ScreenshotConfig(tool_enabled=True))
 enable_dictation(chat, DictationConfig(mode="hands_free", wake_words=["hey zed"]))
 enable_speech(chat)
 ```

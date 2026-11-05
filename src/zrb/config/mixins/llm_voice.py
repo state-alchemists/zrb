@@ -13,7 +13,7 @@ VOICE_PRESETS: dict[str, dict[str, str]] = {
         "LLM_SPEECH_ENABLED": "on",
         "LLM_DICTATION_MODE": "hands_free",
         "LLM_DICTATION_BARGE_IN_ENABLED": "on",
-        "LLM_DICTATION_ENABLE_ECHO_CANCEL": "on",
+        "LLM_DICTATION_ECHO_CANCEL_ENABLED": "on",
     },
 }
 
@@ -49,7 +49,7 @@ class LLMVoiceMixin:
             "How a session talks with you, setting the defaults of "
             "{ENV_PREFIX}_LLM_SPEECH_ENABLED, {ENV_PREFIX}_LLM_DICTATION_MODE, "
             "{ENV_PREFIX}_LLM_DICTATION_BARGE_IN_ENABLED and "
-            "{ENV_PREFIX}_LLM_DICTATION_ENABLE_ECHO_CANCEL together (each "
+            "{ENV_PREFIX}_LLM_DICTATION_ECHO_CANCEL_ENABLED together (each "
             "still wins when set on its own). One of:\n"
             "- 'off' (default): typing; /speech and /voice switch voice on.\n"
             "- 'speak': replies are read aloud.\n"

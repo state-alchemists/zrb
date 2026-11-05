@@ -14,7 +14,7 @@ class LLMScreenshotMixin:
         self.DEFAULT_LLM_SCREENSHOT_BACKEND: str = "auto"
         self.DEFAULT_LLM_SCREENSHOT_DISPLAY: str = ""
         self.DEFAULT_LLM_SCREENSHOT_TIMEOUT: str = "15"
-        self.DEFAULT_LLM_SCREENSHOT_ENABLE_TOOL: str = "off"
+        self.DEFAULT_LLM_SCREENSHOT_TOOL_ENABLED: str = "off"
         super().__init__()
 
     LLM_SCREENSHOT_COMMANDS = EnvField(
@@ -62,8 +62,9 @@ class LLMScreenshotMixin:
         ),
     )
 
-    LLM_SCREENSHOT_ENABLE_TOOL = EnvField(
+    LLM_SCREENSHOT_TOOL_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_SCREENSHOT_ENABLE_TOOL"],
         serialize=on_off,
         doc=(
             "Give the agent a TakeScreenshot tool, so it can look at the "

@@ -266,7 +266,7 @@ def test_show_ollama_models_true_includes_ollama_models(
 def test_refresh_model_visibility_updates_completion_for_the_session(
     mock_history_manager, complete_event
 ):
-    """`/set LLM_SHOW_OLLAMA_MODELS off` re-points `UIConfig`; the live completer
+    """`/set LLM_SHOW_OLLAMA_MODELS_ENABLED off` re-points `UIConfig`; the live completer
     copies the flag at construction, so it must be refreshed too or `/model`
     keeps offering a source the user just turned off (round-4 review)."""
     completer = InputCompleter(

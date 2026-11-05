@@ -75,7 +75,7 @@ def send_queued_messages_now(
     send-now cuts it before steering, so a `Shell` call still holding the turn
     moves its command to the background instead of delaying the message until
     the command ends. *move_shell* overrides whether that happens — speech
-    passes the run's `LLM_VOICE_MOVES_SHELL` setting — and defaults to
+    passes the run's `LLM_VOICE_MOVES_SHELL_ENABLED` setting — and defaults to
     `may_interrupt`, which is "the user asked for this turn to move now".
     """
     entries = (

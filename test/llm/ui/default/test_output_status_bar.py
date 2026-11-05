@@ -409,7 +409,7 @@ def test_status_bar_includes_running_tool_duration():
 
 
 def test_status_bar_hides_runtime_timers_when_disabled(monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_UI_SHOW_RUNTIME_TIMERS", False, raising=False)
+    monkeypatch.setattr(CFG, "LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED", False, raising=False)
     ui = MockOutputUI()
     ui.set_thinking(True)
     with patch("zrb.llm.ui.default.output.time.monotonic", return_value=1000.0):

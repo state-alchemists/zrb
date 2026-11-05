@@ -142,7 +142,7 @@ from zrb import CFG
 
 CFG.LLM_VOICE = "conversation"  # speech, and hands-free dictation
 CFG.LLM_EMOTION_ENABLED = True  # the reply's emoji, and the Emotion hook
-CFG.LLM_DICTATION_DETECT_EMOTION = True  # your tone, heard by emotion2vec+
+CFG.LLM_DICTATION_DETECT_EMOTION_ENABLED = True  # your tone, heard by emotion2vec+
 CFG.LLM_DICTATION_BACKEND = "sensevoice"
 CFG.LLM_SPEECH_BACKEND = "pocket"
 CFG.LLM_SPEECH_EMOTION_VOICES = {

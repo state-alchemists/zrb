@@ -38,7 +38,7 @@ class LLMContentMixin:
         self.DEFAULT_LLM_HISTORY_BACKUP_RETAIN: str = "3"
         self.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_DIR: str = ""
         self.DEFAULT_LLM_PREVIOUS_MESSAGE_HISTORY_MAX_ENTRIES: str = "1000"
-        self.DEFAULT_LLM_ENABLE_REWIND: str = "on"
+        self.DEFAULT_LLM_REWIND_ENABLED: str = "on"
         self.DEFAULT_LLM_SNAPSHOT_DIR: str = ""
         self.DEFAULT_LLM_SNAPSHOT_RETENTION: str = "30d"
         self.DEFAULT_LLM_SNAPSHOT_FILE_MAX_MB: str = "50"
@@ -336,8 +336,9 @@ class LLMContentMixin:
         ),
     )
 
-    LLM_ENABLE_REWIND = EnvField(
+    LLM_REWIND_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_ENABLE_REWIND"],
         serialize=on_off,
         doc=(
             "Snapshot the working directory before each turn so /rewind can "

@@ -178,7 +178,7 @@ async def test_a_turn_that_says_nothing_replaces_the_note():
 async def test_the_notice_can_be_switched_off():
     """The notice costs the next request a line, so a session that does not
     want it must not carry it — and must not log a miss either."""
-    session = _session(missing_block_notice_enabled=False)
+    session = _session(block_notice_enabled=False)
 
     await session.handle_stop(_stop("A long enough answer. " * 20))
 
@@ -187,7 +187,7 @@ async def test_the_notice_can_be_switched_off():
 
 @pytest.mark.asyncio
 async def test_the_notice_is_on_by_default_and_the_knob_reads_cfg(monkeypatch, caplog):
-    monkeypatch.setenv("ZRB_LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED", "false")
+    monkeypatch.setenv("ZRB_LLM_SPEECH_BLOCK_NOTICE_ENABLED", "false")
     session = _session()
 
     await session.handle_stop(_stop("A long enough answer. " * 20))

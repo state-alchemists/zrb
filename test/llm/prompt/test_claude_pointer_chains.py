@@ -46,7 +46,7 @@ def test_a_pointer_chain_deeper_than_the_limit_is_not_followed(tmp_path):
 
     with patch("zrb.llm.prompt.claude.get_search_directories", return_value=dirs):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 24000
             result = handler(ctx, "base prompt", _identity_next)
 
@@ -82,7 +82,7 @@ def test_a_pointer_with_a_deep_branch_is_not_skipped_for_its_shallow_one(tmp_pat
 
     with patch("zrb.llm.prompt.claude.get_search_directories", return_value=dirs):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 24000
             result = handler(ctx, "base prompt", _identity_next)
 
@@ -115,7 +115,7 @@ def test_a_pointer_does_not_promise_a_target_the_walk_dropped(tmp_path):
         "zrb.llm.prompt.claude.get_search_directories", return_value=[root, app, sub]
     ):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 1500
             result = handler(ctx, "base prompt", _identity_next)
 
@@ -146,7 +146,7 @@ def test_a_pointer_does_not_starve_the_rules_it_points_at(tmp_path):
         "zrb.llm.prompt.claude.get_search_directories", return_value=[root, app]
     ):
         with patch("zrb.llm.prompt.claude.CFG") as cfg:
-            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS = True
+            cfg.LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = True
             cfg.LLM_PROJECT_INSTRUCTIONS_MAX_BYTES = 1500
             result = handler(ctx, "base prompt", _identity_next)
 

@@ -71,9 +71,11 @@ class UIConfig:
     )
     # Stable so the task's xcom write and the UI agree on the key.
     yolo_xcom_key: str = "yolo"
-    show_ollama_models: bool = field(default_factory=lambda: CFG.LLM_SHOW_OLLAMA_MODELS)
+    show_ollama_models: bool = field(
+        default_factory=lambda: CFG.LLM_SHOW_OLLAMA_MODELS_ENABLED
+    )
     show_pydantic_ai_models: bool = field(
-        default_factory=lambda: CFG.LLM_SHOW_PYDANTIC_AI_MODELS
+        default_factory=lambda: CFG.LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED
     )
 
     # Session
@@ -136,8 +138,8 @@ def command_alias_field(env_name: str) -> str | None:
 
 # `UIConfig` fields that mirror a plain `CFG` boolean.
 _MODEL_VISIBILITY_FIELDS = {
-    "LLM_SHOW_OLLAMA_MODELS": "show_ollama_models",
-    "LLM_SHOW_PYDANTIC_AI_MODELS": "show_pydantic_ai_models",
+    "LLM_SHOW_OLLAMA_MODELS_ENABLED": "show_ollama_models",
+    "LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED": "show_pydantic_ai_models",
 }
 
 

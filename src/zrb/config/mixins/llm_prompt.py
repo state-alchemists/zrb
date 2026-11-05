@@ -22,8 +22,8 @@ class LLMPromptMixin:
     def __init__(self):
         self.DEFAULT_LLM_PROMPT_DIR: str = ""
         self.DEFAULT_LLM_BASE_PROMPT_DIR: str = ""
-        self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL: str = "off"
-        self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT: str = "off"
+        self.DEFAULT_LLM_SHOW_TOOL_CALL_DETAIL_ENABLED: str = "off"
+        self.DEFAULT_LLM_SHOW_TOOL_CALL_RESULT_ENABLED: str = "off"
         # Keep file-backed rule sections before runtime context sections.
         self.DEFAULT_LLM_INCLUDE_SECTIONS: str = (
             "persona,principle,workflow,example,profile,system_context,project_context"
@@ -38,7 +38,7 @@ class LLMPromptMixin:
         # On: a project's rules are worth the tokens. A listed path is only a
         # promise the model will read it, and a missed convention costs a
         # correction later. Bounded by the byte budget below.
-        self.DEFAULT_LLM_INJECT_PROJECT_INSTRUCTIONS: str = "on"
+        self.DEFAULT_LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED: str = "on"
         # 24KB: room for a substantial AGENTS.md, small enough that a runaway
         # one cannot crowd out the conversation.
         self.DEFAULT_LLM_PROJECT_INSTRUCTIONS_MAX_BYTES: str = "24000"
@@ -58,13 +58,14 @@ class LLMPromptMixin:
         doc="Base directory containing the built-in prompt templates. Overrides the package default.",
     )
 
-    LLM_SHOW_TOOL_CALL_DETAIL = EnvField(
+    LLM_SHOW_TOOL_CALL_DETAIL_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_SHOW_TOOL_CALL_DETAIL"],
         serialize=on_off,
         doc="Show tool call arguments in the UI alongside the tool name.",
     )
 
-    LLM_SHOW_TOOL_CALL_RESULT = EnvField(
+    LLM_SHOW_TOOL_CALL_RESULT_ENABLED = EnvField(
         to_boolean, serialize=on_off, doc="Show the full tool call result in the UI."
     )
 
@@ -74,8 +75,9 @@ class LLMPromptMixin:
         doc="Order-sensitive list of prompt sections to include (comma-separated).",
     )
 
-    LLM_INJECT_PROJECT_INSTRUCTIONS = EnvField(
+    LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_INJECT_PROJECT_INSTRUCTIONS"],
         serialize=on_off,
         doc=(
             "When on, the project's AGENTS.md / CLAUDE.md / GEMINI.md content is "
@@ -93,7 +95,7 @@ class LLMPromptMixin:
         int,
         doc=(
             "Byte budget for inlined project instructions (see "
-            "LLM_INJECT_PROJECT_INSTRUCTIONS). The most specific file is "
+            "LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED). The most specific file is "
             "truncated to fit rather than dropped; inlining stops at the first "
             "file that does not fit, so broader files stay listed by path only — "
             "including when the budget is too small for the nearest file."

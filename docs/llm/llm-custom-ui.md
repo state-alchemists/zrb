@@ -567,8 +567,8 @@ llm_chat.ui_factories = [create_ui_factory(MyUI, ui_config=config)]
 | `summarize_commands` | `CFG.LLM_UI_COMMAND_SUMMARIZE` | Summarize/compress history |
 | `is_yolo` | `False` | Auto-approve: `True` for all tools, or a `frozenset` of tool names (e.g. `frozenset({"Write", "Edit"})`) for selective. `create_ui_factory` overwrites it with the run's yolo state (the task's `yolo`, i.e. `zrb llm chat --yolo ...`) |
 | `yolo_xcom_key` | `"yolo"` | xcom key the session reads/writes when yolo is toggled at run time |
-| `show_ollama_models` | `CFG.LLM_SHOW_OLLAMA_MODELS` | Whether the model picker lists local Ollama models |
-| `show_pydantic_ai_models` | `CFG.LLM_SHOW_PYDANTIC_AI_MODELS` | Whether the model picker lists models known to pydantic-ai |
+| `show_ollama_models` | `CFG.LLM_SHOW_OLLAMA_MODELS_ENABLED` | Whether the model picker lists local Ollama models |
+| `show_pydantic_ai_models` | `CFG.LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED` | Whether the model picker lists models known to pydantic-ai |
 | `conversation_session_name` | `""` | Session name (empty = random). `create_ui_factory` overwrites it with the run's session name |
 
 Set a command list to `[]` to disable that command. An `LLMChatTask` (`llm_chat` included) exposes the same object as a settable `ui_config` property — see [LLM Component Collections](../configuration/llm-collections.md#3-per-task--instance-arguments--override-one-host).

@@ -156,7 +156,7 @@ def test_the_tool_can_be_had_without_the_command():
     chat = MagicMock()
     enable_screenshot(
         chat,
-        ScreenshotConfig(commands=[], enable_tool=True, backend=FakeScreen(None)),
+        ScreenshotConfig(commands=[], tool_enabled=True, backend=FakeScreen(None)),
     )
     (create_commands,) = chat.append_custom_command.call_args.args
     (create_tools,) = chat.append_tool_factory.call_args.args
@@ -191,17 +191,17 @@ def test_the_built_in_chat_offers_the_command_but_not_the_tool():
         for command in factory()
     ]
     assert "/screenshot" in commands
-    assert CFG.DEFAULT_LLM_SCREENSHOT_ENABLE_TOOL == "off"
+    assert CFG.DEFAULT_LLM_SCREENSHOT_TOOL_ENABLED == "off"
 
 
 def _take_screenshot(screen: FakeScreen, **config):
-    config = ScreenshotConfig(backend=screen, enable_tool=True, **config).resolve()
+    config = ScreenshotConfig(backend=screen, tool_enabled=True, **config).resolve()
     (tool,) = create_screenshot_tools(config)
     return tool
 
 
 def test_the_tool_is_off_unless_enabled(monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_SCREENSHOT_ENABLE_TOOL", False)
+    monkeypatch.setattr(CFG, "LLM_SCREENSHOT_TOOL_ENABLED", False)
     config = ScreenshotConfig(backend=FakeScreen(_image("JPEG"))).resolve()
 
     assert create_screenshot_tools(config) == []
@@ -306,5 +306,5 @@ def test_enable_screenshot_reads_the_tool_switch_when_a_session_starts(monkeypat
     enable_screenshot(chat, ScreenshotConfig(backend=FakeScreen(_image("JPEG"))))
     (create_tools,) = chat.append_tool_factory.call_args.args
 
-    monkeypatch.setattr(CFG, "LLM_SCREENSHOT_ENABLE_TOOL", True)
+    monkeypatch.setattr(CFG, "LLM_SCREENSHOT_TOOL_ENABLED", True)
     assert [tool.__name__ for tool in create_tools(None)] == ["TakeScreenshot"]

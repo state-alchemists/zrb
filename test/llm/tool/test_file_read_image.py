@@ -118,13 +118,13 @@ async def test_a_text_only_model_without_a_describer_is_told_why(
 
 @pytest.mark.asyncio
 async def test_reading_images_can_be_turned_off(tmp_path, monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_ENABLE_READ_IMAGE", False)
+    monkeypatch.setattr(CFG, "LLM_READ_IMAGE_ENABLED", False)
     path = _save_image(tmp_path / "shot.png")
 
     result = await read_file(path)
 
     assert "[SYSTEM SUGGESTION]" in result
-    assert "LLM_ENABLE_READ_IMAGE" in result
+    assert "LLM_READ_IMAGE_ENABLED" in result
 
 
 @pytest.mark.asyncio

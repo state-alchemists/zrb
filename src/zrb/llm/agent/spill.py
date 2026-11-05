@@ -1,6 +1,6 @@
 """Lossless overflow of oversized tool results to a queryable local store.
 
-When ``LLM_ENABLE_TOOL_SPILL`` is on and a tool result's model-facing text
+When ``LLM_TOOL_SPILL_ENABLED`` is on and a tool result's model-facing text
 exceeds ``LLM_MAX_TOOL_RESULT_CHARS``, the wrapper (``agent/common.py``) spills
 it here instead of passing it whole. The model sees a preview carrying a
 ``ReadToolResult`` handle; the full payload stays recoverable on demand.
@@ -190,7 +190,7 @@ def maybe_spill(value: Any, *, limit: int) -> tuple[Any, dict[str, Any]]:
     # lazy: heavy transitive, and leaf modules must not import CFG at load time.
     from zrb.config.config import CFG
 
-    if not CFG.LLM_ENABLE_TOOL_SPILL or limit <= 0:
+    if not CFG.LLM_TOOL_SPILL_ENABLED or limit <= 0:
         return value, {}
 
     if has_multimodal(value):

@@ -302,7 +302,7 @@ def test_a_subclass_limiter_keeps_the_linear_scan():
 
 def test_tiktoken_keeps_the_linear_scan(monkeypatch):
     """BPE re-tokenizes across the dropped boundary, so it is walked too."""
-    monkeypatch.setattr(CFG, "ENABLE_TIKTOKEN", True, raising=False)
+    monkeypatch.setattr(CFG, "TIKTOKEN_ENABLED", True, raising=False)
     messages = _plain_history(40)
     limiter = LLMLimiter()
     threshold = _only_newest_fits(limiter, messages)

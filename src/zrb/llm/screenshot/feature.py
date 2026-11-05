@@ -37,7 +37,7 @@ def enable_screenshot(
     chat: "LLMChatTask", config: ScreenshotConfig | None = None
 ) -> None:
     """Add the screenshot command to *chat*'s sessions; an empty ``commands``
-    list leaves it out. With ``enable_tool`` on, also give the agent the
+    list leaves it out. With ``tool_enabled`` on, also give the agent the
     `TakeScreenshot` tool. Calling it again replaces the earlier call."""
 
     def create_commands() -> "list[AnyCustomCommand]":
@@ -121,8 +121,8 @@ async def attach_screenshot(
 
 def create_screenshot_tools(config: ScreenshotConfig) -> "list[ToolFuncEither]":
     """The `TakeScreenshot` tool for the resolved *config*, or none when
-    ``enable_tool`` is off."""
-    if not config.enable_tool:
+    ``tool_enabled`` is off."""
+    if not config.tool_enabled:
         return []
     backend = get_screenshot_backend(config.backend or "auto", config)
 

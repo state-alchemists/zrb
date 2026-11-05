@@ -276,7 +276,7 @@ async def test_the_echo_cancelled_microphone_is_not_reopened_for_a_change():
         ),
     ):
         task = asyncio.create_task(
-            _listen(sounddevice, _listen_config(enable_echo_cancel=True), is_listening)
+            _listen(sounddevice, _listen_config(echo_cancel_enabled=True), is_listening)
         )
         await asyncio.wait_for(change_the_devices(), timeout=5)
         await asyncio.wait_for(task, timeout=5)

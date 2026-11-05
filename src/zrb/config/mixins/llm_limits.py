@@ -15,7 +15,7 @@ class LLMLimitsMixin:
         # session degrades to about one step per minute. Providers already
         # back-pressure with 429s, and the client retries handle that. Turn it on
         # for a free tier that needs the client to pace itself.
-        self.DEFAULT_LLM_ENABLE_RATE_LIMIT: str = "off"
+        self.DEFAULT_LLM_RATE_LIMIT_ENABLED: str = "off"
         self.DEFAULT_LLM_MAX_REQUEST_PER_MINUTE: str = "60"
         self.DEFAULT_LLM_MAX_TOKEN_PER_MINUTE: str = "128000"
         self.DEFAULT_LLM_MAX_TOKEN_PER_REQUEST: str = "128000"
@@ -40,14 +40,14 @@ class LLMLimitsMixin:
         self.DEFAULT_LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS: str = "1800"
         # Off: a spoken message waits for a running command rather than moving
         # it, because a misheard word must not disturb a build.
-        self.DEFAULT_LLM_VOICE_MOVES_SHELL: str = "0"
+        self.DEFAULT_LLM_VOICE_MOVES_SHELL_ENABLED: str = "0"
         self.DEFAULT_LLM_BACKGROUND_WAIT_MAX: str = "300"
         # On: a command that ends while the session is idle is a result nobody
         # is waiting on, which is the case a wake-up exists for.
-        self.DEFAULT_LLM_BACKGROUND_WAKE: str = "1"
+        self.DEFAULT_LLM_BACKGROUND_WAKE_ENABLED: str = "1"
         # Five unattended turns in a row is enough to act on a result and see
         # what it started; more is a loop, not a conversation.
-        self.DEFAULT_LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE: str = "5"
+        self.DEFAULT_LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE: str = "5"
         self.DEFAULT_LLM_WEB_PAGE_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_WEB_HTTP_TIMEOUT: str = "30000"
         self.DEFAULT_LLM_MODEL_FETCH_TIMEOUT: str = "5000"
@@ -57,7 +57,7 @@ class LLMLimitsMixin:
         # in non-TTY contexts; normal builds still scroll in full.
         self.DEFAULT_LLM_MAX_CONSOLE_OUTPUT_CHARS: str = "100000"
         self.DEFAULT_LLM_MAX_TOOL_RESULT_CHARS: str = "100000"
-        self.DEFAULT_LLM_ENABLE_TOOL_SPILL: str = "off"
+        self.DEFAULT_LLM_TOOL_SPILL_ENABLED: str = "off"
         self.DEFAULT_LLM_MAX_COMPLETION_FILES: str = "5000"
         # Image scaling — 1568px is Anthropic's no-extra-cost tier; JPEG q85 is
         # near-lossless for screenshots while halving size vs. PNG re-encode.
@@ -67,11 +67,12 @@ class LLMLimitsMixin:
         # small enough to keep on-disk history bounded.
         self.DEFAULT_LLM_MAX_ATTACHMENT_BYTES: str = "20000000"
         # On: a text-only model still gets a description or a clear refusal.
-        self.DEFAULT_LLM_ENABLE_READ_IMAGE: str = "on"
+        self.DEFAULT_LLM_READ_IMAGE_ENABLED: str = "on"
         super().__init__()
 
-    LLM_ENABLE_RATE_LIMIT = EnvField(
+    LLM_RATE_LIMIT_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_ENABLE_RATE_LIMIT"],
         serialize=on_off,
         doc=(
             "When on, the agent paces itself against LLM_MAX_REQUEST_PER_MINUTE "
@@ -90,7 +91,7 @@ class LLMLimitsMixin:
         aliases=["LLM_MAX_REQUEST_PER_MINUTE", "LLM_MAX_REQUESTS_PER_MINUTE"],
         doc=(
             "Maximum number of LLM requests allowed per minute when "
-            "LLM_ENABLE_RATE_LIMIT is on.\n\n"
+            "LLM_RATE_LIMIT_ENABLED is on.\n\n"
             "Default is conservative to accommodate free-tier LLM providers."
         ),
     )
@@ -102,7 +103,7 @@ class LLMLimitsMixin:
         write_key="LLM_MAX_TOKENS_PER_MINUTE",
         doc=(
             "Maximum number of LLM tokens allowed per minute when "
-            "LLM_ENABLE_RATE_LIMIT is on. The whole context a request sends "
+            "LLM_RATE_LIMIT_ENABLED is on. The whole context a request sends "
             "counts against it.\n\n"
             "Default is conservative to accommodate free-tier LLM providers."
         ),
@@ -193,8 +194,9 @@ class LLMLimitsMixin:
         ),
     )
 
-    LLM_VOICE_MOVES_SHELL = EnvField(
+    LLM_VOICE_MOVES_SHELL_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_VOICE_MOVES_SHELL"],
         serialize=on_off,
         doc=(
             "Let a dictated message move a running Shell command to the "
@@ -215,8 +217,9 @@ class LLMLimitsMixin:
         ),
     )
 
-    LLM_BACKGROUND_WAKE = EnvField(
+    LLM_BACKGROUND_WAKE_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_BACKGROUND_WAKE"],
         serialize=on_off,
         doc=(
             "Tell the session when a background Shell command ends, so a result "
@@ -227,7 +230,7 @@ class LLMLimitsMixin:
         ),
     )
 
-    LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE = EnvField(
+    LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE = EnvField(
         int,
         doc=(
             "How many background-command wake-ups may reach a session in a row "
@@ -287,10 +290,9 @@ class LLMLimitsMixin:
         ),
     )
 
-    LLM_ENABLE_TOOL_SPILL = EnvField(
+    LLM_TOOL_SPILL_ENABLED = EnvField(
         to_boolean,
-        aliases=["LLM_ENABLE_TOOL_SPILL", "LLM_TOOL_SPILL_ENABLED"],
-        write_key="LLM_ENABLE_TOOL_SPILL",
+        deprecated_aliases=["LLM_ENABLE_TOOL_SPILL"],
         serialize=on_off,
         doc=(
             "When on, a tool result whose model-facing text exceeds "
@@ -323,8 +325,9 @@ class LLMLimitsMixin:
         ),
     )
 
-    LLM_ENABLE_READ_IMAGE = EnvField(
+    LLM_READ_IMAGE_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_ENABLE_READ_IMAGE"],
         serialize=on_off,
         doc=(
             "When on, Read on a PNG, JPEG, GIF or WebP file shows the image to "

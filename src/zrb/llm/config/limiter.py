@@ -62,7 +62,7 @@ class _HistoryTokenCosts:
 class LLMLimiter:
     """Manage context-window and rate limits for LLM requests.
 
-    Pacing (`acquire`) is opt-in through `CFG.LLM_ENABLE_RATE_LIMIT`; context
+    Pacing (`acquire`) is opt-in through `CFG.LLM_RATE_LIMIT_ENABLED`; context
     trimming (`fit_context_window`) always applies, because exceeding the
     provider's window is an error rather than a delay.
     """
@@ -79,10 +79,10 @@ class LLMLimiter:
 
     @property
     def pacing_enabled(self) -> bool:
-        """Whether `acquire` paces requests (`CFG.LLM_ENABLE_RATE_LIMIT` unless overridden)."""
+        """Whether `acquire` paces requests (`CFG.LLM_RATE_LIMIT_ENABLED` unless overridden)."""
         if self._enabled is not None:
             return self._enabled
-        return bool(getattr(CFG, "LLM_ENABLE_RATE_LIMIT", False))
+        return bool(getattr(CFG, "LLM_RATE_LIMIT_ENABLED", False))
 
     @pacing_enabled.setter
     def pacing_enabled(self, value: bool):
@@ -162,9 +162,9 @@ class LLMLimiter:
         """Whether tokens are counted with tiktoken rather than estimated.
 
         Accurate but slower, and requires the `tiktoken` package. Off by
-        default; enable with `ENABLE_TIKTOKEN`.
+        default; enable with `TIKTOKEN_ENABLED`.
         """
-        return CFG.ENABLE_TIKTOKEN
+        return CFG.TIKTOKEN_ENABLED
 
     @property
     def tiktoken_encoding(self) -> str:
@@ -275,7 +275,7 @@ class LLMLimiter:
     async def acquire(self, content: Any, notifier: Callable[[str], Any] | None = None):
         """Wait until *content* fits the current rate limits, then record it.
 
-        Returns immediately when pacing is off (`CFG.LLM_ENABLE_RATE_LIMIT`), and
+        Returns immediately when pacing is off (`CFG.LLM_RATE_LIMIT_ENABLED`), and
         records nothing: a later enable must not inherit a window nobody was
         pacing against.
         """

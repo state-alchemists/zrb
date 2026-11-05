@@ -17,7 +17,7 @@ class ScreenshotConfig:
     `CFG.LLM_SCREENSHOT_<FIELD>`; one left ``None`` is read from there when a
     session starts.
 
-    *enable_tool* adds the `TakeScreenshot` tool beside the command; an empty
+    *tool_enabled* adds the `TakeScreenshot` tool beside the command; an empty
     *commands* list leaves the command out, so either can be had without the
     other.
 
@@ -29,7 +29,7 @@ class ScreenshotConfig:
     backend: "str | AnyScreenshotBackend | None" = None
     display: str | None = None
     timeout: float | None = None
-    enable_tool: bool | None = None
+    tool_enabled: bool | None = None
 
     def resolve(self) -> "ScreenshotConfig":
         """A copy with every ``None`` field read from `CFG`."""

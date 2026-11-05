@@ -20,13 +20,13 @@ def manager(tmp_path):
 
 def _mock_cfg(mock_cfg, **overrides):
     mock_cfg.ROOT_GROUP_NAME = "zrb"
-    mock_cfg.LLM_SEARCH_HOME = False
-    mock_cfg.LLM_SEARCH_PROJECT = False
+    mock_cfg.LLM_SEARCH_HOME_ENABLED = False
+    mock_cfg.LLM_SEARCH_PROJECT_ENABLED = False
     mock_cfg.LLM_CONFIG_DIR_NAMES = [".claude", ".zrb"]
     mock_cfg.LLM_PLUGIN_DIRS = []
     mock_cfg.LLM_BASE_SEARCH_DIRS = []
     mock_cfg.LLM_EXTRA_SKILL_DIRS = []
-    mock_cfg.LLM_ENABLE_BUILTIN_SKILLS = False
+    mock_cfg.LLM_BUILTIN_SKILLS_ENABLED = False
     for key, value in overrides.items():
         setattr(mock_cfg, key, value)
 
@@ -375,7 +375,7 @@ def test_get_search_directories_home(tmp_path):
     (home / ".claude" / "skills").mkdir(parents=True)
     manager = SkillManager(root_dir=str(tmp_path))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
-        _mock_cfg(mock_cfg, LLM_SEARCH_HOME=True)
+        _mock_cfg(mock_cfg, LLM_SEARCH_HOME_ENABLED=True)
         with patch("zrb.llm.skill.manager.Path.home", return_value=home):
             dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("home/.claude/skills") for d in dirs)
@@ -388,7 +388,7 @@ def test_get_search_directories_project(tmp_path):
     (root / ".zrb" / "skills").mkdir(parents=True)
     manager = SkillManager(root_dir=str(leaf))
     with patch("zrb.llm.skill.manager.CFG") as mock_cfg:
-        _mock_cfg(mock_cfg, LLM_SEARCH_PROJECT=True)
+        _mock_cfg(mock_cfg, LLM_SEARCH_PROJECT_ENABLED=True)
         dirs = [str(d).replace("\\", "/") for d in manager.search_dirs]
     assert any(d.endswith("root/.zrb/skills") for d in dirs)
 

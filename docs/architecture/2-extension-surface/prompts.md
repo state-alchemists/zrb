@@ -106,7 +106,7 @@ Inside `compose_prompt`, the manager:
 3. turns each section into a middleware: a file loader for the five file sections, a renderer for `system_context` and `project_context`, and a warning for an unknown name;
 4. appends the extra prompts last, then runs the chain.
 
-`get_default_prompt` looks for a file section in this order: a project or home override at `<dir>/.zrb/llm/prompt/<name>.md` (the relative path is `LLM_PROMPT_DIR`; the project walk and the home check follow `LLM_SEARCH_PROJECT` and `LLM_SEARCH_HOME`), then the `ZRB_LLM_PROMPT_<NAME>` environment variable, then `LLM_BASE_PROMPT_DIR`, then the packaged file. Only the packaged file is cached, so an edited override shows up on the next compose.
+`get_default_prompt` looks for a file section in this order: a project or home override at `<dir>/.zrb/llm/prompt/<name>.md` (the relative path is `LLM_PROMPT_DIR`; the project walk and the home check follow `LLM_SEARCH_PROJECT_ENABLED` and `LLM_SEARCH_HOME_ENABLED`), then the `ZRB_LLM_PROMPT_<NAME>` environment variable, then `LLM_BASE_PROMPT_DIR`, then the packaged file. Only the packaged file is cached, so an edited override shows up on the next compose.
 
 Separately, before each turn `LLMTask` asks the manager for the live-context block, and `run_agent` passes it to `append_live_context`, which adds it after the user's text.
 

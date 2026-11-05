@@ -163,7 +163,7 @@ Every authentication setting is also a read/write property on `web_auth_config`,
 | `ZRB_WEB_AUTH_ACCESS_TOKEN_EXPIRE_MINUTES` | Access token validity |
 | `ZRB_WEB_AUTH_REFRESH_TOKEN_EXPIRE_MINUTES` | Refresh token validity |
 
-> 🔒 **Cookie security.** Auth cookies are issued with `HttpOnly`, `Secure`, and `SameSite=Lax`. The `Secure` flag means browsers only send them over HTTPS (modern browsers treat `http://localhost` as a secure context, so local development is unaffected) — terminate TLS in front of Zrb for any non-localhost deployment. The `Secure` flag is on by default; if you must serve over plain HTTP on a non-localhost host, set `ZRB_WEB_AUTH_SECURE_COOKIES=off` (otherwise browsers silently drop the cookies and login appears to fail). Only access tokens authenticate a request; a refresh token can only be exchanged at the refresh endpoint, never used directly as an access token.
+> 🔒 **Cookie security.** Auth cookies are issued with `HttpOnly`, `Secure`, and `SameSite=Lax`. The `Secure` flag means browsers only send them over HTTPS (modern browsers treat `http://localhost` as a secure context, so local development is unaffected) — terminate TLS in front of Zrb for any non-localhost deployment. The `Secure` flag is on by default; if you must serve over plain HTTP on a non-localhost host, set `ZRB_WEB_AUTH_SECURE_COOKIES_ENABLED=off` (otherwise browsers silently drop the cookies and login appears to fail). Only access tokens authenticate a request; a refresh token can only be exchanged at the refresh endpoint, never used directly as an access token.
 
 ---
 

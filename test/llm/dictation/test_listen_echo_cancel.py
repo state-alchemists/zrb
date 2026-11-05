@@ -129,7 +129,7 @@ async def _collect_echo_cancelled(
     _FakeEchoCancelledMicrophone.fails = fails
     _FakeEchoCancelledMicrophone.is_silent = is_silent
     _FakeEchoCancelledMicrophone.close_fails = close_fails
-    config = _listen_config(enable_echo_cancel=True, device=device)
+    config = _listen_config(echo_cancel_enabled=True, device=device)
 
     async def consume():
         stream = listen(config, _holds_for(len(blocks)))
@@ -226,7 +226,7 @@ async def test_record_with_a_config_records_through_echo_cancellation():
     _FakeEchoCancelledMicrophone.is_silent = False
     _FakeEchoCancelledMicrophone.close_fails = False
     captured = {}
-    config = _listen_config(enable_echo_cancel=True)
+    config = _listen_config(echo_cancel_enabled=True)
 
     with (
         patch.dict("sys.modules", {"sounddevice": _fake_sounddevice(captured)}),
@@ -273,7 +273,7 @@ async def test_record_falls_back_when_voice_processing_hears_nothing():
 
     with first, second, third, fourth:
         task = asyncio.create_task(
-            record(_holds_for(3), _listen_config(enable_echo_cancel=True))
+            record(_holds_for(3), _listen_config(echo_cancel_enabled=True))
         )
         await asyncio.sleep(0)
         await _wait_for_the_plain_microphone(captured)
@@ -299,7 +299,7 @@ async def test_listen_finishes_when_the_microphone_fails_to_release(caplog):
 async def test_listen_carries_on_without_echo_cancel_once_it_dies(caplog):
     _reset_fake_echo_microphone()
     captured = {}
-    config = _listen_config(enable_echo_cancel=True)
+    config = _listen_config(echo_cancel_enabled=True)
     speech = [_block(0.0), _block(0.5), _block(0.5), _block(0.0), _block(0.0)]
 
     async def consume():

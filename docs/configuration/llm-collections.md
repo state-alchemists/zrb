@@ -70,7 +70,7 @@ An **empty** twin (the default) means **everything**: all built-in and discovere
 
 `LLM_TOOLS` is narrower — it filters the registry's **static** tools only. Per-run tools (`EnterPlanMode` / `AskUserQuestion` on interactive runs, the memory tools, `RunZrbTask`, `ActivateSkill`, `MonitorProcess`, and every MCP toolset) are not statically named and keep their own gates (interactive, memory, spill, MCP config) regardless of the allowlist; they come from per-run factories, which `remove_tool`/`set_tools` (static tools only) don't touch, so restricting *those* needs `tool_registry.set_tool_factories(...)` / `set_toolset_factories(...)` in `zrb_init.py`.
 
-`LLM_TOOLS` and the rosters still honor their independent toggles — `LLM_ENABLE_BUILTIN_AGENTS`, `LLM_ENABLE_BUILTIN_SKILLS`, `HOOKS_ENABLED` — which gate the built-in bulk independently of the allowlist.
+`LLM_TOOLS` and the rosters still honor their independent toggles — `LLM_BUILTIN_AGENTS_ENABLED`, `LLM_BUILTIN_SKILLS_ENABLED`, `HOOKS_ENABLED` — which gate the built-in bulk independently of the allowlist.
 
 ### 2. `zrb_init.py` — *build and replace things*
 

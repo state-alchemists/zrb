@@ -144,8 +144,8 @@ def setup_print_and_events(print_fn, event_handler, effective_ui):
 
         effective_event_handler = create_event_handler(
             _event_print_fn,
-            show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL,
-            show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT,
+            show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL_ENABLED,
+            show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT_ENABLED,
             usage_callback=effective_ui.accumulate_usage,
             tool_block_recorder=effective_ui.record_tool_call_block,
             on_thinking_start=effective_ui.mark_thinking_block_start,

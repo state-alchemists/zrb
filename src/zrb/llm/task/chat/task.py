@@ -230,7 +230,7 @@ class LLMChatTask(BaseTask):
             history_processors: Callables rewriting history before each request,
                 run in order. This is the seam summarization uses.
             enable_rewind: Whether the session can roll back to an earlier turn.
-                Defaults to `LLM_ENABLE_REWIND` (on).
+                Defaults to `LLM_REWIND_ENABLED` (on).
             snapshot_dir: Directory holding rewind snapshots. Defaults to
                 `LLM_SNAPSHOT_DIR` (`~/.zrb/llm-snapshots`).
             ui: A ready-made UI to drive the session with.

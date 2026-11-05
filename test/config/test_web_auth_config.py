@@ -70,7 +70,7 @@ def test_web_auth_config_find_user_by_username_callback():
 def test_web_auth_config_secure_cookies_default():
     # No override -> falls back to CFG (covers line 104)
     config = WebAuthConfig()
-    assert config.secure_cookies == CFG.WEB_AUTH_SECURE_COOKIES
+    assert config.secure_cookies == CFG.WEB_AUTH_SECURE_COOKIES_ENABLED
 
 
 def test_web_auth_config_secure_cookies_setter():

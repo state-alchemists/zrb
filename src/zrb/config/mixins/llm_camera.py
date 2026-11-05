@@ -14,7 +14,7 @@ class LLMCameraMixin:
         self.DEFAULT_LLM_CAMERA_BACKEND: str = "auto"
         self.DEFAULT_LLM_CAMERA_DEVICE: str = ""
         self.DEFAULT_LLM_CAMERA_TIMEOUT: str = "15"
-        self.DEFAULT_LLM_CAMERA_ENABLE_TOOL: str = "off"
+        self.DEFAULT_LLM_CAMERA_TOOL_ENABLED: str = "off"
         super().__init__()
 
     LLM_CAMERA_COMMANDS = EnvField(
@@ -54,8 +54,9 @@ class LLMCameraMixin:
         ),
     )
 
-    LLM_CAMERA_ENABLE_TOOL = EnvField(
+    LLM_CAMERA_TOOL_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_CAMERA_ENABLE_TOOL"],
         serialize=on_off,
         doc=(
             "Give the agent a TakePhoto tool, so it can look through the "

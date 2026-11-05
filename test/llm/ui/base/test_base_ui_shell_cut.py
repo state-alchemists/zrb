@@ -84,7 +84,7 @@ def test_speech_does_not_cut_the_runs_shell(cut_ui):
 
 
 def test_a_voice_first_session_can_let_speech_move_the_shell(cut_ui):
-    """`LLM_VOICE_MOVES_SHELL` is what a hands-free session turns on; the turn
+    """`LLM_VOICE_MOVES_SHELL_ENABLED` is what a hands-free session turns on; the turn
     is still never interrupted."""
     signal = ShellCutSignal()
     cut_ui.active_run_context = MagicMock()
@@ -126,7 +126,7 @@ async def test_a_spoken_reply_moves_the_shell_only_when_the_setting_says_so(
     )
     assert moved == [None], "the keyword is only passed when it is asked for"
 
-    monkeypatch.setattr(CFG, "LLM_VOICE_MOVES_SHELL", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_VOICE_MOVES_SHELL_ENABLED", True, raising=False)
     await cut_ui.trigger_loop(
         _trigger_yielding(TriggerReply("open the file", send_now=True))
     )

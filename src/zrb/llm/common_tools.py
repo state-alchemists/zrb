@@ -225,8 +225,8 @@ def _seed_tool_factories() -> tuple[list, list]:
             else []
         ),
         lambda ctx: [ask_user_question] if _resolve_interactive(ctx) else [],
-        # A factory so toggling LLM_ENABLE_TOOL_SPILL via /config applies next run.
-        lambda ctx: [read_tool_result] if CFG.LLM_ENABLE_TOOL_SPILL else [],
+        # A factory so toggling LLM_TOOL_SPILL_ENABLED via /config applies next run.
+        lambda ctx: [read_tool_result] if CFG.LLM_TOOL_SPILL_ENABLED else [],
         # Memory: three tools, none deferred. A schema behind `search_tools` asks
         # the model to think of a search before it can search — the step that
         # gets skipped — and a write verb nobody can see is a memory nobody

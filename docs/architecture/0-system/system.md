@@ -109,7 +109,7 @@ flowchart TD
 | A task started from the web | `serve_task_session_api` | Scheduled in the background; the request returns a session name at once |
 | A one-shot LLM call inside a pipeline | `LLMTask` | Same agent loop with no interactive UI |
 | A sub-agent | `src/zrb/llm/subagent/` | A child agent run that inherits the parent's ambient state — see [Sub-agents](../2-extension-surface/sub-agents.md) |
-| Built-in tasks switched off | `CFG.ENABLE_BUILTIN_TASKS` | Only your own tasks appear under `zrb` |
+| Built-in tasks switched off | `CFG.BUILTIN_TASKS_ENABLED` | Only your own tasks appear under `zrb` |
 
 ### Change it here
 

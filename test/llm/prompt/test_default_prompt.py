@@ -11,8 +11,8 @@ def mock_cfg():
     with patch("zrb.llm.prompt.prompt.CFG") as mock:
         mock.LLM_PROMPT_DIR = ".zrb/llm/prompt"
         mock.ENV_PREFIX = "ZRB"
-        mock.LLM_SEARCH_PROJECT = True
-        mock.LLM_SEARCH_HOME = True
+        mock.LLM_SEARCH_PROJECT_ENABLED = True
+        mock.LLM_SEARCH_HOME_ENABLED = True
         yield mock
 
 
@@ -79,7 +79,7 @@ def test_get_default_prompt_home_layer_off_when_search_home_disabled(
     mock_cfg, tmp_path
 ):
 
-    mock_cfg.LLM_SEARCH_HOME = False
+    mock_cfg.LLM_SEARCH_HOME_ENABLED = False
 
     home = tmp_path / "home"
     home.mkdir()

@@ -113,7 +113,7 @@ def sandbox_gate(
     if not policy.allow_escape and args.get("dangerously_skip_sandbox"):
         return _blocked(
             "dangerously_skip_sandbox was requested but escaping the sandbox "
-            "is disabled in this deployment (LLM_SANDBOX_ALLOW_ESCAPE=false)"
+            "is disabled in this deployment (LLM_SANDBOX_ALLOW_ESCAPE_ENABLED=false)"
         )
 
     cap_value = getattr(capability, "value", capability)

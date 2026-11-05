@@ -128,13 +128,13 @@ def test_enabling_the_camera_again_replaces_the_first_call():
 
 
 def _take_photo(camera: FakeCamera, **config):
-    config = CameraConfig(backend=camera, enable_tool=True, **config).resolve()
+    config = CameraConfig(backend=camera, tool_enabled=True, **config).resolve()
     (tool,) = create_camera_tools(config)
     return tool
 
 
 def test_the_photo_tool_is_off_unless_enabled(monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_CAMERA_ENABLE_TOOL", False)
+    monkeypatch.setattr(CFG, "LLM_CAMERA_TOOL_ENABLED", False)
     config = CameraConfig(backend=FakeCamera(b"jpeg")).resolve()
 
     assert create_camera_tools(config) == []
@@ -224,5 +224,5 @@ def test_enable_camera_reads_the_tool_switch_when_a_session_starts(monkeypatch):
     enable_camera(chat, CameraConfig(backend=FakeCamera(b"jpeg")))
     (create_tools,) = chat.append_tool_factory.call_args.args
 
-    monkeypatch.setattr(CFG, "LLM_CAMERA_ENABLE_TOOL", True)
+    monkeypatch.setattr(CFG, "LLM_CAMERA_TOOL_ENABLED", True)
     assert [tool.__name__ for tool in create_tools(None)] == ["TakePhoto"]

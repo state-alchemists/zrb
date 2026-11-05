@@ -59,7 +59,7 @@ def build_sandboxed_argv(
             )
             raise SandboxUnavailableError(
                 "dangerously_skip_sandbox requested but escaping the sandbox "
-                "is disabled (LLM_SANDBOX_ALLOW_ESCAPE=false)"
+                "is disabled (LLM_SANDBOX_ALLOW_ESCAPE_ENABLED=false)"
             )
         record_policy_decision(layer="sandbox", decision="escape")
         return plain, ESCAPE_NOTE

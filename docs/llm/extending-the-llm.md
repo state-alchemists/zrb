@@ -25,7 +25,7 @@ The built-in `zrb llm chat` task and its sub-agents get these. An `LLMTask` or `
 | Tool | Function | Description |
 |------|----------|-------------|
 | `Shell` | `run_shell_command` | Execute non-interactive shell commands. Streams output live and truncates large results. Always requires non-interactive flags (e.g., `-y`). Pass `background=True` for long-running processes (dev servers, watchers) to get a handle immediately instead of blocking. A command that outruns its `timeout` is moved to the background rather than killed — it keeps running and the result carries a handle — except a command that begins with `sleep`, where the delay is the work. zrb's only shell tool — sub-agents that list `Bash` (the Claude Code name) are mapped to it on load; pass `shell="bash"` if bash is needed specifically. |
-| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell` `background=True`, or one that outran its `Shell` `timeout`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. A background command that ends is announced to the session that started it (`ZRB_LLM_BACKGROUND_WAKE`). |
+| `MonitorProcess` | `monitor_process` | Check, wait on, or kill a background process started with `Shell` `background=True`, or one that outran its `Shell` `timeout`. Pass `wait=N` to block up to N seconds (returns early on exit), or `kill=True` to terminate. A background command that ends is announced to the session that started it (`ZRB_LLM_BACKGROUND_WAKE_ENABLED`). |
 
 ### File System
 
@@ -34,7 +34,7 @@ The built-in `zrb llm chat` task and its sub-agents get these. An `LLMTask` or `
 | `LS` | `list_files` | Recursively list files up to 3 levels deep, auto-excluding `.git`, `node_modules`, `__pycache__`, etc. |
 | `Glob` | `glob_files` | Find files matching a glob pattern (e.g., `**/*.py`). |
 | `Grep` | `search_files` | Search file contents by regex pattern. Supports `context_lines` (default 2), `files_only=True` to return only matching file paths, `case_sensitive=False` for case-insensitive search, and `file_pattern` to restrict to specific file types. |
-| `Read` | `read_file` | Read a UTF-8 text file from `start_line` to `end_line` (1-indexed, inclusive; default: whole file). Lines are numbered `cat -n`-style (six right-aligned columns, then a tab); strip through the first tab before passing text to `Edit`, which also strips it if one slips through. PDF text comes back unnumbered. A PNG, JPEG, GIF or WebP image is attached for the model to see (scaled like `/attach`; described by `ZRB_LLM_MULTIMODAL_MODEL` for a text-only model; line arguments ignored), unless `ZRB_LLM_ENABLE_READ_IMAGE=off`; an image over `ZRB_LLM_MAX_ATTACHMENT_BYTES` or 40M pixels, or whose bytes are not a decodable image of the type its extension names, is refused. Output past the char cap (measured before numbering) is truncated at the end — narrow the range or `Grep` first. Issue parallel `Read` calls to load several files in one turn. |
+| `Read` | `read_file` | Read a UTF-8 text file from `start_line` to `end_line` (1-indexed, inclusive; default: whole file). Lines are numbered `cat -n`-style (six right-aligned columns, then a tab); strip through the first tab before passing text to `Edit`, which also strips it if one slips through. PDF text comes back unnumbered. A PNG, JPEG, GIF or WebP image is attached for the model to see (scaled like `/attach`; described by `ZRB_LLM_MULTIMODAL_MODEL` for a text-only model; line arguments ignored), unless `ZRB_LLM_READ_IMAGE_ENABLED=off`; an image over `ZRB_LLM_MAX_ATTACHMENT_BYTES` or 40M pixels, or whose bytes are not a decodable image of the type its extension names, is refused. Output past the char cap (measured before numbering) is truncated at the end — narrow the range or `Grep` first. Issue parallel `Read` calls to load several files in one turn. |
 | `Write` | `write_file` | Write a file. Overwriting an existing file with `mode="w"` requires that this session has already Read it (or Written/Edited it to its current content) — otherwise the call is refused with a pointer back to `Read`. Appends (`mode="a"`) need no prior read. Binary (non-UTF-8) files are refused in every mode. |
 | `Edit` | `replace_in_file` | Make targeted string replacements in a single file. |
 | `RM` | `remove_file` | Delete a file or directory (irreversible). Refused unless this session has already `Read` the file or listed (`LS`/`Glob`) its parent directory. |
@@ -242,7 +242,7 @@ Sub-agent files are discovered from (in priority order):
 4. Paths in `CFG.LLM_BASE_SEARCH_DIRS`
 5. Paths in `ZRB_LLM_EXTRA_AGENT_DIRS`
 6. Zrb's built-in `core_agents/` — always included
-7. Zrb's optional built-in `agents/` — included when `LLM_ENABLE_BUILTIN_AGENTS` is enabled
+7. Zrb's optional built-in `agents/` — included when `LLM_BUILTIN_AGENTS_ENABLED` is enabled
 8. The manager's `scan_root` (recursive scan target)
 
 Core agents are listed before optional ones in the `AVAILABLE AGENTS` roster and `SearchAgent` results. `generalist` is the built-in core agent, so it stays available with optional built-in agents disabled. Sub-agents keep their work out of the main conversation's context.

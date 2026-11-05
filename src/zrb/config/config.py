@@ -31,7 +31,7 @@ import os
 from fnmatch import fnmatchcase
 from typing import TYPE_CHECKING, Any, NoReturn
 
-from zrb.config.env_field import EnvField
+from zrb.config.env_field import EnvField, warn_deprecated
 from zrb.config.mixins.cli_style import CLIStyleMixin
 from zrb.config.mixins.foundation import FoundationMixin
 from zrb.config.mixins.hooks import HooksMixin
@@ -121,14 +121,20 @@ class Config(
 
         A typo (`CFG.LLM_MODELL`) would otherwise be a silent no-op.
         `DEFAULT_*` names are exempt: mixin `__init__`s set them as instance
-        attributes.
+        attributes. A name a setting used to have is redirected to its current
+        name, with a warning, so an older `zrb_init.py` keeps working.
         """
         if (
             name.isupper()
             and not name.startswith("DEFAULT_")
             and not hasattr(type(self), name)
         ):
-            raise AttributeError(self._unknown_knob_message(name))
+            renamed = self.get_field_renamed_from(name)
+            if renamed is None:
+                raise AttributeError(self._unknown_knob_message(name))
+            self._warn_renamed(name, renamed)
+            super().__setattr__(renamed, value)
+            return
         super().__setattr__(name, value)
 
     if not TYPE_CHECKING:  # keeps pyright flagging a mistyped `CFG.X`
@@ -137,12 +143,33 @@ class Config(
             """Name the closest setting when an UPPERCASE read misses.
 
             Only reached when normal lookup fails, so defined settings never pay.
+            A name a setting used to have reads the current one, with a warning.
             """
             if name.isupper() and not name.startswith("DEFAULT_"):
+                renamed = self.get_field_renamed_from(name)
+                if renamed is not None:
+                    self._warn_renamed(name, renamed)
+                    return getattr(self, renamed)
                 raise AttributeError(self._unknown_knob_message(name))
             raise AttributeError(
                 f"{type(self).__name__!r} object has no attribute {name!r}"
             )
+
+    def get_field_renamed_from(self, name: str) -> str | None:
+        """The current name of the setting *name* used to be called, or None."""
+        for candidate in dir(type(self)):
+            field = getattr(type(self), candidate, None)
+            if isinstance(field, EnvField) and name in field.deprecated_aliases:
+                return candidate
+        return None
+
+    def _warn_renamed(self, old: str, new: str) -> None:
+        """Say once that `CFG.<old>` still works and should become `CFG.<new>`."""
+        warned = self.__dict__.setdefault("_renamed_warned", set())
+        if old in warned:
+            return
+        warned.add(old)
+        warn_deprecated(f"CFG.{old}", f"CFG.{new}")
 
     def _unknown_knob_message(self, name: str) -> str:
         known = self.get_settable_field_names()
@@ -170,19 +197,27 @@ class Config(
 
         Returns None when `name` is not a settable UPPERCASE `EnvField` — it
         may still be unknown, or a read-write `@property` (which has no cast).
+        A name a setting used to have resolves to that setting's field.
         """
         if not name.isupper() or name.startswith("DEFAULT_"):
             return None
         attr = getattr(type(self), name, None)
-        return attr if isinstance(attr, EnvField) else None
+        if isinstance(attr, EnvField):
+            return attr
+        renamed = self.get_field_renamed_from(name)
+        if renamed is None:
+            return None
+        return self.get_settable_field(renamed)
 
     def convert_setting_value(self, name: str, raw: str) -> object:
         """Convert `raw` to the value type of settable field `name`.
 
         Raises `AttributeError` (with a suggestion) when `name` is not
         settable, and `ValueError` when `raw` cannot be cast. `transform` is
-        applied; a read-write `@property` gets `raw` unchanged.
+        applied; a read-write `@property` gets `raw` unchanged. A name a setting
+        used to have is converted as the setting that replaced it.
         """
+        name = self.get_field_renamed_from(name) or name
         if not _is_assignable_field(type(self), name):
             raise AttributeError(self._unknown_knob_message(name))
         field = getattr(type(self), name, None)
@@ -223,6 +258,21 @@ class Config(
             if matches:
                 mistyped[key] = matches[0]
         return mistyped
+
+    def get_deprecated_env_keys(self) -> dict[str, str]:
+        """Each set variable under a name a setting used to have, mapped to
+        the name to use now.
+
+        Unlike a retired setting, a deprecated one is still read: the report is
+        a migration list, and the value in effect already comes from the new
+        name when both are set.
+        """
+        deprecated: dict[str, str] = {}
+        for name in dir(type(self)):
+            field = getattr(type(self), name, None)
+            if isinstance(field, EnvField):
+                deprecated.update(field.deprecated_env_keys(self.ENV_PREFIX))
+        return deprecated
 
     def get_retired_env_keys(self) -> dict[str, str]:
         """Each set variable of a setting zrb no longer reads, mapped to what

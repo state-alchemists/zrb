@@ -116,11 +116,11 @@ async def _read_image(path: str, abs_path: str, media_type: str) -> "str | ToolR
     # lazy: transitively heavy — multimodal_describe loads pydantic_ai
     from zrb.llm.tool.multimodal_describe import create_image_tool_return
 
-    if not CFG.LLM_ENABLE_READ_IMAGE:
+    if not CFG.LLM_READ_IMAGE_ENABLED:
         return (
             f"Error: {path} is an image, and reading images is turned off. "
             "[SYSTEM SUGGESTION]: Do not retry. If you need to see it, tell "
-            f"the user to set {CFG.ENV_PREFIX}_LLM_ENABLE_READ_IMAGE=on or to "
+            f"the user to set {CFG.ENV_PREFIX}_LLM_READ_IMAGE_ENABLED=on or to "
             "attach the image."
         )
     oversized_by = get_oversized_by(abs_path)

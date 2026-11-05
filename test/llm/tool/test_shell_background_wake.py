@@ -120,7 +120,7 @@ async def test_a_handle_the_model_already_consumed_is_not_reported(ui):
 
 @pytest.mark.asyncio
 async def test_the_knob_turns_the_wake_up_off(ui, monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE", False)
+    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE_ENABLED", False)
     registry = get_shell_background_registry()
 
     handle = await registry.start("exit 0", "", "Quiet")
@@ -224,7 +224,7 @@ async def test_consuming_the_handle_takes_back_a_wake_up_still_queued(ui):
 
 @pytest.mark.asyncio
 async def test_nothing_is_withdrawn_when_nothing_was_sent(ui, monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE", False)
+    monkeypatch.setattr(CFG, "LLM_BACKGROUND_WAKE_ENABLED", False)
     registry = get_shell_background_registry()
 
     handle = await registry.start("exit 0", "", "No wake-up")

@@ -69,13 +69,13 @@ class DictationConfig:
     interrupt_judge_timeout: float | None = None
     interrupt_judge_max_words: int | None = None
     hush_words: list[str] | None = None
-    enable_echo_cancel: bool | None = None
-    detect_emotion: bool | None = None
+    echo_cancel_enabled: bool | None = None
+    detect_emotion_enabled: bool | None = None
     sensevoice_model: str | None = None
     sensevoice_threads: int | None = None
     emotion_model: str | None = None
     emotion_min_score: float | None = None
-    emotion_out_of_process: bool | None = None
+    emotion_out_of_process_enabled: bool | None = None
 
     @property
     def is_barge_in_enabled(self) -> bool:
@@ -94,9 +94,9 @@ class DictationConfig:
 
     @property
     def is_echo_cancel_enabled(self) -> bool:
-        """Whether *enable_echo_cancel* is set: on macOS, the microphone opens
+        """Whether *echo_cancel_enabled* is set: on macOS, the microphone opens
         through voice processing, which takes zrb's own voice out of it."""
-        return bool(self.enable_echo_cancel)
+        return bool(self.echo_cancel_enabled)
 
     def resolve(self) -> "DictationConfig":
         """A copy with every ``None`` field read from `CFG`."""

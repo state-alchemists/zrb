@@ -111,9 +111,9 @@ class DictationSession:
             EmotionDetector(
                 config.emotion_model,
                 config.emotion_min_score,
-                out_of_process=bool(config.emotion_out_of_process),
+                out_of_process=bool(config.emotion_out_of_process_enabled),
             )
-            if config.detect_emotion
+            if config.detect_emotion_enabled
             else None
         )
         # The emotion model loads on a task of its own, beside the microphone

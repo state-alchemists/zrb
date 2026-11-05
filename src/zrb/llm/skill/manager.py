@@ -297,7 +297,7 @@ class SkillManager:
     def _get_home_search_dirs(self) -> list[Path]:
         """User home directories — ~/.claude/, ~/.zrb/."""
         dirs: list[Path] = []
-        if not CFG.LLM_SEARCH_HOME:
+        if not CFG.LLM_SEARCH_HOME_ENABLED:
             return dirs
         home = Path.home()
         for pattern in CFG.LLM_CONFIG_DIR_NAMES:
@@ -309,7 +309,7 @@ class SkillManager:
     def _get_project_search_dirs(self) -> list[Path]:
         """Project directories — walk root → cwd looking for config dirs."""
         dirs: list[Path] = []
-        if not CFG.LLM_SEARCH_PROJECT:
+        if not CFG.LLM_SEARCH_PROJECT_ENABLED:
             return dirs
         for project_dir in self._get_upward_dirs():
             for pattern in CFG.LLM_CONFIG_DIR_NAMES:
@@ -345,10 +345,10 @@ class SkillManager:
 
     def _get_builtin_dirs(self) -> list[Path]:
         """Builtin skill directories: ``core_skills/`` always, ``skills/`` when
-        ``CFG.LLM_ENABLE_BUILTIN_SKILLS``; missing paths are skipped."""
+        ``CFG.LLM_BUILTIN_SKILLS_ENABLED``; missing paths are skipped."""
         base = BUILTIN_PLUGIN_DIR
         dirs: list[Path] = [base / "core_skills"]
-        if CFG.LLM_ENABLE_BUILTIN_SKILLS:
+        if CFG.LLM_BUILTIN_SKILLS_ENABLED:
             dirs.append(base / "skills")
         return [d for d in dirs if d.exists() and d.is_dir()]
 

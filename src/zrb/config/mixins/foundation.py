@@ -76,8 +76,8 @@ class FoundationMixin:
         self.DEFAULT_LOGGING_LEVEL: str = "WARNING"
         self.DEFAULT_LOGGING_FILE_MAX_BYTES: str = str(10 * 1024 * 1024)
         self.DEFAULT_LOGGING_FILE_BACKUP_COUNT: str = "3"
-        self.DEFAULT_ENABLE_BUILTIN_TASKS: str = "on"
-        self.DEFAULT_SHOW_UNRECOMMENDED_COMMAND_WARNING: str = "on"
+        self.DEFAULT_BUILTIN_TASKS_ENABLED: str = "on"
+        self.DEFAULT_SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED: str = "on"
         # Name fragments that mark an environment variable as holding a
         # credential. Tuned to over-redact: a false positive costs one
         # unhelpful `***` in a debug log, a false negative leaks a key.
@@ -104,7 +104,7 @@ class FoundationMixin:
         self.DEFAULT_VERSION: str = ""
         self.DEFAULT_ASCII_ART_DIR: str = ""
         self.DEFAULT_BANNER: str = _DEFAULT_BANNER
-        self.DEFAULT_ENABLE_TIKTOKEN: str = "off"
+        self.DEFAULT_TIKTOKEN_ENABLED: str = "off"
         self.DEFAULT_TIKTOKEN_ENCODING_NAME: str = "cl100k_base"
         self.DEFAULT_MCP_CONFIG_FILE: str = "mcp-config.json"
         super().__init__()
@@ -279,14 +279,16 @@ class FoundationMixin:
         ),
     )
 
-    ENABLE_BUILTIN_TASKS = EnvField(
+    BUILTIN_TASKS_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["ENABLE_BUILTIN_TASKS"],
         serialize=on_off,
         doc="Whether to load pre-packaged tasks (Git, UUID, base64, etc.).",
     )
 
-    SHOW_UNRECOMMENDED_COMMAND_WARNING = EnvField(
+    SHOW_UNRECOMMENDED_COMMAND_WARNING_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["SHOW_UNRECOMMENDED_COMMAND_WARNING"],
         serialize=on_off,
         doc="Show warnings for potentially unsafe shell commands.",
     )
@@ -376,8 +378,9 @@ class FoundationMixin:
         doc="Banner shown at CLI start. Supports {VERSION} formatting.",
     )
 
-    ENABLE_TIKTOKEN = EnvField(
+    TIKTOKEN_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["ENABLE_TIKTOKEN"],
         serialize=on_off,
         doc="Whether to use tiktoken for token counting.",
     )

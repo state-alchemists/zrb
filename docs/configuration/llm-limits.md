@@ -26,8 +26,8 @@ Values are in **milliseconds** unless the row says otherwise.
 | `ZRB_LLM_SHELL_KILL_WAIT_TIMEOUT` | Time to wait for a shell process to exit after SIGTERM before SIGKILL (ms) | `5000` |
 | `ZRB_LLM_SHELL_TIMEOUT_BACKGROUND_SECONDS` | How long a command that outran its `Shell` timeout keeps running in the background before zrb kills it; `0` kills it at the timeout instead (**seconds**) | `1800` |
 | `ZRB_LLM_BACKGROUND_WAIT_MAX` | Max time a single `GetDelegationResult`/`MonitorProcess` `wait=` call may block before returning "still running" (**seconds**, not ms) | `300` |
-| `ZRB_LLM_BACKGROUND_WAKE` | Whether a session is told when a background `Shell` command ends. A running turn reads it at its next model request; an idle session takes a turn of its own. `off` leaves the exit to the next turn's live context | `on` |
-| `ZRB_LLM_BACKGROUND_WAKE_MAX_CONSECUTIVE` | How many wake-ups may reach a session in a row with no message from the user in between; later ones wait for the next turn's live context. `0` removes the limit | `5` |
+| `ZRB_LLM_BACKGROUND_WAKE_ENABLED` | Whether a session is told when a background `Shell` command ends. A running turn reads it at its next model request; an idle session takes a turn of its own. `off` leaves the exit to the next turn's live context | `on` |
+| `ZRB_LLM_BACKGROUND_WAKE_ENABLED_MAX_CONSECUTIVE` | How many wake-ups may reach a session in a row with no message from the user in between; later ones wait for the next turn's live context. `0` removes the limit | `5` |
 | `ZRB_LLM_WEB_PAGE_TIMEOUT` | Playwright page load timeout (ms) | `30000` |
 | `ZRB_LLM_WEB_HTTP_TIMEOUT` | HTTP request timeout for web tools and search (ms) | `30000` |
 | `ZRB_LLM_MODEL_FETCH_TIMEOUT` | Timeout for fetching Ollama model list (ms) | `5000` |
@@ -52,14 +52,14 @@ All interval and delay values are in **milliseconds**.
 | `ZRB_LLM_MAX_COMPLETION_FILES` | Maximum files scanned for path autocompletion | `5000` |
 | `ZRB_LLM_MAX_OUTPUT_CHARS` | Maximum characters returned by shell command and file read tools | `100000` |
 | `ZRB_LLM_MAX_CONSOLE_OUTPUT_CHARS` | Max characters of a shell command's output mirrored to the console (separate from `ZRB_LLM_MAX_OUTPUT_CHARS`, which caps what the model sees). Output past the cap is still captured and reaches the model. | `100000` |
-| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Model-facing tool-result threshold (characters). With `ZRB_LLM_ENABLE_TOOL_SPILL=on`, larger results are spilled losslessly to a private local store and replaced by a preview and a `ReadToolResult` handle; otherwise they are flagged `oversized` in app-only metadata and passed through. `0` disables both. | `100000` |
-| `ZRB_LLM_ENABLE_TOOL_SPILL` | Enables lossless spill above `ZRB_LLM_MAX_TOOL_RESULT_CHARS`. The payload is stored under the system temp directory; `ReadToolResult` pages it or filters by literal substring. | `off` |
+| `ZRB_LLM_MAX_TOOL_RESULT_CHARS` | Model-facing tool-result threshold (characters). With `ZRB_LLM_TOOL_SPILL_ENABLED=on`, larger results are spilled losslessly to a private local store and replaced by a preview and a `ReadToolResult` handle; otherwise they are flagged `oversized` in app-only metadata and passed through. `0` disables both. | `100000` |
+| `ZRB_LLM_TOOL_SPILL_ENABLED` | Enables lossless spill above `ZRB_LLM_MAX_TOOL_RESULT_CHARS`. The payload is stored under the system temp directory; `ReadToolResult` pages it or filters by literal substring. | `off` |
 | `ZRB_LLM_HISTORY_MAX_DISPLAY_CHARS` | Maximum characters shown by the `/history` command | `5000` |
 | `ZRB_LLM_HISTORY_TRUNCATE_LENGTH` | Maximum chars per field when formatting history entries | `100` |
 | `ZRB_LLM_MAX_IMAGE_DIMENSION` | Longest-edge cap (pixels) for attached images before sending to LLM | `1568` |
 | `ZRB_LLM_IMAGE_JPEG_QUALITY` | JPEG quality (1-95) for re-encoding photos; PNGs are unaffected | `85` |
 | `ZRB_LLM_MAX_ATTACHMENT_BYTES` | Maximum file size (bytes) accepted by `/attach` and the other attachment paths (web chat upload, chat-telegram example) — checked before the file is read. `0` or negative disables the cap. | `20000000` |
-| `ZRB_LLM_ENABLE_READ_IMAGE` | When on, `Read` on a PNG, JPEG, GIF or WebP file attaches the image for the model to see — scaled like `/attach`, capped by `ZRB_LLM_MAX_ATTACHMENT_BYTES`, and described by `ZRB_LLM_MULTIMODAL_MODEL` for a text-only model. Off, `Read` refuses image files. | `on` |
+| `ZRB_LLM_READ_IMAGE_ENABLED` | When on, `Read` on a PNG, JPEG, GIF or WebP file attaches the image for the model to see — scaled like `/attach`, capped by `ZRB_LLM_MAX_ATTACHMENT_BYTES`, and described by `ZRB_LLM_MULTIMODAL_MODEL` for a text-only model. Off, `Read` refuses image files. | `on` |
 | `ZRB_LLM_UI_MAX_BUFFER_SIZE` | Maximum buffered output chars before a forced flush (event-driven UIs) | `2000` |
 | `ZRB_LLM_MAX_SKILLS_IN_CATALOG` | Skills listed in the prompt's skill catalogue before truncating with a pointer to `SearchSkill` (which always reaches the rest) — a token-economy cap. `0` or negative lists all. | `10` |
 | `ZRB_LLM_MAX_AGENTS_IN_ROSTER` | Sub-agents listed in the delegation tools' AVAILABLE AGENTS roster before truncating with a pointer to `SearchAgent` (which always reaches the rest) — a token-economy cap. `0` or negative lists all. | `10` |

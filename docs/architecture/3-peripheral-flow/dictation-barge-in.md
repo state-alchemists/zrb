@@ -41,7 +41,7 @@ Hands-free dictation lets the user talk to zrb, and speech lets zrb talk back. B
    - Every way the listener can end releases a pause it made.
    - `barge_in_hold` turns the hold off, for a room that keeps crossing the bar. Then nothing is held on loudness, and the words alone decide, as early as the live transcript provides them.
 
-4. **Guard against zrb's own voice instead of cancelling it.** zrb runs no canceller of its own. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, and a minimum word count to interrupt. On macOS the user can also ask the system's voice processing to take zrb's voice out of the microphone (`enable_echo_cancel`); the guards stay either way. → [ADR-0105](../../adr/adr-0105.md), [ADR-0111](../../adr/adr-0111.md)
+4. **Guard against zrb's own voice instead of cancelling it.** zrb runs no canceller of its own. Cheap guards do the work: a higher loudness bar while zrb speaks, dropping known transcriber guesses, and a minimum word count to interrupt. On macOS the user can also ask the system's voice processing to take zrb's voice out of the microphone (`echo_cancel_enabled`); the guards stay either way. → [ADR-0105](../../adr/adr-0105.md), [ADR-0111](../../adr/adr-0111.md)
 
 5. **Speech listens to the stream beside the UI.** Speech reads a reply as it streams by observing the run's events next to the UI, not through it. An observer that fails is logged and skipped, so speech can never break a run. → [ADR-0104](../../adr/adr-0104.md)
 
@@ -174,7 +174,7 @@ When a barge-in stops zrb, `SpeechSession.interrupt` drops the queue and mutes t
 | Case | Where it is decided | What is different |
 | --- | --- | --- |
 | Barge-in off (the default) | `DictationConfig.barge_in_enabled` | The microphone is deaf while zrb speaks, so there is nothing to pause |
-| Echo cancellation on (macOS) | `DictationConfig.enable_echo_cancel` | `listen` opens `EchoCancelledMicrophone`, so little of zrb's voice reaches the cutter and the bar over it sits near the ordinary one; the guards still run |
+| Echo cancellation on (macOS) | `DictationConfig.echo_cancel_enabled` | `listen` opens `EchoCancelledMicrophone`, so little of zrb's voice reaches the cutter and the bar over it sits near the ordinary one; the guards still run |
 | The hold off | `DictationConfig.barge_in_hold` | Nothing is held on loudness; a stop word or a wake word seen in the live partial stops zrb at once, and anything else stops it once the utterance is transcribed |
 | Wake words set | `DictationConfig.wake_words` | Only words starting with a wake word count; one heard in the live partial transcript stops zrb early |
 | The interrupt judge | `DictationConfig.interrupt_judge_enabled` | What an interrupting utterance asks of zrb is put to the small model when the word lists cannot read it and it is at most `interrupt_judge_max_words` long; a stop or a hush the lists read never reaches the model, and a request is the answer when the judge is off, slow or unsure |

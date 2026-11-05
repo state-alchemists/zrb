@@ -254,7 +254,7 @@ def test_the_cut_is_measured_on_the_block_after_every_cut(monkeypatch):
     token boundaries fall: 21 tokens of text inside a 146-token block against a
     150-token cap. The helper cuts again from what the block still overflows by.
     """
-    monkeypatch.setattr(CFG, "ENABLE_TIKTOKEN", True, raising=False)
+    monkeypatch.setattr(CFG, "TIKTOKEN_ENABLED", True, raising=False)
     limiter = LLMLimiter()
     note = _render_archive_note("/tmp/session.md")
     text = "hello world " * 10

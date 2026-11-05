@@ -28,8 +28,8 @@ class LLMCoreMixin:
         self.DEFAULT_LLM_BASE_URL: str = ""
         self.DEFAULT_LLM_API_KEY: str = ""
         self.DEFAULT_LLM_PROVIDER: str = ""
-        self.DEFAULT_LLM_SHOW_OLLAMA_MODELS: str = "on"
-        self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS: str = "on"
+        self.DEFAULT_LLM_SHOW_OLLAMA_MODELS_ENABLED: str = "on"
+        self.DEFAULT_LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED: str = "on"
         self.DEFAULT_LLM_PERMISSIONS: str = ""
         self.DEFAULT_LLM_THINKING: str = ""
         super().__init__()
@@ -74,14 +74,16 @@ class LLMCoreMixin:
         ),
     )
 
-    LLM_SHOW_OLLAMA_MODELS = EnvField(
+    LLM_SHOW_OLLAMA_MODELS_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_SHOW_OLLAMA_MODELS"],
         serialize=on_off,
         doc="Enable/disable showing Ollama models in model completion.",
     )
 
-    LLM_SHOW_PYDANTIC_AI_MODELS = EnvField(
+    LLM_SHOW_PYDANTIC_AI_MODELS_ENABLED = EnvField(
         to_boolean,
+        deprecated_aliases=["LLM_SHOW_PYDANTIC_AI_MODELS"],
         serialize=on_off,
         doc=(
             "Enable/disable showing pydantic-ai KnownModelName models in model "

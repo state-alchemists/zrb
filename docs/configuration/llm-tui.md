@@ -22,9 +22,9 @@ Debugging, slash-command aliases, colors and themes for `zrb llm chat`.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_SHOW_TOOL_CALL_DETAIL` | Print tool arguments before execution | `off` |
-| `ZRB_LLM_SHOW_TOOL_CALL_RESULT` | Print raw tool return values | `off` |
-| `ZRB_LLM_UI_SHOW_RUNTIME_TIMERS` | Show, in the status bar, how long the assistant has been working since it last went idle, and how long the running tool call has taken | `on` |
+| `ZRB_LLM_SHOW_TOOL_CALL_DETAIL_ENABLED` | Print tool arguments before execution | `off` |
+| `ZRB_LLM_SHOW_TOOL_CALL_RESULT_ENABLED` | Print raw tool return values | `off` |
+| `ZRB_LLM_UI_SHOW_RUNTIME_TIMERS_ENABLED` | Show, in the status bar, how long the assistant has been working since it last went idle, and how long the running tool call has taken | `on` |
 
 ## Slash Command Aliases
 
@@ -43,7 +43,7 @@ Customize the tokens that trigger built-in UI commands. Each value is a **comma-
 | `ZRB_LLM_UI_COMMAND_REDIRECT_OUTPUT` | Bare: copy the **last response** to the clipboard. `<cmd> <path>`: write that response to a file | `>, /redirect` |
 | `ZRB_LLM_UI_COMMAND_REWIND` | Rewind to a previous turn | `/rewind` |
 | `ZRB_LLM_UI_COMMAND_SAVE` | Save the current conversation | `/save` |
-| `ZRB_LLM_UI_COMMAND_SET` | `<cmd> <name> <value>` — set a config value for the rest of the process (`/set LLM_SHOW_TOOL_CALL_RESULT on`), or switch a model slot live (`/set model`, `/set small_model`, `/set multimodal_model`) | `/set` |
+| `ZRB_LLM_UI_COMMAND_SET` | `<cmd> <name> <value>` — set a config value for the rest of the process (`/set LLM_SHOW_TOOL_CALL_RESULT_ENABLED on`), or switch a model slot live (`/set model`, `/set small_model`, `/set multimodal_model`) | `/set` |
 | `ZRB_LLM_UI_COMMAND_SET_MODEL` | Switch the model mid-session | `/model` |
 | `ZRB_LLM_UI_COMMAND_SUMMARIZE` | Compact the conversation history | `/compress, /compact` |
 | `ZRB_LLM_UI_COMMAND_USAGE` | `<cmd> [session\|today\|week\|all]` — show what the session, the day or the week consumed: tokens, prompt-cache hits and cost where the model is priced, then a Compaction section (what replacing the history with a summary cost, kept out of the turn rows) and a Tools section and a Memory section (the store's core occupancy, facts and diary days, and this window's memory reads and writes) | `/usage` |
@@ -90,8 +90,8 @@ These two toggle content conversion rather than color:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ZRB_LLM_UI_ENABLE_MARKDOWN_MATH` | Convert LaTeX math (`$...$` / `$$...$$`, and a fenced ` ```latex `/` ```tex ` block) to Unicode. Falls back to the raw LaTeX source wherever it can't be converted. | `on` |
-| `ZRB_LLM_UI_ENABLE_MARKDOWN_MERMAID` | Render fenced ` ```mermaid `/` ```mmd ` blocks as Unicode diagram art. Falls back to the raw fence if it can't be parsed. | `on` |
+| `ZRB_LLM_UI_MARKDOWN_MATH_ENABLED` | Convert LaTeX math (`$...$` / `$$...$$`, and a fenced ` ```latex `/` ```tex ` block) to Unicode. Falls back to the raw LaTeX source wherever it can't be converted. | `on` |
+| `ZRB_LLM_UI_MARKDOWN_MERMAID_ENABLED` | Render fenced ` ```mermaid `/` ```mmd ` blocks as Unicode diagram art. Falls back to the raw fence if it can't be parsed. | `on` |
 
 ### Choice Widget (AskUserQuestion panel)
 

@@ -532,7 +532,7 @@ class SpeechSession:
         ear to write for. A notice switched off also clears one already
         standing, so turning it off is not a promise about the next turn.
         """
-        if not self._config.missing_block_notice_enabled:
+        if not self._config.block_notice_enabled:
             self._missed_block = False
             return
         missed = needs_spoken_block(reply)
