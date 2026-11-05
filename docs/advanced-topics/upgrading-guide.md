@@ -6,7 +6,9 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.35.0](#upgrading-to-3350)
 - [Upgrading to 3.33.0](#upgrading-to-3330)
+- [Upgrading to 3.30.0](#upgrading-to-3300)
 - [Upgrading to 3.16.0](#upgrading-to-3160)
 - [Upgrading to 3.15.0](#upgrading-to-3150)
 - [Upgrading to 3.14.0](#upgrading-to-3140)
@@ -24,9 +26,9 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ---
 
-## Upgrading to NEXT (unreleased)
+## Upgrading to 3.35.0
 
-Two things change in the unreleased line: a layering refactor for lower-cognitive-load imports, and one naming rule for every on/off setting.
+One thing changes here: a single naming rule for every on/off setting.
 
 ### Settings: every switch ends in `_ENABLED`
 
@@ -73,28 +75,9 @@ Move them when convenient; no removal is planned. The tables name the knobs with
 | `LLM_INJECT_PROJECT_INSTRUCTIONS` | `LLM_INJECT_PROJECT_INSTRUCTIONS_ENABLED` |
 | `LLM_SPEECH_MISSING_BLOCK_NOTICE_ENABLED` | `LLM_SPEECH_BLOCK_NOTICE_ENABLED` |
 
-The last row is a name from this unreleased line rather than a release — it was shortened before it ever shipped, and the longer spelling still reads.
+The last row is a name from this release rather than an earlier one — it was shortened before it ever shipped, and the longer spelling still reads.
 
 Three booleans keep their name because they are not switches: `IS_TERMUX` (a predicate) and `LLM_SPEECH_STREAM` / `LLM_DICTATION_BARGE_IN_HOLD` (modes, where the name is the choice itself).
-
-### Moved modules
-
-| Old | New |
-|---|---|
-| `zrb.llm.agent.run.multimodal_describe` | `zrb.llm.tool.multimodal_describe` |
-
-### Import path changes (lower layers)
-
-| Before | After |
-|---|---|
-| `from zrb.llm.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
-| `from zrb.llm.subagent.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
-| `from zrb.llm.subagent.live_session import live_subagent_session_registry` | `from zrb.llm.delegation_api import get_live_session_registry` |
-| `from zrb.llm.prompt.live_context import append_live_context, split_live_context` | `from zrb.llm.util.live_context_block import append_live_context, split_live_context` |
-
-`zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
-
-`split_live_context` is still importable from `zrb.llm.prompt.live_context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.util.live_context_block` now.
 
 ---
 
@@ -154,9 +137,34 @@ The notes are never modified. What each note becomes, and the layout the migrati
 
 ---
 
+## Upgrading to 3.30.0
+
+The LLM layering refactor moved where a few names live. Behaviour is unchanged; an import path is the only thing to change.
+
+### Moved modules (3.30.0)
+
+| Old | New |
+|---|---|
+| `zrb.llm.agent.run.multimodal_describe` | `zrb.llm.tool.multimodal_describe` |
+
+### Import path changes (lower layers)
+
+| Before | After |
+|---|---|
+| `from zrb.llm.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
+| `from zrb.llm.subagent.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
+| `from zrb.llm.subagent.live_session import live_subagent_session_registry` | `from zrb.llm.delegation_api import get_live_session_registry` |
+| `from zrb.llm.prompt.live_context import append_live_context, split_live_context` | `from zrb.llm.util.live_context_block import append_live_context, split_live_context` |
+
+`zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
+
+`split_live_context` is still importable from `zrb.llm.prompt.live_context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.util.live_context_block` now.
+
+---
+
 ## Upgrading to 3.16.0
 
-3.16.0 brings an opt-in spoken summary back and moves some modules to the package that owns them ([Moved modules](#moved-modules)). Speech changes only if you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.
+3.16.0 brings an opt-in spoken summary back and moves some modules to the package that owns them ([Moved modules](#moved-modules-3160)). Speech changes only if you set `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`; without it every reply is still read whole.
 
 | Setting | What it does |
 |---|---|
@@ -166,7 +174,7 @@ The notes are never modified. What each note becomes, and the layout the migrati
 
 A leftover `ZRB_LLM_SPEECH_SUMMARIZE` is still reported at startup and now names `ZRB_LLM_SPEECH_SUMMARIZE_ABOVE_CHARS`. `ZRB_LLM_SPEECH_MAX_CHARS` and `ZRB_LLM_SPEECH_ON_SCREEN_NOTE` stay retired: a reply is never cut at a fixed length.
 
-### Moved modules
+### Moved modules (3.16.0)
 
 Top-level `zrb` exports are unchanged. A deep import of a module that moved to the package owning it needs the new path:
 
