@@ -172,6 +172,84 @@ def test_a_diary_can_be_revised_without_repeating_kind(store_dir):
     assert store.load_fact("2026-11-03") is None
 
 
+def test_appending_adds_a_paragraph_without_touching_the_rest(store_dir):
+    """Appending must not cost the caller the day: it adds, it does not rewrite."""
+    remember(
+        "2026-11-06",
+        "A day spent on memory.",
+        kind="diary",
+        handover="Ask about the cap first.",
+        body="Morning: the split.",
+    )
+    message = remember(
+        "2026-11-06", "A day spent on memory.", body="Evening: the cap.", body_mode="a"
+    )
+    entry = store.load_diary("2026-11-06")
+    assert entry is not None
+    assert entry.body == "Morning: the split.\n\nEvening: the cap."
+    assert entry.handover == "Ask about the cap first."
+    assert "Appended" in message
+
+
+def test_an_append_can_start_a_day_that_has_no_entry_yet(store_dir):
+    message = remember(
+        "2026-11-06", "A day.", kind="diary", body="First light.", body_mode="a"
+    )
+    entry = store.load_diary("2026-11-06")
+    assert entry is not None and entry.body == "First light."
+    assert "Appended 12 characters" in message
+
+
+def test_an_append_reports_the_room_the_day_has_left(store_dir, monkeypatch):
+    """The cap is met before it refuses, the way the core reports its budget."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 100, raising=False)
+    remember("2026-11-06", "A day.", body="x" * 40)
+    message = remember("2026-11-06", "A day.", body="y" * 20, body_mode="a")
+    assert "(body 62/100 characters)" in message
+
+
+def test_an_append_past_the_cap_is_refused_and_the_day_is_untouched(
+    store_dir, monkeypatch
+):
+    """The paragraph is short; the day it joins is not. Both are one number."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 60, raising=False)
+    remember("2026-11-06", "A day.", body="x" * 50)
+    message = remember("2026-11-06", "A day.", body="y" * 30, body_mode="a")
+    entry = store.load_diary("2026-11-06")
+    assert entry is not None and entry.body == "x" * 50
+    assert "Nothing was written" in message
+    assert "would be 82 characters" in message
+    assert "LLM_MEMORY_DIARY_MAX_CHARS" in message
+
+
+def test_an_append_on_a_fact_is_refused_rather_than_ignored(store_dir):
+    """A fact's body is evidence about one subject; only a day accumulates."""
+    message = remember("x", "X is true.", body="evidence", body_mode="a")
+    assert "governs a diary body only" in message
+    assert store.load_fact("x") is None
+
+
+def test_an_unknown_body_mode_is_refused(store_dir):
+    message = remember("2026-11-06", "A day.", body="x", body_mode="r")
+    assert "'w'" in message and "'a'" in message
+    assert store.load_diary("2026-11-06") is None
+
+
+def test_an_append_with_nothing_to_append_is_refused(store_dir):
+    remember("2026-11-06", "A day.", body="x")
+    message = remember("2026-11-06", "A day.", body_mode="a")
+    assert "nothing to append" in message
+
+
+def test_the_appended_count_is_the_paragraph_as_it_was_stored(store_dir):
+    """Padding is trimmed on the way in, and the separator is not the caller's."""
+    remember("2026-11-06", "A day.", body="old")
+    message = remember("2026-11-06", "A day.", body="  new  ", body_mode="a")
+    entry = store.load_diary("2026-11-06")
+    assert entry is not None and entry.body == "old\n\nnew"
+    assert "Appended 3 characters" in message
+
+
 def test_an_id_with_surrounding_space_is_stored_trimmed(store_dir):
     """Validation strips, so storage must too, or the entry is unreachable."""
     remember("  staging-ssh-port  ", "Staging SSH is port 2222.")

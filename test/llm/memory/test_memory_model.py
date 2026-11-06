@@ -2,13 +2,16 @@
 
 import pytest
 
+from zrb.config.config import CFG
 from zrb.llm.memory.model import (
     MAX_CLAIM_CHARS,
     Diary,
     Fact,
     body_error,
+    body_overflow,
     claim_error,
     date_error,
+    handover_error,
     id_error,
     injection_reason,
     reason_error,
@@ -102,6 +105,31 @@ def test_a_body_is_bounded_per_kind():
     assert body_error("x" * 2_001, "diary") is not None
     assert body_error("x" * 2_001, "fact") is None
     assert body_error("x" * 8_001, "fact") is not None
+
+
+def test_the_diary_body_cap_is_the_setting(monkeypatch):
+    """A day's page length belongs to whoever keeps the day, not to this module."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 12, raising=False)
+    assert body_error("x" * 12, "diary") is None
+    error = body_error("x" * 13, "diary")
+    assert error is not None and "12" in error
+
+
+def test_the_handover_cap_is_the_setting(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_MEMORY_HANDOVER_MAX_CHARS", 12, raising=False)
+    assert handover_error("x" * 12) is None
+    error = handover_error("x" * 13)
+    assert error is not None and "12" in error
+
+
+def test_an_append_is_measured_as_the_whole_it_becomes(monkeypatch):
+    """The paragraph can be under the cap while the day it joins is over it."""
+    monkeypatch.setattr(CFG, "LLM_MEMORY_DIARY_MAX_CHARS", 20, raising=False)
+    assert body_overflow("x" * 20) is None
+    overflow = body_overflow("x" * 21)
+    assert overflow is not None
+    assert "21" in overflow and "20" in overflow
+    assert "LLM_MEMORY_DIARY_MAX_CHARS" in overflow
 
 
 def test_a_fact_round_trips_through_markdown():

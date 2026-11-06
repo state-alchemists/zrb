@@ -61,6 +61,8 @@ class LLMContentMixin:
         self.DEFAULT_LLM_MEMORY_ENABLED: str = "on"
         self.DEFAULT_LLM_MEMORY_DIR: str = ""
         self.DEFAULT_LLM_MEMORY_CORE_MAX_CHARS: str = "4000"
+        self.DEFAULT_LLM_MEMORY_DIARY_MAX_CHARS: str = "2000"
+        self.DEFAULT_LLM_MEMORY_HANDOVER_MAX_CHARS: str = "700"
         self.DEFAULT_LLM_MEMORY_RECENT_MAX_CHARS: str = "1600"
         self.DEFAULT_LLM_MEMORY_RECENT_LOG_LINES: str = "4"
         self.DEFAULT_LLM_MEMORY_REVIEWER_ENABLED: str = "on"
@@ -228,6 +230,28 @@ class LLMContentMixin:
             "by truncation: a pin that does not fit fails and names the deficit, "
             "so the decision to forget happens in that turn. 0 means no pins fit "
             "and the core is never written."
+        ),
+    )
+
+    LLM_MEMORY_DIARY_MAX_CHARS = EnvField(
+        int,
+        doc=(
+            "Characters of one diary entry's body. A day grows as it goes on and "
+            "`Remember(body_mode='a')` appends to it, so this is the length of a "
+            "page rather than a budget for the conversation: a body is never "
+            "injected, so raising it costs nothing until someone reads the day. A "
+            "write is refused above it, and the refusal names the whole it would "
+            "become."
+        ),
+    )
+
+    LLM_MEMORY_HANDOVER_MAX_CHARS = EnvField(
+        int,
+        doc=(
+            "Characters of a diary entry's handover: the state of play for the "
+            "next session, replaced rather than appended. It is read back on a "
+            "conversation's first turn, inside the `## Recent` cap, so this one is "
+            "a context budget as well as a page."
         ),
     )
 

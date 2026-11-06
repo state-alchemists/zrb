@@ -163,12 +163,12 @@ turn only.
 |---|---|---|
 | `id` | yes | An ISO date, `YYYY-MM-DD`. The date *is* the identity: one entry per day, deduplicated by construction. |
 | `claim` | yes | The day in one line, ≤ 160 chars. This is what the week view shows, so the week stops being inferred. |
-| `handover` | no | The note to the next session, ≤ 700 chars. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. |
-| `body` | no | First person, past tense, ≤ 2,000 chars, refused above it. A diary is a page, not a transcript — the log holds the detail. |
+| `handover` | no | The note to the next session, ≤ `LLM_MEMORY_HANDOVER_MAX_CHARS` (700), refused above it. It is the day file's `## Handover` section, moved into the entry where it can be rewritten without touching an append-only file. Replaced, never appended: it is the state of play, and two of them are not one. |
+| `body` | no | First person, past tense, ≤ `LLM_MEMORY_DIARY_MAX_CHARS` (2,000), refused above it. A diary is a page, not a transcript — the log holds the detail. `body_mode="a"` adds this paragraph after the stored one instead of replacing it, and is measured against the cap as the whole it becomes. |
 | `pin` | — | Refused for `kind: diary`. A diary entry never enters the core. |
 | `status` | yes | Always `active`; only `forget(reason="wrong")` can retire it. `stale` and `done` are refused, because a day does not stop being true. |
 
-A second session on the same day `remember`s into the same file and merges — which is what adding to a diary is. Omitted fields keep their stored values, so a session that only appends a paragraph cannot wipe the handover.
+A second session on the same day `remember`s into the same file and merges — which is what adding to a diary is. Omitted fields keep their stored values, so a session that only appends a paragraph cannot wipe the handover. `body_mode="a"` is how that paragraph is added without reading the day back: the join happens inside the store's lock, one blank line apart, because only the lock knows what the day already says.
 
 ### 3.4 The core — `core.md` (generated)
 
@@ -366,7 +366,7 @@ Three tools. Two of them write.
 | Tool | Capability | Signature |
 |---|---|---|
 | `search` | `READ` | `search(query, scope="facts", limit=10)` |
-| `remember` | `EDIT` | `remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None)` |
+| `remember` | `EDIT` | `remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None, source=None, handover=None, body=None, body_mode=None)` |
 | `forget` | `EDIT` | `forget(id, reason)` where `reason ∈ {wrong, stale, done}` |
 
 There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or `list` tool. Each is either already possible (`read`) or is a `remember` call with a different `kind` (diary, handover).
@@ -375,31 +375,43 @@ There is no `read`, `log`, `handover`, `diary`, `supersede`, `delete`, `pin`, or
 
 ```
 remember(id, claim, kind="fact", pin=False, tags=None, applies_when=None,
-         source=None, handover=None, body=None):
+         source=None, handover=None, body=None, body_mode=None):
     require kind in {fact, loop, diary}
     require one_sentence(claim, max=160)
     if kind == "diary":
         require iso_date(id); require pin is False
-        require body and len(body) <= 2000
-        require handover is None or len(handover) <= 700
+        require body_mode is None or body_mode in {"w", "a"}   # diary only
+        require body_mode != "a" or body.strip()
+        require body is None or len(body) <= DIARY_MAX
+        require handover is None or len(handover) <= HANDOVER_MAX
         path = diary/<id>.md
     else:
         require kebab(id)
+        require body_mode is None                              # a fact body replaces
         require body is None or len(body) <= 8000
         path = facts/<id>.md
 
     old    = read(path)                              # None when new
     fields = merge(old.fields, given)                # unspecified fields keep their old values
+    body   = old.body + "\n\n" + body if body_mode == "a" else (body or old.body)
+    require body_mode != "a" or len(body) <= DIARY_MAX         # the whole it becomes
     fields.status = "active"; fields.updated = now()
     core   = render_core(load_all() + this fact)     # computed BEFORE anything is written
     if len(core) > CORE_MAX:
         raise Refusal(deficit, current_core=read(core.md))    # nothing was written
     with lock():
-        write_atomic(path, fields, body or old.body)
+        write_atomic(path, fields, body)
         write_atomic(core.md, core) if the rendered section changed
         git_commit(f"remember: {id}")
     return f"Remembered {id} ({len(core)}/{CORE_MAX} chars)"
 ```
+
+The append join runs inside the lock, not before it: the day it is joining is the
+store's to read, and a session that reads it itself pays for the whole body in
+its own context to produce two lines — the cost this flag exists to remove. The
+cap is then checked on the merged whole, so a short paragraph that would push a
+long day over it is refused with the number it would become, rather than written
+and discovered by whoever reads it next.
 
 Five properties follow from computing the core before writing:
 
@@ -481,7 +493,7 @@ Validation rules, in order:
 1. **Search before add.** If a fact for the subject exists, the reviewer must revise that id rather than invent a second one.
 2. **Never state what the turn did not establish.** A claim needs a source: the user's words, an observed result, or a file path. Guesses do not get written.
 3. **Nothing durable ⇒ empty object.** "No memory change" is the normal outcome of most turns, and must be cheap.
-4. **The diary is written for a day, not a turn.** It is revised when the day's narrative actually moved, not once per turn, or it becomes a second log.
+4. **The diary is written for a day, not a turn.** It is revised when the day's narrative actually moved, not once per turn, or it becomes a second log — and a paragraph written later in the day is *appended* (`body_mode="a"`) rather than restated, because a writer that never read the day cannot faithfully rewrite it.
 5. **Identity proposals are facts, not edits.** A pattern in how the user works goes to `tags: identity-proposal` with quoted evidence in the body. A human merges it into the persona.
 
 What belongs where — the rule that keeps the diary from becoming prose-shaped log:
@@ -602,6 +614,12 @@ Two lines the Journal section had are absent rather than zeroed. A search's **ou
 | `LLM_MEMORY_REVIEWER_ENABLED` | `on` | The post-turn reviewer |
 | `LLM_MEMORY_LOCK_TIMEOUT` | `30` | Seconds a write waits for the lock |
 
+Five rows are still the design rather than the code: `LLM_MEMORY_HANDOVER_LOOKBACK_DAYS`,
+`LLM_MEMORY_WEEK_LOOKBACK_DAYS`, `LLM_MEMORY_DELTA_PER_TURN`, `LLM_MEMORY_SEARCH_LIMIT`
+and `LLM_MEMORY_CLAIM_MAX_CHARS` are constants in the modules that use them today.
+The two that a session meets at write time — the diary body and the handover — are
+settings, because they are the two a growing day actually runs into.
+
 ---
 
 ## 9. Migration and Non-Goals
@@ -703,6 +721,12 @@ than in the design.
    boolean `pin=False` cannot mean both "leave it" and "unpin it", so the tool
    takes `True | None | False`; and a second session appending to today's entry
    need not re-send the paragraph it is not changing.
+7. **`body_mode` names the field, not the call.** `mode`, `write_mode` and
+   `save_mode` all describe the whole `remember`, which writes a claim, a
+   handover, a body and frontmatter in one breath — only the body accumulates, so
+   only the body gets a mode. `"w"` (replace, the default) and `"a"` (append) keep
+   the Write tool's vocabulary where that vocabulary is true, and `None` keeps the
+   merge rule: a caller that says nothing about the body changes nothing about it.
 
 Measured cost of the first release: the block is the core (≤4,000 characters) plus
 `## Recent` (≤1,600), paid once per conversation under the prompt cache; the delta

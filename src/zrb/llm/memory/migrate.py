@@ -46,7 +46,6 @@ from zrb.llm.memory.model import (
     KIND_LOOP,
     MAX_CLAIM_CHARS,
     MAX_FACT_BODY_CHARS,
-    MAX_HANDOVER_CHARS,
     MAX_ID_CHARS,
     STATUS_ACTIVE,
     STATUS_RETIRED,
@@ -429,9 +428,11 @@ def _migrate_handovers(source: str, dry_run: bool) -> dict[str, int]:
             # and body are newer than the journal's handover, so it is kept.
             if store.load_diary(day) is not None:
                 continue
-            handover = _cut(handover, MAX_HANDOVER_CHARS)
+            handover = _cut(handover, CFG.LLM_MEMORY_HANDOVER_MAX_CHARS)
             if injection_reason(handover):
-                handover = _WITHHELD_HANDOVER
+                # The notice stands in for text that could not be kept. It is cut
+                # like any other handover, so no stored handover outgrows the cap.
+                handover = _cut(_WITHHELD_HANDOVER, CFG.LLM_MEMORY_HANDOVER_MAX_CHARS)
                 claim = _WITHHELD_CLAIM
             else:
                 claim = _cut(_first_sentence(handover), MAX_CLAIM_CHARS)
@@ -442,7 +443,7 @@ def _migrate_handovers(source: str, dry_run: bool) -> dict[str, int]:
                     Diary(
                         id=day,
                         claim=claim,
-                        handover=handover[:700],
+                        handover=handover,
                         source="migrated",
                         updated=store.now(),
                     )
@@ -497,6 +498,10 @@ def _cut(text: str, limit: int) -> str:
     flat = " ".join(text.split())
     if len(flat) <= limit:
         return flat
+    if limit <= 0:
+        # A cap of zero (or a misconfigured negative) keeps nothing; cutting to
+        # `flat[:limit - 1]` would keep everything but the last character.
+        return ""
     return flat[: limit - 1].rsplit(" ", 1)[0] + "…"
 
 
