@@ -83,13 +83,13 @@ def create_summarizer_history_processor(
     beside them.
     """
     llm_limiter = limiter or default_llm_limiter
-    # A threshold passed in, or the knob pinned by its own env var, is a
-    # deliberate choice and stays fixed. Otherwise the trigger is recomputed
-    # on every call against the run's actual model (`/model` included)
-    # rather than baked in once here from a model-blind CFG default.
-    auto_conversational_threshold = not is_pinned(
-        conversational_token_threshold,
-        "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
+    # A threshold passed in, pinned by its own env var, or set as a project
+    # default in `zrb_init.py` is a deliberate choice and stays fixed.
+    # Otherwise the trigger is recomputed on every call against the run's
+    # actual model (`/model` included) rather than baked in once here from a
+    # model-blind CFG default.
+    auto_conversational_threshold = not _is_conversational_trigger_configured(
+        conversational_token_threshold
     )
     if conversational_token_threshold is None:
         conversational_token_threshold = (
@@ -167,6 +167,24 @@ def create_summarizer_history_processor(
         )
 
     return process_history
+
+
+def _is_conversational_trigger_configured(passed_threshold: int | None) -> bool:
+    """Whether the trigger was chosen rather than computed.
+
+    Three ways it is chosen: passed in by the caller, pinned by its own env
+    var, or set as `DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` —
+    a `zrb_init.py` default, which `CFG.LLM_...` already reflects. The third is
+    why `is_pinned` alone is not enough: recomputing over a project default
+    would answer with what the model's window allows instead of the number the
+    project asked for, and `explain-config` would go on printing the other one.
+    """
+    env_key = "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD"
+    if is_pinned(passed_threshold, env_key):
+        return True
+    return bool(
+        getattr(CFG, "DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "")
+    )
 
 
 async def _maybe_compress_history(
