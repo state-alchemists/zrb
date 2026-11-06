@@ -52,6 +52,104 @@ _DELTA_MAX_LINES = 3
 _DELTA_MAX_CHARS = 400
 
 
+# Said instead of the path when the configured root carries an instruction
+# marker. The root is not a claim, but it lands in the same prompt one does, and
+# a block whose contents can be steered by where its store sits is not data.
+STORE_WITHHELD = "The store's path is withheld: it reads as an instruction."
+
+
+def render_store_note(root: str) -> str:
+    """The line that says where the store is, and the path itself under it.
+
+    The block's own lines name their file as `facts/<id>.md`, and a search result
+    carries the same relative path — `facts/`, `diary/` or `log/` — so without the
+    root every pointer a model holds is one it cannot open: the contract says
+    "read that file" and the model is left guessing a directory.
+
+    The path is written verbatim rather than quoted or escaped, because escaping
+    is a language the reader has to decode: JSON doubles every backslash, so a
+    Windows root would arrive as something no tool would open. What a path may
+    not do is add a line, so its line breaks are folded to spaces — a path that
+    holds one is not a path any tool here would open either.
+
+    The root is configuration rather than a claim, and it is read by the same
+    model, so it is held to the same rule the claims are: a path carrying an
+    instruction marker is withheld, not written at all.
+
+    The check runs on the line as it is written, not on the raw value. A newline
+    inside the phrase hides it from a scan of the raw text, and the collapse that
+    keeps the path on one line puts the phrase back together — so checking before
+    collapsing checks the wrong string.
+    """
+    path = _one_line(root)
+    if injection_reason(path) is not None:
+        return STORE_WITHHELD
+    return (
+        "The store root — what a `facts/`, `diary/` or `log/` path is relative "
+        f"to — is the next line, verbatim:\n{path}"
+    )
+
+
+@dataclass(frozen=True)
+class CoreBudget:
+    """What the core costs, and what the cap kept out of the block.
+
+    ``chars`` is the rendered core *before* the cap, so an overflowed store
+    reports a figure above ``cap`` — the deficit rather than a truncated size.
+    ``cut`` is the actionable half: a percentage says how close the edge is, and
+    the count says what is already over it.
+    """
+
+    chars: int
+    cap: int
+    pinned: int
+    loops: int
+    cut: int
+
+
+def core_budget(facts: Sequence[Fact], cap: int) -> CoreBudget:
+    """The core as it renders, and as the cap leaves it.
+
+    A claim counts as cut when its own line is not among the lines the cap kept —
+    the same membership rule the caller uses to record what the block showed, so
+    the number reported to the model is the number the delta will catch up on.
+    """
+    pinned = [fact for fact in facts if _is_pinned_fact(fact)]
+    loops = [fact for fact in facts if _is_open_loop(fact)]
+    rendered = render_core(facts)
+    kept = set(cut_lines(rendered, cap).splitlines())
+    return CoreBudget(
+        chars=len(rendered),
+        cap=cap,
+        pinned=len(pinned),
+        loops=len(loops),
+        cut=sum(1 for fact in (*pinned, *loops) if _entry(fact) not in kept),
+    )
+
+
+def render_core_note(budget: CoreBudget) -> str:
+    """One line: how full the core is, and whether the cap is already cutting.
+
+    A claim the cap dropped leaves no trace in the block — it is simply absent —
+    so a session planning a pin cannot tell whether the room exists. The refusal
+    at write time is the backstop; this is the same fact, before the write.
+    """
+    ratio = budget.chars / budget.cap if budget.cap > 0 else 0.0
+    if budget.cut == 0:
+        cut = "nothing cut"
+    else:
+        cut = f"{_plural(budget.cut, 'claim')} cut by the cap"
+    return (
+        f"Core: {budget.chars} of {budget.cap} characters ({ratio:.0%}), "
+        f"{_plural(budget.pinned, 'pinned claim')} and "
+        f"{_plural(budget.loops, 'open loop')}, {cut}."
+    )
+
+
+def _plural(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
 def render_core(facts: Sequence[Fact]) -> str:
     """`core.md`: pinned facts under `## Always`, open loops under `## Open loops`.
 
@@ -133,9 +231,32 @@ def render_week(entries: dict[str, Diary], today_day: str, days: int = 7) -> lis
     return lines
 
 
-def compose_memory(core: str, recent: str) -> str:
-    """The injected block: the contract, the core, then `## Recent`."""
+def compose_memory(
+    core: str,
+    recent: str,
+    store_root: str = "",
+    budget: CoreBudget | None = None,
+) -> str:
+    """The injected block: the contract, its map, the core, then `## Recent`.
+
+    *store_root* and *budget* are where the block's own pointers resolve, and
+    what the core is spending to be here. Both are optional so a caller that
+    holds neither still renders a block the model can read.
+
+    The budget appears only when the core holds a claim: a store whose first
+    turn is `## Recent` alone has nothing to be full of, and a `0 of 4,000` line
+    would be noise in the one place the model is told what matters.
+    """
     parts = [MEMORY_CONTRACT]
+    # The address and the budget are one thought — where the store is, and what
+    # the core costs to be here — so they sit in one paragraph, not two.
+    map_lines: list[str] = []
+    if store_root:
+        map_lines.append(render_store_note(store_root))
+    if budget is not None and (budget.pinned or budget.loops):
+        map_lines.append(render_core_note(budget))
+    if map_lines:
+        parts.append("\n".join(map_lines))
     if core.strip():
         parts.append(core.strip())
     if recent.strip():
@@ -345,8 +466,13 @@ def _is_injectable(text: str) -> bool:
     half, so a hand-edited or migrated file cannot bypass that refusal. A line
     that trips it is dropped rather than rewritten: the file keeps the evidence,
     the prompt does not carry it.
+
+    The check runs on the collapsed form, because that is what the block emits.
+    A marker split across a line break is invisible to a scan of the raw text and
+    whole again after the collapse — the read-side form of the same evasion the
+    write side refuses with its one-line rule.
     """
-    return injection_reason(text) is None
+    return injection_reason(_one_line(text)) is None
 
 
 def core_line(fact: Fact) -> str | None:
