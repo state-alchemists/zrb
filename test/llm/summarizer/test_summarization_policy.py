@@ -345,9 +345,7 @@ async def test_the_per_request_trigger_stops_at_the_ceiling_too(monkeypatch):
         captured["threshold"] = conversational_token_threshold
         return messages
 
-    monkeypatch.setattr(
-        history_summarizer, "_maybe_compress_history", capture_compress
-    )
+    monkeypatch.setattr(history_summarizer, "_maybe_compress_history", capture_compress)
     processor = history_summarizer.create_summarizer_history_processor(
         conversational_agent=MagicMock(),
         message_agent=MagicMock(),
@@ -388,9 +386,7 @@ async def test_a_project_default_trigger_is_not_recomputed_away(monkeypatch):
         captured["threshold"] = conversational_token_threshold
         return messages
 
-    monkeypatch.setattr(
-        history_summarizer, "_maybe_compress_history", capture_compress
-    )
+    monkeypatch.setattr(history_summarizer, "_maybe_compress_history", capture_compress)
     processor = history_summarizer.create_summarizer_history_processor(
         conversational_agent=MagicMock(),
         message_agent=MagicMock(),

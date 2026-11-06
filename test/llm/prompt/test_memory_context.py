@@ -108,9 +108,7 @@ def test_the_block_says_how_many_claims_the_cap_cut(store_dir, monkeypatch):
     block = render_memory_block()
     assert block is not None
     missing = [
-        fact
-        for fact in store.load_facts()
-        if fact.pin and f"[{fact.id}]" not in block
+        fact for fact in store.load_facts() if fact.pin and f"[{fact.id}]" not in block
     ]
     assert missing
     assert f"{len(missing)} claim" in block

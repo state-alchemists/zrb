@@ -139,9 +139,7 @@ def test_llm_conversational_summarization_threshold_is_clamped_to_the_budget(
     monkeypatch,
 ):
     """An explicit threshold is honoured, but never past 75% of the budget."""
-    monkeypatch.setenv(
-        "ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "900000"
-    )
+    monkeypatch.setenv("ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "900000")
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "128000")
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "128000")
 
@@ -152,9 +150,7 @@ def test_llm_conversational_summarization_threshold_above_the_ceiling_is_kept(
     monkeypatch,
 ):
     """The ceiling is on the default: an explicit threshold is the answer given."""
-    monkeypatch.setenv(
-        "ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "250000"
-    )
+    monkeypatch.setenv("ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "250000")
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "1000000")
     monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "1000000")
 
