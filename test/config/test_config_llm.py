@@ -1,7 +1,10 @@
 import os
 
 from zrb.config.config import Config
-from zrb.config.helper import get_current_shell
+from zrb.config.helper import (
+    CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+    get_current_shell,
+)
 
 
 def test_llm_model(monkeypatch):
@@ -101,6 +104,61 @@ def test_llm_conversational_summarization_token_threshold(monkeypatch):
     monkeypatch.setenv("ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "30000")
     config = Config()
     assert config.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == 30000
+
+
+def test_llm_conversational_summarization_default_stops_at_200k(monkeypatch):
+    """A half-million-token window does not buy half a million tokens of history.
+
+    Every round re-sends the whole conversation, so the ceiling bounds how big
+    a conversation may get before it is compressed, not how often it is.
+    """
+    monkeypatch.delenv(
+        "ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", raising=False
+    )
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "1000000")
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "1000000")
+
+    assert CONVERSATIONAL_TRIGGER_DEFAULT_CEILING == 200_000
+    assert Config().LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == 200_000
+
+
+def test_llm_conversational_summarization_default_follows_a_smaller_budget(
+    monkeypatch,
+):
+    """Below the ceiling the budget still decides, so the default is a `min`."""
+    monkeypatch.delenv(
+        "ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", raising=False
+    )
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "128000")
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "128000")
+
+    assert Config().LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == 96_000
+
+
+def test_llm_conversational_summarization_threshold_is_clamped_to_the_budget(
+    monkeypatch,
+):
+    """An explicit threshold is honoured, but never past 75% of the budget."""
+    monkeypatch.setenv(
+        "ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "900000"
+    )
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "128000")
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "128000")
+
+    assert Config().LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == 96_000
+
+
+def test_llm_conversational_summarization_threshold_above_the_ceiling_is_kept(
+    monkeypatch,
+):
+    """The ceiling is on the default: an explicit threshold is the answer given."""
+    monkeypatch.setenv(
+        "ZRB_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "250000"
+    )
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_REQUEST", "1000000")
+    monkeypatch.setenv("ZRB_LLM_MAX_TOKEN_PER_MINUTE", "1000000")
+
+    assert Config().LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == 250_000
 
 
 def test_llm_repo_analysis_extraction_token_threshold(monkeypatch):

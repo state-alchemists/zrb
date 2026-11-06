@@ -15,7 +15,7 @@ from pydantic_ai.messages import (
 )
 
 from zrb.config.config import CFG
-from zrb.config.helper import get_max_token_threshold
+from zrb.config.helper import CONVERSATIONAL_TRIGGER_DEFAULT_CEILING
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer import history_summarizer
 from zrb.llm.summarizer.history_splitter import TAIL_BUDGET_RATIO, split_history
@@ -50,6 +50,22 @@ class TextLimiter(LLMLimiter):
 
     def truncate_text(self, text: str, max_tokens: int) -> str:
         return text
+
+
+class WindowLimiter(FixedLimiter):
+    """A limiter whose model reports a 500,000-token window.
+
+    75% of that window is 375,000 — exactly the uncapped trigger the ceiling
+    has to beat — and the rate limit is set just as high so it is not what
+    decides the answer.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.max_token_per_minute = 500_000
+
+    def get_effective_context_window(self, model=None) -> int:
+        return 500_000
 
 
 def _user(content: str) -> ModelRequest:
@@ -308,30 +324,82 @@ async def test_the_configured_tail_budget_reaches_the_split(tmp_path, monkeypatc
     assert captured["tail_budget_ratio"] == 0.25
 
 
-def test_the_trigger_defaults_to_three_quarters_of_the_prompt_budget(monkeypatch):
+@pytest.mark.asyncio
+async def test_the_per_request_trigger_stops_at_the_ceiling_too(monkeypatch):
+    """The chat path recomputes the trigger from the model, so it needs the cap.
+
+    With the knob unset, a recognized 500,000-token model raises the computed
+    trigger to 375,000. The configured default says 200,000, and the number
+    that actually reaches compaction has to be the same one — otherwise the
+    ceiling is only what `explain-config` prints.
+    """
+    from unittest.mock import MagicMock
+
     monkeypatch.delenv(
         f"{CFG.ENV_PREFIX}_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
         raising=False,
     )
-    cap = min(CFG.LLM_MAX_TOKEN_PER_MINUTE, CFG.LLM_MAX_TOKEN_PER_REQUEST)
+    captured = {}
 
-    assert CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == (
-        get_max_token_threshold(0.75, cap, cap)
+    async def capture_compress(messages, *, conversational_token_threshold, **kwargs):
+        captured["threshold"] = conversational_token_threshold
+        return messages
+
+    monkeypatch.setattr(
+        history_summarizer, "_maybe_compress_history", capture_compress
+    )
+    processor = history_summarizer.create_summarizer_history_processor(
+        conversational_agent=MagicMock(),
+        message_agent=MagicMock(),
+        limiter=WindowLimiter(),
     )
 
+    await processor(_turns(2))
 
-def test_a_configured_trigger_is_clamped_to_three_quarters(monkeypatch):
-    cap = min(CFG.LLM_MAX_TOKEN_PER_MINUTE, CFG.LLM_MAX_TOKEN_PER_REQUEST)
-    monkeypatch.setattr(
-        CFG,
-        "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
-        str(cap * 10),
+    assert captured["threshold"] == CONVERSATIONAL_TRIGGER_DEFAULT_CEILING
+
+
+@pytest.mark.asyncio
+async def test_a_project_default_trigger_is_not_recomputed_away(monkeypatch):
+    """A `DEFAULT_...` set in `zrb_init.py` is a decision, not a blank.
+
+    The recomputation answers what the model could take, not what the project
+    asked for, so it has to stay out of the way here exactly as a pinned env
+    var does — otherwise `explain-config` and the chat path disagree by
+    whatever the ceiling is.
+    """
+    from unittest.mock import MagicMock
+
+    monkeypatch.delenv(
+        f"{CFG.ENV_PREFIX}_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
         raising=False,
     )
-
-    assert CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == (
-        get_max_token_threshold(0.75, cap, cap)
+    monkeypatch.setattr(
+        CFG,
+        "DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
+        "50000",
+        raising=False,
     )
+    configured = CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
+    assert configured < CONVERSATIONAL_TRIGGER_DEFAULT_CEILING  # the setup took
+    captured = {}
+
+    async def capture_compress(messages, *, conversational_token_threshold, **kwargs):
+        captured["threshold"] = conversational_token_threshold
+        return messages
+
+    monkeypatch.setattr(
+        history_summarizer, "_maybe_compress_history", capture_compress
+    )
+    processor = history_summarizer.create_summarizer_history_processor(
+        conversational_agent=MagicMock(),
+        message_agent=MagicMock(),
+        limiter=WindowLimiter(),
+    )
+
+    await processor(_turns(2))
+
+    assert captured["threshold"] == configured
 
 
 @pytest.mark.asyncio

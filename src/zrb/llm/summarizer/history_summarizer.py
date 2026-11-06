@@ -5,7 +5,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.config.helper import get_max_token_threshold
+from zrb.config.helper import (
+    CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+    get_max_token_threshold,
+)
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import create_conversational_summarizer_agent
 from zrb.llm.agent_state import get_current_model, get_current_ui
@@ -52,7 +55,10 @@ else:
 # and its two-bound shape (`config/mixins/llm_content.py`'s
 # get_max_token_threshold(ratio, max_token_per_minute, max_token_per_request)):
 # the rate-limit budget caps the trigger, with the model's real context window
-# standing in for the model-blind request cap.
+# standing in for the model-blind request cap. The configured default adds a
+# `CONVERSATIONAL_TRIGGER_DEFAULT_CEILING` on top of that shape; this ratio is
+# what the split and the retry below measure their tail against, so it stays
+# the budget's share whatever the ceiling.
 _CONVERSATIONAL_TRIGGER_RATIO = 0.75
 
 
@@ -77,13 +83,13 @@ def create_summarizer_history_processor(
     beside them.
     """
     llm_limiter = limiter or default_llm_limiter
-    # A threshold passed in, or the knob pinned by its own env var, is a
-    # deliberate choice and stays fixed. Otherwise the trigger is recomputed
-    # on every call against the run's actual model (`/model` included)
-    # rather than baked in once here from a model-blind CFG default.
-    auto_conversational_threshold = not is_pinned(
-        conversational_token_threshold,
-        "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD",
+    # A threshold passed in, pinned by its own env var, or set as a project
+    # default in `zrb_init.py` is a deliberate choice and stays fixed.
+    # Otherwise the trigger is recomputed on every call against the run's
+    # actual model (`/model` included) rather than baked in once here from a
+    # model-blind CFG default.
+    auto_conversational_threshold = not _is_conversational_trigger_configured(
+        conversational_token_threshold
     )
     if conversational_token_threshold is None:
         conversational_token_threshold = (
@@ -118,10 +124,17 @@ def create_summarizer_history_processor(
         if auto_conversational_threshold:
             model = get_current_model() or CFG.LLM_MODEL
             context_window = llm_limiter.get_effective_context_window(model)
-            active_conversational_threshold = get_max_token_threshold(
-                _CONVERSATIONAL_TRIGGER_RATIO,
-                llm_limiter.max_token_per_minute,
-                context_window,
+            # The same ceiling `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`
+            # applies to its own default: this recomputation is the one the chat
+            # path uses, so leaving it uncapped would let a 500,000-token model
+            # compact at 375,000 while the configured default said 200,000.
+            active_conversational_threshold = min(
+                CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+                get_max_token_threshold(
+                    _CONVERSATIONAL_TRIGGER_RATIO,
+                    llm_limiter.max_token_per_minute,
+                    context_window,
+                ),
             )
 
         # Snapshot first: fat tool results are pruned in the pass below, and an
@@ -154,6 +167,24 @@ def create_summarizer_history_processor(
         )
 
     return process_history
+
+
+def _is_conversational_trigger_configured(passed_threshold: int | None) -> bool:
+    """Whether the trigger was chosen rather than computed.
+
+    Three ways it is chosen: passed in by the caller, pinned by its own env
+    var, or set as `DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` —
+    a `zrb_init.py` default, which `CFG.LLM_...` already reflects. The third is
+    why `is_pinned` alone is not enough: recomputing over a project default
+    would answer with what the model's window allows instead of the number the
+    project asked for, and `explain-config` would go on printing the other one.
+    """
+    env_key = "LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD"
+    if is_pinned(passed_threshold, env_key):
+        return True
+    return bool(
+        getattr(CFG, "DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD", "")
+    )
 
 
 async def _maybe_compress_history(

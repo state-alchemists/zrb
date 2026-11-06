@@ -6,7 +6,11 @@ import os
 from typing import TYPE_CHECKING
 
 from zrb.config.env_field import EnvField, on_off
-from zrb.config.helper import get_max_token_threshold, limit_token_threshold
+from zrb.config.helper import (
+    CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+    get_max_token_threshold,
+    limit_token_threshold,
+)
 from zrb.util.string.conversion import to_boolean
 
 
@@ -546,14 +550,22 @@ class LLMContentMixin:
         default_factory=lambda cfg: (
             cfg.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
             or str(
-                get_max_token_threshold(
-                    0.75,
-                    cfg.LLM_MAX_TOKEN_PER_MINUTE,
-                    cfg.LLM_MAX_TOKEN_PER_REQUEST,
+                min(
+                    CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+                    get_max_token_threshold(
+                        0.75,
+                        cfg.LLM_MAX_TOKEN_PER_MINUTE,
+                        cfg.LLM_MAX_TOKEN_PER_REQUEST,
+                    ),
                 )
             )
         ),
-        doc="Token threshold for conversational summarization.",
+        doc=(
+            "Token threshold for conversational summarization. Unset, it is 75% "
+            "of the model's prompt budget, capped at "
+            f"{CONVERSATIONAL_TRIGGER_DEFAULT_CEILING} tokens. Set explicitly, it "
+            "is a fixed value instead, clamped only to that 75% budget."
+        ),
     )
 
     LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD = EnvField(

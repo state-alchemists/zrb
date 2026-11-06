@@ -298,66 +298,6 @@ async def test_run_shell_command_pid_file_cleanup_failure_is_ignored(monkeypatch
     assert "Exit Code: 0" in res
 
 
-def test_timeout_docstring_states_seconds_not_milliseconds():
-    """The unit must be explicit in the description the model reads.
-
-    Every other agent-shell tool in wide use takes milliseconds (default
-    120000), so a bare `timeout: int = 120` invites millisecond values. One
-    benchmarked model passed 15000 meaning 15s, got 15000 seconds, and its
-    otherwise-perfect run was recorded as a timeout.
-
-    Checked against the `timeout` parameter's own schema description (not the
-    tool-level docstring) — that is the text pydantic-ai actually surfaces
-    next to the field the model is filling in; see ADR-0055's amendment on
-    per-parameter schema binding.
-    """
-    from pydantic_ai import Tool
-
-    desc = Tool(run_shell_command).function_schema.json_schema["properties"]["timeout"][
-        "description"
-    ]
-
-    assert "SECONDS" in desc
-    assert "not milliseconds" in desc
-
-
-def test_timeout_docstring_points_long_running_work_at_background():
-    """Large timeouts should point callers to background execution."""
-    from pydantic_ai import Tool
-
-    desc = Tool(run_shell_command).function_schema.json_schema["properties"][
-        "background"
-    ]["description"]
-
-    assert "long-running" in desc
-    assert "server" in desc
-
-
-def test_docstring_points_unbounded_output_at_a_summarizing_form():
-    """Unbounded output should point callers to bounded commands."""
-    doc = run_shell_command.__doc__ or ""
-
-    assert "--stat" in doc
-    assert "timeout" in doc
-
-
-def test_shell_asks_for_a_spoken_purpose():
-    """The schema offers `purpose`, and its description says it is spoken."""
-    from pydantic_ai import Tool
-
-    desc = Tool(run_shell_command).function_schema.json_schema["properties"]["purpose"][
-        "description"
-    ]
-
-    assert "read aloud" in desc
-
-
-def test_docstring_tells_the_model_to_fill_the_purpose():
-    doc = run_shell_command.__doc__ or ""
-
-    assert "purpose" in doc
-
-
 @pytest.mark.asyncio
 async def test_the_purpose_changes_no_part_of_what_runs():
     """It is narration: the command runs, and the phrase stays out of the

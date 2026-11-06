@@ -313,7 +313,7 @@ Both tiers run in the turn's one history-processor pass, before its first model 
 
 ### Token-First Retention
 
-Summarization triggers when total tokens cross 75% of the prompt budget (`LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`) or the history holds more than `LLM_HISTORY_SUMMARIZATION_WINDOW` messages (300 by default). The token trigger is the real one; the message count is a backstop for conversations of many small messages.
+Summarization triggers when total tokens cross the prompt budget (`LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`, which defaults to the smaller of 200,000 and 75% of the model's prompt budget) or the history holds more than `LLM_HISTORY_SUMMARIZATION_WINDOW` messages (300 by default). The token trigger is the real one; the message count is a backstop for conversations of many small messages. The ceiling exists because every round re-sends the whole conversation: past 200,000 tokens the extra history is paid for again on each round that follows, so how large a conversation may grow matters more than how often it is compressed.
 
 When it triggers, the split is token-first: keep the newest turns that fit 40% of the trigger threshold, which leaves the rest of the window for the turns that follow. The message window only caps that tail — it never decides the split on its own.
 

@@ -102,6 +102,11 @@ async def run_shell_command(
 
     Call Shell, not Bash; pass ``shell="bash"`` for bash.
 
+    Several commands already known to run in order belong in one call: ``&&``
+    in bash/zsh/sh and cmd, a ``;`` sequence in PowerShell 5 (which has no
+    ``&&``), one small script for node/ruby/php. Never chain a step that needs
+    this one's output; each extra call re-sends the conversation.
+
     stdin is closed — pass ``-y``, ``--yes``, or ``CI=true`` for prompts.
     Output is truncated: a successful command keeps its tail, a failed one
     keeps its beginning and its end. Full output is saved to a temp file whose
@@ -115,7 +120,8 @@ async def run_shell_command(
     Prefer the bounded form: ``git diff --stat`` before ``git diff``,
     ``--name-only`` before full contents, ``head``/``wc -l`` before a raw dump.
     An unscoped command can emit hundreds of megabytes and be killed by its own
-    timeout.
+    timeout. Prefer one call to several, too: ``git fetch && git rebase
+    origin/main`` costs one round where two calls cost two.
     """
     if background:
         return await _start_background_shell(
