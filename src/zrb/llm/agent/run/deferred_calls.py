@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.hook_result_extractor import (
@@ -31,13 +31,20 @@ from zrb.llm.tool_call.override_registry import discard_override, record_overrid
 from zrb.llm.util.tool_args import parse_tool_args
 
 if TYPE_CHECKING:
-    from pydantic_ai import DeferredToolRequests, DeferredToolResults
+    from pydantic_ai import (
+        DeferredToolRequests,
+        DeferredToolResults,
+        ToolApproved,
+        ToolDenied,
+    )
+    from pydantic_ai.messages import ToolCallPart
 
+    from zrb.llm.agent_state import AnyToolConfirmation
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.ui.any_ui import AnyUI
 
 
-def _as_tool_input(args: Any) -> Any:
+def _as_tool_input(args: object) -> object:
     """Parse JSON-string args into a dict for a hook's ``tool_input``, if possible."""
     if isinstance(args, str):
         try:
@@ -47,7 +54,7 @@ def _as_tool_input(args: Any) -> Any:
     return args
 
 
-def _record_override_if_edited(call, result: Any) -> None:
+def _record_override_if_edited(call: "ToolCallPart", result: object) -> None:
     """Record an edited `ToolApproved` so the tool result tells the model its args changed.
 
     `getattr` because some approval paths return a duck-typed stand-in
@@ -68,7 +75,7 @@ def _record_override_if_edited(call, result: Any) -> None:
 
 async def process_deferred_requests(
     result_output: "DeferredToolRequests",
-    effective_tool_confirmation: Any,
+    effective_tool_confirmation: AnyToolConfirmation,
     ui: AnyUI,
     hook_manager: HookManager,
     approval_channel: "AnyApprovalChannel | None" = None,
@@ -95,7 +102,7 @@ async def process_deferred_requests(
             continue
 
         if pre.allow:
-            result: Any = ToolApproved()
+            result: "ToolApproved | ToolDenied | None" = ToolApproved()
         else:
             result = await _resolve_approval(
                 call,
@@ -105,7 +112,12 @@ async def process_deferred_requests(
                 hook_manager,
                 force_ask=pre.force_prompt,
             )
-        current_results.approvals[call.tool_call_id] = result
+        # A path that resolved nothing stores None: pydantic-ai reads that as
+        # "no verdict", which is what the approval cascade means by falling
+        # through without one.
+        current_results.approvals[call.tool_call_id] = cast(
+            "ToolApproved | ToolDenied", result
+        )
         _record_override_if_edited(call, result)
 
         if isinstance(result, ToolDenied):
@@ -117,7 +129,9 @@ async def process_deferred_requests(
     return current_results
 
 
-async def _apply_pre_tool_use_hook(call, hook_manager: HookManager) -> PreToolDecision:
+async def _apply_pre_tool_use_hook(
+    call: "ToolCallPart", hook_manager: HookManager
+) -> PreToolDecision:
     """Fire PreToolUse for *call* and apply the argument rewrite it asks for."""
     hook_results = await hook_manager.execute_hooks(
         HookEvent.PRE_TOOL_USE,
@@ -167,13 +181,13 @@ def rebuild_for_denials(
 
 
 async def _resolve_approval(
-    call,
+    call: "ToolCallPart",
     ui: AnyUI,
-    effective_tool_confirmation: Any,
+    effective_tool_confirmation: AnyToolConfirmation,
     approval_channel: "AnyApprovalChannel | None",
     hook_manager: "HookManager | None" = None,
     force_ask: bool = False,
-):
+) -> "ToolApproved | ToolDenied | None":
     """Run the approval cascade for a single deferred call.
 
     Precedence:
@@ -243,7 +257,7 @@ async def _resolve_approval(
     return None
 
 
-def _approve_always_auto_approve_tools(call):
+def _approve_always_auto_approve_tools(call: "ToolCallPart") -> "ToolApproved | None":
     """Priority 0: tools that are the user interaction (e.g. `AskUserQuestion`)."""
     if not is_always_auto_approve(call.tool_name):
         return None
@@ -253,7 +267,12 @@ def _approve_always_auto_approve_tools(call):
     return ToolApproved()
 
 
-async def _apply_tool_policies(call, ui, effective_tool_confirmation, force_ask):
+async def _apply_tool_policies(
+    call: "ToolCallPart",
+    ui,
+    effective_tool_confirmation: AnyToolConfirmation,
+    force_ask: bool,
+) -> "ToolApproved | ToolDenied | None":
     """Priority 1: tool policies, from a `ToolCallHandler` or a UI method bound to one."""
     handler = None
     if isinstance(effective_tool_confirmation, ToolCallHandler):
@@ -273,7 +292,9 @@ async def _apply_tool_policies(call, ui, effective_tool_confirmation, force_ask)
     return None
 
 
-def _apply_permission_policy(call, force_ask):
+def _apply_permission_policy(
+    call: "ToolCallPart", force_ask: bool
+) -> "tuple[str | None, ToolApproved | ToolDenied | None]":
     """Priority 2: the permission ruleset.
 
     Returns the raw decision too: an ASK stops YOLO further down.
@@ -307,7 +328,9 @@ def _apply_permission_policy(call, force_ask):
     return decision, None
 
 
-def _resolve_non_interactive_ask(call, policy_decision, force_ask):
+def _resolve_non_interactive_ask(
+    call: "ToolCallPart", policy_decision: str | None, force_ask: bool
+) -> "ToolApproved | ToolDenied | None":
     """Priority 2b: settle a hard ASK when non-interactive.
 
     Otherwise it would block forever on the stdin prompt. `ExitPlanMode` is
@@ -326,7 +349,9 @@ def _resolve_non_interactive_ask(call, policy_decision, force_ask):
     )
 
 
-def _approve_by_default(call, policy_decision, force_ask):
+def _approve_by_default(
+    call: "ToolCallPart", policy_decision: str | None, force_ask: bool
+) -> "ToolApproved | None":
     """Priority 2c: the harness's bounded tools, approved unless a rule says otherwise.
 
     Below the permission policy on purpose: a user's `ask` is still a hard ask
@@ -352,7 +377,9 @@ def _approve_by_default(call, policy_decision, force_ask):
     return ToolApproved()
 
 
-def _approve_via_yolo(policy_decision, force_ask):
+def _approve_via_yolo(
+    policy_decision: str | None, force_ask: bool
+) -> "ToolApproved | None":
     """Priority 3: YOLO auto-approval; never overrides a policy or hook ASK."""
     # lazy: tests patch zrb.llm.agent_state.get_current_yolo; hoisting bypasses the mock
     from zrb.llm.agent_state import get_current_yolo
@@ -365,7 +392,9 @@ def _approve_via_yolo(policy_decision, force_ask):
     return ToolApproved()
 
 
-async def _apply_permission_request_hook(call, hook_manager):
+async def _apply_permission_request_hook(
+    call: "ToolCallPart", hook_manager: "HookManager | None"
+) -> "ToolApproved | ToolDenied | None":
     """Fire PermissionRequest once every auto-resolve path is exhausted.
 
     The hook may resolve the prompt via `hookSpecificOutput.decision.behavior`.
@@ -393,7 +422,11 @@ async def _apply_permission_request_hook(call, hook_manager):
     return None
 
 
-async def _announce_permission_resolved(call, verdict, hook_manager) -> None:
+async def _announce_permission_resolved(
+    call: "ToolCallPart",
+    verdict: "ToolApproved | ToolDenied | None",
+    hook_manager: "HookManager | None",
+) -> None:
     """Tell the hooks the wait is over, once the answer is known.
 
     Only the paths that reached an interactive approval call this, so a tool the policy
@@ -419,7 +452,9 @@ async def _announce_permission_resolved(call, verdict, hook_manager) -> None:
     )
 
 
-async def _request_via_approval_channel(call, approval_channel):
+async def _request_via_approval_channel(
+    call: "ToolCallPart", approval_channel: "AnyApprovalChannel"
+) -> "ToolApproved | ToolDenied":
     """Priority 4: ask over the approval channel; the first response wins."""
     CFG.LOGGER.debug(f"Using approval channel for {call.tool_name}")
     context = ApprovalContext(
@@ -433,7 +468,9 @@ async def _request_via_approval_channel(call, approval_channel):
     return approval_result.to_pydantic_result()
 
 
-async def _confirm_via_cli(call, ui, effective_tool_confirmation):
+async def _confirm_via_cli(
+    call: "ToolCallPart", ui: AnyUI, effective_tool_confirmation: AnyToolConfirmation
+) -> "ToolApproved | ToolDenied | None":
     """Priority 5: fall back to the interactive CLI prompt."""
     CFG.LOGGER.debug(f"Using CLI fallback for {call.tool_name}")
     if isinstance(effective_tool_confirmation, ToolCallHandler):

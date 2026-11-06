@@ -46,7 +46,15 @@ SRC = REPO_ROOT / "src" / "zrb"
 # -1 (1036->1035): `turn_states_preference` and `is_journal_due_for_turn` read a
 # message list only by asking each message what it is, so both take
 # `Sequence[object]` rather than `list[Any]`.
-ANY_ANNOTATIONS = 1031
+# -198 (1031->833): the agent run loop's boundaries are typed — a history is
+# `list[ModelMessage]` (`History`), print and event handlers and checkpoint
+# callbacks are named callables, the permission and sandbox policies are their
+# own classes, hook results are `HookExecutionResult`, tool args are
+# `dict[str, object]`, a tool's verdict is `ToolApproved | ToolDenied`, and the
+# parts the history normalizers take are `ModelRequestPart | ModelResponsePart`.
+# The `Any`s left in that package are the model's output (chosen by
+# `output_type` at runtime) and a tool's own return value.
+ANY_ANNOTATIONS = 833
 
 
 def _count_any(annotation: ast.expr | None) -> int:

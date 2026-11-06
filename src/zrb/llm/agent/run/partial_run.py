@@ -9,9 +9,12 @@ mistakes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING
 
 from zrb.util.truncate import truncate_display
+
+if TYPE_CHECKING:
+    from zrb.llm.agent.run.typing_aliases import History, UIEvent
 
 _TOOL_RESULT_PREVIEW_CHARS = 500
 
@@ -42,9 +45,14 @@ class PartialRunAccumulator:
     # cancellation handlers in `_execution_loop` as a fresher fallback than the
     # last completed `agent.run()` call's `run_history`. `None` until the first
     # event of a run arrives.
-    latest_history: list[Any] | None = None
+    latest_history: History | None = None
 
-    def record_event(self, event: Any) -> None:
+    def record_event(self, event: UIEvent) -> None:
+        """Record one event from the run's stream.
+
+        `UIEvent` also covers the trailing result event `agent.run()` returns
+        rather than streaming; the caller hands it here for usage accounting.
+        """
         # lazy: heavy third-party deferral
         from pydantic_ai import (
             PartStartEvent,

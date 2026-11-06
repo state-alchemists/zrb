@@ -13,9 +13,8 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.error_classifier import (
@@ -31,6 +30,11 @@ from zrb.llm.agent.run.history_utils import (
     strip_thinking_parts,
     strip_to_text_only,
 )
+
+if TYPE_CHECKING:
+    from pydantic_ai.messages import ModelMessage
+
+    from zrb.llm.agent.run.typing_aliases import PrintFn, PromptMessage
 
 
 @dataclass
@@ -58,18 +62,18 @@ class RetryOutcome:
     """Decision returned by `handle_stream_error`."""
 
     should_retry: bool
-    new_history: list[Any] | None = None
-    new_message: Any = None
+    new_history: list[ModelMessage] | None = None
+    new_message: PromptMessage = None
     clear_results: bool = False
 
 
 async def handle_stream_error(
     state: RetryState,
     exc: Exception,
-    current_history: list[Any],
-    current_message: Any,
-    run_history: list[Any],
-    print_fn: Callable[[str], Awaitable[Any] | Any],
+    current_history: list[ModelMessage],
+    current_message: PromptMessage,
+    run_history: list[ModelMessage],
+    print_fn: PrintFn,
     min_turns: TurnPruneFloor = TurnPruneFloor.ANY_TURN_MAY_DROP,
 ) -> RetryOutcome:
     """Decide whether/how to retry after a stream error. Sleeps for transient errors.
@@ -106,9 +110,9 @@ async def handle_stream_error(
 async def _retry_transient(
     state: RetryState,
     exc: Exception,
-    current_history: list[Any],
-    current_message: Any,
-    print_fn: Callable[[str], Awaitable[Any] | Any],
+    current_history: list[ModelMessage],
+    current_message: PromptMessage,
+    print_fn: PrintFn,
 ) -> RetryOutcome | None:
     """Back off and retry a 429/5xx, while the global transient budget lasts."""
     if not (
@@ -132,10 +136,10 @@ async def _retry_transient(
 def _retry_with_pruned_history(
     state: RetryState,
     exc: Exception,
-    current_history: list[Any],
-    current_message: Any,
-    run_history: list[Any],
-    print_fn: Callable[[str], Awaitable[Any] | Any],
+    current_history: list[ModelMessage],
+    current_message: PromptMessage,
+    run_history: list[ModelMessage],
+    print_fn: PrintFn,
     min_turns: TurnPruneFloor,
 ) -> RetryOutcome | None:
     """Drop the oldest turn and retry a context-length error.
@@ -169,10 +173,10 @@ def _retry_with_pruned_history(
 def _retry_without_thinking_parts(
     state: RetryState,
     exc: Exception,
-    current_history: list[Any],
-    current_message: Any,
-    run_history: list[Any],
-    print_fn: Callable[[str], Awaitable[Any] | Any],
+    current_history: list[ModelMessage],
+    current_message: PromptMessage,
+    run_history: list[ModelMessage],
+    print_fn: PrintFn,
     min_turns: TurnPruneFloor,
 ) -> RetryOutcome | None:
     """Strip thinking parts for a provider that demands `reasoning_content`."""
@@ -199,10 +203,10 @@ def _retry_without_thinking_parts(
 def _retry_with_tool_call_correction(
     state: RetryState,
     exc: Exception,
-    current_history: list[Any],
-    current_message: Any,
-    run_history: list[Any],
-    print_fn: Callable[[str], Awaitable[Any] | Any],
+    current_history: list[ModelMessage],
+    current_message: PromptMessage,
+    run_history: list[ModelMessage],
+    print_fn: PrintFn,
     min_turns: TurnPruneFloor,
 ) -> RetryOutcome | None:
     """Tell the model its tool name does not exist, and how to call one properly."""
@@ -265,10 +269,10 @@ def _retry_with_tool_call_correction(
 def _retry_with_text_only_history(
     state: RetryState,
     exc: Exception,
-    current_history: list[Any],
-    current_message: Any,
-    run_history: list[Any],
-    print_fn: Callable[[str], Awaitable[Any] | Any],
+    current_history: list[ModelMessage],
+    current_message: PromptMessage,
+    run_history: list[ModelMessage],
+    print_fn: PrintFn,
     min_turns: TurnPruneFloor,
 ) -> RetryOutcome | None:
     """Collapse history to text and retry once, for an unclassified 400.
@@ -313,10 +317,10 @@ def _retry_with_text_only_history(
 def _retry_without_stale_deferred_results(
     state: RetryState,
     exc: Exception,
-    current_history: list[Any],
-    current_message: Any,
-    run_history: list[Any],
-    print_fn: Callable[[str], Awaitable[Any] | Any],
+    current_history: list[ModelMessage],
+    current_message: PromptMessage,
+    run_history: list[ModelMessage],
+    print_fn: PrintFn,
     min_turns: TurnPruneFloor,
 ) -> RetryOutcome | None:
     """Clear pending tool results the summarizer orphaned, and retry.
@@ -356,7 +360,7 @@ _INVALID_TOOL_NAME_PATTERNS = (
 
 
 def _extract_invalid_tool_name(
-    exc: Exception, current_history: list[Any]
+    exc: Exception, current_history: list[ModelMessage]
 ) -> str | None:
     """Return the bad tool name from the error body or recent history, else ``None``.
 

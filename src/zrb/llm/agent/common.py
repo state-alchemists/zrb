@@ -27,11 +27,13 @@ from zrb.util.signature import can_take_positional
 from zrb.util.string.conversion import to_string
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
+    from collections.abc import Awaitable, Sequence
 
     from pydantic_ai import (
         Agent,
+        RunContext,
         Tool,
+        ToolReturn,
     )
     from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.messages import ModelMessage
@@ -40,6 +42,7 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
+    from pydantic_ai.toolsets.abstract import ToolsetTool
 
     # zrb applies history processors itself in runner._prepare_history (passing
     # an extra positional `reserved_tokens` arg), so the contract is broader
@@ -104,7 +107,7 @@ def wrap_tool(tool: "Tool | ToolFuncEither") -> "Tool | ToolFuncEither":
         )
 
 
-def safe_copy_result(result: Any) -> Any:
+def safe_copy_result(result: object) -> object:
     """Copy tool results so downstream processing cannot mutate the original."""
     if result is None:
         return None
@@ -120,7 +123,7 @@ def safe_copy_result(result: Any) -> Any:
         return result
 
 
-def _apply_tool_result_limit(tool_name: str, result: Any) -> Any:
+def _apply_tool_result_limit(tool_name: str, result: "ToolReturn") -> "ToolReturn":
     """Spill an oversized ``ToolReturn`` unless it is the read-back tool itself."""
     if tool_name == "ReadToolResult":
         return result
@@ -140,7 +143,7 @@ def _apply_tool_result_limit(tool_name: str, result: Any) -> Any:
     )
 
 
-def _oversize_metadata(value: Any) -> dict[str, Any]:
+def _oversize_metadata(value: object) -> dict[str, object]:
     """Record oversized textual results without changing their content."""
     if has_multimodal(value):
         return {}
@@ -221,14 +224,18 @@ def wrap_toolset(
 
     class SafeToolsetWrapper(WrapperToolset[None]):
         async def call_tool(
-            self, name: str, tool_args: dict[str, Any], ctx: Any, tool: Any
-        ) -> Any:
+            self,
+            name: str,
+            tool_args: dict[str, object],
+            ctx: "RunContext[None]",
+            tool: "ToolsetTool[None]",
+        ) -> "ToolReturn":
             # Consumed once per call: when the user edited the arguments during
             # approval, this note is the only way the model learns what ran
             # (see override_registry).
             override_note = pop_override_note(getattr(ctx, "tool_call_id", None))
 
-            def _with_override_note(result: Any) -> Any:
+            def _with_override_note(result: "ToolReturn") -> "ToolReturn":
                 return (
                     _append_tool_context(result, override_note)
                     if override_note
@@ -236,9 +243,10 @@ def wrap_toolset(
                 )
 
             try:
-                tool_args = await _fire_pre_tool_use(name, tool_args, ctx)
-                if isinstance(tool_args, ToolReturn):
-                    return tool_args  # PreToolUse hook denied the call
+                pre_use = await _fire_pre_tool_use(name, tool_args, ctx)
+                if isinstance(pre_use, ToolReturn):
+                    return pre_use  # PreToolUse hook denied the call
+                tool_args = pre_use
                 blocked = permission_gate(name, tool_capability(tool), tool_args or {})
                 if blocked is not None:
                     return blocked
@@ -272,7 +280,9 @@ def wrap_toolset(
     return SafeToolsetWrapper(toolset)
 
 
-async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> Any:
+async def _fire_pre_tool_use(
+    name: str, tool_args: dict[str, object], ctx: "RunContext[None]"
+) -> dict[str, object] | "ToolReturn":
     """Fire PreToolUse for a tool about to execute (Claude-compatible).
 
     Skipped when ``ctx.tool_call_approved`` is True: that call came through the
@@ -316,7 +326,7 @@ async def _fire_pre_tool_use(name: str, tool_args: dict[str, Any], ctx: Any) -> 
     return tool_args
 
 
-def _tool_response_payload(result: Any) -> dict[str, Any]:
+def _tool_response_payload(result: object) -> dict[str, object]:
     """Best-effort Claude-shaped ``tool_response``: a JSON-serializable dict.
 
     Claude's PostToolUse payload carries the tool's output under ``tool_response``.
@@ -337,7 +347,9 @@ def _tool_response_payload(result: Any) -> dict[str, Any]:
         return {"content": str(content)}
 
 
-async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any) -> Any:
+async def _fire_post_tool_use(
+    name: str, tool_args: dict[str, object], result: "ToolReturn"
+) -> "ToolReturn":
     """Fire PostToolUse after a successful tool call (Claude-compatible).
 
     A hook may block the result (discard it, feed the reason to the model) or
@@ -377,7 +389,7 @@ async def _fire_post_tool_use(name: str, tool_args: dict[str, Any], result: Any)
     return result
 
 
-def _append_tool_context(result: Any, extra: str) -> Any:
+def _append_tool_context(result: object, extra: str) -> "ToolReturn":
     """Append a PostToolUse hook's additionalContext to the model-facing output.
 
     Extends the ``ToolReturn`` return value so the model sees the tool result
@@ -396,7 +408,7 @@ def _append_tool_context(result: Any, extra: str) -> Any:
     return tool_return(_merge_content(result, extra))
 
 
-def _merge_content(content: Any, extra: str) -> Any:
+def _merge_content(content: object, extra: str) -> object:
     """Append ``extra`` to existing tool content, preserving its shape.
 
     Strings are concatenated; sequence content (pydantic-ai allows a list of
@@ -413,7 +425,7 @@ def _merge_content(content: Any, extra: str) -> Any:
 
 
 async def _fire_post_tool_use_failure(
-    name: str, tool_args: dict[str, Any], error: Exception
+    name: str, tool_args: dict[str, object], error: Exception
 ) -> None:
     """Fire PostToolUseFailure after a tool raised (observe-only, never raises)."""
     try:
@@ -431,8 +443,10 @@ async def _fire_post_tool_use_failure(
 
 
 def _assemble_toolsets(
-    tools: Any, toolsets: Any, yolo: "bool | Callable[..., bool]"
-) -> list:
+    tools: Sequence["Tool | ToolFuncEither"] | None,
+    toolsets: Sequence["AbstractToolset[None]"] | None,
+    yolo: "bool | Callable[..., bool]",
+) -> "list[AbstractToolset[None]]":
     """Every toolset the agent runs with, wrapped and approval-gated.
 
     Free functions become one `FunctionToolset`, which is wrapped like any
