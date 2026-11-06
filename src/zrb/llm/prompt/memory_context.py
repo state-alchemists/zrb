@@ -44,13 +44,14 @@ def render_memory_block() -> str | None:
     if not is_memory_on():
         return None
     try:
-        paths.prepare()
+        store_root = paths.prepare()
         facts = store.load_facts()
     except OSError:
         # An unwritable store is reported by the tools that write to it; a first
         # turn must not fail because a directory could not be created.
         return None
-    core = render.cut_lines(render.render_core(facts), CFG.LLM_MEMORY_CORE_MAX_CHARS)
+    core_cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
+    core = render.cut_lines(render.render_core(facts), core_cap)
     recent = render.cut_lines(
         render.render_recent(
             store.latest_handover(),
@@ -83,7 +84,11 @@ def render_memory_block() -> str | None:
     )
     if not core.strip() and not recent.strip():
         return None
-    return render.compose_memory(core, recent)
+    # The block carries its own address and budget: it tells the model to read
+    # `facts/<id>.md`, and a relative path with no root is one it cannot open.
+    return render.compose_memory(
+        core, recent, store_root, render.core_budget(facts, core_cap)
+    )
 
 
 def render_memory_delta() -> str | None:

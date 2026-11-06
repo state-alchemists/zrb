@@ -8,9 +8,11 @@ from zrb.llm.memory.render import (
     claim_key,
     compose_delta,
     compose_memory,
+    core_budget,
     cut_lines,
     plan_delta,
     render_core,
+    render_core_note,
     render_recent,
     render_week,
 )
@@ -114,6 +116,59 @@ def test_the_block_carries_the_contract_and_both_parts():
     assert "- A. [a]" in block
     assert "## Recent" in block
     assert block.endswith("</memory>")
+
+
+def test_the_block_names_the_store_so_its_paths_resolve():
+    """The lines say `facts/<id>.md`, and a search result says the same thing.
+
+    Both are relative, so without the root the model holds two halves of a path
+    and no way to join them; this line is what makes "read that file" an
+    instruction it can follow.
+    """
+    block = compose_memory(
+        f"{ALWAYS_HEADING}\n- A. [a]", "", "/home/user/.zrb/llm-notes/memory-v1"
+    )
+    assert "The store is `/home/user/.zrb/llm-notes/memory-v1`" in block
+    # Every scope a result can name, not only the two the contract mentions.
+    assert "`facts/`, `diary/` or `log/`" in block
+    # The map is read before the claims it describes.
+    assert block.index("The store is") < block.index(ALWAYS_HEADING)
+
+
+def test_the_block_reports_what_the_core_spends():
+    """A session planning a pin can see the room, not only inherit the refusal."""
+    facts = [_fact("a", "A is true.", pin=True), _fact("l", "Open.", kind="loop")]
+    budget = core_budget(facts, 4_000)
+    block = compose_memory(f"{ALWAYS_HEADING}\n- A. [a]", "", "/s", budget)
+    assert f"Core: {budget.chars} of 4000 characters" in block
+    assert "1 pinned claim and 1 open loop" in block
+    assert "nothing cut" in block
+
+
+def test_a_claim_the_cap_cut_is_counted_and_named():
+    """The percentage says how close the edge is; the count says what is past it."""
+    facts = [_fact("a", "A is true.", pin=True), _fact("b", "B is true.", pin=True)]
+    # Exactly the heading and the first claim fit: `b` is the one over the edge.
+    first_only = f"{ALWAYS_HEADING}\n- A is true. [a]"
+    budget = core_budget(facts, len(first_only))
+    assert budget.cut == 1
+    assert budget.chars > budget.cap
+    assert "1 claim cut by the cap" in render_core_note(budget)
+
+
+def test_a_core_with_no_claims_gets_no_budget_line():
+    """`## Recent` alone has nothing to be full of, and a `0 of 4,000` is noise."""
+    recent = "## Recent\n- Today (x): y"
+    block = compose_memory("", recent, "/s", core_budget([], 4_000))
+    assert "Core:" not in block
+    assert "The store is `/s`" in block
+
+
+def test_a_zero_cap_reports_a_deficit_rather_than_dividing_by_zero():
+    """`0` is documented as no pins fit, so every core claim is cut."""
+    budget = core_budget([_fact("a", "A is true.", pin=True)], 0)
+    assert budget.cut == 1
+    assert "(0%)" in render_core_note(budget)
 
 
 def test_the_delta_carries_only_versions_the_block_did_not_show():

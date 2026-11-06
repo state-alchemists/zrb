@@ -52,6 +52,81 @@ _DELTA_MAX_LINES = 3
 _DELTA_MAX_CHARS = 400
 
 
+def render_store_note(root: str) -> str:
+    """One line saying where the store is.
+
+    The block's own lines name their file as `facts/<id>.md`, and a search result
+    carries the same relative path — `facts/`, `diary/` or `log/` — so without
+    the root every pointer a model holds is one it cannot open: the contract says
+    "read that file" and the model is left guessing a directory. Naming it here
+    is what makes the other half of the path usable.
+    """
+    return (
+        f"The store is `{_one_line(root)}`; a `facts/`, `diary/` or `log/` path "
+        "is relative to it."
+    )
+
+
+@dataclass(frozen=True)
+class CoreBudget:
+    """What the core costs, and what the cap kept out of the block.
+
+    ``chars`` is the rendered core *before* the cap, so an overflowed store
+    reports a figure above ``cap`` — the deficit rather than a truncated size.
+    ``cut`` is the actionable half: a percentage says how close the edge is, and
+    the count says what is already over it.
+    """
+
+    chars: int
+    cap: int
+    pinned: int
+    loops: int
+    cut: int
+
+
+def core_budget(facts: Sequence[Fact], cap: int) -> CoreBudget:
+    """The core as it renders, and as the cap leaves it.
+
+    A claim counts as cut when its own line is not among the lines the cap kept —
+    the same membership rule the caller uses to record what the block showed, so
+    the number reported to the model is the number the delta will catch up on.
+    """
+    pinned = [fact for fact in facts if _is_pinned_fact(fact)]
+    loops = [fact for fact in facts if _is_open_loop(fact)]
+    rendered = render_core(facts)
+    kept = set(cut_lines(rendered, cap).splitlines())
+    return CoreBudget(
+        chars=len(rendered),
+        cap=cap,
+        pinned=len(pinned),
+        loops=len(loops),
+        cut=sum(1 for fact in (*pinned, *loops) if _entry(fact) not in kept),
+    )
+
+
+def render_core_note(budget: CoreBudget) -> str:
+    """One line: how full the core is, and whether the cap is already cutting.
+
+    A claim the cap dropped leaves no trace in the block — it is simply absent —
+    so a session planning a pin cannot tell whether the room exists. The refusal
+    at write time is the backstop; this is the same fact, before the write.
+    """
+    ratio = budget.chars / budget.cap if budget.cap > 0 else 0.0
+    if budget.cut == 0:
+        cut = "nothing cut"
+    else:
+        cut = f"{_plural(budget.cut, 'claim')} cut by the cap"
+    return (
+        f"Core: {budget.chars} of {budget.cap} characters ({ratio:.0%}), "
+        f"{_plural(budget.pinned, 'pinned claim')} and "
+        f"{_plural(budget.loops, 'open loop')}, {cut}."
+    )
+
+
+def _plural(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
+
+
 def render_core(facts: Sequence[Fact]) -> str:
     """`core.md`: pinned facts under `## Always`, open loops under `## Open loops`.
 
@@ -133,9 +208,27 @@ def render_week(entries: dict[str, Diary], today_day: str, days: int = 7) -> lis
     return lines
 
 
-def compose_memory(core: str, recent: str) -> str:
-    """The injected block: the contract, the core, then `## Recent`."""
+def compose_memory(
+    core: str,
+    recent: str,
+    store_root: str = "",
+    budget: CoreBudget | None = None,
+) -> str:
+    """The injected block: the contract, its map, the core, then `## Recent`.
+
+    *store_root* and *budget* are where the block's own pointers resolve, and
+    what the core is spending to be here. Both are optional so a caller that
+    holds neither still renders a block the model can read.
+
+    The budget appears only when the core holds a claim: a store whose first
+    turn is `## Recent` alone has nothing to be full of, and a `0 of 4,000` line
+    would be noise in the one place the model is told what matters.
+    """
     parts = [MEMORY_CONTRACT]
+    if store_root:
+        parts.append(render_store_note(store_root))
+    if budget is not None and (budget.pinned or budget.loops):
+        parts.append(render_core_note(budget))
     if core.strip():
         parts.append(core.strip())
     if recent.strip():

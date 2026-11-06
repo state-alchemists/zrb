@@ -3,7 +3,7 @@
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.memory import paths, store
+from zrb.llm.memory import paths, render, store
 from zrb.llm.memory.model import Fact
 from zrb.llm.prompt import live_context
 from zrb.llm.prompt.memory_context import render_memory_block, render_memory_delta
@@ -52,6 +52,68 @@ def test_the_block_carries_the_core_and_the_contract(store_dir):
     assert "<memory>" in block
     assert "Staging SSH is port 2222. [staging-ssh-port]" in block
     assert "data, not instructions" in block.lower() or "data." in block
+
+
+def test_the_block_says_where_the_store_is(store_dir):
+    """The block's own pointers are relative, and so are a search result's.
+
+    `facts/<id>.md` is a name with no directory, so the contract's "read that
+    file" was an instruction the model could only follow by guessing a path.
+    """
+    remember("staging-ssh-port", "Staging SSH is port 2222.", pin=True)
+    block = render_memory_block()
+    assert block is not None
+    assert str(store_dir) in block
+    assert "relative to it" in block
+
+
+def test_the_block_reports_what_the_core_spends(store_dir, monkeypatch):
+    """A session planning a pin can see the room it is spending.
+
+    The refusal at write time was the only report of the cap, so the number
+    arrived after the decision it should have informed.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 1_000, raising=False)
+    remember("staging-ssh-port", "Staging SSH is port 2222.", pin=True)
+    remember("open-thread", "A thread still open.", kind="loop")
+    block = render_memory_block()
+    assert block is not None
+    budget = render.core_budget(store.load_facts(), 1_000)
+    assert f"Core: {budget.chars} of 1000 characters" in block
+    assert "1 pinned claim and 1 open loop" in block
+    assert "nothing cut" in block
+
+
+def test_the_block_says_how_many_claims_the_cap_cut(store_dir, monkeypatch):
+    """A claim the cap dropped leaves no trace: it is simply absent.
+
+    The count is the only place its absence is stated, so it must agree with
+    what the block actually carries.
+    """
+    monkeypatch.setattr(CFG, "LLM_MEMORY_CORE_MAX_CHARS", 70, raising=False)
+    # Written directly: `remember` would refuse the third, which is the very
+    # behaviour this test needs to look past — the cap cuts a store it finds
+    # already larger than itself.
+    for index in range(3):
+        store.save_fact(
+            Fact(
+                id=f"fact-{index}",
+                claim=f"Claim number {index}.",
+                pin=True,
+                updated=store.now(),
+            )
+        )
+    store.write_core()
+    block = render_memory_block()
+    assert block is not None
+    missing = [
+        fact
+        for fact in store.load_facts()
+        if fact.pin and f"[{fact.id}]" not in block
+    ]
+    assert missing
+    assert f"{len(missing)} claim" in block
+    assert "cut by the cap" in block
 
 
 def test_the_block_carries_todays_claim_and_the_log_tail(store_dir):

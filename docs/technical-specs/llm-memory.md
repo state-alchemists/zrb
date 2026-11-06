@@ -227,12 +227,15 @@ The log is *events only*. There is no `## Handover` section and no `[handover]` 
 | 3 | Recent | newest `handover` + today's diary `claim` + last 4 log lines | 1,600 chars | Same moment as layer 2. |
 | 4 | On demand | `search` | 10 hits | Whenever layers 1–3 do not answer. |
 
-Standing cost: ≈ 6.4k characters, ≈ 1.6k tokens. Everything else in the store — every fact body, every diary body, every log line, every transcript — costs nothing until searched.
+Standing cost: ≈ 6.6k characters, ≈ 1.7k tokens. Everything else in the store — every fact body, every diary body, every log line, every transcript — costs nothing until searched.
 
 ### 4.2 What the model sees at session start
 
 ```
 <memory>
+The store is `/home/user/.zrb/llm-notes/memory-v1`; a `facts/`, `diary/` or `log/` path is relative to it.
+Core: 3412 of 4000 characters (85%), 9 pinned claims and 12 open loops, nothing cut.
+
 ## Always
 - Staging SSH is port 2222, key ~/.ssh/staging_ed25519 — not 22. [staging-ssh-port]
 - gofrendi wants diagrams over prose for architecture. [gofrendi-prefers-diagrams]
@@ -247,6 +250,8 @@ Standing cost: ≈ 6.4k characters, ≈ 1.6k tokens. Everything else in the stor
 - 18:41 — Fixed WSL ACL denial on the UNC workspace path. (zrb)
 </memory>
 ```
+
+The block opens with a contract saying its lines are data and where each claim's file is; the sample above omits it. Between that contract and the core sit the block's own two lines, both derived from the store rather than fixed text: the store's root — `facts/<id>.md`, and a `SearchMemory` result in any scope, are relative and a model told to "read that file" needs the directory — and the core's budget, because a claim the cap dropped leaves no trace and the refusal at write time was the only report of the cap. The budget line is absent when the core holds no claim. Both figures are the block's own moment: a pin later in the session moves them, and `Remember`'s reply reports the core as it then stands.
 
 The block is appended to the **first user message**, not the system prompt: the core changes when the agent learns, and putting a mutable block in the cached prefix would invalidate that cache on every write.
 
@@ -282,6 +287,22 @@ render_week(entries, today_day, days=7):
 The authored claim is the only line: a day with no entry renders nothing, because a day cannot be inferred from its log lines. An authored `claim` beats a derived theme, which is why the diary exists.
 
 All three are pure functions of files on disk. Rendering twice yields identical bytes, so the renderer writes only when the output changed.
+
+The block's own two lines are derived the same way, and are the only place the model is told its address and its budget:
+
+```
+render_store_note(root):
+    return f"The store is `{root}`; a `facts/`, `diary/` or `log/` path is relative to it."
+
+core_budget(facts, cap):
+    rendered = render_core(facts)
+    kept     = cut_lines(rendered, cap).splitlines()
+    return {chars: len(rendered), cap: cap,
+            pinned: count of pinned facts, loops: count of open loops,
+            cut: claims whose own line is not in kept}
+```
+
+`chars` is measured before the cap, so an overflowed core reports a figure above its cap — the deficit, not a truncated size. `cut` is the only statement that a claim was dropped: the block does not carry it, and the delta catches up at three lines a turn.
 
 ### 4.4 The session delta
 
