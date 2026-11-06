@@ -26,6 +26,7 @@ A claim is **one sentence, at most 160 characters**, stating what is true. The e
 
 - If the sentence could be a log line, it is not a diary line.
 - A moment between you and the user belongs in the diary's body: their words quoted, then one line of why it mattered. Never paraphrase a quote you do not have.
+- Add to the day, do not rewrite it: `Remember(kind="diary", body="…", body_mode="a")` puts this paragraph after whatever the day already says, so you write what has happened since rather than restating the day you were not there for. A day with no entry yet takes the same call and becomes one.
 - Do not write a handover. The assistant leaves that for the session that knows it is leaving.
 
 ## Closing a loop

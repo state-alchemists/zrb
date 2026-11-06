@@ -46,7 +46,6 @@ from zrb.llm.memory.model import (
     KIND_LOOP,
     MAX_CLAIM_CHARS,
     MAX_FACT_BODY_CHARS,
-    MAX_HANDOVER_CHARS,
     MAX_ID_CHARS,
     STATUS_ACTIVE,
     STATUS_RETIRED,
@@ -429,7 +428,7 @@ def _migrate_handovers(source: str, dry_run: bool) -> dict[str, int]:
             # and body are newer than the journal's handover, so it is kept.
             if store.load_diary(day) is not None:
                 continue
-            handover = _cut(handover, MAX_HANDOVER_CHARS)
+            handover = _cut(handover, CFG.LLM_MEMORY_HANDOVER_MAX_CHARS)
             if injection_reason(handover):
                 handover = _WITHHELD_HANDOVER
                 claim = _WITHHELD_CLAIM

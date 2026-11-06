@@ -24,18 +24,28 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from zrb.config.config import CFG
+
 FENCE = "---"
 
 MAX_ID_CHARS = 64
 MAX_CLAIM_CHARS = 160
+# A fact's body is evidence about one subject, written once, so its bound is a
+# constant. A diary's body is a page that grows through the day, and both diary
+# limits are settings: how long a page is belongs to whoever keeps the day.
 MAX_FACT_BODY_CHARS = 8_000
-MAX_DIARY_BODY_CHARS = 2_000
-MAX_HANDOVER_CHARS = 700
 
 KIND_FACT = "fact"
 KIND_LOOP = "loop"
 KIND_DIARY = "diary"
 KINDS = (KIND_FACT, KIND_LOOP, KIND_DIARY)
+
+# `body_mode`: whether a body replaces the stored one or is added after it. A
+# day grows as it goes on, so adding a paragraph must not mean reading the whole
+# day back and sending it again just to keep what it already said.
+BODY_REPLACE = "w"
+BODY_APPEND = "a"
+BODY_MODES = (BODY_REPLACE, BODY_APPEND)
 
 STATUS_ACTIVE = "active"
 STATUS_RETIRED = "retired"
@@ -309,10 +319,18 @@ def reason_error(reason: str, kind: str) -> str | None:
     return None
 
 
+def body_limit(kind: str) -> int:
+    """The most characters a body of *kind* may hold."""
+    if kind == KIND_DIARY:
+        return CFG.LLM_MEMORY_DIARY_MAX_CHARS
+    return MAX_FACT_BODY_CHARS
+
+
 def body_error(body: str | None, kind: str) -> str | None:
+    """Why *body*, as the caller wrote it, cannot be stored, or ``None``."""
     if body is None:
         return None
-    limit = MAX_DIARY_BODY_CHARS if kind == KIND_DIARY else MAX_FACT_BODY_CHARS
+    limit = body_limit(kind)
     if len(body) > limit:
         return (
             f"The body is at most {limit} characters and this one is {len(body)}: "
@@ -324,12 +342,31 @@ def body_error(body: str | None, kind: str) -> str | None:
     return None
 
 
+def body_overflow(merged: str, kind: str = KIND_DIARY) -> str | None:
+    """Why the body a write would *become* cannot be stored, or ``None``.
+
+    An append is measured as the whole it makes, not as the paragraph added to
+    it, and only the store's lock knows what that whole is: the caller's fragment
+    passed `body_error` already, so this asks the one question that needs the old
+    body — whether it still fits.
+    """
+    limit = body_limit(kind)
+    if len(merged) <= limit:
+        return None
+    return (
+        f"The day's body would be {len(merged)} characters and the cap is "
+        f"{limit}. Nothing was written. Shorten this paragraph, or replace the "
+        "body as a whole; the cap is the setting `LLM_MEMORY_DIARY_MAX_CHARS`."
+    )
+
+
 def handover_error(handover: str | None) -> str | None:
     if handover is None:
         return None
-    if len(handover) > MAX_HANDOVER_CHARS:
+    limit = CFG.LLM_MEMORY_HANDOVER_MAX_CHARS
+    if len(handover) > limit:
         return (
-            f"A handover is at most {MAX_HANDOVER_CHARS} characters and this one "
+            f"A handover is at most {limit} characters and this one "
             f"is {len(handover)}: it is the state of play, not the day."
         )
     return injection_reason(handover)

@@ -9,7 +9,9 @@ attention that recall never got back.
 Writing is the *only* way a memory changes, and every write is a merge: an
 argument left out keeps its stored value. A reviewer restating a claim therefore
 cannot silently drop the pin, and a session appending a diary paragraph cannot
-wipe the handover left by the session before it.
+wipe the handover left by the session before it. `body_mode='a'` adds a paragraph
+to the day it names instead of replacing the body, so a day can grow without the
+caller reading it back and sending it again.
 """
 
 from __future__ import annotations
@@ -22,6 +24,9 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.llm.memory import paths, render, search, store
 from zrb.llm.memory.model import (
+    BODY_APPEND,
+    BODY_MODES,
+    BODY_REPLACE,
     KIND_DIARY,
     KIND_FACT,
     KIND_LOOP,
@@ -31,6 +36,8 @@ from zrb.llm.memory.model import (
     Diary,
     Fact,
     body_error,
+    body_limit,
+    body_overflow,
     claim_error,
     date_error,
     handover_error,
@@ -164,7 +171,19 @@ def remember(
         Field(
             description=(
                 "Evidence: quotes, links, what was tried. Never injected, so it "
-                "may be as long as a page (8,000 characters; 2,000 for a diary)."
+                "may be as long as a page (8,000 characters; a diary's page is "
+                "shorter, and that cap is a setting)."
+            )
+        ),
+    ] = None,
+    body_mode: Annotated[
+        str | None,
+        Field(
+            description=(
+                "Diary only: 'w' replaces the body (the default); 'a' appends this "
+                "paragraph to the one already stored, so adding to a day does not "
+                "mean reading it back and sending it again. An append is measured "
+                "against the diary body cap as the whole it becomes."
             )
         ),
     ] = None,
@@ -189,6 +208,12 @@ def remember(
         wanted_kind = KIND_DIARY
     if wanted_kind is not None and wanted_kind not in KINDS:
         return f"{_NOT_A_KIND} [SYSTEM SUGGESTION]: retry with one of them."
+    if body_mode is not None and wanted_kind != KIND_DIARY:
+        return (
+            "`body_mode` governs a diary body only: a fact's body is evidence "
+            "about one subject and is replaced as a whole. [SYSTEM SUGGESTION]: "
+            "re-send without it; nothing was written."
+        )
     if wanted_kind == KIND_DIARY:
         if pin is not None:
             return (
@@ -196,7 +221,11 @@ def remember(
                 "one. [SYSTEM SUGGESTION]: re-send without it; nothing was "
                 "written."
             )
-        return _remember_diary(id, claim, handover, source, body)
+        problem = _body_mode_error(body_mode, body)
+        if problem:
+            return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
+        append = (body_mode or "").strip().lower() == BODY_APPEND
+        return _remember_diary(id, claim, handover, source, body, append)
     return _remember_fact(id, claim, wanted_kind, pin, tags, applies_when, source, body)
 
 
@@ -444,12 +473,44 @@ def _remembered(fact: Fact, core_chars: int) -> str:
     )
 
 
+def _body_mode_error(body_mode: str | None, body: str | None) -> str | None:
+    """Why *body_mode* cannot govern this write, or ``None``."""
+    if body_mode is None:
+        return None
+    mode = body_mode.strip().lower()
+    if mode not in BODY_MODES:
+        return (
+            f"`body_mode` is {BODY_REPLACE!r} (replace the body) or "
+            f"{BODY_APPEND!r} (append to it); {body_mode!r} is neither."
+        )
+    if mode == BODY_APPEND and not (body or "").strip():
+        return "An append has nothing to append: `body` is empty."
+    return None
+
+
+def _body_after(old: Diary | None, body: str | None, append: bool) -> str:
+    """The body this call leaves behind: added to, replaced, or left as it was."""
+    if append:
+        return _appended_body(old.body if old else "", body or "")
+    if body is None and old:
+        return old.body
+    return body or ""
+
+
+def _appended_body(previous: str, paragraph: str) -> str:
+    """*paragraph* after *previous*, one blank line apart."""
+    if not previous.strip():
+        return paragraph.strip()
+    return f"{previous.rstrip()}\n\n{paragraph.strip()}"
+
+
 def _remember_diary(
     day: str,
     claim: str,
     handover: str | None,
     source: str | None,
     body: str | None,
+    append: bool,
 ) -> str:
     for problem in (
         date_error(day),
@@ -462,7 +523,7 @@ def _remember_diary(
     try:
         paths.prepare()
         with store.locked():
-            return _remember_diary_locked(day, claim, handover, source, body)
+            return _remember_diary_locked(day, claim, handover, source, body, append)
     except FileLockTimeout:
         return _busy()
     except OSError as e:
@@ -475,6 +536,7 @@ def _remember_diary_locked(
     handover: str | None,
     source: str | None,
     body: str | None,
+    append: bool,
 ) -> str:
     old = store.load_diary(day)
     if old is None and not body:
@@ -483,6 +545,12 @@ def _remember_diary_locked(
             "it was rather than what happened (the log holds that). "
             "[SYSTEM SUGGESTION]: nothing was written."
         )
+    body_text = _body_after(old, body, append)
+    # Only an append needs the whole: the fragment the caller sent passed
+    # `body_error` already, and the cap is a question about what the day becomes.
+    problem = body_overflow(body_text) if append else None
+    if problem:
+        return f"{problem} [SYSTEM SUGGESTION]: nothing was written."
     entry = Diary(
         id=day,
         claim=claim,
@@ -490,10 +558,16 @@ def _remember_diary_locked(
         status=STATUS_ACTIVE,
         source=old.source if source is None and old else (source or ""),
         updated=store.now(),
-        body=old.body if body is None and old else (body or ""),
+        body=body_text,
     )
     store.save_diary(entry)
     store.git_commit(f"diary: {entry.id}")
+    if append:
+        added = len(entry.body) - len(old.body if old else "")
+        return (
+            f"Appended {added} characters to the day {entry.id} (body "
+            f"{len(entry.body)}/{body_limit(KIND_DIARY)} characters)."
+        )
     return f"Remembered the day {entry.id} ({len(entry.body)} characters of body)."
 
 
