@@ -63,8 +63,9 @@ def test_the_block_says_where_the_store_is(store_dir):
     remember("staging-ssh-port", "Staging SSH is port 2222.", pin=True)
     block = render_memory_block()
     assert block is not None
+    # Verbatim, so a Windows root arrives as a path and not as an escaped string.
     assert str(store_dir) in block
-    assert "relative to it" in block
+    assert "is relative to" in block
 
 
 def test_the_block_reports_what_the_core_spends(store_dir, monkeypatch):

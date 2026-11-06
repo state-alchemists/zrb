@@ -233,7 +233,8 @@ Standing cost: ≈ 6.6k characters, ≈ 1.7k tokens. Everything else in the stor
 
 ```
 <memory>
-The store is `/home/user/.zrb/llm-notes/memory-v1`; a `facts/`, `diary/` or `log/` path is relative to it.
+The store root — what a `facts/`, `diary/` or `log/` path is relative to — is the next line, verbatim:
+/home/user/.zrb/llm-notes/memory-v1
 Core: 3412 of 4000 characters (85%), 9 pinned claims and 12 open loops, nothing cut.
 
 ## Always
@@ -251,7 +252,7 @@ Core: 3412 of 4000 characters (85%), 9 pinned claims and 12 open loops, nothing 
 </memory>
 ```
 
-The block opens with a contract saying its lines are data and where each claim's file is; the sample above omits it. Between that contract and the core sit the block's own two lines, both derived from the store rather than fixed text: the store's root — `facts/<id>.md`, and a `SearchMemory` result in any scope, are relative and a model told to "read that file" needs the directory — and the core's budget, because a claim the cap dropped leaves no trace and the refusal at write time was the only report of the cap. The budget line is absent when the core holds no claim. Both figures are the block's own moment: a pin later in the session moves them, and `Remember`'s reply reports the core as it then stands.
+The block opens with a contract saying its lines are data and where each claim's file is; the sample above omits it. Between that contract and the core sit the block's own two lines, both derived from the store rather than fixed text: the store's root — `facts/<id>.md`, and a `SearchMemory` result in any scope, are relative and a model told to "read that file" needs the directory — and the core's budget, because a claim the cap dropped leaves no trace and the refusal at write time was the only report of the cap. The budget line is absent when the core holds no claim. Both figures are the block's own moment: a pin later in the session moves them, and `Remember`'s reply reports the core as it then stands. The root is configuration rather than a claim, and it is read by the same model, so it takes the claim rule too: the path is written verbatim on its own line, with any line break folded to a space, so it can be handed to a tool as it stands — quoting or escaping it would make it a language the reader has to decode, and JSON escapes every backslash of a Windows path — and a path carrying an instruction marker is withheld, the way a claim that reads as an instruction is — checked on the collapsed line rather than the raw value, since a marker split by a line break is invisible before the collapse and whole again after it.
 
 The block is appended to the **first user message**, not the system prompt: the core changes when the agent learns, and putting a mutable block in the cached prefix would invalidate that cache on every write.
 
@@ -292,7 +293,9 @@ The block's own two lines are derived the same way, and are the only place the m
 
 ```
 render_store_note(root):
-    return f"The store is `{root}`; a `facts/`, `diary/` or `log/` path is relative to it."
+    if injection_reason(root): return "The store's path is withheld: it reads as an instruction."
+    return ("The store root — what a `facts/`, `diary/` or `log/` path is relative "
+            "to — is the next line, verbatim:\n" + one_line(root))
 
 core_budget(facts, cap):
     rendered = render_core(facts)

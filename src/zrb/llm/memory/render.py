@@ -52,18 +52,41 @@ _DELTA_MAX_LINES = 3
 _DELTA_MAX_CHARS = 400
 
 
+# Said instead of the path when the configured root carries an instruction
+# marker. The root is not a claim, but it lands in the same prompt one does, and
+# a block whose contents can be steered by where its store sits is not data.
+STORE_WITHHELD = "The store's path is withheld: it reads as an instruction."
+
+
 def render_store_note(root: str) -> str:
-    """One line saying where the store is.
+    """The line that says where the store is, and the path itself under it.
 
     The block's own lines name their file as `facts/<id>.md`, and a search result
-    carries the same relative path — `facts/`, `diary/` or `log/` — so without
-    the root every pointer a model holds is one it cannot open: the contract says
-    "read that file" and the model is left guessing a directory. Naming it here
-    is what makes the other half of the path usable.
+    carries the same relative path — `facts/`, `diary/` or `log/` — so without the
+    root every pointer a model holds is one it cannot open: the contract says
+    "read that file" and the model is left guessing a directory.
+
+    The path is written verbatim rather than quoted or escaped, because escaping
+    is a language the reader has to decode: JSON doubles every backslash, so a
+    Windows root would arrive as something no tool would open. What a path may
+    not do is add a line, so its line breaks are folded to spaces — a path that
+    holds one is not a path any tool here would open either.
+
+    The root is configuration rather than a claim, and it is read by the same
+    model, so it is held to the same rule the claims are: a path carrying an
+    instruction marker is withheld, not written at all.
+
+    The check runs on the line as it is written, not on the raw value. A newline
+    inside the phrase hides it from a scan of the raw text, and the collapse that
+    keeps the path on one line puts the phrase back together — so checking before
+    collapsing checks the wrong string.
     """
+    path = _one_line(root)
+    if injection_reason(path) is not None:
+        return STORE_WITHHELD
     return (
-        f"The store is `{_one_line(root)}`; a `facts/`, `diary/` or `log/` path "
-        "is relative to it."
+        "The store root — what a `facts/`, `diary/` or `log/` path is relative "
+        f"to — is the next line, verbatim:\n{path}"
     )
 
 
@@ -225,10 +248,15 @@ def compose_memory(
     would be noise in the one place the model is told what matters.
     """
     parts = [MEMORY_CONTRACT]
+    # The address and the budget are one thought — where the store is, and what
+    # the core costs to be here — so they sit in one paragraph, not two.
+    map_lines: list[str] = []
     if store_root:
-        parts.append(render_store_note(store_root))
+        map_lines.append(render_store_note(store_root))
     if budget is not None and (budget.pinned or budget.loops):
-        parts.append(render_core_note(budget))
+        map_lines.append(render_core_note(budget))
+    if map_lines:
+        parts.append("\n".join(map_lines))
     if core.strip():
         parts.append(core.strip())
     if recent.strip():
@@ -438,8 +466,13 @@ def _is_injectable(text: str) -> bool:
     half, so a hand-edited or migrated file cannot bypass that refusal. A line
     that trips it is dropped rather than rewritten: the file keeps the evidence,
     the prompt does not carry it.
+
+    The check runs on the collapsed form, because that is what the block emits.
+    A marker split across a line break is invisible to a scan of the raw text and
+    whole again after the collapse — the read-side form of the same evasion the
+    write side refuses with its one-line rule.
     """
-    return injection_reason(text) is None
+    return injection_reason(_one_line(text)) is None
 
 
 def core_line(fact: Fact) -> str | None:
