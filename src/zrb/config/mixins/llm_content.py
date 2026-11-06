@@ -24,6 +24,20 @@ def _memory_dir_default(cfg) -> str:
     return os.path.join(cfg.LLM_NOTES_DIR, "memory-v1")
 
 
+CONVERSATIONAL_TRIGGER_DEFAULT_CEILING = 200_000
+"""Ceiling on the *default* compaction trigger, in tokens.
+
+The default is the smaller of this and the model's own budget — 75% of
+`min(MAX_TOKEN_PER_MINUTE, MAX_TOKEN_PER_REQUEST)`. A window large enough to
+hold half a million tokens would otherwise let one conversation grow until it
+reaches the trigger, and every round re-sends the whole conversation, so the
+size the history is allowed to reach matters more than how often it is
+compressed: past this point the extra context is paid for on every round that
+follows. An explicitly configured threshold still wins — this bounds the
+default, not the answer the user gave.
+"""
+
+
 class LLMContentMixin:
     if TYPE_CHECKING:
         # Attributes supplied by sibling mixins on the composed Config class.
@@ -546,14 +560,22 @@ class LLMContentMixin:
         default_factory=lambda cfg: (
             cfg.DEFAULT_LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD
             or str(
-                get_max_token_threshold(
-                    0.75,
-                    cfg.LLM_MAX_TOKEN_PER_MINUTE,
-                    cfg.LLM_MAX_TOKEN_PER_REQUEST,
+                min(
+                    CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+                    get_max_token_threshold(
+                        0.75,
+                        cfg.LLM_MAX_TOKEN_PER_MINUTE,
+                        cfg.LLM_MAX_TOKEN_PER_REQUEST,
+                    ),
                 )
             )
         ),
-        doc="Token threshold for conversational summarization.",
+        doc=(
+            "Token threshold for conversational summarization. Unset, it is 75% "
+            "of the model's prompt budget, capped at "
+            f"{CONVERSATIONAL_TRIGGER_DEFAULT_CEILING} tokens. Set explicitly, it "
+            "is a fixed value instead, clamped only to that 75% budget."
+        ),
     )
 
     LLM_MESSAGE_SUMMARIZATION_TOKEN_THRESHOLD = EnvField(

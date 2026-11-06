@@ -52,7 +52,10 @@ else:
 # and its two-bound shape (`config/mixins/llm_content.py`'s
 # get_max_token_threshold(ratio, max_token_per_minute, max_token_per_request)):
 # the rate-limit budget caps the trigger, with the model's real context window
-# standing in for the model-blind request cap.
+# standing in for the model-blind request cap. The configured default adds a
+# `CONVERSATIONAL_TRIGGER_DEFAULT_CEILING` on top of that shape; this ratio is
+# what the split and the retry below measure their tail against, so it stays
+# the budget's share whatever the ceiling.
 _CONVERSATIONAL_TRIGGER_RATIO = 0.75
 
 

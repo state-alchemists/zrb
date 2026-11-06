@@ -16,6 +16,7 @@ from pydantic_ai.messages import (
 
 from zrb.config.config import CFG
 from zrb.config.helper import get_max_token_threshold
+from zrb.config.mixins.llm_content import CONVERSATIONAL_TRIGGER_DEFAULT_CEILING
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.summarizer import history_summarizer
 from zrb.llm.summarizer.history_splitter import TAIL_BUDGET_RATIO, split_history
@@ -315,8 +316,21 @@ def test_the_trigger_defaults_to_three_quarters_of_the_prompt_budget(monkeypatch
     )
     cap = min(CFG.LLM_MAX_TOKEN_PER_MINUTE, CFG.LLM_MAX_TOKEN_PER_REQUEST)
 
-    assert CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == (
-        get_max_token_threshold(0.75, cap, cap)
+    assert CFG.LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD == min(
+        CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+        get_max_token_threshold(0.75, cap, cap),
+    )
+
+
+def test_the_default_trigger_stops_at_the_ceiling_of_a_large_budget():
+    """A half-million-token window does not buy half a million tokens of history.
+
+    Every round re-sends the whole conversation, so the ceiling bounds what a
+    conversation may reach before it is compressed, not how often it is.
+    """
+    assert CONVERSATIONAL_TRIGGER_DEFAULT_CEILING == 200_000
+    assert get_max_token_threshold(0.75, 500_000, 500_000) > (
+        CONVERSATIONAL_TRIGGER_DEFAULT_CEILING
     )
 
 
