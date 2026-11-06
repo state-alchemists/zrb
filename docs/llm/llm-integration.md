@@ -132,7 +132,7 @@ By default, Zrb prompts for confirmation before executing most tools. This is co
 
 | Mode | Behavior |
 |------|----------|
-| **YOLO off** | Tools require confirmation unless a tool policy auto-approves them (the built-in chat auto-approves, e.g., `Read`/`LS`/`Glob`/`Grep` inside the current directory, `WebSearch`/`WebFetch`, and safe shell commands) |
+| **YOLO off** | Tools require confirmation unless a tool policy auto-approves them (the built-in chat auto-approves, e.g., `Read`/`LS`/`Glob`/`Grep` inside the current directory or the worktree the session entered, `WebSearch`/`WebFetch`, and safe shell commands) |
 | **YOLO on** | All tools auto-approved |
 | **Selective YOLO** | Only specified tools auto-approved (e.g., `/yolo Write,Edit`) |
 | **Permission Policy** | Fine-grained `ALLOW`/`DENY`/`ASK` rules that can override YOLO |
