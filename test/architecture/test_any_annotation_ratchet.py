@@ -10,50 +10,6 @@ import pathlib
 REPO_ROOT = pathlib.Path(__file__).parents[2]
 SRC = REPO_ROOT / "src" / "zrb"
 
-# Baseline history: -2 queue types, -1 dead `_admits`, -4 daemon-thread hooks,
-# -1 steering context (`submit_user_message_via_queue` no longer takes one),
-# -10 (1087->1077): the history splitter's message lists are typed
-# `list[ModelMessage]` now that the split is planned over real messages rather
-# than counted indices, and the archive's role label takes `object` (it only
-# asks the message what it is).
-# -18 (1077->1059): the RAG tool and its config mixin were removed.
-# -1 (1059->1058): `_retry_prompt_to_text(part: Any)` merged into
-# `_tool_return_to_text`, which already takes an `Any` part.
-# -2 (1058->1056): `_drop_summary_parts` became `_drop_synthetic_parts`, typed
-# over `ModelMessage` in and out, and the two synthetic-part predicates take
-# `object` (they only ask the part what it is).
-# -1 (1056->1055): `_search_with_python` became `_python_matches` and returns
-# `list[tuple[str, int, str]]` — the rows it matched — now that the ranking and
-# the result dict live in `_format_results`, instead of building `dict[str, Any]`
-# itself.
-# -1 (1055->1054): the shared `*_float` frame builder is gone — the panels dock
-# into the layout, so each builds its own `Frame` from typed state.
-# -2 (1054->1052): `subtree_model`'s `to_dict` returns `dict[str, object]` — it
-# only passes values through to `json.dumps`.
-# -3 (1052->1049): the two echo emitters take an `AnyUI` target and
-# `_restore_snapshot` takes a `SnapshotManager`.
-# -1 (1049->1048): the ffmpeg camera backend's device cache is typed fields
-# rather than a `dict[str, Any]`.
-# -4 (1048->1044): `TerminalApprovalChannel` hands an edit to the handler's
-# response handlers through `run_response_handlers`, typed over `ToolCallHandler`
-# and `ToolCallPart` instead of `Any`.
-# -3 (1044->1041): `_render_parts` dropped its unused `model` parameter,
-# `_create_summary_model_request` returns `ModelMessage`, and the
-# `_summarize_fat_messages` wrapper is gone.
-# -3 (1041->1038): `submit_user_message_via_queue` and `_collect_attachments`
-# take `Sequence[AnyUI]` sources now that `take_pending_attachments` is declared
-# on `AnyUI`, and `_collect_attachments` no longer types a probed callable.
-# -1 (1036->1035): `turn_states_preference` and `is_journal_due_for_turn` read a
-# message list only by asking each message what it is, so both take
-# `Sequence[object]` rather than `list[Any]`.
-# -198 (1031->833): the agent run loop's boundaries are typed — a history is
-# `list[ModelMessage]` (`History`), print and event handlers and checkpoint
-# callbacks are named callables, the permission and sandbox policies are their
-# own classes, hook results are `HookExecutionResult`, tool args are
-# `dict[str, object]`, a tool's verdict is `ToolApproved | ToolDenied`, and the
-# parts the history normalizers take are `ModelRequestPart | ModelResponsePart`.
-# The `Any`s left in that package are the model's output (chosen by
-# `output_type` at runtime) and a tool's own return value.
 ANY_ANNOTATIONS = 833
 
 
