@@ -4,7 +4,7 @@ confirmations through the per-session `HTTPChatApprovalChannel`."""
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+from typing import TYPE_CHECKING
 
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.input_source import InputProvenance
@@ -12,6 +12,14 @@ from zrb.llm.ui import EventDrivenUI, UIConfig
 from zrb.runner.chat.chat_session_manager import ChatSessionManager
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.util.cli.style import remove_style
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from pydantic_ai import ToolApproved, ToolDenied
+    from pydantic_ai.messages import ToolCallPart
+
+    from zrb.llm.any_ui import AnyUI
 
 
 # mccabe sums the nested `HTTPUI` methods and the `http_ui_factory` closure into
@@ -21,7 +29,7 @@ def create_http_ui_factory(  # noqa: C901 -- factory fn; nested handlers are tri
     session_id: str,
     session_name: str,
     approval_channel: HTTPChatApprovalChannel,
-):
+) -> "Callable[..., AnyUI]":
     """Build a UI factory closed over per-session HTTP collaborators."""
 
     class HTTPUI(EventDrivenUI):
@@ -66,7 +74,9 @@ def create_http_ui_factory(  # noqa: C901 -- factory fn; nested handlers are tri
             finally:
                 self._waiting_for_input = False
 
-        async def confirm_tool_execution(self, call: Any) -> Any:
+        async def confirm_tool_execution(
+            self, call: "ToolCallPart"
+        ) -> "ToolApproved | ToolDenied | None":
             context = ApprovalContext(
                 tool_name=call.tool_name,
                 tool_args=call.args if isinstance(call.args, dict) else {},

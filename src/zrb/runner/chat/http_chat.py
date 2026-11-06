@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import json
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.approval.any_approval_channel import (
@@ -10,7 +12,10 @@ from zrb.llm.approval.any_approval_channel import (
 )
 
 if TYPE_CHECKING:
-    from zrb.runner.chat.chat_session_manager import ChatSessionManager
+    from zrb.runner.chat.chat_session_manager import (
+        ChatSessionManager,
+        PendingApproval,
+    )
 
 
 class HTTPChatApprovalChannel(AnyApprovalChannel):
@@ -25,7 +30,7 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
     def is_waiting_for_edit(self) -> bool:
         return self._waiting_for_edit_tool_call_id is not None
 
-    def get_editing_args(self) -> dict[str, Any] | None:
+    def get_editing_args(self) -> dict[str, object] | None:
         if self._waiting_for_edit_tool_call_id is None:
             return None
         context = self._pending_context.get(self._waiting_for_edit_tool_call_id)
@@ -44,8 +49,8 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
     def has_pending_approvals(self) -> bool:
         return len(self._pending) > 0
 
-    def get_pending_approvals(self) -> list[dict[str, Any]]:
-        result = []
+    def get_pending_approvals(self) -> list[PendingApproval]:
+        result: list[PendingApproval] = []
         for tool_call_id, ctx in self._pending_context.items():
             result.append(
                 {
@@ -87,8 +92,13 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
     ) -> None:
         await self.session_manager.broadcast(self.session_id, message)
 
-    def handle_response(self, response: str, tool_call_id: str | None = None) -> bool:
-        if self._waiting_for_edit_tool_call_id:
+    def handle_response(
+        self, response: object, tool_call_id: str | None = None
+    ) -> bool:
+        # Only text can be parsed as edited args; a structured body cannot be
+        # an edit response, and reaching `handle_edit_response` with one would
+        # have crashed on `str.strip`.
+        if self._waiting_for_edit_tool_call_id and isinstance(response, str):
             if self.handle_edit_response(response):
                 return True
             # The stale edit slot was cleared; answer a pending approval instead.
@@ -125,7 +135,7 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
         return True
 
     def handle_edit_response_obj(
-        self, args: dict, tool_call_id: str | None = None
+        self, args: dict[str, object], tool_call_id: str | None = None
     ) -> bool:
         """Resolve a pending edit with already-decoded ``args``.
 
@@ -177,7 +187,7 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
         if error is not None:
             CFG.LOGGER.warning(f"Failed to broadcast approval update: {error!r}")
 
-    def _apply_response(self, tool_call_id: str, response: str) -> None:
+    def _apply_response(self, tool_call_id: str, response: object) -> None:
         if tool_call_id not in self._pending:
             return
         if not isinstance(response, str):
@@ -215,7 +225,7 @@ class HTTPChatApprovalChannel(AnyApprovalChannel):
                 ApprovalResult(approved=False, message=f"User denied: {response}")
             )
 
-    def _parse_edited_content(self, content: str) -> dict | None:
+    def _parse_edited_content(self, content: str) -> dict[str, object] | None:
         content = content.strip()
         if content.startswith("```"):
             lines = content.split("\n")

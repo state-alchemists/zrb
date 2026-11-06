@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, TypedDict
 
 from zrb.config.config import CFG
 from zrb.llm.agent_activity import agent_activity_registry
@@ -22,6 +24,65 @@ from zrb.llm.util.subagent_session_naming import (
 )
 from zrb.util.string.name import get_random_name
 
+if TYPE_CHECKING:
+    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
+
+
+class QueuedMessage(TypedDict):
+    """One entry on a session's input queue."""
+
+    message: str
+    attachments: list[str]
+    source: InputProvenance | None
+
+
+class StreamChunk(TypedDict):
+    """One item on a session's output queue, rendered by the SSE stream."""
+
+    text: str
+    kind: str
+
+
+class SessionListing(TypedDict):
+    """One row of the session list, served as JSON."""
+
+    session_id: str
+    session_name: str
+    is_active: bool
+    is_processing: bool
+    message_count: int
+    parent_session_id: str | None
+    agent_name: str | None
+
+
+class MessageListing(TypedDict):
+    """One message of a conversation, as the transcript endpoint serves it."""
+
+    role: str
+    content: str
+    live_context: str | None
+    # Whatever a stored message carries; history messages carry nothing today.
+    timestamp: object
+
+
+class PendingApproval(TypedDict):
+    """One tool call waiting on the user, as the approval endpoint serves it."""
+
+    tool_call_id: str
+    tool_name: str
+    tool_args: dict[str, object]
+
+
+class ApprovalOutcome(TypedDict, total=False):
+    """What answering a pending approval did; `error` explains a refusal."""
+
+    handled: bool
+    type: str
+    error: str
+
+
 _timestamp_pattern = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
 
 
@@ -29,12 +90,14 @@ _timestamp_pattern = re.compile(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}(?:-\d{2})?$")
 class ChatSession:
     session_id: str
     session_name: str
-    llm_chat_task: Any = field(default=None, repr=False)
-    chat_ui: Any = field(default=None, repr=False)
-    approval_channel: Any = field(default=None, repr=False)
+    llm_chat_task: LLMChatTask | None = field(default=None, repr=False)
+    chat_ui: AnyUI | None = field(default=None, repr=False)
+    # The web layer's channel: the route handlers drive it as well as ask it
+    # for approval, so it is narrower than `AnyApprovalChannel`.
+    approval_channel: HTTPChatApprovalChannel | None = field(default=None, repr=False)
     task_coroutine: asyncio.Task | None = field(default=None, repr=False)
-    output_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
-    input_queue: asyncio.Queue = field(default_factory=asyncio.Queue)
+    output_queue: asyncio.Queue[StreamChunk] = field(default_factory=asyncio.Queue)
+    input_queue: asyncio.Queue[QueuedMessage] = field(default_factory=asyncio.Queue)
     is_processing: bool = False
 
 
@@ -145,9 +208,9 @@ class ChatSessionManager:
         ranked.sort(key=lambda item: item[1], reverse=True)
         return ranked
 
-    def _session_listing(self) -> list[dict[str, Any]]:
+    def _session_listing(self) -> list[SessionListing]:
         """History + active sessions as display dicts, most recent first."""
-        listing: list[dict[str, Any]] = []
+        listing: list[SessionListing] = []
         seen: set[str] = set()
         for base_name, _mtime, file_count in self.scan_sessions():
             seen.add(base_name)
@@ -169,7 +232,7 @@ class ChatSessionManager:
                 }
             )
         # Active sessions with no history file yet are the newest.
-        extras = [
+        extras: list[SessionListing] = [
             {
                 "session_id": session_id,
                 "session_name": session.session_name,
@@ -189,7 +252,7 @@ class ChatSessionManager:
 
     def get_sessions(
         self, page: int = 1, limit: int | None = None
-    ) -> list[dict[str, Any]]:
+    ) -> list[SessionListing]:
         if limit is None:
             limit = CFG.WEB_SESSION_PAGE_SIZE
         listing = self._session_listing()
@@ -200,9 +263,9 @@ class ChatSessionManager:
         self,
         session_id: str | None = None,
         session_name: str | None = None,
-        llm_chat_task: Any = None,
-        chat_ui: Any = None,
-        approval_channel: Any = None,
+        llm_chat_task: LLMChatTask | None = None,
+        chat_ui: AnyUI | None = None,
+        approval_channel: HTTPChatApprovalChannel | None = None,
     ) -> ChatSession:
         async with self._lock:
             if session_id is None:
@@ -250,11 +313,11 @@ class ChatSessionManager:
             await get_shell_background_registry().cancel_for_session(session_id)
             return True
 
-    def get_messages(self, session_id: str) -> list[dict[str, Any]]:
+    def get_messages(self, session_id: str) -> list[MessageListing]:
         session = self._sessions.get(session_id)
         session_name = session.session_name if session else session_id
         messages = self._history_manager.load(session_name)
-        result = []
+        result: list[MessageListing] = []
         for msg in messages:
             if hasattr(msg, "kind"):
                 role = "user" if msg.kind == "request" else "assistant"
@@ -321,7 +384,7 @@ class ChatSessionManager:
             return False
         return session.approval_channel.has_pending_approvals()
 
-    def get_pending_approvals(self, session_id: str) -> list[dict[str, Any]]:
+    def get_pending_approvals(self, session_id: str) -> list[PendingApproval]:
         session = self._sessions.get(session_id)
         if session is None or session.approval_channel is None:
             return []
@@ -333,23 +396,27 @@ class ChatSessionManager:
             return False
         return session.approval_channel.is_waiting_for_edit()
 
-    def get_editing_args(self, session_id: str) -> dict[str, Any] | None:
+    def get_editing_args(self, session_id: str) -> dict[str, object] | None:
         session = self._sessions.get(session_id)
         if session is None or session.approval_channel is None:
             return None
         return session.approval_channel.get_editing_args()
 
     def handle_approval_response(
-        self, session_id: str, response: Any, is_json: bool = False
-    ) -> dict[str, Any]:
+        self, session_id: str, response: object, is_json: bool = False
+    ) -> ApprovalOutcome:
         session = self._sessions.get(session_id)
         if session is None or session.approval_channel is None:
             return {"handled": False, "error": "Session or approval channel not found"}
         approval_channel = session.approval_channel
         if is_json or approval_channel.is_waiting_for_edit():
             if is_json:
+                if not isinstance(response, dict):
+                    return {"handled": False, "error": "Arguments must be an object"}
                 handled = approval_channel.handle_edit_response_obj(response)
             else:
+                if not isinstance(response, str):
+                    return {"handled": False, "error": "Response must be text"}
                 handled = approval_channel.handle_edit_response(response)
             if handled:
                 return {"handled": True, "type": "edit"}
