@@ -48,6 +48,18 @@ async def _until(predicate, seconds: float = 10.0):
     raise AssertionError("condition not reached")
 
 
+def _exit_code(registry, handle):
+    """The exit code of *handle*, or None while it is running or already retired.
+
+    By handle, never by position: the registry is process-wide, so another test
+    in the same worker can own the first row.
+    """
+    for row in registry.summary():
+        if row["handle"] == handle:
+            return row["returncode"]
+    return None
+
+
 @pytest.mark.asyncio
 async def test_the_session_is_told_when_a_background_command_ends(ui):
     registry = get_shell_background_registry()
@@ -286,7 +298,7 @@ async def test_the_session_is_told_only_when_the_output_can_be_read_whole(
     monkeypatch.setattr(type(registry), "_read_pipe", slow_read_pipe)
 
     handle = await registry.start("echo WHOLE-OUTPUT", "", "Slow to read")
-    await _until(lambda: registry.summary()[0]["returncode"] == 0)
+    await _until(lambda: _exit_code(registry, handle) == 0)
     assert ui.messages == []  # exited, but its output is still being read
 
     await _until(lambda: ui.messages)

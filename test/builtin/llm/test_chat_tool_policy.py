@@ -11,6 +11,7 @@ from zrb.builtin.llm.chat_tool_policy import (
     approve_if_path_inside_notes_dir,
     approve_if_path_inside_parent,
     approve_if_path_inside_skill_or_plugin_dir,
+    is_path_inside_active_worktree,
     is_path_inside_notes_outside_memory,
     path_inside_any_parent,
     path_inside_parent,
@@ -76,6 +77,39 @@ class TestApproveIfPathInsideCwd:
         monkeypatch.chdir(tmp_path)
         result = approve_if_path_inside_cwd({"path": "/etc/passwd"})
         assert result is False
+
+
+class TestIsPathInsideActiveWorktree:
+    """A worktree sits outside the checkout, so the cwd rule has a twin."""
+
+    def _patch_worktree(self, monkeypatch, worktree):
+        monkeypatch.setattr(
+            "zrb.builtin.llm.chat_tool_policy.get_active_worktree",
+            lambda: str(worktree),
+        )
+
+    def test_path_inside_the_active_worktree(self, tmp_path, monkeypatch):
+        self._patch_worktree(monkeypatch, tmp_path)
+        child = str(tmp_path / "src" / "app.py")
+        assert is_path_inside_active_worktree({"path": child}) is True
+
+    def test_path_outside_the_active_worktree(self, tmp_path, monkeypatch):
+        worktree = tmp_path / "wt"
+        worktree.mkdir()
+        self._patch_worktree(monkeypatch, worktree)
+        result = is_path_inside_active_worktree({"path": str(tmp_path / "app.py")})
+        assert result is False
+
+    def test_no_active_worktree_approves_nothing(self, tmp_path, monkeypatch):
+        """A session that never entered one reads through the cwd rule."""
+        self._patch_worktree(monkeypatch, "")
+        result = is_path_inside_active_worktree({"path": str(tmp_path / "app.py")})
+        assert result is False
+
+    def test_a_pathless_call_is_left_to_the_cwd_rule(self, tmp_path, monkeypatch):
+        """`LS`, `Glob` and `Grep` default to `.`, which the cwd rule owns."""
+        self._patch_worktree(monkeypatch, tmp_path)
+        assert is_path_inside_active_worktree({}) is False
 
 
 class TestApproveIfPathInsideNotesDir:
@@ -385,3 +419,45 @@ class TestRegisteredChatPolicies:
         )
         assert isinstance(await handler(object(), call), ToolApproved)
         asked.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_a_read_inside_the_active_worktree_is_approved(
+        self, tmp_path, monkeypatch
+    ):
+        """The notes rule covers the notes dir only, so this can only be the twin."""
+        from pydantic_ai import ToolApproved
+
+        notes_dir = tmp_path / "notes"
+        worktree = tmp_path / "wt"
+        notes_dir.mkdir()
+        worktree.mkdir()
+        (worktree / "app.py").write_text("x = 1\n")
+        monkeypatch.setattr(
+            "zrb.builtin.llm.chat_tool_policy.get_active_worktree",
+            lambda: str(worktree),
+        )
+        call, handler, asked = self._ask(
+            "Read", {"path": str(worktree / "app.py")}, notes_dir, monkeypatch
+        )
+        assert isinstance(await handler(object(), call), ToolApproved)
+        asked.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_a_read_outside_the_active_worktree_still_asks(
+        self, tmp_path, monkeypatch
+    ):
+        notes_dir = tmp_path / "notes"
+        worktree = tmp_path / "wt"
+        notes_dir.mkdir()
+        worktree.mkdir()
+        elsewhere = tmp_path / "elsewhere.py"
+        elsewhere.write_text("x = 1\n")
+        monkeypatch.setattr(
+            "zrb.builtin.llm.chat_tool_policy.get_active_worktree",
+            lambda: str(worktree),
+        )
+        call, handler, asked = self._ask(
+            "Read", {"path": str(elsewhere)}, notes_dir, monkeypatch
+        )
+        assert await handler(object(), call) == "asked"
+        asked.assert_called_once()

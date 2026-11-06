@@ -2,11 +2,28 @@ import os
 from typing import Any
 
 from zrb.config.config import CFG
+from zrb.llm.ambient_state import get_active_worktree
 
 
 def approve_if_path_inside_cwd(args: dict[str, Any]) -> bool:
     cwd = os.getcwd()
     return approve_if_path_inside_parent(args, cwd)
+
+
+def is_path_inside_active_worktree(args: dict[str, object]) -> bool:
+    """Whether *path* is inside the worktree the session is working on.
+
+    ``EnterWorktree`` puts the tree outside the checkout, so a session that
+    moved into one read every file there through an approval prompt. A call
+    that names no path is left to the working-directory rules: `LS`, `Glob` and
+    `Grep` default to `"."`, and approving a pathless call here would approve
+    all of them — including the ones meant for the process's own directory.
+    """
+    worktree = get_active_worktree()
+    path = args.get("path")
+    if not worktree or not isinstance(path, str) or not path:
+        return False
+    return path_inside_parent(path, worktree)
 
 
 def approve_if_path_inside_notes_dir(args: dict[str, Any]) -> bool:
