@@ -171,6 +171,26 @@ def get_max_token_threshold(
     )
 
 
+CONVERSATIONAL_TRIGGER_DEFAULT_CEILING = 200_000
+"""Ceiling on the *default* compaction trigger, in tokens.
+
+The trigger defaults to the smaller of this and 75% of the model's budget. A
+window large enough to hold half a million tokens would otherwise let one
+conversation grow until it reaches the trigger, and every round re-sends the
+whole conversation, so the size the history is allowed to reach matters more
+than how often it is compressed: past this point the extra context is paid for
+on every round that follows.
+
+It is a ceiling on the *default* only. An explicitly configured
+`LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD` keeps the value it was
+given, clamped to that 75% budget and no further.
+
+Both places that compute the default apply it: the config default a reader
+sees, and `create_summarizer_history_processor`'s per-request recomputation
+against the run's actual model, which is the one the chat path uses.
+"""
+
+
 def limit_token_threshold(
     threshold: int,
     factor: float,

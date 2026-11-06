@@ -5,7 +5,10 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.config.helper import get_max_token_threshold
+from zrb.config.helper import (
+    CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+    get_max_token_threshold,
+)
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import create_conversational_summarizer_agent
 from zrb.llm.agent_state import get_current_model, get_current_ui
@@ -121,10 +124,17 @@ def create_summarizer_history_processor(
         if auto_conversational_threshold:
             model = get_current_model() or CFG.LLM_MODEL
             context_window = llm_limiter.get_effective_context_window(model)
-            active_conversational_threshold = get_max_token_threshold(
-                _CONVERSATIONAL_TRIGGER_RATIO,
-                llm_limiter.max_token_per_minute,
-                context_window,
+            # The same ceiling `LLM_CONVERSATIONAL_SUMMARIZATION_TOKEN_THRESHOLD`
+            # applies to its own default: this recomputation is the one the chat
+            # path uses, so leaving it uncapped would let a 500,000-token model
+            # compact at 375,000 while the configured default said 200,000.
+            active_conversational_threshold = min(
+                CONVERSATIONAL_TRIGGER_DEFAULT_CEILING,
+                get_max_token_threshold(
+                    _CONVERSATIONAL_TRIGGER_RATIO,
+                    llm_limiter.max_token_per_minute,
+                    context_window,
+                ),
             )
 
         # Snapshot first: fat tool results are pruned in the pass below, and an
