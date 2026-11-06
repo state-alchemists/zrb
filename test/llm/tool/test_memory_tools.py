@@ -241,6 +241,15 @@ def test_an_append_with_nothing_to_append_is_refused(store_dir):
     assert "nothing to append" in message
 
 
+def test_the_appended_count_is_the_paragraph_as_it_was_stored(store_dir):
+    """Padding is trimmed on the way in, and the separator is not the caller's."""
+    remember("2026-11-06", "A day.", body="old")
+    message = remember("2026-11-06", "A day.", body="  new  ", body_mode="a")
+    entry = store.load_diary("2026-11-06")
+    assert entry is not None and entry.body == "old\n\nnew"
+    assert "Appended 3 characters" in message
+
+
 def test_an_id_with_surrounding_space_is_stored_trimmed(store_dir):
     """Validation strips, so storage must too, or the entry is unreachable."""
     remember("  staging-ssh-port  ", "Staging SSH is port 2222.")

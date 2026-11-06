@@ -563,7 +563,9 @@ def _remember_diary_locked(
     store.save_diary(entry)
     store.git_commit(f"diary: {entry.id}")
     if append:
-        added = len(entry.body) - len(old.body if old else "")
+        # The paragraph as it was stored: padding is trimmed on the way in, and the
+        # blank line that separates it is not part of what the caller wrote.
+        added = len((body or "").strip())
         return (
             f"Appended {added} characters to the day {entry.id} (body "
             f"{len(entry.body)}/{body_limit(KIND_DIARY)} characters)."
