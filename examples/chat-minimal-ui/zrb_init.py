@@ -13,8 +13,12 @@ Usage:
 
 Which base class to subclass:
 
-    AnyUI           The full UI contract. For tool confirmations outside a
-                    chat loop; everything below implements it for you.
+    AnyUI           The whole contract: nine members of its own — the writer,
+                    the event loop, the locality flag, the MultiUI parent
+                    link, and one accessor per role — plus the five roles it
+                    hands out (display, input, picker, session, tools). For
+                    tool confirmations outside a chat loop; everything below
+                    implements it for you.
     SimpleUI        Implement print() and get_input(). For backends that
                     block waiting for a line — a CLI, a log, a simple socket.
                     Used here.

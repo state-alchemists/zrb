@@ -10,7 +10,7 @@ Zrb provides several levels for extending the chat UI, in increasing order of co
 
 ```mermaid
 flowchart TB
-    AnyUI["AnyUI<br/>The full contract - tool confirmations outside a chat loop"]
+    AnyUI["AnyUI<br/>The whole contract - tool confirmations outside a chat loop"]
     Level1["Level 1: SimpleUI<br/>THIS EXAMPLE - print() + get_input()"]
     Level2["Level 2: EventDrivenUI<br/>print() + start_event_loop() (Telegram/Discord/HTTP/WebSocket)"]
     Level3["Level 3: BaseUI<br/>Override what you change - custom architectures"]
@@ -21,11 +21,25 @@ flowchart TB
 
 | Level | Base Class | Implement | Best for |
 |-------|------------|-----------|----------|
-| — | `AnyUI` | The full contract | Tool confirmations outside a chat loop |
+| — | `AnyUI` | The whole contract | Tool confirmations outside a chat loop |
 | **1** | `SimpleUI` | `print()`, `get_input()` | **THIS EXAMPLE** — CLI, file logging, simple backends |
 | **2** | `EventDrivenUI` | `print()`, `start_event_loop()` | Telegram, Discord, WhatsApp, HTTP API, WebSocket (callback/queue-based) |
 | **3** | `BaseUI` | Nothing required — override what you change | Maximum flexibility, custom architectures |
 | **4** | `UI` | — | Default terminal TUI (used when no custom UI is set) |
+
+### Where a member lives
+
+`AnyUI` carries only what belongs to the whole object — `append_to_output`, `run_async`, `is_local`, the `MultiUI` parent link — and one accessor per role. Every other member is reached *through* its role, so a caller asks `ui.display.append_to_output(...)` or `ui.input.ask_user(...)` rather than reading fifty methods off the UI to find the one it wants.
+
+| Accessor | Contract | Answers for |
+| --- | --- | --- |
+| `ui.display` | `AnyUIDisplay` | output, answers, block markers, echo spans |
+| `ui.input` | `AnyUIInput` | questions to the user, and the queue a typed message enters |
+| `ui.picker` | `AnyUIPicker` | the structured choice widget |
+| `ui.session` | `AnyUISession` | which conversation is open, which model answers, its meters |
+| `ui.tools` | `AnyUITools` | a tool call's lifecycle and its approval state |
+
+This changes nothing about the two methods you write below: `print()` and `get_input()` are `SimpleUI`'s own hooks, called by the message loop, and a caller holding `ui.input` or `ui.display` still lands on your override. A UI that renders one role and not another mixes in the matching inert default from `zrb.llm.ui.fallback` instead of implementing it.
 
 ## How It Works
 
