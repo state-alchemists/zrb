@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from zrb.llm.ui.buffered_ui import BufferedUI  # noqa: F401
     from zrb.llm.ui.default.ui import UI  # noqa: F401
     from zrb.llm.ui.event_driven_ui import EventDrivenUI  # noqa: F401
-    from zrb.llm.ui.multi_ui import MultiUI  # noqa: F401
+    from zrb.llm.ui.multi import MultiUI  # noqa: F401
     from zrb.llm.ui.simple_ui_base import SimpleUI  # noqa: F401
     from zrb.llm.ui.trigger import (  # noqa: F401
         TriggerInput,
@@ -64,7 +64,7 @@ _SOURCES = {
     "BufferedOutputMixin": "zrb.llm.ui.buffered_output",
     "BufferedUI": "zrb.llm.ui.buffered_ui",
     # Multi-channel support
-    "MultiUI": "zrb.llm.ui.multi_ui",
+    "MultiUI": "zrb.llm.ui.multi",
     # Simple API (RECOMMENDED)
     "SimpleUI": "zrb.llm.ui.simple_ui_base",
     "EventDrivenUI": "zrb.llm.ui.event_driven_ui",

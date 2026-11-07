@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.ui.multi_ui import MultiUI, get_main_ui, resolve_ui
+from zrb.llm.ui.multi import MultiUI, get_main_ui, resolve_ui
 from zrb.llm.ui.fallback.std_ui import StdUI
 
 

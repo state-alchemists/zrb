@@ -5,7 +5,7 @@ import pytest
 
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.ui.base.message_queue import QueuedMessage
-from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.multi import MultiUI
 
 
 @pytest.fixture
@@ -177,7 +177,7 @@ async def test_multi_ui_confirm_tool_execution(multi_ui, child_ui_1):
 @pytest.mark.asyncio
 async def test_ask_user_raises_when_shutdown(monkeypatch):
     """No answer during shutdown: raising fails closed, "" would approve."""
-    import zrb.llm.ui.multi_ui as multi_ui_module
+    from zrb.llm.ui.multi import input as multi_ui_module
 
     monkeypatch.setattr(multi_ui_module, "is_shutdown_requested", lambda: True)
     multi_ui = MultiUI([MagicMock()])

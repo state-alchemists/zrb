@@ -31,4 +31,4 @@ Consequences
 Notes
 
 - agent/__init__.py resolves engine symbols lazily; two "# lazy: circular" imports are allowlisted.
-- A list of 2+ UIs requires ui/multi_ui.py to register the combiner; the fallback lives in ui/fallback/, a floor the ratchet scores L0 while the rest of the package is L4.
+- A list of 2+ UIs requires the ui/multi/ package to register the combiner; the fallback lives in ui/fallback/, a floor the ratchet scores L0 while the rest of the package is L4.

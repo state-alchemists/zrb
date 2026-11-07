@@ -52,6 +52,17 @@ Both return the object itself rather than a separate part, so a subclass that ov
 
 Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the fallback pieces into `zrb.llm.ui.fallback`, and the layer-0 leaf modules into `zrb.llm.shared` — see [the shared-package section](#llm-shared-layer-0-modules).
 
+### The multi-UI module is now a package
+
+`MultiUI` moved out of its single module into `zrb.llm.ui.multi`, one module per job — `state`, `fanout`, `tools`, `turn`, `streaming`, `input`, `run` — with the class assembled from them. Using it did not change: `MultiUI(uis)`, every member, and the `zrb.llm.ui` re-export are the same.
+
+| Before | After |
+|---|---|
+| `from zrb.llm.ui.multi_ui import MultiUI` | `from zrb.llm.ui.multi import MultiUI`, or `from zrb.llm.ui import MultiUI` |
+| `from zrb.llm.ui.multi_ui import get_main_ui, resolve_ui` | `from zrb.llm.ui.multi import get_main_ui, resolve_ui` |
+
+Only the import path changed. A subclass that wants one of the parts can import it on its own — each holds a single job and inherits the ones before it (`MultiUIFanout` → `MultiUIToolForwards` → `MultiUIStreaming` → `MultiUIInput` → `MultiUIRunLoop`, with `MultiUIState` at the root).
+
 ---
 
 ## Upgrading to 3.35.0

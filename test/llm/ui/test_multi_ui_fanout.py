@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.multi import MultiUI
 
 
 @pytest.fixture

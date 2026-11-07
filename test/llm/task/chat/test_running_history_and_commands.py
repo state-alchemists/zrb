@@ -347,7 +347,10 @@ async def test_initial_action_command_gets_the_main_ui_of_a_combined_ui(
 
     with (
         patch("zrb.llm.ui.default.ui.UI", return_value=main_ui),
-        patch("zrb.llm.ui.multi_ui.MultiUI.run_async", new=AsyncMock(return_value="")),
+        patch(
+            "zrb.llm.ui.multi.multi_ui.MultiUI.run_async",
+            new=AsyncMock(return_value=""),
+        ),
     ):
         await runner.run_interactive_session(
             ctx=ctx,
