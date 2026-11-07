@@ -5,7 +5,7 @@ import shlex
 import tempfile
 import time
 from collections.abc import Callable
-from typing import Annotated, Any
+from typing import Annotated, Protocol, TypeVar, cast
 
 from pydantic import Field
 
@@ -27,6 +27,9 @@ from zrb.llm.sandbox.os_sandbox import (
 from zrb.llm.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
+
+#: Whatever a cancellable task resolves to; `_stop` only cancels and awaits it.
+T = TypeVar("T")
 
 # Minimum seconds between live shell-output repaints.
 _LIVE_UPDATE_INTERVAL = 0.5
@@ -159,14 +162,12 @@ async def run_shell_command(
         assert process.stdout is not None and process.stderr is not None
 
         ui = get_current_ui()
-        supports_live_collapse = _supports_live_collapse(ui)
-        stdout_cap, stderr_cap = _build_stream_captures(
-            max_chars, supports_live_collapse
-        )
+        live_ui = _live_shell_ui(ui)
+        stdout_cap, stderr_cap = _build_stream_captures(max_chars, live_ui is not None)
         output_key = f"shell-{id(stdout_cap)}"
         on_chunk = (
-            _make_live_shell_output_pusher(ui, output_key, stdout_cap, stderr_cap)
-            if supports_live_collapse
+            _make_live_shell_output_pusher(live_ui, output_key, stdout_cap, stderr_cap)
+            if live_ui is not None
             else None
         )
 
@@ -183,8 +184,8 @@ async def run_shell_command(
                 drain_notices,
             )
         finally:
-            if supports_live_collapse:
-                _finish_shell_output(ui, output_key, stdout_cap, stderr_cap)
+            if live_ui is not None:
+                _finish_shell_output(live_ui, output_key, stdout_cap, stderr_cap)
 
         bg_pids = _collect_background_pids(temp_pid_file, process.pid)
 
@@ -251,13 +252,28 @@ async def _start_background_shell(
     )
 
 
-def _supports_live_collapse(ui: Any) -> bool:
-    """Whether `ui` can render the command's output as one collapsible line."""
-    return (
-        ui is not None
-        and callable(getattr(ui, "update_shell_output", None))
-        and callable(getattr(ui, "finish_shell_output", None))
-    )
+class _LiveShellUI(Protocol):
+    """A UI that shows a command's output as one live, expandable line.
+
+    Neither method is on `AnyUI`: a headless or minimal UI omits them, which is
+    why the shell tool narrows to this protocol at the call instead of requiring
+    every UI to carry them.
+    """
+
+    def update_shell_output(self, key: str, text: str) -> None: ...
+
+    def finish_shell_output(self, key: str, summary: str, full_text: str) -> None: ...
+
+
+def _live_shell_ui(ui: object) -> "_LiveShellUI | None":
+    """*ui* as a live shell renderer, or None when it cannot render one."""
+    if ui is None:
+        return None
+    if not callable(getattr(ui, "update_shell_output", None)):
+        return None
+    if not callable(getattr(ui, "finish_shell_output", None)):
+        return None
+    return cast("_LiveShellUI", ui)
 
 
 def _build_stream_captures(
@@ -305,7 +321,10 @@ def _format_live_shell_output(text: str) -> str:
 
 
 def _make_live_shell_output_pusher(
-    ui: Any, key: str, stdout_cap: StreamCapture, stderr_cap: StreamCapture
+    ui: "_LiveShellUI",
+    key: str,
+    stdout_cap: StreamCapture,
+    stderr_cap: StreamCapture,
 ) -> "Callable[[], None]":
     """Build a callback pushing the combined echo to `key`'s live line,
     throttled to `_LIVE_UPDATE_INTERVAL` (each update is an O(buffer) splice).
@@ -332,7 +351,10 @@ def _make_live_shell_output_pusher(
 
 
 def _finish_shell_output(
-    ui: Any, key: str, stdout_cap: StreamCapture, stderr_cap: StreamCapture
+    ui: "_LiveShellUI",
+    key: str,
+    stdout_cap: StreamCapture,
+    stderr_cap: StreamCapture,
 ) -> None:
     """Collapse `key`'s live line into a one-line, expandable summary.
 
@@ -537,7 +559,7 @@ async def _wait_for_exit_or_adopt(
         await _stop(drain)
 
 
-async def _stop(task: "asyncio.Future[Any] | None") -> None:
+async def _stop(task: "asyncio.Future[T] | None") -> None:
     """Cancel *task* if it is still running, and never let its outcome escape.
 
     A drain that ends this way is expected: its own `finally` cancels the

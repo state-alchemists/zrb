@@ -7,7 +7,8 @@ audio are described.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.agent_runner import create_agent, run_agent
@@ -25,12 +26,12 @@ from zrb.llm.util.capabilities import (
 )
 
 if TYPE_CHECKING:
-    from zrb.llm.agent.types import BinaryContent, ToolReturn
+    from zrb.llm.agent.types import BinaryContent, Model, ToolReturn, UserContent
 
 
 async def describe_binary_attachment(
-    binary: "Any",
-    multimodal_model: "str | Any | None" = None,
+    binary: "BinaryContent",
+    multimodal_model: "Model | str | None" = None,
 ) -> str | None:
     """Describe a `BinaryContent` via the supplied multimodal model.
 
@@ -113,7 +114,7 @@ async def create_image_tool_return(
 
 async def get_attachment_for_current_model(
     attachment: "BinaryContent",
-) -> "str | list[BinaryContent]":
+) -> "str | list[UserContent]":
     """*attachment* as the running model can take it, by the same rule a prompt
     attachment follows: kept for a model that reads it, else described by
     `LLM_MULTIMODAL_MODEL`, else dropped (an empty string)."""
@@ -126,11 +127,11 @@ async def get_attachment_for_current_model(
 
 
 async def replace_unsupported_attachments(
-    prompt_content: "str | list[Any] | None",
-    main_model: "str | Any | None",
-    multimodal_model: "str | Any | None" = None,
+    prompt_content: "str | list[UserContent] | None",
+    main_model: "Model | str | None",
+    multimodal_model: "Model | str | None" = None,
     print_fn=None,
-) -> "str | list[Any] | None":
+) -> "str | list[UserContent] | None":
     """Substitute / drop binaries the main model cannot consume.
 
     For each `BinaryContent` in *prompt_content*:
@@ -147,7 +148,7 @@ async def replace_unsupported_attachments(
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import BinaryContent
 
-    out: list[Any] = []
+    out: list[UserContent | None] = []
     notify = print_fn or (lambda *a, **k: None)
     main_model_known = is_known_model(main_model)
     for item in prompt_content:
@@ -161,22 +162,22 @@ async def replace_unsupported_attachments(
                 notify,
             )
         )
-    out = [entry for entry in out if entry is not None]
+    kept = [entry for entry in out if entry is not None]
 
     # Collapse to plain string when only text remains.
-    if all(isinstance(x, str) for x in out):
-        return "\n".join(x for x in out if x)
-    return out
+    if all(isinstance(x, str) for x in kept):
+        return "\n".join(x for x in kept if isinstance(x, str) and x)
+    return kept
 
 
 async def _replace_one_attachment(
-    item: Any,
-    binary_content_type: type,
-    main_model: "str | Any | None",
+    item: "UserContent",
+    binary_content_type: type["BinaryContent"],
+    main_model: "Model | str | None",
     main_model_known: bool,
-    multimodal_model: "str | Any | None",
-    notify: Any,
-) -> Any:
+    multimodal_model: "Model | str | None",
+    notify: Callable[[str], None],
+) -> "UserContent | None":
     """`item` itself, a text description of it, or `None` to drop it.
 
     Non-binaries, unrecognized modalities, and every attachment for an
@@ -206,7 +207,7 @@ async def _replace_one_attachment(
     return None
 
 
-def _reason_for_drop(modality: str, multimodal_model: Any | None) -> str:
+def _reason_for_drop(modality: str, multimodal_model: "Model | str | None") -> str:
     """Return a human-readable explanation of why *modality* was dropped."""
     if multimodal_model is None and modality in ("image", "audio"):
         return "no LLM_MULTIMODAL_MODEL configured"

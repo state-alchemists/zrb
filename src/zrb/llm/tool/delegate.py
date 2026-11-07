@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, TypedDict, cast
 
 from pydantic import Field
 
@@ -44,6 +44,7 @@ from zrb.util.string.name import get_random_name
 from zrb.util.string.suggestion import suggest_name
 
 if TYPE_CHECKING:
+    from zrb.llm.agent.types import ModelMessage
     from zrb.llm.ui.any_ui import AnyUI
 
 
@@ -58,6 +59,30 @@ class AgentTaskResult:
     @property
     def success(self) -> bool:
         return self.error is None or self.error == ""
+
+
+class DelegationTask(TypedDict, total=False):
+    """One fan-out entry, as the model sends it.
+
+    `_batch_spec_error` is what makes a task dict one of these: it refuses a
+    batch whose entries lack `agent_name`, `deliverable`, `task` or `non_goals`.
+    """
+
+    agent_name: str
+    deliverable: str
+    task: str
+    non_goals: list[str]
+    additional_context: str
+    isolate_worktree: bool
+
+
+def _as_transcript(result: object) -> str | None:
+    """A finished delegation's output as text: `None` when the run produced none.
+
+    A run's output is `object` at the facade; the delegation report is text, so
+    a non-text output is rendered rather than dropped.
+    """
+    return None if result is None else str(result)
 
 
 def _format_envelope(
@@ -154,7 +179,7 @@ async def run_agent_task(
             history,
             result,
         )
-        return AgentTaskResult(agent_name, result, None)
+        return AgentTaskResult(agent_name, _as_transcript(result), None)
 
     except asyncio.CancelledError:
         # Esc on this sub-agent's view cancels only its turn; any other
@@ -238,9 +263,9 @@ def _finalize_successful_run(
     activity_session_id: str,
     agent_id: str,
     agent_name: str,
-    history: list,
-    result: Any,
-) -> Any:
+    history: list[object],
+    result: object,
+) -> object:
     """Close out a finished delegation and note where its transcript was saved."""
     if flush_ui:
         ui.flush_to_parent()
@@ -261,7 +286,7 @@ def _finalize_successful_run(
     return result
 
 
-def persist_subagent_history(conversation_name: str, history: list) -> None:
+def persist_subagent_history(conversation_name: str, history: list[object]) -> None:
     """Save a sub-agent's transcript under its own conversation name (best-effort).
 
     Each delegation mints a new name, so files are bounded by pruning to
@@ -274,7 +299,9 @@ def persist_subagent_history(conversation_name: str, history: list) -> None:
         )
 
         manager = default_history_manager()
-        manager.update(conversation_name, history)
+        # The run loop hands back pydantic-ai messages; the L0 facade this
+        # module reaches the loop through can only promise `object` each.
+        manager.update(conversation_name, cast("list[ModelMessage]", history))
         manager.save(conversation_name, write_backup=False)
         _prune_old_subagent_history()
     except Exception as e:  # noqa: BLE001
@@ -637,7 +664,7 @@ def _batch_spec_error(tasks: Sequence[Mapping[str, object]]) -> str | None:
 
 
 async def _run_parallel(
-    tasks: list[dict[str, Any]],
+    tasks: list[dict[str, object]],
     sub_agent_manager: SubAgentManagerAPI,
     *,
     parent_ui: "AnyUI | None" = None,
@@ -658,6 +685,9 @@ async def _run_parallel(
     error = _batch_spec_error(tasks)
     if error is not None:
         return error
+    # Every entry carries the four keys `_batch_spec_error` demanded; anything
+    # else a model sends is extra and unread.
+    specs = cast("list[DelegationTask]", tasks)
 
     parent_ui = parent_ui or resolve_ui(get_current_ui())
     ui_lock = asyncio.Lock()
@@ -666,7 +696,7 @@ async def _run_parallel(
     _fan_out_semaphore = asyncio.Semaphore(_max_parallel) if _max_parallel > 0 else None
 
     async def _run_single_agent_inner(
-        task_spec: dict[str, Any], buffered_ui: BufferedUI
+        task_spec: DelegationTask, buffered_ui: BufferedUI
     ) -> AgentTaskResult:
         agent_name = task_spec.get("agent_name", "")
         deliverable = task_spec.get("deliverable", "")
@@ -733,7 +763,7 @@ async def _run_parallel(
         )
 
     async def run_single_agent(
-        task_spec: dict[str, Any], buffered_ui: BufferedUI
+        task_spec: DelegationTask, buffered_ui: BufferedUI
     ) -> AgentTaskResult:
         if _fan_out_semaphore is None:
             return await _run_single_agent_inner(task_spec, buffered_ui)
@@ -743,10 +773,10 @@ async def _run_parallel(
     # One buffer and one `Task` per delegation, rather than one `gather`: a cut
     # hands the still-running ones to the background registry, and a frame
     # cancelled with its turn takes no child task down with it.
-    buffered_uis = [_fan_out_buffer(parent_ui, ui_lock) for _ in tasks]
+    buffered_uis = [_fan_out_buffer(parent_ui, ui_lock) for _ in specs]
     runs = [
         asyncio.ensure_future(run_single_agent(spec, buffered_ui))
-        for spec, buffered_ui in zip(tasks, buffered_uis)
+        for spec, buffered_ui in zip(specs, buffered_uis)
     ]
     # A detached batch has no turn to hand back, so it never listens for a cut.
     cut_wait = None if detached else _cut_waiter()
@@ -760,7 +790,7 @@ async def _run_parallel(
 
     if detached:
         _flush_fan_out_buffers(buffered_uis)
-    agent_names = [spec.get("agent_name", "") for spec in tasks]
+    agent_names = [spec.get("agent_name", "") for spec in specs]
     return "\n\n".join(_fan_out_reports(agent_names, buffered_uis, runs))
 
 
@@ -918,7 +948,7 @@ def create_delegate_to_agent_tool(
             ),
         ] = False,
         tasks: Annotated[
-            list[dict[str, Any]],
+            list[dict[str, object]],
             Field(
                 description=(
                     "Fan out: a list of task dicts (agent_name, deliverable, "

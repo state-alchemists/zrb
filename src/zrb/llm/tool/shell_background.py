@@ -11,7 +11,7 @@ import atexit
 import os
 import time
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, TypedDict
 
 from pydantic import Field
 
@@ -34,6 +34,15 @@ from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
     from zrb.llm.any_ui import AnyUI
+
+
+class BackgroundProcessRow(TypedDict):
+    """One background process as `summary` reports it, for the live context."""
+
+    handle: str
+    description: str
+    returncode: int | None
+    seconds: float
 
 
 def _new_capture() -> StreamCapture:
@@ -352,7 +361,7 @@ class _ShellBackgroundRegistry:
         except (RuntimeError, OSError) as e:
             CFG.LOGGER.debug(f"Could not withdraw a wake-up: {e}")
 
-    def summary(self, session_id: str | None = None) -> "list[dict[str, Any]]":
+    def summary(self, session_id: str | None = None) -> "list[BackgroundProcessRow]":
         """A read-only view of the handles this registry holds.
 
         Unlike `poll`, this never retires an entry: asking what is running is
@@ -360,7 +369,7 @@ class _ShellBackgroundRegistry:
         owner — a live-context line must not name another chat's processes.
         """
         now = time.monotonic()
-        rows: "list[dict[str, Any]]" = []
+        rows: "list[BackgroundProcessRow]" = []
         for handle, bp in self._procs.items():
             if session_id is not None and bp.owner_session_id != session_id:
                 continue

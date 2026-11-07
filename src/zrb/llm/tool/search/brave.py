@@ -1,5 +1,4 @@
 import time
-from typing import Any
 
 import requests
 
@@ -20,7 +19,7 @@ def search_internet(
     safe_search: str = "",
     language: str = "",
     api_key: str = "",
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     Searches the web via Brave Search. Use for current information, news, documentation,
     and resources not in the local codebase.

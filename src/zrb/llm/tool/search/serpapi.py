@@ -1,5 +1,3 @@
-from typing import Any
-
 import requests
 
 from zrb.config.config import CFG
@@ -16,7 +14,7 @@ def search_internet(
     safe_search: str = "",
     language: str = "",
     api_key: str = "",
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     Searches the web via SerpApi (Google). Use for high-quality current results —
     documentation, technical articles, and community discussions.
