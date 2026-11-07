@@ -15,7 +15,6 @@ silence.
 
 from __future__ import annotations
 
-import json
 import threading
 import time
 from collections.abc import Callable
@@ -23,7 +22,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.speech.player import IsStale
-from zrb.llm.speech.text import match_tool_phrase
+from zrb.llm.speech.text import match_tool_phrase, tool_arguments
 
 PURPOSE_ARGUMENT = "purpose"
 """The argument a tool call may carry to say, in plain words, what it is for."""
@@ -37,14 +36,7 @@ def describe_purpose(args: object) -> str | None:
     the JSON string a provider streamed, so a purpose is read the same way by
     whichever line speaks it.
     """
-    if isinstance(args, str):
-        try:
-            args = json.loads(args)
-        except ValueError:
-            return None
-    if not isinstance(args, dict):
-        return None
-    purpose = args.get(PURPOSE_ARGUMENT)
+    purpose = tool_arguments(args).get(PURPOSE_ARGUMENT)
     if not isinstance(purpose, str):
         return None
     return purpose.strip() or None
@@ -57,14 +49,18 @@ def describe_tool_purpose(part: object) -> str | None:
 
 
 def describe_tool_progress(
-    tool: str | None, phrases: dict[str, str] | None = None
+    tool: str | None, phrases: dict[str, str] | None = None, args: object = None
 ) -> str | None:
     """A spoken line saying what a tool call is doing, from *phrases*
     (default: `CFG.LLM_SPEECH_PROGRESS_PHRASES`); ``None`` for a tool no
-    pattern matches, which is not announced."""
+    pattern matches, which is not announced.
+
+    *args* supplies whatever the phrase interpolates beyond ``{tool}`` — a
+    pattern written ``"Editing {path}."`` names the file being edited.
+    """
     if phrases is None:
         phrases = CFG.LLM_SPEECH_PROGRESS_PHRASES
-    return match_tool_phrase(tool, phrases)
+    return match_tool_phrase(tool, phrases, args)
 
 
 class ProgressNarrator:
@@ -135,7 +131,7 @@ class ProgressNarrator:
         if self._seconds_since_said() < self._interval:
             return
         line = describe_tool_purpose(part) or describe_tool_progress(
-            tool, self._phrases
+            tool, self._phrases, getattr(part, "args", None)
         )
         if not line:
             return

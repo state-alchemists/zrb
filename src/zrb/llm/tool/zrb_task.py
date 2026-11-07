@@ -5,6 +5,7 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
+from zrb.llm.tool.purpose import Purpose
 from zrb.llm.tool.shell import run_shell_command
 from zrb.runner.cli import cli
 
@@ -74,6 +75,7 @@ def create_run_zrb_task_tool():
                 description="Seconds to wait for the task to finish before timing out."
             ),
         ] = 30,
+        purpose: Purpose = "",
     ) -> str:
         """Run an automation task by name with optional --key value args."""
         # Quote every part so values cannot be word-split or injected.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from fnmatch import fnmatchcase
 
@@ -182,12 +183,66 @@ def fill_template(template: str, **values: str) -> str:
     )
 
 
-def match_tool_phrase(tool: str | None, phrases: dict[str, str]) -> str | None:
+#: Longest argument value a phrase interpolates. A spoken line broken by a
+#: four-hundred-character path is worse than one that names the file's role,
+#: and the value is there to orient a listener, not to read the call back.
+ARGUMENT_MAX_CHARS = 80
+
+#: A name a phrase may interpolate, and the shape a tool's arguments take: an
+#: identifier, so `fill_template` can take them as keywords.
+_ARGUMENT_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_PLACEHOLDER = re.compile(r"\{[A-Za-z_][A-Za-z0-9_]*\}")
+
+
+def tool_arguments(args: object) -> dict[str, object]:
+    """A tool call's *args* as a mapping, from either shape a provider gives
+    us: the dict, or the JSON string it streamed. Empty for neither, and for a
+    string that is not JSON — arguments nobody can parse name nothing."""
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except ValueError:
+            return {}
+    return args if isinstance(args, dict) else {}
+
+
+def argument_words(args: object) -> dict[str, str]:
+    """The values a phrase may interpolate from a call's arguments: each
+    identifier-named one that holds text, cut to `ARGUMENT_MAX_CHARS`.
+
+    Only strings, because ``{count}`` or ``{recursive}`` in a spoken line is a
+    value the ear has no use for. An empty one is left out rather than filled
+    with nothing: "Editing ." names no file."""
+    words: dict[str, str] = {}
+    for name, value in tool_arguments(args).items():
+        if not _ARGUMENT_NAME.fullmatch(name):
+            continue
+        if not isinstance(value, str) or not value.strip():
+            continue
+        words[name] = value.strip()[:ARGUMENT_MAX_CHARS]
+    return words
+
+
+def match_tool_phrase(
+    tool: str | None, phrases: dict[str, str], args: object = None
+) -> str | None:
     """The phrase of the first pattern in *phrases* matching *tool* (``*``
-    and ``?`` wildcards; ``""`` matches no tool name), its ``{tool}``
-    filled in; ``None`` when none matches."""
+    and ``?`` wildcards; ``""`` matches no tool name), its ``{tool}`` and any
+    argument it names filled in from *args*; ``None`` when none matches.
+
+    A phrase naming an argument the call does not carry is not used: it would
+    be read out with a brace in it, so the next matching pattern gets its turn
+    (which is why ``"*"`` belongs at the end of a configured map).
+    """
     name = tool or ""
+    values = argument_words(args)
+    # Whatever an argument calls itself, `{tool}` is the tool's name.
+    values["tool"] = name
     for pattern, phrase in phrases.items():
-        if fnmatchcase(name, pattern):
-            return fill_template(phrase, tool=name)
+        if not fnmatchcase(name, pattern):
+            continue
+        filled = fill_template(phrase, **values)
+        if _PLACEHOLDER.search(filled):
+            continue
+        return filled
     return None

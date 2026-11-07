@@ -46,6 +46,7 @@ from zrb.llm.memory.model import (
     reason_error,
 )
 from zrb.llm.permission import Capability, tag
+from zrb.llm.tool.purpose import Purpose
 from zrb.util.file_lock import FileLockTimeout
 
 _NOT_A_KIND = (
@@ -187,6 +188,7 @@ def remember(
             )
         ),
     ] = None,
+    purpose: Purpose = "",
 ) -> str:
     """Records a claim, an open loop, a diary entry, or a day's handover.
 
@@ -243,6 +245,7 @@ def forget(
             )
         ),
     ],
+    purpose: Purpose = "",
 ) -> str:
     """Retires a claim without deleting it.
 

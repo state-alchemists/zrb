@@ -90,7 +90,7 @@ class LLMSpeechMixin:
         self.DEFAULT_LLM_SPEECH_PLAYER_PREBUFFER_SECONDS: str = "0.5"
         self.DEFAULT_LLM_SPEECH_PLAYER_READ_AHEAD: str = "64"
         self.DEFAULT_LLM_SPEECH_PROGRESS_PHRASES: str = (
-            '{"Read": "Reading a file.", "AnalyzeFile": "Reading a file.", "LS": "Looking through the files.", "Glob": "Looking through the files.", "Grep": "Searching the code.", "AnalyzeCode": "Reading the code.", "Write": "Writing a file.", "Edit": "Editing a file.", "MV": "Moving a file.", "RM": "Removing a file.", "Shell": "Running a command.", "Bash": "Running a command.", "WebSearch": "Searching the web.", "WebFetch": "Reading a web page.", "DelegateToAgent": "Handing this to a sub-agent.", "Lsp*": "Checking the code.", "": "Working on it.", "*": "Using the {tool} tool."}'
+            '{"Read": "Reading a file.", "AnalyzeFile": "Reading a file.", "LS": "Looking through the files.", "Glob": "Looking through the files.", "Grep": "Searching the code.", "AnalyzeCode": "Reading the code.", "Write": "Writing {path}.", "Edit": "Editing {path}.", "MV": "Moving {src}.", "RM": "Removing {path}.", "Shell": "Running a command.", "Bash": "Running a command.", "WebSearch": "Searching the web.", "WebFetch": "Reading a web page.", "DelegateToAgent": "Handing this to a sub-agent.", "LspRenameSymbol": "Renaming a symbol.", "Lsp*": "Checking the code.", "": "Working on it.", "*": "Using the {tool} tool."}'
         )
         self.DEFAULT_LLM_SPEECH_EMOTION_VOICES: str = "{}"
         self.DEFAULT_LLM_SPEECH_APPROVAL_ACTIONS: str = (
@@ -436,10 +436,14 @@ class LLMSpeechMixin:
             "JSON object of what progress narration says when a tool call "
             "starts: tool-name patterns (* and ? wildcards, matched in "
             'order, the first match wins; "" matches a call with no tool '
-            "name) to a line, where {tool} is the tool's name. Default: "
-            'English lines for the built-in tools, then "Lsp*": "Checking '
-            'the code.", "": "Working on it.", and "*": "Using the {tool} '
-            'tool."'
+            "name) to a line, where {tool} is the tool's name and any other "
+            "name is that argument of the call, when it holds text and is at "
+            'most 80 characters ("Editing {path}."). A phrase naming an '
+            "argument the call does not carry is skipped, so keep the "
+            'catch-all "*" last. Default: English lines for the built-in '
+            'tools, then "LspRenameSymbol": "Renaming a symbol.", "Lsp*": '
+            '"Checking the code.", "": "Working on it.", and "*": "Using the '
+            '{tool} tool."'
         ),
     )
 

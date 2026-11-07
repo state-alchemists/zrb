@@ -61,6 +61,16 @@ def test_a_tool_call_after_a_silence_is_announced_until_it_finishes():
     assert is_stale() is True
 
 
+def test_a_phrase_names_the_file_the_call_works_on():
+    """The default map asks `Edit` for its path, so the line names the file
+    rather than saying "a file" for every one of them."""
+    narrator, said = _narrator()
+
+    narrator.handle_event(_call("Edit", args={"path": "src/a.py"}))
+
+    assert said[0][0] == "Editing src/a.py."
+
+
 def test_a_result_naming_its_call_through_the_result_part_counts_too():
     narrator, said = _narrator()
     narrator.handle_event(_call("Shell", "c9"))

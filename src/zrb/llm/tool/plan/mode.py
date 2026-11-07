@@ -11,6 +11,7 @@ from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
+from zrb.llm.tool.purpose import Purpose
 from zrb.llm.tool.wrapper import tool_safe_async
 
 
@@ -19,6 +20,7 @@ async def enter_plan_mode(
     reason: Annotated[
         str, Field(description="Optionally records why you entered plan mode.")
     ] = "",
+    purpose: Purpose = "",
 ) -> str:
     """
     Switch to read-only PLAN mode for safe discovery.
@@ -47,6 +49,7 @@ async def exit_plan_mode(
             )
         ),
     ],
+    purpose: Purpose = "",
 ) -> str:
     """
     Leave PLAN mode and present the completed plan so execution can begin.

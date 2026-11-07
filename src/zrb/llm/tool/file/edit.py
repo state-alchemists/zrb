@@ -11,6 +11,7 @@ from zrb.llm.tool.file.post_write_check import (
     compose_write_result,
     format_post_write_diagnostics,
 )
+from zrb.llm.tool.purpose import Purpose
 from zrb.util.string.fuzzy_match import find_fuzzy_match
 from zrb.util.truncate import truncate_display
 
@@ -32,6 +33,7 @@ async def replace_in_file(
             )
         ),
     ] = -1,
+    purpose: Purpose = "",
 ) -> str:
     """
     Replaces text in a file. Always Read the file first to get exact text.

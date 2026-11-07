@@ -16,6 +16,7 @@ from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.code.constants import DEFAULT_EXTENSIONS, LSP_SUPPORTED_EXTENSIONS
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
 from zrb.llm.tool.git_visible import git_visible_files
+from zrb.llm.tool.purpose import Purpose
 from zrb.util.file import matches_any_pattern
 
 
@@ -82,6 +83,7 @@ async def analyze_code(
     gitignore: Annotated[
         bool, Field(description="Skip files .gitignore excludes.")
     ] = True,
+    purpose: Purpose = "",
 ) -> str:
     """
     Answers a question about a directory by reading it with an LLM sub-agent.

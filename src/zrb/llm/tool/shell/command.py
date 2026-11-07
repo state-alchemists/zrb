@@ -25,6 +25,7 @@ from zrb.llm.sandbox.os_sandbox import (
     format_sandbox_denied_message,
 )
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
+from zrb.llm.tool.purpose import Purpose
 from zrb.llm.tool.shell.capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
 
@@ -41,16 +42,7 @@ _HEAD_SHARE_OF_FAILED_OUTPUT = 0.4
 
 async def run_shell_command(
     command: Annotated[str, Field(description="Non-interactive command.")],
-    purpose: Annotated[
-        str,
-        Field(
-            description=(
-                "Short, plain-language phrase saying what the command is FOR, "
-                "read aloud to a user who is listening: 'Getting the biggest "
-                "file in the directory'. Never the command itself."
-            )
-        ),
-    ] = "",
+    purpose: Purpose = "",
     cwd: Annotated[str, Field(description="Working directory.")] = "",
     timeout: Annotated[
         int,

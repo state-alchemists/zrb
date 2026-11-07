@@ -15,6 +15,7 @@ from zrb.llm.tool.file.post_write_check import (
     compose_write_result,
     format_post_write_diagnostics,
 )
+from zrb.llm.tool.purpose import Purpose
 
 
 async def write_file(
@@ -30,6 +31,7 @@ async def write_file(
             )
         ),
     ] = "w",
+    purpose: Purpose = "",
 ) -> str:
     """
     Creates a file (and missing parent dirs), replaces one, or appends to one. Use Edit to change part

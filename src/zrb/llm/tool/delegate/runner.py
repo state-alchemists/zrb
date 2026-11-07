@@ -31,6 +31,7 @@ from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree
+from zrb.llm.tool.purpose import Purpose
 from zrb.llm.ui.buffered.ui import BufferedUI
 from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.llm.util.roster import cap_items, search_roster
@@ -957,6 +958,7 @@ def create_delegate_to_agent_tool(
                 )
             ),
         ] = [],  # noqa: B006
+        purpose: Purpose = "",
     ) -> str:
         def _launch_background() -> str:
             """Hand this call to the background registry and return its handle."""
@@ -1080,6 +1082,7 @@ def create_search_agent_tool(
                 )
             ),
         ] = "",
+        purpose: Purpose = "",
     ) -> str:
         agents = _sort_agents(_delegatable_agents(sub_agent_manager))
         return search_roster(agents, query) or _no_agent_match_message(query)
