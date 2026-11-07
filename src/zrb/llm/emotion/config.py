@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from zrb.llm.util.feature_config import resolve_from_cfg
+from zrb.llm.shared.feature_config import resolve_from_cfg
 
 
 @dataclass

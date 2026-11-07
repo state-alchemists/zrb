@@ -640,6 +640,32 @@ No compatibility shims sit at the old paths; the import fails with `ImportError`
 
 If you implement or annotate against one of these contracts you are unaffected beyond the import line. If you call into `zrb.llm.delegation_api`, note that it now names the contracts for the type checker only: the sub-agent package registers into it while it loads, so a runtime import would close a cycle.
 
+### LLM Shared Layer-0 Modules
+
+The modules every package in `zrb.llm` speaks — the ambient state a run publishes, the two seams, the tool registry, the message shapes — moved from the top of `zrb.llm` into `zrb.llm.shared`, so `llm/` holds features and one shared vocabulary rather than a mixture of both. The `config`, `memory` and `util` packages did not move.
+
+| before | after |
+|---|---|
+| `from zrb.llm.agent_state import ...` | `from zrb.llm.shared.agent_state import ...` |
+| `from zrb.llm.ambient_state import ...` | `from zrb.llm.shared.ambient_state import ...` |
+| `from zrb.llm.agent_activity import ...` | `from zrb.llm.shared.agent_activity import ...` |
+| `from zrb.llm.agent_tool_result import ...` | `from zrb.llm.shared.agent_tool_result import ...` |
+| `from zrb.llm.tool_registry import ...` | `from zrb.llm.shared.tool_registry import ...` |
+| `from zrb.llm.agent_runner import ...` | `from zrb.llm.shared.agent_runner import ...` |
+| `from zrb.llm.delegation_api import ...` | `from zrb.llm.shared.delegation_api import ...` |
+| `from zrb.llm.message import ...` | `from zrb.llm.shared.message import ...` |
+| `from zrb.llm.message_text import ...` | `from zrb.llm.shared.message_text import ...` |
+| `from zrb.llm.input_source import ...` | `from zrb.llm.shared.input_source import ...` |
+| `from zrb.llm.factory_resolver import ...` | `from zrb.llm.shared.factory_resolver import ...` |
+| `from zrb.llm.stream_observer import ...` | `from zrb.llm.shared.stream_observer import ...` |
+| `from zrb.llm.shell_cut import ...` | `from zrb.llm.shared.shell_cut import ...` |
+| `from zrb.llm.usage_log import ...` | `from zrb.llm.shared.usage_log import ...` |
+| `from zrb.llm.util.feature_config import ...` | `from zrb.llm.shared.feature_config import ...` |
+
+No compatibility shims sit at the old paths; each import fails with `ImportError` rather than resolving somewhere else. Anything reached through `from zrb import ...` is unchanged.
+
+`zrb.llm.shared` imports nothing, so `from zrb.llm.shared.message import ...` costs no more than the module named — which is the point of these living at layer 0. `feature_config` moved for the same reason it belongs here: it reads ambient session state, and staying in `util/` made the two units import each other. `zrb.llm.util` now imports nothing from `zrb.llm` at runtime.
+
 ### Hooks Timeout Unit
 
 `ZRB_HOOKS_TIMEOUT` changed from **seconds** to **milliseconds** in 2.20.0.

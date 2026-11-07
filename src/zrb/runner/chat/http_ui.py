@@ -7,7 +7,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from zrb.llm.approval.any_approval_channel import ApprovalContext
-from zrb.llm.input_source import InputProvenance
+from zrb.llm.shared.input_source import InputProvenance
 from zrb.llm.ui import EventDrivenUI, UIConfig
 from zrb.runner.chat.chat_session_manager import ChatSessionManager
 from zrb.runner.chat.http_chat import HTTPChatApprovalChannel

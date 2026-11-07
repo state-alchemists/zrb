@@ -29,14 +29,18 @@ from typing import TYPE_CHECKING, Any, TextIO, cast
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
-from zrb.llm.agent_state import get_current_ui
+from zrb.llm.shared.agent_state import get_current_ui
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT, InputProvenance
+from zrb.llm.shared.input_source import (
+    BACKGROUND_INPUT,
+    KEYBOARD_INPUT,
+    InputProvenance,
+)
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,

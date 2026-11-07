@@ -13,10 +13,10 @@ def make_yolo_inheritance_checker() -> (
     Callable[..., bool]
 ):  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
     """Return a callable that reports the current effective YOLO mode."""
-    # lazy: tests patch `zrb.llm.agent_state.get_current_*` and
+    # lazy: tests patch `zrb.llm.shared.agent_state.get_current_*` and
     # rely on the patch taking effect inside the closure. Hoisting would
     # bind these names at module-load and bypass the mocks.
-    from zrb.llm.agent_state import get_current_ui, get_current_yolo
+    from zrb.llm.shared.agent_state import get_current_ui, get_current_yolo
 
     # lazy: tests patch zrb.llm.permission.get_effective_policy; hoisting
     # would bind the name at this module's load time and bypass the mock.

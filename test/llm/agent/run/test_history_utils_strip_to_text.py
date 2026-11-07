@@ -16,7 +16,7 @@ from zrb.llm.agent.run.history_utils import (
     strip_thinking_parts,
     strip_to_text_only,
 )
-from zrb.llm.message import TOOL_CALL_PLACEHOLDER
+from zrb.llm.shared.message import TOOL_CALL_PLACEHOLDER
 
 
 class UnknownMessage:

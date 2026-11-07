@@ -77,7 +77,7 @@ flowchart TD
 | `get_env` | `src/zrb/config/helper.py` | The prefixed environment lookup that tries names in order |
 | `RETIRED_SETTINGS` | `src/zrb/config/retired.py` | Removed names and what replaces them |
 | `get_retired_env_keys`, `get_mistyped_env_keys` | `src/zrb/config/config.py` | Finding retired and near-miss variables; `src/zrb/__main__.py` prints them at startup |
-| `resolve_from_cfg` | `src/zrb/llm/util/feature_config.py` | Filling an optional feature's config dataclass from `CFG` when its session starts |
+| `resolve_from_cfg` | `src/zrb/llm/shared/feature_config.py` | Filling an optional feature's config dataclass from `CFG` when its session starts |
 | `zrb config` tasks | `src/zrb/builtin/config.py` | Listing settings and explaining one (`explain_config`) |
 
 ### How it runs
@@ -128,7 +128,7 @@ Callers read `CFG` where the value is used, not at import. The tool-result cap i
 | Change composition or the unknown-name guard | `src/zrb/config/config.py` | `test/config/test_config_assignment_safety.py` |
 | Retire a setting or tune typo detection | `src/zrb/config/retired.py`, `src/zrb/config/config.py` | `test/config/test_config_env_warnings.py` |
 | Add or change a theme | `src/zrb/config/theme.py`, `src/zrb/config/mixins/theme.py` | `test/config/test_config_theme.py` |
-| Change when a chat feature reads config | `src/zrb/llm/util/feature_config.py` | `test/llm/util/test_feature_config.py` |
+| Change when a chat feature reads config | `src/zrb/llm/shared/feature_config.py` | `test/llm/shared/test_feature_config.py` |
 | Change `zrb config` output | `src/zrb/builtin/config.py` | `test/builtin/test_explain_config.py` |
 
 ## See Also

@@ -11,7 +11,7 @@ from datetime import datetime
 
 from pydantic_ai.messages import ModelRequest, ModelResponse, ToolCallPart
 
-from zrb.llm.message import (
+from zrb.llm.shared.message import (
     get_tool_pairs,
     sanitize_orphaned_tool_calls,
     strip_orphaned_returns,

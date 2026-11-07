@@ -81,11 +81,11 @@ def test_index_exports_all_wrappers():
 
 def test_index_does_not_create_independent_state():
     """The index re-exports — it must not create a parallel ContextVar."""
-    from zrb.llm.agent_state import current_ui as direct_var
+    from zrb.llm.shared.agent_state import current_ui as direct_var
 
     assert cv.current_ui is direct_var
 
-    from zrb.llm.ambient_state import active_worktree as direct_worktree
+    from zrb.llm.shared.ambient_state import active_worktree as direct_worktree
 
     assert cv.active_worktree is direct_worktree
 

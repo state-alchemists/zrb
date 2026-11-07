@@ -366,7 +366,7 @@ async def test_a_continuation_carries_the_parent_runs_hook_manager(
     """The continuation is started from a key handler, long after the parent's
     scope exited, so the hook manager travels with the rest of the captured
     authority — otherwise the turn fires on the program-wide singleton."""
-    from zrb.llm.agent_state import current_hook_manager
+    from zrb.llm.shared.agent_state import current_hook_manager
     from zrb.llm.hook.manager import HookManager
     from zrb.util.contextvar_scope import scoped
 
@@ -401,7 +401,10 @@ async def test_a_continuation_carries_the_parent_runs_approval_handler(
     """A continuation runs outside the parent's run, so the tool policies and
     approval channel its first turn inherited must travel with the captured
     authority — otherwise its tool calls skip the parent's policies."""
-    from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
+    from zrb.llm.shared.agent_state import (
+        current_approval_channel,
+        current_tool_confirmation,
+    )
     from zrb.llm.tool_call import ToolCallHandler
     from zrb.util.contextvar_scope import scoped
 
@@ -440,7 +443,10 @@ async def test_a_continuation_does_not_pick_up_an_ambient_approval_handler(
 ):
     """A delegation captured with no approval handler keeps none: `run_agent`
     reads a `None` argument as "inherit", so the captured value is bound."""
-    from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
+    from zrb.llm.shared.agent_state import (
+        current_approval_channel,
+        current_tool_confirmation,
+    )
     from zrb.llm.tool_call import ToolCallHandler
     from zrb.util.contextvar_scope import scoped
 

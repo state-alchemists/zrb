@@ -18,11 +18,14 @@ from zrb.llm.agent.run.authority_snapshot import (
     capture_current_authority,
 )
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent_activity import agent_activity_registry
-from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
+from zrb.llm.shared.agent_activity import agent_activity_registry
+from zrb.llm.shared.agent_state import (
+    current_approval_channel,
+    current_tool_confirmation,
+)
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.config.limiter import llm_limiter
-from zrb.llm.delegation_api import (
+from zrb.llm.shared.delegation_api import (
     register_live_session_registry,
     register_start_titling,
 )
@@ -34,7 +37,7 @@ from zrb.llm.ui.base.message_queue import steer_into_live_run
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
-    from zrb.llm.delegation_api import LiveSessionRegistryAPI
+    from zrb.llm.shared.delegation_api import LiveSessionRegistryAPI
     from zrb.llm.subagent.manager import SubAgentManager
     from zrb.llm.ui.buffered_ui import BufferedUI
 

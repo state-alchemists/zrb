@@ -9,7 +9,7 @@ from pydantic_ai.messages import (
     UserPromptPart,
 )
 
-from zrb.llm.message import (
+from zrb.llm.shared.message import (
     TOOL_CALL_PLACEHOLDER,
     ensure_alternating_roles,
     get_tool_pairs,

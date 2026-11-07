@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from zrb.llm.input_source import KEYBOARD_INPUT
+from zrb.llm.shared.input_source import KEYBOARD_INPUT
 from zrb.llm.ui.base.message_queue import EchoSpan, QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.default.ui import UI

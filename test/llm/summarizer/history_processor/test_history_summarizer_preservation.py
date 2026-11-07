@@ -278,7 +278,7 @@ async def test_summarize_long_text_consolidation_failure():
 
 def test_validate_tool_pair_integrity_problems():
     "Test validate_tool_pair_integrity with problematic history."
-    from zrb.llm.message import validate_tool_pair_integrity
+    from zrb.llm.shared.message import validate_tool_pair_integrity
 
     messages = [
         ModelResponse(parts=[ToolCallPart(tool_name="t", args={}, tool_call_id="c1")])

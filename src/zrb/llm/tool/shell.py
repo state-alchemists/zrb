@@ -17,14 +17,14 @@ from zrb.cmd.command import (
     wait_for_exit_and_drain,
 )
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_ui
+from zrb.llm.shared.agent_state import get_current_ui
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import get_effective_sandbox_policy
 from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-from zrb.llm.shell_cut import get_run_shell_cut_signal
+from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
 

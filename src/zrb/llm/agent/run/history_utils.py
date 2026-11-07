@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import is_turn_start
-from zrb.llm.message import (
+from zrb.llm.shared.message import (
     EMPTY_CONTENT_PLACEHOLDER,
     TOOL_CALL_PLACEHOLDER,
     TOOL_RETURN_NULL_PLACEHOLDER,
@@ -492,7 +492,7 @@ def history_through_deferred_returns(
     from pydantic_ai.messages import ModelRequest  # lazy: heavy third-party
 
     # lazy: zrb internal (heavy via transitive)
-    from zrb.llm.message import is_tool_return_part
+    from zrb.llm.shared.message import is_tool_return_part
 
     deferred_ids = {*results.approvals, *results.calls}
     request_indexes = [

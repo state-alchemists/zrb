@@ -13,7 +13,7 @@ import pytest
 from pydantic_ai import AgentRunResultEvent
 
 from zrb.llm.agent.run.runner import run_agent
-from zrb.llm.agent_state import is_current_run_nested
+from zrb.llm.shared.agent_state import is_current_run_nested
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.manager import HookManager

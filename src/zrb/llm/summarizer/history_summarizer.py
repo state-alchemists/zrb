@@ -11,16 +11,16 @@ from zrb.config.helper import (
 )
 from zrb.context.any_context import zrb_print
 from zrb.llm.agent.summarizer import create_conversational_summarizer_agent
-from zrb.llm.agent_state import get_current_model, get_current_ui
+from zrb.llm.shared.agent_state import get_current_model, get_current_ui
 from zrb.llm.config.limiter import LLMLimiter, is_pinned
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
-from zrb.llm.message import (
+from zrb.llm.shared.message import (
     ensure_alternating_roles,
     pending_tail_start,
     strip_orphaned_returns,
     validate_tool_pair_integrity,
 )
-from zrb.llm.message_text import render_verbatim_messages
+from zrb.llm.shared.message_text import render_verbatim_messages
 from zrb.llm.prompt.live_context import render_carried_context
 from zrb.llm.skill.reattach import build_reattach_message
 from zrb.llm.summarizer.chunk_processor import (
@@ -40,7 +40,7 @@ from zrb.llm.summarizer.verbatim_archive import (
     conversation_key,
     verbatim_archive_path,
 )
-from zrb.llm.usage_log import KIND_SUMMARIZATION, UsageTotals, record_totals
+from zrb.llm.shared.usage_log import KIND_SUMMARIZATION, UsageTotals, record_totals
 from zrb.util.cli.style import stylize_error, stylize_warning
 from zrb.util.markdown import make_markdown_section
 

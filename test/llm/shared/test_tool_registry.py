@@ -1,7 +1,7 @@
 """Public ToolRegistry behavior (ADR-0090)."""
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.tool_registry import ToolRegistry, tool_name, tool_registry
+from zrb.llm.shared.tool_registry import ToolRegistry, tool_name, tool_registry
 
 
 def _read():

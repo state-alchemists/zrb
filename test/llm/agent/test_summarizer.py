@@ -26,7 +26,7 @@ def test_summarizer_agent_follows_the_run_small_model_override(monkeypatch):
     """
     import zrb.llm.agent.summarizer as summarizer
     from zrb.config.config import CFG
-    from zrb.llm.agent_state import current_small_model
+    from zrb.llm.shared.agent_state import current_small_model
 
     seen = {}
 

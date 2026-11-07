@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import (
+from zrb.llm.shared.agent_state import (
     get_current_model,
     get_current_multimodal_model,
     get_current_small_model,

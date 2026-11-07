@@ -80,7 +80,7 @@ if TYPE_CHECKING:
         register_default_auto_approve,
         register_default_auto_approve_if,
     )
-    from zrb.llm.tool_registry import ToolRegistry, tool_registry
+    from zrb.llm.shared.tool_registry import ToolRegistry, tool_registry
     from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
     from zrb.llm.util.capabilities import model_capabilities
     from zrb.llm.voice.manager import (
@@ -327,8 +327,8 @@ _LAZY_EXPORTS = {
     "TTSServiceSpec": "zrb.llm.voice.spec",
     "tts_manager": "zrb.llm.voice.manager",
     "tts_registry": "zrb.llm.voice.registry",
-    "ToolRegistry": "zrb.llm.tool_registry",
-    "tool_registry": "zrb.llm.tool_registry",
+    "ToolRegistry": "zrb.llm.shared.tool_registry",
+    "tool_registry": "zrb.llm.shared.tool_registry",
     "AnyUI": "zrb.llm.ui.any_ui",
     "TriggerMessage": "zrb.llm.ui.trigger",
     "TriggerReply": "zrb.llm.ui.trigger",

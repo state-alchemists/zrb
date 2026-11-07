@@ -16,7 +16,7 @@ from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.ambient_state import get_current_reply_emotion
+from zrb.llm.shared.ambient_state import get_current_reply_emotion
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.types import HookEvent
@@ -37,7 +37,7 @@ from zrb.llm.speech.text import (
     needs_spoken_block,
     without_blockquotes,
 )
-from zrb.llm.util.feature_config import (
+from zrb.llm.shared.feature_config import (
     current_session_key,
     get_session_ui,
     replace_feature_sessions,

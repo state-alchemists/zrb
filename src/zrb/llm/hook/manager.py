@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import cast
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_hook_manager, is_current_run_nested
+from zrb.llm.shared.agent_state import get_current_hook_manager, is_current_run_nested
 from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
 from zrb.llm.hook.executor import (
     HookExecutionResult,

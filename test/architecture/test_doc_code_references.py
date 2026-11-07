@@ -84,7 +84,7 @@ REFERENCE_EXCEPTIONS: dict[str, set[str]] = {
     "docs/adr/adr-0127.md": {
         # The record added the `/usage` Journal section and the event log behind
         # it; both went with the journal in 3.33.0. The usage half it also
-        # describes is live, and `src/zrb/llm/usage_log.py` is checked normally.
+        # describes is live, and `src/zrb/llm/shared/usage_log.py` is checked normally.
         "src/zrb/llm/journal_usage_log.py",
         "src/zrb/llm/tool/journal.py",
         "test/llm/test_journal_usage_log.py",

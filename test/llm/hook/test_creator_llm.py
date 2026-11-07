@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.agent_state import is_current_run_nested
+from zrb.llm.shared.agent_state import is_current_run_nested
 from zrb.llm.hook.creator import create_prompt_hook
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager

@@ -20,7 +20,11 @@ from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT, InputProvenance
+from zrb.llm.shared.input_source import (
+    BACKGROUND_INPUT,
+    KEYBOARD_INPUT,
+    InputProvenance,
+)
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,

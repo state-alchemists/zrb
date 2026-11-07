@@ -6,7 +6,7 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.ambient_state import active_worktree
+from zrb.llm.shared.ambient_state import active_worktree
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import (
     build_sandboxed_argv,

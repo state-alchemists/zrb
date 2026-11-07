@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.common_tools import apply_common_tools
-from zrb.llm.delegation_api import register_subagent_manager
+from zrb.llm.shared.delegation_api import register_subagent_manager
 from zrb.llm.subagent.building import SubAgentBuilding
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.manager_loading import SubAgentManagerLoading
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
-    from zrb.llm.delegation_api import SubAgentManagerAPI
+    from zrb.llm.shared.delegation_api import SubAgentManagerAPI
     from zrb.llm.task.chat.task import LLMChatTask
 
 

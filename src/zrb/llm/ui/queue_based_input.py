@@ -7,7 +7,7 @@ import time
 from typing import TYPE_CHECKING
 
 from zrb.llm.custom_command.resolver import run_custom_command
-from zrb.llm.input_source import InputProvenance
+from zrb.llm.shared.input_source import InputProvenance
 
 if TYPE_CHECKING:
     from zrb.llm.ui.simple_ui_base import SimpleUI

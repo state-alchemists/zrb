@@ -16,7 +16,7 @@ from zrb.llm.camera.backend.builtin import get_camera_backend
 from zrb.llm.camera.config import CameraConfig
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.permission.capability import Capability, tag
-from zrb.llm.util.feature_config import replace_registration
+from zrb.llm.shared.feature_config import replace_registration
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import stylize_error, stylize_muted
 

@@ -14,7 +14,7 @@ from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import (
+from zrb.llm.shared.agent_state import (
     current_hook_manager,
     current_model,
     current_small_model,

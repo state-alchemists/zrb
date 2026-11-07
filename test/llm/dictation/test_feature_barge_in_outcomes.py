@@ -4,7 +4,7 @@ carries on, or a request, and which of them waits on the judge."""
 import pytest
 
 from zrb.llm.dictation.interrupt_judge import BargeInVerdict
-from zrb.llm.util.feature_config import set_session_ui
+from zrb.llm.shared.feature_config import set_session_ui
 
 from .barge_in_support import (
     FakeUI,

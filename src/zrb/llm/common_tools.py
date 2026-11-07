@@ -23,13 +23,16 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from zrb.config.config import CFG
-from zrb.llm.ambient_state import get_interactive_mode
+from zrb.llm.shared.ambient_state import get_interactive_mode
 from zrb.llm.tool_call.always_approve import (
     register_default_auto_approve,
     register_default_auto_approve_if,
 )
 from zrb.llm.tool_call.tool_policy.bash_validation import bash_safe_command_policy
-from zrb.llm.tool_registry import tool_name, tool_registry  # noqa: F401 -- re-exported
+from zrb.llm.shared.tool_registry import (  # noqa: F401 -- re-exported
+    tool_name,
+    tool_registry,
+)
 from zrb.llm.util.git import is_inside_git_dir
 from zrb.util.string.conversion import to_boolean
 

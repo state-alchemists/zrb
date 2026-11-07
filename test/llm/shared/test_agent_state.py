@@ -1,4 +1,4 @@
-"""Tests for agent runtime-state wrappers (zrb.llm.agent_state)."""
+"""Tests for agent runtime-state wrappers (zrb.llm.shared.agent_state)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from zrb.llm.agent_state import (
+from zrb.llm.shared.agent_state import (
     current_agent_run_scope,
     current_approval_channel,
     current_tool_confirmation,
@@ -127,11 +127,11 @@ def test_wrapper_matches_underlying_get(wrapper, var, value):
 
 
 def test_every_context_var_and_its_getter_is_exported():
-    """`from zrb.llm.agent_state import *` must see what `zrb.contextvars`
+    """`from zrb.llm.shared.agent_state import *` must see what `zrb.contextvars`
     indexes; a new ContextVar left out of `__all__` silently goes missing."""
     from contextvars import ContextVar
 
-    from zrb.llm import agent_state
+    from zrb.llm.shared import agent_state
 
     names = {
         name

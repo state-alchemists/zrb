@@ -9,9 +9,9 @@ from zrb.contextvars import current_chat_session_id
 from zrb.llm.dictation import AnyDictationBackend, DictationConfig, enable_dictation
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import MicState, Utterance
-from zrb.llm.input_source import DICTATION_INPUT
+from zrb.llm.shared.input_source import DICTATION_INPUT
 from zrb.llm.ui.trigger import TriggerReply
-from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
+from zrb.llm.shared.feature_config import reset_session_ui, set_session_ui
 
 
 class FakeBackend(AnyDictationBackend):

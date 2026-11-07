@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, cast
 
-from zrb.llm.agent_runner import register_agent_runner
+from zrb.llm.shared.agent_runner import register_agent_runner
 
 if TYPE_CHECKING:
     from zrb.llm.agent.common import create_agent  # noqa: F401
@@ -38,7 +38,7 @@ _SOURCES = {
 
 
 class _EngineAgentRunner:
-    """The engine half of `zrb.llm.agent_runner`, resolved on first call."""
+    """The engine half of `zrb.llm.shared.agent_runner`, resolved on first call."""
 
     def create_agent(self, **kwargs: object) -> Agent:
         # lazy: circular — this package is the lazy facade; importing the

@@ -37,10 +37,10 @@ from zrb.llm.dictation.words import (
     strip_wake_word,
     to_answer,
 )
-from zrb.llm.input_source import DICTATION_INPUT
+from zrb.llm.shared.input_source import DICTATION_INPUT
 from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
 from zrb.llm.ui.trigger import TriggerReply
-from zrb.llm.util.feature_config import (
+from zrb.llm.shared.feature_config import (
     current_session_key,
     get_session_ui,
     replace_feature_sessions,

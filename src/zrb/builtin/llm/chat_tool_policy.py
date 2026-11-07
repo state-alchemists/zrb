@@ -2,7 +2,7 @@ import os
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.ambient_state import get_active_worktree
+from zrb.llm.shared.ambient_state import get_active_worktree
 
 
 def approve_if_path_inside_cwd(args: dict[str, Any]) -> bool:

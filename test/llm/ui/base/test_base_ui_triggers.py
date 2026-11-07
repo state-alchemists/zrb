@@ -7,7 +7,7 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.shared.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome, DeliveryReport
 from zrb.llm.ui.base.ui import BaseUI
 from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply

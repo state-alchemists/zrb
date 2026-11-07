@@ -46,7 +46,7 @@ def lookup_ticket(ticket_id: str) -> str:
 llm_chat.append_tool(tag(lookup_ticket, Capability.READ))
 ```
 
-The type hints and docstring are the schema the model sees. Do not add a `ctx` parameter: the model would be asked to supply it. `tag` declares what the tool does, so permission rules and [Plan Mode](plan-mode.md) can treat it correctly; an untagged tool is `UNKNOWN`, which Plan Mode denies. To give the tool to sub-agents too, register it on `tool_registry` (from `zrb.llm.tool_registry`) instead, and not on both.
+The type hints and docstring are the schema the model sees. Do not add a `ctx` parameter: the model would be asked to supply it. `tag` declares what the tool does, so permission rules and [Plan Mode](plan-mode.md) can treat it correctly; an untagged tool is `UNKNOWN`, which Plan Mode denies. To give the tool to sub-agents too, register it on `tool_registry` (from `zrb.llm.shared.tool_registry`) instead, and not on both.
 
 ## Replace the persona
 

@@ -8,7 +8,7 @@ Rule: Lower layers do not import higher ones; shared behaviour reachable from lo
 
 Enforced by: test/architecture/test_llm_layering_ratchet.py (layers and upward edges), test/architecture/test_circular_import_allowlist.py (cycle allowlist), test/architecture/test_boundaries.py (Protocol naming in any_*.py).
 
-Lives in: src/zrb/llm/any_*.py (contracts), src/zrb/llm/agent_runner.py, src/zrb/llm/delegation_api.py. Engine/subagent register implementations at import.
+Lives in: src/zrb/llm/any_*.py (contracts), src/zrb/llm/shared/agent_runner.py, src/zrb/llm/shared/delegation_api.py. Engine/subagent register implementations at import.
 
 Context
 

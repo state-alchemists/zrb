@@ -18,13 +18,13 @@ from __future__ import annotations
 import weakref
 from typing import TYPE_CHECKING
 
-from zrb.llm.ambient_state import current_reply_emotion, get_input_provenance
+from zrb.llm.shared.ambient_state import current_reply_emotion, get_input_provenance
 from zrb.llm.emotion.config import EmotionConfig
 from zrb.llm.hook.interface import HookContext, HookResult
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.util.feature_config import replace_feature_sessions, replace_registration
+from zrb.llm.shared.feature_config import replace_feature_sessions, replace_registration
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext

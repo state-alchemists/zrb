@@ -11,11 +11,11 @@ from typing import Annotated
 
 from pydantic import Field
 
-from zrb.llm.ambient_state import (
+from zrb.llm.shared.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
-from zrb.llm.delegation_api import get_live_session_registry
+from zrb.llm.shared.delegation_api import get_live_session_registry
 
 
 def create_send_message_to_subagent_tool():

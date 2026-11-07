@@ -8,7 +8,7 @@ from pydantic_ai.usage import RunUsage
 from zrb.config.config import CFG
 from zrb.llm.custom_command.usage_command import create_usage_commands, render_usage
 from zrb.llm.memory.model import Diary, Fact
-from zrb.llm.usage_log import UsageRecord, record_usage
+from zrb.llm.shared.usage_log import UsageRecord, record_usage
 
 
 @pytest.fixture

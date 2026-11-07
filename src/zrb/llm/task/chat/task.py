@@ -22,7 +22,7 @@ from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.prompt.manager import PromptManager
-from zrb.llm.stream_observer import StreamObserver
+from zrb.llm.shared.stream_observer import StreamObserver
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.task.history_config import HistoryConfig

@@ -114,7 +114,7 @@ prompt_registry.set_prompts(["Only these extra prompts run."])
 Layer onto the shipped surface:
 
 ```python
-from zrb.llm.tool_registry import tool_registry
+from zrb.llm.shared.tool_registry import tool_registry
 
 def my_special_tool(ticket_id: str) -> dict:
     """...: the parameters are what the model fills in, so no `ctx`."""

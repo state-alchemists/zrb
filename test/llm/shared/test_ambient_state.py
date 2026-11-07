@@ -1,9 +1,9 @@
-"""Tests for tool ambient-state wrappers (zrb.llm.ambient_state)."""
+"""Tests for tool ambient-state wrappers (zrb.llm.shared.ambient_state)."""
 
 from __future__ import annotations
 
-from zrb.llm.ambient_state import set_current_session  # the shorter alias
-from zrb.llm.ambient_state import (
+from zrb.llm.shared.ambient_state import set_current_session  # the shorter alias
+from zrb.llm.shared.ambient_state import (
     active_worktree,
     current_chat_session_id,
     get_active_worktree,

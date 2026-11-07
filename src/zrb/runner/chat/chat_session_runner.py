@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.ambient_state import current_chat_session_id, input_provenance
+from zrb.llm.shared.ambient_state import current_chat_session_id, input_provenance
 from zrb.runner.chat.chat_session_manager import (
     ChatSession,
     ChatSessionManager,

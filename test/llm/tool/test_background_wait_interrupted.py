@@ -11,7 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.shell_cut import (
+from zrb.llm.shared.shell_cut import (
     ShellCutSignal,
     current_shell_cut_signal,
     interrupted_notice,

@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from zrb.llm.agent.run.authority_snapshot import capture_current_authority
 from zrb.llm.agent.run.runner import current_yolo
-from zrb.llm.agent_state import current_hook_manager
+from zrb.llm.shared.agent_state import current_hook_manager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission.policy import PLAN_MODE_POLICY, PermissionPolicy, Rule
 from zrb.llm.permission.state import (

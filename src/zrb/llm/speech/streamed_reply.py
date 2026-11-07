@@ -1,7 +1,7 @@
 """Speaking a reply a sentence at a time, while the model writes it.
 
 `StreamedReply` reads the run's stream events (it is fed by a stream
-observer, `zrb.llm.stream_observer`), keeps what the reply means for the ear
+observer, `zrb.llm.shared.stream_observer`), keeps what the reply means for the ear
 (`SpokenSplitter`: a `<spoken>` block, or the whole reply when it opens none),
 cuts that into sentences with `SpeechChunker` and says each one as soon as it
 is complete. Text written before a tool call is spoken when the call starts, so

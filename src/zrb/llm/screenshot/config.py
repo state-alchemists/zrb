@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from zrb.llm.util.feature_config import accepts_renamed_fields, resolve_from_cfg
+from zrb.llm.shared.feature_config import accepts_renamed_fields, resolve_from_cfg
 
 if TYPE_CHECKING:
     from zrb.llm.screenshot.backend.any_screenshot_backend import (

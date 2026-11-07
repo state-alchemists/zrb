@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import current_model
+from zrb.llm.shared.agent_state import current_model
 from zrb.llm.permission.capability import Capability, tool_capability
 from zrb.llm.screenshot import AnyScreenshotBackend, ScreenshotConfig, enable_screenshot
 from zrb.llm.screenshot.feature import (

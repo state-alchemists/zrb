@@ -16,7 +16,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, NamedTuple
 
-from zrb.llm.input_source import InputProvenance
+from zrb.llm.shared.input_source import InputProvenance
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent

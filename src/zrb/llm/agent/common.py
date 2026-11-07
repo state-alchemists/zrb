@@ -17,7 +17,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 )
 from zrb.llm.agent.spill import maybe_spill
 from zrb.llm.agent.truncate import truncate_tool_content
-from zrb.llm.agent_tool_result import has_multimodal, tool_return
+from zrb.llm.shared.agent_tool_result import has_multimodal, tool_return
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent

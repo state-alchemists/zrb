@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from zrb.llm.agent_state import (
+from zrb.llm.shared.agent_state import (
     AnyToolConfirmation,
     get_current_approval_channel,
     get_current_hook_manager,

@@ -10,7 +10,7 @@ import asyncio
 import re
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.ambient_state import get_session_ownership_key
+from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.llm.ui.default.app.focus import focus_widget
 from zrb.llm.util.choice_spec_format import get_option_label
 

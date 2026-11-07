@@ -31,7 +31,7 @@ current_ctx: ContextVar[AnyContext | None] = ContextVar("current_ctx", default=N
 
 The active `Context` for the executing task. Set at the start of `execute_task_action()`, reset in its `finally` block.
 
-**Layer 2 — LLM agent execution** (`src/zrb/llm/agent_state.py`, `src/zrb/llm/approval/approval_channel.py`). All ten are set at the start of `run_agent()` and reset in its `finally` block:
+**Layer 2 — LLM agent execution** (`src/zrb/llm/shared/agent_state.py`, `src/zrb/llm/approval/approval_channel.py`). All ten are set at the start of `run_agent()` and reset in its `finally` block:
 
 | Variable | Type | Purpose |
 |---|---|---|
@@ -59,7 +59,7 @@ The active `Context` for the executing task. Set at the start of `execute_task_a
 |---|---|---|
 | `current_sandbox_policy` | `SandboxPolicy \| None` | In-force filesystem-containment policy (`None` = resolve from `CFG.LLM_SANDBOX_*`, disabled unless the deployment opted in). Set by `run_agent()` from the explicit arg or inherited from a parent run; reset in its `finally` block. Consumed by the `sandbox_gate` in `agent/gates.py` (which reads the policy `run_agent()` passes as `deps`, falling back to this var) and the shell tools' OS-sandbox wrapper. |
 
-**Layer 5 — Tool ambient state** (`src/zrb/llm/ambient_state.py`). Set at several points rather than a single entry point — the worktree tools (`src/zrb/llm/tool/worktree.py`), the per-turn live-context wiring (`src/zrb/llm/prompt/live_context.py`, which sets the session name and interactive mode), and the chat session runner:
+**Layer 5 — Tool ambient state** (`src/zrb/llm/shared/ambient_state.py`). Set at several points rather than a single entry point — the worktree tools (`src/zrb/llm/tool/worktree.py`), the per-turn live-context wiring (`src/zrb/llm/prompt/live_context.py`, which sets the session name and interactive mode), and the chat session runner:
 
 | Variable | Type | Purpose |
 |---|---|---|

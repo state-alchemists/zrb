@@ -5,7 +5,7 @@ import threading
 
 import pytest
 
-from zrb.llm.ambient_state import get_current_speech_voice
+from zrb.llm.shared.ambient_state import get_current_speech_voice
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.backend.audio import SpeechAudio
 

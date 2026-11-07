@@ -257,7 +257,7 @@ async def test_call_tool_pretooluse_fires_on_the_run_hook_manager():
     from pydantic_ai.toolsets import FunctionToolset
 
     from zrb.llm.agent.common import wrap_toolset
-    from zrb.llm.agent_state import current_hook_manager
+    from zrb.llm.shared.agent_state import current_hook_manager
     from zrb.llm.hook.executor import HookExecutionResult
     from zrb.llm.hook.types import HookEvent
 

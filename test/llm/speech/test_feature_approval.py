@@ -10,7 +10,7 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.speech import SpeechConfig
 from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
-from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
+from zrb.llm.shared.feature_config import reset_session_ui, set_session_ui
 
 
 class StaleCheckSpeaker:

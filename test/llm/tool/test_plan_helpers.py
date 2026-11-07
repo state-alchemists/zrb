@@ -2,7 +2,10 @@
 
 import pytest
 
-from zrb.llm.ambient_state import get_current_context_session, set_current_session
+from zrb.llm.shared.ambient_state import (
+    get_current_context_session,
+    set_current_session,
+)
 from zrb.llm.tool.plan import (
     TodoManager,
     create_plan_tools,

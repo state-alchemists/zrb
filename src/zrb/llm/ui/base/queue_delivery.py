@@ -23,7 +23,7 @@ from zrb.llm.ui.base.message_queue import MessageQueue, steer_into_live_run
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
 
 if TYPE_CHECKING:
-    from zrb.llm.shell_cut import ShellCutSignal
+    from zrb.llm.shared.shell_cut import ShellCutSignal
     from zrb.llm.ui.base.message_queue import QueuedMessage
 
 DELIVERED_MARKER = "⏩"
@@ -71,7 +71,7 @@ def send_queued_messages_now(
     newly queued utterance, without flushing anyone else's draft. An explicit
     Ctrl+G takes everything: that is the user's decision.
 
-    *cut_signal* is the run's own (see `zrb.llm.shell_cut`). An explicit
+    *cut_signal* is the run's own (see `zrb.llm.shared.shell_cut`). An explicit
     send-now cuts it before steering, so a `Shell` call still holding the turn
     moves its command to the background instead of delaying the message until
     the command ends. *move_shell* overrides whether that happens — speech

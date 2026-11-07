@@ -5,7 +5,7 @@ import time
 
 import pytest
 
-from zrb.llm.ambient_state import get_current_speech_voice
+from zrb.llm.shared.ambient_state import get_current_speech_voice
 from zrb.llm.speech import AnySpeechBackend, Speaker, SpeechConfig, Utterance
 from zrb.llm.speech.player import is_speaking, play
 from zrb.util.file_lock import hold_file_lock

@@ -15,7 +15,7 @@ from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.history_manager.conversation_naming import with_slug
 from zrb.llm.ui.buffered_ui import BufferedUI
-from zrb.llm.usage_log import (
+from zrb.llm.shared.usage_log import (
     KIND_SUMMARIZATION,
     UsageTotals,
     read_records,

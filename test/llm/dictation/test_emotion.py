@@ -13,7 +13,7 @@ from zrb.llm.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.dictation.emotion import EmotionDetector, Tone
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.listen import Utterance
-from zrb.llm.input_source import DICTATION_INPUT, InputProvenance
+from zrb.llm.shared.input_source import DICTATION_INPUT, InputProvenance
 
 LABELS = ["生气/angry", "开心/happy", "中立/neutral", "难过/sad", "吃惊/surprised"]
 

@@ -186,7 +186,7 @@ Control returns up through `LLMChatTask._exec_action` → `run_task_async` → `
 | Inner LLM task | `src/zrb/llm/task/llm_task.py` |
 | Agent factory | `src/zrb/llm/agent/common.py` |
 | Run loop | `src/zrb/llm/agent/run/runner.py` |
-| History sanitization | `src/zrb/llm/agent/run/history_utils.py`, `src/zrb/llm/message.py` |
+| History sanitization | `src/zrb/llm/agent/run/history_utils.py`, `src/zrb/llm/shared/message.py` |
 | OpenAI serializer patch | `src/zrb/llm/agent/run/openai_patch.py` |
 | Retry / error classification | `src/zrb/llm/agent/run/{retry_loop,error_classifier}.py` |
 | Compression / summarisation | `src/zrb/llm/summarizer/history_summarizer.py` |

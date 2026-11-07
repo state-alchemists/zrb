@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.input_source import KEYBOARD_INPUT
+from zrb.llm.shared.input_source import KEYBOARD_INPUT
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
 from zrb.llm.ui.multi_ui import MultiUI
