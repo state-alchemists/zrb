@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 from zrb.llm.shared.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT
 from zrb.llm.ui.default.ui import UI
-from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.multi import MultiUI
 
 
 def _ui(mock_ui_deps) -> UI:

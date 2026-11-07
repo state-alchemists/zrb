@@ -50,7 +50,7 @@ async def test_terminal_approval_asks_the_multi_ui_primary_child():
     from unittest.mock import AsyncMock, MagicMock
 
     from zrb.llm.approval.any_approval_channel import ApprovalContext
-    from zrb.llm.ui.multi_ui import MultiUI
+    from zrb.llm.ui.multi import MultiUI
 
     first, primary = MagicMock(), MagicMock()
     for child in (first, primary):

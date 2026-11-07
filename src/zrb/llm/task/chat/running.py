@@ -40,7 +40,7 @@ if TYPE_CHECKING:
     from zrb.llm.task.llm_task import LLMTask
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
-    from zrb.llm.ui.multi_ui import MultiUI
+    from zrb.llm.ui.multi import MultiUI
 
     #: Builds the UI(s) a session runs through, from the session's own values.
     #: The interactive path also passes `custom_commands`, a ninth keyword
@@ -345,10 +345,10 @@ class ChatRunning:
 
     def _create_multi_ui(self, uis: "list[AnyUI]") -> "MultiUI":
         """Combine `uis` into a `MultiUI` wired to the task's approval channel."""
-        # lazy: zrb.llm.ui.multi_ui transitively loads prompt_toolkit and
+        # lazy: zrb.llm.ui.multi transitively loads prompt_toolkit and
         # pydantic_ai; zrb.llm.approval transitively loads pydantic_ai.
         from zrb.llm.approval import resolve_approval_channel
-        from zrb.llm.ui.multi_ui import MultiUI
+        from zrb.llm.ui.multi import MultiUI
 
         ui = MultiUI(uis)
         approval_channel = resolve_approval_channel(

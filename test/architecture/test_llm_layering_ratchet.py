@@ -63,7 +63,7 @@ KNOWN_UPWARD_EDGES: set[str] = {
     "subagent/parent_message.py -> ui/buffered_ui.py",
     "task/chat/running.py -> ui/default/app/lexer.py",
     "task/chat/running.py -> ui/default/ui.py",
-    "task/chat/running.py -> ui/multi_ui.py",
+    "task/chat/running.py -> ui/multi/__init__.py",
     "task/chat/task.py -> ui/ui_config.py",
     "tool/delegate.py -> ui/buffered_ui.py",
 }

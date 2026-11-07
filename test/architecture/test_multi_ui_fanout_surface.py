@@ -19,8 +19,17 @@ import ast
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
-MULTI_UI = REPO_ROOT / "src" / "zrb" / "llm" / "ui" / "multi_ui.py"
+MULTI_UI_DIR = REPO_ROOT / "src" / "zrb" / "llm" / "ui" / "multi"
 CUSTOM_UI_DOC = REPO_ROOT / "docs" / "llm" / "llm-custom-ui.md"
+
+
+def _multi_ui_tree() -> ast.Module:
+    """The whole `multi/` package as one module: its parts are one class."""
+    source = "\n\n".join(
+        path.read_text(encoding="utf-8") for path in sorted(MULTI_UI_DIR.glob("*.py"))
+    )
+    return ast.parse(source)
+
 
 # Hooks `MultiUI` forwards to children as typed calls; each is declared on
 # `AnyUI`, or on the display or session role it hands out. Adding one means
@@ -57,7 +66,7 @@ CHILD_CAPABILITY_PROBES = frozenset({"start_event_loop"})
 
 
 def _calls_named(attr: str) -> list[ast.Call]:
-    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    tree = _multi_ui_tree()
     return [
         node
         for node in ast.walk(tree)
@@ -82,7 +91,7 @@ def _offered_names() -> set[str]:
 
 def _child_getattr_names() -> set[str]:
     """Literal names probed with `getattr(ui, "name", ...)` on a child."""
-    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    tree = _multi_ui_tree()
     names: set[str] = set()
     for node in ast.walk(tree):
         if (
@@ -164,7 +173,7 @@ def _primary_child_probes() -> set[str]:
     `/plan` badge and the model overrides. Those members are declared in
     `AnyUI`, so they are reached by attribute access and this set is empty.
     """
-    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    tree = _multi_ui_tree()
     names: set[str] = set()
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -188,7 +197,7 @@ def _fixed_index_child_reads() -> set[str]:
     `self.main_ui`; one that indexes instead silently takes the wrong child's
     session name, approval mode or model.
     """
-    tree = ast.parse(MULTI_UI.read_text(encoding="utf-8"))
+    tree = _multi_ui_tree()
     names: set[str] = set()
     for node in ast.walk(tree):
         if not isinstance(node, ast.Attribute):

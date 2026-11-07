@@ -12,7 +12,7 @@ from zrb.llm.hook.manager import HookManager
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.ui import BaseUI
-from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.multi import MultiUI
 
 
 class _SurfaceUI(BaseUI):

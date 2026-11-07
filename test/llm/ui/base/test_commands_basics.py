@@ -455,7 +455,7 @@ async def test_handle_exec_command(ui):
 def test_handle_exec_command_queues_on_the_multi_ui_shared_queue(ui):
     """Under a MultiUI the exec waits its turn behind LLM turns on the shared
     queue, not on the child's own queue."""
-    from zrb.llm.ui.multi_ui import MultiUI
+    from zrb.llm.ui.multi import MultiUI
 
     multi_ui = MultiUI([ui])
 

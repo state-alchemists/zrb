@@ -136,7 +136,7 @@ def editing_multi_ui():
     """Two real `MockEditingUI`s wired as `MultiUI` wires them: `multi_ui_parent`
     set on each, so both route to the one shared queue and one delete reaches
     both transcripts."""
-    from zrb.llm.ui.multi_ui import MultiUI
+    from zrb.llm.ui.multi import MultiUI
 
     return MultiUI([MockEditingUI(), MockEditingUI()])
 

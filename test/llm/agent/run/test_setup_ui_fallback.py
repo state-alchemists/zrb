@@ -38,7 +38,7 @@ from zrb.llm.agent.run.setup import resolve_context_dependencies
 from zrb.llm.ui.fallback.resolution import get_main_ui
 from zrb.llm.ui.fallback.std_ui import StdUI
 
-PRESENTATION = ("zrb.llm.ui.base", "zrb.llm.ui.default", "zrb.llm.ui.multi_ui",
+PRESENTATION = ("zrb.llm.ui.base", "zrb.llm.ui.default", "zrb.llm.ui.multi",
                 "prompt_toolkit")
 
 

@@ -7,7 +7,7 @@ from zrb.config.config import CFG
 from zrb.llm.shared.input_source import KEYBOARD_INPUT
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
-from zrb.llm.ui.multi_ui import MultiUI
+from zrb.llm.ui.multi import MultiUI
 
 
 @pytest.fixture
@@ -134,7 +134,7 @@ async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui, monkeypatch
     llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="AI Output")
 
-    with patch("zrb.llm.ui.multi_ui.asyncio.sleep", side_effect=tracking_sleep):
+    with patch("zrb.llm.ui.multi.input.asyncio.sleep", side_effect=tracking_sleep):
         multi_ui.submit_user_message(llm_task, "first")
         multi_ui.submit_user_message(llm_task, "second")
 
