@@ -115,8 +115,8 @@ With `ZRB_LLM_EMOTION_ENABLED` on, the model opens each reply with an emoji for 
 
 ```python
 from zrb.builtin import llm_chat
-from zrb.llm.hook.interface import HookResult
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookResult
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 def show_emotion(hooks):
@@ -511,8 +511,8 @@ A `Stop` hook can return a `systemMessage` to trigger more LLM work when a turn 
 Use for actions that should happen invisibly to the user:
 
 ```python
-from zrb.llm.hook.interface import HookContext, HookResult
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.types import HookEvent
 
 _extended_turns: set[str] = set()
 
@@ -638,9 +638,9 @@ To attach hooks to one `LLMTask`/`LLMChatTask`, use its `append_hook_factory(*fa
 
 ```python
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.hook.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 async def my_hook(context: HookContext) -> HookResult:
@@ -666,8 +666,8 @@ The `hook_manager` singleton is the default manager of every `LLMTask` that has 
 
 ```python
 from zrb.llm.hook.manager import hook_manager
-from zrb.llm.hook.interface import HookContext, HookResult
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.types import HookEvent
 
 async def block_production_writes(context: HookContext) -> HookResult:
     """Block writes to production config files."""
@@ -689,8 +689,8 @@ hook_manager.add_hook(block_production_writes, events=[HookEvent.PRE_TOOL_USE])
 Here `HookConfig` carries only metadata (priority, matchers); the callable is the hook. Its required `type`/`config` fields take an inert placeholder, as `hook_manager` does internally for manually registered hooks:
 
 ```python
-from zrb.llm.hook.schema import CommandHookConfig, HookConfig
-from zrb.llm.hook.types import HookType
+from zrb.llm.hook.contracts.schema import CommandHookConfig, HookConfig
+from zrb.llm.hook.contracts.types import HookType
 
 async def critical_security_check(context: HookContext) -> HookResult:
     # ... security check logic ...

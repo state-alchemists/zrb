@@ -120,6 +120,31 @@ A facade with several parts is now a package, and its `__init__` re-exports the 
 
 The last row is the one path in this group that is gone rather than moved: `zrb.llm.prompt.live_context` was a module and is a package now, so its provider half could only become a module inside it. `split_live_context` and `append_live_context` were never defined there — their home is `zrb.llm.util.live_context_block`.
 
+### The hook machinery is now four packages
+
+`zrb.llm.hook` was eighteen modules in one directory: the vocabulary, the parser, the subprocess plumbing, the two hooks zrb ships, and the manager. It is now four packages — `contracts` (the shapes a declaration and a call are made of), `execution` (building a hook and running it safely), `builtin` (the memory reviewer and the self-review gate) and `manager` (where hooks come from, which one applies, the stop rules) — plus the five single-job modules that stay at the root: `registry`, `hook_loader`, `skill_frontmatter`, `turn_evidence` and `agent_hook_registry`.
+
+Nothing a user writes against breaks: `from zrb.llm.hook import HookEvent, HookContext, HookConfig` and `from zrb.llm.hook.manager import HookManager, hook_manager` are unchanged, because `hook/__init__.py` and `hook/manager/__init__.py` re-export what they always did. Only an import that named one of the modules directly moves.
+
+| Before | After |
+|---|---|
+| `from zrb.llm.hook.manager import HookManager, hook_manager, get_run_hook_manager` | unchanged — it is the package now |
+| `from zrb.llm.hook.manager_loading import HookManagerLoading` | `from zrb.llm.hook.manager.loading import HookManagerLoading` |
+| `from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator` | `from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator` |
+| `from zrb.llm.hook.interface import HookContext, HookResult, HookCallable` | `from zrb.llm.hook.contracts.interface import HookContext, HookResult, HookCallable` |
+| `from zrb.llm.hook.schema import HookConfig, MatcherConfig` | `from zrb.llm.hook.contracts.schema import HookConfig, MatcherConfig` |
+| `from zrb.llm.hook.executor import ThreadPoolHookExecutor` | `from zrb.llm.hook.execution.executor import ThreadPoolHookExecutor` |
+| `from zrb.llm.hook.creator import create_command_hook, create_prompt_hook` | `from zrb.llm.hook.execution.creator import ...` |
+| `from zrb.llm.hook.matcher import evaluate_matchers` | `from zrb.llm.hook.execution.matcher import evaluate_matchers` |
+| `from zrb.llm.hook.process_io import read_hook_output` | `from zrb.llm.hook.execution.process_io import read_hook_output` |
+| `from zrb.llm.hook.process_kill import kill_process_tree` | `from zrb.llm.hook.execution.process_kill import kill_process_tree` |
+| `from zrb.llm.hook.memory_reviewer import register_memory_reviewer_hook` | `from zrb.llm.hook.builtin.memory_reviewer import register_memory_reviewer_hook` |
+| `from zrb.llm.hook.self_review import register_self_review_hook` | `from zrb.llm.hook.builtin.self_review import register_self_review_hook` |
+| `from zrb.llm.hook.registry import HookRegistry, hook_registry` | unchanged |
+| `from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder` | unchanged |
+
+`zrb.llm.hook.contracts`, `zrb.llm.hook.execution` and `zrb.llm.hook.builtin` each re-export the names of the package beside them, so they can be imported from as a whole. A hook you declare yourself — in `.claude/settings.json`, `.zrb/hooks.json` or a `.hook.py` file — is untouched: the formats, the events and the control rules are the same.
+
 ---
 
 ## Upgrading to 3.35.0

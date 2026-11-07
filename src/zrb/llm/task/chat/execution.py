@@ -24,7 +24,7 @@ from zrb.llm.approval import resolve_approval_channel
 from zrb.llm.shared.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.file_history_manager import default_history_manager
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.lsp.manager.manager import lsp_manager
 from zrb.llm.permission import tool_capability
 from zrb.llm.sandbox import coerce_sandbox
@@ -274,7 +274,7 @@ class ChatExecution:
         # lazy: zrb internal — only needed at teardown; keeps this import
         # off the hot path every other turn takes.
         try:
-            from zrb.llm.hook.executor import shutdown_hook_executor
+            from zrb.llm.hook.execution.executor import shutdown_hook_executor
 
             shutdown_hook_executor(wait=False)
         except Exception as e:

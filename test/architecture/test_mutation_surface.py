@@ -212,7 +212,7 @@ def test_managers_expose_the_same_roster_api():
     for path in (
         "zrb.llm.skill.manager:skill_manager",
         "zrb.llm.subagent.manager.manager:sub_agent_manager",
-        "zrb.llm.hook.manager:hook_manager",
+        "zrb.llm.hook.manager.manager:hook_manager",
     ):
         manager = _load(path)
         missing = [n for n in MANAGER_ROSTER_API if not hasattr(manager, n)]

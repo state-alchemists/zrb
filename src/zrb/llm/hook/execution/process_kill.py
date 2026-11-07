@@ -1,6 +1,6 @@
 """Killing a hook subprocess and everything it spawned.
 
-Called on `zrb.llm.hook.creator`'s timeout and cancellation paths, so nothing
+Called on `zrb.llm.hook.execution.creator`'s timeout and cancellation paths, so nothing
 here raises: an escaping error would swallow a ``CancelledError`` that must
 propagate.
 """
@@ -10,7 +10,7 @@ import os
 import signal
 import subprocess
 
-from zrb.llm.hook.process_io import wait_for_exit
+from zrb.llm.hook.execution.process_io import wait_for_exit
 
 logger = logging.getLogger(__name__)
 

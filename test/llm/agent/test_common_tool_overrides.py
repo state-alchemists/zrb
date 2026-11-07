@@ -77,12 +77,12 @@ async def test_call_tool_passes_claude_tool_identity_fields():
     from pydantic_ai.toolsets import FunctionToolset
 
     from zrb.llm.agent.common import wrap_toolset
-    from zrb.llm.hook.types import HookEvent
+    from zrb.llm.hook.contracts.types import HookEvent
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     execute = _route_hooks({})
     with (
-        patch("zrb.llm.hook.manager.hook_manager.execute_hooks", execute),
+        patch("zrb.llm.hook.manager.manager.hook_manager.execute_hooks", execute),
         patch(
             "pydantic_ai.toolsets.WrapperToolset.call_tool", new_callable=AsyncMock
         ) as mock_super,
@@ -109,12 +109,12 @@ async def test_posttooluse_failure_passes_claude_tool_identity_fields():
     from pydantic_ai.toolsets import FunctionToolset
 
     from zrb.llm.agent.common import wrap_toolset
-    from zrb.llm.hook.types import HookEvent
+    from zrb.llm.hook.contracts.types import HookEvent
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     execute = _route_hooks({})
     with (
-        patch("zrb.llm.hook.manager.hook_manager.execute_hooks", execute),
+        patch("zrb.llm.hook.manager.manager.hook_manager.execute_hooks", execute),
         patch(
             "pydantic_ai.toolsets.WrapperToolset.call_tool",
             side_effect=ValueError("boom"),

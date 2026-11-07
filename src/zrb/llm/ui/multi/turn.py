@@ -7,7 +7,7 @@ answer here rather than in a child.
 
 import asyncio
 
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.ui.base.message_queue import QueuedMessage
 from zrb.llm.ui.base.queue_delivery import (
     DeliveryReport,

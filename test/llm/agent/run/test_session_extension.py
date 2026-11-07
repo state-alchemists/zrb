@@ -6,7 +6,7 @@ from zrb.llm.agent.run.session_extension import (
     ExtensionState,
     apply_turn_end_extension,
 )
-from zrb.llm.hook.executor import HookExecutionResult
+from zrb.llm.hook.execution.executor import HookExecutionResult
 
 
 def _noop(msg):

@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.skill.manager import Skill, SkillManager
 from zrb.llm.skill.manager import skill_manager as skill_manager_singleton
 

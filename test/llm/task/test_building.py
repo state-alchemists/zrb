@@ -155,9 +155,9 @@ class TestRegistration:
     @pytest.mark.asyncio
     async def test_add_hook_factory_isolates_and_reaches_runner(self, session):
         """append_hook_factory registers on a task-local manager, leaving the global one alone."""
-        from zrb.llm.hook.interface import HookContext, HookResult
+        from zrb.llm.hook.contracts.interface import HookContext, HookResult
         from zrb.llm.hook.manager import hook_manager as global_manager
-        from zrb.llm.hook.types import HookEvent
+        from zrb.llm.hook.contracts.types import HookEvent
 
         fired: list[str] = []
 

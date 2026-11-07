@@ -2,7 +2,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 @dataclass

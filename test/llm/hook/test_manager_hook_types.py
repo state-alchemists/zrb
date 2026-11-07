@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 def _fake_popen(stdout: bytes = b"", stderr: bytes = b"", returncode: int = 0):
@@ -42,7 +42,7 @@ def manager():
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
     mock_cfg.HOOKS_DIRS = []
-    with patch("zrb.llm.hook.manager.CFG", mock_cfg):
+    with patch("zrb.llm.hook.manager.manager.CFG", mock_cfg):
         yield HookManager(search_dirs=[])
 
 
@@ -237,7 +237,7 @@ class TestHookManagerHookTypes:
             )
         )
 
-        with patch("zrb.llm.hook.manager_loading.AgentHookConfig") as agent_config:
+        with patch("zrb.llm.hook.manager.loading.AgentHookConfig") as agent_config:
             manager.scan(search_dirs=[str(tmp_path)])
 
         assert agent_config.call_args.kwargs["auto_approve"] is True

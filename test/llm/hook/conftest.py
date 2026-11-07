@@ -7,9 +7,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
-from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.skill_frontmatter import reset_skill_hook_configs
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 @pytest.fixture(autouse=True)
@@ -84,9 +84,9 @@ def _gate(
         return reviewer
 
     with (
-        patch("zrb.llm.hook.self_review.CFG") as cfg,
+        patch("zrb.llm.hook.builtin.self_review.CFG") as cfg,
         patch(
-            "zrb.llm.hook.self_review.get_agent_hook_builder",
+            "zrb.llm.hook.builtin.self_review.get_agent_hook_builder",
             return_value=build if builder else None,
         ),
     ):

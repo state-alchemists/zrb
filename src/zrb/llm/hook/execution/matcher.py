@@ -7,9 +7,9 @@ import logging
 import re
 from collections.abc import Callable
 
-from zrb.llm.hook.interface import HookContext
-from zrb.llm.hook.schema import MatcherConfig
-from zrb.llm.hook.types import HookEvent, MatcherOperator
+from zrb.llm.hook.contracts.interface import HookContext
+from zrb.llm.hook.contracts.schema import MatcherConfig
+from zrb.llm.hook.contracts.types import HookEvent, MatcherOperator
 
 logger = logging.getLogger(__name__)
 

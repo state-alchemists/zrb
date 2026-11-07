@@ -15,9 +15,9 @@ from pydantic_ai import AgentRunResultEvent
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.shared.agent_state import is_current_run_nested
 from zrb.llm.config.limiter import LLMLimiter
-from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 
 from .test_runner_lifecycle import _run_from
 

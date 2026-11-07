@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.hook.types import HookEvent  # noqa: E402
+from zrb.llm.hook.contracts.types import HookEvent  # noqa: E402
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.ui.base.commands import BaseUICommands
 

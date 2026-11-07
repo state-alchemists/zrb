@@ -33,8 +33,8 @@ Define hooks in `zrb_init.py` using `append_hook_factory()`:
 ```python
 # zrb_init.py
 from zrb.builtin.llm.chat import llm_chat
-from zrb.llm.hook.interface import HookContext, HookResult
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.types import HookEvent
 
 async def my_hook(context: HookContext) -> HookResult:
     if context.event == HookEvent.STOP:
@@ -78,8 +78,8 @@ Create `*.hook.py` files with a `register(manager)` function in a `.zrb/hooks/` 
 
 ```python
 # ~/.zrb/hooks/my_hook.hook.py
-from zrb.llm.hook.interface import HookContext, HookResult
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.types import HookEvent
 
 async def turn_logger(context: HookContext) -> HookResult:
     print(f"Turn ended: {context.session_id}")
@@ -160,6 +160,6 @@ Then interact with the LLM and observe hook behavior.
 
 ## See Also
 
-- `src/zrb/llm/hook/types.py` — HookEvent enum
-- `src/zrb/llm/hook/interface.py` — HookContext and HookResult classes
+- `src/zrb/llm/hook/contracts/types.py` — HookEvent enum
+- `src/zrb/llm/hook/contracts/interface.py` — HookContext and HookResult classes
 - `docs/llm/hooks.md` — Full hooks documentation

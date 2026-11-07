@@ -17,9 +17,9 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
-from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
-from zrb.llm.hook.schema import AgentHookConfig, HookConfig
-from zrb.llm.hook.types import HookEvent, HookType
+from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig
+from zrb.llm.hook.contracts.types import HookEvent, HookType
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.snapshot.command import SnapshotError, run_in_worker
 from zrb.llm.snapshot.listing import get_fork_point

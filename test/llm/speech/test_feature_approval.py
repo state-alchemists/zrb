@@ -5,9 +5,9 @@ import time
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.hook.interface import HookContext
+from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.speech import SpeechConfig
 from zrb.llm.speech.feature import SpeechSession, describe_tool_call, is_answered_since
 from zrb.llm.shared.feature_config import reset_session_ui, set_session_ui

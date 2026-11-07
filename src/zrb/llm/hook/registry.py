@@ -12,10 +12,10 @@ from typing import TYPE_CHECKING, overload
 from zrb.config.config import CFG
 
 if TYPE_CHECKING:
-    from zrb.llm.hook.interface import HookCallable
+    from zrb.llm.hook.contracts.interface import HookCallable
 
-from zrb.llm.hook.schema import HookConfig
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.schema import HookConfig
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 class HookRegistry:

@@ -21,14 +21,14 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
-from zrb.llm.hook.schema import AgentHookConfig, HookConfig, MatcherConfig
-from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig, MatcherConfig
+from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.memory import store
 from zrb.llm.memory.model import injection_reason
 from zrb.llm.prompt.prompt import get_prompt
 
 if TYPE_CHECKING:
-    from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
+    from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
     from zrb.llm.hook.manager import HookManager
 
 _NAME = "memory-reviewer"

@@ -11,8 +11,8 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_pre_tool_decision,
     extract_system_message,
 )
-from zrb.llm.hook.executor import HookExecutionResult
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.execution.executor import HookExecutionResult
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 class TestExtractSystemMessage:
@@ -324,7 +324,7 @@ class TestHookResultProcessing:
     @pytest.mark.asyncio
     async def test_stop_with_system_message_continues_session(self):
         "Verify that a STOP hook returning systemMessage continues the turn."
-        from zrb.llm.hook.interface import HookResult
+        from zrb.llm.hook.contracts.interface import HookResult
         from zrb.llm.hook.manager import HookManager
 
         call_count = 0
@@ -360,7 +360,7 @@ class TestHookResultProcessing:
     @pytest.mark.asyncio
     async def test_session_start_additional_context(self):
         "Verify that SESSION_START hook returning additionalContext is processed."
-        from zrb.llm.hook.interface import HookResult
+        from zrb.llm.hook.contracts.interface import HookResult
         from zrb.llm.hook.manager import HookManager
 
         async def context_hook(context):
@@ -381,7 +381,7 @@ class TestHookResultProcessing:
     @pytest.mark.asyncio
     async def test_user_prompt_submit_additional_context(self):
         "Verify that USER_PROMPT_SUBMIT hook returning additionalContext is processed."
-        from zrb.llm.hook.interface import HookResult
+        from zrb.llm.hook.contracts.interface import HookResult
         from zrb.llm.hook.manager import HookManager
 
         async def context_hook(context):

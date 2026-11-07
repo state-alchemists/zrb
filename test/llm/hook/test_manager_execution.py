@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.hook.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 @pytest.mark.asyncio
@@ -270,7 +270,9 @@ async def test_async_agent_hook_is_non_blocking():
     agent_cls = MagicMock(return_value=agent_instance)
 
     with (
-        patch("zrb.llm.hook.creator.resolve_configured_model") as mock_resolve_model,
+        patch(
+            "zrb.llm.hook.execution.creator.resolve_configured_model"
+        ) as mock_resolve_model,
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     ):
         mock_resolve_model.return_value = "resolved"

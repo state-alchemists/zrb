@@ -7,11 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.hook.executor import HookExecutionResult
-from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.execution.executor import HookExecutionResult
+from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.schema import CommandHookConfig, HookConfig
-from zrb.llm.hook.types import HookEvent, HookType
+from zrb.llm.hook.contracts.schema import CommandHookConfig, HookConfig
+from zrb.llm.hook.contracts.types import HookEvent, HookType
 
 
 @pytest.fixture
@@ -21,7 +21,7 @@ def manager():
     mock_cfg.ROOT_GROUP_NAME = "zrb"
     mock_cfg.LLM_PLUGIN_DIRS = []
     mock_cfg.HOOKS_DIRS = []
-    with patch("zrb.llm.hook.manager.CFG", mock_cfg):
+    with patch("zrb.llm.hook.manager.manager.CFG", mock_cfg):
         yield HookManager(search_dirs=[])
 
 
@@ -348,7 +348,7 @@ class TestHookManagerFormats:
     async def test_load_python_hook(self, manager, tmp_path):
         f = tmp_path / "test.hook.py"
         f.write_text(
-            "from zrb.llm.hook.interface import HookResult\ndef register(manager):\n    async def h(ctx): return HookResult(success=True, output='py')\n    manager.add_hook(h, events=['SessionStart'])"
+            "from zrb.llm.hook.contracts.interface import HookResult\ndef register(manager):\n    async def h(ctx): return HookResult(success=True, output='py')\n    manager.add_hook(h, events=['SessionStart'])"
         )
         manager.scan(search_dirs=[str(tmp_path)])
         results = await manager.execute_hooks(HookEvent.SESSION_START, {})

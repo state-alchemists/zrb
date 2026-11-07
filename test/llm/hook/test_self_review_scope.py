@@ -279,7 +279,9 @@ async def test_a_diff_that_fails_on_the_filesystem_falls_back_to_the_paths(
     def refuse(store, deadline=None):
         raise PermissionError("index copy refused")
 
-    monkeypatch.setattr("zrb.llm.hook.self_review.SnapshotStore.snapshot", refuse)
+    monkeypatch.setattr(
+        "zrb.llm.hook.builtin.self_review.SnapshotStore.snapshot", refuse
+    )
     manager = HookManager(search_dirs=[])
 
     with gate() as (seen, _):

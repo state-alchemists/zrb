@@ -3,9 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 def _create_mock_cfg():
@@ -20,7 +20,7 @@ def _create_mock_cfg():
 @pytest.fixture
 def hook_manager():
     mock_cfg = _create_mock_cfg()
-    with patch("zrb.llm.hook.manager.CFG", mock_cfg):
+    with patch("zrb.llm.hook.manager.manager.CFG", mock_cfg):
         return HookManager(search_dirs=[])
 
 
@@ -47,7 +47,7 @@ async def check_match(tmp_path, matchers, context_data):
         json.dump(hook_content, f)
 
     mock_cfg = _create_mock_cfg()
-    with patch("zrb.llm.hook.manager.CFG", mock_cfg):
+    with patch("zrb.llm.hook.manager.manager.CFG", mock_cfg):
         manager = HookManager(search_dirs=[])
         manager.scan(search_dirs=[str(hook_dir)])
 
@@ -80,16 +80,16 @@ async def test_evaluate_matchers_equals(tmp_path):
 
 def test_session_end_matcher_field_is_source():
     "SessionEnd gains Claude-compatible matcher support, filtering on `source`."
-    from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
-    from zrb.llm.hook.types import HookEvent
+    from zrb.llm.hook.execution.matcher import CLAUDE_EVENT_MATCHER_FIELDS
+    from zrb.llm.hook.contracts.types import HookEvent
 
     assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.SESSION_END] == "source"
 
 
 def test_notification_matcher_field_is_notification_type():
     "Claude matches Notification hooks on `notification_type` (e.g."
-    from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
-    from zrb.llm.hook.types import HookEvent
+    from zrb.llm.hook.execution.matcher import CLAUDE_EVENT_MATCHER_FIELDS
+    from zrb.llm.hook.contracts.types import HookEvent
 
     assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.NOTIFICATION] == "notification_type"
 
@@ -267,21 +267,21 @@ class TestHookEventFromClaudeString:
 
     def test_exact_match(self):
         "Test direct enum value lookup."
-        from zrb.llm.hook.types import HookEvent
+        from zrb.llm.hook.contracts.types import HookEvent
 
         result = HookEvent.from_claude_string("SessionStart")
         assert result == HookEvent.SESSION_START
 
     def test_case_insensitive_fallback(self):
         "Test case-insensitive fallback when exact match fails."
-        from zrb.llm.hook.types import HookEvent
+        from zrb.llm.hook.contracts.types import HookEvent
 
         result = HookEvent.from_claude_string("SESSIONSTART")
         assert result == HookEvent.SESSION_START
 
     def test_unknown_value_raises(self):
         "Test that unknown values raise ValueError."
-        from zrb.llm.hook.types import HookEvent
+        from zrb.llm.hook.contracts.types import HookEvent
 
         with pytest.raises(ValueError, match="Unknown hook event"):
             HookEvent.from_claude_string("NonExistentEvent")
@@ -292,39 +292,39 @@ class TestMatcherOperatorFromClaudePattern:
 
     def test_wildcard_returns_glob(self):
         "Test that '*' returns GLOB."
-        from zrb.llm.hook.types import MatcherOperator
+        from zrb.llm.hook.contracts.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("*") == MatcherOperator.GLOB
 
     def test_empty_string_returns_glob(self):
         "Test that empty string returns GLOB."
-        from zrb.llm.hook.types import MatcherOperator
+        from zrb.llm.hook.contracts.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("") == MatcherOperator.GLOB
 
     def test_glob_pattern_returns_glob(self):
         "Test that patterns with wildcards return GLOB."
-        from zrb.llm.hook.types import MatcherOperator
+        from zrb.llm.hook.contracts.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("*.py") == MatcherOperator.GLOB
         assert MatcherOperator.from_claude_pattern("file?.txt") == MatcherOperator.GLOB
 
     def test_regex_pattern_with_anchor_returns_regex(self):
         "Test that anchored patterns return REGEX."
-        from zrb.llm.hook.types import MatcherOperator
+        from zrb.llm.hook.contracts.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("^start") == MatcherOperator.REGEX
         assert MatcherOperator.from_claude_pattern("end$") == MatcherOperator.REGEX
 
     def test_dot_star_in_pattern_returns_glob_due_to_star(self):
         "Test that patterns with '.*' return GLOB (star is checked first)."
-        from zrb.llm.hook.types import MatcherOperator
+        from zrb.llm.hook.contracts.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("foo.*bar") == MatcherOperator.GLOB
 
     def test_plain_string_returns_equals(self):
         "Test that plain strings return EQUALS."
-        from zrb.llm.hook.types import MatcherOperator
+        from zrb.llm.hook.contracts.types import MatcherOperator
 
         assert MatcherOperator.from_claude_pattern("bash") == MatcherOperator.EQUALS
         assert (

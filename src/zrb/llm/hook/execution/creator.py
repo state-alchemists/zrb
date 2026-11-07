@@ -13,15 +13,15 @@ from zrb.config.config import CFG
 from zrb.llm.shared.agent_runner import create_agent
 from zrb.llm.shared.agent_state import current_nested_run, get_current_model
 from zrb.llm.config.model_resolver import resolve_configured_model
-from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
-from zrb.llm.hook.process_io import read_hook_output, run_detached
-from zrb.llm.hook.process_kill import (
+from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.hook.execution.process_io import read_hook_output, run_detached
+from zrb.llm.hook.execution.process_kill import (
     kill_process_tree,
     read_process_group,
     reap_killed_process,
 )
-from zrb.llm.hook.schema import CommandHookConfig, PromptHookConfig
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.schema import CommandHookConfig, PromptHookConfig
+from zrb.llm.hook.contracts.types import HookEvent
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model

@@ -26,7 +26,7 @@ For when you already know what you want. The [tier pages](README.md) teach the s
 | Use delegation from a tool without importing subagent | `src/zrb/llm/shared/delegation_api.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
 | Describe image/audio for a text-only model | `src/zrb/llm/tool/multimodal_describe.py` | [Tools](2-extension-surface/tools.md) |
 | Change the system prompt or a mandate | `src/zrb/llm/prompt/manager.py` | [Prompts](2-extension-surface/prompts.md) |
-| Add a hook point, or change matching | `src/zrb/llm/hook/manager.py` | [Hooks](2-extension-surface/hooks.md) |
+| Add a hook point, or change matching | `src/zrb/llm/hook/manager/manager.py` | [Hooks](2-extension-surface/hooks.md) |
 | Add a config knob | `src/zrb/config/mixins/` | [Config](2-extension-surface/config.md) |
 | Change what a sub-agent inherits | `src/zrb/llm/agent/run/authority_snapshot.py` | [Sub-agents](2-extension-surface/sub-agents.md) |
 | Add an HTTP route or a page | `src/zrb/runner/web_route/` | [Web Requests](3-peripheral-flow/web-requests.md) |

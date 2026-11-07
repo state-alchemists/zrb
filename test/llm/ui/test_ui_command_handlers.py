@@ -222,7 +222,7 @@ class TestBaseUICommandHandlers:
 
     def test_execute_hook_sync_context(self, simple_ui_instance):
         """Test execute_hook works in sync context."""
-        from zrb.llm.hook.types import HookEvent
+        from zrb.llm.hook.contracts.types import HookEvent
 
         ui = simple_ui_instance
 

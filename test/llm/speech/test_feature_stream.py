@@ -6,9 +6,9 @@ from types import SimpleNamespace
 import pytest
 
 from zrb.llm.shared.ambient_state import current_reply_emotion
-from zrb.llm.hook.interface import HookContext
+from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.speech import SpeechConfig, enable_speech
 from zrb.llm.speech.feature import SpeechSession

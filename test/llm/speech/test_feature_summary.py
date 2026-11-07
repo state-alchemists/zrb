@@ -6,8 +6,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from zrb.llm.hook.interface import HookContext
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookContext
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.speech import SpeechConfig
 from zrb.llm.speech.feature import SpeechSession
 from zrb.llm.speech.summary import SpeechSummaryError

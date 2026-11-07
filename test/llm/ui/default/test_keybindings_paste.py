@@ -4,7 +4,7 @@ import pytest
 from prompt_toolkit.clipboard import ClipboardData
 from prompt_toolkit.key_binding import KeyBindings
 
-from zrb.llm.hook.interface import HookEvent
+from zrb.llm.hook.contracts.interface import HookEvent
 from zrb.llm.ui.base.message_queue import MessageQueue
 from zrb.llm.ui.default.agent_picker import UIAgentPicker
 from zrb.llm.ui.default.keybindings import UIKeybindings
