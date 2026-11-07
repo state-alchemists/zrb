@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated, TypedDict, cast
 
 from pydantic import Field
 
@@ -17,11 +17,46 @@ from zrb.llm.permission import Capability, tag
 from zrb.util.string.conversion import to_safe_filename
 
 
+class TodoInput(TypedDict, total=False):
+    """One todo as the model sends it; `id` is auto-assigned when omitted."""
+
+    id: str
+    content: str
+    status: str
+
+
+class TodoEntry(TypedDict):
+    """One stored todo: the model's fields, with its id and creation time settled."""
+
+    id: str
+    content: str
+    status: str
+    created_at: str
+
+
+class TodoStats(TypedDict):
+    """Counts by status, recomputed on every write."""
+
+    total: int
+    completed: int
+    in_progress: int
+    pending: int
+    cancelled: int
+
+
+class TodoDocument(TodoStats, total=False):
+    """A session's todo list: the entries, their timestamps, and the counts."""
+
+    todos: list[TodoEntry]
+    created_at: str
+    updated_at: str
+
+
 class TodoManager:
     """Singleton holding each session's todo list, persisted to disk."""
 
     _instance: TodoManager | None = None
-    _todos: dict[str, dict[str, Any]]  # session_name -> todo_data
+    _todos: dict[str, TodoDocument]  # session_name -> todo_data
     _todo_dir: Path
 
     def __new__(cls):
@@ -42,20 +77,20 @@ class TodoManager:
         self._todo_dir = value
 
     @property
-    def todos(self) -> dict[str, dict[str, Any]]:
+    def todos(self) -> dict[str, TodoDocument]:
         """The in-memory per-session todo cache."""
         return self._todos
 
     @todos.setter
-    def todos(self, value: dict[str, dict[str, Any]]) -> None:
+    def todos(self, value: dict[str, TodoDocument]) -> None:
         self._todos = value
 
     def write_todos(
         self,
         session_name: str,
-        todos: list[dict[str, Any]],
+        todos: list[TodoInput],
         replace: bool = True,
-    ) -> dict[str, Any]:
+    ) -> TodoDocument:
         """Write todos for a session and return the list with metadata."""
         now = datetime.now().isoformat()
 
@@ -64,7 +99,7 @@ class TodoManager:
             {t["id"]: t for t in existing.get("todos", [])} if existing else {}
         )
 
-        new_todos = []
+        new_todos: list[TodoEntry] = []
         used_ids: set[str] = set()
         for i, todo in enumerate(todos):
             todo_id = todo.get("id") or ""
@@ -86,7 +121,7 @@ class TodoManager:
         new_todos.sort(key=self._sort_key)
 
         stats = self._compute_stats(new_todos)
-        result = {
+        result: TodoDocument = {
             "todos": new_todos,
             "created_at": existing.get("created_at", now) if existing else now,
             "updated_at": now,
@@ -97,7 +132,7 @@ class TodoManager:
         self.save_todos(session_name)
         return result
 
-    def get_todos(self, session_name: str) -> dict[str, Any] | None:
+    def get_todos(self, session_name: str) -> TodoDocument | None:
         """Get a session's todos (loading from disk if uncached), or None."""
         if session_name in self._todos:
             return self._todos[session_name]
@@ -135,7 +170,7 @@ class TodoManager:
             )
 
     @staticmethod
-    def _compute_stats(new_todos: list[dict[str, Any]]) -> dict[str, int]:
+    def _compute_stats(new_todos: list[TodoEntry]) -> TodoStats:
         return {
             "total": len(new_todos),
             "completed": sum(1 for t in new_todos if t["status"] == "completed"),
@@ -146,7 +181,7 @@ class TodoManager:
 
     @staticmethod
     def _next_auto_id(
-        index: int, existing: dict[str, dict[str, Any]], used: set[str]
+        index: int, existing: dict[str, TodoEntry], used: set[str]
     ) -> str:
         """Smallest id from `index + 1` upward in neither `existing` nor `used`."""
         candidate = index + 1
@@ -156,12 +191,12 @@ class TodoManager:
 
     @staticmethod
     def _build_todo_entry(
-        todo: dict[str, Any],
+        todo: TodoInput,
         todo_id: str,
-        existing: dict[str, dict[str, Any]] | None,
+        existing: dict[str, TodoEntry] | None,
         replace: bool,
         now: str,
-    ) -> dict[str, Any]:
+    ) -> TodoEntry:
         """Build a single todo entry, merging with existing if not replacing."""
         if existing and todo_id in existing and not replace:
             existing[todo_id].update(
@@ -179,7 +214,7 @@ class TodoManager:
         }
 
     @staticmethod
-    def _sort_key(t: dict[str, Any]) -> tuple[int, int | str]:
+    def _sort_key(t: TodoEntry) -> tuple[int, int | str]:
         try:
             return (0, int(t["id"]))
         except (ValueError, TypeError):
@@ -215,7 +250,7 @@ _STATUS_ICONS = {
 
 
 def _render_todo_progress(
-    todo_data: dict[str, Any],
+    todo_data: TodoDocument,
     change_description: str = "",
 ) -> str:
     """Render the todo list for the UI, ending with a ``~DATA~`` JSON line
@@ -247,7 +282,7 @@ def _render_todo_progress(
             header += f", {summary}"
         header += ")"
         lines.append(header)
-        for todo in todo_data["todos"]:
+        for todo in todo_data.get("todos", []):
             icon = _STATUS_ICONS.get(todo["status"], "  ")
             lines.append(f"  {icon} [{todo['id']}] {todo['content']}")
     else:
@@ -261,7 +296,7 @@ def _render_todo_progress(
 
 
 def _broadcast_todo_progress(
-    todo_data: dict[str, Any],
+    todo_data: TodoDocument,
     change_description: str = "",
 ) -> None:
     """Push the todo list, headed by ``change_description``, to the active UI."""
@@ -274,7 +309,7 @@ def _broadcast_todo_progress(
 
 async def write_todos(
     todos: Annotated[
-        list[dict[str, Any]],
+        list[dict[str, object]],
         Field(
             description=(
                 '{content, status: "pending"(default)|"in_progress"|"completed"|'
@@ -303,11 +338,15 @@ async def write_todos(
     if error:
         return error
 
-    result = todo_manager.write_todos(session_name, todos, replace)
+    # `_validate_todo_keys` rejected every unknown key, so what is left is a
+    # `TodoInput`: content, status, and an optional id.
+    result = todo_manager.write_todos(
+        session_name, cast("list[TodoInput]", todos), replace
+    )
     lines = [
         f"[{session_name}] {result['completed']}/{result['total']} done, {result['in_progress']} in progress"
     ]
-    for todo in result["todos"]:
+    for todo in result.get("todos", []):
         status_char = _STATUS_CHARS.get(todo["status"], "[?]")
         lines.append(f"  {status_char} [{todo['id']}] {todo['content']}")
 
@@ -323,7 +362,7 @@ async def write_todos(
     return "\n".join(lines)
 
 
-def _validate_todo_keys(todos: list[dict[str, Any]]) -> str | None:
+def _validate_todo_keys(todos: list[dict[str, object]]) -> str | None:
     """Return an error string if any todo has an unknown key, else None."""
     for i, todo in enumerate(todos):
         unknown = set(todo) - _VALID_TODO_KEYS
@@ -372,7 +411,7 @@ async def get_todos(
     lines.append(
         f"Updated: {result.get('updated_at', result.get('created_at', 'N/A'))}"
     )
-    for todo in result["todos"]:
+    for todo in result.get("todos", []):
         status_char = _STATUS_CHARS.get(todo["status"], "[?]")
         lines.append(
             f"  {status_char} [{todo['id']}] {todo['content']} -> {todo['status']}"

@@ -1,6 +1,6 @@
 import glob
 import os
-from typing import Annotated, Any
+from typing import Annotated
 
 from pydantic import Field
 
@@ -34,7 +34,7 @@ DEFAULT_EXCLUDED_PATTERNS = [
 ]
 
 
-def _listing_result(abs_path: str, sorted_files: list[str]) -> dict[str, Any]:
+def _listing_result(abs_path: str, sorted_files: list[str]) -> dict[str, object]:
     """Cap the listing and record what was shown for RM's listed-path check."""
     truncated, omitted = _truncate_file_list(sorted_files)
     record_listed(abs_path, [os.path.join(abs_path, p) for p in truncated])
@@ -84,7 +84,7 @@ def list_files(
     summary: Annotated[
         bool, Field(description="True returns file counts per top-level directory.")
     ] = False,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     Lists a directory tree, for orienting in an unfamiliar area of a project.
 
@@ -140,7 +140,7 @@ def glob_files(
     gitignore: Annotated[
         bool, Field(description="False also returns .gitignore'd files.")
     ] = True,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     Finds files by name or extension, anywhere under a directory.
 

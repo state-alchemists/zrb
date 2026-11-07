@@ -6,7 +6,7 @@ zrb.llm.agent.common; use tool_safe_async only to append a custom error_hint.
 
 import functools
 from collections.abc import Awaitable, Callable
-from typing import Any, ParamSpec, TypeVar, cast, overload
+from typing import ParamSpec, TypeVar, cast, overload
 
 from zrb.llm.agent_tool_result import tool_return
 
@@ -16,8 +16,8 @@ T = TypeVar("T")
 
 def _get_hint(
     error_hint: str | Callable[..., str] | None,
-    args: Any,
-    kwargs: Any,
+    args: tuple[object, ...],
+    kwargs: dict[str, object],
 ) -> str:
     if error_hint is None:
         return ""

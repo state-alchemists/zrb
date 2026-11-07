@@ -7,7 +7,7 @@ a retry, so it never blocks on stdin or loops. The flag is the
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any, cast
+from typing import TYPE_CHECKING, Annotated, cast
 
 from pydantic import Field
 
@@ -22,13 +22,13 @@ from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.util.choice_spec_format import get_option_label
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceOption, ChoiceSpec
 
 
 @tool_safe_async
 async def ask_user_question(
     questions: Annotated[
-        list[dict[str, Any]],
+        list[dict[str, object]],
         Field(
             description=(
                 "One or more questions to ask. Each entry must have: "
@@ -103,7 +103,7 @@ async def ask_user_question(
     for idx, q in enumerate(questions, start=1):
         spec = build_choice_spec(idx, total, q)
         try:
-            raw = await ui.ask_user_choice(cast("ChoiceSpec", spec))
+            raw = await ui.ask_user_choice(spec)
         except (KeyboardInterrupt, EOFError):
             return (
                 "[SYSTEM SUGGESTION]: User cancelled the question prompt. "
@@ -114,7 +114,7 @@ async def ask_user_question(
     return "\n".join(answers)
 
 
-async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
+async def _notify_question_pending(questions: list[dict[str, object]]) -> None:
     """Fire an ``elicitation_dialog`` Notification (best-effort).
 
     Claude-compatible consumers suppress a Notification with no type.
@@ -130,17 +130,25 @@ async def _notify_question_pending(questions: list[dict[str, Any]]) -> None:
         CFG.LOGGER.debug(f"Notification hook for ask failed: {e}")
 
 
-def _question_header(q: dict[str, Any]) -> str:
+def _question_header(q: dict[str, object]) -> str:
     """The chip label: the question's `header`, else its text cut to 40 characters."""
-    return q.get("header") or q.get("question", "").strip().rstrip("?")[:40]
+    header = q.get("header")
+    if header:
+        return str(header)
+    return str(q.get("question") or "").strip().rstrip("?")[:40]
 
 
-def build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]:
+def build_choice_spec(idx: int, total: int, q: dict[str, object]) -> "ChoiceSpec":
+    """Build the widget spec for question *q*.
+
+    `ask_user_question` has already checked both keys are present and that
+    `options` is non-empty, so they are read directly here.
+    """
     return {
-        "question": q["question"],
+        "question": cast(str, q["question"]),
         # Options go through verbatim: a UI may render any per-option key
         # (`recommended`, and whatever it grows next), so nothing is dropped.
-        "options": q["options"],
+        "options": cast("list[ChoiceOption]", q["options"]),
         "context": str(q.get("context") or ""),
         "multi_select": bool(q.get("multi_select")),
         "header": _question_header(q),
@@ -149,11 +157,11 @@ def build_choice_spec(idx: int, total: int, q: dict[str, Any]) -> dict[str, Any]
     }
 
 
-def _resolve_answer(q: dict[str, Any], raw: str) -> str:
+def _resolve_answer(q: dict[str, object], raw: str) -> str:
     raw = (raw or "").strip()
     if not raw:
         return "(no answer)"
-    options = q["options"]
+    options = cast("list[ChoiceOption]", q["options"])
     multi = bool(q.get("multi_select"))
     labels = [get_option_label(option, i) for i, option in enumerate(options)]
     # The UI may already have resolved the answer to a label, and a label can

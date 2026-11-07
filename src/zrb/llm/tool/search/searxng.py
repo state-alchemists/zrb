@@ -1,5 +1,4 @@
 import subprocess
-from typing import Any
 
 import requests
 
@@ -28,7 +27,7 @@ def search_internet(
     page: int = 1,
     safe_search: int | None = None,
     language: str = "",
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     Searches the web via SearXNG (aggregates multiple engines). Use for diverse
     perspectives and public resources.

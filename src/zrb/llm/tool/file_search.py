@@ -4,7 +4,7 @@ import re
 import shutil
 import subprocess
 import time
-from typing import Annotated, Any
+from typing import Annotated, TypedDict
 
 from pydantic import Field
 
@@ -18,6 +18,30 @@ from zrb.util.truncate import truncate_items, truncate_text
 _MAX_LINE_LENGTH = 1000
 # Head-keep cap on the number of matches reported for one file.
 MAX_MATCHES_PER_FILE = 100
+
+
+class FileMatch(TypedDict):
+    """One regex match, with the context lines around it.
+
+    The per-file truncation marker is a match too, with ``line_number`` 0.
+    """
+
+    line_number: int
+    line_content: str
+    context_before: list[str]
+    context_after: list[str]
+
+
+class FileEntry(TypedDict):
+    """One matching file, with every match found in it."""
+
+    file: str
+    matches: list[FileMatch]
+
+
+#: One entry in the `results` list: a bare relative path when only file names
+#: were asked for, or the file alongside its matches.
+SearchEntry = str | FileEntry
 
 
 def _relpath_or_abs(path: str, start: str) -> str:
@@ -51,7 +75,7 @@ def search_files(
         bool, Field(description="True returns only matching file names.")
     ] = False,
     case_sensitive: Annotated[bool, Field(description="False ignores case.")] = True,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """
     Searches file *contents* for a regular expression (to find files by name,
     use Glob). Results include line numbers and context; lines are truncated at
@@ -116,7 +140,7 @@ class _SearchTally:
         self._pattern = pattern
         self._context_lines = context_lines
         self._files_only = files_only
-        self.entries: list[Any] = []
+        self.entries: list[SearchEntry] = []
         self.match_count = 0
         self.file_match_count = 0
         self.skipped_count = 0
@@ -135,7 +159,7 @@ class _SearchTally:
             return
         self.file_match_count += 1
         # The per-file truncation marker has line_number 0.
-        self.match_count += sum(1 for m in matches if m.get("line_number", 0) > 0)
+        self.match_count += sum(1 for m in matches if m["line_number"] > 0)
         self.entries.append(
             rel_file_path
             if self._files_only
@@ -143,7 +167,9 @@ class _SearchTally:
         )
 
 
-def _truncate_file_results(results: list[Any]) -> tuple[list[Any], str | None]:
+def _truncate_file_results(
+    results: list[SearchEntry],
+) -> tuple[list[SearchEntry], str | None]:
     """Keep leading result files within the output budget."""
     kept, omitted = truncate_items(results, CFG.LLM_MAX_OUTPUT_CHARS)
     if omitted == 0:
@@ -162,7 +188,7 @@ def _build_search_output(
     path: str,
     files_only: bool,
     warning: str | None = None,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Build the final search result dict from the accumulated tally."""
     results, truncation_notice = _truncate_file_results(tally.entries)
     searched = f" (searched {searched_file_count} files)" if searched_file_count else ""
@@ -177,7 +203,7 @@ def _build_search_output(
             f"Found {tally.match_count} matches in {tally.file_match_count} "
             f"files.{searched}"
         )
-    result: dict[str, Any] = {
+    result: dict[str, object] = {
         "files" if files_only else "results": results,
         "summary": summary,
     }
@@ -211,7 +237,7 @@ def _search_with_ripgrep(
     files_only: bool,
     patterns_to_exclude: list[str],
     timeout: float,
-) -> "dict[str, Any] | None":
+) -> "dict[str, object] | None":
     """Use ripgrep to find matching files, then extract matches via Python. Returns None on failure."""
     if not shutil.which("rg"):
         return None
@@ -255,7 +281,7 @@ def _search_with_os_walk(
     start_time: float,
     context_lines: int,
     files_only: bool,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Fallback search via os.walk (used when ripgrep is unavailable)."""
     tally = _SearchTally(pattern, context_lines, files_only)
     searched_file_count = 0
@@ -302,7 +328,7 @@ def get_file_matches(
     file_path: str,
     pattern: re.Pattern,
     context_lines: int = 2,
-) -> list[dict[str, Any]]:
+) -> list[FileMatch]:
     """Search for regex matches in a file with context."""
 
     def _truncate(s: str) -> str:
