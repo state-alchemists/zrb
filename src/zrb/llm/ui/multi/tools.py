@@ -10,7 +10,7 @@ from typing import Any
 
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 
-from .fanout import MultiUIFanout
+from zrb.llm.ui.multi.fanout import MultiUIFanout
 
 
 class MultiUIToolForwards(MultiUIFanout):

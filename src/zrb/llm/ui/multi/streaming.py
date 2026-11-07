@@ -23,7 +23,7 @@ from zrb.session.session import Session
 from zrb.util.cli.style import stylize_muted
 from zrb.util.exception import exception_summary
 
-from .tools import MultiUIToolForwards
+from zrb.llm.ui.multi.tools import MultiUIToolForwards
 
 
 class MultiUIStreaming(MultiUIToolForwards):

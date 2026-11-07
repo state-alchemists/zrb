@@ -1,5 +1,9 @@
-from .manager import SubAgentDefinition, SubAgentManager, sub_agent_manager
-from .registry import SubAgentRegistry, sub_agent_registry
+from zrb.llm.subagent.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+    sub_agent_manager,
+)
+from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
 
 __all__ = [
     "SubAgentManager",

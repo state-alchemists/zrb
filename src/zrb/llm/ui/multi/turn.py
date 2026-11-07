@@ -15,7 +15,7 @@ from zrb.llm.ui.base.queue_delivery import (
 )
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 
-from .fanout import MultiUIFanout
+from zrb.llm.ui.multi.fanout import MultiUIFanout
 
 
 class MultiUITurnControl(MultiUIFanout):

@@ -22,7 +22,7 @@ from zrb.llm.ui.fallback.resolution import (
     register_ui_main_getter,
 )
 
-from .run import MultiUIRunLoop
+from zrb.llm.ui.multi.run import MultiUIRunLoop
 
 
 class MultiUI(MultiUIRunLoop, AnyUI, AnyUIDisplay):

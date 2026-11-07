@@ -21,7 +21,7 @@ from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 from zrb.runner.web_util.user import get_user_from_request
 from zrb.util.string.conversion import to_safe_filename
 
-from .sse_stream import SSEStreamResponse
+from zrb.runner.chat.sse_stream import SSEStreamResponse
 
 if TYPE_CHECKING:
     from fastapi import FastAPI, Request, UploadFile

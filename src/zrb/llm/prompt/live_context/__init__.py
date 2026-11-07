@@ -8,7 +8,7 @@ rendering and the per-turn providers — and the names below are the public
 surface, unchanged from the module this replaced.
 """
 
-from .context import (
+from zrb.llm.prompt.live_context.context import (
     LIVE_CONTEXT_ANCHOR,
     previous_git_baseline,
     render_carried_context,

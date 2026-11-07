@@ -27,8 +27,8 @@ from zrb.llm.ui.base.message_queue import (
 )
 from zrb.llm.ui.base.queue_delivery import DeliveryReport
 
-from .streaming import MultiUIStreaming
-from .turn import MultiUITurnControl
+from zrb.llm.ui.multi.streaming import MultiUIStreaming
+from zrb.llm.ui.multi.turn import MultiUITurnControl
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import ChoiceSpec
