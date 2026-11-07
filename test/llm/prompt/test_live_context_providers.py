@@ -1,7 +1,7 @@
 from zrb.context.any_context import AnyContext
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.prompt.live_context_providers import LiveContextProviders
+from zrb.llm.prompt.live_context.providers import LiveContextProviders
 
 
 def _ctx() -> Context:

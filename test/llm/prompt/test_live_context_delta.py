@@ -4,7 +4,10 @@ import subprocess
 from unittest.mock import MagicMock
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.live_context import previous_git_baseline, render_live_context
+from zrb.llm.prompt.live_context.context import (
+    previous_git_baseline,
+    render_live_context,
+)
 
 
 def _git(repo, *args: str) -> None:

@@ -67,7 +67,7 @@ if TYPE_CHECKING:
     from zrb.llm.skill import Skill, SkillRegistry
     from zrb.llm.skill.manager import SkillManager, skill_manager
     from zrb.llm.skill.registry import skill_registry
-    from zrb.llm.subagent.manager import (
+    from zrb.llm.subagent.manager.manager import (
         SubAgentDefinition,
         SubAgentManager,
         sub_agent_manager,
@@ -297,9 +297,9 @@ _LAZY_EXPORTS = {
     "llm_limiter": "zrb.llm.config.limiter",
     "ModelResolver": "zrb.llm.config.model_resolver",
     "model_resolver": "zrb.llm.config.model_resolver",
-    "SubAgentManager": "zrb.llm.subagent.manager",
-    "sub_agent_manager": "zrb.llm.subagent.manager",
-    "SubAgentDefinition": "zrb.llm.subagent.manager",
+    "SubAgentManager": "zrb.llm.subagent.manager.manager",
+    "sub_agent_manager": "zrb.llm.subagent.manager.manager",
+    "SubAgentDefinition": "zrb.llm.subagent.manager.manager",
     "SubAgentRegistry": "zrb.llm.subagent.registry",
     "sub_agent_registry": "zrb.llm.subagent.registry",
     "HookManager": "zrb.llm.hook.manager",

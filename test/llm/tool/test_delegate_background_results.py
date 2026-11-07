@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.subagent.manager import SubAgentManager
+from zrb.llm.subagent.manager.manager import SubAgentManager
 from zrb.llm.tool.delegate import AgentTaskResult, create_delegate_to_agent_tool
 from zrb.llm.tool.delegate.background import (
     background_delegation_live_context,

@@ -69,7 +69,7 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `SubAgentManager` | `src/zrb/llm/subagent/manager.py` | Scans the agent directories on first use, holds registrations, builds agents by name |
+| `SubAgentManager` | `src/zrb/llm/subagent/manager/manager.py` | Scans the agent directories on first use, holds registrations, builds agents by name |
 | `SubAgentRegistry` | `src/zrb/llm/subagent/registry.py` | Two layers, manual and discovered; a manual entry wins a name collision and survives a rescan |
 | `SubAgentDefinition` | `src/zrb/llm/subagent/definition.py` | One agent's data: prompt, model, `tools`, `disallowed_tools`, `inherit_sections` |
 | `SubAgentBuilding` | `src/zrb/llm/subagent/building.py` | Turns a definition into an agent: model, named tools, toolsets, inherited prompt sections, yolo |
@@ -147,7 +147,7 @@ sequenceDiagram
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change discovery, search order or registration | `src/zrb/llm/subagent/manager.py` | `test/llm/subagent/` |
+| Change discovery, search order or registration | `src/zrb/llm/subagent/manager/manager.py` | `test/llm/subagent/` |
 | Change what a child inherits (tools, prompt, yolo) | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/test_manager_building.py` |
 | Change how tool names resolve | `src/zrb/llm/subagent/tool_resolver.py` | `test/llm/subagent/test_tool_resolver.py` |
 | Change the envelope, fan-out or the child run | `src/zrb/llm/tool/delegate/runner.py` | `test/llm/tool/` |

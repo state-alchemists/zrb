@@ -27,7 +27,7 @@ from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.manager import hook_manager as default_hook_manager
 from zrb.llm.permission import PermissionPolicyInput, resolve_policy
-from zrb.llm.prompt.live_context import previous_git_baseline
+from zrb.llm.prompt.live_context.context import previous_git_baseline
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
 from zrb.llm.shared.stream_observer import StreamObserver

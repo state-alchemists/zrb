@@ -12,7 +12,7 @@ from functools import lru_cache
 from typing import Any
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.prompt.live_context import LIVE_CONTEXT_ANCHOR
+from zrb.llm.prompt.live_context.context import LIVE_CONTEXT_ANCHOR
 from zrb.llm.sandbox.state import get_effective_sandbox_policy
 
 _DEFAULT_TOOLS: list[tuple[str, str]] = [

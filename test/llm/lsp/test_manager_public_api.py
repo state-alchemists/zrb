@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.lsp.configs import lsp_server_configs
-from zrb.llm.lsp.manager import LSPManager
+from zrb.llm.lsp.manager.manager import LSPManager
 from zrb.llm.lsp.protocol import SymbolKind
-from zrb.llm.lsp.server import LSPServer
+from zrb.llm.lsp.server.server import LSPServer
 
 
 @pytest.fixture(autouse=True)
@@ -61,10 +61,10 @@ class TestLspPublicAPI:
 
         with (
             patch(
-                "zrb.llm.lsp.manager_lifecycle.get_lsp_config_for_file"
+                "zrb.llm.lsp.manager.lifecycle.get_lsp_config_for_file"
             ) as mock_get_config,
             patch(
-                "zrb.llm.lsp.manager_lifecycle.LSPServer",
+                "zrb.llm.lsp.manager.lifecycle.LSPServer",
                 return_value=mock_server,
             ),
         ):

@@ -74,10 +74,10 @@ flowchart TD
 | `LLMTask` | `src/zrb/llm/task/llm_task.py` | Resolves toolsets once per run, enters them, runs the turn, exits them |
 | `LSPServerConfigRegistry` | `src/zrb/llm/lsp/configs.py` | Built-in and user-registered language-server configs; `detect_available_lsp_servers` caches the `PATH` scan |
 | `create_lsp_tools` | `src/zrb/llm/lsp/tools.py` | The `Lsp*` wrapper functions, each a thin call into `lsp_manager` |
-| `LSPManager`, `lsp_manager` | `src/zrb/llm/lsp/manager.py` | Process-wide singleton; the query surface the wrappers call; registers the `atexit` kill |
-| `LSPManagerLifecycle` | `src/zrb/llm/lsp/manager_lifecycle.py` | Finds the project root, starts or reuses a server per language and root, shuts them all down |
-| `LSPManagerQuery`, `LSPServerOperations` | `src/zrb/llm/lsp/manager_query.py`, `src/zrb/llm/lsp/server_operations.py` | Turn a symbol-based question into LSP requests and shape the answer |
-| `LSPServer` | `src/zrb/llm/lsp/server.py` | One language-server subprocess: JSON-RPC over stdio, the `initialize` handshake, stop |
+| `LSPManager`, `lsp_manager` | `src/zrb/llm/lsp/manager/manager.py` | Process-wide singleton; the query surface the wrappers call; registers the `atexit` kill |
+| `LSPManagerLifecycle` | `src/zrb/llm/lsp/manager/lifecycle.py` | Finds the project root, starts or reuses a server per language and root, shuts them all down |
+| `LSPManagerQuery`, `LSPServerOperations` | `src/zrb/llm/lsp/manager/query.py`, `src/zrb/llm/lsp/server/operations.py` | Turn a symbol-based question into LSP requests and shape the answer |
+| `LSPServer` | `src/zrb/llm/lsp/server/server.py` | One language-server subprocess: JSON-RPC over stdio, the `initialize` handshake, stop |
 
 ### How it runs
 
@@ -135,8 +135,8 @@ The chat task calls `lsp_manager.shutdown_all` when its session ends. The `atexi
 | Change how toolsets are entered and exited | `src/zrb/llm/task/llm_task.py` | `test/llm/task/test_llm_task.py` |
 | Change when LSP tools register or how they are tagged | `src/zrb/llm/common_tools.py` | `test/llm/test_common_tools.py` |
 | Change server detection or file matching | `src/zrb/llm/lsp/configs.py` | `test/llm/lsp/test_configs_detection.py` |
-| Change server start, reuse or shutdown | `src/zrb/llm/lsp/manager_lifecycle.py`, `src/zrb/llm/lsp/server.py` | `test/llm/lsp/test_manager_singleton.py`, `test/llm/lsp/test_server_lifecycle.py` |
-| Change a query or its answer shape | `src/zrb/llm/lsp/manager_query.py`, `src/zrb/llm/lsp/server_operations.py` | `test/llm/lsp/test_manager_query.py` |
+| Change server start, reuse or shutdown | `src/zrb/llm/lsp/manager/lifecycle.py`, `src/zrb/llm/lsp/server/server.py` | `test/llm/lsp/test_manager_singleton.py`, `test/llm/lsp/test_server_lifecycle.py` |
+| Change a query or its answer shape | `src/zrb/llm/lsp/manager/query.py`, `src/zrb/llm/lsp/server/operations.py` | `test/llm/lsp/test_manager_query.py` |
 
 ## See Also
 

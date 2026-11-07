@@ -42,7 +42,7 @@ def default_sub_agent_manager() -> SubAgentManagerAPI:
     if _manager is None:
         raise RuntimeError(
             "[SYSTEM SUGGESTION] Sub-agent manager is not registered; import "
-            "`zrb.llm.subagent.manager` before calling a delegation tool."
+            "`zrb.llm.subagent.manager.manager` before calling a delegation tool."
         )
     return _manager
 

@@ -22,7 +22,7 @@ import ast
 import os
 from typing import NamedTuple
 
-from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.lsp.manager.manager import lsp_manager
 
 _MAX_ERRORS_SHOWN = 5
 

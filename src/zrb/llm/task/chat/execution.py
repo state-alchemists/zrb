@@ -25,7 +25,7 @@ from zrb.llm.shared.factory_resolver import resolve_factory_items
 from zrb.llm.history_manager.file_history_manager import default_history_manager
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.lsp.manager.manager import lsp_manager
 from zrb.llm.permission import tool_capability
 from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.summarizer import create_summarizer_history_processor

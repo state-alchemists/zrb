@@ -19,7 +19,7 @@ from zrb.llm.lsp.protocol import (
     LSPServerError,
     LSPTimeoutError,
 )
-from zrb.llm.lsp.server_operations import LSPServerOperations
+from zrb.llm.lsp.server.operations import LSPServerOperations
 
 __all__ = [
     "LSP_SERVER_CONFIGS",

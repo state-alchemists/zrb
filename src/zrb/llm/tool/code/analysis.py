@@ -10,7 +10,7 @@ from zrb.context.any_context import zrb_print
 from zrb.llm.shared.agent_runner import create_agent, run_agent
 from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
-from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.lsp.manager.manager import lsp_manager
 from zrb.llm.permission import Capability, tag
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.code.constants import DEFAULT_EXTENSIONS, LSP_SUPPORTED_EXTENSIONS

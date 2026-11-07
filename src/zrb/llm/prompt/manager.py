@@ -10,8 +10,11 @@ from zrb.llm.prompt.claude import (
     build_skill_replacements,
     create_project_context_prompt,
 )
-from zrb.llm.prompt.live_context import render_live_context, render_live_context_async
-from zrb.llm.prompt.live_context_providers import LiveContextProviders, SimplePrompt
+from zrb.llm.prompt.live_context.context import (
+    render_live_context,
+    render_live_context_async,
+)
+from zrb.llm.prompt.live_context.providers import LiveContextProviders, SimplePrompt
 from zrb.llm.prompt.profile import active_profile
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.prompt.registry import (

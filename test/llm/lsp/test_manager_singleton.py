@@ -7,8 +7,8 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.lsp.configs import LSPServerConfig, lsp_server_configs
-from zrb.llm.lsp.manager import LSPManager, lsp_manager
-from zrb.llm.lsp.server import LSPServer
+from zrb.llm.lsp.manager.manager import LSPManager, lsp_manager
+from zrb.llm.lsp.server.server import LSPServer
 
 
 @pytest.fixture(autouse=True)
@@ -124,7 +124,7 @@ class TestDetectProjectRoot:
         file_path = tmp_path / "standalone.py"
         file_path.write_text("print('hello')")
 
-        monkeypatch.setattr("zrb.llm.lsp.manager_lifecycle.PROJECT_MARKERS", [])
+        monkeypatch.setattr("zrb.llm.lsp.manager.lifecycle.PROJECT_MARKERS", [])
         root = manager.detect_project_root(str(file_path))
         assert root == str(tmp_path)
 
@@ -160,10 +160,10 @@ class TestLspManagerLifecycle:
         mock_server.is_alive = True
         with (
             patch(
-                "zrb.llm.lsp.manager_lifecycle.get_lsp_config_for_file"
+                "zrb.llm.lsp.manager.lifecycle.get_lsp_config_for_file"
             ) as mock_get_cfg,
             patch(
-                "zrb.llm.lsp.manager_lifecycle.LSPServer",
+                "zrb.llm.lsp.manager.lifecycle.LSPServer",
                 return_value=mock_server,
             ),
         ):
@@ -180,10 +180,10 @@ class TestLspManagerLifecycle:
         mock_server.process = MagicMock(pid=pid, returncode=returncode)
         with (
             patch(
-                "zrb.llm.lsp.manager_lifecycle.get_lsp_config_for_file"
+                "zrb.llm.lsp.manager.lifecycle.get_lsp_config_for_file"
             ) as mock_get_cfg,
             patch(
-                "zrb.llm.lsp.manager_lifecycle.LSPServer",
+                "zrb.llm.lsp.manager.lifecycle.LSPServer",
                 return_value=mock_server,
             ),
         ):
@@ -193,25 +193,25 @@ class TestLspManagerLifecycle:
 
     @pytest.mark.asyncio
     async def test_force_kill_all_empty_is_noop(self, manager):
-        with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill:
+        with patch("zrb.llm.lsp.manager.lifecycle.kill_pid") as mock_kill:
             manager.force_kill_all()
             mock_kill.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_force_kill_all_sigkills_running_server(self, manager):
         await self._seed_server(manager, pid=4321, returncode=None)
-        with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill:
+        with patch("zrb.llm.lsp.manager.lifecycle.kill_pid") as mock_kill:
             manager.force_kill_all()
             mock_kill.assert_called_once_with(4321, print_method=CFG.LOGGER.debug)
 
-        with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill2:
+        with patch("zrb.llm.lsp.manager.lifecycle.kill_pid") as mock_kill2:
             manager.force_kill_all()
             mock_kill2.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_force_kill_all_skips_already_exited_server(self, manager):
         await self._seed_server(manager, pid=4321, returncode=0)
-        with patch("zrb.llm.lsp.manager_lifecycle.kill_pid") as mock_kill:
+        with patch("zrb.llm.lsp.manager.lifecycle.kill_pid") as mock_kill:
             manager.force_kill_all()
             mock_kill.assert_not_called()
 
@@ -219,7 +219,7 @@ class TestLspManagerLifecycle:
     async def test_force_kill_all_swallows_kill_errors(self, manager):
         await self._seed_server(manager, pid=99, returncode=None)
         with patch(
-            "zrb.llm.lsp.manager_lifecycle.kill_pid",
+            "zrb.llm.lsp.manager.lifecycle.kill_pid",
             side_effect=ProcessLookupError,
         ):
 
@@ -234,10 +234,10 @@ class TestLspManagerLifecycle:
         CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright", "pylsp"]
         with (
             patch(
-                "zrb.llm.lsp.manager_lifecycle.get_lsp_config_for_file"
+                "zrb.llm.lsp.manager.lifecycle.get_lsp_config_for_file"
             ) as mock_get_cfg,
             patch(
-                "zrb.llm.lsp.manager_lifecycle.LSPServer",
+                "zrb.llm.lsp.manager.lifecycle.LSPServer",
                 return_value=mock_server,
             ),
         ):
@@ -254,10 +254,10 @@ class TestLspManagerLifecycle:
         CFG.LLM_LSP_PREFERRED_SERVERS = ["pyright"]
         with (
             patch(
-                "zrb.llm.lsp.manager_lifecycle.get_lsp_config_for_file"
+                "zrb.llm.lsp.manager.lifecycle.get_lsp_config_for_file"
             ) as mock_get_cfg,
             patch(
-                "zrb.llm.lsp.manager_lifecycle.LSPServer",
+                "zrb.llm.lsp.manager.lifecycle.LSPServer",
                 return_value=mock_server,
             ),
         ):
@@ -273,10 +273,10 @@ class TestLspManagerLifecycle:
 
         with (
             patch(
-                "zrb.llm.lsp.manager_lifecycle.get_lsp_config_for_file"
+                "zrb.llm.lsp.manager.lifecycle.get_lsp_config_for_file"
             ) as mock_get_cfg,
             patch(
-                "zrb.llm.lsp.manager_lifecycle.LSPServer",
+                "zrb.llm.lsp.manager.lifecycle.LSPServer",
                 return_value=mock_server,
             ),
         ):
@@ -295,7 +295,7 @@ class TestLspManagerLifecycle:
             mock_server2.start.return_value = True
 
             with patch(
-                "zrb.llm.lsp.manager_lifecycle.LSPServer",
+                "zrb.llm.lsp.manager.lifecycle.LSPServer",
                 return_value=mock_server2,
             ):
                 server3 = await manager.get_server("test.py")
@@ -304,7 +304,7 @@ class TestLspManagerLifecycle:
     @pytest.mark.asyncio
     async def test_get_server_no_config(self, manager):
         with patch(
-            "zrb.llm.lsp.manager_lifecycle.get_lsp_config_for_file",
+            "zrb.llm.lsp.manager.lifecycle.get_lsp_config_for_file",
             return_value=None,
         ):
             result = await manager.get_server("/path/to/file.unknown")

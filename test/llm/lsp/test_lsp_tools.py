@@ -196,7 +196,7 @@ class TestLspTools:
                 return_value={"pyright": "/usr/bin/pyright"}
             )
 
-            with patch("zrb.llm.lsp.server.LSP_SERVER_CONFIGS") as mock_configs:
+            with patch("zrb.llm.lsp.server.server.LSP_SERVER_CONFIGS") as mock_configs:
                 mock_config = MagicMock()
                 mock_config.language_ids = ["python"]
                 mock_configs.get = MagicMock(return_value=mock_config)
@@ -219,7 +219,7 @@ class TestLspTools:
                 return_value={"typescript-language-server": "/usr/bin/tsserver"}
             )
 
-            with patch("zrb.llm.lsp.server.LSP_SERVER_CONFIGS") as mock_configs:
+            with patch("zrb.llm.lsp.server.server.LSP_SERVER_CONFIGS") as mock_configs:
                 mock_config = MagicMock()
                 mock_config.language_ids = ["typescript", "javascript"]
                 mock_configs.get = MagicMock(return_value=mock_config)
@@ -239,7 +239,7 @@ class TestLspTools:
                 return_value={"unknown-server": "/usr/bin/unknown"}
             )
 
-            with patch("zrb.llm.lsp.server.LSP_SERVER_CONFIGS") as mock_configs:
+            with patch("zrb.llm.lsp.server.server.LSP_SERVER_CONFIGS") as mock_configs:
                 mock_configs.get = MagicMock(return_value=None)
 
                 result = await list_available_servers()

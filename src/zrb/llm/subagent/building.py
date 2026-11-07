@@ -17,7 +17,7 @@ from zrb.llm.agent.common import create_agent
 from zrb.llm.shared.ambient_state import get_current_tool_session
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.shared.factory_resolver import resolve_factory_items
-from zrb.llm.prompt.live_context import render_carried_context
+from zrb.llm.prompt.live_context.context import render_carried_context
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.parent_message import send_message_to_parent
 from zrb.llm.subagent.tool_resolver import (
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
-    from zrb.llm.subagent.manager import SubAgentManager
+    from zrb.llm.subagent.manager.manager import SubAgentManager
     from zrb.llm.task.chat.task import LLMChatTask
 
 

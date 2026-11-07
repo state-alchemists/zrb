@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 
 
 @pytest.fixture
@@ -290,7 +290,7 @@ def test_loader_registers_python_agent_definition(manager, tmp_path):
     agent_dir = tmp_path / "py-def-agent"
     agent_dir.mkdir()
     (agent_dir / "AGENT.py").write_text(
-        "from zrb.llm.subagent.manager import SubAgentDefinition\n"
+        "from zrb.llm.subagent.manager.manager import SubAgentDefinition\n"
         "agent = SubAgentDefinition(\n"
         '    name="py-def", path=__file__, description="from python",\n'
         '    system_prompt="be brief",\n'

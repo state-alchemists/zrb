@@ -35,7 +35,9 @@ class TestBaseUIPersonaSwap:
         ui.load_commands = ["/load"]
         ui.history_manager.load = MagicMock(return_value=[])
 
-        with patch("zrb.llm.subagent.manager.sub_agent_manager") as mock_manager:
+        with patch(
+            "zrb.llm.subagent.manager.manager.sub_agent_manager"
+        ) as mock_manager:
             assert ui.handle_load_command("/load my-project-chat") is True
 
         mock_manager.get_agent_definition.assert_not_called()
@@ -44,7 +46,7 @@ class TestBaseUIPersonaSwap:
     def test_load_delegated_session_swaps_persona(self, simple_ui_instance):
         """Loading a delegated sub-agent's transcript must swap the running
         task's tools/toolsets/prompt_manager and the UI's model to match."""
-        from zrb.llm.subagent.manager import SubAgentDefinition
+        from zrb.llm.subagent.manager.manager import SubAgentDefinition
 
         ui = simple_ui_instance
         ui.load_commands = ["/load"]
@@ -67,7 +69,9 @@ class TestBaseUIPersonaSwap:
             toolsets=["reviewer-toolset"],
         )
 
-        with patch("zrb.llm.subagent.manager.sub_agent_manager") as mock_manager:
+        with patch(
+            "zrb.llm.subagent.manager.manager.sub_agent_manager"
+        ) as mock_manager:
             mock_manager.get_agent_definition.return_value = definition
             mock_manager.resolve_agent_build.return_value = resolved
 
@@ -91,7 +95,9 @@ class TestBaseUIPersonaSwap:
         ui.history_manager.load = MagicMock(return_value=[])
         ui.append_to_output = MagicMock()
 
-        with patch("zrb.llm.subagent.manager.sub_agent_manager") as mock_manager:
+        with patch(
+            "zrb.llm.subagent.manager.manager.sub_agent_manager"
+        ) as mock_manager:
             mock_manager.get_agent_definition.return_value = None
             result = ui.handle_load_command("/load sess1-sub-ghost-agent-deadbeef")
 
@@ -106,7 +112,7 @@ class TestBaseUIPersonaSwap:
     ):
         """/load-ing back to an ordinary session name after a swap restores
         the original (main-agent) tools/toolsets/prompt_manager/model."""
-        from zrb.llm.subagent.manager import SubAgentDefinition
+        from zrb.llm.subagent.manager.manager import SubAgentDefinition
 
         ui = simple_ui_instance
         ui.load_commands = ["/load"]
@@ -129,7 +135,9 @@ class TestBaseUIPersonaSwap:
             toolsets=["researcher-toolset"],
         )
 
-        with patch("zrb.llm.subagent.manager.sub_agent_manager") as mock_manager:
+        with patch(
+            "zrb.llm.subagent.manager.manager.sub_agent_manager"
+        ) as mock_manager:
             mock_manager.get_agent_definition.return_value = definition
             mock_manager.resolve_agent_build.return_value = resolved
             ui.handle_load_command("/load sess1-sub-researcher-deadbeef")
@@ -148,7 +156,7 @@ class TestBaseUIPersonaSwap:
     ):
         """Swapping A -> B must restore the ORIGINAL main persona when going
         back, not B's persona re-labeled as "main"."""
-        from zrb.llm.subagent.manager import SubAgentDefinition
+        from zrb.llm.subagent.manager.manager import SubAgentDefinition
 
         ui = simple_ui_instance
         ui.load_commands = ["/load"]
@@ -164,7 +172,9 @@ class TestBaseUIPersonaSwap:
                 name=name, path=".", description="d", system_prompt="p"
             )
 
-        with patch("zrb.llm.subagent.manager.sub_agent_manager") as mock_manager:
+        with patch(
+            "zrb.llm.subagent.manager.manager.sub_agent_manager"
+        ) as mock_manager:
             mock_manager.get_agent_definition.side_effect = (
                 lambda name: make_definition(name)
             )

@@ -27,18 +27,21 @@ def lsp_env():
     with (
         patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
+            "zrb.llm.lsp.manager.manager.lsp_manager.list_available_servers",
             return_value={"python": "pylsp"},
         ) as servers,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.get_document_symbols",
+            "zrb.llm.lsp.manager.manager.lsp_manager.get_document_symbols",
             new_callable=AsyncMock,
         ) as sym,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.get_diagnostics",
+            "zrb.llm.lsp.manager.manager.lsp_manager.get_diagnostics",
             new_callable=AsyncMock,
         ) as diag,
-        patch("zrb.llm.lsp.manager.lsp_manager.shutdown_all", new_callable=AsyncMock),
+        patch(
+            "zrb.llm.lsp.manager.manager.lsp_manager.shutdown_all",
+            new_callable=AsyncMock,
+        ),
     ):
         run.return_value = ("result", [])
         sym.return_value = {"found": False}

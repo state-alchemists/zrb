@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from zrb.llm.lsp.configs import lsp_server_configs
-from zrb.llm.lsp.manager import LSPManager
+from zrb.llm.lsp.manager.manager import LSPManager
 from zrb.llm.lsp.protocol import SymbolKind
 
 

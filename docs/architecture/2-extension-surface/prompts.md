@@ -77,7 +77,7 @@ flowchart TD
 | `create_project_context_prompt` | `src/zrb/llm/prompt/claude.py` | Lists project docs and inlines `AGENTS.md` / `CLAUDE.md` / `GEMINI.md` nearest first within `LLM_PROJECT_INSTRUCTIONS_MAX_BYTES` |
 | `build_skill_replacements` | `src/zrb/llm/prompt/claude.py` | Fills the skill catalogue placeholders inside `workflow` |
 | `PromptRegistry`, `prompt_registry` | `src/zrb/llm/prompt/registry.py` | The shared default list of extra prompts, read from `CFG.LLM_PROMPT` lazily |
-| `render_live_context` | `src/zrb/llm/prompt/live_context.py` | The per-turn lines (time, git, todos, mode) and the memory block |
+| `render_live_context` | `src/zrb/llm/prompt/live_context/context.py` | The per-turn lines (time, git, todos, mode) and the memory block |
 | `render_memory_block`, `render_memory_delta` | `src/zrb/llm/prompt/memory_context.py` | The `<memory>` block and the per-turn `<memory-delta>` |
 | `resolve_system_prompt` | `src/zrb/llm/task/shared_getters.py` | Composes the prompt for one run |
 | `create_agent` | `src/zrb/llm/agent/common.py` | Passes the finished string to `pydantic_ai.Agent` as `instructions` |
@@ -132,7 +132,7 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | Change the default section order | `src/zrb/config/mixins/llm_prompt.py` | `test/llm/prompt/test_config_defaults.py` |
 | Change override lookup | `src/zrb/llm/prompt/prompt.py` | `test/llm/prompt/test_default_prompt.py` |
 | Change session facts | `src/zrb/llm/prompt/system_context.py` | `test/llm/prompt/test_system_context.py` |
-| Change per-turn live context | `src/zrb/llm/prompt/live_context.py` | `test/llm/prompt/test_live_context_delta.py` |
+| Change per-turn live context | `src/zrb/llm/prompt/live_context/context.py` | `test/llm/prompt/test_live_context_delta.py` |
 | Change extra-prompt layering | `src/zrb/llm/prompt/registry.py` | `test/llm/prompt/test_registry.py` |
 | Change sub-agent inheritance | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/test_manager_building.py` |
 

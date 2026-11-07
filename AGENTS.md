@@ -48,7 +48,7 @@ Inside `llm/`:
 | `memory/` | The persistent store behind `Remember`/`Forget`/`SearchMemory` — `paths`, `model` (the fact and diary shapes), `store` (the locked write transaction), `render` (the core, `## Recent` and the delta), `search`, and `migrate` (a notes directory → memory, on first use or by `zrb memory migrate`). A leaf: it imports `config` and `util` only. It replaced the journal, whose code was deleted in 3.33.0 (ADR-0138) |
 | `camera/`, `screenshot/`, `dictation/`, `speech/`, `emotion/` | Optional chat features — `/photo`, `/screenshot`, speech-to-text input, replies read aloud, the reply's and the prompt's emotion fired as a hook. Each is one `enable_*` call plus a config dataclass; all but `emotion/` also have a `backend/` package. None is known to the UI (ADR-0102) |
 | `voice/` | The Pipecat STT/TTS service registry that `dictation/` and `speech/` select their backend from |
-| `prompt/` | System-prompt composition — `manager.py`, `profile.py`, `live_context.py`, and the `markdown/` section files |
+| `prompt/` | System-prompt composition — `manager.py`, `profile.py`, `live_context/`, and the `markdown/` section files |
 | `skill/` | Skill discovery and activation |
 | `task/` | `llm_task.py` (`LLMTask`) and `task/chat/` (`LLMChatTask`) — both `BaseTask` subclasses that build pydantic-ai agents internally |
 | `tool/` | Agent-callable tools, grouped by domain: `file/`, `delegate/`, `shell/`, `plan/`, `web/` and `code/` are packages whose `__init__` re-exports the names their flat module used to export; a tool that is one module stays a module |

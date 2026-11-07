@@ -7,7 +7,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.lsp.configs import LSPServerConfig
 from zrb.llm.lsp.protocol import LSPServerError, LSPTimeoutError
-from zrb.llm.lsp.server import LSPServer
+from zrb.llm.lsp.server.server import LSPServer
 
 
 @pytest.fixture

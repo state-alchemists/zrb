@@ -11,7 +11,7 @@ singleton wire up.
 import pytest
 
 from zrb.llm.subagent.definition import SubAgentDefinition
-from zrb.llm.subagent.manager import SubAgentManager
+from zrb.llm.subagent.manager.manager import SubAgentManager
 from zrb.llm.subagent.registry import SubAgentRegistry, sub_agent_registry
 
 
