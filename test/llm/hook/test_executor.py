@@ -247,7 +247,7 @@ async def test_a_hook_runs_in_the_callers_context():
 @pytest.mark.asyncio
 async def test_a_hook_does_not_inherit_what_is_bound_to_the_callers_loop():
     "The hook runs in an event loop of its own, so the chat's UI, tool"
-    from zrb.llm.agent_state import current_model, current_ui
+    from zrb.llm.shared.agent_state import current_model, current_ui
     from zrb.llm.approval.approval_channel import current_approval_channel
 
     executor = ThreadPoolHookExecutor()

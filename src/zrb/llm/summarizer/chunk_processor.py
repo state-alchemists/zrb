@@ -6,7 +6,7 @@ from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.limiter import llm_limiter as default_llm_limiter
 from zrb.llm.summarizer.message_converter import message_to_text
 from zrb.llm.summarizer.text_summarizer import summarize_text_plain
-from zrb.llm.usage_log import UsageTotals
+from zrb.llm.shared.usage_log import UsageTotals
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_error, stylize_warning
 

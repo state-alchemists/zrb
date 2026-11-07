@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from zrb.llm.tool_registry import tool_name, tool_registry
-from zrb.llm.usage_log import UsageRecord
+from zrb.llm.shared.tool_registry import tool_name, tool_registry
+from zrb.llm.shared.usage_log import UsageRecord
 
 _TOP_TOOLS = 8
 _NEVER_CALLED_SHOWN = 12

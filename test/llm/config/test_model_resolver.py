@@ -136,7 +136,7 @@ def test_resolve_configured_small_model_falls_back_to_main_model(monkeypatch):
 
 def test_resolve_configured_small_model_prefers_current_run_model(monkeypatch):
     "A `/model deepseek:...` switch must carry the summarizer/journal with it:"
-    from zrb.llm.agent_state import current_model
+    from zrb.llm.shared.agent_state import current_model
 
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
     monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", None)
@@ -152,7 +152,7 @@ def test_resolve_configured_small_model_prefers_current_run_model(monkeypatch):
 
 def test_resolve_configured_small_model_cfg_small_model_beats_run_model(monkeypatch):
     "An explicitly configured small model still outranks the run's model."
-    from zrb.llm.agent_state import current_model
+    from zrb.llm.shared.agent_state import current_model
 
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")
     monkeypatch.setattr(CFG, "LLM_SMALL_MODEL", "anthropic:claude-3-haiku")
@@ -178,7 +178,7 @@ def test_resolve_configured_small_model_explicit_override_wins(monkeypatch):
 
 def test_resolve_configured_multimodal_model_prefers_run_override(monkeypatch):
     "`/model multimodal <name>` outranks `CFG.LLM_MULTIMODAL_MODEL`."
-    from zrb.llm.agent_state import current_multimodal_model
+    from zrb.llm.shared.agent_state import current_multimodal_model
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "openai:gpt-4o")
     monkeypatch.setattr(CFG, "LLM_API_KEY", None)
@@ -195,7 +195,7 @@ def test_resolve_configured_multimodal_model_never_falls_back_to_main_model(
     monkeypatch,
 ):
     "No multimodal model configured stays `None` — a text-only main model"
-    from zrb.llm.agent_state import current_model
+    from zrb.llm.shared.agent_state import current_model
 
     monkeypatch.setattr(CFG, "LLM_MULTIMODAL_MODEL", "")
     monkeypatch.setattr(CFG, "LLM_MODEL", "openai:gpt-4o")

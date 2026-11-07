@@ -15,7 +15,7 @@ from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.tool.delegate import AgentTaskResult, create_delegate_to_agent_tool
 from zrb.llm.tool.delegate_background import get_background_registry
-from zrb.llm.tool_registry import tool_name
+from zrb.llm.shared.tool_registry import tool_name
 
 
 def _names(profile: str, model: str | None = None) -> list[str]:

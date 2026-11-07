@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.context.shared_context import SharedContext
-from zrb.llm.agent_state import get_current_small_model
+from zrb.llm.shared.agent_state import get_current_small_model
 from zrb.llm.task.chat.task import LLMChatTask
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.ui.fallback.std_ui import StdUI

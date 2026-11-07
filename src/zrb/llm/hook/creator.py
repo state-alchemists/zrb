@@ -10,8 +10,8 @@ import threading
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.agent_runner import create_agent
-from zrb.llm.agent_state import current_nested_run, get_current_model
+from zrb.llm.shared.agent_runner import create_agent
+from zrb.llm.shared.agent_state import current_nested_run, get_current_model
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
 from zrb.llm.hook.process_io import read_hook_output, run_detached

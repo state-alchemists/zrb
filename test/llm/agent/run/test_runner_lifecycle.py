@@ -72,7 +72,7 @@ async def test_run_agent_binds_explicit_run_scope_for_nested_tools():
     check) must see the `run_scope` the caller passed in — this is what lets
     it recognize the same conversation across its own separate turns.
     """
-    from zrb.llm.agent_state import get_current_agent_run_scope
+    from zrb.llm.shared.agent_state import get_current_agent_run_scope
 
     seen_scope = None
 
@@ -103,7 +103,7 @@ async def test_run_agent_defaults_run_scope_to_a_fresh_id_each_call():
     delegations) must land in *different* scopes — never share one implicit
     bucket, and never collide with each other by construction.
     """
-    from zrb.llm.agent_state import get_current_agent_run_scope
+    from zrb.llm.shared.agent_state import get_current_agent_run_scope
 
     seen_scopes = []
 
@@ -127,7 +127,7 @@ async def test_run_agent_defaults_run_scope_to_a_fresh_id_each_call():
 
 @pytest.mark.asyncio
 async def test_run_agent_resets_run_scope_after_returning():
-    from zrb.llm.agent_state import get_current_agent_run_scope
+    from zrb.llm.shared.agent_state import get_current_agent_run_scope
 
     agent = MagicMock()
     mock_result = MagicMock()

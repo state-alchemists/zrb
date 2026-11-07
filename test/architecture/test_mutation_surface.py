@@ -17,7 +17,7 @@ specific cases" section and R6's own row for the reasoning.
 import importlib
 
 ORDERED_COLLECTIONS = {
-    "zrb.llm.tool_registry:tool_registry": [
+    "zrb.llm.shared.tool_registry:tool_registry": [
         ("tool", "tools"),
         ("tool_factory", "tool_factories"),
         ("toolset_factory", "toolset_factories"),

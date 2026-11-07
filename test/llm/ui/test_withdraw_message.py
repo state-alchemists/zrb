@@ -7,7 +7,7 @@ sender withdraws it. Only a message that has not started can be withdrawn.
 
 from unittest.mock import MagicMock
 
-from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT
+from zrb.llm.shared.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT
 from zrb.llm.ui.default.ui import UI
 from zrb.llm.ui.multi_ui import MultiUI
 

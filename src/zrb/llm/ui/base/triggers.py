@@ -13,7 +13,7 @@ from collections.abc import AsyncIterable, Callable, Iterable
 from typing import TYPE_CHECKING, Any, cast
 
 from zrb.config.config import CFG
-from zrb.llm.input_source import KEYBOARD_INPUT, InputProvenance
+from zrb.llm.shared.input_source import KEYBOARD_INPUT, InputProvenance
 from zrb.llm.ui.trigger import TriggerInput, TriggerMessage, TriggerReply
 from zrb.util.cli.style import stylize_error
 from zrb.util.exception import exception_summary

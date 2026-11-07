@@ -2,7 +2,7 @@ import math
 from typing import TYPE_CHECKING
 
 from zrb.llm.config.limiter import LLMLimiter, is_turn_start
-from zrb.llm.message_text import render_verbatim_messages
+from zrb.llm.shared.message_text import render_verbatim_messages
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
@@ -81,7 +81,7 @@ def split_history(
     API messages, so the split does not need to avoid landing inside a tool
     call/return pair: that constraint only binds structured messages. The one
     structural concern, a still-unresolved (deferred) tool call, is handled by
-    the caller via `zrb.llm.message.pending_tail_start`.
+    the caller via `zrb.llm.shared.message.pending_tail_start`.
 
     `tail_budget_ratio` is clamped into `MIN_TAIL_BUDGET_RATIO` to
     `MAX_TAIL_BUDGET_RATIO`, so a configured `0` still leaves a tail and a

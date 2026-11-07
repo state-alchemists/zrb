@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from zrb.llm.task.chat.running import ChatRunning
-from zrb.llm.util.feature_config import (
+from zrb.llm.shared.feature_config import (
     get_session_ui,
     reset_session_ui,
     set_session_ui,

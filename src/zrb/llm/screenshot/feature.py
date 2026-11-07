@@ -19,7 +19,7 @@ from zrb.llm.permission.capability import Capability, tag
 from zrb.llm.screenshot.backend.any_screenshot_backend import AnyScreenshotBackend
 from zrb.llm.screenshot.backend.builtin import get_screenshot_backend
 from zrb.llm.screenshot.config import ScreenshotConfig
-from zrb.llm.util.feature_config import replace_registration
+from zrb.llm.shared.feature_config import replace_registration
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.util.cli.style import stylize_error, stylize_muted
 

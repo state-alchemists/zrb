@@ -30,7 +30,7 @@ from zrb.llm.permission import PermissionPolicyInput, resolve_policy
 from zrb.llm.prompt.live_context import previous_git_baseline
 from zrb.llm.prompt.manager import PromptManager
 from zrb.llm.sandbox import SandboxInput, coerce_sandbox
-from zrb.llm.stream_observer import StreamObserver
+from zrb.llm.shared.stream_observer import StreamObserver
 from zrb.llm.summarizer import summarize_history
 from zrb.llm.task.building import LLMTaskBuilding
 from zrb.llm.task.history import LLMTaskHistory

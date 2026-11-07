@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, Annotated, cast
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_ui
-from zrb.llm.ambient_state import get_interactive_mode
+from zrb.llm.shared.agent_state import get_current_ui
+from zrb.llm.shared.ambient_state import get_interactive_mode
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag

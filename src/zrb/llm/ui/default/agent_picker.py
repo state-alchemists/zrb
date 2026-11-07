@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.agent_activity import agent_activity_registry
-from zrb.llm.ambient_state import get_session_ownership_key
+from zrb.llm.shared.agent_activity import agent_activity_registry
+from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.llm.ui.default.app.docking import (
     RowWindow,
     framed_panel_height,

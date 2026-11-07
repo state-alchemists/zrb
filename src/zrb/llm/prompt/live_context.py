@@ -19,7 +19,7 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
-from zrb.llm.ambient_state import (
+from zrb.llm.shared.ambient_state import (
     get_active_worktree,
     get_current_chat_session_id,
     get_input_provenance,

@@ -1,6 +1,6 @@
 import pytest
 
-from zrb.llm.stream_observer import create_observed_event_handler
+from zrb.llm.shared.stream_observer import create_observed_event_handler
 
 
 @pytest.mark.asyncio

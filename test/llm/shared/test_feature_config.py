@@ -9,8 +9,8 @@ from zrb.llm.camera.config import CameraConfig
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.screenshot.config import ScreenshotConfig
 from zrb.llm.speech.config import SpeechConfig
-from zrb.llm.util import feature_config
-from zrb.llm.util.feature_config import (
+from zrb.llm.shared import feature_config
+from zrb.llm.shared.feature_config import (
     FeatureSessions,
     accepts_renamed_fields,
     close_feature_sessions,

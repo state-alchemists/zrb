@@ -776,7 +776,7 @@ Or turn YOLO on for one run: `zrb llm chat --yolo true` (or a comma-separated to
 
 Every user turn can carry where it came from. The model sees it in its live context as `Input: user via <channel>`; for a transcription, it also gets a warning to verify names, paths and commands before acting on them.
 
-`InputProvenance(channel, modality="text", transcription=False)` comes from `zrb.llm.input_source`, with three ready-made values:
+`InputProvenance(channel, modality="text", transcription=False)` comes from `zrb.llm.shared.input_source`, with three ready-made values:
 
 | Value | Used by |
 |---|---|

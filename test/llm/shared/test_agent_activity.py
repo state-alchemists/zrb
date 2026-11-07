@@ -1,4 +1,4 @@
-from zrb.llm.agent_activity import AgentActivityRegistry, agent_activity_registry
+from zrb.llm.shared.agent_activity import AgentActivityRegistry, agent_activity_registry
 
 
 def test_start_tracks_agent_as_active():

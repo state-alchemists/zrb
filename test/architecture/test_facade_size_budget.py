@@ -127,7 +127,10 @@ FACADE_BUDGETS = {
     # display part, because a subclass override that calls `super()` has to land
     # on it rather than on the plain-text fallback next in MRO -- a delegator,
     # not new surface.
-    "llm/ui/base/ui.py": 1271,
+    # +4 (1271->1275): the imports naming `zrb.llm.shared.*` are longer than
+    # `zrb.llm.*` were, so black wrapped four `from ... import (...)` blocks that
+    # used to fit one line. Same names, same surface.
+    "llm/ui/base/ui.py": 1275,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):

@@ -8,7 +8,7 @@ import functools
 from collections.abc import Awaitable, Callable
 from typing import ParamSpec, TypeVar, cast, overload
 
-from zrb.llm.agent_tool_result import tool_return
+from zrb.llm.shared.agent_tool_result import tool_return
 
 P = ParamSpec("P")
 T = TypeVar("T")

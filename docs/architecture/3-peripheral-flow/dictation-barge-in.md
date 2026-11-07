@@ -97,7 +97,7 @@ flowchart TD
 | `StreamedReply` | `src/zrb/llm/speech/streamed_reply.py` | Turning stream events into sentences; muting a reply that was talked over |
 | `TriggerReply` | `src/zrb/llm/ui/trigger.py` | A spoken command, with its approval reading and the time it was said |
 | `BaseUITriggers` | `src/zrb/llm/ui/base/triggers.py` | Delivering a trigger's reply as an answer to a pending prompt, or as a new message |
-| `replace_feature_sessions`, `close_feature_sessions` | `src/zrb/llm/util/feature_config.py` | One feature value per chat session; replaced cleanly on re-enable, closed when the session ends |
+| `replace_feature_sessions`, `close_feature_sessions` | `src/zrb/llm/shared/feature_config.py` | One feature value per chat session; replaced cleanly on re-enable, closed when the session ends |
 
 ### How it runs
 

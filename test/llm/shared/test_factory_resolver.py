@@ -1,6 +1,6 @@
 """Unit tests for resolve_factory_items."""
 
-from zrb.llm.factory_resolver import resolve_factory_items
+from zrb.llm.shared.factory_resolver import resolve_factory_items
 
 
 def test_static_items_only():

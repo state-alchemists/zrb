@@ -21,8 +21,8 @@ LLM = pathlib.Path(__file__).parents[2] / "src" / "zrb" / "llm"
 
 ## Path under llm/ -> the package that registers into it while loading.
 SEAMS: dict[str, str] = {
-    "agent_runner.py": "zrb.llm.agent",
-    "delegation_api.py": "zrb.llm.subagent",
+    "shared/agent_runner.py": "zrb.llm.agent",
+    "shared/delegation_api.py": "zrb.llm.subagent",
 }
 
 

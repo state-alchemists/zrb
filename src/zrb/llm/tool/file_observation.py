@@ -16,7 +16,7 @@ from collections import OrderedDict, defaultdict
 from collections.abc import Callable
 from typing import TypeVar
 
-from zrb.llm.agent_state import get_current_agent_run_scope
+from zrb.llm.shared.agent_state import get_current_agent_run_scope
 
 _BucketT = TypeVar("_BucketT")
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_llm_limiter
+from zrb.llm.shared.agent_state import get_current_llm_limiter
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_info
 

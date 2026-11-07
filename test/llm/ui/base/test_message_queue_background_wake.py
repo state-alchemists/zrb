@@ -8,7 +8,7 @@ cuts the voice, and a session can only be woken so many times in a row.
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT
+from zrb.llm.shared.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT
 from zrb.llm.ui.base.message_queue import MessageQueue, submit_user_message_via_queue
 
 

@@ -18,7 +18,7 @@ from zrb.llm.custom_command.resolver import (
     run_custom_command,
 )
 from zrb.llm.task.chat.agent_mention import resolve_agent_mention
-from zrb.llm.util.feature_config import (
+from zrb.llm.shared.feature_config import (
     get_session_ui,
     reset_session_ui,
     set_session_ui,

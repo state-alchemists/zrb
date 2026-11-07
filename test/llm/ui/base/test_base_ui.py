@@ -6,7 +6,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.input_source import DICTATION_INPUT, KEYBOARD_INPUT
+from zrb.llm.shared.input_source import DICTATION_INPUT, KEYBOARD_INPUT
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
 from zrb.llm.ui.base.ui import BaseUI

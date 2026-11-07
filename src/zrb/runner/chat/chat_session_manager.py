@@ -7,13 +7,13 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
 from zrb.config.config import CFG
-from zrb.llm.agent_activity import agent_activity_registry
+from zrb.llm.shared.agent_activity import agent_activity_registry
 from zrb.llm.history_manager.file_history_manager import (
     FileHistoryManager,
     default_history_manager,
 )
-from zrb.llm.input_source import WEB_INPUT, InputProvenance
-from zrb.llm.util.feature_config import close_feature_sessions
+from zrb.llm.shared.input_source import WEB_INPUT, InputProvenance
+from zrb.llm.shared.feature_config import close_feature_sessions
 from zrb.llm.util.live_context_block import split_live_context
 from zrb.llm.util.spoken import shown_text
 

@@ -6,7 +6,7 @@ turn. The cut is what turns "the message arrived" into "the message is read
 now".
 """
 
-from zrb.llm.shell_cut import ShellCutSignal
+from zrb.llm.shared.shell_cut import ShellCutSignal
 from zrb.llm.ui.base.message_queue import MessageQueue, QueuedMessage
 from zrb.llm.ui.base.queue_delivery import (
     DeliveryOutcome,

@@ -218,7 +218,7 @@ async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
 async def test_delegate_runs_the_sub_agent_under_the_parent_run_limiter(
     mock_sub_agent_manager,
 ):
-    from zrb.llm.agent_state import current_llm_limiter
+    from zrb.llm.shared.agent_state import current_llm_limiter
     from zrb.llm.config.limiter import LLMLimiter
 
     mock_sub_agent_manager.create_agent.return_value = MagicMock()

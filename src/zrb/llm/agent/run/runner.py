@@ -1,6 +1,6 @@
 """LLM agent run loop: drives `pydantic_ai.Agent`, sanitizes history, retries.
 
-`run_agent()` binds the run's `ContextVar`s (defined in `zrb.llm.agent_state`)
+`run_agent()` binds the run's `ContextVar`s (defined in `zrb.llm.shared.agent_state`)
 on entry and resets them on exit. History sanitization and the OpenAI patch
 are explained in docs/technical-specs/llm-history-sanitization.md.
 """
@@ -51,7 +51,7 @@ from zrb.llm.agent.run.setup import (
 )
 from zrb.llm.agent.run.turn_cursor import TurnCursor
 from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
-from zrb.llm.agent_state import (
+from zrb.llm.shared.agent_state import (
     AnyToolConfirmation,
     current_agent_run_scope,
     current_hook_manager,
@@ -65,7 +65,7 @@ from zrb.llm.agent_state import (
     current_yolo,
     get_current_agent_run_scope,
 )
-from zrb.llm.ambient_state import active_worktree
+from zrb.llm.shared.ambient_state import active_worktree
 from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.config.model_resolver import resolve_configured_multimodal_model
@@ -75,21 +75,21 @@ from zrb.llm.hook.turn_evidence import (
     turn_wrote_files,
 )
 from zrb.llm.hook.types import HookEvent
-from zrb.llm.message import ensure_alternating_roles
+from zrb.llm.shared.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
     current_permission_policy,
     enter_agent_mode_scope,
     exit_agent_mode_scope,
 )
 from zrb.llm.sandbox.state import current_sandbox_policy, get_effective_sandbox_policy
-from zrb.llm.shell_cut import (
+from zrb.llm.shared.shell_cut import (
     current_shell_cut_signal,
     get_run_shell_cut_signal,
     signal_for_run,
 )
 from zrb.llm.snapshot.command import run_in_worker
-from zrb.llm.stream_observer import StreamObserver, create_observed_event_handler
-from zrb.llm.usage_log import count_tool_calls, record_usage
+from zrb.llm.shared.stream_observer import StreamObserver, create_observed_event_handler
+from zrb.llm.shared.usage_log import count_tool_calls, record_usage
 from zrb.llm.util.live_context_block import append_live_context
 from zrb.llm.util.prompt import expand_prompt
 

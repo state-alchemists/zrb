@@ -11,7 +11,7 @@ from zrb.llm.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.dictation.feature import DictationSession
 from zrb.llm.dictation.interrupt_judge import BargeInVerdict
 from zrb.llm.dictation.listen import Utterance
-from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
+from zrb.llm.shared.feature_config import reset_session_ui, set_session_ui
 
 from .barge_in_support import (
     FakeUI,

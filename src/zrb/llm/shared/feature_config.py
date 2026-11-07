@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 from zrb.config.config import CFG
 from zrb.config.env_field import warn_deprecated
-from zrb.llm.ambient_state import get_session_ownership_key
+from zrb.llm.shared.ambient_state import get_session_ownership_key
 
 if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI

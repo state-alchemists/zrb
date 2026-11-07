@@ -12,7 +12,7 @@ from zrb.llm.custom_command.usage_command import (
     render_usage,
 )
 from zrb.llm.history_manager.conversation_naming import with_slug
-from zrb.llm.usage_log import KIND_SUMMARIZATION, KIND_TURN, record_usage
+from zrb.llm.shared.usage_log import KIND_SUMMARIZATION, KIND_TURN, record_usage
 from zrb.util.string.name import get_random_name
 
 NOW = datetime.now(timezone.utc)

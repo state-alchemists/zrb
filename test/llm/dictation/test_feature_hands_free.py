@@ -9,7 +9,7 @@ from zrb.llm.dictation import AnyDictationBackend, DictationConfig
 from zrb.llm.dictation.feature import BADGE_KEY, DictationSession
 from zrb.llm.dictation.listen import MicState, Utterance
 from zrb.llm.ui.trigger import TriggerReply
-from zrb.llm.util.feature_config import reset_session_ui, set_session_ui
+from zrb.llm.shared.feature_config import reset_session_ui, set_session_ui
 
 
 class FakeBackend(AnyDictationBackend):

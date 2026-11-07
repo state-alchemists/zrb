@@ -22,13 +22,13 @@ from typing import TYPE_CHECKING, Annotated
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_ui
-from zrb.llm.ambient_state import (
+from zrb.llm.shared.agent_state import get_current_ui
+from zrb.llm.shared.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
 from zrb.llm.permission import Capability, tag
-from zrb.llm.shell_cut import interrupted_notice, is_cut_while_waiting
+from zrb.llm.shared.shell_cut import interrupted_notice, is_cut_while_waiting
 from zrb.llm.tool.delegate import BufferedUI
 from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.util.cli.ansi import strip_ansi

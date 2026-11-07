@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.input_source import WEB_INPUT
+from zrb.llm.shared.input_source import WEB_INPUT
 
 
 @pytest.fixture(autouse=True)

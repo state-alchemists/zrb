@@ -14,7 +14,7 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.ambient_state import current_speech_voice
+from zrb.llm.shared.ambient_state import current_speech_voice
 from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.builtin import get_speech_backend
 from zrb.llm.speech.backend.utterance import Utterance

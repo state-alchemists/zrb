@@ -12,16 +12,16 @@ from typing import TYPE_CHECKING, Annotated, TypedDict, cast
 from pydantic import Field
 
 from zrb.config.config import CFG
-from zrb.llm.agent_activity import HasActivityTracking, agent_activity_registry
-from zrb.llm.agent_runner import run_agent
-from zrb.llm.agent_state import get_current_ui
-from zrb.llm.ambient_state import (
+from zrb.llm.shared.agent_activity import HasActivityTracking, agent_activity_registry
+from zrb.llm.shared.agent_runner import run_agent
+from zrb.llm.shared.agent_state import get_current_ui
+from zrb.llm.shared.ambient_state import (
     get_active_worktree,
     get_current_tool_session,
     get_session_ownership_key,
 )
 from zrb.llm.config.limiter import get_run_llm_limiter
-from zrb.llm.delegation_api import (
+from zrb.llm.shared.delegation_api import (
     default_sub_agent_manager,
     get_live_session_registry,
     start_titling,
@@ -29,7 +29,7 @@ from zrb.llm.delegation_api import (
 from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
-from zrb.llm.shell_cut import get_run_shell_cut_signal
+from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.worktree import enter_worktree, exit_worktree
 from zrb.llm.ui.buffered_ui import BufferedUI
 from zrb.llm.ui.fallback.resolution import resolve_ui
@@ -44,7 +44,7 @@ from zrb.util.string.suggestion import suggest_name
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
-    from zrb.llm.delegation_api import SubAgentManagerAPI
+    from zrb.llm.shared.delegation_api import SubAgentManagerAPI
     from zrb.llm.ui.any_ui import AnyUI
 
 

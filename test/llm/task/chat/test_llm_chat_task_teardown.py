@@ -65,7 +65,7 @@ async def test_interactive_teardown_shuts_down_the_session_hook_manager():
 @pytest.mark.asyncio
 async def test_a_cancelled_interactive_teardown_still_runs_to_the_end():
     """A Ctrl+C cancelling teardown mid-step still lets every step run."""
-    from zrb.llm.util.feature_config import FeatureSessions
+    from zrb.llm.shared.feature_config import FeatureSessions
 
     closed: list[str] = []
     sessions = FeatureSessions(lambda: "speaker", closed.append)
@@ -120,7 +120,7 @@ async def test_a_feature_that_will_not_close_does_not_hold_the_quit(
     waits a bounded time, says so, and keeps the loop free for Ctrl+C instead
     of freezing on the close."""
     from zrb.llm.task.chat import execution
-    from zrb.llm.util.feature_config import FeatureSessions
+    from zrb.llm.shared.feature_config import FeatureSessions
 
     release = threading.Event()
 

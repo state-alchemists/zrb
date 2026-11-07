@@ -7,7 +7,7 @@ turn, not to a run a hook started. The flag is stamped once, in
 
 import pytest
 
-from zrb.llm.agent_state import current_nested_run
+from zrb.llm.shared.agent_state import current_nested_run
 from zrb.llm.hook.interface import HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.types import HookEvent

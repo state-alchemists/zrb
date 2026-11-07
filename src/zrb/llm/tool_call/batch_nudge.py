@@ -18,7 +18,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import get_current_model
+from zrb.llm.shared.agent_state import get_current_model
 from zrb.llm.util.capabilities import model_capabilities
 
 if TYPE_CHECKING:

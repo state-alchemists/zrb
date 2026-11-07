@@ -6,7 +6,7 @@ import os
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.agent_state import current_model
+from zrb.llm.shared.agent_state import current_model
 from zrb.llm.tool.file import read_file
 
 

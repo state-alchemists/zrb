@@ -3,7 +3,7 @@
 import pytest
 
 from zrb.llm.agent.run.setup import resolve_context_dependencies
-from zrb.llm.agent_state import current_hook_manager, current_yolo
+from zrb.llm.shared.agent_state import current_hook_manager, current_yolo
 from zrb.llm.hook.manager import HookManager
 
 

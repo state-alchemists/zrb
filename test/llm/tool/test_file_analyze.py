@@ -92,7 +92,7 @@ async def test_analyze_file_refuses_an_image_a_text_only_model_gets_described(
 ):
     from PIL import Image
 
-    from zrb.llm.agent_state import current_model
+    from zrb.llm.shared.agent_state import current_model
 
     async def describe(binary, multimodal_model):
         return "a red square"

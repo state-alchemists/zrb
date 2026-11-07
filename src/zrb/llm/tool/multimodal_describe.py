@@ -11,8 +11,8 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.agent_runner import create_agent, run_agent
-from zrb.llm.agent_state import get_current_model
+from zrb.llm.shared.agent_runner import create_agent, run_agent
+from zrb.llm.shared.agent_state import get_current_model
 from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import (
     resolve_configured_model,

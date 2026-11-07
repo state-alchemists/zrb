@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 
 from zrb.config.config import CFG
-from zrb.llm.ambient_state import get_session_ownership_key
+from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.llm.memory import paths, render, store
 from zrb.util.owner_only import makedirs_owner_only, write_text_owner_only
 

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
     )
-    from zrb.llm.tool_registry import ToolRegistry, tool_name, tool_registry
+    from zrb.llm.shared.tool_registry import ToolRegistry, tool_name, tool_registry
 
 __all__ = [
     "run_shell_command",
@@ -64,7 +64,7 @@ __all__ = [
 ]
 
 _SOURCES = {
-    "ToolRegistry": "zrb.llm.tool_registry",
+    "ToolRegistry": "zrb.llm.shared.tool_registry",
     "analyze_file": "zrb.llm.tool.file",
     "create_activate_skill_tool": "zrb.llm.tool.skill",
     "create_list_zrb_task_tool": "zrb.llm.tool.zrb_task",
@@ -84,8 +84,8 @@ _SOURCES = {
     "run_shell_command": "zrb.llm.tool.shell",
     "search_files": "zrb.llm.tool.file",
     "search_internet": "zrb.llm.tool.web",
-    "tool_name": "zrb.llm.tool_registry",
-    "tool_registry": "zrb.llm.tool_registry",
+    "tool_name": "zrb.llm.shared.tool_registry",
+    "tool_registry": "zrb.llm.shared.tool_registry",
     "write_file": "zrb.llm.tool.file",
     "write_todos": "zrb.llm.tool.plan",
 }

@@ -3,11 +3,11 @@
 Re-exports wrappers (and the underlying `ContextVar`s) from the modules that
 own them:
 
-* `zrb.context.any_context`   - the per-task execution Context (`current_ctx`)
-* `zrb.llm.agent_state` - agent-run ambient state (UI, YOLO, approval, ...)
-* `zrb.llm.permission.state`  - permission policy + agent mode (plan/default)
-* `zrb.llm.sandbox.state`     - sandbox policy (filesystem containment)
-* `zrb.llm.ambient_state`  - tool-scoped ambient state (worktree, session)
+* `zrb.context.any_context`       - the per-task execution Context (`current_ctx`)
+* `zrb.llm.shared.agent_state`    - agent-run ambient state (UI, YOLO, approval, ...)
+* `zrb.llm.permission.state`      - permission policy + agent mode (plan/default)
+* `zrb.llm.sandbox.state`         - sandbox policy (filesystem containment)
+* `zrb.llm.shared.ambient_state`  - tool-scoped ambient state (worktree, session)
 
 Nothing here owns state. When you add, remove, or rename a `ContextVar`, also
 update the per-layer tables in docs/technical-specs/context-propagation.md.
@@ -19,7 +19,7 @@ from __future__ import annotations
 from zrb.context.any_context import current_ctx, get_current_ctx, zrb_print
 
 # --- Agent runtime state ---
-from zrb.llm.agent_state import (
+from zrb.llm.shared.agent_state import (
     current_agent_run_scope,
     current_approval_channel,
     current_hook_manager,
@@ -45,7 +45,7 @@ from zrb.llm.agent_state import (
 )
 
 # --- Tool ambient state ---
-from zrb.llm.ambient_state import (
+from zrb.llm.shared.ambient_state import (
     active_worktree,
     current_chat_session_id,
     current_reply_emotion,

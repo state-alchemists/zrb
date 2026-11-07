@@ -13,8 +13,8 @@ import time
 from typing import TYPE_CHECKING, TextIO, cast
 
 from zrb.config.config import CFG
-from zrb.llm.agent_activity import agent_activity_registry
-from zrb.llm.ambient_state import get_session_ownership_key
+from zrb.llm.shared.agent_activity import agent_activity_registry
+from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.llm.ui.output_chunk import (
     CollapsibleBlockSource,
     merge_into_block,

@@ -30,12 +30,7 @@ SRC = REPO_ROOT / "src"
 LLM = SRC / "zrb" / "llm"
 
 _UNITS_BY_LAYER = {
-    0: (
-        "agent_activity agent_runner agent_state agent_tool_result ambient_state "
-        "config delegation_api factory_resolver input_source "
-        "memory message message_text shell_cut stream_observer "
-        "tool_registry usage_log util"
-    ),
+    0: "config memory shared util",
     1: (
         "approval history_manager hook lsp permission prompt sandbox skill "
         "snapshot tool tool_call"
