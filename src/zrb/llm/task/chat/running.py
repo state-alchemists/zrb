@@ -17,12 +17,12 @@ from zrb.llm.custom_command.resolver import (
     resolve_custom_commands,
     run_custom_command,
 )
-from zrb.llm.task.chat.agent_mention import resolve_agent_mention
 from zrb.llm.shared.feature_config import (
     get_session_ui,
     reset_session_ui,
     set_session_ui,
 )
+from zrb.llm.task.chat.agent_mention import resolve_agent_mention
 from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
 from zrb.util.attr import get_attr

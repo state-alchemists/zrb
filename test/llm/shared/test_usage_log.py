@@ -14,7 +14,6 @@ from zrb.config.config import CFG
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.history_manager.conversation_naming import with_slug
-from zrb.llm.ui.buffered.ui import BufferedUI
 from zrb.llm.shared.usage_log import (
     KIND_SUMMARIZATION,
     UsageTotals,
@@ -23,6 +22,7 @@ from zrb.llm.shared.usage_log import (
     record_usage,
     usage_store_path,
 )
+from zrb.llm.ui.buffered.ui import BufferedUI
 from zrb.util.string.name import get_conversation_key, get_random_name
 
 JANUARY = datetime(2026, 1, 15, 9, 30, tzinfo=timezone.utc)

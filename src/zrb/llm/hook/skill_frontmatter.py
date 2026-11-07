@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
     from zrb.llm.hook.contracts.interface import HookCallable
-    from zrb.llm.hook.manager import HookManager
     from zrb.llm.hook.contracts.schema import HookConfig
+    from zrb.llm.hook.manager import HookManager
 
 # Skill-frontmatter hook configs, by the skill file they came from.
 _skill_hook_configs: dict[str, "list[HookConfig]"] = {}

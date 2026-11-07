@@ -16,9 +16,9 @@ from zrb.llm.voice.registry import tts_registry
 
 if TYPE_CHECKING:
     from zrb.llm.speech.backend.audio import SpeechAudio
+    from zrb.llm.speech.backend.pipecat.tts import TTSPipeline
     from zrb.llm.speech.backend.utterance import Utterance
     from zrb.llm.speech.config import SpeechConfig
-    from zrb.llm.speech.backend.pipecat.tts import TTSPipeline
 
 logger = logging.getLogger(__name__)
 

@@ -151,8 +151,8 @@ async def test_apply_tool_result_limit_survives_none_metadata():
     from pydantic_ai.toolsets import FunctionToolset
 
     from zrb.llm.agent.common import wrap_toolset
-    from zrb.llm.hook.execution.executor import HookExecutionResult
     from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.execution.executor import HookExecutionResult
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     transform = HookExecutionResult(
@@ -214,8 +214,8 @@ async def test_call_tool_backstop_still_applies_to_hook_rewritten_output():
     from pydantic_ai.toolsets import FunctionToolset
 
     from zrb.llm.agent.common import wrap_toolset
-    from zrb.llm.hook.execution.executor import HookExecutionResult
     from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.execution.executor import HookExecutionResult
 
     wrapped_ts = wrap_toolset(FunctionToolset(tools=[]))
     transform = HookExecutionResult(

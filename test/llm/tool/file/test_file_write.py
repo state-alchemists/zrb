@@ -3,10 +3,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.tool.file import observation as file_observation
 from zrb.llm.tool.file import (
     glob_files,
     list_files,
+)
+from zrb.llm.tool.file import observation as file_observation
+from zrb.llm.tool.file import (
     read_file,
     replace_in_file,
     write_file,

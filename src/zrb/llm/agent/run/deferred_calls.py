@@ -17,11 +17,11 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_permission_decision,
     extract_pre_tool_decision,
 )
-from zrb.llm.shared.ambient_state import get_interactive_mode
 from zrb.llm.approval.any_approval_channel import ApprovalContext
-from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission import ASK
+from zrb.llm.shared.ambient_state import get_interactive_mode
 from zrb.llm.tool_call.always_approve import (
     is_always_auto_approve,
     is_default_auto_approve,
@@ -39,8 +39,8 @@ if TYPE_CHECKING:
     )
     from pydantic_ai.messages import ToolCallPart
 
-    from zrb.llm.shared.agent_state import AnyToolConfirmation
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.shared.agent_state import AnyToolConfirmation
     from zrb.llm.ui.any_ui import AnyUI
 
 

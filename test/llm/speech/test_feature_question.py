@@ -14,11 +14,11 @@ import time
 import pytest
 
 from zrb.llm.hook.contracts.interface import HookContext
-from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.shared.feature_config import reset_session_ui, set_session_ui
 from zrb.llm.speech import SpeechConfig
 from zrb.llm.speech.feature import SpeechSession
-from zrb.llm.shared.feature_config import reset_session_ui, set_session_ui
 
 
 class StaleCheckSpeaker:

@@ -14,9 +14,9 @@ from pydantic_ai import AgentRunResultEvent
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.config.limiter import LLMLimiter
 from zrb.llm.hook.manager import HookManager
+from zrb.llm.shared.stream_observer import create_observed_event_handler
 from zrb.llm.speech import SpeechConfig
 from zrb.llm.speech.feature import SpeechSession
-from zrb.llm.shared.stream_observer import create_observed_event_handler
 
 REPLY = "The wardrobe is pushed. Two things I noticed while checking."
 

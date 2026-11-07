@@ -2,9 +2,9 @@ import json
 
 import pytest
 
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.execution.executor import HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.contracts.types import HookEvent
 
 
 def test_hook_result_modifications_mapping():

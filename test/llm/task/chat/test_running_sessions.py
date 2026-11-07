@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.task.chat.running import ChatRunning
-from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.ui.fallback.std_ui import StdUI
+from zrb.llm.ui.ui_config import UIConfig
 from zrb.util.cli.markdown import render_markdown
 
 

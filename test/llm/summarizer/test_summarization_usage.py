@@ -14,9 +14,9 @@ from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
 from zrb.llm.shared.agent_state import current_ui
+from zrb.llm.shared.usage_log import KIND_SUMMARIZATION, read_records
 from zrb.llm.summarizer.history_summarizer import summarize_history
 from zrb.llm.ui.buffered.ui import BufferedUI
-from zrb.llm.shared.usage_log import KIND_SUMMARIZATION, read_records
 
 _TWO_SNAPSHOTS = (
     "<state_snapshot>first</state_snapshot>\n<state_snapshot>second</state_snapshot>"

@@ -37,15 +37,15 @@ from zrb.llm.dictation.words import (
     strip_wake_word,
     to_answer,
 )
-from zrb.llm.shared.input_source import DICTATION_INPUT
-from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
-from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.shared.feature_config import (
     current_session_key,
     get_session_ui,
     replace_feature_sessions,
     replace_registration,
 )
+from zrb.llm.shared.input_source import DICTATION_INPUT
+from zrb.llm.speech.feature import interrupt_speech, pause_speech, resume_speech
+from zrb.llm.ui.trigger import TriggerReply
 from zrb.llm.util.teardown import close_quietly
 
 if TYPE_CHECKING:

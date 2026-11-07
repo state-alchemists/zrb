@@ -18,6 +18,7 @@ to its schema name (`Read`, `Write`, ...).
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from zrb.llm.shared.tool_registry import ToolRegistry, tool_name, tool_registry
     from zrb.llm.tool.file import (
         analyze_file,
         glob_files,
@@ -39,7 +40,6 @@ if TYPE_CHECKING:
         create_list_zrb_task_tool,
         create_run_zrb_task_tool,
     )
-    from zrb.llm.shared.tool_registry import ToolRegistry, tool_name, tool_registry
 
 __all__ = [
     "run_shell_command",

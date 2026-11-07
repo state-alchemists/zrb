@@ -7,13 +7,13 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
 from zrb.config.config import CFG
-from zrb.llm.shared.agent_activity import agent_activity_registry
 from zrb.llm.history_manager.file_history_manager import (
     FileHistoryManager,
     default_history_manager,
 )
-from zrb.llm.shared.input_source import WEB_INPUT, InputProvenance
+from zrb.llm.shared.agent_activity import agent_activity_registry
 from zrb.llm.shared.feature_config import close_feature_sessions
+from zrb.llm.shared.input_source import WEB_INPUT, InputProvenance
 from zrb.llm.util.live_context_block import split_live_context
 from zrb.llm.util.spoken import shown_text
 
@@ -25,8 +25,8 @@ from zrb.llm.util.subagent_session_naming import (
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.llm.ui.any_ui import AnyUI
     from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 
 

@@ -103,8 +103,8 @@ async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
     the parent run's hook manager, with a shared agent_id and agent_type=name."""
     from zrb.llm.agent.run.runner import current_hook_manager
     from zrb.llm.hook.contracts.interface import HookContext, HookResult
-    from zrb.llm.hook.manager import HookManager
     from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.manager import HookManager
 
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
 
@@ -222,8 +222,8 @@ async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
 async def test_delegate_runs_the_sub_agent_under_the_parent_run_limiter(
     mock_sub_agent_manager,
 ):
-    from zrb.llm.shared.agent_state import current_llm_limiter
     from zrb.llm.config.limiter import LLMLimiter
+    from zrb.llm.shared.agent_state import current_llm_limiter
 
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)

@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.ui.multi import MultiUI, get_main_ui, resolve_ui
 from zrb.llm.ui.fallback.std_ui import StdUI
+from zrb.llm.ui.multi import MultiUI, get_main_ui, resolve_ui
 
 
 def _self_display_mock() -> MagicMock:

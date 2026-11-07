@@ -12,11 +12,11 @@ from typing import TYPE_CHECKING, Annotated, cast
 from pydantic import Field
 
 from zrb.config.config import CFG
+from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager import get_run_hook_manager
+from zrb.llm.permission import Capability, tag
 from zrb.llm.shared.agent_state import get_current_ui
 from zrb.llm.shared.ambient_state import get_interactive_mode
-from zrb.llm.hook.manager import get_run_hook_manager
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.wrapper import tool_safe_async
 from zrb.llm.tool_call.always_approve import register_always_auto_approve
 from zrb.llm.util.choice_spec_format import get_option_label
