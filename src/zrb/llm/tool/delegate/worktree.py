@@ -18,6 +18,7 @@ from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
+from zrb.llm.tool.purpose import Purpose
 from zrb.llm.tool.shell import start_process
 
 _MAIN_WORKTREE_ERROR = (
@@ -36,6 +37,7 @@ async def enter_worktree(
     cwd: Annotated[
         str, Field(description="Repo root, if not the current directory.")
     ] = "",
+    purpose: Purpose = "",
 ) -> str:
     """
     Creates a new isolated git worktree, or resumes an existing linked worktree.
@@ -333,6 +335,7 @@ async def exit_worktree(
             )
         ),
     ] = False,
+    purpose: Purpose = "",
 ) -> str:
     """
     Removes a worktree created with EnterWorktree.

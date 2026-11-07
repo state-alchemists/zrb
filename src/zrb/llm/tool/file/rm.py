@@ -7,6 +7,7 @@ from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file.observation import check_listed
+from zrb.llm.tool.purpose import Purpose
 
 
 def remove_file(
@@ -14,6 +15,7 @@ def remove_file(
     recursive: Annotated[
         bool, Field(description="True also removes a non-empty directory.")
     ] = False,
+    purpose: Purpose = "",
 ) -> str:
     """
     Removes a file or directory. Irreversible — there is no trash; the bytes are gone.

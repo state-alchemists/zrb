@@ -1,9 +1,11 @@
 import pytest
 
 from zrb.llm.speech.text import (
+    ARGUMENT_MAX_CHARS,
     WHOLE_READ_OK_CHARS,
     clean_for_speech,
     fill_template,
+    match_tool_phrase,
     needs_spoken_block,
     without_blockquotes,
 )
@@ -118,6 +120,45 @@ def test_fill_template_fills_each_name_once():
     filled = fill_template("{style}: {text}", style="say {text} warmly", text="hi")
 
     assert filled == "say {text} warmly: hi"
+
+
+def test_match_tool_phrase_fills_an_argument_the_phrase_names():
+    phrases = {"Edit": "Editing {path}."}
+
+    assert match_tool_phrase("Edit", phrases, {"path": "a.py"}) == "Editing a.py."
+
+
+def test_match_tool_phrase_reads_arguments_a_provider_streamed():
+    phrases = {"Edit": "Editing {path}."}
+
+    assert match_tool_phrase("Edit", phrases, '{"path": "a.py"}') == "Editing a.py."
+
+
+def test_match_tool_phrase_skips_a_phrase_whose_argument_is_missing():
+    """Skipped, not read out with a brace in it: the next pattern gets its try."""
+    phrases = {"Edit": "Editing {path}.", "*": "Using the {tool} tool."}
+
+    assert match_tool_phrase("Edit", phrases, {"old_text": "x"}) == (
+        "Using the Edit tool."
+    )
+
+
+def test_match_tool_phrase_leaves_a_long_argument_unread():
+    line = match_tool_phrase("Edit", {"Edit": "Editing {path}."}, {"path": "a" * 500})
+
+    assert line == "Editing " + "a" * ARGUMENT_MAX_CHARS + "."
+
+
+def test_match_tool_phrase_takes_tool_from_the_tool_not_the_arguments():
+    assert match_tool_phrase("Edit", {"*": "{tool}"}, {"tool": "nonsense"}) == "Edit"
+
+
+def test_match_tool_phrase_fills_only_text_arguments():
+    """A number, and empty text, leave the phrase unfilled: it is skipped
+    rather than read out with "Editing ." naming no file."""
+    phrases = {"Edit": "Editing {path}{count}."}
+
+    assert match_tool_phrase("Edit", phrases, {"path": "", "count": 3}) is None
 
 
 def test_a_short_reply_needs_no_block():

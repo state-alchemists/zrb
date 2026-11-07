@@ -11,12 +11,14 @@ from zrb.llm.permission import Capability, tag
 from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.file.read import read_file
 from zrb.llm.tool.file.search import search_files
+from zrb.llm.tool.purpose import Purpose
 from zrb.llm.util.attachment import get_media_type
 
 
 async def analyze_file(
     path: Annotated[str, Field(description="File to analyze.")],
     query: Annotated[str, Field(description="What to find or answer.")],
+    purpose: Purpose = "",
 ) -> str:
     """
     Deep semantic analysis of a file via LLM sub-agent. Slow and resource-intensive.

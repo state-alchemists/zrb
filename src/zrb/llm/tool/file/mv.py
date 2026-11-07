@@ -6,11 +6,13 @@ from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file.observation import check_listed, record_seen
+from zrb.llm.tool.purpose import Purpose
 
 
 def move_file(
     src: Annotated[str, Field(description="Path to move.")],
     dst: Annotated[str, Field(description="Destination path.")],
+    purpose: Purpose = "",
 ) -> str:
     """
     Moves or renames a file or directory. Missing parent directories of dst are
