@@ -7,7 +7,7 @@ and the names below are the public surface, unchanged from the module this
 replaced.
 """
 
-from .manager import LSPManager, lsp_manager
+from zrb.llm.lsp.manager.manager import LSPManager, lsp_manager
 
 __all__ = [
     "LSPManager",

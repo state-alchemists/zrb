@@ -7,7 +7,11 @@ modules here hold its parts — loading and search — and the names below are t
 public surface, unchanged from the module this replaced.
 """
 
-from .manager import SubAgentDefinition, SubAgentManager, sub_agent_manager
+from zrb.llm.subagent.manager.manager import (
+    SubAgentDefinition,
+    SubAgentManager,
+    sub_agent_manager,
+)
 
 __all__ = [
     "SubAgentDefinition",

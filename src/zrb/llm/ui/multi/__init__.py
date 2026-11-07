@@ -11,7 +11,7 @@ from zrb.llm.ui.fallback.resolution import (
     resolve_ui,
 )
 
-from .multi_ui import MultiUI
+from zrb.llm.ui.multi.multi_ui import MultiUI
 
 __all__ = [
     "MultiUI",

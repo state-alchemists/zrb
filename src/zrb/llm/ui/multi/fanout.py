@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, TextIO
 from zrb.config.config import CFG
 from zrb.llm.ui.any_ui import AnyUI
 
-from .state import MultiUIState
+from zrb.llm.ui.multi.state import MultiUIState
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RequestUsage, RunUsage

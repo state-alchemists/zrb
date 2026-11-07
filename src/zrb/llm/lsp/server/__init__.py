@@ -5,7 +5,7 @@ modules here hold its parts — the operations it answers — and the names belo
 are the public surface, unchanged from the module this replaced.
 """
 
-from .server import (
+from zrb.llm.lsp.server.server import (
     LSP_SERVER_CONFIGS,
     LSPServer,
     LSPServerConfig,
