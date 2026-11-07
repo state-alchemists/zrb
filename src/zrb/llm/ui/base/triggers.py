@@ -146,7 +146,7 @@ class BaseUITriggers:
     def _is_said_to_pending(self, reply: TriggerReply) -> bool:
         if reply.started_at is None:
             return True
-        since = self._owner.pending_answer_since
+        since = self._owner.input.pending_answer_since
         # A UI that cannot say when its prompt appeared gets no timed answers.
         return since is not None and since <= reply.started_at
 

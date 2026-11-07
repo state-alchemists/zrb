@@ -153,6 +153,7 @@ class TestBashSafeCommandPolicy:
 
         policy = bash_safe_command_policy()
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Shell"
         call.args = {"command": "ls -la"}
@@ -170,6 +171,7 @@ class TestBashSafeCommandPolicy:
         """Test that unsafe commands fall through to next handler."""
         policy = bash_safe_command_policy()
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Shell"
         call.args = {"command": "rm file.txt"}
@@ -187,6 +189,7 @@ class TestBashSafeCommandPolicy:
         """Test that non-Shell tools pass through."""
         policy = bash_safe_command_policy()
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Write"
         call.args = {"path": "/tmp/test.txt", "content": "hello"}
@@ -203,6 +206,7 @@ class TestBashSafeCommandPolicy:
         """Test that policy handles JSON string args."""
         policy = bash_safe_command_policy()
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Shell"
         call.args = json.dumps({"command": "ls"})
@@ -221,6 +225,7 @@ class TestBashSafeCommandPolicy:
         """Test that policy handles invalid JSON gracefully."""
         policy = bash_safe_command_policy()
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Shell"
         call.args = "not valid json"
@@ -238,6 +243,7 @@ class TestBashSafeCommandPolicy:
         """Test that policy handles non-dict args gracefully."""
         policy = bash_safe_command_policy()
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Shell"
         call.args = ["list", "of", "args"]
@@ -255,6 +261,7 @@ class TestBashSafeCommandPolicy:
         """Test that policy handles missing command gracefully."""
         policy = bash_safe_command_policy()
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Shell"
         call.args = {"other_key": "value"}
@@ -272,6 +279,7 @@ class TestBashSafeCommandPolicy:
         """Test that policy handles non-string command gracefully."""
         policy = bash_safe_command_policy()
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Shell"
         call.args = {"command": 123}

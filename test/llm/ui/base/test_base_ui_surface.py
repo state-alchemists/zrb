@@ -147,6 +147,7 @@ def test_edit_queued_message_logs_child_redraw_failure(surface_ui):
         history_manager=MagicMock(),
     )
     parent = MagicMock()
+    parent.input = parent.tools = parent
     parent.children = [child]
     surface_ui.multi_ui_parent = parent
     entry = _make_entry("old text")
@@ -343,6 +344,7 @@ async def test_a_multi_ui_child_cancels_the_turn_its_parent_runs():
     """A child of a MultiUI runs no turn itself: Esc on it must reach the
     turn the parent runs, and fire Stop once."""
     child, sibling = _create_child_ui(), MagicMock()
+    sibling.tools = sibling
     multi_ui = MultiUI([child, sibling])
     turn_manager = HookManager(search_dirs=[])
     turn_manager.execute_hooks = AsyncMock(return_value=[])
@@ -378,6 +380,7 @@ async def test_a_multi_ui_child_cancels_the_turn_its_parent_runs():
 
 def test_a_multi_ui_child_with_no_turn_running_only_releases():
     child, sibling = _create_child_ui(), MagicMock()
+    sibling.tools = sibling
     multi_ui = MultiUI([child, sibling])
     turn_manager = HookManager(search_dirs=[])
     turn_manager.execute_hooks = AsyncMock(return_value=[])

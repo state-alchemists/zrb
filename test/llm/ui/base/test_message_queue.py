@@ -328,6 +328,7 @@ def test_known_input_source_keeps_its_provenance_on_the_queued_entry():
 def test_non_keyboard_source_does_not_merge_with_keyboard_burst():
     queue = MessageQueue()
     target = MagicMock()
+    target.input = target.tools = target
     target.take_pending_attachments.return_value = []
     submit_user_message_via_queue(
         append_to_output=lambda *_a, **_k: None,
@@ -386,7 +387,7 @@ def test_submit_user_message_via_queue_ignores_sources_without_attachments():
 class _NoOpEchoTarget:
     """Minimal `AnyUI` echo-target shape for callers that never touch the echo side."""
 
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
 
     def track_echo_span(self, entry, echo):
         pass
@@ -474,12 +475,12 @@ def test_submit_user_message_via_queue_keeps_raw_echo_for_plain_single_line():
 
 def test_submit_user_message_via_queue_echoes_the_line_before_attachment_failure():
     """A source whose `take_pending_attachments` raises must not swallow the
-    user's line: the echo precedes attachment collection, so the input stays
-    visible in the output pane while the submission aborts — matching the
-    pre-merge behavior the shared echo used to guarantee."""
+    user's line: the echo precedes collection, so the input stays visible."""
     outputs: list[str] = []
 
     class BrokenSource:
+        input = property(lambda self: self)
+
         def take_pending_attachments(self):
             raise RuntimeError("camera unavailable")
 

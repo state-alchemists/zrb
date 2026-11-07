@@ -38,7 +38,7 @@ async def test_sub_agent_message_reaches_parent_with_sender(registry):
     with patch("zrb.llm.subagent.parent_message.get_current_ui", return_value=ui):
         result = await send_message_to_parent("need the repo path")
     assert "sent" in result
-    sent = parent.submit_message.call_args.args[0]
+    sent = parent.input.submit_message.call_args.args[0]
     assert sent.startswith('[message from sub-agent "reviewer" (abcd1234)]')
     assert sent.endswith("need the repo path")
 
@@ -82,7 +82,7 @@ async def test_message_limit_stops_ping_pong(registry, monkeypatch):
         second = await send_message_to_parent("b")
     assert "sent" in first
     assert "limit" in second
-    assert parent.submit_message.call_count == 1
+    assert parent.input.submit_message.call_count == 1
 
 
 @pytest.mark.asyncio

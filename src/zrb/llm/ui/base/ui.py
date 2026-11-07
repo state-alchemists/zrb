@@ -978,7 +978,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """Ask the owning UI to deliver queued messages; see `queue_delivery`."""
         parent = self.multi_ui_parent
         if parent is not None:
-            return parent.send_queued_messages_now(
+            return parent.input.send_queued_messages_now(
                 may_interrupt=may_interrupt,
                 only_ready=only_ready,
                 immediate_entry=immediate_entry,

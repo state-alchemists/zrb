@@ -9,6 +9,7 @@ from zrb.llm.ui.buffered_ui import BufferedUI
 def test_buffered_ui_append_to_output():
     """Test BufferedUI buffers output correctly."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
 
     ui.append_to_output("Line 1")
@@ -24,6 +25,7 @@ def test_buffered_ui_append_to_output():
 def test_buffered_ui_flush_to_parent():
     """Test BufferedUI flush_to_parent with prefix."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
 
     ui.append_to_output("Line 1\nLine 2")
@@ -38,6 +40,7 @@ def test_buffered_ui_flush_to_parent():
 def test_buffered_ui_clear_buffer():
     """Test BufferedUI clear_buffer clears output."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
 
     ui.append_to_output("Some content")
@@ -51,6 +54,7 @@ def test_buffered_ui_clear_buffer():
 async def test_buffered_ui_ask_user():
     """Test BufferedUI ask_user forwards to parent with prefix."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.ask_user = AsyncMock(return_value="user response")
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
 
@@ -68,6 +72,7 @@ async def test_buffered_ui_ask_user():
 async def test_buffered_ui_ask_user_no_prefix():
     """Test BufferedUI ask_user without prefix."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.ask_user = AsyncMock(return_value="response")
     ui = BufferedUI(mock_wrapped, prefix="")
 
@@ -82,6 +87,7 @@ async def test_buffered_ui_ask_user_no_prefix():
 async def test_buffered_ui_ask_user_does_not_flush_the_buffer():
     """Do not flush buffered output with the approval prompt."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.ask_user = AsyncMock(return_value="user response")
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
     ui.append_to_output("buffered search result")
@@ -97,6 +103,7 @@ async def test_buffered_ui_ask_user_does_not_flush_the_buffer():
 async def test_buffered_ui_ask_user_choice_forwards_without_flushing():
     """Forward the approval prompt without flushing buffered output."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.picker.ask_user_choice = AsyncMock(return_value="option-a")
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
     ui.append_to_output("buffered line")
@@ -115,6 +122,7 @@ async def test_buffered_ui_ask_user_choice_forwards_without_flushing():
 async def test_buffered_ui_ask_user_stamps_own_agent_id():
     """Pass this instance's agent id to the confirmation queue."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.ask_user = AsyncMock(return_value="user response")
     ui = BufferedUI(mock_wrapped)
     ui.set_activity_id("agent-123")
@@ -128,6 +136,7 @@ async def test_buffered_ui_ask_user_stamps_own_agent_id():
 async def test_buffered_ui_ask_user_preserves_nested_agent_id():
     """Preserve the originating agent id through nested delegation."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.ask_user = AsyncMock(return_value="user response")
     ui = BufferedUI(mock_wrapped)
     ui.set_activity_id("intermediate-agent")
@@ -140,6 +149,7 @@ async def test_buffered_ui_ask_user_preserves_nested_agent_id():
 @pytest.mark.asyncio
 async def test_buffered_ui_ask_user_choice_stamps_own_agent_id():
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.picker.ask_user_choice = AsyncMock(return_value="option-a")
     ui = BufferedUI(mock_wrapped)
     ui.set_activity_id("agent-123")
@@ -161,7 +171,7 @@ async def test_buffered_ui_shared_lock_does_not_block_sibling_enqueue():
     """
 
     class SlowWrappedUI:
-        display = property(lambda self: self)
+        display = input = tools = property(lambda self: self)
 
         def __init__(self):
             self.calls = []
@@ -205,6 +215,7 @@ async def test_buffered_ui_shared_lock_does_not_block_sibling_enqueue():
 async def test_buffered_ui_run_interactive_command_forwards():
     """run_interactive_command passes straight through to the wrapped UI."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.run_interactive_command = AsyncMock(return_value="cmd-output")
     ui = BufferedUI(mock_wrapped)
 
@@ -218,6 +229,7 @@ async def test_buffered_ui_run_interactive_command_forwards():
 async def test_buffered_ui_run_async_forwards():
     """run_async passes straight through to the wrapped UI."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     mock_wrapped.run_async = AsyncMock(return_value="async-result")
     ui = BufferedUI(mock_wrapped)
 
@@ -232,6 +244,7 @@ def test_buffered_ui_accumulate_usage_forwards_to_parent():
     instead of being dropped -- otherwise the TUI's usage indicator never
     reflects delegated work."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped)
     usage = MagicMock()
 
@@ -245,6 +258,7 @@ def test_buffered_ui_accumulate_usage_drops_context_usage():
     sub-agent's window is not the parent's, so it must not be forwarded even
     when the caller supplies one."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped)
     usage = MagicMock()
     context_usage = MagicMock()
@@ -266,6 +280,7 @@ def test_buffered_ui_accumulate_usage_noop_when_wrapped_never_implemented_it():
 def test_buffered_ui_flush_to_parent_without_prefix():
     """With no prefix, flush writes the raw buffered output verbatim."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped, prefix="")
     ui.append_to_output("raw line")
 
@@ -279,6 +294,7 @@ def test_buffered_ui_yolo_delegates_to_wrapped():
     """yolo reads through to the wrapped UI when it exposes the attribute."""
 
     class _Parent:
+        input = tools = property(lambda self: self)
         yolo = True
 
     ui = BufferedUI(_Parent())
@@ -288,6 +304,7 @@ def test_buffered_ui_yolo_delegates_to_wrapped():
 def test_buffered_ui_yolo_reports_the_wrapped_uis_state():
     """`yolo` reads the wrapped parent's value through the `AnyUI` contract."""
     parent = MagicMock()
+    parent.input = parent.tools = parent
     parent.yolo = False
     assert BufferedUI(parent).yolo is False
 
@@ -298,6 +315,7 @@ def test_buffered_ui_yolo_reports_the_wrapped_uis_state():
 def test_buffered_ui_append_to_output_updates_activity_registry():
     """When an activity id is set, buffered writes also feed the activity panel."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped)
     ui.set_activity_id("agent-123")
 
@@ -311,6 +329,7 @@ def test_buffered_ui_append_to_output_updates_activity_registry():
 def test_buffered_ui_stream_to_parent_routes_into_own_buffer():
     """`stream_to_parent` stays in the sub-agent buffer and skips the parent."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
     ui.set_activity_id("agent-xyz")
 
@@ -327,6 +346,7 @@ def test_buffered_ui_passes_its_session_id_to_activity_updates():
     every activity-registry update, so a process hosting multiple sessions
     doesn't bleed one session's activity into another's."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped, session_id="session-42")
     ui.set_activity_id("agent-123")
 
@@ -342,6 +362,7 @@ def test_buffered_ui_defaults_to_empty_session_id():
     """No session_id passed -> default bucket
     single-session behavior every existing caller relies on."""
     mock_wrapped = MagicMock()
+    mock_wrapped.input = mock_wrapped.tools = mock_wrapped
     ui = BufferedUI(mock_wrapped)
     ui.set_activity_id("agent-123")
 
@@ -355,6 +376,7 @@ def test_a_buffer_reports_the_conversation_of_the_ui_it_wraps():
     """A delegated run's tokens are spend on the chat that asked for it, and
     `/usage session` files a run by the name the UI reports."""
     parent = MagicMock()
+    parent.input = parent.tools = parent
     parent.session.conversation_session_name = "calm-gate"
 
     assert BufferedUI(parent).session.conversation_session_name == "calm-gate"
@@ -362,6 +384,7 @@ def test_a_buffer_reports_the_conversation_of_the_ui_it_wraps():
 
 def test_a_name_set_on_the_buffer_wins_and_never_renames_the_parent():
     parent = MagicMock()
+    parent.input = parent.tools = parent
     parent.conversation_session_name = "calm-gate"
     ui = BufferedUI(parent)
 

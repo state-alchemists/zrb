@@ -1,13 +1,15 @@
 """The narrow UI contract that non-UI code is allowed to depend on.
 
 `zrb.llm.tool_call` types its UI parameters as this instead of `AnyUI`, so
-pyright rejects reaching past these three methods. Size capped by
+pyright rejects reaching past the writer and the input role. Size capped by
 `test/architecture/test_agent_output_surface.py`.
 """
 
 from __future__ import annotations
 
-from typing import Any, Protocol, TextIO, runtime_checkable
+from typing import Protocol, TextIO, runtime_checkable
+
+from zrb.llm.ui.any_ui_input import AnyUIInput
 
 
 @runtime_checkable
@@ -26,17 +28,7 @@ class AnyAgentOutput(Protocol):
         """Write output the way `print()` would, kept for later replay."""
         ...
 
-    async def ask_user(
-        self,
-        prompt: str,
-        output_to_parent: str = "",
-        agent_id: str | None = None,
-    ) -> str:
-        """Ask the user a free-text question and return their answer."""
-        ...
-
-    async def run_interactive_command(
-        self, cmd: str | list[str], shell: bool = False
-    ) -> Any:
-        """Run an interactive command, handing it the real terminal."""
+    @property
+    def input(self) -> AnyUIInput:
+        """The questions this UI can ask, and the queue a message enters."""
         ...

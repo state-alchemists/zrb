@@ -21,7 +21,7 @@ class MockLifecycleUI:
     lifecycle methods to the composed part.
     """
 
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
 
     def __init__(self):
         self.process_messages_task = create_mock_task()

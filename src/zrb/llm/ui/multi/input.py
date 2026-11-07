@@ -74,7 +74,7 @@ class MultiUIInput(MultiUIStreaming, MultiUITurnControl):
         main_ui = self.main_ui
         # A background notice is not something the user typed: no recall for it.
         if main_ui is not None and source != BACKGROUND_INPUT:
-            main_ui.record_submitted_message(user_message)
+            main_ui.input.record_submitted_message(user_message)
         submit_user_message_via_queue(
             append_to_output=self.append_to_output,
             stream_ai_response=self.stream_ai_response,
@@ -99,6 +99,44 @@ class MultiUIInput(MultiUIStreaming, MultiUITurnControl):
         caller submitting words that are not the user's own passes `None`.
         """
         self.submit_user_message(self._llm_task, user_message, source)
+
+    @property
+    def is_waiting_for_answer(self) -> bool:
+        """Whether any child holds a prompt waiting for the user."""
+        return any(ui.input.is_waiting_for_answer for ui in self._uis)
+
+    @property
+    def pending_answer_since(self) -> "float | None":
+        """The earliest moment any child's pending prompt has been waiting
+        since, as a `time.monotonic()` value; ``None`` when none is pending or
+        no child dates its own.
+
+        The earliest, not the main child's: a prompt every child shows is one
+        prompt, and it appeared when the first of them put it up.
+        """
+        since = [getattr(ui.input, "pending_answer_since", None) for ui in self._uis]
+        dated = [value for value in since if value is not None]
+        return min(dated) if dated else None
+
+    def submit_answer(self, text: str) -> None:
+        """Answer the pending prompt with *text*; with none pending, queue it as
+        a message.
+
+        A prompt raised through the composite is raised on every child at once
+        and the first answer wins, so the words go to a child that is actually
+        waiting. Queueing them instead would leave the approval blocked, then
+        treat a spoken "yes" as an ordinary message once the turn moved on.
+        """
+        waiting = next((ui for ui in self._uis if ui.input.is_waiting_for_answer), None)
+        if waiting is None:
+            self.submit_message(text)
+            return
+        waiting.input.submit_answer(text)
+
+    def is_prompt_answered_since(self, asked_at: float) -> bool:
+        """Whether any child has answered the first prompt asked at or after
+        *asked_at*: an answer from any of them settles it."""
+        return any(ui.input.is_prompt_answered_since(asked_at) for ui in self._uis)
 
     def withdraw_message(
         self, user_message: str, source: InputProvenance | None
@@ -170,7 +208,7 @@ class MultiUIInput(MultiUIStreaming, MultiUITurnControl):
         The losers' prompts are cancelled once one UI answers.
         """
         return await self.race_children(
-            lambda ui: ui.ask_user(
+            lambda ui: ui.input.ask_user(
                 prompt, output_to_parent=output_to_parent, agent_id=agent_id
             ),
             "ask_user",

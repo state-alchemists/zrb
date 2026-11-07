@@ -36,7 +36,7 @@ def runner():
 
 
 class SimpleMockUI:
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
 
     def __init__(self, **kwargs):
         self.last_output = "Final"

@@ -40,7 +40,7 @@ class FakeScreen(AnyScreenshotBackend):
 
 
 class FakeUI:
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
 
     is_local = True
 

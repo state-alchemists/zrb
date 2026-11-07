@@ -23,6 +23,9 @@ class _RecordingUI:
         self.withdrawn: list[tuple[str, object]] = []
         self._fails_with = fails_with
 
+    # The wake path queues through the input role, as a UI reaches it.
+    input = property(lambda self: self)
+
     def submit_message(self, user_message, source):
         if self._fails_with is not None:
             raise self._fails_with

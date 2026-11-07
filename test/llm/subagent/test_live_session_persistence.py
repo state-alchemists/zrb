@@ -11,6 +11,7 @@ from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
 async def test_a_continuation_saves_the_new_history():
     registry = LiveSubAgentSessionRegistry()
     buffered_ui = MagicMock()
+    buffered_ui.input = buffered_ui.tools = buffered_ui
     buffered_ui.active_run_context = None
     entry = registry.add_session("s", "a1", "reviewer", MagicMock(), buffered_ui)
     saved = []

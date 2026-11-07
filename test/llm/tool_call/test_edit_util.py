@@ -8,6 +8,8 @@ import pytest
 class MockUI:
     """Mock UI for testing."""
 
+    input = tools = property(lambda self: self)
+
     def __init__(self):
         self.commands = []
 

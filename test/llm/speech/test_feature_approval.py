@@ -38,6 +38,10 @@ class PromptUI:
     def is_prompt_answered_since(self, asked_at: float) -> bool:
         return next((p[1] for p in self.prompts if p[0] >= asked_at), False)
 
+    # The session reads a prompt's state through the input role, as a UI
+    # reaches it: this fake is its own input side.
+    input = property(lambda self: self)
+
 
 @pytest.fixture
 def session_ui():

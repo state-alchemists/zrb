@@ -181,12 +181,13 @@ class MultiUIFanout(MultiUIState):
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Forward a tool call's start to children tracking the running-tool timer."""
         self._fanout(
-            "start_tool_call", lambda ui: ui.start_tool_call(tool_name, tool_call_id)
+            "start_tool_call",
+            lambda ui: ui.tools.start_tool_call(tool_name, tool_call_id),
         )
 
     def end_tool_call(self, tool_call_id: str | None = None) -> None:
         """Forward a tool call's end to children tracking the running-tool timer."""
-        self._fanout("end_tool_call", lambda ui: ui.end_tool_call(tool_call_id))
+        self._fanout("end_tool_call", lambda ui: ui.tools.end_tool_call(tool_call_id))
 
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Forward a "Prepare tool parameters" update to children that support it."""
@@ -227,7 +228,7 @@ class MultiUIFanout(MultiUIState):
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         """Release every child's pending confirmation."""
         for ui in self._uis:
-            ui.cancel_pending_confirmations(flush)
+            ui.tools.cancel_pending_confirmations(flush)
 
     def stream_to_parent(
         self,

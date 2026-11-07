@@ -14,7 +14,7 @@ class FakeBackend(AnyDictationBackend):
 
 
 class FakeUI:
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
     session = property(lambda self: self)
 
     def __init__(self, is_thinking=False, is_waiting_for_answer=False):

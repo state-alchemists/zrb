@@ -47,6 +47,7 @@ def test_a_ui_that_cannot_deliver_is_skipped():
 
 def test_delivery_asks_the_ui_to_take_what_is_ready():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     _deliver_queued_messages(ui)
 
     ui.deliver_queued_messages_early.assert_called_once_with()
@@ -55,6 +56,7 @@ def test_delivery_asks_the_ui_to_take_what_is_ready():
 @pytest.mark.asyncio
 async def test_a_complete_history_lets_the_queue_join_the_turn():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     handler = _handler(ui)
 
     await _drive(handler, [ModelRequest([]), ModelResponse([]), ModelRequest([])])
@@ -67,6 +69,7 @@ async def test_a_half_built_step_is_not_a_delivery_point():
     """Only a history that ends in a request is complete enough to steer into;
     delivering mid-step would drop the message into a turn already under way."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     handler = _handler(ui)
 
     await _drive(handler, [ModelRequest([]), ModelResponse([])])
@@ -79,6 +82,7 @@ async def test_each_boundary_delivers_at_most_once():
     """The handler runs per event; the checkpoint counter is what keeps one
     history length from being counted as a new boundary twice."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     handler = _handler(ui)
     ctx = MagicMock()
     ctx.messages = [ModelRequest([]), ModelResponse([]), ModelRequest([])]

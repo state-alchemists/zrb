@@ -40,7 +40,7 @@ async def send_message_to_parent(
     header = f'[message from sub-agent "{entry.agent_name}" ({agent_id})]'
     # `None`: written by a subagent, not by the user, so it carries no input
     # provenance rather than borrowing the keyboard's.
-    parent.submit_message(f"{header}\n{message}", None)
+    parent.input.submit_message(f"{header}\n{message}", None)
     return "Message sent to the main agent."
 
 

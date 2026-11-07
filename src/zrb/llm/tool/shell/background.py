@@ -282,7 +282,7 @@ class _ShellBackgroundRegistry:
             f"MonitorProcess(handle='{handle}') reads its output.]"
         )
         try:
-            bp.ui.submit_message(message, BACKGROUND_INPUT)
+            bp.ui.input.submit_message(message, BACKGROUND_INPUT)
             bp.wake_message = message
         except (RuntimeError, OSError) as e:
             # A UI that is closing or a loop that is gone: the exit is still in
@@ -357,7 +357,7 @@ class _ShellBackgroundRegistry:
             return
         message, bp.wake_message = bp.wake_message, ""
         try:
-            bp.ui.withdraw_message(message, BACKGROUND_INPUT)
+            bp.ui.input.withdraw_message(message, BACKGROUND_INPUT)
         except (RuntimeError, OSError) as e:
             CFG.LOGGER.debug(f"Could not withdraw a wake-up: {e}")
 

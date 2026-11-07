@@ -12,6 +12,7 @@ from zrb.llm.tool_call.tool_policy.read_file_validation import (
 @pytest.mark.asyncio
 async def test_read_file_validation_mismatch_name():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "OtherTool"
     next_handler = AsyncMock(return_value="next_result")
@@ -25,6 +26,7 @@ async def test_read_file_validation_mismatch_name():
 @pytest.mark.asyncio
 async def test_read_file_validation_read_not_found():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Read"
     call.args = {"path": "non_existent.txt"}
@@ -42,6 +44,7 @@ async def test_read_file_validation_read_success(tmp_path):
     test_file.write_text("hello")
 
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Read"
     call.args = {"path": str(test_file)}
@@ -60,6 +63,7 @@ async def test_read_file_validation_json_string_args(tmp_path):
     test_file.write_text("hello")
 
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Read"
     call.args = '{"path": "' + str(test_file) + '"}'
@@ -75,6 +79,7 @@ async def test_read_file_validation_json_string_args(tmp_path):
 async def test_read_file_validation_invalid_json_passes_through():
     """Invalid JSON string delegates to next handler."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Read"
     call.args = "not valid json"
@@ -90,6 +95,7 @@ async def test_read_file_validation_invalid_json_passes_through():
 async def test_read_file_validation_non_dict_args_passes_through():
     """Non-dict args delegate to next handler."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Read"
     call.args = ["not", "a", "dict"]

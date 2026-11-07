@@ -17,6 +17,7 @@ class TestDefaultResponseHandler:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -34,6 +35,7 @@ class TestDefaultResponseHandler:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -51,6 +53,7 @@ class TestDefaultResponseHandler:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -68,6 +71,7 @@ class TestDefaultResponseHandler:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -85,6 +89,7 @@ class TestDefaultResponseHandler:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -102,6 +107,7 @@ class TestDefaultResponseHandler:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -119,6 +125,7 @@ class TestDefaultResponseHandler:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -139,6 +146,7 @@ class TestDefaultResponseHandler:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -162,6 +170,7 @@ class TestDefaultResponseHandlerEdit:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -187,6 +196,7 @@ class TestDefaultResponseHandlerEdit:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -211,6 +221,7 @@ class TestDefaultResponseHandlerEdit:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -236,6 +247,7 @@ class TestDefaultResponseHandlerEdit:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -259,6 +271,7 @@ class TestDefaultResponseHandlerEdit:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -281,6 +294,7 @@ class TestDefaultResponseHandlerEdit:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -303,6 +317,7 @@ class TestDefaultResponseHandlerEdit:
         from zrb.llm.tool_call.response_handler.default import default_response_handler
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.append_to_output = MagicMock()
 
         call = MagicMock()
@@ -329,6 +344,7 @@ class TestEditContentViaEditor:
         from zrb.llm.tool_call.edit_util import edit_content_via_editor
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.run_interactive_command = AsyncMock()
 
         content = {"command": "test", "args": ["--flag"]}

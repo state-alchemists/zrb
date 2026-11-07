@@ -57,7 +57,7 @@ class MultiUIStreaming(MultiUIToolForwards):
         session_input = {
             "message": user_message,
             "session": main_ui.conversation_session_name or "default",
-            "yolo": main_ui.yolo,
+            "yolo": main_ui.tools.yolo,
             "attachments": attachments,
             "model": main_ui.model,
         }

@@ -1078,7 +1078,7 @@ def _deliver_queued_messages(effective_ui: AnyUI | None) -> None:
     error to keep the turn alive would hide the reason it was thrown.
     """
     if effective_ui is not None:
-        effective_ui.deliver_queued_messages_early()
+        effective_ui.input.deliver_queued_messages_early()
 
 
 def _set_active_run_context(

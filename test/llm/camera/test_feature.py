@@ -28,7 +28,7 @@ class FakeCamera(AnyCameraBackend):
 
 
 class FakeUI:
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
 
     def __init__(self):
         self.background_tasks: set = set()

@@ -113,7 +113,7 @@ class ToolCallHandler:
         while True:
             message = await self.format_approval_message(ui, call)
             ui.append_to_output(f"\n{message}", end="")
-            user_input = await ui.ask_user("", output_to_parent=f"\n{message}")
+            user_input = await ui.input.ask_user("", output_to_parent=f"\n{message}")
             result = await run_response_handlers(
                 self._response_handlers,
                 ui,

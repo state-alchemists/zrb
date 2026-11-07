@@ -146,7 +146,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
             )
         # Keep the originating agent's id through nested delegation; only the
         # layer closest to the caller stamps its own.
-        return await self._wrapped.ask_user(
+        return await self._wrapped.input.ask_user(
             prefixed_prompt,
             agent_id=agent_id if agent_id is not None else self._agent_id,
         )
@@ -281,7 +281,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
-        return await self._wrapped.run_interactive_command(cmd, shell)
+        return await self._wrapped.input.run_interactive_command(cmd, shell)
 
     async def run_async(self) -> Any:
         return await self._wrapped.run_async()
@@ -321,7 +321,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
     @property
     def yolo(self) -> bool | frozenset:
         """Delegate YOLO mode to the wrapped parent UI."""
-        return self._wrapped.yolo
+        return self._wrapped.tools.yolo
 
     def stream_to_parent(
         self,

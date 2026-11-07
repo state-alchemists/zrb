@@ -9,6 +9,7 @@ from zrb.llm.ui.multi import MultiUI
 def mock_child_ui():
     """Create a mock child UI for testing."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.display = ui
     ui.append_to_output = MagicMock()
     ui.ask_user = AsyncMock(return_value="y")
@@ -24,6 +25,7 @@ def mock_child_ui():
 @pytest.fixture
 def child_ui_1():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.display = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
@@ -42,6 +44,7 @@ def child_ui_1():
 @pytest.fixture
 def child_ui_2():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.display = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
@@ -60,6 +63,7 @@ def multi_ui(child_ui_1, child_ui_2):
 def test_append_to_output_broadcasts(mock_child_ui):
     """Test that append_to_output broadcasts to all child UIs."""
     other_ui = MagicMock()
+    other_ui.input = other_ui.tools = other_ui
     other_ui.display = other_ui
     other_ui.append_to_output = MagicMock()
     multi_ui = MultiUI([mock_child_ui, other_ui])

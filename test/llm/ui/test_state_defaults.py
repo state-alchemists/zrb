@@ -158,6 +158,7 @@ def test_a_delivered_echo_is_redrawn_on_every_pane_that_holds_it():
     has to walk the tree; one that rewrote only itself would leave the other
     panes showing a message the turn had already read."""
     parent = MagicMock()
+    parent.input = parent.tools = parent
     panes = [MagicMock(), MagicMock()]
     for pane in panes:
         pane.display = pane

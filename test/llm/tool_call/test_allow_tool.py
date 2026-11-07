@@ -10,6 +10,7 @@ from zrb.llm.tool_call import auto_approve
 async def test_allow_tool_usage_match_no_kwargs():
     middleware = auto_approve("my_tool")
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "my_tool"
     call.args = {"a": 1}
@@ -25,6 +26,7 @@ async def test_allow_tool_usage_match_no_kwargs():
 async def test_allow_tool_usage_mismatch_name():
     middleware = auto_approve("my_tool")
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "other_tool"
     call.args = {}
@@ -40,6 +42,7 @@ async def test_allow_tool_usage_mismatch_name():
 async def test_allow_tool_usage_match_kwargs_success():
     middleware = auto_approve("my_tool", {"param": "^valid_"})
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "my_tool"
     call.args = {"param": "valid_value", "other": "ignored"}
@@ -55,6 +58,7 @@ async def test_allow_tool_usage_match_kwargs_success():
 async def test_allow_tool_usage_match_kwargs_fail():
     middleware = auto_approve("my_tool", {"param": "^valid_"})
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "my_tool"
     call.args = {"param": "invalid_value"}
@@ -72,6 +76,7 @@ async def test_allow_tool_usage_match_kwargs_param_missing_in_args():
     # cannot have matched: the call goes on to the next handler.
     middleware = auto_approve("my_tool", {"param": "^valid_"})
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "my_tool"
     call.args = {"other": "stuff"}

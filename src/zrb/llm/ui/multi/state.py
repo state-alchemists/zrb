@@ -175,7 +175,7 @@ class MultiUIState(UIStateDefaultsMixin):
 
     @property
     def yolo(self) -> bool | frozenset:
-        return self.main_ui.yolo if self.main_ui is not None else False
+        return self.main_ui.tools.yolo if self.main_ui is not None else False
 
     @property
     def snapshot_manager(self) -> "SnapshotManager | None":

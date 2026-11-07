@@ -432,7 +432,7 @@ def _collect_attachments(attachment_sources: Sequence[AnyUI]) -> list[Any]:
     """Drain every source's pending attachments into one list."""
     attachments: list[Any] = []
     for source in attachment_sources:
-        attachments.extend(source.take_pending_attachments())
+        attachments.extend(source.input.take_pending_attachments())
     return attachments
 
 

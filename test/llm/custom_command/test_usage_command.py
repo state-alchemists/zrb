@@ -38,7 +38,7 @@ def command():
 class _FakeUI:
     """The parts of a UI `/usage` touches: the session name and the panel."""
 
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
     session = property(lambda self: self)
 
     def __init__(self, session: str = "") -> None:

@@ -17,6 +17,7 @@ class TestReplaceInFileResponseHandler:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Write"
         call.args = {"path": "test.txt"}
@@ -36,6 +37,7 @@ class TestReplaceInFileResponseHandler:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Edit"
         call.args = {"old_text": "old", "new_text": "new"}
@@ -55,6 +57,7 @@ class TestReplaceInFileResponseHandler:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.run_interactive_command = AsyncMock()
 
         call = MagicMock()
@@ -75,6 +78,7 @@ class TestReplaceInFileResponseHandler:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.run_interactive_command = AsyncMock()
 
         call = MagicMock()
@@ -95,6 +99,7 @@ class TestReplaceInFileResponseHandler:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.run_interactive_command = AsyncMock()
 
         call = MagicMock()
@@ -122,6 +127,7 @@ class TestReplaceInFileHandlerEdgeCases:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.run_interactive_command = AsyncMock()
 
         call = MagicMock()
@@ -143,6 +149,7 @@ class TestReplaceInFileHandlerEdgeCases:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.run_interactive_command = AsyncMock()
 
         call = MagicMock()
@@ -164,6 +171,7 @@ class TestReplaceInFileHandlerEdgeCases:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.run_interactive_command = AsyncMock()
 
         call = MagicMock()
@@ -184,6 +192,7 @@ class TestReplaceInFileHandlerEdgeCases:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
 
         async def fake_run(cmd, shell=False):
             # Find the .new file in the cmd and overwrite it
@@ -218,6 +227,7 @@ class TestReplaceInFileHandlerEdgeCases:
         )
 
         ui = MagicMock()
+        ui.input = ui.tools = ui
         ui.run_interactive_command = AsyncMock(
             side_effect=RuntimeError("diff exploded")
         )

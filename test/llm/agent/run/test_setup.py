@@ -54,6 +54,7 @@ async def test_terminal_approval_asks_the_multi_ui_primary_child():
 
     first, primary = MagicMock(), MagicMock()
     for child in (first, primary):
+        child.input = child.tools = child
         child.tool_call_handler = None
         child.ask_user = AsyncMock(return_value="n")
     remote = MagicMock()

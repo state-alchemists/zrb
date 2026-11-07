@@ -10,7 +10,7 @@ class MockUI:
     """Stand-in for `BaseUI`: owns the state/methods `BaseUIReplay` reads
     through `self._base_ui`, and composes a real `BaseUIReplay(self)`."""
 
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
 
     def __init__(self):
         self.calls = []  # list of (text, kind)

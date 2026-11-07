@@ -157,8 +157,8 @@ def setup_print_and_events(print_fn, event_handler, effective_ui):
             # Not declared on `AnyUI`: a UI without it gets the stream's own
             # "Prepare tool parameters" line, which a no-op default would drop.
             on_tool_prepare_update=getattr(effective_ui, "update_tool_prepare", None),
-            on_tool_call_start=effective_ui.start_tool_call,
-            on_tool_call_end=effective_ui.end_tool_call,
+            on_tool_call_start=effective_ui.tools.start_tool_call,
+            on_tool_call_end=effective_ui.tools.end_tool_call,
         )
     # The column a settled block keeps is the stream's own: told once, here,
     # rather than as an argument to the documented one-argument

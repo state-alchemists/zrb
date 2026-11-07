@@ -21,6 +21,7 @@ from zrb.llm.ui.any_ui import AnyUI
 def mock_ui():
     """Create a mock UI for testing."""
     ui = MagicMock(spec=AnyUI)
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="y")
     return ui
 
@@ -142,6 +143,7 @@ class TestTerminalApprovalChannel:
     async def test_terminal_channel_approves_on_yes(self):
         """Test that TerminalApprovalChannel approves when UI returns 'y'."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="y")
@@ -163,6 +165,7 @@ class TestTerminalApprovalChannel:
     async def test_terminal_channel_denies_on_no(self):
         """Test that TerminalApprovalChannel denies when UI returns 'n'."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="n")
@@ -184,6 +187,7 @@ class TestTerminalApprovalChannel:
     async def test_terminal_channel_empty_response_approves(self):
         """Test that TerminalApprovalChannel approves on empty response."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="")
@@ -204,6 +208,7 @@ class TestTerminalApprovalChannel:
     async def test_terminal_channel_uses_notify(self):
         """Test that TerminalApprovalChannel uses UI for notifications."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="y")
@@ -258,6 +263,7 @@ class TestApprovalChannelProtocol:
     def test_terminal_channel_implements_protocol(self):
         """Test that TerminalApprovalChannel implements AnyApprovalChannel protocol."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         channel = TerminalApprovalChannel(ui=mock_ui)
