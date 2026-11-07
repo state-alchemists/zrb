@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -305,12 +303,18 @@ def test_loader_registers_python_agent_definition(manager, tmp_path):
 
 def test_loader_wraps_bare_pydantic_agent_under_folder_name(manager, tmp_path):
     """A .agent.py exporting a bare pydantic-ai Agent is wrapped; the folder
-    name becomes the identifier."""
+    name becomes the identifier.
+
+    The model name is `test`, pydantic-ai's own provider-free model: the subject
+    here is the loader, and a real provider name made the test depend on that
+    provider importing cleanly in the runner's virtualenv — which failed the whole
+    matrix on a job whose cached venv could not import `openai`, while 10,840
+    other tests passed on the same runner.
+    """
     agent_dir = tmp_path / "bare-agent"
     agent_dir.mkdir()
     (agent_dir / "AGENT.py").write_text(
-        "from pydantic_ai import Agent\n"
-        "agent = Agent('openai:gpt-4o', instructions='hi')\n",
+        "from pydantic_ai import Agent\n" "agent = Agent('test', instructions='hi')\n",
     )
     manager.scan([str(tmp_path)])
     agent = manager.get_agent_definition("bare-agent")
