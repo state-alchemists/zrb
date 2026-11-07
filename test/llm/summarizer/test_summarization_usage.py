@@ -60,6 +60,8 @@ class _FakeAgent:
 class _NamedUI:
     """The one part of a UI the compaction reads: which conversation it serves."""
 
+    session = property(lambda self: self)
+
     def __init__(self, name: str) -> None:
         self.conversation_session_name = name
 

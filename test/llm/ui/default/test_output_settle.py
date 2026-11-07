@@ -54,6 +54,7 @@ class SettleUI:
     """
 
     display = property(lambda self: self)
+    session = property(lambda self: self)
 
     # The real `/btw` entry point, bound onto this stand-in so the transcript
     # test drives the code that runs in the chat instead of a copy of it.

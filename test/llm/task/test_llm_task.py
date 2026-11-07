@@ -177,7 +177,7 @@ class TestLLMTaskExecution:
     async def test_model_getter_result_updates_ui_model(self, session):
         # Arrange: getter returns a new model name; UI should reflect it
         ui = MagicMock()
-        ui.model = "original-model"
+        ui.session.model = "original-model"
 
         task = LLMTask(
             name="test-task",
@@ -195,7 +195,7 @@ class TestLLMTaskExecution:
             mock_run_agent.return_value = ("Response", [])
             await task.async_run(session)
 
-        assert ui.model == "updated-by-getter"
+        assert ui.session.model == "updated-by-getter"
 
     @pytest.mark.asyncio
     async def test_getter_then_renderer_pipeline(self, session):

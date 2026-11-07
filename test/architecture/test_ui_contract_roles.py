@@ -25,10 +25,14 @@ CORE_FILE = "any_ui.py"
 CORE_CLASS = "AnyUI"
 
 # A role reached through an accessor instead of by inheritance: a UI hands out
-# its choice widget, and the surface it writes to, rather than answering to
-# every one of their methods. Every role not named here must reach `AnyUI` as a
-# base, member for member.
-ROLE_ACCESSOR = {"AnyUIPicker": "picker", "AnyUIDisplay": "display"}
+# its choice widget, the surface it writes to, and the conversation it is
+# talking to, rather than answering to every one of their methods. Every role
+# not named here must reach `AnyUI` as a base, member for member.
+ROLE_ACCESSOR = {
+    "AnyUIPicker": "picker",
+    "AnyUIDisplay": "display",
+    "AnyUISession": "session",
+}
 
 # The one member the aggregate and a role both declare. `append_to_output` is
 # the writer a backend overrides; the display role writes through it, so it has
@@ -58,12 +62,13 @@ MAX_CORE_MEMBERS = 8
 # that role's members for one, so this number goes up as roles leave and the
 # aggregate's total surface shrinks; `test_the_reachable_members_shrink` holds
 # the total. Neither may be raised to admit a new behaviour.
-ANY_UI_MEMBERS = 6
+ANY_UI_MEMBERS = 7
 
 # Every member a caller sees on `AnyUI`: its own, plus each inherited role's.
-# 35 after the display role moved behind `ui.display`, down from 55. Only ever
-# lowered; a new role member raises the total and fails here.
-REACHABLE_MEMBERS = 36
+# 22 after the display and session roles moved behind `ui.display` and
+# `ui.session`, down from 55. Only ever lowered; a new role member raises the
+# total and fails here.
+REACHABLE_MEMBERS = 22
 
 
 def _members(path: pathlib.Path, class_name: str) -> set[str]:

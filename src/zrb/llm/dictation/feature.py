@@ -695,7 +695,7 @@ class DictationSession:
         if not self._config.is_barge_in_enabled:
             return False
         ui = get_session_ui() or self._ui
-        return ui is not None and ui.is_thinking
+        return ui is not None and ui.session.is_thinking
 
     async def _should_send_barge_in(self, utterance: Utterance, command: str) -> bool:
         """Act on what the user said over zrb, and say whether it still goes on
@@ -714,7 +714,7 @@ class DictationSession:
         intent = await self._get_barge_in_intent(command)
         if intent == "stop":
             self._settle_barge_in(utterance, True)
-            ui.cancel_current_turn("barge_in")
+            ui.session.cancel_current_turn("barge_in")
             self._rest("✋ stopped · listening")
             return False
         if intent == "hush":
@@ -723,7 +723,7 @@ class DictationSession:
             return False
         if intent == "redirect":
             self._settle_barge_in(utterance, True)
-            ui.cancel_current_turn("barge_in")
+            ui.session.cancel_current_turn("barge_in")
             await _wait_for_turn_to_end(ui)
         return True
 
@@ -877,7 +877,7 @@ async def _wait_for_turn_to_end(ui: "AnyUI") -> None:
     """Wait, briefly, for a cancelled turn to finish, so the words that follow
     start a turn rather than steering one that is already gone."""
     deadline = asyncio.get_running_loop().time() + _TURN_END_WAIT_SECONDS
-    while ui.is_turn_running and asyncio.get_running_loop().time() < deadline:
+    while ui.session.is_turn_running and asyncio.get_running_loop().time() < deadline:
         await asyncio.sleep(0.05)
 
 

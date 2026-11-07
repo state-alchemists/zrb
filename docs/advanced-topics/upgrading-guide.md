@@ -6,6 +6,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Table of Contents
 
+- [Upgrading to 3.37.0](#upgrading-to-3370)
 - [Upgrading to 3.35.0](#upgrading-to-3350)
 - [Upgrading to 3.33.0](#upgrading-to-3330)
 - [Upgrading to 3.30.0](#upgrading-to-3300)
@@ -23,6 +24,33 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 - [Upgrading to 3.0.0](#upgrading-to-300)
 - [Upgrading to 2.54.0](#upgrading-to-2540)
 - [Upgrading from 1.x.x to 2.x.x](#upgrading-from-1xx-to-2xx)
+
+---
+
+## Upgrading to 3.37.0
+
+A UI's contract is now five roles ([ADR-0140](../adr/adr-0140.md)), and two of them are reached through an accessor rather than inherited. `AnyUI` still inherits `AnyUIInput` and `AnyUITools`; it declares `display` and `session` instead of the twenty-one and fifteen members those two roles hold.
+
+| Before | After |
+|---|---|
+| `ui.append_markdown(...)`, `ui.append_answer(...)`, `ui.set_status_badge(...)`, `ui.last_output`, `ui.replay_history(...)` | `ui.display.append_markdown(...)`, `ui.display.append_answer(...)`, `ui.display.set_status_badge(...)`, `ui.display.last_output`, `ui.display.replay_history(...)` |
+| `ui.model`, `ui.small_model`, `ui.multimodal_model`, `ui.llm_task` | `ui.session.model`, `ui.session.small_model`, ... |
+| `ui.is_thinking`, `ui.is_turn_running`, `ui.cancel_current_turn(...)` | `ui.session.is_thinking`, `ui.session.is_turn_running`, `ui.session.cancel_current_turn(...)` |
+| `ui.conversation_session_name`, `ui.plan_mode_active` | `ui.session.conversation_session_name`, `ui.session.plan_mode_active` |
+| `ui.history_manager`, `ui.snapshot_manager`, `ui.background_tasks` | `ui.session.history_manager`, `ui.session.snapshot_manager`, `ui.session.background_tasks` |
+| `ui.accumulate_usage(...)`, `ui.reset_context_usage()`, `ui.update_system_info()` | `ui.session.accumulate_usage(...)`, `ui.session.reset_context_usage()`, `ui.session.update_system_info()` |
+
+`BaseUI`, `SimpleUI`, `EventDrivenUI`, `StdUI`, `MultiUI` and `BufferedUI` already answer both accessors, and so does anything mixing in `UIStateDefaultsMixin`. A class that implements `AnyUI` directly must add them — one line each, for a UI that is its own writer and its own conversation:
+
+```python
+class MyUI(AnyUI):
+    display = property(lambda self: self)
+    session = property(lambda self: self)
+```
+
+Both return the object itself rather than a separate part, so a subclass that overrides one of the members keeps answering for it; mixing in `UIStateDefaultsMixin` supplies the same two accessors plus an inert default for every member you leave out. What a caller sees on a `ui: AnyUI` is 22 members where it was 55, and the role contracts (`AnyUIDisplay`, `AnyUISession`, ...) are unchanged.
+
+Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the fallback pieces into `zrb.llm.ui.fallback`, and the layer-0 leaf modules into `zrb.llm.shared` — see [the shared-package section](#llm-shared-layer-0-modules).
 
 ---
 
