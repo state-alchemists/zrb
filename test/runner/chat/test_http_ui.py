@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -74,12 +74,13 @@ async def test_http_ui_confirm_tool_execution(mock_deps):
 @pytest.mark.asyncio
 async def test_http_ui_run_async_logic(mock_deps):
     ui, _, _ = mock_deps
-    with patch(
-        "zrb.llm.ui.base.ui.BaseUI.last_output", new_callable=PropertyMock
-    ) as mock_last:
-        mock_last.return_value = "Done"
-        res = await ui.run_async()
-        assert res == "Done"
+    # The answer a finished turn leaves behind, as the display reports it; a
+    # backend reading it off the UI object itself would get "" here.
+    ui.last_result_data = "Done"
+
+    res = await ui.run_async()
+
+    assert res == "Done"
 
 
 def test_create_http_ui_factory_with_commands():
