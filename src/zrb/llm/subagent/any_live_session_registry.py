@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from zrb.llm.any_live_sub_agent_session import AnyLiveSubAgentSession
-from zrb.llm.any_sub_agent_manager import AnySubAgentManager
+from zrb.llm.subagent.any_live_sub_agent_session import AnyLiveSubAgentSession
+from zrb.llm.subagent.any_sub_agent_manager import AnySubAgentManager
 
 
 class AnyLiveSessionRegistry(Protocol):

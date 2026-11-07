@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from zrb.llm.any_agent import AnyAgent
-    from zrb.llm.any_sub_agent_definition import AnySubAgentDefinition
+    from zrb.llm.agent.any_agent import AnyAgent
+    from zrb.llm.subagent.any_sub_agent_definition import AnySubAgentDefinition
 
 
 class AnySubAgentManager(Protocol):

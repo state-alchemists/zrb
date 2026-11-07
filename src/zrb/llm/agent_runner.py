@@ -16,8 +16,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from zrb.llm.any_agent import AnyAgent
-    from zrb.llm.any_agent_runner import AnyAgentRunner
+    from zrb.llm.agent.any_agent import AnyAgent
+    from zrb.llm.agent.any_agent_runner import AnyAgentRunner
 
 _RUNNER: AnyAgentRunner | None = None
 

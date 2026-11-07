@@ -22,7 +22,6 @@ from zrb.llm.ambient_state import (
 )
 from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.delegation_api import (
-    SubAgentManagerAPI,
     default_sub_agent_manager,
     get_live_session_registry,
     start_titling,
@@ -45,6 +44,7 @@ from zrb.util.string.suggestion import suggest_name
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import ModelMessage
+    from zrb.llm.delegation_api import SubAgentManagerAPI
     from zrb.llm.ui.any_ui import AnyUI
 
 

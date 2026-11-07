@@ -34,12 +34,11 @@ Inside `llm/`:
 
 | Path | What is in it |
 | --- | --- |
-| `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `gates.py` enforces permission denials and the sandbox. The L0 facade `llm/agent_runner.py` names `create_agent`/`run_agent` for lower layers |
-| `subagent/` | Sub-agent definitions, discovery and delegation sessions — a layer above `agent/`. `agent/` imports it from one place only, `hook_agent.py`, to resolve an agent hook's tools; both edges are listed in `KNOWN_UPWARD_EDGES` (`test/architecture/test_llm_layering_ratchet.py`), which may only shrink |
+| `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `gates.py` enforces permission denials and the sandbox. Its contracts are `any_agent.py`, `any_agent_result.py` and `any_agent_runner.py`. The L0 facade `llm/agent_runner.py` names `create_agent`/`run_agent` for lower layers, and the two protocols under `if TYPE_CHECKING:` |
+| `subagent/` | Sub-agent definitions, discovery and delegation sessions — a layer above `agent/`. Its contracts are `any_sub_agent_definition.py`, `any_sub_agent_manager.py`, `any_live_sub_agent_session.py` and `any_live_session_registry.py`. `agent/` imports it from one place only, `hook_agent.py`, to resolve an agent hook's tools; both edges are listed in `KNOWN_UPWARD_EDGES` (`test/architecture/test_llm_layering_ratchet.py`), which may only shrink |
 | `ui/` | The UI implementations; `AnyUI` and its five role contracts live in `ui/any_ui.py` and `ui/any_ui_<role>.py`; the prompt_toolkit TUI lives under `ui/default/app/` |
 | `ui/fallback/` | The UI pieces L0 may construct (`StdUI`, `UIStateDefaultsMixin`, the `resolve_ui`/`create_combined_ui` resolver). It is a floor inside `ui/`: `ui/__init__.py` imports nothing eagerly and the layering ratchet scores this prefix as L0, so a headless run reaches it without loading prompt_toolkit |
-| `any_agent.py`, `any_agent_result.py`, `any_agent_runner.py`, `agent_runner.py` | L0 agent contracts and the facade lower layers call to build/run agents without importing the engine package. The facade names the two protocols for the type checker only |
-| `any_sub_agent_definition.py`, `any_sub_agent_manager.py`, `any_live_sub_agent_session.py`, `any_live_session_registry.py`, `delegation_api.py` | L0 delegation contracts (sub-agent manager, live-session registry) and the registry functions lower layers call instead of importing `subagent/*` |
+| `agent_runner.py`, `delegation_api.py` | The two L0 seams: build/run an agent, and reach the sub-agent manager and live-session registry. Each names the contracts it fronts under `if TYPE_CHECKING:` — the engine and the subagent package register into them while they load, so a runtime import back would close the cycle |
 | `approval/`, `permission/` | The approval channel, and the permission ruleset (`policy.py`, `state.py`) |
 | `config/` | LLM-specific config: model resolution, the rate limiter |
 | `custom_command/` | Slash commands built from skills and markdown |

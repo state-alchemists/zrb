@@ -23,7 +23,6 @@ from zrb.llm.agent_state import current_approval_channel, current_tool_confirmat
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.delegation_api import (
-    LiveSessionRegistryAPI,
     register_live_session_registry,
     register_start_titling,
 )
@@ -35,6 +34,7 @@ from zrb.llm.ui.base.message_queue import steer_into_live_run
 from zrb.util.contextvar_scope import scoped
 
 if TYPE_CHECKING:
+    from zrb.llm.delegation_api import LiveSessionRegistryAPI
     from zrb.llm.subagent.manager import SubAgentManager
     from zrb.llm.ui.buffered_ui import BufferedUI
 
@@ -445,6 +445,6 @@ def _bind_captured_approval(authority: AuthoritySnapshot | None) -> Generator[No
 
 
 register_live_session_registry(
-    cast(LiveSessionRegistryAPI, live_subagent_session_registry)
+    cast("LiveSessionRegistryAPI", live_subagent_session_registry)
 )
 register_start_titling(start_titling)

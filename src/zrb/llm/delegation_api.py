@@ -3,18 +3,29 @@
 Tools call into this module instead of importing ``zrb.llm.subagent.*``.
 The subagent package registers its concrete implementations here at import
 time. This keeps layer-1 tools from importing layer-3 orchestration.
+
+The contracts named below live inside that package, in
+``subagent/any_sub_agent_*.py``, and reach this module through the type checker
+only: ``manager`` and ``live_session`` register into it while it loads, so a
+runtime import here would close the cycle. Every use below is an annotation, so
+nothing is missing when the module runs.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
-from zrb.llm.any_live_session_registry import AnyLiveSessionRegistry
-from zrb.llm.any_live_sub_agent_session import AnyLiveSubAgentSession
-from zrb.llm.any_sub_agent_manager import AnySubAgentManager as SubAgentManagerAPI
+if TYPE_CHECKING:
+    from typing import TypeAlias
 
-LiveSessionRegistryAPI = AnyLiveSessionRegistry
-LiveSubAgentSessionLike = AnyLiveSubAgentSession
+    from zrb.llm.subagent.any_live_session_registry import AnyLiveSessionRegistry
+    from zrb.llm.subagent.any_live_sub_agent_session import AnyLiveSubAgentSession
+    from zrb.llm.subagent.any_sub_agent_manager import AnySubAgentManager
+
+    SubAgentManagerAPI: TypeAlias = AnySubAgentManager
+    LiveSessionRegistryAPI: TypeAlias = AnyLiveSessionRegistry
+    LiveSubAgentSessionLike: TypeAlias = AnyLiveSubAgentSession
 
 
 _manager: SubAgentManagerAPI | None = None

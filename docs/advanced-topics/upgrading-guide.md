@@ -622,6 +622,24 @@ If you only interact with the built-in `llm_chat` task (i.e. you don't subclass 
 
 Naming a contract or the fallback still does not load the terminal client: `zrb.llm.ui.__init__` resolves every export through `__getattr__`, so a headless run pays for what it asks for and nothing more.
 
+### LLM Agent and Sub-Agent Contract Module Paths
+
+The three agent contracts moved into `zrb.llm.agent`, and the four sub-agent contracts into `zrb.llm.subagent`, so each sits next to the code that implements it:
+
+| before | after |
+|---|---|
+| `from zrb.llm.any_agent import AnyAgent` | `from zrb.llm.agent.any_agent import AnyAgent` |
+| `from zrb.llm.any_agent_result import AnyAgentResult` | `from zrb.llm.agent.any_agent_result import AnyAgentResult` |
+| `from zrb.llm.any_agent_runner import AnyAgentRunner` | `from zrb.llm.agent.any_agent_runner import AnyAgentRunner` |
+| `from zrb.llm.any_sub_agent_definition import AnySubAgentDefinition` | `from zrb.llm.subagent.any_sub_agent_definition import AnySubAgentDefinition` |
+| `from zrb.llm.any_sub_agent_manager import AnySubAgentManager` | `from zrb.llm.subagent.any_sub_agent_manager import AnySubAgentManager` |
+| `from zrb.llm.any_live_sub_agent_session import AnyLiveSubAgentSession` | `from zrb.llm.subagent.any_live_sub_agent_session import AnyLiveSubAgentSession` |
+| `from zrb.llm.any_live_session_registry import AnyLiveSessionRegistry` | `from zrb.llm.subagent.any_live_session_registry import AnyLiveSessionRegistry` |
+
+No compatibility shims sit at the old paths; the import fails with `ImportError` rather than silently resolving somewhere else. `from zrb.llm.subagent import SubAgentManager` and the `delegation_api` functions are unchanged — only the contract modules moved.
+
+If you implement or annotate against one of these contracts you are unaffected beyond the import line. If you call into `zrb.llm.delegation_api`, note that it now names the contracts for the type checker only: the sub-agent package registers into it while it loads, so a runtime import would close a cycle.
+
 ### Hooks Timeout Unit
 
 `ZRB_HOOKS_TIMEOUT` changed from **seconds** to **milliseconds** in 2.20.0.

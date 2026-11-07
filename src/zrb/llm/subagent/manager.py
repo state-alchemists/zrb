@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 from zrb.context.any_context import AnyContext
 from zrb.llm.common_tools import apply_common_tools
-from zrb.llm.delegation_api import SubAgentManagerAPI, register_subagent_manager
+from zrb.llm.delegation_api import register_subagent_manager
 from zrb.llm.subagent.building import SubAgentBuilding
 from zrb.llm.subagent.definition import SubAgentDefinition
 from zrb.llm.subagent.manager_loading import SubAgentManagerLoading
@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolFuncEither
     from pydantic_ai.toolsets import AbstractToolset
 
+    from zrb.llm.delegation_api import SubAgentManagerAPI
     from zrb.llm.task.chat.task import LLMChatTask
 
 
@@ -287,4 +288,4 @@ sub_agent_manager = SubAgentManager(registry=sub_agent_registry)
 apply_common_tools(sub_agent_manager)
 
 # Register for layer-0 callers (tools) without importing this module directly.
-register_subagent_manager(cast(SubAgentManagerAPI, sub_agent_manager))
+register_subagent_manager(cast("SubAgentManagerAPI", sub_agent_manager))
