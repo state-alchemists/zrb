@@ -16,7 +16,7 @@ from zrb.llm.prompt.prompt import get_prompt
 from zrb.llm.tool.code.constants import DEFAULT_EXTENSIONS, LSP_SUPPORTED_EXTENSIONS
 from zrb.llm.tool.file import DEFAULT_EXCLUDED_PATTERNS
 from zrb.llm.tool.git_visible import git_visible_files
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.util.file import matches_any_pattern
 
 
@@ -64,6 +64,7 @@ async def get_lsp_context(file_path: str, abs_dir: str) -> dict | None:
         return None
 
 
+@requires_purpose
 async def analyze_code(
     path: Annotated[str, Field(description="Directory to analyze.")],
     query: Annotated[

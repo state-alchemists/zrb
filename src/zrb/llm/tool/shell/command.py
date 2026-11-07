@@ -25,7 +25,7 @@ from zrb.llm.sandbox.os_sandbox import (
     format_sandbox_denied_message,
 )
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.shell.capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
 
@@ -40,6 +40,7 @@ _LIVE_UPDATE_INTERVAL = 0.5
 _HEAD_SHARE_OF_FAILED_OUTPUT = 0.4
 
 
+@requires_purpose
 async def run_shell_command(
     command: Annotated[str, Field(description="Non-interactive command.")],
     purpose: Purpose = "",

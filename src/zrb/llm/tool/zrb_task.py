@@ -5,12 +5,13 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.shell import run_shell_command
 from zrb.runner.cli import cli
 
 
 def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
+    @requires_purpose
     def list_zrb_tasks_impl(
         group_name: Annotated[
             str,
@@ -21,6 +22,7 @@ def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccab
                 )
             ),
         ] = "",
+        purpose: Purpose = "",
     ) -> str:
         target_group = cli
         if group_name:
@@ -53,6 +55,7 @@ def create_list_zrb_task_tool():  # noqa: C901 -- registration/factory fn; mccab
 
 
 def create_run_zrb_task_tool():
+    @requires_purpose
     async def run_zrb_task(
         task_name: Annotated[
             str,

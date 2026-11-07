@@ -15,9 +15,10 @@ from zrb.llm.tool.file.post_write_check import (
     compose_write_result,
     format_post_write_diagnostics,
 )
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 
 
+@requires_purpose
 async def write_file(
     path: Annotated[str, Field(description="File to write.")],
     content: Annotated[str, Field(description="Full UTF-8 text.")],

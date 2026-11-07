@@ -18,7 +18,7 @@ from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.shell import start_process
 
 _MAIN_WORKTREE_ERROR = (
@@ -27,6 +27,7 @@ _MAIN_WORKTREE_ERROR = (
 )
 
 
+@requires_purpose
 async def enter_worktree(
     branch_name: Annotated[
         str, Field(description="Branch to create; auto-named when empty.")
@@ -324,6 +325,7 @@ def _find_worktree_branch(worktree_list: str, requested_path: str) -> str | None
     return None
 
 
+@requires_purpose
 async def exit_worktree(
     worktree_path: Annotated[str, Field(description="Path from EnterWorktree.")],
     keep_branch: Annotated[
@@ -414,7 +416,8 @@ async def _delete_branch_line(
     )
 
 
-async def list_worktrees() -> str:
+@requires_purpose
+async def list_worktrees(purpose: Purpose = "") -> str:
     """
     Lists all active git worktrees for the current repository (path, branch, commit).
     """

@@ -7,9 +7,10 @@ from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file.observation import check_listed
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 
 
+@requires_purpose
 def remove_file(
     path: Annotated[str, Field(description="Path to remove.")],
     recursive: Annotated[

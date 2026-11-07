@@ -29,6 +29,7 @@ from zrb.llm.shared.input_source import BACKGROUND_INPUT
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import build_sandboxed_argv, get_effective_sandbox_policy
 from zrb.llm.shared.shell_cut import interrupted_notice, is_cut_while_waiting
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.shell.capture import StreamCapture
 from zrb.util.string.name import get_random_name
 
@@ -502,6 +503,7 @@ def get_shell_background_registry() -> _ShellBackgroundRegistry:
 
 
 def create_monitor_process_tool():
+    @requires_purpose
     async def monitor_process(
         handle: Annotated[
             str,
@@ -523,6 +525,7 @@ def create_monitor_process_tool():
                 )
             ),
         ] = 0,
+        purpose: Purpose = "",
     ) -> str:
         """Check or kill a process started with `background=True`.
 

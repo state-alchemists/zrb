@@ -15,7 +15,7 @@ from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.permission import Capability, tag
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.web.search.http_errors import BROWSER_USER_AGENT
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
@@ -62,6 +62,7 @@ def notify(message: str) -> None:
         pass
 
 
+@requires_purpose
 async def open_web_page(
     url: Annotated[str, Field(description="Page URL.")],
     summarize: Annotated[
@@ -127,6 +128,7 @@ async def open_web_page(
     }
 
 
+@requires_purpose
 async def search_internet(
     query: Annotated[str, Field(description="Search query.")],
     page: Annotated[int, Field(description="1-indexed results page.")] = 1,
