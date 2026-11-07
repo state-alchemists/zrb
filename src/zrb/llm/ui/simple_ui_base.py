@@ -167,7 +167,7 @@ class SimpleUI(BaseUI):
 
         if was_cancelled and self.propagates_cancellation:
             raise asyncio.CancelledError()
-        return self.last_output
+        return self.display.last_output
 
     async def _run_loop(self) -> None:
         """Override this for custom event loop (e.g., WebSocket listener)."""

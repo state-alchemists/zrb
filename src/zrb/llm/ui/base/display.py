@@ -12,7 +12,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, TextIO
 
 from zrb.llm.any_ui_display import AnyUIDisplay
-from zrb.llm.ui.base.echo_broadcast import broadcast_echo
 from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.markdown import render_markdown
 
@@ -89,8 +88,13 @@ class BaseUIDisplay(UIStateDefaultsMixin, AnyUIDisplay):
         self.append_markdown(markdown_text)
 
     def replay_history(self, messages: "list[ModelMessage]") -> None:
-        """Show a resumed conversation through the live-render paths."""
-        self._base_ui.replay.replay_history(messages)
+        """Show a resumed conversation through the live-render paths.
+
+        Through the host, because a UI that seeds its input recall from the
+        loaded turns overrides `replay_history` there, and reaching the
+        renderer directly would skip that.
+        """
+        self._base_ui.replay_history(messages)
 
     def set_status_badge(self, key: str, text: str | None) -> None:
         """Show `text` under `key` in the status bar, then repaint."""
@@ -122,16 +126,9 @@ class BaseUIDisplay(UIStateDefaultsMixin, AnyUIDisplay):
         self._base_ui.remove_echo(entry)
 
     def redraw_echoes(self, entries: "Sequence[QueuedMessage]") -> None:
-        """Rewrite the echoes of `entries` on every UI that holds one.
+        """Rewrite each entry's echo on every UI, through the host.
 
-        A delivered message leaves the queue, so its panel row disappears at
-        once; its echo line keeps its place in the transcript and changes marker
-        (`DELIVERED_MARKER`), the only record of what the model actually read.
+        Which UIs share a queue is a fact about the UI tree, not about one
+        surface, so the fan-out stays where the host keeps its graph.
         """
-        for entry in entries:
-            # Each entry is bound to its own call, so a deferred redraw — this
-            # one queued, or a task — cannot reach the loop's last entry.
-            broadcast_echo(
-                self._base_ui,
-                lambda ui, entry=entry: ui.display.redraw_echo(entry),
-            )
+        self._base_ui.redraw_echoes(entries)

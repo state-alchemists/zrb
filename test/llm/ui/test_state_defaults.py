@@ -1,6 +1,7 @@
 """Verify inert defaults for `UIStateDefaultsMixin`."""
 
 import asyncio
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -150,3 +151,21 @@ def test_a_ui_without_a_queue_has_nothing_to_send():
     assert report.outcome is DeliveryOutcome.NOTHING_MOVED
     assert report.delivered == 0
     assert report.held == 0
+
+
+def test_a_delivered_echo_is_redrawn_on_every_pane_that_holds_it():
+    """Each child of a `MultiUI` keeps its own copy of the echo, so the redraw
+    has to walk the tree; one that rewrote only itself would leave the other
+    panes showing a message the turn had already read."""
+    parent = MagicMock()
+    panes = [MagicMock(), MagicMock()]
+    for pane in panes:
+        pane.display = pane
+        pane.multi_ui_parent = parent
+    parent.children = panes
+    entry = MagicMock()
+
+    UIStateDefaultsMixin.redraw_echoes(panes[0], [entry])
+
+    for pane in panes:
+        pane.redraw_echo.assert_called_once_with(entry)

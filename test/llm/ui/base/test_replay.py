@@ -1,6 +1,9 @@
 from types import SimpleNamespace
+from unittest.mock import MagicMock
 
+from zrb.llm.ui.base.display import BaseUIDisplay
 from zrb.llm.ui.base.replay import BaseUIReplay
+from zrb.llm.ui.base.ui import BaseUI
 
 
 class MockUI:
@@ -97,3 +100,21 @@ def test_replay_shows_a_retried_tool_return_as_a_retry_not_a_failure():
     rendered = " ".join(text for text, _kind in ui.calls)
     assert "🔄" in rendered
     assert "❌" not in rendered
+
+
+def test_the_host_declares_the_replay_an_override_lands_on():
+    """`UI` overrides `replay_history` to seed the input recall and calls
+    `super()`. That call has to reach the host's delegator: the fallback next in
+    MRO writes the whole transcript as plain text, so a host that stopped
+    declaring this member would downgrade every loaded conversation silently."""
+    assert BaseUI.replay_history.__qualname__.startswith("BaseUI.")
+
+
+def test_the_display_replays_through_the_host():
+    """A UI that seeds its input recall from the loaded turns overrides
+    `replay_history` on itself, so reaching the display must still run it."""
+    host = MagicMock()
+
+    BaseUIDisplay(host).replay_history(["m"])
+
+    host.replay_history.assert_called_once_with(["m"])

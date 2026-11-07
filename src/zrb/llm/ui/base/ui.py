@@ -53,7 +53,7 @@ from zrb.llm.tool_call import (
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.display import BaseUIDisplay
-from zrb.llm.ui.base.echo_broadcast import broadcast_echo
+from zrb.llm.ui_fallback.echo_broadcast import broadcast_echo
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
@@ -509,6 +509,16 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def replay(self) -> BaseUIReplay:
         """The history-replay renderer, which writes through `display`."""
         return self._base_replay
+
+    def replay_history(self, messages: list) -> None:
+        """Render a resumed conversation, then let a subclass add to that.
+
+        The delegator stays on the host as well as on the display part because
+        a UI that seeds its input recall from the loaded turns overrides this
+        and calls `super()`; that call must land here, not on the fallback next
+        in MRO, which writes the whole transcript as plain text.
+        """
+        self._base_replay.replay_history(messages)
 
     @property
     def status_bar(self) -> BaseUIStatusBar:

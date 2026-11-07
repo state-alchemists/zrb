@@ -123,7 +123,11 @@ FACADE_BUDGETS = {
     # +1 (1319->1320): a background notice is not recorded for input recall.
     # +2 (1319->1321): a deferred redraw binds its own entry, so it cannot reach
     # the loop's last one -- no new surface.
-    "llm/ui/base/ui.py": 1262,
+    # +9 (1262->1271): `replay_history` stays on the host as well as on the
+    # display part, because a subclass override that calls `super()` has to land
+    # on it rather than on the plain-text fallback next in MRO -- a delegator,
+    # not new surface.
+    "llm/ui/base/ui.py": 1271,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
