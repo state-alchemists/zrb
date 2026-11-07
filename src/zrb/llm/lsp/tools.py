@@ -3,7 +3,7 @@
 from typing import Literal
 
 from zrb.llm.lsp.configs import lsp_server_configs
-from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.lsp.manager.manager import lsp_manager
 from zrb.llm.permission import Capability, tag
 
 

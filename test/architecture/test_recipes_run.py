@@ -99,7 +99,7 @@ def test_agent(tmp_path):
         _get_snippets()["agent"],
     )
     _run(
-        "from zrb.llm.subagent.manager import sub_agent_manager\n"
+        "from zrb.llm.subagent.manager.manager import sub_agent_manager\n"
         'assert sub_agent_manager.get_agent_definition("sql-reviewer") is not None\n',
         tmp_path,
     )

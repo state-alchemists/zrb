@@ -21,7 +21,7 @@ from zrb.llm.shared.message import (
     validate_tool_pair_integrity,
 )
 from zrb.llm.shared.message_text import render_verbatim_messages
-from zrb.llm.prompt.live_context import render_carried_context
+from zrb.llm.prompt.live_context.context import render_carried_context
 from zrb.llm.skill.reattach import build_reattach_message
 from zrb.llm.summarizer.chunk_processor import (
     chunk_and_summarize,

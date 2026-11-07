@@ -213,7 +213,7 @@ FACADE_BUDGETS = {
     # and this command is handled before that -- new behavior, and the reason
     # `/model small` was being ignored.
     "llm/task/llm_task.py": 820,
-    "llm/subagent/manager.py": 299,
+    "llm/subagent/manager/manager.py": 299,
 }
 
 

@@ -64,11 +64,12 @@ def resolve_agent_hook_tools(names: list[str]) -> list:
     # subagent/building.py and zrb.llm.summarizer into zrb.llm.agent's
     # closure; the summarizer imports zrb.llm.agent back, so only the closure
     # is circular (test_circular_import_allowlist.py).
-    from zrb.llm.subagent.manager import sub_agent_manager
+    from zrb.llm.subagent.manager.manager import sub_agent_manager
     from zrb.llm.subagent.tool_resolver import resolve_tools_by_name
 
-    # Mirrors resolve_agent_build's own ctx-less fallback (subagent/manager.py)
-    # — a hook fires outside any task run, so there is no real ctx to reuse.
+    # Mirrors resolve_agent_build's own ctx-less fallback
+    # (subagent/manager/manager.py) — a hook fires outside any task run, so
+    # there is no real ctx to reuse.
     ctx = Context(
         shared_ctx=SharedContext(), task_name="agent-hook", color=0, icon="🪝"
     )

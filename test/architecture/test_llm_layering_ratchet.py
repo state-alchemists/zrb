@@ -57,7 +57,7 @@ _FLOOR_PREFIXES = {"ui/fallback/": 0}
 # Upward runtime imports that exist today, as "importer -> imported" paths
 # under src/zrb/llm. Fix one, delete its line.
 KNOWN_UPWARD_EDGES: set[str] = {
-    "agent/hook_agent.py -> subagent/manager.py",
+    "agent/hook_agent.py -> subagent/manager/manager.py",
     "agent/hook_agent.py -> subagent/tool_resolver.py",
     "subagent/live_session.py -> ui/base/message_queue.py",
     "subagent/parent_message.py -> ui/buffered_ui.py",

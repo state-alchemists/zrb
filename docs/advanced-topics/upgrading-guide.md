@@ -88,6 +88,25 @@ The tools under `zrb.llm.tool` are now grouped by the domain they act on. A doma
 
 The single-module tools — `ask`, `git_visible`, `mcp`, `memory`, `multimodal_describe`, `skill`, `wrapper`, `zrb_task` — did not move.
 
+### The LSP, sub-agent and live-context facades are packages
+
+A facade with several parts is now a package, and its `__init__` re-exports the names the flat module exported — so a path that named the *facade* keeps working, and only a path that named one of its *parts* moved.
+
+| Before | After |
+|---|---|
+| `from zrb.llm.lsp.manager import LSPManager, lsp_manager` | unchanged — it is the package now |
+| `from zrb.llm.lsp.manager_lifecycle import LSPManagerLifecycle` | `from zrb.llm.lsp.manager.lifecycle import LSPManagerLifecycle` |
+| `from zrb.llm.lsp.manager_query import LSPManagerQuery` | `from zrb.llm.lsp.manager.query import LSPManagerQuery` |
+| `from zrb.llm.lsp.server import LSPServer, LSPServerConfig` | unchanged — it is the package now |
+| `from zrb.llm.lsp.server_operations import LSPServerOperations` | `from zrb.llm.lsp.server.operations import LSPServerOperations` |
+| `from zrb.llm.subagent.manager import SubAgentManager, sub_agent_manager` | unchanged — it is the package now |
+| `from zrb.llm.subagent.manager_loading import SubAgentManagerLoading` | `from zrb.llm.subagent.manager.loading import SubAgentManagerLoading` |
+| `from zrb.llm.subagent.manager_search import SubAgentManagerSearch` | `from zrb.llm.subagent.manager.search import SubAgentManagerSearch` |
+| `from zrb.llm.prompt.live_context import render_live_context, render_carried_context, LIVE_CONTEXT_ANCHOR` | unchanged — it is the package now |
+| `from zrb.llm.prompt.live_context_providers import LiveContextProviders, SimplePrompt` | `from zrb.llm.prompt.live_context.providers import LiveContextProviders, SimplePrompt` |
+
+The last row is the one path in this group that is gone rather than moved: `zrb.llm.prompt.live_context` was a module and is a package now, so its provider half could only become a module inside it. `split_live_context` and `append_live_context` were never defined there — their home is `zrb.llm.util.live_context_block`.
+
 ---
 
 ## Upgrading to 3.35.0
@@ -216,13 +235,13 @@ The LLM layering refactor moved where a few names live. Behaviour is unchanged; 
 | Before | After |
 |---|---|
 | `from zrb.llm.agent import create_agent, run_agent` | `from zrb.llm.agent_runner import create_agent, run_agent` |
-| `from zrb.llm.subagent.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
+| `from zrb.llm.subagent.manager.manager import sub_agent_manager` | `from zrb.llm.delegation_api import default_sub_agent_manager` (call it) |
 | `from zrb.llm.subagent.live_session import live_subagent_session_registry` | `from zrb.llm.delegation_api import get_live_session_registry` |
-| `from zrb.llm.prompt.live_context import append_live_context, split_live_context` | `from zrb.llm.util.live_context_block import append_live_context, split_live_context` |
+| `from zrb.llm.prompt.live_context.context import append_live_context, split_live_context` | `from zrb.llm.util.live_context_block import append_live_context, split_live_context` |
 
 `zrb.llm.agent` remains the engine’s public surface; the `agent_runner` facade is for L1 callers (tools, hooks, history) so they don’t import the engine.
 
-`split_live_context` is still importable from `zrb.llm.prompt.live_context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.util.live_context_block` now.
+`split_live_context` is still importable from `zrb.llm.prompt.live_context.context` (that module imports it for its own use), but `append_live_context` is not: the old import raises `ImportError`. Both live in `zrb.llm.util.live_context_block` now.
 
 ---
 

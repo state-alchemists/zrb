@@ -109,7 +109,7 @@ def test_load_restores_the_conversations_sub_agent_sessions(conv_ui):
             "zrb.llm.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.subagent.manager.sub_agent_manager", manager),
+        patch("zrb.llm.subagent.manager.manager.sub_agent_manager", manager),
     ):
         conv_ui.handle_load_command("load second")
 
@@ -170,7 +170,7 @@ def test_load_restores_sub_agents_of_a_name_that_needed_sanitizing(conv_ui):
             "zrb.llm.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.subagent.manager.sub_agent_manager", MagicMock()),
+        patch("zrb.llm.subagent.manager.manager.sub_agent_manager", MagicMock()),
     ):
         conv_ui.handle_load_command("load customer/acme")
 
@@ -192,7 +192,7 @@ def test_a_failed_load_leaves_no_half_restored_sub_agent_sessions(conv_ui):
             "zrb.llm.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.subagent.manager.sub_agent_manager", MagicMock()),
+        patch("zrb.llm.subagent.manager.manager.sub_agent_manager", MagicMock()),
     ):
         conv_ui.handle_load_command("load second")
 
@@ -213,7 +213,7 @@ def test_a_transcript_found_twice_is_restored_once(conv_ui):
             "zrb.llm.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.subagent.manager.sub_agent_manager", MagicMock()),
+        patch("zrb.llm.subagent.manager.manager.sub_agent_manager", MagicMock()),
     ):
         conv_ui.handle_load_command("load second")
 
@@ -253,7 +253,7 @@ def test_a_transcript_that_loads_empty_is_not_restored(conv_ui):
             "zrb.llm.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.subagent.manager.sub_agent_manager", MagicMock()),
+        patch("zrb.llm.subagent.manager.manager.sub_agent_manager", MagicMock()),
     ):
         conv_ui.handle_load_command("load second")
 
@@ -274,7 +274,7 @@ def test_load_by_the_topic_name_restores_the_sub_agents_of_its_key(conv_ui):
             "zrb.llm.subagent.live_session.live_subagent_session_registry",
             registry,
         ),
-        patch("zrb.llm.subagent.manager.sub_agent_manager", MagicMock()),
+        patch("zrb.llm.subagent.manager.manager.sub_agent_manager", MagicMock()),
     ):
         conv_ui.handle_load_command("load bold-arch-1234-greetings")
 

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from zrb.cmd.command import kill_pid
 from zrb.config.config import CFG
-from zrb.llm.lsp.server import (
+from zrb.llm.lsp.server.server import (
     LSPServer,
     detect_available_lsp_servers,
     get_lsp_config_for_file,

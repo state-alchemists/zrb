@@ -11,7 +11,7 @@ from zrb.llm.lsp.protocol import SymbolKind
 from zrb.llm.lsp.symbol_utils import format_document_symbols, uri_to_path
 
 if TYPE_CHECKING:
-    from zrb.llm.lsp.manager import LSPManager
+    from zrb.llm.lsp.manager.manager import LSPManager
 
 
 class LSPManagerQuery:

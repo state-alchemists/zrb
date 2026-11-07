@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.lsp.configs import LSPServerConfig
-from zrb.llm.lsp.server import LSPServer
+from zrb.llm.lsp.server.server import LSPServer
 
 
 @pytest.fixture

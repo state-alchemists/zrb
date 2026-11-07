@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from zrb.context.any_context import AnyContext
 from zrb.llm.shared.ambient_state import input_provenance
 from zrb.llm.shared.input_source import InputProvenance
-from zrb.llm.prompt.live_context import render_live_context
+from zrb.llm.prompt.live_context.context import render_live_context
 
 
 def test_live_context_includes_input_provenance():
@@ -100,7 +100,9 @@ def test_live_context_includes_active_worktrees(tmp_path):
         "prunable stale\n\n"
     )
     ctx = MagicMock(spec=AnyContext)
-    with patch("zrb.llm.prompt.live_context.os.getcwd", return_value=str(current)):
+    with patch(
+        "zrb.llm.prompt.live_context.context.os.getcwd", return_value=str(current)
+    ):
         with patch("zrb.llm.util.git.is_inside_git_dir", return_value=True):
             with patch("subprocess.run") as mock_run:
 

@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.subagent.manager import SubAgentManager
+from zrb.llm.subagent.manager.manager import SubAgentManager
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def _project_with_agents(root):
 def test_get_search_directories_includes_extra_agent_dirs(manager, tmp_path):
     extra = tmp_path / "extras"
     extra.mkdir()
-    with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME_ENABLED = False
         cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
@@ -53,7 +53,7 @@ def test_get_search_directories_includes_extra_agent_dirs(manager, tmp_path):
 
 
 def test_get_search_directories_skips_missing_extra_dir(manager, tmp_path):
-    with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME_ENABLED = False
         cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
@@ -71,7 +71,7 @@ def test_get_search_directories_includes_plugin_agents(manager, tmp_path):
     _make_plugin(plugins_root, "with-agents", with_agents_dir=True)
     _make_plugin(plugins_root, "without-agents", with_agents_dir=False)
 
-    with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME_ENABLED = False
         cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
@@ -91,7 +91,7 @@ def test_get_search_directories_walks_project_hierarchy(manager, tmp_path):
     _project_with_agents(tmp_path / "a")
     manager.scan_root = str(nested)
 
-    with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME_ENABLED = False
         cfg.LLM_SEARCH_PROJECT_ENABLED = True
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
@@ -107,7 +107,7 @@ def test_get_search_directories_walks_project_hierarchy(manager, tmp_path):
 
 
 def test_get_search_directories_includes_builtin_agents_when_enabled(manager):
-    with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME_ENABLED = False
         cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
@@ -120,7 +120,7 @@ def test_get_search_directories_includes_builtin_agents_when_enabled(manager):
 
 
 def test_get_search_directories_excludes_builtin_agents_when_disabled(manager):
-    with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME_ENABLED = False
         cfg.LLM_SEARCH_PROJECT_ENABLED = False
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]
@@ -141,7 +141,7 @@ def test_project_agent_overrides_builtin_agent_of_same_name(tmp_path):
         "---\nname: generalist\ndescription: Project generalist\n---\nProject body\n",
         encoding="utf-8",
     )
-    with patch("zrb.llm.subagent.manager_search.CFG") as cfg:
+    with patch("zrb.llm.subagent.manager.search.CFG") as cfg:
         cfg.LLM_SEARCH_HOME_ENABLED = False
         cfg.LLM_SEARCH_PROJECT_ENABLED = True
         cfg.LLM_CONFIG_DIR_NAMES = [".zrb"]

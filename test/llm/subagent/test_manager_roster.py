@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock, patch
 
-from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
+from zrb.llm.subagent.manager.manager import SubAgentDefinition, SubAgentManager
 
 
 def test_sub_agent_manager_add_tool():

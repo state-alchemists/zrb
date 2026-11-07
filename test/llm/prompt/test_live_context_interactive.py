@@ -7,7 +7,7 @@ and a guard that lists tools reads as a contract they do not have.
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.prompt.live_context import render_live_context
+from zrb.llm.prompt.live_context.context import render_live_context
 
 
 def _ctx(interactive: bool) -> Context:

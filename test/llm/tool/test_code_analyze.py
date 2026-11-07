@@ -32,18 +32,21 @@ def lsp_env():
     with (
         patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
+            "zrb.llm.lsp.manager.manager.lsp_manager.list_available_servers",
             return_value={"python": "pylsp"},
         ) as servers,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.get_document_symbols",
+            "zrb.llm.lsp.manager.manager.lsp_manager.get_document_symbols",
             new_callable=AsyncMock,
         ) as sym,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.get_diagnostics",
+            "zrb.llm.lsp.manager.manager.lsp_manager.get_diagnostics",
             new_callable=AsyncMock,
         ) as diag,
-        patch("zrb.llm.lsp.manager.lsp_manager.shutdown_all", new_callable=AsyncMock),
+        patch(
+            "zrb.llm.lsp.manager.manager.lsp_manager.shutdown_all",
+            new_callable=AsyncMock,
+        ),
     ):
         run.return_value = ("result", [])
         sym.return_value = {"found": False}
@@ -73,17 +76,21 @@ async def test_analyze_code_with_lsp(temp_code_dir):
             "zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock
         ) as mock_run,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
+            "zrb.llm.lsp.manager.manager.lsp_manager.list_available_servers",
             return_value={"python": "pylsp"},
         ),
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.get_document_symbols",
+            "zrb.llm.lsp.manager.manager.lsp_manager.get_document_symbols",
             new_callable=AsyncMock,
         ) as mock_sym,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.get_diagnostics", new_callable=AsyncMock
+            "zrb.llm.lsp.manager.manager.lsp_manager.get_diagnostics",
+            new_callable=AsyncMock,
         ) as mock_diag,
-        patch("zrb.llm.lsp.manager.lsp_manager.shutdown_all", new_callable=AsyncMock),
+        patch(
+            "zrb.llm.lsp.manager.manager.lsp_manager.shutdown_all",
+            new_callable=AsyncMock,
+        ),
     ):
 
         mock_run.return_value = ("LSP Analysis result", [])
@@ -109,18 +116,20 @@ async def test_analyze_code_does_not_shutdown_global_lsp_manager(temp_code_dir):
             "zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock
         ) as mock_run,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
+            "zrb.llm.lsp.manager.manager.lsp_manager.list_available_servers",
             return_value={"python": "pylsp"},
         ),
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.get_document_symbols",
+            "zrb.llm.lsp.manager.manager.lsp_manager.get_document_symbols",
             new_callable=AsyncMock,
         ) as mock_sym,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.get_diagnostics", new_callable=AsyncMock
+            "zrb.llm.lsp.manager.manager.lsp_manager.get_diagnostics",
+            new_callable=AsyncMock,
         ) as mock_diag,
         patch(
-            "zrb.llm.lsp.manager.lsp_manager.shutdown_all", new_callable=AsyncMock
+            "zrb.llm.lsp.manager.manager.lsp_manager.shutdown_all",
+            new_callable=AsyncMock,
         ) as mock_shutdown_all,
     ):
         mock_run.return_value = ("LSP Analysis result", [])
@@ -186,7 +195,7 @@ async def test_get_lsp_context_error(temp_code_dir):
     from zrb.llm.tool.code import get_lsp_context
 
     with patch(
-        "zrb.llm.lsp.manager.lsp_manager.get_document_symbols",
+        "zrb.llm.lsp.manager.manager.lsp_manager.get_document_symbols",
         side_effect=Exception("LSP error"),
     ):
         res = await get_lsp_context("main.py", temp_code_dir)

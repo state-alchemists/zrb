@@ -1,6 +1,6 @@
 """LSP (Language Server Protocol) integration for zrb."""
 
-from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.lsp.manager.manager import lsp_manager
 from zrb.llm.lsp.tools import (
     find_definition,
     find_references,

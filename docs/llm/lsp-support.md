@@ -65,7 +65,7 @@ rustup component add rust-analyzer                      # Rust
 Check what zrb detects, from Python:
 
 ```python
-from zrb.llm.lsp.server import detect_available_lsp_servers
+from zrb.llm.lsp.server.server import detect_available_lsp_servers
 
 servers = detect_available_lsp_servers()
 for name, path in servers.items():
@@ -99,7 +99,7 @@ To use a server not in the catalogue — another language, an in-house server, a
 
 ```python
 from zrb.llm.lsp.configs import LSPServerConfig
-from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.lsp.manager.manager import lsp_manager
 
 lsp_manager.register_lsp_server(
     "zls",  # unique key, also usable in ZRB_LLM_LSP_PREFERRED_SERVERS
@@ -146,7 +146,7 @@ User entries are merged over the built-in table in a single module-level registr
 
 ```
 Where is the LSPManager class defined?
-Show me all symbols in src/zrb/llm/lsp/manager.py
+Show me all symbols in src/zrb/llm/lsp/manager/manager.py
 Are there any errors in server.py?
 Find all references to find_definition
 What LSP servers are available?
@@ -165,7 +165,7 @@ result = await analyze_code("./src", "What classes are defined?")
 ### Programmatic Usage
 
 ```python
-from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.lsp.manager.manager import lsp_manager
 
 # List available servers
 servers = lsp_manager.list_available_servers()
@@ -280,7 +280,7 @@ Installing only the server you want for a language also works, as a coarser leve
 **Per-call override.** A direct `get_server` call may pass its own list, which replaces the env var:
 
 ```python
-from zrb.llm.lsp.manager import lsp_manager
+from zrb.llm.lsp.manager.manager import lsp_manager
 
 server = await lsp_manager.get_server(
     "src/zrb/example.py",

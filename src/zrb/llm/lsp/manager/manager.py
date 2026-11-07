@@ -6,9 +6,9 @@ import asyncio
 import atexit
 
 from zrb.llm.lsp.configs import lsp_server_configs
-from zrb.llm.lsp.manager_lifecycle import LSPManagerLifecycle
-from zrb.llm.lsp.manager_query import LSPManagerQuery
-from zrb.llm.lsp.server import LSPServer, LSPServerConfig
+from zrb.llm.lsp.manager.lifecycle import LSPManagerLifecycle
+from zrb.llm.lsp.manager.query import LSPManagerQuery
+from zrb.llm.lsp.server.server import LSPServer, LSPServerConfig
 
 
 class LSPManager:
@@ -125,7 +125,7 @@ class LSPManager:
         """Register a user LSP server configuration, e.g. from ``zrb_init.py``::
 
         from zrb.llm.lsp.configs import LSPServerConfig
-        from zrb.llm.lsp.manager import lsp_manager
+        from zrb.llm.lsp.manager.manager import lsp_manager
 
         lsp_manager.register_lsp_server(
             "my-lang-lsp",
