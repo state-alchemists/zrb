@@ -1,24 +1,19 @@
 """A workflow cannot be rewritten by the pull request it runs for.
 
-GitHub resolves a `pull_request` workflow — and every local `uses:` inside it —
-from the pull request's *merge commit*. A branch that edits the file therefore
-gets its edits executed, with whatever secrets the job declares, before anyone
-reviews the diff. `pull_request_target` resolves the same files from the base
-branch instead, which a pull request cannot change.
-
-That switch is only worth anything while three rules hold, and each of them is
-one careless edit away from being untrue:
+GitHub resolves a `pull_request` workflow, and every local `uses:` inside it, from
+the pull request's merge commit, so a branch that edits the file gets its edits
+executed with whatever secrets the job declares. `pull_request_target` resolves
+them from the base branch instead. Four rules keep that worth anything:
 
 * a workflow that names a secret is not triggered by `pull_request`;
-* no workflow hands a runner the pull request's head — under
-  `pull_request_target` that would execute exactly the code the base-branch YAML
-  exists to avoid, and `zrb_init.py` is loaded from the working directory, so a
-  checkout is enough;
-* every external action is pinned to a commit, because a tag is a moving pointer
-  and `@v4` runs whatever it points at today.
+* no workflow checks out the pull request's head — `zrb_init.py` loads from the
+  working directory, so a checkout is enough to run contributor code;
+* every external action is pinned to a commit, not a moving tag;
+* every runner names an image rather than `-latest`, which resolves to a
+  different OS without a commit changing.
 
 The workflows under `.github/workflows` are the tree's CI, not part of the
-package, so they are read as data here rather than imported.
+package, so they are read as text here rather than imported.
 """
 
 import re
@@ -44,6 +39,12 @@ _HEAD_CHECKOUT = re.compile(
 
 _USES = re.compile(r"^\s*(?:-\s+)?uses:\s*(\S+)", re.MULTILINE)
 _COMMIT = re.compile(r"[0-9a-f]{40}")
+
+# A runner label, only where one is written: after `runs-on:`, or after `os:` in a
+# matrix, inline list or not. Prose in a comment is not a label, so the comment
+# that explains why `-latest` is banned does not fail the rule that bans it.
+_LABEL_SITE = re.compile(r"^\s*(?:-\s+)?(?:runs-on|os):\s*(.+)$", re.MULTILINE)
+_WORD = re.compile(r"[\w.\-]+")
 
 
 def _workflows() -> list[Path]:
@@ -84,6 +85,14 @@ def _unpinned_action(name: str, text: str) -> str | None:
     return None
 
 
+def _moving_runner_image(name: str, text: str) -> str | None:
+    for site in _LABEL_SITE.finditer(text):
+        for word in _WORD.findall(site.group(1)):
+            if word.endswith("-latest"):
+                return f"{name}: {word}"
+    return None
+
+
 def test_a_workflow_holding_a_secret_is_not_triggered_by_pull_request():
     offenders = _offenders(_pull_request_trigger_with_a_secret)
     assert not offenders, (
@@ -111,6 +120,17 @@ def test_every_external_action_is_pinned_to_a_commit():
     )
 
 
+def test_every_runner_names_an_image_rather_than_latest():
+    offenders = _offenders(_moving_runner_image)
+    assert not offenders, (
+        "A runner label is a fact about a green run only if it names an image: "
+        "`-latest` resolves to a different OS without a commit changing, and the "
+        "Poetry virtualenv cached from one image arrives half-replaced on the "
+        "next. Name what it resolved to (the runner log's `Image:` line). "
+        "Offenders: " + "; ".join(offenders)
+    )
+
+
 def test_the_guards_read_a_planted_violation():
     """Each rule fails on the thing it is for, and only on that."""
     secret_and_pr = "on:\n  pull_request:\n    branches:\n      - main\n"
@@ -134,3 +154,15 @@ def test_the_guards_read_a_planted_violation():
     )
     assert not _unpinned_action("w.yml", "uses: ./.github/workflows/_zrb.yml")
     assert _unpinned_action("w.yml", "uses: actions/checkout@v4")
+
+    # A label counts only where a label is written: the comment that explains the
+    # ban must not fail it, and `${{ matrix.os }}` is not a label.
+    assert _moving_runner_image("w.yml", "    runs-on: ubuntu-latest")
+    assert _moving_runner_image(
+        "w.yml", "        os: [ubuntu-26.04]\n          - os: macos-latest"
+    )
+    assert not _moving_runner_image("w.yml", "    runs-on: ${{ matrix.os }}")
+    assert not _moving_runner_image("w.yml", "          - os: ubuntu-26.04")
+    assert not _moving_runner_image(
+        "w.yml", "    # a -latest label is a moving pointer"
+    )

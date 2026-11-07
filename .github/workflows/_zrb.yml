@@ -8,8 +8,7 @@ on:
         type: string
       needs-github-token:
         # Off by default: the token reaches `inputs.command`, and most commands
-        # have no business holding it. Only a caller that posts back to the PR
-        # asks for it.
+        # have no business holding it.
         required: false
         type: boolean
         default: false
@@ -31,11 +30,10 @@ jobs:
 
   # Docs: https://docs.github.com/en/actions/using-workflows/reusing-workflows
   Run-command:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     container:
-      # Pinned by digest as well as tag: a tag is a moving pointer, and this
-      # image supplies the `zrb` that runs with the secrets below. Moving to a
-      # new image is a reviewable diff, not a repush of the tag.
+      # Pinned by digest as well as tag: this image supplies the `zrb` that runs
+      # with the secrets below.
       image: stalchmst/zrb:3.28.1@sha256:60f2934bf71d4cf28d8e479c3d7f3a5d10a0b7f14cd297183598209a0c3ce2f3
       # Anonymous pulls from shared runner IPs hit Docker Hub's rate limit.
       credentials:
@@ -51,12 +49,8 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: ${{ inputs.fetch-depth }}
-          # Named rather than inherited. Under `pull_request_target` GitHub
-          # already resolves the checkout to the base branch; saying it out loud
-          # is what keeps it that way when this workflow is edited next. Never
-          # point it at the pull request's head: the review takes the head as a
-          # diff, and a checkout would put the contributor's `zrb_init.py` where
-          # `zrb` loads it from, with the key in the environment.
+          # The base branch under `pull_request_target`; never the head, whose
+          # `zrb_init.py` would then load where `zrb` looks for it.
           ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.base.ref || github.ref }}
 
       - name: Trust the workspace
@@ -73,14 +67,9 @@ jobs:
       - name: Run command
         shell: bash
         env:
-          # The command is passed as *data*, not spliced into the script by
-          # `${{ }}`. Interpolating it inline makes this step a script-injection
-          # sink the moment any caller builds `command` out of event data (a PR
-          # title, a branch name) -- and that injected code would run with
-          # whatever this step's env holds.
+          # The command is passed as data, not spliced in by `${{ }}`: inline
+          # interpolation would make this a script-injection sink.
           ZRB_COMMAND: ${{ inputs.command }}
-          # Empty unless the caller opted in. The true branch is non-empty, so
-          # this avoids the `&& '' ||` falsy trap documented in test.yml.
           GITHUB_TOKEN: ${{ inputs.needs-github-token && github.token || '' }}
         run: |
           set -e

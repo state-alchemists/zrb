@@ -9,38 +9,42 @@ on:
     branches:
       - main
 
-# Least privilege, named rather than inherited. An undeclared permission set
-# takes whatever the repository default is, so a settings change would widen this
-# job without a line of it changing. The suite needs to read the checkout.
 permissions:
   contents: read
 
 jobs:
   test:
     runs-on: ${{ matrix.os }}
-    # The suite drives real subprocesses, readiness checks and kill timeouts,
-    # so a hang is a plausible failure mode -- and GitHub's default ceiling is
-    # 6 hours of runner time before it notices.
     timeout-minutes: 30
     strategy:
       fail-fast: false
+      # Pinned images, never `-latest`; the guard test enforces it, and the cache
+      # key below names the image so a virtualenv only returns to the OS that built it.
       matrix:
-        # Full interpreter span on the primary platform (pyproject: >=3.11,<3.15).
-        # 3.14 is included: the one extra that caps below it, voyageai, already
-        # carries `python_version < '3.14'`, so --all-extras resolves without it.
-        os: [ubuntu-latest]
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
         include:
-          # Windows and macOS are documented as supported (installation.md calls
-          # Windows "Native Windows support", and install.ps1 ships), and src/
-          # carries 12 platform-conditional branches -- but nothing ran there
-          # until now. 3.0.0b10 shipped a bug that mangled every `C:\...` path
-          # in 11 config knobs for exactly this reason. One interpreter each is
-          # enough to catch platform breakage; the version spread is ubuntu's job.
-          - os: windows-latest
+          # pyproject: >=3.11,<3.15.
+          - os: ubuntu-26.04
+            python-version: "3.11"
+            test-args: ""
+          - os: ubuntu-26.04
+            python-version: "3.12"
+            test-args: ""
+          - os: ubuntu-26.04
             python-version: "3.13"
-          - os: macos-latest
+            test-args: ""
+          - os: ubuntu-26.04
+            python-version: "3.14"
+            test-args: ""
+          # Windows and macOS are documented as supported and src/ carries platform
+          # branches, so one interpreter each checks the suite still runs there.
+          # `test-args` is per row because GitHub expressions have no inline
+          # conditional, and `&& '' ||` is falsy-trap bait.
+          - os: windows-2025-vs2026
             python-version: "3.13"
+            test-args: "test"
+          - os: macos-26
+            python-version: "3.13"
+            test-args: "test"
 
     steps:
       - name: Check out repository code
@@ -55,14 +59,6 @@ jobs:
       - name: Install Poetry
         run: pipx install poetry
 
-      # No ripgrep install here on purpose. `file_search` and the journal tool
-      # prefer `rg` and fall back to os.walk / plain Python without it, and every
-      # test that exercises the ripgrep path mocks `shutil.which`, so none of
-      # them needs the binary. The runners do not ship it either, so installing
-      # it bought only an apt-get/brew/choco round trip per job. The suite
-      # therefore runs the fallback path here, which is what a user without `rg`
-      # gets.
-
       - name: Build README.pypi.md
         # README.pypi.md is the readme Poetry packages (it is gitignored), so it
         # must be generated before `poetry install` reads pyproject.
@@ -71,34 +67,17 @@ jobs:
       - name: Cache Poetry virtualenv
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          # Poetry's default cache dir (it nests virtualenvs under it) differs
-          # per platform, and all three already sit outside the checkout.
+          # Poetry's cache dir differs per platform, and all three sit outside the
+          # checkout.
           path: ${{ runner.os == 'Windows' && '~\AppData\Local\pypoetry\Cache' || (runner.os == 'macOS' && '~/Library/Caches/pypoetry' || '~/.cache/pypoetry') }}
-          # The exact interpreter is part of the key: a cached virtualenv points at
-          # the base python it was built from (e.g. ...\Python\3.13.16\x64), and
-          # the runner pool serves images with different patch releases, so a venv
-          # restored onto 3.13.17 fails `poetry install` with "did not find
-          # executable".
-          key: poetry-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('poetry.lock') }}
+          # The interpreter a venv points at, and the image it was built on.
+          key: poetry-${{ matrix.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('poetry.lock') }}
 
       - name: Install dependencies
         run: poetry install --all-extras --no-interaction
 
       - name: Lint and run tests with coverage
-        # Single source of truth: the same script developers run locally. Git
-        # Bash ships on the Windows runner, so the POSIX script runs unchanged.
-        #
-        # ubuntu gets the full gate (pyright + the >=94% coverage threshold).
-        # windows/macOS pass an explicit target, which makes zrb-test.sh skip
-        # both -- deliberately. pyright is platform-independent, so running it
-        # three times only buys latency; and a global coverage floor is not
-        # meaningful on a platform where the win32/darwin branches make a
-        # different subset of lines reachable. Those jobs answer "does the
-        # suite run here", which is the question that was never being asked.
-        #
-        # The ternary is inverted on purpose: GitHub expressions treat '' as
-        # falsy, so `os == 'ubuntu' && '' || 'test'` yields 'test' on EVERY
-        # platform. Putting the non-empty value on the true branch is the only
-        # form that works.
+        # The same script developers run locally. Ubuntu passes no target and gets
+        # pyright plus the coverage floor; windows/macOS pass `test` and skip both.
         shell: bash
-        run: poetry run bash zrb-test.sh ${{ matrix.os != 'ubuntu-latest' && 'test' || '' }}
+        run: poetry run bash zrb-test.sh ${{ matrix.test-args }}
