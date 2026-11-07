@@ -2,7 +2,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.any_ui import AnyUI
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.ui_fallback.std_ui import StdUI
@@ -50,6 +49,8 @@ def runner():
 
 
 class SimpleMockUI:
+    display = property(lambda self: self)
+
     def __init__(self, **kwargs):
         self.last_output = "Final"
         self.run_async = AsyncMock(return_value="Final")
@@ -137,7 +138,8 @@ async def test_run_non_interactive_session_finalizes_attached_uis(runner):
     ctx.shared_print = MagicMock()
     ctx.xcom = {}
 
-    ui_with_markdown = MagicMock(spec=AnyUI)
+    ui_with_markdown = MagicMock(spec=["display", "append_answer"])
+    ui_with_markdown.display = ui_with_markdown
     ui_without_markdown = _TextOnlyUI()  # e.g. a UI with no rich rendering
 
     llm_task_core = MagicMock()
@@ -173,7 +175,8 @@ async def test_run_non_interactive_session_answers_through_append_answer(runner)
     ctx.shared_print = MagicMock()
     ctx.xcom = {}
 
-    ui_with_both = MagicMock(spec=["append_answer", "append_markdown"])
+    ui_with_both = MagicMock(spec=["append_answer", "append_markdown", "display"])
+    ui_with_both.display = ui_with_both
 
     llm_task_core = MagicMock()
     llm_task_core.async_run = AsyncMock(return_value="AI Output")
@@ -205,7 +208,8 @@ async def test_run_non_interactive_session_skips_finalize_for_non_string_result(
     ctx.shared_print = MagicMock()
     ctx.xcom = {}
 
-    ui_with_markdown = MagicMock(spec=["append_markdown"])
+    ui_with_markdown = MagicMock(spec=["append_markdown", "display"])
+    ui_with_markdown.display = ui_with_markdown
 
     llm_task_core = MagicMock()
     llm_task_core.async_run = AsyncMock(return_value=None)
@@ -446,7 +450,8 @@ def test_load_session_history_uses_replay_when_available(runner):
     history_manager = MagicMock()
     history_manager.load.return_value = ["msg1", "msg2"]
 
-    ui = MagicMock(spec=["replay_history", "append_to_output"])
+    ui = MagicMock(spec=["replay_history", "append_to_output", "display"])
+    ui.display = ui
     ui.replay_history = MagicMock()
 
     runner.load_session_history(ui, history_manager, "sess1")
@@ -474,7 +479,8 @@ def test_load_session_history_falls_back_to_text_dump(runner):
 def test_load_session_history_empty_name_is_noop(runner):
     """An empty conversation name must short-circuit the loader."""
     history_manager = MagicMock()
-    ui = MagicMock(spec=["replay_history", "append_to_output"])
+    ui = MagicMock(spec=["replay_history", "append_to_output", "display"])
+    ui.display = ui
 
     runner.load_session_history(ui, history_manager, "")
 

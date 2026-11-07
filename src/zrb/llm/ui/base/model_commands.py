@@ -51,7 +51,7 @@ class BaseUIModelCommands:
     def toggle_yolo(self):
         """Toggle YOLO mode (full on/off) and force refresh."""
         self._base_ui.yolo = not bool(self._base_ui.yolo)
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()
 
     def handle_toggle_yolo(self, text: str) -> bool:
         stripped = text.strip()
@@ -65,7 +65,7 @@ class BaseUIModelCommands:
                 tools = frozenset(t.strip() for t in tools_str.split(",") if t.strip())
                 if tools:
                     self._base_ui.yolo = tools
-                    self._base_ui.invalidate_ui()
+                    self._base_ui.display.invalidate_ui()
                 return True
         return False
 
@@ -77,7 +77,7 @@ class BaseUIModelCommands:
         )
         status = "On" if self._base_ui.plan_mode_active else "Off"
         self._base_ui.append_to_output(stylize_muted(f"\n  📋 PLAN MODE: {status}\n"))
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()
 
     def handle_toggle_plan(self, text: str) -> bool:
         stripped = text.strip()
@@ -127,7 +127,7 @@ class BaseUIModelCommands:
         # other state) clears yolo so plan and auto-approve never stack.
         self._base_ui.yolo = _AUTO_EDIT_TOOLS if name == "accept_edits" else False
         self._base_ui.append_to_output(stylize_muted(f"\n  {_MODE_BANNERS[name]}\n"))
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()
 
     def handle_set_model_command(self, text: str) -> bool:
         text = text.strip()
@@ -286,4 +286,4 @@ class BaseUIModelCommands:
         self._refresh_live_session(name, converted)
         shown = "[set]" if field is not None and field.secret else repr(converted)
         self._base_ui.append_to_output(stylize_muted(f"\n  🔧 Set {name} = {shown}\n"))
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()

@@ -57,7 +57,7 @@ async def test_a_new_title_repaints_the_parent_ui(
     await _title(registry, entry)
 
     assert entry.title == "fix-login"
-    buffered_ui.parent_ui.invalidate_ui.assert_called_once()
+    buffered_ui.parent_ui.display.invalidate_ui.assert_called_once()
 
 
 @pytest.mark.asyncio

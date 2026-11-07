@@ -123,7 +123,7 @@ FACADE_BUDGETS = {
     # +1 (1319->1320): a background notice is not recorded for input recall.
     # +2 (1319->1321): a deferred redraw binds its own entry, so it cannot reach
     # the loop's last one -- no new surface.
-    "llm/ui/base/ui.py": 1321,
+    "llm/ui/base/ui.py": 1262,
     # +11 (653->664): markdown-merge echo entry points — `render_markdown`
     # (now width-aware, for re-render on resize) and `set_rendered_block`,
     # which registers a redrawn echo as a re-renderable block. +7 (664->671):
@@ -183,7 +183,12 @@ FACADE_BUDGETS = {
     # confirmation queue's widget, so it hands that widget out as its picker
     # instead of inheriting the text fallback; the widget itself is in
     # `default/picker.py`.
-    "llm/ui/default/ui.py": 777,
+    # +17 (777->794): the display accessor and the two members the display part
+    # no longer supplies to this UI — `last_output` (the pane keeps the answer it
+    # rendered, not the part) and `set_status_badge` (badge, then repaint). The
+    # markdown, answer, block-marker and echo bodies moved to `BaseUIDisplay`,
+    # which is why the hub shrank 59 lines and this file grew by 17.
+    "llm/ui/default/ui.py": 794,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

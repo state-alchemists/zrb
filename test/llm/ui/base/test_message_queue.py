@@ -212,7 +212,8 @@ def test_submit_user_message_via_queue_single_target_echoes_and_queues():
     outputs = []
     tracked = []
 
-    class Target:
+    class Target(_NoOpEchoTarget):
+
         def take_pending_attachments(self):
             return ["img"]
 
@@ -249,7 +250,8 @@ def test_submit_user_message_via_queue_fans_out_to_multiple_targets():
     the router's own owner."""
     tracked_by = []
 
-    class Child:
+    class Child(_NoOpEchoTarget):
+
         def __init__(self, name, attachments):
             self.name = name
             self._attachments = attachments
@@ -384,6 +386,8 @@ def test_submit_user_message_via_queue_ignores_sources_without_attachments():
 class _NoOpEchoTarget:
     """Minimal `AnyUI` echo-target shape for callers that never touch the echo side."""
 
+    display = property(lambda self: self)
+
     def track_echo_span(self, entry, echo):
         pass
 
@@ -396,7 +400,8 @@ def test_submit_user_message_via_queue_renders_markdownish_echo():
     outputs: list[tuple[tuple, dict]] = []
     rendered: list[str] = []
 
-    class Target:
+    class Target(_NoOpEchoTarget):
+
         def take_pending_attachments(self):
             return []
 
@@ -438,7 +443,8 @@ def test_submit_user_message_via_queue_keeps_raw_echo_for_plain_single_line():
     rendered: list[str] = []
     tracked: list[str] = []
 
-    class Target:
+    class Target(_NoOpEchoTarget):
+
         def take_pending_attachments(self):
             return []
 

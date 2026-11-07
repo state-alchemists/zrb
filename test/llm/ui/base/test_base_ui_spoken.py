@@ -12,9 +12,17 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
+from zrb.llm.ui.base.display import BaseUIDisplay
 from zrb.llm.ui.base.ui import BaseUI
 
 ANSWER = "<spoken>😊 Fixed the parser. All tests pass.</spoken>\n`main.py`: 3 tests."
+
+
+class _RecordingDisplay(BaseUIDisplay):
+    """Records the markdown it is asked to show, and nothing else."""
+
+    def append_markdown(self, markdown_text: str) -> None:
+        self._base_ui.rendered.append(markdown_text)
 
 
 class RecordingUI(BaseUI):
@@ -25,8 +33,9 @@ class RecordingUI(BaseUI):
     def append_to_output(self, *values, sep=" ", end="\n", kind="text", **kwargs):
         pass
 
-    def append_markdown(self, markdown_text: str) -> None:
-        self.rendered.append(markdown_text)
+    @property
+    def display(self) -> BaseUIDisplay:
+        return _RecordingDisplay(self)
 
     async def ask_user(self, prompt: str) -> str:
         return "yes"
@@ -69,4 +78,4 @@ async def test_the_answer_keeps_its_markers_for_speech(recording_ui):
 
     await recording_ui.stream_ai_response(recording_ui.llm_task, "user message")
 
-    assert recording_ui.last_output == ANSWER
+    assert recording_ui.display.last_output == ANSWER

@@ -816,7 +816,7 @@ class DictationSession:
     def _show(self, badge: str | None, ui: "AnyUI | None" = None) -> None:
         target = get_session_ui() or ui or self._ui
         if target is not None:
-            target.set_status_badge(BADGE_KEY, badge)
+            target.display.set_status_badge(BADGE_KEY, badge)
 
     def _report(self, message: str) -> None:
         """Say *message* on the session's UI, else log it."""

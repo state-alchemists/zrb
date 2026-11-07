@@ -56,7 +56,7 @@ def notify(message: str) -> None:
         return
     try:
         # end="": the message already carries its own leading newline.
-        ui.stream_to_parent(f"\n  {message}", end="", kind="text")
+        ui.display.stream_to_parent(f"\n  {message}", end="", kind="text")
     except Exception:  # noqa: BLE001
         pass
 

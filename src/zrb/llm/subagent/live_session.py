@@ -302,7 +302,7 @@ def start_titling(entry: LiveSubAgentSession, text: str) -> None:
             return
         entry.title = title
         # An open picker would otherwise keep showing the untitled row.
-        entry.buffered_ui.parent_ui.invalidate_ui()
+        entry.buffered_ui.parent_ui.display.invalidate_ui()
 
     try:
         task = asyncio.get_running_loop().create_task(_title())

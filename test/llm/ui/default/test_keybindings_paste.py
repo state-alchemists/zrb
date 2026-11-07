@@ -49,6 +49,9 @@ class MockUI:
         self.execute_hook = MagicMock()
         self.append_to_output = MagicMock(side_effect=lambda x: self.outputs.append(x))
         self.invalidate_ui = MagicMock()
+        # This double is its own display: the parts reach the output surface
+        # through it, exactly as the real default `UI` does.
+        self.display = self
         self.toggle_yolo = MagicMock()
         self.toggle_collapsible_block = MagicMock()
         self.cycle_mode = MagicMock()
@@ -201,6 +204,8 @@ class IntegrationUI:
     reference, so `self._cmds`/`self._keybindings`/`self._message_editing`
     plus the `__getattr__` fallback below keep `self.classify_input(...)` /
     `self.schedule_command(...)` working exactly as before."""
+
+    display = property(lambda self: self)
 
     def __init__(self):
         self.exit_commands = ["/exit"]

@@ -10,8 +10,9 @@ on MRO.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO, cast
 
+from zrb.llm.any_ui_display import AnyUIDisplay
 from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.ui_fallback.text_picker import TextPicker
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
@@ -32,6 +33,11 @@ class UIStateDefaultsMixin:
         if self._uidefaults_picker is None:
             self._uidefaults_picker = TextPicker(self.ask_user)
         return self._uidefaults_picker
+
+    @property
+    def display(self) -> "AnyUIDisplay":
+        """A UI that keeps its own output surface is its own display."""
+        return cast("AnyUIDisplay", self)
 
     # Class-level defaults so no `__init__` is needed; setters shadow them per
     # instance. Prefixed so they cannot collide with a host's own fields.
@@ -284,7 +290,9 @@ class UIStateDefaultsMixin:
         """No output buffer to record an echo span against."""
 
     def redraw_echoes(self, entries: "Sequence[QueuedMessage]") -> None:
-        """No output buffer to rewrite delivered echoes in."""
+        """Rewrite this UI's own echoes; a `MultiUI` overrides to fan out."""
+        for entry in entries:
+            self.redraw_echo(entry)
 
     def deliver_queued_messages_early(self) -> DeliveryReport:
         """No queue of its own, so nothing to hand to the turn."""

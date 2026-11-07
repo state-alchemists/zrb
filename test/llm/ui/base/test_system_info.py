@@ -13,6 +13,8 @@ from zrb.llm.ui.base.system_info import BaseUISystemInfo, communicate_or_reap
 class FakeBaseUI:
     """Composes BaseUISystemInfo the same way production `BaseUI` does."""
 
+    display = property(lambda self: self)
+
     def __init__(self):
         self.cwd = ""
         self.git_info = ""

@@ -48,7 +48,7 @@ class BaseUISystemInfo:
             self._base_ui.git_info = f"{branch}{status}"
         else:
             self._base_ui.git_info = "Not a git repo"
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()
 
     def get_cwd_display(self) -> str:
         cwd = os.getcwd()

@@ -11,6 +11,8 @@ from pydantic_ai.messages import ToolCallPart
 class MockUI:
     """Mock UI for testing."""
 
+    display = property(lambda self: self)
+
     def __init__(self):
         self.outputs = []
 

@@ -36,6 +36,8 @@ def runner():
 
 
 class SimpleMockUI:
+    display = property(lambda self: self)
+
     def __init__(self, **kwargs):
         self.last_output = "Final"
         self.run_async = AsyncMock(return_value="Final")

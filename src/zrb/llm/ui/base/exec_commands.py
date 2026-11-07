@@ -63,7 +63,7 @@ class BaseUIExecCommands:
 
     async def run_shell_command(self, cmd: str):
         self._base_ui.is_thinking = True
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()
         timestamp = datetime.now().strftime("%H:%M")
         process = None
 
@@ -124,7 +124,7 @@ class BaseUIExecCommands:
             self._base_ui.is_thinking = False
             self._base_ui.running_llm_task = None
             await self._base_ui.update_system_info()
-            self._base_ui.invalidate_ui()
+            self._base_ui.display.invalidate_ui()
 
     # /btw side question
 
@@ -210,7 +210,7 @@ class BaseUIExecCommands:
         except Exception as e:
             self._base_ui.fail_side_question(exception_summary(e), request)
         finally:
-            self._base_ui.invalidate_ui()
+            self._base_ui.display.invalidate_ui()
 
     # custom commands
 

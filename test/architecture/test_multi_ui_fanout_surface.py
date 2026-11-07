@@ -108,9 +108,15 @@ def test_only_the_offered_hooks_are_dispatched_by_string():
 
 
 def test_every_declared_hook_is_declared_on_any_ui():
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.any_ui import AnyUI, AnyUIDisplay
 
-    missing = sorted(name for name in DECLARED_HOOKS if not hasattr(AnyUI, name))
+    # A hook is either on the whole object or on the display role it is part
+    # of, which MultiUI reaches as `child.display`.
+    missing = sorted(
+        name
+        for name in DECLARED_HOOKS
+        if not hasattr(AnyUI, name) and not hasattr(AnyUIDisplay, name)
+    )
     assert not missing, f"MultiUI calls {missing}, which AnyUI does not declare."
 
 

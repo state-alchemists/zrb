@@ -17,6 +17,8 @@ class MockUI:
     """Stand-in for `BaseUI` that composes a real `BaseUICommands(self)` and
     forwards attribute lookups to it and its parts."""
 
+    display = property(lambda self: self)
+
     def __init__(self):
         self.exit_commands = ["/exit"]
         self.info_commands = ["/help"]

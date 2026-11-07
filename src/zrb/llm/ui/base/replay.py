@@ -60,7 +60,7 @@ class BaseUIReplay:
                     content, live_context = str(raw_content), None
                 echo_user_message(
                     self._base_ui.append_to_output,
-                    self._base_ui.append_markdown,
+                    self._base_ui.display.append_markdown,
                     header=f"\n💬 {ts_display}>> ",
                     body=content.strip(),
                 )
@@ -100,7 +100,7 @@ class BaseUIReplay:
                     # History keeps the markers, because the stop hook reads the
                     # same text for speech; a replayed reply is a screen, and a
                     # screen of run prose takes the run's column.
-                    self._base_ui.append_answer(shown_text(content))
+                    self._base_ui.display.append_answer(shown_text(content))
             elif pkind == "tool-call":
                 self._replay_tool_call(part, pending_tool_calls)
 

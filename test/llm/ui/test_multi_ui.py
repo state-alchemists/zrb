@@ -7,10 +7,17 @@ from zrb.llm.ui.multi_ui import MultiUI, get_main_ui, resolve_ui
 from zrb.llm.ui.std_ui import StdUI
 
 
+def _self_display_mock() -> MagicMock:
+    """A stand-in UI that is its own display, like every UI owning its surface."""
+    ui = MagicMock()
+    ui.display = ui
+    return ui
+
+
 @pytest.fixture
 def mock_child_ui():
     """Create a mock child UI for testing."""
-    ui = MagicMock()
+    ui = _self_display_mock()
     ui.append_to_output = MagicMock()
     ui.ask_user = AsyncMock(return_value="y")
     ui.tool_call_handler = MagicMock()
@@ -27,7 +34,7 @@ def mock_child_ui():
 
 @pytest.fixture
 def child_ui_1():
-    ui = MagicMock()
+    ui = _self_display_mock()
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 1")
@@ -48,7 +55,7 @@ def child_ui_1():
 
 @pytest.fixture
 def child_ui_2():
-    ui = MagicMock()
+    ui = _self_display_mock()
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 2")
@@ -82,7 +89,7 @@ class TestMultiUI:
     def test_set_tool_call_handler(self, mock_child_ui):
         """Test set_tool_call_handler method."""
         multi_ui = MultiUI([mock_child_ui])
-        mock_handler = MagicMock()
+        mock_handler = _self_display_mock()
         multi_ui.set_tool_call_handler(mock_handler)
 
         # Verify through public property
@@ -91,7 +98,7 @@ class TestMultiUI:
     def test_set_approval_channel(self, mock_child_ui):
         """Test set_approval_channel method."""
         multi_ui = MultiUI([mock_child_ui])
-        mock_channel = MagicMock()
+        mock_channel = _self_display_mock()
 
         multi_ui.set_approval_channel(mock_channel)
 
@@ -101,7 +108,7 @@ class TestMultiUI:
 
     def test_main_ui_property(self, mock_child_ui):
         """Test that run_interactive_command delegates to first UI by default."""
-        other_ui = MagicMock()
+        other_ui = _self_display_mock()
         other_ui.run_interactive_command = AsyncMock(return_value=0)
         mock_child_ui.run_interactive_command = AsyncMock(return_value=0)
         multi_ui = MultiUI([mock_child_ui, other_ui])
@@ -112,7 +119,7 @@ class TestMultiUI:
 
     def test_main_ui_property_with_custom_index(self, mock_child_ui):
         """Test that run_interactive_command delegates to correct UI based on main_ui_index."""
-        other_ui = MagicMock()
+        other_ui = _self_display_mock()
         other_ui.run_interactive_command = AsyncMock(return_value=0)
         mock_child_ui.run_interactive_command = AsyncMock(return_value=0)
         multi_ui = MultiUI([mock_child_ui, other_ui], main_ui_index=1)
@@ -138,14 +145,14 @@ class TestMultiUI:
             MultiUI([mock_child_ui, MagicMock()], main_ui_index=2)
 
     def test_negative_main_ui_index_counts_from_the_end(self, mock_child_ui):
-        last = MagicMock()
+        last = _self_display_mock()
 
         assert MultiUI([mock_child_ui, last], main_ui_index=-1).main_ui is last
 
     def test_set_llm_task_sets_on_children(self, mock_child_ui):
         """Test set_llm_task sets llm_task on all children."""
-        other_ui = MagicMock()
-        mock_task = MagicMock()
+        other_ui = _self_display_mock()
+        mock_task = _self_display_mock()
 
         multi_ui = MultiUI([mock_child_ui, other_ui])
         multi_ui.set_llm_task(mock_task)
@@ -168,7 +175,7 @@ class TestMultiUI:
 
     def test_stream_to_parent(self, mock_child_ui):
         """Test stream_to_parent delegates to child UIs."""
-        other_ui = MagicMock()
+        other_ui = _self_display_mock()
         other_ui.stream_to_parent = MagicMock()
         multi_ui = MultiUI([mock_child_ui, other_ui])
 
@@ -189,7 +196,7 @@ class TestMultiUI:
 
     def test_invalidate_ui(self, mock_child_ui):
         """Test invalidate_ui calls invalidate_ui on all children."""
-        other_ui = MagicMock()
+        other_ui = _self_display_mock()
         multi_ui = MultiUI([mock_child_ui, other_ui])
 
         multi_ui.invalidate_ui()
@@ -199,7 +206,7 @@ class TestMultiUI:
 
     def test_invalidate_ui_handles_exception(self, mock_child_ui):
         """Test invalidate_ui handles exceptions from child UIs."""
-        other_ui = MagicMock()
+        other_ui = _self_display_mock()
         del other_ui.invalidate_ui  # Remove the method to trigger exception
         multi_ui = MultiUI([mock_child_ui, other_ui])
 
@@ -288,7 +295,7 @@ async def test_multi_ui_run_interactive_command(multi_ui, child_ui_1):
 
 def _child(session: str, yolo: bool, model: str) -> MagicMock:
     """A child UI carrying distinguishable primary-child state."""
-    ui = MagicMock()
+    ui = _self_display_mock()
     ui.conversation_session_name = session
     ui.yolo = yolo
     ui.model = model
@@ -398,7 +405,7 @@ def test_primary_owned_state_reads_through_to_main_ui(mock_child_ui):
 
 def test_llm_task_reports_what_set_llm_task_stored(mock_child_ui):
     multi_ui = MultiUI([mock_child_ui])
-    task = MagicMock()
+    task = _self_display_mock()
 
     multi_ui.set_llm_task(task)
 
@@ -406,7 +413,7 @@ def test_llm_task_reports_what_set_llm_task_stored(mock_child_ui):
 
 
 def test_cancel_pending_confirmations_reaches_every_child(mock_child_ui):
-    other_ui = MagicMock()
+    other_ui = _self_display_mock()
     multi_ui = MultiUI([mock_child_ui, other_ui])
 
     multi_ui.cancel_pending_confirmations(flush=False)
@@ -433,6 +440,9 @@ def test_multi_ui_takes_only_genuinely_inert_members_from_the_defaults():
         "multi_ui_parent",
         # Its own per-instance set, exactly what the mixin provides.
         "background_tasks",
+        # MultiUI is its own display: every write fans out to the children, so
+        # the mixin's "hand yourself out" default is exactly right.
+        "display",
         # Echo spans live in each child's buffer; MultiUI has no buffer.
         "track_echo_span",
         "redraw_echo",

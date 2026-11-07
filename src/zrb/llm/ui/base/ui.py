@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import AsyncIterable, Callable, Sequence
+from collections.abc import AsyncIterable, Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
@@ -31,6 +31,7 @@ from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent_state import get_current_ui
 from zrb.llm.any_ui import AnyUI
+from zrb.llm.any_ui_display import AnyUIDisplay
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
@@ -51,6 +52,8 @@ from zrb.llm.tool_call import (
 )
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
+from zrb.llm.ui.base.display import BaseUIDisplay
+from zrb.llm.ui.base.echo_broadcast import broadcast_echo
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
@@ -77,7 +80,6 @@ from zrb.llm.util.spoken import shown_text
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
 from zrb.task.any_task import AnyTask
-from zrb.util.cli.markdown import render_markdown
 from zrb.util.cli.style import stylize_muted
 from zrb.util.exception import exception_summary
 from zrb.util.string.name import get_random_name
@@ -119,20 +121,6 @@ def _command_alias_property(key: str, label: str) -> property:
 
     getter.__doc__ = f"Get the list of {label} commands."
     return property(getter, setter)
-
-
-def _broadcast_echo(ui: AnyUI, call: Callable[[AnyUI], object]) -> None:
-    """Call `call` on every UI holding its own echo of a queued message.
-
-    That is every `MultiUI` child, or the UI alone. A child that raises does
-    not stop the rest.
-    """
-    parent = ui.multi_ui_parent
-    for target in parent.children if parent else [ui]:
-        try:
-            call(target)
-        except Exception as e:
-            CFG.LOGGER.debug(f"Child UI echo update failed: {e}")
 
 
 class BaseUI(UIStateDefaultsMixin, AnyUI):
@@ -266,6 +254,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         self.models = self._base_commands.models
         self._exec = self._base_commands.exec
         self._base_replay = BaseUIReplay(self)
+        self._base_display = BaseUIDisplay(self)
         self._base_system_info = BaseUISystemInfo(self)
 
         if self._ui_config.is_yolo:
@@ -308,12 +297,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     @triggers.setter
     def triggers(self, value: list[Callable[[], AsyncIterable[Any]]]):
         self._triggers = value
-
-    @property
-    def last_output(self) -> str:
-        if self._last_result_data is None:
-            return ""
-        return self._last_result_data
 
     @property
     def last_result_data(self) -> "str | None":
@@ -517,6 +500,21 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """The slash-command dispatcher; extend via `commands.command_table()`."""
         return self._base_commands
 
+    @property
+    def display(self) -> AnyUIDisplay:
+        """What this UI writes: output, answers, block markers, echo spans."""
+        return self._base_display
+
+    @property
+    def replay(self) -> BaseUIReplay:
+        """The history-replay renderer, which writes through `display`."""
+        return self._base_replay
+
+    @property
+    def status_bar(self) -> BaseUIStatusBar:
+        """The status bar's own state: working timer, running tool, badges."""
+        return self._base_status_bar
+
     def classify_input(self, text: str) -> str:
         return self._base_commands.classify_input(text)
 
@@ -644,7 +642,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # A side answer is a screen: history is not involved, and the markers
         # belong to the ear alone. It is run prose, so it takes the column the
         # run's lines stream at.
-        self.append_answer(shown_text(answer))
+        self.display.append_answer(shown_text(answer))
 
     def fail_side_question(self, message: str, request: object | None = None) -> None:
         """[OPTIONAL] Report a side question that could not be answered."""
@@ -666,11 +664,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     def handle_custom_command(self, text: str) -> bool:
         return self._exec.handle_custom_command(text)
-
-    # BaseUIReplay delegators
-
-    def replay_history(self, messages: list) -> None:
-        self._base_replay.replay_history(messages)
 
     # BaseUISystemInfo delegators
 
@@ -911,7 +904,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                     pass
                 finally:
                     self._process_messages_task.cancel()
-                return self.last_output
+                return self.display.last_output
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement run_async()"
@@ -1002,18 +995,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         """
         return self.send_queued_messages_now(may_interrupt=False, only_ready=True)
 
-    def redraw_echoes(self, entries: "Sequence[QueuedMessage]") -> None:
-        """Rewrite the echoes of `entries` on every UI that holds one.
-
-        A delivered message leaves the queue, so its panel row disappears at
-        once; its echo line keeps its place in the transcript and changes marker
-        (`DELIVERED_MARKER`), the only record of what the model actually read.
-        """
-        for entry in entries:
-            # Each entry is bound to its own call, so a deferred redraw — this
-            # one queued, or a task — cannot reach the loop's last entry.
-            _broadcast_echo(self, lambda ui, entry=entry: ui.redraw_echo(entry))
-
     def edit_queued_message(self, entry: QueuedMessage, new_text: str) -> bool:
         """Replace a still-queued message's text and redraw its echoes.
 
@@ -1023,7 +1004,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if not queue.contains(entry):
             return False
         entry.text = new_text.strip()
-        _broadcast_echo(self, lambda ui: ui.redraw_echo(entry))
+        broadcast_echo(self, lambda ui: ui.display.redraw_echo(entry))
         return True
 
     def delete_queued_message(self, entry: QueuedMessage) -> None:
@@ -1035,33 +1016,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         if not queue.contains(entry):
             return
         queue.remove(entry)
-        _broadcast_echo(self, lambda ui: ui.remove_echo(entry))
-
-    def redraw_echo(self, entry: QueuedMessage) -> str | None:
-        """Rewrite `entry`'s echoed line; returns it, or None (no buffer)."""
-        return None
-
-    def remove_echo(self, entry: QueuedMessage) -> None:
-        """Remove `entry`'s echoed line. No-op here (no buffer)."""
-
-    def append_markdown(self, markdown_text: str) -> None:
-        """Render `markdown_text` at the current output width and append it."""
-        self.append_to_output(
-            render_markdown(
-                markdown_text,
-                width=self.output_field_width,
-                theme=self._markdown_theme,
-            )
-        )
-
-    def append_answer(self, markdown_text: str) -> None:
-        """Append the turn's answer, the text the reader keeps.
-
-        A UI that lays a run's output out in a column overrides this, so the
-        answer lands in that column instead of jumping to the margin; without
-        an override it is rendered at the margin.
-        """
-        self.append_markdown(markdown_text)
+        broadcast_echo(self, lambda ui: ui.display.remove_echo(entry))
 
     @property
     def output_field_width(self) -> int | None:
@@ -1112,9 +1067,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             self._running_llm_task = None
         raise_if_cancelling()
 
-    def track_echo_span(self, entry: QueuedMessage, echo: str) -> None:
-        """Record the output-buffer span of `echo` on `entry`. No-op here."""
-
     def record_submitted_message(self, text: str) -> None:
         """Record a submitted user message for cross-session recall. No-op here."""
 
@@ -1145,7 +1097,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             llm_task=llm_task,
             user_message=user_message,
             marker=marker,
-            append_markdown=self.append_markdown,
+            append_markdown=self.display.append_markdown,
             source=source,
         )
 
@@ -1184,7 +1136,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
 
     def set_status_badge(self, key: str, text: str | None) -> None:
         self._base_status_bar.set_badge(key, text)
-        self.invalidate_ui()
+        self.display.invalidate_ui()
 
     @property
     def status_badges(self) -> tuple[str, ...]:
@@ -1230,7 +1182,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         # A cancelled turn can leave a stale running-tool timer behind.
         self.end_tool_call()
         self.is_thinking = True
-        self.invalidate_ui()
+        self.display.invalidate_ui()
         try:
             timestamp = datetime.now().strftime("%H:%M")
             await take_pre_turn_snapshot(
@@ -1261,7 +1213,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
                 self.append_to_output("\n")
                 # The answer keeps its `<spoken>` markers for speech; the
                 # screen shows the whole reply without them.
-                self.append_answer(shown_text(result_data))
+                self.display.append_answer(shown_text(result_data))
             self._conversation.schedule_auto_name(user_message)
 
         except asyncio.CancelledError:
@@ -1273,7 +1225,7 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             self.is_thinking = False
             self._running_llm_task = None
             await self.update_system_info()
-            self.invalidate_ui()
+            self.display.invalidate_ui()
 
     def _create_session_for_llm_task(
         self,

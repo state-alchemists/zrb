@@ -14,6 +14,7 @@ from zrb.llm.ui.multi_ui import MultiUI
 def mock_child_ui():
     """Create a mock child UI for testing."""
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.ask_user = AsyncMock(return_value="y")
     ui.tool_call_handler = MagicMock()
@@ -28,6 +29,7 @@ def mock_child_ui():
 @pytest.fixture
 def child_ui_1():
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 1")
@@ -45,6 +47,7 @@ def child_ui_1():
 @pytest.fixture
 def child_ui_2():
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 2")
@@ -64,6 +67,7 @@ def test_a_typed_message_reaches_the_queue_with_keyboard_provenance(multi_ui):
     for the source — so an ordinary typed turn carried no provenance at all and
     the silence it followed could never be reported."""
     llm_task = MagicMock()
+    llm_task.display = llm_task
     multi_ui.set_llm_task(llm_task)
 
     with patch.object(multi_ui, "submit_user_message") as mock_submit:
@@ -76,6 +80,7 @@ def test_submit_user_message_queues_job(mock_child_ui):
     """Test _submit_user_message queues a job."""
     multi_ui = MultiUI([mock_child_ui])
     mock_task = MagicMock()
+    mock_task.display = mock_task
 
     multi_ui.submit_user_message(mock_task, "Hello world")
 
@@ -90,6 +95,7 @@ async def test_submit_user_message_broadcasts(mock_child_ui):
     multi_ui.append_to_output = MagicMock()
 
     mock_task = MagicMock()
+    mock_task.display = mock_task
 
     multi_ui.submit_user_message(mock_task, "Hello world")
 
@@ -125,6 +131,7 @@ async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui, monkeypatch
         return await real_sleep(0, *a, **kw)
 
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="AI Output")
 
     with patch("zrb.llm.ui.multi_ui.asyncio.sleep", side_effect=tracking_sleep):
@@ -151,6 +158,7 @@ async def test_multi_ui_process_messages_loop_no_busy_wait(multi_ui, monkeypatch
 @pytest.mark.asyncio
 async def test_multi_ui_submit_message_and_stream(multi_ui):
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="AI Output")
 
     multi_ui.submit_user_message(llm_task, "user query")
@@ -179,6 +187,7 @@ def test_multi_ui_submit_message_queues_even_with_a_live_run_context(multi_ui):
     entry stays in the queue where Up Arrow can recall it.
     """
     llm_task = MagicMock()
+    llm_task.display = llm_task
     multi_ui.active_run_context = MagicMock()
 
     multi_ui.submit_user_message(llm_task, "edit me")
@@ -190,6 +199,7 @@ def test_multi_ui_submit_message_queues_even_with_a_live_run_context(multi_ui):
 def test_multi_ui_submit_message_queues_without_a_live_run_context(multi_ui):
     """No live turn (the default) queues as well — one path, one behavior."""
     llm_task = MagicMock()
+    llm_task.display = llm_task
     assert multi_ui.active_run_context is None
 
     multi_ui.submit_user_message(llm_task, "later")
@@ -202,6 +212,7 @@ def test_multi_ui_submit_message_uses_own_llm_task(multi_ui):
     queue path with the queue's own task — the seam sub-agent continuation
     code uses to hand the main agent a synthesized report."""
     llm_task = MagicMock()
+    llm_task.display = llm_task
     multi_ui.set_llm_task(llm_task)
     with patch.object(multi_ui, "submit_user_message") as mock_submit:
         multi_ui.submit_message("report text")
@@ -248,6 +259,7 @@ def test_the_multi_ui_delivers_the_shared_queue_into_the_live_run(
     for child in (child_ui_1, child_ui_2):
         child.is_waiting_for_answer = False
     run_context = MagicMock()
+    run_context.display = run_context
     multi_ui.active_run_context = run_context
 
     async def run():
@@ -268,6 +280,7 @@ def test_multi_ui_speech_does_not_flush_a_draft(multi_ui, child_ui_1, child_ui_2
     for child in (child_ui_1, child_ui_2):
         child.is_waiting_for_answer = False
     run = MagicMock()
+    run.display = run
     multi_ui.active_run_context = run
 
     async def run_entry():
@@ -292,6 +305,7 @@ def test_the_multi_ui_waits_while_a_child_holds_a_prompt(
     child_ui_1.is_waiting_for_answer = True
     child_ui_2.is_waiting_for_answer = False
     run_context = MagicMock()
+    run_context.display = run_context
     multi_ui.active_run_context = run_context
 
     async def run():

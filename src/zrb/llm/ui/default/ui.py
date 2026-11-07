@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.llm.any_ui_display import AnyUIDisplay
 from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
@@ -58,7 +59,7 @@ logger = logging.getLogger(__name__)
 GREETING_COMMAND_LIMIT = 18
 
 
-class UI(BaseUI):
+class UI(BaseUI, AnyUIDisplay):
     """Full-screen prompt-toolkit chat UI used by `zrb llm chat`.
 
     `BaseUI` owns the chat loop and command handling. This class adds the
@@ -677,6 +678,22 @@ class UI(BaseUI):
         agent_id: str | None = None,
     ) -> str:
         return await self._confirmation.ask_user(prompt, output_to_parent, agent_id)
+
+    @property
+    def display(self) -> AnyUIDisplay:
+        """This UI is its own display: the transcript pane is the surface."""
+        return self
+
+    @property
+    def last_output(self) -> str:
+        """The last turn's answer, or "" before any turn has completed."""
+        data = self.last_result_data
+        return "" if data is None else data
+
+    def set_status_badge(self, key: str, text: str | None) -> None:
+        """Show `text` under `key` in the status bar, then repaint."""
+        self.status_bar.set_badge(key, text)
+        self.invalidate_ui()
 
     @property
     def picker(self) -> AnyUIPicker:

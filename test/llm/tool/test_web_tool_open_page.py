@@ -32,6 +32,7 @@ async def test_open_web_page_truncates_oversized_page():
         mock_p.chromium.launch.return_value = mock_browser
         mock_browser.new_page.return_value = mock_page
         mock_response = MagicMock()
+        mock_response.display = mock_response
         mock_response.headers = {"content-type": "text/html"}
         mock_page.goto.return_value = mock_response
         mock_page.content.return_value = huge_html
@@ -63,6 +64,7 @@ async def test_open_web_page_summarizer_input_is_bounded():
         mock_p.chromium.launch.return_value = mock_browser
         mock_browser.new_page.return_value = mock_page
         mock_response = MagicMock()
+        mock_response.display = mock_response
         mock_response.headers = {"content-type": "text/html"}
         mock_page.goto.return_value = mock_response
         mock_page.content.return_value = huge_html
@@ -160,6 +162,7 @@ async def test_open_web_page_closes_browser_on_success():
         mock_p.chromium.launch.return_value = mock_browser
         mock_browser.new_page.return_value = mock_page
         mock_response = MagicMock()
+        mock_response.display = mock_response
         mock_response.headers = {"content-type": "text/html"}
         mock_page.goto.return_value = mock_response
         mock_page.content.return_value = "<html><body><p>hi</p></body></html>"
@@ -205,6 +208,7 @@ def test_notify_forwards_to_the_current_uis_stream_to_parent():
     from zrb.llm.tool.web import notify
 
     mock_ui = MagicMock()
+    mock_ui.display = mock_ui
     with patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui):
         notify("hello")
 
@@ -218,6 +222,7 @@ def test_notify_swallows_a_broken_uis_exception():
     from zrb.llm.tool.web import notify
 
     mock_ui = MagicMock()
+    mock_ui.display = mock_ui
     mock_ui.stream_to_parent.side_effect = RuntimeError("ui exploded")
     with patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui):
         notify("should not raise either")  # must not propagate
@@ -226,6 +231,7 @@ def test_notify_swallows_a_broken_uis_exception():
 @pytest.mark.asyncio
 async def test_open_web_page_notifies_before_fetching():
     mock_ui = MagicMock()
+    mock_ui.display = mock_ui
     with (
         patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui),
         patch(
@@ -247,6 +253,7 @@ async def test_open_web_page_notifies_before_fetching():
 async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
     """The user is told when a Playwright failure falls back to plain HTTP."""
     mock_ui = MagicMock()
+    mock_ui.display = mock_ui
     with (
         patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui),
         patch(
@@ -267,6 +274,7 @@ async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
 @pytest.mark.asyncio
 async def test_search_internet_notifies_before_searching(mock_google_rss):
     mock_ui = MagicMock()
+    mock_ui.display = mock_ui
     mock_google_rss.return_value = {"query": "q", "results": [], "page": 1}
     with (
         patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui),

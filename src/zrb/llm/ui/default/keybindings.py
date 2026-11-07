@@ -331,7 +331,7 @@ class UIKeybindings:
             return
         for path in paths:
             self._attach_pasted_path(path)
-        self._ui.invalidate_ui()
+        self._ui.display.invalidate_ui()
 
     def _attach_pasted_path(self, path: str) -> None:
         """Queue one pasted file the way `/attach` does.
