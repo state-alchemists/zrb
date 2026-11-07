@@ -47,8 +47,8 @@ Both protocols let the agent use an outside program as a tool. MCP brings in thi
 | An MCP result is capped in aggregate, not per item | Many parts each under the cap add up to an overflow | `test/llm/tool/test_mcp.py::test_cap_mcp_result_bounds_a_list_in_aggregate` |
 | An MCP text result carries the untrusted-data note | Injected instructions in a result read like orders | `test/llm/tool/test_mcp.py::test_frame_mcp_result_notes_a_string_result` |
 | Toolset factories run once per run, and the entered toolsets are the ones the agent gets | MCP servers spawn twice per turn, and the agent holds toolsets that were never started | `test/llm/task/test_llm_task.py::TestLLMTaskExecution::test_llm_task_resolves_toolset_factories_once` |
-| At most one live LSP server per language and project root; a dead one is replaced | Duplicate language-server processes, or queries sent to a dead one | `test/llm/lsp/test_manager_singleton.py::TestLspManagerLifecycle::test_get_server_lifecycle` |
-| The exit backstop kills surviving LSP processes | Language servers outlive zrb | `test/llm/lsp/test_manager_singleton.py::TestLspManagerLifecycle::test_force_kill_all_sigkills_running_server` |
+| At most one live LSP server per language and project root; a dead one is replaced | Duplicate language-server processes, or queries sent to a dead one | `test/llm/lsp/manager/test_manager_singleton.py::TestLspManagerLifecycle::test_get_server_lifecycle` |
+| The exit backstop kills surviving LSP processes | Language servers outlive zrb | `test/llm/lsp/manager/test_manager_singleton.py::TestLspManagerLifecycle::test_force_kill_all_sigkills_running_server` |
 | `LspRenameSymbol` is tagged `EDIT` | Plan mode lets the agent rename across files | **unpinned** |
 
 ## Realization
@@ -135,8 +135,8 @@ The chat task calls `lsp_manager.shutdown_all` when its session ends. The `atexi
 | Change how toolsets are entered and exited | `src/zrb/llm/task/llm_task.py` | `test/llm/task/test_llm_task.py` |
 | Change when LSP tools register or how they are tagged | `src/zrb/llm/common_tools.py` | `test/llm/test_common_tools.py` |
 | Change server detection or file matching | `src/zrb/llm/lsp/configs.py` | `test/llm/lsp/test_configs_detection.py` |
-| Change server start, reuse or shutdown | `src/zrb/llm/lsp/manager/lifecycle.py`, `src/zrb/llm/lsp/server/server.py` | `test/llm/lsp/test_manager_singleton.py`, `test/llm/lsp/test_server_lifecycle.py` |
-| Change a query or its answer shape | `src/zrb/llm/lsp/manager/query.py`, `src/zrb/llm/lsp/server/operations.py` | `test/llm/lsp/test_manager_query.py` |
+| Change server start, reuse or shutdown | `src/zrb/llm/lsp/manager/lifecycle.py`, `src/zrb/llm/lsp/server/server.py` | `test/llm/lsp/manager/test_manager_singleton.py`, `test/llm/lsp/server/test_server_lifecycle.py` |
+| Change a query or its answer shape | `src/zrb/llm/lsp/manager/query.py`, `src/zrb/llm/lsp/server/operations.py` | `test/llm/lsp/manager/test_manager_query.py` |
 
 ## See Also
 

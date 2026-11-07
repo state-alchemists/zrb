@@ -317,7 +317,7 @@ async def main():
 
 asyncio.run(main())
 """
-    env = os.environ | {"PYTHONPATH": str(Path(__file__).parents[3] / "src")}
+    env = os.environ | {"PYTHONPATH": str(Path(__file__).parents[4] / "src")}
     # What this checks is "does not hang forever", not speed: a generous
     # budget tolerates a slow/contended CI runner without weakening the check.
     subprocess.run(

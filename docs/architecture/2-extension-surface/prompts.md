@@ -52,7 +52,7 @@ The prompt is read by the model on every request, so small mistakes here cost on
 | The `profile` section follows the active profile | A capable model gets the default rulebook, with no error | `test/llm/prompt/test_manager.py::test_profile_section_uses_the_active_profile` |
 | An unknown section name is skipped, not fatal | A config typo crashes every run | `test/llm/prompt/test_manager.py::test_unknown_section_names_are_ignored` |
 | Extra prompts given as a callable are resolved on every compose | Values captured at build time go stale | `test/llm/prompt/test_registry.py::test_manager_resolves_callable_each_compose` |
-| A sub-agent inherits no main-agent sections unless it asks | Every sub-agent silently takes on the main persona | `test/llm/subagent/test_manager_building.py::test_sub_agent_manager_without_inherit_sections_skips_inheritance` |
+| A sub-agent inherits no main-agent sections unless it asks | Every sub-agent silently takes on the main persona | `test/llm/subagent/manager/test_manager_building.py::test_sub_agent_manager_without_inherit_sections_skips_inheritance` |
 
 ## Realization
 
@@ -132,9 +132,9 @@ Separately, before each turn `LLMTask` asks the manager for the live-context blo
 | Change the default section order | `src/zrb/config/mixins/llm_prompt.py` | `test/llm/prompt/test_config_defaults.py` |
 | Change override lookup | `src/zrb/llm/prompt/prompt.py` | `test/llm/prompt/test_default_prompt.py` |
 | Change session facts | `src/zrb/llm/prompt/system_context.py` | `test/llm/prompt/test_system_context.py` |
-| Change per-turn live context | `src/zrb/llm/prompt/live_context/context.py` | `test/llm/prompt/test_live_context_delta.py` |
+| Change per-turn live context | `src/zrb/llm/prompt/live_context/context.py` | `test/llm/prompt/live_context/test_live_context_delta.py` |
 | Change extra-prompt layering | `src/zrb/llm/prompt/registry.py` | `test/llm/prompt/test_registry.py` |
-| Change sub-agent inheritance | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/test_manager_building.py` |
+| Change sub-agent inheritance | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/manager/test_manager_building.py` |
 
 ## See Also
 

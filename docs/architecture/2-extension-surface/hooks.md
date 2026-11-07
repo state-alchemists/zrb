@@ -46,11 +46,11 @@ A hook is a small program the user plugs into the agent's lifecycle: run a linte
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
 | Tool-call hooks fire on the run's manager, not the process-wide one | A task's deny hook is skipped and the tool runs anyway | `test/llm/agent/test_common_tool_calls.py::test_call_tool_pretooluse_fires_on_the_run_hook_manager` |
-| A block on a non-blocking event does not stop the other hooks | One notification hook silently disables every hook after it | `test/llm/hook/test_manager_lifecycle.py::TestHookManagerExecution::test_block_on_non_blocking_event_continues_chain` |
-| `continue: false` stops the chain on any event | A hook asking zrb to halt is ignored | `test/llm/hook/test_manager_lifecycle.py::TestHookManagerExecution::test_continue_false_stops_execution` |
-| A hook that raises becomes a failed result | One broken hook aborts the user's turn | `test/llm/hook/test_manager_lifecycle.py::TestHookManagerExecution::test_exception_handling` |
-| A sync command hook past its timeout is killed | The turn waits until the subprocess exits on its own | `test/llm/hook/test_manager_execution.py::test_sync_command_hook_is_killed_on_timeout` |
-| An `async` hook returns at once and adds no result | A slow notification hook stalls every turn | `test/llm/hook/test_manager_execution.py::test_async_command_hook_is_non_blocking` |
+| A block on a non-blocking event does not stop the other hooks | One notification hook silently disables every hook after it | `test/llm/hook/manager/test_manager_lifecycle.py::TestHookManagerExecution::test_block_on_non_blocking_event_continues_chain` |
+| `continue: false` stops the chain on any event | A hook asking zrb to halt is ignored | `test/llm/hook/manager/test_manager_lifecycle.py::TestHookManagerExecution::test_continue_false_stops_execution` |
+| A hook that raises becomes a failed result | One broken hook aborts the user's turn | `test/llm/hook/manager/test_manager_lifecycle.py::TestHookManagerExecution::test_exception_handling` |
+| A sync command hook past its timeout is killed | The turn waits until the subprocess exits on its own | `test/llm/hook/manager/test_manager_execution.py::test_sync_command_hook_is_killed_on_timeout` |
+| An `async` hook returns at once and adds no result | A slow notification hook stalls every turn | `test/llm/hook/manager/test_manager_execution.py::test_async_command_hook_is_non_blocking` |
 | No circular-import workaround exists in the source | Someone re-creates the hook-to-agent loop with a lazy import and it goes unseen | `test/architecture/test_circular_import_allowlist.py::test_circular_import_workarounds_match_the_allowlist` |
 
 ## Realization
@@ -122,13 +122,13 @@ sequenceDiagram
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change ordering or stop rules | `src/zrb/llm/hook/manager/manager.py` | `test/llm/hook/test_manager_lifecycle.py` |
+| Change ordering or stop rules | `src/zrb/llm/hook/manager/manager.py` | `test/llm/hook/manager/test_manager_lifecycle.py` |
 | Add an event, or change which events can block | `src/zrb/llm/hook/contracts/types.py`, then the caller that fires it | `test/llm/hook/` |
-| Change how hook files are found or parsed | `src/zrb/llm/hook/hook_loader.py`, `src/zrb/llm/hook/manager/loading.py` | `test/llm/hook/test_manager_lifecycle.py` |
-| Change matching | `src/zrb/llm/hook/execution/matcher.py` | `test/llm/hook/test_matchers.py` |
-| Change command-hook I/O, timeouts or kill | `src/zrb/llm/hook/execution/creator.py`, `src/zrb/llm/hook/execution/process_io.py`, `src/zrb/llm/hook/execution/process_kill.py` | `test/llm/hook/test_creator_subprocess.py` |
+| Change how hook files are found or parsed | `src/zrb/llm/hook/hook_loader.py`, `src/zrb/llm/hook/manager/loading.py` | `test/llm/hook/manager/test_manager_lifecycle.py` |
+| Change matching | `src/zrb/llm/hook/execution/matcher.py` | `test/llm/hook/execution/test_matchers.py` |
+| Change command-hook I/O, timeouts or kill | `src/zrb/llm/hook/execution/creator.py`, `src/zrb/llm/hook/execution/process_io.py`, `src/zrb/llm/hook/execution/process_kill.py` | `test/llm/hook/execution/test_creator_subprocess.py` |
 | Change the agent-type hook | `src/zrb/llm/agent/hook_agent.py` | `test/llm/agent/test_hook_agent.py` |
-| Change how a verdict is applied | `src/zrb/llm/agent/run/hook_result_extractor.py` | `test/llm/hook/test_hook_result_processing.py` |
+| Change how a verdict is applied | `src/zrb/llm/agent/run/hook_result_extractor.py` | `test/llm/hook/execution/test_hook_result_processing.py` |
 | Change skill-frontmatter hooks | `src/zrb/llm/hook/skill_frontmatter.py` | `test/llm/hook/test_skill_frontmatter.py` |
 
 ## See Also

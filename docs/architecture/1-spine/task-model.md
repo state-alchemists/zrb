@@ -143,7 +143,7 @@ sequenceDiagram
 | Change env sources or precedence | `src/zrb/env/`, `src/zrb/task/base/context.py` | `test/env/`, `test/task/test_dag_shape.py` |
 | Add a task type | `src/zrb/task/`, subclassing `BaseTask` | `test/task/` |
 | Change how a scaffolded file is rewritten | `src/zrb/content_transformer/`, `src/zrb/task/scaffolder.py` | `test/content_transformer/` |
-| Change how `ctx.input`, `ctx.env` or `ctx.xcom` is read | `src/zrb/dot_dict/dot_dict.py` | `test/util/test_dot_dict.py` |
+| Change how `ctx.input`, `ctx.env` or `ctx.xcom` is read | `src/zrb/dot_dict/dot_dict.py` | `test/dot_dict/test_dot_dict.py` |
 | Change command resolution | `src/zrb/group/group.py`, `src/zrb/runner/cli.py` | `test/group/test_group.py` |
 | Change `zrb_init.py` discovery or diagnostics | `src/zrb/__main__.py`, `src/zrb/group/task_diagnostics.py` | `test/group/test_task_diagnostics.py` |
 | Change triggers or callbacks | `src/zrb/task/base_trigger.py`, `src/zrb/callback/callback.py` | `test/task/test_base_trigger.py`, `test/callback/` |

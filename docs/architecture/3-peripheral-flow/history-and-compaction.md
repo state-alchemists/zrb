@@ -44,9 +44,9 @@ History is what lets a conversation continue: the next turn, a resumed session, 
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| A tool call still awaiting its result survives compaction in native, resumable form | pydantic-ai cannot match the deferred result to a `ToolCallPart` that was flattened away | `test/llm/summarizer/history_processor/test_verbatim_tail.py::test_a_trailing_deferred_call_stays_in_native_message_form` |
-| The real opening user message survives every compaction round | The model loses the task's goal; a later round keeps an old summary instead | `test/llm/summarizer/history_processor/test_history_summarizer_preservation.py::test_summarize_history_second_round_preserves_the_true_first_user_message` |
-| A summarizer that cannot be built leaves the history unchanged | A missing API key for the small model kills every turn | `test/llm/summarizer/history_processor/test_summarizer_resilience.py::test_processor_survives_unbuildable_summarizer` |
+| A tool call still awaiting its result survives compaction in native, resumable form | pydantic-ai cannot match the deferred result to a `ToolCallPart` that was flattened away | `test/llm/summarizer/test_verbatim_tail.py::test_a_trailing_deferred_call_stays_in_native_message_form` |
+| The real opening user message survives every compaction round | The model loses the task's goal; a later round keeps an old summary instead | `test/llm/summarizer/test_history_summarizer_preservation.py::test_summarize_history_second_round_preserves_the_true_first_user_message` |
+| A summarizer that cannot be built leaves the history unchanged | A missing API key for the small model kills every turn | `test/llm/summarizer/test_summarizer_resilience.py::test_processor_survives_unbuildable_summarizer` |
 | Repair keeps a tool call whose approved result is pending | The approved call is deleted and its result has nothing to answer | `test/llm/agent/run/test_history_utils_strip_to_text.py::test_sanitize_history_allow_orphaned_tool_calls_keeps_pending_call` |
 | A failed write leaves the conversation marked unsaved | The cache evicts the only copy of the turn | `test/llm/history_manager/test_file_history_manager_parts.py::test_save_handles_os_error` |
 | An unsaved in-memory update wins over a newer file on load | An external write between update and save discards the turn | **unpinned** |
@@ -141,7 +141,7 @@ The cut in step 1 is chosen by budget, not by count ([ADR-0130](../../adr/adr-01
 | Change naming or what a failed turn saves | `src/zrb/llm/task/history.py` | `test/llm/task/test_history.py` |
 | Change caching, file layout, backups or retention | `src/zrb/llm/history_manager/file_history_manager.py` | `test/llm/history_manager/` |
 | Change when or how history is summarized | `src/zrb/llm/summarizer/history_summarizer.py` | `test/llm/summarizer/` |
-| Change where the list may be cut | `src/zrb/llm/summarizer/history_splitter.py` | `test/llm/summarizer/history_processor/` |
+| Change where the list may be cut | `src/zrb/llm/summarizer/history_splitter.py` | `test/llm/summarizer/` |
 | Change the provider-boundary repair | `src/zrb/llm/agent/run/history_utils.py` | `test/llm/agent/run/` |
 | Change what a partial run records | `src/zrb/llm/agent/run/partial_run.py` | `test/llm/agent/run/test_partial_run.py` |
 
