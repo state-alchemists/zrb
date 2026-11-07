@@ -18,6 +18,7 @@ def test_yolo_inheritance_via_ui_yolo():
     ):
 
         mock_ui = MagicMock()
+        mock_ui.input = mock_ui.tools = mock_ui
         mock_ui.yolo = True
         mock_get_ui.return_value = mock_ui
 
@@ -32,6 +33,7 @@ def test_yolo_inheritance_via_ui_yolo_false():
     ):
 
         mock_ui = MagicMock()
+        mock_ui.input = mock_ui.tools = mock_ui
         mock_ui.yolo = False
         mock_get_ui.return_value = mock_ui
 

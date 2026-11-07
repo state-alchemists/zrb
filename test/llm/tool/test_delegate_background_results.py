@@ -91,6 +91,7 @@ async def test_approval_prompt_surfaces_during_wait(manager):
     needs approval must still reach the parent UI (the wait is async, so the
     event loop is free to service the prompt)."""
     parent_ui = MagicMock()
+    parent_ui.input = parent_ui
     parent_ui.ask_user = AsyncMock(return_value="yes")
 
     async def needs_approval(*args, **kwargs):

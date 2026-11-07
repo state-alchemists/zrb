@@ -12,6 +12,7 @@ from zrb.llm.tool_call.tool_policy.replace_in_file_validation import (
 @pytest.mark.asyncio
 async def test_replace_in_file_validation_mismatch_name():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "OtherTool"
     next_handler = AsyncMock(return_value="next_result")
@@ -25,6 +26,7 @@ async def test_replace_in_file_validation_mismatch_name():
 @pytest.mark.asyncio
 async def test_replace_in_file_validation_identical_text():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = {"path": "test.txt", "old_text": "hello", "new_text": "hello"}
@@ -40,6 +42,7 @@ async def test_replace_in_file_validation_identical_text():
 @pytest.mark.asyncio
 async def test_replace_in_file_validation_file_not_found():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = {
@@ -61,6 +64,7 @@ async def test_replace_in_file_validation_text_not_found(tmp_path):
     test_file.write_text("content here")
 
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = {"path": str(test_file), "old_text": "missing", "new_text": "world"}
@@ -85,6 +89,7 @@ async def test_replace_in_file_validation_fuzzy_match_passes_through(tmp_path):
     test_file.write_text("def foo():   \n    return 1   \n")
 
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = {
@@ -106,6 +111,7 @@ async def test_replace_in_file_validation_success(tmp_path):
     test_file.write_text("hello world")
 
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = {"path": str(test_file), "old_text": "hello", "new_text": "hi"}
@@ -124,6 +130,7 @@ async def test_replace_in_file_validation_json_string_args(tmp_path):
     test_file.write_text("hello world")
 
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     import json
@@ -143,6 +150,7 @@ async def test_replace_in_file_validation_json_string_args(tmp_path):
 async def test_replace_in_file_validation_invalid_json_passes_through():
     """Invalid JSON string delegates to next handler."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = "not valid json"
@@ -158,6 +166,7 @@ async def test_replace_in_file_validation_invalid_json_passes_through():
 async def test_replace_in_file_validation_non_dict_args_passes_through():
     """Non-dict args delegate to next handler."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = ["not", "a", "dict"]
@@ -173,6 +182,7 @@ async def test_replace_in_file_validation_non_dict_args_passes_through():
 async def test_replace_in_file_validation_missing_args_passes_through():
     """Missing required args (path/old_text/new_text) delegates to next handler."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = {"path": "some_file.txt"}  # missing old_text and new_text
@@ -191,6 +201,7 @@ async def test_replace_in_file_validation_read_error(tmp_path, monkeypatch):
     test_file.write_text("hello world")
 
     ui = MagicMock()
+    ui.input = ui.tools = ui
     call = MagicMock()
     call.tool_name = "Edit"
     call.args = {"path": str(test_file), "old_text": "hello", "new_text": "hi"}

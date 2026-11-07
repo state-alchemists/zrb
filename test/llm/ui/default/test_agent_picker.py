@@ -74,6 +74,7 @@ class FakeLiveRegistry:
 
 def _session(agent_id, agent_name="researcher", buffer_text="", title=""):
     buffered_ui = MagicMock()
+    buffered_ui.input = buffered_ui.tools = buffered_ui
     buffered_ui.get_buffered_output.return_value = buffer_text
     return SimpleNamespace(
         agent_id=agent_id,

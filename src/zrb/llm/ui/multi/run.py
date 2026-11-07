@@ -21,7 +21,7 @@ class MultiUIRunLoop(MultiUIInput):
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False
     ) -> Any:
-        return await self.main_ui.run_interactive_command(cmd, shell=shell)
+        return await self.main_ui.input.run_interactive_command(cmd, shell=shell)
 
     async def _start_child_ui(self, ui: AnyUI) -> None:
         """Start a child UI's event loop if it has one."""

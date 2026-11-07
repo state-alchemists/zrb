@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -12,6 +12,7 @@ from zrb.llm.ui.multi import MultiUI
 def mock_child_ui():
     """Create a mock child UI for testing."""
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.append_to_output = MagicMock()
     ui.ask_user = AsyncMock(return_value="y")
     ui.tool_call_handler = MagicMock()
@@ -26,6 +27,7 @@ def mock_child_ui():
 @pytest.fixture
 def child_ui_1():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 1")
@@ -43,6 +45,7 @@ def child_ui_1():
 @pytest.fixture
 def child_ui_2():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 2")
@@ -126,6 +129,7 @@ async def test_confirm_tool_raises_when_no_ui():
 async def test_confirm_tool_uses_approval_channel():
     """Test _confirm_tool_execution falls back to approval channel."""
     mock_ui = MagicMock()
+    mock_ui.input = mock_ui.tools = mock_ui
     multi_ui = MultiUI([mock_ui])
     mock_channel = MagicMock()
     multi_ui.set_approval_channel(mock_channel)
@@ -198,6 +202,7 @@ async def test_ask_user_raises_when_no_child_can_be_asked(mock_child_ui):
 @pytest.mark.asyncio
 async def test_ask_user_raises_when_every_child_fails():
     mock_ui = MagicMock()
+    mock_ui.input = mock_ui.tools = mock_ui
     mock_ui.ask_user = AsyncMock(side_effect=Exception("Test error"))
     multi_ui = MultiUI([mock_ui])
 
@@ -209,8 +214,10 @@ async def test_ask_user_raises_when_every_child_fails():
 async def test_failing_child_does_not_win_the_race():
     """A channel that errors first must not answer for the human."""
     broken = MagicMock()
+    broken.input, broken.tools = broken, broken
     broken.ask_user = AsyncMock(side_effect=ConnectionError("network down"))
     human = MagicMock()
+    human.input, human.tools = human, human
 
     async def human_answers(*args, **kwargs):
         await asyncio.sleep(0.02)
@@ -231,6 +238,7 @@ async def test_answering_one_race_leaves_a_concurrent_race_waiting():
     class QueueChild(MagicMock):
         def __init__(self):
             super().__init__()
+            self.input, self.tools = self, self
             self.queue: dict[str, asyncio.Future[str]] = {}
 
         async def ask_user(self, prompt, **kwargs):
@@ -286,6 +294,8 @@ async def test_cancel_current_turn_cancels_the_turn_multi_ui_runs():
     """Children run no turn under a MultiUI, so it must cancel its own and
     fire Stop once, on the manager the turn runs with."""
     children = [MagicMock(conversation_session_name="s1"), MagicMock()]
+    for child in children:
+        child.input, child.tools = child, child
     multi_ui = MultiUI(children)
     turn_manager = HookManager(search_dirs=[])
     multi_ui.set_llm_task(_create_stop_recording_task(turn_manager))
@@ -320,6 +330,8 @@ async def test_cancel_current_turn_cancels_the_turn_multi_ui_runs():
 
 def test_cancel_current_turn_with_no_turn_only_releases_confirmations():
     children = [MagicMock(), MagicMock()]
+    for child in children:
+        child.input, child.tools = child, child
     multi_ui = MultiUI(children)
     turn_manager = HookManager(search_dirs=[])
     multi_ui.set_llm_task(_create_stop_recording_task(turn_manager))
@@ -334,6 +346,8 @@ def test_cancel_current_turn_with_no_turn_only_releases_confirmations():
 @pytest.mark.parametrize("waiting", [(False, False), (False, True)])
 def test_is_waiting_for_answer_when_any_child_waits(waiting):
     children = [MagicMock(is_waiting_for_answer=w) for w in waiting]
+    for child in children:
+        child.input, child.tools = child, child
 
     assert MultiUI(children).is_waiting_for_answer is any(waiting)
 
@@ -341,6 +355,8 @@ def test_is_waiting_for_answer_when_any_child_waits(waiting):
 @pytest.mark.parametrize("answered", [(False, False), (True, False)])
 def test_is_prompt_answered_since_when_any_child_answered(answered):
     children = [MagicMock() for _ in answered]
+    for child in children:
+        child.input, child.tools = child, child
     for child, is_answered in zip(children, answered):
         child.is_prompt_answered_since.return_value = is_answered
 
@@ -348,3 +364,68 @@ def test_is_prompt_answered_since_when_any_child_answered(answered):
     for child in children:
         if child.is_prompt_answered_since.called:
             child.is_prompt_answered_since.assert_called_with(1.5)
+
+
+class _AnswerChild:
+    """A child that only records where a spoken answer lands.
+
+    Not a mock: `MagicMock` answers `is_waiting_for_answer` with a truthy value
+    whatever the test meant, which would make every routing assertion below
+    pass for the wrong reason.
+    """
+
+    def __init__(self, waiting: bool, since: float | None = None):
+        self.is_waiting_for_answer = waiting
+        self.pending_answer_since = since
+        self.answers: list[str] = []
+        self.multi_ui_parent: object = None
+        self.display = self.session = self.tools = self
+
+    @property
+    def input(self) -> "_AnswerChild":
+        return self
+
+    def submit_answer(self, text: str) -> None:
+        self.answers.append(text)
+
+
+def _multi(*children: _AnswerChild) -> MultiUI:
+    return MultiUI(list(children))
+
+
+def test_submit_answer_goes_to_the_child_that_holds_the_prompt():
+    """Queueing it instead would leave the approval blocked and turn the words
+    into an ordinary message once the turn moved on."""
+    idle, waiting = _AnswerChild(False), _AnswerChild(True, since=1.0)
+
+    with patch.object(MultiUI, "submit_message") as submit_message:
+        _multi(idle, waiting).input.submit_answer("yes")
+
+    assert waiting.answers == ["yes"]
+    assert idle.answers == []
+    submit_message.assert_not_called()
+
+
+def test_submit_answer_queues_when_no_child_holds_a_prompt():
+    children = [_AnswerChild(False), _AnswerChild(False)]
+
+    with patch.object(MultiUI, "submit_message") as submit_message:
+        _multi(*children).input.submit_answer("hello")
+
+    submit_message.assert_called_once_with("hello")
+    assert [child.answers for child in children] == [[], []]
+
+
+def test_pending_answer_since_is_the_earliest_child_prompt():
+    """A prompt every child shows appeared when the first of them put it up."""
+    assert (
+        _multi(
+            _AnswerChild(True, 5.0), _AnswerChild(True, 9.0)
+        ).input.pending_answer_since
+        == 5.0
+    )
+    assert (
+        _multi(_AnswerChild(False), _AnswerChild(True, 9.0)).input.pending_answer_since
+        == 9.0
+    )
+    assert _multi(_AnswerChild(False)).input.pending_answer_since is None

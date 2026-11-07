@@ -9,24 +9,24 @@ replace one without touching the rest:
 - `AnyUITools` — a tool call's lifecycle and its approval state.
 - `AnyUISession` — which conversation is open, which model answers, its meters.
 
-The input and tools roles are inherited. Display, picker and session are reached
-through an accessor — `ui.display`, `ui.picker` and `ui.session` — because a
-backend swaps the writer and the widget, and the session is the conversation the
-object already *is*: a UI that tracks its own model, history and turn state
-answers for the role without a second object holding a copy of that state.
+Every role is reached through an accessor — `ui.display`, `ui.input`,
+`ui.picker`, `ui.session`, `ui.tools` — because a backend swaps the writer, the
+widget and the queue, and the session is the conversation the object already
+*is*: a UI that tracks its own model, history and turn state answers for the
+role without a second object holding a copy of that state.
 
-This module adds only what belongs to the whole: `run_async`, `is_local`, and
-the `MultiUI` parent link. A UI keeps the roles it renders and mixes in the
-matching defaults from `zrb.llm.ui.fallback` for the ones it does not.
+This module adds only what belongs to the whole: the shared writer
+`append_to_output`, `run_async`, `is_local`, and the `MultiUI` parent link. A UI
+keeps the roles it renders and mixes in the matching defaults from
+`zrb.llm.ui.fallback` for the ones it does not.
 
-`AnyUI` is still one `ABC`: a member it declares itself, or one of the two roles
-it inherits, fails with `TypeError` at construction when a backend leaves it out.
-The three accessor roles are abstract too, so a class implementing `AnyUI`
-directly must supply `display`, `picker` and `session`; `UIStateDefaultsMixin`
-supplies all three (each handing the object back) plus an inert default for every
-member a UI leaves out. What an accessor *hands back* is not checked at
-construction — a UI missing one of those members answers at the first read, which
-is the gap the mixin exists to close.
+`AnyUI` is still one `ABC`: each of its own members fails with `TypeError` at
+construction when a backend leaves it out, and the five accessors are among
+them, so a class implementing `AnyUI` directly must supply all five.
+`UIStateDefaultsMixin` supplies each accessor (handing the object back) plus an
+inert default for every member a UI leaves out. What an accessor *hands back* is
+not checked at construction — a UI missing one of those members answers at the
+first read, which is the gap the mixin exists to close.
 """
 
 from __future__ import annotations
@@ -52,14 +52,13 @@ __all__ = [
 ]
 
 
-class AnyUI(AnyUIInput, AnyUITools, ABC):
-    """Two roles in one object, plus what belongs to the whole.
+class AnyUI(ABC):
+    """The whole object: its own members, and one accessor per role.
 
-    Display, picker and session are the exceptions: what a UI writes, the widget
-    it asks a choice through, and the conversation it is talking to are reached
-    as `display`, `picker` and `session`, so a caller that needs one of them asks
-    for that one and a backend can replace either of the first two without
-    answering to the rest of the aggregate.
+    The aggregate promises nine members — the writer, the loop, the locality
+    flag, the parent link, and the five accessors — so a caller that needs a
+    role asks that role for it, and a reader is not handed fifty methods to
+    sift for the one they want.
     """
 
     @abstractmethod
@@ -85,6 +84,11 @@ class AnyUI(AnyUIInput, AnyUITools, ABC):
 
     @property
     @abstractmethod
+    def input(self) -> AnyUIInput:
+        """Questions to the user, and the queue a typed message enters."""
+
+    @property
+    @abstractmethod
     def picker(self) -> AnyUIPicker:
         """This UI's choice widget."""
 
@@ -92,6 +96,11 @@ class AnyUI(AnyUIInput, AnyUITools, ABC):
     @abstractmethod
     def session(self) -> AnyUISession:
         """The conversation this UI is talking to: model, turn state, meters."""
+
+    @property
+    @abstractmethod
+    def tools(self) -> AnyUITools:
+        """A tool call's lifecycle, and the state of its approval."""
 
     @abstractmethod
     async def run_async(self) -> Any:

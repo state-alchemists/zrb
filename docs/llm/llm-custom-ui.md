@@ -291,7 +291,7 @@ An HTTP or WebSocket handler calls `handle_incoming_message()` just as a bot cal
 
 ## Level 3: BaseUI (Full Control)
 
-Use `BaseUI` when you need a custom `run_async()`, a real `run_interactive_command()`, low-level `append_to_output()`, or a custom multiplexer.
+Use `BaseUI` when you need a custom `run_async()`, a real `run_interactive_command()`, low-level `append_to_output()`, or a custom multiplexer. Everything you override here is still reached by callers through the role it belongs to — `ui.display`, `ui.input`, `ui.picker`, `ui.session`, `ui.tools` — so an override is found the same way it was before the accessors existed.
 
 ```mermaid
 flowchart TB
@@ -349,7 +349,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `set_status_badge(key, text)` | Stores it in `status_badges` and calls `invalidate_ui()` | Show a feature's one-line state under a key the feature owns; `None` removes it. The default TUI draws `status_badges` on a line of their own above its status bar |
 | `is_turn_running` | `True` while `running_llm_task` runs, or while the `MultiUI` parent runs a turn for this child | Whether `cancel_current_turn` has a turn to stop; Esc checks it. Part of the session role, so a caller reaches it as `ui.session.is_turn_running` |
 | `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason`; with no turn of its own, a `MultiUI` child asks its parent to cancel the one it runs. With no turn at all, only the confirmation is released | Stop the running turn, as Esc does; a feature may call it too (hands-free dictation does, on a spoken "stop"). Part of the session role, reached as `ui.session.cancel_current_turn` |
-| `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. A class implementing `AnyUI` directly must define both |
+| `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. Reached as `ui.input.is_waiting_for_answer` and `ui.input.is_prompt_answered_since` |
 | `on_exit()` | No-op | Cleanup on shutdown. Called synchronously — schedule async cleanup with `asyncio.ensure_future(...)` |
 | `record_submitted_message(text)` | No-op | Called from `submit_user_message` with every message the user submits; the default TUI appends it to the history `↑` recalls across sessions |
 | `ask_user_choice(spec, agent_id=None)` | Formats the spec as numbered text and delegates to `ask_user` | Override for an arrow-key-selectable widget. `spec` is a `ChoiceSpec` (`question`, `options` as `ChoiceOption`s with `label`, `description` and `recommended`, `context` — the few facts needed to answer, which the default panel renders above the question — `multi_select`, `header`, and `index`/`total` for "Question 2 of 3"); both `TypedDict`s come from `zrb.llm.ui.any_ui`. Return the chosen label, comma-joined labels for multi-select, or free text |
@@ -359,10 +359,10 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 | `record_tool_call_block(collapsed, full)` | Falls back to `append_to_output(collapsed, end="", kind="tool_call")` | Print a tool-call/result line that a toggle-capable UI can later expand in place |
 | `mark_thinking_block_start()` | No-op | Record where a live thinking block begins, so it can be collapsed once it ends |
 | `collapse_thinking_block(collapsed, full)` | No-op | Collapse the block opened by `mark_thinking_block_start()`; the thinking text still reaches the UI via the normal `append_to_output` stream |
-| `send_queued_messages_now()` | `BaseUI` and `MultiUI` run the ladder; a UI with no queue reports `NOTHING_MOVED` | Deliver the queued messages into the running turn on demand — the default TUI's `Ctrl+G`. Returns a `DeliveryReport` from `zrb.llm.ui.base.queue_delivery` (`DELIVERED_EARLY`, `DELIVERED_PARTIAL`, `FELL_BACK_TO_CANCEL`, `WAITING_ON_DIALOG` or `NOTHING_MOVED`, plus how many messages moved); the ladder waits while a dialog owns the input, else steers into the live run, else interrupts the turn. It takes *everything* queued, since the user asked: no edit hold, no grace. See [ADR-0116](../adr/adr-0116.md). A class implementing `AnyUI` directly must define it |
+| `send_queued_messages_now()` | `BaseUI` and `MultiUI` run the ladder; a UI with no queue reports `NOTHING_MOVED` | Deliver the queued messages into the running turn on demand — the default TUI's `Ctrl+G`. Returns a `DeliveryReport` from `zrb.llm.ui.base.queue_delivery` (`DELIVERED_EARLY`, `DELIVERED_PARTIAL`, `FELL_BACK_TO_CANCEL`, `WAITING_ON_DIALOG` or `NOTHING_MOVED`, plus how many messages moved); the ladder waits while a dialog owns the input, else steers into the live run, else interrupts the turn. It takes *everything* queued, since the user asked: no edit hold, no grace. See [ADR-0116](../adr/adr-0116.md). Reached as `ui.input.send_queued_messages_now` |
 | `submit_message(text, source=KEYBOARD_INPUT)` / `submit_user_message(task, text, source=KEYBOARD_INPUT)` | Queues the text for the next turn | Feed a message in from your backend. It always joins the queue and stays editable there; a turn that is already running takes it at its next checkpoint, once it is neither being edited nor inside its one-second grace. `source` is the turn's [input provenance](#input-provenance) |
 | `submit_message_now(text, source=None, may_interrupt=True)` | Submits, then asks the ladder for the ready entries | Submit and hand the message to the running turn at its earliest safe model request — hands-free speech's path, which passes `may_interrupt=False` so a spoken message never stops work. It skips the grace for *its own* new entry only: a message being edited, or another draft inside its grace, still waits. `Ctrl+G` is the only caller that drains everything |
-| `deliver_queued_messages_early()` | `BaseUI` and `MultiUI` run the ladder; any other UI reports `NOTHING_MOVED` | The checkpoint's own call: the run loop asks the UI at each checkpoint to deliver the ready entries, interrupting nothing. A backend that keeps a queue of its own overrides it to get mid-turn delivery without a key press |
+| `deliver_queued_messages_early()` | `BaseUI` and `MultiUI` run the ladder; any other UI reports `NOTHING_MOVED` | The checkpoint's own call: the run loop asks the UI at each checkpoint to deliver the ready entries, interrupting nothing. A backend that keeps a queue of its own overrides it to get mid-turn delivery without a key press. Reached as `ui.input.deliver_queued_messages_early` |
 | `submit_answer(text)` | Submits `text` as a message (`EventDrivenUI` and the default TUI answer the pending prompt instead) | Answer the pending approval or question; `TriggerReply` uses it |
 | `is_waiting_for_choice` / `pending_answer_since` | `False` / `None` | Whether the pending prompt is a multiple-choice question rather than an approval, and the `time.monotonic()` time it appeared. A UI that returns `None` gets no timed `TriggerReply` answers |
 | `begin_side_question(question)` | Echoes the question into the transcript, flagged as not saved to history | Show a `/btw` side question while its answer is on the way, and return a token naming it. Override this and the three methods below to put it somewhere other than the transcript — the terminal UI fills a panel above the input instead, where `Enter` or `Esc` closes it and gives the input its focus back without sending the draft it holds |
@@ -372,6 +372,31 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 
 `record_tool_call_block`, `mark_thinking_block_start` and `collapse_thinking_block` are declared by `AnyUI` and called directly; `BaseUI` and `UIStateDefaultsMixin` supply the defaults — override them only for collapsible tool-call/thinking blocks (like the default TUI's `Ctrl+O`).
 
+### The input and tools roles: `ui.input` and `ui.tools`
+
+The last two roles are accessors too. `ui.input` — typed `AnyUIInput` — is where a question is asked and where a typed message enters the queue. `ui.tools` — typed `AnyUITools` — is a tool call's lifecycle and its approval state. Both hand back the UI itself in every UI zrb ships: `BaseUI` answers for them, `MultiUI` fans out to its children, `BufferedUI` forwards to the UI it wraps, `StdUI` takes the inert defaults. A subclass that overrides one of these members keeps answering for it.
+
+| `ui.input` member | What it is |
+|---|---|
+| `ask_user(prompt, output_to_parent="", agent_id=None)` | Ask a free-text question and return the answer |
+| `run_interactive_command(cmd, shell=False)` | Run a command with the real terminal attached |
+| `submit_message(text, source)` / `submit_message_now(text, source=None, may_interrupt=True)` / `withdraw_message(text, source)` | Queue a message, queue and deliver it, or take it back while it is still unread |
+| `send_queued_messages_now()` / `deliver_queued_messages_early()` | Run the delivery ladder on demand, or hand the ready entries to the current checkpoint |
+| `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | Whether a prompt is pending, and whether the one asked at or after `asked_at` has been answered |
+| `pending_answer_since` | The `time.monotonic()` time the pending prompt appeared, or `None` when nothing is pending or the UI cannot date it. A word spoken before it is not an answer to it, so a "yes" said to nothing never approves a call that appeared meanwhile; `MultiUI` reports the earliest of its children's prompts |
+| `submit_answer(text)` | Answer the pending prompt with *text*; with none pending, submit it as a message. Hands-free dictation delivers a spoken answer this way, and `MultiUI` routes it to the child holding the prompt |
+| `record_submitted_message(text)` | Remember a submitted message, for the default TUI's `↑` recall |
+| `take_pending_attachments()` | Hand over, and clear, the attachments collected for the next message |
+
+| `ui.tools` member | What it is |
+|---|---|
+| `start_tool_call(tool_name, tool_call_id)` / `end_tool_call(tool_call_id=None)` | Note that a call started or finished; the default TUI keeps its status-bar timer by them. `None` ends every call |
+| `tool_call_handler` | The `ToolCallHandler` holding this UI's policies, argument formatters and response handlers, or `None` |
+| `yolo` | Auto-approval state: `False`, `True`, or the set of auto-approved tool names. `BaseUI` adds the setter |
+| `cancel_pending_confirmations(flush=True)` | Release an `ask_user` blocked on a tool confirmation; `flush=False` skips writing buffered output on the exit path |
+
+A caller typed against `AnyUI` reaches all of them this way. A class implementing `AnyUI` directly must supply the five accessors — `display`, `input`, `picker`, `session`, `tools` — or mix in `UIStateDefaultsMixin`, which supplies each one (handing the object back) plus an inert default for every member a UI leaves out.
+
 ### State every `AnyUI` must define
 
 `BaseUI` implements these. A class implementing `AnyUI` directly must define them too, or mix in `UIStateDefaultsMixin` (from `zrb.llm.ui.fallback.state_defaults`) for inert defaults:
@@ -380,9 +405,7 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 |---|---|
 | `is_thinking` (read/write) | Whether the assistant is producing a response. Mid-turn messages are queued with a ⏳ marker. Part of the session role, so a caller reaches it as `ui.session.is_thinking` |
 | `multi_ui_parent` (read/write) | The `MultiUI` this UI is a child of, or `None`. A child hands submitted messages to its parent |
-| `tool_call_handler` | The `ToolCallHandler` holding this UI's tool policies, argument formatters and response handlers, or `None`. See [Customizing Tool Approval](tool-approval.md) |
 | `background_tasks` | A set keeping fire-and-forget tasks referenced. Return the same set every time; callers `.add` and `.discard` on it. Part of the session role |
-| `cancel_pending_confirmations(flush=True)` | Release an `ask_user` blocked on a tool confirmation. `flush=False` skips writing buffered output, on the exit path |
 | `flush_to_parent()` | Write anything buffered to the delegating parent UI. A no-op for a UI that streams directly |
 
 ### The session role: `ui.session`

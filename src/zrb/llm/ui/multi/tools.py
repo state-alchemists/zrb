@@ -19,12 +19,13 @@ class MultiUIToolForwards(MultiUIFanout):
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
         """Forward a tool call's start to children tracking the running-tool timer."""
         self._fanout(
-            "start_tool_call", lambda ui: ui.start_tool_call(tool_name, tool_call_id)
+            "start_tool_call",
+            lambda ui: ui.tools.start_tool_call(tool_name, tool_call_id),
         )
 
     def end_tool_call(self, tool_call_id: str | None = None) -> None:
         """Forward a tool call's end to children tracking the running-tool timer."""
-        self._fanout("end_tool_call", lambda ui: ui.end_tool_call(tool_call_id))
+        self._fanout("end_tool_call", lambda ui: ui.tools.end_tool_call(tool_call_id))
 
     def update_tool_prepare(self, key: str, text: str) -> None:
         """Forward a "Prepare tool parameters" update to children that support it."""
@@ -51,7 +52,7 @@ class MultiUIToolForwards(MultiUIFanout):
 
         winning_ui = self.last_winning_ui
         winning_handler = (
-            winning_ui.tool_call_handler if winning_ui is not None else None
+            winning_ui.tools.tool_call_handler if winning_ui is not None else None
         )
         if winning_handler is not None:
             return await winning_handler.handle(self, call)
@@ -67,8 +68,8 @@ class MultiUIToolForwards(MultiUIFanout):
 
         # Final fallback: the primary child's own handler.
         main_ui = self.main_ui
-        if main_ui is not None and main_ui.tool_call_handler is not None:
-            return await main_ui.tool_call_handler.handle(self, call)
+        if main_ui is not None and main_ui.tools.tool_call_handler is not None:
+            return await main_ui.tools.tool_call_handler.handle(self, call)
 
         raise RuntimeError(
             "MultiUI has no attached UI and no approval channel that can "

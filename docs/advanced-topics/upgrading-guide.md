@@ -29,7 +29,7 @@ What to change in an existing setup when moving to a newer Zrb release. Only the
 
 ## Upgrading to 3.37.0
 
-A UI's contract is now five roles ([ADR-0140](../adr/adr-0140.md)), and two of them are reached through an accessor rather than inherited. `AnyUI` still inherits `AnyUIInput` and `AnyUITools`; it declares `display` and `session` instead of the twenty-one and fifteen members those two roles hold.
+A UI's contract is now five roles ([ADR-0140](../adr/adr-0140.md)), and every one of them is reached through an accessor rather than inherited. `AnyUI` declares `display`, `input`, `picker`, `session` and `tools` instead of the fifty members those five roles hold.
 
 | Before | After |
 |---|---|
@@ -39,16 +39,23 @@ A UI's contract is now five roles ([ADR-0140](../adr/adr-0140.md)), and two of t
 | `ui.conversation_session_name`, `ui.plan_mode_active` | `ui.session.conversation_session_name`, `ui.session.plan_mode_active` |
 | `ui.history_manager`, `ui.snapshot_manager`, `ui.background_tasks` | `ui.session.history_manager`, `ui.session.snapshot_manager`, `ui.session.background_tasks` |
 | `ui.accumulate_usage(...)`, `ui.reset_context_usage()`, `ui.update_system_info()` | `ui.session.accumulate_usage(...)`, `ui.session.reset_context_usage()`, `ui.session.update_system_info()` |
+| `ui.ask_user(...)`, `ui.run_interactive_command(...)`, `ui.submit_message(...)`, `ui.submit_answer(...)`, `ui.is_waiting_for_answer` | `ui.input.ask_user(...)`, `ui.input.run_interactive_command(...)`, `ui.input.submit_message(...)`, `ui.input.submit_answer(...)`, `ui.input.is_waiting_for_answer` |
+| `ui.send_queued_messages_now()`, `ui.deliver_queued_messages_early()`, `ui.take_pending_attachments()` | `ui.input.send_queued_messages_now()`, `ui.input.deliver_queued_messages_early()`, `ui.input.take_pending_attachments()` |
+| `ui.start_tool_call(...)`, `ui.end_tool_call(...)`, `ui.tool_call_handler`, `ui.yolo`, `ui.cancel_pending_confirmations(...)` | `ui.tools.start_tool_call(...)`, `ui.tools.end_tool_call(...)`, `ui.tools.tool_call_handler`, `ui.tools.yolo`, `ui.tools.cancel_pending_confirmations(...)` |
+| `ui.ask_user_choice(...)` | `ui.picker.ask_user_choice(...)` |
 
-`BaseUI`, `SimpleUI`, `EventDrivenUI`, `StdUI`, `MultiUI` and `BufferedUI` already answer both accessors, and so does anything mixing in `UIStateDefaultsMixin`. A class that implements `AnyUI` directly must add them — one line each, for a UI that is its own writer and its own conversation:
+`BaseUI`, `SimpleUI`, `EventDrivenUI`, `StdUI`, `MultiUI` and `BufferedUI` already answer all five accessors, and so does anything mixing in `UIStateDefaultsMixin`. A class that implements `AnyUI` directly must add them — one line each, for a UI that is its own writer, its own input side and its own conversation:
 
 ```python
 class MyUI(AnyUI):
     display = property(lambda self: self)
+    input = property(lambda self: self)
+    picker = property(lambda self: self)
     session = property(lambda self: self)
+    tools = property(lambda self: self)
 ```
 
-Both return the object itself rather than a separate part, so a subclass that overrides one of the members keeps answering for it; mixing in `UIStateDefaultsMixin` supplies the same two accessors plus an inert default for every member you leave out. What a caller sees on a `ui: AnyUI` is 22 members where it was 55, and the role contracts (`AnyUIDisplay`, `AnyUISession`, ...) are unchanged.
+Each returns the object itself rather than a separate part, so a subclass that overrides one of the members keeps answering for it; mixing in `UIStateDefaultsMixin` supplies the same five accessors plus an inert default for every member you leave out. What a caller sees on a `ui: AnyUI` is 9 members where it was 55, and the role contracts (`AnyUIDisplay`, `AnyUIInput`, `AnyUITools`, ...) are unchanged.
 
 Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the fallback pieces into `zrb.llm.ui.fallback`, and the layer-0 leaf modules into `zrb.llm.shared` — see [the shared-package section](#llm-shared-layer-0-modules).
 

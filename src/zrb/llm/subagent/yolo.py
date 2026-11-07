@@ -59,7 +59,7 @@ def make_yolo_inheritance_checker() -> (
         try:
             ui = get_current_ui()
             if ui is not None:
-                return bool(ui.yolo)
+                return bool(ui.tools.yolo)
         except Exception as e:
             CFG.LOGGER.debug(f"Could not read UI yolo state: {e}")
         return False

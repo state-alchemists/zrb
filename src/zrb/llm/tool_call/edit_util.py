@@ -36,7 +36,7 @@ async def edit_content_via_editor(
         tf_path = tf.name
 
     try:
-        await ui.run_interactive_command([editor, tf_path], shell=False)
+        await ui.input.run_interactive_command([editor, tf_path], shell=False)
 
         with open(tf_path, "r", encoding="utf-8") as tf:
             new_content_str = tf.read()

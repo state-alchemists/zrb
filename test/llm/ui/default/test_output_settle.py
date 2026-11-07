@@ -53,7 +53,7 @@ class SettleUI:
     default `UI`) and forwards everything else to the composed part.
     """
 
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
     session = property(lambda self: self)
 
     # The real `/btw` entry point, bound onto this stand-in so the transcript

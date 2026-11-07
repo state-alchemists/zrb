@@ -9,6 +9,7 @@ from zrb.llm.tool_call import ToolCallHandler
 @pytest.mark.asyncio
 async def test_pre_confirmation_approved():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="y")
     call = MagicMock()
     call.tool_name = "test_tool"
@@ -27,6 +28,7 @@ async def test_pre_confirmation_approved():
 @pytest.mark.asyncio
 async def test_pre_confirmation_denied():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="y")
     call = MagicMock()
     call.tool_name = "test_tool"
@@ -45,6 +47,7 @@ async def test_pre_confirmation_denied():
 @pytest.mark.asyncio
 async def test_pre_confirmation_next():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="y")  # Allow in post check
     call = MagicMock()
     call.tool_name = "test_tool"
@@ -69,6 +72,7 @@ async def test_pre_confirmation_next():
 @pytest.mark.asyncio
 async def test_confirmation_message_middleware():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="y")
     call = MagicMock()
     call.tool_name = "test_tool"
@@ -93,6 +97,7 @@ async def test_confirmation_message_middleware():
 @pytest.mark.asyncio
 async def test_post_confirmation_middleware():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="n")
     call = MagicMock()
     call.tool_name = "test_tool"
@@ -120,6 +125,7 @@ from zrb.llm.tool_call import ToolCallHandler
 @pytest.mark.asyncio
 async def test_handler_explicit_approval():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="y")
     call = MagicMock()
     call.tool_name = "test_tool"
@@ -134,6 +140,7 @@ async def test_handler_explicit_approval():
 @pytest.mark.asyncio
 async def test_handler_explicit_denial():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="n")
     call = MagicMock()
     call.tool_name = "test_tool"
@@ -149,6 +156,7 @@ async def test_handler_explicit_denial():
 @pytest.mark.asyncio
 async def test_handler_empty_answer_approves():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     # A bare Enter approves, and the handler returns immediately.
     ui.ask_user = AsyncMock(side_effect=[""])
     call = MagicMock()
@@ -165,6 +173,7 @@ async def test_handler_empty_answer_approves():
 @pytest.mark.asyncio
 async def test_handler_feedback_denial():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     # Simulate user typing a reason
     ui.ask_user = AsyncMock(return_value="I don't think this is safe")
     call = MagicMock()

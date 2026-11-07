@@ -120,12 +120,13 @@ def test_only_the_offered_hooks_are_dispatched_by_string():
 def test_every_declared_hook_is_declared_on_any_ui():
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.any_ui_display import AnyUIDisplay
+    from zrb.llm.ui.any_ui_input import AnyUIInput
     from zrb.llm.ui.any_ui_session import AnyUISession
+    from zrb.llm.ui.any_ui_tools import AnyUITools
 
-    # A hook is either on the whole object, on the display role it is part of,
-    # or on the session role: MultiUI reaches those two as `child.display` and
-    # `child.session`.
-    roles = (AnyUI, AnyUIDisplay, AnyUISession)
+    # A hook is declared on the whole object or on the role MultiUI reaches it
+    # through: `child.display`, `child.input`, `child.session`, `child.tools`.
+    roles = (AnyUI, AnyUIDisplay, AnyUIInput, AnyUISession, AnyUITools)
     missing = sorted(
         name
         for name in DECLARED_HOOKS

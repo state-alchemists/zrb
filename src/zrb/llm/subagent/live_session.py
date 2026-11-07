@@ -422,7 +422,7 @@ def _report_latest_response_to_parent(entry: LiveSubAgentSession) -> None:
     try:
         # `None`: these are the subagent's words, not the user's, and naming the
         # channel "keyboard" would be a lie the model acts on.
-        parent.submit_message(latest_response, None)
+        parent.input.submit_message(latest_response, None)
     except Exception as e:  # noqa: BLE001
         CFG.LOGGER.debug(
             f"Failed to report '{entry.agent_name}' continuation to main agent: {e}"

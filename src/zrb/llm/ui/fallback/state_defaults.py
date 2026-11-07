@@ -13,8 +13,10 @@ import asyncio
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
+from zrb.llm.ui.any_ui_input import AnyUIInput
 from zrb.llm.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.any_ui_session import AnyUISession
+from zrb.llm.ui.any_ui_tools import AnyUITools
 from zrb.llm.ui.fallback.echo_broadcast import broadcast_echo
 from zrb.llm.ui.fallback.text_picker import TextPicker
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
@@ -23,12 +25,23 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from zrb.llm.agent.types import ModelMessage, RequestUsage, RunUsage, UserContent
+    from zrb.llm.shared.input_source import InputProvenance
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.message_queue import QueuedMessage
 
 
 class UIStateDefaultsMixin:
     """Default `AnyUI` state members for UIs that do not track them."""
+
+    @property
+    def input(self) -> "AnyUIInput":
+        """A UI that asks and queues its own messages is its own input side."""
+        return cast("AnyUIInput", self)
+
+    @property
+    def tools(self) -> "AnyUITools":
+        """A UI that shows and confirms a tool call is its own tool surface."""
+        return cast("AnyUITools", self)
 
     @property
     def picker(self) -> AnyUIPicker:
@@ -176,9 +189,37 @@ class UIStateDefaultsMixin:
         """No prompt of its own to wait on."""
         return False
 
+    @property
+    def pending_answer_since(self) -> "float | None":
+        """No prompt of its own to date."""
+        return None
+
     def is_prompt_answered_since(self, asked_at: float) -> bool:
         """No prompt of its own to have answered."""
         return False
+
+    # The input role's members that `AnyUI` answered for in full before the
+    # roles became accessors: a UI with no queue of its own silently drops what
+    # it is handed, which is the promise a background command relies on when it
+    # wakes a session that has nowhere to put the result.
+    def submit_message(
+        self, user_message: str, source: "InputProvenance | None"
+    ) -> None:
+        """No queue of its own, so the message goes nowhere.
+
+        A sender that is not the user — a finished background command, a
+        sub-agent's report — must not assume it arrived; see
+        `AnyUIInput.submit_message`.
+        """
+
+    def withdraw_message(
+        self, user_message: str, source: "InputProvenance | None"
+    ) -> None:
+        """No queue of its own, so there is nothing to take back."""
+
+    def submit_answer(self, text: str) -> None:
+        """Answer the pending prompt with *text*; with no queue, a no-op."""
+        self.submit_message(text, None)
 
     def invalidate_ui(self) -> None:
         """No surface to repaint."""

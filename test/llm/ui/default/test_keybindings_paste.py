@@ -205,7 +205,7 @@ class IntegrationUI:
     plus the `__getattr__` fallback below keep `self.classify_input(...)` /
     `self.schedule_command(...)` working exactly as before."""
 
-    display = property(lambda self: self)
+    display = input = tools = property(lambda self: self)
 
     def __init__(self):
         self.exit_commands = ["/exit"]

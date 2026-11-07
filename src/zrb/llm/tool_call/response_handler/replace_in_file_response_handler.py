@@ -45,7 +45,7 @@ async def replace_in_file_response_handler(
         cmd_tpl = CFG.DIFF_EDIT_COMMAND_TPL
         cmd = cmd_tpl.format(old=old_path, new=new_path)
 
-        await ui.run_interactive_command(cmd, shell=True)
+        await ui.input.run_interactive_command(cmd, shell=True)
 
         with open(new_path, "r", encoding="utf-8") as f:
             edited_new_text = f.read()

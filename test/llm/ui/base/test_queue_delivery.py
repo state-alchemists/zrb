@@ -470,6 +470,7 @@ def test_the_ui_redraws_the_echo_of_a_delivered_message():
 def test_a_child_ui_lets_its_multi_ui_parent_deliver():
     ui = _make_ui()
     parent = MagicMock()
+    parent.input = parent.tools = parent
     parent.send_queued_messages_now.return_value = DeliveryReport(
         DeliveryOutcome.DELIVERED_EARLY, delivered_entries=(_entry("hello"),)
     )

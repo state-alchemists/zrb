@@ -53,7 +53,7 @@ class TerminalApprovalChannel(AnyApprovalChannel):
         )
 
         # The UI's handler carries its formatters and policies.
-        handler = self._ui.tool_call_handler or ToolCallHandler()
+        handler = self._ui.tools.tool_call_handler or ToolCallHandler()
 
         message = await handler.format_approval_message(self._ui, call)
         CFG.LOGGER.debug(
@@ -64,7 +64,7 @@ class TerminalApprovalChannel(AnyApprovalChannel):
 
         CFG.LOGGER.debug("TerminalApprovalChannel Waiting for user input via CLI...")
 
-        user_input = await self._ui.ask_user("", output_to_parent=f"\n{message}")
+        user_input = await self._ui.input.ask_user("", output_to_parent=f"\n{message}")
         user_response = user_input.strip()
 
         CFG.LOGGER.debug(

@@ -24,6 +24,7 @@ def registry():
 @pytest.fixture
 def buffered_ui():
     ui = MagicMock()
+    ui.input = ui.tools = ui
     ui.active_run_context = None
     return ui
 

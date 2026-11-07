@@ -47,11 +47,6 @@ class MultiUITurnControl(MultiUIFanout):
         self.background_tasks.add(task)
         task.add_done_callback(self.background_tasks.discard)
 
-    @property
-    def is_waiting_for_answer(self) -> bool:
-        """Whether any child holds a prompt waiting for the user."""
-        return any(ui.is_waiting_for_answer for ui in self._uis)
-
     def send_queued_messages_now(
         self,
         may_interrupt: bool = True,
@@ -92,4 +87,4 @@ class MultiUITurnControl(MultiUIFanout):
     def is_prompt_answered_since(self, asked_at: float) -> bool:
         """Whether any child has answered the first prompt asked at or after
         *asked_at*: an answer from any of them settles it."""
-        return any(ui.is_prompt_answered_since(asked_at) for ui in self._uis)
+        return any(ui.input.is_prompt_answered_since(asked_at) for ui in self._uis)

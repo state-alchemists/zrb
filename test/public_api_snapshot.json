@@ -252,27 +252,14 @@
       "init": [],
       "members": [
         "append_to_output",
-        "ask_user",
-        "cancel_pending_confirmations",
-        "deliver_queued_messages_early",
         "display",
-        "end_tool_call",
+        "input",
         "is_local",
-        "is_prompt_answered_since",
-        "is_waiting_for_answer",
         "multi_ui_parent",
         "picker",
-        "record_submitted_message",
         "run_async",
-        "run_interactive_command",
-        "send_queued_messages_now",
         "session",
-        "start_tool_call",
-        "submit_message",
-        "take_pending_attachments",
-        "tool_call_handler",
-        "withdraw_message",
-        "yolo"
+        "tools"
       ]
     },
     "BaseInput": {

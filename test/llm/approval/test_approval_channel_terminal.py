@@ -13,6 +13,7 @@ from zrb.llm.ui.any_ui import AnyUI
 def mock_ui():
     """Create a mock UI for testing."""
     ui = MagicMock(spec=AnyUI)
+    ui.input = ui.tools = ui
     ui.ask_user = AsyncMock(return_value="y")
     return ui
 
@@ -24,6 +25,7 @@ class TestTerminalApprovalChannelWithHandler:
     async def test_uses_ui_handler_with_formatters(self):
         """Test that TerminalApprovalChannel uses UI's _tool_call_handler when available."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         mock_ui.ask_user = AsyncMock(return_value="y")
         mock_ui.append_to_output = MagicMock()
 
@@ -49,6 +51,7 @@ class TestTerminalApprovalChannelWithHandler:
     async def test_edit_response_triggers_response_handler_chain(self):
         """Test that 'e' response triggers response handler chain."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         mock_ui.ask_user = AsyncMock(return_value="e")
         mock_ui.append_to_output = MagicMock()
         mock_ui.run_interactive_command = AsyncMock()
@@ -79,6 +82,7 @@ class TestTerminalApprovalChannelWithHandler:
     async def test_unknown_response_denies(self):
         """Test that unknown response denies the tool."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="unknown")
@@ -100,6 +104,7 @@ class TestTerminalApprovalChannelWithHandler:
     async def test_notify_calls_ui_append_to_output(self):
         """Test that notify method uses UI's append_to_output."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.append_to_output = MagicMock()
@@ -119,6 +124,7 @@ class TestTerminalApprovalChannelWithHandler:
     async def test_edit_response_falls_back_to_handle_edit(self):
         """Test that 'e' response falls back to _handle_edit when no handler."""
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         # A spec'd mock auto-creates the handler; exercise the no-handler path.
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="e")
@@ -145,6 +151,7 @@ class TestDenialReasonIsClamped:
         from zrb.llm.tool_call.handler import MAX_DENIAL_REASON_CHARS
 
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="x" * 5000)
         mock_ui.append_to_output = MagicMock()
@@ -163,6 +170,7 @@ class TestDenialReasonIsClamped:
     @pytest.mark.asyncio
     async def test_a_short_reason_is_kept_as_typed(self):
         mock_ui = MagicMock(spec=AnyUI)
+        mock_ui.input = mock_ui.tools = mock_ui
         mock_ui.tool_call_handler = None
         mock_ui.ask_user = AsyncMock(return_value="use rg instead")
         mock_ui.append_to_output = MagicMock()

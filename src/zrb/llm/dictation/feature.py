@@ -52,6 +52,7 @@ if TYPE_CHECKING:
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_ui_input import AnyUIInput
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)
@@ -342,10 +343,10 @@ class DictationSession:
         # Push-to-talk is another way of typing (ADR-0076): the words go
         # through the submission the keyboard uses, so they queue exactly as
         # typed ones do — no separate delivery policy for having been spoken.
-        if ui.is_waiting_for_answer and _is_pending_since(ui, started_at):
-            ui.submit_answer(text)
+        if ui.input.is_waiting_for_answer and _is_pending_since(ui.input, started_at):
+            ui.input.submit_answer(text)
             return "🎤 Transcribed and sent as the answer."
-        ui.submit_message(text, DICTATION_INPUT)
+        ui.input.submit_message(text, DICTATION_INPUT)
         return "🎤 Transcribed and queued."
 
     async def _transcribe_recording(
@@ -567,7 +568,7 @@ class DictationSession:
         if count_words(command) >= (minimum or 0):
             return ""
         ui = get_session_ui() or self._ui
-        if ui is not None and ui.is_waiting_for_answer:
+        if ui is not None and ui.input.is_waiting_for_answer:
             return ""
         return why
 
@@ -709,7 +710,7 @@ class DictationSession:
         answer to the prompt being asked is left alone: "no" there denies a
         tool call, not the turn."""
         ui = get_session_ui() or self._ui
-        if ui is None or ui.is_waiting_for_answer:
+        if ui is None or ui.input.is_waiting_for_answer:
             return True
         intent = await self._get_barge_in_intent(command)
         if intent == "stop":
@@ -894,7 +895,7 @@ def _say_emotion_load_failure(load: "asyncio.Task[None]") -> None:
         logger.warning(f"Loading the emotion model failed: {error}")
 
 
-def _is_pending_since(ui: "BaseUI", started_at: float) -> bool:
+def _is_pending_since(input_role: "AnyUIInput", started_at: float) -> bool:
     """Whether the prompt on screen was already waiting when the user spoke.
 
     A prompt that appeared while the words were being recorded and transcribed
@@ -902,7 +903,7 @@ def _is_pending_since(ui: "BaseUI", started_at: float) -> bool:
     call that showed up meanwhile (ADR-0076). A UI that cannot date its prompt
     gets no timed answers either.
     """
-    since = ui.pending_answer_since
+    since = input_role.pending_answer_since
     return since is not None and since <= started_at
 
 

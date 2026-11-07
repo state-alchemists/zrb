@@ -551,7 +551,7 @@ def is_answered_since(ui: "AnyUI | None", asked_at: float) -> Callable[[], bool]
     """
 
     def is_answered() -> bool:
-        return ui is not None and ui.is_prompt_answered_since(asked_at)
+        return ui is not None and ui.input.is_prompt_answered_since(asked_at)
 
     return is_answered
 

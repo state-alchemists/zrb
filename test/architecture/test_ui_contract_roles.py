@@ -25,13 +25,16 @@ CORE_FILE = "any_ui.py"
 CORE_CLASS = "AnyUI"
 
 # A role reached through an accessor instead of by inheritance: a UI hands out
-# its choice widget, the surface it writes to, and the conversation it is
-# talking to, rather than answering to every one of their methods. Every role
-# not named here must reach `AnyUI` as a base, member for member.
+# its choice widget, the surface it writes to, the conversation it is talking
+# to, its input side and its tool surface, rather than answering to every one
+# of their methods. Every role not named here must reach `AnyUI` as a base,
+# member for member.
 ROLE_ACCESSOR = {
+    "AnyUIInput": "input",
     "AnyUIPicker": "picker",
     "AnyUIDisplay": "display",
     "AnyUISession": "session",
+    "AnyUITools": "tools",
 }
 
 # The one member the aggregate and a role both declare. `append_to_output` is
@@ -55,20 +58,21 @@ CORE_MEMBERS = {
     "tools",
     "session",
 }
-MAX_CORE_MEMBERS = 8
+MAX_CORE_MEMBERS = 9
 
 # `AnyUI`'s own declared members. The target is 25, and an accessor counts: it
 # is a member the aggregate declares. Moving a role behind its accessor trades
 # that role's members for one, so this number goes up as roles leave and the
 # aggregate's total surface shrinks; `test_the_reachable_members_shrink` holds
 # the total. Neither may be raised to admit a new behaviour.
-ANY_UI_MEMBERS = 7
+ANY_UI_MEMBERS = 9
 
 # Every member a caller sees on `AnyUI`: its own, plus each inherited role's.
-# 22 after the display and session roles moved behind `ui.display` and
-# `ui.session`, down from 55. Only ever lowered; a new role member raises the
+# 9 — its own members only, since the last of the five roles moved behind
+# `ui.tools` — down from 55 before the split. Only ever lowered; a new role
+# member raises the
 # total and fails here.
-REACHABLE_MEMBERS = 22
+REACHABLE_MEMBERS = 9
 
 
 def _members(path: pathlib.Path, class_name: str) -> set[str]:
@@ -174,4 +178,61 @@ def test_the_reachable_members_shrink():
     assert len(reachable) == REACHABLE_MEMBERS, (
         f"{REACHABLE_MEMBERS - len(reachable)} member(s) left `AnyUI` without "
         f"lowering REACHABLE_MEMBERS. Set it to {len(reachable)}."
+    )
+
+
+def _hosts() -> dict[str, object]:
+    """The UIs zrb ships whose role surface is assembled rather than written.
+
+    `DefaultUI` answers each role in one hand-written class and builds a
+    prompt_toolkit application to do it, so its own tests cover it. These three
+    are the ones that answer a role by forwarding to a child, casting to
+    themselves or taking a default — where a member goes missing unnoticed.
+    """
+    from zrb.llm.ui.buffered_ui import BufferedUI
+    from zrb.llm.ui.fallback.std_ui import StdUI
+    from zrb.llm.ui.multi import MultiUI
+
+    return {
+        "StdUI": StdUI(),
+        "BufferedUI": BufferedUI(StdUI()),
+        "MultiUI": MultiUI([StdUI(), StdUI()]),
+    }
+
+
+def test_every_host_answers_every_member_of_the_role_it_hands_out():
+    """An accessor only keeps its promise if what it returns answers the role.
+
+    A host that answers the aggregate answers five roles; once the aggregate
+    stops inheriting a role, the only thing keeping that role's members
+    reachable is each host implementing them or taking the mixin's default.
+    Nothing used to say so, and `submit_message` vanished from `StdUI` — present
+    to the type checker, missing at the call. Same shape three times, so it is
+    checked here once: every host, every accessor, every abstract member.
+    """
+    from zrb.llm.ui.any_ui_display import AnyUIDisplay
+    from zrb.llm.ui.any_ui_input import AnyUIInput
+    from zrb.llm.ui.any_ui_picker import AnyUIPicker
+    from zrb.llm.ui.any_ui_session import AnyUISession
+    from zrb.llm.ui.any_ui_tools import AnyUITools
+
+    roles = {
+        "display": AnyUIDisplay,
+        "input": AnyUIInput,
+        "picker": AnyUIPicker,
+        "session": AnyUISession,
+        "tools": AnyUITools,
+    }
+    gaps: list[str] = []
+    for host_name, host in _hosts().items():
+        for accessor, role in roles.items():
+            answered = getattr(host, accessor)
+            gaps += [
+                f"{host_name}.{accessor}.{member}"
+                for member in sorted(role.__abstractmethods__)
+                if not hasattr(answered, member)
+            ]
+    assert not gaps, (
+        "A role member is reachable in name only — the accessor hands back an "
+        f"object that does not answer it: {gaps}"
     )

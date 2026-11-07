@@ -56,6 +56,7 @@ def test_a_child_ui_leaves_the_hush_to_its_parent(base_ui):
     """A child delegates the submission to the `MultiUI`, which is the one that
     queues it; hushing from both would interrupt twice for one message."""
     parent = MagicMock()
+    parent.input = parent.tools = parent
     base_ui.multi_ui_parent = parent
 
     with patch("zrb.llm.speech.feature.interrupt_speech") as hush:

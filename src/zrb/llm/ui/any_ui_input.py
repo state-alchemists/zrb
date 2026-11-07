@@ -75,11 +75,26 @@ class AnyUIInput(ABC):
     def is_waiting_for_answer(self) -> bool:
         """Whether a tool approval or a question is waiting for the user."""
 
+    @property
+    @abstractmethod
+    def pending_answer_since(self) -> "float | None":
+        """When the pending prompt appeared, as a `time.monotonic()` value, or
+        ``None`` when nothing is pending or the UI cannot date it.
+
+        A word spoken before that moment is not an answer to that prompt, so a
+        "yes" said to nothing never approves a tool call that showed up while
+        the words were still being recorded (ADR-0076)."""
+
     @abstractmethod
     def is_prompt_answered_since(self, asked_at: float) -> bool:
         """Whether the first prompt asked at or after *asked_at* (a
         `time.monotonic()` value) has been answered or cancelled. ``False``
         before it is asked, or when the UI cannot tell."""
+
+    @abstractmethod
+    def submit_answer(self, text: str) -> None:
+        """Answer the pending prompt with *text*; with none pending, submit it
+        as a message. Hands-free dictation delivers a spoken answer this way."""
 
     @abstractmethod
     def record_submitted_message(self, text: str) -> None:

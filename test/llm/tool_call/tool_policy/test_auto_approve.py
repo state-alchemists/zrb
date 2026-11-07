@@ -16,6 +16,7 @@ class TestAutoApproveToolNameMismatch:
         """When tool name doesn't match, delegate to next handler."""
         policy = auto_approve("MyTool")
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "OtherTool"
         next_handler = AsyncMock(return_value="next_result")
@@ -36,6 +37,7 @@ class TestAutoApproveEmptyPatterns:
 
         policy = auto_approve("MyTool", kwargs_patterns={})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "MyTool"
         call.args = {"any": "arg"}
@@ -53,6 +55,7 @@ class TestAutoApproveEmptyPatterns:
 
         policy = auto_approve("MyTool", kwargs_patterns=None)
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "MyTool"
         call.args = {}
@@ -74,6 +77,7 @@ class TestAutoApproveDefaultPatterns:
 
         policy = auto_approve("MyTool")
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "MyTool"
         call.args = {"any": "arg"}
@@ -105,6 +109,7 @@ class TestAutoApproveStringArgs:
 
         policy = auto_approve("Read", kwargs_patterns={"path": r".*\.txt"})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Read"
         call.args = json.dumps({"path": "file.txt"})
@@ -119,6 +124,7 @@ class TestAutoApproveStringArgs:
         """Invalid JSON string args delegate to next handler."""
         policy = auto_approve("Read", kwargs_patterns={"path": r".*\.txt"})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Read"
         call.args = "not valid json"
@@ -138,6 +144,7 @@ class TestAutoApproveNonDictArgs:
         """Non-dict args (e.g. list) delegate to next handler."""
         policy = auto_approve("MyTool", kwargs_patterns={"key": r".*"})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "MyTool"
         call.args = ["list", "of", "args"]
@@ -153,6 +160,7 @@ class TestAutoApproveNonDictArgs:
         """JSON that decodes to non-dict (e.g. list) delegates to next handler."""
         policy = auto_approve("MyTool", kwargs_patterns={"key": r".*"})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "MyTool"
         call.args = json.dumps(["list", "of", "args"])
@@ -174,6 +182,7 @@ class TestAutoApproveCallablePatterns:
 
         policy = auto_approve("MyTool", kwargs_patterns=lambda args: True)
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "MyTool"
         call.args = {"key": "value"}
@@ -189,6 +198,7 @@ class TestAutoApproveCallablePatterns:
         """Callable kwargs_patterns that returns False delegates to next handler."""
         policy = auto_approve("MyTool", kwargs_patterns=lambda args: False)
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "MyTool"
         call.args = {"key": "value"}
@@ -210,6 +220,7 @@ class TestAutoApproveDictPatterns:
 
         policy = auto_approve("Read", kwargs_patterns={"path": r".*\.txt$"})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Read"
         call.args = {"path": "readme.txt"}
@@ -224,6 +235,7 @@ class TestAutoApproveDictPatterns:
         """Non-matching pattern delegates to next handler."""
         policy = auto_approve("Read", kwargs_patterns={"path": r".*\.txt$"})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Read"
         call.args = {"path": "script.py"}
@@ -239,6 +251,7 @@ class TestAutoApproveDictPatterns:
         """A call lacking an arg named in the patterns delegates to next handler."""
         policy = auto_approve("Read", kwargs_patterns={"path": r".*\.txt$"})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Read"
         call.args = {"other_key": "anything"}
@@ -256,6 +269,7 @@ class TestAutoApproveDictPatterns:
             "Bash", kwargs_patterns={"command": r"^ls\b", "cwd": r"^/tmp"}
         )
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Bash"
         call.args = {"command": "ls -la"}
@@ -272,6 +286,7 @@ class TestAutoApproveDictPatterns:
 
         policy = auto_approve("Read", kwargs_patterns={"path": r".*\.txt$"})
         ui = MagicMock()
+        ui.input = ui.tools = ui
         call = MagicMock()
         call.tool_name = "Read"
         call.args = {"path": "readme.txt", "limit": 10}
