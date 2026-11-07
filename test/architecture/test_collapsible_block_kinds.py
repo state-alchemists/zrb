@@ -41,7 +41,7 @@ def test_streamer_prints_each_block_under_the_kind_the_ui_registers():
 def test_both_uis_register_exactly_those_kinds():
     """`UIOutput` and `BufferedUI` must agree with the streamer and with
     each other — MultiUI fans the same chunks to both."""
-    for rel in ("llm/ui/default/output.py", "llm/ui/buffered_ui.py"):
+    for rel in ("llm/ui/default/output.py", "llm/ui/buffered/ui.py"):
         source = (SRC / rel).read_text("utf-8")
         tree = ast.parse(source)
         registered = {

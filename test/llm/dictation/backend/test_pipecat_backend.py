@@ -6,10 +6,10 @@ import asyncio
 
 import pytest
 
-from zrb.llm.dictation.backend.pipecat import PipecatDictationBackend
+from zrb.llm.dictation.backend.pipecat.backend import PipecatDictationBackend
 from zrb.llm.dictation.config import DictationConfig
 
-MODULE = "zrb.llm.dictation.backend.pipecat"
+MODULE = "zrb.llm.dictation.backend.pipecat.backend"
 
 # Pipecat's sample rate for the stubbed pipeline.
 SAMPLE_RATE = 16000

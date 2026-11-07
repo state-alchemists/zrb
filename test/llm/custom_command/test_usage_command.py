@@ -6,7 +6,7 @@ import pytest
 from pydantic_ai.usage import RunUsage
 
 from zrb.config.config import CFG
-from zrb.llm.custom_command.usage_command import (
+from zrb.llm.custom_command.usage.command import (
     _duration,
     create_usage_commands,
     render_usage,

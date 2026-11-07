@@ -31,7 +31,7 @@ from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree
-from zrb.llm.ui.buffered_ui import BufferedUI
+from zrb.llm.ui.buffered.ui import BufferedUI
 from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.llm.util.roster import cap_items, search_roster
 from zrb.llm.util.subagent_session_naming import (

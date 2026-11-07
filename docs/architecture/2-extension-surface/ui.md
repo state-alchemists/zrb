@@ -75,10 +75,10 @@ flowchart TD
 | `AnyUI` | `src/zrb/llm/ui/any_ui.py` | The contract: `ask_user`, `ask_user_choice`, `append_to_output`, `stream_to_parent`, `run_interactive_command`, `run_async`, plus the run-state properties (`is_thinking`, `yolo`, `model`, ...) and cancellation. It sits beside the implementations, and `ui/__init__.py` imports nothing eagerly, so naming the contract does not load the terminal client |
 | `BaseUI` | `src/zrb/llm/ui/base/ui.py` | Shared chat logic: the message queue, running a turn (`stream_ai_response`), slash commands, history replay, snapshots, the side-question destination (`begin_side_question` and the three methods that end it), and the text fallback for `ask_user_choice` |
 | `UI` | `src/zrb/llm/ui/default/ui.py` | The full-screen prompt_toolkit terminal, built from parts: `UIOutput` (rendering), `UIConfirmation` (the approval queue), selection and keybindings |
-| `SimpleUI`, `EventDrivenUI` | `src/zrb/llm/ui/simple_ui_base.py`, `src/zrb/llm/ui/event_driven_ui.py` | The small extension levels: write `print` and `get_input`, or `print` and `start_event_loop` |
+| `SimpleUI`, `EventDrivenUI` | `src/zrb/llm/ui/simple_ui_base.py`, `src/zrb/llm/ui/event_driven/ui.py` | The small extension levels: write `print` and `get_input`, or `print` and `start_event_loop` |
 | `StdUI` | `src/zrb/llm/ui/fallback/std_ui.py` | Plain terminal output and input; the fallback when nothing else is configured, in the package's L0 floor so a headless run does not load the rest |
 | `MultiUI` | `src/zrb/llm/ui/multi/` | Several surfaces as one: broadcast output, race input, one shared turn queue, state from the primary child. A package, one module per job: `state`, `fanout`, `tools`, `turn`, `streaming`, `input`, `run` |
-| `BufferedUI` | `src/zrb/llm/ui/buffered_ui.py` | A sub-agent's view: its own output buffer, prompts forwarded to the parent |
+| `BufferedUI` | `src/zrb/llm/ui/buffered/ui.py` | A sub-agent's view: its own output buffer, prompts forwarded to the parent |
 | `HTTPUI` | `src/zrb/runner/chat/http_ui.py` | The web chat: output as session broadcasts, input from the session queue; built by `create_http_ui_factory` |
 | `create_ui_factory` | `src/zrb/llm/ui/ui_factory.py` | Turning a UI class into a factory a chat task can register |
 | `create_combined_ui` | `src/zrb/llm/ui/fallback/resolution.py` | Normalizing a UI or a list: one stays one, many become the `MultiUI` the presentation layer registers |
@@ -137,7 +137,7 @@ sequenceDiagram
 | Change terminal rendering or keys | `src/zrb/llm/ui/default/` | `test/llm/ui/default/` |
 | Change which UI a chat picks | `src/zrb/llm/task/chat/running.py` | `test/llm/task/chat/test_running_sessions.py` |
 | Change multi-surface fan-out or input races | `src/zrb/llm/ui/multi/` | `test/llm/ui/test_multi_ui_confirmation.py`, `test/llm/ui/test_multi_ui_fanout.py` |
-| Change sub-agent buffering | `src/zrb/llm/ui/buffered_ui.py` | `test/llm/ui/test_buffered_ui.py` |
+| Change sub-agent buffering | `src/zrb/llm/ui/buffered/ui.py` | `test/llm/ui/test_buffered_ui.py` |
 | Change the web output or input | `src/zrb/runner/chat/http_ui.py` | `test/runner/chat/test_http_ui.py` |
 
 ## See Also

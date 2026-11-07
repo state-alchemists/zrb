@@ -20,12 +20,12 @@ from pipecat.services.settings import STTSettings  # noqa: E402
 from pipecat.services.stt_service import SegmentedSTTService  # noqa: E402
 from pipecat.utils.time import time_now_iso8601  # noqa: E402
 
-from zrb.llm.dictation import pipecat_stt  # noqa: E402
-from zrb.llm.dictation.listen import SAMPLE_RATE  # noqa: E402
-from zrb.llm.dictation.pipecat_stt import (  # noqa: E402
+from zrb.llm.dictation.backend.pipecat import stt as pipecat_stt  # noqa: E402
+from zrb.llm.dictation.backend.pipecat.stt import (  # noqa: E402
     STTPipeline,
     TranscriptRecorder,
 )
+from zrb.llm.dictation.listen import SAMPLE_RATE  # noqa: E402
 
 #: SegmentedSTTService appends half a second so models hear the last word's end.
 TRAILING_SILENCE_BYTES = int(SAMPLE_RATE * 0.5) * 2

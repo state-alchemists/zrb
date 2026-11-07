@@ -189,7 +189,7 @@ def _hosts() -> dict[str, object]:
     are the ones that answer a role by forwarding to a child, casting to
     themselves or taking a default — where a member goes missing unnoticed.
     """
-    from zrb.llm.ui.buffered_ui import BufferedUI
+    from zrb.llm.ui.buffered import BufferedUI
     from zrb.llm.ui.fallback.std_ui import StdUI
     from zrb.llm.ui.multi import MultiUI
 

@@ -34,10 +34,10 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui_session import AnyUISession  # noqa: F401
     from zrb.llm.ui.any_ui_tools import AnyUITools  # noqa: F401
     from zrb.llm.ui.base.ui import BaseUI  # noqa: F401
-    from zrb.llm.ui.buffered_output import BufferedOutputMixin  # noqa: F401
-    from zrb.llm.ui.buffered_ui import BufferedUI  # noqa: F401
+    from zrb.llm.ui.buffered.output import BufferedOutputMixin  # noqa: F401
+    from zrb.llm.ui.buffered.ui import BufferedUI  # noqa: F401
     from zrb.llm.ui.default.ui import UI  # noqa: F401
-    from zrb.llm.ui.event_driven_ui import EventDrivenUI  # noqa: F401
+    from zrb.llm.ui.event_driven.ui import EventDrivenUI  # noqa: F401
     from zrb.llm.ui.multi import MultiUI  # noqa: F401
     from zrb.llm.ui.simple_ui_base import SimpleUI  # noqa: F401
     from zrb.llm.ui.trigger import (  # noqa: F401
@@ -61,13 +61,13 @@ _SOURCES = {
     "ChoiceSpec": "zrb.llm.ui.any_ui_picker",
     # Advanced API
     "BaseUI": "zrb.llm.ui.base.ui",
-    "BufferedOutputMixin": "zrb.llm.ui.buffered_output",
-    "BufferedUI": "zrb.llm.ui.buffered_ui",
+    "BufferedOutputMixin": "zrb.llm.ui.buffered.output",
+    "BufferedUI": "zrb.llm.ui.buffered.ui",
     # Multi-channel support
     "MultiUI": "zrb.llm.ui.multi",
     # Simple API (RECOMMENDED)
     "SimpleUI": "zrb.llm.ui.simple_ui_base",
-    "EventDrivenUI": "zrb.llm.ui.event_driven_ui",
+    "EventDrivenUI": "zrb.llm.ui.event_driven.ui",
     "UIConfig": "zrb.llm.ui.ui_config",
     "TriggerInput": "zrb.llm.ui.trigger",
     "TriggerMessage": "zrb.llm.ui.trigger",

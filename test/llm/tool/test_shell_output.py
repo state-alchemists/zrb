@@ -101,7 +101,7 @@ async def test_two_parallel_shell_calls_each_get_their_own_collapsible_block(
 ):
     """Keep interleaved output from parallel commands in separate blocks."""
     # lazy: only this test needs a real UI implementation
-    from zrb.llm.ui.buffered_ui import BufferedUI
+    from zrb.llm.ui.buffered.ui import BufferedUI
 
     ui = BufferedUI(MagicMock())
     monkeypatch.setattr(shell_mod, "get_current_ui", lambda: ui)

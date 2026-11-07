@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.ui.event_driven_ui import EventDrivenUI
+from zrb.llm.ui.event_driven.ui import EventDrivenUI
 
 
 class MockEventUI(EventDrivenUI):

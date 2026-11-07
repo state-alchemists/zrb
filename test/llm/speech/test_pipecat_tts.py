@@ -22,11 +22,11 @@ from pipecat.services.settings import TTSSettings  # noqa: E402
 from pipecat.services.tts_service import TTSService  # noqa: E402
 
 from zrb.config.config import CFG  # noqa: E402
-from zrb.llm.speech import pipecat_tts  # noqa: E402
 from zrb.llm.speech.backend.any_speech_backend import (  # noqa: E402
     SpeechServiceStopped,
 )
-from zrb.llm.speech.pipecat_tts import TTSPipeline  # noqa: E402
+from zrb.llm.speech.backend.pipecat import tts as pipecat_tts  # noqa: E402
+from zrb.llm.speech.backend.pipecat.tts import TTSPipeline  # noqa: E402
 
 RATE = 24000
 

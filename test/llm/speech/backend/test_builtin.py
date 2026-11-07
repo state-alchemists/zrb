@@ -8,7 +8,7 @@ import pytest
 
 from zrb.llm.speech import SpeechConfig
 from zrb.llm.speech.backend import AnySpeechBackend, get_speech_backend
-from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend
+from zrb.llm.speech.backend.pipecat.backend import PipecatSpeechBackend
 
 
 class _Response(io.BytesIO):

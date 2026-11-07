@@ -18,7 +18,7 @@ from zrb.input.str_input import StrInput
 from zrb.llm.camera import enable_camera
 from zrb.llm.common_tools import apply_common_tools
 from zrb.llm.custom_command import get_skill_custom_command
-from zrb.llm.custom_command.usage_command import create_usage_commands
+from zrb.llm.custom_command.usage.command import create_usage_commands
 from zrb.llm.dictation import enable_dictation
 from zrb.llm.emotion import enable_emotion
 from zrb.llm.prompt.manager import PromptManager

@@ -17,7 +17,7 @@ from zrb.llm.speech import SpeechConfig  # noqa: E402
 from zrb.llm.speech.backend.any_speech_backend import (  # noqa: E402
     SpeechServiceStopped,
 )
-from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend  # noqa: E402
+from zrb.llm.speech.backend.pipecat.backend import PipecatSpeechBackend  # noqa: E402
 from zrb.llm.voice.builtin import TTS_SERVICE_SPECS  # noqa: E402
 from zrb.llm.voice.registry import TTSServiceRegistry  # noqa: E402
 from zrb.llm.voice.spec import TTSServiceSpec  # noqa: E402
@@ -65,7 +65,7 @@ def factory(monkeypatch) -> FakeTTSServiceFactory:
     """Build a fake service where the manager would build one."""
     factory = FakeTTSServiceFactory()
     monkeypatch.setattr(
-        "zrb.llm.speech.backend.pipecat.tts_manager.create_service", factory
+        "zrb.llm.speech.backend.pipecat.backend.tts_manager.create_service", factory
     )
     return factory
 
@@ -111,7 +111,8 @@ def test_a_service_that_cannot_be_built_is_reported_to_the_speaker(monkeypatch):
         raise RuntimeError(f"speech service {name!r} needs 'kokoro_onnx'")
 
     monkeypatch.setattr(
-        "zrb.llm.speech.backend.pipecat.tts_manager.create_service", create_service
+        "zrb.llm.speech.backend.pipecat.backend.tts_manager.create_service",
+        create_service,
     )
     backend = PipecatSpeechBackend("kokoro", SpeechConfig().resolve())
 
@@ -131,10 +132,11 @@ def test_a_start_that_never_returns_is_given_up_on(monkeypatch):
         return FakeSpeechService()
 
     monkeypatch.setattr(
-        "zrb.llm.speech.backend.pipecat.tts_manager.create_service", create_service
+        "zrb.llm.speech.backend.pipecat.backend.tts_manager.create_service",
+        create_service,
     )
     monkeypatch.setattr(
-        "zrb.llm.speech.backend.pipecat.PIPELINE_START_TIMEOUT_SECONDS", 0.2
+        "zrb.llm.speech.backend.pipecat.backend.PIPELINE_START_TIMEOUT_SECONDS", 0.2
     )
     backend = PipecatSpeechBackend("piper", SpeechConfig().resolve())
     starter = threading.Thread(target=_drain, args=(backend,), daemon=True)
@@ -191,7 +193,8 @@ def test_a_service_that_stopped_is_replaced_by_the_next_sentence(monkeypatch, ca
         return service
 
     monkeypatch.setattr(
-        "zrb.llm.speech.backend.pipecat.tts_manager.create_service", create_service
+        "zrb.llm.speech.backend.pipecat.backend.tts_manager.create_service",
+        create_service,
     )
     backend = PipecatSpeechBackend("pocket", SpeechConfig().resolve())
     try:
@@ -244,7 +247,7 @@ def test_a_closed_backend_starts_no_second_pipeline(factory):
 def test_the_backend_is_local_as_its_registered_service_is(monkeypatch):
     registry = TTSServiceRegistry(TTS_SERVICE_SPECS)
     registry.register("remote", TTSServiceSpec(name="remote", is_local=False))
-    monkeypatch.setattr("zrb.llm.speech.backend.pipecat.tts_registry", registry)
+    monkeypatch.setattr("zrb.llm.speech.backend.pipecat.backend.tts_registry", registry)
     config = SpeechConfig().resolve()
 
     assert PipecatSpeechBackend("kokoro", config).is_local
@@ -263,7 +266,7 @@ def test_closing_does_not_wait_for_a_pipeline_still_starting(monkeypatch):
         return built(name, config)
 
     monkeypatch.setattr(
-        "zrb.llm.speech.backend.pipecat.tts_manager.create_service",
+        "zrb.llm.speech.backend.pipecat.backend.tts_manager.create_service",
         slow_create_service,
     )
     backend = PipecatSpeechBackend("pocket", SpeechConfig().resolve())
