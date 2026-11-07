@@ -11,13 +11,13 @@ from typing import cast
 import pytest
 
 from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.hook.execution.executor import (
     ThreadPoolHookExecutor,
     get_hook_executor,
     shutdown_hook_executor,
 )
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.ui.any_ui import AnyUI
 
 
@@ -247,8 +247,8 @@ async def test_a_hook_runs_in_the_callers_context():
 @pytest.mark.asyncio
 async def test_a_hook_does_not_inherit_what_is_bound_to_the_callers_loop():
     "The hook runs in an event loop of its own, so the chat's UI, tool"
-    from zrb.llm.shared.agent_state import current_model, current_ui
     from zrb.llm.approval.approval_channel import current_approval_channel
+    from zrb.llm.shared.agent_state import current_model, current_ui
 
     executor = ThreadPoolHookExecutor()
     executor.start()

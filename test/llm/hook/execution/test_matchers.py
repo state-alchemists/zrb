@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from zrb.llm.hook.contracts.interface import HookResult
-from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager import HookManager
 
 
 def _create_mock_cfg():
@@ -80,16 +80,16 @@ async def test_evaluate_matchers_equals(tmp_path):
 
 def test_session_end_matcher_field_is_source():
     "SessionEnd gains Claude-compatible matcher support, filtering on `source`."
-    from zrb.llm.hook.execution.matcher import CLAUDE_EVENT_MATCHER_FIELDS
     from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.execution.matcher import CLAUDE_EVENT_MATCHER_FIELDS
 
     assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.SESSION_END] == "source"
 
 
 def test_notification_matcher_field_is_notification_type():
     "Claude matches Notification hooks on `notification_type` (e.g."
-    from zrb.llm.hook.execution.matcher import CLAUDE_EVENT_MATCHER_FIELDS
     from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.execution.matcher import CLAUDE_EVENT_MATCHER_FIELDS
 
     assert CLAUDE_EVENT_MATCHER_FIELDS[HookEvent.NOTIFICATION] == "notification_type"
 

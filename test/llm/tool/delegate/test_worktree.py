@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.shared.ambient_state import get_active_worktree
 from zrb.llm.prompt.live_context.context import render_live_context
+from zrb.llm.shared.ambient_state import get_active_worktree
 from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree, list_worktrees
 
 

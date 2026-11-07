@@ -7,11 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.hook.execution.executor import HookExecutionResult
 from zrb.llm.hook.contracts.interface import HookResult
-from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.contracts.schema import CommandHookConfig, HookConfig
 from zrb.llm.hook.contracts.types import HookEvent, HookType
+from zrb.llm.hook.execution.executor import HookExecutionResult
+from zrb.llm.hook.manager import HookManager
 
 
 @pytest.fixture

@@ -4,10 +4,10 @@ import os
 from unittest.mock import MagicMock, patch
 
 from zrb.context.any_context import AnyContext
-from zrb.llm.shared.ambient_state import get_current_context_session
 from zrb.llm.prompt.live_context.context import render_live_context
 from zrb.llm.prompt.system_context import system_context
 from zrb.llm.sandbox import SandboxPolicy, sandbox_policy
+from zrb.llm.shared.ambient_state import get_current_context_session
 
 
 class TestSystemContext:

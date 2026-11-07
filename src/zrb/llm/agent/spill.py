@@ -25,9 +25,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
-from zrb.llm.shared.agent_tool_result import has_multimodal
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
+from zrb.llm.shared.agent_tool_result import has_multimodal
 from zrb.util.string.conversion import to_safe_filename
 
 if TYPE_CHECKING:

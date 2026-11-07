@@ -4,12 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.shared.agent_state import is_current_run_nested
-from zrb.llm.hook.execution.creator import create_prompt_hook
 from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.contracts.schema import PromptHookConfig
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.execution.creator import create_prompt_hook
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.shared.agent_state import is_current_run_nested
 
 
 def _agent_returning(output):

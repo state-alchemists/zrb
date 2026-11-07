@@ -11,8 +11,8 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_pre_tool_decision,
     extract_system_message,
 )
-from zrb.llm.hook.execution.executor import HookExecutionResult
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.execution.executor import HookExecutionResult
 
 
 class TestExtractSystemMessage:

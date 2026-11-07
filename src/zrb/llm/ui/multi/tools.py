@@ -9,7 +9,6 @@ first three and resolves the fourth by the priority `MultiUI` has always used.
 from typing import Any
 
 from zrb.llm.approval.any_approval_channel import ApprovalContext
-
 from zrb.llm.ui.multi.fanout import MultiUIFanout
 
 

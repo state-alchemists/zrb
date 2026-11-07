@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.hook.contracts.interface import HookResult
-from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.builtin.self_review import register_self_review_hook
+from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager import HookManager
 
 _FINDINGS = "## Finding\n\n**Problem:** off by one.\n\nRequest changes"
 

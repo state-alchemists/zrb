@@ -8,7 +8,6 @@ from zrb.contextvars import current_chat_session_id
 from zrb.llm.camera.config import CameraConfig
 from zrb.llm.dictation.config import DictationConfig
 from zrb.llm.screenshot.config import ScreenshotConfig
-from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.shared import feature_config
 from zrb.llm.shared.feature_config import (
     FeatureSessions,
@@ -22,6 +21,7 @@ from zrb.llm.shared.feature_config import (
     resolve_from_cfg,
     set_session_ui,
 )
+from zrb.llm.speech.config import SpeechConfig
 
 
 @dataclass

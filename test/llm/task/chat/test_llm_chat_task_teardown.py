@@ -14,8 +14,8 @@ async def test_interactive_teardown_fires_terminal_session_end():
     """SESSION_END fires once when the interactive chat session tears down
     (Claude-compatible: terminal, not per-turn)."""
     from zrb.llm.hook.contracts.interface import HookContext, HookResult
-    from zrb.llm.hook.manager import HookManager
     from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.manager import HookManager
 
     fired: list[str] = []
 
@@ -37,8 +37,8 @@ async def test_interactive_teardown_fires_terminal_session_end():
 @pytest.mark.asyncio
 async def test_interactive_teardown_shuts_down_the_session_hook_manager():
     """Teardown settles the per-run hook manager, not the module singleton."""
-    from zrb.llm.hook.manager import HookManager
     from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.manager import HookManager
 
     manager = HookManager(search_dirs=[])
     manager.parse_and_register(
@@ -121,8 +121,8 @@ async def test_a_feature_that_will_not_close_does_not_hold_the_quit(
     holds a stream's stop, a model being unloaded holds its backend. The quit
     waits a bounded time, says so, and keeps the loop free for Ctrl+C instead
     of freezing on the close."""
-    from zrb.llm.task.chat import execution
     from zrb.llm.shared.feature_config import FeatureSessions
+    from zrb.llm.task.chat import execution
 
     release = threading.Event()
 
@@ -181,8 +181,8 @@ async def test_a_slow_session_end_hook_is_cancelled_at_the_exit_budget(monkeypat
 @pytest.mark.skipif(os.name == "nt", reason="uses POSIX `sleep`")
 async def test_session_end_and_detached_hooks_share_one_exit_budget(monkeypatch):
     from zrb.config.config import CFG
-    from zrb.llm.hook.manager import HookManager
     from zrb.llm.hook.contracts.types import HookEvent
+    from zrb.llm.hook.manager import HookManager
 
     monkeypatch.setattr(CFG, "HOOKS_EXIT_TIMEOUT", 300)
     manager = HookManager(search_dirs=[])

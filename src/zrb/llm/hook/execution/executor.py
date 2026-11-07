@@ -13,9 +13,9 @@ from dataclasses import dataclass, field
 from typing import TypeVar, cast
 
 from zrb.config.config import CFG
-from zrb.llm.shared.agent_state import current_tool_confirmation, current_ui
 from zrb.llm.approval.approval_channel import current_approval_channel
 from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.shared.agent_state import current_tool_confirmation, current_ui
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T")

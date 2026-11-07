@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.model_resolver import resolve_configured_model
-from zrb.llm.shared.factory_resolver import resolve_factory_items
 from zrb.llm.permission import ALLOW, ASK, DENY, Capability, get_effective_policy
+from zrb.llm.shared.factory_resolver import resolve_factory_items
 from zrb.util.attr import get_attr
 from zrb.util.string.name import get_random_name
 

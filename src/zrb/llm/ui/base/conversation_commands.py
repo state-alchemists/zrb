@@ -17,13 +17,13 @@ from functools import partial
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.llm.history_manager.conversation_naming import (
     ConversationNamingError,
     should_auto_name,
     suggest_slug,
     with_slug,
 )
+from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.llm.util.attachment import get_media_type, get_oversized_by
 from zrb.llm.util.subagent_session_naming import (
     parse_delegated_agent_id,

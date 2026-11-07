@@ -6,7 +6,6 @@ import pytest
 from PIL import Image
 
 from zrb.config.config import CFG
-from zrb.llm.shared.agent_state import current_model
 from zrb.llm.permission.capability import Capability, tool_capability
 from zrb.llm.screenshot import AnyScreenshotBackend, ScreenshotConfig, enable_screenshot
 from zrb.llm.screenshot.feature import (
@@ -14,6 +13,7 @@ from zrb.llm.screenshot.feature import (
     create_screenshot_commands,
     create_screenshot_tools,
 )
+from zrb.llm.shared.agent_state import current_model
 
 
 def _image(fmt: str, size=(64, 48)) -> bytes:

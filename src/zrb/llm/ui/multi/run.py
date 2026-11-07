@@ -11,7 +11,6 @@ from typing import Any
 
 from zrb.config.config import CFG
 from zrb.llm.ui.any_ui import AnyUI
-
 from zrb.llm.ui.multi.input import MultiUIInput
 
 

@@ -5,7 +5,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.hook.builtin.memory_reviewer import (
     _append_event_line,
     _first_sentence,
@@ -13,6 +12,7 @@ from zrb.llm.hook.builtin.memory_reviewer import (
     build_memory_reviewer_hook_config,
     register_memory_reviewer_hook,
 )
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.hook.contracts.types import HookEvent, HookType
 from zrb.llm.memory import paths, store
 

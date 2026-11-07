@@ -11,8 +11,8 @@ from typing import Annotated
 
 from pydantic import Field
 
-from zrb.llm.shared.agent_state import get_current_ui
 from zrb.llm.permission import Capability, tag
+from zrb.llm.shared.agent_state import get_current_ui
 from zrb.llm.subagent.live_session import live_subagent_session_registry
 from zrb.llm.ui.buffered.ui import BufferedUI
 

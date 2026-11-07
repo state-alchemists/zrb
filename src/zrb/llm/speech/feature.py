@@ -16,11 +16,17 @@ from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
-from zrb.llm.shared.ambient_state import get_current_reply_emotion
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.prompt.prompt import get_prompt
+from zrb.llm.shared.ambient_state import get_current_reply_emotion
+from zrb.llm.shared.feature_config import (
+    current_session_key,
+    get_session_ui,
+    replace_feature_sessions,
+    replace_registration,
+)
 from zrb.llm.speech.config import SpeechConfig
 from zrb.llm.speech.player import IsStale, Speaker, is_speaking
 from zrb.llm.speech.progress import (
@@ -36,12 +42,6 @@ from zrb.llm.speech.text import (
     match_tool_phrase,
     needs_spoken_block,
     without_blockquotes,
-)
-from zrb.llm.shared.feature_config import (
-    current_session_key,
-    get_session_ui,
-    replace_feature_sessions,
-    replace_registration,
 )
 from zrb.llm.util.spoken import split_spoken
 

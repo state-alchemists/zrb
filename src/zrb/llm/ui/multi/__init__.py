@@ -10,7 +10,6 @@ from zrb.llm.ui.fallback.resolution import (
     get_main_ui,
     resolve_ui,
 )
-
 from zrb.llm.ui.multi.multi_ui import MultiUI
 
 __all__ = [

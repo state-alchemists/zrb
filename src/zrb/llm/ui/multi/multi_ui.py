@@ -21,7 +21,6 @@ from zrb.llm.ui.fallback.resolution import (
     register_ui_combiner,
     register_ui_main_getter,
 )
-
 from zrb.llm.ui.multi.run import MultiUIRunLoop
 
 

@@ -29,7 +29,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
-from zrb.llm.shared.agent_tool_result import tool_return
 from zrb.llm.permission import (
     DENY,
     Capability,
@@ -38,6 +37,7 @@ from zrb.llm.permission import (
 )
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
 from zrb.llm.sandbox.policy import SandboxPolicy
+from zrb.llm.shared.agent_tool_result import tool_return
 
 if TYPE_CHECKING:
     from pydantic_ai import RunContext, ToolReturn

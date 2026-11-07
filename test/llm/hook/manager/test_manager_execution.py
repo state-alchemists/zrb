@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.hook.contracts.interface import HookContext, HookResult
-from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager import HookManager
 
 
 @pytest.mark.asyncio

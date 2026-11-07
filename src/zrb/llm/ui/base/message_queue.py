@@ -26,12 +26,12 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.shared.ambient_state import input_provenance
-from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.shared.input_source import (
     BACKGROUND_INPUT,
     KEYBOARD_INPUT,
     InputProvenance,
 )
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.user_echo import (
     AppendOutputFunc,
     echo_user_message,

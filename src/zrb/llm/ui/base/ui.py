@@ -29,22 +29,20 @@ from typing import TYPE_CHECKING, Any, TextIO, cast
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
-from zrb.llm.shared.agent_state import get_current_ui
-from zrb.llm.ui.any_ui import AnyUI
-from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
-from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.shared.input_source import (
-    BACKGROUND_INPUT,
-    KEYBOARD_INPUT,
-    InputProvenance,
-)
+from zrb.llm.hook.manager import HookManager
 from zrb.llm.permission.state import (
     AgentMode,
     get_current_agent_mode,
     set_current_agent_mode,
+)
+from zrb.llm.shared.agent_state import get_current_ui
+from zrb.llm.shared.input_source import (
+    BACKGROUND_INPUT,
+    KEYBOARD_INPUT,
+    InputProvenance,
 )
 from zrb.llm.snapshot.manager import SnapshotManager
 from zrb.llm.tool_call import (
@@ -54,10 +52,11 @@ from zrb.llm.tool_call import (
     ToolPolicy,
     default_response_handler,
 )
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.display import BaseUIDisplay
-from zrb.llm.ui.fallback.echo_broadcast import broadcast_echo
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
@@ -75,11 +74,12 @@ from zrb.llm.ui.base.status_bar import BaseUIStatusBar, RunningTool
 from zrb.llm.ui.base.system_info import BaseUISystemInfo
 from zrb.llm.ui.base.triggers import BaseUITriggers
 from zrb.llm.ui.base.usage import BaseUIUsage
+from zrb.llm.ui.fallback.echo_broadcast import broadcast_echo
+from zrb.llm.ui.fallback.resolution import create_combined_ui
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
-from zrb.llm.ui.fallback.resolution import create_combined_ui
-from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.spoken import shown_text
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session

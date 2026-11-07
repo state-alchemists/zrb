@@ -55,7 +55,6 @@ if TYPE_CHECKING:
     from zrb.input.password_input import PasswordInput
     from zrb.input.str_input import StrInput
     from zrb.input.text_input import TextInput
-    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.config.limiter import LLMLimiter, llm_limiter
     from zrb.llm.config.model_resolver import ModelResolver, model_resolver
     from zrb.llm.hook import HookContext, HookEvent, HookResult
@@ -64,6 +63,7 @@ if TYPE_CHECKING:
     from zrb.llm.permission import ALLOW, ASK, DENY, PermissionPolicy, Rule
     from zrb.llm.prompt.manager import PromptManager
     from zrb.llm.prompt.registry import PromptRegistry, prompt_registry
+    from zrb.llm.shared.tool_registry import ToolRegistry, tool_registry
     from zrb.llm.skill import Skill, SkillRegistry
     from zrb.llm.skill.manager import SkillManager, skill_manager
     from zrb.llm.skill.registry import skill_registry
@@ -80,7 +80,7 @@ if TYPE_CHECKING:
         register_default_auto_approve,
         register_default_auto_approve_if,
     )
-    from zrb.llm.shared.tool_registry import ToolRegistry, tool_registry
+    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.trigger import TriggerMessage, TriggerReply
     from zrb.llm.util.capabilities import model_capabilities
     from zrb.llm.voice.manager import (

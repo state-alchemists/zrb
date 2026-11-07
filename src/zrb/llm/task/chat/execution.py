@@ -16,18 +16,19 @@ from zrb.context.any_context import AnyContext
 from zrb.env.any_env import AnyEnv
 from zrb.input.bool_input import BoolInput
 from zrb.input.str_input import StrInput
+from zrb.llm.approval import resolve_approval_channel
+from zrb.llm.history_manager.file_history_manager import default_history_manager
+from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager import HookManager
+from zrb.llm.lsp.manager.manager import lsp_manager
+from zrb.llm.permission import tool_capability
+from zrb.llm.sandbox import coerce_sandbox
 from zrb.llm.shared.ambient_state import (
     get_current_tool_session,
     get_session_ownership_key,
 )
-from zrb.llm.approval import resolve_approval_channel
 from zrb.llm.shared.factory_resolver import resolve_factory_items
-from zrb.llm.history_manager.file_history_manager import default_history_manager
-from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.contracts.types import HookEvent
-from zrb.llm.lsp.manager.manager import lsp_manager
-from zrb.llm.permission import tool_capability
-from zrb.llm.sandbox import coerce_sandbox
+from zrb.llm.shared.feature_config import close_feature_sessions
 from zrb.llm.summarizer import create_summarizer_history_processor
 from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.task.shared_getters import (
@@ -42,7 +43,6 @@ from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.tool_call.handler import ToolCallHandler
 from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.llm.util.attachment import get_attachments
-from zrb.llm.shared.feature_config import close_feature_sessions
 from zrb.util.async_thread import run_in_daemon
 from zrb.util.attr import get_attr, get_bool_attr, get_str_attr
 from zrb.xcom.xcom import Xcom

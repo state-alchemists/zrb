@@ -15,8 +15,8 @@ import pytest
 
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
-from zrb.llm.shared.ambient_state import current_chat_session_id
 from zrb.llm.prompt.live_context.context import render_live_context
+from zrb.llm.shared.ambient_state import current_chat_session_id
 from zrb.llm.tool.shell import run_shell_command
 from zrb.llm.tool.shell.background import get_shell_background_registry
 

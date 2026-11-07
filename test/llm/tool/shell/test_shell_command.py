@@ -11,8 +11,8 @@ import psutil
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.tool.shell import command as shell_mod
 from zrb.llm.tool.shell import capture as capture_mod
+from zrb.llm.tool.shell import command as shell_mod
 from zrb.llm.tool.shell import run_shell_command
 
 # The interpreter running the suite, spelled for a POSIX shell: Windows has no

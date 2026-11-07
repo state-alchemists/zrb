@@ -12,10 +12,10 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.hook.execution.creator import create_command_hook
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.schema import CommandHookConfig
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.execution.creator import create_command_hook
 
 posix_shell_only = pytest.mark.skipif(
     os.name != "posix",
