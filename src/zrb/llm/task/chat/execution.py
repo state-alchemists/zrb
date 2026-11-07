@@ -8,7 +8,7 @@ import asyncio
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, fields, replace
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from zrb.attr.tpl import Tpl
 from zrb.config.config import CFG
@@ -67,7 +67,7 @@ if TYPE_CHECKING:
 _FEATURE_CLOSE_SECONDS = 3.0
 
 
-def parse_yolo_value(value: Any) -> "bool | frozenset[str]":
+def parse_yolo_value(value: object) -> "bool | frozenset[str]":
     """Parse a yolo input value into bool or frozenset of tool names.
 
     - bool True/False → returned as-is
@@ -113,7 +113,7 @@ class ChatExecution:
         """Compose the full system prompt for this run."""
         return resolve_system_prompt(ctx, self._llm_chat_task.prompt_manager)
 
-    async def exec_action(self, ctx: AnyContext) -> Any:
+    async def exec_action(self, ctx: AnyContext) -> object:
         initial_conversation_name = self._get_initial_conversation_name(ctx)
         raw_yolo = get_attr(ctx, self._llm_chat_task.yolo, "")
         initial_yolo = parse_yolo_value(raw_yolo)
@@ -360,7 +360,7 @@ class ChatExecution:
         interactive: bool,
         resolved_tools: list[Tool | ToolFuncEither],
         resolved_toolsets: list[AbstractToolset[None]],
-        capabilities: "list[AbstractCapability[Any]]",
+        capabilities: "list[AbstractCapability[None]]",
     ) -> LLMTask:
         """Create the inner LLMTask that handles the actual processing."""
         llm_chat_task = self._llm_chat_task

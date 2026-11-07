@@ -355,7 +355,7 @@ To store history somewhere else (a database, an object store), subclass `AnyHist
 | `prepend_approval_channel` / `remove_approval_channel` | Add an approval channel ahead of the others, or drop one |
 | `uis` | The UIs attached directly (not through factories) |
 | `active_hook_manager` | The `HookManager` of the run in flight, or `None` between runs |
-| `run_interactive_session` / `run_non_interactive_session` | Run the chat with a UI, or one-shot. The task's action calls these; call them only from a subclass that replaces the action |
+| `run_interactive_session` / `run_non_interactive_session` | Run the chat with a UI, or one-shot. The task's action calls these; call them only from a subclass that replaces the action, and pass the arguments by keyword |
 | `teardown_interactive_resources` / `teardown_background_hooks` | Release process-wide resources when an interactive chat ends; settle a run's detached (`async: true`) hooks |
 | `get_ui_conversation_name(ui, initial_name)` | The conversation a UI is on now (it changes on `/load`), falling back to `initial_name` |
 
