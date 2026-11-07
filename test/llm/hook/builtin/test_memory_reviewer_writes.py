@@ -39,7 +39,16 @@ def _reviewer_model():
         if asked:
             return ModelResponse(parts=[TextPart("done")])
         return ModelResponse(
-            parts=[ToolCallPart("Remember", {"id": "probe-claim", "claim": "A probe."})]
+            parts=[
+                ToolCallPart(
+                    "Remember",
+                    {
+                        "id": "probe-claim",
+                        "claim": "A probe.",
+                        "purpose": "Recording what this turn said",
+                    },
+                )
+            ]
         )
 
     return FunctionModel(respond)

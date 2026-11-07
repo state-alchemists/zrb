@@ -18,7 +18,7 @@ declare one is `test_every_tool_that_acts_says_what_the_call_is_for`.
 from __future__ import annotations
 
 import inspect
-from typing import Annotated, Any, Callable
+from typing import Annotated, Callable, TypeVar
 
 from pydantic import Field
 
@@ -36,7 +36,10 @@ Purpose = Annotated[
 ]
 
 
-def requires_purpose(fn: Callable[..., Any]) -> Callable[..., Any]:
+_Tool = TypeVar("_Tool", bound=Callable[..., object])
+
+
+def requires_purpose(fn: _Tool) -> _Tool:
     """Make ``purpose`` required in the schema a model reads.
 
     A keyword with a default is an invitation to skip it, and a skipped
