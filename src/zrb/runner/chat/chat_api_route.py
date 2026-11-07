@@ -5,7 +5,7 @@ import stat
 import tempfile
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeGuard
+from typing import TYPE_CHECKING, TypeGuard, cast
 
 from zrb.config.config import CFG
 from zrb.config.web_auth_config import WebAuthConfig
@@ -24,7 +24,10 @@ from zrb.util.string.conversion import to_safe_filename
 from .sse_stream import SSEStreamResponse
 
 if TYPE_CHECKING:
+    from fastapi import FastAPI, Request, UploadFile
     from fastapi.responses import JSONResponse
+
+    from zrb.llm.task.chat.task import LLMChatTask
 
 
 def _ensure_private_dir(path: str) -> None:
@@ -120,17 +123,19 @@ def _write_into_dir(directory: str, entry: str, data: bytes) -> None:
         os.close(dir_fd)
 
 
-async def get_llm_chat_task(root_group: AnyGroup) -> Any:
+async def get_llm_chat_task(root_group: AnyGroup) -> "LLMChatTask | None":
+    """The registered `llm chat` task, which `extract_node` can only hand back
+    as a node: the path names a task, and this is the one it names."""
     try:
         task, _, _ = root_group.extract_node(["llm", "chat"])
-        return task
+        return cast("LLMChatTask", task)
     except NodeNotFoundError:
         return None
 
 
 async def resolve_llm_chat_task_for_session(
     session_id: str, root_group: AnyGroup
-) -> "tuple[Any, str]":
+) -> "tuple[LLMChatTask | None, str]":
     """Return the task to drive *session_id*, and the message to broadcast if none.
 
     A delegated sub-agent session id (`{parent}-sub-{agent_name}-{agent_id}`)
@@ -157,7 +162,7 @@ async def resolve_llm_chat_task_for_session(
 async def _require_auth(
     web_auth_config: WebAuthConfig,
     root_group: AnyGroup,
-    request: Any,
+    request: "Request",
 ) -> "JSONResponse | None":
     """Return a 403 response unless the requester may access ``llm chat``.
 
@@ -173,13 +178,19 @@ async def _require_auth(
     return None
 
 
-async def _read_json_body(request: Any) -> dict:
+async def _read_json_body(request: "Request") -> dict[str, object]:
     """Parse the request body as a JSON object; an empty or malformed body yields ``{}``."""
     try:
         data = await request.json()
     except Exception:
         return {}
     return data if isinstance(data, dict) else {}
+
+
+def _optional_text(body: dict[str, object], key: str) -> str | None:
+    """A text field of the JSON body, or None when it is absent or not text."""
+    value = body.get(key)
+    return value if isinstance(value, str) else None
 
 
 def _is_string_list(value: object) -> TypeGuard[list[str]]:
@@ -229,14 +240,14 @@ async def _handle_list_chat_sessions(
 
 async def _handle_create_chat_session(
     session_manager: ChatSessionManager,
-    request: Any,
+    request: "Request",
 ) -> "JSONResponse":
     # lazy: heavy third-party
     from fastapi.responses import JSONResponse
 
     data = await _read_json_body(request)
-    session_id = data.get("session_id")
-    session_name = data.get("session_name")
+    session_id = _optional_text(data, "session_id")
+    session_name = _optional_text(data, "session_name")
     session = await session_manager.create_session(
         session_id=session_id, session_name=session_name
     )
@@ -271,7 +282,7 @@ async def _handle_get_chat_messages(
     messages = session_manager.get_messages(session_id)
     serializable_messages = []
     for msg in messages:
-        msg_dict = {
+        msg_dict: dict[str, object] = {
             "role": msg.get("role", "unknown"),
             "content": msg.get("content", ""),
         }
@@ -285,7 +296,7 @@ async def _handle_get_chat_messages(
 
 async def _handle_upload_chat_attachment(
     session_id: str,
-    file: Any,
+    file: "UploadFile",
 ) -> "JSONResponse":
     # lazy: heavy third-party
     from fastapi.responses import JSONResponse
@@ -327,7 +338,7 @@ async def _handle_upload_chat_attachment(
 async def _handle_post_chat_message(
     session_manager: ChatSessionManager,
     session_id: str,
-    request: Any,
+    request: "Request",
 ) -> "JSONResponse":
     # lazy: heavy third-party
     from fastapi.responses import JSONResponse
@@ -399,7 +410,8 @@ async def _handle_post_chat_message(
     if isinstance(message, dict):
         message = json.dumps(message)
     CFG.LOGGER.info(f"Sending to input queue: {message[:100]}")
-    await session_manager.send_input(session_id, message, attachments=attachments or [])
+    attachment_paths = attachments if _is_string_list(attachments) else []
+    await session_manager.send_input(session_id, message, attachments=attachment_paths)
     return JSONResponse(content={"status": "sent"})
 
 
@@ -478,7 +490,7 @@ async def _handle_get_session_status(
 
 
 def serve_chat_api(  # noqa: C901 -- registration/factory fn; mccabe sums the one-line route closures into this line, radon scores each separately (near-trivial on its own)
-    app: Any,
+    app: "FastAPI",
     root_group: AnyGroup,
     web_auth_config: WebAuthConfig,
 ) -> None:

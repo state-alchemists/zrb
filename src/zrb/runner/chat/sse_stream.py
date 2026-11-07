@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import asyncio
 import json
-from typing import Any
+from typing import TYPE_CHECKING
 
 # Eager: FastAPI must resolve this route return annotation to a Response
 # subclass to skip building a pydantic response model.
@@ -8,15 +10,20 @@ from fastapi.responses import StreamingResponse
 
 from zrb.config.config import CFG
 
+if TYPE_CHECKING:
+    from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
 
 class SSEStreamResponse(StreamingResponse):
     def __init__(  # noqa: C901 -- registration/factory fn; mccabe sums nested handlers into this line, radon scores each separately (near-trivial on its own)
         self,
         session_id: str,
-        session_manager: Any,
+        session_manager: ChatSessionManager,
         **kwargs,
     ):
         session = session_manager.get_session(session_id)
+        # The route creates the session before it builds this response.
+        assert session is not None
         self.session_id = session_id
         self.output_queue = session.output_queue
         self._closed = False

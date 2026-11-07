@@ -181,10 +181,32 @@ class TestChatSessionManagerApprovals:
         )
 
         result = manager.handle_approval_response(
-            "json-edit-test", '{"key": "value"}', is_json=True
+            "json-edit-test", {"key": "value"}, is_json=True
         )
         assert result["handled"] is True
         assert result["type"] == "edit"
+
+    @pytest.mark.asyncio
+    async def test_handle_approval_response_json_refuses_a_non_object(self):
+        """Decoded args must be an object; text is not a dict of args."""
+        from zrb.runner.chat.chat_session_manager import ChatSessionManager
+
+        manager = await ChatSessionManager.get_instance()
+
+        mock_channel = MagicMock()
+        mock_channel.is_waiting_for_edit.return_value = False
+        mock_channel.handle_edit_response_obj = MagicMock()
+
+        await manager.create_session(
+            session_id="json-edit-not-an-object", approval_channel=mock_channel
+        )
+
+        result = manager.handle_approval_response(
+            "json-edit-not-an-object", '{"key": "value"}', is_json=True
+        )
+        assert result["handled"] is False
+        assert "object" in result["error"]
+        mock_channel.handle_edit_response_obj.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handle_approval_response_json_without_pending_edit(self):

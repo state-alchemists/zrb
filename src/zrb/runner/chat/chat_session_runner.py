@@ -9,21 +9,44 @@ from __future__ import annotations
 
 import asyncio
 import traceback
-from typing import Any
+from typing import TYPE_CHECKING, TypedDict
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.ambient_state import current_chat_session_id, input_provenance
-from zrb.runner.chat.chat_session_manager import ChatSession, ChatSessionManager
+from zrb.runner.chat.chat_session_manager import (
+    ChatSession,
+    ChatSessionManager,
+    QueuedMessage,
+)
 from zrb.runner.chat.http_ui import create_http_ui_factory
 from zrb.session.session import Session
 from zrb.util.contextvar_scope import scoped
 from zrb.util.exception import exception_summary
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
+    from zrb.llm.task.chat.task import LLMChatTask
+    from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
+
+
+class TaskConfigSnapshot(TypedDict):
+    """The shared task's mutable wiring, captured so one message cannot leak
+    its session's UI, approvals or history into the next."""
+
+    ui_factories: "list[Callable[..., AnyUI]]"
+    approval_channels: "list[AnyApprovalChannel]"
+    history_manager: "AnyHistoryManager | None"
+    include_default_ui: bool
+
 
 async def run_chat_session(
     session: ChatSession,
-    llm_chat_task: Any,
+    llm_chat_task: "LLMChatTask",
     session_manager: ChatSessionManager,
 ) -> None:
     """Drive an SSE chat session through `llm_chat_task` until cancelled."""
@@ -31,6 +54,9 @@ async def run_chat_session(
     assert current_task is not None
 
     approval_channel = session.approval_channel
+    # The route hands a channel in before it starts the session: without one
+    # there is nobody to answer the tool calls this session will make.
+    assert approval_channel is not None
     http_ui_factory = create_http_ui_factory(
         session_manager,
         session.session_id,
@@ -82,7 +108,7 @@ async def run_chat_session(
 
 async def _next_queued_message(
     session: ChatSession, current_task: "asyncio.Task"
-) -> dict | None:
+) -> "QueuedMessage | None":
     """The next queued message, or `None` when the poll timed out."""
     try:
         return await asyncio.wait_for(
@@ -117,11 +143,11 @@ def _build_message_context(
 
 async def _run_one_message(
     session: ChatSession,
-    session_obj: Any,
-    llm_chat_task: Any,
+    session_obj: Session,
+    llm_chat_task: "LLMChatTask",
     session_manager: ChatSessionManager,
-    http_ui_factory: Any,
-    approval_channel: Any,
+    http_ui_factory: "Callable[..., AnyUI]",
+    approval_channel: "HTTPChatApprovalChannel",
 ) -> None:
     """Configure the shared task for this session, run one message, restore it."""
     llm_task: asyncio.Task | None = None
@@ -168,9 +194,9 @@ async def _unwind_cancelled_task(llm_task: "asyncio.Task | None") -> None:
 
 
 async def _run_llm_message(
-    session_obj: Any,
+    session_obj: Session,
     timeout: float,
-    llm_chat_task: Any,
+    llm_chat_task: "LLMChatTask",
     session_manager: ChatSessionManager,
     session_id: str,
 ) -> None:
@@ -189,7 +215,7 @@ async def _run_llm_message(
         raise
 
 
-def _snapshot_task_config(llm_chat_task: Any) -> dict[str, Any]:
+def _snapshot_task_config(llm_chat_task: "LLMChatTask") -> TaskConfigSnapshot:
     """Capture the shared task's mutable wiring so it can be restored after a run."""
     return {
         "ui_factories": list(llm_chat_task.ui_factories),
@@ -200,10 +226,10 @@ def _snapshot_task_config(llm_chat_task: Any) -> dict[str, Any]:
 
 
 def _apply_session_config(
-    llm_chat_task: Any,
-    history_manager: Any,
-    ui_factory: Any,
-    approval_channel: Any,
+    llm_chat_task: "LLMChatTask",
+    history_manager: "AnyHistoryManager",
+    ui_factory: "Callable[..., AnyUI]",
+    approval_channel: "HTTPChatApprovalChannel",
 ) -> None:
     """Point the shared task at this session's UI factory / approval channel / history."""
     llm_chat_task.history_manager = history_manager
@@ -212,7 +238,9 @@ def _apply_session_config(
     llm_chat_task.include_default_ui = False
 
 
-def _apply_task_config(llm_chat_task: Any, config: dict[str, Any]) -> None:
+def _apply_task_config(
+    llm_chat_task: "LLMChatTask", config: TaskConfigSnapshot
+) -> None:
     """Restore a snapshot produced by `_snapshot_task_config`."""
     llm_chat_task.ui_factories = config["ui_factories"]
     llm_chat_task.approval_channels = config["approval_channels"]
