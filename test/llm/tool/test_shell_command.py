@@ -11,8 +11,8 @@ import psutil
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.tool import shell as shell_mod
-from zrb.llm.tool import stream_capture as capture_mod
+from zrb.llm.tool.shell import command as shell_mod
+from zrb.llm.tool.shell import capture as capture_mod
 from zrb.llm.tool.shell import run_shell_command
 
 # The interpreter running the suite, spelled for a POSIX shell: Windows has no
@@ -217,7 +217,7 @@ async def test_run_shell_command_background_returns_handle(monkeypatch):
             return "abc123"
 
     monkeypatch.setattr(
-        "zrb.llm.tool.shell_background.get_shell_background_registry",
+        "zrb.llm.tool.shell.background.get_shell_background_registry",
         lambda: _OkRegistry(),
     )
     res = await run_shell_command("sleep 1", background=True)
@@ -320,7 +320,7 @@ async def test_the_purpose_survives_the_background_path(monkeypatch):
             return "abc123"
 
     monkeypatch.setattr(
-        "zrb.llm.tool.shell_background.get_shell_background_registry",
+        "zrb.llm.tool.shell.background.get_shell_background_registry",
         lambda: _RecordingRegistry(),
     )
     res = await run_shell_command(

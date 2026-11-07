@@ -19,12 +19,12 @@ from zrb.llm.shared.shell_cut import ShellCutSignal, current_shell_cut_signal
 from zrb.llm.subagent.live_session import live_subagent_session_registry
 from zrb.llm.subagent.manager import SubAgentDefinition, SubAgentManager
 from zrb.llm.tool.delegate import create_delegate_to_agent_tool
-from zrb.llm.tool.delegate_background import (
+from zrb.llm.tool.delegate.background import (
     create_get_delegation_result_tool,
     get_background_registry,
 )
 
-RUN_AGENT = "zrb.llm.tool.delegate.run_agent"
+RUN_AGENT = "zrb.llm.tool.delegate.runner.run_agent"
 
 
 @pytest.fixture
@@ -442,12 +442,12 @@ async def test_a_sibling_that_raises_still_reports_its_own_error(manager):
     with (
         patch(RUN_AGENT, new_callable=AsyncMock) as run_agent,
         patch(
-            "zrb.llm.tool.delegate.current_head_sha",
+            "zrb.llm.tool.delegate.runner.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate.enter_worktree",
+            "zrb.llm.tool.delegate.runner.enter_worktree",
             side_effect=RuntimeError("no worktree"),
         ),
     ):

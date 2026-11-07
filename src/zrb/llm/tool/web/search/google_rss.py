@@ -12,7 +12,7 @@ def search_internet(query: str, page: int = 1) -> dict:
     import requests
 
     # lazy: transitively heavy via internal — http_errors.py imports requests
-    from zrb.llm.tool.search.http_errors import SearchToolError
+    from zrb.llm.tool.web.search.http_errors import SearchToolError
 
     url = (
         f"https://news.google.com/rss/search"

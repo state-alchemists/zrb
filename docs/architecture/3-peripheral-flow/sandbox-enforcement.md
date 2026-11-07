@@ -122,8 +122,8 @@ Neither wrapper unshares the network or the process IDs, so the command runs in 
 | macOS | `build_sbpl` | `sandbox-exec` with a last-match-wins profile. Set-uid binaries such as `ps` and `sudo` cannot run inside it |
 | Windows, or Linux without `bwrap` | `build_sandboxed_argv` | The `fallback` setting: `warn` runs with a visible warning, `deny` refuses with `format_sandbox_denied_message` |
 | `dangerously_skip_sandbox` | `build_sandboxed_argv`, `sandbox_gate` | Shell tools only. Runs unwrapped with a note in the output. No tool policy auto-approves it, but yolo or an `allow` rule will |
-| Worktree tools | `src/zrb/llm/tool/worktree.py` | Pass their own `git` argv through the same wrapper, no shell string involved |
-| Background shell | `src/zrb/llm/tool/shell_background.py` | Same wrapper as `Shell`, applied when the process starts |
+| Worktree tools | `src/zrb/llm/tool/delegate/worktree.py` | Pass their own `git` argv through the same wrapper, no shell string involved |
+| Background shell | `src/zrb/llm/tool/shell/background.py` | Same wrapper as `Shell`, applied when the process starts |
 | Sub-agent, or a live session resumed later | the run context; `AuthoritySnapshot` | A child inherits the parent's policy. A continuation that starts after the parent's run ended gets it passed explicitly ([ADR-0069](../../adr/adr-0069.md)) |
 | Oversized tool results | `src/zrb/llm/agent/spill.py` | The spill store checks its own directory with `check_read` and `check_write` |
 

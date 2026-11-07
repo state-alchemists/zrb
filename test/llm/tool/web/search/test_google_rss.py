@@ -1,11 +1,11 @@
-"""Tests for llm/tool/search/google_rss.py — covers the RSS-parse path."""
+"""Tests for llm/tool/web/tools/search/google_rss.py — covers the RSS-parse path."""
 
 from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
 
-from zrb.llm.tool.search.google_rss import search_internet
+from zrb.llm.tool.web.search.google_rss import search_internet
 
 _RSS_PAYLOAD = b"""<?xml version="1.0" encoding="UTF-8"?>
 <rss>

@@ -32,28 +32,28 @@ async def test_isolate_worktree_cleanup_failure_reported_not_raised(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
         ) as mock_enter,
         patch(
-            "zrb.llm.tool.delegate.get_active_worktree",
+            "zrb.llm.tool.delegate.runner.get_active_worktree",
             return_value="/repo/.zrb/worktree/x",
         ),
-        patch("zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock),
+        patch("zrb.llm.tool.delegate.runner.exit_worktree", new_callable=AsyncMock),
         patch(
-            "zrb.llm.tool.delegate.worktree_has_changes",
+            "zrb.llm.tool.delegate.runner.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate.current_head_sha",
+            "zrb.llm.tool.delegate.runner.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate.worktree_has_new_commits",
+            "zrb.llm.tool.delegate.runner.worktree_has_new_commits",
             new_callable=AsyncMock,
             side_effect=RuntimeError("git binary missing"),
         ),
@@ -95,32 +95,32 @@ async def test_isolate_worktree_cleans_up_even_when_subagent_errors(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent",
+            "zrb.llm.tool.delegate.runner.run_agent",
             new_callable=AsyncMock,
             side_effect=RuntimeError("boom"),
         ),
         patch(
-            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
         ) as mock_enter,
         patch(
-            "zrb.llm.tool.delegate.get_active_worktree",
+            "zrb.llm.tool.delegate.runner.get_active_worktree",
             return_value="/repo/.zrb/worktree/x",
         ),
         patch(
-            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
         patch(
-            "zrb.llm.tool.delegate.worktree_has_changes",
+            "zrb.llm.tool.delegate.runner.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate.current_head_sha",
+            "zrb.llm.tool.delegate.runner.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate.worktree_has_new_commits",
+            "zrb.llm.tool.delegate.runner.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -152,13 +152,13 @@ async def test_fan_out_without_isolate_worktree_skips_worktree_calls(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
         ) as mock_enter,
         patch(
-            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
     ):
         mock_run_agent.return_value = ("done", [])
@@ -185,16 +185,16 @@ async def test_isolate_worktree_enter_failure_skips_subagent(mock_sub_agent_mana
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.tool.delegate.enter_worktree",
+            "zrb.llm.tool.delegate.runner.enter_worktree",
             new_callable=AsyncMock,
             return_value="Error: Not inside a git repository.",
         ),
-        patch("zrb.llm.tool.delegate.get_active_worktree", return_value=""),
+        patch("zrb.llm.tool.delegate.runner.get_active_worktree", return_value=""),
         patch(
-            "zrb.llm.tool.delegate.current_head_sha",
+            "zrb.llm.tool.delegate.runner.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),

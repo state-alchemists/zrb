@@ -15,7 +15,7 @@ from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.permission import Capability, tag
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.tool.search.http_errors import BROWSER_USER_AGENT
+from zrb.llm.tool.web.search.http_errors import BROWSER_USER_AGENT
 from zrb.llm.tool_call.untrusted_data import UNTRUSTED_DATA_NOTE
 from zrb.util.truncate import truncate_text
 
@@ -140,16 +140,16 @@ async def search_internet(
     """
     notify(f"🔎 Searching ({CFG.SEARCH_INTERNET_METHOD.strip().lower()}): {query!r}...")
     backend = _select_search_backend()
-    # lazy: tests patch `zrb.llm.tool.search.<backend>.search_internet` at
+    # lazy: tests patch `zrb.llm.tool.web.search.<backend>.search_internet` at
     # the source path; hoisting would bind the names at load and bypass it.
     if backend == "serpapi":
-        from zrb.llm.tool.search.serpapi import search_internet as backend_search
+        from zrb.llm.tool.web.search.serpapi import search_internet as backend_search
     elif backend == "brave":
-        from zrb.llm.tool.search.brave import search_internet as backend_search
+        from zrb.llm.tool.web.search.brave import search_internet as backend_search
     elif backend == "searxng":
-        from zrb.llm.tool.search.searxng import search_internet as backend_search
+        from zrb.llm.tool.web.search.searxng import search_internet as backend_search
     else:
-        from zrb.llm.tool.search.google_rss import search_internet as backend_search
+        from zrb.llm.tool.web.search.google_rss import search_internet as backend_search
     # Every backend is a synchronous `requests.get`; inline, one stalled
     # connection would freeze the event loop for every sub-agent and the TUI.
     search_timeout = CFG.LLM_WEB_HTTP_TIMEOUT / 1000 + TIMEOUT_MARGIN_SECONDS

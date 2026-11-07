@@ -25,7 +25,7 @@ def lsp_env():
     which branch of `_get_file_metadatas_with_lsp` executes.
     """
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
+        patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run,
         patch(
             "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
             return_value={"python": "pylsp"},
@@ -156,7 +156,7 @@ async def test_lsp_task_exception_fallback_read(tmp_path, lsp_env):
     d.mkdir()
     (d / "main.py").write_text("def main(): pass")
     with patch(
-        "zrb.llm.tool.code.get_lsp_context",
+        "zrb.llm.tool.code.analysis.get_lsp_context",
         new_callable=AsyncMock,
         side_effect=RuntimeError("lsp down"),
     ):
@@ -180,7 +180,7 @@ async def test_lsp_task_exception_fallback_read_error(tmp_path, lsp_env):
 
     with (
         patch(
-            "zrb.llm.tool.code.get_lsp_context",
+            "zrb.llm.tool.code.analysis.get_lsp_context",
             new_callable=AsyncMock,
             side_effect=RuntimeError("lsp down"),
         ),
@@ -194,9 +194,11 @@ async def test_lsp_task_exception_fallback_read_error(tmp_path, lsp_env):
 async def test_summarization_flushes_buffer(temp_code_dir):
     big = "info segment " * 40  # ~130 tokens, exceeds the low threshold
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
-        patch("zrb.llm.tool.code.extract_info", new_callable=AsyncMock) as extract,
-        patch("zrb.llm.tool.code.CFG") as cfg,
+        patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run,
+        patch(
+            "zrb.llm.tool.code.analysis.extract_info", new_callable=AsyncMock
+        ) as extract,
+        patch("zrb.llm.tool.code.analysis.CFG") as cfg,
     ):
         run.return_value = ("x", [])
         extract.return_value = [big, big]
@@ -216,8 +218,8 @@ async def test_oversized_file_is_truncated_before_reaching_the_model(tmp_path):
     (d / "big.py").write_text("x" * 500_000)
 
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
-        patch("zrb.llm.tool.code.CFG") as cfg,
+        patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run,
+        patch("zrb.llm.tool.code.analysis.CFG") as cfg,
     ):
         run.return_value = ("info", [])
         cfg.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD = 1000
@@ -242,8 +244,8 @@ async def test_fitting_files_are_tokenized_once_each(tmp_path):
         (d / f"f{i}.py").write_text("x")
 
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
-        patch("zrb.llm.tool.code.CFG") as cfg,
+        patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run,
+        patch("zrb.llm.tool.code.analysis.CFG") as cfg,
         patch.object(
             llm_limiter, "count_tokens", side_effect=llm_limiter.count_tokens
         ) as spy,

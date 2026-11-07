@@ -10,7 +10,7 @@ from zrb.llm.permission.state import (
     current_agent_mode,
     get_current_agent_mode,
 )
-from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
+from zrb.llm.tool.plan.mode import enter_plan_mode, exit_plan_mode
 
 
 @pytest.fixture(autouse=True)

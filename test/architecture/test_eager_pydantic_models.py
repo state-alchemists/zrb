@@ -5,7 +5,7 @@ loads `pydantic.main` and the schema-construction machinery behind it — worth
 ~19ms on `import zrb`, paid by whichever module in the closure declares one
 first, and separate from whatever pydantic submodules are already loaded.
 
-The 23 `llm/tool/*.py` modules that do `from pydantic import Field` are not
+The modules under `llm/tool/` that do `from pydantic import Field` are not
 free — measured at ~31ms for `pydantic.fields` plus `pydantic.types` — but
 they do not pull `pydantic.main` or the schema-construction machinery, which
 is what this file is about. Deferring `Field` is a separate, larger question:

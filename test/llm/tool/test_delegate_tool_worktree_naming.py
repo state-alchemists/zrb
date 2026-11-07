@@ -33,25 +33,25 @@ async def test_isolate_worktree_uses_distinct_branch_names_per_task(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
         ) as mock_enter,
-        patch("zrb.llm.tool.delegate.get_active_worktree", return_value="/wt"),
-        patch("zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock),
+        patch("zrb.llm.tool.delegate.runner.get_active_worktree", return_value="/wt"),
+        patch("zrb.llm.tool.delegate.runner.exit_worktree", new_callable=AsyncMock),
         patch(
-            "zrb.llm.tool.delegate.worktree_has_changes",
+            "zrb.llm.tool.delegate.runner.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate.current_head_sha",
+            "zrb.llm.tool.delegate.runner.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate.worktree_has_new_commits",
+            "zrb.llm.tool.delegate.runner.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -90,10 +90,13 @@ async def test_subagent_history_persisted(mock_sub_agent_manager, monkeypatch):
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
-        patch("zrb.llm.tool.delegate.get_current_tool_session", return_value="sess1"),
-        patch("zrb.llm.tool.delegate.persist_subagent_history") as mock_persist,
+        patch(
+            "zrb.llm.tool.delegate.runner.get_current_tool_session",
+            return_value="sess1",
+        ),
+        patch("zrb.llm.tool.delegate.runner.persist_subagent_history") as mock_persist,
     ):
         mock_run_agent.return_value = ("ok", [{"fake": "message"}])
         result = await tool(
@@ -118,7 +121,7 @@ async def test_subagent_history_persist_failure_does_not_break_delegation(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
             "zrb.llm.history_manager.file_history_manager.FileHistoryManager",
@@ -143,10 +146,13 @@ async def test_fan_out_persists_history_per_task(mock_sub_agent_manager, monkeyp
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
-        patch("zrb.llm.tool.delegate.get_current_tool_session", return_value="sess1"),
-        patch("zrb.llm.tool.delegate.persist_subagent_history") as mock_persist,
+        patch(
+            "zrb.llm.tool.delegate.runner.get_current_tool_session",
+            return_value="sess1",
+        ),
+        patch("zrb.llm.tool.delegate.runner.persist_subagent_history") as mock_persist,
     ):
         mock_run_agent.side_effect = [("Result A", []), ("Result B", [])]
         await tool(
@@ -183,17 +189,17 @@ async def test_activity_start_and_finish_are_scoped_to_the_current_session(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.tool.delegate.get_session_ownership_key",
+            "zrb.llm.tool.delegate.runner.get_session_ownership_key",
             return_value="chat-session-42",
         ),
         patch(
-            "zrb.llm.tool.delegate.get_current_tool_session",
+            "zrb.llm.tool.delegate.runner.get_current_tool_session",
             return_value="display-session-42",
         ),
-        patch("zrb.llm.tool.delegate.agent_activity_registry") as mock_registry,
+        patch("zrb.llm.tool.delegate.runner.agent_activity_registry") as mock_registry,
     ):
         mock_run_agent.return_value = ("ok", [])
         await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
@@ -220,8 +226,11 @@ async def test_single_delegate_does_not_flush_routine_output_to_main(
         return "done", []
 
     with (
-        patch("zrb.llm.tool.delegate.run_agent", side_effect=run_and_write_to_buffer),
-        patch("zrb.llm.tool.delegate.get_current_ui", return_value=parent_ui),
+        patch(
+            "zrb.llm.tool.delegate.runner.run_agent",
+            side_effect=run_and_write_to_buffer,
+        ),
+        patch("zrb.llm.tool.delegate.runner.get_current_ui", return_value=parent_ui),
     ):
         await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
 

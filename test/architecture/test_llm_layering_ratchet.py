@@ -65,7 +65,7 @@ KNOWN_UPWARD_EDGES: set[str] = {
     "task/chat/running.py -> ui/default/ui.py",
     "task/chat/running.py -> ui/multi/__init__.py",
     "task/chat/task.py -> ui/ui_config.py",
-    "tool/delegate.py -> ui/buffered_ui.py",
+    "tool/delegate/runner.py -> ui/buffered_ui.py",
 }
 
 # Mutual dependencies between two units of the same layer, as "a <-> b".

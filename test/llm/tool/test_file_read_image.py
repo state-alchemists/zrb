@@ -191,8 +191,8 @@ async def test_an_unreadable_image_says_to_check_permissions(tmp_path):
 async def test_a_read_image_can_then_be_removed_in_the_same_session(
     tmp_path, vision_model
 ):
-    from zrb.llm.tool.file_observation import clear_observed
-    from zrb.llm.tool.file_rm import remove_file
+    from zrb.llm.tool.file.observation import clear_observed
+    from zrb.llm.tool.file.rm import remove_file
 
     clear_observed()
     try:

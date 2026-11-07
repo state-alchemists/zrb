@@ -10,7 +10,7 @@ from zrb.llm.sandbox.os_sandbox import (
     SandboxUnavailableError,
     format_sandbox_denied_message,
 )
-from zrb.llm.tool import shell as shell_mod
+from zrb.llm.tool.shell import command as shell_mod
 from zrb.llm.tool.shell import run_shell_command
 
 
@@ -23,7 +23,7 @@ async def test_run_shell_command_background_sandbox_refused(monkeypatch):
             raise SandboxUnavailableError("no sandbox here")
 
     monkeypatch.setattr(
-        "zrb.llm.tool.shell_background.get_shell_background_registry",
+        "zrb.llm.tool.shell.background.get_shell_background_registry",
         lambda: _RefusingRegistry(),
     )
     res = await run_shell_command("sleep 1", background=True)

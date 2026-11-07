@@ -17,7 +17,7 @@ import pytest
 
 from zrb.config.config import CFG
 from zrb.llm.tool.shell import run_shell_command
-from zrb.llm.tool.shell_background import get_shell_background_registry
+from zrb.llm.tool.shell.background import get_shell_background_registry
 
 _PYTHON = shlex.quote(Path(sys.executable).as_posix())
 

@@ -10,8 +10,8 @@ import pytest
 
 from zrb.llm.sandbox import SandboxPolicy
 from zrb.llm.sandbox.os_sandbox import SandboxUnavailableError
-from zrb.llm.tool import worktree
-from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
+from zrb.llm.tool.delegate import worktree
+from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree, list_worktrees
 
 
 def _expected_worktree_path(repo: str, branch: str) -> str:
@@ -57,7 +57,7 @@ async def test_enter_worktree_routes_git_calls_through_sandbox(mock_subprocess):
             create_mock_process(returncode=0),
         ]
         with patch(
-            "zrb.llm.tool.worktree.build_sandboxed_argv",
+            "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
             side_effect=lambda argv, policy, skip=False: (argv, None),
         ) as mock_build:
             await enter_worktree(branch_name="test-branch", cwd=tmpdir)
@@ -89,7 +89,7 @@ async def test_a_read_only_repository_names_both_writable_paths(
     repo = str(outside_root / "repo")  # a path to judge, never created
     worktree_home = str(outside_root / "wt")
     monkeypatch.setattr(
-        "zrb.llm.tool.worktree.get_effective_sandbox_policy",
+        "zrb.llm.tool.delegate.worktree.get_effective_sandbox_policy",
         lambda: SandboxPolicy(enabled=True, writable_paths=(worktree_home,)),
     )
     monkeypatch.setattr(worktree, "_worktree_root", lambda: worktree_home)
@@ -167,7 +167,7 @@ async def test_exit_worktree_routes_git_calls_through_sandbox(mock_subprocess):
             create_mock_process(returncode=0),
         ]
         with patch(
-            "zrb.llm.tool.worktree.build_sandboxed_argv",
+            "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
             side_effect=lambda argv, policy, skip=False: (argv, None),
         ) as mock_build:
             await exit_worktree(tmpdir)
@@ -192,7 +192,7 @@ async def test_enter_worktree_refuses_a_destination_outside_the_sandbox(
     project = str(outside_root / "project")
     with tempfile.TemporaryDirectory() as repo:
         monkeypatch.setattr(
-            "zrb.llm.tool.worktree.get_effective_sandbox_policy",
+            "zrb.llm.tool.delegate.worktree.get_effective_sandbox_policy",
             lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
         )
         monkeypatch.setattr(
@@ -215,7 +215,7 @@ async def test_enter_worktree_refuses_a_branch_name_that_leaves_the_sandbox(
     """`branch_name` becomes a path; climbing out with `..` must be refused."""
     project = str(outside_root / "project")  # a path to judge, never created
     monkeypatch.setattr(
-        "zrb.llm.tool.worktree.get_effective_sandbox_policy",
+        "zrb.llm.tool.delegate.worktree.get_effective_sandbox_policy",
         lambda: SandboxPolicy(enabled=True, writable_paths=(project,)),
     )
     monkeypatch.setattr(worktree, "_worktree_parent", lambda _root: project)
@@ -232,7 +232,7 @@ async def test_enter_worktree_refuses_a_branch_name_that_leaves_the_sandbox(
 async def test_list_worktrees_routes_git_calls_through_sandbox(mock_subprocess):
     mock_subprocess.return_value = create_mock_process(returncode=0, stdout=b"")
     with patch(
-        "zrb.llm.tool.worktree.build_sandboxed_argv",
+        "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
         side_effect=lambda argv, policy, skip=False: (argv, None),
     ) as mock_build:
         await list_worktrees()
@@ -246,7 +246,7 @@ async def test_enter_worktree_sandbox_unavailable_surfaces_as_error():
     relays it as a [SYSTEM SUGGESTION] string rather than raising.
     """
     with patch(
-        "zrb.llm.tool.worktree.build_sandboxed_argv",
+        "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
         side_effect=SandboxUnavailableError("deny mode"),
     ):
         res = await enter_worktree(branch_name="test-branch")
@@ -258,7 +258,7 @@ async def test_enter_worktree_sandbox_unavailable_surfaces_as_error():
 async def test_exit_worktree_sandbox_unavailable_surfaces_as_error():
     with tempfile.TemporaryDirectory() as tmpdir:
         with patch(
-            "zrb.llm.tool.worktree.build_sandboxed_argv",
+            "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
             side_effect=SandboxUnavailableError("deny mode"),
         ):
             res = await exit_worktree(tmpdir)
@@ -269,7 +269,7 @@ async def test_exit_worktree_sandbox_unavailable_surfaces_as_error():
 @pytest.mark.asyncio
 async def test_list_worktrees_sandbox_unavailable_surfaces_as_error():
     with patch(
-        "zrb.llm.tool.worktree.build_sandboxed_argv",
+        "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
         side_effect=SandboxUnavailableError("deny mode"),
     ):
         res = await list_worktrees()
@@ -286,7 +286,7 @@ async def test_list_worktrees_prepends_sandbox_fallback_note(mock_subprocess):
         returncode=0, stdout=b"/path/to/repo main"
     )
     with patch(
-        "zrb.llm.tool.worktree.build_sandboxed_argv",
+        "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
         side_effect=lambda argv, policy, skip=False: (
             argv,
             "[WARNING] sandbox unavailable (bwrap not installed)",
@@ -315,7 +315,8 @@ async def test_exit_worktree_keeps_success_when_branch_delete_sandbox_unavailabl
             return argv, None
 
         with patch(
-            "zrb.llm.tool.worktree.build_sandboxed_argv", side_effect=fake_build
+            "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
+            side_effect=fake_build,
         ):
             res = await exit_worktree(tmpdir)
 
@@ -346,7 +347,8 @@ async def test_enter_worktree_keeps_earlier_note_when_later_call_errors(
             return argv, note
 
         with patch(
-            "zrb.llm.tool.worktree.build_sandboxed_argv", side_effect=fake_build
+            "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
+            side_effect=fake_build,
         ):
             res = await enter_worktree(branch_name="test-branch", cwd=tmpdir)
 

@@ -6,7 +6,7 @@ import subprocess
 import pytest
 
 from zrb.llm.tool.file import list_files
-from zrb.llm.tool.file_observation import clear_observed
+from zrb.llm.tool.file.observation import clear_observed
 
 
 @pytest.fixture(autouse=True)

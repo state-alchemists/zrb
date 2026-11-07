@@ -12,7 +12,7 @@ import pytest
 from zrb.config.config import CFG
 from zrb.llm.shared.agent_state import current_ui
 from zrb.llm.shared.input_source import BACKGROUND_INPUT
-from zrb.llm.tool.shell_background import get_shell_background_registry
+from zrb.llm.tool.shell.background import get_shell_background_registry
 
 
 class _RecordingUI:
@@ -179,7 +179,7 @@ async def test_a_command_stopped_at_its_deadline_is_reported(ui, monkeypatch):
         stderr=asyncio.subprocess.PIPE,
         start_new_session=True,
     )
-    from zrb.llm.tool.stream_capture import StreamCapture
+    from zrb.llm.tool.shell.capture import StreamCapture
 
     handle = await registry.adopt(
         process, "sleep 30", StreamCapture(1000, 0), StreamCapture(1000, 0)
@@ -252,8 +252,8 @@ async def test_a_process_that_exits_as_its_deadline_fires_is_reported_once(
     """The exit wait and the deadline stop both notice an ending; the session is
     told once. The stop is made to let the exit wait run first, which is the
     order the race produces."""
-    import zrb.llm.tool.shell_background as module
-    from zrb.llm.tool.stream_capture import StreamCapture
+    import zrb.llm.tool.shell.background as module
+    from zrb.llm.tool.shell.capture import StreamCapture
 
     async def stop_after_the_exit_was_heard(bp):
         bp.process.kill()

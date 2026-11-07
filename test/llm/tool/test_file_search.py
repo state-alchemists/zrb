@@ -2,14 +2,14 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.tool import file_search as file_search_mod
+from zrb.llm.tool.file import search as file_search_mod
 from zrb.llm.tool.file import search_files
-from zrb.llm.tool.file_search import search_files
+from zrb.llm.tool.file.search import search_files
 
 
 def _no_ripgrep():
     """Force the os.walk fallback by making ripgrep look unavailable."""
-    return patch("zrb.llm.tool.file_search.shutil.which", return_value=None)
+    return patch("zrb.llm.tool.file.search.shutil.which", return_value=None)
 
 
 def test_os_walk_skips_hidden_excluded_and_nonmatching(tmp_path):
@@ -65,7 +65,7 @@ def test_os_walk_timeout_during_file_loop(tmp_path):
 
     with (
         _no_ripgrep(),
-        patch("zrb.llm.tool.file_search.time.time", side_effect=fake_time),
+        patch("zrb.llm.tool.file.search.time.time", side_effect=fake_time),
     ):
         result = search_files("needle", path=str(tmp_path), timeout=5)
 
@@ -80,8 +80,8 @@ def test_ripgrep_returncode_2_falls_back_to_os_walk(tmp_path):
     proc = MagicMock(returncode=2, stdout="")
 
     with (
-        patch("zrb.llm.tool.file_search.shutil.which", return_value="/usr/bin/rg"),
-        patch("zrb.llm.tool.file_search.subprocess.run", return_value=proc),
+        patch("zrb.llm.tool.file.search.shutil.which", return_value="/usr/bin/rg"),
+        patch("zrb.llm.tool.file.search.subprocess.run", return_value=proc),
     ):
         result = search_files("needle", path=str(tmp_path))
 
@@ -96,8 +96,8 @@ def test_ripgrep_skips_unreadable_file_and_warns(tmp_path):
     proc = MagicMock(returncode=0, stdout="/does/not/exist/ghost.txt\n")
 
     with (
-        patch("zrb.llm.tool.file_search.shutil.which", return_value="/usr/bin/rg"),
-        patch("zrb.llm.tool.file_search.subprocess.run", return_value=proc),
+        patch("zrb.llm.tool.file.search.shutil.which", return_value="/usr/bin/rg"),
+        patch("zrb.llm.tool.file.search.subprocess.run", return_value=proc),
     ):
         result = search_files("needle", path=str(tmp_path), files_only=True)
 
@@ -112,7 +112,7 @@ def test_files_only_truncation_notice(tmp_path):
     for i in range(6):
         (tmp_path / f"match_file_{i}.py").write_text("needle here\n")
 
-    with _no_ripgrep(), patch("zrb.llm.tool.file_search.CFG") as mock_cfg:
+    with _no_ripgrep(), patch("zrb.llm.tool.file.search.CFG") as mock_cfg:
         mock_cfg.LLM_MAX_OUTPUT_CHARS = 10
         result = search_files("needle", path=str(tmp_path), files_only=True)
 
@@ -137,7 +137,7 @@ def test_os_walk_skips_unreadable_file(tmp_path):
     with (
         _no_ripgrep(),
         patch(
-            "zrb.llm.tool.file_search.get_file_matches",
+            "zrb.llm.tool.file.search.get_file_matches",
             side_effect=_raising_get_file_matches,
         ),
     ):
@@ -309,7 +309,7 @@ class TestFileSearchTruncation:
         from unittest.mock import patch
 
         with (
-            patch("zrb.llm.tool.file_search.MAX_MATCHES_PER_FILE", 20),
+            patch("zrb.llm.tool.file.search.MAX_MATCHES_PER_FILE", 20),
             patch("shutil.which", return_value=None),
         ):
             result = search_files("match", path=str(tmp_path))
@@ -325,7 +325,7 @@ class TestFileSearchTruncation:
 
         with (
             patch("shutil.which", return_value=None),
-            patch("zrb.llm.tool.file_search.CFG") as mock_cfg,
+            patch("zrb.llm.tool.file.search.CFG") as mock_cfg,
         ):
 
             # Create many matching files

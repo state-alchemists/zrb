@@ -3,7 +3,7 @@ import time
 import requests
 
 from zrb.config.config import CFG
-from zrb.llm.tool.search.http_errors import (
+from zrb.llm.tool.web.search.http_errors import (
     BROWSER_USER_AGENT,
     SearchToolError,
     raise_http_error,

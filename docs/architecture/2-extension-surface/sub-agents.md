@@ -74,10 +74,10 @@ flowchart TD
 | `SubAgentDefinition` | `src/zrb/llm/subagent/definition.py` | One agent's data: prompt, model, `tools`, `disallowed_tools`, `inherit_sections` |
 | `SubAgentBuilding` | `src/zrb/llm/subagent/building.py` | Turns a definition into an agent: model, named tools, toolsets, inherited prompt sections, yolo |
 | `resolve_tools_by_name` | `src/zrb/llm/subagent/tool_resolver.py` | Looks tool names up (`Bash` maps to `Shell`), drops unknown names, never returns a delegate tool |
-| `DelegateToAgent` | `src/zrb/llm/tool/delegate.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree; `background=true` starts it detached instead of waiting |
-| `start_background_run` | `src/zrb/llm/tool/delegate_background.py` | Starts a child detached under a fresh handle; `GetDelegationResult` collects it |
-| `run_agent_task` | `src/zrb/llm/tool/delegate.py` | The shared child run: build, envelope, hooks, `run_agent`, transcript, result |
-| `SendMessageToSubagent` | `src/zrb/llm/tool/delegate_message.py` | The parent's tool to message a live child; the message names the main agent as sender |
+| `DelegateToAgent` | `src/zrb/llm/tool/delegate/runner.py` | The parent's tool: one task, or a `tasks` list run concurrently, each optionally in its own worktree; `background=true` starts it detached instead of waiting |
+| `start_background_run` | `src/zrb/llm/tool/delegate/background.py` | Starts a child detached under a fresh handle; `GetDelegationResult` collects it |
+| `run_agent_task` | `src/zrb/llm/tool/delegate/runner.py` | The shared child run: build, envelope, hooks, `run_agent`, transcript, result |
+| `SendMessageToSubagent` | `src/zrb/llm/tool/delegate/message.py` | The parent's tool to message a live child; the message names the main agent as sender |
 | `SendMessageToParent` | `src/zrb/llm/subagent/parent_message.py` | The child's tool to message the main agent mid-run; the message names the child. Both tools count against `LLM_AGENT_MESSAGE_LIMIT` |
 | `BufferedUI` | `src/zrb/llm/ui/buffered_ui.py` | A child's own view: buffers output, forwards approvals to the parent UI |
 | `LiveSubAgentSessionRegistry` | `src/zrb/llm/subagent/live_session.py` | Children a human can open and keep talking to, for the rest of the chat session |
@@ -150,10 +150,10 @@ sequenceDiagram
 | Change discovery, search order or registration | `src/zrb/llm/subagent/manager.py` | `test/llm/subagent/` |
 | Change what a child inherits (tools, prompt, yolo) | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/test_manager_building.py` |
 | Change how tool names resolve | `src/zrb/llm/subagent/tool_resolver.py` | `test/llm/subagent/test_tool_resolver.py` |
-| Change the envelope, fan-out or the child run | `src/zrb/llm/tool/delegate.py` | `test/llm/tool/` |
-| Change background handles and waiting | `src/zrb/llm/tool/delegate_background.py` | `test/llm/tool/test_delegate_background_results.py` |
+| Change the envelope, fan-out or the child run | `src/zrb/llm/tool/delegate/runner.py` | `test/llm/tool/` |
+| Change background handles and waiting | `src/zrb/llm/tool/delegate/background.py` | `test/llm/tool/test_delegate_background_results.py` |
 | Change follow-ups to a finished child | `src/zrb/llm/subagent/live_session.py` | `test/llm/subagent/test_live_session_registry.py` |
-| Change agent-to-agent messages | `src/zrb/llm/tool/delegate_message.py`, `src/zrb/llm/subagent/parent_message.py` | `test/llm/tool/test_delegate_message.py` |
+| Change agent-to-agent messages | `src/zrb/llm/tool/delegate/message.py`, `src/zrb/llm/subagent/parent_message.py` | `test/llm/tool/test_delegate_message.py` |
 | Change what authority is captured | `src/zrb/llm/agent/run/authority_snapshot.py` | `test/llm/agent/run/test_authority_snapshot.py` |
 
 ## See Also

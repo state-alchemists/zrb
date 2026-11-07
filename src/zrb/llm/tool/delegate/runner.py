@@ -30,7 +30,7 @@ from zrb.llm.hook.manager import get_run_hook_manager
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
-from zrb.llm.tool.worktree import enter_worktree, exit_worktree
+from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree
 from zrb.llm.ui.buffered_ui import BufferedUI
 from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.llm.util.roster import cap_items, search_roster
@@ -551,7 +551,7 @@ def _adopt_delegation(
     """
     # lazy: circular — delegate_background imports this module's BufferedUI, so
     # this direction has to stay deferred.
-    from zrb.llm.tool.delegate_background import (
+    from zrb.llm.tool.delegate.background import (
         get_background_registry,
         register_background_handle,
     )
@@ -961,7 +961,7 @@ def create_delegate_to_agent_tool(
         def _launch_background() -> str:
             """Hand this call to the background registry and return its handle."""
             # lazy: circular — delegate_background imports this module's BufferedUI
-            from zrb.llm.tool.delegate_background import start_background_run
+            from zrb.llm.tool.delegate.background import start_background_run
 
             if tasks:
                 error = _batch_spec_error(tasks)

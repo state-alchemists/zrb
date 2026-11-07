@@ -6,8 +6,8 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.file_observation import path_write_lock, record_observed
-from zrb.llm.tool.post_write_check import (
+from zrb.llm.tool.file.observation import path_write_lock, record_observed
+from zrb.llm.tool.file.post_write_check import (
     compose_write_result,
     format_post_write_diagnostics,
 )

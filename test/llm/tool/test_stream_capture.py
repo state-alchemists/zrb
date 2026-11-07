@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from zrb.llm.tool.stream_capture import StreamCapture
+from zrb.llm.tool.shell.capture import StreamCapture
 
 
 def test_flush_before_any_spill_is_a_noop():
@@ -44,7 +44,7 @@ def test_print_live_false_suppresses_zrb_print_but_keeps_accumulating():
     live display (see `update_shell_output`) — budget tracking and
     `echoed_text` must still work, only the direct `zrb_print` echo (which
     would otherwise show the same output twice) is suppressed."""
-    with patch("zrb.llm.tool.stream_capture.zrb_print") as mock_print:
+    with patch("zrb.llm.tool.shell.capture.zrb_print") as mock_print:
         cap = StreamCapture(retain=1000, echo=1000, print_live=False)
         cap.echo("hello")
 
@@ -91,7 +91,7 @@ def test_head_text_of_an_unavailable_spill_is_empty_not_an_error(monkeypatch):
     def _boom(*args, **kwargs):
         raise OSError("no temp for you")
 
-    monkeypatch.setattr("zrb.llm.tool.stream_capture.tempfile.mkstemp", _boom)
+    monkeypatch.setattr("zrb.llm.tool.shell.capture.tempfile.mkstemp", _boom)
     cap = StreamCapture(retain=5, echo=0)
     cap.feed("x" * 50)
 

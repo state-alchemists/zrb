@@ -18,7 +18,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.tool.post_write_check import (
+from zrb.llm.tool.file.post_write_check import (
     compose_write_result,
     format_post_write_diagnostics,
 )
@@ -39,7 +39,7 @@ def test_no_suffix_for_clean_python_file(tmp_path):
     path = tmp_path / "clean.py"
     path.write_text("x = 1\n")
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -55,7 +55,7 @@ def test_no_suffix_for_non_python_file(tmp_path):
     path = tmp_path / "notes.md"
     path.write_text("not code\n")
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -66,7 +66,7 @@ def test_syntax_error_surfaces_via_static_check(tmp_path):
     path = tmp_path / "broken.py"
     path.write_text("def f(:\n    pass\n")
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -82,7 +82,7 @@ def test_diagnostic_carries_actionable_system_suggestion(tmp_path):
     path = tmp_path / "broken.py"
     path.write_text("def f(:\n    pass\n")
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -105,7 +105,7 @@ def test_clean_file_emits_no_suggestion(tmp_path):
     path = tmp_path / "fine.py"
     path.write_text("def f():\n    return 1\n")
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -119,7 +119,7 @@ def test_undefined_name_surfaces_when_lsp_empty_but_found(project_dir):
     path = project_dir / "typo.py"
     path.write_text("def main():\n    prnit('hi')\n")
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": True, "diagnostics": []}),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -136,7 +136,7 @@ def test_lsp_and_static_results_dedupe(project_dir):
         "diagnostics": [{"line": 2, "message": "undefined name 'prnit'"}],
     }
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value=lsp_payload),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -147,7 +147,7 @@ def test_lsp_exception_falls_through_to_static_check(project_dir):
     path = project_dir / "typo.py"
     path.write_text("def main():\n    prnit('hi')\n")
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(side_effect=RuntimeError("LSP exploded")),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -160,7 +160,7 @@ def test_lsp_returning_non_dict_does_not_crash(project_dir):
     path = project_dir / "clean.py"
     path.write_text("x = 1\n")
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value=None),
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -186,7 +186,7 @@ def test_a_resolution_error_outside_a_project_is_dropped(tmp_path):
         }
     )
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=get_diagnostics,
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -208,7 +208,7 @@ def test_a_parse_error_outside_a_project_still_fails(tmp_path):
         }
     )
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=get_diagnostics,
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -232,7 +232,7 @@ def test_outside_a_project_only_the_intrinsic_diagnostic_survives(tmp_path):
         }
     )
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=get_diagnostics,
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -253,7 +253,7 @@ def test_a_coded_resolution_error_is_recognised_without_its_wording(tmp_path):
         }
     )
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=get_diagnostics,
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -274,7 +274,7 @@ def test_import_inside_a_project_surfaces_the_lsp_verdict(project_dir):
         }
     )
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=get_diagnostics,
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -290,7 +290,7 @@ def test_undefined_name_outside_a_project_still_fails(tmp_path):
     path.write_text("def main():\n    prnit('hi')\n")
     get_diagnostics = AsyncMock(return_value={"found": False, "diagnostics": []})
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=get_diagnostics,
     ):
         result = _run(format_post_write_diagnostics(str(path)))
@@ -306,7 +306,7 @@ def test_syntax_error_outside_a_project_still_fails(tmp_path):
     path.write_text("def f(:\n    pass\n")
     get_diagnostics = AsyncMock(return_value={"found": False, "diagnostics": []})
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=get_diagnostics,
     ):
         result = _run(format_post_write_diagnostics(str(path)))

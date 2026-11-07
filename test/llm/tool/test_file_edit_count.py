@@ -1,4 +1,4 @@
-"""What `Edit` reports for `count` (`zrb/llm/tool/file_edit.py`)."""
+"""What `Edit` reports for `count` (`zrb/llm/tool/file/edit.py`)."""
 
 import asyncio
 from unittest.mock import AsyncMock, patch
@@ -11,7 +11,7 @@ from zrb.llm.tool.file import replace_in_file
 @pytest.fixture(autouse=True)
 def _no_real_lsp_server():
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         yield
