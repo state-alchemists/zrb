@@ -33,7 +33,10 @@ jobs:
   Run-command:
     runs-on: ubuntu-latest
     container:
-      image: stalchmst/zrb:3.28.1
+      # Pinned by digest as well as tag: a tag is a moving pointer, and this
+      # image supplies the `zrb` that runs with the secrets below. Moving to a
+      # new image is a reviewable diff, not a repush of the tag.
+      image: stalchmst/zrb:3.28.1@sha256:60f2934bf71d4cf28d8e479c3d7f3a5d10a0b7f14cd297183598209a0c3ce2f3
       # Anonymous pulls from shared runner IPs hit Docker Hub's rate limit.
       credentials:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -45,9 +48,16 @@ jobs:
       ZRB_INIT_STRICT: "1"
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: ${{ inputs.fetch-depth }}
+          # Named rather than inherited. Under `pull_request_target` GitHub
+          # already resolves the checkout to the base branch; saying it out loud
+          # is what keeps it that way when this workflow is edited next. Never
+          # point it at the pull request's head: the review takes the head as a
+          # diff, and a checkout would put the contributor's `zrb_init.py` where
+          # `zrb` loads it from, with the key in the environment.
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.base.ref || github.ref }}
 
       - name: Trust the workspace
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
