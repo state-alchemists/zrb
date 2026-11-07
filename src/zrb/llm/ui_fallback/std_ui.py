@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
 from zrb.llm.any_ui import AnyUI
+from zrb.llm.any_ui_display import AnyUIDisplay
 from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.choice_spec_format import get_option_label
@@ -89,7 +90,7 @@ class StdUIPicker(AnyUIPicker):
         return typed
 
 
-class StdUI(UIStateDefaultsMixin, AnyUI):
+class StdUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
     """Standard UI implementation of AnyUI for terminal environments."""
 
     def __init__(self, assistant_name: str | None = None):

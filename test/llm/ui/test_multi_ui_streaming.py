@@ -47,6 +47,7 @@ class _MarkdownOnlyChild(_MinimalChild):
 def mock_child_ui():
     """Create a mock child UI for testing."""
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.ask_user = AsyncMock(return_value="y")
     ui.tool_call_handler = MagicMock()
@@ -61,6 +62,7 @@ def mock_child_ui():
 @pytest.fixture
 def child_ui_1():
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 1")
@@ -78,6 +80,7 @@ def child_ui_1():
 @pytest.fixture
 def child_ui_2():
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 2")
@@ -99,6 +102,7 @@ async def test_stream_ai_response_resets_is_thinking_on_error(mock_child_ui):
     multi_ui.append_to_output = MagicMock()
 
     mock_llm_task = MagicMock()
+    mock_llm_task.display = mock_llm_task
 
     async def raise_error():
         raise ValueError("Test error")
@@ -121,6 +125,7 @@ async def test_stream_ai_response_handles_error(mock_child_ui):
     multi_ui.append_to_output = MagicMock()
 
     mock_llm_task = MagicMock()
+    mock_llm_task.display = mock_llm_task
 
     async def raise_error():
         raise ValueError("Test error")
@@ -143,6 +148,7 @@ async def test_stream_ai_response_with_result(mock_child_ui):
     multi_ui.append_to_output = MagicMock()
 
     mock_llm_task = MagicMock()
+    mock_llm_task.display = mock_llm_task
     mock_llm_task.async_run = AsyncMock(return_value="# Response")
     mock_llm_task.set_ui = MagicMock()
     mock_llm_task.tool_confirmation = MagicMock()
@@ -156,6 +162,7 @@ async def test_stream_ai_response_with_result(mock_child_ui):
 async def test_multi_ui_stream_sets_thinking_on_children(multi_ui, child_ui_1):
     multi_ui.append_to_output = MagicMock()
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -172,6 +179,7 @@ async def test_multi_ui_stream_uses_append_answer_on_main_ui(multi_ui, child_ui_
     multi_ui.append_to_output = MagicMock()
     child_ui_1.append_answer = MagicMock()
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -195,6 +203,7 @@ async def test_multi_ui_stream_gives_a_child_without_the_hook_its_markdown(
     multi_ui.append_to_output = MagicMock()
     child_ui_1.append_answer = MagicMock()
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -214,6 +223,7 @@ async def test_multi_ui_stream_gives_a_bare_child_the_rendered_answer(child_ui_1
     multi_ui.append_to_output = MagicMock()
     child_ui_1.append_answer = MagicMock()
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -228,6 +238,7 @@ async def test_multi_ui_stream_gives_a_bare_child_the_rendered_answer(child_ui_1
 async def test_multi_ui_stream_takes_snapshot_before_run(multi_ui, child_ui_1):
     multi_ui.append_to_output = MagicMock()
     snapshot_manager = MagicMock()
+    snapshot_manager.display = snapshot_manager
     snapshot_manager.take_snapshot = AsyncMock()
     child_ui_1.snapshot_manager = snapshot_manager
     child_ui_1.history_manager = MagicMock()
@@ -235,6 +246,7 @@ async def test_multi_ui_stream_takes_snapshot_before_run(multi_ui, child_ui_1):
     child_ui_1.conversation_session_name = "my-session"
 
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -257,6 +269,7 @@ async def test_multi_ui_stream_syncs_plan_mode(multi_ui, child_ui_1):
     multi_ui.append_to_output = MagicMock()
     child_ui_1.plan_mode_active = True
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -280,6 +293,7 @@ async def test_multi_ui_stream_updates_system_info_on_children(
     child_ui_1.update_system_info = AsyncMock()
     child_ui_2.update_system_info = AsyncMock()
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -303,6 +317,7 @@ async def test_multi_ui_stream_repaints_after_system_info_update(multi_ui, child
 
     child_ui_1.update_system_info = _update
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -321,6 +336,7 @@ async def test_multi_ui_stream_non_string_result_clears_last_output(
     multi_ui.append_to_output = MagicMock()
     multi_ui.last_result_data = "stale"
     llm_task = MagicMock()
+    llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value={"structured": "result"})
     llm_task.set_ui = MagicMock()
     llm_task.tool_confirmation = MagicMock()
@@ -335,6 +351,7 @@ async def test_a_finished_turn_offers_the_conversation_for_auto_naming(mock_chil
     multi_ui = MultiUI([mock_child_ui])
     multi_ui.append_to_output = MagicMock()
     mock_llm_task = MagicMock()
+    mock_llm_task.display = mock_llm_task
     mock_llm_task.async_run = AsyncMock(return_value="hi!")
 
     await multi_ui.stream_ai_response(mock_llm_task, "Hello", [])

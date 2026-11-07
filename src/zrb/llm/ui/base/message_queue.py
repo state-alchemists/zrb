@@ -348,13 +348,13 @@ def submit_user_message_via_queue(
         entry.queued_at = time.monotonic()
         if echo:
             for target in echo_targets:
-                target.track_echo_span(entry, echo)
+                target.display.track_echo_span(entry, echo)
         else:
             # A Markdown body was rendered, so nothing landed verbatim; a target
             # that can track a rendered echo (the default UI) is handed the
             # header and recovers the span from the block the renderer wrote.
             for target in echo_targets:
-                target.track_rendered_echo(entry, header)
+                target.display.track_rendered_echo(entry, header)
         queue.put_nowait(entry)
         return
 
@@ -442,7 +442,7 @@ def _reflect_merged(
     meaningless).
     """
     try:
-        if target.redraw_echo(entry) is not None:
+        if target.display.redraw_echo(entry) is not None:
             return
     except Exception as e:
         CFG.LOGGER.debug(f"Child UI echo redraw failed: {e}")
@@ -460,7 +460,7 @@ def _emit_echo_to(target: AnyUI, header: str, body: str) -> None:
     so a child that already redrew in place gets no duplicate."""
     echo_user_message(
         target.append_to_output,
-        target.append_markdown,
+        target.display.append_markdown,
         header=header,
         body=body,
     )

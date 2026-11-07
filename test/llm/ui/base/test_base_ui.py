@@ -38,7 +38,7 @@ class ConcreteUI(BaseUI):
                 await asyncio.sleep(0.01)
         finally:
             self._process_messages_task.cancel()
-        return self.last_output
+        return self.display.last_output
 
 
 @pytest.fixture
@@ -83,7 +83,7 @@ async def test_stream_ai_response_updates_last_output(base_ui):
 
     await base_ui.stream_ai_response(base_ui.llm_task, "user message")
 
-    assert base_ui.last_output == "AI Response"
+    assert base_ui.display.last_output == "AI Response"
 
 
 @pytest.mark.asyncio

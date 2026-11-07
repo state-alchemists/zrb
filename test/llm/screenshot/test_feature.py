@@ -40,6 +40,8 @@ class FakeScreen(AnyScreenshotBackend):
 
 
 class FakeUI:
+    display = property(lambda self: self)
+
     is_local = True
 
     def __init__(self):

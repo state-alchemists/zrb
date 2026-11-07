@@ -9,6 +9,7 @@ from zrb.llm.ui.multi_ui import MultiUI
 def mock_child_ui():
     """Create a mock child UI for testing."""
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.ask_user = AsyncMock(return_value="y")
     ui.tool_call_handler = MagicMock()
@@ -23,6 +24,7 @@ def mock_child_ui():
 @pytest.fixture
 def child_ui_1():
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 1")
@@ -40,6 +42,7 @@ def child_ui_1():
 @pytest.fixture
 def child_ui_2():
     ui = MagicMock()
+    ui.display = ui
     ui.append_to_output = MagicMock()
     ui.invalidate_ui = MagicMock()
     ui.ask_user = AsyncMock(return_value="input 2")
@@ -57,6 +60,7 @@ def multi_ui(child_ui_1, child_ui_2):
 def test_append_to_output_broadcasts(mock_child_ui):
     """Test that append_to_output broadcasts to all child UIs."""
     other_ui = MagicMock()
+    other_ui.display = other_ui
     other_ui.append_to_output = MagicMock()
     multi_ui = MultiUI([mock_child_ui, other_ui])
 
@@ -92,7 +96,9 @@ def test_multi_ui_accumulate_usage_forwards_to_children(
     child_ui_2.accumulate_usage = MagicMock()
 
     usage = MagicMock()
+    usage.display = usage
     context_usage = MagicMock()
+    context_usage.display = context_usage
     multi_ui.accumulate_usage(usage, context_usage)
 
     child_ui_1.accumulate_usage.assert_called_once_with(usage, context_usage)
@@ -114,6 +120,7 @@ def test_multi_ui_reset_context_usage_forwards_to_children(
 def test_multi_ui_accumulate_usage_skips_children_without_method(multi_ui):
     # Children without accumulate_usage are silently skipped.
     no_method_child = MagicMock()
+    no_method_child.display = no_method_child
     del no_method_child.accumulate_usage
     multi_ui = MultiUI([no_method_child])
 
@@ -123,8 +130,10 @@ def test_multi_ui_accumulate_usage_skips_children_without_method(multi_ui):
 
 def test_multi_ui_accumulate_usage_swallows_child_errors(multi_ui, child_ui_1):
     bad_child = MagicMock()
+    bad_child.display = bad_child
     bad_child.accumulate_usage = MagicMock(side_effect=RuntimeError("bad"))
     good_child = MagicMock()
+    good_child.display = good_child
     good_child.accumulate_usage = MagicMock()
     multi_ui = MultiUI([bad_child, good_child])
 
@@ -363,7 +372,9 @@ class TestMultiUIReplayHistory:
     def test_replay_history_broadcasts_to_children(self):
         """MultiUI.replay_history must call replay_history on every child."""
         child_a = MagicMock()
+        child_a.display = child_a
         child_b = MagicMock()
+        child_b.display = child_b
         multi_ui = MultiUI([child_a, child_b])
 
         messages = ["m1", "m2"]
@@ -386,8 +397,10 @@ class TestMultiUIReplayHistory:
     def test_replay_history_swallows_child_errors(self):
         """A child raising must not break the broadcast to other children."""
         bad_child = MagicMock()
+        bad_child.display = bad_child
         bad_child.replay_history.side_effect = RuntimeError("bad")
         good_child = MagicMock()
+        good_child.display = good_child
 
         multi_ui = MultiUI([bad_child, good_child])
         # Should not raise even though bad_child throws

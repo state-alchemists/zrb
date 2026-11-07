@@ -258,7 +258,7 @@ class ChatRunning:
 
         with _bound_session_ui(_get_action_ui(ui)):
             await ui.run_async()
-        last_output = ui.last_output
+        last_output = ui.display.last_output
         final_conversation_name = self._llm_chat_task.get_ui_conversation_name(
             ui, initial_conversation_name
         )
@@ -375,7 +375,7 @@ class ChatRunning:
             history = history_manager.load(conversation_name)
             if not history:
                 return
-            ui.replay_history(history)
+            ui.display.replay_history(history)
         except FileNotFoundError:
             pass
         except Exception as e:
@@ -416,7 +416,7 @@ def _append_shown_answer(ui: "AnyUI", shown: str) -> None:
     would draw a non-interactive answer at the margin while the same answer in
     an interactive session sits in the column.
     """
-    ui.append_answer(shown)
+    ui.display.append_answer(shown)
 
 
 def _is_action_command(

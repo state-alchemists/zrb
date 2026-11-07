@@ -41,6 +41,8 @@ class MockEditingUI:
     default `UI`) and forwards everything else to whichever part defines it.
     """
 
+    display = property(lambda self: self)
+
     # The real fan-out (drop from the shared queue, take the echo out of every
     # target), which the default `UI` inherits from `BaseUI` unchanged — so a
     # delete behaves here as it does in production.
@@ -149,6 +151,8 @@ class FakeSelectionUI:
     `handle_confirmation` mirror the real `UI`'s own one-line delegators to
     `UISelection`'s public implementation.
     """
+
+    display = property(lambda self: self)
 
     def __init__(self):
         self.input_field = object()

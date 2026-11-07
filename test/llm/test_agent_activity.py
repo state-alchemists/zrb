@@ -78,6 +78,8 @@ def test_buffered_ui_feeds_registry():
     from zrb.llm.tool.delegate import BufferedUI
 
     class _Sink:
+        display = property(lambda self: self)
+
         def append_to_output(self, *values, **kwargs):
             pass
 

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.any_ui import AnyUI
+from zrb.llm.any_ui_display import AnyUIDisplay
 from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_into_block
 from zrb.llm.ui.tracked_spans import TrackedSpans
@@ -44,7 +45,7 @@ class BufferedPicker(AnyUIPicker):
         )
 
 
-class BufferedUI(UIStateDefaultsMixin, AnyUI):
+class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
     """UI wrapper that buffers all output and forwards asks to parent sequentially."""
 
     def __init__(

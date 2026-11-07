@@ -59,6 +59,8 @@ def test_a_message_that_was_never_queued_is_not_withdrawn(mock_ui_deps):
 
 def test_a_multi_ui_withdraws_from_its_own_queue_and_every_child():
     child_one, child_two = MagicMock(), MagicMock()
+    child_one.display = child_one
+    child_two.display = child_two
     multi = MultiUI([child_one, child_two])
     multi.submit_message("wake", BACKGROUND_INPUT)
     assert multi.message_queue.qsize() == 1
@@ -90,6 +92,7 @@ def test_a_background_notice_is_not_offered_back_as_something_the_user_typed(
 
 def test_a_multi_ui_records_only_what_the_user_typed():
     main = MagicMock()
+    main.display = main
     multi = MultiUI([main, MagicMock()])
 
     multi.submit_message("[Background process x finished (exit 0)]", BACKGROUND_INPUT)

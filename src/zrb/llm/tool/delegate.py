@@ -268,7 +268,7 @@ def _finalize_successful_run(
 ) -> object:
     """Close out a finished delegation and note where its transcript was saved."""
     if flush_ui:
-        ui.flush_to_parent()
+        ui.display.flush_to_parent()
     get_live_session_registry().mark_turn_finished(
         activity_session_id, agent_id, history
     )

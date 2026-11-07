@@ -8,6 +8,8 @@ from zrb.llm.dictation.load_report import prepare_reported
 
 
 class FakeUI:
+    display = property(lambda self: self)
+
     def __init__(self):
         self.outputs: list[str] = []
 

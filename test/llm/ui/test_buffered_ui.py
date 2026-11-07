@@ -161,6 +161,8 @@ async def test_buffered_ui_shared_lock_does_not_block_sibling_enqueue():
     """
 
     class SlowWrappedUI:
+        display = property(lambda self: self)
+
         def __init__(self):
             self.calls = []
             self.futures = {}

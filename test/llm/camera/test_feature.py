@@ -28,6 +28,8 @@ class FakeCamera(AnyCameraBackend):
 
 
 class FakeUI:
+    display = property(lambda self: self)
+
     def __init__(self):
         self.background_tasks: set = set()
         self.pending_attachments: list = []

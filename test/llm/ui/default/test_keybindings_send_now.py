@@ -12,6 +12,8 @@ from zrb.llm.ui.default.keybindings import UIKeybindings
 class MockUI:
     """Stand-in UI composing the real `UIKeybindings`."""
 
+    display = property(lambda self: self)
+
     def __init__(self):
         self.background_tasks = set()
         self.pending_attachments = []

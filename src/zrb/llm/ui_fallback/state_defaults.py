@@ -10,9 +10,11 @@ on MRO.
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, TextIO
+from typing import TYPE_CHECKING, Any, TextIO, cast
 
+from zrb.llm.any_ui_display import AnyUIDisplay
 from zrb.llm.any_ui_picker import AnyUIPicker
+from zrb.llm.ui_fallback.echo_broadcast import broadcast_echo
 from zrb.llm.ui_fallback.text_picker import TextPicker
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
 
@@ -20,6 +22,7 @@ if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from zrb.llm.agent.types import ModelMessage, RequestUsage, RunUsage, UserContent
+    from zrb.llm.any_ui import AnyUI
     from zrb.llm.ui.base.message_queue import QueuedMessage
 
 
@@ -32,6 +35,11 @@ class UIStateDefaultsMixin:
         if self._uidefaults_picker is None:
             self._uidefaults_picker = TextPicker(self.ask_user)
         return self._uidefaults_picker
+
+    @property
+    def display(self) -> "AnyUIDisplay":
+        """A UI that keeps its own output surface is its own display."""
+        return cast("AnyUIDisplay", self)
 
     # Class-level defaults so no `__init__` is needed; setters shadow them per
     # instance. Prefixed so they cannot collide with a host's own fields.
@@ -284,7 +292,21 @@ class UIStateDefaultsMixin:
         """No output buffer to record an echo span against."""
 
     def redraw_echoes(self, entries: "Sequence[QueuedMessage]") -> None:
-        """No output buffer to rewrite delivered echoes in."""
+        """Rewrite the echoes of `entries` on every UI that holds one.
+
+        A delivered message leaves the queue, so its panel row disappears at
+        once; its echo line keeps its place in the transcript and changes marker
+        (`DELIVERED_MARKER`), the only record of what the model actually read.
+        The children of one `MultiUI` each hold their own echo, so the redraw
+        goes to all of them rather than to the UI it was called on.
+        """
+        for entry in entries:
+            # Each entry is bound to its own call, so a deferred redraw — this
+            # one queued, or a task — cannot reach the loop's last entry.
+            broadcast_echo(
+                cast("AnyUI", self),
+                lambda ui, entry=entry: ui.display.redraw_echo(entry),
+            )
 
     def deliver_queued_messages_early(self) -> DeliveryReport:
         """No queue of its own, so nothing to hand to the turn."""

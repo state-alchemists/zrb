@@ -229,7 +229,7 @@ class BaseUIConversationCommands:
                 self._base_ui.conversation_session_name = name
                 try:
                     history = self._base_ui.history_manager.load(name)
-                    self._base_ui.replay_history(history)
+                    self._base_ui.display.replay_history(history)
                     # The usage meter tracks spend per loaded conversation;
                     # past sessions' spend is not persisted, so start fresh.
                     self._base_ui.usage.reset()
@@ -318,7 +318,7 @@ class BaseUIConversationCommands:
         self._base_ui.append_to_output(
             stylize_muted(f"\n  🤖 Now driving as sub-agent: {agent_name}\n")
         )
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()
 
     def _restore_main_persona(self) -> None:
         snapshot = self._base_ui.persona.original_snapshot
@@ -333,7 +333,7 @@ class BaseUIConversationCommands:
         self._base_ui.append_to_output(
             stylize_muted("\n  🤖 Back to the main agent.\n")
         )
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()
 
     def _snapshot_main_persona_once(self) -> None:
         """Capture the main agent's config the first time it's swapped away
@@ -480,7 +480,7 @@ class BaseUIConversationCommands:
         if sha is None:
             return
         self._base_ui.is_thinking = True
-        self._base_ui.invalidate_ui()
+        self._base_ui.display.invalidate_ui()
         try:
             self._base_ui.append_to_output(
                 stylize_muted(f"\n  ⏪ Restoring snapshot {sha[:8]}...\n")
@@ -514,7 +514,7 @@ class BaseUIConversationCommands:
                 )
         finally:
             self._base_ui.is_thinking = False
-            self._base_ui.invalidate_ui()
+            self._base_ui.display.invalidate_ui()
 
     # redirect / attach
 
@@ -525,7 +525,7 @@ class BaseUIConversationCommands:
         freshly loaded ``chat --session ...`` the transcript is replayed from
         disk, so fall back to the most recent assistant message in history.
         """
-        content = self._base_ui.last_output
+        content = self._base_ui.display.last_output
         if content:
             return content
         try:

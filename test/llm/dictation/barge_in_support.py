@@ -15,6 +15,8 @@ class FakeBackend(AnyDictationBackend):
 
 
 class FakeUI:
+    display = property(lambda self: self)
+
     is_thinking = False
     is_waiting_for_answer = False
     is_turn_running = False

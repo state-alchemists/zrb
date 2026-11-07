@@ -25,17 +25,26 @@ CORE_FILE = "any_ui.py"
 CORE_CLASS = "AnyUI"
 
 # A role reached through an accessor instead of by inheritance: a UI hands out
-# its choice widget rather than answering to every one of its methods. Every
-# role not named here must reach `AnyUI` as a base, member for member.
-ROLE_ACCESSOR = {"AnyUIPicker": "picker"}
+# its choice widget, and the surface it writes to, rather than answering to
+# every one of their methods. Every role not named here must reach `AnyUI` as a
+# base, member for member.
+ROLE_ACCESSOR = {"AnyUIPicker": "picker", "AnyUIDisplay": "display"}
+
+# The one member the aggregate and a role both declare. `append_to_output` is
+# the writer a backend overrides; the display role writes through it, so it has
+# to be reachable from the whole object as well. Declaring it twice is the
+# point, not drift, and `test_no_member_is_declared_twice` exempts it by name.
+SHARED_PRIMITIVES = {"append_to_output"}
 
 # `AnyUI` itself holds only the whole-object members: run the loop, say whether
-# the user is local, link to a `MultiUI` parent, and hand out the roles that are
-# not bases. A member that is really a role belongs in that role's file.
+# the user is local, link to a `MultiUI` parent, the shared writer, and hand out
+# the roles that are not bases. A member that is really a role belongs in that
+# role's file.
 CORE_MEMBERS = {
     "run_async",
     "is_local",
     "multi_ui_parent",
+    "append_to_output",
     "display",
     "input",
     "picker",
@@ -44,9 +53,17 @@ CORE_MEMBERS = {
 }
 MAX_CORE_MEMBERS = 8
 
-# `AnyUI`'s own declared members. The target is 25; this may only be lowered as
-# roles move behind their parts, never raised to admit a member.
-ANY_UI_MEMBERS = 4
+# `AnyUI`'s own declared members. The target is 25, and an accessor counts: it
+# is a member the aggregate declares. Moving a role behind its accessor trades
+# that role's members for one, so this number goes up as roles leave and the
+# aggregate's total surface shrinks; `test_the_reachable_members_shrink` holds
+# the total. Neither may be raised to admit a new behaviour.
+ANY_UI_MEMBERS = 6
+
+# Every member a caller sees on `AnyUI`: its own, plus each inherited role's.
+# 35 after the display role moved behind `ui.display`, down from 55. Only ever
+# lowered; a new role member raises the total and fails here.
+REACHABLE_MEMBERS = 36
 
 
 def _members(path: pathlib.Path, class_name: str) -> set[str]:
@@ -75,7 +92,7 @@ def test_no_member_is_declared_twice():
     seen: dict[str, str] = {}
     overlaps: list[str] = []
     for class_name, members in declared.items():
-        for member in members:
+        for member in members - SHARED_PRIMITIVES:
             if member in seen:
                 overlaps.append(f"{member} in {seen[member]} and {class_name}")
             seen[member] = class_name
@@ -128,4 +145,28 @@ def test_the_member_ratchet_is_tight():
     assert own == ANY_UI_MEMBERS, (
         f"{ANY_UI_MEMBERS - own} member(s) left `AnyUI` without lowering "
         f"ANY_UI_MEMBERS. Set it to {own}."
+    )
+
+
+def test_the_reachable_members_shrink():
+    """What a reader sees on `AnyUI` — own plus inherited roles — only shrinks.
+
+    Moving a role behind its accessor removes its members from the object a
+    caller is typed against and adds one accessor. This is the number that says
+    whether the god object is going away.
+    """
+    declared = _declared()
+    reachable = set(declared[CORE_CLASS])
+    for class_name, members in declared.items():
+        if class_name == CORE_CLASS or class_name in ROLE_ACCESSOR:
+            continue
+        reachable |= members
+    assert len(reachable) <= REACHABLE_MEMBERS, (
+        f"`AnyUI` now exposes {len(reachable)} members, up from "
+        f"{REACHABLE_MEMBERS}. A role that grows is a role that needs its own "
+        "contract, not a wider aggregate."
+    )
+    assert len(reachable) == REACHABLE_MEMBERS, (
+        f"{REACHABLE_MEMBERS - len(reachable)} member(s) left `AnyUI` without "
+        f"lowering REACHABLE_MEMBERS. Set it to {len(reachable)}."
     )

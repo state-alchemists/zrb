@@ -551,13 +551,13 @@ class UIOutput:
         async def _do_invalidate():
             await asyncio.sleep(0.016)
             self._ui.pending_invalidate = False
-            self._ui.invalidate_ui()
+            self._ui.display.invalidate_ui()
 
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
             self._ui.pending_invalidate = False
-            self._ui.invalidate_ui()
+            self._ui.display.invalidate_ui()
             return
         self._ui.invalidate_task = loop.create_task(_do_invalidate())
 

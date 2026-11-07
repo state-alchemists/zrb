@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -111,14 +111,13 @@ class FastLoopSimpleUI(ConcreteSimpleUI):
 async def test_simple_ui_run_async(deps):
     ui = FastLoopSimpleUI(initial_message="start", **deps)
     ui.submit_user_message = MagicMock()
+    # The answer a finished turn leaves behind, as the display reports it; a
+    # backend reading it off the UI object itself would get "" here.
+    ui.last_result_data = "Done"
 
-    with patch(
-        "zrb.llm.ui.base.ui.BaseUI.last_output", new_callable=PropertyMock
-    ) as mock_last:
-        mock_last.return_value = "Done"
-        res = await ui.run_async()
-        assert res == "Done"
+    res = await ui.run_async()
 
+    assert res == "Done"
     ui.submit_user_message.assert_called_once_with(ui.llm_task, "start")
 
 

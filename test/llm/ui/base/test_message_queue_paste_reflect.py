@@ -17,6 +17,8 @@ def _stub_stream_ai_response(llm_task, text, attachments):
 class BurstTarget:
     """Standalone target with attachment and echo-span hooks."""
 
+    display = property(lambda self: self)
+
     def __init__(self, can_redraw=True, redraw_error=None):
         self.outputs: list[str] = []
         self.redrawn: list[QueuedMessage] = []
@@ -64,6 +66,8 @@ def submit_burst(queue, target, text):
 
 class SpliceableTarget:
     """Spliceable target with per-buffer echo bookkeeping."""
+
+    display = property(lambda self: self)
 
     def __init__(self):
         self.buffer = ""
@@ -262,6 +266,8 @@ def test_submit_via_queue_echoes_merged_markdown_line_verbatim_without_splice(
     rendered: list[str] = []
 
     class MarkdownBufferlessTarget:
+        display = property(lambda self: self)
+
         def append_to_output(self, *values, **kwargs):
             outputs.append("".join(str(v) for v in values) + kwargs.get("end", ""))
 

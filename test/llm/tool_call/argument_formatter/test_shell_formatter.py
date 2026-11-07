@@ -13,6 +13,8 @@ from zrb.util.cli.ansi import strip_ansi
 class MockUI:
     """Mock UI for testing."""
 
+    display = property(lambda self: self)
+
     def __init__(self):
         self.outputs = []
 

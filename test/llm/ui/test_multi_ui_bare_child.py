@@ -119,6 +119,7 @@ def test_a_failing_recorder_falls_back_to_the_plain_line():
 def test_usage_reaches_a_child_that_meters_it():
     meter, bare = _RecordingChild(), _BareChild()
     usage = MagicMock()
+    usage.display = usage
 
     multi = MultiUI([meter, bare])
     multi.accumulate_usage(usage, None)
@@ -151,6 +152,7 @@ async def test_system_info_is_refreshed_on_every_child_after_a_turn():
     refreshing, bare = _RecordingChild(), _BareChild()
     multi = MultiUI([refreshing, bare])
     llm_task = MagicMock()
+    llm_task.display = llm_task
 
     async def _answer(*args, **kwargs):
         return "done"

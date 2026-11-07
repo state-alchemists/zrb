@@ -29,6 +29,8 @@ class BurstTarget:
     went away mid-merge.
     """
 
+    display = property(lambda self: self)
+
     def __init__(self, can_redraw=True, redraw_error=None):
         self.outputs: list[str] = []
         self.redrawn: list[QueuedMessage] = []

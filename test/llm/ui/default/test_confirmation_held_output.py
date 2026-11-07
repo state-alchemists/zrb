@@ -36,6 +36,8 @@ class StreamingConfirmationUI:
     """Holds the state both parts reach via `self._ui` (normally supplied by
     the default `UI`), with the main agent mid-stream."""
 
+    display = property(lambda self: self)
+
     def __init__(self):
         self.confirmation = BaseUIConfirmationState()
         self.output_field = TextOutputField()

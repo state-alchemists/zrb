@@ -14,6 +14,8 @@ class MockOutputUI:
     methods/properties) to the composed part.
     """
 
+    display = property(lambda self: self)
+
     def __init__(self):
         self._output_field = MagicMock()
         self._output_field.text = ""

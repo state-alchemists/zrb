@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.any_ui import AnyUI
+from zrb.llm.any_ui_display import AnyUIDisplay
 from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
@@ -70,7 +71,7 @@ class MultiUIPicker(AnyUIPicker):
         )
 
 
-class MultiUI(UIStateDefaultsMixin, AnyUI):
+class MultiUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
     """UI wrapper that broadcasts output to multiple UIs and waits for first response.
 
     Output goes to every child; input takes the first child's answer; all
@@ -311,7 +312,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
                 CFG.LOGGER.debug(f"Child UI append_to_output failed: {e}")
 
     def set_status_badge(self, key: str, text: str | None) -> None:
-        self._fanout("set_status_badge", lambda ui: ui.set_status_badge(key, text))
+        self._fanout(
+            "set_status_badge", lambda ui: ui.display.set_status_badge(key, text)
+        )
 
     def _fanout(self, name: str, call: Callable[[AnyUI], object]) -> None:
         """Run `call` on every child, best-effort: a dead channel is not a dead
@@ -356,7 +359,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         Children with their own `append_markdown` get the source; others get
         pre-rendered output.
         """
-        self._fanout("append_markdown", lambda ui: ui.append_markdown(markdown_text))
+        self._fanout(
+            "append_markdown", lambda ui: ui.display.append_markdown(markdown_text)
+        )
 
     def append_answer(self, markdown_text: str) -> None:
         """Append the turn's answer on every child, at the column it keeps.
@@ -366,7 +371,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         `append_to_output` gets it pre-rendered, by `AnyUI`'s defaults: the
         layout may differ, the text never disappears.
         """
-        self._fanout("append_answer", lambda ui: ui.append_answer(markdown_text))
+        self._fanout(
+            "append_answer", lambda ui: ui.display.append_answer(markdown_text)
+        )
 
     def record_tool_call_block(self, collapsed: str, full: str) -> None:
         """Give every child its tool-call/result line.
@@ -377,7 +384,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """
         for ui in self._uis:
             try:
-                ui.record_tool_call_block(collapsed, full)
+                ui.display.record_tool_call_block(collapsed, full)
                 continue
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI record_tool_call_block failed: {e}")
@@ -393,24 +400,28 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         `append_to_output`.
         """
         self._fanout(
-            "mark_thinking_block_start", lambda ui: ui.mark_thinking_block_start()
+            "mark_thinking_block_start",
+            lambda ui: ui.display.mark_thinking_block_start(),
         )
 
     def collapse_thinking_block(self, collapsed: str, full: str) -> None:
         """Collapse the block opened by `mark_thinking_block_start`."""
         self._fanout(
             "collapse_thinking_block",
-            lambda ui: ui.collapse_thinking_block(collapsed, full),
+            lambda ui: ui.display.collapse_thinking_block(collapsed, full),
         )
 
     def mark_text_block_start(self) -> None:
         """Mark the reply block's start on toggle-capable children."""
-        self._fanout("mark_text_block_start", lambda ui: ui.mark_text_block_start())
+        self._fanout(
+            "mark_text_block_start", lambda ui: ui.display.mark_text_block_start()
+        )
 
     def collapse_text_block(self, collapsed: str, full: str) -> None:
         """Collapse the block opened by `mark_text_block_start`."""
         self._fanout(
-            "collapse_text_block", lambda ui: ui.collapse_text_block(collapsed, full)
+            "collapse_text_block",
+            lambda ui: ui.display.collapse_text_block(collapsed, full),
         )
 
     def settle_text_block(self, source: str) -> None:
@@ -419,7 +430,9 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         No fallback: a child without the hook keeps the streamed copy it
         already printed, which is the whole text anyway.
         """
-        self._fanout("settle_text_block", lambda ui: ui.settle_text_block(source))
+        self._fanout(
+            "settle_text_block", lambda ui: ui.display.settle_text_block(source)
+        )
 
     def set_stream_indentation(self, indent: str) -> None:
         """Tell children that render a settled block the column to keep.
@@ -429,7 +442,8 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         column in the first place.
         """
         self._fanout(
-            "set_stream_indentation", lambda ui: ui.set_stream_indentation(indent)
+            "set_stream_indentation",
+            lambda ui: ui.display.set_stream_indentation(indent),
         )
 
     def start_tool_call(self, tool_name: str, tool_call_id: str) -> None:
@@ -456,7 +470,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
     def replay_history(self, messages: list) -> None:
         """Replay loaded history on every child UI that supports it."""
-        self._fanout("replay_history", lambda ui: ui.replay_history(messages))
+        self._fanout("replay_history", lambda ui: ui.display.replay_history(messages))
 
     async def _take_pre_turn_snapshot(self, user_message: str, timestamp: str) -> None:
         main_ui = self.main_ui
@@ -562,7 +576,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
         """Ask every child UI to repaint."""
         for ui in self._uis:
             try:
-                ui.invalidate_ui()
+                ui.display.invalidate_ui()
             except Exception as e:
                 CFG.LOGGER.debug(f"Child UI invalidate_ui failed: {e}")
 
@@ -681,7 +695,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
             return
         self._message_queue.remove(entry)
         for child in self._uis:
-            child.remove_echo(entry)
+            child.display.remove_echo(entry)
 
     def submit_message_now(
         self,
@@ -892,7 +906,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
     ):
         for ui in self._uis:
             try:
-                ui.stream_to_parent(
+                ui.display.stream_to_parent(
                     *values, sep=sep, end=end, file=file, flush=flush, kind=kind
                 )
             except Exception as e:

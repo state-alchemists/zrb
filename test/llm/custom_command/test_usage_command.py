@@ -38,6 +38,8 @@ def command():
 class _FakeUI:
     """The parts of a UI `/usage` touches: the session name and the panel."""
 
+    display = property(lambda self: self)
+
     def __init__(self, session: str = "") -> None:
         self.conversation_session_name = session
         self.panels: list[tuple[str, str]] = []
