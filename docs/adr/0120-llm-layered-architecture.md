@@ -18,7 +18,7 @@ Decision
 
 Expose shared behaviours via L0 facades and Protocols:
 
-- Agent build/run: AnyAgentRunner (any_agent.py/any_agent_result.py/any_agent_runner.py) and facade agent_runner.py. Engine registers an adapter in agent/__init__.py.
+- Agent build/run: `AnyAgentRunner` (`any_agent.py`/`any_agent_result.py`/`any_agent_runner.py`) and the facade `agent_runner.py`, which names those protocols for the type checker only. Engine registers an adapter in `agent/__init__.py`.
 - Delegation: AnySubAgentManager/AnySubAgentDefinition and AnyLiveSessionRegistry/AnyLiveSubAgentSession. The registry functions live in delegation_api.py; subagent/manager.py and subagent/live_session.py register their singletons.
 - Multimodal helper moved under tool/.
 
