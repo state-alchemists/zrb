@@ -213,7 +213,7 @@ async def test_confirmation_async_delegators(mock_ui_deps):
 
     assert await ui.ask_user("prompt") == "answer"
     confirmation.ask_user.assert_awaited_once_with("prompt", "", None)
-    assert await ui.ask_user_choice(MagicMock()) == "pick"
+    assert await ui.picker.ask_user_choice(MagicMock()) == "pick"
     confirmation.ask_user_choice.assert_awaited_once()
 
 

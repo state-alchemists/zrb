@@ -179,7 +179,11 @@ FACADE_BUDGETS = {
     # +4 (769->773): the `track_rendered_echo` delegator beside `track_echo_span`.
     # The part had the method but the facade did not, so the queue's hand-off of a
     # Markdown echo never reached it; the span logic stays in `message_editing.py`.
-    "llm/ui/default/ui.py": 773,
+    # +4 (773->777): the `picker` accessor. `UI` answers a choice through the
+    # confirmation queue's widget, so it hands that widget out as its picker
+    # instead of inheriting the text fallback; the widget itself is in
+    # `default/picker.py`.
+    "llm/ui/default/ui.py": 777,
     # +10 (1068->1078): the `stream_observers` collection (append/prepend/
     # set/remove plus its property), the seam speech streams through --
     # new surface.

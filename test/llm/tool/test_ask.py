@@ -88,7 +88,7 @@ def test_question_schema_documents_context_and_recommendation():
 @pytest.mark.asyncio
 async def test_context_and_recommendation_reach_the_ui():
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = "Postgres"
+    fake_ui.picker.ask_user_choice.return_value = "Postgres"
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
@@ -102,7 +102,7 @@ async def test_context_and_recommendation_reach_the_ui():
                 }
             ]
         )
-    spec = fake_ui.ask_user_choice.await_args.args[0]
+    spec = fake_ui.picker.ask_user_choice.await_args.args[0]
     assert spec["context"] == "The service is read-heavy."
     assert spec["options"][0]["recommended"] is True
     # The recommendation never reaches the answer the model is told about.
@@ -176,7 +176,7 @@ async def test_missing_required_keys_surfaces_schema_error():
     assert "missing required keys" in result
     assert "question" in result
     # UI must not be called when the schema is invalid.
-    fake_ui.ask_user_choice.assert_not_called()
+    fake_ui.picker.ask_user_choice.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -185,14 +185,14 @@ async def test_empty_options_surfaces_error():
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question([{"question": "x", "options": []}])
     assert "options is empty" in result
-    fake_ui.ask_user_choice.assert_not_called()
+    fake_ui.picker.ask_user_choice.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_resolves_numeric_pick_to_label():
     """A UI that returns a number (text-fallback path) still maps to the label."""
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = "2"
+    fake_ui.picker.ask_user_choice.return_value = "2"
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
@@ -207,14 +207,14 @@ async def test_resolves_numeric_pick_to_label():
             ]
         )
     assert "Q1 (Framework): Flask" in result
-    fake_ui.ask_user_choice.assert_awaited_once()
+    fake_ui.picker.ask_user_choice.assert_awaited_once()
 
 
 @pytest.mark.asyncio
 async def test_widget_label_answer_is_returned_verbatim():
     """A widget UI returns the chosen label directly; it survives resolution."""
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = "Flask"
+    fake_ui.picker.ask_user_choice.return_value = "Flask"
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
@@ -230,7 +230,7 @@ async def test_widget_label_answer_is_returned_verbatim():
 @pytest.mark.asyncio
 async def test_returns_free_form_text_when_not_a_number():
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = "actually use Django"
+    fake_ui.picker.ask_user_choice.return_value = "actually use Django"
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
@@ -246,7 +246,7 @@ async def test_returns_free_form_text_when_not_a_number():
 @pytest.mark.asyncio
 async def test_out_of_range_index_falls_through_to_raw_text():
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = "99"
+    fake_ui.picker.ask_user_choice.return_value = "99"
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [{"question": "x", "options": [{"label": "A"}]}]
@@ -258,7 +258,7 @@ async def test_out_of_range_index_falls_through_to_raw_text():
 @pytest.mark.asyncio
 async def test_multi_select_resolves_comma_separated_indexes():
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = "1,3"
+    fake_ui.picker.ask_user_choice.return_value = "1,3"
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
@@ -279,7 +279,7 @@ async def test_multi_select_resolves_comma_separated_indexes():
 @pytest.mark.asyncio
 async def test_multi_select_falls_back_to_raw_when_any_token_unresolved():
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = "1, banana"
+    fake_ui.picker.ask_user_choice.return_value = "1, banana"
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
@@ -297,7 +297,7 @@ async def test_multi_select_falls_back_to_raw_when_any_token_unresolved():
 @pytest.mark.asyncio
 async def test_empty_answer_renders_no_answer_marker():
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = ""
+    fake_ui.picker.ask_user_choice.return_value = ""
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [{"question": "x?", "options": [{"label": "A"}]}]
@@ -308,7 +308,7 @@ async def test_empty_answer_renders_no_answer_marker():
 @pytest.mark.asyncio
 async def test_keyboard_interrupt_returns_cancellation_suggestion():
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.side_effect = KeyboardInterrupt()
+    fake_ui.picker.ask_user_choice.side_effect = KeyboardInterrupt()
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [{"question": "x?", "options": [{"label": "A"}]}]
@@ -320,7 +320,7 @@ async def test_keyboard_interrupt_returns_cancellation_suggestion():
 @pytest.mark.asyncio
 async def test_multiple_questions_all_get_rendered():
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.side_effect = ["1", "free text"]
+    fake_ui.picker.ask_user_choice.side_effect = ["1", "free text"]
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [
@@ -338,7 +338,7 @@ async def test_multiple_questions_all_get_rendered():
         )
     assert "Q1 (First): Yes" in result
     assert "Q2 (Second): free text" in result
-    assert fake_ui.ask_user_choice.await_count == 2
+    assert fake_ui.picker.ask_user_choice.await_count == 2
 
 
 def test_get_set_interactive_mode_round_trip():
@@ -362,7 +362,7 @@ async def test_an_answer_that_is_a_numeric_label_is_not_reindexed(multi, raw, ex
     """The UI returns the label it resolved; the label "1" must stay "1", not
     become the first option "10"."""
     fake_ui = AsyncMock()
-    fake_ui.ask_user_choice.return_value = raw
+    fake_ui.picker.ask_user_choice.return_value = raw
     with patch("zrb.llm.tool.ask.get_current_ui", return_value=fake_ui):
         result = await ask_user_question(
             [

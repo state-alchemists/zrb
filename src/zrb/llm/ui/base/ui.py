@@ -73,7 +73,6 @@ from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
 from zrb.llm.ui_fallback.resolution import create_combined_ui
 from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
-from zrb.llm.util.choice_spec_format import format_choice_spec
 from zrb.llm.util.spoken import shown_text
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session
@@ -99,7 +98,6 @@ if TYPE_CHECKING:
         ToolDenied,
         UserContent,
     )
-    from zrb.llm.any_ui import ChoiceSpec
     from zrb.llm.task.llm_task import LLMTask
 
 logger = logging.getLogger(__name__)
@@ -861,16 +859,6 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
         raise NotImplementedError(
             f"{self.__class__.__name__} must implement ask_user()"
         )
-
-    async def ask_user_choice(
-        self, spec: "ChoiceSpec", agent_id: str | None = None
-    ) -> str:
-        """[OPTIONAL] Ask a multiple-choice question.
-
-        The default renders numbered text through `ask_user`. Returns the
-        chosen label(s), comma-joined for multi-select, or free-form text.
-        """
-        return await self.ask_user(format_choice_spec(spec), agent_id=agent_id)
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

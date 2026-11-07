@@ -41,8 +41,18 @@ __all__ = [
 ]
 
 
-class AnyUI(AnyUIDisplay, AnyUIInput, AnyUIPicker, AnyUITools, AnyUISession, ABC):
-    """The five roles in one object, plus what belongs to the whole."""
+class AnyUI(AnyUIDisplay, AnyUIInput, AnyUITools, AnyUISession, ABC):
+    """Four roles in one object, plus what belongs to the whole.
+
+    The picker is the exception: one question rendered as options, reached
+    through `picker` rather than inherited, so a UI can swap the widget without
+    answering to the rest of the contract.
+    """
+
+    @property
+    @abstractmethod
+    def picker(self) -> AnyUIPicker:
+        """This UI's choice widget."""
 
     @abstractmethod
     async def run_async(self) -> Any:

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
 from zrb.llm.any_ui import AnyUI
+from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.choice_spec_format import get_option_label
 from zrb.util.cli.style import stylize_muted
@@ -37,40 +38,8 @@ def resolve_choice_selection(spec: "ChoiceSpec", selection: Any) -> str:
     return ", ".join(labels)
 
 
-class StdUI(UIStateDefaultsMixin, AnyUI):
-    """Standard UI implementation of AnyUI for terminal environments."""
-
-    def __init__(self, assistant_name: str | None = None):
-        raw = assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
-        self._assistant_name = raw[0].upper() + raw[1:] if raw else raw
-
-    async def ask_user(
-        self,
-        prompt: str,
-        output_to_parent: str = "",
-        agent_id: str | None = None,
-    ) -> str:
-        """Prompt user via CLI input."""
-        # lazy: heavy third-party
-        from prompt_toolkit import PromptSession
-        from prompt_toolkit.output import create_output
-
-        # stderr, so stdout carries only the result.
-        output = create_output(stdout=sys.stderr)
-        session = PromptSession(output=output)
-
-        # No prompt is the tool-confirmation case.
-        if not prompt:
-            sys.stderr.write(
-                f"\n👋 {self._assistant_name} is waiting for confirmation\n"
-            )
-            sys.stderr.flush()
-
-        try:
-            user_input = await session.prompt_async(prompt)
-            return user_input.strip()
-        except EOFError:
-            return ""
+class StdUIPicker(AnyUIPicker):
+    """The terminal's choice widget: an arrow-key dialog, or typed text."""
 
     async def ask_user_choice(
         self, spec: "ChoiceSpec", agent_id: str | None = None
@@ -118,6 +87,48 @@ class StdUI(UIStateDefaultsMixin, AnyUI):
             prefix = resolve_choice_selection(spec, checked)
             return ", ".join(part for part in (prefix, typed) if part)
         return typed
+
+
+class StdUI(UIStateDefaultsMixin, AnyUI):
+    """Standard UI implementation of AnyUI for terminal environments."""
+
+    def __init__(self, assistant_name: str | None = None):
+        raw = assistant_name if assistant_name else CFG.LLM_ASSISTANT_NAME
+        self._assistant_name = raw[0].upper() + raw[1:] if raw else raw
+        self._picker = StdUIPicker()
+
+    @property
+    def picker(self) -> AnyUIPicker:
+        """The arrow-key dialog this UI answers a choice with."""
+        return self._picker
+
+    async def ask_user(
+        self,
+        prompt: str,
+        output_to_parent: str = "",
+        agent_id: str | None = None,
+    ) -> str:
+        """Prompt user via CLI input."""
+        # lazy: heavy third-party
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.output import create_output
+
+        # stderr, so stdout carries only the result.
+        output = create_output(stdout=sys.stderr)
+        session = PromptSession(output=output)
+
+        # No prompt is the tool-confirmation case.
+        if not prompt:
+            sys.stderr.write(
+                f"\n👋 {self._assistant_name} is waiting for confirmation\n"
+            )
+            sys.stderr.flush()
+
+        try:
+            user_input = await session.prompt_async(prompt)
+            return user_input.strip()
+        except EOFError:
+            return ""
 
     def append_to_output(
         self,

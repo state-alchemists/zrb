@@ -12,6 +12,8 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, TextIO
 
+from zrb.llm.any_ui_picker import AnyUIPicker
+from zrb.llm.ui_fallback.text_picker import TextPicker
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
 
 if TYPE_CHECKING:
@@ -24,8 +26,16 @@ if TYPE_CHECKING:
 class UIStateDefaultsMixin:
     """Default `AnyUI` state members for UIs that do not track them."""
 
+    @property
+    def picker(self) -> AnyUIPicker:
+        """Ask a choice as numbered text: a UI without a widget still answers."""
+        if self._uidefaults_picker is None:
+            self._uidefaults_picker = TextPicker(self.ask_user)
+        return self._uidefaults_picker
+
     # Class-level defaults so no `__init__` is needed; setters shadow them per
     # instance. Prefixed so they cannot collide with a host's own fields.
+    _uidefaults_picker: AnyUIPicker | None = None
     _uidefaults_is_thinking: bool = False
     _uidefaults_llm_task: Any = None
     _uidefaults_model: Any = None
@@ -182,6 +192,15 @@ class UIStateDefaultsMixin:
     # `append_to_output`; every other default does nothing.
 
     if TYPE_CHECKING:
+
+        async def ask_user(
+            self,
+            prompt: str,
+            output_to_parent: str = "",
+            agent_id: str | None = None,
+        ) -> str:
+            """The host's question, which `AnyUI` declares abstract."""
+            ...
 
         def append_to_output(
             self,
