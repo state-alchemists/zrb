@@ -6,6 +6,8 @@ First resolution of any exported name also imports `hook_agent`, which
 registers the `HookType.AGENT` builder.
 """
 
+from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, cast
 
