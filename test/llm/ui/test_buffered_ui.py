@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from zrb.llm.ui.buffered_ui import BufferedUI
+from zrb.llm.ui.buffered.ui import BufferedUI
 
 
 def test_buffered_ui_append_to_output():
@@ -319,7 +319,7 @@ def test_buffered_ui_append_to_output_updates_activity_registry():
     ui = BufferedUI(mock_wrapped)
     ui.set_activity_id("agent-123")
 
-    with patch("zrb.llm.ui.buffered_ui.agent_activity_registry") as reg:
+    with patch("zrb.llm.ui.buffered.ui.agent_activity_registry") as reg:
         ui.append_to_output("line")
 
     reg.update.assert_called_once()
@@ -333,7 +333,7 @@ def test_buffered_ui_stream_to_parent_routes_into_own_buffer():
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
     ui.set_activity_id("agent-xyz")
 
-    with patch("zrb.llm.ui.buffered_ui.agent_activity_registry") as reg:
+    with patch("zrb.llm.ui.buffered.ui.agent_activity_registry") as reg:
         ui.stream_to_parent("first\nsecond")
 
     reg.update.assert_called_once()
@@ -350,7 +350,7 @@ def test_buffered_ui_passes_its_session_id_to_activity_updates():
     ui = BufferedUI(mock_wrapped, session_id="session-42")
     ui.set_activity_id("agent-123")
 
-    with patch("zrb.llm.ui.buffered_ui.agent_activity_registry") as reg:
+    with patch("zrb.llm.ui.buffered.ui.agent_activity_registry") as reg:
         ui.append_to_output("line")
         ui.stream_to_parent("status")
 
@@ -366,7 +366,7 @@ def test_buffered_ui_defaults_to_empty_session_id():
     ui = BufferedUI(mock_wrapped)
     ui.set_activity_id("agent-123")
 
-    with patch("zrb.llm.ui.buffered_ui.agent_activity_registry") as reg:
+    with patch("zrb.llm.ui.buffered.ui.agent_activity_registry") as reg:
         ui.append_to_output("line")
 
     assert reg.update.call_args.kwargs["session_id"] == ""

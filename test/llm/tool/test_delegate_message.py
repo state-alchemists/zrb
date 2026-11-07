@@ -6,7 +6,7 @@ from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.subagent.parent_message import send_message_to_parent
 from zrb.llm.tool.delegate.message import create_send_message_to_subagent_tool
-from zrb.llm.ui.buffered_ui import BufferedUI
+from zrb.llm.ui.buffered.ui import BufferedUI
 
 SESSION = "sess"
 

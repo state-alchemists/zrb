@@ -39,7 +39,7 @@ from zrb.util.contextvar_scope import scoped
 if TYPE_CHECKING:
     from zrb.llm.shared.delegation_api import LiveSessionRegistryAPI
     from zrb.llm.subagent.manager.manager import SubAgentManager
-    from zrb.llm.ui.buffered_ui import BufferedUI
+    from zrb.llm.ui.buffered import BufferedUI
 
 
 @dataclass

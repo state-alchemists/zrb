@@ -73,9 +73,9 @@ flowchart TD
 | `STT_SERVICE_SPECS`, `TTS_SERVICE_SPECS` | `src/zrb/llm/voice/builtin.py` | The built-in service specs and the extras each needs |
 | `AnyDictationBackend`, `AnySpeechBackend` | `src/zrb/llm/dictation/backend/`, `src/zrb/llm/speech/backend/` | The interface every backend implements, Pipecat-backed or zrb's own; each package's `builtin.py` maps a backend name to one |
 | `UtteranceCutter` | `src/zrb/llm/dictation/listen.py` | Where an utterance begins and ends, and the loudness bars under ordinary speech and under zrb's voice |
-| `STTPipeline` | `src/zrb/llm/dictation/pipecat_stt.py` | One long-lived Pipecat pipeline per STT backend: segment in, transcript out |
+| `STTPipeline` | `src/zrb/llm/dictation/backend/pipecat/stt.py` | One long-lived Pipecat pipeline per STT backend: segment in, transcript out |
 | `DictationSession` | `src/zrb/llm/dictation/feature.py` | The guards: stop, approval, denial, wake word, minimum word count |
-| `TTSPipeline` | `src/zrb/llm/speech/pipecat_tts.py` | One long-lived Pipecat pipeline per TTS backend: sentence in, audio out |
+| `TTSPipeline` | `src/zrb/llm/speech/backend/pipecat/tts.py` | One long-lived Pipecat pipeline per TTS backend: sentence in, audio out |
 | `Speaker`, `PcmUtterance` | `src/zrb/llm/speech/player.py`, `src/zrb/llm/speech/pcm_player.py` | In-process playback that can pause, resume and stop |
 
 ### How it runs
@@ -105,8 +105,8 @@ Each of these carries behaviour Pipecat has no notion of. Moving one into Pipeca
 | --- | --- | --- |
 | Add a Pipecat service, or change what an unset backend falls back to | `src/zrb/llm/voice/builtin.py`, `src/zrb/llm/voice/registry.py` | `test/llm/voice/` |
 | Add a non-Pipecat backend | `src/zrb/llm/dictation/backend/builtin.py`, `src/zrb/llm/speech/backend/builtin.py` | `test/llm/dictation/backend/`, `test/llm/speech/backend/` |
-| Change how a segment reaches an STT service | `src/zrb/llm/dictation/pipecat_stt.py` | `test/llm/dictation/test_pipecat_stt.py` |
-| Change how a sentence's audio is made | `src/zrb/llm/speech/pipecat_tts.py` | `test/llm/speech/test_pipecat_tts.py` |
+| Change how a segment reaches an STT service | `src/zrb/llm/dictation/backend/pipecat/stt.py` | `test/llm/dictation/test_pipecat_stt.py` |
+| Change how a sentence's audio is made | `src/zrb/llm/speech/backend/pipecat/tts.py` | `test/llm/speech/test_pipecat_tts.py` |
 | Change utterance cutting or the loudness bars | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen.py`, `test/llm/dictation/test_listen_barge_in.py` |
 | Change the transcript guards | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py` |
 | Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py`, `test/llm/speech/test_player_pause.py`, `test/llm/speech/test_player_render_failure.py` |

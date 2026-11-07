@@ -87,6 +87,19 @@ The tools under `zrb.llm.tool` are now grouped by the domain they act on. A doma
 | `from zrb.llm.tool.code_constants import DEFAULT_EXTENSIONS` | `from zrb.llm.tool.code.constants import DEFAULT_EXTENSIONS` |
 
 The single-module tools — `ask`, `git_visible`, `mcp`, `memory`, `multimodal_describe`, `skill`, `wrapper`, `zrb_task` — did not move.
+### The speech backends and the small UI parts are packages
+
+The same split reached five more modules that were holding more than one job: `zrb.llm.dictation.backend.pipecat`, `zrb.llm.speech.backend.pipecat`, `zrb.llm.custom_command.usage`, `zrb.llm.ui.buffered` and `zrb.llm.ui.event_driven` are packages now, one module per job. Every package's `__init__.py` re-exports the names its module exported, so the facades are still reached where they always were — `from zrb.llm.ui import BufferedUI, EventDrivenUI`, `from zrb.llm.dictation.backend.pipecat import PipecatDictationBackend` and `from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend` all keep working. Only an import that named one of the moved modules directly changes its path.
+
+| Before | After |
+|---|---|
+| `zrb.llm.ui.buffered_ui.BufferedUI` | `zrb.llm.ui.buffered.ui.BufferedUI` |
+| `zrb.llm.ui.buffered_output.BufferedOutputMixin` | `zrb.llm.ui.buffered.output.BufferedOutputMixin` |
+| `zrb.llm.ui.event_driven_ui.EventDrivenUI` | `zrb.llm.ui.event_driven.ui.EventDrivenUI` |
+| `zrb.llm.ui.queue_based_input.QueueBasedInput` | `zrb.llm.ui.event_driven.input.QueueBasedInput` |
+| `zrb.llm.dictation.pipecat_stt.STTPipeline` | `zrb.llm.dictation.backend.pipecat.stt.STTPipeline` |
+| `zrb.llm.speech.pipecat_tts.TTSPipeline` | `zrb.llm.speech.backend.pipecat.tts.TTSPipeline` |
+| `zrb.llm.custom_command.usage_command` | `zrb.llm.custom_command.usage.command` |
 
 ### The LSP, sub-agent and live-context facades are packages
 

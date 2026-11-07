@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from zrb.llm.speech.backend.audio import SpeechAudio
     from zrb.llm.speech.backend.utterance import Utterance
     from zrb.llm.speech.config import SpeechConfig
-    from zrb.llm.speech.pipecat_tts import TTSPipeline
+    from zrb.llm.speech.backend.pipecat.tts import TTSPipeline
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ class PipecatSpeechBackend(AnySpeechBackend):
 
     def _start_pipeline(self) -> "TTSPipeline":
         # lazy: circular — defer the pipeline import until first use.
-        from zrb.llm.speech.pipecat_tts import TTSPipeline
+        from zrb.llm.speech.backend.pipecat.tts import TTSPipeline
 
         service = tts_manager.create_service(self._service_name, self._config)
         pipeline = TTSPipeline.start(service)

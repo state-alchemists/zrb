@@ -21,8 +21,8 @@ from typing import TYPE_CHECKING
 from zrb.config.config import CFG
 from zrb.llm.custom_command.action_command import ActionCommand
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
-from zrb.llm.custom_command.usage_command_memory import render_memory_section
-from zrb.llm.custom_command.usage_command_tools import (
+from zrb.llm.custom_command.usage.memory import render_memory_section
+from zrb.llm.custom_command.usage.tools import (
     get_registered_tool_names,
     render_tools_section,
 )

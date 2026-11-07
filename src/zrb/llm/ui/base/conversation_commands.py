@@ -178,7 +178,7 @@ class BaseUIConversationCommands:
         from zrb.llm.subagent.live_session import live_subagent_session_registry
         from zrb.llm.subagent.manager.manager import sub_agent_manager
         from zrb.llm.tool.delegate import persist_subagent_history
-        from zrb.llm.ui.buffered_ui import BufferedUI
+        from zrb.llm.ui.buffered.ui import BufferedUI
 
         ui = self._base_ui
         session_id = get_session_ownership_key(name)

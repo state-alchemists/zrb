@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from zrb.llm.ui.buffered_ui import BufferedUI
+from zrb.llm.ui.buffered.ui import BufferedUI
 
 
 def test_append_toggle_block_shows_collapsed_by_default():

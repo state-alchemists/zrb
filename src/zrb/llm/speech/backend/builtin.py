@@ -8,7 +8,7 @@ from zrb.llm.speech.backend.any_speech_backend import AnySpeechBackend
 from zrb.llm.speech.backend.gemini import GeminiSpeechBackend
 from zrb.llm.speech.backend.local_command import LocalCommandBackend
 from zrb.llm.speech.backend.openai import OpenAISpeechBackend
-from zrb.llm.speech.backend.pipecat import PipecatSpeechBackend
+from zrb.llm.speech.backend.pipecat.backend import PipecatSpeechBackend
 from zrb.llm.speech.backend.termux import TermuxSpeechBackend
 from zrb.llm.voice.registry import tts_registry
 from zrb.util.platform import is_termux
