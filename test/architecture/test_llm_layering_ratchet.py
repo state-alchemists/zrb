@@ -32,7 +32,8 @@ _UNITS_BY_LAYER = {
         "agent_activity agent_runner agent_state agent_tool_result ambient_state "
         "any_agent any_agent_result any_agent_runner any_live_session_registry "
         "any_live_sub_agent_session any_sub_agent_definition any_sub_agent_manager "
-        "any_ui config delegation_api factory_resolver input_source "
+        "any_ui any_ui_display any_ui_input any_ui_picker any_ui_session "
+        "any_ui_tools config delegation_api factory_resolver input_source "
         "memory message message_text shell_cut stream_observer "
         "tool_registry ui_fallback usage_log util"
     ),
