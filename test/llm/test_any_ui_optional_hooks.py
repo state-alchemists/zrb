@@ -11,9 +11,24 @@ from zrb.llm.ui.any_ui import AnyUI, AnyUIDisplay
 from zrb.llm.ui.any_ui_input import AnyUIInput
 from zrb.llm.ui.any_ui_session import AnyUISession
 from zrb.llm.ui.any_ui_tools import AnyUITools
+from zrb.llm.ui.fallback.defaults import (
+    UIDisplayDefaults,
+    UIInputDefaults,
+    UIPickerDefaults,
+    UISessionDefaults,
+    UIToolsDefaults,
+)
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.delivery_report import DeliveryOutcome
 from zrb.util.cli.markdown import render_markdown
+
+PARTS = (
+    UIDisplayDefaults,
+    UIInputDefaults,
+    UIPickerDefaults,
+    UISessionDefaults,
+    UIToolsDefaults,
+)
 
 HOOKS = {
     "accumulate_usage",
@@ -53,7 +68,13 @@ def test_anyui_declares_every_hook_without_a_body():
 
 
 def test_the_mixin_implements_every_hook():
-    assert HOOKS <= UIStateDefaultsMixin.__dict__.keys()
+    # The hooks are supplied by the role part that owns each of them, and the
+    # mixin is what a host inherits: check the assembled object, not one class's
+    # own dict, or moving a hook next to its role would read as a regression.
+    supplied = set(UIStateDefaultsMixin.__dict__).union(
+        *(set(part.__dict__) for part in PARTS)
+    )
+    assert HOOKS <= supplied
 
 
 class _BareUI(UIStateDefaultsMixin, AnyUI):
