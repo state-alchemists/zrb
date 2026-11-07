@@ -5,11 +5,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any
 
-from zrb.llm.util.delivery_report import DeliveryReport
-
 if TYPE_CHECKING:
     from zrb.llm.agent.types import UserContent
     from zrb.llm.input_source import InputProvenance
+    from zrb.llm.util.delivery_report import DeliveryReport
 
 
 class AnyUIInput(ABC):

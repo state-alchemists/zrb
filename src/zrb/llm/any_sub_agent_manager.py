@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
-from zrb.llm.any_agent import AnyAgent
-from zrb.llm.any_sub_agent_definition import AnySubAgentDefinition
+if TYPE_CHECKING:
+    from zrb.llm.any_agent import AnyAgent
+    from zrb.llm.any_sub_agent_definition import AnySubAgentDefinition
 
 
 class AnySubAgentManager(Protocol):

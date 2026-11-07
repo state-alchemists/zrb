@@ -4,23 +4,31 @@ Tools, hooks and history helpers run inside an agent run, so the engine is
 already loaded when they need it. They import this module instead of
 `zrb.llm.agent`; `agent/__init__.py` registers the engine implementation here
 when the package loads.
+
+Both contract names this module mentions are types only, so they are imported
+for the type checker and not at runtime. That is what lets a contract sit inside
+`zrb.llm.agent`: the package imports this module while it loads, so a runtime
+import back into the package would be a cycle, and an annotation never runs.
 """
 
 from __future__ import annotations
 
-from zrb.llm.any_agent import AnyAgent as Agent
-from zrb.llm.any_agent_runner import AnyAgentRunner as AgentRunner
+from typing import TYPE_CHECKING
 
-_RUNNER: AgentRunner | None = None
+if TYPE_CHECKING:
+    from zrb.llm.any_agent import AnyAgent
+    from zrb.llm.any_agent_runner import AnyAgentRunner
+
+_RUNNER: AnyAgentRunner | None = None
 
 
-def register_agent_runner(runner: AgentRunner) -> None:
+def register_agent_runner(runner: AnyAgentRunner) -> None:
     """Register the engine's implementation; called by `agent/__init__.py`."""
     global _RUNNER
     _RUNNER = runner
 
 
-def get_agent_runner() -> AgentRunner:
+def get_agent_runner() -> AnyAgentRunner:
     """The registered engine, or a `RuntimeError` naming the missing import."""
     if _RUNNER is None:
         raise RuntimeError(
@@ -30,7 +38,7 @@ def get_agent_runner() -> AgentRunner:
     return _RUNNER
 
 
-def create_agent(**kwargs: object) -> Agent:
+def create_agent(**kwargs: object) -> AnyAgent:
     """Build an agent through the registered engine."""
     return get_agent_runner().create_agent(**kwargs)
 

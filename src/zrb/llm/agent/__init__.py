@@ -6,13 +6,16 @@ First resolution of any exported name also imports `hook_agent`, which
 registers the `HookType.AGENT` builder.
 """
 
+from __future__ import annotations
+
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, cast
 
-from zrb.llm.agent_runner import Agent, register_agent_runner
+from zrb.llm.agent_runner import register_agent_runner
 
 if TYPE_CHECKING:
     from zrb.llm.agent.common import create_agent  # noqa: F401
+    from zrb.llm.any_agent import AnyAgent as Agent
     from zrb.llm.agent.run.runner import (  # noqa: F401
         AnyToolConfirmation,
         run_agent,
