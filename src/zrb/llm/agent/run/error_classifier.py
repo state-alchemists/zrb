@@ -269,10 +269,23 @@ def get_retry_wait(e: Exception, attempt: int, max_wait: float) -> float:
 
 
 def add_credential_hint(e: Exception) -> Exception:
-    """Return *e* with a hint about zrb's own API key when it is a missing-key error."""
-    # lazy: heavy third-party -- pydantic_ai, openai
-    from openai import OpenAIError
-    from pydantic_ai.exceptions import UserError
+    """Return *e* with a hint about zrb's own API key when it is a missing-key error.
+
+    A hint is a courtesy, so this may only ever improve an error, never replace
+    it. The two imports below are the heaviest in the tree, and either one can
+    raise `ImportError` for reasons that have nothing to do with *e*: a shadowed
+    `sys.modules` entry, or a module half-initialised while another thread
+    imports it. Letting that escape reports this helper's failure in place of
+    the real one — a CI run on Python 3.11 replaced pydantic-ai's own "install
+    the `openai` package" message with "cannot import name `OpenAIError` from
+    `openai`", and the actual cause took a log dig to find.
+    """
+    try:
+        # lazy: heavy third-party -- pydantic_ai, openai
+        from openai import OpenAIError
+        from pydantic_ai.exceptions import UserError
+    except ImportError:
+        return e
 
     hinted_type: type[Exception]
     if isinstance(e, UserError) and _MISSING_KEY_MESSAGE.search(str(e)):
