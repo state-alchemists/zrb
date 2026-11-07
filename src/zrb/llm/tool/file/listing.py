@@ -8,6 +8,7 @@ from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file.observation import record_listed
 from zrb.llm.tool.git_visible import without_gitignored
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.util.file import matches_any_pattern, walk_files
 from zrb.util.truncate import truncate_items
 
@@ -66,6 +67,7 @@ def _summarize_by_top_level(files: list[str]) -> list[dict[str, str | int]]:
     return [{"path": top, "files": count} for top, count in sorted(counts.items())]
 
 
+@requires_purpose
 def list_files(
     path: Annotated[str, Field(description="Directory to list.")] = ".",
     exclude_patterns: Annotated[
@@ -84,6 +86,7 @@ def list_files(
     summary: Annotated[
         bool, Field(description="True returns file counts per top-level directory.")
     ] = False,
+    purpose: Purpose = "",
 ) -> dict[str, object]:
     """
     Lists a directory tree, for orienting in an unfamiliar area of a project.
@@ -127,6 +130,7 @@ def list_files(
     return _listing_result(abs_path, sorted_files)
 
 
+@requires_purpose
 def glob_files(
     pattern: Annotated[str, Field(description="e.g. **/*.py")],
     path: Annotated[str, Field(description="Directory to search.")] = ".",
@@ -140,6 +144,7 @@ def glob_files(
     gitignore: Annotated[
         bool, Field(description="False also returns .gitignore'd files.")
     ] = True,
+    purpose: Purpose = "",
 ) -> dict[str, object]:
     """
     Finds files by name or extension, anywhere under a directory.

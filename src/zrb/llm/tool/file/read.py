@@ -8,6 +8,7 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file.observation import record_observed, record_observed_binary
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.util.attachment import get_media_type, get_oversized_by, sniff_mismatch
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.llm.util.pdf import extract_pdf_text
@@ -21,10 +22,12 @@ _MAX_READ_FILE_BYTES = 10 * 1024 * 1024
 _READ_HEADER_PREFIX = "[File: "
 
 
+@requires_purpose
 async def read_file(
     path: Annotated[str, Field(description="File to read.")],
     start_line: Annotated[int, Field(description="1-indexed.")] = 1,
     end_line: Annotated[int, Field(description="-1 means the last line.")] = -1,
+    purpose: Purpose = "",
 ):  # str | ToolReturn, unannotated: pydantic-ai evaluates the hint
     """
     Reads a UTF-8 text file (1-indexed lines) or extracts text from a PDF.

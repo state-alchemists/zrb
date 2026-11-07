@@ -6,9 +6,10 @@ from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file.observation import check_listed, record_seen
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 
 
+@requires_purpose
 def move_file(
     src: Annotated[str, Field(description="Path to move.")],
     dst: Annotated[str, Field(description="Destination path.")],

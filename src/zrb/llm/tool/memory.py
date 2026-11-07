@@ -46,7 +46,7 @@ from zrb.llm.memory.model import (
     reason_error,
 )
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.util.file_lock import FileLockTimeout
 
 _NOT_A_KIND = (
@@ -55,6 +55,7 @@ _NOT_A_KIND = (
 )
 
 
+@requires_purpose
 def search_memory(
     query: Annotated[
         str,
@@ -76,6 +77,7 @@ def search_memory(
         ),
     ] = search.SCOPE_FACTS,
     limit: Annotated[int, Field(description="Most hits to return.")] = 10,
+    purpose: Purpose = "",
 ) -> str:
     """Searches your memory for claims, days and log lines.
 
@@ -94,6 +96,7 @@ def search_memory(
     return search.format_hits(query, hits)
 
 
+@requires_purpose
 def remember(
     id: Annotated[
         str,
@@ -231,6 +234,7 @@ def remember(
     return _remember_fact(id, claim, wanted_kind, pin, tags, applies_when, source, body)
 
 
+@requires_purpose
 def forget(
     id: Annotated[
         str,

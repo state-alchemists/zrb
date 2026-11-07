@@ -11,6 +11,7 @@ from pydantic import Field
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
 from zrb.llm.tool.file.listing import DEFAULT_EXCLUDED_PATTERNS
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.util.file import matches_any_pattern
 from zrb.util.truncate import truncate_items, truncate_text
 
@@ -54,6 +55,7 @@ def _relpath_or_abs(path: str, start: str) -> str:
         return os.path.abspath(path)
 
 
+@requires_purpose
 def search_files(
     pattern: Annotated[
         str,
@@ -75,6 +77,7 @@ def search_files(
         bool, Field(description="True returns only matching file names.")
     ] = False,
     case_sensitive: Annotated[bool, Field(description="False ignores case.")] = True,
+    purpose: Purpose = "",
 ) -> dict[str, object]:
     """
     Searches file *contents* for a regular expression (to find files by name,

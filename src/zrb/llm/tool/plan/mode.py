@@ -11,11 +11,12 @@ from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
 from zrb.llm.permission.state import AgentMode, set_current_agent_mode
-from zrb.llm.tool.purpose import Purpose
+from zrb.llm.tool.purpose import Purpose, requires_purpose
 from zrb.llm.tool.wrapper import tool_safe_async
 
 
 @tool_safe_async
+@requires_purpose
 async def enter_plan_mode(
     reason: Annotated[
         str, Field(description="Optionally records why you entered plan mode.")
@@ -38,6 +39,7 @@ async def enter_plan_mode(
 
 
 @tool_safe_async
+@requires_purpose
 async def exit_plan_mode(
     plan: Annotated[
         str,

@@ -216,56 +216,50 @@ def test_every_registered_tool_carries_a_known_capability(monkeypatch):
     assert not untagged, f"Tools registered without a capability tag: {untagged}"
 
 
-def _declares_purpose(tool) -> bool:
+def _requires_purpose(tool) -> bool:
+    """Whether the schema a model reads marks `purpose` required.
+
+    Read from the signature rather than the Python default: `requires_purpose`
+    moves `purpose` to the front without a default so the model must write the
+    line, while a direct caller — a test, another tool — may still leave it out,
+    because nothing in a tool's body reads it.
+    """
     function = getattr(tool, "function", tool)
     try:
-        return "purpose" in inspect.signature(function).parameters
+        parameter = inspect.signature(function).parameters.get("purpose")
     except (TypeError, ValueError):
         return False
+    return parameter is not None and parameter.default is inspect.Parameter.empty
 
 
-# A tool that changes something, or spends real time reaching outside, is
-# narrated by its own `purpose`; the phrase map is the fallback and says nothing
-# about *this* call. These two are the exceptions, each with a reason:
-#   - `LspRenameSymbol` lives in `zrb.llm.lsp`, which `zrb.llm.tool` already
-#     imports, so reaching the alias from there would close a layering cycle;
-#   - `MonitorProcess` only waits for a process an earlier call already named.
-_PURPOSE_NOT_REQUIRED = {
-    "LspRenameSymbol": "lsp/ importing tool/ would close a layering cycle",
-    "MonitorProcess": "it waits for a process another call already named",
-}
+# `Capability.META` tools drive the harness — todos, skills, asking the user,
+# reading a spilled result — and are named after what they do, so their calls
+# have no intent a listener is missing.
+#
+# The language-server tools are exempt as a group: they live in `zrb.llm.lsp`,
+# which may not import `zrb.llm.tool`, where the alias lives, so reaching
+# `Purpose` from there would close a layering cycle. Giving them one starts with
+# moving the alias.
+_LSP_PREFIX = "Lsp"
 
 
-def test_every_tool_that_acts_says_what_the_call_is_for():
-    """`zrb.llm.speech.progress` speaks a call's `purpose` before the phrase
-    map, so a tool without one is narrated as "Using the Write tool." — true of
-    every call of that tool and of none of them. EDIT, EXECUTE and NETWORK are
-    the capabilities whose calls change something or reach outside; a forgotten
-    `purpose` on one of those is silence a listener hears."""
+def test_every_tool_outside_the_harness_says_what_the_call_is_for():
+    """`zrb.llm.speech.progress` speaks a call's `purpose` before the phrase map,
+    so a tool without one is narrated as "Editing llmtask.py." — true of every
+    call of that tool and of none of them. The phrase map names the arguments,
+    and the arguments are the half a listener can already infer; `purpose` names
+    the intent, which is the half they cannot."""
     host = RecordingHost()
     apply_common_tools(host)
 
-    acts = {Capability.EDIT, Capability.EXECUTE, Capability.NETWORK}
     silent = {
         tool_name(tool)
         for tool in host.resolved_tools()
-        if tool_capability(tool) in acts and not _declares_purpose(tool)
-    } - set(_PURPOSE_NOT_REQUIRED)
-    assert not silent, f"Tools that act without a purpose: {sorted(silent)}"
-
-
-def test_a_purpose_exemption_that_stopped_applying_is_dropped():
-    """An exemption outliving its reason hides the next tool that needs one."""
-    host = RecordingHost()
-    apply_common_tools(host)
-    by_name = {tool_name(tool): tool for tool in host.resolved_tools()}
-
-    stale = sorted(
-        name
-        for name in _PURPOSE_NOT_REQUIRED
-        if name not in by_name or _declares_purpose(by_name[name])
-    )
-    assert not stale, f"Exemptions that no longer apply: {stale}"
+        if tool_capability(tool) is not Capability.META
+        and not tool_name(tool).startswith(_LSP_PREFIX)
+        and not _requires_purpose(tool)
+    }
+    assert not silent, f"Tools whose calls say nothing about intent: {sorted(silent)}"
 
 
 _SRC = Path(__file__).resolve().parents[2] / "src"
