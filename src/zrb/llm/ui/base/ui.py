@@ -30,8 +30,8 @@ from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent_state import get_current_ui
-from zrb.llm.any_ui import AnyUI
-from zrb.llm.any_ui_display import AnyUIDisplay
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
@@ -53,7 +53,7 @@ from zrb.llm.tool_call import (
 from zrb.llm.ui.base.commands import BaseUICommands
 from zrb.llm.ui.base.confirmation_state import BaseUIConfirmationState
 from zrb.llm.ui.base.display import BaseUIDisplay
-from zrb.llm.ui_fallback.echo_broadcast import broadcast_echo
+from zrb.llm.ui.fallback.echo_broadcast import broadcast_echo
 from zrb.llm.ui.base.message_queue import (
     MessageQueue,
     QueuedMessage,
@@ -74,8 +74,8 @@ from zrb.llm.ui.base.usage import BaseUIUsage
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
 from zrb.llm.ui.ui_config import UIConfig
-from zrb.llm.ui_fallback.resolution import create_combined_ui
-from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.fallback.resolution import create_combined_ui
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.spoken import shown_text
 from zrb.session.any_session import AnySession
 from zrb.session.session import Session

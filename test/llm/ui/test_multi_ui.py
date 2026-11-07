@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from zrb.llm.ui.multi_ui import MultiUI, get_main_ui, resolve_ui
-from zrb.llm.ui.std_ui import StdUI
+from zrb.llm.ui.fallback.std_ui import StdUI
 
 
 def _self_display_mock() -> MagicMock:
@@ -426,7 +426,7 @@ def test_multi_ui_takes_only_genuinely_inert_members_from_the_defaults():
     """MultiUI wraps children that keep real state, so each AnyUI member it
     leaves to `UIStateDefaultsMixin` must be one it truly has none of — an
     inherited no-op silently swallows what a caller meant for the children."""
-    from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
+    from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 
     inherited = {
         name

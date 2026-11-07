@@ -25,7 +25,7 @@ from zrb.llm.util.subagent_session_naming import (
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.task.chat.task import LLMChatTask
     from zrb.runner.chat.http_chat import HTTPChatApprovalChannel
 

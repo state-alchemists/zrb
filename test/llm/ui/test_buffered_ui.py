@@ -256,7 +256,7 @@ def test_buffered_ui_accumulate_usage_drops_context_usage():
 
 def test_buffered_ui_accumulate_usage_noop_when_wrapped_never_implemented_it():
     """A wrapped UI that keeps no usage meter takes the declared no-op."""
-    from zrb.llm.ui_fallback.std_ui import StdUI
+    from zrb.llm.ui.fallback.std_ui import StdUI
 
     ui = BufferedUI(StdUI())
 

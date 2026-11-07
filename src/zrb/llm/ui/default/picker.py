@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from zrb.llm.any_ui_picker import AnyUIPicker
+from zrb.llm.ui.any_ui_picker import AnyUIPicker
 
 if TYPE_CHECKING:
-    from zrb.llm.any_ui_picker import ChoiceSpec
+    from zrb.llm.ui.any_ui_picker import ChoiceSpec
     from zrb.llm.ui.default.confirmation import UIConfirmation
 
 

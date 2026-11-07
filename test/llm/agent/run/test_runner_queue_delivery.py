@@ -16,7 +16,7 @@ from zrb.llm.agent.run.runner import (
     _build_event_stream_handler,
     _deliver_queued_messages,
 )
-from zrb.llm.ui_fallback.std_ui import StdUI
+from zrb.llm.ui.fallback.std_ui import StdUI
 
 
 def _handler(ui):

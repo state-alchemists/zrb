@@ -7,7 +7,7 @@ import pytest
 
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
-from zrb.llm.ui.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 
 
 class _MinimalUI(UIStateDefaultsMixin, AnyUI):

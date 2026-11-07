@@ -10,7 +10,7 @@ import ast
 import pathlib
 
 REPO_ROOT = pathlib.Path(__file__).parents[2]
-LLM = REPO_ROOT / "src" / "zrb" / "llm"
+UI = REPO_ROOT / "src" / "zrb" / "llm" / "ui"
 
 # The contract files, and the class each one declares. `any_ui.py` holds what
 # belongs to the whole rather than to a role.
@@ -80,10 +80,10 @@ def _members(path: pathlib.Path, class_name: str) -> set[str]:
 
 def _declared() -> dict[str, set[str]]:
     declared = {
-        class_name: _members(LLM / file_name, class_name)
+        class_name: _members(UI / file_name, class_name)
         for file_name, class_name in ROLE_FILES.items()
     }
-    declared[CORE_CLASS] = _members(LLM / CORE_FILE, CORE_CLASS)
+    declared[CORE_CLASS] = _members(UI / CORE_FILE, CORE_CLASS)
     return declared
 
 
@@ -103,7 +103,7 @@ def test_no_member_is_declared_twice():
 
 
 def test_every_role_member_reaches_the_whole_object():
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.ui.any_ui import AnyUI
 
     missing: list[str] = []
     for class_name, members in _declared().items():

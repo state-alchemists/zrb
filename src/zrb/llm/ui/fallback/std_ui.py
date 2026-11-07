@@ -6,15 +6,15 @@ import sys
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.config.config import CFG
-from zrb.llm.any_ui import AnyUI
-from zrb.llm.any_ui_display import AnyUIDisplay
-from zrb.llm.any_ui_picker import AnyUIPicker
-from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.any_ui_display import AnyUIDisplay
+from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.choice_spec_format import get_option_label
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
-    from zrb.llm.any_ui import ChoiceOption, ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceOption, ChoiceSpec
 
 # Sentinel value for the synthetic "type my own answer" option.
 FREE_TEXT = "__zrb_free_text__"

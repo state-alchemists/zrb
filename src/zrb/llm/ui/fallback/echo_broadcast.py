@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from zrb.config.config import CFG
-from zrb.llm.any_ui import AnyUI
+from zrb.llm.ui.any_ui import AnyUI
 
 
 def broadcast_echo(ui: AnyUI, call: Callable[[AnyUI], object]) -> None:

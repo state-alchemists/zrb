@@ -364,7 +364,7 @@ def test_submit_user_message_via_queue_ignores_sources_without_attachments():
     `AnyUI` declares the hook with an empty default, so attachment collection
     calls it on every source and a bare UI contributes nothing.
     """
-    from zrb.llm.ui_fallback.std_ui import StdUI
+    from zrb.llm.ui.fallback.std_ui import StdUI
 
     queue = MessageQueue()
 

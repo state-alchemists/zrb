@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, TextIO
 
-from zrb.llm.any_ui_display import AnyUIDisplay
-from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.any_ui_display import AnyUIDisplay
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.markdown import render_markdown
 
 if TYPE_CHECKING:

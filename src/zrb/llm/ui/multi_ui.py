@@ -9,15 +9,15 @@ if TYPE_CHECKING:
     from pydantic_ai.models import Model
 
     from zrb.llm.agent.types import RequestUsage, RunUsage
-    from zrb.llm.any_ui import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.snapshot.manager import SnapshotManager
 
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
-from zrb.llm.any_ui import AnyUI
-from zrb.llm.any_ui_display import AnyUIDisplay
-from zrb.llm.any_ui_picker import AnyUIPicker
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.any_ui_display import AnyUIDisplay
+from zrb.llm.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT, InputProvenance
@@ -39,14 +39,14 @@ from zrb.llm.ui.base.queue_delivery import (
 )
 from zrb.llm.ui.turn_hooks import get_turn_hook_manager
 from zrb.llm.ui.turn_snapshot import take_pre_turn_snapshot
-from zrb.llm.ui_fallback.resolution import (
+from zrb.llm.ui.fallback.resolution import (
     create_combined_ui,
     get_main_ui,
     register_ui_combiner,
     register_ui_main_getter,
     resolve_ui,
 )
-from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.spoken import shown_text
 from zrb.session.session import Session
 from zrb.util.cli.style import stylize_muted

@@ -36,8 +36,8 @@ Inside `llm/`:
 | --- | --- |
 | `agent/` | Agent construction and the run loop. `run/runner.py` is the entry point; `gates.py` enforces permission denials and the sandbox. The L0 facade `llm/agent_runner.py` names `create_agent`/`run_agent` for lower layers |
 | `subagent/` | Sub-agent definitions, discovery and delegation sessions — a layer above `agent/`. `agent/` imports it from one place only, `hook_agent.py`, to resolve an agent hook's tools; both edges are listed in `KNOWN_UPWARD_EDGES` (`test/architecture/test_llm_layering_ratchet.py`), which may only shrink |
-| `ui/` | The UI implementations; the `AnyUI` contract is the top-level `any_ui.py`, and the prompt_toolkit TUI lives under `ui/default/app/` |
-| `any_ui.py`, `ui_fallback/` | The `AnyUI` contract and the UI pieces L0 may construct (`StdUI`, `UIStateDefaultsMixin`, the `resolve_ui`/`create_combined_ui` resolver). They live outside `ui/` so a headless run does not load the presentation package |
+| `ui/` | The UI implementations; `AnyUI` and its five role contracts live in `ui/any_ui.py` and `ui/any_ui_<role>.py`; the prompt_toolkit TUI lives under `ui/default/app/` |
+| `ui/fallback/` | The UI pieces L0 may construct (`StdUI`, `UIStateDefaultsMixin`, the `resolve_ui`/`create_combined_ui` resolver). It is a floor inside `ui/`: `ui/__init__.py` imports nothing eagerly and the layering ratchet scores this prefix as L0, so a headless run reaches it without loading prompt_toolkit |
 | `any_agent.py`, `any_agent_result.py`, `any_agent_runner.py`, `agent_runner.py` | L0 agent contracts and the facade lower layers call to build/run agents without importing the engine package. The facade names the two protocols for the type checker only |
 | `any_sub_agent_definition.py`, `any_sub_agent_manager.py`, `any_live_sub_agent_session.py`, `any_live_session_registry.py`, `delegation_api.py` | L0 delegation contracts (sub-agent manager, live-session registry) and the registry functions lower layers call instead of importing `subagent/*` |
 | `approval/`, `permission/` | The approval channel, and the permission ruleset (`policy.py`, `state.py`) |

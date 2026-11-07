@@ -16,8 +16,8 @@ from pydantic_ai.messages import (
 )
 
 from zrb.llm.agent.run.setup import setup_print_and_events
-from zrb.llm.any_ui import AnyUI
-from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.stream_response import create_event_handler
 
 

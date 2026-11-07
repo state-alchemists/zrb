@@ -33,7 +33,7 @@ from zrb.llm.tool.stream_capture import StreamCapture
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 class BackgroundProcessRow(TypedDict):
