@@ -47,11 +47,11 @@ A sub-agent is a second agent the main agent hands a piece of work to: a researc
 | --- | --- | --- |
 | A follow-up to a finished sub-agent runs with the authority captured at delegation | A later message runs the child under a broader grant than the parent gave | `test/llm/subagent/test_live_session_registry.py::test_continue_live_session_uses_captured_authority_not_ambient` |
 | A sub-agent can never be given a delegate tool | Sub-agents delegate recursively | `test/llm/subagent/test_tool_resolver.py::TestResolveToolsByName::test_excludes_delegate_tools_from_registry` |
-| A sub-agent gets only the shared tools its definition names | A read-only agent quietly gains `Write` and `Shell` | `test/llm/subagent/test_manager_building.py::test_common_tools_are_name_gated_for_sub_agents` |
-| Each delegation runs under its own run scope | A child overwrites a file it never read, credited with the parent's read | `test/llm/tool/test_delegate_tool_run.py::test_delegate_passes_live_sessions_run_scope_to_run_agent` |
+| A sub-agent gets only the shared tools its definition names | A read-only agent quietly gains `Write` and `Shell` | `test/llm/subagent/manager/test_manager_building.py::test_common_tools_are_name_gated_for_sub_agents` |
+| Each delegation runs under its own run scope | A child overwrites a file it never read, credited with the parent's read | `test/llm/tool/delegate/test_delegate_tool_run.py::test_delegate_passes_live_sessions_run_scope_to_run_agent` |
 | A child starts with no parent history | The child sees the parent's whole conversation, so it is neither a fresh view nor cheap | **unpinned** |
-| Cancelling one sub-agent does not cancel the parent's turn | Esc on one fan-out child kills the whole main turn | `test/llm/tool/test_delegate_tool_run.py::test_delegate_human_cancel_returns_gracefully` |
-| Fan-out never runs more children at once than the cap allows | A large batch floods the rate limiter and the worktree store | `test/llm/tool/test_delegate_tool_cancel.py::test_delegate_fan_out_respects_parallel_cap` |
+| Cancelling one sub-agent does not cancel the parent's turn | Esc on one fan-out child kills the whole main turn | `test/llm/tool/delegate/test_delegate_tool_run.py::test_delegate_human_cancel_returns_gracefully` |
+| Fan-out never runs more children at once than the cap allows | A large batch floods the rate limiter and the worktree store | `test/llm/tool/delegate/test_delegate_tool_cancel.py::test_delegate_fan_out_respects_parallel_cap` |
 
 ## Realization
 
@@ -148,12 +148,12 @@ sequenceDiagram
 | To… | Open | Then run |
 | --- | --- | --- |
 | Change discovery, search order or registration | `src/zrb/llm/subagent/manager/manager.py` | `test/llm/subagent/` |
-| Change what a child inherits (tools, prompt, yolo) | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/test_manager_building.py` |
+| Change what a child inherits (tools, prompt, yolo) | `src/zrb/llm/subagent/building.py` | `test/llm/subagent/manager/test_manager_building.py` |
 | Change how tool names resolve | `src/zrb/llm/subagent/tool_resolver.py` | `test/llm/subagent/test_tool_resolver.py` |
 | Change the envelope, fan-out or the child run | `src/zrb/llm/tool/delegate/runner.py` | `test/llm/tool/` |
-| Change background handles and waiting | `src/zrb/llm/tool/delegate/background.py` | `test/llm/tool/test_delegate_background_results.py` |
+| Change background handles and waiting | `src/zrb/llm/tool/delegate/background.py` | `test/llm/tool/delegate/test_delegate_background_results.py` |
 | Change follow-ups to a finished child | `src/zrb/llm/subagent/live_session.py` | `test/llm/subagent/test_live_session_registry.py` |
-| Change agent-to-agent messages | `src/zrb/llm/tool/delegate/message.py`, `src/zrb/llm/subagent/parent_message.py` | `test/llm/tool/test_delegate_message.py` |
+| Change agent-to-agent messages | `src/zrb/llm/tool/delegate/message.py`, `src/zrb/llm/subagent/parent_message.py` | `test/llm/tool/delegate/test_delegate_message.py` |
 | Change what authority is captured | `src/zrb/llm/agent/run/authority_snapshot.py` | `test/llm/agent/run/test_authority_snapshot.py` |
 
 ## See Also

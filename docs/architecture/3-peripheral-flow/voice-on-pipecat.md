@@ -50,7 +50,7 @@ Each one fails quietly: the chat keeps working, but zrb answers itself, talks ov
 | Speech can be paused and resumed mid-utterance | Barge-in has to cut speech off instead of holding it | `test/llm/speech/test_player_pause.py::test_pause_holds_a_pausable_utterance_and_resume_carries_on` |
 | A streamed reply is spoken a sentence at a time | The user waits for the whole reply before hearing anything | `test/llm/speech/test_feature_stream.py::test_a_streamed_reply_is_spoken_a_sentence_at_a_time` |
 | A project registration replaces a built-in service of the same name | A custom model is silently ignored | `test/llm/voice/test_registry.py::test_a_registration_replaces_a_built_in_of_the_same_name` |
-| A worker that stopped on its own leaves the pipeline closed, so the next utterance builds a new one | Every utterance after the first failure fails too | `test/llm/dictation/test_pipecat_stt.py::test_a_worker_that_stopped_on_its_own_leaves_the_pipeline_closed` |
+| A worker that stopped on its own leaves the pipeline closed, so the next utterance builds a new one | Every utterance after the first failure fails too | `test/llm/dictation/backend/pipecat/test_pipecat_stt.py::test_a_worker_that_stopped_on_its_own_leaves_the_pipeline_closed` |
 | A turn ends when the user is done, and a slow transcript does not stall it | Long pauses split one thought into two turns, or a turn never ends | **unpinned** |
 
 ## Realization
@@ -105,8 +105,8 @@ Each of these carries behaviour Pipecat has no notion of. Moving one into Pipeca
 | --- | --- | --- |
 | Add a Pipecat service, or change what an unset backend falls back to | `src/zrb/llm/voice/builtin.py`, `src/zrb/llm/voice/registry.py` | `test/llm/voice/` |
 | Add a non-Pipecat backend | `src/zrb/llm/dictation/backend/builtin.py`, `src/zrb/llm/speech/backend/builtin.py` | `test/llm/dictation/backend/`, `test/llm/speech/backend/` |
-| Change how a segment reaches an STT service | `src/zrb/llm/dictation/backend/pipecat/stt.py` | `test/llm/dictation/test_pipecat_stt.py` |
-| Change how a sentence's audio is made | `src/zrb/llm/speech/backend/pipecat/tts.py` | `test/llm/speech/test_pipecat_tts.py` |
+| Change how a segment reaches an STT service | `src/zrb/llm/dictation/backend/pipecat/stt.py` | `test/llm/dictation/backend/pipecat/test_pipecat_stt.py` |
+| Change how a sentence's audio is made | `src/zrb/llm/speech/backend/pipecat/tts.py` | `test/llm/speech/backend/pipecat/test_pipecat_tts.py` |
 | Change utterance cutting or the loudness bars | `src/zrb/llm/dictation/listen.py` | `test/llm/dictation/test_listen.py`, `test/llm/dictation/test_listen_barge_in.py` |
 | Change the transcript guards | `src/zrb/llm/dictation/feature.py`, `src/zrb/llm/dictation/words.py` | `test/llm/dictation/test_feature_barge_in.py` |
 | Change playback or pausing | `src/zrb/llm/speech/player.py` | `test/llm/speech/test_player_in_process.py`, `test/llm/speech/test_player_pause.py`, `test/llm/speech/test_player_render_failure.py` |

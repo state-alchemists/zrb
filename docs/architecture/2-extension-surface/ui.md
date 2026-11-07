@@ -46,11 +46,11 @@ Each one fails silently if broken: the chat keeps running and output or answers 
 
 | Must stay true | If it breaks | Pinned by |
 | --- | --- | --- |
-| One failing surface does not stop output to the others | A dropped web connection kills the terminal session too | `test/llm/ui/test_multi_ui_fanout.py::test_append_to_output_handles_exception` |
-| A surface that errors cannot answer a question | A network error approves or denies a tool call with no human input | `test/llm/ui/test_multi_ui_confirmation.py::test_failing_child_does_not_win_the_race` |
-| Answering one question leaves other open questions waiting | Approving one sub-agent silently cancels another's prompt | `test/llm/ui/test_multi_ui_confirmation.py::test_answering_one_race_leaves_a_concurrent_race_waiting` |
-| Parallel sub-agents do not wait for each other's approval | Every sibling's approval queues behind the first unanswered one | `test/llm/ui/test_buffered_ui.py::test_buffered_ui_shared_lock_does_not_block_sibling_enqueue` |
-| With several surfaces, session name and model come from the primary one | The session identity or approval mode changes depending on list order | `test/llm/ui/test_multi_ui.py::test_session_config_comes_from_the_primary_child_not_the_first` |
+| One failing surface does not stop output to the others | A dropped web connection kills the terminal session too | `test/llm/ui/multi/test_multi_ui_fanout.py::test_append_to_output_handles_exception` |
+| A surface that errors cannot answer a question | A network error approves or denies a tool call with no human input | `test/llm/ui/multi/test_multi_ui_confirmation.py::test_failing_child_does_not_win_the_race` |
+| Answering one question leaves other open questions waiting | Approving one sub-agent silently cancels another's prompt | `test/llm/ui/multi/test_multi_ui_confirmation.py::test_answering_one_race_leaves_a_concurrent_race_waiting` |
+| Parallel sub-agents do not wait for each other's approval | Every sibling's approval queues behind the first unanswered one | `test/llm/ui/buffered/test_buffered_ui.py::test_buffered_ui_shared_lock_does_not_block_sibling_enqueue` |
+| With several surfaces, session name and model come from the primary one | The session identity or approval mode changes depending on list order | `test/llm/ui/multi/test_multi_ui.py::test_session_config_comes_from_the_primary_child_not_the_first` |
 | The web gets markdown source, not terminal-rendered text | The browser shows ANSI codes and Unicode-art instead of rendered output | `test/runner/chat/test_http_ui.py::test_append_markdown_broadcasts_raw_text_as_markdown_kind` |
 | A nested run with no UI argument uses the parent's UI | A sub-agent's output and questions go to stderr instead of the user's screen | **unpinned** |
 
@@ -136,8 +136,8 @@ sequenceDiagram
 | Change the queue, turn or command handling | `src/zrb/llm/ui/base/` | `test/llm/ui/base/` |
 | Change terminal rendering or keys | `src/zrb/llm/ui/default/` | `test/llm/ui/default/` |
 | Change which UI a chat picks | `src/zrb/llm/task/chat/running.py` | `test/llm/task/chat/test_running_sessions.py` |
-| Change multi-surface fan-out or input races | `src/zrb/llm/ui/multi/` | `test/llm/ui/test_multi_ui_confirmation.py`, `test/llm/ui/test_multi_ui_fanout.py` |
-| Change sub-agent buffering | `src/zrb/llm/ui/buffered/ui.py` | `test/llm/ui/test_buffered_ui.py` |
+| Change multi-surface fan-out or input races | `src/zrb/llm/ui/multi/` | `test/llm/ui/multi/test_multi_ui_confirmation.py`, `test/llm/ui/multi/test_multi_ui_fanout.py` |
+| Change sub-agent buffering | `src/zrb/llm/ui/buffered/ui.py` | `test/llm/ui/buffered/test_buffered_ui.py` |
 | Change the web output or input | `src/zrb/runner/chat/http_ui.py` | `test/runner/chat/test_http_ui.py` |
 
 ## See Also

@@ -47,7 +47,7 @@ The sandbox limits which files a tool call can touch, even after the call was ap
 | A credential directory stays protected even inside a writable root | A secret can be overwritten or planted, like `authorized_keys` | `test/llm/sandbox/test_fs_policy.py::test_write_into_deny_read_root_blocked_even_if_writable`, `test/llm/sandbox/test_bwrap.py::test_masks_come_after_writable_binds` |
 | A missing OS mechanism is never silent | A shell command runs uncontained and nobody knows | `test/llm/sandbox/test_os_sandbox.py::test_windows_warn_mode_is_not_silent` |
 | An escape request is blocked when escape is disabled | The one setting that removes the escape hatch does nothing | `test/llm/sandbox/test_gate.py::test_gate_blocks_escape_when_disallowed` |
-| A tool argument never moves the writable boundary | The model widens its own sandbox by choosing where to run | `test/llm/tool/test_shell_sandbox.py::test_run_shell_command_cwd_does_not_widen_the_sandbox` |
+| A tool argument never moves the writable boundary | The model widens its own sandbox by choosing where to run | `test/llm/tool/shell/test_shell_sandbox.py::test_run_shell_command_cwd_does_not_widen_the_sandbox` |
 
 ## Realization
 
