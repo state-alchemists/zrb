@@ -238,7 +238,7 @@ async def test_delegate_swallows_hook_manager_errors(mock_sub_agent_manager):
 async def test_fire_subagent_hook_swallows_cancelled_error():
     """`fire_subagent_hook` must swallow `CancelledError` (a BaseException) too."""
     from zrb.llm.agent.run.runner import current_hook_manager
-    from zrb.llm.hook.types import HookEvent
+    from zrb.llm.hook.contracts.types import HookEvent
     from zrb.llm.tool.delegate import fire_subagent_hook
 
     cancelling_manager = MagicMock()

@@ -7,7 +7,7 @@ pane is `focus_on_click`, so a click on the transcript puts it in
 
 from unittest.mock import MagicMock
 
-from zrb.llm.hook.interface import HookEvent
+from zrb.llm.hook.contracts.interface import HookEvent
 
 from .test_keybindings_focus import (  # noqa: F401  (fixtures)
     MockUI,

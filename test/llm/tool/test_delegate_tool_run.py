@@ -102,9 +102,9 @@ async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
     """Delegation fires SubagentStart before and SubagentStop after the run, on
     the parent run's hook manager, with a shared agent_id and agent_type=name."""
     from zrb.llm.agent.run.runner import current_hook_manager
-    from zrb.llm.hook.interface import HookContext, HookResult
+    from zrb.llm.hook.contracts.interface import HookContext, HookResult
     from zrb.llm.hook.manager import HookManager
-    from zrb.llm.hook.types import HookEvent
+    from zrb.llm.hook.contracts.types import HookEvent
 
     mock_sub_agent_manager.create_agent.return_value = MagicMock()
 

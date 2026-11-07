@@ -74,7 +74,7 @@ from zrb.llm.hook.turn_evidence import (
     turn_changed_paths,
     turn_wrote_files,
 )
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.shared.message import ensure_alternating_roles
 from zrb.llm.permission.state import (
     current_permission_policy,

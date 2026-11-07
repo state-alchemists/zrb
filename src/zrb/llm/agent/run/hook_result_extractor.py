@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from zrb.llm.hook.executor import HookExecutionResult
+from zrb.llm.hook.execution.executor import HookExecutionResult
 
 
 def extract_system_message(hook_results: list[HookExecutionResult]) -> str | None:

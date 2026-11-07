@@ -2,11 +2,11 @@
 
 import pytest
 
-from zrb.llm.hook.interface import HookCallable, HookResult
+from zrb.llm.hook.contracts.interface import HookCallable, HookResult
 from zrb.llm.hook.manager import HookManager
 from zrb.llm.hook.registry import HookRegistry, hook_registry
-from zrb.llm.hook.schema import CommandHookConfig, HookConfig
-from zrb.llm.hook.types import HookEvent, HookType
+from zrb.llm.hook.contracts.schema import CommandHookConfig, HookConfig
+from zrb.llm.hook.contracts.types import HookEvent, HookType
 
 
 @pytest.fixture

@@ -57,6 +57,8 @@ A hook is a small program the user plugs into the agent's lifecycle: run a linte
 
 ### The parts
 
+The code is grouped the way the job divides: `contracts/` holds the event, config and payload types and imports nothing from the rest; `execution/` turns a config into a callable and runs it — the matcher, the subprocess creator, pipe I/O, process-group kill, the thread-pool executor; `builtin/` holds the two hooks zrb ships; `manager/` finds the hook sources, parses them and applies the stop rules. `registry`, `hook_loader`, `skill_frontmatter`, `turn_evidence` and `agent_hook_registry` stay single files at the root, because each is one job with no parts.
+
 ```mermaid
 flowchart TD
     Src[hook files and factories] -->|loaded as HookConfig| Reg[HookRegistry]
@@ -68,16 +70,16 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| `HookManager` | `src/zrb/llm/hook/manager.py` | Loads hooks on first use, picks and sorts them for an event, runs them in order, applies the stop rules |
-| `HookManagerLoading` | `src/zrb/llm/hook/manager_loading.py` | Base class of `HookManager`: parses Claude-nested, zrb-flat and `.hook.py` sources into `HookConfig` |
+| `HookManager` | `src/zrb/llm/hook/manager/manager.py` | Loads hooks on first use, picks and sorts them for an event, runs them in order, applies the stop rules |
+| `HookManagerLoading` | `src/zrb/llm/hook/manager/loading.py` | Base class of `HookManager`: parses Claude-nested, zrb-flat and `.hook.py` sources into `HookConfig` |
 | `get_search_directories` | `src/zrb/llm/hook/hook_loader.py` | Where hooks are found: plugins, home, project (root to cwd), then `HOOKS_DIRS`, with duplicates removed |
 | `HookRegistry`, `hook_registry` | `src/zrb/llm/hook/registry.py` | Global and per-event hooks with their configs; applies the `LLM_HOOKS` name allowlist |
-| `HookConfig`, `HookContext` | `src/zrb/llm/hook/schema.py`, `src/zrb/llm/hook/interface.py` | A parsed hook declaration; the event payload a hook receives |
-| `evaluate_matchers` | `src/zrb/llm/hook/matcher.py` | Decides whether a hook applies; every matcher must pass |
-| `create_command_hook`, `create_prompt_hook` | `src/zrb/llm/hook/creator.py` | Build the subprocess hook and the one-shot LLM hook |
+| `HookConfig`, `HookContext` | `src/zrb/llm/hook/contracts/schema.py`, `src/zrb/llm/hook/contracts/interface.py` | A parsed hook declaration; the event payload a hook receives |
+| `evaluate_matchers` | `src/zrb/llm/hook/execution/matcher.py` | Decides whether a hook applies; every matcher must pass |
+| `create_command_hook`, `create_prompt_hook` | `src/zrb/llm/hook/execution/creator.py` | Build the subprocess hook and the one-shot LLM hook |
 | `create_agent_hook` | `src/zrb/llm/agent/hook_agent.py` | Builds the agent-type hook; installed through `register_agent_hook_builder` |
-| `ThreadPoolHookExecutor` | `src/zrb/llm/hook/executor.py` | Runs one hook on a worker thread with a timeout and cancellation, and normalizes the result |
-| `get_run_hook_manager` | `src/zrb/llm/hook/manager.py` | The run's manager from `current_hook_manager`, else the process-wide `hook_manager` |
+| `ThreadPoolHookExecutor` | `src/zrb/llm/hook/execution/executor.py` | Runs one hook on a worker thread with a timeout and cancellation, and normalizes the result |
+| `get_run_hook_manager` | `src/zrb/llm/hook/manager/manager.py` | The run's manager from `current_hook_manager`, else the process-wide `hook_manager` |
 | Result extractors | `src/zrb/llm/agent/run/hook_result_extractor.py` | Turn a result list into a decision the caller applies |
 
 ### How it runs
@@ -120,11 +122,11 @@ sequenceDiagram
 
 | To… | Open | Then run |
 | --- | --- | --- |
-| Change ordering or stop rules | `src/zrb/llm/hook/manager.py` | `test/llm/hook/test_manager_lifecycle.py` |
-| Add an event, or change which events can block | `src/zrb/llm/hook/types.py`, then the caller that fires it | `test/llm/hook/` |
-| Change how hook files are found or parsed | `src/zrb/llm/hook/hook_loader.py`, `src/zrb/llm/hook/manager_loading.py` | `test/llm/hook/test_manager_lifecycle.py` |
-| Change matching | `src/zrb/llm/hook/matcher.py` | `test/llm/hook/test_matchers.py` |
-| Change command-hook I/O, timeouts or kill | `src/zrb/llm/hook/creator.py`, `src/zrb/llm/hook/process_io.py`, `src/zrb/llm/hook/process_kill.py` | `test/llm/hook/test_creator_subprocess.py` |
+| Change ordering or stop rules | `src/zrb/llm/hook/manager/manager.py` | `test/llm/hook/test_manager_lifecycle.py` |
+| Add an event, or change which events can block | `src/zrb/llm/hook/contracts/types.py`, then the caller that fires it | `test/llm/hook/` |
+| Change how hook files are found or parsed | `src/zrb/llm/hook/hook_loader.py`, `src/zrb/llm/hook/manager/loading.py` | `test/llm/hook/test_manager_lifecycle.py` |
+| Change matching | `src/zrb/llm/hook/execution/matcher.py` | `test/llm/hook/test_matchers.py` |
+| Change command-hook I/O, timeouts or kill | `src/zrb/llm/hook/execution/creator.py`, `src/zrb/llm/hook/execution/process_io.py`, `src/zrb/llm/hook/execution/process_kill.py` | `test/llm/hook/test_creator_subprocess.py` |
 | Change the agent-type hook | `src/zrb/llm/agent/hook_agent.py` | `test/llm/agent/test_hook_agent.py` |
 | Change how a verdict is applied | `src/zrb/llm/agent/run/hook_result_extractor.py` | `test/llm/hook/test_hook_result_processing.py` |
 | Change skill-frontmatter hooks | `src/zrb/llm/hook/skill_frontmatter.py` | `test/llm/hook/test_skill_frontmatter.py` |

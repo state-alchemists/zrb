@@ -11,9 +11,9 @@ from datetime import date, timedelta
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.hook.interface import HookContext
-from zrb.llm.hook.memory_reviewer import _append_event_line
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookContext
+from zrb.llm.hook.builtin.memory_reviewer import _append_event_line
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.memory import paths, render, search, store
 from zrb.llm.memory.model import Fact
 from zrb.llm.tool.memory import forget, remember

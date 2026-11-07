@@ -10,8 +10,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable
 
 if TYPE_CHECKING:
-    from zrb.llm.hook.interface import HookCallable
-    from zrb.llm.hook.schema import AgentHookConfig
+    from zrb.llm.hook.contracts.interface import HookCallable
+    from zrb.llm.hook.contracts.schema import AgentHookConfig
 
 AgentHookBuilder = Callable[["AgentHookConfig"], "HookCallable"]
 

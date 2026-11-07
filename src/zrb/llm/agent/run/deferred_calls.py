@@ -20,7 +20,7 @@ from zrb.llm.agent.run.hook_result_extractor import (
 from zrb.llm.shared.ambient_state import get_interactive_mode
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.permission import ASK
 from zrb.llm.tool_call.always_approve import (
     is_always_auto_approve,

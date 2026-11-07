@@ -7,8 +7,8 @@ Place files with .hook.py extension in ~/.zrb/hooks/ or .zrb/hooks/
 The module must define a `register(manager)` function.
 """
 
-from zrb.llm.hook.interface import HookContext, HookResult
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.types import HookEvent
 
 # =============================================================================
 # Example: Custom Python Hook

@@ -17,14 +17,21 @@ import pathlib
 SRC = pathlib.Path(__file__).parents[2] / "src" / "zrb"
 
 # The module that defines the singleton and the fallback accessors.
-_ALLOWED = {"llm/hook/manager.py"}
+_ALLOWED = {"llm/hook/manager/manager.py"}
+
+# The module that defines it, and the package that re-exports it: an import from
+# either one is an import of the singleton.
+_SINGLETON_MODULES = {
+    "zrb.llm.hook.manager",
+    "zrb.llm.hook.manager.manager",
+}
 
 
 def _singleton_aliases(tree: ast.Module) -> set[str]:
     return {
         alias.asname or alias.name
         for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and node.module == "zrb.llm.hook.manager"
+        if isinstance(node, ast.ImportFrom) and node.module in _SINGLETON_MODULES
         for alias in node.names
         if alias.name == "hook_manager"
     }

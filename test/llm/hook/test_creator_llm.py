@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.shared.agent_state import is_current_run_nested
-from zrb.llm.hook.creator import create_prompt_hook
-from zrb.llm.hook.interface import HookContext, HookResult
+from zrb.llm.hook.execution.creator import create_prompt_hook
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.schema import PromptHookConfig
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.schema import PromptHookConfig
+from zrb.llm.hook.contracts.types import HookEvent
 
 
 def _agent_returning(output):
@@ -23,7 +23,7 @@ def _agent_returning(output):
 def _patched_agent(agent_cls):
     "Patch in *agent_cls* as pydantic_ai.Agent with a stub model resolver."
     return (
-        patch("zrb.llm.hook.creator.resolve_configured_model"),
+        patch("zrb.llm.hook.execution.creator.resolve_configured_model"),
         patch.dict("sys.modules", {"pydantic_ai": MagicMock(Agent=agent_cls)}),
     )
 
@@ -35,7 +35,7 @@ async def test_prompt_hook_no_model_configured():
     hook = create_prompt_hook(config)
     context = HookContext(event=HookEvent.USER_PROMPT_SUBMIT, event_data={})
 
-    with patch("zrb.llm.hook.creator.CFG") as mock_cfg:
+    with patch("zrb.llm.hook.execution.creator.CFG") as mock_cfg:
         mock_cfg.LLM_MODEL = ""
         result = await hook(context)
 
@@ -145,8 +145,11 @@ async def test_a_hooks_run_is_marked_nested_while_it_runs():
     agent = MagicMock()
     agent.run = run
     with (
-        patch("zrb.llm.hook.creator.create_agent", return_value=agent),
-        patch("zrb.llm.hook.creator.resolve_configured_model", return_value="resolved"),
+        patch("zrb.llm.hook.execution.creator.create_agent", return_value=agent),
+        patch(
+            "zrb.llm.hook.execution.creator.resolve_configured_model",
+            return_value="resolved",
+        ),
     ):
         result = await hook(context)
 
@@ -169,8 +172,11 @@ async def test_a_failed_hook_run_does_not_leave_the_mark_behind():
     agent = MagicMock()
     agent.run = run
     with (
-        patch("zrb.llm.hook.creator.create_agent", return_value=agent),
-        patch("zrb.llm.hook.creator.resolve_configured_model", return_value="resolved"),
+        patch("zrb.llm.hook.execution.creator.create_agent", return_value=agent),
+        patch(
+            "zrb.llm.hook.execution.creator.resolve_configured_model",
+            return_value="resolved",
+        ),
     ):
         result = await hook(context)
 

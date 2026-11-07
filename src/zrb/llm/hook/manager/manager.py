@@ -10,26 +10,26 @@ from typing import cast
 from zrb.config.config import CFG
 from zrb.llm.shared.agent_state import get_current_hook_manager, is_current_run_nested
 from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
-from zrb.llm.hook.executor import (
+from zrb.llm.hook.execution.executor import (
     HookExecutionResult,
     ThreadPoolHookExecutor,
     get_hook_executor,
 )
 from zrb.llm.hook.hook_loader import get_search_directories as _get_search_directories
-from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
-from zrb.llm.hook.manager_loading import HookManagerLoading
-from zrb.llm.hook.matcher import evaluate_matchers
-from zrb.llm.hook.memory_reviewer import register_memory_reviewer_hook
+from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.hook.manager.loading import HookManagerLoading
+from zrb.llm.hook.execution.matcher import evaluate_matchers
+from zrb.llm.hook.builtin.memory_reviewer import register_memory_reviewer_hook
 from zrb.llm.hook.registry import HookRegistry, hook_registry
-from zrb.llm.hook.schema import (
+from zrb.llm.hook.contracts.schema import (
     AgentHookConfig,
     CommandHookConfig,
     HookConfig,
     PromptHookConfig,
 )
-from zrb.llm.hook.self_review import register_self_review_hook
+from zrb.llm.hook.builtin.self_review import register_self_review_hook
 from zrb.llm.hook.skill_frontmatter import register_skill_frontmatter_hooks
-from zrb.llm.hook.types import BLOCKING_EVENTS, HookEvent, HookType
+from zrb.llm.hook.contracts.types import BLOCKING_EVENTS, HookEvent, HookType
 
 logger = logging.getLogger(__name__)
 
@@ -475,7 +475,10 @@ class HookManager(HookManagerLoading):
         # lazy: zrb internal (heavy via transitive). Deferring this and
         # agent/hook_agent.py's matching import keeps hook.creator out of
         # zrb.llm.agent's eager import closure; hoisting either puts it back.
-        from zrb.llm.hook.creator import create_command_hook, create_prompt_hook
+        from zrb.llm.hook.execution.creator import (
+            create_command_hook,
+            create_prompt_hook,
+        )
 
         if config.type == HookType.COMMAND:
             return create_command_hook(

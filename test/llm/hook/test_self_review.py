@@ -4,10 +4,10 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.self_review import register_self_review_hook
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.builtin.self_review import register_self_review_hook
+from zrb.llm.hook.contracts.types import HookEvent
 
 _FINDINGS = "## Finding\n\n**Problem:** off by one.\n\nRequest changes"
 
@@ -31,8 +31,11 @@ async def test_the_reviewer_approves_its_own_reads():
         return reviewer
 
     with (
-        patch("zrb.llm.hook.self_review.CFG") as cfg,
-        patch("zrb.llm.hook.self_review.get_agent_hook_builder", return_value=build),
+        patch("zrb.llm.hook.builtin.self_review.CFG") as cfg,
+        patch(
+            "zrb.llm.hook.builtin.self_review.get_agent_hook_builder",
+            return_value=build,
+        ),
     ):
         cfg.LLM_SELF_REVIEW_ENABLED = True
         cfg.LLM_SELF_REVIEW_MAX_ROUNDS = 2

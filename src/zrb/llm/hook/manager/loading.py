@@ -9,20 +9,20 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from zrb.llm.hook.hook_loader import get_plugin_root_for_path
-from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
-from zrb.llm.hook.schema import (
+from zrb.llm.hook.execution.matcher import CLAUDE_EVENT_MATCHER_FIELDS
+from zrb.llm.hook.contracts.schema import (
     AgentHookConfig,
     CommandHookConfig,
     HookConfig,
     MatcherConfig,
     PromptHookConfig,
 )
-from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.util.asset_scanner import scan_files
 from zrb.util.load import load_module_from_path
 
 if TYPE_CHECKING:
-    from zrb.llm.hook.interface import HookCallable
+    from zrb.llm.hook.contracts.interface import HookCallable
 
 logger = logging.getLogger(__name__)
 

@@ -11,13 +11,13 @@ from typing import cast
 import pytest
 
 from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
-from zrb.llm.hook.executor import (
+from zrb.llm.hook.execution.executor import (
     ThreadPoolHookExecutor,
     get_hook_executor,
     shutdown_hook_executor,
 )
-from zrb.llm.hook.interface import HookContext, HookResult
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.ui.any_ui import AnyUI
 
 
@@ -293,8 +293,8 @@ def test_a_cancelled_hook_cannot_hold_interpreter_exit():
 import asyncio
 import threading
 
-from zrb.llm.hook.executor import ThreadPoolHookExecutor
-from zrb.llm.hook.interface import HookResult
+from zrb.llm.hook.execution.executor import ThreadPoolHookExecutor
+from zrb.llm.hook.contracts.interface import HookResult
 
 started = threading.Event()
 release = threading.Event()

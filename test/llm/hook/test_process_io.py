@@ -6,7 +6,11 @@ import sys
 
 import pytest
 
-from zrb.llm.hook.process_io import has_exited, read_hook_output, wait_for_exit
+from zrb.llm.hook.execution.process_io import (
+    has_exited,
+    read_hook_output,
+    wait_for_exit,
+)
 
 
 def _drain_fake_pipe(pipe: "_FakePipe | None") -> bytes:

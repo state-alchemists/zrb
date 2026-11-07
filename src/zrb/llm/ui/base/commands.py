@@ -12,7 +12,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from zrb.llm.custom_command.resolver import get_custom_command_match
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.ui.base.conversation_commands import BaseUIConversationCommands
 from zrb.llm.ui.base.exec_commands import BaseUIExecCommands
 from zrb.llm.ui.base.model_commands import BaseUIModelCommands
@@ -23,7 +23,7 @@ from zrb.util.cli.terminal import get_terminal_size
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from zrb.llm.hook.executor import HookExecutionResult
+    from zrb.llm.hook.execution.executor import HookExecutionResult
     from zrb.llm.ui.base.ui import BaseUI
 
 logger = logging.getLogger(__name__)

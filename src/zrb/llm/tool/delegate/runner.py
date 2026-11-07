@@ -27,7 +27,7 @@ from zrb.llm.shared.delegation_api import (
     start_titling,
 )
 from zrb.llm.hook.manager import get_run_hook_manager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
 from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree

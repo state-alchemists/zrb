@@ -12,10 +12,10 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.hook.creator import create_command_hook
-from zrb.llm.hook.interface import HookContext
-from zrb.llm.hook.schema import CommandHookConfig
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.execution.creator import create_command_hook
+from zrb.llm.hook.contracts.interface import HookContext
+from zrb.llm.hook.contracts.schema import CommandHookConfig
+from zrb.llm.hook.contracts.types import HookEvent
 
 posix_shell_only = pytest.mark.skipif(
     os.name != "posix",
@@ -209,7 +209,7 @@ async def test_command_hook_timeout_process_already_gone():
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
     with patch(
-        "zrb.llm.hook.creator.subprocess.Popen",
+        "zrb.llm.hook.execution.creator.subprocess.Popen",
         return_value=_StubProc(on_kill=_raise_gone),
     ):
         result = await hook(context)
@@ -230,7 +230,7 @@ async def test_command_hook_cancelled_kills_process():
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
     with patch(
-        "zrb.llm.hook.creator.subprocess.Popen",
+        "zrb.llm.hook.execution.creator.subprocess.Popen",
         return_value=_StubProc(on_kill=_mark_killed),
     ):
         task = asyncio.ensure_future(hook(context))
@@ -253,7 +253,7 @@ async def test_command_hook_cancelled_when_process_already_gone():
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
     with patch(
-        "zrb.llm.hook.creator.subprocess.Popen",
+        "zrb.llm.hook.execution.creator.subprocess.Popen",
         return_value=_StubProc(on_kill=_raise_gone),
     ):
         task = asyncio.ensure_future(hook(context))
@@ -270,10 +270,10 @@ async def test_command_hook_outer_exception_is_caught(caplog):
     context = HookContext(event=HookEvent.NOTIFICATION, event_data={})
 
     with patch(
-        "zrb.llm.hook.creator.subprocess.Popen",
+        "zrb.llm.hook.execution.creator.subprocess.Popen",
         side_effect=OSError("spawn failed"),
     ):
-        with caplog.at_level(logging.ERROR, logger="zrb.llm.hook.creator"):
+        with caplog.at_level(logging.ERROR, logger="zrb.llm.hook.execution.creator"):
             result = await hook(context)
 
     assert result.success is False

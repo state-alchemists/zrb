@@ -17,8 +17,8 @@ from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.agent.common import wrap_tool
 from zrb.llm.hook.agent_hook_registry import register_agent_hook_builder
-from zrb.llm.hook.interface import HookCallable, HookContext, HookResult
-from zrb.llm.hook.schema import AgentHookConfig
+from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
+from zrb.llm.hook.contracts.schema import AgentHookConfig
 
 
 def create_agent_hook(config: AgentHookConfig) -> HookCallable:
@@ -27,7 +27,7 @@ def create_agent_hook(config: AgentHookConfig) -> HookCallable:
         # lazy: zrb internal (heavy via transitive). Not itself circular, but
         # with hook/manager.py's matching deferral it keeps hook.creator out
         # of zrb.llm.agent's eager import closure.
-        from zrb.llm.hook.creator import run_llm_hook
+        from zrb.llm.hook.execution.creator import run_llm_hook
 
         resolved_tools = resolve_agent_hook_tools(config.tools)
         if config.tools and not resolved_tools:

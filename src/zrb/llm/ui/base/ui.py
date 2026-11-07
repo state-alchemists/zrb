@@ -35,7 +35,7 @@ from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.types import HookEvent
+from zrb.llm.hook.contracts.types import HookEvent
 from zrb.llm.shared.input_source import (
     BACKGROUND_INPUT,
     KEYBOARD_INPUT,

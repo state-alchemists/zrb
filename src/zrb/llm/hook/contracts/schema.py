@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
+from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model

@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.hook.process_io import has_exited, wait_for_exit
-from zrb.llm.hook.process_kill import (
+from zrb.llm.hook.execution.process_io import has_exited, wait_for_exit
+from zrb.llm.hook.execution.process_kill import (
     kill_process_group,
     kill_process_tree,
     read_process_group,

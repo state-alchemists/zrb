@@ -8,13 +8,13 @@ from unittest.mock import patch
 import pytest
 
 from zrb.llm.hook.manager import HookManager
-from zrb.llm.hook.schema import CommandHookConfig, HookConfig
+from zrb.llm.hook.contracts.schema import CommandHookConfig, HookConfig
 from zrb.llm.hook.skill_frontmatter import (
     apply_skill_hook_configs,
     get_skill_hook_configs,
     register_skill_frontmatter_hooks,
 )
-from zrb.llm.hook.types import HookEvent, HookType
+from zrb.llm.hook.contracts.types import HookEvent, HookType
 from zrb.llm.skill.manager import SkillManager
 
 _SKILL_FLAT_SHAPE = """---
