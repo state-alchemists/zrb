@@ -26,7 +26,7 @@ Both return a blocked ``ToolReturn`` or ``None``; the default path is unchanged.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.agent_tool_result import tool_return
@@ -38,6 +38,9 @@ from zrb.llm.permission import (
 )
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
 from zrb.llm.sandbox.policy import SandboxPolicy
+
+if TYPE_CHECKING:
+    from pydantic_ai import RunContext, ToolReturn
 
 # Argument keys the sandbox gate treats as filesystem paths (subset of the
 # permission layer's _SALIENT_ARG_KEYS). Reads check every path-like arg;
@@ -71,7 +74,9 @@ _SANDBOX_WRITE_KEYS = (
 )
 
 
-def permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> Any:
+def permission_gate(
+    tool_name: str, capability: Capability, args: dict[str, object]
+) -> "ToolReturn | None":
     """Return a blocked ``ToolReturn`` when policy denies the call."""
     policy = get_effective_policy()
     if policy is None:
@@ -90,8 +95,11 @@ def permission_gate(tool_name: str, capability: Any, args: dict[str, Any]) -> An
 
 
 def sandbox_gate(
-    tool_name: str, capability: Any, args: dict[str, Any], ctx: Any = None
-) -> Any:
+    tool_name: str,
+    capability: Capability,
+    args: dict[str, object],
+    ctx: "RunContext[None] | None" = None,
+) -> "ToolReturn | None":
     """Return a blocked ``ToolReturn`` when the sandbox denies a path."""
     # isinstance, not "is not None": anything that isn't a SandboxPolicy
     # (e.g. a MagicMock's auto-created `.deps`) falls back to the ambient read.
@@ -100,7 +108,7 @@ def sandbox_gate(
     if not policy.enabled:
         return None
 
-    def _blocked(reason: str) -> Any:
+    def _blocked(reason: str) -> "ToolReturn":
         return tool_return(
             f"Blocked by sandbox policy: {reason}. "
             "[SYSTEM SUGGESTION]: work within the project directory, or "

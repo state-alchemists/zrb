@@ -12,20 +12,25 @@ from typing import TYPE_CHECKING, Any
 from zrb.llm.agent.run.history_utils import TurnPruneFloor
 
 if TYPE_CHECKING:
+    from pydantic_ai import DeferredToolResults
+
     from zrb.llm.agent.run.turn_snapshot import TurnSnapshot
+    from zrb.llm.agent.run.typing_aliases import History, PromptMessage
 
 
 @dataclass
 class TurnCursor:
-    history: list[Any]
-    message: Any = None
-    results: Any = None
+    history: History
+    message: PromptMessage = None
+    results: "DeferredToolResults | None" = None
+    # The model's output: whatever the agent's `output_type` produced, which is
+    # chosen at runtime, so a static type here would be a guess.
     output: Any = None
-    run_history: list[Any] = field(default_factory=list)
+    run_history: History = field(default_factory=list)
     # This whole logical turn's new messages, accumulated per `commit_round`
     # call — NOT a single slice taken at the end against a fixed baseline.
     # See `commit_round`'s docstring for why that distinction matters.
-    accumulated: list[Any] = field(default_factory=list)
+    accumulated: History = field(default_factory=list)
     round_baseline: int = field(default=0, repr=False)
     # The working directory's snapshot at turn start, while the self-review
     # gate is on and the run is top-level (`turn_snapshot.py`); the Stop
@@ -38,7 +43,7 @@ class TurnCursor:
     # name and may be shared by concurrent sessions.
     turn_id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
-    def begin_round(self, sanitized_history: list[Any]) -> None:
+    def begin_round(self, sanitized_history: History) -> None:
         """Start one `agent.run()` round: install the sanitized history and
         record its length as this round's baseline for `commit_round`."""
         self.history = sanitized_history

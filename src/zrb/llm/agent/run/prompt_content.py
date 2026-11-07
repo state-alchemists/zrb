@@ -7,17 +7,23 @@ needed.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING
 
 from zrb.llm.util.attachment import normalize_attachments
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from pydantic_ai.messages import UserContent
+
+    from zrb.llm.agent.run.typing_aliases import PrintFn, PromptMessage
 
 
 def get_prompt_content(
     message: str | None,
-    attachments: list[Any] | None,
-    print_fn: Callable[[str], Any],
-) -> list[Any] | str | None:
+    attachments: Sequence[UserContent | None] | None,
+    print_fn: PrintFn,
+) -> PromptMessage:
     """Build prompt content for pydantic-ai agent.
 
     Returns:
@@ -33,7 +39,7 @@ def get_prompt_content(
         return message if message else None
 
     if message:
-        content: list[Any] = [message]
+        content: list[UserContent] = [message]
         content.extend(attachments)
         return content
     return list(attachments)

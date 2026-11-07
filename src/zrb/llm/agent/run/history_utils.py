@@ -11,7 +11,7 @@ import logging
 from collections.abc import Callable
 from dataclasses import is_dataclass, replace
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from zrb.config.config import CFG
 from zrb.llm.config.limiter import is_turn_start
@@ -27,9 +27,19 @@ from zrb.util.truncate import truncate_display
 
 if TYPE_CHECKING:
     from pydantic_ai import DeferredToolResults
-    from pydantic_ai.messages import ModelMessage
+    from pydantic_ai.messages import (
+        BaseToolCallPart,
+        BaseToolReturnPart,
+        ModelMessage,
+        ModelRequestPart,
+        ModelResponsePart,
+        ThinkingPart,
+    )
 
 _TOOL_RESULT_MAX_CHARS = 500
+
+# One message part, of either side: `_sanitize_content` hands back what it was given.
+_PartT = TypeVar("_PartT")
 
 
 class TurnPruneFloor(IntEnum):
@@ -44,9 +54,9 @@ class TurnPruneFloor(IntEnum):
 
 
 def drop_oldest_turn(
-    history: list[Any],
+    history: list[ModelMessage],
     min_turns: "TurnPruneFloor | int" = TurnPruneFloor.ANY_TURN_MAY_DROP,
-) -> list[Any]:
+) -> list[ModelMessage]:
     """Remove the oldest turn, unless at most `min_turns` remain."""
     if not history:
         return history
@@ -67,7 +77,7 @@ def drop_oldest_turn(
     return []
 
 
-def strip_thinking_parts(messages: list[Any]) -> list[Any]:
+def strip_thinking_parts(messages: list[ModelMessage]) -> list[ModelMessage]:
     """Strip ThinkingParts from all ModelResponse messages.
 
     For providers that reject a stray `reasoning_content`; without
@@ -79,7 +89,7 @@ def strip_thinking_parts(messages: list[Any]) -> list[Any]:
         ThinkingPart,
     )
 
-    result = []
+    result: list[ModelMessage] = []
     for msg in messages:
         if not isinstance(msg, ModelResponse):
             result.append(msg)
@@ -95,9 +105,9 @@ def strip_thinking_parts(messages: list[Any]) -> list[Any]:
 
 
 def sanitize_history(
-    messages: list[Any],
+    messages: list[ModelMessage],
     allow_orphaned_tool_calls: bool = False,
-) -> list[Any]:
+) -> list[ModelMessage]:
     """Apply `_SANITIZE_STEPS` in order before a model call.
 
     `allow_orphaned_tool_calls=True` (set when resuming with
@@ -124,7 +134,7 @@ def sanitize_history(
     return messages
 
 
-def filter_nil_content(messages: list[Any]) -> list[Any]:
+def filter_nil_content(messages: list[ModelMessage]) -> list[ModelMessage]:
     """Replace nil content with placeholders and drop nameless tool calls.
 
     - None/empty/whitespace content → "(empty)" (or "null" for ToolReturnPart)
@@ -143,7 +153,9 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
         ToolCallPart,
     )
 
-    def _sanitize(part: Any) -> Any:
+    def _sanitize(
+        part: ModelRequestPart | ModelResponsePart,
+    ) -> ModelRequestPart | ModelResponsePart:
         # NativeToolCallPart carries args, not content.
         if not is_dataclass(part) or not hasattr(part, "content"):
             return part
@@ -154,17 +166,16 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
                 if isinstance(part, BaseToolReturnPart)
                 else EMPTY_CONTENT_PLACEHOLDER
             )
-            dc_part: Any = part
-            return replace(dc_part, content=placeholder)
+            return replace(part, content=placeholder)
         return part
 
-    filtered = []
+    filtered: list[ModelMessage] = []
     for msg in messages:
         if not isinstance(msg, (ModelRequest, ModelResponse)):
             filtered.append(msg)
             continue
 
-        valid_parts = []
+        valid_parts: list[ModelRequestPart | ModelResponsePart] = []
         has_text = False
         has_tool_call = False
         for part in msg.parts:
@@ -192,14 +203,14 @@ def filter_nil_content(messages: list[Any]) -> list[Any]:
 
 
 # Each step's output must be valid input for the next.
-_SANITIZE_STEPS: tuple[Callable[[list[Any]], list[Any]], ...] = (
+_SANITIZE_STEPS: tuple[Callable[[list[ModelMessage]], list[ModelMessage]], ...] = (
     filter_nil_content,
     sanitize_orphaned_tool_calls,
     ensure_alternating_roles,
 )
 
 
-def _detect_problems(messages: list[Any]) -> list[str]:
+def _detect_problems(messages: list[ModelMessage]) -> list[str]:
     """Invariant violations providers enforce but pydantic-ai does not check."""
     from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
     from pydantic_ai.messages import (
@@ -241,7 +252,7 @@ def _detect_problems(messages: list[Any]) -> list[str]:
     return problems
 
 
-def strip_to_text_only(history: list[Any]) -> list[Any]:
+def strip_to_text_only(history: list[ModelMessage]) -> list[ModelMessage]:
     """Sanitize history for last-resort retry.
 
     Collapses structured parts into plain text legal inside the parent
@@ -275,7 +286,7 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
         TextPart,
     )
 
-    result = []
+    result: list[ModelMessage] = []
     for msg in history:
         if isinstance(msg, ModelRequest):
             parts = [_normalize_for_request(p) for p in msg.parts]
@@ -296,16 +307,19 @@ def strip_to_text_only(history: list[Any]) -> list[Any]:
     return result
 
 
-def _sanitize_content(part: Any) -> Any:
+def _sanitize_content(part: _PartT) -> _PartT:
     """Replace empty or whitespace-only content with the empty placeholder."""
-    if hasattr(part, "content"):
-        content = part.content
-        if content is None or (isinstance(content, str) and not content.strip()):
-            return replace(part, content=EMPTY_CONTENT_PLACEHOLDER)
+    if not hasattr(part, "content"):
+        return part
+    content = getattr(part, "content", None)
+    if content is None or (isinstance(content, str) and not content.strip()):
+        # `replace` is typed against the stdlib's `DataclassInstance` protocol,
+        # which pydantic-ai's parts satisfy without declaring it.
+        return replace(cast(Any, part), content=EMPTY_CONTENT_PLACEHOLDER)
     return part
 
 
-def _normalize_for_response(part: Any) -> Any:
+def _normalize_for_response(part: ModelResponsePart) -> ModelResponsePart:
     """Collapse one `ModelResponse` part to what the assistant role accepts."""
     from pydantic_ai.messages import (  # lazy: heavy third-party
         BaseToolCallPart,
@@ -323,7 +337,7 @@ def _normalize_for_response(part: Any) -> Any:
     return _sanitize_content(part)
 
 
-def _normalize_for_request(part: Any) -> Any:
+def _normalize_for_request(part: ModelRequestPart) -> ModelRequestPart:
     """Collapse one `ModelRequest` part to what the user role accepts."""
     from pydantic_ai.messages import (  # lazy: heavy third-party
         SystemPromptPart,
@@ -347,7 +361,7 @@ def _normalize_for_request(part: Any) -> Any:
     return part
 
 
-def _tool_call_to_text(part: Any) -> str:
+def _tool_call_to_text(part: BaseToolCallPart) -> str:
     """Convert a ToolCallPart to a prose label (models imitated ``[Tool: name(args)]``)."""
     from pydantic_ai.messages import ToolCallPart  # lazy: heavy third-party
 
@@ -362,7 +376,7 @@ def _tool_call_to_text(part: Any) -> str:
     )
 
 
-def _tool_return_to_text(part: Any) -> str:
+def _tool_return_to_text(part: BaseToolReturnPart) -> str:
     """Convert a BaseToolReturnPart to a truncated prose label.
 
     A retry is the same part with `outcome='retried'`, which is what pydantic-ai
@@ -392,7 +406,7 @@ def _legacy_retry_to_text(part: object) -> str:
     return f'(sanitized-history) prior retry feedback for tool "{name}": {content}'
 
 
-def _thinking_part_content(part: Any) -> str:
+def _thinking_part_content(part: ThinkingPart) -> str:
     """Extract the text content from a ThinkingPart."""
     from pydantic_ai.messages import ThinkingPart  # lazy: heavy third-party
 
@@ -428,7 +442,7 @@ _EMPTY_COMPLETION_MARKERS = frozenset(
 )
 
 
-def is_empty_completion(result_output: Any) -> bool:
+def is_empty_completion(result_output: object) -> bool:
     """True when a str output is blank or just the "(tool call)" placeholder."""
     if not isinstance(result_output, str):
         return False
@@ -436,7 +450,9 @@ def is_empty_completion(result_output: Any) -> bool:
     return not stripped or stripped in _EMPTY_COMPLETION_MARKERS
 
 
-def close_dangling_tool_calls(history: list[Any], reason: str) -> list[Any]:
+def close_dangling_tool_calls(
+    history: list[ModelMessage], reason: str
+) -> list[ModelMessage]:
     """Synthesize a `ToolReturnPart` for every unresolved trailing `ToolCallPart`.
 
     An interrupted run leaves those calls dangling, which most providers
@@ -465,8 +481,8 @@ def close_dangling_tool_calls(history: list[Any], reason: str) -> list[Any]:
 
 
 def history_through_deferred_returns(
-    messages: "list[ModelMessage]", results: "DeferredToolResults"
-) -> "list[ModelMessage] | None":
+    messages: list[ModelMessage], results: DeferredToolResults
+) -> list[ModelMessage] | None:
     """`messages` cut after its last `ModelRequest`, when it already holds a
     tool return for one of `results`' deferred calls.
 
@@ -493,7 +509,9 @@ def history_through_deferred_returns(
     return list(messages[: request_indexes[-1] + 1])
 
 
-def history_without_trailing_response(run_history: list[Any]) -> list[Any]:
+def history_without_trailing_response(
+    run_history: list[ModelMessage],
+) -> list[ModelMessage]:
     """Drop the trailing ModelResponse so an empty completion can be regenerated."""
     from pydantic_ai.messages import ModelResponse  # lazy: heavy third-party
 

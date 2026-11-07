@@ -23,12 +23,18 @@ import tempfile
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from zrb.llm.agent_tool_result import has_multimodal
 from zrb.llm.permission import Capability, tag
 from zrb.llm.sandbox import check_read, check_write, get_effective_sandbox_policy
 from zrb.util.string.conversion import to_safe_filename
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import TypeGuard
+
+    from zrb.llm.sandbox.policy import SandboxPolicy
 
 
 @runtime_checkable
@@ -102,7 +108,9 @@ class LocalFileStore:
 default_spill_store = LocalFileStore()
 
 
-def _default_store_access_error(check: Any) -> str | None:
+def _default_store_access_error(
+    check: "Callable[[str, SandboxPolicy], str | None]",
+) -> str | None:
     """Return the active sandbox's objection to accessing the spill root."""
     policy = get_effective_sandbox_policy()
     if not policy.enabled:
@@ -115,7 +123,7 @@ _MAX_READ_LINES = 1_000
 _MAX_READ_CHARS = 50_000
 
 
-def to_bytes(value: Any) -> bytes:
+def to_bytes(value: object) -> bytes:
     """Serialize a tool return to the bytes that get spilled."""
     if isinstance(value, str):
         return value.encode("utf-8")
@@ -126,11 +134,11 @@ def to_bytes(value: Any) -> bytes:
     return json.dumps(value, default=str).encode("utf-8")
 
 
-def _is_binary(value: Any) -> bool:
+def _is_binary(value: object) -> "TypeGuard[bytes | bytearray | memoryview]":
     return isinstance(value, (bytes, bytearray, memoryview))
 
 
-def json_sketch(value: Any) -> str:
+def json_sketch(value: object) -> str:
     """One-line shape hint for a structured value, or '' for anything else."""
     if isinstance(value, dict):
         keys = list(value)
@@ -155,7 +163,7 @@ def _head_tail_preview(text: str, preview_chars: int) -> str:
 
 
 def build_spill_preview(
-    handle: str, value: Any, preview_chars: int = _PREVIEW_CHARS
+    handle: str, value: object, preview_chars: int = _PREVIEW_CHARS
 ) -> str:
     """Compose the model-visible stand-in: marker, shape sketch, head/tail preview."""
     if _is_binary(value):
@@ -179,7 +187,7 @@ def build_spill_preview(
     return "\n".join(parts)
 
 
-def maybe_spill(value: Any, *, limit: int) -> tuple[Any, dict[str, Any]]:
+def maybe_spill(value: object, *, limit: int) -> tuple[object, dict[str, object]]:
     """Spill *value* when enabled and its model-facing text exceeds *limit*.
 
     Returns ``(value, {})`` unchanged when spill does not apply (disabled, under

@@ -5,9 +5,8 @@ caps prevent either path from looping indefinitely."""
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.hook_result_extractor import (
@@ -16,6 +15,10 @@ from zrb.llm.agent.run.hook_result_extractor import (
     extract_replace_response,
     extract_system_message,
 )
+
+if TYPE_CHECKING:
+    from zrb.llm.agent.run.typing_aliases import History, PrintFn, PromptMessage
+    from zrb.llm.hook.executor import HookExecutionResult
 
 # Mirrors Claude Code's CLAUDE_CODE_STOP_HOOK_BLOCK_CAP: after this many
 # consecutive Stop-hook blocks without the turn ending, allow the stop so a
@@ -34,8 +37,9 @@ class ExtensionState:
 
     extended: bool = False
     return_extended: bool = False
+    # The model's output before an extension replaced it — see TurnCursor.output.
     original_output: Any = None
-    original_history: list[Any] | None = None
+    original_history: History | None = None
     block_count: int = 0
     system_message_count: int = 0
 
@@ -50,13 +54,13 @@ class ExtensionOutcome:
     """
 
     should_continue: bool
-    new_message: Any = None
-    new_history: list[Any] | None = None
+    new_message: PromptMessage = None
+    new_history: History | None = None
     blocked: bool = False
 
 
 def _capture_original(
-    state: ExtensionState, result_output: Any, run_history: list[Any]
+    state: ExtensionState, result_output: Any, run_history: History
 ) -> None:
     """Snapshot the pre-extension output/history before the first extension."""
     if not state.extended:
@@ -65,11 +69,11 @@ def _capture_original(
 
 
 def apply_turn_end_extension(
-    stop_results: list[Any],
+    stop_results: list[HookExecutionResult],
     state: ExtensionState,
     result_output: Any,
-    run_history: list[Any],
-    print_fn: Callable[[str], Any],
+    run_history: History,
+    print_fn: PrintFn,
 ) -> ExtensionOutcome:
     """Inspect STOP hook results and decide whether to extend the turn."""
     # 0. continue: false is an explicit "stop all processing" request. It is
@@ -139,8 +143,8 @@ def apply_turn_end_extension(
 def resolve_extended_return(
     state: ExtensionState,
     result_output: Any,
-    run_history: list[Any],
-) -> tuple[Any, list[Any]]:
+    run_history: History,
+) -> tuple[Any, History]:
     """Pick (output, history) to return based on the last `replace_response`."""
     if not state.extended:
         return result_output, run_history

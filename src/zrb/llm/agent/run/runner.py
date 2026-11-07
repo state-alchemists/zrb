@@ -11,7 +11,7 @@ import asyncio
 import os
 import time
 import uuid
-from collections.abc import Awaitable, Callable, Coroutine, Sequence
+from collections.abc import Callable, Sequence
 from contextlib import ExitStack
 from dataclasses import replace
 from typing import TYPE_CHECKING, Any, cast
@@ -94,11 +94,30 @@ from zrb.llm.util.live_context_block import append_live_context
 from zrb.llm.util.prompt import expand_prompt
 
 if TYPE_CHECKING:
-    from pydantic_ai import Agent
+    from collections.abc import AsyncIterable
 
+    from pydantic_ai import Agent, RunContext
+    from pydantic_ai.agent import EventStreamHandler
+    from pydantic_ai.messages import UserContent
+    from pydantic_ai.models import Model
+
+    from zrb.llm.agent.run.typing_aliases import (
+        CheckpointFn,
+        History,
+        PrintFn,
+        PromptMessage,
+        StreamEventHandler,
+        UIEvent,
+    )
     from zrb.llm.agent.types import RunUsage
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.permission.policy import PermissionPolicy
+    from zrb.llm.sandbox.policy import SandboxPolicy
     from zrb.llm.ui.any_ui import AnyUI
+
+    # What a run hands back: the model's output (typed by the agent's own
+    # `output_type`, so unknowable here) and the history it produced.
+    AgentRunOutput = tuple[Any, History]
 
 # The OpenAI serialization patch is global and idempotent: apply it once per process.
 _openai_patched = False
@@ -107,11 +126,11 @@ _openai_patched = False
 async def run_agent(
     agent: "Agent[None, Any]",
     message: str | None,
-    message_history: list[Any],
+    message_history: History,
     limiter: LLMLimiter,
-    attachments: list[Any] | None = None,
-    print_fn: Callable[[str], Any] = print,
-    event_handler: Callable[[Any], Any] | None = None,
+    attachments: Sequence[UserContent | None] | None = None,
+    print_fn: PrintFn = print,
+    event_handler: StreamEventHandler | None = None,
     tool_confirmation: AnyToolConfirmation = None,
     ui: AnyUI | list[AnyUI] | None = None,
     hook_manager: HookManager | None = None,
@@ -122,13 +141,13 @@ async def run_agent(
     approval_channel: "AnyApprovalChannel | None" = None,
     system_prompt: str = "",
     live_context: str = "",
-    permission_policy: Any = None,
-    sandbox_policy: Any = None,
-    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
+    permission_policy: "PermissionPolicy | None" = None,
+    sandbox_policy: "SandboxPolicy | None" = None,
+    checkpoint_fn: CheckpointFn | None = None,
     run_scope: str = "",
     nested: bool | None = None,
     stream_observers: "Sequence[StreamObserver] | None" = None,
-) -> tuple[Any, list[Any]]:
+) -> AgentRunOutput:
     """Run the agent with rate limiting, history management and confirmations.
 
     Returns (result_output, new_message_history).
@@ -281,8 +300,12 @@ async def run_agent(
 
 
 async def _run_startup_hooks(
-    message, message_history, attachments, effective_hook_manager, effective_message
-):
+    message: str | None,
+    message_history: History,
+    attachments: Sequence[UserContent | None] | None,
+    effective_hook_manager: HookManager,
+    effective_message: str | None,
+) -> tuple[str | None, History, str | None]:
     session_start_results = await effective_hook_manager.execute_hooks(
         HookEvent.SESSION_START,
         {
@@ -355,15 +378,15 @@ async def _run_startup_hooks(
 
 
 async def _prepare_history(
-    agent,
-    message_history,
-    prompt_content,
-    limiter,
-    system_prompt,
-    print_fn,
-    effective_hook_manager,
+    agent: "Agent[None, Any]",
+    message_history: History,
+    prompt_content: PromptMessage,
+    limiter: LLMLimiter,
+    system_prompt: str,
+    print_fn: PrintFn,
+    effective_hook_manager: HookManager,
     typed_prompt: str = "",
-):
+) -> History:
     history_processors = list(getattr(agent, "zrb_history_processors", None) or [])
 
     # Counted before the processors so the summarizer's threshold includes it.
@@ -423,7 +446,7 @@ async def _prepare_history(
         print_fn(
             f"\n[SYSTEM] History too large ({post_process_tokens} tokens) after summarization. Force pruning..."
         )
-        safe_history = []
+        safe_history: History = []
         if (
             processed_history
             and limiter.count_tokens(processed_history[-1]) < effective_limit
@@ -480,7 +503,7 @@ async def _prepare_history(
     )
 
 
-def _prepend_system_context(history: list[Any], content: str) -> list[Any]:
+def _prepend_system_context(history: History, content: str) -> History:
     """Return `history` with a system-prompt request carrying `content` in front."""
     # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest, SystemPromptPart
@@ -491,8 +514,8 @@ def _prepend_system_context(history: list[Any], content: str) -> list[Any]:
 async def _do_agent_run(
     agent: "Agent[None, Any]",
     cursor: TurnCursor,
-    handler: Callable[[Any, Any], Awaitable[None]],
-    sandbox_deps: Any,
+    handler: "EventStreamHandler[None]",
+    sandbox_deps: "SandboxPolicy | None",
 ) -> Any:
     """Call `agent.run()` outside `_execution_loop`'s loop.
 
@@ -516,18 +539,18 @@ async def _do_agent_run(
 
 async def _execution_loop(
     agent: "Agent[None, Any]",
-    current_message: Any,
-    current_history: list[Any],
-    print_fn: Callable[[str], Any],
-    effective_event_handler: Callable[[Any], Any] | None,
+    current_message: PromptMessage,
+    current_history: History,
+    print_fn: PrintFn,
+    effective_event_handler: StreamEventHandler | None,
     effective_tool_confirmation: AnyToolConfirmation,
     effective_ui: AnyUI | None,
     effective_hook_manager: HookManager,
     effective_approval_channel: "AnyApprovalChannel | None",
-    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None = None,
-    sandbox_deps: Any = None,
+    checkpoint_fn: CheckpointFn | None = None,
+    sandbox_deps: "SandboxPolicy | None" = None,
     nested_run: bool = False,
-) -> tuple[Any, list[Any]]:
+) -> AgentRunOutput:
     # lazy: heavy third-party
     from pydantic_ai import DeferredToolRequests
 
@@ -627,9 +650,9 @@ async def _stream_one_round(
     cursor: TurnCursor,
     partial_run: PartialRunAccumulator,
     effective_ui: AnyUI | None,
-    effective_event_handler: Callable[[Any], Any] | None,
+    effective_event_handler: StreamEventHandler | None,
     checkpoint_writer: "_CheckpointWriter | None",
-    sandbox_deps: Any,
+    sandbox_deps: "SandboxPolicy | None",
 ) -> Exception | None:
     """Run the agent once, recording its output on `cursor`.
 
@@ -681,7 +704,7 @@ def _record_run_usage(
     usage: "RunUsage",
     effective_ui: "AnyUI | None",
     started_at: float,
-    new_messages: object = None,
+    new_messages: History | None = None,
 ) -> None:
     """Write one usage-log line for the round that just finished.
 
@@ -714,7 +737,7 @@ async def _recover_from_stream_error(
     retry_state: RetryState,
     cursor: TurnCursor,
     partial_run: PartialRunAccumulator,
-    print_fn: Callable[[str], Any],
+    print_fn: PrintFn,
     effective_hook_manager: HookManager,
 ) -> None:
     """Prepare `cursor` for a retry, or raise when the error is unrecoverable."""
@@ -808,7 +831,7 @@ async def _resolve_deferred_requests(
 
 
 def _retry_empty_completion(
-    retry_state: RetryState, cursor: TurnCursor, print_fn: Callable[[str], Any]
+    retry_state: RetryState, cursor: TurnCursor, print_fn: PrintFn
 ) -> None:
     """Drop the empty turn so the next round regenerates it, or give up."""
     if (
@@ -872,9 +895,9 @@ async def _finish_turn(
     cursor: TurnCursor,
     extension_state: ExtensionState,
     effective_hook_manager: HookManager,
-    print_fn: Callable[[str], Any],
+    print_fn: PrintFn,
     nested_run: bool = False,
-) -> tuple[Any, list[Any]] | None:
+) -> AgentRunOutput | None:
     """Fire STOP and settle the turn, or set up the round a hook asked for.
 
     A blocking STOP hook re-runs the agent with its reason; a systemMessage
@@ -920,8 +943,8 @@ async def _finish_turn(
 
 
 def _resolve_crash_history(
-    partial_run: PartialRunAccumulator, run_history: list[Any]
-) -> list[Any]:
+    partial_run: PartialRunAccumulator, run_history: History
+) -> History:
     """The best history to attach to an unhandled run exception.
 
     `run_history` only updates when `agent.run()` returns; the live
@@ -945,14 +968,12 @@ class _CheckpointWriter:
     twenty times, and the last snapshot still goes out before `drain` returns.
     """
 
-    def __init__(
-        self, checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]]
-    ) -> None:
+    def __init__(self, checkpoint_fn: CheckpointFn) -> None:
         self._checkpoint_fn = checkpoint_fn
-        self._latest: list[object] | None = None
+        self._latest: History | None = None
         self._in_flight: asyncio.Task | None = None
 
-    def submit(self, snapshot: list[object]) -> None:
+    def submit(self, snapshot: History) -> None:
         """Offer *snapshot*, replacing one that is still waiting to be written."""
         self._latest = snapshot
         if self._in_flight is None:
@@ -977,7 +998,7 @@ class _CheckpointWriter:
 
 
 def _checkpoint_writer(
-    checkpoint_fn: Callable[[list[Any]], Coroutine[Any, Any, None]] | None,
+    checkpoint_fn: CheckpointFn | None,
 ) -> "_CheckpointWriter | None":
     """One writer per turn, or none when the caller asked for no checkpoints."""
     if checkpoint_fn is None:
@@ -994,11 +1015,11 @@ async def _drain_checkpoints(writer: "_CheckpointWriter | None") -> None:
 
 def _build_event_stream_handler(
     effective_ui: AnyUI | None,
-    effective_event_handler: Callable[[Any], Any] | None,
+    effective_event_handler: StreamEventHandler | None,
     partial_run: PartialRunAccumulator,
     checkpoint_writer: _CheckpointWriter | None = None,
     baseline_len: int = 0,
-) -> Callable[[Any, Any], Awaitable[None]]:
+) -> "EventStreamHandler[None]":
     """Build the `event_stream_handler` for one `agent.run()` call.
 
     Registers the live `RunContext` on the UI so a mid-turn message can be
@@ -1008,7 +1029,9 @@ def _build_event_stream_handler(
     """
     last_checkpoint_len = baseline_len
 
-    async def _handler(ctx: Any, events: Any) -> None:
+    async def _handler(
+        ctx: "RunContext[None]", events: AsyncIterable["UIEvent"]
+    ) -> None:
         nonlocal last_checkpoint_len
         _set_active_run_context(effective_ui, ctx)
         async for event in events:
@@ -1030,7 +1053,7 @@ def _build_event_stream_handler(
     return _handler
 
 
-def _is_checkpoint_boundary(messages: list[Any], last_checkpoint_len: int) -> bool:
+def _is_checkpoint_boundary(messages: History, last_checkpoint_len: int) -> bool:
     # lazy: heavy third-party
     from pydantic_ai.messages import ModelRequest
 
@@ -1057,7 +1080,9 @@ def _deliver_queued_messages(effective_ui: AnyUI | None) -> None:
         effective_ui.deliver_queued_messages_early()
 
 
-def _set_active_run_context(effective_ui: AnyUI | None, ctx: Any) -> None:
+def _set_active_run_context(
+    effective_ui: AnyUI | None, ctx: "RunContext[None] | None"
+) -> None:
     """Best-effort: not every `AnyUI` implementer supports steering.
 
     The run's cut signal is published beside it, and both are read through the
@@ -1102,12 +1127,13 @@ def _explain_usage_limit(exc: Exception) -> Exception:
 
 async def _acquire_rate_limit(
     limiter: LLMLimiter,
-    message: str | None,
-    message_history: list[Any],
-    print_fn: Callable[..., Any],
+    message: PromptMessage,
+    message_history: History,
+    # Called with `end=""` for the in-place status line, hence not `PrintFn`.
+    print_fn: Callable[..., object],
     reserved_tokens: int = 0,
-    model: Any = None,
-) -> list[Any]:
+    model: "Model | str | None" = None,
+) -> History:
     """Prunes history and waits if rate limits are exceeded."""
 
     def notify_throttling(msg: str):
@@ -1135,10 +1161,10 @@ async def _acquire_rate_limit(
 
 
 async def _apply_multimodal_fallback(
-    prompt_content: Any,
+    prompt_content: PromptMessage,
     agent: "Agent[None, Any]",
-    print_fn: Callable[..., Any],
-) -> Any:
+    print_fn: PrintFn,
+) -> PromptMessage:
     """Replace binaries the main model can't consume with text descriptions.
 
     Uses the multimodal model when configured; otherwise unsupported
@@ -1149,7 +1175,7 @@ async def _apply_multimodal_fallback(
 
     main_model = getattr(agent, "model", None)
     return await replace_unsupported_attachments(
-        prompt_content,
+        cast("str | list[UserContent] | None", prompt_content),
         main_model=main_model,
         multimodal_model=resolve_configured_multimodal_model(),
         print_fn=print_fn,
