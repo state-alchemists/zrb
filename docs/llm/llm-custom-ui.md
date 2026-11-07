@@ -28,6 +28,18 @@ Zrb's LLM tasks accept custom UIs and approval channels, so the agent can run ov
 
 Every UI shares one message loop inside `BaseUI`; the levels differ only in how much of it you write yourself.
 
+Whatever level you pick, the object you build answers for **five roles**, and every caller reaches a role through an accessor rather than a method on the whole object:
+
+| Accessor | Role | What a caller reaches through it |
+|---|---|---|
+| `ui.display` | `AnyUIDisplay` | output, answers, block markers, echo spans |
+| `ui.input` | `AnyUIInput` | questions to the user, and the queue a typed message enters |
+| `ui.picker` | `AnyUIPicker` | the structured choice widget |
+| `ui.session` | `AnyUISession` | which conversation is open, which model answers, its meters |
+| `ui.tools` | `AnyUITools` | a tool call's lifecycle and its approval state |
+
+You write the role members your backend can serve and leave the rest to that role's inert default — see [Where the defaults live](#where-the-defaults-live). A subclass that overrides a member keeps that role: the accessor hands back the object itself, so there is no second copy of any state.
+
 ```mermaid
 flowchart TB
     subgraph BaseUI["BaseUI (Core Logic)"]
@@ -325,6 +337,8 @@ flowchart TB
 
 **Free:** `process_messages_loop()` (queue-based processing), `submit_user_message()`, `stream_ai_response()`, command handlers (`/help`, `/exit`, `/save`, `/load`, `/model`, `/exec`, `/yolo`), history management, and tool confirmation handling.
 
+Three of the five you write belong to a role, and a caller reads them through it: `append_to_output` is the display role's writer, `ask_user` and `run_interactive_command` are the input role's, while `run_async` and `__init__` belong to the whole object. So `ui.display.append_to_output(...)`, `ui.input.ask_user(...)`, `ui.input.run_interactive_command(...)`, and `ui.run_async()`. `submit_user_message()` stays on `BaseUI` as the turn-level submit; a backend feeding a message in from its own loop calls `ui.input.submit_message(text, source)` instead, which queues it the way a typed line is queued.
+
 ### Customising a built-in command
 
 Every slash command is a `handle_<name>_command(text) -> bool` method on `BaseUI`. `command_table()` binds handlers to the UI instance, so overriding one in your subclass replaces the built-in:
@@ -405,6 +419,7 @@ A caller typed against `AnyUI` reaches all of them this way. A class implementin
 |---|---|
 | `is_thinking` (read/write) | Whether the assistant is producing a response. Mid-turn messages are queued with a ⏳ marker. Part of the session role, so a caller reaches it as `ui.session.is_thinking` |
 | `multi_ui_parent` (read/write) | The `MultiUI` this UI is a child of, or `None`. A child hands submitted messages to its parent |
+| `is_local` | Whether the user driving this UI sits at the machine zrb runs on. The default is `True`; a channel driven over a network — the web chat, Telegram — returns `False`, so a command that acts on local hardware (the screen, the camera) refuses instead of capturing a machine its user cannot see |
 | `background_tasks` | A set keeping fire-and-forget tasks referenced. Return the same set every time; callers `.add` and `.discard` on it. Part of the session role |
 | `flush_to_parent()` | Write anything buffered to the delegating parent UI. A no-op for a UI that streams directly |
 
@@ -427,7 +442,30 @@ The accessor returns the UI itself. Every UI in zrb answers for the role on the 
 | `background_tasks` | The set keeping fire-and-forget tasks referenced |
 | `update_system_info()` | Refresh the system and repository status line after a turn |
 
-### Example: WebSocket Backend
+### Where the defaults live
+
+Each role's inert default is a module of its own, beside the contract it answers for:
+
+| Module | Class | The role it answers |
+|---|---|---|
+| `zrb.llm.ui.fallback.defaults.display` | `UIDisplayDefaults` | writes nothing; the three that do write go through `append_to_output` |
+| `zrb.llm.ui.fallback.defaults.input` | `UIInputDefaults` | keeps no queue: a message handed to it goes nowhere, and a prompt reports absence |
+| `zrb.llm.ui.fallback.defaults.picker` | `UIPickerDefaults` | renders a choice as numbered text through `ask_user` |
+| `zrb.llm.ui.fallback.defaults.session` | `UISessionDefaults` | tracks no conversation: no model, no history, no snapshots, no turn |
+| `zrb.llm.ui.fallback.defaults.tools` | `UIToolsDefaults` | shows no tool call and never auto-approves |
+
+`UIStateDefaultsMixin` (`zrb.llm.ui.fallback.state_defaults`) is what a host inherits: all five parts plus `multi_ui_parent`, the one member no role owns. `StdUI`, `BufferedUI` and `MultiUI` take it in full, and a host that implements a member for real wins over it on MRO.
+
+A host that keeps one role for real can take only the parts it still needs:
+
+```python
+from zrb.llm.ui.fallback.defaults import UIDisplayDefaults, UISessionDefaults
+```
+
+Both parts are ordinary classes with no `__init__` and no state of their own beyond what a setter shadows per instance, so mixing in two of them is the same act as mixing in the whole set. What a part cannot do is answer a role you hand back to yourself: if `ui.tools` returns the UI, that UI must answer the tools role — either with its own members or by taking `UIToolsDefaults`.
+
+The rule the split enforces, by test: **every abstract member of a role has an inert default here, except the five a host must write** — `append_to_output`, `stream_to_parent`, `ask_user`, `run_interactive_command` and `ask_user_choice`. Add a twelfth member to `AnyUIInput` without a default and `test_every_role_member_has_an_inert_default_unless_the_host_must_write_it` fails with its name, instead of the first UI that keeps no state raising `AttributeError` at the moment it is asked.
+
 
 ```python
 import asyncio
