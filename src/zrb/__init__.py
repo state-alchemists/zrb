@@ -55,7 +55,7 @@ if TYPE_CHECKING:
     from zrb.input.password_input import PasswordInput
     from zrb.input.str_input import StrInput
     from zrb.input.text_input import TextInput
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.config.limiter import LLMLimiter, llm_limiter
     from zrb.llm.config.model_resolver import ModelResolver, model_resolver
     from zrb.llm.hook import HookContext, HookEvent, HookResult
@@ -329,7 +329,7 @@ _LAZY_EXPORTS = {
     "tts_registry": "zrb.llm.voice.registry",
     "ToolRegistry": "zrb.llm.tool_registry",
     "tool_registry": "zrb.llm.tool_registry",
-    "AnyUI": "zrb.llm.any_ui",
+    "AnyUI": "zrb.llm.ui.any_ui",
     "TriggerMessage": "zrb.llm.ui.trigger",
     "TriggerReply": "zrb.llm.ui.trigger",
     "model_capabilities": "zrb.llm.util.capabilities",

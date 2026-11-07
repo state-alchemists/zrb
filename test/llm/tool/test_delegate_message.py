@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from zrb.llm.any_ui import AnyUI
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.subagent.parent_message import send_message_to_parent
 from zrb.llm.tool.delegate_message import create_send_message_to_subagent_tool

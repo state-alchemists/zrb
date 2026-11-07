@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from zrb.llm.any_ui import AnyUI
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.ui.multi_ui import MultiUI
-from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 
 
 class _MinimalChild(UIStateDefaultsMixin, AnyUI):

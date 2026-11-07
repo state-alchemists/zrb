@@ -108,7 +108,7 @@ def test_only_the_offered_hooks_are_dispatched_by_string():
 
 
 def test_every_declared_hook_is_declared_on_any_ui():
-    from zrb.llm.any_ui import AnyUI, AnyUIDisplay
+    from zrb.llm.ui.any_ui import AnyUI, AnyUIDisplay
 
     # A hook is either on the whole object or on the display role it is part
     # of, which MultiUI reaches as `child.display`.
@@ -124,7 +124,7 @@ def test_the_offered_hooks_stay_undeclared():
     """Declaring one would make a UI without it look like it has it: the stream
     would stop printing its own prepare line and the shell tool would stop
     printing a command's output live."""
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.ui.any_ui import AnyUI
 
     declared = sorted(name for name in OFFERED_HOOKS if hasattr(AnyUI, name))
     assert not declared

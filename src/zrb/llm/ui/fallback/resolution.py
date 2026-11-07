@@ -11,10 +11,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from zrb.llm.ui_fallback.std_ui import StdUI
+from zrb.llm.ui.fallback.std_ui import StdUI
 
 if TYPE_CHECKING:
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.ui.any_ui import AnyUI
 
 _UI_COMBINER: Callable[[list[AnyUI]], AnyUI] | None = None
 _MAIN_UI_GETTER: Callable[[AnyUI], AnyUI] | None = None

@@ -12,17 +12,17 @@ import asyncio
 from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent_activity import agent_activity_registry
-from zrb.llm.any_ui import AnyUI
-from zrb.llm.any_ui_display import AnyUIDisplay
-from zrb.llm.any_ui_picker import AnyUIPicker
+from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.any_ui_display import AnyUIDisplay
+from zrb.llm.ui.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_into_block
 from zrb.llm.ui.tracked_spans import TrackedSpans
-from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
+from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RequestUsage, RunUsage
-    from zrb.llm.any_ui import ChoiceSpec
+    from zrb.llm.ui.any_ui import ChoiceSpec
 
 
 class BufferedPicker(AnyUIPicker):

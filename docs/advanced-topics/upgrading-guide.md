@@ -191,8 +191,8 @@ Top-level `zrb` exports are unchanged. A deep import of a module that moved to t
 | `zrb.llm.tool_call.args` | now `zrb.llm.util.tool_args` |
 | `zrb.llm.tool.file_edit.find_fuzzy_match` | `zrb.util.string.fuzzy_match.find_fuzzy_match` |
 | `zrb.llm.task.shared_getters.apply_model_hooks` | `zrb.llm.config.model_resolver.apply_model_hooks`, which `ModelResolver` now uses instead of its own copy |
-| `zrb.llm.ui.any_ui` | `zrb.llm.any_ui` (the old path still re-exports it) |
-| `zrb.llm.ui.std_ui`, `zrb.llm.ui.state_defaults` | `zrb.llm.ui_fallback.std_ui`, `zrb.llm.ui_fallback.state_defaults` (the old paths still re-export them) |
+| `zrb.llm.ui.any_ui` | `zrb.llm.ui.any_ui` (the old path still re-exports it) |
+| `zrb.llm.ui.std_ui`, `zrb.llm.ui.state_defaults` | `zrb.llm.ui.fallback.std_ui`, `zrb.llm.ui.fallback.state_defaults` (the old paths still re-export them) |
 | `zrb.llm.tool_call.choice_spec_format` | `zrb.llm.util.choice_spec_format` |
 
 ---
@@ -607,6 +607,20 @@ The UI classes were moved from `zrb.llm.app` to `zrb.llm.ui`.
 | `from zrb.llm.app import PollingUI` | `from zrb.llm.ui import PollingUI` (removed in 3.0.0 — use `EventDrivenUI`) |
 
 If you only interact with the built-in `llm_chat` task (i.e. you don't subclass or import UI classes directly), no change is needed.
+
+### LLM UI Contract and Fallback Module Paths
+
+`AnyUI` and its five role contracts moved from the top of `zrb.llm` into the UI package, and the fallback pieces moved inside it as well, so everything about a UI now lives under `zrb.llm.ui`:
+
+| before | after |
+|---|---|
+| `from zrb.llm.any_ui import AnyUI` | `from zrb.llm.ui.any_ui import AnyUI`, or `from zrb.llm.ui import AnyUI` |
+| `from zrb.llm.any_ui_display import AnyUIDisplay` | `from zrb.llm.ui.any_ui_display import AnyUIDisplay`, and the same for `_input`, `_picker`, `_session` and `_tools` |
+| `from zrb.llm.ui_fallback.std_ui import StdUI` | `from zrb.llm.ui.fallback.std_ui import StdUI` |
+| `from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin` | `from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin` |
+| `from zrb.llm.ui.std_ui import StdUI` or `from zrb.llm.ui.state_defaults import ...` | the `zrb.llm.ui.fallback.*` paths above — those two compatibility shims are gone |
+
+Naming a contract or the fallback still does not load the terminal client: `zrb.llm.ui.__init__` resolves every export through `__getattr__`, so a headless run pays for what it asks for and nothing more.
 
 ### Hooks Timeout Unit
 

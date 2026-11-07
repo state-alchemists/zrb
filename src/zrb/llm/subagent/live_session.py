@@ -20,7 +20,7 @@ from zrb.llm.agent.run.authority_snapshot import (
 from zrb.llm.agent.run.runner import run_agent
 from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.agent_state import current_approval_channel, current_tool_confirmation
-from zrb.llm.any_ui import AnyUI
+from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.config.limiter import llm_limiter
 from zrb.llm.delegation_api import (
     LiveSessionRegistryAPI,

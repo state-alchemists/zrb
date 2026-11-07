@@ -11,6 +11,8 @@ layer, and a layer imports only from itself and the layers below:
 
 A module whose job is to be depended on counts as L0 wherever it lives: the
 ``any_*.py`` protocols and ``agent/types.py`` (the pydantic-ai type facade).
+A package may also hold a floor beneath its own layer — see
+``_FLOOR_PREFIXES``.
 
 The two allowlists below are today's debt. They may only shrink: remove a
 line when you fix it, and never add one to admit new code. To fix an upward
@@ -32,10 +34,9 @@ _UNITS_BY_LAYER = {
         "agent_activity agent_runner agent_state agent_tool_result ambient_state "
         "any_agent any_agent_result any_agent_runner any_live_session_registry "
         "any_live_sub_agent_session any_sub_agent_definition any_sub_agent_manager "
-        "any_ui any_ui_display any_ui_input any_ui_picker any_ui_session "
-        "any_ui_tools config delegation_api factory_resolver input_source "
+        "config delegation_api factory_resolver input_source "
         "memory message message_text shell_cut stream_observer "
-        "tool_registry ui_fallback usage_log util"
+        "tool_registry usage_log util"
     ),
     1: (
         "approval history_manager hook lsp permission prompt sandbox skill "
@@ -52,6 +53,13 @@ LAYER_OF_UNIT = {
 # Files that exist to be depended on, wherever they live.
 _CONTRACT_NAME = "any_*.py"
 _CONTRACT_PATHS = {"agent/types.py"}
+
+# Path prefixes that sit below the layer of the package holding them. A floor is
+# a part of a package that the layers beneath it must be able to build with:
+# `ui/fallback/` is the plain terminal UI that a headless run needs, and it
+# cannot drag `ui/` with it, so it scores L0 while its neighbours score L4. The
+# unit still ends up in the allowlists above if it reaches back up.
+_FLOOR_PREFIXES = {"ui/fallback/": 0}
 
 # Upward runtime imports that exist today, as "importer -> imported" paths
 # under src/zrb/llm. Fix one, delete its line.
@@ -85,6 +93,9 @@ def _unit(path: str) -> str:
 
 
 def _layer(path: str) -> int | None:
+    for prefix, layer in _FLOOR_PREFIXES.items():
+        if path.startswith(prefix):
+            return layer
     return 0 if _is_contract(path) else LAYER_OF_UNIT.get(_unit(path))
 
 

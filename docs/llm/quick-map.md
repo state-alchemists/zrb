@@ -11,7 +11,7 @@ Use this page as the short orientation to the LLM subsystem. For deep details, f
 
 Key units (one-liners)
 
-- L0: any_ui, ui_fallback, agent_runner (facade), delegation_api (registry), agent_state (ContextVars), tool_registry, util, message, usage logs.
+- L0: the `any_*.py` contracts, `ui/fallback` (the floor inside the UI package), agent_runner (facade), delegation_api (registry), agent_state (ContextVars), tool_registry, util, message, usage logs.
 - L1: tool (callable functions), tool_call (rendering, untrusted data), prompt (compose), hook (lifecycle), permission/approval/sandbox, history_manager.
 - L2: agent (engine), summarizer.
 - L3: task (LLMChatTask), subagent (personas/live sessions), common_tools (seed registry), custom_command.
@@ -25,7 +25,7 @@ Change map (do this → open this)
 - Change the agent loop: `src/zrb/llm/agent/run/runner.py`.
 - Change the prompt: `src/zrb/llm/prompt/manager.py`.
 - Persist/compact history: `src/zrb/llm/history_manager/*`.
-- UI behaviour: `src/zrb/llm/ui/*` and `src/zrb/llm/ui_fallback/*`.
+- UI behaviour: `src/zrb/llm/ui/*` and `src/zrb/llm/ui/fallback/*`.
 
 Guards and tests
 

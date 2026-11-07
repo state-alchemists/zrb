@@ -12,17 +12,17 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, TextIO, cast
 
-from zrb.llm.any_ui_display import AnyUIDisplay
-from zrb.llm.any_ui_picker import AnyUIPicker
-from zrb.llm.ui_fallback.echo_broadcast import broadcast_echo
-from zrb.llm.ui_fallback.text_picker import TextPicker
+from zrb.llm.ui.any_ui_display import AnyUIDisplay
+from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.ui.fallback.echo_broadcast import broadcast_echo
+from zrb.llm.ui.fallback.text_picker import TextPicker
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from zrb.llm.agent.types import ModelMessage, RequestUsage, RunUsage, UserContent
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.message_queue import QueuedMessage
 
 

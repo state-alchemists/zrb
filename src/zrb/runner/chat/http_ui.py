@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from pydantic_ai import ToolApproved, ToolDenied
     from pydantic_ai.messages import ToolCallPart
 
-    from zrb.llm.any_ui import AnyUI
+    from zrb.llm.ui.any_ui import AnyUI
 
 
 # mccabe sums the nested `HTTPUI` methods and the `http_ui_factory` closure into

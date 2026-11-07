@@ -40,7 +40,7 @@ from zrb.llm.task.shared_getters import (
 )
 from zrb.llm.tool_call.batch_nudge import create_batch_nudge_processor
 from zrb.llm.tool_call.handler import ToolCallHandler
-from zrb.llm.ui_fallback.resolution import resolve_ui
+from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.llm.util.attachment import get_attachments
 from zrb.llm.util.feature_config import close_feature_sessions
 from zrb.util.async_thread import run_in_daemon

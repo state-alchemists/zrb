@@ -6,7 +6,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.llm.ui.any_ui import ChoiceOption, ChoiceSpec
-from zrb.llm.ui.std_ui import FREE_TEXT, StdUI, option_text, resolve_choice_selection
+from zrb.llm.ui.fallback.std_ui import (
+    FREE_TEXT,
+    StdUI,
+    option_text,
+    resolve_choice_selection,
+)
 
 
 def test_stdui_append_to_output():
