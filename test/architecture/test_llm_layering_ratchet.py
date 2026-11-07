@@ -32,8 +32,6 @@ LLM = SRC / "zrb" / "llm"
 _UNITS_BY_LAYER = {
     0: (
         "agent_activity agent_runner agent_state agent_tool_result ambient_state "
-        "any_agent any_agent_result any_agent_runner any_live_session_registry "
-        "any_live_sub_agent_session any_sub_agent_definition any_sub_agent_manager "
         "config delegation_api factory_resolver input_source "
         "memory message message_text shell_cut stream_observer "
         "tool_registry usage_log util"
@@ -44,7 +42,7 @@ _UNITS_BY_LAYER = {
     ),
     2: "agent summarizer",
     3: "common_tools custom_command subagent task",
-    4: "app camera dictation emotion screenshot speech ui voice",
+    4: "camera dictation emotion screenshot speech ui voice",
 }
 LAYER_OF_UNIT = {
     unit: layer for layer, units in _UNITS_BY_LAYER.items() for unit in units.split()
@@ -187,15 +185,41 @@ def _same_layer_cycles() -> set[str]:
     return found
 
 
+def _present_units() -> set[str]:
+    """The units `_UNITS_BY_LAYER` must describe: real modules, not artefacts.
+
+    A directory counts only when it holds at least one `.py` file. Without that
+    test, a `__pycache__` left behind by a moved module reads as a unit that
+    exists but has no layer, and sends the reader hunting for code already
+    gone.
+    """
+    units: set[str] = set()
+    for path in LLM.iterdir():
+        name = path.name
+        if name.startswith("_") or name == "__pycache__":
+            continue
+        if path.is_dir():
+            if any(path.rglob("*.py")):
+                units.add(name)
+        elif path.suffix == ".py":
+            units.add(name.removesuffix(".py"))
+    return units
+
+
 def test_every_llm_unit_has_a_layer():
-    units = {
-        path.relative_to(LLM).parts[0].removesuffix(".py") for path in LLM.iterdir()
-    }
-    units = {u for u in units if not u.startswith("_")}
-    missing = sorted(units - set(LAYER_OF_UNIT))
+    missing = sorted(_present_units() - set(LAYER_OF_UNIT))
     assert not missing, (
         f"{missing} have no layer. Add each to _UNITS_BY_LAYER in this file; "
         "a unit you cannot place is usually two units."
+    )
+
+
+def test_no_layer_names_a_unit_that_moved_away():
+    stale = sorted(set(LAYER_OF_UNIT) - _present_units())
+    assert not stale, (
+        f"{stale} are scored but no longer exist under llm/. A name left behind "
+        "by a move scores nothing and hides the unit that replaced it — delete "
+        "the line, and give the package it moved into a layer if it has none."
     )
 
 

@@ -15,7 +15,7 @@ from zrb.llm.agent_runner import register_agent_runner
 
 if TYPE_CHECKING:
     from zrb.llm.agent.common import create_agent  # noqa: F401
-    from zrb.llm.any_agent import AnyAgent as Agent
+    from zrb.llm.agent.any_agent import AnyAgent as Agent
     from zrb.llm.agent.run.runner import (  # noqa: F401
         AnyToolConfirmation,
         run_agent,
