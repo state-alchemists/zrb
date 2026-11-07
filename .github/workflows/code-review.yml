@@ -1,28 +1,49 @@
 name: "Code Review"
 run-name: "Review PR #${{ github.event.pull_request.number }} by ${{ github.actor }}"
 
+# `pull_request_target`, not `pull_request`, and that word is the security
+# boundary of this file.
+#
+# GitHub resolves a `pull_request` workflow — and every local `uses:` inside it,
+# `_zrb.yml` included — from the pull request's *merge commit*. A branch could
+# therefore edit this file or the reusable workflow and have its own copy run
+# with OPENAI_API_KEY in the environment. `pull_request_target` resolves the same
+# files from the base branch, which a pull request cannot change, and still fires
+# the moment the pull request opens — so the review lands beside the test run,
+# not after it.
+#
+# The rule that makes the switch safe: this workflow never runs the pull
+# request's code. It checks out the base branch and fetches the head as git
+# objects only; zrb reads that as a diff. Never add a checkout of the head here
+# — its commit, its branch name or the merge commit — because
+# test/architecture/test_ci_workflows_are_not_pr_editable.py fails on any of
+# them, anywhere under .github/workflows.
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
 
 jobs:
   review:
-    # Two separate guards. author_association stops a drive-by PR from
-    # spending tokens on an LLM run. The head-repo check is about mechanics:
-    # GitHub withholds secrets from fork PRs, so the review would 401 there
-    # regardless of who opened it -- skipping beats a red X nobody can fix.
+    # Two separate guards, and under this event both are about secrets: a
+    # `pull_request_target` run gets them whatever the fork, so the association
+    # test is the barrier that keeps a drive-by pull request from spending
+    # tokens or reaching the model key. The head-repo check keeps fork runs out
+    # entirely, which is also what makes the review's cost predictable.
     if: >-
       (github.event.pull_request.author_association == 'OWNER' ||
        github.event.pull_request.author_association == 'MEMBER' ||
        github.event.pull_request.author_association == 'COLLABORATOR') &&
       github.event.pull_request.head.repo.full_name == github.repository
-    # pull-requests: write is what lets the reusable workflow post the report.
+    # Least privilege, named. pull-requests: write is what lets the reusable
+    # workflow post the report.
     permissions:
       contents: read
       pull-requests: write
     uses: ./.github/workflows/_zrb.yml
     with:
+      # Full history: the review diffs the merge base of the base branch and the
+      # head, which a shallow clone cannot compute.
       fetch-depth: 0
       # This caller posts the report back to the PR, so it needs the token.
       needs-github-token: true
@@ -31,6 +52,12 @@ jobs:
           echo "⏭️  OPENAI_API_KEY is not configured; skipping the LLM review."
           exit 0
         fi
+        # The head is fetched as objects and never checked out. Checking it out
+        # would put the pull request's `zrb_init.py` where zrb loads it from —
+        # this very `submit-comment` command is defined in that file — which is
+        # exactly the code execution `pull_request_target` is here to avoid.
+        git fetch --no-tags origin \
+          "+refs/pull/${{ github.event.pull_request.number }}/head:refs/remotes/origin/pr-head"
         # The review prints what its tools read (diffs, file contents, pages it
         # fetched), and the runner executes any line of the log that looks like a
         # workflow command. A review that read the source of an action containing
@@ -39,7 +66,7 @@ jobs:
         stop_token="$(cat /proc/sys/kernel/random/uuid)"
         echo "::stop-commands::$stop_token"
         status=0
-        zrb submit-comment --range "origin/$GITHUB_BASE_REF...HEAD" || status=$?
+        zrb submit-comment --range "origin/$GITHUB_BASE_REF...origin/pr-head" || status=$?
         echo "::$stop_token::"
         exit "$status"
     secrets:

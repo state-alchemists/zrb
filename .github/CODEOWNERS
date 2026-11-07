@@ -1,0 +1,12 @@
+# Who must review a change, when the repository's branch protection rule says
+# code owners are required.
+#
+# `.github/` is the folder that decides what runs with this repository's secrets:
+# a workflow file chooses its triggers, its permissions and the token it hands a
+# job. Requiring the owner's review here means a pull request cannot merge its own
+# workflow change, which is the merge-time half of the rule the workflows
+# themselves enforce at run time.
+#
+# This file is inside the pattern on purpose: a change to who reviews workflow
+# changes needs the same review it demands of everything else.
+/.github/ @goFrendiAsgard
