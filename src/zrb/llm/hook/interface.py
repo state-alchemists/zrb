@@ -1,6 +1,6 @@
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import ClassVar
 
 from zrb.llm.hook.types import HookEvent
 
@@ -10,9 +10,9 @@ class HookContext:
     """Claude Code compatible hook context."""
 
     event: HookEvent
-    event_data: Any
+    event_data: object
     session_id: str | None = None
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, object] = field(default_factory=dict)
 
     # Claude Code standard fields
     transcript_path: str | None = None
@@ -26,8 +26,8 @@ class HookContext:
     command_args: str | None = None  # Pre/PostCommand — text after the token
     command_handled: bool | None = None  # PostCommand — a handler consumed it
     tool_name: str | None = None  # PreToolUse, PostToolUse, etc.
-    tool_input: dict[str, Any] | None = None
-    tool_response: dict[str, Any] | None = None
+    tool_input: dict[str, object] | None = None
+    tool_response: dict[str, object] | None = None
     tool_use_id: str | None = None
     error: str | None = None  # PostToolUseFailure, StopFailure
     error_type: str | None = None  # StopFailure — classified category token
@@ -49,7 +49,7 @@ class HookContext:
     reason: str | None = None  # SessionEnd
     source: str | None = None  # SessionStart
     model: str | None = None
-    permission_suggestions: list[dict[str, Any]] | None = None  # PermissionRequest
+    permission_suggestions: list[dict[str, object]] | None = None  # PermissionRequest
     last_assistant_message: str | None = None  # Stop
     emotion: str | None = None  # Emotion — "happy", "sad", ...
     emotion_source: str | None = None  # Emotion — "user" or "assistant"
@@ -89,9 +89,9 @@ class HookContext:
         "emotion_source",
     ]
 
-    def to_claude_json(self) -> dict[str, Any]:
+    def to_claude_json(self) -> dict[str, object]:
         """Convert to Claude Code compatible JSON format."""
-        base = {
+        base: dict[str, object] = {
             "session_id": self.session_id,
             "transcript_path": self.transcript_path,
             "cwd": self.cwd,
@@ -111,8 +111,8 @@ class HookResult:
 
     success: bool = True
     output: str | None = None
-    data: dict[str, Any] | None = None
-    modifications: dict[str, Any] = field(default_factory=dict)
+    data: dict[str, object] | None = None
+    modifications: dict[str, object] = field(default_factory=dict)
     should_stop: bool = False
     # Agent hooks only: how many tool calls the run made. Nothing else observes
     # it, and a judge that makes none has decided to skip.
@@ -126,28 +126,27 @@ class HookResult:
             modifications["additionalContext"] = additional_context
         return cls(success=False, should_stop=True, modifications=modifications)
 
-    def to_claude_json(self) -> dict[str, Any]:
+    def to_claude_json(self) -> dict[str, object]:
         """Convert to Claude Code compatible JSON output."""
-        result = {}
+        result: dict[str, object] = {}
 
         if self.modifications:
             result.update(self.modifications)
 
         # A PreToolUse decision arrives flat; Claude expects it nested.
         if "permissionDecision" in result:
-            if "hookSpecificOutput" not in result:
-                result["hookSpecificOutput"] = {}
-            result["hookSpecificOutput"]["permissionDecision"] = result.pop(
-                "permissionDecision"
-            )
+            specific: dict[str, object] = {}
+            existing = result.get("hookSpecificOutput")
+            if isinstance(existing, dict):
+                specific.update(existing)
+            result["hookSpecificOutput"] = specific
+            specific["permissionDecision"] = result.pop("permissionDecision")
             if "permissionDecisionReason" in result:
-                result["hookSpecificOutput"]["permissionDecisionReason"] = result.pop(
+                specific["permissionDecisionReason"] = result.pop(
                     "permissionDecisionReason"
                 )
             if "updatedInput" in result:
-                result["hookSpecificOutput"]["updatedInput"] = result.pop(
-                    "updatedInput"
-                )
+                specific["updatedInput"] = result.pop("updatedInput")
 
         result["success"] = self.success
         if self.output:

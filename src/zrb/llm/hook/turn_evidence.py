@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from zrb.llm.agent.types import ModelMessage
 
 # Not imported from `llm.tool`, which transitively loads `pydantic_ai`.
 FILE_MUTATING_TOOL_NAMES = frozenset({"Write", "Edit", "RM", "MV"})
@@ -39,7 +42,8 @@ def _has_call_to(turn_messages: Sequence[object], tool_names: frozenset[str]) ->
 
 
 def turn_wrote_files(
-    turn_messages: list[Any], tool_names: frozenset[str] = FILE_MUTATING_TOOL_NAMES
+    turn_messages: Sequence["ModelMessage"],
+    tool_names: frozenset[str] = FILE_MUTATING_TOOL_NAMES,
 ) -> bool:
     """Whether *turn_messages* contains a call to a file-mutating tool."""
     return _has_call_to(turn_messages, tool_names)
@@ -51,7 +55,8 @@ _PATH_ARG_NAMES = ("path", "src", "dst")
 
 
 def turn_changed_paths(
-    turn_messages: list[Any], tool_names: frozenset[str] = FILE_MUTATING_TOOL_NAMES
+    turn_messages: Sequence["ModelMessage"],
+    tool_names: frozenset[str] = FILE_MUTATING_TOOL_NAMES,
 ) -> list[str]:
     """Paths named by file-mutating tool calls, deduplicated in first-seen order.
 

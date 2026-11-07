@@ -6,7 +6,7 @@ import json
 import logging
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.llm.hook.hook_loader import get_plugin_root_for_path
 from zrb.llm.hook.matcher import CLAUDE_EVENT_MATCHER_FIELDS
@@ -201,7 +201,7 @@ class HookManagerLoading:
 
         raw_config = data["config"]
         default_timeout = 30
-        config: Any
+        config: CommandHookConfig | PromptHookConfig | AgentHookConfig
         if hook_type == HookType.COMMAND:
             config = CommandHookConfig(
                 command=raw_config["command"],

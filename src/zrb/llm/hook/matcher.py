@@ -6,7 +6,6 @@ import fnmatch
 import logging
 import re
 from collections.abc import Callable
-from typing import Any
 
 from zrb.llm.hook.interface import HookContext
 from zrb.llm.hook.schema import MatcherConfig
@@ -15,33 +14,33 @@ from zrb.llm.hook.types import HookEvent, MatcherOperator
 logger = logging.getLogger(__name__)
 
 
-def _match_equals(value: Any, matcher_value: Any) -> bool:
+def _match_equals(value: object, matcher_value: object) -> bool:
     return value == matcher_value
 
 
-def _match_not_equals(value: Any, matcher_value: Any) -> bool:
+def _match_not_equals(value: object, matcher_value: object) -> bool:
     return value != matcher_value
 
 
-def _match_contains(value: Any, matcher_value: Any) -> bool:
+def _match_contains(value: object, matcher_value: object) -> bool:
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     return matcher_value in value
 
 
-def _match_starts_with(value: Any, matcher_value: Any) -> bool:
+def _match_starts_with(value: object, matcher_value: object) -> bool:
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     return value.startswith(matcher_value)
 
 
-def _match_ends_with(value: Any, matcher_value: Any) -> bool:
+def _match_ends_with(value: object, matcher_value: object) -> bool:
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     return value.endswith(matcher_value)
 
 
-def _match_regex(value: Any, matcher_value: Any) -> bool:
+def _match_regex(value: object, matcher_value: object) -> bool:
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     try:
@@ -51,13 +50,13 @@ def _match_regex(value: Any, matcher_value: Any) -> bool:
         return False
 
 
-def _match_glob(value: Any, matcher_value: Any) -> bool:
+def _match_glob(value: object, matcher_value: object) -> bool:
     if not isinstance(value, str) or not isinstance(matcher_value, str):
         return False
     return fnmatch.fnmatch(value, matcher_value)
 
 
-MATCHER_OPERATORS: dict[MatcherOperator, Callable[[Any, Any], bool]] = {
+MATCHER_OPERATORS: dict[MatcherOperator, Callable[[object, object], bool]] = {
     MatcherOperator.EQUALS: _match_equals,
     MatcherOperator.NOT_EQUALS: _match_not_equals,
     MatcherOperator.CONTAINS: _match_contains,
@@ -96,13 +95,13 @@ CLAUDE_EVENT_MATCHER_FIELDS: dict[HookEvent, str] = {
 }
 
 
-def get_field_value(context: HookContext, field_path: str) -> Any:
+def get_field_value(context: HookContext, field_path: str) -> object:
     """Get a value from context using dot notation.
 
     Supports nested access like "metadata.project.name".
     """
     parts = field_path.split(".")
-    current: Any = context
+    current: object = context
 
     for part in parts:
         if hasattr(current, part):
@@ -137,7 +136,7 @@ def evaluate_matchers(matchers: list[MatcherConfig], context: HookContext) -> bo
 
         # NOT_EQUALS is not alias-expanded: an alias would slip past the filter.
         if matcher.operator is MatcherOperator.NOT_EQUALS:
-            candidates: list[Any] = [value]
+            candidates: list[object] = [value]
         else:
             candidates = _tool_name_candidates(matcher.field, value)
 
@@ -153,9 +152,9 @@ def evaluate_matchers(matchers: list[MatcherConfig], context: HookContext) -> bo
     return True
 
 
-def _tool_name_candidates(field: str, value: Any) -> list[Any]:
+def _tool_name_candidates(field: str, value: object) -> list[object]:
     """*value* plus its Claude tool-name aliases when *field* is ``tool_name``."""
-    candidates: list[Any] = [value]
+    candidates: list[object] = [value]
     if field == "tool_name" and isinstance(value, str):
         candidates.extend(CLAUDE_TOOL_ALIASES.get(value, []))
     return candidates

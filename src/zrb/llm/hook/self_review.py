@@ -13,7 +13,7 @@ import os
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.hook.agent_hook_registry import get_agent_hook_builder
@@ -93,7 +93,7 @@ def create_self_review_hook() -> HookCallable:
     return self_review
 
 
-async def _review(context: HookContext, payload: dict[str, Any]) -> HookResult:
+async def _review(context: HookContext, payload: dict[str, object]) -> HookResult:
     """Review the turn in *payload*: a block with findings, or a pass-through."""
     deadline = time.monotonic() + CFG.LLM_SELF_REVIEW_TIMEOUT
     scope = await run_in_worker(_resolve_scope, payload, deadline)
@@ -129,13 +129,18 @@ class _Scope:
     unreadable: list[str] = dataclasses.field(default_factory=list)
 
 
-def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
+def _resolve_scope(payload: dict[str, object], deadline: float) -> _Scope:
     """What the turn changed: the working directory diffed from its turn-start
     snapshot, plus file-tool paths the diff does not cover.
 
     Without a snapshot there is no diff (not HEAD, which would include the
     user's earlier uncommitted work)."""
-    tool_paths = [p for p in payload.get("changed_paths") or [] if isinstance(p, str)]
+    raw_paths = payload.get("changed_paths")
+    tool_paths = (
+        [path for path in raw_paths if isinstance(path, str)]
+        if isinstance(raw_paths, (list, tuple))
+        else []
+    )
     changes = _diff_turn(payload.get("turn_start_snapshot"), deadline)
     root, paths, diff, unreadable = changes or ("", [], "", [])
     changed = [os.path.join(root, *path.split("/")) for path in paths]
@@ -153,7 +158,7 @@ def _resolve_scope(payload: dict[str, Any], deadline: float) -> _Scope:
 
 
 def _diff_turn(
-    start: Any, deadline: float
+    start: object, deadline: float
 ) -> tuple[str, list[str], str, list[str]] | None:
     """`(root, changed paths, diff, newly unreadable paths)` since *start*, or None.
 
@@ -290,7 +295,7 @@ def _truncate(diff: str) -> str:
     return truncated
 
 
-def _verdict(report: Any) -> str:
+def _verdict(report: object) -> str:
     """The report's closing verdict line, lowercased, with markdown and a
     leading `Verdict:` label stripped."""
     for line in reversed(str(report).strip().splitlines()):

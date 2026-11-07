@@ -4,9 +4,11 @@ import os
 import selectors
 import subprocess
 from collections.abc import Callable
-from typing import Any
+from typing import IO, TypeVar, cast
 
 from zrb.util.async_thread import run_in_daemon
+
+T = TypeVar("T")
 
 # One selector poll; one quiet interval after the child exits ends the read.
 _HOOK_DRAIN_INTERVAL = 0.05
@@ -59,7 +61,7 @@ def read_hook_output(
         while sel.get_map():
             events = sel.select(timeout=_HOOK_DRAIN_INTERVAL)
             for key, _ in events:
-                if key.fileobj is process.stdin:
+                if process.stdin is not None and key.fileobj is process.stdin:
                     pending = _write_stdin(sel, process.stdin, pending)
                 else:
                     _read_pipe(sel, key, collected[key.fd])
@@ -115,7 +117,11 @@ def wait_for_exit(process: subprocess.Popen) -> None:
         return
 
 
-def _read_pipe(sel: "selectors.BaseSelector", key: Any, chunks: list[bytes]) -> None:
+def _read_pipe(
+    sel: "selectors.BaseSelector",
+    key: "selectors.SelectorKey",
+    chunks: list[bytes],
+) -> None:
     """Drain one ready pipe; unregister and close it at EOF."""
     try:
         data = os.read(key.fd, 32768)
@@ -131,7 +137,7 @@ def _read_pipe(sel: "selectors.BaseSelector", key: Any, chunks: list[bytes]) -> 
 
 
 def _write_stdin(
-    sel: "selectors.BaseSelector", stdin: Any, pending: memoryview
+    sel: "selectors.BaseSelector", stdin: "IO[bytes]", pending: memoryview
 ) -> memoryview:
     """Write what fits of *pending*; close stdin once it is fully delivered."""
     try:
@@ -150,24 +156,26 @@ def _write_stdin(
     return pending
 
 
-def _unregister(sel: "selectors.BaseSelector", fileobj: Any) -> None:
+def _unregister(sel: "selectors.BaseSelector", fileobj: object) -> None:
     """Drop *fileobj* from the selector, tolerating an already-dropped one."""
     try:
-        sel.unregister(fileobj)
+        # The selector was given this very object to watch; drop that one.
+        sel.unregister(cast("IO[bytes]", fileobj))
     except (KeyError, ValueError):
         pass
 
 
-def _close_pipe(pipe: Any) -> None:
+def _close_pipe(pipe: object) -> None:
     """Close a pipe, swallowing any error so it cannot fail the hook run."""
-    if pipe is None:
+    close = getattr(pipe, "close", None)
+    if close is None:
         return
     try:
-        pipe.close()
+        close()
     except Exception:
         pass
 
 
-async def run_detached(func: Callable[[], Any], name: str) -> Any:
+async def run_detached(func: Callable[[], T], name: str) -> T:
     """Await *func* on a daemon thread without holding interpreter shutdown."""
     return await run_in_daemon(func, name=name)
