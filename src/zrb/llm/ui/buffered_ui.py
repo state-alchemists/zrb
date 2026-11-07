@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, TextIO
 
 from zrb.llm.agent_activity import agent_activity_registry
 from zrb.llm.any_ui import AnyUI
+from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.ui.output_chunk import CollapsibleBlockSource, merge_into_block
 from zrb.llm.ui.tracked_spans import TrackedSpans
 from zrb.llm.ui_fallback.state_defaults import UIStateDefaultsMixin
@@ -21,6 +22,26 @@ from zrb.util.cli.style import stylize_muted
 if TYPE_CHECKING:
     from zrb.llm.agent.types import RequestUsage, RunUsage
     from zrb.llm.any_ui import ChoiceSpec
+
+
+class BufferedPicker(AnyUIPicker):
+    """A sub-agent's choice, answered by the UI this one buffers into.
+
+    No parent write to guard, so no lock: the answer never touches the buffered
+    output this UI exists to collect.
+    """
+
+    def __init__(self, wrapped: AnyUI, host: "BufferedUI") -> None:
+        self._wrapped = wrapped
+        self._host = host
+
+    async def ask_user_choice(
+        self, spec: "ChoiceSpec", agent_id: str | None = None
+    ) -> str:
+        """Ask the wrapped UI, defaulting to this sub-agent's own id."""
+        return await self._wrapped.picker.ask_user_choice(
+            spec, agent_id=agent_id if agent_id is not None else self._host.agent_id
+        )
 
 
 class BufferedUI(UIStateDefaultsMixin, AnyUI):
@@ -251,13 +272,10 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI):
         """[start, end, source] per tracked toggle block."""
         return self._rendered_blocks
 
-    async def ask_user_choice(
-        self, spec: ChoiceSpec, agent_id: str | None = None
-    ) -> str:
-        # No parent write to guard, so no lock (see `ask_user`).
-        return await self._wrapped.ask_user_choice(
-            spec, agent_id=agent_id if agent_id is not None else self._agent_id
-        )
+    @property
+    def picker(self) -> AnyUIPicker:
+        """Ask a choice through the UI this one buffers into."""
+        return BufferedPicker(self._wrapped, self)
 
     async def run_interactive_command(
         self, cmd: str | list[str], shell: bool = False

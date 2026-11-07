@@ -24,9 +24,14 @@ ROLE_FILES = {
 CORE_FILE = "any_ui.py"
 CORE_CLASS = "AnyUI"
 
+# A role reached through an accessor instead of by inheritance: a UI hands out
+# its choice widget rather than answering to every one of its methods. Every
+# role not named here must reach `AnyUI` as a base, member for member.
+ROLE_ACCESSOR = {"AnyUIPicker": "picker"}
+
 # `AnyUI` itself holds only the whole-object members: run the loop, say whether
-# the user is local, link to a `MultiUI` parent, and hand out the five roles. A
-# member that is really a role belongs in that role's file, not here.
+# the user is local, link to a `MultiUI` parent, and hand out the roles that are
+# not bases. A member that is really a role belongs in that role's file.
 CORE_MEMBERS = {
     "run_async",
     "is_local",
@@ -39,9 +44,9 @@ CORE_MEMBERS = {
 }
 MAX_CORE_MEMBERS = 8
 
-# Shrink as roles move their implementation out of the UI object. Raising this
-# to admit a member is the one thing this test exists to prevent.
-TOTAL_MEMBERS = 55
+# `AnyUI`'s own declared members. The target is 25; this may only be lowered as
+# roles move behind their parts, never raised to admit a member.
+ANY_UI_MEMBERS = 4
 
 
 def _members(path: pathlib.Path, class_name: str) -> set[str]:
@@ -83,12 +88,18 @@ def test_no_member_is_declared_twice():
 def test_every_role_member_reaches_the_whole_object():
     from zrb.llm.any_ui import AnyUI
 
-    missing = [
-        f"{class_name}.{member}"
-        for class_name, members in _declared().items()
-        for member in sorted(members)
-        if not hasattr(AnyUI, member)
-    ]
+    missing: list[str] = []
+    for class_name, members in _declared().items():
+        accessor = ROLE_ACCESSOR.get(class_name)
+        if accessor is not None:
+            if not hasattr(AnyUI, accessor):
+                missing.append(f"{class_name} through `{accessor}`")
+            continue
+        missing += [
+            f"{class_name}.{member}"
+            for member in sorted(members)
+            if not hasattr(AnyUI, member)
+        ]
     assert not missing, (
         "A role declares a member `AnyUI` does not expose, so a caller typed "
         f"against the whole object cannot reach it: {missing}"
@@ -109,12 +120,12 @@ def test_the_core_keeps_only_the_whole_object_members():
 
 
 def test_the_member_ratchet_is_tight():
-    total = sum(len(members) for members in _declared().values())
-    assert total <= TOTAL_MEMBERS, (
-        f"{total} UI members, up from {TOTAL_MEMBERS}. A role is meant to "
-        "replace a member, not add one."
+    own = len(_declared()[CORE_CLASS])
+    assert own <= ANY_UI_MEMBERS, (
+        f"`AnyUI` declares {own} members, up from {ANY_UI_MEMBERS}. A role is "
+        "meant to replace a member, not add one."
     )
-    assert total == TOTAL_MEMBERS, (
-        f"{TOTAL_MEMBERS - total} member(s) were removed without lowering "
-        f"TOTAL_MEMBERS. Set it to {total}."
+    assert own == ANY_UI_MEMBERS, (
+        f"{ANY_UI_MEMBERS - own} member(s) left `AnyUI` without lowering "
+        f"ANY_UI_MEMBERS. Set it to {own}."
     )

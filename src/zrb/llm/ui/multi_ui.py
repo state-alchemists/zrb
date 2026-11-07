@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 from zrb.config.config import CFG
 from zrb.context.shared_context import SharedContext
 from zrb.llm.any_ui import AnyUI
+from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.approval.any_approval_channel import ApprovalContext
 from zrb.llm.hook.types import HookEvent
 from zrb.llm.input_source import BACKGROUND_INPUT, KEYBOARD_INPUT, InputProvenance
@@ -51,6 +52,22 @@ from zrb.util.cli.style import stylize_muted
 from zrb.util.exception import exception_summary
 
 logger = logging.getLogger(__name__)
+
+
+class MultiUIPicker(AnyUIPicker):
+    """Ask every child UI's picker and take the first answer."""
+
+    def __init__(self, host: "MultiUI") -> None:
+        self._host = host
+
+    async def ask_user_choice(
+        self, spec: "ChoiceSpec", agent_id: str | None = None
+    ) -> str:
+        """Race the children, with the same rules as `ask_user`."""
+        return await self._host.race_children(
+            lambda ui: ui.picker.ask_user_choice(spec, agent_id=agent_id),
+            "ask_user_choice",
+        )
 
 
 class MultiUI(UIStateDefaultsMixin, AnyUI):
@@ -723,23 +740,19 @@ class MultiUI(UIStateDefaultsMixin, AnyUI):
 
         The losers' prompts are cancelled once one UI answers.
         """
-        return await self._race_children(
+        return await self.race_children(
             lambda ui: ui.ask_user(
                 prompt, output_to_parent=output_to_parent, agent_id=agent_id
             ),
             "ask_user",
         )
 
-    async def ask_user_choice(
-        self, spec: "ChoiceSpec", agent_id: str | None = None
-    ) -> str:
-        """Race all UIs for a multiple-choice answer and return the first,
-        with the same rules as `ask_user`."""
-        return await self._race_children(
-            lambda ui: ui.ask_user_choice(spec, agent_id=agent_id), "ask_user_choice"
-        )
+    @property
+    def picker(self) -> AnyUIPicker:
+        """Ask a choice across every child UI, taking the first answer."""
+        return MultiUIPicker(self)
 
-    async def _race_children(
+    async def race_children(
         self, ask: Callable[[Any], Coroutine[Any, Any, str]], label: str
     ) -> str:
         """Return the first answer any child gives.

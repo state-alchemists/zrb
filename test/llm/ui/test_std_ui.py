@@ -213,7 +213,7 @@ def test_resolve_choice_selection_single_and_multi():
 @pytest.mark.asyncio
 async def test_ask_user_choice_empty_options_returns_empty():
     ui = StdUI()
-    assert await ui.ask_user_choice(_spec([])) == ""
+    assert await ui.picker.ask_user_choice(_spec([])) == ""
 
 
 @pytest.mark.asyncio
@@ -221,7 +221,9 @@ async def test_ask_user_choice_single_select_returns_label():
     ui = StdUI()
     dlg_patch, _ = _patch_dialog(selection=1)
     with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()):
-        result = await ui.ask_user_choice(_spec([{"label": "A"}, {"label": "B"}]))
+        result = await ui.picker.ask_user_choice(
+            _spec([{"label": "A"}, {"label": "B"}])
+        )
     assert result == "B"
 
 
@@ -230,7 +232,7 @@ async def test_ask_user_choice_multi_select_joins_labels():
     ui = StdUI()
     dlg_patch, _ = _patch_dialog(selection=[0, 2], multi=True)
     with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()):
-        result = await ui.ask_user_choice(
+        result = await ui.picker.ask_user_choice(
             _spec([{"label": "A"}, {"label": "B"}, {"label": "C"}], multi=True)
         )
     assert result == "A, C"
@@ -242,7 +244,7 @@ async def test_ask_user_choice_cancel_raises_keyboard_interrupt():
     dlg_patch, _ = _patch_dialog(selection=None)
     with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()):
         with pytest.raises(KeyboardInterrupt):
-            await ui.ask_user_choice(_spec([{"label": "A"}]))
+            await ui.picker.ask_user_choice(_spec([{"label": "A"}]))
 
 
 @pytest.mark.asyncio
@@ -250,7 +252,7 @@ async def test_ask_user_choice_nothing_selected_returns_no_answer():
     ui = StdUI()
     dlg_patch, _ = _patch_dialog(selection=[], multi=True)
     with dlg_patch, patch("prompt_toolkit.output.create_output", MagicMock()):
-        result = await ui.ask_user_choice(_spec([{"label": "A"}], multi=True))
+        result = await ui.picker.ask_user_choice(_spec([{"label": "A"}], multi=True))
     assert result == "(no answer)"
 
 
@@ -265,7 +267,7 @@ async def test_ask_user_choice_free_text_prompts_for_input():
         patch("prompt_toolkit.output.create_output", MagicMock()),
         patch("prompt_toolkit.PromptSession", create=True, return_value=mock_session),
     ):
-        result = await ui.ask_user_choice(_spec([{"label": "A"}]))
+        result = await ui.picker.ask_user_choice(_spec([{"label": "A"}]))
     assert result == "my own answer"
 
 
@@ -281,7 +283,7 @@ async def test_ask_user_choice_multi_free_text_combines_checked_and_typed():
         patch("prompt_toolkit.output.create_output", MagicMock()),
         patch("prompt_toolkit.PromptSession", create=True, return_value=mock_session),
     ):
-        result = await ui.ask_user_choice(
+        result = await ui.picker.ask_user_choice(
             _spec([{"label": "A"}, {"label": "B"}, {"label": "C"}], multi=True)
         )
     assert result == "A, C, custom"

@@ -103,7 +103,7 @@ async def ask_user_question(
     for idx, q in enumerate(questions, start=1):
         spec = build_choice_spec(idx, total, q)
         try:
-            raw = await ui.ask_user_choice(spec)
+            raw = await ui.picker.ask_user_choice(spec)
         except (KeyboardInterrupt, EOFError):
             return (
                 "[SYSTEM SUGGESTION]: User cancelled the question prompt. "

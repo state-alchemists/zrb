@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from zrb.config.config import CFG
 from zrb.context.any_context import AnyContext
+from zrb.llm.any_ui_picker import AnyUIPicker
 from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
 from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
 from zrb.llm.tool_call import ArgumentFormatter, ResponseHandler, ToolPolicy
@@ -26,6 +27,7 @@ from zrb.llm.ui.default.keybindings import UIKeybindings
 from zrb.llm.ui.default.lifecycle import UILifecycle
 from zrb.llm.ui.default.message_editing import UIMessageEditing
 from zrb.llm.ui.default.output import UIOutput
+from zrb.llm.ui.default.picker import UIPicker
 from zrb.llm.ui.default.previous_message_history import PreviousMessageHistory
 from zrb.llm.ui.default.selection import UISelection
 from zrb.llm.ui.default.side_question import UISideQuestion
@@ -676,8 +678,10 @@ class UI(BaseUI):
     ) -> str:
         return await self._confirmation.ask_user(prompt, output_to_parent, agent_id)
 
-    async def ask_user_choice(self, spec: Any, agent_id: str | None = None) -> str:
-        return await self._confirmation.ask_user_choice(spec, agent_id)
+    @property
+    def picker(self) -> AnyUIPicker:
+        """Ask a choice in the selection widget this UI already owns."""
+        return UIPicker(self._confirmation)
 
     def cancel_pending_confirmations(self, flush: bool = True) -> None:
         self._confirmation.cancel_pending_confirmations(flush=flush)

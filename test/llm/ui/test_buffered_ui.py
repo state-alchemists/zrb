@@ -97,15 +97,15 @@ async def test_buffered_ui_ask_user_does_not_flush_the_buffer():
 async def test_buffered_ui_ask_user_choice_forwards_without_flushing():
     """Forward the approval prompt without flushing buffered output."""
     mock_wrapped = MagicMock()
-    mock_wrapped.ask_user_choice = AsyncMock(return_value="option-a")
+    mock_wrapped.picker.ask_user_choice = AsyncMock(return_value="option-a")
     ui = BufferedUI(mock_wrapped, prefix="[AGENT] ")
     ui.append_to_output("buffered line")
 
     spec = MagicMock()
-    result = await ui.ask_user_choice(spec)
+    result = await ui.picker.ask_user_choice(spec)
 
     assert result == "option-a"
-    mock_wrapped.ask_user_choice.assert_awaited_once_with(spec, agent_id=None)
+    mock_wrapped.picker.ask_user_choice.assert_awaited_once_with(spec, agent_id=None)
     mock_wrapped.append_to_output.assert_not_called()
     # The buffered content is untouched, still available for on-demand viewing.
     assert ui.get_buffered_output() == "buffered line\n"
@@ -140,14 +140,16 @@ async def test_buffered_ui_ask_user_preserves_nested_agent_id():
 @pytest.mark.asyncio
 async def test_buffered_ui_ask_user_choice_stamps_own_agent_id():
     mock_wrapped = MagicMock()
-    mock_wrapped.ask_user_choice = AsyncMock(return_value="option-a")
+    mock_wrapped.picker.ask_user_choice = AsyncMock(return_value="option-a")
     ui = BufferedUI(mock_wrapped)
     ui.set_activity_id("agent-123")
 
     spec = MagicMock()
-    await ui.ask_user_choice(spec)
+    await ui.picker.ask_user_choice(spec)
 
-    assert mock_wrapped.ask_user_choice.call_args.kwargs["agent_id"] == "agent-123"
+    assert (
+        mock_wrapped.picker.ask_user_choice.call_args.kwargs["agent_id"] == "agent-123"
+    )
 
 
 @pytest.mark.asyncio

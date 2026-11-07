@@ -107,9 +107,9 @@ def test_classify_input_routes_plain_text_as_message(surface_ui):
 @pytest.mark.asyncio
 async def test_ask_user_choice_forwards_formatted_spec(surface_ui):
     with patch(
-        "zrb.llm.ui.base.ui.format_choice_spec", return_value="FORMATTED"
+        "zrb.llm.ui_fallback.text_picker.format_choice_spec", return_value="FORMATTED"
     ) as fmt:
-        answer = await surface_ui.ask_user_choice(MagicMock())
+        answer = await surface_ui.picker.ask_user_choice(MagicMock())
     assert answer == "yes"
     fmt.assert_called_once()
 
