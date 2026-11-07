@@ -11,7 +11,7 @@ See docs/task-types/llmchat-task.md and docs/llm/llm-chat-lifecycle.md.
 from __future__ import annotations
 
 from collections.abc import AsyncIterable, Callable
-from typing import TYPE_CHECKING, Any, Unpack
+from typing import TYPE_CHECKING, Unpack
 
 from zrb.attr.type import BoolAttr, StrAttr, StrListAttr
 from zrb.context.any_context import AnyContext
@@ -26,7 +26,6 @@ from zrb.llm.stream_observer import StreamObserver
 from zrb.llm.task.chat.execution import ChatExecution
 from zrb.llm.task.chat.running import ChatRunning
 from zrb.llm.task.history_config import HistoryConfig
-from zrb.llm.task.llm_task import LLMTask
 from zrb.llm.task.shared_getters import set_default_retry_if
 from zrb.llm.tool_call import (
     ArgumentFormatter,
@@ -55,17 +54,22 @@ if TYPE_CHECKING:
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
     from zrb.llm.permission import PermissionPolicyInput
     from zrb.llm.sandbox import SandboxInput
+    from zrb.llm.task.chat.running import (
+        InteractiveSessionRunArgs,
+        SessionRunArgs,
+        UIFactory,
+    )
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.ui_config import UIConfig
 
 #: Builds pydantic-ai capabilities for one run from the task context; an
 #: empty list adds none.
 CapabilityFactory = Callable[
-    [AnyContext], "AbstractCapability[Any] | list[AbstractCapability[Any]]"
+    [AnyContext], "AbstractCapability[None] | list[AbstractCapability[None]]"
 ]
 
 
-def _remove_first(items: list, item: Any) -> None:
+def _remove_first(items: list, item: object) -> None:
     """Drop the first entry of *items* equal or identical to *item*; no-op if absent."""
     for index, existing in enumerate(items):
         if existing is item or existing == item:
@@ -105,7 +109,7 @@ class LLMChatTask(BaseTask):
             | None
         ) = None,
         history_processors: list[HistoryProcessor] | None = None,
-        capabilities: "list[AbstractCapability[Any]] | None" = None,
+        capabilities: "list[AbstractCapability[None]] | None" = None,
         llm_limiter: LLMLimiter | None = None,
         model: Callable[[AnyContext], Model | str | None] | Model | str | None = None,
         model_settings: (
@@ -125,22 +129,7 @@ class LLMChatTask(BaseTask):
         sandbox: "SandboxInput | BoolAttr" = None,
         yolo: BoolAttr = False,
         ui: AnyUI | None = None,
-        ui_factory: (
-            Callable[
-                [
-                    AnyContext,
-                    LLMTask,
-                    AnyHistoryManager,
-                    dict[str, list[str]],
-                    Any,
-                    str,
-                    bool,
-                    list[UserContent],
-                ],
-                AnyUI,
-            ]
-            | None
-        ) = None,
+        ui_factory: "UIFactory | None" = None,
         approval_channel: AnyApprovalChannel | None = None,
         ui_config: "UIConfig | None" = None,
         custom_commands: (
@@ -150,7 +139,7 @@ class LLMChatTask(BaseTask):
             ]
             | None
         ) = None,
-        triggers: list[Callable[[], AsyncIterable[Any]]] | None = None,
+        triggers: list[Callable[[], AsyncIterable[object]]] | None = None,
         response_handlers: list[ResponseHandler] | None = None,
         tool_policies: list[ToolPolicy] | None = None,
         argument_formatters: list[ArgumentFormatter] | None = None,
@@ -598,19 +587,19 @@ class LLMChatTask(BaseTask):
         """Drop *formatter*. A no-op if it is not registered."""
         _remove_first(self._argument_formatters, formatter)
 
-    def append_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]) -> None:
+    def append_trigger(self, *trigger: Callable[[], AsyncIterable[object]]) -> None:
         """Add sources that feed messages into the chat loop unprompted."""
         self._triggers += trigger
 
-    def prepend_trigger(self, *trigger: Callable[[], AsyncIterable[Any]]) -> None:
+    def prepend_trigger(self, *trigger: Callable[[], AsyncIterable[object]]) -> None:
         """Add triggers ahead of those already registered."""
         self._triggers[0:0] = trigger
 
-    def set_triggers(self, triggers: list[Callable[[], AsyncIterable[Any]]]) -> None:
+    def set_triggers(self, triggers: list[Callable[[], AsyncIterable[object]]]) -> None:
         """Replace the trigger list wholesale."""
         self._triggers = list(triggers)
 
-    def remove_trigger(self, trigger: Callable[[], AsyncIterable[Any]]) -> None:
+    def remove_trigger(self, trigger: Callable[[], AsyncIterable[object]]) -> None:
         """Drop *trigger*. A no-op if it is not registered."""
         _remove_first(self._triggers, trigger)
 
@@ -836,7 +825,7 @@ class LLMChatTask(BaseTask):
         return self._snapshot_dir
 
     @property
-    def capabilities(self) -> "list[AbstractCapability[Any]]":
+    def capabilities(self) -> "list[AbstractCapability[None]]":
         """pydantic-ai capabilities enabled for the run."""
         return self._capabilities
 
@@ -975,7 +964,7 @@ class LLMChatTask(BaseTask):
         return self._argument_formatters
 
     @property
-    def triggers(self) -> "list[Callable[[], AsyncIterable[Any]]]":
+    def triggers(self) -> "list[Callable[[], AsyncIterable[object]]]":
         """Sources feeding unprompted messages into the chat loop."""
         return self._triggers
 
@@ -986,19 +975,29 @@ class LLMChatTask(BaseTask):
         """Extra slash commands available inside the chat session."""
         return self._custom_commands
 
-    async def run_non_interactive_session(self, *args: Any, **kwargs: Any) -> Any:
-        """Run a non-interactive (one-shot) chat session."""
-        return await self._running.run_non_interactive_session(*args, **kwargs)
+    async def run_non_interactive_session(
+        self, **kwargs: Unpack["SessionRunArgs"]
+    ) -> object:
+        """Run a non-interactive (one-shot) chat session.
 
-    async def run_interactive_session(self, *args: Any, **kwargs: Any) -> Any:
-        """Run an interactive chat session with a UI."""
-        return await self._running.run_interactive_session(*args, **kwargs)
+        Arguments are keyword-only: they are named once, in `SessionRunArgs`.
+        """
+        return await self._running.run_non_interactive_session(**kwargs)
+
+    async def run_interactive_session(
+        self, **kwargs: Unpack["InteractiveSessionRunArgs"]
+    ) -> object:
+        """Run an interactive chat session with a UI.
+
+        Arguments are keyword-only: they are named once, in `SessionRunArgs`.
+        """
+        return await self._running.run_interactive_session(**kwargs)
 
     def get_system_prompt(self, ctx: AnyContext) -> str:
         """Compose the full system prompt for this run."""
         return self._execution.get_system_prompt(ctx)
 
-    async def _exec_action(self, ctx: AnyContext) -> Any:
+    async def _exec_action(self, ctx: AnyContext) -> object:
         return await self._execution.exec_action(ctx)
 
     async def teardown_interactive_resources(self) -> None:

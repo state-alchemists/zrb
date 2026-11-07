@@ -29,6 +29,9 @@ from zrb.util.attr import get_attr
 from zrb.util.cli.style import stylize_muted
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import TypeAlias, TypedDict
+
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.types import UserContent
     from zrb.llm.custom_command.any_custom_command import AnyCustomCommand
@@ -38,6 +41,47 @@ if TYPE_CHECKING:
     from zrb.llm.ui.any_ui import AnyUI
     from zrb.llm.ui.base.ui import BaseUI
     from zrb.llm.ui.multi_ui import MultiUI
+
+    #: Builds the UI(s) a session runs through, from the session's own values.
+    #: The interactive path also passes `custom_commands`, a ninth keyword
+    #: (`docs/llm/llm-custom-ui.md`, create_ui_factory), which a `Callable`
+    #: spec cannot state as optional: a factory used in an interactive session
+    #: must accept it.
+    UIFactory: TypeAlias = Callable[
+        [
+            AnyContext,
+            LLMTask,
+            AnyHistoryManager,
+            dict[str, list[str]],
+            str | None,
+            str,
+            bool,
+            list[UserContent],
+        ],
+        "AnyUI | list[AnyUI]",
+    ]
+
+    class SessionRunArgs(TypedDict):
+        """What a session runner needs, named once.
+
+        The facade's two delegators take these as keywords, so the names live
+        here beside the implementation instead of being repeated there.
+        """
+
+        ctx: AnyContext
+        llm_task_core: LLMTask
+        history_manager: AnyHistoryManager
+        ui_commands: dict[str, list[str]]
+        initial_message: str | None
+        initial_conversation_name: str
+        initial_yolo: bool | frozenset[str]
+        initial_attachments: list[UserContent]
+
+    class InteractiveSessionRunArgs(SessionRunArgs, total=False):
+        """`SessionRunArgs` plus the two knobs only the interactive loop has."""
+
+        enable_rewind: bool
+        snapshot_dir: str
 
 
 class ChatRunning:
@@ -57,11 +101,11 @@ class ChatRunning:
         llm_task_core: "LLMTask",
         history_manager: "AnyHistoryManager",
         ui_commands: dict[str, list[str]],
-        initial_message: Any,
+        initial_message: str | None,
         initial_conversation_name: str,
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
-    ) -> Any:
+    ) -> object:
         effective_message, reply = _expand_message(
             initial_message, self._resolve_custom_commands()
         )
@@ -119,7 +163,7 @@ class ChatRunning:
         llm_task_core: "LLMTask",
         history_manager: "AnyHistoryManager",
         ui_commands: dict[str, list[str]],
-        initial_message: Any,
+        initial_message: str | None,
         initial_conversation_name: str,
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
@@ -149,13 +193,13 @@ class ChatRunning:
         llm_task_core: "LLMTask",
         history_manager: "AnyHistoryManager",
         ui_commands: dict[str, list[str]],
-        initial_message: Any,
+        initial_message: str | None,
         initial_conversation_name: str,
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
         enable_rewind: bool = False,
         snapshot_dir: str = "",
-    ) -> Any:
+    ) -> object:
         resolved_custom_commands = self._resolve_custom_commands()
         # An action may need the UI (`/photo` attaches to it), which does not
         # exist yet: run it once the UI does.
@@ -226,7 +270,7 @@ class ChatRunning:
         ctx: "AnyContext",
         llm_task_core: "LLMTask",
         history_manager: "AnyHistoryManager",
-        initial_message: Any,
+        initial_message: str | None,
         initial_conversation_name: str,
         initial_yolo: "bool | frozenset[str]",
         initial_attachments: "list[UserContent]",
@@ -375,7 +419,9 @@ def _append_shown_answer(ui: "AnyUI", shown: str) -> None:
     ui.append_answer(shown)
 
 
-def _is_action_command(message: Any, custom_commands: "list[AnyCustomCommand]") -> bool:
+def _is_action_command(
+    message: str | None, custom_commands: "list[AnyCustomCommand]"
+) -> bool:
     if not isinstance(message, str):
         return False
     match = get_custom_command_match(message, custom_commands)
@@ -383,8 +429,8 @@ def _is_action_command(message: Any, custom_commands: "list[AnyCustomCommand]") 
 
 
 def _expand_message(
-    message: Any, custom_commands: "list[AnyCustomCommand]"
-) -> tuple[Any, str | None]:
+    message: str | None, custom_commands: "list[AnyCustomCommand]"
+) -> tuple[str | None, str | None]:
     """Expand a slash command, else an @agent mention, in a string message.
 
     Returns ``(message, reply)``; an `ActionCommand` handled in-process

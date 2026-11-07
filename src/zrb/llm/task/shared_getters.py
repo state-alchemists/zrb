@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.llm.agent.run.error_classifier import retry_unless_permanent
 from zrb.llm.config.model_resolver import resolve_configured_model
@@ -13,10 +13,22 @@ from zrb.util.attr import get_attr
 from zrb.util.string.name import get_random_name
 
 if TYPE_CHECKING:
+    from typing import TypeAlias
+
+    from zrb.attr.type import StrAttr
     from zrb.context.any_context import AnyContext
     from zrb.llm.agent.types import AbstractToolset, Model, Tool, ToolFuncEither
     from zrb.llm.prompt.manager import PromptManager
     from zrb.task.base.params import BaseTaskParams
+
+    #: Builds tools for one run from the task context.
+    ToolFactory: TypeAlias = Callable[
+        [AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]
+    ]
+    #: A model as a task stores it: rendered per context, or literal.
+    ModelAttr: TypeAlias = (
+        Callable[[AnyContext], Model | str | None] | Model | str | None
+    )
 
 
 def set_default_retry_if(kwargs: BaseTaskParams) -> None:
@@ -28,9 +40,7 @@ def set_default_retry_if(kwargs: BaseTaskParams) -> None:
 def resolve_all_tools(
     ctx: AnyContext,
     tools: list[Tool | ToolFuncEither],
-    tool_factories: list[
-        Callable[[AnyContext], Tool | ToolFuncEither | list[Tool | ToolFuncEither]]
-    ],
+    tool_factories: list[ToolFactory],
 ) -> list[Tool | ToolFuncEither]:
     """Get all tools including those resolved from factories."""
     return resolve_factory_items(tools, tool_factories, ctx)
@@ -58,7 +68,7 @@ def resolve_system_prompt(ctx: AnyContext, prompt_manager: PromptManager | None)
 
 def resolve_model(
     ctx: AnyContext,
-    model: Any,
+    model: ModelAttr,
 ) -> str | Model:
     """The task's model, resolved against *ctx*, falling back to `CFG.LLM_MODEL`.
 
@@ -74,7 +84,7 @@ def resolve_model(
 
 def resolve_conversation_name(
     ctx: AnyContext,
-    conversation_name: Any,
+    conversation_name: StrAttr | None,
 ) -> str:
     """The configured conversation name, or a fresh random one when blank."""
     resolved = str(get_attr(ctx, conversation_name, ""))
@@ -84,7 +94,7 @@ def resolve_conversation_name(
 
 
 def get_policy_skip_decision(
-    tool_def: Any,
+    tool_def: object,
     cap_by_name: "dict[str, Capability] | None" = None,
     args: dict | None = None,
 ) -> bool | None:

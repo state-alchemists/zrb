@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.agent.run.error_classifier import is_prompt_too_long_error
@@ -13,6 +13,8 @@ from zrb.util.cli.style import remove_style
 
 if TYPE_CHECKING:
     from zrb.context.any_context import AnyContext
+    from zrb.llm.agent.run.partial_run import PartialRunAccumulator
+    from zrb.llm.agent.types import ModelMessage, UserContent, UserPromptPart
     from zrb.llm.history_manager.any_history_manager import AnyHistoryManager
     from zrb.llm.task.llm_task import LLMTask
 
@@ -40,9 +42,9 @@ class LLMTaskHistory:
         self,
         ctx: AnyContext,
         user_message: str,
-        user_attachments: list[Any] | None,
-        message_history: list[Any],
-    ) -> tuple[str, list[Any] | None]:
+        user_attachments: list[UserContent] | None,
+        message_history: list[ModelMessage],
+    ) -> tuple[str, list[UserContent] | None]:
         """The message to send this attempt, plus the attachments to send with it.
 
         On a retry whose message is already the last user turn in history,
@@ -70,8 +72,8 @@ class LLMTaskHistory:
         history_manager: AnyHistoryManager,
         conversation_name: str,
         error: Exception,
-        partial_run: Any = None,
-    ):
+        partial_run: PartialRunAccumulator | None = None,
+    ) -> None:
         """Persist what a failed run leaves behind, so the next retry sees it.
 
         No-op unless the error carries a ``zrb_history``. A context-length
@@ -105,9 +107,9 @@ class LLMTaskHistory:
         self,
         history_manager: AnyHistoryManager,
         conversation_name: str,
-        message_history: list[Any],
-        user_message: Any,
-        partial_run: Any = None,
+        message_history: list[ModelMessage],
+        user_message: str,
+        partial_run: PartialRunAccumulator | None = None,
     ) -> None:
         """Save partial history plus a cancellation marker when the user cancels a run.
 
@@ -154,14 +156,14 @@ class LLMTaskHistory:
         except Exception as e:
             CFG.LOGGER.warning(f"Failed to save cancelled history: {e}")
 
-    def post_process_output(self, output: Any) -> Any:
+    def post_process_output(self, output: object) -> object:
         """Strip terminal styling from a string result; pass anything else through."""
         if isinstance(output, str):
             return remove_style(output)
         return output
 
 
-def _is_last_user_turn(user_message: str, message_history: list[Any]) -> bool:
+def _is_last_user_turn(user_message: str, message_history: list[ModelMessage]) -> bool:
     """Whether *user_message* is the latest non-"[SYSTEM]" user turn in history."""
     # lazy: zrb internal (heavy via transitive)
     from zrb.llm.agent.types import ModelRequest, UserPromptPart
@@ -182,7 +184,7 @@ def _is_last_user_turn(user_message: str, message_history: list[Any]) -> bool:
     return False
 
 
-def _user_part_text(part: Any) -> str:
+def _user_part_text(part: UserPromptPart) -> str:
     """Extract the text of a UserPromptPart (text-only or multimodal content)."""
     if isinstance(part.content, str):
         return part.content

@@ -42,17 +42,22 @@ from zrb.task.base.params import BaseTaskParams
 from zrb.util.attr import get_attr, get_bool_attr
 
 if TYPE_CHECKING:
+    from pydantic_ai import Agent
+
     from zrb.llm.agent.common import HistoryProcessor
+    from zrb.llm.agent.run.partial_run import PartialRunAccumulator
     from zrb.llm.agent.types import (
         AbstractCapability,
         AbstractToolset,
         Model,
+        ModelMessage,
         ModelSettings,
         Tool,
         ToolFuncEither,
         UserContent,
     )
     from zrb.llm.approval.any_approval_channel import AnyApprovalChannel
+    from zrb.llm.task.shared_getters import ModelAttr, ToolFactory
     from zrb.llm.ui.any_ui import AnyUI
 
 
@@ -88,7 +93,7 @@ class LLMTask(BaseTask):
             | None
         ) = None,
         history_processors: list[HistoryProcessor] | None = None,
-        capabilities: "list[AbstractCapability[Any]] | None" = None,
+        capabilities: "list[AbstractCapability[None]] | None" = None,
         llm_limiter: LLMLimiter | None = None,
         model: Callable[[AnyContext], Model | str | None] | Model | str | None = None,
         model_settings: (
@@ -395,12 +400,12 @@ class LLMTask(BaseTask):
         self._prompt_manager = value
 
     @property
-    def tool_factories(self) -> "list[Callable[[AnyContext], Any]]":
+    def tool_factories(self) -> "list[ToolFactory]":
         """Factories building tools per run, from the task context."""
         return self._tool_factories
 
     @tool_factories.setter
-    def tool_factories(self, value: "list[Callable[[AnyContext], Any]]") -> None:
+    def tool_factories(self, value: "list[ToolFactory]") -> None:
         """Replace the tool factories."""
         self._tool_factories = value
 
@@ -451,12 +456,14 @@ class LLMTask(BaseTask):
             self._stream_observers.remove(observer)
 
     @property
-    def model_attr(self) -> Any:
+    def model_attr(self) -> "ModelAttr":
         """The raw model attribute, unrendered."""
         return self._model
 
     @property
-    def model_settings_attr(self) -> "ModelSettings | None | Any":
+    def model_settings_attr(
+        self,
+    ) -> "ModelSettings | Callable[[AnyContext], ModelSettings] | None":
         """The raw model-settings attribute, unrendered."""
         return self._model_settings
 
@@ -527,9 +534,9 @@ class LLMTask(BaseTask):
         self,
         ctx: AnyContext,
         user_message: str,
-        user_attachments: "list[Any] | None",
-        message_history: "list[Any]",
-    ) -> "tuple[str, list[Any] | None]":
+        user_attachments: "list[UserContent] | None",
+        message_history: "list[ModelMessage]",
+    ) -> "tuple[str, list[UserContent] | None]":
         """The message to send this attempt, plus the attachments to send with it."""
         return self._history.get_effective_prompt(
             ctx, user_message, user_attachments, message_history
@@ -545,7 +552,7 @@ class LLMTask(BaseTask):
         history_manager: AnyHistoryManager,
         conversation_name: str,
         error: Exception,
-        partial_run: Any = None,
+        partial_run: "PartialRunAccumulator | None" = None,
     ) -> None:
         """Persist what a failed run leaves behind, so the next retry sees it."""
         self._history.handle_run_error(
@@ -556,9 +563,9 @@ class LLMTask(BaseTask):
         self,
         history_manager: AnyHistoryManager,
         conversation_name: str,
-        message_history: "list[Any]",
-        user_message: Any,
-        partial_run: Any = None,
+        message_history: "list[ModelMessage]",
+        user_message: str,
+        partial_run: "PartialRunAccumulator | None" = None,
     ) -> None:
         """Save partial history when a run is cancelled by the user (e.g. Escape)."""
         self._history.save_cancelled_history(
@@ -569,7 +576,7 @@ class LLMTask(BaseTask):
             partial_run,
         )
 
-    def post_process_output(self, output: Any) -> Any:
+    def post_process_output(self, output: object) -> object:
         """Strip terminal styling from a string result; pass anything else through."""
         return self._history.post_process_output(output)
 
@@ -606,7 +613,7 @@ class LLMTask(BaseTask):
         """Rate and token limiter throttling this task's requests."""
         return self._llm_limiter
 
-    async def _exec_action(self, ctx: AnyContext) -> Any:
+    async def _exec_action(self, ctx: AnyContext) -> object:
         # Resolve toolset factories exactly once: re-resolving in _create_agent
         # would hand the agent different, never-entered instances and run
         # factory side effects (e.g. MCP server spawn) twice per turn.
@@ -620,7 +627,7 @@ class LLMTask(BaseTask):
 
     async def _exec_action_inner(
         self, ctx: AnyContext, toolsets: "list[AbstractToolset[None]] | None" = None
-    ) -> Any:
+    ) -> object:
         conversation_name = self.get_conversation_name(ctx)
         history_manager = self.get_history_manager(ctx)
         # Offloaded: loading is O(history) blocking work.
@@ -651,7 +658,7 @@ class LLMTask(BaseTask):
             ctx, user_message, user_attachments, message_history
         )
 
-        async def _checkpoint(snapshot: list[Any]) -> None:
+        async def _checkpoint(snapshot: "list[ModelMessage]") -> None:
             """Persist mid-turn progress at each tool round-trip, without a backup."""
             history_manager.update(conversation_name, snapshot)
             await asyncio.to_thread(
@@ -728,8 +735,8 @@ class LLMTask(BaseTask):
         ctx: AnyContext,
         history_manager: AnyHistoryManager,
         conversation_name: str,
-        user_message: Any,
-        message_history: list[Any],
+        user_message: str,
+        message_history: "list[ModelMessage]",
     ) -> bool:
         if (
             not isinstance(user_message, str)
@@ -762,7 +769,7 @@ class LLMTask(BaseTask):
         ctx: AnyContext,
         system_prompt: str | None = None,
         toolsets: "list[AbstractToolset[None]] | None" = None,
-    ) -> Any:
+    ) -> "Agent[None, Any]":
         if self._dynamic_yolo is not None:
             should_skip_approval = self._dynamic_yolo
         else:
