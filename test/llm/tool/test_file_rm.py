@@ -3,9 +3,9 @@ from unittest.mock import patch
 
 import pytest
 
-from zrb.llm.tool.file_list import list_files
-from zrb.llm.tool.file_observation import clear_observed
-from zrb.llm.tool.file_rm import remove_file
+from zrb.llm.tool.file.listing import list_files
+from zrb.llm.tool.file.observation import clear_observed
+from zrb.llm.tool.file.rm import remove_file
 
 
 @pytest.fixture(autouse=True)
@@ -106,7 +106,7 @@ def test_remove_file_propagates_os_remove_error(temp_dir):
     path = os.path.join(temp_dir, "plain.txt")
     open(path, "w").close()
     list_files(temp_dir)
-    with patch("zrb.llm.tool.file_rm.os.remove", side_effect=PermissionError("denied")):
+    with patch("zrb.llm.tool.file.rm.os.remove", side_effect=PermissionError("denied")):
         result = remove_file(path)
     assert "Error removing" in result
     assert "denied" in result
@@ -119,7 +119,7 @@ def test_remove_directory_recursive_propagates_rmtree_error(temp_dir):
     open(os.path.join(d, "file.txt"), "w").close()
     list_files(d)
     with patch(
-        "zrb.llm.tool.file_rm.shutil.rmtree",
+        "zrb.llm.tool.file.rm.shutil.rmtree",
         side_effect=PermissionError("denied"),
     ):
         result = remove_file(d, recursive=True)
@@ -133,7 +133,7 @@ def test_remove_directory_denied_is_not_reported_as_non_empty(temp_dir):
     d = os.path.join(temp_dir, "locked")
     os.mkdir(d)
     list_files(d)
-    with patch("zrb.llm.tool.file_rm.os.rmdir", side_effect=PermissionError("denied")):
+    with patch("zrb.llm.tool.file.rm.os.rmdir", side_effect=PermissionError("denied")):
         result = remove_file(d)
     assert "Error removing directory" in result
     assert "denied" in result

@@ -17,7 +17,7 @@ from zrb.llm.shared.shell_cut import (
     interrupted_notice,
     is_cut_while_waiting,
 )
-from zrb.llm.tool.delegate_background import _BackgroundRegistry
+from zrb.llm.tool.delegate.background import _BackgroundRegistry
 from zrb.llm.ui.buffered_ui import BufferedUI
 
 

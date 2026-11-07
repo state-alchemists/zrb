@@ -74,7 +74,9 @@ async def test_delegate_cancel_without_human_flag_propagates(mock_sub_agent_mana
         await asyncio.Event().wait()
 
     try:
-        with patch("zrb.llm.tool.delegate.run_agent", side_effect=blocking_run_agent):
+        with patch(
+            "zrb.llm.tool.delegate.runner.run_agent", side_effect=blocking_run_agent
+        ):
             run_task = asyncio.create_task(
                 tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
             )
@@ -101,9 +103,9 @@ async def test_delegate_marks_done_in_live_view_on_success(mock_sub_agent_manage
     try:
         with (
             patch(
-                "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+                "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
             ) as mock_run_agent,
-            patch("zrb.llm.tool.delegate.persist_subagent_history"),
+            patch("zrb.llm.tool.delegate.runner.persist_subagent_history"),
         ):
             mock_run_agent.return_value = ("ok", [])
             result = await tool(
@@ -134,7 +136,9 @@ async def test_delegate_cancelled_view_shows_no_done_marker(mock_sub_agent_manag
         await asyncio.Event().wait()
 
     try:
-        with patch("zrb.llm.tool.delegate.run_agent", side_effect=blocking_run_agent):
+        with patch(
+            "zrb.llm.tool.delegate.runner.run_agent", side_effect=blocking_run_agent
+        ):
             run_task = asyncio.create_task(
                 tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
             )
@@ -224,7 +228,7 @@ async def test_delegate_fan_out_runs_all_and_combines(mock_sub_agent_manager):
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     with patch(
-        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
     ) as mock_run_agent:
         mock_run_agent.side_effect = [("Result A", []), ("Result B", [])]
         result = await tool(
@@ -260,7 +264,7 @@ async def test_delegate_fan_out_respects_parallel_cap(
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     tasks, fake_run_agent, get_max_in_flight = await _fan_out_tracking_concurrency(5)
-    with patch("zrb.llm.tool.delegate.run_agent", side_effect=fake_run_agent):
+    with patch("zrb.llm.tool.delegate.runner.run_agent", side_effect=fake_run_agent):
         result = await tool(tasks=tasks)
 
     assert get_max_in_flight() <= 2

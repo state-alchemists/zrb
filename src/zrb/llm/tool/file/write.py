@@ -5,13 +5,13 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.file_observation import (
+from zrb.llm.tool.file.observation import (
     check_observed,
     check_writable_text,
     path_write_lock,
     record_observed,
 )
-from zrb.llm.tool.post_write_check import (
+from zrb.llm.tool.file.post_write_check import (
     compose_write_result,
     format_post_write_diagnostics,
 )

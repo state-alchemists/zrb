@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from zrb.llm.tool.file import read_file, replace_in_file, write_file
-from zrb.llm.tool.file_observation import clear_observed
+from zrb.llm.tool.file.observation import clear_observed
 
 
 def _rd(*a, **kw):
@@ -39,7 +39,7 @@ def temp_dir(tmp_path):
 def _no_real_lsp_server():
     """Stub post-write diagnostics to avoid cross-loop LSP subprocesses."""
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         yield
@@ -90,7 +90,7 @@ def test_read_file_budget_counts_file_chars_not_prefixes(tmp_path):
     file_path = tmp_path / "many_lines.txt"
     file_path.write_text("\n".join("abcd" for _ in range(100)))  # 5 chars/line
 
-    with patch("zrb.llm.tool.file_read.CFG") as cfg:
+    with patch("zrb.llm.tool.file.read.CFG") as cfg:
         cfg.LLM_MAX_OUTPUT_CHARS = 40
         body = _rd(str(file_path)).split("---CONTENT---\n", 1)[1]
 
@@ -109,7 +109,7 @@ def test_read_file_single_line_over_budget_is_hard_cut(tmp_path):
     file_path = tmp_path / "min.js"
     file_path.write_text("z" * 500)
 
-    with patch("zrb.llm.tool.file_read.CFG") as cfg:
+    with patch("zrb.llm.tool.file.read.CFG") as cfg:
         cfg.LLM_MAX_OUTPUT_CHARS = 40
         body = _rd(str(file_path)).split("---CONTENT---\n", 1)[1]
 

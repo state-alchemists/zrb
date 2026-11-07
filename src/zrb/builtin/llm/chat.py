@@ -31,11 +31,11 @@ from zrb.llm.tool.delegate import (
     create_delegate_to_agent_tool,
     create_search_agent_tool,
 )
-from zrb.llm.tool.delegate_background import (
+from zrb.llm.tool.delegate.background import (
     background_delegation_live_context,
     create_get_delegation_result_tool,
 )
-from zrb.llm.tool.delegate_message import create_send_message_to_subagent_tool
+from zrb.llm.tool.delegate.message import create_send_message_to_subagent_tool
 from zrb.llm.tool_call import (
     auto_approve,
     read_file_validation_policy,

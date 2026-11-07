@@ -162,7 +162,11 @@ def _seed_default_tools() -> tuple[list, list, list]:
     from zrb.llm.tool.plan import get_todos, write_todos
     from zrb.llm.tool.shell import run_shell_command
     from zrb.llm.tool.web import open_web_page, search_internet
-    from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
+    from zrb.llm.tool.delegate.worktree import (
+        enter_worktree,
+        exit_worktree,
+        list_worktrees,
+    )
 
     # Only when a language server is on $PATH (no server is started).
     lsp_tools = create_lsp_tools() if detect_available_lsp_servers() else []
@@ -209,8 +213,8 @@ def _seed_tool_factories() -> tuple[list, list]:
     from zrb.llm.tool.ask import ask_user_question
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.memory import forget, remember, search_memory
-    from zrb.llm.tool.plan_mode import enter_plan_mode, exit_plan_mode
-    from zrb.llm.tool.shell_background import create_monitor_process_tool
+    from zrb.llm.tool.plan.mode import enter_plan_mode, exit_plan_mode
+    from zrb.llm.tool.shell.background import create_monitor_process_tool
     from zrb.llm.tool.skill import create_activate_skill_tool, create_search_skill_tool
     from zrb.llm.tool.zrb_task import (
         create_list_zrb_task_tool,

@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import requests
 
-from zrb.llm.tool.search.brave import search_internet as brave_search
-from zrb.llm.tool.search.searxng import search_internet as searxng_search
-from zrb.llm.tool.search.serpapi import search_internet as serpapi_search
+from zrb.llm.tool.web.search.brave import search_internet as brave_search
+from zrb.llm.tool.web.search.searxng import search_internet as searxng_search
+from zrb.llm.tool.web.search.serpapi import search_internet as serpapi_search
 
 
 @patch("requests.get")
@@ -42,7 +42,7 @@ def test_searxng_search_success(mock_get):
     assert result == {"results": []}
 
 
-@patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=False)
+@patch("zrb.llm.tool.web.search.searxng.is_docker_installed", return_value=False)
 @patch("requests.get")
 def test_searxng_search_connection_error(mock_get, mock_docker_installed):
     mock_get.side_effect = requests.exceptions.ConnectionError("Refused")
@@ -86,7 +86,7 @@ class TestSearxngSearch:
         assert "status code: 500" in str(excinfo.value)
         assert "upstream failure" in str(excinfo.value)
 
-    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=True)
+    @patch("zrb.llm.tool.web.search.searxng.is_docker_installed", return_value=True)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_connection_error_with_docker(
@@ -102,7 +102,7 @@ class TestSearxngSearch:
         assert "Unable to connect to Searxng" in str(excinfo.value)
         assert "Searxng appears to be not running" in str(excinfo.value)
 
-    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=False)
+    @patch("zrb.llm.tool.web.search.searxng.is_docker_installed", return_value=False)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_connection_error_no_docker(self, mock_get, mock_cfg, mock_docker):
@@ -115,7 +115,7 @@ class TestSearxngSearch:
         assert "Unable to connect to Searxng" in str(excinfo.value)
         assert "Docker is not installed" in str(excinfo.value)
 
-    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=True)
+    @patch("zrb.llm.tool.web.search.searxng.is_docker_installed", return_value=True)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_timeout_with_docker(self, mock_get, mock_cfg, mock_docker):
@@ -128,7 +128,7 @@ class TestSearxngSearch:
             searxng_search("query")
         assert "timed out" in str(excinfo.value)
 
-    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=False)
+    @patch("zrb.llm.tool.web.search.searxng.is_docker_installed", return_value=False)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_timeout_no_docker(self, mock_get, mock_cfg, mock_docker):
@@ -141,7 +141,7 @@ class TestSearxngSearch:
         assert "timed out" in str(excinfo.value)
         # Should not have suggestion since it's not localhost
 
-    @patch("zrb.llm.tool.search.searxng.is_docker_installed", return_value=True)
+    @patch("zrb.llm.tool.web.search.searxng.is_docker_installed", return_value=True)
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_searxng_remote_url_connection_error(self, mock_get, mock_cfg, mock_docker):
@@ -169,14 +169,14 @@ class TestSearxngHelpers:
 
     def testis_default_searxng_url_localhost(self):
         """Test localhost URL detection."""
-        from zrb.llm.tool.search.searxng import is_default_searxng_url
+        from zrb.llm.tool.web.search.searxng import is_default_searxng_url
 
         assert is_default_searxng_url("http://localhost:8080") is True
         assert is_default_searxng_url("http://127.0.0.1:8080") is True
 
     def testis_default_searxng_url_remote(self):
         """Test remote URL detection."""
-        from zrb.llm.tool.search.searxng import is_default_searxng_url
+        from zrb.llm.tool.web.search.searxng import is_default_searxng_url
 
         assert is_default_searxng_url("https://searx.be") is False
         assert is_default_searxng_url("https://example.com") is False
@@ -184,7 +184,7 @@ class TestSearxngHelpers:
     @patch("subprocess.run")
     def testis_docker_installed_success(self, mock_run):
         """Test is_docker_installed returns True when Docker is available."""
-        from zrb.llm.tool.search.searxng import is_docker_installed
+        from zrb.llm.tool.web.search.searxng import is_docker_installed
 
         mock_result = MagicMock()
         mock_result.returncode = 0
@@ -196,7 +196,7 @@ class TestSearxngHelpers:
     @patch("subprocess.run")
     def testis_docker_installed_failure(self, mock_run):
         """Test is_docker_installed returns False when Docker fails."""
-        from zrb.llm.tool.search.searxng import is_docker_installed
+        from zrb.llm.tool.web.search.searxng import is_docker_installed
 
         mock_result = MagicMock()
         mock_result.returncode = 1
@@ -207,7 +207,7 @@ class TestSearxngHelpers:
     @patch("subprocess.run")
     def testis_docker_installed_subprocess_error(self, mock_run):
         """Test is_docker_installed handles subprocess error."""
-        from zrb.llm.tool.search.searxng import is_docker_installed
+        from zrb.llm.tool.web.search.searxng import is_docker_installed
 
         mock_run.side_effect = subprocess.SubprocessError("Failed")
 
@@ -216,7 +216,7 @@ class TestSearxngHelpers:
     @patch("subprocess.run")
     def testis_docker_installed_file_not_found(self, mock_run):
         """Test is_docker_installed handles FileNotFoundError."""
-        from zrb.llm.tool.search.searxng import is_docker_installed
+        from zrb.llm.tool.web.search.searxng import is_docker_installed
 
         mock_run.side_effect = FileNotFoundError("docker not found")
 
@@ -297,7 +297,7 @@ class TestBraveSearch:
             brave_search("test")
         assert "rate limit" in str(excinfo.value).lower()
 
-    @patch("zrb.llm.tool.search.brave.time.sleep")
+    @patch("zrb.llm.tool.web.search.brave.time.sleep")
     @patch("zrb.config.config.CFG", autospec=True)
     @patch("requests.get")
     def test_brave_search_retries_after_rate_limit(

@@ -122,7 +122,7 @@ sequenceDiagram
 | --- | --- | --- |
 | Several surfaces | `MultiUI` | Output goes to all; every child is asked and the first real answer wins, the rest are cancelled; turns run through one shared queue |
 | The web chat | `create_http_ui_factory` | Output becomes server-sent events; the final answer is sent as raw markdown for the browser to render |
-| A sub-agent | `BufferedUI`, created in `src/zrb/llm/tool/delegate.py` | Output stays in the child's buffer until flushed; the lock covers only the write to the parent, not the wait for the answer |
+| A sub-agent | `BufferedUI`, created in `src/zrb/llm/tool/delegate/runner.py` | Output stays in the child's buffer until flushed; the lock covers only the write to the parent, not the wait for the answer |
 | A choice question | `ask_user_choice` | The terminals show an arrow-key picker; every other UI gets numbered text from `BaseUI` |
 | A `/btw` side question | `BaseUI` side-question methods, overridden by the terminal | The terminal shows the question and its answer in a panel above the input, holding the focus so `↑`/`↓` scroll the answer, and `Enter` or `Esc` closes it; every other UI renders both into the transcript ([ADR-0117](../../adr/adr-0117.md)) |
 | A shell command from the UI | `UI.run_interactive_command` | Hands the real terminal to the subprocess, then takes the screen back |

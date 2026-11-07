@@ -7,7 +7,7 @@ from pydantic import Field
 
 from zrb.config.config import CFG
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.file_observation import record_observed, record_observed_binary
+from zrb.llm.tool.file.observation import record_observed, record_observed_binary
 from zrb.llm.util.attachment import get_media_type, get_oversized_by, sniff_mismatch
 from zrb.llm.util.image_scale import scale_image_bytes
 from zrb.llm.util.pdf import extract_pdf_text

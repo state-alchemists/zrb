@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from zrb.llm.tool.file import replace_in_file
-from zrb.llm.tool.file_observation import clear_observed
+from zrb.llm.tool.file.observation import clear_observed
 
 
 def _r(*a, **kw):
@@ -32,7 +32,7 @@ def _reset_observed_state():
 def _no_real_lsp_server():
     """Driving the coroutine through a throwaway loop would leak a server."""
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         yield

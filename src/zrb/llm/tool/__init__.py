@@ -1,13 +1,18 @@
-"""zrb-shipped LLM tools — one module per tool family.
+"""zrb-shipped LLM tools, grouped by the domain they act on.
+
+A domain with several modules is a package — `file/`, `delegate/`, `shell/`,
+`plan/`, `web/`, `code/` — and its `__init__` re-exports the names the flat
+module used to export, so `from zrb.llm.tool.file import read_file` still
+resolves. A tool that is one module stays a module.
 
 Re-exports resolve lazily through PEP 562 `__getattr__`, so importing one
 submodule does not load the whole family (~94ms).
 
-`code.py` and `delegate.py` are not re-exported: they need the agent run loop
-throughout, so import them from their own module.
+`code` and `delegate` are not re-exported here: they need the agent run loop
+throughout, so import them from their own package.
 
-File tools resolve through `file.py`, which sets each one's `__name__` to its
-schema name (`Read`, `Write`, ...).
+File tools resolve through `file/__init__.py`, which sets each one's `__name__`
+to its schema name (`Read`, `Write`, ...).
 """
 
 from typing import TYPE_CHECKING
@@ -27,7 +32,7 @@ if TYPE_CHECKING:
     from zrb.llm.tool.mcp import load_mcp_config
     from zrb.llm.tool.plan import create_plan_tools, get_todos, write_todos
     from zrb.llm.tool.shell import run_shell_command
-    from zrb.llm.tool.shell_background import create_monitor_process_tool
+    from zrb.llm.tool.shell.background import create_monitor_process_tool
     from zrb.llm.tool.skill import create_activate_skill_tool, create_search_skill_tool
     from zrb.llm.tool.web import open_web_page, search_internet
     from zrb.llm.tool.zrb_task import (
@@ -68,7 +73,7 @@ _SOURCES = {
     "analyze_file": "zrb.llm.tool.file",
     "create_activate_skill_tool": "zrb.llm.tool.skill",
     "create_list_zrb_task_tool": "zrb.llm.tool.zrb_task",
-    "create_monitor_process_tool": "zrb.llm.tool.shell_background",
+    "create_monitor_process_tool": "zrb.llm.tool.shell.background",
     "create_plan_tools": "zrb.llm.tool.plan",
     "create_run_zrb_task_tool": "zrb.llm.tool.zrb_task",
     "create_search_skill_tool": "zrb.llm.tool.skill",

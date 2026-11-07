@@ -29,7 +29,7 @@ from zrb.llm.shared.ambient_state import (
 )
 from zrb.llm.permission import Capability, tag
 from zrb.llm.shared.shell_cut import interrupted_notice, is_cut_while_waiting
-from zrb.llm.tool.delegate import BufferedUI
+from zrb.llm.tool.delegate.runner import BufferedUI
 from zrb.llm.ui.fallback.resolution import resolve_ui
 from zrb.util.cli.ansi import strip_ansi
 from zrb.util.string.name import get_random_name

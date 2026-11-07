@@ -5,7 +5,7 @@ import pytest
 from zrb.llm.ui.any_ui import AnyUI
 from zrb.llm.subagent.live_session import LiveSubAgentSessionRegistry
 from zrb.llm.subagent.parent_message import send_message_to_parent
-from zrb.llm.tool.delegate_message import create_send_message_to_subagent_tool
+from zrb.llm.tool.delegate.message import create_send_message_to_subagent_tool
 from zrb.llm.ui.buffered_ui import BufferedUI
 
 SESSION = "sess"
@@ -16,7 +16,7 @@ def registry():
     reg = LiveSubAgentSessionRegistry()
     with (
         patch(
-            "zrb.llm.tool.delegate_message.get_live_session_registry",
+            "zrb.llm.tool.delegate.message.get_live_session_registry",
             return_value=reg,
         ),
         patch("zrb.llm.subagent.parent_message.live_subagent_session_registry", reg),
@@ -49,7 +49,7 @@ async def test_parent_message_names_the_main_agent(registry):
     tool = create_send_message_to_subagent_tool()
     with (
         patch(
-            "zrb.llm.tool.delegate_message.get_session_ownership_key",
+            "zrb.llm.tool.delegate.message.get_session_ownership_key",
             return_value=SESSION,
         ),
         patch.object(registry, "send_message") as send,
@@ -65,7 +65,7 @@ async def test_unknown_agent_lists_live_ids(registry):
     _add(registry, MagicMock(spec=AnyUI))
     tool = create_send_message_to_subagent_tool()
     with patch(
-        "zrb.llm.tool.delegate_message.get_session_ownership_key",
+        "zrb.llm.tool.delegate.message.get_session_ownership_key",
         return_value=SESSION,
     ):
         result = await tool("nope", "hi")

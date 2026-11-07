@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.tool import shell as shell_mod
+from zrb.llm.tool.shell import command as shell_mod
 from zrb.llm.tool.shell import run_shell_command
 
 
@@ -146,7 +146,7 @@ async def _cancel_mock_background(monkeypatch) -> None:
     real kill path must not run.
     """
     # lazy: only the backgrounded-timeout tests need the registry
-    from zrb.llm.tool import shell_background
+    from zrb.llm.tool.shell import background as shell_background
 
     monkeypatch.setattr(shell_background, "terminate_process", AsyncMock())
     await shell_background.get_shell_background_registry().cancel_all()

@@ -6,7 +6,7 @@ from typing import Annotated
 from pydantic import Field
 
 from zrb.llm.permission import Capability, tag
-from zrb.llm.tool.file_observation import check_listed
+from zrb.llm.tool.file.observation import check_listed
 
 
 def remove_file(

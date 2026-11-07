@@ -14,7 +14,7 @@ from zrb.builtin.llm.chat import llm_chat
 from zrb.context.context import Context
 from zrb.context.shared_context import SharedContext
 from zrb.llm.tool.delegate import AgentTaskResult, create_delegate_to_agent_tool
-from zrb.llm.tool.delegate_background import get_background_registry
+from zrb.llm.tool.delegate.background import get_background_registry
 from zrb.llm.shared.tool_registry import tool_name
 
 
@@ -71,11 +71,11 @@ async def test_background_delegation_notice_reaches_the_chat_live_context():
     try:
         with (
             patch(
-                "zrb.llm.tool.delegate.run_agent_task",
+                "zrb.llm.tool.delegate.runner.run_agent_task",
                 side_effect=quick_task,
             ),
             patch(
-                "zrb.llm.tool.delegate_background.get_current_ui",
+                "zrb.llm.tool.delegate.background.get_current_ui",
                 return_value=MagicMock(),
             ),
         ):

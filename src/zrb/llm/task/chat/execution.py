@@ -254,13 +254,13 @@ class ChatExecution:
         # alive; otherwise their exit logs "Loop <...> that handles pid N is
         # closed".
         try:
-            from zrb.llm.tool.shell_background import get_shell_background_registry
+            from zrb.llm.tool.shell.background import get_shell_background_registry
 
             await get_shell_background_registry().cancel_all()
         except Exception as e:
             CFG.LOGGER.debug(f"Background-shell teardown at session end failed: {e}")
         try:
-            from zrb.llm.tool.delegate_background import get_background_registry
+            from zrb.llm.tool.delegate.background import get_background_registry
 
             # This session's own handles only: the registry is process-wide, and
             # another chat session's delegation must outlive this one's exit.

@@ -1,4 +1,4 @@
-"""Where `TodoManager` persists a session's todos (`zrb/llm/tool/plan.py`)."""
+"""Where `TodoManager` persists a session's todos (`zrb/llm/tool/plan/todo.py`)."""
 
 import json
 

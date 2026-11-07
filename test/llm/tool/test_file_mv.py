@@ -3,9 +3,9 @@ import os
 
 import pytest
 
-from zrb.llm.tool.file_mv import move_file
-from zrb.llm.tool.file_observation import clear_observed
-from zrb.llm.tool.file_read import read_file
+from zrb.llm.tool.file.mv import move_file
+from zrb.llm.tool.file.observation import clear_observed
+from zrb.llm.tool.file.read import read_file
 
 
 def _rd(*a, **kw):
@@ -117,7 +117,7 @@ def test_move_onto_unlisted_existing_directory_is_refused(temp_dir):
 
 
 def test_move_onto_listed_existing_directory_nests_source_inside_it(temp_dir):
-    from zrb.llm.tool.file_list import list_files
+    from zrb.llm.tool.file.listing import list_files
 
     src = os.path.join(temp_dir, "src.txt")
     dst = os.path.join(temp_dir, "existingdir")
@@ -145,7 +145,7 @@ def test_move_onto_unread_existing_binary_destination_is_refused(temp_dir):
 
 
 def test_move_onto_listed_existing_binary_destination_succeeds(temp_dir):
-    from zrb.llm.tool.file_list import list_files
+    from zrb.llm.tool.file.listing import list_files
 
     src = os.path.join(temp_dir, "src.txt")
     dst = os.path.join(temp_dir, "dst.bin")
@@ -161,7 +161,7 @@ def test_move_onto_listed_existing_binary_destination_succeeds(temp_dir):
 
 
 def test_move_records_destination_as_seen_for_immediate_followup(temp_dir):
-    from zrb.llm.tool.file_rm import remove_file
+    from zrb.llm.tool.file.rm import remove_file
 
     src = os.path.join(temp_dir, "src.txt")
     dst = os.path.join(temp_dir, "dst.txt")

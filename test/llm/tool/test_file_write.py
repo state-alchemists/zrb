@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from zrb.llm.tool import file_observation
+from zrb.llm.tool.file import observation as file_observation
 from zrb.llm.tool.file import (
     glob_files,
     list_files,
@@ -11,7 +11,7 @@ from zrb.llm.tool.file import (
     replace_in_file,
     write_file,
 )
-from zrb.llm.tool.file_observation import clear_observed
+from zrb.llm.tool.file.observation import clear_observed
 
 
 def _rd(*a, **kw):
@@ -49,7 +49,7 @@ def _r(*a, **kw):
 def _no_real_lsp_server():
     """Stub post-write diagnostics to avoid cross-loop LSP subprocesses."""
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         yield
@@ -197,7 +197,7 @@ def test_observed_map_evicts_the_least_recently_used_scope(
     tmp_path, run_scope, monkeypatch
 ):
     """Evicted run scopes fail closed on overwrite."""
-    from zrb.llm.tool.file_observation import record_observed
+    from zrb.llm.tool.file.observation import record_observed
 
     monkeypatch.setattr(file_observation, "MAX_OBSERVED_SCOPES", 2)
 
@@ -234,7 +234,7 @@ def test_observed_map_treats_a_check_as_a_use_of_its_scope(
     tmp_path, run_scope, monkeypatch
 ):
     """A check refreshes the active scope's recency."""
-    from zrb.llm.tool.file_observation import (
+    from zrb.llm.tool.file.observation import (
         check_observed,
         record_observed,
     )
@@ -275,7 +275,7 @@ def test_observed_map_treats_a_check_as_a_use_of_its_scope(
 
 
 def test_check_listed_refuses_an_unread_unlisted_file(tmp_path):
-    from zrb.llm.tool.file_observation import check_listed
+    from zrb.llm.tool.file.observation import check_listed
 
     target = tmp_path / "victim.txt"
     target.write_text("content")
@@ -285,7 +285,7 @@ def test_check_listed_refuses_an_unread_unlisted_file(tmp_path):
 
 
 def test_check_listed_allows_a_file_shown_by_list_files(tmp_path):
-    from zrb.llm.tool.file_observation import check_listed
+    from zrb.llm.tool.file.observation import check_listed
 
     target = tmp_path / "victim.txt"
     target.write_text("content")
@@ -294,7 +294,7 @@ def test_check_listed_allows_a_file_shown_by_list_files(tmp_path):
 
 
 def test_check_listed_allows_a_file_shown_by_glob_files(tmp_path):
-    from zrb.llm.tool.file_observation import check_listed
+    from zrb.llm.tool.file.observation import check_listed
 
     target = tmp_path / "victim.txt"
     target.write_text("content")
@@ -304,7 +304,7 @@ def test_check_listed_allows_a_file_shown_by_glob_files(tmp_path):
 
 def test_check_listed_allows_a_file_already_read(tmp_path):
     """A Read satisfies the lighter listed-bar too — no need to also List."""
-    from zrb.llm.tool.file_observation import check_listed
+    from zrb.llm.tool.file.observation import check_listed
 
     target = tmp_path / "victim.txt"
     target.write_text("content")
@@ -313,7 +313,7 @@ def test_check_listed_allows_a_file_already_read(tmp_path):
 
 
 def test_check_listed_refuses_an_unlisted_directory_recursively(tmp_path):
-    from zrb.llm.tool.file_observation import check_listed
+    from zrb.llm.tool.file.observation import check_listed
 
     sub = tmp_path / "sub"
     sub.mkdir()
@@ -323,7 +323,7 @@ def test_check_listed_refuses_an_unlisted_directory_recursively(tmp_path):
 
 
 def test_check_listed_allows_a_listed_directory_recursively(tmp_path):
-    from zrb.llm.tool.file_observation import check_listed
+    from zrb.llm.tool.file.observation import check_listed
 
     sub = tmp_path / "sub"
     sub.mkdir()
@@ -334,7 +334,7 @@ def test_check_listed_allows_a_listed_directory_recursively(tmp_path):
 
 def test_check_listed_refuses_a_directory_that_changed_since_listing(tmp_path):
     """Listing detects entries added after the snapshot."""
-    from zrb.llm.tool.file_observation import check_listed
+    from zrb.llm.tool.file.observation import check_listed
 
     sub = tmp_path / "sub"
     sub.mkdir()

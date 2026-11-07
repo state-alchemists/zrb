@@ -32,7 +32,7 @@ CIRCULAR_IMPORT_ALLOWLIST: dict[str, int] = {
     # ratchet tracks), so `delegate` defers the calls back into it: one where a
     # send-now cut hands a running delegation over, one where `background=True`
     # starts a run detached.
-    "llm/tool/delegate.py": 2,
+    "llm/tool/delegate/runner.py": 2,
 }
 
 

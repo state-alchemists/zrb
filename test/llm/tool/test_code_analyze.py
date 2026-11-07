@@ -8,7 +8,7 @@ from zrb.llm.tool.code import analyze_code
 @pytest.fixture(autouse=True)
 def _stub_agent_builder():
     """analyze_code builds an agent; the tests only care about run_agent."""
-    with patch("zrb.llm.tool.code.create_agent", return_value=MagicMock()):
+    with patch("zrb.llm.tool.code.analysis.create_agent", return_value=MagicMock()):
         yield
 
 
@@ -30,7 +30,7 @@ def lsp_env():
     which branch of `_get_file_metadatas_with_lsp` executes.
     """
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
+        patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run,
         patch(
             "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
             return_value={"python": "pylsp"},
@@ -55,7 +55,9 @@ def lsp_env():
 async def test_analyze_code_basic(temp_code_dir):
     from unittest.mock import AsyncMock, patch
 
-    with patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as mock_run:
+    with patch(
+        "zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock
+    ) as mock_run:
         mock_run.return_value = ("Analysis result", [])
 
         res = await analyze_code(temp_code_dir, "What does main() do?", use_lsp=False)
@@ -67,7 +69,9 @@ async def test_analyze_code_basic(temp_code_dir):
 @pytest.mark.asyncio
 async def test_analyze_code_with_lsp(temp_code_dir):
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as mock_run,
+        patch(
+            "zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock
+        ) as mock_run,
         patch(
             "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
             return_value={"python": "pylsp"},
@@ -101,7 +105,9 @@ async def test_analyze_code_does_not_shutdown_global_lsp_manager(temp_code_dir):
     """analyze_code must not shut down the global lsp_manager, which
     post_write_check.py shares."""
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as mock_run,
+        patch(
+            "zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock
+        ) as mock_run,
         patch(
             "zrb.llm.lsp.manager.lsp_manager.list_available_servers",
             return_value={"python": "pylsp"},
@@ -132,8 +138,10 @@ async def test_analyze_code_multi_chunk(temp_code_dir):
 
     # Force multi-chunk by mocking CFG in the module
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as mock_run,
-        patch("zrb.llm.tool.code.CFG") as mock_cfg,
+        patch(
+            "zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock
+        ) as mock_run,
+        patch("zrb.llm.tool.code.analysis.CFG") as mock_cfg,
     ):
 
         mock_cfg.LLM_REPO_ANALYSIS_EXTRACTION_TOKEN_THRESHOLD = 10
@@ -153,9 +161,11 @@ async def test_analyze_code_summarization_loop(temp_code_dir):
 
     # Mock extract_info to return multiple results, forcing summarization
     with (
-        patch("zrb.llm.tool.code.extract_info", new_callable=AsyncMock) as mock_extract,
         patch(
-            "zrb.llm.tool.code.run_repo_agent", new_callable=AsyncMock
+            "zrb.llm.tool.code.analysis.extract_info", new_callable=AsyncMock
+        ) as mock_extract,
+        patch(
+            "zrb.llm.tool.code.analysis.run_repo_agent", new_callable=AsyncMock
         ) as mock_run_agent,
     ):
 
@@ -208,7 +218,7 @@ def test_get_file_metadatas_patterns(temp_code_dir):
 @pytest.mark.asyncio
 async def test_file_pattern_known_extension(temp_code_dir):
     # "*.py" -> py is a known extension, extensions narrows to ["py"] (106-109)
-    with patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run:
+    with patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run:
         run.return_value = ("ext result", [])
         res = await analyze_code(
             temp_code_dir, "query", file_pattern="*.py", use_lsp=False
@@ -220,7 +230,7 @@ async def test_file_pattern_known_extension(temp_code_dir):
 async def test_file_pattern_unknown_extension_uses_include(temp_code_dir):
     # "*.xyz" -> xyz not a known ext, becomes an include glob (110-111);
     # nothing matches -> "No files found" (142).
-    with patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock):
+    with patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock):
         res = await analyze_code(
             temp_code_dir, "query", file_pattern="*.xyz", use_lsp=False
         )
@@ -230,7 +240,7 @@ async def test_file_pattern_unknown_extension_uses_include(temp_code_dir):
 @pytest.mark.asyncio
 async def test_file_pattern_literal_name(temp_code_dir):
     # "main.py" (no "*.") -> literal include pattern (112-113)
-    with patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run:
+    with patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run:
         run.return_value = ("literal result", [])
         res = await analyze_code(
             temp_code_dir, "query", file_pattern="main.py", use_lsp=False
@@ -253,7 +263,7 @@ async def test_no_matching_files(tmp_path):
     d = tmp_path / "empty_code"
     d.mkdir()
     (d / "notes.xyz").write_text("not code")
-    with patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock):
+    with patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock):
         res = await analyze_code(str(d), "query", use_lsp=False)
     assert "No files found" in res
 
@@ -261,7 +271,9 @@ async def test_no_matching_files(tmp_path):
 @pytest.mark.asyncio
 async def test_no_extracted_info(temp_code_dir):
     # extract_info yields nothing -> "No information could be extracted" (154)
-    with patch("zrb.llm.tool.code.extract_info", new_callable=AsyncMock) as extract:
+    with patch(
+        "zrb.llm.tool.code.analysis.extract_info", new_callable=AsyncMock
+    ) as extract:
         extract.return_value = []
         res = await analyze_code(temp_code_dir, "query", use_lsp=False)
     assert "No information could be extracted" in res
@@ -282,7 +294,7 @@ async def test_read_error_skips_file(tmp_path):
         return real_open(path, *args, **kwargs)
 
     with (
-        patch("zrb.llm.tool.code.run_agent", new_callable=AsyncMock) as run,
+        patch("zrb.llm.tool.code.analysis.run_agent", new_callable=AsyncMock) as run,
         patch("builtins.open", side_effect=fake_open),
     ):
         run.return_value = ("partial result", [])

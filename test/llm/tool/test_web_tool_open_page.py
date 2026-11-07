@@ -12,7 +12,7 @@ from zrb.llm.tool.web import open_web_page, run_blocking, search_internet
 
 @pytest.fixture
 def mock_google_rss():
-    with patch("zrb.llm.tool.search.google_rss.search_internet") as mock:
+    with patch("zrb.llm.tool.web.search.google_rss.search_internet") as mock:
         yield mock
 
 
@@ -54,8 +54,10 @@ async def test_open_web_page_summarizer_input_is_bounded():
     with (
         patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_MAX_OUTPUT_CHARS": "500"}),
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
-        patch("zrb.llm.tool.web.create_agent"),
-        patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent,
+        patch("zrb.llm.tool.web.tools.create_agent"),
+        patch(
+            "zrb.llm.tool.web.tools.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
     ):
         mock_p = AsyncMock()
         mock_browser = AsyncMock()
@@ -136,7 +138,9 @@ async def test_open_web_page_closes_browser_even_when_goto_fails():
     """A launched browser closes even when page.goto raises."""
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
-        patch("zrb.llm.tool.web.fetch_page_fallback", return_value=("f", [], False)),
+        patch(
+            "zrb.llm.tool.web.tools.fetch_page_fallback", return_value=("f", [], False)
+        ),
     ):
         mock_p = AsyncMock()
         mock_browser = AsyncMock()
@@ -176,9 +180,9 @@ async def test_open_web_page_closes_browser_on_success():
 def test_serpapi_request_has_a_timeout():
     """No timeout means a stalled connection hangs forever, freezing the
     whole (single-threaded) event loop for every concurrent sub-agent."""
-    from zrb.llm.tool.search.serpapi import search_internet as serpapi_search
+    from zrb.llm.tool.web.search.serpapi import search_internet as serpapi_search
 
-    with patch("zrb.llm.tool.search.serpapi.requests.get") as mock_get:
+    with patch("zrb.llm.tool.web.search.serpapi.requests.get") as mock_get:
         mock_get.return_value = MagicMock(status_code=200, json=lambda: {})
         serpapi_search("query", api_key="fake-key")
 
@@ -186,9 +190,9 @@ def test_serpapi_request_has_a_timeout():
 
 
 def test_brave_request_has_a_timeout():
-    from zrb.llm.tool.search.brave import search_internet as brave_search
+    from zrb.llm.tool.web.search.brave import search_internet as brave_search
 
-    with patch("zrb.llm.tool.search.brave.requests.get") as mock_get:
+    with patch("zrb.llm.tool.web.search.brave.requests.get") as mock_get:
         mock_get.return_value = MagicMock(status_code=200, json=lambda: {})
         brave_search("query", api_key="fake-key")
 
@@ -200,7 +204,7 @@ def test_notify_is_a_noop_with_no_current_ui():
     tests) must not raise -- this is a courtesy message, never load-bearing."""
     from zrb.llm.tool.web import notify
 
-    with patch("zrb.llm.tool.web.get_current_ui", return_value=None):
+    with patch("zrb.llm.tool.web.tools.get_current_ui", return_value=None):
         notify("should not raise")  # must simply do nothing
 
 
@@ -209,7 +213,7 @@ def test_notify_forwards_to_the_current_uis_stream_to_parent():
 
     mock_ui = MagicMock()
     mock_ui.display = mock_ui
-    with patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui):
+    with patch("zrb.llm.tool.web.tools.get_current_ui", return_value=mock_ui):
         notify("hello")
 
     mock_ui.stream_to_parent.assert_called_once()
@@ -224,7 +228,7 @@ def test_notify_swallows_a_broken_uis_exception():
     mock_ui = MagicMock()
     mock_ui.display = mock_ui
     mock_ui.stream_to_parent.side_effect = RuntimeError("ui exploded")
-    with patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui):
+    with patch("zrb.llm.tool.web.tools.get_current_ui", return_value=mock_ui):
         notify("should not raise either")  # must not propagate
 
 
@@ -233,7 +237,7 @@ async def test_open_web_page_notifies_before_fetching():
     mock_ui = MagicMock()
     mock_ui.display = mock_ui
     with (
-        patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui),
+        patch("zrb.llm.tool.web.tools.get_current_ui", return_value=mock_ui),
         patch(
             "playwright.async_api.async_playwright",
             side_effect=ImportError("No playwright"),
@@ -255,7 +259,7 @@ async def test_open_web_page_notifies_on_playwright_to_fallback_transition():
     mock_ui = MagicMock()
     mock_ui.display = mock_ui
     with (
-        patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui),
+        patch("zrb.llm.tool.web.tools.get_current_ui", return_value=mock_ui),
         patch(
             "playwright.async_api.async_playwright",
             side_effect=RuntimeError("browser launch failed"),
@@ -277,7 +281,7 @@ async def test_search_internet_notifies_before_searching(mock_google_rss):
     mock_ui.display = mock_ui
     mock_google_rss.return_value = {"query": "q", "results": [], "page": 1}
     with (
-        patch("zrb.llm.tool.web.get_current_ui", return_value=mock_ui),
+        patch("zrb.llm.tool.web.tools.get_current_ui", return_value=mock_ui),
         patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}),
     ):
         await search_internet("claude code vs opencode")
@@ -338,7 +342,7 @@ async def test_search_internet_returns_promptly_even_if_backend_never_returns(
 
     with (
         patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_SEARCH_INTERNET_METHOD": "other"}),
-        patch("zrb.llm.tool.web.TIMEOUT_MARGIN_SECONDS", 0.05),
+        patch("zrb.llm.tool.web.tools.TIMEOUT_MARGIN_SECONDS", 0.05),
         patch.dict(os.environ, {f"{CFG.ENV_PREFIX}_LLM_WEB_HTTP_TIMEOUT": "10"}),
     ):
         start = time.monotonic()

@@ -27,30 +27,30 @@ async def test_isolate_worktree_enters_and_cleans_up_when_clean(mock_sub_agent_m
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
         ) as mock_enter,
         patch(
-            "zrb.llm.tool.delegate.get_active_worktree",
+            "zrb.llm.tool.delegate.runner.get_active_worktree",
             return_value="/repo/.zrb/worktree/x",
         ),
         patch(
-            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
         patch(
-            "zrb.llm.tool.delegate.worktree_has_changes",
+            "zrb.llm.tool.delegate.runner.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate.current_head_sha",
+            "zrb.llm.tool.delegate.runner.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate.worktree_has_new_commits",
+            "zrb.llm.tool.delegate.runner.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -84,30 +84,30 @@ async def test_isolate_worktree_leaves_dirty_worktree_and_reports_path(
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
         ) as mock_enter,
         patch(
-            "zrb.llm.tool.delegate.get_active_worktree",
+            "zrb.llm.tool.delegate.runner.get_active_worktree",
             return_value="/repo/.zrb/worktree/x",
         ),
         patch(
-            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
         patch(
-            "zrb.llm.tool.delegate.worktree_has_changes",
+            "zrb.llm.tool.delegate.runner.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=True,
         ),
         patch(
-            "zrb.llm.tool.delegate.current_head_sha",
+            "zrb.llm.tool.delegate.runner.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate.worktree_has_new_commits",
+            "zrb.llm.tool.delegate.runner.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=False,
         ),
@@ -140,30 +140,30 @@ async def test_isolate_worktree_leaves_worktree_with_new_commits_and_keeps_branc
 
     with (
         patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent,
         patch(
-            "zrb.llm.tool.delegate.enter_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.enter_worktree", new_callable=AsyncMock
         ) as mock_enter,
         patch(
-            "zrb.llm.tool.delegate.get_active_worktree",
+            "zrb.llm.tool.delegate.runner.get_active_worktree",
             return_value="/repo/.zrb/worktree/x",
         ),
         patch(
-            "zrb.llm.tool.delegate.exit_worktree", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.exit_worktree", new_callable=AsyncMock
         ) as mock_exit,
         patch(
-            "zrb.llm.tool.delegate.worktree_has_changes",
+            "zrb.llm.tool.delegate.runner.worktree_has_changes",
             new_callable=AsyncMock,
             return_value=False,
         ),
         patch(
-            "zrb.llm.tool.delegate.current_head_sha",
+            "zrb.llm.tool.delegate.runner.current_head_sha",
             new_callable=AsyncMock,
             return_value="base123",
         ),
         patch(
-            "zrb.llm.tool.delegate.worktree_has_new_commits",
+            "zrb.llm.tool.delegate.runner.worktree_has_new_commits",
             new_callable=AsyncMock,
             return_value=True,
         ),

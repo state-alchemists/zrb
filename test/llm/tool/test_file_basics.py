@@ -12,7 +12,7 @@ from zrb.llm.tool.file import (
     search_files,
     write_file,
 )
-from zrb.llm.tool.file_observation import clear_observed
+from zrb.llm.tool.file.observation import clear_observed
 
 
 def _rd(*a, **kw):
@@ -58,7 +58,7 @@ def _no_real_lsp_server():
     by test_post_write_check.py and test_lsp_tools.py; here it is stubbed out.
     """
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         yield
@@ -253,7 +253,7 @@ def test_list_files_truncation(tmp_path):
         (tmp_path / f"file_{i:04d}.txt").write_text("x")
 
     # Tiny char budget so the file list overflows and head-keep truncates.
-    with patch("zrb.llm.tool.file_list.CFG") as mock_cfg:
+    with patch("zrb.llm.tool.file.listing.CFG") as mock_cfg:
         mock_cfg.LLM_MAX_OUTPUT_CHARS = 200
         mock_cfg.LLM_GIT_CMD_TIMEOUT = 5000
         res = list_files(str(tmp_path))
@@ -352,7 +352,7 @@ def test_glob_files_truncation(tmp_path):
     for i in range(1100):
         (tmp_path / f"file_{i:04d}.txt").write_text("x")
 
-    with patch("zrb.llm.tool.file_list.CFG") as mock_cfg:
+    with patch("zrb.llm.tool.file.listing.CFG") as mock_cfg:
         mock_cfg.LLM_MAX_OUTPUT_CHARS = 200
         res = glob_files("*.txt", path=str(tmp_path))
     assert "truncation_notice" in res

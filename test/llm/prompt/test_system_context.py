@@ -199,7 +199,7 @@ class TestSystemContext:
 
     def test_read_file_defers_to_the_system_context_override(self):
         "The tool docstring defers to the system-context override."
-        from zrb.llm.tool.file_read import read_file
+        from zrb.llm.tool.file.read import read_file
 
         doc = " ".join((read_file.__doc__ or "").split())
 

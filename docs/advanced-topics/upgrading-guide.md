@@ -63,6 +63,24 @@ Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the f
 
 Only the import path changed. A subclass that wants one of the parts can import it on its own — each holds a single job and inherits the ones before it (`MultiUIFanout` → `MultiUIToolForwards` → `MultiUIStreaming` → `MultiUIInput` → `MultiUIRunLoop`, with `MultiUIState` at the root).
 
+### The tools are grouped by domain
+
+The tools under `zrb.llm.tool` are now grouped by the domain they act on. A domain with more than one module is a package — `file/`, `delegate/`, `shell/`, `plan/`, `web/`, `code/` — and its `__init__` re-exports every name the flat module exported, so `from zrb.llm.tool.file import read_file` and `from zrb.llm.tool import read_file` both keep working.
+
+| Before | After |
+|---|---|
+| `from zrb.llm.tool import read_file` | unchanged |
+| `from zrb.llm.tool.file import read_file` | unchanged — it is the package now |
+| `from zrb.llm.tool.file_read import read_file` | `from zrb.llm.tool.file.read import read_file` |
+| `from zrb.llm.tool.delegate_background import start_background_run` | `from zrb.llm.tool.delegate.background import start_background_run` |
+| `from zrb.llm.tool.shell_background import get_shell_background_registry` | `from zrb.llm.tool.shell.background import get_shell_background_registry` |
+| `from zrb.llm.tool.stream_capture import StreamCapture` | `from zrb.llm.tool.shell.capture import StreamCapture` |
+| `from zrb.llm.tool.plan_mode import enter_plan_mode` | `from zrb.llm.tool.plan.mode import enter_plan_mode` |
+| `from zrb.llm.tool.worktree import enter_worktree` | `from zrb.llm.tool.delegate.worktree import enter_worktree` |
+| `from zrb.llm.tool.code_constants import DEFAULT_EXTENSIONS` | `from zrb.llm.tool.code.constants import DEFAULT_EXTENSIONS` |
+
+The single-module tools — `ask`, `git_visible`, `mcp`, `memory`, `multimodal_describe`, `skill`, `wrapper`, `zrb_task` — did not move.
+
 ---
 
 ## Upgrading to 3.35.0

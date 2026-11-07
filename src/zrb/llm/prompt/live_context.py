@@ -382,7 +382,7 @@ def _background_process_lines() -> list[str]:
     try:
         # lazy: transitively heavy via internal — the shell tool pulls
         # pydantic (~50ms on every `import zrb`).
-        from zrb.llm.tool.shell_background import get_shell_background_registry
+        from zrb.llm.tool.shell.background import get_shell_background_registry
 
         rows = get_shell_background_registry().summary(get_current_chat_session_id())
     except (ImportError, RuntimeError) as e:

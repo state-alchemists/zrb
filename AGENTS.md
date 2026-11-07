@@ -51,7 +51,7 @@ Inside `llm/`:
 | `prompt/` | System-prompt composition — `manager.py`, `profile.py`, `live_context.py`, and the `markdown/` section files |
 | `skill/` | Skill discovery and activation |
 | `task/` | `llm_task.py` (`LLMTask`) and `task/chat/` (`LLMChatTask`) — both `BaseTask` subclasses that build pydantic-ai agents internally |
-| `tool/` | Agent-callable tools, one module per tool family |
+| `tool/` | Agent-callable tools, grouped by domain: `file/`, `delegate/`, `shell/`, `plan/`, `web/` and `code/` are packages whose `__init__` re-exports the names their flat module used to export; a tool that is one module stays a module |
 | `tool_call/` | Tool-call rendering, argument formatting, and tool policies |
 | `util/` | LLM-side helpers: streaming, PDF/clipboard capture, history formatting, model capabilities. A leaf: it imports nothing from `zrb.llm` at runtime but the `agent/types.py` contract, so `shared/` can depend on it without a cycle |
 | `common_tools.py` | Registers the shared baseline used by `LLMChatTask`, `LLMTask` and `SubAgentManager` |

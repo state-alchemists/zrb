@@ -1,4 +1,4 @@
-"""`Write` accepts only the two modes its schema names (`zrb/llm/tool/file_write.py`).
+"""`Write` accepts only the two modes its schema names (`zrb/llm/tool/file/write.py`).
 
 Any other `open()` mode skipped the read-before-overwrite gate, which is keyed on
 `mode == "w"`: `"wt"` and `"w+"` truncate a file just as `"w"` does.
@@ -10,14 +10,14 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from zrb.llm.tool.file import write_file
-from zrb.llm.tool.file_observation import clear_observed
+from zrb.llm.tool.file.observation import clear_observed
 
 
 @pytest.fixture(autouse=True)
 def _isolated_state():
     clear_observed()
     with patch(
-        "zrb.llm.tool.post_write_check.lsp_manager.get_diagnostics",
+        "zrb.llm.tool.file.post_write_check.lsp_manager.get_diagnostics",
         new=AsyncMock(return_value={"found": False, "diagnostics": []}),
     ):
         yield

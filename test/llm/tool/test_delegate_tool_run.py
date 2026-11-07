@@ -29,7 +29,7 @@ async def test_delegate_tool_success(mock_sub_agent_manager):
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     with patch(
-        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
     ) as mock_run_agent:
         mock_run_agent.return_value = ("Agent Result", [])
 
@@ -76,7 +76,7 @@ async def test_delegate_passes_live_sessions_run_scope_to_run_agent(
         tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
         with patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent:
             mock_run_agent.return_value = ("Agent Result", [])
 
@@ -121,7 +121,7 @@ async def test_delegate_fires_subagent_start_stop(mock_sub_agent_manager):
     token = current_hook_manager.set(manager)
     try:
         with patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent:
             mock_run_agent.return_value = ("ok", [])
             await tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
@@ -146,7 +146,7 @@ async def test_delegate_tool_empty_non_goals_renders_none_declared(
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
     with patch(
-        "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+        "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
     ) as mock_run_agent:
         mock_run_agent.return_value = ("ok", [])
         await tool(
@@ -166,7 +166,9 @@ async def test_delegate_tool_exception(mock_sub_agent_manager):
 
     tool = create_delegate_to_agent_tool(mock_sub_agent_manager)
 
-    with patch("zrb.llm.tool.delegate.run_agent", side_effect=Exception("Run failed")):
+    with patch(
+        "zrb.llm.tool.delegate.runner.run_agent", side_effect=Exception("Run failed")
+    ):
         result = await tool(
             agent_name="test-agent",
             deliverable="d",
@@ -192,7 +194,9 @@ async def test_delegate_human_cancel_returns_gracefully(mock_sub_agent_manager):
         await asyncio.Event().wait()  # never finishes on its own
 
     try:
-        with patch("zrb.llm.tool.delegate.run_agent", side_effect=blocking_run_agent):
+        with patch(
+            "zrb.llm.tool.delegate.runner.run_agent", side_effect=blocking_run_agent
+        ):
             run_task = asyncio.create_task(
                 tool(agent_name="test-agent", deliverable="d", task="t", non_goals=[])
             )
@@ -227,7 +231,7 @@ async def test_delegate_runs_the_sub_agent_under_the_parent_run_limiter(
     token = current_llm_limiter.set(run_limiter)
     try:
         with patch(
-            "zrb.llm.tool.delegate.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.delegate.runner.run_agent", new_callable=AsyncMock
         ) as mock_run_agent:
             mock_run_agent.return_value = ("Agent Result", [])
             await tool(

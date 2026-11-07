@@ -13,7 +13,7 @@ import pytest
 
 from zrb.llm.tool.code import get_file_metadatas
 from zrb.llm.tool.file import glob_files, list_files
-from zrb.llm.tool.file_observation import clear_observed
+from zrb.llm.tool.file.observation import clear_observed
 from zrb.llm.tool.git_visible import git_visible_files, without_gitignored
 
 

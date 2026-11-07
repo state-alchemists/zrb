@@ -9,8 +9,8 @@ from zrb.llm.config.limiter import get_run_llm_limiter
 from zrb.llm.config.model_resolver import resolve_configured_model
 from zrb.llm.permission import Capability, tag
 from zrb.llm.prompt.prompt import get_prompt
-from zrb.llm.tool.file_read import read_file
-from zrb.llm.tool.file_search import search_files
+from zrb.llm.tool.file.read import read_file
+from zrb.llm.tool.file.search import search_files
 from zrb.llm.util.attachment import get_media_type
 
 

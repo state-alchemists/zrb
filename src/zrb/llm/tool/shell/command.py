@@ -25,7 +25,7 @@ from zrb.llm.sandbox.os_sandbox import (
     format_sandbox_denied_message,
 )
 from zrb.llm.shared.shell_cut import get_run_shell_cut_signal
-from zrb.llm.tool.stream_capture import StreamCapture
+from zrb.llm.tool.shell.capture import StreamCapture
 from zrb.util.cli.ansi import strip_ansi
 
 #: Whatever a cancellable task resolves to; `_stop` only cancels and awaits it.
@@ -238,7 +238,7 @@ async def _start_background_shell(
     """Hand the command to the background registry and report its handle."""
     # lazy: zrb internal — keeps the background registry off the hot
     # path most Shell calls take (foreground, non-backgrounded).
-    from zrb.llm.tool.shell_background import get_shell_background_registry
+    from zrb.llm.tool.shell.background import get_shell_background_registry
 
     try:
         handle = await get_shell_background_registry().start(
@@ -609,7 +609,7 @@ async def _adopt_process(
     """
     # lazy: zrb internal — keeps the background registry off the hot
     # path most Shell calls take (foreground, non-adopted).
-    from zrb.llm.tool.shell_background import get_shell_background_registry
+    from zrb.llm.tool.shell.background import get_shell_background_registry
 
     return await get_shell_background_registry().adopt(
         process, command, stdout_cap, stderr_cap

@@ -9,25 +9,25 @@ from zrb.llm.tool.web import normalize_search_result, open_web_page, search_inte
 
 @pytest.fixture
 def mock_serpapi():
-    with patch("zrb.llm.tool.search.serpapi.search_internet") as mock:
+    with patch("zrb.llm.tool.web.search.serpapi.search_internet") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_brave():
-    with patch("zrb.llm.tool.search.brave.search_internet") as mock:
+    with patch("zrb.llm.tool.web.search.brave.search_internet") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_searxng():
-    with patch("zrb.llm.tool.search.searxng.search_internet") as mock:
+    with patch("zrb.llm.tool.web.search.searxng.search_internet") as mock:
         yield mock
 
 
 @pytest.fixture
 def mock_google_rss():
-    with patch("zrb.llm.tool.search.google_rss.search_internet") as mock:
+    with patch("zrb.llm.tool.web.search.google_rss.search_internet") as mock:
         yield mock
 
 
@@ -375,7 +375,7 @@ async def test_open_web_page_conversion_failure_is_not_mislabeled_as_fetch():
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
         patch(
-            "zrb.llm.tool.web.convert_html_to_markdown",
+            "zrb.llm.tool.web.tools.convert_html_to_markdown",
             side_effect=RuntimeError("converter exploded"),
         ),
     ):
@@ -400,8 +400,10 @@ async def test_open_web_page_with_summarization():
     # Mock playwright and LLM orchestrators
     with (
         patch("playwright.async_api.async_playwright") as mock_playwright_ctx,
-        patch("zrb.llm.tool.web.create_agent") as mock_create_agent,
-        patch("zrb.llm.tool.web.run_agent", new_callable=AsyncMock) as mock_run_agent,
+        patch("zrb.llm.tool.web.tools.create_agent") as mock_create_agent,
+        patch(
+            "zrb.llm.tool.web.tools.run_agent", new_callable=AsyncMock
+        ) as mock_run_agent,
         # The HTTP fallback must never be reached; fail loudly on a network escape.
         patch("requests.get", side_effect=AssertionError("network escape")),
     ):

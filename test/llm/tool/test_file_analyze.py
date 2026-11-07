@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from zrb.config.config import CFG
-from zrb.llm.tool.file_analyze import analyze_file
+from zrb.llm.tool.file.analyze import analyze_file
 
 
 @pytest.fixture
@@ -19,9 +19,9 @@ async def test_analyze_file_success(temp_file):
     # We must patch the source module because analyze_file does a local import
     with (
         patch(
-            "zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.file.analyze.run_agent", new_callable=AsyncMock
         ) as mock_run,
-        patch("zrb.llm.tool.file_analyze.create_agent") as mock_create,
+        patch("zrb.llm.tool.file.analyze.create_agent") as mock_create,
     ):
 
         mock_run.return_value = ("Analysis result", [])
@@ -42,7 +42,7 @@ async def test_analyze_file_not_found():
 @pytest.mark.asyncio
 async def test_analyze_file_read_error(temp_file):
     with patch(
-        "zrb.llm.tool.file_analyze.read_file",
+        "zrb.llm.tool.file.analyze.read_file",
         new=AsyncMock(return_value="Error: Permission denied"),
     ):
         result = await analyze_file(temp_file, "query")
@@ -57,10 +57,10 @@ async def test_analyze_file_truncation(temp_file):
 
     with (
         patch(
-            "zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.file.analyze.run_agent", new_callable=AsyncMock
         ) as mock_run,
-        patch("zrb.llm.tool.file_analyze.create_agent") as mock_create,
-        patch("zrb.llm.tool.file_analyze.CFG") as mock_cfg,
+        patch("zrb.llm.tool.file.analyze.create_agent") as mock_create,
+        patch("zrb.llm.tool.file.analyze.CFG") as mock_cfg,
     ):
 
         mock_cfg.LLM_FILE_ANALYSIS_TOKEN_THRESHOLD = 10
@@ -106,7 +106,7 @@ async def test_analyze_file_refuses_an_image_a_text_only_model_gets_described(
     token = current_model.set("openai:gpt-3.5-turbo")
     try:
         with patch(
-            "zrb.llm.tool.file_analyze.run_agent", new_callable=AsyncMock
+            "zrb.llm.tool.file.analyze.run_agent", new_callable=AsyncMock
         ) as mock_run:
             result = await analyze_file(str(image), "What is this?")
     finally:

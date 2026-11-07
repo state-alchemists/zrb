@@ -67,7 +67,7 @@ flowchart TD
 
 | Part | Where | What it is responsible for |
 | --- | --- | --- |
-| Tool functions | `src/zrb/llm/tool/` | One module per family: file, shell, web, delegate, plan, memory, skill, worktree, MCP |
+| Tool functions | `src/zrb/llm/tool/` | A package per domain with more than one module — `file/`, `delegate/`, `shell/`, `plan/`, `web/`, `code/` — each re-exporting the names its flat module used to export; every other tool is one module (`memory.py`, `skill.py`, `mcp.py`, ...) |
 | `common_tools` | `src/zrb/llm/common_tools.py` | The single list of built-in tools, each `tag()`-ed with a capability, plus the per-run factories |
 | `ToolRegistry` | `src/zrb/llm/shared/tool_registry.py` | Ordered static tools, per-run tool factories and toolset factories; the default list is loaded on first use |
 | `apply_common_tools` | `src/zrb/llm/common_tools.py` | Gives `LLMChatTask`, `LLMTask` and `SubAgentManager` the same tool providers |
@@ -120,7 +120,7 @@ Approval, covered in [Tool Call & Approval](../3-peripheral-flow/tool-call-appro
 | MCP or another external toolset | `src/zrb/llm/tool/mcp.py` | Arrives untagged, so it counts as `UNKNOWN` — see [MCP & LSP Servers](../3-peripheral-flow/mcp-and-lsp.md) |
 | A sub-agent's `tools:` list | `resolve_tools_by_name` | Names are looked up, not invented; a name that matches nothing is silently dropped, and delegate tools are always excluded |
 | A Claude-style `Bash` name | `canonical_tool_name` | Maps to the one `Shell` tool; zrb never registers a second shell tool ([ADR-0066](../../adr/adr-0066.md)) |
-| Delegation | `src/zrb/llm/tool/delegate.py` | Loads eagerly, because its schema lists the available agents — see [Sub-agents](sub-agents.md) |
+| Delegation | `src/zrb/llm/tool/delegate/runner.py` | Loads eagerly, because its schema lists the available agents — see [Sub-agents](sub-agents.md) |
 
 ### Change it here
 

@@ -8,7 +8,7 @@ import pytest
 
 from zrb.llm.shared.ambient_state import get_active_worktree
 from zrb.llm.prompt.live_context import render_live_context
-from zrb.llm.tool.worktree import enter_worktree, exit_worktree, list_worktrees
+from zrb.llm.tool.delegate.worktree import enter_worktree, exit_worktree, list_worktrees
 
 
 def _expected_worktree_path(repo: str, branch: str) -> str:
@@ -111,7 +111,7 @@ async def test_a_relative_worktree_root_is_absolute_when_git_sees_it(
     ]
 
     with patch(
-        "zrb.llm.tool.worktree.build_sandboxed_argv",
+        "zrb.llm.tool.delegate.worktree.build_sandboxed_argv",
         side_effect=lambda argv, policy, skip=False: (argv, None),
     ) as mock_build:
         res = await enter_worktree(branch_name="test-branch", cwd=str(repo))
