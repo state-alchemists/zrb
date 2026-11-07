@@ -57,7 +57,37 @@ class MyUI(AnyUI):
 
 Each returns the object itself rather than a separate part, so a subclass that overrides one of the members keeps answering for it; mixing in `UIStateDefaultsMixin` supplies the same five accessors plus an inert default for every member you leave out. What a caller sees on a `ui: AnyUI` is 9 members where it was 55, and the role contracts (`AnyUIDisplay`, `AnyUIInput`, `AnyUITools`, ...) are unchanged.
 
-Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the fallback pieces into `zrb.llm.ui.fallback`, and the layer-0 leaf modules into `zrb.llm.shared` — see [the shared-package section](#llm-shared-layer-0-modules).
+Also in this release, the six `any_ui*` contracts moved into `zrb.llm.ui`, the fallback pieces into `zrb.llm.ui.fallback`, and the layer-0 leaf modules into `zrb.llm.shared`. See [the UI packages](#the-ui-packages) and [the shared package](#the-shared-package).
+
+### The UI packages
+
+`zrb.llm` was a shelf rather than a shape: `any_ui.py` and the fallback pieces sat beside `agent_state`, `usage_log` and the tool registry, so a reader who wanted the UI contract opened a folder that was mostly not UI.
+
+| Before | After |
+|---|---|
+| `from zrb.llm.any_ui import AnyUI` | `from zrb.llm.ui.any_ui import AnyUI`, or `from zrb.llm.ui import AnyUI` |
+| `from zrb.llm.ui_fallback import StdUI, UIStateDefaultsMixin, resolve_ui, create_combined_ui` | `from zrb.llm.ui.fallback import ...` |
+| `from zrb.llm.ui.std_ui import StdUI` | `from zrb.llm.ui.fallback.std_ui import StdUI` |
+| `from zrb.llm.ui.state_defaults import UIStateDefaultsMixin` | `from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin` |
+| `from zrb.llm.ui.multi_ui import MultiUI, get_main_ui, resolve_ui` | `from zrb.llm.ui.multi import ...` |
+
+`zrb.llm.ui.__init__` resolves every export through PEP 562 instead of importing, so `from zrb.llm.ui.any_ui import AnyUI` still loads no prompt_toolkit — the headless path the old layout existed to protect. `ui_fallback/` is gone as a package, and so are the two shims inside `ui/` (`std_ui.py`, `state_defaults.py`) that re-exported it: the fallback path above is the documented one.
+
+### The shared package
+
+Fourteen modules at the top of `zrb.llm` were the vocabulary every feature speaks — the ambient state a run publishes, the two seams a package registers itself into, the tool registry, the message shapes and the helpers that cut, observe and log a run. They now live in `zrb.llm.shared`, which imports nothing from `zrb.llm` at runtime; that is what makes naming one cost nothing, and it is why the package exists rather than the modules staying where they were.
+
+| Before | After |
+|---|---|
+| `zrb.llm.agent_state`, `agent_activity`, `agent_tool_result`, `agent_runner`, `ambient_state`, `delegation_api`, `factory_resolver`, `input_source`, `message`, `message_text`, `shell_cut`, `stream_observer`, `tool_registry`, `usage_log` | the same name under `zrb.llm.shared.` |
+| `from zrb.llm.util.feature_config import ...` | `from zrb.llm.shared.feature_config import ...` |
+| `from zrb.llm.any_agent import AnyAgent, AnyAgentResult` | `from zrb.llm.agent.any_agent import AnyAgent, AnyAgentResult` |
+| `from zrb.llm.any_agent_runner import AnyAgentRunner` | `from zrb.llm.agent.any_agent_runner import AnyAgentRunner` |
+| `from zrb.llm.any_sub_agent_manager import ...` (and `any_sub_agent_definition`, `any_live_sub_agent_session`, `any_live_session_registry`) | the same name under `zrb.llm.subagent.` |
+
+`feature_config` moved further than planned: it reads ambient session state, so once its neighbours were inside `shared/` the two units imported each other, and `shared/` is what both of them are about.
+
+One trap worth naming: `zrb.llm.agent` re-exports `create_agent`, `run_agent`, `create_summarizer_agent` and `AnyToolConfirmation`, and it names `AnyAgent` only for the type checker, as `Agent`. Import the contract from `zrb.llm.agent.any_agent`, not from the package.
 
 ### The multi-UI module is now a package
 
