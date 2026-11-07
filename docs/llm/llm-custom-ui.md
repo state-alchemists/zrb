@@ -347,8 +347,8 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 |--------|---------|---------|
 | `invalidate_ui()` | No-op | Redraw/refresh UI |
 | `set_status_badge(key, text)` | Stores it in `status_badges` and calls `invalidate_ui()` | Show a feature's one-line state under a key the feature owns; `None` removes it. The default TUI draws `status_badges` on a line of their own above its status bar |
-| `is_turn_running` | `True` while `running_llm_task` runs, or while the `MultiUI` parent runs a turn for this child | Whether `cancel_current_turn` has a turn to stop; Esc checks it. A class implementing `AnyUI` directly must define it |
-| `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason`; with no turn of its own, a `MultiUI` child asks its parent to cancel the one it runs. With no turn at all, only the confirmation is released | Stop the running turn, as Esc does; a feature may call it too (hands-free dictation does, on a spoken "stop"). A class implementing `AnyUI` directly must define it |
+| `is_turn_running` | `True` while `running_llm_task` runs, or while the `MultiUI` parent runs a turn for this child | Whether `cancel_current_turn` has a turn to stop; Esc checks it. Part of the session role, so a caller reaches it as `ui.session.is_turn_running` |
+| `cancel_current_turn(reason)` | Releases a pending confirmation, cancels `running_llm_task` and fires `Stop` with `reason`; with no turn of its own, a `MultiUI` child asks its parent to cancel the one it runs. With no turn at all, only the confirmation is released | Stop the running turn, as Esc does; a feature may call it too (hands-free dictation does, on a spoken "stop"). Part of the session role, reached as `ui.session.cancel_current_turn` |
 | `is_waiting_for_answer` / `is_prompt_answered_since(asked_at)` | `False` | Whether a tool approval or question is waiting, and whether the first prompt asked at or after a `time.monotonic()` time has been answered; dictation keeps a spoken "no" as an answer, and speech drops a stale approval prompt, by them. A class implementing `AnyUI` directly must define both |
 | `on_exit()` | No-op | Cleanup on shutdown. Called synchronously — schedule async cleanup with `asyncio.ensure_future(...)` |
 | `record_submitted_message(text)` | No-op | Called from `submit_user_message` with every message the user submits; the default TUI appends it to the history `↑` recalls across sessions |
@@ -378,12 +378,31 @@ Return `True` when consumed, `False` to let the next handler (and finally the LL
 
 | Member | What it is |
 |---|---|
-| `is_thinking` (read/write) | Whether the assistant is producing a response. Mid-turn messages are queued with a ⏳ marker |
+| `is_thinking` (read/write) | Whether the assistant is producing a response. Mid-turn messages are queued with a ⏳ marker. Part of the session role, so a caller reaches it as `ui.session.is_thinking` |
 | `multi_ui_parent` (read/write) | The `MultiUI` this UI is a child of, or `None`. A child hands submitted messages to its parent |
 | `tool_call_handler` | The `ToolCallHandler` holding this UI's tool policies, argument formatters and response handlers, or `None`. See [Customizing Tool Approval](tool-approval.md) |
-| `background_tasks` | A set keeping fire-and-forget tasks referenced. Return the same set every time; callers `.add` and `.discard` on it |
+| `background_tasks` | A set keeping fire-and-forget tasks referenced. Return the same set every time; callers `.add` and `.discard` on it. Part of the session role |
 | `cancel_pending_confirmations(flush=True)` | Release an `ask_user` blocked on a tool confirmation. `flush=False` skips writing buffered output, on the exit path |
 | `flush_to_parent()` | Write anything buffered to the delegating parent UI. A no-op for a UI that streams directly |
+
+### The session role: `ui.session`
+
+`ui.session` is how a caller reads the conversation without depending on the whole UI object: which conversation is open, which model answers, whether a turn is running, the history and snapshot managers, and the token meters. `AnyUISession` in `zrb.llm.ui.any_ui_session` is that narrow contract, so a helper that only needs the model can be typed against it.
+
+The accessor returns the UI itself. Every UI in zrb answers for the role on the object — `BaseUI` holds the state, `MultiUI` reads it off its primary child, `BufferedUI` forwards the conversation name and the usage meter to the UI it wraps and takes the inert defaults for the rest, `StdUI` takes those defaults throughout — so a subclass that overrides one of these members keeps answering for it, and there is no second copy of the state to drift.
+
+| Member | What it is |
+|---|---|
+| `llm_task` (read/write) | The `LLMTask` driving this UI, or `None` |
+| `model` / `small_model` / `multimodal_model` (read/write) | The model answering, and the `/model small ...` and `/model multimodal ...` overrides |
+| `conversation_session_name` (read/write) | The conversation this UI is attached to; empty when it tracks none |
+| `plan_mode_active` (read/write) | Whether `/plan` is on |
+| `is_thinking` (read/write) | Whether the assistant is producing a response |
+| `is_turn_running` / `cancel_current_turn(reason)` | Whether a turn is running that can be stopped, and the stop itself (see [Optional methods](#optional-methods)) |
+| `history_manager` / `snapshot_manager` | The conversation history, and the filesystem snapshots `/rewind` uses, or `None` |
+| `accumulate_usage(usage, context_usage=None)` / `reset_context_usage()` | Fold one run's token totals into the session meter, and forget the context size after `/compress` |
+| `background_tasks` | The set keeping fire-and-forget tasks referenced |
+| `update_system_info()` | Refresh the system and repository status line after a turn |
 
 ### Example: WebSocket Backend
 
@@ -649,11 +668,11 @@ One child is the **primary** — `MultiUI(uis, main_ui_index=0)` picks it, defau
 | `small_model` / `multimodal_model` | Binding the `/model small ...` and `/model multimodal ...` overrides for the run |
 | `last_output` | Reporting the session's final answer when a turn produced no result data |
 
-All are part of `AnyUI`, with inert `None`/`False`/`""` defaults from `UIStateDefaultsMixin` (real ones from `BaseUI`). So a UI that keeps none of this state **works as a secondary child, but disables snapshots, rewind and plan mode as the primary**. If yours goes in the `main_ui_index` slot, implement them for real — or keep the terminal UI primary and add yours alongside. A primary with its own `snapshot_manager` should build it with a callable returning the current `conversation_session_name` (as `BaseUI` does), or set the manager's `session_name` on every change; otherwise rewind stays on the session's starting conversation.
+All but `last_output` are the session role, reached as `ui.session`; `last_output` is the display role. Both carry inert `None`/`False`/`""` defaults from `UIStateDefaultsMixin` (real ones from `BaseUI`). So a UI that keeps none of this state **works as a secondary child, but disables snapshots, rewind and plan mode as the primary**. If yours goes in the `main_ui_index` slot, implement them for real — or keep the terminal UI primary and add yours alongside. A primary with its own `snapshot_manager` should build it with a callable returning the current `conversation_session_name` (as `BaseUI` does), or set the manager's `session_name` on every change; otherwise rewind stays on the session's starting conversation.
 
 ### Optional enrichment hooks
 
-`AnyUI` declares these as abstract methods and every caller invokes them directly. The defaults in the table live in `BaseUI` and `UIStateDefaultsMixin`, so a UI built on either overrides only the hooks it renders better; a class that implements `AnyUI` without them must define every hook itself. `MultiUI` forwards each one to all of its children; a child that does not override a hook gets the default, which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`:
+`AnyUI` and the roles it hands out declare these as abstract methods, and every caller invokes them directly. The defaults in the table live in `BaseUI` and `UIStateDefaultsMixin`, so a UI built on either overrides only the hooks it renders better; a class that implements `AnyUI` without them must define every hook itself. `MultiUI` forwards each one to all of its children; a child that does not override a hook gets the default, which is why a Telegram channel can ignore block-collapsing and still receive everything through `append_to_output`:
 
 | Hook | Fired when | Default |
 | --- | --- | --- |

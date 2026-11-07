@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, TextIO, cast
 
 from zrb.llm.ui.any_ui_display import AnyUIDisplay
 from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.ui.any_ui_session import AnyUISession
 from zrb.llm.ui.fallback.echo_broadcast import broadcast_echo
 from zrb.llm.ui.fallback.text_picker import TextPicker
 from zrb.llm.util.delivery_report import DeliveryOutcome, DeliveryReport
@@ -40,6 +41,19 @@ class UIStateDefaultsMixin:
     def display(self) -> "AnyUIDisplay":
         """A UI that keeps its own output surface is its own display."""
         return cast("AnyUIDisplay", self)
+
+    @property
+    def session(self) -> "AnyUISession":
+        """A UI that tracks its own conversation is its own session.
+
+        The state the role names — the model, the open conversation, the turn
+        flags, the meters — lives on the UI itself, because a subclass that
+        overrides one of those members has to keep answering for it. Handing
+        out a second object that forwards to the host would put that state in
+        two places and let the two disagree; the role is a narrowing of the
+        object, not a copy of it.
+        """
+        return cast("AnyUISession", self)
 
     # Class-level defaults so no `__init__` is needed; setters shadow them per
     # instance. Prefixed so they cannot collide with a host's own fields.

@@ -205,7 +205,7 @@ def _session_window(ui: "AnyUI | None", now: datetime) -> tuple[_Window, str]:
 def _session_of(ui: "AnyUI | None") -> str:
     if ui is None:
         return ""
-    return ui.conversation_session_name or ""
+    return ui.session.conversation_session_name or ""
 
 
 def _midnight(now: datetime) -> datetime:

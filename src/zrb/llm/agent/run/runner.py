@@ -206,8 +206,9 @@ async def run_agent(
         bind_contextvar(stack, current_hook_manager, effective_hook_manager)
         # Set by `/model small|multimodal`; most UIs hold none, so readers
         # fall back to CFG on None.
-        bind_contextvar(stack, current_small_model, effective_ui.small_model)
-        bind_contextvar(stack, current_multimodal_model, effective_ui.multimodal_model)
+        session = effective_ui.session
+        bind_contextvar(stack, current_small_model, session.small_model)
+        bind_contextvar(stack, current_multimodal_model, session.multimodal_model)
         # Helpers (summarizer, memory reviewer) fall back to this rather than
         # `CFG.LLM_MODEL`, which after a `/model` switch may lack credentials.
         bind_contextvar(stack, current_model, getattr(agent, "model", None))
@@ -718,7 +719,7 @@ def _record_run_usage(
     """
     session = ""
     if effective_ui is not None:
-        session = effective_ui.conversation_session_name or ""
+        session = effective_ui.session.conversation_session_name or ""
     calls, errors = count_tool_calls(
         new_messages if isinstance(new_messages, list) else []
     )

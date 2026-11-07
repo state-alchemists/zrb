@@ -761,7 +761,7 @@ class LLMTask(BaseTask):
         # The status bar's context size predates the compaction; hide it until
         # the next run reports the compacted window.
         for ui in self._uis:
-            ui.reset_context_usage()
+            ui.session.reset_context_usage()
         return True
 
     def _create_agent(
@@ -799,7 +799,7 @@ class LLMTask(BaseTask):
         )
 
         for ui in self._uis:
-            ui.model = final_model
+            ui.session.model = final_model
 
         # resolve_model=False: the model hooks already ran above.
         return create_agent(

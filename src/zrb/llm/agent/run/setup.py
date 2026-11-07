@@ -62,10 +62,11 @@ def session_model_scope(ui: "AnyUI | list[AnyUI] | None") -> "Iterator[None]":
     effective_ui = None if ui is None else resolve_ui(ui)
     with ExitStack() as stack:
         if effective_ui is not None:
-            if effective_ui.small_model is not None:
-                bind_contextvar(stack, current_small_model, effective_ui.small_model)
-            if effective_ui.model is not None:
-                bind_contextvar(stack, current_model, effective_ui.model)
+            session = effective_ui.session
+            if session.small_model is not None:
+                bind_contextvar(stack, current_small_model, session.small_model)
+            if session.model is not None:
+                bind_contextvar(stack, current_model, session.model)
         yield
 
 
@@ -146,7 +147,7 @@ def setup_print_and_events(print_fn, event_handler, effective_ui):
             _event_print_fn,
             show_tool_call_detail=CFG.LLM_SHOW_TOOL_CALL_DETAIL_ENABLED,
             show_tool_result=CFG.LLM_SHOW_TOOL_CALL_RESULT_ENABLED,
-            usage_callback=effective_ui.accumulate_usage,
+            usage_callback=effective_ui.session.accumulate_usage,
             tool_block_recorder=effective_ui.record_tool_call_block,
             on_thinking_start=effective_ui.mark_thinking_block_start,
             on_thinking_collapse=effective_ui.collapse_thinking_block,

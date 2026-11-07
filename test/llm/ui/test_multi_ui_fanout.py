@@ -92,55 +92,58 @@ def test_multi_ui_append_to_output(multi_ui, child_ui_1, child_ui_2):
 def test_multi_ui_accumulate_usage_forwards_to_children(
     multi_ui, child_ui_1, child_ui_2
 ):
-    child_ui_1.accumulate_usage = MagicMock()
-    child_ui_2.accumulate_usage = MagicMock()
+    child_ui_1.session.accumulate_usage = MagicMock()
+    child_ui_2.session.accumulate_usage = MagicMock()
 
     usage = MagicMock()
     usage.display = usage
     context_usage = MagicMock()
     context_usage.display = context_usage
-    multi_ui.accumulate_usage(usage, context_usage)
+    multi_ui.session.accumulate_usage(usage, context_usage)
 
-    child_ui_1.accumulate_usage.assert_called_once_with(usage, context_usage)
-    child_ui_2.accumulate_usage.assert_called_once_with(usage, context_usage)
+    child_ui_1.session.accumulate_usage.assert_called_once_with(usage, context_usage)
+    child_ui_2.session.accumulate_usage.assert_called_once_with(usage, context_usage)
 
 
 def test_multi_ui_reset_context_usage_forwards_to_children(
     multi_ui, child_ui_1, child_ui_2
 ):
-    child_ui_1.reset_context_usage = MagicMock()
-    child_ui_2.reset_context_usage = MagicMock()
+    child_ui_1.session.reset_context_usage = MagicMock()
+    child_ui_2.session.reset_context_usage = MagicMock()
 
-    multi_ui.reset_context_usage()
+    multi_ui.session.reset_context_usage()
 
-    child_ui_1.reset_context_usage.assert_called_once_with()
-    child_ui_2.reset_context_usage.assert_called_once_with()
+    child_ui_1.session.reset_context_usage.assert_called_once_with()
+    child_ui_2.session.reset_context_usage.assert_called_once_with()
 
 
-def test_multi_ui_accumulate_usage_skips_children_without_method(multi_ui):
-    # Children without accumulate_usage are silently skipped.
+def test_multi_ui_accumulate_usage_skips_children_without_method(child_ui_1):
+    # A child whose session does not carry the meter is skipped, and the rest of
+    # the fan-out still runs: a dead channel is not a dead run.
+    child_ui_1.session.accumulate_usage = MagicMock()
     no_method_child = MagicMock()
     no_method_child.display = no_method_child
-    del no_method_child.accumulate_usage
-    multi_ui = MultiUI([no_method_child])
+    no_method_child.session = object()
+    multi_ui = MultiUI([no_method_child, child_ui_1])
 
-    # Should not raise
-    multi_ui.accumulate_usage(MagicMock())
+    multi_ui.session.accumulate_usage(MagicMock())
+
+    child_ui_1.session.accumulate_usage.assert_called_once()
 
 
 def test_multi_ui_accumulate_usage_swallows_child_errors(multi_ui, child_ui_1):
     bad_child = MagicMock()
     bad_child.display = bad_child
-    bad_child.accumulate_usage = MagicMock(side_effect=RuntimeError("bad"))
+    bad_child.session.accumulate_usage = MagicMock(side_effect=RuntimeError("bad"))
     good_child = MagicMock()
     good_child.display = good_child
-    good_child.accumulate_usage = MagicMock()
+    good_child.session.accumulate_usage = MagicMock()
     multi_ui = MultiUI([bad_child, good_child])
 
     # Should not raise even though bad_child throws
     multi_ui.accumulate_usage(MagicMock())
 
-    good_child.accumulate_usage.assert_called_once()
+    good_child.session.accumulate_usage.assert_called_once()
 
 
 def test_multi_ui_record_tool_call_block_uses_child_recorder_when_supported(
@@ -356,14 +359,14 @@ def test_multi_ui_shell_output_hooks_swallow_child_errors(
 
 def test_multi_ui_set_thinking_mirrors_to_children(multi_ui, child_ui_1, child_ui_2):
     multi_ui.set_thinking(True)
-    assert multi_ui.is_thinking is True
-    assert child_ui_1.is_thinking is True
-    assert child_ui_2.is_thinking is True
+    assert multi_ui.session.is_thinking is True
+    assert child_ui_1.session.is_thinking is True
+    assert child_ui_2.session.is_thinking is True
 
     multi_ui.set_thinking(False)
-    assert multi_ui.is_thinking is False
-    assert child_ui_1.is_thinking is False
-    assert child_ui_2.is_thinking is False
+    assert multi_ui.session.is_thinking is False
+    assert child_ui_1.session.is_thinking is False
+    assert child_ui_2.session.is_thinking is False
 
 
 class TestMultiUIReplayHistory:

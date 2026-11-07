@@ -334,7 +334,7 @@ async def test_the_session_name_comes_from_the_ui(usage_dir):
     agent = MagicMock()
     agent.run = _fake_run_from(result)
     ui = MagicMock()
-    ui.conversation_session_name = "calm-gate"
+    ui.session.conversation_session_name = "calm-gate"
 
     await run_agent(
         agent=agent, message="Hi", message_history=[], limiter=LLMLimiter(), ui=ui
@@ -357,7 +357,7 @@ async def test_a_delegated_run_is_filed_under_the_conversation(usage_dir):
     agent = MagicMock()
     agent.run = _fake_run_from(result)
     parent = MagicMock()
-    parent.conversation_session_name = "calm-gate"
+    parent.session.conversation_session_name = "calm-gate"
 
     await run_agent(
         agent=agent,

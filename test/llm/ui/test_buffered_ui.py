@@ -235,9 +235,9 @@ def test_buffered_ui_accumulate_usage_forwards_to_parent():
     ui = BufferedUI(mock_wrapped)
     usage = MagicMock()
 
-    ui.accumulate_usage(usage)
+    ui.session.accumulate_usage(usage)
 
-    mock_wrapped.accumulate_usage.assert_called_once_with(usage)
+    mock_wrapped.session.accumulate_usage.assert_called_once_with(usage)
 
 
 def test_buffered_ui_accumulate_usage_drops_context_usage():
@@ -249,9 +249,9 @@ def test_buffered_ui_accumulate_usage_drops_context_usage():
     usage = MagicMock()
     context_usage = MagicMock()
 
-    ui.accumulate_usage(usage, context_usage)
+    ui.session.accumulate_usage(usage, context_usage)
 
-    mock_wrapped.accumulate_usage.assert_called_once_with(usage)
+    mock_wrapped.session.accumulate_usage.assert_called_once_with(usage)
 
 
 def test_buffered_ui_accumulate_usage_noop_when_wrapped_never_implemented_it():
@@ -355,9 +355,9 @@ def test_a_buffer_reports_the_conversation_of_the_ui_it_wraps():
     """A delegated run's tokens are spend on the chat that asked for it, and
     `/usage session` files a run by the name the UI reports."""
     parent = MagicMock()
-    parent.conversation_session_name = "calm-gate"
+    parent.session.conversation_session_name = "calm-gate"
 
-    assert BufferedUI(parent).conversation_session_name == "calm-gate"
+    assert BufferedUI(parent).session.conversation_session_name == "calm-gate"
 
 
 def test_a_name_set_on_the_buffer_wins_and_never_renames_the_parent():

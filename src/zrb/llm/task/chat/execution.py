@@ -518,7 +518,7 @@ class ChatExecution:
         self, ui: "AnyUI", initial_conversation_name: str
     ) -> str:
         """Get the current conversation name from UI or fallback to initial name."""
-        return ui.conversation_session_name or initial_conversation_name
+        return ui.session.conversation_session_name or initial_conversation_name
 
     def get_model(self, ctx: AnyContext) -> str | Model:
         """Resolve the model for this run, falling back to `CFG.LLM_MODEL`."""

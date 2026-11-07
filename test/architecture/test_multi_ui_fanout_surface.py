@@ -23,7 +23,8 @@ MULTI_UI = REPO_ROOT / "src" / "zrb" / "llm" / "ui" / "multi_ui.py"
 CUSTOM_UI_DOC = REPO_ROOT / "docs" / "llm" / "llm-custom-ui.md"
 
 # Hooks `MultiUI` forwards to children as typed calls; each is declared on
-# `AnyUI`. Adding one means adding it to the custom-UI doc in the same diff.
+# `AnyUI`, or on the display or session role it hands out. Adding one means
+# adding it to the custom-UI doc in the same diff.
 DECLARED_HOOKS = frozenset(
     {
         "accumulate_usage",
@@ -108,14 +109,18 @@ def test_only_the_offered_hooks_are_dispatched_by_string():
 
 
 def test_every_declared_hook_is_declared_on_any_ui():
-    from zrb.llm.ui.any_ui import AnyUI, AnyUIDisplay
+    from zrb.llm.ui.any_ui import AnyUI
+    from zrb.llm.ui.any_ui_display import AnyUIDisplay
+    from zrb.llm.ui.any_ui_session import AnyUISession
 
-    # A hook is either on the whole object or on the display role it is part
-    # of, which MultiUI reaches as `child.display`.
+    # A hook is either on the whole object, on the display role it is part of,
+    # or on the session role: MultiUI reaches those two as `child.display` and
+    # `child.session`.
+    roles = (AnyUI, AnyUIDisplay, AnyUISession)
     missing = sorted(
         name
         for name in DECLARED_HOOKS
-        if not hasattr(AnyUI, name) and not hasattr(AnyUIDisplay, name)
+        if not any(hasattr(role, name) for role in roles)
     )
     assert not missing, f"MultiUI calls {missing}, which AnyUI does not declare."
 

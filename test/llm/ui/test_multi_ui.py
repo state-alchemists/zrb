@@ -157,8 +157,8 @@ class TestMultiUI:
         multi_ui = MultiUI([mock_child_ui, other_ui])
         multi_ui.set_llm_task(mock_task)
 
-        assert mock_child_ui.llm_task is mock_task
-        assert other_ui.llm_task is mock_task
+        assert mock_child_ui.session.llm_task is mock_task
+        assert other_ui.session.llm_task is mock_task
 
     def test_create_session_for_llm_task(self, mock_child_ui):
         """Test create_session_for_llm_task creates proper session."""
@@ -440,9 +440,9 @@ def test_multi_ui_takes_only_genuinely_inert_members_from_the_defaults():
         "multi_ui_parent",
         # Its own per-instance set, exactly what the mixin provides.
         "background_tasks",
-        # MultiUI is its own display: every write fans out to the children, so
-        # the mixin's "hand yourself out" default is exactly right.
+        # MultiUI is its own display and session: the mixin hands itself out.
         "display",
+        "session",
         # Echo spans live in each child's buffer; MultiUI has no buffer.
         "track_echo_span",
         "redraw_echo",

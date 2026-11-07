@@ -170,8 +170,8 @@ async def test_multi_ui_stream_sets_thinking_on_children(multi_ui, child_ui_1):
     await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
     # Thinking flag must be False after the run, not just during it.
-    assert multi_ui.is_thinking is False
-    assert child_ui_1.is_thinking is False
+    assert multi_ui.session.is_thinking is False
+    assert child_ui_1.session.is_thinking is False
 
 
 @pytest.mark.asyncio
@@ -290,8 +290,8 @@ async def test_multi_ui_stream_updates_system_info_on_children(
     multi_ui, child_ui_1, child_ui_2
 ):
     multi_ui.append_to_output = MagicMock()
-    child_ui_1.update_system_info = AsyncMock()
-    child_ui_2.update_system_info = AsyncMock()
+    child_ui_1.session.update_system_info = AsyncMock()
+    child_ui_2.session.update_system_info = AsyncMock()
     llm_task = MagicMock()
     llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")
@@ -300,8 +300,8 @@ async def test_multi_ui_stream_updates_system_info_on_children(
 
     await multi_ui.stream_ai_response(llm_task, "Hello", [])
 
-    child_ui_1.update_system_info.assert_awaited_once()
-    child_ui_2.update_system_info.assert_awaited_once()
+    child_ui_1.session.update_system_info.assert_awaited_once()
+    child_ui_2.session.update_system_info.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -315,7 +315,7 @@ async def test_multi_ui_stream_repaints_after_system_info_update(multi_ui, child
     async def _update():
         order.append("update")
 
-    child_ui_1.update_system_info = _update
+    child_ui_1.session.update_system_info = _update
     llm_task = MagicMock()
     llm_task.display = llm_task
     llm_task.async_run = AsyncMock(return_value="# Response")

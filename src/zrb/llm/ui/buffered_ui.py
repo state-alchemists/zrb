@@ -122,7 +122,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
         it, and setting it never reaches the parent: this is a buffer, and a
         write here must not rename the conversation behind it.
         """
-        return self._own_session_name or self._wrapped.conversation_session_name
+        return self._own_session_name or self._wrapped.session.conversation_session_name
 
     @conversation_session_name.setter
     def conversation_session_name(self, value: str) -> None:
@@ -294,7 +294,7 @@ class BufferedUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
         `context_usage` is not forwarded: this sub-agent's context window is
         not the parent's.
         """
-        self._wrapped.accumulate_usage(usage)
+        self._wrapped.session.accumulate_usage(usage)
 
     def get_buffered_output(self) -> str:
         """Get all buffered output."""

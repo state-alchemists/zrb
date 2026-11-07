@@ -295,7 +295,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
         """Set the LLM task for shared processing."""
         self._llm_task = llm_task
         for ui in self._uis:
-            ui.llm_task = llm_task
+            ui.session.llm_task = llm_task
 
     def append_to_output(
         self,
@@ -350,12 +350,13 @@ class MultiUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
     ) -> None:
         """Forward one run's usage totals to every child UI."""
         self._fanout(
-            "accumulate_usage", lambda ui: ui.accumulate_usage(usage, context_usage)
+            "accumulate_usage",
+            lambda ui: ui.session.accumulate_usage(usage, context_usage),
         )
 
     def reset_context_usage(self) -> None:
         """Forward a context-size reset to every child UI."""
-        self._fanout("reset_context_usage", lambda ui: ui.reset_context_usage())
+        self._fanout("reset_context_usage", lambda ui: ui.session.reset_context_usage())
 
     def append_markdown(self, markdown_text: str) -> None:
         """Render `markdown_text` on every child.
@@ -559,7 +560,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
             self.set_thinking(False, repaint=False)
             for ui in self._uis:
                 try:
-                    await ui.update_system_info()
+                    await ui.session.update_system_info()
                 except Exception as e:
                     CFG.LOGGER.debug(f"Child UI system info update failed: {e}")
             self.invalidate_ui()
@@ -572,7 +573,7 @@ class MultiUI(UIStateDefaultsMixin, AnyUI, AnyUIDisplay):
         """
         self._is_thinking = value
         for ui in self._uis:
-            ui.is_thinking = value
+            ui.session.is_thinking = value
         if repaint:
             self.invalidate_ui()
 

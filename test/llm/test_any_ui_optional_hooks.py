@@ -8,6 +8,7 @@ and that each default in `UIStateDefaultsMixin` is what the absent hook meant.
 import pytest
 
 from zrb.llm.ui.any_ui import AnyUI, AnyUIDisplay
+from zrb.llm.ui.any_ui_session import AnyUISession
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
 from zrb.llm.util.delivery_report import DeliveryOutcome
 from zrb.util.cli.markdown import render_markdown
@@ -37,9 +38,13 @@ HOOKS = {
 
 
 def test_anyui_declares_every_hook_without_a_body():
-    # A hook is declared once, either on the whole object or on the display
-    # role it belongs to; either way it is abstract, with no body.
-    declared = set(AnyUI.__abstractmethods__) | set(AnyUIDisplay.__abstractmethods__)
+    # A hook is declared once, either on the whole object or on the display or
+    # session role it belongs to; either way it is abstract, with no body.
+    declared = (
+        set(AnyUI.__abstractmethods__)
+        | set(AnyUIDisplay.__abstractmethods__)
+        | set(AnyUISession.__abstractmethods__)
+    )
     assert HOOKS <= declared
 
 
