@@ -274,6 +274,27 @@ def test_add_credential_hint_leaves_other_user_errors_alone():
     assert add_credential_hint(error) is error
 
 
+def test_add_credential_hint_returns_the_error_when_openai_cannot_be_imported(
+    monkeypatch,
+):
+    """A stub `openai` is what a shadowed or half-initialised module looks like.
+
+    The hint needs `OpenAIError` to tell a missing key from any other failure. A
+    module that cannot supply it must leave the original error in place: a
+    helper that raises here hides the error it was called to decorate, and the
+    traceback then names the helper instead of the cause.
+    """
+    import sys
+    import types
+
+    from zrb.llm.agent.run.error_classifier import add_credential_hint
+
+    monkeypatch.setitem(sys.modules, "openai", types.ModuleType("openai"))
+    original = RuntimeError("the actual failure")
+
+    assert add_credential_hint(original) is original
+
+
 def _typed(category, status_code: int):
     """A pydantic-ai error that is both an HTTP error and its own category."""
     # lazy: heavy third-party -- pydantic_ai
