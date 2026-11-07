@@ -5,9 +5,39 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from zrb.llm.ui.any_ui import AnyUI
+from zrb.llm.ui.any_ui import AnyUI, AnyUIDisplay
+from zrb.llm.ui.any_ui_input import AnyUIInput
+from zrb.llm.ui.any_ui_picker import AnyUIPicker
+from zrb.llm.ui.any_ui_session import AnyUISession
+from zrb.llm.ui.any_ui_tools import AnyUITools
 from zrb.llm.ui.base.queue_delivery import DeliveryOutcome
+from zrb.llm.ui.fallback.defaults import (
+    UIDisplayDefaults,
+    UIInputDefaults,
+    UIPickerDefaults,
+    UISessionDefaults,
+    UIToolsDefaults,
+)
 from zrb.llm.ui.fallback.state_defaults import UIStateDefaultsMixin
+
+ROLES = (AnyUIDisplay, AnyUIInput, AnyUIPicker, AnyUISession, AnyUITools)
+PARTS = (
+    UIDisplayDefaults,
+    UIInputDefaults,
+    UIPickerDefaults,
+    UISessionDefaults,
+    UIToolsDefaults,
+)
+# The role members no inert body can stand in for: the writer, the delegating
+# parent's writer, the two ways of asking the user, and the widget itself. A
+# host has to write these, so the mixin leaves them to it.
+HOST_ONLY = {
+    "append_to_output",
+    "stream_to_parent",
+    "ask_user",
+    "run_interactive_command",
+    "ask_user_choice",
+}
 
 
 class _MinimalUI(UIStateDefaultsMixin, AnyUI):
@@ -170,3 +200,22 @@ def test_a_delivered_echo_is_redrawn_on_every_pane_that_holds_it():
 
     for pane in panes:
         pane.redraw_echo.assert_called_once_with(entry)
+
+
+def test_every_role_member_has_an_inert_default_unless_the_host_must_write_it():
+    """A member added to a role without a default raises on the first read of a
+    UI that keeps no state — the failure this mixin exists to close, and the one
+    that otherwise waits for a reviewer to notice by hand."""
+    supplied = set(UIStateDefaultsMixin.__dict__)
+    supplied.update(*(part.__dict__ for part in PARTS))
+    abstract = {role.__name__: set(role.__abstractmethods__) for role in ROLES}
+    assert HOST_ONLY <= set().union(*abstract.values()), (
+        "HOST_ONLY names something that is no longer a role member: "
+        f"{sorted(HOST_ONLY - set().union(*abstract.values()))}"
+    )
+    missing = {
+        name: sorted(members - HOST_ONLY - supplied)
+        for name, members in abstract.items()
+        if members - HOST_ONLY - supplied
+    }
+    assert not missing, f"a role member has no inert default: {missing}"
