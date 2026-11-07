@@ -5,7 +5,7 @@ import logging
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import get_current_hook_manager, is_current_run_nested
@@ -172,9 +172,9 @@ class HookManager(HookManagerLoading):
     async def execute_hooks(
         self,
         event: HookEvent,
-        event_data: Any,
+        event_data: object,
         session_id: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
         cwd: str | None = None,
         transcript_path: str | None = None,
         permission_mode: str = "default",
@@ -419,9 +419,9 @@ class HookManager(HookManagerLoading):
     async def execute_hooks_simple(
         self,
         event: HookEvent,
-        event_data: Any,
+        event_data: object,
         session_id: str | None = None,
-        metadata: dict[str, Any] | None = None,
+        metadata: dict[str, object] | None = None,
     ) -> list[HookResult]:
         """Run hooks and flatten their typed results into `HookResult` objects."""
         exec_results = await self.execute_hooks(

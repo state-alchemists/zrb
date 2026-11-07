@@ -267,10 +267,10 @@ def _blocked_result(output: str, stderr_output: str) -> HookResult:
 
 def _success_result(output: str, context: HookContext) -> HookResult:
     """Build a success result, parsing JSON control output when present."""
-    modifications = _json_object(output) or {}
+    modifications: dict[str, object] = dict(_json_object(output) or {})
 
     if output and not modifications and context.event in _STDOUT_CONTEXT_EVENTS:
-        modifications = {"additionalContext": output}
+        modifications["additionalContext"] = output
 
     return HookResult(success=True, output=output, modifications=modifications)
 

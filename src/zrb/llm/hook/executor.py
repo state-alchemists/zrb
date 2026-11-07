@@ -10,7 +10,7 @@ from collections.abc import Callable
 from concurrent.futures import Future
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
-from typing import Any, TypeVar, cast
+from typing import TypeVar, cast
 
 from zrb.config.config import CFG
 from zrb.llm.agent_state import current_tool_confirmation, current_ui
@@ -28,7 +28,7 @@ class HookExecutionResult:
     success: bool
     blocked: bool = False
     message: str | None = None
-    data: dict[str, Any] = field(default_factory=dict)
+    data: dict[str, object] = field(default_factory=dict)
     error: str | None = None
     exit_code: int = 0
     decision: str | None = None  # "block", "allow", "deny", "ask"
@@ -36,12 +36,12 @@ class HookExecutionResult:
     permission_decision: str | None = None  # "allow", "deny", "ask"
     permission_decision_reason: str | None = None
     additional_context: str | None = None
-    updated_input: dict[str, Any] | None = None
+    updated_input: dict[str, object] | None = None
     system_message: str | None = None
     replace_response: bool = False  # extended response replaces the original
     continue_execution: bool = True
     suppress_output: bool = False
-    hook_specific_output: dict[str, Any] | None = None
+    hook_specific_output: dict[str, object] | None = None
 
 
 class _HookRun:
@@ -53,7 +53,7 @@ class _HookRun:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
-        self._task: asyncio.Task[Any] | None = None
+        self._task: asyncio.Task[object] | None = None
         self._cancelled = False
 
     def can_start(self) -> bool:
@@ -306,7 +306,10 @@ class ThreadPoolHookExecutor:
         # HookManager reads modifications back out of `data` (manager.py).
         exec_result.data.update(result.modifications)
         if "decision" in result.modifications:
-            exec_result.decision = result.modifications["decision"]
+            decision = result.modifications["decision"]
+            exec_result.decision = (
+                decision if isinstance(decision, str) else str(decision)
+            )
             if exec_result.decision == "block":
                 self._block(exec_result)
         for key, attribute in self._MODIFICATION_FIELDS.items():

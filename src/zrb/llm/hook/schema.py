@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from zrb.llm.hook.types import HookEvent, HookType, MatcherOperator
 
@@ -11,7 +11,7 @@ class MatcherConfig:
         self,
         field: str,
         operator: MatcherOperator,
-        value: Any,
+        value: object,
         case_sensitive: bool = True,
     ):
         self.field = field

@@ -100,8 +100,9 @@ def extract_continue_decision(
     """Return the first unconditional halt requested by ``continue: false``."""
     for result in hook_results:
         if not result.continue_execution:
+            stop_reason = (result.data or {}).get("stopReason")
             reason = (
-                (result.data or {}).get("stopReason")
+                (stop_reason if isinstance(stop_reason, str) else None)
                 or result.reason
                 or "Stopped by hook (continue=false)"
             )
