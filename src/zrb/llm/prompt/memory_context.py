@@ -25,6 +25,7 @@ from datetime import datetime
 
 from zrb.config.config import CFG
 from zrb.llm.memory import paths, render, store
+from zrb.llm.memory.model import Fact
 from zrb.llm.shared.ambient_state import get_session_ownership_key
 from zrb.util.owner_only import makedirs_owner_only, write_text_owner_only
 
@@ -71,11 +72,7 @@ def render_memory_block() -> str | None:
     # overflow is not in `shown`; an ordinary unpinned fact never earns a
     # tombstone because it was never in the block either.
     rendered = set(core.splitlines())
-    shown = [
-        fact.id
-        for fact in facts
-        if (line := render.core_line(fact)) is not None and line in rendered
-    ]
+    shown = _core_claim_ids(facts, rendered)
     today_entry = store.load_diary(store.today())
     _write_state(
         [render.claim_key(fact) for fact in facts],
@@ -157,6 +154,60 @@ def _write_state(known, shown, diary_key: str = "") -> None:
         # Without a record there is no delta, which costs a repeated claim in a
         # later turn. Failing the turn over it would cost the turn.
         pass
+
+
+def claims_in_the_core() -> frozenset[str]:
+    """The claim ids this turn's core carries — or would carry, once rendered.
+
+    The block is written after the hooks run, so a conversation's first turn has
+    no `shown` list yet. A cue that asks only for what was already shown would
+    then offer a pinned claim that the core is about to state a few lines later.
+    Reading the store directly closes that window without depending on order.
+    """
+    try:
+        facts = store.load_facts()
+    except OSError:
+        return frozenset()
+    core_cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
+    core = render.cut_lines(render.render_core(facts), core_cap)
+    return frozenset(_core_claim_ids(facts, set(core.splitlines())))
+
+
+def _core_claim_ids(facts: "list[Fact]", rendered: "set[str]") -> list[str]:
+    """The ids whose core line survived the cap."""
+    return [
+        fact.id
+        for fact in facts
+        if (line := render.core_line(fact)) is not None and line in rendered
+    ]
+
+
+def shown_claim_ids() -> frozenset[str]:
+    """The claim ids this conversation has already put in front of the model.
+
+    Written by whichever layer showed them — the block, the delta, or a recall —
+    so "already shown" is one fact about the conversation rather than one per
+    caller. An empty store, or a store whose state was never written, reads as
+    nothing shown: the next claim is worth surfacing until something says it was.
+    """
+    state = _read_state()
+    return frozenset(state[1]) if state is not None else frozenset()
+
+
+def note_claims_shown(claim_ids: "list[str]") -> None:
+    """Record claims shown outside the block, so a later turn does not repeat them.
+
+    The same list the block writes, and for the same reason: a claim the model
+    has been given is not news. A recalled claim that is retired afterwards then
+    earns its "Forget this claim" line, which is right — the model had it.
+    """
+    state = _read_state()
+    if state is None:
+        return
+    known, shown, diary = state
+    added = [claim_id for claim_id in claim_ids if claim_id and claim_id not in shown]
+    if added:
+        _write_state(known, shown + added, diary)
 
 
 def _read_state() -> tuple[list[str], list[str], str] | None:
