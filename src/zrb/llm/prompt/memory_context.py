@@ -74,7 +74,7 @@ def render_memory_block() -> str | None:
     # overflow is not in `shown`; an ordinary unpinned fact never earns a
     # tombstone because it was never in the block either.
     rendered = set(core.splitlines())
-    shown = _core_claim_ids(facts, rendered)
+    shown = _shown_so_far(_core_claim_ids(facts, rendered))
     today_entry = store.load_diary(store.today())
     _write_state(
         [render.claim_key(fact) for fact in facts],
@@ -184,6 +184,30 @@ def _core_claim_ids(facts: "list[Fact]", rendered: "set[str]") -> list[str]:
     ]
 
 
+def _shown_so_far(core_ids: list[str]) -> list[str]:
+    """The core's claims plus whatever an earlier layer already showed.
+
+    The block is written after the hooks have run, so a recall on this turn has
+    already put a claim in front of the model and recorded it. Writing `shown`
+    from the core alone forgot that: the next cue offered the same claim again,
+    and a claim retired after being shown never earned its "Forget this claim"
+    line, because the tombstone is decided from this list. A compaction
+    re-renders the block through the same function, so the overwrite lost the
+    same ids a second way.
+
+    The state file is keyed by conversation, so the union cannot carry another
+    session's claims into this one.
+    """
+    shown = list(core_ids)
+    state = _read_state()
+    if state is None:
+        return shown
+    for claim_id in state[1]:
+        if claim_id not in shown:
+            shown.append(claim_id)
+    return shown
+
+
 def shown_claim_ids() -> frozenset[str]:
     """The claim ids this conversation has already put in front of the model.
 
@@ -204,9 +228,10 @@ def note_claims_shown(claim_ids: "list[str]") -> None:
     earns its "Forget this claim" line, which is right — the model had it.
     """
     state = _read_state()
-    if state is None:
-        return
-    known, shown, diary = state
+    # No state yet is a conversation's first turn, and the hooks run before the
+    # block is written: starting from an empty baseline instead of returning keeps
+    # the claim out of the next cue, and the block unions it in a moment later.
+    known, shown, diary = state if state is not None else ([], [], "")
     added = [claim_id for claim_id in claim_ids if claim_id and claim_id not in shown]
     if added:
         _write_state(known, shown + added, diary)

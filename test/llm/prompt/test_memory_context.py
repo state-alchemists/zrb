@@ -8,7 +8,12 @@ from zrb.config.config import CFG
 from zrb.llm.memory import paths, render, store
 from zrb.llm.memory.model import Fact
 from zrb.llm.prompt import live_context
-from zrb.llm.prompt.memory_context import render_memory_block, render_memory_delta
+from zrb.llm.prompt.memory_context import (
+    note_claims_shown,
+    render_memory_block,
+    render_memory_delta,
+    shown_claim_ids,
+)
 from zrb.llm.tool.memory import forget, remember
 
 
@@ -342,3 +347,43 @@ def test_a_resumed_conversation_reads_the_notes_on_first_use(tmp_path, monkeypat
     assert paths.is_converted()
     assert delta is not None
     assert store.load_facts(include_retired=True)
+
+
+def test_a_claim_recalled_before_the_block_stays_shown(store_dir):
+    """The hooks run before the block is written, so a cue has already spoken.
+
+    Writing `shown` from the core alone forgot the recalled claim, and the next
+    cue offered it again — the one thing the ledger exists to prevent. The anchor
+    is pinned and the recalled claim is not, so the core cannot account for it.
+    """
+    remember("anchor", "An anchor claim.", pin=True)
+    remember("staging-ssh-port", "Staging SSH is port 2222.")
+    note_claims_shown(["staging-ssh-port"])
+    assert render_memory_block() is not None
+    assert "staging-ssh-port" in shown_claim_ids()
+
+
+def test_a_compaction_keeps_what_the_cue_showed(store_dir):
+    """`render_carried_context` re-renders the block; it must not reset the ledger."""
+    remember("anchor", "An anchor claim.", pin=True)
+    remember("staging-ssh-port", "Staging SSH is port 2222.")
+    note_claims_shown(["staging-ssh-port"])
+    assert render_memory_block() is not None
+    assert live_context.render_carried_context()
+    assert "staging-ssh-port" in shown_claim_ids()
+
+
+def test_a_recalled_claim_retired_afterwards_is_tombstoned(store_dir):
+    """The model was given the claim, so dropping it has to be said out loud.
+
+    The tombstone is decided from `shown`; a claim the block wrote back out of
+    the ledger was retired silently, and the session went on answering from it.
+    """
+    remember("anchor", "An anchor claim.", pin=True)
+    remember("staging-ssh-port", "Staging SSH is port 2222.")
+    note_claims_shown(["staging-ssh-port"])
+    assert render_memory_block() is not None
+    forget("staging-ssh-port", "stale")
+    delta = render_memory_delta()
+    assert delta is not None
+    assert "Forget this claim: Staging SSH is port 2222. [staging-ssh-port]" in delta
