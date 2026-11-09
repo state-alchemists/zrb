@@ -73,7 +73,7 @@ Events → days → beliefs → essentials: minutes, hours, indefinite, always.
 |---|---|---|
 | `facts/*.md` | renderer, search, reviewer, human | `remember` / `forget` |
 | `diary/*.md` | recent block, week view, search, human | `remember` / `forget` |
-| `log/*.md` | recent block, search, human | reviewer (append), human |
+| `log/*.md` | recent block, search, human | the log hooks (append), human |
 | `core.md` | injection, human dashboard | renderer only |
 | Persona (`{LLM_PROMPT_DIR}/persona.md`) | system prompt, slot 1 | **human only** — outside this tree |
 
@@ -473,20 +473,23 @@ This is where ~90% of writes come from. The foreground model writes memory only 
 | Trigger | Every completed turn |
 | Concurrency | Asynchronous, fire-and-forget; never delays the reply |
 | Model | The main model by default, or a cheaper one |
-| Tools | `search` only, at most 2 calls (it needs them to avoid duplicate ids) |
+| Tools | `search`, `remember`, `forget` — it searches before adding, so it revises a subject rather than inventing a second one |
 | Inputs | The turn's transcript, the current core, today's diary entry, the last 20 log lines, the persona |
-| Effect | Appends a log line; optionally remembers, forgets, writes today's diary, or revises its handover |
+| Effect | Optionally remembers, forgets, writes today's diary, or revises its handover |
+
+The log line is not the reviewer's. A completed turn's event line is written by `memory-event-log`, a hook with no model behind it, registered whenever memory is on: a turn is worth a line whether or not it is worth re-reading, and `LLM_MEMORY_REVIEWER_ENABLED=off` must stop the per-turn model call without stopping the day's record.
 
 Its output is a JSON object, validated through the same code paths as the tools, so a reviewer write and a foreground write cannot diverge:
 
 ```json
 {
-  "log": "one line, or null",
   "remember": [{"id": "…", "claim": "…", "kind": "fact", "pin": false, "tags": "…"}],
   "forget": [{"id": "…", "reason": "done"}],
   "diary": {"claim": "…", "handover": "…", "body": "…"}
 }
 ```
+
+There is no `log` key: the turn's log line is appended by `memory-event-log` before the reviewer is asked anything, so the model has nothing to add to it.
 
 `diary.id` is implied: the reviewer's day. The entry is created if today has none and merged if it does.
 
@@ -539,8 +542,9 @@ sequenceDiagram
     A->>M: search(...) whenever a layer 1-3 answer is missing
     Note over A,R: turn ends
     A->>R: fork with transcript
+    M->>M: memory-event-log appends the turn's line
     R->>M: search (dedup check)
-    R->>M: append log line; remember / forget; merge today's diary
+    R->>M: remember / forget; merge today's diary
 ```
 
 Compaction re-emits the core and recent block, because a summary that drops the memory block would end the session's knowledge mid-conversation.
@@ -709,11 +713,14 @@ than in the design.
    unmergeable notes — but the reviewer's search-before-add is a heuristic, not a
    guarantee, and §5.2's "no duplicate-detection code exists" should be read that
    way.
-4. **The log line is written by the hook, not by the reviewer.** The model never
-   writes the log: §5.1 has three tools and none of them logs. The reviewer's
-   Stop hook appends one line from the reply's own first sentence, which is what a
-   hook on a conversation event can honestly describe. The diary stays the
-   reviewer's to author, because a day is not something a hook can infer.
+4. **The log line is written by a hook, not by the reviewer.** The model never
+   writes the log: §5.1 has three tools and none of them logs. `memory-event-log`
+   appends one line from the reply's own first sentence, which is what a hook on a
+   conversation event can honestly describe, and it is registered whenever memory is
+   on — so `LLM_MEMORY_REVIEWER_ENABLED=off` stops the model call without stopping
+   the record. `memory-interrupt-log` writes the same kind of line for a cancelled
+   turn. The diary stays the reviewer's to author, because a day is not something a
+   hook can infer.
 5. **The delta is a set of versions, not a timestamp.** §4.4 compares `updated`
    against the session's first turn. A fact recorded in the same second as the
    block is neither before nor after by a clock, and a revised claim must be shown
