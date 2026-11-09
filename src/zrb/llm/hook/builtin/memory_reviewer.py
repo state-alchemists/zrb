@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from zrb.config.config import CFG
 from zrb.llm.config.model_resolver import resolve_configured_small_model
+from zrb.llm.hook.contracts.interface import HookResult
 from zrb.llm.hook.contracts.schema import AgentHookConfig, HookConfig, MatcherConfig
 from zrb.llm.hook.contracts.types import HookEvent, HookType, MatcherOperator
 from zrb.llm.memory import store
@@ -29,7 +30,7 @@ from zrb.llm.memory.model import injection_reason
 from zrb.llm.prompt.prompt import get_prompt
 
 if TYPE_CHECKING:
-    from zrb.llm.hook.contracts.interface import HookCallable, HookContext, HookResult
+    from zrb.llm.hook.contracts.interface import HookCallable, HookContext
     from zrb.llm.hook.manager import HookManager
 
 _NAME = "memory-reviewer"
@@ -165,9 +166,6 @@ def create_interrupt_log_hook() -> "HookCallable":
     """Write the interrupted turn's event line and nothing else."""
 
     async def interrupt_log(context: "HookContext") -> "HookResult":
-        # lazy: the contract module is imported for types elsewhere in this file
-        from zrb.llm.hook.contracts.interface import HookResult
-
         # Off the loop: the store's lock polls and the git commit can block, and a
         # quit must not hold the event loop on either while it is torn down.
         await asyncio.to_thread(_write_log_line, context, INTERRUPTED_LOG_TEXT)

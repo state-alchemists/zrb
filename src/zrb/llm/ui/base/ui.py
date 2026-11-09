@@ -748,12 +748,10 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
     def cancel_current_turn(self, reason: str, flush: bool = True) -> None:
         """Release pending confirmations, cancel the turn and fire `Stop`.
 
-        A `MultiUI` child delegates to its parent, which runs the turn.
-
-        *flush* reaches `cancel_pending_confirmations`: an exit passes `False`,
-        because replaying buffered output into a transcript that is being torn
-        down is work nobody will read — the same reason the exit path releases
-        the confirmation buffer that way before it gets here.
+        A `MultiUI` child delegates to its parent, which runs the turn. *flush*
+        reaches `cancel_pending_confirmations`: an exit passes `False`, because
+        replaying buffered output into a transcript being torn down is work
+        nobody will read.
         """
         running = self._running_llm_task
         if running is None or running.done():
@@ -765,11 +763,9 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             return
         self.cancel_pending_confirmations(flush=flush)
         running.cancel()
-        # Announced once per task. The task stays not-`done()` while the
-        # cancellation unwinds, so a second Esc (or an Esc then a Ctrl+C) reaches
-        # here again with the same object: the cancel is repeated, the event line
-        # is not. Before this, a repeat Stop was inert because the reviewer's
-        # matcher needs `memory_due`; a log-only hook would have duplicated it.
+        # Announced once per task: it stays not-`done()` while the cancel unwinds,
+        # so a second Esc reaches here again with the same object and must not
+        # write a second event line.
         first_announcement = running is not self._announced_cancel_task
         self._announced_cancel_task = running
         self.execute_hook(
@@ -777,10 +773,8 @@ class BaseUI(UIStateDefaultsMixin, AnyUI):
             {
                 "reason": reason,
                 "session": self.conversation_session_name,
-                # A cancelled turn is not a completed one, and the runner never
-                # sees this path, so the payload says which it was: a log-only
-                # hook writes the event line and the reviewer — whose premise is
-                # a finished transcript — stays out.
+                # No completed transcript exists, so the reviewer stays out and a
+                # log-only hook writes the event line.
                 **({"turn_cancelled": True} if first_announcement else {}),
             },
         )

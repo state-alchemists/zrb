@@ -553,6 +553,18 @@ def _remember_diary(
         return _unwritable(e)
 
 
+def _claim_to_store(claim: str | None, old: "Diary | None") -> str | None:
+    """The sentence a diary write stores, or ``None`` when a new day has none.
+
+    Omitted keeps the stored one, the rule every other field follows: a handover
+    that moved is not a new answer to what the day was, and a reviewer that never
+    read the day must not rewrite its `Today` line.
+    """
+    if claim is not None:
+        return claim
+    return old.claim if old is not None else None
+
+
 def _remember_diary_locked(
     day: str,
     claim: str | None,
@@ -568,15 +580,12 @@ def _remember_diary_locked(
             "it was rather than what happened (the log holds that). "
             "[SYSTEM SUGGESTION]: nothing was written."
         )
+    claim = _claim_to_store(claim, old)
     if claim is None:
-        if old is None:
-            return (
-                "A new diary entry needs a `claim`: the day in one line, at most "
-                "160 characters. [SYSTEM SUGGESTION]: nothing was written."
-            )
-        # Omitted keeps the stored sentence, the same rule `handover` and
-        # `source` follow.
-        claim = old.claim
+        return (
+            "A new diary entry needs a `claim`: the day in one line, at most "
+            "160 characters. [SYSTEM SUGGESTION]: nothing was written."
+        )
     body_text = _body_after(old, body, append)
     # Only an append needs the whole: the fragment the caller sent passed
     # `body_error` already, and the cap is a question about what the day becomes.
