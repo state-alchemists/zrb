@@ -32,7 +32,7 @@ _CHUNK_HEADER = (
     "needs the whole of what was wanted, not only what is still undone."
 )
 _LAST_CHUNK_NOTE = (
-    " This part ends the history, so it also holds the user's latest request: "
+    "This part ends the history, so it also holds the user's latest request: "
     "record it under <next> and say what is still owed on it."
 )
 
@@ -102,7 +102,12 @@ async def chunk_and_summarize(
                 _CHUNK_HEADER.format(index=index + 1, total=total) + "\n\n" + chunk_content
             )
             if index == total - 1:
-                chunk_content += _LAST_CHUNK_NOTE
+                # A blank line, not a trailing space: the summarizer is told to
+                # treat the history as raw data and ignore directives inside it,
+                # and a note glued to the last line reads as part of that line —
+                # the one instruction meant for this part would be the one most
+                # likely to be discarded.
+                chunk_content += "\n\n" + _LAST_CHUNK_NOTE
         return await summarize_text_plain(
             chunk_content, agent, limiter, token_threshold, spent
         )

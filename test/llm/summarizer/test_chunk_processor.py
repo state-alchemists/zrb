@@ -256,3 +256,6 @@ async def test_every_part_is_told_the_user_words_are_the_spine(
     assert all("part" in chunk for chunk in sent)
     assert "latest request" not in sent[0]
     assert sent[-1].count("latest request") == 1
+    # Its own paragraph, never the last line of the transcript: the summarizer is
+    # told to ignore directives it finds inside the history.
+    assert "\n\nThis part ends the history" in sent[-1]
