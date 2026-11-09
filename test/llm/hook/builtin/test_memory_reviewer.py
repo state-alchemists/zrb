@@ -9,13 +9,14 @@ from zrb.llm.hook.builtin.memory_reviewer import (
     INTERRUPTED_LOG_TEXT,
     _append_event_line,
     _first_sentence,
-    _with_log_line,
+    build_completed_log_hook_config,
     build_interrupt_log_hook_config,
     build_memory_reviewer_hook_config,
+    create_completed_log_hook,
     create_interrupt_log_hook,
     register_memory_reviewer_hook,
 )
-from zrb.llm.hook.contracts.interface import HookContext, HookResult
+from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent, HookType
 from zrb.llm.memory import paths, store
 
@@ -109,42 +110,35 @@ def test_a_reply_that_reads_as_an_instruction_is_not_logged_verbatim(store_dir):
 
 
 @pytest.mark.asyncio
-async def test_the_turn_is_logged_even_when_the_reviewer_fails(store_dir):
-    """The event happened before the reviewer ran; a failed reviewer is not a gap."""
+async def test_a_completed_turn_is_logged_by_a_hook_of_its_own(store_dir):
+    """The line is not the reviewer's: it is written by a hook that calls no model.
 
-    async def failing(context):
-        return HookResult(success=False, output="model unavailable")
-
+    With `LLM_MEMORY_REVIEWER_ENABLED=off` a day used to record nothing at all,
+    which is the gap this hook exists to close.
+    """
     context = HookContext(
         event=HookEvent.STOP,
-        event_data={},
+        event_data={"memory_due": True},
         last_assistant_message="Did the thing. Then some more.",
         cwd="/home/gofrendi/zrb",
     )
-    result = await _with_log_line(failing)(context)
-    assert result.success is False
+    result = await create_completed_log_hook()(context)
+    assert result.success is True
     assert any("Did the thing" in line for line in store.log_lines(store.today()))
 
 
-@pytest.mark.asyncio
-async def test_the_turn_is_logged_even_when_the_reviewer_raises(store_dir):
-    async def exploding(context):
-        raise RuntimeError("boom")
-
-    context = HookContext(
-        event=HookEvent.STOP,
-        event_data={},
-        last_assistant_message="Did the thing anyway.",
-        cwd="/home/gofrendi/zrb",
-    )
-    with pytest.raises(RuntimeError):
-        await _with_log_line(exploding)(context)
-    assert any(
-        "Did the thing anyway" in line for line in store.log_lines(store.today())
-    )
+def test_a_completed_turn_wakes_the_log_only_hook():
+    config = build_completed_log_hook_config()
+    assert config.name == "memory-event-log"
+    assert config.events == [HookEvent.STOP]
+    assert len(config.matchers) == 1
+    assert config.matchers[0].field == "event_data.memory_due"
+    assert config.matchers[0].value is True
+    # No model is called, so it must not stretch the quit's drain either.
+    assert config.timeout is None
 
 
-def test_the_reviewer_registers_while_memory_and_the_reviewer_are_on(monkeypatch):
+def test_all_three_hooks_register_while_both_switches_are_on(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
@@ -152,10 +146,10 @@ def test_the_reviewer_registers_while_memory_and_the_reviewer_are_on(monkeypatch
     register_memory_reviewer_hook(manager)
     assert [
         call.args[0].name for call in manager.register_hook_config.call_args_list
-    ] == ["memory-interrupt-log", "memory-reviewer"]
+    ] == ["memory-event-log", "memory-interrupt-log", "memory-reviewer"]
 
 
-def test_the_reviewer_stays_out_when_memory_is_off(monkeypatch):
+def test_nothing_registers_when_memory_is_off(monkeypatch):
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", False, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
@@ -163,35 +157,37 @@ def test_the_reviewer_stays_out_when_memory_is_off(monkeypatch):
     manager.register_hook_config.assert_not_called()
 
 
-def test_the_reviewer_stays_out_when_it_is_switched_off(monkeypatch):
+def test_the_log_hooks_survive_the_reviewer_switch(monkeypatch):
+    """Turning the reviewer off stops the model call, not the day's record.
+
+    Both log hooks used to share its switch, so the log held either nothing at all
+    or — once a cancelled turn was logged — cancellations and nothing else.
+    """
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
     manager = MagicMock()
+    manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
-    manager.register_hook_config.assert_not_called()
+    assert [
+        call.args[0].name for call in manager.register_hook_config.call_args_list
+    ] == ["memory-event-log", "memory-interrupt-log"]
 
 
-def test_the_interrupt_log_is_registered_while_the_reviewer_is_on(monkeypatch):
-    """With the reviewer off, no completed turn is logged either: an
-    interrupt-only log would say the day held nothing but cancellations."""
+def test_the_log_hooks_are_added_with_their_own_callables(monkeypatch):
+    """The registry refuses a second hook of the same name; `add_hook` does not.
+
+    Each log hook is registered through the registry and then swapped for a
+    callable that writes the line instead of building an agent, so the swap has to
+    happen exactly once per name — a plain `add_hook` would append another copy on
+    every reload and write the line twice.
+    """
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
     monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
     manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
-    names = [
-        call.args[2].name if len(call.args) > 2 else None
-        for call in manager.add_hook.call_args_list
-    ]
-    assert names == ["memory-interrupt-log", "memory-reviewer"]
-
-
-def test_the_interrupt_log_goes_off_with_the_reviewer(monkeypatch):
-    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
-    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
-    manager = MagicMock()
-    register_memory_reviewer_hook(manager)
-    manager.add_hook.assert_not_called()
+    names = [call.args[2].name for call in manager.add_hook.call_args_list]
+    assert names == ["memory-event-log", "memory-interrupt-log"]
 
 
 def test_the_interrupt_log_does_not_stretch_the_exit_drain():

@@ -882,14 +882,14 @@ async def _take_turn_snapshot(snapshot: TurnSnapshot | None) -> None:
 
 
 def is_memory_due_for_turn() -> bool:
-    """Whether the memory reviewer runs at the end of a turn.
+    """Whether a completed turn owes the memory log a line.
 
-    It runs on every completed turn while both switches are on: it is the writer,
-    and a turn that changed no file and stated no preference is exactly where an
-    observation or a preference goes missing. Its own default answer is
-    "nothing", so the cost is a small-model call.
+    Due on every completed turn while memory is on, whether or not the reviewer
+    is: the line is written by a log-only hook, and switching off the per-turn
+    small-model call must not also stop recording what the day held. The reviewer
+    reads the same flag, and its own switch decides whether it joins.
     """
-    return bool(CFG.LLM_MEMORY_ENABLED and CFG.LLM_MEMORY_REVIEWER_ENABLED)
+    return bool(CFG.LLM_MEMORY_ENABLED)
 
 
 async def _finish_turn(

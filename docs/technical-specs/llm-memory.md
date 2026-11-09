@@ -73,7 +73,7 @@ Events → days → beliefs → essentials: minutes, hours, indefinite, always.
 |---|---|---|
 | `facts/*.md` | renderer, search, reviewer, human | `remember` / `forget` |
 | `diary/*.md` | recent block, week view, search, human | `remember` / `forget` |
-| `log/*.md` | recent block, search, human | reviewer (append), human |
+| `log/*.md` | recent block, search, human | the log hooks (append), human |
 | `core.md` | injection, human dashboard | renderer only |
 | Persona (`{LLM_PROMPT_DIR}/persona.md`) | system prompt, slot 1 | **human only** — outside this tree |
 
@@ -473,9 +473,11 @@ This is where ~90% of writes come from. The foreground model writes memory only 
 | Trigger | Every completed turn |
 | Concurrency | Asynchronous, fire-and-forget; never delays the reply |
 | Model | The main model by default, or a cheaper one |
-| Tools | `search` only, at most 2 calls (it needs them to avoid duplicate ids) |
+| Tools | `search`, `remember`, `forget` — it searches before adding, so it revises a subject rather than inventing a second one |
 | Inputs | The turn's transcript, the current core, today's diary entry, the last 20 log lines, the persona |
-| Effect | Appends a log line; optionally remembers, forgets, writes today's diary, or revises its handover |
+| Effect | Optionally remembers, forgets, writes today's diary, or revises its handover |
+
+The log line is not the reviewer's. A completed turn's event line is written by `memory-event-log`, a hook with no model behind it, registered whenever memory is on: a turn is worth a line whether or not it is worth re-reading, and `LLM_MEMORY_REVIEWER_ENABLED=off` must stop the per-turn model call without stopping the day's record.
 
 Its output is a JSON object, validated through the same code paths as the tools, so a reviewer write and a foreground write cannot diverge:
 
