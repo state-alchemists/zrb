@@ -322,9 +322,9 @@ After every completed turn, a small sub-agent reads that turn and writes what is
 
 ### The interrupt log
 
-A cancelled turn has no completed transcript, so the reviewer — whose premise is one — stays out. A second hook, `memory-interrupt-log`, matches the `Stop` payload's `turn_cancelled` and writes the single line `the turn was cancelled`, with no model call. It covers Esc, Ctrl+C and Ctrl+D while a turn is running, announces a cut turn once however many keys were pressed, and fires through a `MultiUI` parent's turn too. Without it, a session ended mid-turn left the day's log reading as if nothing had happened.
+A cancelled turn has no completed transcript, so the reviewer — whose premise is one — stays out. A second hook, `memory-interrupt-log`, matches the `Stop` payload's `turn_cancelled` and writes the single line `the turn was cancelled`, with no model call. It covers Esc, Ctrl+C and Ctrl+D while a turn is running — and a send-now that has to fall back to cancelling the turn, because that turn is cut the same way and leaves no other line. It announces a cut turn once however many keys were pressed, and fires through a `MultiUI` parent's turn too. Without it, a session ended mid-turn left the day's log reading as if nothing had happened.
 
-It is gated on `ZRB_LLM_MEMORY_ENABLED` alone, and carries no hook timeout: switching the reviewer off stops the per-turn model call, not the event line, and quitting must not wait 90 seconds for a write that called no model.
+It is registered with the reviewer and switched off with it. That is deliberate: the log line for a *completed* turn is written by the reviewer's own wrapper, so with `ZRB_LLM_MEMORY_REVIEWER_ENABLED=off` the store records no turns at all, and a log holding only cancellations would misrepresent the day. It carries no hook timeout, so quitting never waits on a write that called no model.
 
 How an agent-type hook like this one is wired internally is traced in [LLM Chat Request Lifecycle](./llm-chat-lifecycle.md#tracing-an-agent-type-hook-the-memory-reviewer) (a contributor page).
 

@@ -95,19 +95,22 @@ def build_memory_reviewer_hook_config() -> HookConfig:
 
 def register_memory_reviewer_hook(manager: "HookManager") -> None:
     """Register the reviewer unless memory or the reviewer is switched off."""
-    if not CFG.LLM_MEMORY_ENABLED:
+    if not CFG.LLM_MEMORY_ENABLED or not CFG.LLM_MEMORY_REVIEWER_ENABLED:
         return
     # A cancelled turn never reaches the reviewer's matcher: the TUI fires its own
-    # Stop, with `turn_cancelled` and no completed transcript. Gated on memory
-    # alone — it calls no model, and switching the reviewer off to stop spending a
-    # small-model call per turn must not also take the day's log line with it.
+    # Stop, with `turn_cancelled` and no completed transcript.
+    #
+    # Registered with the reviewer rather than on `LLM_MEMORY_ENABLED` alone, even
+    # though it calls no model: the log line for a *completed* turn is written by
+    # `_with_log_line`, which exists only past this return, and the runner reports
+    # `memory_due` false in the same configuration. An interrupt line without those
+    # would leave a day whose log held cancellations and nothing else, which reads
+    # worse than a day with no log at all.
     manager.add_hook(
         create_interrupt_log_hook(),
         [HookEvent.STOP],
         build_interrupt_log_hook_config(),
     )
-    if not CFG.LLM_MEMORY_REVIEWER_ENABLED:
-        return
     config = build_memory_reviewer_hook_config()
     hook = manager.register_hook_config(config, source="builtin")
     if hook is None:

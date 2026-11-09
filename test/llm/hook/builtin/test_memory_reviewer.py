@@ -169,17 +169,27 @@ def test_the_reviewer_stays_out_when_it_is_switched_off(monkeypatch):
     manager.register_hook_config.assert_not_called()
 
 
-def test_the_interrupt_log_outlives_the_reviewer_switch(monkeypatch):
-    """Turning the reviewer off stops the model call, not the day's event line."""
+def test_the_interrupt_log_is_registered_while_the_reviewer_is_on(monkeypatch):
+    """With the reviewer off, no completed turn is logged either: an
+    interrupt-only log would say the day held nothing but cancellations."""
     monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
-    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", True, raising=False)
     manager = MagicMock()
+    manager.register_hook_config.return_value = MagicMock()
     register_memory_reviewer_hook(manager)
     names = [
         call.args[2].name if len(call.args) > 2 else None
         for call in manager.add_hook.call_args_list
     ]
-    assert names == ["memory-interrupt-log"]
+    assert names == ["memory-interrupt-log", "memory-reviewer"]
+
+
+def test_the_interrupt_log_goes_off_with_the_reviewer(monkeypatch):
+    monkeypatch.setattr(CFG, "LLM_MEMORY_ENABLED", True, raising=False)
+    monkeypatch.setattr(CFG, "LLM_MEMORY_REVIEWER_ENABLED", False, raising=False)
+    manager = MagicMock()
+    register_memory_reviewer_hook(manager)
+    manager.add_hook.assert_not_called()
 
 
 def test_the_interrupt_log_does_not_stretch_the_exit_drain():
