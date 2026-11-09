@@ -63,12 +63,25 @@ def render_verbatim_messages(
 
 
 def _clip_tool_output(content: object, limit: int | None) -> str:
-    """*content* as text, shortened to *limit* characters when one is set."""
+    """*content* as text, shortened to *limit* characters when one is set.
+
+    Both ends survive, half the limit each. A result's conclusion is at its end
+    as often as its subject is at its start — a failing test names the failure
+    in its last lines, `git status` says what is left in the last lines, a
+    search puts the match wherever it is — and the summary replaces the result
+    outright, so a head-only clip can throw away the one line the next session
+    needed while keeping a thousand characters of preamble.
+    """
     text = content if isinstance(content, str) else str(content)
     if limit is None or limit <= 0 or len(text) <= limit:
         return text
+    head = limit // 2
+    tail = limit - head
     omitted = len(text) - limit
-    return f"{text[:limit]}\n[truncated: {omitted} of {len(text)} characters omitted]"
+    return (
+        f"{text[:head]}\n[truncated: {omitted} of {len(text)} characters omitted]"
+        f"\n{text[-tail:]}"
+    )
 
 
 def message_content_text(msg: object) -> str:

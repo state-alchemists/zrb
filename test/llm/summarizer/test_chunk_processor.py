@@ -191,6 +191,36 @@ async def test_tool_output_is_clipped_before_the_summarizer_reads_it(monkeypatch
     assert "characters omitted" in sent[0]
 
 
+@pytest.mark.asyncio
+async def test_clipping_keeps_the_end_of_a_tool_result(monkeypatch):
+    """A result's conclusion lives at its end as often as its subject at its start.
+
+    The summary replaces the result outright, so a head-only clip can drop the
+    one line the next session needed: the failing test's name, the `git status`
+    that says what is still dirty, the match a search returned.
+    """
+    sent = _recording_summarizer(monkeypatch)
+    body = "a line of scaffolding. " * 100
+    fat = ModelRequest(
+        parts=[
+            ToolReturnPart(
+                content=f"{body}{'DECISIVE'}", tool_name="Read", tool_call_id="call_1"
+            )
+        ]
+    )
+
+    await chunk_and_summarize(
+        messages=[fat],
+        agent=MagicMock(),
+        limiter=_Limiter(),
+        token_threshold=100_000,
+    )
+
+    assert len(sent) == 1
+    assert "DECISIVE" in sent[0]
+    assert "characters omitted" in sent[0]
+
+
 class _CharLimiter:
     """A limiter that counts characters, for a test whose subject is text size."""
 
