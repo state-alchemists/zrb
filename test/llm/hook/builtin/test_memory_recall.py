@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from zrb.config.config import CFG
+from zrb.llm.agent.run.hook_result_extractor import extract_additional_context
 from zrb.llm.hook.builtin.memory_recall import (
     RECALL_LIMIT,
     build_recall_hook_config,
@@ -19,6 +20,7 @@ from zrb.llm.hook.builtin.memory_recall import (
 )
 from zrb.llm.hook.contracts.interface import HookContext
 from zrb.llm.hook.contracts.types import HookEvent
+from zrb.llm.hook.manager.manager import HookManager
 from zrb.llm.memory import paths, store
 from zrb.llm.memory.model import Fact
 from zrb.llm.memory.search import RESULT_CONTRACT
@@ -152,12 +154,34 @@ async def test_a_prompt_with_nothing_to_recall_adds_nothing(store_dir):
     assert result.modifications == {}
 
 
+@pytest.mark.asyncio
+async def test_the_context_reaches_the_turn_through_the_manager(store_dir):
+    """The manager is where a background hook's result goes missing.
+
+    An `is_async` agent hook is spawned fire-and-forget and records no result, so
+    the claim has to come back out of `execute_hooks`, not merely out of the
+    callable — a hook that runs and loses its answer is worse than none, because
+    it has already marked the claim as given.
+    """
+    _save(id="staging-ssh-port", claim="Staging SSH is on port 2222.")
+    manager = HookManager()
+    register_recall_hook(manager)
+
+    results = await manager.execute_hooks(
+        HookEvent.USER_PROMPT_SUBMIT, {}, prompt="how do I reach staging ssh?"
+    )
+
+    assert "port 2222" in (extract_additional_context(results) or "")
+
+
 def test_the_recall_hook_runs_on_the_user_prompt():
     config = build_recall_hook_config()
 
     assert config.name == "memory-recall"
     assert config.events == [HookEvent.USER_PROMPT_SUBMIT]
-    # No model is called, and the turn waits on it: nothing to time out on.
+    # Synchronous: an async agent hook is spawned fire-and-forget and records no
+    # result, so the context it returns would never reach the prompt.
+    assert config.is_async is False
     assert config.timeout is None
 
 

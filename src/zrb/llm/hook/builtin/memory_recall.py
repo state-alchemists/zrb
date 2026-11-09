@@ -72,9 +72,17 @@ def build_recall_hook_config() -> HookConfig:
             model=resolve_configured_small_model(),
             auto_approve=False,
         ),
-        is_async=True,
-        # Nothing here touches a model, and the turn is waiting on it: a hook that
-        # stalled would delay the prompt it is meant to help.
+        is_async=False,
+        # Not a background hook, and this is the whole point of the hook: an
+        # `is_async` agent hook is spawned fire-and-forget and records no result
+        # (`manager._run_one_hook`), so the `additionalContext` it returns would
+        # be dropped — while `note_claims_shown` had already marked the claim as
+        # given, which would keep it out of every later turn too.
+        #
+        # Nothing here touches a model, so the wait is a lexical pass over the
+        # store rather than a round trip. `timeout=None`: a hook that stalled
+        # would delay the prompt it is meant to help, and there is nothing slow
+        # in it to wait for.
         timeout=None,
     )
 
