@@ -1,5 +1,7 @@
 """The injected block and its per-turn delta."""
 
+from datetime import date, timedelta
+
 import pytest
 
 from zrb.config.config import CFG
@@ -123,6 +125,19 @@ def test_the_block_carries_todays_claim_and_the_log_tail(store_dir):
     assert block is not None
     assert f"Today ({day}): Spent the day on memory." in block
     assert "Replaced the journal" in block
+
+
+def test_the_block_carries_the_last_day_written(store_dir):
+    """Opened at midnight, today has no claim yet and the day before it has one.
+
+    Without this line the block carries where things stand and nothing about
+    what the last day was, which is what a fresh session re-derived.
+    """
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    remember(yesterday, "Finished the recall hook.", kind="diary", body="A long day.")
+    block = render_memory_block()
+    assert block is not None
+    assert f"- {yesterday}: Finished the recall hook." in block
 
 
 def test_the_recent_log_line_count_is_configurable(store_dir, monkeypatch):

@@ -53,11 +53,13 @@ def render_memory_block() -> str | None:
         return None
     core_cap = CFG.LLM_MEMORY_CORE_MAX_CHARS
     core = render.cut_lines(render.render_core(facts), core_cap)
+    today_day = store.today()
     recent = render.cut_lines(
         render.render_recent(
-            store.latest_handover(),
-            store.load_diary(store.today()),
+            store.latest_handover(today_day),
+            store.load_diary(today_day),
             store.recent_log_lines(CFG.LLM_MEMORY_RECENT_LOG_LINES),
+            store.latest_diary_before(today_day),
         ),
         CFG.LLM_MEMORY_RECENT_MAX_CHARS,
     )

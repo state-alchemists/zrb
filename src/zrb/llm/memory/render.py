@@ -1,4 +1,4 @@
-"""The four views of the store, as text.
+"""The views of the store, as text.
 
 Pure functions: facts and entries in, text out. No `CFG`, no I/O, so the caller
 owns the budget and the tools can measure a document before anything is written —
@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
 
 from zrb.llm.memory.model import (
     KIND_FACT,
@@ -178,30 +177,31 @@ def render_recent(
     handover: Diary | None,
     today_entry: Diary | None,
     log_tail: Sequence[str],
+    previous_entry: Diary | None = None,
 ) -> str:
-    """`## Recent`: the newest handover, today's claim, then the log's last lines.
+    """`## Recent`: the handover, today's claim, the last day written, then the log.
 
     The order is also the eviction order. A cap cuts the tail, and the tail has
     to be the least useful line, so the log runs newest first: dropping the
     oldest line of a capped block loses a memory nobody would have read.
+
+    *previous_entry* is the newest authored day before today — yesterday, when
+    yesterday was written. Without it a session opened after midnight knows
+    where things stand and nothing about what the last day was, because today's
+    claim stays empty until the day is written. It carries its own date rather
+    than the word "yesterday", which a quiet day would make a lie.
+
+    A handover and a claim from the same day are both kept: state of play and
+    what the day was are different sentences, and the second is the one that
+    goes missing when a session outlives a night.
     """
-    lines: list[str] = []
-    same_day = (
-        handover is not None
-        and today_entry is not None
-        and handover.id == today_entry.id
-    )
-    if (
-        handover is not None
-        and handover.handover.strip()
-        and _is_injectable(handover.handover)
-    ):
-        # The same day is named once: when the handover is today's, the `Today`
-        # line below already carries the date.
-        label = "- Handover:" if same_day else f"- Handover ({handover.id}):"
-        lines.append(f"{label} {_one_line(handover.handover)}")
-    if today_entry is not None and _is_injectable(today_entry.claim):
-        lines.append(f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}")
+    today_id = today_entry.id if today_entry is not None else ""
+    dated = [
+        _handover_line(handover, today_entry),
+        _today_line(today_entry),
+        _previous_line(previous_entry, today_id),
+    ]
+    lines = [line for line in dated if line]
     lines.extend(
         line
         for line in reversed(list(log_tail))
@@ -212,23 +212,36 @@ def render_recent(
     return _section(RECENT_HEADING, lines)
 
 
-def render_week(entries: dict[str, Diary], today_day: str, days: int = 7) -> list[str]:
-    """One line per day: the authored claim, or the log's own theme as a fallback.
+def _handover_line(handover: Diary | None, today_entry: Diary | None) -> str:
+    """The newest state of play, dated unless it is the same day as `Today`."""
+    if (
+        handover is None
+        or not handover.handover.strip()
+        or not _is_injectable(handover.handover)
+    ):
+        return ""
+    # The same day is named once: when the handover is today's, the `Today` line
+    # already carries the date.
+    same_day = today_entry is not None and handover.id == today_entry.id
+    label = "- Handover:" if same_day else f"- Handover ({handover.id}):"
+    return f"{label} {_one_line(handover.handover)}"
 
-    The fallback exists only for a day with no entry. An authored claim beats a
-    theme derived from tag counts, which is why the diary exists at all.
-    """
-    current = _as_date(today_day)
-    if current is None:
-        return []
-    lines: list[str] = []
-    for offset in range(days):
-        day = (current - timedelta(days=offset)).isoformat()
-        entry = entries.get(day)
-        if entry is None or not entry.is_active:
-            continue
-        lines.append(f"- {day} — {_one_line(entry.claim)}")
-    return lines
+
+def _today_line(today_entry: Diary | None) -> str:
+    if today_entry is None or not _is_injectable(today_entry.claim):
+        return ""
+    return f"- Today ({today_entry.id}): {_one_line(today_entry.claim)}"
+
+
+def _previous_line(previous_entry: Diary | None, today_id: str) -> str:
+    """The last day written, dated. A day is never its own previous day."""
+    if (
+        previous_entry is None
+        or previous_entry.id == today_id
+        or not _is_injectable(previous_entry.claim)
+    ):
+        return ""
+    return f"- {previous_entry.id}: {_one_line(previous_entry.claim)}"
 
 
 def compose_memory(
@@ -532,10 +545,3 @@ def _section(heading: str, lines: Sequence[str]) -> str:
 
 def _one_line(value: str) -> str:
     return " ".join(value.split())
-
-
-def _as_date(value: str) -> date | None:
-    try:
-        return date.fromisoformat(value)
-    except (TypeError, ValueError):
-        return None
