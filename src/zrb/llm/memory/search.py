@@ -16,6 +16,7 @@ subject and re-stating one is how a claim is revised rather than duplicated.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -97,7 +98,19 @@ def is_about_the_subject(query: str, hit: Hit) -> bool:
     """
     wanted = terms(query)
     surfaces = (hit.id.lower(), hit.claim.lower(), " ".join(hit.tags).lower())
-    return any(word in surface for word in wanted for surface in surfaces)
+    return any(_is_word_in(word, surface) for word in wanted for surface in surfaces)
+
+
+def _is_word_in(word: str, surface: str) -> bool:
+    """Whether *word* appears in *surface* as a word, not inside a longer one.
+
+    A plain substring test read `api` out of `capital` and `db` out of
+    `redbrick`. That is tolerable for a search the model asked for and wrong for
+    a cue it did not: an unasked claim spends context and can steer the turn.
+    """
+    return (
+        re.search(rf"(?<![0-9a-z]){re.escape(word)}(?![0-9a-z])", surface) is not None
+    )
 
 
 def terms(query: str) -> list[str]:

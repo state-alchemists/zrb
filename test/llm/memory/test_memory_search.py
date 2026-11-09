@@ -25,6 +25,33 @@ def _save(**fields):
     return fact
 
 
+def test_a_term_matches_a_word_and_not_a_slice_of_one():
+    """`api` must not be read out of `capital`, or `db` out of `redbrick`.
+
+    A cue is unasked, so a match inside a longer word spends context in a turn
+    nobody invited it into, and a plausible-but-irrelevant claim is worse than no
+    recall at all.
+    """
+    wanted = search.Hit(
+        kind="fact",
+        id="deploy-api",
+        claim="The API sits behind a proxy.",
+        path="facts/deploy-api.md",
+        updated="2026-11-03T10:00:00",
+        score=1,
+    )
+    unrelated = search.Hit(
+        kind="fact",
+        id="capital-city",
+        claim="The capital is Jakarta.",
+        path="facts/capital-city.md",
+        updated="2026-11-03T10:00:00",
+        score=1,
+    )
+    assert search.is_about_the_subject("where is the api", wanted)
+    assert not search.is_about_the_subject("api", unrelated)
+
+
 def test_an_exact_id_outranks_a_claim_mention(store_dir):
     _save(id="deploy", claim="Deploy is a script.", body="")
     _save(id="other", claim="Deploy happens on Fridays.", body="")
