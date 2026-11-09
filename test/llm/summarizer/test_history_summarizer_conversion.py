@@ -140,9 +140,13 @@ async def test_last_user_intent_instruction_injection():
         args, _ = call
         if args and isinstance(args[0], str):
             prompt = args[0]
+            # The instruction names the last part's request and where it goes.
+            # It used to point at `<overall_goal>`/`<task_state>`, two sections
+            # the schema does not have; `<next>` is where an owed request lives.
             if (
-                "IMPORTANT: The last part of this history contains the user's latest request"
-                in prompt
+                "This part ends the history" in prompt
+                and "latest request" in prompt
+                and "<next>" in prompt
             ):
                 found_instruction = True
                 break

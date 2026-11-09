@@ -10,6 +10,32 @@ from zrb.llm.summarizer.text_summarizer import summarize_text_plain
 from zrb.llm.util.capabilities import model_capabilities
 from zrb.util.cli.style import stylize_error, stylize_warning
 
+SUMMARY_TOOL_OUTPUT_LIMIT = 2_000
+"""Characters of one tool result the summarizer reads.
+
+The verbatim archive keeps every result in full, so nothing here is lost. What it
+buys is the rest of the conversation: tool output is most of a long history's
+mass, and the mass decides where the chunks fall. In the session that prompted
+this constant, 72% of what the summarizer was handed was tool output — the
+history split with 368 messages in one chunk and 8 in the other, and the
+conversation's first half hour, an entire research discussion the user had asked
+for, ended up compressed into a snapshot the merge then overruled as "the newer
+observation wins". Clipped to this width the same history is about half its size
+and fits one chunk, where nothing has to be ranked against anything else.
+"""
+
+_CHUNK_HEADER = (
+    "This is part {index} of {total} of one conversation's history, in order. "
+    "The user's own messages are the spine of it, not narration: every request "
+    "they made in this part, and every correction they gave, belongs in the "
+    "snapshot — including one already carried out, because the agent taking over "
+    "needs the whole of what was wanted, not only what is still undone."
+)
+_LAST_CHUNK_NOTE = (
+    " This part ends the history, so it also holds the user's latest request: "
+    "record it under <next> and say what is still owed on it."
+)
+
 
 async def chunk_and_summarize(
     messages: list[Any],
@@ -23,7 +49,7 @@ async def chunk_and_summarize(
     history_texts = []
     for m in messages:
         try:
-            history_texts.append(message_to_text(m))
+            history_texts.append(message_to_text(m, SUMMARY_TOOL_OUTPUT_LIMIT))
         except Exception as e:
             zrb_print(
                 stylize_error(f"  Error converting message to text: {e}"), plain=True
@@ -66,13 +92,17 @@ async def chunk_and_summarize(
             plain=True,
         )
         chunk_content = "\n".join(chunk)
-        is_last = index == total - 1
-        if is_last and include_last_user_intent_instruction:
-            chunk_content += (
-                "\n\nIMPORTANT: The last part of this history contains the user's latest request. "
-                "Ensure the <state_snapshot> explicitly captures this request in <overall_goal> or <task_state> "
-                "so the next agent knows exactly what to do."
+        if include_last_user_intent_instruction:
+            # Every part, not only the last: the intent instruction used to reach
+            # the final chunk alone, which in the session this was written for
+            # meant 8 messages out of 376 — while the chunk holding the other 368
+            # was summarized as a work log, and the user's question in it was
+            # dropped by the merge.
+            chunk_content = (
+                _CHUNK_HEADER.format(index=index + 1, total=total) + "\n\n" + chunk_content
             )
+            if index == total - 1:
+                chunk_content += _LAST_CHUNK_NOTE
         return await summarize_text_plain(
             chunk_content, agent, limiter, token_threshold, spent
         )
@@ -120,6 +150,10 @@ async def consolidate_summaries(
         "when two snapshots disagree the newer observation wins. A fact neither "
         "contradicts keeps the observation time it was first recorded with, and a "
         "line the newest snapshot supersedes is dropped rather than both being kept.\n"
+        "The snapshots are of very different sizes, and size is not priority. A "
+        "request the user made that no later message answered is never dropped, "
+        "however old it is and however little the newest snapshot says about it: it "
+        "belongs under <open_questions> or <next>, with the time it was asked.\n"
         "IMPORTANT: Be extremely concise and dense. Your goal is to fit all critical "
         f"knowledge into less than {conversational_token_threshold // 2} tokens.\n"
         f"{summary_text}"
