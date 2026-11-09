@@ -711,11 +711,14 @@ than in the design.
    unmergeable notes — but the reviewer's search-before-add is a heuristic, not a
    guarantee, and §5.2's "no duplicate-detection code exists" should be read that
    way.
-4. **The log line is written by the hook, not by the reviewer.** The model never
-   writes the log: §5.1 has three tools and none of them logs. The reviewer's
-   Stop hook appends one line from the reply's own first sentence, which is what a
-   hook on a conversation event can honestly describe. The diary stays the
-   reviewer's to author, because a day is not something a hook can infer.
+4. **The log line is written by a hook, not by the reviewer.** The model never
+   writes the log: §5.1 has three tools and none of them logs. `memory-event-log`
+   appends one line from the reply's own first sentence, which is what a hook on a
+   conversation event can honestly describe, and it is registered whenever memory is
+   on — so `LLM_MEMORY_REVIEWER_ENABLED=off` stops the model call without stopping
+   the record. `memory-interrupt-log` writes the same kind of line for a cancelled
+   turn. The diary stays the reviewer's to author, because a day is not something a
+   hook can infer.
 5. **The delta is a set of versions, not a timestamp.** §4.4 compares `updated`
    against the session's first turn. A fact recorded in the same second as the
    block is neither before nor after by a clock, and a revised claim must be shown

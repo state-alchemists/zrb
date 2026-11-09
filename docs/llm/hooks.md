@@ -312,7 +312,7 @@ Four hooks ship with zrb. All are registered in Python on every chat session, so
 
 ### The memory reviewer
 
-After every completed turn, a small sub-agent reads that turn and writes what is durable: a log line, a fact, a correction, today's diary entry, or the day's handover. It runs asynchronously, so it never delays the response, and its normal answer is "nothing" — most turns teach nothing that outlives them.
+After every completed turn, a small sub-agent reads that turn and writes what is durable: a fact, a correction, today's diary entry, or the day's handover. It runs asynchronously, so it never delays the response, and its normal answer is "nothing" — most turns teach nothing that outlives them.
 
 - **On** while memory is on (`ZRB_LLM_MEMORY_ENABLED`, default on) and the reviewer is (`ZRB_LLM_MEMORY_REVIEWER_ENABLED`, default on); its hook name is `memory-reviewer`.
 - **Model:** the small model (`ZRB_LLM_SMALL_MODEL`, or a `/model small …` override). Set one — an unset small model falls back to your main model, which defeats the point of a cheap reviewer.
