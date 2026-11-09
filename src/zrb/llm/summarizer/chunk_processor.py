@@ -37,6 +37,27 @@ _LAST_CHUNK_NOTE = (
 )
 
 
+def _instruction_tokens(limiter: "LLMLimiter", include: bool) -> int:
+    """What the per-chunk instructions cost, in tokens the chunk budget must keep.
+
+    A chunk sized to 90% of the model's window and then given a header is a
+    request the model refuses with `context_length_exceeded`, and a refused chunk
+    fails the whole compaction — so the instructions are paid for here rather
+    than discovered by the provider.
+
+    Measured on the templates instead of a rendered chunk, because the split has
+    not happened yet. Only `index` and `total` vary, three digits in the worst
+    case, and the four extra tokens cover the blank lines around them.
+    """
+    if not include:
+        return 0
+    return (
+        limiter.count_tokens(_CHUNK_HEADER.format(index=999, total=999))
+        + limiter.count_tokens(_LAST_CHUNK_NOTE)
+        + 4
+    )
+
+
 async def chunk_and_summarize(
     messages: list[Any],
     agent: Any,
@@ -66,7 +87,12 @@ async def chunk_and_summarize(
     chunks: list[list[str]] = []
     current_chunk: list[str] = []
     current_chunk_tokens = 0
-    chunk_token_limit = max(1, int(chunk_budget * 0.9))
+    # The instructions are appended after the split, so their cost is taken out
+    # of the budget rather than discovered by the model.
+    instruction_tokens = _instruction_tokens(
+        limiter, include_last_user_intent_instruction
+    )
+    chunk_token_limit = max(1, int(chunk_budget * 0.9) - instruction_tokens)
 
     for text in history_texts:
         text_tokens = limiter.count_tokens(text)

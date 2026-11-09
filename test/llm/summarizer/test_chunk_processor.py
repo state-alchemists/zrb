@@ -100,6 +100,46 @@ async def test_chunk_is_capped_by_the_summarization_models_window(
     )
 
 
+_NARROW_MODEL = "zrb-test-narrow-window"
+_NARROW_WINDOW = 400
+
+
+@pytest.fixture
+def narrow_window_model():
+    "A window wide enough for the header, narrow enough for it to matter."
+    model_capabilities.register(_NARROW_MODEL, context_window=_NARROW_WINDOW)
+    yield f"fake:{_NARROW_MODEL}"
+    model_capabilities.clear()
+
+
+@pytest.mark.asyncio
+async def test_the_instructions_are_paid_for_out_of_the_chunk_budget(
+    narrow_window_model, monkeypatch
+):
+    """The header and the last-part note are appended after the split is sized.
+
+    A chunk sized to 90% of the window and then given a header is a request the
+    model refuses with `context_length_exceeded` — and a refused chunk fails the
+    compaction, so the one turn that needed a summary gets an error instead.
+    """
+    sent = _recording_summarizer(monkeypatch)
+
+    await chunk_and_summarize(
+        messages=_messages(60),
+        agent=SimpleNamespace(model=narrow_window_model),
+        limiter=_Limiter(),
+        token_threshold=1000,
+        include_last_user_intent_instruction=True,
+    )
+
+    assert len(sent) > 1, "one chunk would not exercise the per-chunk header"
+    assert all(
+        _Limiter().count_tokens(chunk) <= _NARROW_WINDOW for chunk in sent
+    ), "a chunk plus its instructions is larger than the model's window"
+    assert all("spine of it" in chunk for chunk in sent)
+    assert "latest request" in sent[-1]
+
+
 @pytest.mark.asyncio
 async def test_chunk_uses_the_budget_when_the_model_window_is_unknown(monkeypatch):
     sent = _recording_summarizer(monkeypatch)
